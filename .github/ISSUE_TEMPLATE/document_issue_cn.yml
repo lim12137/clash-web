@@ -1,0 +1,16 @@
+name: '文档问题'
+description: '报告文档问题'
+title: '[Document] '
+type: Feature
+labels: ['documentation']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        在创建新的 Issue 之前，请先[搜索已有问题](https://github.com/AI-Application-Innovation/nexent/issues)，包括已关闭的问题。  
+  - type: textarea
+    attributes:
+      label: '文档变更描述'
+      description: 请描述需要更正的文档以及原因。
+    validations:
+      required: true

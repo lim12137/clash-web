@@ -1,0 +1,11 @@
+.idea
+.env
+.vscode
+
+*.DS_Store
+*.egg-info
+*.pyc
+
+__pycache__/
+sdk/build
+uploads/
