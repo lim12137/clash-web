@@ -106,14 +106,14 @@ services:
     networks:
       - nexent
 
-  nexent-dataclean:
-    image: nexent-dataclean
-    container_name: nexent-dataclean
+  nexent-data-process:
+    image: nexent-data-process
+    container_name: nexent-data-process
     command: bash
     restart: always
     privileged: true
     ports:
-      - "5002:5002"
+      - "5012:5012"
     volumes:
       - /opt/nexent/uploads:/opt/backend/uploads:rw
     environment:
@@ -132,7 +132,7 @@ services:
       - nexent
     entrypoint: >
       /bin/sh -c "
-        python /opt/backend/dataclean_main.py || (cd /opt/backend && OPENBLAS_NUM_THREADS=1 UVICORN_LOOP=asyncio uvicorn dataclean_main:app --host 0.0.0.0 --port 5002)
+        python /opt/backend/data_process_service.py || (cd /opt/backend && OPENBLAS_NUM_THREADS=1 UVICORN_LOOP=asyncio uvicorn data_process_service:app --host 0.0.0.0 --port 5012)
       "
 
   nexent-minio:
