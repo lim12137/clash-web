@@ -1,0 +1,34 @@
+name: Sync from community to commercial
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # 每15分钟同步一次
+  workflow_dispatch:     # 允许手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout commercial repo
+        uses: actions/checkout@v4
+        with:
+          repository: nexent-hub/nexent-commercial
+          ref: main  # 明确指定分支
+          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}  # 必须配置SSH Key
+          fetch-depth: 0  # 获取完整历史
+
+      - name: Add community repo as remote
+        run: |
+          git remote add repo-community git@github.com:nexent-hub/nexent-community.git
+          git fetch repo-community --tags
+
+      - name: Merge community into commercial
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions-bot@github.com"
+          # 检查是否有实际变更
+          if ! git diff --quiet repo-community/main main; then
+            git merge repo-community/main --allow-unrelated-histories -m "🔀 Sync from A-repo $(date +'%Y-%m-%d %H:%M')"
+            git push origin main
+          else
+            echo "⏩ No changes to sync."
+          fi
