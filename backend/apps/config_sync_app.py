@@ -1,0 +1,197 @@
+import json
+import logging
+import os
+
+import dotenv
+from dotenv import set_key
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+
+from consts.model import GlobalConfig
+from utils.config_utils import get_env_key, safe_value, safe_list
+
+router = APIRouter(prefix="/config")
+
+# Get logger instance
+logger = logging.getLogger(__name__)
+
+@router.post("/save_config")
+async def save_config(config: GlobalConfig):
+    try:
+        env_path = os.path.join(".env")
+        logger.info(f"Saving config to {env_path}")
+
+        config_dict = config.model_dump(exclude_none=False)
+        env_config = {}
+
+        # Process app configuration - use key names directly without prefix
+        for key, value in config_dict.get("app", {}).items():
+            env_key = get_env_key(key)
+            env_config[env_key] = safe_value(value)
+
+        # Process model configuration
+        for model_type, model_config in config_dict.get("models", {}).items():
+            if not model_config:
+                continue
+
+            model_prefix = get_env_key(model_type)
+
+            # Process basic model attributes
+            for key, value in model_config.items():
+                if key == "apiConfig":
+                    # Process API configuration - use model name as prefix directly, without API_
+                    api_config = value or {}
+                    if api_config:
+                        for api_key, api_value in api_config.items():
+                            env_key = f"{model_prefix}_{get_env_key(api_key)}"
+                            env_config[env_key] = safe_value(api_value)
+                    else:
+                        # Set default empty values
+                        env_config[f"{model_prefix}_API_KEY"] = ""
+                        env_config[f"{model_prefix}_MODEL_URL"] = ""
+                else:
+                    env_key = f"{model_prefix}_{get_env_key(key)}"
+                    env_config[env_key] = safe_value(value)
+
+        # Process knowledge base configuration - use key names directly without prefix, store lists in JSON format
+        for key, value in config_dict.get("data", {}).items():
+            env_key = get_env_key(key)
+            if isinstance(value, list):
+                env_config[env_key] = safe_list(value)
+            else:
+                env_config[env_key] = safe_value(value)
+
+        # Batch update environment variables
+        for key, value in env_config.items():
+            set_key(env_path, key, value)
+
+        logger.info("Configuration saved successfully")
+        return JSONResponse(
+            status_code=200,
+            content={"message": "Configuration saved successfully", "status": "saved"}
+        )
+    except Exception as e:
+        logger.error(f"Failed to save configuration: {str(e)}")
+        return JSONResponse(
+            status_code=400,
+            content={"message": f"Failed to save configuration: {str(e)}", "status": "unsaved"}
+        )
+
+
+@router.get("/load_config")
+async def load_config():
+    """
+    Load configuration from environment variables
+    
+    Returns:
+        JSONResponse: JSON object containing configuration content
+    """
+    try:
+        env_path = os.getenv("ENV_PATH", ".env")
+
+        # Read environment variables
+        dotenv.load_dotenv(env_path)
+
+        # Build configuration object
+        # TODO: Clean up the default values
+        config = {
+            "app": {
+                "name": os.getenv("APP_NAME", "Smart Q&A"),
+                "description": os.getenv("APP_DESCRIPTION", ""),
+                "icon": {
+                    "type": os.getenv("ICON_TYPE", "preset"),
+                    "avatarUri": os.getenv("AVATAR_URI", ""),
+                    "customUrl": os.getenv("CUSTOM_ICON_URL", "")
+                }
+            },
+            "models": {
+                "llm": {
+                    "name": os.getenv("LLM_MODEL_NAME", ""),
+                    "displayName": os.getenv("LLM_DISPLAY_NAME", ""),
+                    "apiConfig": {
+                        "apiKey": os.getenv("LLM_API_KEY", ""),
+                        "modelUrl": os.getenv("LLM_MODEL_URL", "")
+                    }
+                },
+                "secondaryLlm": {
+                    "name": os.getenv("LLM_SECONDARY_MODEL_NAME", ""),
+                    "displayName": os.getenv("LLM_SECONDARY_DISPLAY_NAME", ""),
+                    "apiConfig": {
+                        "apiKey": os.getenv("LLM_SECONDARY_API_KEY", ""),
+                        "modelUrl": os.getenv("LLM_SECONDARY_MODEL_URL", "")
+                    }
+                },
+                "embedding": {
+                    "name": os.getenv("EMBEDDING_MODEL_NAME", ""),
+                    "displayName": os.getenv("EMBEDDING_DISPLAY_NAME", ""),
+                    "apiConfig": {
+                        "apiKey": os.getenv("EMBEDDING_API_KEY", ""),
+                        "modelUrl": os.getenv("EMBEDDING_MODEL_URL", "")
+                    }
+                },
+                "rerank": {
+                    "name": os.getenv("RERANK_MODEL_NAME", ""),
+                    "displayName": os.getenv("RERANK_DISPLAY_NAME", ""),
+                    "apiConfig": {
+                        "apiKey": os.getenv("RERANK_API_KEY", ""),
+                        "modelUrl": os.getenv("RERANK_MODEL_URL", "")
+                    }
+                },
+                "stt": {
+                    "name": os.getenv("STT_MODEL_NAME", ""),
+                    "displayName": os.getenv("STT_DISPLAY_NAME", ""),
+                    "apiConfig": {
+                        "apiKey": os.getenv("STT_API_KEY", ""),
+                        "modelUrl": os.getenv("STT_MODEL_URL", "")
+                    }
+                },
+                "tts": {
+                    "name": os.getenv("TTS_MODEL_NAME", ""),
+                    "displayName": os.getenv("TTS_DISPLAY_NAME", ""),
+                    "apiConfig": {
+                        "apiKey": os.getenv("TTS_API_KEY", ""),
+                        "modelUrl": os.getenv("TTS_MODEL_URL", "")
+                    }
+                }
+            },
+            "data": {
+                "selectedKbNames": json.loads(os.getenv("SELECTED_KB_NAMES", "[]")),
+                "selectedKbModels": json.loads(os.getenv("SELECTED_KB_MODELS", "[]")),
+                "selectedKbSources": json.loads(os.getenv("SELECTED_KB_SOURCES", "[]"))
+            }
+        }
+
+        return JSONResponse(
+            status_code=200,
+            content={"config": config}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=400,
+            content={"message": f"Failed to load configuration: {str(e)}", "status": "error"}
+        )
+
+
+@router.get("/get_config/selected_knowledge_base")
+async def get_selected_knowledge_base():
+    """
+    Get the list of selected knowledge bases configured in environment variables
+    
+    Returns:
+        JSONResponse: List containing names of selected knowledge bases
+    """
+    try:
+        # Get selected knowledge base names from environment variables
+        kb_names_str = os.getenv("SELECTED_KB_NAMES", "[]")
+        # Parse JSON string to Python list
+        kb_names = json.loads(kb_names_str)
+
+        return JSONResponse(
+            status_code=200,
+            content={"kb_names": kb_names}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=400,
+            content={"message": f"Failed to get knowledge base list: {str(e)}"}
+        )
