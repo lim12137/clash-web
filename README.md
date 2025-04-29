@@ -45,13 +45,17 @@ When the containers are running, open **http://localhost:3000** in your browser 
 
 ### 3. ❓ Need help?
 
-- Browse the [FAQ](#) for common install issues.  
+- Browse the [FAQ](FAQ.md) for common install issues.  
 - Drop questions in our [Discord community](https://discord.gg/tb5H3S3wyv).  
 - File bugs or feature ideas in [GitHub Issues](#).
 
 #### 4. 🔧 Hack on Nexent
 
 Want to build from source or add new features? Check the [Contribution Guide](CONTRIBUTING.md) for step-by-step instructions.
+
+#### 5. 🛠️ Build from Source
+
+Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_NOTE.md) for detailed setup instructions and customization options.
 
 ## ✨ Key Features
 
