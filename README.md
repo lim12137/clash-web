@@ -13,8 +13,8 @@ Nexent is an open-source agent SDK and platform that turns a single prompt into 
 
 We're still in our very first open-source phase and aiming for **Nexent v1-stable in June 2025**. Until then we'll keep shipping core features rapidly — and we'd love your help:
 
-* **📋 Follow the [Roadmap](#)** to see what's next.  
-* **🔍 Try the current build** and leave ideas or bugs in the [Issues](#) tab.
+* **📋 Follow the [Roadmap(Comming)](#)** to see what's next.  
+* **🔍 Try the current build** and leave ideas or bugs in the [Issues](https://github.com/nexent-hub/nexent-community/issues) tab.
 
 > *Rome wasn't built in a day.*
 
@@ -37,7 +37,7 @@ Most of all, we need visibility. Star ⭐ and watch the repo, share it with frie
 ### 2. 🛠️ Quick start with Docker Compose
 
 ```bash
-git clone git@github.com:AI-Application-Innovation/nexent.git
+git clone git@github.com:nexent-hub/nexent-community.git
 sh docker/deploy.sh
 ```
 
@@ -45,13 +45,19 @@ When the containers are running, open **http://localhost:3000** in your browser 
 
 ### 3. ❓ Need help?
 
-- Browse the [FAQ](#) for common install issues.  
+- Browse the [FAQ](FAQ.md) for common install issues.  
 - Drop questions in our [Discord community](https://discord.gg/tb5H3S3wyv).  
-- File bugs or feature ideas in [GitHub Issues](#).
+- File bugs or feature ideas in [GitHub Issues](https://github.com/nexent-hub/nexent-community/issues).
+
+> ℹ️ Due to core features development, currently, we only support Jina Embedding model. Support for other models will be added in future releases. For Jina API key setup, please refer to our [FAQ](FAQ.md).
 
 #### 4. 🔧 Hack on Nexent
 
 Want to build from source or add new features? Check the [Contribution Guide](CONTRIBUTING.md) for step-by-step instructions.
+
+#### 5. 🛠️ Build from Source
+
+Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_NOTE.md) for detailed setup instructions and customization options.
 
 ## ✨ Key Features
 
@@ -90,16 +96,20 @@ Want to build from source or add new features? Check the [Contribution Guide](CO
 
    ![Feature 7](./assets/Feature7.png)
 
-# Known issues
+# 🐛 Known Issues
 
+1. 🔄 **Knowledge Base Refresh Delays**  
+   We are aware that the knowledge base refresh mechanism currently has some delays, occasional errors, or instances where refreshes don't take effect. We plan to refactor this part soon, but please note that this is only a task management logic issue - the actual data processing speed is not affected.
 
+2. 🤖 **Limited Model Provider Support**  
+   We currently have limited support for different model providers, including voice and multimodal models. We will be rapidly updating this support in the coming weeks - stay tuned for updates!
 
 # 👥 Contributing
 
 We welcome all kinds of contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes Nexent better for everyone. 
 
 - 📖 Read our [Contribution Guide](CONTRIBUTING.md) to get started
-- 🐛 Report bugs or suggest features in [GitHub Issues](#)
+- 🐛 Report bugs or suggest features in [GitHub Issues](https://github.com/nexent-hub/nexent-community/issues)
 - 💬 Join our [Discord community](https://discord.gg/tb5H3S3wyv) to discuss ideas
 
 # 💬 Community & contact

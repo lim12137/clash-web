@@ -51,12 +51,12 @@ class BaseEmbedding(ABC):
 
 
 class JinaEmbedding(BaseEmbedding):
-    def __init__(self, model_name: str, base_url: str, api_key: str, embedding_dim: int = 1024):
+    def __init__(self, api_key: str):
         """Initialize JinaEmbedding with configuration from environment variables."""
         self.api_key = api_key
-        self.api_url = base_url
-        self.model = model_name
-        self.embedding_dim = embedding_dim
+        self.api_url = "https://api.jina.ai/v1/embeddings"
+        self.model = "jina-clip-v2"
+        self.embedding_dim = 1024
 
         self.headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
 

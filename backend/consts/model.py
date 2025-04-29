@@ -26,15 +26,15 @@ class ModelConnectStatusEnum(Enum):
 
 # Request models for user authentication
 STATUS_CODES = {
-    "SUCCESS": 200,               
-    
+    "SUCCESS": 200,
+
     # 客户端错误状态码
-    "USER_EXISTS": 1001,          
-    "INVALID_CREDENTIALS": 1002,  
-    "TOKEN_EXPIRED": 1003,        
-    "UNAUTHORIZED": 1004,         
-    "SERVER_ERROR": 1005,         
-    "INVALID_INPUT": 1006,        
+    "USER_EXISTS": 1001,
+    "INVALID_CREDENTIALS": 1002,
+    "TOKEN_EXPIRED": 1003,
+    "UNAUTHORIZED": 1004,
+    "SERVER_ERROR": 1005,
+    "INVALID_INPUT": 1006,
     "AUTH_SERVICE_UNAVAILABLE": 1007,
 }
 

@@ -1,13 +1,11 @@
 import json
 import logging
-import os
 
-import dotenv
-from dotenv import set_key
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from consts.model import GlobalConfig
+from utils.agent_utils import config_manager
 from utils.config_utils import get_env_key, safe_value, safe_list
 
 router = APIRouter(prefix="/config")
@@ -18,9 +16,6 @@ logger = logging.getLogger(__name__)
 @router.post("/save_config")
 async def save_config(config: GlobalConfig):
     try:
-        env_path = os.path.join(".env")
-        logger.info(f"Saving config to {env_path}")
-
         config_dict = config.model_dump(exclude_none=False)
         env_config = {}
 
@@ -63,7 +58,7 @@ async def save_config(config: GlobalConfig):
 
         # Batch update environment variables
         for key, value in env_config.items():
-            set_key(env_path, key, value)
+            config_manager.set_config(key, value)
 
         logger.info("Configuration saved successfully")
         return JSONResponse(
@@ -87,77 +82,72 @@ async def load_config():
         JSONResponse: JSON object containing configuration content
     """
     try:
-        env_path = os.getenv("ENV_PATH", ".env")
-
-        # Read environment variables
-        dotenv.load_dotenv(env_path)
-
         # Build configuration object
         # TODO: Clean up the default values
         config = {
             "app": {
-                "name": os.getenv("APP_NAME", "Nexent 智能体"),
-                "description": os.getenv("APP_DESCRIPTION", "Nexent 是一个开源智能体SDK和平台，能够将单一提示词转化为完整的多模态服务 —— 无需编排，无需复杂拖拉拽。基于 MCP 工具生态系统构建，Nexent 提供灵活的模型集成、可扩展的数据处理和强大的知识库管理。我们的目标很简单：将数据、模型和工具整合到一个智能中心中，让任何人都能轻松地将 Nexent 集成到项目中，使日常工作流程更智能、更互联。"),
+                "name": config_manager.get_config("APP_NAME", "Nexent 智能体"),
+                "description": config_manager.get_config("APP_DESCRIPTION", "Nexent 是一个开源智能体SDK和平台，能够将单一提示词转化为完整的多模态服务 —— 无需编排，无需复杂拖拉拽。基于 MCP 工具生态系统构建，Nexent 提供灵活的模型集成、可扩展的数据处理和强大的知识库管理。我们的目标很简单：将数据、模型和工具整合到一个智能中心中，让任何人都能轻松地将 Nexent 集成到项目中，使日常工作流程更智能、更互联。"),
                 "icon": {
-                    "type": os.getenv("ICON_TYPE", "preset"),
-                    "avatarUri": os.getenv("AVATAR_URI", ""),
-                    "customUrl": os.getenv("CUSTOM_ICON_URL", "")
+                    "type": config_manager.get_config("ICON_TYPE", "preset"),
+                    "avatarUri": config_manager.get_config("AVATAR_URI", ""),
+                    "customUrl": config_manager.get_config("CUSTOM_ICON_URL", "")
                 }
             },
             "models": {
                 "llm": {
-                    "name": os.getenv("LLM_MODEL_NAME", ""),
-                    "displayName": os.getenv("LLM_DISPLAY_NAME", ""),
+                    "name": config_manager.get_config("LLM_MODEL_NAME", ""),
+                    "displayName": config_manager.get_config("LLM_DISPLAY_NAME", ""),
                     "apiConfig": {
-                        "apiKey": os.getenv("LLM_API_KEY", ""),
-                        "modelUrl": os.getenv("LLM_MODEL_URL", "")
+                        "apiKey": config_manager.get_config("LLM_API_KEY", ""),
+                        "modelUrl": config_manager.get_config("LLM_MODEL_URL", "")
                     }
                 },
                 "secondaryLlm": {
-                    "name": os.getenv("LLM_SECONDARY_MODEL_NAME", ""),
-                    "displayName": os.getenv("LLM_SECONDARY_DISPLAY_NAME", ""),
+                    "name": config_manager.get_config("LLM_SECONDARY_MODEL_NAME", ""),
+                    "displayName": config_manager.get_config("LLM_SECONDARY_DISPLAY_NAME", ""),
                     "apiConfig": {
-                        "apiKey": os.getenv("LLM_SECONDARY_API_KEY", ""),
-                        "modelUrl": os.getenv("LLM_SECONDARY_MODEL_URL", "")
+                        "apiKey": config_manager.get_config("LLM_SECONDARY_API_KEY", ""),
+                        "modelUrl": config_manager.get_config("LLM_SECONDARY_MODEL_URL", "")
                     }
                 },
                 "embedding": {
-                    "name": os.getenv("EMBEDDING_MODEL_NAME", ""),
-                    "displayName": os.getenv("EMBEDDING_DISPLAY_NAME", ""),
+                    "name": config_manager.get_config("EMBEDDING_MODEL_NAME", ""),
+                    "displayName": config_manager.get_config("EMBEDDING_DISPLAY_NAME", ""),
                     "apiConfig": {
-                        "apiKey": os.getenv("EMBEDDING_API_KEY", ""),
-                        "modelUrl": os.getenv("EMBEDDING_MODEL_URL", "")
+                        "apiKey": config_manager.get_config("EMBEDDING_API_KEY", ""),
+                        "modelUrl": config_manager.get_config("EMBEDDING_MODEL_URL", "")
                     }
                 },
                 "rerank": {
-                    "name": os.getenv("RERANK_MODEL_NAME", ""),
-                    "displayName": os.getenv("RERANK_DISPLAY_NAME", ""),
+                    "name": config_manager.get_config("RERANK_MODEL_NAME", ""),
+                    "displayName": config_manager.get_config("RERANK_DISPLAY_NAME", ""),
                     "apiConfig": {
-                        "apiKey": os.getenv("RERANK_API_KEY", ""),
-                        "modelUrl": os.getenv("RERANK_MODEL_URL", "")
+                        "apiKey": config_manager.get_config("RERANK_API_KEY", ""),
+                        "modelUrl": config_manager.get_config("RERANK_MODEL_URL", "")
                     }
                 },
                 "stt": {
-                    "name": os.getenv("STT_MODEL_NAME", ""),
-                    "displayName": os.getenv("STT_DISPLAY_NAME", ""),
+                    "name": config_manager.get_config("STT_MODEL_NAME", ""),
+                    "displayName": config_manager.get_config("STT_DISPLAY_NAME", ""),
                     "apiConfig": {
-                        "apiKey": os.getenv("STT_API_KEY", ""),
-                        "modelUrl": os.getenv("STT_MODEL_URL", "")
+                        "apiKey": config_manager.get_config("STT_API_KEY", ""),
+                        "modelUrl": config_manager.get_config("STT_MODEL_URL", "")
                     }
                 },
                 "tts": {
-                    "name": os.getenv("TTS_MODEL_NAME", ""),
-                    "displayName": os.getenv("TTS_DISPLAY_NAME", ""),
+                    "name": config_manager.get_config("TTS_MODEL_NAME", ""),
+                    "displayName": config_manager.get_config("TTS_DISPLAY_NAME", ""),
                     "apiConfig": {
-                        "apiKey": os.getenv("TTS_API_KEY", ""),
-                        "modelUrl": os.getenv("TTS_MODEL_URL", "")
+                        "apiKey": config_manager.get_config("TTS_API_KEY", ""),
+                        "modelUrl": config_manager.get_config("TTS_MODEL_URL", "")
                     }
                 }
             },
             "data": {
-                "selectedKbNames": json.loads(os.getenv("SELECTED_KB_NAMES", "[]")),
-                "selectedKbModels": json.loads(os.getenv("SELECTED_KB_MODELS", "[]")),
-                "selectedKbSources": json.loads(os.getenv("SELECTED_KB_SOURCES", "[]"))
+                "selectedKbNames": json.loads(config_manager.get_config("SELECTED_KB_NAMES", "[]")),
+                "selectedKbModels": json.loads(config_manager.get_config("SELECTED_KB_MODELS", "[]")),
+                "selectedKbSources": json.loads(config_manager.get_config("SELECTED_KB_SOURCES", "[]"))
             }
         }
 
@@ -182,7 +172,7 @@ async def get_selected_knowledge_base():
     """
     try:
         # Get selected knowledge base names from environment variables
-        kb_names_str = os.getenv("SELECTED_KB_NAMES", "[]")
+        kb_names_str = config_manager.get_config("SELECTED_KB_NAMES", "[]")
         # Parse JSON string to Python list
         kb_names = json.loads(kb_names_str)
 

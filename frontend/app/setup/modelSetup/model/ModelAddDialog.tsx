@@ -19,6 +19,16 @@ interface ModelAddDialogProps {
   onSuccess: (model?: AddedModel) => Promise<void>
 }
 
+const DEFAULT_MODEL_CONFIG: Record<string, any> = {
+  embedding: {
+    modelName: "jina-clip-v2",
+    displayName: "jina-clip-v2",
+    apiConfig: {
+      modelUrl: "https://api.jina.ai/v1/embeddings",
+    }
+  }
+}
+
 export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogProps) => {
   const { updateModelConfig } = useConfig()
   const [form, setForm] = useState({
@@ -61,6 +71,9 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
 
   // 检查表单是否有效
   const isFormValid = () => {
+    if (form.type === "embedding") {
+      return form.apiKey.trim() !== ""
+    }
     return form.name.trim() !== "" && 
            form.url.trim() !== "" && 
            form.maxTokens.trim() !== ""
@@ -71,21 +84,21 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     try {
       // 添加到后端服务
       await modelService.addCustomModel({
-        name: form.name,
+        name: form.name || DEFAULT_MODEL_CONFIG[form.type]?.modelName,
         type: form.type,
-        url: form.url,
-        apiKey: form.apiKey || undefined,
+        url: form.url || DEFAULT_MODEL_CONFIG[form.type]?.apiConfig?.modelUrl,
+        apiKey: form.apiKey || DEFAULT_MODEL_CONFIG[form.type]?.apiConfig?.apiKey,
         maxTokens: parseInt(form.maxTokens),
-        displayName: form.displayName || undefined
+        displayName: form.displayName || form.name || DEFAULT_MODEL_CONFIG[form.type]?.displayName
       })
       
       // 创建模型配置对象
       const modelConfig: SingleModelConfig = {
-        modelName: form.name,
-        displayName: form.displayName || form.name,
+        modelName: form.name || DEFAULT_MODEL_CONFIG[form.type]?.modelName,
+        displayName: form.displayName || form.name || DEFAULT_MODEL_CONFIG[form.type]?.displayName,
         apiConfig: {
-          apiKey: form.apiKey || "",
-          modelUrl: form.url || "",
+          apiKey: form.apiKey || DEFAULT_MODEL_CONFIG[form.type]?.apiConfig?.apiKey,
+          modelUrl: form.url || DEFAULT_MODEL_CONFIG[form.type]?.apiConfig?.modelUrl,
         }
       }
       
@@ -121,7 +134,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       
       // 重置表单
       setForm({
-        type: "llm",
+        type: form.type,
         name: "",
         displayName: "",
         url: "",
@@ -139,6 +152,8 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       console.error('添加模型失败:', error)
     }
   }
+
+  const isNotEmbeddingModel = form.type !== "embedding"
 
   return (
     <Modal
@@ -160,90 +175,98 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
             onChange={(value) => handleFormChange("type", value)}
           >
             <Option value="llm">大语言模型</Option>
-            <Option value="embedding" disabled>Embedding模型</Option>
+            <Option value="embedding">Embedding模型</Option>
             <Option value="rerank" disabled>Rerank模型</Option>
             <Option value="stt" disabled>语音识别模型</Option>
             <Option value="tts" disabled>语音合成模型</Option>
           </Select>
         </div>
 
-        {/* Model Name */}
-        <div>
-          <label htmlFor="name" className="block mb-1 text-sm font-medium text-gray-700">
-            模型名称 <span className="text-red-500">*</span>
-          </label>
-          <Input
-            id="name"
-            placeholder="请输入请求体中的模型名称"
-            value={form.name}
-            onChange={handleModelNameChange}
-          />
-        </div>
+        {isNotEmbeddingModel && (
+          <>
+            {/* Model Name */}
+            <div>
+              <label htmlFor="name" className="block mb-1 text-sm font-medium text-gray-700">
+                模型名称 <span className="text-red-500">*</span>
+              </label>
+              <Input
+                id="name"
+                placeholder="请输入请求体中的模型名称"
+                value={form.name}
+                onChange={handleModelNameChange}
+              />
+            </div>
 
-        {/* Display Name */}
-        <div>
-          <label htmlFor="displayName" className="block mb-1 text-sm font-medium text-gray-700">
-            展示名称
-          </label>
-          <Input
-            id="displayName"
-            placeholder="请输入模型的展示名称（可选）"
-            value={form.displayName}
-            onChange={(e) => handleFormChange("displayName", e.target.value)}
-          />
-        </div>
+            {/* Display Name */}
+            <div>
+              <label htmlFor="displayName" className="block mb-1 text-sm font-medium text-gray-700">
+                展示名称
+              </label>
+              <Input
+                id="displayName"
+                placeholder="请输入模型的展示名称（可选）"
+                value={form.displayName}
+                onChange={(e) => handleFormChange("displayName", e.target.value)}
+              />
+            </div>
 
-        {/* Model URL */}
-        <div>
-          <label htmlFor="url" className="block mb-1 text-sm font-medium text-gray-700">
-            模型URL <span className="text-red-500">*</span>
-          </label>
-          <Input
-            id="url"
-            placeholder="请输入模型URL, 例如: https://api.openai.com/v1"
-            value={form.url}
-            onChange={(e) => handleFormChange("url", e.target.value)}
-          />
-        </div>
+            {/* Model URL */}
+            <div>
+              <label htmlFor="url" className="block mb-1 text-sm font-medium text-gray-700">
+                模型URL <span className="text-red-500">*</span>
+              </label>
+              <Input
+                id="url"
+                placeholder="请输入模型URL, 例如: https://api.openai.com/v1"
+                value={form.url}
+                onChange={(e) => handleFormChange("url", e.target.value)}
+              />
+            </div>
+          </>
+        )}
 
         {/* API Key */}
         <div>
           <label htmlFor="apiKey" className="block mb-1 text-sm font-medium text-gray-700">
-            API Key
+            API Key {!isNotEmbeddingModel && <span className="text-red-500">*</span>}
           </label>
           <Input.Password
             id="apiKey"
-            placeholder="请输入API Key（可选）"
+            placeholder={!isNotEmbeddingModel ? "请输入API Key" : "请输入API Key（可选）"}
             value={form.apiKey}
             onChange={(e) => handleFormChange("apiKey", e.target.value)}
           />
         </div>
 
-        {/* Max Tokens */}
-        <div>
-          <label htmlFor="maxTokens" className="block mb-1 text-sm font-medium text-gray-700">
-            最大Token数 <span className="text-red-500">*</span>
-          </label>
-          <Input
-            id="maxTokens"
-            placeholder="请输入最大Token数"
-            value={form.maxTokens}
-            onChange={(e) => handleFormChange("maxTokens", e.target.value)}
-          />
-        </div>
-
-        {/* Help Text */}
-        <div className="p-3 bg-blue-50 border border-blue-100 rounded-md text-xs text-blue-700">
-          <div>
-            <div className="flex items-center mb-1">
-              <InfoCircleFilled className="text-md text-blue-500 mr-3" />
-              <p className="font-bold text-medium">模型配置说明</p>
+        {isNotEmbeddingModel && (
+          <>
+            {/* Max Tokens */}
+            <div>
+              <label htmlFor="maxTokens" className="block mb-1 text-sm font-medium text-gray-700">
+                最大Token数 <span className="text-red-500">*</span>
+              </label>
+              <Input
+                id="maxTokens"
+                placeholder="请输入最大Token数"
+                value={form.maxTokens}
+                onChange={(e) => handleFormChange("maxTokens", e.target.value)}
+              />
             </div>
-            <p className="mt-0.5 ml-6">
-              请填写模型的基本信息，API Key、展示名称为可选项，其他字段为必填项。添加后可在下拉列表中选择该模型。
-            </p>
-          </div>
-        </div>
+
+            {/* Help Text */}
+            <div className="p-3 bg-blue-50 border border-blue-100 rounded-md text-xs text-blue-700">
+              <div>
+                <div className="flex items-center mb-1">
+                  <InfoCircleFilled className="text-md text-blue-500 mr-3" />
+                  <p className="font-bold text-medium">模型配置说明</p>
+                </div>
+                <p className="mt-0.5 ml-6">
+                  请填写模型的基本信息，API Key、展示名称为可选项，其他字段为必填项。添加后可在下拉列表中选择该模型。
+                </p>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Footer Buttons */}
         <div className="flex justify-end space-x-3">

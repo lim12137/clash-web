@@ -36,9 +36,6 @@ interface ChatSidebarProps {
   onDropdownOpenChange: (open: boolean, id: string | null) => void
   onToggleSidebar: () => void
   expanded: boolean
-  userEmail?: string | null
-  userAvatarUrl?: string | null
-  userRole?: string
 }
 
 // 辅助函数 - 对话分类
