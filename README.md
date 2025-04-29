@@ -96,9 +96,13 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 
    ![Feature 7](./assets/Feature7.png)
 
-# Known issues
+# 🐛 Known Issues
 
+1. 🔄 **Knowledge Base Refresh Delays**  
+   We are aware that the knowledge base refresh mechanism currently has some delays, occasional errors, or instances where refreshes don't take effect. We plan to refactor this part soon, but please note that this is only a task management logic issue - the actual data processing speed is not affected.
 
+2. 🤖 **Limited Model Provider Support**  
+   We currently have limited support for different model providers, including voice and multimodal models. We will be rapidly updating this support in the coming weeks - stay tuned for updates!
 
 # 👥 Contributing
 
