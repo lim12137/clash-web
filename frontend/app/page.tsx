@@ -5,6 +5,11 @@ import { Bot, Globe, Database, Zap, Mic, FileSearch, Shield } from "lucide-react
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
+import { AvatarDropdown } from "@/components/auth/avatarDropdown"
+import { LoginModal } from "@/components/auth/loginModal"
+import { RegisterModal } from "@/components/auth/registerModal"
+import { useAuth } from "@/hooks/useAuth"
+import { Modal, ConfigProvider } from "antd"
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
@@ -19,6 +24,55 @@ export default function Home() {
   }
 
   return (
+    <ConfigProvider getPopupContainer={() => document.body}>
+      <FrontpageContent />
+    </ConfigProvider>
+  )
+}
+
+function FrontpageContent() {
+  const { user, isLoading: userLoading, openLoginModal, openRegisterModal } = useAuth()
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false)
+  const [adminRequiredPromptOpen, setAdminRequiredPromptOpen] = useState(false)
+
+  // 处理需要登录的操作
+  const handleAuthRequired = (e: React.MouseEvent) => {
+    if (!user) {
+      e.preventDefault()
+      setLoginPromptOpen(true)
+    }
+  }
+
+  // 确认登录对话框
+  const handleCloseLoginPrompt = () => {
+    setLoginPromptOpen(false)
+  }
+
+  // 处理登录按钮点击
+  const handleLoginClick = () => {
+    setLoginPromptOpen(false)
+    openLoginModal()
+  }
+
+  // 处理注册按钮点击
+  const handleRegisterClick = () => {
+    setLoginPromptOpen(false)
+    openRegisterModal()
+  }
+
+  // 处理需要管理员权限的操作
+  const handleAdminRequired = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setAdminRequiredPromptOpen(true)
+  }
+
+  // 关闭管理员提示框
+  const handleCloseAdminPrompt = () => {
+    setAdminRequiredPromptOpen(false)
+  }
+
+  // 重构：风格被嵌入在组件内
+  return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       {/* 顶部导航栏 */}
       <header className="w-full py-4 px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm fixed top-0 z-10">
@@ -29,19 +83,25 @@ export default function Home() {
           </h1>
         </div>
         <div className="hidden md:flex items-center gap-6">
-          <Link
-            href="#"
-            className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
-          >
-            ModelEngine
-          </Link>
-          <Link
-            href="#"
-            className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
-          >
-            关于我们
-          </Link>
+          {userLoading ? (
+            <span className="text-sm font-medium text-slate-600">
+              加载中...
+            </span>
+          ) : user ? (
+            <span className="text-sm font-medium text-slate-600">
+              欢迎，{user.email}
+            </span>
+          ) : (
+            <Link
+              href="#"
+              className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
+            >
+              ModelEngine
+            </Link>
+          )}
+          <AvatarDropdown />
         </div>
+        {/* 重构：链接是否合理 */}
         <Button variant="ghost" size="icon" className="md:hidden">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -77,20 +137,52 @@ export default function Home() {
 
           {/* 两个平行按钮 */}
           <div className="flex flex-col sm:flex-row gap-4">
-            <Link href="/chat">
+            {user ? (
+              <Link href="/chat">
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+                >
+                  <Bot className="mr-2 h-5 w-5 group-hover:animate-pulse" />
+                  开始问答
+                </Button>
+              </Link>
+            ) : (
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+                onClick={handleAuthRequired}
               >
                 <Bot className="mr-2 h-5 w-5 group-hover:animate-pulse" />
                 开始问答
               </Button>
-            </Link>
-            <Link href="/setup">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
+            )}
+
+            {!user ? (
+              // 未登录用户
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+                onClick={handleAuthRequired}
+              >
                 <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
                 快速配置
               </Button>
-            </Link>
+            ) : user.role === "admin" ? (
+              // 管理员用户
+              <Link href="/setup">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
+                  <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
+                  快速配置
+                </Button>
+              </Link>
+            ) : (
+              // 普通用户
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
+                onClick={handleAdminRequired}
+              >
+                <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
+                快速配置
+              </Button>
+            )}
           </div>
 
           <div className="mt-12 flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
@@ -181,6 +273,73 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* 登录提示对话框 */}
+      <Modal
+        title="登录账号"
+        open={loginPromptOpen}
+        onCancel={handleCloseLoginPrompt}
+        footer={[
+          <Button
+            key="register"
+            variant="link"
+            onClick={handleRegisterClick}
+            className="bg-white mr-2"
+          >
+            注册
+          </Button>,
+          <Button
+            key="login"
+            onClick={handleLoginClick}
+            className="bg-blue-600 text-white hover:bg-blue-700"
+          >
+            立即登录
+          </Button>,
+        ]}
+        centered
+      >
+        <div className="py-2">
+          <h3 className="text-base font-medium mb-2">🚀 准备启航！</h3>
+          <p className="text-gray-600 mb-3">登录您的账户，开启智能问答之旅~</p>
+
+          <div className="rounded-md mb-6 mt-3">
+            <h3 className="text-base font-medium mb-1">✨ 登录后您将获得：</h3>
+            <ul className="text-gray-600 pl-5 list-disc">
+              <li>专属的对话历史记录</li>
+              <li>个性化的智能推荐</li>
+              <li>企业知识库完整访问权限</li>
+              <li>更精准的问答体验</li>
+            </ul>
+          </div>
+
+          <p className="text-gray-500 text-xs">还没有账号？点击"注册"按钮创建您的专属账号~</p>
+        </div>
+      </Modal>
+
+      {/* 登录和注册模态框 */}
+      <LoginModal />
+      <RegisterModal />
+
+      {/* 管理员提示对话框 */}
+      <Modal
+        title="啊哦，您不是管理员"
+        open={adminRequiredPromptOpen}
+        onCancel={handleCloseAdminPrompt}
+        footer={[
+          <Button
+            key="close"
+            onClick={handleCloseAdminPrompt}
+            className="bg-blue-600 text-white hover:bg-blue-700"
+          >
+            好的
+          </Button>,
+        ]}
+        centered
+      >
+        <div className="py-2">
+          <p className="text-gray-600">只有管理员可以调整配置，请先登录为管理员账号~</p>
+        </div>
+      </Modal>
     </div>
   )
 }

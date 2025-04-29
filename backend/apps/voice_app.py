@@ -26,9 +26,6 @@ class VoiceService:
         self.stt_model = STTModel(self.stt_config)
         self.tts_model = TTSModel(self.tts_config)
 
-        print(f"STT Config: {self.stt_config}")
-        print(f"TTS Config: {self.tts_config}")
-
         # Create FastAPI application
         self.router = APIRouter(prefix="/voice")
 

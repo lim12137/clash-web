@@ -9,6 +9,7 @@ from database.conversation_db import create_conversation, get_conversation_list,
     delete_conversation, \
     get_conversation_history, get_source_images_by_message, get_source_images_by_conversation, \
     get_source_searches_by_message, get_source_searches_by_conversation, get_conversation, update_message_opinion
+from database.utils import get_current_user_id
 from utils.conversation_management_utils import extract_user_messages, call_llm_for_title, update_conversation_title
 
 router = APIRouter(prefix="/conversation")
@@ -32,7 +33,8 @@ async def create_new_conversation(request: ConversationRequest, authorization: O
             - update_time: Update timestamp (milliseconds)
     """
     try:
-        conversation_data = create_conversation(request.title)
+        user_id = get_current_user_id(authorization)
+        conversation_data = create_conversation(request.title, user_id)
 
         return ConversationResponse(
             code=0,
@@ -64,7 +66,8 @@ async def list_conversations(authorization: Optional[str] = Header(None)):
             - message: "success" success message
     """
     try:
-        conversations = get_conversation_list()
+        user_id = get_current_user_id(authorization)
+        conversations = get_conversation_list(user_id)
 
         return ConversationResponse(
             code=0,
@@ -95,7 +98,9 @@ async def rename_conversation_title(request: RenameRequest, authorization: Optio
             - message: "success" success message
     """
     try:
-        success = rename_conversation(request.conversation_id, request.name)
+        user_id = get_current_user_id(authorization)
+
+        success = rename_conversation(request.conversation_id, request.name, user_id)
 
         if not success:
             raise HTTPException(
@@ -132,7 +137,8 @@ async def delete_conversation_by_id(conversation_id: int, authorization: Optiona
             - message: "success" success message
     """
     try:
-        success = delete_conversation(conversation_id)
+        user_id = get_current_user_id(authorization)
+        success = delete_conversation(conversation_id, user_id)
 
         if not success:
             raise HTTPException(
@@ -178,8 +184,9 @@ async def get_conversation_history_by_id(conversation_id: int, authorization: Op
             - message: "success" success message
     """
     try:
-        # Get original conversation history data
-        history_data = get_conversation_history(conversation_id)
+        user_id = get_current_user_id(authorization)
+		# Get original conversation history data
+        history_data = get_conversation_history(conversation_id, user_id)
 
         if not history_data:
             raise HTTPException(
@@ -311,6 +318,7 @@ async def get_sources(request: Dict[str, Any], authorization: Optional[str] = He
             - message: "success" success message
     """
     try:
+        user_id = get_current_user_id(authorization)
         conversation_id = request.get("conversation_id")
         message_id = request.get("message_id")
         source_type = request.get("type", "all")
@@ -324,7 +332,7 @@ async def get_sources(request: Dict[str, Any], authorization: Optional[str] = He
 
         # If conversation ID is provided
         if conversation_id:
-            conversation = get_conversation(conversation_id)
+            conversation = get_conversation(conversation_id, user_id)
             if not conversation:
                 return {
                     "code": 404,
@@ -338,9 +346,9 @@ async def get_sources(request: Dict[str, Any], authorization: Optional[str] = He
         if source_type in ["image", "all"]:
             images = []
             if message_id:
-                image_records = get_source_images_by_message(message_id)
+                image_records = get_source_images_by_message(message_id, user_id)
             elif conversation_id:
-                image_records = get_source_images_by_conversation(conversation_id)
+                image_records = get_source_images_by_conversation(conversation_id, user_id)
 
             for image in image_records:
                 images.append(image["image_url"])
@@ -351,9 +359,9 @@ async def get_sources(request: Dict[str, Any], authorization: Optional[str] = He
         if source_type in ["search", "all"]:
             searches = []
             if message_id:
-                search_records = get_source_searches_by_message(message_id)
+                search_records = get_source_searches_by_message(message_id, user_id)
             elif conversation_id:
-                search_records = get_source_searches_by_conversation(conversation_id)
+                search_records = get_source_searches_by_conversation(conversation_id, user_id)
 
             for record in search_records:
                 search_item = {
@@ -414,13 +422,14 @@ async def generate_conversation_title(request: GenerateTitleRequest, authorizati
     """
     try:
         # Extract user messages
+        user_id = get_current_user_id(authorization)
         content = extract_user_messages(request.history)
 
         # Call LLM to generate title
         title = call_llm_for_title(content)
 
         # Update conversation title
-        update_conversation_title(request.conversation_id, title)
+        update_conversation_title(request.conversation_id, title, user_id)
 
         return ConversationResponse(
             code=0,

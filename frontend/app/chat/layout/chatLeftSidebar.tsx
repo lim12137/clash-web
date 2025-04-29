@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdownMenu"
 import {
@@ -10,6 +11,7 @@ import {
   MoreHorizontal,
   ChevronLeft,
   ChevronRight,
+  User,
 } from "lucide-react"
 import { ConversationListItem } from "@/types/chat" // 需要创建这个类型文件
 import { Input } from "@/components/ui/input"
@@ -17,6 +19,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useConfig } from "@/hooks/useConfig"
 import { useResponsiveTextSize } from "@/hooks/useResponsiveTextSize"
+import { Spin, Tag, ConfigProvider } from "antd"
+import { getRoleColor, getRoleText } from "@/lib/auth"
+import { useAuth } from "@/hooks/useAuth"
 import { extractColorsFromUri } from "@/lib/avatar"
 
 interface ChatSidebarProps {
@@ -77,11 +82,17 @@ export function ChatSidebar({
   onDropdownOpenChange,
   onToggleSidebar,
   expanded,
+  userEmail,
+  userAvatarUrl,
+  userRole = "user",
 }: ChatSidebarProps) {
   const { today, week, older } = categorizeDialogs(conversationList)
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 获取用户认证状态
+  const { isLoading: userAuthLoading } = useAuth();
 
   // 添加删除对话框状态
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -308,7 +319,38 @@ export function ChatSidebar({
           </TooltipProvider>
         </div>
 
-        {/* 底部区域 */}
+        {/* 底部区域：用户状态/设置按钮 */}
+        {userAuthLoading ? (
+          <div className="py-2 flex justify-center">
+            <div className="h-8 w-8 flex items-center justify-center">
+              <Spin size="default" />
+            </div>
+          </div>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="py-2 flex justify-center cursor-pointer">
+                  <div className="h-8 w-8 rounded-full overflow-hidden" style={{ backgroundColor: "#f0f2f5" }}>
+                    {userAvatarUrl ? (
+                      <img src={userAvatarUrl} alt={userEmail || "用户"} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full bg-gray-200 flex items-center justify-center">
+                        <User className="h-5 w-5" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </TooltipTrigger>
+              {userEmail && (
+                <TooltipContent side="right">
+                  {userEmail}
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
         {/* 设置按钮 */}
         <TooltipProvider>
           <Tooltip>
@@ -395,16 +437,61 @@ export function ChatSidebar({
               </div>
             </div>
 
-            <div className="mt-auto p-3 border-t border-transparent flex justify-between items-center">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-full hover:bg-slate-100"
-                onClick={onSettingsClick}
-              >
-                <Settings className="h-8 w-8" />
-              </Button>
-            </div>
+          <div className="mt-auto p-3 border-t border-transparent flex justify-between items-center">
+            {userAuthLoading ? (
+              <div className="flex items-center">
+                <div className="h-8 w-8 mr-2 flex items-center justify-center">
+                  <Spin size="default" />
+                </div>
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                  加载中...
+                </span>
+              </div>
+            ) : (
+              <ConfigProvider getPopupContainer={() => document.body}>
+                <div className="flex items-center py-1 px-2">
+                  <div className="h-8 w-8 rounded-full overflow-hidden mr-2">
+                    {userAvatarUrl ? (
+                      <img src={userAvatarUrl} alt={userEmail || "用户"} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full bg-gray-200 flex items-center justify-center">
+                        <User className="h-5 w-5" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col overflow-hidden">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="text-xs font-medium text-slate-600 dark:text-slate-300 truncate">
+                            {userEmail || ""}
+                          </div>
+                        </TooltipTrigger>
+                        {userEmail && (
+                          <TooltipContent side="top">
+                            {userEmail}
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                    {userRole && (
+                      <Tag color={getRoleColor(userRole)} className="mt-1 cursor-auto w-fit">
+                        {getRoleText(userRole)}
+                      </Tag>
+                    )}
+                  </div>
+                </div>
+              </ConfigProvider>
+            )}
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-9 w-9 rounded-full hover:bg-slate-100" 
+              onClick={onSettingsClick}
+            >
+              <Settings className="h-8 w-8" />
+            </Button>
+          </div>
           </div>
         ) : (
           renderCollapsedSidebar()

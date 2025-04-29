@@ -30,9 +30,13 @@ export class ModelError extends Error {
 }
 
 // 获取授权头的辅助函数
-const getHeaders = () => {
+const getAuthHeaders = () => {
+  const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
+  const sessionObj = session ? JSON.parse(session) : null;
+  
   return {
     'Content-Type': 'application/json',
+    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
   };
 };
 
@@ -42,7 +46,7 @@ export const modelService = {
   getOfficialModels: async (): Promise<ModelOption[]> => {
     try {
       const response = await fetch(API_ENDPOINTS.modelEngine.officialModelList, {
-        headers: getHeaders()
+        headers: getAuthHeaders()
       })
       const result: ApiResponse<any[]> = await response.json()
       
@@ -85,7 +89,7 @@ export const modelService = {
   getCustomModels: async (): Promise<ModelOption[]> => {
     try {
       const response = await fetch(API_ENDPOINTS.modelEngine.customModelList, {
-        headers: getHeaders()
+        headers: getAuthHeaders()
       })
       const result: ApiResponse<any[]> = await response.json()
       
@@ -123,7 +127,7 @@ export const modelService = {
     try {
       const response = await fetch(API_ENDPOINTS.modelEngine.customModelCreate, {
         method: 'POST',
-        headers: getHeaders(),
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           model_repo: "",
           model_name: model.name,
@@ -152,7 +156,7 @@ export const modelService = {
       // 获取本地会话信息
       const response = await fetch(API_ENDPOINTS.modelEngine.customModelDelete, {
         method: 'POST',
-        headers: getHeaders(),
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           model_name: modelName
         })
@@ -191,7 +195,7 @@ export const modelService = {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          ...getHeaders(),
+          ...getAuthHeaders(),
           ...(modelConfig.apiConfig?.apiKey && { 'X-API-KEY': modelConfig.apiConfig.apiKey })
         },
         body: modelConfig.apiConfig ? JSON.stringify({
@@ -218,7 +222,7 @@ export const modelService = {
       // 调用健康检查API
       const response = await fetch(API_ENDPOINTS.modelEngine.customModelHealthcheck(modelName), {
         method: "GET",
-        headers: getHeaders(),
+        headers: getAuthHeaders(),
         signal // 使用AbortSignal，如果提供的话
       })
       
@@ -250,7 +254,7 @@ export const modelService = {
       
       const response = await fetch(API_ENDPOINTS.modelEngine.updateConnectStatus, {
         method: 'POST',
-        headers: getHeaders(),
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           model_name: modelName,
           connect_status: status
@@ -284,7 +288,7 @@ export const modelService = {
       try {
         const officialResponse = await fetch(API_ENDPOINTS.modelEngine.officialModelList, {
           method: 'GET',
-          headers: getHeaders()
+          headers: getAuthHeaders()
         });
         
         const officialResult: ApiResponse = await officialResponse.json();
@@ -299,7 +303,7 @@ export const modelService = {
       // 同步自定义模型，必须成功，否则抛出错误
       const customResponse = await fetch(API_ENDPOINTS.modelEngine.customModelList, {
         method: 'GET',
-        headers: getHeaders()
+        headers: getAuthHeaders()
       });
       
       const customResult: ApiResponse = await customResponse.json();

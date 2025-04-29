@@ -1,0 +1,109 @@
+/**
+ * 认证相关工具函数
+ */
+
+import { createAvatar } from '@dicebear/core';
+import * as initialsStyle from '@dicebear/initials';
+import { fetchWithErrorHandling } from "@/services/api";
+import { Session, STORAGE_KEYS } from "@/types/auth";
+
+// 获取用户角色对应的颜色
+export function getRoleColor(role: string): string {
+  switch (role) {
+    case "admin":
+      return "purple"
+    case "user":
+    default:
+      return "geekblue"
+  }
+}
+
+// 获取用户角色对应的文本
+export function getRoleText(role: string): string {
+  switch (role) {
+    case "admin":
+      return "管理员"
+    case "user":
+    default:
+      return "普通用户"
+  }
+}
+
+// 根据邮箱生成头像
+export function generateAvatarUrl(email: string): string {
+    // 使用本地dicebear包生成头像
+    const avatar = createAvatar(initialsStyle, {
+      seed: email,
+      backgroundType: ['gradientLinear']
+    });
+    
+    // 返回SVG数据URI
+    return avatar.toDataUri();
+  }
+
+// MD5哈希函数（简化版，实际项目应使用库)
+function md5(input: string): string {
+  // 实际项目应使用专业MD5库
+  // 这里只是一个示例，简单返回一个基于输入字符串的哈希
+  let hash = 0
+  for (let i = 0; i < input.length; i++) {
+    const char = input.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // 转换为32位整数
+  }
+  return Math.abs(hash).toString(16).padStart(32, '0')
+} 
+
+
+/**
+ * 带有授权头的请求
+ */
+export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  const session = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.SESSION) : null;
+  const sessionObj = session ? JSON.parse(session) : null;
+  
+  const headers = {
+    "Content-Type": "application/json",
+    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
+    ...options.headers,
+  };
+  
+  // 使用带错误处理的请求拦截器
+  return fetchWithErrorHandling(url, {
+    ...options,
+    headers,
+  });
+};
+
+/**
+ * 保存会话到本地存储
+ */
+export const saveSessionToStorage = (session: Session) => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
+  }
+};
+
+/**
+ * 从本地存储删除会话
+ */
+export const removeSessionFromStorage = () => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(STORAGE_KEYS.SESSION);
+  }
+};
+
+/**
+ * 从本地存储获取会话
+ */
+export const getSessionFromStorage = (): Session | null => {
+  try {
+    const storedSession = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.SESSION) : null;
+    if (!storedSession) return null;
+    
+    return JSON.parse(storedSession);
+  } catch (error) {
+    console.error("解析会话信息失败:", error);
+    return null;
+  }
+}; 

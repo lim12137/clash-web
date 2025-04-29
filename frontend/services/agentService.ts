@@ -1,9 +1,14 @@
 import { API_ENDPOINTS } from './api';
 
-const getHeaders = () => {
+// 获取授权头的辅助函数
+const getAuthHeaders = () => {
+  const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
+  const sessionObj = session ? JSON.parse(session) : null;
+
   return {
     'Content-Type': 'application/json',
     'User-Agent': 'AgentFrontEnd/1.0',
+    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
   };
 };
 
@@ -25,7 +30,7 @@ export const agentService = {
   }): Promise<ReadableStream<Uint8Array>> {
     const response = await fetch(API_ENDPOINTS.agent.run, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(params),
     });
 

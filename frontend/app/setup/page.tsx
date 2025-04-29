@@ -9,6 +9,7 @@ import { configStore } from "@/lib/config"
 import { configService } from "@/services/configService"
 import knowledgeBaseService from "@/services/knowledgeBaseService"
 import modelEngineService, { ConnectionStatus } from "@/services/modelEngineService"
+import { useAuth } from "@/hooks/useAuth"
 import Layout from "./layout"
 
 export default function CreatePage() {
@@ -19,6 +20,7 @@ export default function CreatePage() {
   const [lastChecked, setLastChecked] = useState<string | null>(null)
   const [isSavingConfig, setIsSavingConfig] = useState(false)
   const [isFromSecondPage, setIsFromSecondPage] = useState(false)
+  const { user } = useAuth()
 
   // 初始化时检查连接状态
   useEffect(() => {
@@ -236,6 +238,7 @@ export default function CreatePage() {
       onBackToFirstPage={handleBackToFirstPage}
       onCompleteConfig={handleCompleteConfig}
       isSavingConfig={isSavingConfig}
+      userRole={user?.role}
     >
       {renderContent()}
     </Layout>

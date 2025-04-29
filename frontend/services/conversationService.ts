@@ -12,10 +12,15 @@ export interface STTResponse {
   text?: string;
 }
 
-const getHeaders = () => {
+// 获取授权头的辅助函数
+const getAuthHeaders = () => {
+  const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
+  const sessionObj = session ? JSON.parse(session) : null;
+
   return {
     'Content-Type': 'application/json',
     'User-Agent': 'AgentFrontEnd/1.0',
+    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
   };
 };
 
@@ -24,7 +29,7 @@ export const conversationService = {
   async getList(): Promise<ConversationListItem[]> {
     const response = await fetch(API_ENDPOINTS.conversation.list, {
       method: 'GET',
-      headers: getHeaders(),
+      headers: getAuthHeaders(),
     });
 
     const data = await response.json() as ConversationListResponse;
@@ -40,7 +45,7 @@ export const conversationService = {
   async create() {
     const response = await fetch(API_ENDPOINTS.conversation.create, {
       method: 'PUT',
-      headers: getHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify({}),
     });
 
@@ -57,7 +62,7 @@ export const conversationService = {
   async rename(conversationId: number, name: string) {
     const response = await fetch(API_ENDPOINTS.conversation.rename, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         conversation_id: conversationId,
         name,
@@ -78,7 +83,7 @@ export const conversationService = {
     try {
       const response = await fetch(API_ENDPOINTS.conversation.detail(conversationId), {
         method: 'GET',
-        headers: getHeaders(),
+        headers: getAuthHeaders(),
         signal,
       });
 
@@ -111,7 +116,7 @@ export const conversationService = {
   async delete(conversationId: number) {
     const response = await fetch(API_ENDPOINTS.conversation.delete(conversationId), {
       method: 'DELETE',
-      headers: getHeaders(),
+      headers: getAuthHeaders(),
     });
 
     const data = await response.json();
@@ -233,7 +238,7 @@ export const conversationService = {
 
       const response = await fetch(API_ENDPOINTS.agent.run, {
         method: 'POST',
-        headers: getHeaders(),
+        headers: getAuthHeaders(),
         body: JSON.stringify(requestParams),
         signal,
       });
@@ -263,7 +268,7 @@ export const conversationService = {
     try {
       const response = await fetch(API_ENDPOINTS.conversation.sources, {
         method: 'POST',
-        headers: getHeaders(),
+        headers: getAuthHeaders(),
         body: JSON.stringify(params),
       });
 
@@ -287,7 +292,7 @@ export const conversationService = {
   }) {
     const response = await fetch(API_ENDPOINTS.conversation.generateTitle, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(params),
     });
 
@@ -335,7 +340,7 @@ export const conversationService = {
   async updateOpinion(params: { message_id: number; opinion: 'Y' | 'N' | null }) {
     const response = await fetch(API_ENDPOINTS.conversation.opinion, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(params),
     });
     const data = await response.json();

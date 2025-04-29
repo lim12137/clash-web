@@ -17,6 +17,9 @@ MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 MAX_CONCURRENT_UPLOADS = 5
 UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
 
+# Supabase Configuration
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 # ===== To be migrated to frontend configuration =====
 # Email Configuration
 IMAP_SERVER = os.getenv('IMAP_SERVER')

@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Copy,  Terminal, Volume2, ChevronRight, Code, AlertCircle, Bot, Loader2, SquareCheckBig, SquareChartGantt } from "lucide-react"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { MarkdownRenderer } from '@/components/ui/markdownRenderer'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { RiRobot2Line } from "react-icons/ri"
 import { useConfig } from "@/hooks/useConfig"
 import { API_ENDPOINTS } from '@/services/api'
 import { ChatMessageType } from '@/types/chat'

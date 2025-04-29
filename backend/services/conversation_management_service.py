@@ -7,7 +7,8 @@ from fastapi import HTTPException, Header
 from consts.model import MessageRequest, ConversationResponse, AgentRequest, MessageUnit
 from database.conversation_db import create_conversation_message, create_source_search, create_message_units, \
     create_source_image
-
+from database.utils import get_current_user_id
+from nexent.core.utils.observer import ProcessType
 
 logger = logging.getLogger("conversation_management_service")
 
@@ -32,6 +33,7 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
             - message: "success" success message
     """
     try:
+        user_id = get_current_user_id(authorization)
         message_data = request.model_dump()
 
         # Validate conversation_id
@@ -64,14 +66,14 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
         if string_content is not None:
             message_data_copy = {'conversation_id': conversation_id, 'message_idx': message_data['message_idx'],
                 'role': message_data['role'], 'content': string_content, 'minio_files': minio_files}
-            message_id = create_conversation_message(message_data_copy)
+            message_id = create_conversation_message(message_data_copy, user_id)
 
         # If there are other types of units but no string type, create an empty content message for them
         if other_units and message_id is None:
             message_data_copy = {'conversation_id': conversation_id, 'message_idx': message_data['message_idx'],
                 'role': message_data['role'], 'content': "",  # Empty content
                 'minio_files': minio_files}
-            message_id = create_conversation_message(message_data_copy)
+            message_id = create_conversation_message(message_data_copy, user_id)
 
         # Process other types of units
         filtered_message_units = []
@@ -108,7 +110,7 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
                             'cite_index': result.get('cite_index', None) if result.get('cite_index') != '' else None,
                             'search_type': result.get('search_type') if result.get('search_type') and result.get(
                                 'search_type') != '' else None, 'tool_sign': result.get('tool_sign', '')}
-                        create_source_search(search_data)
+                        create_source_search(search_data, user_id)
                 except Exception as e:
                     logging.error(f"Failed to save search content: {str(e)}")  # Do not add to filtered_message_units if save fails
 
@@ -122,7 +124,7 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
                         for image_url in content_json['images_url']:
                             image_data = {'message_id': message_id, 'conversation_id': conversation_id,
                                 'image_url': image_url}
-                            create_source_image(image_data)
+                            create_source_image(image_data, user_id)
                 except Exception as e:
                     logging.error(f"Failed to save image content: {str(e)}")  # Do not add to filtered_message_units if save fails
 
@@ -162,7 +164,9 @@ def save_conversation_assistant(request: AgentRequest, messages: List[str], auth
     message_list = []
     for item in messages:
         message = json.loads(item)
-        if len(message_list) and message.get("type") == message_list[-1].get("type"):
+        if (len(message_list) and
+            message.get("type") in [ProcessType.MODEL_OUTPUT_CODE.value, ProcessType.MODEL_OUTPUT_THINKING.value] and
+            message.get("type") == message_list[-1].get("type")):
             message_list[-1]["content"] += message["content"]
         else:
             message_list.append(message)

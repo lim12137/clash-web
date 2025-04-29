@@ -3,7 +3,7 @@ from typing import Optional, Dict, List, Any
 import psycopg2.extras
 
 from .client import db_client
-from .utils import add_creation_timestamp, add_update_timestamp
+from .utils import add_creation_tracking, add_update_tracking, add_creation_timestamp, add_update_timestamp
 
 
 # 创建模型记录
@@ -26,7 +26,8 @@ def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = Non
         # Data cleaning
         cleaned_data = db_client.clean_string_values(model_data)
 
-        # Build SQL insert statement
+        if user_id:
+            cleaned_data = add_creation_tracking(cleaned_data, user_id)
         fields = []
         values = []
         placeholders = []
@@ -79,6 +80,8 @@ def update_model_record(model_id: int, update_data: Dict[str, Any], user_id: Opt
         cleaned_data = db_client.clean_string_values(update_data)
 
         # Build SQL update statement
+        if user_id:
+            cleaned_data = add_update_tracking(cleaned_data, user_id)
         set_clause = []
         values = []
 
@@ -131,6 +134,8 @@ def delete_model_record(model_id: int, user_id: Optional[str] = None) -> bool:
         # Prepare update data
         update_data = {"delete_flag": 'Y'}
 
+        if user_id:
+            update_data = add_update_tracking(update_data, user_id)
         # Build SQL
         set_clause = [f"{key} = %s" for key in update_data.keys()]
         values = list(update_data.values())

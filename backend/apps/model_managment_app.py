@@ -5,6 +5,7 @@ from fastapi import Query, Body, APIRouter, Header
 from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest
 from database.model_management_db import create_model_record, update_model_record, delete_model_record, \
     get_model_records, get_model_by_name, get_model_by_display_name
+from database.utils import get_current_user_id
 from services.model_health_service import check_me_model_connectivity, check_model_connectivity
 from utils.model_name_utils import split_repo_name, add_repo_to_name
 
@@ -14,6 +15,7 @@ router = APIRouter(prefix="/model")
 @router.post("/create", response_model=ModelResponse)
 async def create_model(request: ModelRequest, authorization: Optional[str] = Header(None)):
     try:
+        user_id = get_current_user_id(authorization)
         model_data = request.model_dump()
         # Split model_name
         model_repo, model_name = split_repo_name(model_data["model_name"])
@@ -38,7 +40,7 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
                 )
 
         # Pass user ID to database function
-        create_model_record(model_data)
+        create_model_record(model_data, user_id)
         return ModelResponse(
             code=200,
             message=f"Model {add_repo_to_name(model_repo, model_name)} created successfully",
@@ -55,6 +57,7 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
 @router.post("/update", response_model=ModelResponse)
 def update_model(request: ModelRequest, authorization: Optional[str] = Header(None)):
     try:
+        user_id = get_current_user_id(authorization)
         model_data = request.model_dump()
         # Split model_name
         model_repo, model_name = split_repo_name(model_data["model_name"])
@@ -85,7 +88,7 @@ def update_model(request: ModelRequest, authorization: Optional[str] = Header(No
                 )
 
         # Update model record
-        update_model_record(existing_model["model_id"], model_data)
+        update_model_record(existing_model["model_id"], model_data, user_id)
         return ModelResponse(
             code=200,
             message=f"Model {add_repo_to_name(model_repo, model_name)} updated successfully",
@@ -109,6 +112,7 @@ async def delete_model(model_name: str = Body(..., embed=True), authorization: O
         authorization: Authorization header
     """
     try:
+        user_id = get_current_user_id(authorization)
         # Split model_name
         model_repo, name = split_repo_name(model_name)
         # Ensure model_repo is empty string instead of null
@@ -123,7 +127,7 @@ async def delete_model(model_name: str = Body(..., embed=True), authorization: O
             )
 
         # Pass user ID to delete_model_record function
-        delete_model_record(model["model_id"])
+        delete_model_record(model["model_id"], user_id)
         return ModelResponse(
             code=200,
             message="Model deleted successfully",
@@ -239,6 +243,7 @@ async def update_model_connect_status(
         authorization: Authorization header
     """
     try:
+        user_id = get_current_user_id(authorization)
         # Split model_name
         repo, name = split_repo_name(model_name)
         # Ensure repo is empty string instead of null
@@ -255,7 +260,7 @@ async def update_model_connect_status(
 
         # Update connection status
         update_data = {"connect_status": connect_status}
-        update_model_record(model["model_id"], update_data)
+        update_model_record(model["model_id"], update_data, user_id)
 
         return ModelResponse(
             code=200,

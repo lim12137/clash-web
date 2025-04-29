@@ -1,0 +1,298 @@
+"use client"
+
+import { useState, useEffect, useContext, createContext, type ReactNode } from "react"
+import { message } from "antd"
+import { authService } from "@/services/authService"
+import { configService } from "@/services/configService"
+import { User, AuthContextType } from "@/types/auth"
+import { EVENTS, STATUS_CODES } from "@/types/auth"
+import { usePathname } from "next/navigation"
+
+// 创建认证上下文
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+// 认证提供者组件
+export function AuthProvider({ children }: { children: (value: AuthContextType) => ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false)
+  const [isFromSessionExpired, setIsFromSessionExpired] = useState(false)
+  const [isCheckingSession, setIsCheckingSession] = useState(false)
+  const [shouldCheckSession, setShouldCheckSession] = useState(false)
+  const [authServiceUnavailable, setAuthServiceUnavailable] = useState(false)
+  const pathname = usePathname()
+
+  // 检查认证服务可用性
+  const checkAuthService = async () => {
+    const isAvailable = await authService.checkAuthServiceAvailable()
+    setAuthServiceUnavailable(!isAvailable)
+    return isAvailable
+  }
+
+  // 当登录或注册弹窗打开时检查认证服务可用性
+  useEffect(() => {
+    if (isLoginModalOpen || isRegisterModalOpen) {
+      checkAuthService()
+    }
+  }, [isLoginModalOpen, isRegisterModalOpen])
+
+  // 初始化时检查用户会话（只从本地读取，不主动请求后端）
+  useEffect(() => {
+    const syncUserFromLocalStorage = () => {
+      const storedSession = typeof window !== "undefined" ? localStorage.getItem("session") : null;
+      if (storedSession) {
+        try {
+          const session = JSON.parse(storedSession);
+          if (session?.user) {
+            const safeUser: User = {
+              id: session.user.id,
+              email: session.user.email,
+              role: session.user.role === "admin" ? "admin" : "user",
+              avatar_url: session.user.avatar_url
+            };
+            setUser(safeUser);
+            setShouldCheckSession(true); // 有用户时启用会话检查
+            return;
+          }
+        } catch (e) {
+          // ignore parse error
+        }
+      }
+      setUser(null);
+      setShouldCheckSession(false); // 无用户时禁用会话检查
+    };
+
+    setIsLoading(true);
+    syncUserFromLocalStorage();
+    setIsLoading(false);
+
+    // 监听本地session变化
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "session") {
+        syncUserFromLocalStorage();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
+
+  // 检查用户登录状态
+  useEffect(() => {
+    if (!isLoading && !user) {
+      // 页面加载完成后，如果没有登录，则触发会话过期事件
+      // 只在非首页路径触发，且仅在之前有会话的情况下触发
+      if (pathname && pathname !== '/' && !pathname.startsWith('/?') && shouldCheckSession) {
+        window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
+          detail: { message: "登录已过期，请重新登录" }
+        }));
+        setShouldCheckSession(false); // 触发过期事件后禁用会话检查
+      }
+    }
+  }, [user, isLoading, pathname, shouldCheckSession]);
+
+  // 会话有效性检查，确保本地存储的会话不是过期的
+  useEffect(() => {
+    // 只在有用户、不在加载状态时，且允许检查会话时进行额外验证
+    if (user && !isLoading && !isCheckingSession && shouldCheckSession) {
+      const verifySession = async () => {
+        // 检查上次验证时间,如果在1分钟内则跳过
+        const lastVerifyTime = Number(localStorage.getItem('lastSessionVerifyTime') || 0);
+        const now = Date.now();
+        if (now - lastVerifyTime < 60000) { // 60000ms
+          return;
+        }
+
+        try {
+          setIsCheckingSession(true);
+          // 使用 authService.getSession() 进行验证
+          const session = await authService.getSession();
+          if (!session) {
+            // 触发会话过期事件
+            window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
+              detail: { message: "登录已过期，请重新登录" }
+            }));
+            setShouldCheckSession(false); // 会话失效时禁用会话检查
+          }
+          // 更新最后验证时间
+          localStorage.setItem('lastSessionVerifyTime', now.toString());
+        } catch (error) {
+          console.error('验证会话有效性失败:', error);
+        } finally {
+          setIsCheckingSession(false);
+        }
+      };
+
+      // 添加延迟，避免在登录成功后立即检查
+      const timeoutId = setTimeout(() => {
+        verifySession();
+      }, 2000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [user, isLoading, isCheckingSession, shouldCheckSession]);
+
+  const openLoginModal = () => {
+    setIsRegisterModalOpen(false)
+    setIsLoginModalOpen(true)
+  }
+
+  const closeLoginModal = () => {
+    setIsLoginModalOpen(false)
+  }
+
+  const openRegisterModal = () => {
+    setIsLoginModalOpen(false)
+    setIsRegisterModalOpen(true)
+  }
+
+  const closeRegisterModal = () => {
+    setIsRegisterModalOpen(false)
+  }
+
+  const login = async (email: string, password: string) => {
+    try {
+      setIsLoading(true)
+      
+      // 首先检查认证服务可用性
+      const isAuthServiceAvailable = await authService.checkAuthServiceAvailable()
+      if (!isAuthServiceAvailable) {
+        const error = new Error("认证服务当前不可用，请稍后重试")
+        ;(error as any).code = STATUS_CODES.AUTH_SERVICE_UNAVAILABLE
+        throw error
+      }
+      
+      const { data, error } = await authService.signIn(email, password)
+
+      if (error) {
+        console.error("登录失败: ", error.message)
+        throw error
+      }
+
+      if (data?.session?.user) {
+        // 确保role字段是"user"或"admin"
+        const safeUser: User = {
+          id: data.session.user.id,
+          email: data.session.user.email,
+          role: data.session.user.role === "admin" ? "admin" : "user",
+          avatar_url: data.session.user.avatar_url
+        }
+        setUser(safeUser)
+        setShouldCheckSession(true) // 登录成功后启用会话检查
+        
+        // 添加延迟确保本地存储操作完成
+        setTimeout(() => {
+          configService.loadConfigToFrontend()
+          closeLoginModal()
+          message.success("登录成功，欢迎回来！")
+          // 主动触发 storage 事件
+          window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: localStorage.getItem("session") }))
+        }, 150)
+      }
+    } catch (error: any) {
+      console.error("登录过程中出错:", error.message)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const register = async (email: string, password: string) => {
+    try {
+      setIsLoading(true)
+      
+      // 首先检查认证服务可用性
+      const isAuthServiceAvailable = await authService.checkAuthServiceAvailable()
+      if (!isAuthServiceAvailable) {
+        const error = new Error("认证服务当前不可用，请稍后重试")
+        ;(error as any).code = STATUS_CODES.AUTH_SERVICE_UNAVAILABLE
+        throw error
+      }
+      
+      const { data, error } = await authService.signUp(email, password)
+
+      if (error) {
+        throw error
+      }
+
+      if (data?.user) {
+        // 确保role字段是"user"或"admin"
+        const safeUser: User = {
+          id: data.user.id,
+          email: data.user.email,
+          role: data.user.role === "admin" ? "admin" : "user",
+          avatar_url: data.user.avatar_url
+        }
+
+        if (data.session) {
+          // 注册并登录成功
+          setUser(safeUser)
+          configService.loadConfigToFrontend()
+          closeRegisterModal()
+          message.success("注册成功，已为您自动登录")
+          // 主动触发 storage 事件
+          window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: localStorage.getItem("session") }))
+        } else {
+          // 注册成功但需要手动登录
+          closeRegisterModal()
+          openLoginModal()
+          message.success("注册成功，请登录")
+        }
+      }
+    } catch (error: any) {
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const logout = async () => {
+    try {
+      setIsLoading(true)
+      await authService.signOut()
+      setUser(null)
+      setShouldCheckSession(false) // 登出时禁用会话检查
+      message.success("您已成功退出登录")
+      // 主动触发 storage 事件
+      window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: null }))
+    } catch (error: any) {
+      console.error("退出登录失败:", error.message)
+      message.error("退出失败，请重试")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const contextValue: AuthContextType = {
+    user,
+    isLoading,
+    isLoginModalOpen,
+    isRegisterModalOpen,
+    isFromSessionExpired,
+    authServiceUnavailable,
+    openLoginModal,
+    closeLoginModal,
+    openRegisterModal,
+    closeRegisterModal,
+    setIsFromSessionExpired,
+    login,
+    register,
+    logout,
+  };
+
+  return children(contextValue);
+}
+
+// 自定义钩子用于访问认证上下文
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider")
+  }
+  return context
+}
+
+// 导出认证上下文供Provider使用
+export { AuthContext } 

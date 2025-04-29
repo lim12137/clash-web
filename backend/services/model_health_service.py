@@ -21,64 +21,65 @@ async def check_model_connectivity(model_name: str):
         # Find model based on split model_repo and model_name
         logging.info(f"Checking model connectivity: {repo}/{name}")
         model = get_model_by_name(name, repo)
-        if not model:
-            return ModelResponse(code=404, message=f"Model configuration not found for {model_name}",
-                data={"connectivity": False, "connect_status": ""})
+        try:
+            if not model:
+                return ModelResponse(code=404, message=f"未找到模型 {model_name} 的配置信息",
+                                     data={"connectivity": False, "connect_status": ""})
 
         # Set model to "detecting" status
-        update_data = {"connect_status": ModelConnectStatusEnum.DETECTING.value}
-        update_model_record(model["model_id"], update_data)
+            update_data = {"connect_status": ModelConnectStatusEnum.DETECTING.value}
+            update_model_record(model["model_id"], update_data)
 
-        model_type = model["model_type"]
-        model_base_url = model["base_url"]
-        model_api_key = model["api_key"]
-        connectivity: bool
+            model_type = model["model_type"]
+            model_base_url = model["base_url"]
+            model_api_key = model["api_key"]
+            connectivity: bool
 
-        # print model_name, model_base_url, model_api_key
-        print(
-            f"Check connectivity: model_name: {model_name}, model_base_url: {model_base_url}, model_api_key: {model_api_key}")
+            # print model_name, model_base_url, model_api_key
+            print(
+                f"Check connectivity: model_name: {model_name}, model_base_url: {model_base_url}, model_api_key: {model_api_key}")
 
         # Test connectivity based on different model types
-        if model_type == "embedding":
+            if model_type == "embedding":
             # TODO: Implement non-Jina model instantiation in the future
-            connectivity = JinaEmbedding(model_name=model_name, base_url=model_base_url, api_key=model_api_key,
-                                         embedding_dim=1024).check_connectivity()
+                connectivity = JinaEmbedding(model_name=model_name, base_url=model_base_url, api_key=model_api_key,
+                                             embedding_dim=1024).check_connectivity()
 
-        elif model_type == "llm":
-            observer = MessageObserver()
-            connectivity = OpenAIModel(observer, model_id=model_name, api_base=model_base_url,
-                                       api_key=model_api_key).check_connectivity()
+            elif model_type == "llm":
+                observer = MessageObserver()
+                connectivity = OpenAIModel(observer, model_id=model_name, api_base=model_base_url,
+                                           api_key=model_api_key).check_connectivity()
 
-        elif model_type == "rerank":
+            elif model_type == "rerank":
             # connectivity =  RerankModel.check_connectivity()
             # TODO: Implement RerankModel connectivity test
-            connectivity = False
-        elif model_type in ["tts", "stt"]:
-            connectivity = await VoiceService().check_connectivity(model_type)
+                connectivity = False
+            elif model_type in ["tts", "stt"]:
+                connectivity = await VoiceService().check_connectivity(model_type)
 
-        else:
-            # Unsupported model type, update to unavailable status
-            update_data = {"connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
+            else:
+                update_data = {"connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
+                update_model_record(model["model_id"], update_data)
+                return ModelResponse(code=400, message=f"不支持的模型类型：{model_type}",
+                                     data={"connectivity": False, "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
+            connect_status = ModelConnectStatusEnum.AVAILABLE.value if connectivity else ModelConnectStatusEnum.UNAVAILABLE.value
+            update_data = {"connect_status": connect_status}
             update_model_record(model["model_id"], update_data)
-            return ModelResponse(code=400, message=f"Unsupported model type: {model_type}",
-                data={"connectivity": False, "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
 
-        # Update model status based on connectivity result
-        connect_status = ModelConnectStatusEnum.AVAILABLE.value if connectivity else ModelConnectStatusEnum.UNAVAILABLE.value
-        update_data = {"connect_status": connect_status}
-        update_model_record(model["model_id"], update_data)
+            return ModelResponse(code=200, message=f"Model '{model_name}' connect {'success' if connectivity else 'failed'}",
+                                 data={"connectivity": connectivity, "connect_status": connect_status})
 
-        return ModelResponse(code=200, message=f"Model {model_name} connectivity {'successful' if connectivity else 'failed'}",
-            data={"connectivity": connectivity, "connect_status": connect_status})
+        except Exception as e:
+            # 发生异常时，更新为不可用状态
+            if model:
+                update_data = {"connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
+                update_model_record(model["model_id"], update_data)
 
+            return ModelResponse(code=500, message=f"Connectivity test failed: {str(e)}",
+                                 data={"connectivity": False, "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
     except Exception as e:
-        # Update to unavailable status when exception occurs
-        if model:
-            update_data = {"connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
-            update_model_record(model["model_id"], update_data)
-
-        return ModelResponse(code=500, message=f"Connectivity test error: {str(e)}",
-            data={"connectivity": False, "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
+        return ModelResponse(code=500, message=f"FATAL FAILURE when test connectivity: {str(e)}",
+                             data={"connectivity": False, "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
 
 
 async def check_me_model_connectivity(model_name: str):

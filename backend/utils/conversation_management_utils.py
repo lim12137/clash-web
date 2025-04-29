@@ -42,8 +42,8 @@ def call_llm_for_title(content: str) -> str:
 
     # Build messages
     messages = [{"role": "system",
-                 "content": "Please generate a concise and accurate title (no more than 12 characters) for the following conversation, highlighting the core theme or key information. The title should be natural and fluent, avoiding forced keyword stacking.\n\n**Title Generation Requirements:**\n1. If the conversation involves specific questions, the title should summarize the essence of the question (e.g., 'How to solve XX issue?');\n2. If the conversation is about knowledge sharing, the title should highlight the core knowledge point (e.g., 'Key Steps of Photosynthesis');\n3. Avoid using generic terms like 'Q&A' or 'Consultation', prioritize domain specificity;\n4. The title language should match the conversation language.\n\n**Examples:**\n- Conversation: User asking about multiple methods for Python list deduplication → Title: Python List Deduplication Techniques\n- Conversation: Discussion about factors affecting new energy vehicle battery life → Title: Factors Affecting EV Battery Life\n- Conversation: 你好 → Title: 你好\n\nPlease output only the generated title without additional explanation."},
-        {"role": "user", "content": f"Please generate a concise title (no more than 12 characters) based on the following conversation:\n{content}\n\nTitle："}]
+                 "content": "请为以下对话生成一个简洁、准确的标题（不超过12字），要求突出对话的核心主题或关键信息。注意标题应自然流畅，避免生硬的关键词堆砌。\n\n**标题生成要求：**\n1. 如果对话涉及具体问题，标题需概括问题本质（如：'如何解决XX故障？'）；\n2. 若对话为知识科普，标题应点明核心知识点（如：'光合作用的关键步骤'）；\n3. 避免使用泛泛词汇如'问答''咨询'，优先体现领域特异性；\n4.标题语言与对话语言保持一致。\n\n**示例：**\n- 对话：用户询问Python列表去重的多种方法 → 标题：Python列表去重技巧\n- 对话：讨论新能源汽车电池寿命影响因素 → 标题：影响电动车电池寿命的因素- 对话：你好 → 标题：你好\n\n请直接输出生成的标题，无需额外解释。"},
+        {"role": "user", "content": f"请根据以下对话内容生成一个简洁的标题，不超过12个字：\n{content}\n\n标题："}]
 
     # Call the model
     response = llm(messages, max_tokens=10)

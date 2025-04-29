@@ -9,6 +9,7 @@ import { useConfig } from "@/hooks/useConfig"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { conversationService } from '@/services/conversationService';
 import { storageService } from '@/services/storageService';
+import { useAuth } from "@/hooks/useAuth"
 
 // 在文件顶部添加导入
 import { ChatSidebar } from "@/app/chat/layout/chatLeftSidebar"
@@ -42,6 +43,7 @@ const stepIdCounter = {current: 0};
 
 export function ChatInterface() {
   const router = useRouter()
+  const { user } = useAuth() // 获取用户信息
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<ChatMessageType[]>([])
   const [isSwitchedConversation, setIsSwitchedConversation] = useState(false) // 添加跟踪对话切换的状态
@@ -842,6 +844,9 @@ export function ChatInterface() {
           onDropdownOpenChange={(open, id) => setOpenDropdownId(open ? id : null)}
           onToggleSidebar={toggleSidebar}
           expanded={sidebarOpen}
+          userEmail={user?.email}
+          userAvatarUrl={user?.avatar_url}
+          userRole={user?.role}
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">

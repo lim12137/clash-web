@@ -14,20 +14,45 @@ interface MarkdownRendererProps {
   searchResults?: SearchResult[]
 }
 
-const LinkIcon = () => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    aria-hidden="true" 
-    className="rag-icon" 
-    width="1.2em" 
-    height="1.2em" 
-    viewBox="0 0 1024 1024"
+// 根据 tool_sign 获取背景色
+const getBackgroundColor = (toolSign: string) => {
+  switch (toolSign) {
+    case 'a': return '#E3F2FD'; // 浅蓝色
+    case 'b': return '#E8F5E9'; // 浅绿色
+    case 'c': return '#FFF3E0'; // 浅橙色
+    case 'd': return '#F3E5F5'; // 浅紫色
+    case 'e': return '#FFEBEE'; // 浅红色
+    default: return '#E5E5E5'; // 默认浅灰色
+  }
+}
+
+// 替换原来的 LinkIcon 组件
+const CitationBadge = ({ toolSign, citeIndex }: { toolSign: string, citeIndex: number }) => (
+  <span 
+    className="ds-markdown-cite"
+    style={{
+      verticalAlign: 'middle',
+      fontVariant: 'tabular-nums',
+      boxSizing: 'border-box',
+      color: '#404040',
+      cursor: 'pointer',
+      background: getBackgroundColor(toolSign),
+      borderRadius: '9px',
+      flexShrink: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '18px',
+      marginLeft: '4px',
+      padding: '0 6px',
+      fontSize: '12px',
+      fontWeight: 400,
+      display: 'inline-flex',
+      position: 'relative',
+      top: '-2px'
+    }}
   >
-    <path 
-      d="M183.25504 363.3152C225.03424 333.25056 274.0224 323.584 307.2 323.584h81.92a36.864 36.864 0 1 1 0 73.728H307.2c-21.38112 0-54.31296 6.71744-80.85504 25.8048-24.65792 17.77664-46.12096 47.63648-46.12096 101.1712 0 53.53472 21.46304 83.39456 46.12096 101.1712 26.54208 19.08736 59.47392 25.8048 80.85504 25.8048h81.92a36.864 36.864 0 1 1 0 73.728H307.2c-33.1776 0-82.20672-9.66656-123.94496-39.7312C139.6736 653.84448 106.496 601.82528 106.496 524.288c0-77.53728 33.1776-129.59744 76.75904-160.9728zM598.016 360.448a36.864 36.864 0 0 1 36.864-36.864h81.92c33.1776 0 82.16576 9.66656 123.94496 39.7312 43.6224 31.37536 76.75904 83.43552 76.75904 160.9728 0 77.53728-33.1776 129.55648-76.75904 160.9728-41.7792 30.06464-90.7264 39.7312-123.94496 39.7312h-81.92a36.864 36.864 0 0 1 0-73.728h81.92c21.42208 0 54.31296-6.71744 80.85504-25.8048 24.65792-17.77664 46.12096-47.63648 46.12096-101.1712 0-53.53472-21.46304-83.43552-46.12096-101.1712-26.54208-19.08736-59.43296-25.8048-80.85504-25.8048h-81.92a36.864 36.864 0 0 1-36.864-36.864z m-286.72 163.84a36.864 36.864 0 0 1 36.864-36.864h327.68a36.864 36.864 0 1 1 0 73.728H348.16a36.864 36.864 0 0 1-36.864-36.864z" 
-      fill="currentColor"
-    />
-  </svg>
+    {citeIndex}
+  </span>
 );
 
 // 修改 HoverableText 组件
@@ -168,45 +193,47 @@ const HoverableText = ({ text, searchResults }: {
           style={{ zIndex: isOpen ? 1000 : 'auto' }}
         >
           <TooltipTrigger asChild>
-            <span 
-              className="inline-flex items-center text-blue-600 cursor-pointer hover:text-blue-800 transition-colors"
-              style={{ padding: '2px' }} // 增加点击区域
-            >
-              <LinkIcon />
+            <span className="inline-flex items-center cursor-pointer transition-colors">
+              <CitationBadge toolSign={toolSign} citeIndex={citeIndex} />
             </span>
           </TooltipTrigger>
           <TooltipContent 
             side="top"
             align="center"
             sideOffset={5}
-            className="z-[9999] bg-white px-3 py-2 text-sm border shadow-md max-w-md"
+            className="z-[9999] bg-white px-4 py-3 text-sm border shadow-lg max-w-md rounded-2xl"
+            style={{ minWidth: '300px', maxWidth: '500px' }}
           >
             <div
               ref={tooltipRef}
-              className="whitespace-pre-wrap"
-              style={{
-                maxHeight: 240,
-                overflowY: 'auto',
-                minWidth: 200,
-                maxWidth: 400
-              }}
+              className="flex flex-col"
             >
               {matchedResult ? (
                 <>
-                  {matchedResult.url && matchedResult.url !== "#" ? (
-                    <a
-                      href={matchedResult.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium mb-1 text-blue-600 hover:underline block"
-                      style={{ wordBreak: 'break-all' }}
-                    >
-                      {matchedResult.title}
-                    </a>
-                  ) : (
-                    <p className="font-medium mb-1">{matchedResult.title}</p>
-                  )}
-                  <p className="text-gray-600">{matchedResult.text}</p>
+                  <div className="sticky top-0 pb-2 mb-1 border-b border-gray-200 bg-white">
+                    {matchedResult.url && matchedResult.url !== "#" ? (
+                      <a
+                        href={matchedResult.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-blue-600 hover:underline block text-base"
+                        style={{ wordBreak: 'break-all' }}
+                      >
+                        {matchedResult.title}
+                      </a>
+                    ) : (
+                      <p className="font-medium text-base">{matchedResult.title}</p>
+                    )}
+                  </div>
+                  <div 
+                    className="whitespace-pre-wrap overflow-y-auto"
+                    style={{
+                      maxHeight: 200,
+                      padding: '2px'
+                    }}
+                  >
+                    <p className="text-gray-600">{matchedResult.text}</p>
+                  </div>
                 </>
               ) : null}
             </div>

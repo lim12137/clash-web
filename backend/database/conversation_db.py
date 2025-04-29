@@ -6,7 +6,7 @@ from typing import Dict, List, Any, Optional, TypedDict
 import psycopg2.extras
 
 from .client import db_client
-from .utils import add_creation_timestamp, add_update_timestamp
+from .utils import add_creation_tracking, add_update_tracking, add_creation_timestamp, add_update_timestamp
 
 
 class ConversationRecord(TypedDict):
@@ -72,6 +72,8 @@ def create_conversation(conversation_title: str, user_id: Optional[str] = None) 
         # Prepare data dictionary
         data = {"conversation_title": conversation_title, "delete_flag": 'N'}
 
+        if user_id:
+            data = add_creation_tracking(data, user_id)
         # Build SQL
         fields = list(data.keys())
         values = list(data.values())
@@ -144,6 +146,8 @@ def create_conversation_message(message_data: Dict[str, Any], user_id: Optional[
                 "message_content": message_data['content'], "minio_files": minio_files, "opinion_flag": None,
                 "delete_flag": 'N'}
 
+        if user_id:
+            data = add_creation_tracking(data, user_id)
         # Build SQL
         fields = list(data.keys())
         values = list(data.values())
@@ -205,7 +209,8 @@ def create_message_units(message_units: List[Dict[str, Any]], message_id: int, c
         values = []
         base_fields = ["message_id", "conversation_id", "unit_index", "unit_type", "unit_content", "delete_flag"]
 
-        # Create placeholder list
+        if user_id:
+            base_fields.extend(["created_by", "updated_by"])
         placeholders_list = ['%s'] * len(base_fields)
         placeholders = ', '.join(placeholders_list)
 
@@ -216,6 +221,8 @@ def create_message_units(message_units: List[Dict[str, Any]], message_id: int, c
             # Basic data
             row_values = [message_id, conversation_id, idx, unit['type'], unit['content'], 'N']
 
+            if user_id:
+                row_values.extend([user_id, user_id])
             values.append(tuple(row_values))
 
         # Build SQL
@@ -264,6 +271,9 @@ def get_conversation(conversation_id: int, user_id: Optional[str] = None) -> Opt
 
         # If user_id is provided, add filter condition
         values = [conversation_id]
+        if user_id:
+            sql += " AND created_by = %s"
+            values.append(user_id)
 
         cursor.execute(sql, values)
         record = cursor.fetchone()
@@ -415,6 +425,8 @@ def rename_conversation(conversation_id: int, new_title: str, user_id: Optional[
         # Prepare update data
         update_data = {"conversation_title": new_title}
 
+        if user_id:
+            update_data = add_update_tracking(update_data, user_id)
         # Build SQL
         set_clause = [f"{key} = %s" for key in update_data.keys()]
         values = list(update_data.values())
@@ -472,6 +484,8 @@ def delete_conversation(conversation_id: int, user_id: Optional[str] = None) -> 
             update_data = {"delete_flag": 'Y'}
 
             # 1. Mark conversation as deleted
+            if user_id:
+                update_data = add_update_tracking(update_data, user_id)
             set_clause = [f"{key} = %s" for key in update_data.keys()]
             values = list(update_data.values())
 
@@ -575,6 +589,8 @@ def update_message_opinion(message_id: int, opinion: str, user_id: Optional[str]
         # Prepare update data
         update_data = {"opinion_flag": opinion}
 
+        if user_id:
+            update_data = add_update_tracking(update_data, user_id)
         # Build SQL
         set_clause = [f"{key} = %s" for key in update_data.keys()]
         values = list(update_data.values())
@@ -650,6 +666,9 @@ def get_conversation_history(conversation_id: int, user_id: Optional[str] = None
             """
 
             values = [conversation_id]
+            if user_id:
+                check_sql += " AND created_by = %s"
+                values.append(user_id)
 
             cursor.execute(check_sql, values)
             conversation = cursor.fetchone()
@@ -774,6 +793,8 @@ def create_source_image(image_data: Dict[str, Any], user_id: Optional[str] = Non
         data = {"message_id": message_id, "conversation_id": image_data.get('conversation_id'),
                 "image_url": image_data['image_url'], "delete_flag": 'N'}
 
+        if user_id:
+            data = add_creation_tracking(data, user_id)
         # Build SQL
         fields = list(data.keys())
         values = list(data.values())
@@ -825,6 +846,8 @@ def delete_source_image(image_id: int, user_id: Optional[str] = None) -> bool:
         # Prepare update data
         update_data = {"delete_flag": 'Y'}
 
+        if user_id:
+            update_data = add_update_tracking(update_data, user_id)
         # Build SQL
         set_clause = [f"{key} = %s" for key in update_data.keys()]
         values = list(update_data.values())
@@ -883,6 +906,9 @@ def get_source_images_by_message(message_id: int, user_id: Optional[str] = None)
         """
 
         values = [message_id]
+        if user_id:
+            sql += " AND c.created_by = %s"
+            values.append(user_id)
 
         # Add sorting
         sql += " ORDER BY i.image_id"
@@ -923,6 +949,9 @@ def get_source_images_by_conversation(conversation_id: int, user_id: Optional[st
         """
 
         values = [conversation_id]
+        if user_id:
+            sql += " AND c.created_by = %s"
+            values.append(user_id)
 
         # Add sorting
         sql += " ORDER BY i.image_id"
@@ -988,6 +1017,8 @@ def create_source_search(search_data: Dict[str, Any], user_id: Optional[str] = N
         if 'published_date' in search_data:
             data["published_date"] = search_data['published_date']
 
+        if user_id:
+            data = add_creation_tracking(data, user_id)
         # Build SQL
         fields = list(data.keys())
         values = list(data.values())
@@ -1039,6 +1070,8 @@ def delete_source_search(search_id: int, user_id: Optional[str] = None) -> bool:
         # Prepare update data
         update_data = {"delete_flag": 'Y'}
 
+        if user_id:
+            update_data = add_update_tracking(update_data, user_id)
         # Build SQL
         set_clause = [f"{key} = %s" for key in update_data.keys()]
         values = list(update_data.values())
@@ -1097,6 +1130,9 @@ def get_source_searches_by_message(message_id: int, user_id: Optional[str] = Non
         """
 
         values = [message_id]
+        if user_id:
+            sql += " AND c.created_by = %s"
+            values.append(user_id)
 
         # Add sorting
         sql += " ORDER BY s.search_id"
@@ -1137,6 +1173,9 @@ def get_source_searches_by_conversation(conversation_id: int, user_id: Optional[
         """
 
         values = [conversation_id]
+        if user_id:
+            sql += " AND c.created_by = %s"
+            values.append(user_id)
 
         # Add sorting
         sql += " ORDER BY s.search_id"
@@ -1176,6 +1215,9 @@ def get_message(message_id: int, user_id: Optional[str] = None) -> Dict[str, Any
         """
 
         values = [message_id]
+        if user_id:
+            sql += " AND c.created_by = %s"
+            values.append(user_id)
 
         cursor.execute(sql, values)
         record = cursor.fetchone()

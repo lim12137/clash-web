@@ -3,9 +3,11 @@
 import { useEffect } from "react"
 import { ChatInterface } from "@/app/chat/internal/chatInterface"
 import { useConfig } from "@/hooks/useConfig"
+import { useAuth } from "@/hooks/useAuth"
 
 export default function ChatPage() {
   const { appConfig } = useConfig()
+  const { user, isLoading } = useAuth()
 
   useEffect(() => {
     if (appConfig.appName) {

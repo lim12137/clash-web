@@ -306,10 +306,7 @@ class STTModel:
                 # Send full client request
                 await ws.send(full_client_request)
                 res = await ws.recv()
-                if hasattr(ws, 'response_headers'):
-                    print(f"Response headers: {ws.response_headers}")
                 result = self.parse_response(res)
-                print(f"Initial response: {result}")
 
                 for _, (chunk, last) in enumerate(self.slice_data(audio_data, segment_size), 1):
                     seq += 1
@@ -340,10 +337,8 @@ class STTModel:
                     res = await ws.recv()
                     result = self.parse_response(res)
 
-                    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}, seq: {seq}, result: {result}")
-
                     if self.config.streaming:
-                        sleep_time = max(0, (self.config.seg_duration / 1000.0 - (time.time() - start)))
+                        sleep_time = max(0.0, self.config.seg_duration / 1000.0 - (time.time() - start))
                         await asyncio.sleep(sleep_time)
 
             return result
