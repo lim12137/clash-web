@@ -37,7 +37,7 @@ Nexent 是一个开源智能体SDK和平台，能够将单一提示词转化为�
 ### 2. 🛠️ 使用 Docker Compose 快速开始
 
 ```bash
-git clone git@github.com:AI-Application-Innovation/nexent.git
+git clone git@github.com:nexent-hub/nexent-community.git
 sh docker/deploy.sh
 ```
 
