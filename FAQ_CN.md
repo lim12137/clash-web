@@ -7,6 +7,13 @@
 
 ## 🚀 安装与设置
 
+### 🔑 Jina API 密钥
+- **Q: 如何获取用于嵌入模型的 Jina API 密钥？**
+  - A: 要使用基于 Jina 的嵌入模型，您需要：
+    1. 访问 [Jina AI 官网](https://jina.ai/)，无需注册
+    3. 进入 Embedding 部分页面获取您的 API 密钥
+    4. 将 API 密钥添加到页面中
+
 ### 🐳 Docker 与 Docker Compose
 - **Q: TODO**
   - A: TODO

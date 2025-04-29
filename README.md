@@ -49,6 +49,8 @@ When the containers are running, open **http://localhost:3000** in your browser 
 - Drop questions in our [Discord community](https://discord.gg/tb5H3S3wyv).  
 - File bugs or feature ideas in [GitHub Issues](#).
 
+> ℹ️ Due to core features development, currently, we only support Jina Embedding model. Support for other models will be added in future releases. For Jina API key setup, please refer to our [FAQ](FAQ.md).
+
 #### 4. 🔧 Hack on Nexent
 
 Want to build from source or add new features? Check the [Contribution Guide](CONTRIBUTING.md) for step-by-step instructions.

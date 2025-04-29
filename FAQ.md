@@ -7,6 +7,13 @@ This FAQ addresses common questions and issues you might encounter while install
 
 ## 🚀 Installation & Setup
 
+### 🔑 Jina API Key
+- **Q: How do I get a Jina API key for embeddings?**
+  - A: To use Jina-based embedding model, you'll need to:
+    1. Visit [Jina AI's website](https://jina.ai/), no need to sign up
+    3. Navigate to the Embedding section to get your API key
+    4. Add your API key in the app
+
 ### 🐳 Docker & Docker Compose
 - **Q: TODO**
   - A: TODO
