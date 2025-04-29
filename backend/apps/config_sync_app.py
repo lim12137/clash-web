@@ -5,8 +5,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from consts.model import GlobalConfig
-from utils.agent_utils import config_manager
-from utils.config_utils import get_env_key, safe_value, safe_list
+from utils.config_utils import config_manager, get_env_key, safe_value, safe_list
 
 router = APIRouter(prefix="/config")
 
