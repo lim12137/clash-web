@@ -46,7 +46,7 @@ sh docker/deploy.sh
 ### 3. ❓ 需要帮助？
 
 - 浏览 [常见问题](#) 了解常见安装问题。  
-- 在我们的 [Discord 社区](#) 中提问。  
+- 在我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 中提问。  
 - 在 [GitHub Issues](#) 中提交错误报告或功能建议。
 
 #### 4. 🔧 开发 Nexent
@@ -96,8 +96,12 @@ sh docker/deploy.sh
 
 - 📖 阅读我们的[贡献指南](CONTRIBUTING_CN.md)开始贡献
 - 🐛 在 [GitHub Issues](#) 中报告错误或提出功能建议
-- 💬 加入我们的 [Discord 社区](#) 讨论想法
+- 💬 加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 讨论想法
 
 # 💬 社区与联系方式
 
-# 📄 许可证 
+加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 与其他开发者交流并获取帮助！
+
+# 📄 许可证
+
+Nexent 采用 [Apache License 2.0](LICENSE) 许可证，并附有额外条件。请阅读 [LICENSE](LICENSE) 文件了解详情。 
