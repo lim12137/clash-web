@@ -109,25 +109,6 @@ const fetchModelStatus = async () => {
   }
 };
 
-// 启动全局定时器，确保只有一个定时器运行
-const startGlobalTimer = () => {
-  if (globalTimerRef === null) {
-    
-    // 立即执行一次获取，以尽快更新UI
-    setTimeout(fetchModelStatus, 1000);
-    
-    // 设置周期性定时器
-    globalTimerRef = setInterval(fetchModelStatus, 5000); // 每5秒更新一次
-  }
-  
-  return () => {
-    if (globalTimerRef && modelUpdateRegistry.size === 0) {
-      clearInterval(globalTimerRef);
-      globalTimerRef = null;
-    }
-  };
-};
-
 interface ModelListCardProps {
   type: ModelType
   modelId: string
