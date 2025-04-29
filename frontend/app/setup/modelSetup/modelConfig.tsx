@@ -9,9 +9,9 @@ import {forwardRef, useEffect, useImperativeHandle, useState, useRef, ReactNode}
 import {ModelConnectStatus, ModelOption, ModelType} from '@/types/config'
 import {useConfig} from '@/hooks/useConfig'
 import {modelService} from '@/services/modelService'
-import {ModelListCard} from './ModelListCard'
-import {ModelAddDialog} from './ModelAddDialog'
-import {ModelDeleteDialog} from './ModelDeleteDialog'
+import {ModelListCard} from './model/ModelListCard'
+import {ModelAddDialog} from './model/ModelAddDialog'
+import {ModelDeleteDialog} from './model/ModelDeleteDialog'
 
 // 布局高度常量配置
 const LAYOUT_CONFIG = {
@@ -114,36 +114,33 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   useEffect(() => {
     // 在组件加载时获取模型列表
     const fetchData = async () => {
-      // 加载模型列表 - 这将包含状态信息
-      await loadModelLists(skipVerification);
-      
-      // 不需要额外调用fetchModelStatus，初始模型数据已经包含连接状态
+      await loadModelLists(true);  // Skip verification when initializing
     };
-    
+
     fetchData();
   }, [skipVerification])
-  
+
   // 监听字段错误高亮事件
   useEffect(() => {
     const handleHighlightMissingField = (event: any) => {
       const { field } = event.detail;
-      
+
       if (field === 'llm.main' || field === 'embedding.embedding') {
         setErrorFields(prev => ({
           ...prev,
           [field]: true
         }));
-        
+
         // 找到对应的卡片并滚动到视图
         setTimeout(() => {
           const fieldParts = field.split('.');
           const cardType = fieldParts[0];
           const cardId = fieldParts[1];
-          
-          const selector = cardType === 'embedding' 
+
+          const selector = cardType === 'embedding'
             ? '.model-card:nth-child(2)' // Embedding卡片通常是第二个
             : '.model-card:nth-child(1)'; // LLM卡片通常是第一个
-            
+
           const card = document.querySelector(selector);
           if (card) {
             card.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -151,13 +148,13 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         }, 100);
       }
     };
-    
+
     window.addEventListener('highlightMissingField', handleHighlightMissingField);
     return () => {
       window.removeEventListener('highlightMissingField', handleHighlightMissingField);
     };
   }, []);
-  
+
   // 暴露方法给父组件
   useImperativeHandle(ref, () => ({
     verifyModels
@@ -169,7 +166,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     setCustomModels(prev => {
       const idx = prev.findIndex(model => model.name === modelName && model.type === modelType);
       if (idx === -1) return prev;
-      
+
       const updated = [...prev];
       updated[idx] = {
         ...updated[idx],
@@ -177,7 +174,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       };
       return updated;
     });
-    
+
     // 同时同步到后端数据库
     modelService.updateModelStatus(modelName, status)
       .then(success => {
@@ -203,19 +200,19 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         console.error(`同步模型 ${modelName} 状态到数据库出错:`, error);
       });
   }
-  
+
   // 取消正在进行的验证
   const cancelVerification = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    
+
     if (throttleTimerRef.current) {
       clearTimeout(throttleTimerRef.current);
       throttleTimerRef.current = null;
     }
-    
+
     setIsVerifying(false);
     message.info({ content: "已取消验证", key: "verifying" });
   };
@@ -228,101 +225,101 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         modelService.getOfficialModels(),
         modelService.getCustomModels()
       ])
-      
+
       // 确保所有官方模型状态为"可用"
       const officialWithStatus = official.map(model => ({
         ...model,
         connect_status: "可用" as ModelConnectStatus
       }));
-      
+
       // 更新状态
       setOfficialModels(officialWithStatus)
       setCustomModels(custom)
 
       // 合并所有可用模型列表（官方和自定义）
       const allModels = [...officialWithStatus, ...custom]
-      
+
       // 从配置中加载选中的模型，并检查模型是否仍然存在
       const llmMain = modelConfig.llm.modelName
       const llmMainExists = llmMain ? allModels.some(m => m.name === llmMain && m.type === 'llm') : true
-      
+
       const llmSecondary = modelConfig.llmSecondary.modelName
       const llmSecondaryExists = llmSecondary ? allModels.some(m => m.name === llmSecondary && m.type === 'llm') : true
-      
+
       const embedding = modelConfig.embedding.modelName
       const embeddingExists = embedding ? allModels.some(m => m.name === embedding && m.type === 'embedding') : true
-      
+
       const rerank = modelConfig.rerank.modelName
       const rerankExists = rerank ? allModels.some(m => m.name === rerank && m.type === 'rerank') : true
-      
+
       const stt = modelConfig.stt.modelName
       const sttExists = stt ? allModels.some(m => m.name === stt && m.type === 'stt') : true
-      
+
       const tts = modelConfig.tts.modelName
       const ttsExists = tts ? allModels.some(m => m.name === tts && m.type === 'tts') : true
-      
+
       // 创建更新后的选中模型对象
       const updatedSelectedModels = {
-        llm: { 
-          main: llmMainExists ? llmMain : "", 
-          secondary: llmSecondaryExists ? llmSecondary : "" 
+        llm: {
+          main: llmMainExists ? llmMain : "",
+          secondary: llmSecondaryExists ? llmSecondary : ""
         },
-        embedding: { 
-          embedding: embeddingExists ? embedding : "" 
+        embedding: {
+          embedding: embeddingExists ? embedding : ""
         },
-        reranker: { 
-          reranker: rerankExists ? rerank : "" 
+        reranker: {
+          reranker: rerankExists ? rerank : ""
         },
-        voice: { 
-          tts: ttsExists ? tts : "", 
-          stt: sttExists ? stt : "" 
+        voice: {
+          tts: ttsExists ? tts : "",
+          stt: sttExists ? stt : ""
         },
       };
-      
+
       // 更新状态
       setSelectedModels(updatedSelectedModels)
-      
+
       // 如果有模型被删除，同步更新本地存储的配置
       const configUpdates: any = {}
-      
+
       if (!llmMainExists && llmMain) {
         configUpdates.llm = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
       }
-      
+
       if (!llmSecondaryExists && llmSecondary) {
         configUpdates.llmSecondary = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
       }
-      
+
       if (!embeddingExists && embedding) {
         configUpdates.embedding = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
       }
-      
+
       if (!rerankExists && rerank) {
         configUpdates.rerank = { modelName: "", displayName: "" }
       }
-      
+
       if (!sttExists && stt) {
         configUpdates.stt = { modelName: "", displayName: "" }
       }
-      
+
       if (!ttsExists && tts) {
         configUpdates.tts = { modelName: "", displayName: "" }
       }
-      
+
       // 如果有配置需要更新，则更新localStorage
       if (Object.keys(configUpdates).length > 0) {
         updateModelConfig(configUpdates)
       }
-      
+
       // 检查是否有已配置的模型需要验证连通性
-      const hasConfiguredModels = 
-        !!modelConfig.llm.modelName || 
-        !!modelConfig.llmSecondary.modelName || 
-        !!modelConfig.embedding.modelName || 
-        !!modelConfig.rerank.modelName || 
-        !!modelConfig.tts.modelName || 
+      const hasConfiguredModels =
+        !!modelConfig.llm.modelName ||
+        !!modelConfig.llmSecondary.modelName ||
+        !!modelConfig.embedding.modelName ||
+        !!modelConfig.rerank.modelName ||
+        !!modelConfig.tts.modelName ||
         !!modelConfig.stt.modelName;
-      
+
       // 直接在这里进行验证，而不是使用setTimeout
       // 这样确保我们使用的是当前函数作用域中的模型数据，而不是依赖状态更新
       if (officialWithStatus.length > 0 || custom.length > 0) {
@@ -336,10 +333,10 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       message.error('加载模型列表失败')
     }
   }
-  
+
   // 内部验证函数，接收模型数据作为参数，不依赖状态
   const verifyModelsInternal = async (
-    officialData: ModelOption[], 
+    officialData: ModelOption[],
     customData: ModelOption[],
     modelsToCheck?: Record<string, Record<string, string>> // 可选参数，允许传入最新的选中模型
   ) => {
@@ -347,15 +344,15 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     if (isVerifying) {
       return;
     }
-    
+
     // 确保模型数据已经加载
     if (officialData.length === 0 && customData.length === 0) {
       return;
     }
-    
+
     // 使用传入的模型选择数据或当前状态
     const currentSelectedModels = modelsToCheck || selectedModels;
-    
+
     // 检查是否有选中的模型需要验证
     let hasSelectedModels = false;
     for (const category in currentSelectedModels) {
@@ -367,7 +364,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       }
       if (hasSelectedModels) break;
     }
-    
+
     // 如果状态中没有选中的模型，则尝试从配置中直接获取
     if (!hasSelectedModels) {
       // 直接检查配置中每个模型是否存在
@@ -377,9 +374,9 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       const hasReranker = !!modelConfig.rerank.modelName;
       const hasTts = !!modelConfig.tts.modelName;
       const hasStt = !!modelConfig.stt.modelName;
-      
+
       hasSelectedModels = hasLlmMain || hasLlmSecondary || hasEmbedding || hasReranker || hasTts || hasStt;
-      
+
       if (hasSelectedModels) {
         // 使用配置中的模型覆盖当前选中模型
         currentSelectedModels.llm.main = modelConfig.llm.modelName;
@@ -392,13 +389,13 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         return;
       }
     }
-    
+
     setIsVerifying(true)
 
     // 准备一个新的AbortController
     const abortController = new AbortController();
     const signal = abortController.signal;
-    
+
     // 保存引用以便可以取消
     abortControllerRef.current = abortController;
 
@@ -442,7 +439,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           }
         }
       }
-      
+
       // 如果没有模型需要验证，显示提示并返回
       if (modelsToVerify.length === 0) {
         message.info({ content: "没有需要验证的模型", key: "verifying" });
@@ -450,13 +447,13 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         abortControllerRef.current = null;
         return;
       }
-      
+
       // 并行验证所有模型
       await Promise.all(
         modelsToVerify.map(async ({ modelName, modelType, isOfficialModel }) => {
           // 根据模型来源调用不同的验证方式
           let isConnected = false;
-          
+
           if (isOfficialModel) {
             // 官方模型，始终视为"可用"
             isConnected = true;
@@ -464,7 +461,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
             // 自定义模型，使用modelService验证
             try {
               isConnected = await modelService.verifyCustomModel(modelName, signal);
-              
+
               // 更新模型状态
               updateCustomModelStatus(modelName, modelType, isConnected ? "可用" : "不可用");
             } catch (error: any) {
@@ -472,7 +469,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
               if (error.name === 'AbortError') {
                 return;
               }
-              
+
               console.error(`校验自定义模型 ${modelName} 失败:`, error);
               updateCustomModelStatus(modelName, modelType, "不可用");
             }
@@ -486,7 +483,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         console.log('校验被用户取消');
         return;
       }
-      
+
       console.error("模型校验失败:", error);
     } finally {
       if (!signal.aborted) {
@@ -495,20 +492,20 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       }
     }
   }
-  
+
   // 验证所有选中的模型
   const verifyModels = async () => {
     // 如果已经在验证中，则不重复执行
     if (isVerifying) {
       return;
     }
-    
+
     // 确保模型数据已经加载
     if (officialModels.length === 0 && customModels.length === 0) {
       // 模型数据尚未加载，跳过验证
       return;
     }
-    
+
     // 调用内部验证函数
     await verifyModelsInternal(officialModels, customModels, selectedModels);
   }
@@ -518,7 +515,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     setIsSyncing(true)
     try {
       await modelService.syncModels()
-      await loadModelLists()
+      await loadModelLists(true)
       message.success('模型同步成功')
     } catch (error) {
       console.error('同步模型失败:', error)
@@ -532,27 +529,27 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   const verifyOneModel = async (modelName: string, modelType: ModelType) => {
     // 如果是空模型名，直接返回
     if (!modelName) return;
-    
+
     // 查找模型在officialModels或customModels中
     const isOfficialModel = officialModels.some(model => model.name === modelName && model.type === modelType);
-    
+
     // 官方模型始终视为"可用"
     if (isOfficialModel) return;
-    
+
     // 如果正在节流中，清除之前的定时器
     if (throttleTimerRef.current) {
       clearTimeout(throttleTimerRef.current);
     }
-    
-    // 使用节流，延迟500ms再执行验证，避免频繁切换模型时重复验证
+
+    // 使用节流，延迟1s再执行验证，避免频繁切换模型时重复验证
     throttleTimerRef.current = setTimeout(async () => {
       // 更新自定义模型状态为"检测中"
       updateCustomModelStatus(modelName, modelType, "检测中");
-      
+
       try {
         // 使用modelService验证自定义模型
         const isConnected = await modelService.verifyCustomModel(modelName);
-        
+
         // 更新模型状态
         updateCustomModelStatus(modelName, modelType, isConnected ? "可用" : "不可用");
       } catch (error: any) {
@@ -561,7 +558,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       } finally {
         throttleTimerRef.current = null;
       }
-    }, 500);
+    }, 1000);
   }
 
   // 处理模型变更

@@ -84,7 +84,6 @@ interface NavigationProps {
   onBackToFirstPage: () => void;
   onCompleteConfig: () => void;
   isSavingConfig: boolean;
-  userRole?: string;
 }
 
 function Navigation({
@@ -92,20 +91,13 @@ function Navigation({
   onBackToFirstPage,
   onCompleteConfig,
   isSavingConfig,
-  userRole
 }: NavigationProps) {
   return (
     <div className="mt-3 flex justify-between px-6">
       {selectedKey !== "1" && (
         <button
           onClick={onBackToFirstPage}
-          disabled={userRole !== "admin"}
-          className={
-            `px-6 py-2.5 rounded-md flex items-center text-sm font-medium ` +
-            (userRole !== "admin"
-              ? "bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-200"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer")
-          }
+          className={"px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"}
         >
           上一步
         </button>
@@ -134,7 +126,6 @@ interface LayoutProps {
   onBackToFirstPage: () => void;
   onCompleteConfig: () => void;
   isSavingConfig: boolean;
-  userRole?: string;
 }
 
 function Layout({
@@ -147,7 +138,6 @@ function Layout({
   onBackToFirstPage,
   onCompleteConfig,
   isSavingConfig,
-  userRole
 }: LayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -168,7 +158,6 @@ function Layout({
             onBackToFirstPage={onBackToFirstPage}
             onCompleteConfig={onCompleteConfig}
             isSavingConfig={isSavingConfig}
-            userRole={userRole}
           />
         </div>
       </div>

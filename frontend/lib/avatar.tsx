@@ -56,7 +56,7 @@ export const getAvatarUrl = (config: AppConfig, size: number = 30, scale: number
   } else {
     // 默认返回第一个预设图标
     const defaultIcon = presetIcons[0];
-    const mainColor = "235fe1";
+    const mainColor = "2689cb";
     const secondaryColor = generateComplementaryColor(mainColor);
 
     const avatar = createAvatar(iconStyle, {
