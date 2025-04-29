@@ -1,5 +1,8 @@
 ![Nexent Banner](./assets/NexentBanner.png)
 
+[![English](https://img.shields.io/badge/English-README-blue)](README.md)
+[![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
+
 Nexent 是一个开源智能体SDK和平台，能够将单一提示词转化为完整的多模态服务 —— 无需编排，无需复杂拖拉拽。基于 MCP 工具生态系统构建，Nexent 提供灵活的模型集成、可扩展的数据处理和强大的知识库管理。我们的目标很简单：将数据、模型和工具整合到一个智能中心中，让任何人都能轻松地将 Nexent 集成到项目中，使日常工作流程更智能、更互联。
 
 > 一个提示词，无限种可能。
@@ -15,7 +18,7 @@ Nexent 是一个开源智能体SDK和平台，能够将单一提示词转化为�
 
 > *Rome wasn't built in a day.*
 
-虽然许多关键功能仍在积极开发中，但如果我们的愿景与您产生共鸣，请通过 **[贡献指南](#)** 加入我们，共同塑造 Nexent。
+虽然许多关键功能仍在积极开发中，但如果我们的愿景与您产生共鸣，请通过 **[贡献指南](CONTRIBUTING_CN.md)** 加入我们，共同塑造 Nexent。
 
 早期贡献者不会被忽视：从特殊徽章和纪念品到其他实质性奖励，我们致力于感谢那些帮助 Nexent 诞生的先驱者。
 
@@ -43,12 +46,12 @@ sh docker/deploy.sh
 ### 3. ❓ 需要帮助？
 
 - 浏览 [常见问题](#) 了解常见安装问题。  
-- 在我们的 [Discord 社区](#) 中提问。  
+- 在我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 中提问。  
 - 在 [GitHub Issues](#) 中提交错误报告或功能建议。
 
 #### 4. 🔧 开发 Nexent
 
-想要从源代码构建或添加新功能？查看 [贡献指南](#) 获取分步说明。
+想要从源代码构建或添加新功能？查看 [贡献指南](CONTRIBUTING_CN.md) 获取分步说明。
 
 ## ✨ 主要特性
 
@@ -89,6 +92,16 @@ sh docker/deploy.sh
 
 # 👥 贡献指南
 
+我们欢迎各种形式的贡献！无论是修复错误、添加功能还是改进文档，您的帮助都能让 Nexent 变得更好。
+
+- 📖 阅读我们的[贡献指南](CONTRIBUTING_CN.md)开始贡献
+- 🐛 在 [GitHub Issues](#) 中报告错误或提出功能建议
+- 💬 加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 讨论想法
+
 # 💬 社区与联系方式
 
-# 📄 许可证 
+加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 与其他开发者交流并获取帮助！
+
+# 📄 许可证
+
+Nexent 采用 [Apache License 2.0](LICENSE) 许可证，并附有额外条件。请阅读 [LICENSE](LICENSE) 文件了解详情。 
