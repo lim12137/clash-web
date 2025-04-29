@@ -41,7 +41,7 @@ export const AppConfigSection: React.FC = () => {
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [selectedIconKey, setSelectedIconKey] = useState<string>(presetIcons[0].key);
   const [tempIconKey, setTempIconKey] = useState<string>(presetIcons[0].key);
-  const [tempColor, setTempColor] = useState<string>("#235fe1");
+  const [tempColor, setTempColor] = useState<string>("#2689cb");
   const [avatarType, setAvatarType] = useState<"preset" | "custom">(appConfig.iconType);
   const [tempAvatarType, setTempAvatarType] = useState<"preset" | "custom">(appConfig.iconType);
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(appConfig.customIconUrl);

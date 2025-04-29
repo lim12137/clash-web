@@ -1,10 +1,11 @@
 import json
 import os
 import time
+import yaml
 from threading import Lock, Thread
 from typing import List, Dict
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 from nexent.core import MessageObserver
 from nexent.core.agents import CoreAgent
 from nexent.core.models import OpenAIModel
@@ -83,20 +84,10 @@ class ConfigManager:
         load_dotenv(self.env_file, override=True)
 
         # Update cache
-        self.config_cache = {"LLM_MODEL_NAME": os.getenv("LLM_MODEL_NAME", ""),
-                             "LLM_API_KEY": os.getenv("LLM_API_KEY", ""),
-                             "LLM_MODEL_URL": os.getenv("LLM_MODEL_URL", ""),
-                             "LLM_SECONDARY_MODEL_NAME": os.getenv("LLM_SECONDARY_MODEL_NAME", ""),
-                             "LLM_SECONDARY_API_KEY": os.getenv("LLM_SECONDARY_API_KEY", ""),
-                             "LLM_SECONDARY_MODEL_URL": os.getenv("LLM_SECONDARY_MODEL_URL", ""),
-                             "EXA_API_KEY": os.getenv("EXA_API_KEY", ""),
-                             "SELECTED_KB_NAMES": os.getenv("SELECTED_KB_NAMES", ""),
-                             "ELASTICSEARCH_SERVICE": os.getenv("ELASTICSEARCH_SERVICE", ""),
-                             "MCP_SERVICE": os.getenv("MCP_SERVICE", ""),
-                             "VL_MODEL_NAME": os.getenv("VL_MODEL_NAME", ""), "VL_API_KEY": os.getenv("VL_API_KEY", ""),
-                             "VL_MODEL_URL": os.getenv("VL_MODEL_URL", ""),
-                             "IMAGE_FILTER": os.getenv("IMAGE_FILTER", False),
-                             "IMAGE_FILTER_MODEL_PATH": os.getenv("IMAGE_FILTER_MODEL_PATH", ""), }
+        self.config_cache = {key: value for key, value in os.environ.items()}
+        self.config_cache.update({
+            "IMAGE_FILTER": os.getenv("IMAGE_FILTER", False),
+        })
 
         print(f"Configuration reloaded at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -104,6 +95,11 @@ class ConfigManager:
         """Get configuration value, reload if configuration has been updated"""
         self.load_config()
         return self.config_cache.get(key, default)
+
+    def set_config(self, key, value):
+        """Set configuration value"""
+        self.config_cache[key] = value
+        set_key(self.env_file, key, value)
 
     def force_reload(self):
         """Force reload configuration"""
@@ -124,28 +120,57 @@ def create_agent():
     main_model = OpenAIModel(observer=observer, model_id=config_manager.get_config("LLM_MODEL_NAME"),
                              api_key=config_manager.get_config("LLM_API_KEY"),
                              api_base=config_manager.get_config("LLM_MODEL_URL"))
+    
+    # TODO: Reserve sub model for future sub agent use
     sub_model = OpenAIModel(observer=observer, model_id=config_manager.get_config("LLM_SECONDARY_MODEL_NAME"),
                             api_key=config_manager.get_config("LLM_SECONDARY_API_KEY"),
                             api_base=config_manager.get_config("LLM_SECONDARY_MODEL_URL"))
 
     # Create tools
-    tools = [EXASearchTool(exa_api_key=EXA_SEARCH_API_KEY, observer=observer, max_results=5,
-                           image_filter=config_manager.get_config("IMAGE_FILTER"),
-                           image_filter_model_path=config_manager.get_config("IMAGE_FILTER_MODEL_PATH"),
-                           image_filter_threshold=0.5),
-             KnowledgeBaseSearchTool(index_names=json.loads(config_manager.get_config("SELECTED_KB_NAMES", "[]")),
-                                     base_url=config_manager.get_config("ELASTICSEARCH_SERVICE"), top_k=5,
-                                     observer=observer),
-             GetEmailTool(imap_server=IMAP_SERVER, imap_port=IMAP_PORT, username=MAIL_USERNAME, password=MAIL_PASSWORD),
-             SendEmailTool(smtp_server=SMTP_SERVER, smtp_port=SMTP_PORT, username=MAIL_USERNAME,
-                           password=MAIL_PASSWORD)]
+    tools = [
+        EXASearchTool(
+            exa_api_key=EXA_SEARCH_API_KEY,
+            observer=observer,
+            max_results=5,
+            image_filter=config_manager.get_config("IMAGE_FILTER"),
+            image_filter_model_path=config_manager.get_config("IMAGE_FILTER_MODEL_PATH"),
+            image_filter_threshold=0.5),
+        KnowledgeBaseSearchTool(
+            index_names=json.loads(config_manager.get_config("SELECTED_KB_NAMES", "[]")),
+            base_url=config_manager.get_config("ELASTICSEARCH_SERVICE"),
+            top_k=5,
+            observer=observer),
+        # GetEmailTool(
+        #     imap_server=IMAP_SERVER,
+        #     imap_port=IMAP_PORT,
+        #     username=MAIL_USERNAME,
+        #     password=MAIL_PASSWORD),
+        # SendEmailTool(
+        #     smtp_server=SMTP_SERVER,
+        #     smtp_port=SMTP_PORT,
+        #     username=MAIL_USERNAME,
+        #     password=MAIL_PASSWORD)
+    ]
 
     # Add final answer tool
     summary_tool = SummaryTool(llm=main_model)
     tools.append(summary_tool)
+    
+    # Read prompt templates
+    file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+    prompt_path = os.path.normpath(os.path.join(file_path, "../prompts/code_agent.yaml"))
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        prompt_templates = yaml.safe_load(f)
 
     # Create individual Agent
-    agent = CoreAgent(observer=observer, tools=tools, model=main_model, name="agent", max_steps=5)
+    agent = CoreAgent(
+        observer=observer, 
+        tools=tools, 
+        model=main_model, 
+        name="agent", 
+        max_steps=5,
+        prompt_templates=prompt_templates
+        )
 
     return agent
 

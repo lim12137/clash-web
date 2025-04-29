@@ -1,6 +1,9 @@
 ![Nexent Banner](./assets/NexentBanner.png)
 
-Nexent 是一个开源智能体SDK和平台，能够将单一提示转化为完整的多模态服务 —— 无需编排，无需复杂拖拉拽。基于 MCP 工具生态系统构建，Nexent 提供灵活的模型集成、可扩展的数据处理和强大的知识库管理。我们的目标很简单：将数据、模型和工具整合到一个智能中心中，让任何人都能轻松地将 Nexent 集成到项目中，使日常工作流程更智能、更互联。
+[![English](https://img.shields.io/badge/English-README-blue)](README.md)
+[![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
+
+Nexent 是一个开源智能体SDK和平台，能够将单一提示词转化为完整的多模态服务 —— 无需编排，无需复杂拖拉拽。基于 MCP 工具生态系统构建，Nexent 提供灵活的模型集成、可扩展的数据处理和强大的知识库管理。我们的目标很简单：将数据、模型和工具整合到一个智能中心中，让任何人都能轻松地将 Nexent 集成到项目中，使日常工作流程更智能、更互联。
 
 > 一个提示词，无限种可能。
 
@@ -10,12 +13,12 @@ Nexent 是一个开源智能体SDK和平台，能够将单一提示转化为完�
 
 我们仍处于首个开源阶段，目标是在 **2025 年 6 月发布 Nexent v1 稳定版**。在此之前，我们将持续快速发布核心功能 —— 我们期待您的参与：
 
-* **📋 关注 [路线图](#)** 了解下一步计划。  
-* **🔍 试用当前版本** 并在 [问题反馈](#) 中留下想法或报告错误。
+* **📋 关注 [路线图(Comming)](#)** 了解我们的下一步计划。  
+* **🔍 试用当前版本** 并在 [问题反馈](https://github.com/nexent-hub/nexent-community/issues) 中留下想法或报告错误。
 
 > *Rome wasn't built in a day.*
 
-虽然许多关键功能仍在积极开发中，但如果我们的愿景与您产生共鸣，请通过 **[贡献指南](#)** 加入我们，共同塑造 Nexent。
+虽然许多关键功能仍在积极开发中，但如果我们的愿景与您产生共鸣，请通过 **[贡献指南](CONTRIBUTING_CN.md)** 加入我们，共同塑造 Nexent。
 
 早期贡献者不会被忽视：从特殊徽章和纪念品到其他实质性奖励，我们致力于感谢那些帮助 Nexent 诞生的先驱者。
 
@@ -34,7 +37,7 @@ Nexent 是一个开源智能体SDK和平台，能够将单一提示转化为完�
 ### 2. 🛠️ 使用 Docker Compose 快速开始
 
 ```bash
-git clone git@github.com:AI-Application-Innovation/nexent.git
+git clone git@github.com:nexent-hub/nexent-community.git
 sh docker/deploy.sh
 ```
 
@@ -42,13 +45,19 @@ sh docker/deploy.sh
 
 ### 3. ❓ 需要帮助？
 
-- 浏览 [常见问题](#) 了解常见安装问题。  
-- 在我们的 [Discord 社区](#) 中提问。  
-- 在 [GitHub Issues](#) 中提交错误报告或功能建议。
+- 浏览 [常见问题](FAQ_CN.md) 了解常见安装问题。  
+- 在我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 中提问。  
+- 在 [GitHub Issues](https://github.com/nexent-hub/nexent-community/issues) 中提交错误报告或功能建议。
+
+> ℹ️ 由于开发紧张，目前我们仅支持 Jina Embedding 模型。其他模型的支持将在未来版本中添加。有关 Jina API 密钥获取，请参阅我们的[常见问题](FAQ_CN.md)。
 
 #### 4. 🔧 开发 Nexent
 
-想要从源代码构建或添加新功能？查看 [贡献指南](#) 获取分步说明。
+想要从源代码构建或添加新功能？查看 [贡献指南](CONTRIBUTING_CN.md) 获取分步说明。
+
+#### 5. 🛠️ 从源码构建
+
+想要从源码运行 Nexent？查看我们的[开发者指南](DEVELOPPER_NOTE_CN.md)获取详细的设置说明和自定义选项。
 
 ## ✨ 主要特性
 
@@ -87,8 +96,26 @@ sh docker/deploy.sh
 
    ![Feature 7](./assets/Feature7.png)
 
+# 🐛 已知问题
+
+1. 🔄 **知识库刷新延迟**  
+   我们已知知识库刷新机制目前存在一些延迟、偶尔的错误或刷新不生效的情况。我们计划尽快重构这一部分，但请注意这仅是任务管理的逻辑问题，实际的数据处理速度不受影响。
+
+2. 🤖 **模型供应商支持有限**  
+   我们目前对不同的模型供应商支持有限，包括语音和多模态模型。我们将在未来几周内快速更新这些支持，请保持关注！
+
 # 👥 贡献指南
+
+我们欢迎各种形式的贡献！无论是修复错误、添加功能还是改进文档，您的帮助都能让 Nexent 变得更好。
+
+- 📖 阅读我们的[贡献指南](CONTRIBUTING_CN.md)开始贡献
+- 🐛 在 [GitHub Issues](https://github.com/nexent-hub/nexent-community/issues) 中报告错误或提出功能建议
+- 💬 加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 讨论想法
 
 # 💬 社区与联系方式
 
-# 📄 许可证 
+加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 与其他开发者交流并获取帮助！
+
+# 📄 许可证
+
+Nexent 采用 [Apache License 2.0](LICENSE) 许可证，并附有额外条件。请阅读 [LICENSE](LICENSE) 文件了解详情。
