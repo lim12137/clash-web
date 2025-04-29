@@ -13,7 +13,7 @@ Nexent is an open-source agent SDK and platform that turns a single prompt into 
 
 We're still in our very first open-source phase and aiming for **Nexent v1-stable in June 2025**. Until then we'll keep shipping core features rapidly — and we'd love your help:
 
-* **📋 Follow the [Roadmap](#)** to see what's next.  
+* **📋 Follow the [Roadmap(Comming)](#)** to see what's next.  
 * **🔍 Try the current build** and leave ideas or bugs in the [Issues](#) tab.
 
 > *Rome wasn't built in a day.*
