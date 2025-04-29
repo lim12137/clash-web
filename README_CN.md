@@ -49,6 +49,8 @@ sh docker/deploy.sh
 - 在我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 中提问。  
 - 在 [GitHub Issues](#) 中提交错误报告或功能建议。
 
+> ℹ️ 由于开发紧张，目前我们仅支持 Jina Embedding 模型。其他模型的支持将在未来版本中添加。有关 Jina API 密钥获取，请参阅我们的[常见问题](FAQ_CN.md)。
+
 #### 4. 🔧 开发 Nexent
 
 想要从源代码构建或添加新功能？查看 [贡献指南](CONTRIBUTING_CN.md) 获取分步说明。
