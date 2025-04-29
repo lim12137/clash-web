@@ -1,10 +1,5 @@
-import json
-import os
-
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
-from nexent.core.tools import EXASearchTool, KnowledgeBaseSearchTool, SummaryTool
-from smolagents.models import OpenAIServerModel
 
 # Create MCP server
 mcp = FastMCP("Nexent_MCP", port=5011)
@@ -12,26 +7,32 @@ mcp = FastMCP("Nexent_MCP", port=5011)
 # Load environment variables
 load_dotenv()
 
-# Instantiate tools
-EXA_API_KEY = os.getenv("EXA_API_KEY")
-exa_tool = EXASearchTool(exa_api_key=EXA_API_KEY, lang="zh", max_results=5)
+# import json
+# import os
 
-KB_BASE_URL = os.getenv("KB_BASE_URL")
-SELECTED_KB_NAMES = os.getenv("SELECTED_KB_NAMES")
-kb_tool = KnowledgeBaseSearchTool(index_names=json.loads(SELECTED_KB_NAMES), base_url=KB_BASE_URL, lang="zh", top_k=5)
+# from nexent.core.tools import EXASearchTool, KnowledgeBaseSearchTool, SummaryTool
+# from smolagents.models import OpenAIServerModel
 
-# 模型系统提示词
-SUMMARY_SYSTEM_PROMPT = """你是一个专业的助手，需要根据检索到的信息回答用户的问题。
-请仔细阅读检索信息，提取关键内容，组织语言，回答用户的问题。
-如果检索信息中没有相关内容，请明确告知用户无法回答，不要编造内容。
-回答应该简洁、清晰、有条理，并且尽可能完整地解答用户问题。"""
-MODEL_NAME = os.getenv('LLM_MODEL_NAME')
-MODEL_URL = os.getenv('LLM_MODEL_URL')
-MODEL_KEY = os.getenv('LLM_API_KEY')
+# # Instantiate tools
+# EXA_API_KEY = os.getenv("EXA_API_KEY")
+# exa_tool = EXASearchTool(exa_api_key=EXA_API_KEY, lang="en", max_results=5)
 
-model_client = OpenAIServerModel(api_base=MODEL_URL, api_key=MODEL_KEY, model_id=MODEL_NAME, temperature=0.3,
-                                 top_p=0.95)
-summary_tool = SummaryTool(llm=model_client)
+# KB_BASE_URL = os.getenv("KB_BASE_URL")
+# SELECTED_KB_NAMES = os.getenv("SELECTED_KB_NAMES")
+# kb_tool = KnowledgeBaseSearchTool(index_names=json.loads(SELECTED_KB_NAMES), base_url=KB_BASE_URL, lang="en", top_k=5)
+
+# # Model system prompt
+# SUMMARY_SYSTEM_PROMPT = """You are a professional assistant who needs to answer user questions based on retrieved information.
+# Please carefully read the retrieved information, extract key content, organize language, and answer user questions.
+# If there is no relevant content in the retrieved information, please clearly inform the user that you cannot answer, and do not fabricate content.
+# Answers should be concise, clear, well-organized, and as complete as possible in addressing user questions."""
+# MODEL_NAME = os.getenv('LLM_MODEL_NAME')
+# MODEL_URL = os.getenv('LLM_MODEL_URL')
+# MODEL_KEY = os.getenv('LLM_API_KEY')
+
+# model_client = OpenAIServerModel(api_base=MODEL_URL, api_key=MODEL_KEY, model_id=MODEL_NAME, temperature=0.3,
+#                                  top_p=0.95)
+# summary_tool = SummaryTool(llm=model_client)
 
 # # Register EXA search tool
 # @mcp.tool(name=EXASearchTool.name, description=EXASearchTool.description)

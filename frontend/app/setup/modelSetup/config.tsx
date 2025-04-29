@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Layout, Typography, Row, Col } from "antd"
 import { AppConfigSection } from './appConfig'
-import { ModelConfigSection, ModelConfigSectionRef } from './model/modelConfig'
+import { ModelConfigSection, ModelConfigSectionRef } from './modelConfig'
 import { useConfig } from '@/hooks/useConfig'
 
 // 重构：是否有必要引入

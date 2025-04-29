@@ -1,8 +1,11 @@
 # Nexent 贡献指南 ✨
 
+[![English](https://img.shields.io/badge/English-README-blue)](CONTRIBUTING.md)
+[![中文](https://img.shields.io/badge/中文-README-green)](CONTRIBUTING_CN.md)
+
 感谢您考虑为 Nexent 贡献力量！无论是代码、文档还是经验分享，您的每一份付出都能让 Nexent 变得更好。如果您愿意向他人推荐 Nexent 或在仓库点个 ⭐️，我们也非常感激。万分感谢！💛 让我们一起打造非凡之作！🎉
 
-关于许可证，请花一分钟阅读我们简短的[许可和贡献者协议](https://github.com/AI-Application-Innovation/nexent/blob/main/LICENSE)。同时也请遵循[社区行为准则](https://github.com/AI-Application-Innovation/nexent/blob/main/CODE_OF_CONDUCT.md)。
+关于许可证，请花一分钟阅读我们简短的[许可和贡献者协议](https://github.com/nexent-hub/nexent-community/blob/main/LICENSE)。同时也请遵循[社区行为准则](https://github.com/nexent-hub/nexent-community/blob/main/CODE_OF_CONDUCT.md)。
 
 ---
 
@@ -44,19 +47,19 @@
 - 截图或设计稿（如果有）。
 
 **提交到哪里？**  
-在我们的 [GitHub Issues]([Issues · AI-Application-Innovation/nexent](https://github.com/AI-Application-Innovation/nexent/issues)) 中新建一个 Issue，并选择合适的模板（Bug 报告或功能请求）。
+在我们的 [GitHub Issues](https://github.com/nexent-hub/nexent-community/issues) 中新建一个 Issue，并选择合适的模板（Bug 报告或功能请求）。
 
 ---
 
 ## 💻 提交代码更改
 
 ### 第一步：Fork 仓库
-🍴 Fork [Nexent 仓库](https://github.com/AI-Application-Innovation/nexent) 到您的 GitHub 账户。
+🍴 Fork [Nexent 仓库](https://github.com/nexent-hub/nexent-community) 到您的 GitHub 账户。
 
 ### 第二步：克隆您的 Fork
 📦 将您的 Fork 克隆到本地：
 ```bash
-git clone https://github.com/AI-Application-Innovation/nexent.git
+git clone https://github.com/nexent-hub/nexent-community.git
 ```
 
 ### 第三步：创建分支
@@ -69,16 +72,29 @@ git checkout -b 您的分支名
 🧙‍♂️ 像魔法师一样编码！遵循我们的 [开发指南](./DEVELOPMENT.md) 获取设置说明和编码标准。确保您的更改经过充分测试并有文档记录。
 
 ### 第五步：提交更改
-📝 提交时附上清晰简洁的消息：
+📝 按照我们的提交消息规范，提交清晰简洁的消息（建议采用英文，让更多人理解你）：
+
+| 类型 | 图标 | 描述 |
+|------|------|------|
+| 重构 | ♻️ | 代码逻辑优化，不影响功能 |
+| 代码迁移 | 🚚 | 移动、迁移文件或模块 |
+| 新需求/新特性 | ✨ | 增加新功能、新特性 |
+| Bug修复 | 🐛 | 修复问题或错误 |
+| 风格优化 | 🎨 | 改进代码风格、格式化，不改功能 |
+| 工程优化 | 🔨 | 工程工具更新、配置调整 |
+| 文档更新 | 📝 | 只改动文档内容 |
+
+示例提交消息：
 ```bash
-git add .
-git commit -m "您有意义的提交消息"
+git commit -m "✨ add user authentication"
+git commit -m "🐛 resolve login timeout issue"
+git commit -m "📝 update API documentation"
 ```
 
 ### 第六步：与上游同步
 ⚙️ 让您的 Fork 与主仓库的最新更改保持同步：
 ```bash
-git remote add upstream https://github.com/AI-Application-Innovation/nexent.git
+git remote add upstream https://github.com/nexent-hub/nexent-community.git
 git fetch upstream
 git merge upstream/main
 ```
@@ -90,6 +106,29 @@ git merge upstream/main
 - 任何额外的上下文或截图。
 
 我们的团队将审核您的 PR 并提供反馈。协作创造奇迹！✨
+
+### 保护分支和代码所有者审查
+
+当向保护分支（如 `main`）提交更改时，请注意以下要求：
+
+1. **需要代码所有者审查**
+   - PR 将自动请求相关代码所有者的审查
+   - 您不能批准自己的 PR
+   - 代码所有者的批准是必需的
+
+2. **需要多个批准**
+   - 至少需要 2 个批准（包括代码所有者的批准）
+   - 所有 CI 检查必须通过（lint、测试、构建等）
+
+3. **合并流程**
+   - 提交 PR 后，系统将自动请求代码所有者审查
+   - 需要至少两个批准（包括代码所有者）
+   - 只有在满足所有要求后，"合并"按钮才会变为可用
+
+4. **限制**
+   - 不能绕过审查或强制合并
+   - 不允许直接推送到保护分支
+   - 自我批准无效
 
 ---
 
