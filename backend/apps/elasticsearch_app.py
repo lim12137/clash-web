@@ -7,8 +7,7 @@ from nexent.core.models.embedding_model import JinaEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter
 
-from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST, EMBEDDING_MODEL_NAME, \
-    EMBEDDING_MODEL_URL, EMBEDDING_API_KEY, EMBEDDING_MODEL_DIM
+from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST, EMBEDDING_API_KEY
 from consts.model import IndexingRequest, IndexingResponse, SearchRequest, HybridSearchRequest
 from utils.elasticsearch_utils import get_active_tasks_status
 
@@ -19,10 +18,7 @@ elastic_core = ElasticSearchCore(
     init_test_kb=CREATE_TEST_KB,
     host=ES_HOST,
     api_key=ES_API_KEY,
-    embedding_model=JinaEmbedding(model_name=EMBEDDING_MODEL_NAME,
-                                  base_url=EMBEDDING_MODEL_URL,
-                                  api_key=EMBEDDING_API_KEY,
-                                  embedding_dim=EMBEDDING_MODEL_DIM),
+    embedding_model=JinaEmbedding(api_key=EMBEDDING_API_KEY),
     verify_certs=False,
     ssl_show_warn=False,
 )
@@ -257,7 +253,7 @@ def index_documents(
         # Create index if needed (ElasticSearchCore will handle embedding_dim automatically)
         if index_name not in indices:
             print(f"Creating new index: {index_name}")
-            success = es_core.create_vector_index(index_name, embedding_dim=EMBEDDING_MODEL_DIM)
+            success = es_core.create_vector_index(index_name, embedding_dim=es_core.embedding_dim)
             if not success:
                 raise HTTPException(status_code=500, detail=f"Failed to auto-create index {index_name}")
 
