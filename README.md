@@ -18,7 +18,7 @@ We're still in our very first open-source phase and aiming for **Nexent v1-stabl
 
 > *Rome wasn't built in a day.*
 
-Many of our key capabilities are still under active development, but if our vision speaks to you, jump in via the **[Contribution Guide](#)** and shape Nexent with us.
+Many of our key capabilities are still under active development, but if our vision speaks to you, jump in via the **[Contribution Guide](CONTRIBUTING.md)** and shape Nexent with us.
 
 Early contributors won't go unnoticed: from special badges and swag to other tangible rewards, we're committed to thanking the pioneers who help bring Nexent to life.
 
@@ -51,7 +51,7 @@ When the containers are running, open **http://localhost:3000** in your browser 
 
 #### 4. 🔧 Hack on Nexent
 
-Want to build from source or add new features? Check the [Contribution Guide](#) for step-by-step instructions.
+Want to build from source or add new features? Check the [Contribution Guide](CONTRIBUTING.md) for step-by-step instructions.
 
 ## ✨ Key Features
 
@@ -95,6 +95,12 @@ Want to build from source or add new features? Check the [Contribution Guide](#)
 
 
 # 👥 Contributing
+
+We welcome all kinds of contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes Nexent better for everyone. 
+
+- 📖 Read our [Contribution Guide](CONTRIBUTING.md) to get started
+- 🐛 Report bugs or suggest features in [GitHub Issues](#)
+- 💬 Join our [Discord community](#) to discuss ideas
 
 # 💬 Community & contact
 
