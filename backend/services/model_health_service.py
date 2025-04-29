@@ -41,8 +41,7 @@ async def check_model_connectivity(model_name: str):
         # Test connectivity based on different model types
         if model_type == "embedding":
             # TODO: Implement non-Jina model instantiation in the future
-            connectivity = JinaEmbedding(model_name=model_name, base_url=model_base_url, api_key=model_api_key,
-                                         embedding_dim=1024).check_connectivity()
+            connectivity = JinaEmbedding(api_key=model_api_key).check_connectivity()
 
         elif model_type == "llm":
             observer = MessageObserver()
