@@ -4,7 +4,7 @@ import time
 from threading import Lock, Thread
 from typing import List, Dict
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 from nexent.core import MessageObserver
 from nexent.core.agents import CoreAgent
 from nexent.core.models import OpenAIModel
@@ -83,20 +83,10 @@ class ConfigManager:
         load_dotenv(self.env_file, override=True)
 
         # Update cache
-        self.config_cache = {"LLM_MODEL_NAME": os.getenv("LLM_MODEL_NAME", ""),
-                             "LLM_API_KEY": os.getenv("LLM_API_KEY", ""),
-                             "LLM_MODEL_URL": os.getenv("LLM_MODEL_URL", ""),
-                             "LLM_SECONDARY_MODEL_NAME": os.getenv("LLM_SECONDARY_MODEL_NAME", ""),
-                             "LLM_SECONDARY_API_KEY": os.getenv("LLM_SECONDARY_API_KEY", ""),
-                             "LLM_SECONDARY_MODEL_URL": os.getenv("LLM_SECONDARY_MODEL_URL", ""),
-                             "EXA_API_KEY": os.getenv("EXA_API_KEY", ""),
-                             "SELECTED_KB_NAMES": os.getenv("SELECTED_KB_NAMES", ""),
-                             "ELASTICSEARCH_SERVICE": os.getenv("ELASTICSEARCH_SERVICE", ""),
-                             "MCP_SERVICE": os.getenv("MCP_SERVICE", ""),
-                             "VL_MODEL_NAME": os.getenv("VL_MODEL_NAME", ""), "VL_API_KEY": os.getenv("VL_API_KEY", ""),
-                             "VL_MODEL_URL": os.getenv("VL_MODEL_URL", ""),
-                             "IMAGE_FILTER": os.getenv("IMAGE_FILTER", False),
-                             "IMAGE_FILTER_MODEL_PATH": os.getenv("IMAGE_FILTER_MODEL_PATH", ""), }
+        self.config_cache = {key: value for key, value in os.environ.items()}
+        self.config_cache.update({
+            "IMAGE_FILTER": os.getenv("IMAGE_FILTER", False),
+        })
 
         print(f"Configuration reloaded at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -104,6 +94,11 @@ class ConfigManager:
         """Get configuration value, reload if configuration has been updated"""
         self.load_config()
         return self.config_cache.get(key, default)
+
+    def set_config(self, key, value):
+        """Set configuration value"""
+        self.config_cache[key] = value
+        set_key(self.env_file, key, value)
 
     def force_reload(self):
         """Force reload configuration"""
