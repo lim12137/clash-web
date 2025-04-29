@@ -3,12 +3,13 @@ import time
 from typing import Optional
 
 import requests
-from nexent.core.models.embedding_model import JinaEmbedding
-from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter
 
-from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST, EMBEDDING_API_KEY
+from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST
 from consts.model import IndexingRequest, IndexingResponse, SearchRequest, HybridSearchRequest
+from nexent.core.models.embedding_model import JinaEmbedding
+from nexent.vector_database.elasticsearch_core import ElasticSearchCore
+from utils.agent_utils import config_manager
 from utils.elasticsearch_utils import get_active_tasks_status
 
 router = APIRouter(prefix="/indices")
@@ -18,13 +19,15 @@ elastic_core = ElasticSearchCore(
     init_test_kb=CREATE_TEST_KB,
     host=ES_HOST,
     api_key=ES_API_KEY,
-    embedding_model=JinaEmbedding(api_key=EMBEDDING_API_KEY),
+    embedding_model=None,
     verify_certs=False,
     ssl_show_warn=False,
 )
 
 
 def get_es_core():
+    # ensure embedding model is latest
+    elastic_core.embedding_model = JinaEmbedding(api_key=config_manager.get_config("EMBEDDING_API_KEY"))
     return elastic_core
 
 
