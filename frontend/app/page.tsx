@@ -25,7 +25,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-start">
             <img src="/modelengine-logo2.png" alt="ModelEngine" className="h-6" />
-            <span className="text-blue-600 dark:text-blue-500 ml-2">企业智能体</span>
+            <span className="text-blue-600 dark:text-blue-500 ml-2">Nexent 智能体</span>
           </h1>
         </div>
         <div className="hidden md:flex items-center gap-6">
@@ -69,10 +69,10 @@ export default function Home() {
           <div className="absolute inset-0 bg-grid-slate-200 dark:bg-grid-slate-800 [mask-image:radial-gradient(ellipse_at_center,white_20%,transparent_75%)] -z-10"></div>
 
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-white mb-4 tracking-tight">
-            智能问答<span className="text-blue-600 dark:text-blue-500"> 一键解答</span>
+          Nexent 智能体<span className="text-blue-600 dark:text-blue-500"> 一个提示词，无限种可能</span>
           </h2>
           <p className="max-w-2xl text-slate-600 dark:text-slate-300 text-lg md:text-xl mb-8">
-            精准解答每一个问题，高效支撑每一次决策
+          无需编排，无需复杂拖拉拽，将数据、模型和工具整合到一个智能中心中。
           </p>
 
           {/* 两个平行按钮 */}
