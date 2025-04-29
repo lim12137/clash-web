@@ -68,10 +68,23 @@ git checkout -b your-branch-name
 🧙‍♂️ Code like a wizard! Follow our [Development Guide](./DEVELOPMENT.md) for setup instructions and coding standards. Ensure your changes are well-tested and documented.
 
 ### Step 5: Commit Your Changes
-📝 Commit with a clear and concise message:
+📝 Commit with a clear and concise message following our commit message guidelines:
+
+| Type | Icon | Description |
+|------|------|-------------|
+| Refactor | ♻️ | Code logic optimization without affecting functionality |
+| Migration | 🚚 | Moving or migrating files or modules |
+| Feature | ✨ | Adding new features or functionality |
+| Bugfix | 🐛 | Fixing issues or bugs |
+| Style | 🎨 | Improving code style, formatting without changing functionality |
+| Chore | 🔧 or 🔨 | Updating tools, adjusting configurations |
+| Docs | 📝 | Documentation changes only |
+
+Example commit message:
 ```bash
-git add .
-git commit -m "Your meaningful commit message"
+git commit -m "✨ add user authentication"
+git commit -m "🐛 resolve login timeout issue"
+git commit -m "📝 update API documentation"
 ```
 
 ### Step 6: Sync with Upstream
@@ -89,6 +102,29 @@ git merge upstream/main
 - Any additional context or screenshots.
 
 Our team will review your PR and provide feedback. Collaboration makes the magic happen! ✨
+
+### Protected Branches and Code Owner Reviews
+
+When submitting changes to protected branches (like `main`), please note the following requirements:
+
+1. **Code Owner Review Required**
+   - The PR will automatically request reviews from relevant code owners
+   - You cannot approve your own PR
+   - Code owner approval is mandatory
+
+2. **Multiple Approvals Required**
+   - At least 2 approvals are required (including code owner approval)
+   - All CI checks must pass (lint, test, build, etc.)
+
+3. **Merge Process**
+   - After submitting the PR, the system will automatically request code owner reviews
+   - At least two approvals (including code owner) are needed
+   - The "Merge" button will only become available after all requirements are met
+
+4. **Restrictions**
+   - You cannot bypass reviews or force merge
+   - Direct pushes to protected branches are not allowed
+   - Self-approvals are not valid
 
 ---
 
