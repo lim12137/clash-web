@@ -23,24 +23,6 @@ class ModelConnectStatusEnum(Enum):
             return cls.NOT_DETECTED.value
         return status
 
-
-# Request models for user authentication
-class UserSignUpRequest(BaseModel):
-    """User registration request model"""
-    email: EmailStr
-    password: str = Field(..., min_length=6)
-
-class UserSignInRequest(BaseModel):
-    """User login request model"""
-    email: EmailStr
-    password: str
-
-class UserUpdateRequest(BaseModel):
-    """User information update request model"""
-    email: Optional[EmailStr] = None
-    password: Optional[str] = Field(None, min_length=6)
-    role: Optional[str] = None
-
 # Response models for user management
 class ServiceResponse(BaseModel):
     code: int
