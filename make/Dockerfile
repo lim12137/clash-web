@@ -14,7 +14,7 @@ RUN sed -i s@/deb.debian.org/@/mirrors.aliyun.com/@g /etc/apt/sources.list.d/deb
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
 RUN chmod +x /opt/deployment/start.sh
 RUN pip config --user set global.progress_bar off
-RUN wget -q https://raw.githubusercontent.com/goto456/stopwords/master/baidu_stopwords.txt -O /opt/assets/baidu_stopwords.txt
+RUN wget -q https://gh.llkk.cc/https://raw.githubusercontent.com/goto456/stopwords/master/baidu_stopwords.txt -O /opt/assets/baidu_stopwords.txt
 RUN export STOPWORDS_PATH=/opt/assets/baidu_stopwords.txt
 
 WORKDIR /opt
