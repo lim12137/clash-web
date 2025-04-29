@@ -46,7 +46,7 @@ When the containers are running, open **http://localhost:3000** in your browser 
 ### 3. ❓ Need help?
 
 - Browse the [FAQ](#) for common install issues.  
-- Drop questions in our [Discord community](#).  
+- Drop questions in our [Discord community](https://discord.gg/tb5H3S3wyv).  
 - File bugs or feature ideas in [GitHub Issues](#).
 
 #### 4. 🔧 Hack on Nexent
@@ -100,9 +100,13 @@ We welcome all kinds of contributions! Whether you're fixing bugs, adding featur
 
 - 📖 Read our [Contribution Guide](CONTRIBUTING.md) to get started
 - 🐛 Report bugs or suggest features in [GitHub Issues](#)
-- 💬 Join our [Discord community](#) to discuss ideas
+- 💬 Join our [Discord community](https://discord.gg/tb5H3S3wyv) to discuss ideas
 
 # 💬 Community & contact
 
-# 📄 Licence
+Join our [Discord community](https://discord.gg/tb5H3S3wyv) to chat with other developers and get help!
+
+# 📄 License
+
+Nexent is licensed under the [Apache License 2.0](LICENSE) with additional conditions. Please read the [LICENSE](LICENSE) file for details.
 
