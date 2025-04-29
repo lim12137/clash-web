@@ -16,28 +16,28 @@ from typing import Optional
 import requests
 from nexent.core.models.embedding_model import JinaEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
-from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter
+from fastapi import HTTPException, Query, Body, Path, Depends
 
-# 导入配置常量和数据模型
-from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST, EMBEDDING_MODEL_NAME, \
-    EMBEDDING_MODEL_URL, EMBEDDING_API_KEY, EMBEDDING_MODEL_DIM
+from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST
 from consts.model import IndexingRequest, IndexingResponse, SearchRequest, HybridSearchRequest
+from utils.agent_utils import config_manager
 from utils.elasticsearch_utils import get_active_tasks_status
 
 
+# Initialize ElasticSearchCore instance with HTTPS support
 elastic_core = ElasticSearchCore(
-    init_test_kb=CREATE_TEST_KB,  # 是否创建测试知识库
-    host=ES_HOST,  # Elasticsearch主机地址
-    api_key=ES_API_KEY,  # Elasticsearch API密钥
-    embedding_model=JinaEmbedding(model_name=EMBEDDING_MODEL_NAME,
-                                  base_url=EMBEDDING_MODEL_URL,
-                                  api_key=EMBEDDING_API_KEY,
-                                  embedding_dim=EMBEDDING_MODEL_DIM),
-    verify_certs=False,  # 不验证SSL证书
-    ssl_show_warn=False,  # 不显示SSL警告
+    init_test_kb=CREATE_TEST_KB,
+    host=ES_HOST,
+    api_key=ES_API_KEY,
+    embedding_model=None,
+    verify_certs=False,
+    ssl_show_warn=False,
 )
 
+
 def get_es_core():
+    # ensure embedding model is latest
+    elastic_core.embedding_model = JinaEmbedding(api_key=config_manager.get_config("EMBEDDING_API_KEY"))
     return elastic_core
 
 
@@ -276,8 +276,9 @@ class ElasticSearchService:
         try:
             print(f"Received request for index {index_name}")
 
-            # 如果IndexingRequest中包含index_name，则使用该值
+            # Extract index_name from IndexingRequest if present
             if data.index_name:
+                # Override path parameter with value from the data itself
                 print(f"Using index name from request: {data.index_name}")
                 index_name = data.index_name
 
@@ -290,7 +291,7 @@ class ElasticSearchService:
             # Create index if needed (ElasticSearchCore will handle embedding_dim automatically)
             if index_name not in indices:
                 print(f"Creating new index: {index_name}")
-                success = es_core.create_vector_index(index_name, embedding_dim=EMBEDDING_MODEL_DIM)
+                success = es_core.create_vector_index(index_name, embedding_dim=es_core.embedding_dim)
                 if not success:
                     raise HTTPException(status_code=500, detail=f"Failed to auto-create index {index_name}")
 
