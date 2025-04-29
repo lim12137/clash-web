@@ -96,8 +96,8 @@ async def load_config():
         # TODO: Clean up the default values
         config = {
             "app": {
-                "name": os.getenv("APP_NAME", "Smart Q&A"),
-                "description": os.getenv("APP_DESCRIPTION", ""),
+                "name": os.getenv("APP_NAME", "Nexent 智能体"),
+                "description": os.getenv("APP_DESCRIPTION", "Nexent 是一个开源智能体SDK和平台，能够将单一提示词转化为完整的多模态服务 —— 无需编排，无需复杂拖拉拽。基于 MCP 工具生态系统构建，Nexent 提供灵活的模型集成、可扩展的数据处理和强大的知识库管理。我们的目标很简单：将数据、模型和工具整合到一个智能中心中，让任何人都能轻松地将 Nexent 集成到项目中，使日常工作流程更智能、更互联。"),
                 "icon": {
                     "type": os.getenv("ICON_TYPE", "preset"),
                     "avatarUri": os.getenv("AVATAR_URI", ""),
