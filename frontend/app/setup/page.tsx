@@ -210,6 +210,9 @@ export default function CreatePage() {
         
         // 所有必填项都已填写，允许跳转到第二页
         setSelectedKey("2")
+
+        // 调用后端保存配置API
+        await configService.saveConfigToBackend(currentConfig)
       } catch (error) {
         console.error("验证配置异常:", error)
         message.error("系统异常，请稍后重试")
