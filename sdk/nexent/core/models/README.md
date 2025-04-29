@@ -88,11 +88,7 @@ VOICE_TYPE=your_voice_type
 from Nexent.core.models.embedding_model import JinaEmbedding
 
 # 初始化嵌入模型
-embedding = JinaEmbedding(
-    model_name="your_model",
-    base_url="your_api_url",
-    api_key="your_api_key"
-)
+embedding = JinaEmbedding(api_key="your_api_key")
 
 # 获取文本嵌入
 inputs = [{"text": "Hello world"}]

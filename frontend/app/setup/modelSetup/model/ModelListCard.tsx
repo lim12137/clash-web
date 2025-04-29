@@ -322,13 +322,9 @@ export const ModelListCard = ({
     // 注册更新函数
     modelUpdateRegistry.set(instanceId, updateModelStatus);
     
-    // 确保全局定时器启动
-    const cleanupTimer = startGlobalTimer();
-    
     // 组件卸载时清理
     return () => {
       modelUpdateRegistry.delete(instanceId);
-      cleanupTimer();
     };
   }, [updateModelStatus]);
 
