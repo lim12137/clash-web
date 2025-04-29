@@ -1,5 +1,8 @@
 # Nexent Contributing Guide ✨
 
+[![English](https://img.shields.io/badge/English-README-blue)](CONTRIBUTING.md)
+[![中文](https://img.shields.io/badge/中文-README-green)](CONTRIBUTING_CN.md)
+
 Thank you for considering contributing to Nexent! From code to docs to sharing your experience, every bit helps make Nexent better for everyone. It also helps us if you share Nexent with others, or simply ⭐️ the repo. Thanks a million! 💛 Let's build something amazing together! 🎉
 
 In terms of licensing, please take a minute to read our short [License and Contributor Agreement](https://github.com/AI-Application-Innovation/nexent/blob/main/LICENSE). The community also adheres to the [code of conduct](https://github.com/AI-Application-Innovation/nexent/blob/main/CODE_OF_CONDUCT.md).
@@ -77,7 +80,7 @@ git checkout -b your-branch-name
 | Feature | ✨ | Adding new features or functionality |
 | Bugfix | 🐛 | Fixing issues or bugs |
 | Style | 🎨 | Improving code style, formatting without changing functionality |
-| Chore | 🔧 or 🔨 | Updating tools, adjusting configurations |
+| Chore | 🔨 | Updating tools, adjusting configurations |
 | Docs | 📝 | Documentation changes only |
 
 Example commit message:

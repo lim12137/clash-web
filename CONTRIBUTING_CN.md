@@ -1,5 +1,8 @@
 # Nexent 贡献指南 ✨
 
+[![English](https://img.shields.io/badge/English-README-blue)](CONTRIBUTING.md)
+[![中文](https://img.shields.io/badge/中文-README-green)](CONTRIBUTING_CN.md)
+
 感谢您考虑为 Nexent 贡献力量！无论是代码、文档还是经验分享，您的每一份付出都能让 Nexent 变得更好。如果您愿意向他人推荐 Nexent 或在仓库点个 ⭐️，我们也非常感激。万分感谢！💛 让我们一起打造非凡之作！🎉
 
 关于许可证，请花一分钟阅读我们简短的[许可和贡献者协议](https://github.com/AI-Application-Innovation/nexent/blob/main/LICENSE)。同时也请遵循[社区行为准则](https://github.com/AI-Application-Innovation/nexent/blob/main/CODE_OF_CONDUCT.md)。
@@ -78,7 +81,7 @@ git checkout -b 您的分支名
 | 新需求/新特性 | ✨ | 增加新功能、新特性 |
 | Bug修复 | 🐛 | 修复问题或错误 |
 | 风格优化 | 🎨 | 改进代码风格、格式化，不改功能 |
-| 工程优化 | 🔧 或 🔨 | 工程工具更新、配置调整 |
+| 工程优化 | 🔨 | 工程工具更新、配置调整 |
 | 文档更新 | 📝 | 只改动文档内容 |
 
 示例提交消息：
