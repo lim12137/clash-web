@@ -18,6 +18,8 @@ import websockets
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
+from consts.const import TEST_VOICE_PATH
+
 # Protocol constants
 PROTOCOL_VERSION = 0b0001
 DEFAULT_HEADER_SIZE = 0b0001
@@ -68,8 +70,6 @@ class STTConfig(BaseModel):
     resourceid: str = "volc.bigasr.sauc.duration"
     streaming: bool = True
     compression: bool = True
-    # TODO: 测试语音路径转为相对路径
-    test_voice_path: str = r'C:\Project\Nexent\example_docs\test.wav'
 
     @classmethod
     def from_env(cls, env_file: Union[str, Path] = None):
@@ -661,7 +661,7 @@ class STTModel:
             bool: 连接成功返回True，失败返回False
         """
         try:
-            result = await self.process_audio_file(self.config.test_voice_path)
+            result = await self.process_audio_file(TEST_VOICE_PATH)
             # 检查返回结果是否为字典类型且非空
             return isinstance(result, dict) and bool(result)
         except Exception:
