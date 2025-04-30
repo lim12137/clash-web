@@ -100,7 +100,7 @@ class MinioClient:
 
         try:
             self.client.upload_file(file_path, bucket, object_name)
-            file_url = f"{self.endpoint}/{bucket}/{object_name}"
+            file_url = f"/{bucket}/{object_name}"
             return True, file_url
         except Exception as e:
             return False, str(e)
@@ -120,7 +120,7 @@ class MinioClient:
         bucket = bucket or self.default_bucket
         try:
             self.client.upload_fileobj(file_obj, bucket, object_name)
-            file_url = f"{self.endpoint}/{bucket}/{object_name}"
+            file_url = f"/{bucket}/{object_name}"
             return True, file_url
         except Exception as e:
             return False, str(e)
