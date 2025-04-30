@@ -12,7 +12,7 @@ from nexent.core.tools import EXASearchTool, KnowledgeBaseSearchTool, SummaryToo
 from smolagents import TaskStep, ActionStep
 
 from consts.const import EXA_SEARCH_API_KEY
-from backend.utils.config_utils import config_manager
+from utils.config_utils import config_manager
 
 
 class ThreadManager:
