@@ -4,6 +4,6 @@
 # build application
 docker build -t nexent -f make/Dockerfile .
 
-# build dataclean
-docker build -t nexent-dataclean -f make/dataclean/Dockerfile .
+# build data_process
+docker build -t nexent-data-process -f make/dataprocess/Dockerfile .
 ```

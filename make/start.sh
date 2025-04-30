@@ -17,6 +17,6 @@ npm run start &
 
 
 # 启动后端
-python $root_path/backend/main.py &
+python $root_path/backend/main_service.py &
 
 python $root_path/backend/mcp_service.py

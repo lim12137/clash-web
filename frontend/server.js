@@ -11,6 +11,7 @@ const wsHandle = app.getUpgradeHandler();
 // 后端地址
 const HTTP_BACKEND = 'http://localhost:5010';
 const WS_BACKEND = 'ws://localhost:5010';
+const MINIO_BACKEND = process.env.MINIO_ENDPOINT;
 const PORT = 3000
 
 const proxy = createProxyServer();
@@ -20,7 +21,10 @@ app.prepare().then(() => {
     const { pathname } = parsedUrl;
 
     // 代理普通 HTTP 请求
-    if (pathname.startsWith('/api/') && !pathname.startsWith('/api/voice/')) {
+    if (pathname.includes('/attachments/') && !pathname.startsWith('/api/')) {
+      console.log(MINIO_BACKEND)
+      proxy.web(req, res, { target: MINIO_BACKEND });
+    } else if (pathname.startsWith('/api/') && !pathname.startsWith('/api/voice/')) {
       proxy.web(req, res, { target: HTTP_BACKEND });
     } else {
       handle(req, res, parsedUrl);
