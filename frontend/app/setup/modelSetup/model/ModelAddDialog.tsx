@@ -182,21 +182,22 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           </Select>
         </div>
 
+        {/* Model Name - Always shown, read-only for embedding */}
+        <div>
+          <label htmlFor="name" className="block mb-1 text-sm font-medium text-gray-700">
+            模型名称 <span className="text-red-500">*</span>
+          </label>
+          <Input
+            id="name"
+            placeholder="请输入请求体中的模型名称"
+            value={isNotEmbeddingModel ? form.name : DEFAULT_MODEL_CONFIG.embedding.modelName}
+            onChange={handleModelNameChange}
+            disabled={!isNotEmbeddingModel}
+          />
+        </div>
+
         {isNotEmbeddingModel && (
           <>
-            {/* Model Name */}
-            <div>
-              <label htmlFor="name" className="block mb-1 text-sm font-medium text-gray-700">
-                模型名称 <span className="text-red-500">*</span>
-              </label>
-              <Input
-                id="name"
-                placeholder="请输入请求体中的模型名称"
-                value={form.name}
-                onChange={handleModelNameChange}
-              />
-            </div>
-
             {/* Display Name */}
             <div>
               <label htmlFor="displayName" className="block mb-1 text-sm font-medium text-gray-700">
