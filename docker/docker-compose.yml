@@ -79,7 +79,7 @@ services:
       - nexent
 
   nexent:
-    image: nexent
+    image: nexent/nexent:0.1.0
     container_name: nexent
     command: bash
     restart: always
@@ -107,7 +107,7 @@ services:
       - nexent
 
   nexent-data-process:
-    image: nexent-data-process
+    image: nexent/nexent-data-process:0.1.0
     container_name: nexent-data-process
     command: bash
     restart: always
