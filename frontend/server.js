@@ -21,10 +21,11 @@ app.prepare().then(() => {
     const { pathname } = parsedUrl;
 
     // 代理普通 HTTP 请求
-    if (pathname.startsWith('/api/') && !pathname.startsWith('/api/voice/')) {
-      proxy.web(req, res, { target: HTTP_BACKEND });
-    } else if (pathname.includes('/attachments/')) {
+    if (pathname.includes('/attachments/') && !pathname.startsWith('/api/')) {
+      console.log(MINIO_BACKEND)
       proxy.web(req, res, { target: MINIO_BACKEND });
+    } else if (pathname.startsWith('/api/') && !pathname.startsWith('/api/voice/')) {
+      proxy.web(req, res, { target: HTTP_BACKEND });
     } else {
       handle(req, res, parsedUrl);
     }
