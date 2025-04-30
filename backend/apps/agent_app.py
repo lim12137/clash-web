@@ -7,7 +7,8 @@ from fastapi import HTTPException, APIRouter, Header
 from fastapi.responses import StreamingResponse
 
 from consts.model import AgentRequest
-from utils.agent_utils import config_manager, create_agent, add_history_to_agent, thread_manager
+from utils.agent_utils import create_agent, add_history_to_agent, thread_manager
+from utils.config_utils import config_manager
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 from utils.thread_utils import submit
 

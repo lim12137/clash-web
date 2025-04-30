@@ -9,7 +9,7 @@ from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HO
 from consts.model import IndexingRequest, IndexingResponse, SearchRequest, HybridSearchRequest
 from nexent.core.models.embedding_model import JinaEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
-from utils.agent_utils import config_manager
+from utils.config_utils import config_manager
 from utils.elasticsearch_utils import get_active_tasks_status
 
 router = APIRouter(prefix="/indices")
