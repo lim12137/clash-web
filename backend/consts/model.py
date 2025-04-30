@@ -146,7 +146,7 @@ class MessageRequest(BaseModel):
 
 
 class ConversationRequest(BaseModel):
-    title: str = "New Conversation"
+    title: str = "新对话"
 
 
 class ConversationResponse(BaseModel):

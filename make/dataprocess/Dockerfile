@@ -6,7 +6,7 @@ LABEL authors="nexent"
 USER root
 COPY backend /opt/backend
 RUN chown -R notebook-user:notebook-user /opt/backend
-RUN chmod +x /opt/backend/dataclean_main.py
+RUN chmod +x /opt/backend/data_process_service.py
 
 WORKDIR /opt
 
