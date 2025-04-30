@@ -9,7 +9,7 @@ from nexent.core.models import OpenAIVLModel
 
 from consts.const import DATA_PROCESS_SERVICE
 from consts.model import ProcessParams
-from utils.agent_utils import config_manager
+from utils.config_utils import config_manager
 
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'docx', 'pptx', 'xlsx', 'md', 'eml', 'msg', 'epub',
                       'xls', 'html', 'htm', 'org', 'odt', 'log', 'ppt', 'rst', 'rtf', 'tsv', 'doc', 'xml', 'js', 'py',
