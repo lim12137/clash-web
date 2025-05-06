@@ -341,3 +341,7 @@ final_answer:
   post_messages: |-
     基于以上内容，请为以下用户任务提供一个答案：
     {{task}}
+  
+tools_requirement:
+
+few_shots:
