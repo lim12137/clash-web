@@ -126,6 +126,14 @@ async def load_config():
                         "modelUrl": config_manager.get_config("RERANK_MODEL_URL", "")
                     }
                 },
+                "vlm": {
+                    "name": config_manager.get_config("VLM_MODEL_NAME", ""),
+                    "displayName": config_manager.get_config("VLM_DISPLAY_NAME", ""),
+                    "apiConfig": {
+                        "apiKey": config_manager.get_config("VLM_API_KEY", ""),
+                        "modelUrl": config_manager.get_config("VLM_MODEL_URL", "")
+                    }
+                },
                 "stt": {
                     "name": config_manager.get_config("STT_MODEL_NAME", ""),
                     "displayName": config_manager.get_config("STT_DISPLAY_NAME", ""),

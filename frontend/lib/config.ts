@@ -231,6 +231,14 @@ export class ConfigStore {
         modelName: backendConfig.models.rerank?.modelName || "",
         displayName: backendConfig.models.rerank?.displayName || ""
       },
+      vlm: {
+        modelName: backendConfig.models.vlm?.modelName || "",
+        displayName: backendConfig.models.vlm?.displayName || "",
+        apiConfig: {
+          apiKey: backendConfig.models.vlm?.apiConfig?.apiKey || "",
+          modelUrl: backendConfig.models.vlm?.apiConfig?.modelUrl || ""
+        }
+      },
       stt: {
         modelName: backendConfig.models.stt?.modelName || "",
         displayName: backendConfig.models.stt?.displayName || ""
