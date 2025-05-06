@@ -1,10 +1,17 @@
 name: Docker Build
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build test'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - main
+          - data-process
 
 jobs:
   build:
@@ -17,19 +24,23 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build main application image
+        if: ${{ github.event.inputs.build_type == 'all' || github.event.inputs.build_type == 'main' }}
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./make/Dockerfile
+          file: ./make/main/Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: false
           load: true
-          tags: nexent:latest
+          tags: nexent/nexent:latest
 
       - name: Build data process image
+        if: ${{ github.event.inputs.build_type == 'all' || github.event.inputs.build_type == 'data-process' }}
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./make/dataprocess/Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: false
           load: true
-          tags: nexent-data-process:latest 
+          tags: nexent/nexent-data-process:latest 
