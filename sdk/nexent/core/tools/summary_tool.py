@@ -14,15 +14,16 @@ default_system_prompt = ("# 你是一个总结专家，你的任务是根据检�
 
 
 class SummaryTool(Tool):
-    name = "summary"
+    name = "summary_search_content"
     description = "具有可靠的总结能力，可以生成令用户满意的回答。需要传入用户提问与检索工具的检索结果。返回内容可以直接作为final_answer的输入。"
-    inputs = {"query": {"type": "string", "description": "输入用户提问"}, "search_result": {"type": "array",
-                                                                                            "description": "一个包含多个字符串的列表，每个字符串表示之前检索到的**原始信息**，直接给入检索之后的变量，不要擅自总结。"}}
+    inputs = {"query": {"type": "string", "description": "输入用户提问"},
+              "search_result": {"type": "array",
+                                "description": "一个包含多个字符串的列表，每个字符串表示之前检索到的**原始信息**，直接给入检索之后的变量，不要擅自总结。"}}
     output_type = "string"
 
-    def __init__(self, llm: OpenAIModel, system_prompt: str = default_system_prompt):
+    def __init__(self, model: OpenAIModel, system_prompt: str = default_system_prompt):
         super().__init__()
-        self.model = llm
+        self.model = model
         self.system_prompt = system_prompt
 
     def forward(self, query: str, search_result: List[str]) -> str:
