@@ -17,3 +17,5 @@ docker/postgresql
 docker/redis
 docker/uploads
 docker/.env
+
+frontend_standalone/

@@ -1,13 +1,6 @@
-import time
-from threading import Thread
-from typing import Any
-
-from fastapi import HTTPException
-from smolagents import ToolCollection
 from smolagents import handle_agent_output_types, AgentText, ActionStep
 
 from ..agents import CoreAgent
-from ..models import OpenAIModel
 from ..utils.observer import MessageObserver, ProcessType
 
 
