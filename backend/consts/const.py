@@ -32,8 +32,5 @@ SMTP_PORT = os.getenv('SMTP_PORT')
 MAIL_USERNAME = os.getenv('MAIL_USERNAME')
 MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
 
-# Model Configuration
-EMBEDDING_API_KEY = os.getenv('EMBEDDING_API_KEY')
-
 # EXASearch Configuration
 EXA_SEARCH_API_KEY = os.getenv('EXA_SEARCH_API_KEY')
