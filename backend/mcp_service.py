@@ -1,5 +1,11 @@
+from typing import List, Optional
+
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
+
+from arxiv_mcp_server.server import Server, settings
+from arxiv_mcp_server.tools import search_tool, download_tool, list_tool, read_tool
+from arxiv_mcp_server.tools import handle_search, handle_download, handle_list_papers, handle_read_paper
 
 # Create MCP server
 mcp = FastMCP("Nexent_MCP", port=5011)
@@ -7,51 +13,78 @@ mcp = FastMCP("Nexent_MCP", port=5011)
 # Load environment variables
 load_dotenv()
 
-# import json
-# import os
+# Create Arxiv server
+arxiv_server = Server(settings.APP_NAME)
 
-# from nexent.core.tools import EXASearchTool, KnowledgeBaseSearchTool, SummaryTool
-# from smolagents.models import OpenAIServerModel
+# Register Arxiv search tool
+@mcp.tool(name=search_tool.name, description=search_tool.description)
+async def search_papers(
+    query: str,
+    date_from: Optional[str] = "2017-07-01",
+    categories: Optional[List[str]] = ["cs.AI", "cs.LG"]
+) -> str:
+    """search papers from arxiv
 
-# # Instantiate tools
-# EXA_API_KEY = os.getenv("EXA_API_KEY")
-# exa_tool = EXASearchTool(exa_api_key=EXA_API_KEY, lang="en", max_results=5)
+    parameters:
+        query (str): search keywords, required to use English
+        date_from (str, optional): start date, format as YYYY-MM-DD, default is "2025-01-01"
+        categories (List[str], optional): paper categories, default is ["cs.AI", "cs.LG"]
 
-# KB_BASE_URL = os.getenv("KB_BASE_URL")
-# SELECTED_KB_NAMES = os.getenv("SELECTED_KB_NAMES")
-# kb_tool = KnowledgeBaseSearchTool(index_names=json.loads(SELECTED_KB_NAMES), base_url=KB_BASE_URL, lang="en", top_k=5)
+    return:
+        str: all search results
+    """
+    arguments = {
+        "query": query,
+        "max_results": 1,
+        "date_from": date_from,
+        "categories": categories
+    }
+    results = await handle_search(arguments)
+    # merge all results into a string
+    return "\n\n".join(result.text for result in results)
 
-# # Model system prompt
-# SUMMARY_SYSTEM_PROMPT = """You are a professional assistant who needs to answer user questions based on retrieved information.
-# Please carefully read the retrieved information, extract key content, organize language, and answer user questions.
-# If there is no relevant content in the retrieved information, please clearly inform the user that you cannot answer, and do not fabricate content.
-# Answers should be concise, clear, well-organized, and as complete as possible in addressing user questions."""
-# MODEL_NAME = os.getenv('LLM_MODEL_NAME')
-# MODEL_URL = os.getenv('LLM_MODEL_URL')
-# MODEL_KEY = os.getenv('LLM_API_KEY')
+# Register Arxiv paper download tool
+@mcp.tool(name=download_tool.name, description=download_tool.description)
+async def download_paper(paper_id: str) -> str:
+    """download the paper from arxiv.
 
-# model_client = OpenAIServerModel(api_base=MODEL_URL, api_key=MODEL_KEY, model_id=MODEL_NAME, temperature=0.3,
-#                                  top_p=0.95)
-# summary_tool = SummaryTool(llm=model_client)
+    parameters:
+        paper_id (str): arxiv paper id, e.g. "2401.12345"
 
-# # Register EXA search tool
-# @mcp.tool(name=EXASearchTool.name, description=EXASearchTool.description)
-# def exa_web_search(query: str) -> str:
-#     return exa_tool.forward(query)
-#
-# # Register knowledge base search tool
-# @mcp.tool(name=kb_tool.name, description=kb_tool.description)
-# def knowledge_base_search(query: str) -> str:
-#     return kb_tool.forward(query)
-#
-# # Register summary tool
-# @mcp.tool(name=summary_tool.name, description=summary_tool.description)
-# def generate_summary(query: str, search_result: str) -> str:
-#     return summary_tool.forward(query, search_result)
+    return:
+        str: download results
+    """
+    arguments = {"paper_id": paper_id}
+    results = await handle_download(arguments)
+    return "\n\n".join(result.text for result in results)
 
-# @mcp.tool(name=EXASearchTool.name, description=EXASearchTool.description)
-# def exa_web_search(query: str) -> str:
-#     return exa_tool.forward(query)
+# Register Arxiv paper list tool
+@mcp.tool(name=list_tool.name, description=list_tool.description)
+async def list_papers() -> str:
+    """list all downloaded papers from arxiv.
+
+    return:
+        str: all papers list
+    """
+    arguments = {}
+    results = await handle_list_papers(arguments)
+    return "\n\n".join(result.text for result in results)
+
+# Register Arxiv paper read tool
+@mcp.tool(name=read_tool.name, description=read_tool.description)
+async def read_paper(paper_id: str) -> str:
+    """read the downloaded paper from arxiv.
+
+    parameters:
+        paper_id (str): arxiv paper id, e.g. "2401.12345"
+
+    return:
+        str: paper content
+    """
+    arguments = {"paper_id": paper_id}
+    results = await handle_read_paper(arguments)
+    return "\n\n".join(result.text for result in results)
+
 
 if __name__ == "__main__":
     print("Starting Search Tools MCP Server...")
