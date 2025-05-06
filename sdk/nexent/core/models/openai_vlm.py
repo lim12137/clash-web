@@ -18,6 +18,21 @@ class OpenAIVLModel(OpenAIModel):
         self.max_tokens = max_tokens
         self._current_request = None  # 用于存储当前请求
 
+    def check_connectivity(self) -> bool:
+        """
+        检查VLM模型的连通性。
+
+        Returns:
+            bool: 如果模型可以正常响应则返回True，否则返回False
+        """
+        try:
+            # 直接复用父类的check_connectivity方法
+            return super().check_connectivity()
+        except Exception as e:
+            import logging
+            logging.error(f"VLM connectivity check failed: {str(e)}")
+            return False
+
     def encode_image(self, image_input: Union[str, BinaryIO]) -> str:
         """
         将图像文件或文件流编码为base64字符串
