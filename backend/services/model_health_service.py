@@ -2,7 +2,7 @@ import logging
 
 import requests
 from nexent.core import MessageObserver
-from nexent.core.models import OpenAIModel
+from nexent.core.models import OpenAIModel, OpenAIVLModel
 from nexent.core.models.embedding_model import JinaEmbedding
 
 from apps.voice_app import VoiceService
@@ -18,9 +18,16 @@ async def check_model_connectivity(model_name: str):
         repo, name = split_repo_name(model_name)
         # Ensure repo is empty string instead of null
         repo = repo if repo else ""
-        # Find model based on split model_repo and model_name
-        logging.info(f"Checking model connectivity: {repo}/{name}")
+        # Log target model info
         model = get_model_by_name(name, repo)
+        log_str = f"Checking model connectivity: {repo}/{name}; "
+        if model.get("base_url"):
+            log_str += f"base_url: {model.get('base_url')}; "
+        if model.get("api_key"):
+            log_str += f"api_key: {model.get('api_key')}; "
+        logging.info(log_str)
+
+        # Find model based on split model_repo and model_name
         if not model:
             return ModelResponse(code=404, message=f"Model configuration not found for {model_name}",
                 data={"connectivity": False, "connect_status": ""})
@@ -33,11 +40,6 @@ async def check_model_connectivity(model_name: str):
         model_base_url = model["base_url"]
         model_api_key = model["api_key"]
         connectivity: bool
-
-        # print model_name, model_base_url, model_api_key
-        print(
-            f"Check connectivity: model_name: {model_name}, model_base_url: {model_base_url}, model_api_key: {model_api_key}")
-
         # Test connectivity based on different model types
         if model_type == "embedding":
             # TODO: Implement non-Jina model instantiation in the future
@@ -52,12 +54,17 @@ async def check_model_connectivity(model_name: str):
             # connectivity =  RerankModel.check_connectivity()
             # TODO: Implement RerankModel connectivity test
             connectivity = False
+        elif model_type == "vlm":
+            observer = MessageObserver()
+            connectivity = OpenAIVLModel(observer, model_id=model_name, api_base=model_base_url,
+                                       api_key=model_api_key).check_connectivity()
         elif model_type in ["tts", "stt"]:
             connectivity = await VoiceService().check_connectivity(model_type)
 
         else:
             # Unsupported model type, update to unavailable status
             update_data = {"connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
+            logging.error(f"Unsupported model type: {model_type}")
             update_model_record(model["model_id"], update_data)
             return ModelResponse(code=400, message=f"Unsupported model type: {model_type}",
                 data={"connectivity": False, "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
