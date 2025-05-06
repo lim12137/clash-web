@@ -4,6 +4,7 @@ LABEL authors="nexent"
 
 # Set correct permissions as root
 USER root
+RUN umask 0022
 COPY frontend /opt/frontend
 COPY backend /opt/backend
 COPY make/start.sh /opt/deployment/start.sh
