@@ -14,7 +14,7 @@ Nexent is an open-source agent SDK and platform that turns a single prompt into 
 We're still in our very first open-source phase and aiming for **Nexent v1-stable in June 2025**. Until then we'll keep shipping core features rapidly — and we'd love your help:
 
 * **📋 Follow the [Roadmap(Comming)](#)** to see what's next.  
-* **🔍 Try the current build** and leave ideas or bugs in the [Issues](https://github.com/nexent-hub/nexent-community/issues) tab.
+* **🔍 Try the current build** and leave ideas or bugs in the [Issues](https://github.com/nexent-hub/nexent/issues) tab.
 
 > *Rome wasn't built in a day.*
 
@@ -37,7 +37,7 @@ Most of all, we need visibility. Star ⭐ and watch the repo, share it with frie
 ### 2. 🛠️ Quick start with Docker Compose
 
 ```bash
-git clone git@github.com:nexent-hub/nexent-community.git
+git clone git@github.com:nexent-hub/nexent.git
 sh docker/deploy.sh
 ```
 
@@ -47,7 +47,7 @@ When the containers are running, open **http://localhost:3000** in your browser 
 
 - Browse the [FAQ](FAQ.md) for common install issues.  
 - Drop questions in our [Discord community](https://discord.gg/tb5H3S3wyv).  
-- File bugs or feature ideas in [GitHub Issues](https://github.com/nexent-hub/nexent-community/issues).
+- File bugs or feature ideas in [GitHub Issues](https://github.com/nexent-hub/nexent/issues).
 
 > ℹ️ Due to core features development, currently, we only support Jina Embedding model. Support for other models will be added in future releases. For Jina API key setup, please refer to our [FAQ](FAQ.md).
 
@@ -109,7 +109,7 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 We welcome all kinds of contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes Nexent better for everyone. 
 
 - 📖 Read our [Contribution Guide](CONTRIBUTING.md) to get started
-- 🐛 Report bugs or suggest features in [GitHub Issues](https://github.com/nexent-hub/nexent-community/issues)
+- 🐛 Report bugs or suggest features in [GitHub Issues](https://github.com/nexent-hub/nexent/issues)
 - 💬 Join our [Discord community](https://discord.gg/tb5H3S3wyv) to discuss ideas
 
 # 💬 Community & contact
