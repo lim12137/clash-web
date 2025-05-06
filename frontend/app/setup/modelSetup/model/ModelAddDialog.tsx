@@ -112,6 +112,9 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         case "embedding":
           configUpdate = { embedding: modelConfig }
           break;
+        case "vlm":
+          configUpdate = { vlm: modelConfig }
+          break;
         case "rerank":
           configUpdate = { rerank: modelConfig }
           break;
@@ -176,6 +179,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           >
             <Option value="llm">大语言模型</Option>
             <Option value="embedding">Embedding模型</Option>
+            <Option value="vlm">视觉语言模型</Option>
             <Option value="rerank" disabled>Rerank模型</Option>
             <Option value="stt" disabled>语音识别模型</Option>
             <Option value="tts" disabled>语音合成模型</Option>

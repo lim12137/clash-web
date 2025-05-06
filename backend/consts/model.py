@@ -66,6 +66,7 @@ class ModelConfig(BaseModel):
     llmSecondary: SingleModelConfig
     embedding: SingleModelConfig
     rerank: SingleModelConfig
+    vlm: SingleModelConfig
     stt: SingleModelConfig
     tts: SingleModelConfig
 
