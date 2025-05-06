@@ -80,12 +80,12 @@ class STTConfig(BaseModel):
         return cls(
             appid=os.getenv("APPID", ""), token=os.getenv("TOKEN", ""),
             ws_url=os.getenv("WS_URL", "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel"),
-            uid=os.getenv("UID", "streaming_asr_demo"), format=os.getenv("FORMAT", "wav"),
+            uid=os.getenv("UID", "streaming_asr_demo"), format=os.getenv("FORMAT", "pcm"),
             rate=int(os.getenv("RATE", "16000")), bits=int(os.getenv("BITS", "16")),
             channel=int(os.getenv("CHANNEL", "1")), codec=os.getenv("CODEC", "raw"),
             seg_duration=int(os.getenv("SEG_DURATION", "100")), mp3_seg_size=int(os.getenv("MP3_SEG_SIZE", "1000")),
             resourceid=os.getenv("RESOURCEID", "volc.bigasr.sauc.duration"),
-            compression=os.getenv("COMPRESSION", "true").lower() == "true"
+            compression=os.getenv("COMPRESSION", "false").lower() == "true"
             )
 
 

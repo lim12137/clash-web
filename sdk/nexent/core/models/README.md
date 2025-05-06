@@ -30,17 +30,6 @@
 # STT配置
 APPID=your_stt_appid
 TOKEN=your_token
-WS_URL=wss://openspeech.bytedance.com/api/v3/sauc/bigmodel
-UID=streaming_asr_demo
-FORMAT=wav
-RATE=16000
-BITS=16
-CHANNEL=1
-CODEC=raw
-SEG_DURATION=100
-MP3_SEG_SIZE=1000
-RESOURCEID=volc.bigasr.sauc.duration
-COMPRESSION=true
 
 # TTS配置
 APPID=your_tts_appid
