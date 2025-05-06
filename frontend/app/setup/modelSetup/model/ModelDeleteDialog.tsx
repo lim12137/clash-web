@@ -35,6 +35,8 @@ export const ModelDeleteDialog = ({
         return { bg: "bg-yellow-50", text: "text-yellow-600", border: "border-yellow-100" }
       case "tts":
         return { bg: "bg-red-50", text: "text-red-600", border: "border-red-100" }
+      case "vlm":
+        return { bg: "bg-indigo-50", text: "text-indigo-600", border: "border-indigo-100" }
       default:
         return { bg: "bg-gray-50", text: "text-gray-600", border: "border-gray-100" }
     }
@@ -53,6 +55,8 @@ export const ModelDeleteDialog = ({
         return "🎤"
       case "tts":
         return "🔊"
+      case "vlm":
+        return "👁️"
       default:
         return "⚙️"
     }
@@ -71,6 +75,8 @@ export const ModelDeleteDialog = ({
         return "语音识别模型"
       case "tts":
         return "语音合成模型"
+      case "vlm":
+        return "视觉语言模型"
       default:
         return "未知模型"
     }
@@ -98,6 +104,10 @@ export const ModelDeleteDialog = ({
       
       if (modelConfig.rerank.modelName === modelName) {
         configUpdates.rerank = { modelName: "", displayName: "" }
+      }
+      
+      if (modelConfig.vlm.modelName === modelName) {
+        configUpdates.vlm = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
       }
       
       if (modelConfig.stt.modelName === modelName) {
@@ -173,7 +183,7 @@ export const ModelDeleteDialog = ({
           <p className="text-sm text-gray-600 mb-4">请选择要删除的模型类型：</p>
 
           <div className="grid grid-cols-1 gap-2">
-            {(["llm", "embedding", "rerank", "stt", "tts"] as ModelType[]).map((type) => {
+            {(["llm", "embedding", "rerank", "vlm", "stt", "tts"] as ModelType[]).map((type) => {
               const customModelsByType = customModels.filter((model) => model.type === type)
               const colorScheme = getModelColorScheme(type)
 
