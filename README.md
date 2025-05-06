@@ -38,6 +38,7 @@ Most of all, we need visibility. Star ⭐ and watch the repo, share it with frie
 
 ```bash
 git clone git@github.com:nexent-hub/nexent-community.git
+cp .env.example .env # fill nessasary configs
 bash docker/deploy.sh
 ```
 

@@ -4,7 +4,6 @@ from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter
 from consts.model import IndexingRequest, IndexingResponse, SearchRequest, HybridSearchRequest
 
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
-from utils.config_utils import config_manager
 from backend.services.elasticsearch_service import ElasticSearchService, get_es_core
 router = APIRouter(prefix="/indices")
 
