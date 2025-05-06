@@ -25,15 +25,31 @@ class CoreAgent(CodeAgent):
 
         if prompt_templates is not None:
             self.prompt_templates = prompt_templates
+            self.system_prompt = self.initialize_system_prompt()
         else:
             self.lang = lang
             file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+            prompt_path = os.path.normpath(os.path.join(file_path, "../prompts/code_agent.yaml"))
+            with open(prompt_path, "r", encoding="utf-8") as f:
+                self.prompt_templates = yaml.safe_load(f)
+                self.system_prompt = self.initialize_system_prompt()
 
-            # 根据语言重新确定prompt，中文加载本地，否则使用smolagents默认prompt
-            if lang == "zh":
-                prompt_path = os.path.normpath(os.path.join(file_path, "../prompts/code_agent_demo.yaml"))
-                with open(prompt_path, "r", encoding="utf-8") as f:
-                    self.prompt_templates = yaml.safe_load(f)
+    def initialize_system_prompt(self) -> str:
+        system_prompt = populate_template(
+            self.prompt_templates["system_prompt"],
+            variables={
+                "tools": self.tools,
+                "managed_agents": self.managed_agents,
+                "tools_requirement": self.prompt_templates.get("tools_requirement", ""),
+                "authorized_imports": (
+                    "You can import from any package you want."
+                    if "*" in self.authorized_imports
+                    else str(self.authorized_imports)
+                ),
+                "few_shots": self.prompt_templates.get("few_shots", "")
+            },
+        )
+        return system_prompt
 
     def step(self, memory_step: ActionStep) -> Union[None, Any]:
         """
