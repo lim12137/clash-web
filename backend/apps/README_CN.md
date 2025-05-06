@@ -939,28 +939,6 @@
 }
 ```
 
-#### GET /api/model/auto_update_connect_status
-自动更新模型连接状态。
-
-**请求体：**
-```json
-{
-    "model_name": "string"
-}
-```
-
-**响应：**
-```json
-{
-    "code": 200,
-    "message": "Successfully updated connectivity status",
-    "data": {
-        "connectivity": true,
-        "connect_status": "string"
-    }
-}
-```
-
 ## 代理应用
 
 ### 端点
