@@ -2,15 +2,17 @@ import asyncio
 import time
 from threading import Thread
 
-from nexent.core.utils.agent_utils import agent_run_thread
 from fastapi import HTTPException, APIRouter, Header
 from fastapi.responses import StreamingResponse
 
 from consts.model import AgentRequest
-from utils.agent_utils import create_agent, add_history_to_agent, thread_manager
+from utils.agent_utils import thread_manager
 from utils.config_utils import config_manager
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 from utils.thread_utils import submit
+from utils.agent_utils import agent_run_thread
+
+from nexent.core.utils.observer import MessageObserver
 
 router = APIRouter(prefix="/agent")
 
@@ -38,30 +40,23 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
             final_query += "\n".join(file_descriptions) + "\n\n"
             final_query += f"User wants to answer questions based on the above information: {request.query}"
 
-    # Create new agent and reset memory
-    agent = create_agent()
-    agent.memory.reset()
-
-    # Process history
-    if request.history is not None:
-        add_history_to_agent(agent, request.history)
-
+    observer = MessageObserver()
     try:
         # Generate unique thread ID
-        thread_id = f"{time.time()}_{id(agent)}"
+        thread_id = f"{time.time()}_{id(observer)}"
 
-        # Create thread
-        thread_agent = Thread(target=agent_run_thread, args=(agent, final_query, config_manager.get_config("MCP_SERVICE"), False))
+        thread_agent = Thread(target=agent_run_thread,
+                              args=(observer, final_query, False))
         thread_agent.start()
 
         # Add thread to manager
-        thread_manager.add_thread(thread_id, thread_agent, agent)
+        thread_manager.add_thread(thread_id, thread_agent)
 
         async def generate():
             messages = []
             try:
                 while thread_agent.is_alive():
-                    cached_message = agent.observer.get_cached_message()
+                    cached_message = observer.get_cached_message()
                     for message in cached_message:
                         yield f"data: {message}\n\n"
                         messages.append(message)
@@ -73,7 +68,7 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
                     await asyncio.sleep(0.1)
 
                 # Ensure all messages are sent
-                cached_message = agent.observer.get_cached_message()
+                cached_message = observer.get_cached_message()
                 for message in cached_message:
                     yield f"data: {message}\n\n"
                     messages.append(message)
