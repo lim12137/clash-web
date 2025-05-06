@@ -16,8 +16,11 @@ import {ModelDeleteDialog} from './model/ModelDeleteDialog'
 // 布局高度常量配置
 const LAYOUT_CONFIG = {
   CARD_HEADER_PADDING: "10px 24px",
-  CARD_BODY_PADDING: "16px 20px",
+  CARD_BODY_PADDING: "12px 20px",
   MODEL_TITLE_MARGIN_LEFT: "0px",
+  HEADER_HEIGHT: 57, // Card标题高度
+  BUTTON_AREA_HEIGHT: 48, // 按钮区域高度
+  CARD_GAP: 12, // Row的gutter
 }
 
 // 定义每个卡片的主题色
@@ -31,6 +34,10 @@ const cardThemes = {
     backgroundColor: "#ffffff",
   },
   reranker: {
+    borderColor: "#e6e6e6",
+    backgroundColor: "#ffffff",
+  },
+  multimodal: {
     borderColor: "#e6e6e6",
     backgroundColor: "#ffffff",
   },
@@ -59,6 +66,12 @@ const modelData = {
     title: "Reranker模型",
     options: [
       { id: "reranker", name: "重排模型" },
+    ],
+  },
+  multimodal: {
+    title: "多模态模型",
+    options: [
+      { id: "vlm", name: "VLM模型" },
     ],
   },
   voice: {
@@ -107,6 +120,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     llm: { main: "", secondary: "" },
     embedding: { embedding: "" },
     reranker: { reranker: "" },
+    multimodal: { vlm: "" },
     voice: { tts: "", stt: "" },
   })
 
@@ -252,6 +266,9 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       const rerank = modelConfig.rerank.modelName
       const rerankExists = rerank ? allModels.some(m => m.name === rerank && m.type === 'rerank') : true
 
+      const vlm = modelConfig.vlm.modelName
+      const vlmExists = vlm ? allModels.some(m => m.name === vlm && m.type === 'vlm') : true
+
       const stt = modelConfig.stt.modelName
       const sttExists = stt ? allModels.some(m => m.name === stt && m.type === 'stt') : true
 
@@ -270,11 +287,14 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         reranker: {
           reranker: rerankExists ? rerank : ""
         },
+        multimodal: {
+          vlm: vlmExists ? vlm : ""
+        },
         voice: {
           tts: ttsExists ? tts : "",
           stt: sttExists ? stt : ""
         },
-      };
+      }
 
       // 更新状态
       setSelectedModels(updatedSelectedModels)
@@ -298,6 +318,10 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         configUpdates.rerank = { modelName: "", displayName: "" }
       }
 
+      if (!vlmExists && vlm) {
+        configUpdates.vlm = { modelName: "", displayName: "" }
+      }
+
       if (!sttExists && stt) {
         configUpdates.stt = { modelName: "", displayName: "" }
       }
@@ -317,6 +341,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         !!modelConfig.llmSecondary.modelName ||
         !!modelConfig.embedding.modelName ||
         !!modelConfig.rerank.modelName ||
+        !!modelConfig.vlm.modelName ||
         !!modelConfig.tts.modelName ||
         !!modelConfig.stt.modelName;
 
@@ -372,10 +397,11 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       const hasLlmSecondary = !!modelConfig.llmSecondary.modelName;
       const hasEmbedding = !!modelConfig.embedding.modelName;
       const hasReranker = !!modelConfig.rerank.modelName;
+      const hasVlm = !!modelConfig.vlm.modelName;
       const hasTts = !!modelConfig.tts.modelName;
       const hasStt = !!modelConfig.stt.modelName;
 
-      hasSelectedModels = hasLlmMain || hasLlmSecondary || hasEmbedding || hasReranker || hasTts || hasStt;
+      hasSelectedModels = hasLlmMain || hasLlmSecondary || hasEmbedding || hasReranker || hasVlm || hasTts || hasStt;
 
       if (hasSelectedModels) {
         // 使用配置中的模型覆盖当前选中模型
@@ -383,6 +409,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         currentSelectedModels.llm.secondary = modelConfig.llmSecondary.modelName;
         currentSelectedModels.embedding.embedding = modelConfig.embedding.modelName;
         currentSelectedModels.reranker.reranker = modelConfig.rerank.modelName;
+        currentSelectedModels.multimodal.vlm = modelConfig.vlm.modelName;
         currentSelectedModels.voice.tts = modelConfig.tts.modelName;
         currentSelectedModels.voice.stt = modelConfig.stt.modelName;
       } else {
@@ -419,6 +446,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
             modelType = optionId === "tts" ? "tts" : "stt";
           } else if (category === "reranker") {
             modelType = "rerank";
+          } else if (category === "multimodal") {
+            modelType = "vlm";
           }
 
           // 查找模型在officialData或customData中
@@ -586,6 +615,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       modelType = option === 'tts' ? 'tts' : 'stt';
     } else if (category === 'reranker') {
       modelType = 'rerank';
+    } else if (category === 'multimodal') {
+      modelType = 'vlm';
     }
 
     const modelInfo = [...officialModels, ...customModels].find(
@@ -613,6 +644,15 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       }
     } else if (category === "reranker") {
       configUpdate.rerank = { 
+        modelName: value,
+        displayName: displayName,
+        apiConfig: modelInfo?.apiKey ? {
+          apiKey: modelInfo.apiKey,
+          modelUrl: modelInfo.apiUrl || '',
+        } : undefined
+      }
+    } else if (category === "multimodal") {
+      configUpdate.vlm = { 
         modelName: value,
         displayName: displayName,
         apiConfig: modelInfo?.apiKey ? {
@@ -662,8 +702,21 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
 
   return (
     <>
-      <div style={{ width: "100%", margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 16, paddingRight: 12, marginLeft: "4px" }}>
+      <div style={{ 
+        width: "100%", 
+        margin: "0 auto", 
+        height: "100%", 
+        display: "flex", 
+        flexDirection: "column",
+        gap: "12px"
+      }}>
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "flex-start", 
+          paddingRight: 12, 
+          marginLeft: "4px",
+          height: LAYOUT_CONFIG.BUTTON_AREA_HEIGHT,
+        }}>
           <Space size={8}>
             <Button
               type="primary"
@@ -701,10 +754,25 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           </Space>
         </div>
 
-        <div style={{ width: "100%", padding: "0 4px" }}>
-          <Row gutter={[12, 12]}>
+        <div style={{ 
+          width: "100%", 
+          padding: "0 4px", 
+          flex: 1,
+          display: "flex",
+          flexDirection: "column"
+        }}>
+          <Row 
+            gutter={[LAYOUT_CONFIG.CARD_GAP, LAYOUT_CONFIG.CARD_GAP]} 
+            style={{ flex: 1 }}
+          >
             {Object.entries(modelData).map(([key, category]) => (
-              <Col xs={24} md={12} lg={12} key={key}>
+              <Col 
+                xs={24} 
+                md={8} 
+                lg={8} 
+                key={key} 
+                style={{ height: "calc((100% - 12px) / 2)" }}
+              >
                 <Card
                   title={
                     <div style={{ 
@@ -714,9 +782,15 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
                       padding: LAYOUT_CONFIG.CARD_HEADER_PADDING,
                       paddingBottom: "12px",
                       backgroundColor: cardThemes[key as keyof typeof cardThemes].backgroundColor,
-                      borderBottom: `1px solid ${cardThemes[key as keyof typeof cardThemes].borderColor}` 
+                      borderBottom: `1px solid ${cardThemes[key as keyof typeof cardThemes].borderColor}`,
+                      height: `${LAYOUT_CONFIG.HEADER_HEIGHT - 12}px`, // 减去paddingBottom
                     }}>
-                      <h5 style={{ margin: 0, marginLeft: LAYOUT_CONFIG.MODEL_TITLE_MARGIN_LEFT }}>
+                      <h5 style={{ 
+                        margin: 0, 
+                        marginLeft: LAYOUT_CONFIG.MODEL_TITLE_MARGIN_LEFT,
+                        fontSize: "14px",
+                        lineHeight: "32px"
+                      }}>
                         {category.title}
                       </h5>
                     </div>
@@ -724,18 +798,30 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
                   variant="outlined"
                   className="model-card"
                   styles={{
-                    body: { padding: LAYOUT_CONFIG.CARD_BODY_PADDING }
+                    body: { 
+                      padding: LAYOUT_CONFIG.CARD_BODY_PADDING,
+                      height: `calc(100% - ${LAYOUT_CONFIG.HEADER_HEIGHT}px)`,
+                    }
                   }}
                   style={{
                     height: "100%",
                     backgroundColor: "#ffffff",
+                    display: "flex",
+                    flexDirection: "column"
                   }}
                 >
-                  <Space direction="vertical" style={{ width: "100%" }} size={12}>
+                  <Space 
+                    direction="vertical" 
+                    style={{ 
+                      width: "100%",
+                      height: "100%",
+                    }} 
+                    size={12}
+                  >
                     {category.options.map((option) => (
                       <ModelListCard
                         key={option.id}
-                        type={key === "voice" ? (option.id === "tts" ? "tts" : "stt") : key as ModelType}
+                        type={key === "voice" ? (option.id === "tts" ? "tts" : "stt") : key === "multimodal" ? "vlm" : key as ModelType}
                         modelId={option.id}
                         modelName={option.name}
                         selectedModel={selectedModels[key]?.[option.id] || ""}
