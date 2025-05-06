@@ -18,4 +18,3 @@ PyJWT>=2.8.0
 supabase>=2.15.0
 pydantic[email]>=2.11.1
 httpx[socks]>=0.28.1
-arxiv_mcp_server~=0.1.0
