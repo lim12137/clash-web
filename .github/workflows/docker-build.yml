@@ -1,0 +1,35 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build main application image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./make/Dockerfile
+          push: false
+          load: true
+          tags: nexent:latest
+
+      - name: Build data process image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./make/dataprocess/Dockerfile
+          push: false
+          load: true
+          tags: nexent-data-process:latest 
