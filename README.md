@@ -61,7 +61,7 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 
 ## ✨ Key Features
 
-`1` **Smart agent prompt generation()**  
+`1` **Smart agent prompt generation (To Release)**  
    Turn plain language into runnable prompts. Nexent automatically chooses the right tools and plans the best action path for every request.
 
    ![Feature 1](./assets/Feature1.png)
@@ -103,6 +103,9 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 
 2. 🤖 **Limited Model Provider Support**  
    We currently have limited support for different model providers, including voice and multimodal models. We will be rapidly updating this support in the coming weeks - stay tuned for updates!
+
+3. 🎨 **Missing Agent Creation & Configuration Interface**  
+   We acknowledge that we currently don't provide a visualization interface for agent creation, tool selection, and configuration. We plan to implement this feature in the coming weeks to make the agent creation process more intuitive and user-friendly.
 
 # 👥 Contributing
 
