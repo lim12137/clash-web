@@ -940,28 +940,6 @@ Updates model connection status.
 }
 ```
 
-#### GET /api/model/auto_update_connect_status
-Automatically updates model connectivity status.
-
-**Request Body:**
-```json
-{
-    "model_name": "string"
-}
-```
-
-**Response:**
-```json
-{
-    "code": 200,
-    "message": "Successfully updated connectivity status",
-    "data": {
-        "connectivity": true,
-        "connect_status": "string"
-    }
-}
-```
-
 ## Proxy App
 
 ### Endpoints
