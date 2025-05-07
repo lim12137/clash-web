@@ -13,7 +13,6 @@ Nexent 是一个开源智能体SDK和平台，能够将描述流程的自然语�
 
 我们仍处于首个开源阶段，目标是在 **2025 年 6 月发布 Nexent v1 稳定版**。在此之前，我们将持续快速发布核心功能 —— 我们期待您的参与：
 
-* **📋 关注 [路线图(Comming)](#)** 了解我们的下一步计划。  
 * **🗺️ 查看我们的 [功能地图](https://github.com/orgs/nexent-hub/projects/2/views/1)** 探索当前和即将推出的功能。
 * **🔍 试用当前版本** 并在 [问题反馈](https://github.com/nexent-hub/nexent/issues) 中留下想法或报告错误。
 
