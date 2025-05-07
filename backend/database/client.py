@@ -71,10 +71,19 @@ class MinioClient:
         self.region = os.getenv('MINIO_REGION')
         self.default_bucket = os.getenv('MINIO_DEFAULT_BUCKET')
 
-        # Initialize S3 client
-        self.client = boto3.client('s3', endpoint_url=self.endpoint, aws_access_key_id=self.access_key,
-                                   aws_secret_access_key=self.secret_key, region_name=self.region,
-                                   config=Config(signature_version='s3v4'))
+        # Initialize S3 client with proxy settings
+        self.client = boto3.client('s3', 
+            endpoint_url=self.endpoint, 
+            aws_access_key_id=self.access_key,
+            aws_secret_access_key=self.secret_key, 
+            region_name=self.region,
+            config=Config(
+                signature_version='s3v4',
+                proxies={
+                    'http': None,
+                    'https': None
+                }
+            ))
 
         # Ensure default bucket exists
         self._ensure_bucket_exists(self.default_bucket)
