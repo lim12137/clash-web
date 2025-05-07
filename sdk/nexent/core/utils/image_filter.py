@@ -17,19 +17,18 @@ warnings.filterwarnings('ignore', category=UserWarning, module='PIL.Image')
 from transformers import CLIPProcessor, CLIPModel
 
 def check_image_size(width: int, height: int, min_width: int = 200, min_height: int = 200) -> bool:
-    """检查图片尺寸是否满足最小要求
+    """Check if the image dimensions meet the minimum requirements
 
     Args:
-        width: 图片宽度
-        height: 图片高度
-        min_width: 最小宽度要求
-        min_height: 最小高度要求
+        width: Image width
+        height: Image height
+        min_width: Minimum width requirement
+        min_height: Minimum height requirement
 
     Returns:
-        bool: 如果图片尺寸满足要求返回True，否则返回False
+        bool: Returns True if image dimensions meet requirements, False otherwise
     """
     if width < min_width or height < min_height:
-        print(f"Image is smaller than threshold, skipping...")
         return False
     return True
 
@@ -181,15 +180,15 @@ class AsyncImageProcessor:
                     task = load_image(session, url)
                     tasks.append(task)
                 except asyncio.TimeoutError:
-                    print(f"请求超时: {url}")
+                    print(f"Request timeout: {url}")
                     tasks.append(None)
             
             images = await asyncio.gather(*tasks, return_exceptions=True)
-            # 处理结果，将异常替换为None
+            # Process results, replace exceptions with None
             processed_results = []
             for i, result in enumerate(images):
                 if isinstance(result, Exception):
-                    print(f"下载失败: {urls[i]}, 错误: {str(result)}")
+                    print(f"Download failed: {urls[i]}, error: {str(result)}")
                     processed_results.append((urls[i], None))
                 else:
                     processed_results.append((urls[i], result))
@@ -239,11 +238,11 @@ class AsyncImageProcessor:
 
         # Download all images
         all_images = await self.download_batch(unique_urls)
-        # 过滤为None的图片
+        # Filter out None images
         all_images = [(url, img) for url, img in all_images if img is not None]
         print(f"Loading {len(all_images)} Images")
 
-        # batch filter images
+        # Batch filter images
         for i in range(0, len(all_images), self.batch_size):
             batch_images = all_images[i:i + self.batch_size]
             print(
