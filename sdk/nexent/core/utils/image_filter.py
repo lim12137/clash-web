@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 import aiohttp
-import torch
 from PIL import Image
 
 
@@ -187,17 +186,19 @@ class AsyncImageProcessor:
             all_probs = []  # Store all probabilities for this image
             max_confidence = 0.0
 
-            # Process each label set
-            for label_set in self.label_sets:
-                inputs = self.processor(images=image, text=[label_set.negative, label_set.positive],
-                    return_tensors="pt", padding=True)
+            # import torch
 
-                with torch.no_grad():
-                    outputs = self.model(**inputs)
-                    probs = outputs.logits_per_image.softmax(dim=1)
-                    confidence = probs[0][1].item()  # Get positive class probability
-                    all_probs.append(confidence)
-                    max_confidence = max(max_confidence, confidence)
+            # # Process each label set
+            # for label_set in self.label_sets:
+            #     inputs = self.processor(images=image, text=[label_set.negative, label_set.positive],
+            #         return_tensors="pt", padding=True)
+
+            #     with torch.no_grad():
+            #         outputs = self.model(**inputs)
+            #         probs = outputs.logits_per_image.softmax(dim=1)
+            #         confidence = probs[0][1].item()  # Get positive class probability
+            #         all_probs.append(confidence)
+            #         max_confidence = max(max_confidence, confidence)
 
             # Image is important only if ALL conditions are met
             is_important = all(prob > self.threshold for prob in all_probs)
