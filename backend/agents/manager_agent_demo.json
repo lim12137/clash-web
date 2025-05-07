@@ -55,11 +55,7 @@
 		"name": "agent",
 		"model": "main_model",
 		"max_steps": 5,
-		"tools": [
-            {
-                "name": "search_papers",
-                "source": "mcp"
-            }],
+		"tools": [],
 		"prompt_templates_path": "backend/consts/prompts/manager_agent.yaml"
 	}
 }

@@ -108,6 +108,9 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 3. 🎨 **Missing Agent Creation & Configuration Interface**  
    We acknowledge that we currently don't provide a visualization interface for agent creation, tool selection, and configuration. We plan to implement this feature in the coming weeks to make the agent creation process more intuitive and user-friendly.
 
+4. 📦 **Large Docker Image Size**  
+   We are aware that our current Docker image is quite large as it includes many development middleware components. We are actively working on optimizing and reducing the image size to make deployment faster and lighter.
+
 # 👥 Contributing
 
 We welcome all kinds of contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes Nexent better for everyone. 
