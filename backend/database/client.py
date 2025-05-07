@@ -39,7 +39,7 @@ class PostgresClient:
                                         "port": self.port,
                                         "client_encoding": "utf8"
                                     },
-                                    echo=True,
+                                    echo=False,
                                     pool_size=10,
                                     pool_pre_ping=True,
                                     pool_timeout=30)
