@@ -155,10 +155,9 @@ ProcessType枚举定义了以下处理阶段：
 
 ### 工具集
 
-- **BoChaSearchTool**: 博查搜索工具，通过API接口获取网络搜索结果
 - **EXASearchTool**: EXA搜索工具，提供高质量的网络搜索能力，支持结果自动总结
 - **KBSearchTool**: 知识库检索工具，用于搜索和获取本地知识库中的相关信息
-- **FinalAnswerFormatTool**: 输出格式化工具，根据自定义系统提示词优化最终输出格式
+- **SummaryTool**: 输出格式化工具，根据自定义系统提示词优化最终输出格式
 
 ### 数据处理服务
 
