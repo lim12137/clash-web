@@ -5,16 +5,15 @@ import os
 import tempfile
 import warnings
 from dataclasses import dataclass
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 import aiohttp
 import torch
 from PIL import Image
 
+
 # Suppress PIL warning about palette images
 warnings.filterwarnings('ignore', category=UserWarning, module='PIL.Image')
-
-from transformers import CLIPProcessor, CLIPModel
 
 def check_image_size(width: int, height: int, min_width: int = 200, min_height: int = 200) -> bool:
     """Check if the image dimensions meet the minimum requirements
@@ -51,10 +50,6 @@ async def load_image(session: aiohttp.ClientSession, path: str) -> Optional[Imag
             elif image.mode != 'RGB':
                 image = image.convert('RGB')
 
-            # Check size constraints
-            if not check_image_size(image.size[0], image.size[1]):
-                return None
-
             return image
 
         # Check if the path is a local file
@@ -69,10 +64,6 @@ async def load_image(session: aiohttp.ClientSession, path: str) -> Optional[Imag
                     image = background
                 elif image.mode != 'RGB':
                     image = image.convert('RGB')
-
-                # Check size constraints
-                if not check_image_size(image.size[0], image.size[1]):
-                    return None
 
                 return image
             except Exception as e:
@@ -102,22 +93,14 @@ async def load_image(session: aiohttp.ClientSession, path: str) -> Optional[Imag
                 elif image.mode != 'RGB':
                     image = image.convert('RGB')
 
-                # Check size constraints
-                if not check_image_size(image.size[0], image.size[1]):
-                    return None
-
                 return image
-            except Exception as e:
+            except Exception:
                 # If direct loading fails, try downloading to a temporary file first
                 with tempfile.NamedTemporaryFile(suffix=os.path.splitext(path)[1], delete=False) as temp_file:
                     temp_file.write(image_data)
                     temp_file.flush()
                     try:
                         image = Image.open(temp_file.name)
-
-                        # Check size constraints
-                        if not check_image_size(image.size[0], image.size[1]):
-                            return None
 
                         if image.mode == 'RGBA':
                             background = Image.new('RGB', image.size, (255, 255, 255))
@@ -150,17 +133,9 @@ class LabelSet:
 
 
 class AsyncImageProcessor:
-    def __init__(self, model_path: str, batch_size: int = 32, label_sets: List[LabelSet] = None,
+    def __init__(self, batch_size: int = 32, label_sets: List[LabelSet] = None,
                  threshold: float = 0.5):
-        try:
-            # Global model and processor
-            self.model = CLIPModel.from_pretrained(model_path)
-            self.processor = CLIPProcessor.from_pretrained(model_path)
-
-        except Exception as e:
-            print(f"Error loading CLIP model: {str(e)}, model_path: {model_path}")
-            raise e
-
+        self.model = None
         self.batch_size = batch_size
         self.label_sets = label_sets or []
         self.threshold = threshold
@@ -182,7 +157,7 @@ class AsyncImageProcessor:
                 except asyncio.TimeoutError:
                     print(f"Request timeout: {url}")
                     tasks.append(None)
-            
+
             images = await asyncio.gather(*tasks, return_exceptions=True)
             # Process results, replace exceptions with None
             processed_results = []
@@ -192,11 +167,14 @@ class AsyncImageProcessor:
                     processed_results.append((urls[i], None))
                 else:
                     processed_results.append((urls[i], result))
-                    
+
             return processed_results
 
     def process_batch(self, image_batch: List[Tuple[str, Image.Image]]) -> List[ProcessedImage]:
-        """Process a batch of images with CLIP model."""
+        """
+        Process a batch of images with CLIP model.
+        TODO: To use remote CLIP model, need to implement the remote model inference.
+        """
         if not image_batch:
             return []
 
@@ -238,24 +216,23 @@ class AsyncImageProcessor:
 
         # Download all images
         all_images = await self.download_batch(unique_urls)
-        # Filter out None images
-        all_images = [(url, img) for url, img in all_images if img is not None]
+
+        # Filter out None images and check image size
+        all_images = [(url, img) for url, img in all_images if img is not None and check_image_size(img.size[0], img.size[1])]
         print(f"Loading {len(all_images)} Images")
 
         # Batch filter images
         for i in range(0, len(all_images), self.batch_size):
             batch_images = all_images[i:i + self.batch_size]
-            print(
-                f"\nProcessing batch {i // self.batch_size + 1}/{(len(all_images) + self.batch_size - 1) // self.batch_size}")
+            print(f"\nProcessing batch {i // self.batch_size + 1}/{(len(all_images) + self.batch_size - 1) // self.batch_size}")
 
             # Process valid images
             valid_batch = [(url, img) for url, img in batch_images if img is not None]
             if valid_batch:
-                results = self.process_batch(valid_batch)
-                self.important_images.extend(results)
+                self.important_images.extend(valid_batch)
 
                 # Print results for this batch
-                for result in results:
+                for result in valid_batch:
                     print(f"Found important image: {result.url} (confidence: {result.confidence:.2f})")
 
     def display_important_images(self):
