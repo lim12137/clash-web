@@ -46,6 +46,6 @@
 					"params": {}
 				}
 			],
-		"prompt_templates_path": "backend/consts/prompts/search_agent.yaml"
+		"prompt_templates_path": "backend/prompts/search_agent.yaml"
 	}
 }
