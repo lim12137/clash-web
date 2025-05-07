@@ -10,7 +10,7 @@ class BoChaSearchTool(Tool):
     inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"
 
-    def __init__(self, api_key, max_results=5):
+    def __init__(self, api_key:str, max_results:int=5):
         super().__init__()
 
         self.api_key = api_key
