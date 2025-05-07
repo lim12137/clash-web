@@ -50,11 +50,11 @@ We recommend the following model providers:
 
 | Model Type | Provider | Notes |
 |------------|----------|-------|
-| LLM & VLLM | [Silicon Flow](https://siliconflow.cn/) | All OpenAI-compatible model services are supported. Silicon Flow is recommended for its free tier. |
-| LLM & VLLM | [Alibaba Bailian](https://bailian.console.aliyun.com/) | All OpenAI-compatible model services are supported. Alibaba Bailian is recommended for its free tier. |
-| Embedding | [Jina](https://jina.ai/) | Recommended for its free tier availability. |
-| TTS & STT | [Volcengine Voice](https://www.volcengine.com/product/voice-tech) | Recommended for personal users as it's essentially free permanently. |
-| Search | [EXA](https://exa.ai/) | Recommended for its comprehensive search capabilities and free tier. |
+| LLM & VLLM | [Silicon Flow](https://siliconflow.cn/) | Free tier available |
+| LLM & VLLM | [Alibaba Bailian](https://bailian.console.aliyun.com/) | Free tier available |
+| Embedding | [Jina](https://jina.ai/) | Free tier available |
+| TTS & STT | [Volcengine Voice](https://www.volcengine.com/product/voice-tech) | Free for personal use |
+| Search | [EXA](https://exa.ai/) | Free tier available |
 
 You'll need to input the following information in the model configuration page:
 - Base URL
