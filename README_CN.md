@@ -44,19 +44,40 @@ bash docker/deploy.sh
 
 当容器运行后，在浏览器中打开 **http://localhost:3000** 并按照设置向导操作。
 
-### 3. ❓ 需要帮助？
+### 3. 🤖 模型配置与模型提供商推荐
+
+我们建议使用以下模型提供商：
+
+| 模型类型 | 提供商 | 说明 |
+|------------|----------|-------|
+| LLM 与 VLLM | [硅基流动](https://siliconflow.cn/) | 支持所有 OpenAI 兼容的模型服务。推荐使用硅基流动，因其提供免费额度。 |
+| LLM 与 VLLM | [阿里云百炼](https://bailian.console.aliyun.com/) | 支持所有 OpenAI 兼容的模型服务。推荐使用阿里云百炼，因其提供免费额度。 |
+| Embedding | [Jina](https://jina.ai/) | 推荐使用，因其提供免费额度。 |
+| TTS 与 STT | [火山引擎语音](https://www.volcengine.com/product/voice-tech) | 推荐个人用户使用，基本永久免费。 |
+| 搜索 | [EXA](https://exa.ai/) | 推荐使用，因其搜索全面且基本免费。 |
+
+您需要在模型配置页面输入以下信息：
+- Base URL
+- API Key
+- Model Name
+
+以下配置需要添加到您的 `.env` 文件中（我们将尽快把这些配置前端化）：
+- TTS 与 STT 相关配置
+- EXA 搜索 API Key
+
+> ℹ️ 由于开发紧张，目前我们仅支持 Jina Embedding 模型。其他模型的支持将在未来版本中添加。有关 Jina API 密钥获取，请参阅我们的[常见问题](FAQ_CN.md)。
+
+### 4. ❓ 需要帮助？
 
 - 浏览 [常见问题](FAQ_CN.md) 了解常见安装问题。  
 - 在我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 中提问。  
 - 在 [GitHub Issues](https://github.com/nexent-hub/nexent/issues) 中提交错误报告或功能建议。
 
-> ℹ️ 由于开发紧张，目前我们仅支持 Jina Embedding 模型。其他模型的支持将在未来版本中添加。有关 Jina API 密钥获取，请参阅我们的[常见问题](FAQ_CN.md)。
-
-#### 4. 🔧 开发 Nexent
+### 5. 🔧 开发 Nexent
 
 想要从源代码构建或添加新功能？查看 [贡献指南](CONTRIBUTING_CN.md) 获取分步说明。
 
-#### 5. 🛠️ 从源码构建
+### 6. 🛠️ 从源码构建
 
 想要从源码运行 Nexent？查看我们的[开发者指南](DEVELOPPER_NOTE_CN.md)获取详细的设置说明和自定义选项。
 

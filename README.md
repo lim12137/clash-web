@@ -44,19 +44,40 @@ bash docker/deploy.sh
 
 When the containers are running, open **http://localhost:3000** in your browser and follow the setup wizard.
 
-### 3. ❓ Need help?
+### 3. 🤖 Model Configuration & Provider Recommendations
+
+We recommend the following model providers:
+
+| Model Type | Provider | Notes |
+|------------|----------|-------|
+| LLM & VLLM | [Silicon Flow](https://siliconflow.cn/) | All OpenAI-compatible model services are supported. Silicon Flow is recommended for its free tier. |
+| LLM & VLLM | [Alibaba Bailian](https://bailian.console.aliyun.com/) | All OpenAI-compatible model services are supported. Alibaba Bailian is recommended for its free tier. |
+| Embedding | [Jina](https://jina.ai/) | Recommended for its free tier availability. |
+| TTS & STT | [Volcengine Voice](https://www.volcengine.com/product/voice-tech) | Recommended for personal users as it's essentially free permanently. |
+| Search | [EXA](https://exa.ai/) | Recommended for its comprehensive search capabilities and free tier. |
+
+You'll need to input the following information in the model configuration page:
+- Base URL
+- API Key
+- Model Name
+
+The following configurations need to be added to your `.env` file (we'll make these configurable through the frontend soon):
+- TTS and STT related configurations
+- EXA search API Key
+
+> ℹ️ Due to core features development, currently, we only support Jina Embedding model. Support for other models will be added in future releases. For Jina API key setup, please refer to our [FAQ](FAQ.md).
+
+### 4. ❓ Need help?
 
 - Browse the [FAQ](FAQ.md) for common install issues.  
 - Drop questions in our [Discord community](https://discord.gg/tb5H3S3wyv).  
 - File bugs or feature ideas in [GitHub Issues](https://github.com/nexent-hub/nexent/issues).
 
-> ℹ️ Due to core features development, currently, we only support Jina Embedding model. Support for other models will be added in future releases. For Jina API key setup, please refer to our [FAQ](FAQ.md).
-
-#### 4. 🔧 Hack on Nexent
+### 5. 🔧 Hack on Nexent
 
 Want to build from source or add new features? Check the [Contribution Guide](CONTRIBUTING.md) for step-by-step instructions.
 
-#### 5. 🛠️ Build from Source
+### 6. 🛠️ Build from Source
 
 Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_NOTE.md) for detailed setup instructions and customization options.
 
