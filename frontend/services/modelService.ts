@@ -58,6 +58,7 @@ export const modelService = {
           asr: "stt",
           tts: "tts",
           rerank: "rerank",
+          vlm: "vlm"
         }
 
         for (const model of result.data) {

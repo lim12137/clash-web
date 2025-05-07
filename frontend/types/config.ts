@@ -9,7 +9,7 @@ export type ModelConnectStatus = "未检测" | "检测中" | "可用" | "不可�
 export type ModelSource = "official" | "custom"
 
 // 模型类型
-export type ModelType = "llm" | "embedding" | "rerank" | "stt" | "tts"
+export type ModelType = "llm" | "embedding" | "rerank" | "stt" | "tts" | "vlm"
 
 // 配置存储键名
 export const APP_CONFIG_KEY = 'app';
@@ -53,6 +53,14 @@ export const defaultConfig: GlobalConfig = {
     rerank: {
       modelName: "",
       displayName: ""
+    },
+    vlm: {
+      modelName: "",
+      displayName: "",
+      apiConfig: {
+        apiKey: "",
+        modelUrl: ""
+      }
     },
     stt: {
       modelName: "",
@@ -111,6 +119,7 @@ export interface ModelConfig {
   llmSecondary: SingleModelConfig
   embedding: SingleModelConfig
   rerank: SingleModelConfig
+  vlm: SingleModelConfig
   stt: SingleModelConfig
   tts: SingleModelConfig
 }

@@ -10,3 +10,12 @@ __pycache__/
 sdk/build
 uploads/
 /sdk/nexent/core/nlp/baidu_stopwords.txt
+
+docker/elasticsearch
+docker/minio
+docker/postgresql
+docker/redis
+docker/uploads
+docker/.env
+
+frontend_standalone/
