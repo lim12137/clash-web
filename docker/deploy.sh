@@ -3,11 +3,11 @@
 source .env
 
 generate_minio_ak_sk() {
-  # Generate a random AK (12-character alphanumeric)
-  ACCESS_KEY=$(openssl rand -hex 12 | tr -d '\n')
+  # Generate a random AK (12-character alphanumeric) and clean it
+  ACCESS_KEY=$(openssl rand -hex 12 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9]//g')
 
-  # Generate a random SK (32-character high-strength random string)
-  SECRET_KEY=$(openssl rand -base64 32 | tr -d '\n')
+  # Generate a random SK (32-character high-strength random string) and clean it
+  SECRET_KEY=$(openssl rand -base64 32 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9+/=]//g')
 
   export MINIO_ACCESS_KEY=$ACCESS_KEY
   export MINIO_SECRET_KEY=$SECRET_KEY
