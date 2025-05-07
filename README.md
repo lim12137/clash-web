@@ -38,7 +38,7 @@ Nexent 是一个开源智能体SDK和平台，能够将描述流程的自然语�
 
 ```bash
 git clone https://github.com/nexent-hub/nexent.git
-cp .env.example .env # fill nessasary configs
+cp docker/.env.example docker/.env # fill only nessasary configs
 bash docker/deploy.sh
 ```
 
