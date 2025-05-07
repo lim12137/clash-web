@@ -39,6 +39,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     apiKey: "",
     maxTokens: "4096",
   })
+  const [loading, setLoading] = useState(false)
 
   // 解析模型名称，提取默认展示名称
   const parseModelName = (name: string): string => {
@@ -81,6 +82,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
 
   // 处理添加模型
   const handleAddModel = async () => {
+    setLoading(true)
     try {
       // 添加到后端服务
       await modelService.addCustomModel({
@@ -153,6 +155,8 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     } catch (error) {
       message.error(`添加模型失败：${error}`)
       console.error('添加模型失败:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -282,6 +286,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
             type="primary"
             onClick={handleAddModel}
             disabled={!isFormValid()}
+            loading={loading}
           >
             添加
           </Button>
