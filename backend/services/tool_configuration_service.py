@@ -3,7 +3,10 @@ from smolagents import ToolCollection
 from fastapi import HTTPException
 import importlib
 import inspect
+import logging
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def get_local_tools():
     tools_info = []
@@ -76,5 +79,5 @@ def get_mcp_tools():
                 tools_info.append(tool_info)
             return tools_info
     except Exception as e:
-        print(f"mcp connection error: {str(e)}")
+        logger.error(f"mcp connection error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"MCP server not connected: {str(e)}")
