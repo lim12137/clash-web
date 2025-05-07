@@ -1,4 +1,5 @@
 import json
+from typing import List
 
 import requests
 from smolagents.tools import Tool
@@ -20,8 +21,6 @@ class KnowledgeBaseSearchTool(Tool):
     inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"
 
-    # 所有工具内部的message支持中英文两种语言
-    supported_languages = {'zh', 'en'}
     messages = {'en': {'search_failed': 'Search request failed: {}',
         'no_results': 'No results found! Try a less restrictive/shorter query.',
         'search_success': 'Knowledge Base Search Results'},
@@ -30,8 +29,10 @@ class KnowledgeBaseSearchTool(Tool):
 
     tool_sign = "a"  # 用于给总结区分不同的索引来源
 
-    def __init__(self, index_names: list[str] = [], base_url: str = "http://localhost:8000", top_k: int = 5,
-                 observer: MessageObserver = None, lang: str = "zh") -> None:
+    def __init__(self, index_names: List[str],
+                 base_url: str,
+                 top_k: int = 5,
+                 observer: MessageObserver = None):
         """Initialize the KBSearchTool.
         
         Args:
@@ -49,11 +50,7 @@ class KnowledgeBaseSearchTool(Tool):
         self.top_k = top_k
         self.observer = observer
         self.base_url = base_url
-
-        if lang not in self.supported_languages:
-            raise ValueError(f"Language must be one of {self.supported_languages}")
-        self.lang = lang
-
+        self.lang = 'zh'
         self.record_ops = 0  # 用于记录序号
 
     def forward(self, query: str) -> str:
@@ -95,8 +92,8 @@ if __name__ == "__main__":
     try:
         tool = KnowledgeBaseSearchTool(index_names=["medical"], base_url="http://localhost:8000", top_k=3)
 
-        query = "乳腺癌的风险"
-        result1 = tool.forward(query)
+        question = "乳腺癌的风险"
+        result1 = tool.forward(question)
         print(result1)
     except Exception as e:
         print(e)

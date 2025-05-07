@@ -21,7 +21,6 @@ class EXASearchTool(Tool):
     inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"
 
-    supported_languages = {'zh', 'en'}
     messages = {'en': {
         'summary_prompt': 'Please summarize the main content of the following webpage, extract key information, and answer the user\'s question. Ensure the summary is concise and covers the core points, data, and conclusions. If the webpage content involves multiple topics, please summarize each topic separately. The user\'s question is: [{query}]. Please provide an accurate answer based on the webpage content, and note the information source (if applicable).',
         'search_failed': 'Search request failed: {}',
@@ -33,20 +32,20 @@ class EXASearchTool(Tool):
 
     tool_sign = "b"  # 用于给总结区分不同的索引来源
 
-    def __init__(self, exa_api_key, observer: MessageObserver = None, max_results=5, is_model_summary=False, lang='zh',
-                 image_filter=False, image_filter_model_path: Optional[str] = None,
-                 image_filter_threshold: float = 0.4):
+    def __init__(self, exa_api_key:str,
+                 observer: MessageObserver = None,
+                 max_results:int=5,
+                 is_model_summary:bool=False,
+                 image_filter:bool=False,
+                 image_filter_model_path:str="",
+                 image_filter_threshold:float=0.4):
         super().__init__()
 
         self.observer = observer
         self.exa = Exa(api_key=exa_api_key)
         self.max_results = max_results
         self.is_model_summary = is_model_summary
-
-        if lang not in self.supported_languages:
-            raise ValueError(f"Language must be one of {self.supported_languages}")
-        self.lang = lang
-
+        self.lang = 'zh'
         self.image_filter = image_filter
         self.image_filter_model_Path = image_filter_model_path
         self.image_filter_threshold = image_filter_threshold
