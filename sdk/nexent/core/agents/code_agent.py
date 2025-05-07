@@ -98,11 +98,6 @@ class CoreAgent(CodeAgent):
 
             execution_outputs_console = []
             if len(execution_logs) > 0:
-                print("%" * 20)
-                print("\noutput:\n", output)
-                print("\nexecution_logs:\n", execution_logs)
-                print("%" * 20)
-
                 # 记录运行结果
                 self.observer.add_message(self.agent_name, ProcessType.EXECUTION_LOGS, f"{execution_logs}")
 
