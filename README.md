@@ -37,7 +37,7 @@ Nexent 是一个开源智能体SDK和平台，能够将描述流程的自然语�
 ### 2. 🛠️ 使用 Docker Compose 快速开始
 
 ```bash
-git clone git@github.com:nexent-hub/nexent-community.git
+git clone https://github.com/nexent-hub/nexent.git
 cp .env.example .env # fill nessasary configs
 bash docker/deploy.sh
 ```

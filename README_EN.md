@@ -37,7 +37,7 @@ Most of all, we need visibility. Star ⭐ and watch the repo, share it with frie
 ### 2. 🛠️ Quick start with Docker Compose
 
 ```bash
-git clone git@github.com:nexent-hub/nexent-community.git
+git clone https://github.com/nexent-hub/nexent.git
 cp .env.example .env # fill nessasary configs
 bash docker/deploy.sh
 ```
