@@ -13,13 +13,12 @@ load_dotenv()
 # ===== Example of how to register a tool =====
 
 # from typing import List, Optional
-
-from arxiv_mcp_server.server import Server, settings
-from arxiv_mcp_server.tools import search_tool, download_tool, list_tool, read_tool
-from arxiv_mcp_server.tools import handle_search, handle_download, handle_list_papers, handle_read_paper
+# from arxiv_mcp_server.server import Server, settings
+# from arxiv_mcp_server.tools import search_tool, download_tool, list_tool, read_tool
+# from arxiv_mcp_server.tools import handle_search, handle_download, handle_list_papers, handle_read_paper
 
 # # Create Arxiv server
-arxiv_server = Server(settings.APP_NAME)
+# arxiv_server = Server(settings.APP_NAME)
 
 # # Register Arxiv search tool
 # @mcp.tool(name=search_tool.name, description=search_tool.description)
@@ -76,19 +75,19 @@ arxiv_server = Server(settings.APP_NAME)
 #     return "\n\n".join(result.text for result in results)
 
 # # Register Arxiv paper read tool
-@mcp.tool(name=read_tool.name, description=read_tool.description)
-async def read_paper(paper_id: str) -> str:
-    """read the downloaded paper from arxiv.
-
-    parameters:
-        paper_id (str): arxiv paper id, e.g. "2401.12345"
-
-    return:
-        str: paper content
-    """
-    arguments = {"paper_id": paper_id}
-    results = await handle_read_paper(arguments)
-    return "\n\n".join(result.text for result in results)
+# @mcp.tool(name=read_tool.name, description=read_tool.description)
+# async def read_paper(paper_id: str) -> str:
+#     """read the downloaded paper from arxiv.
+#
+#     parameters:
+#         paper_id (str): arxiv paper id, e.g. "2401.12345"
+#
+#     return:
+#         str: paper content
+#     """
+#     arguments = {"paper_id": paper_id}
+#     results = await handle_read_paper(arguments)
+#     return "\n\n".join(result.text for result in results)
 
 @mcp.tool(name="test_tool_name", description="test_tool_description")
 async def test_tool(para_1: str, para_2: int, para_3: List[str], para_4: dict, para_5: bool) -> str:
