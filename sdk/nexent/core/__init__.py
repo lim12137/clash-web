@@ -1,8 +1,8 @@
 from .utils.observer import MessageObserver, ProcessType
-from .tools import EXASearchTool, KnowledgeBaseSearchTool, BoChaSearchTool, SummaryTool
+from .tools import EXASearchTool, KnowledgeBaseSearchTool, SummaryTool
 
 __all__ = ["MessageObserver", "ProcessType",
-           "EXASearchTool", "BoChaSearchTool", "SummaryTool", "KnowledgeBaseSearchTool"]
+           "EXASearchTool", "SummaryTool", "KnowledgeBaseSearchTool"]
 
 # Lazy imports to avoid circular dependencies
 def get_core_agent():

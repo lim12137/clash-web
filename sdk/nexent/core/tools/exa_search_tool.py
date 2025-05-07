@@ -20,22 +20,11 @@ class EXASearchTool(Tool):
 
     inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"
-
-    messages = {'en': {
-        'summary_prompt': 'Please summarize the main content of the following webpage, extract key information, and answer the user\'s question. Ensure the summary is concise and covers the core points, data, and conclusions. If the webpage content involves multiple topics, please summarize each topic separately. The user\'s question is: [{query}]. Please provide an accurate answer based on the webpage content, and note the information source (if applicable).',
-        'search_failed': 'Search request failed: {}',
-        'no_results': 'No results found! Try a less restrictive/shorter query.',
-        'search_success': 'EXA Search Results'}, 'zh': {
-        'summary_prompt': '请总结以下网页的主要内容，提取关键信息，并回答用户的问题。确保总结简洁明了，涵盖核心观点、数据和结论。如果网页内容涉及多个主题，请分别概述每个主题的重点。用户的问题是：[{query}]。请根据网页内容提供准确的回答，并注明信息来源（如适用）。',
-        'search_failed': '搜索请求失败：{}', 'no_results': '未找到结果！请尝试使用更简短或更宽泛的搜索词。',
-        'search_success': 'EXA搜索结果'}}
-
     tool_sign = "b"  # 用于给总结区分不同的索引来源
 
     def __init__(self, exa_api_key:str,
                  observer: MessageObserver = None,
                  max_results:int=5,
-                 is_model_summary:bool=False,
                  image_filter:bool=False,
                  image_filter_model_path:str="",
                  image_filter_threshold:float=0.4):
@@ -44,8 +33,6 @@ class EXASearchTool(Tool):
         self.observer = observer
         self.exa = Exa(api_key=exa_api_key)
         self.max_results = max_results
-        self.is_model_summary = is_model_summary
-        self.lang = 'zh'
         self.image_filter = image_filter
         self.image_filter_model_Path = image_filter_model_path
         self.image_filter_threshold = image_filter_threshold
@@ -53,17 +40,11 @@ class EXASearchTool(Tool):
         self.record_ops = 0  # 用于记录序号
 
     def forward(self, query: str) -> str:
-        if self.is_model_summary:
-            # 使用LLM总结功能会导致搜索速度变慢
-            summary_prompt = self.messages[self.lang]['summary_prompt'].format(query=query)
-            exa_search_result = self.exa.search_and_contents(query, text=True, extras={"links": 0, "image_links": 10},
-                livecrawl="always", num_results=self.max_results, summary={"query": summary_prompt})
-        else:
-            exa_search_result = self.exa.search_and_contents(query, text={"max_characters": 2000}, livecrawl="always",
-                extras={"links": 0, "image_links": 10}, num_results=self.max_results)
 
-        if len(exa_search_result.results) == 0:
-            raise Exception(self.messages[self.lang]['no_results'])
+        exa_search_result = self.exa.search_and_contents(query,
+                                                         text={"max_characters": 2000},
+                                                         livecrawl="always",
+            extras={"links": 0, "image_links": 10}, num_results=self.max_results)
 
         images_list_url = []
         search_results_json = []  # 将检索结果整理成统一格式

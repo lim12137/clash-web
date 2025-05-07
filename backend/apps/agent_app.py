@@ -10,9 +10,10 @@ from utils.agent_utils import thread_manager
 from utils.config_utils import config_manager
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 from utils.thread_utils import submit
-from utils.agent_utils import agent_run_thread, get_local_tools, get_mcp_tools
+from utils.agent_utils import agent_run_thread
 
 from nexent.core.utils.observer import MessageObserver
+
 
 router = APIRouter(prefix="/agent")
 
@@ -100,22 +101,3 @@ async def reload_config():
     Manually trigger configuration reload
     """
     return config_manager.force_reload()
-
-@router.get("/tool_list")
-async def get_tool_list():
-    """
-    get local and mcp service tools list
-    """
-    local_tools = []
-    mcp_tools = []
-    try:
-        local_tools = get_local_tools()
-    except Exception as e:
-        print(e)
-    try:
-        mcp_tools = get_mcp_tools()
-    except Exception as e:
-        print(e)
-    return {"local_tools": local_tools, "mcp_tools": mcp_tools}
-
-
