@@ -1,5 +1,5 @@
 "use strict";
-import { Select, Tooltip } from 'antd'
+import { Select, Tooltip, Tag } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
 import { ModelConnectStatus, ModelOption, ModelSource, ModelType } from '@/types/config'
 import { useEffect, useState, useRef, useCallback } from 'react'
@@ -121,6 +121,40 @@ interface ModelListCardProps {
   errorFields?: {[key: string]: boolean} // 新增错误字段状态
 }
 
+// 获取模型来源对应的标签样式
+const getSourceTagStyle = (source: string): React.CSSProperties => {
+  const baseStyle: React.CSSProperties = {
+    marginRight: '4px',
+    fontSize: '12px',
+    lineHeight: '16px',
+    padding: '0 6px',
+    borderRadius: '10px',
+  };
+  
+  if (source === "ModelEngine") {
+    return {
+      ...baseStyle,
+      color: '#1890ff',
+      backgroundColor: '#e6f7ff',
+      borderColor: '#91d5ff',
+    };
+  } else if (source === "自定义") {
+    return {
+      ...baseStyle,
+      color: '#722ed1',
+      backgroundColor: '#f9f0ff',
+      borderColor: '#d3adf7',
+    };
+  } else {
+    return {
+      ...baseStyle,
+      color: '#595959',
+      backgroundColor: '#fafafa',
+      borderColor: '#d9d9d9',
+    };
+  }
+};
+
 export const ModelListCard = ({
   type,
   modelId,
@@ -141,6 +175,9 @@ export const ModelListCard = ({
   // 组件唯一ID，用于注册表
   const instanceIdRef = useRef(`${type}-${modelId}-${Math.random().toString(36).substring(2, 9)}`);
 
+  // 添加下拉框展开状态
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   // 在组件中创建一个style元素，包含动画定义
   useEffect(() => {
     // 创建style元素
@@ -157,13 +194,7 @@ export const ModelListCard = ({
 
   // 获取模型列表时需要考虑具体的选项类型
   const getModelsBySource = (): Record<ModelSource, ModelOption[]> => {
-    if (type === 'tts' || type === 'stt') {
-      return {
-        official: modelsData.official.filter(model => model.type === type),
-        custom: modelsData.custom.filter(model => model.type === type)
-      }
-    }
-
+    // 具体处理不同类型的模型获取逻辑
     return {
       official: modelsData.official.filter(model => model.type === type),
       custom: modelsData.custom.filter(model => model.type === type)
@@ -172,11 +203,9 @@ export const ModelListCard = ({
 
   // 获取模型来源
   const getModelSource = (modelName: string): string => {
-    if (type === 'tts' || type === 'stt') {
-      const ttsModel = modelsData.custom.find((m) => m.type === 'tts' && m.name === modelName)
-      if (ttsModel) return "自定义"
-      const sttModel = modelsData.custom.find((m) => m.type === 'stt' && m.name === modelName)
-      if (sttModel) return "自定义"
+    if (type === 'tts' || type === 'stt' || type === 'vlm') {
+      const modelOfType = modelsData.custom.find((m) => m.type === type && m.name === modelName)
+      if (modelOfType) return "自定义"
     }
 
     const officialModel = modelsData.official.find((m) => m.type === type && m.name === modelName)
@@ -222,9 +251,14 @@ export const ModelListCard = ({
     const currentType = type;
     
     // 过滤出当前组件关注的模型类型的数据
-    const relevantModels = apiData.filter(m => m.type === currentType || 
-                                             (currentType === 'tts' && m.model_type === 'tts') ||
-                                             (currentType === 'stt' && m.model_type === 'stt'));
+    const relevantModels = apiData.filter(m => 
+      m.type === currentType || 
+      m.model_type === currentType || 
+      (currentType === 'vlm' && (m.type === 'vlm' || m.model_type === 'vlm'))
+    );
+    
+    // 如果没有找到相关模型数据，则不更新
+    if (relevantModels.length === 0) return;
     
     // 更新UI状态
     setModelsData(prevData => {
@@ -352,10 +386,19 @@ export const ModelListCard = ({
 
   return (
     <div>
-      <div className="font-medium mb-1.5">
-        {modelName}
-        {(modelName === "主模型" || modelName === "向量模型") && (
-          <span className="text-red-500 ml-1">*</span>
+      <div className="font-medium mb-1.5 flex items-center justify-between">
+        <div className="flex items-center">
+          {modelName}
+          {(modelName === "主模型" || modelName === "向量模型") && (
+            <span className="text-red-500 ml-1">*</span>
+          )}
+        </div>
+        {selectedModel && (
+          <div className="flex items-center">
+            <Tag style={getSourceTagStyle(getModelSource(selectedModel))}>
+              {getModelSource(selectedModel)}
+            </Tag>
+          </div>
         )}
       </div>
       <Select
@@ -370,29 +413,19 @@ export const ModelListCard = ({
         }}
         onClear={() => handleModelChange("")}
         size="middle"
-        onClick={(e) => e.stopPropagation()} // 尝试防止冒泡
-        getPopupContainer={(triggerNode) => triggerNode.parentNode as HTMLElement} // 确保下拉框挂载在正确的父元素上
+        onClick={(e) => e.stopPropagation()}
+        getPopupContainer={(triggerNode) => triggerNode.parentNode as HTMLElement}
         status={errorFields && errorFields[`${type}.${modelId}`] ? "error" : ""}
         className={errorFields && errorFields[`${type}.${modelId}`] ? "error-select" : ""}
+        onDropdownVisibleChange={setIsDropdownOpen}
       >
         {modelsBySource.official.length > 0 && (
           <Select.OptGroup label="ModelEngine模型">
             {modelsBySource.official.map((model) => (
-              <Option key={`${model.type}-${model.name}-official`} value={model.name}>
+              <Option key={`${type}-${model.name}-official`} value={model.name}>
                 <div className="flex items-center justify-between">
                   <div className="font-medium truncate" title={model.name}>
                     {model.displayName || model.name}
-                  </div>
-                  <div className="flex items-center ml-2">
-                    <Tooltip title="官方模型，始终可用">
-                      <span 
-                        style={{ 
-                          ...getStatusStyle("可用"),
-                          backgroundColor: "#52c41a", // 官方模型固定为绿色
-                          boxShadow: "0 0 3px #52c41a"
-                        }}
-                      />
-                    </Tooltip>
                   </div>
                 </div>
               </Option>
@@ -402,117 +435,52 @@ export const ModelListCard = ({
         {modelsBySource.custom.length > 0 && (
           <Select.OptGroup label="自定义模型">
             {modelsBySource.custom.map((model) => (
-              <Option key={`${model.type}-${model.displayName}-custom`} value={model.name}>
+              <Option key={`${type}-${model.displayName}-custom`} value={model.name}>
                 <div className="flex items-center justify-between">
                   <div className="font-medium truncate" title={model.name}>
                     {model.displayName || model.name}
                   </div>
-                  <div className="flex items-center ml-2">
-                    <Tooltip title="点击可验证连通性">
-                      <span 
-                        onClick={(e) => handleStatusClick(e, model.name)}
-                        onMouseDown={(e: React.MouseEvent) => {
-                          // 使用mousedown事件，在click之前就阻止
-                          e.stopPropagation(); 
-                          e.preventDefault();
-                          if (onVerifyModel) {
-                            // 先更新本地状态为"检测中"
-                            updateLocalModelStatus(model.name, "检测中");
-                            onVerifyModel(model.name, type);
-                          }
-                          
-                          return false; // 确保不会继续冒泡
-                        }}
-                        style={{ 
-                          ...getStatusStyle(model.connect_status),
-                          backgroundColor: model.connect_status === "检测中" 
-                            ? "#2980b9" 
-                            : getConnectStatusColor(model.connect_status),
-                          boxShadow: model.connect_status === "检测中"
-                            ? "0 0 3px #2980b9"
-                            : `0 0 3px ${getConnectStatusColor(model.connect_status)}`
-                        }}
-                        className="status-indicator"
-                        onMouseEnter={(e) => {
-                          const target = e.currentTarget as HTMLElement;
-                          Object.assign(target.style, getHoverStyle);
-                        }}
-                        onMouseLeave={(e) => {
-                          const target = e.currentTarget as HTMLElement;
-                          target.style.transform = '';
-                          target.style.boxShadow = model.connect_status === "检测中"
-                            ? "0 0 3px #2980b9"
-                            : `0 0 3px ${getConnectStatusColor(model.connect_status)}`;
-                        }}
-                      />
-                    </Tooltip>
-                  </div>
+                  <Tooltip title="点击可验证连通性">
+                    <span 
+                      onClick={(e) => handleStatusClick(e, model.name)}
+                      onMouseDown={(e: React.MouseEvent) => {
+                        e.stopPropagation(); 
+                        e.preventDefault();
+                        if (onVerifyModel) {
+                          updateLocalModelStatus(model.name, "检测中");
+                          onVerifyModel(model.name, type);
+                        }
+                        return false;
+                      }}
+                      style={{ 
+                        ...getStatusStyle(model.connect_status),
+                        backgroundColor: model.connect_status === "检测中" 
+                          ? "#2980b9" 
+                          : getConnectStatusColor(model.connect_status),
+                        boxShadow: model.connect_status === "检测中"
+                          ? "0 0 3px #2980b9"
+                          : `0 0 3px ${getConnectStatusColor(model.connect_status)}`
+                      }}
+                      className="status-indicator"
+                      onMouseEnter={(e) => {
+                        const target = e.currentTarget as HTMLElement;
+                        Object.assign(target.style, getHoverStyle);
+                      }}
+                      onMouseLeave={(e) => {
+                        const target = e.currentTarget as HTMLElement;
+                        target.style.transform = '';
+                        target.style.boxShadow = model.connect_status === "检测中"
+                          ? "0 0 3px #2980b9"
+                          : `0 0 3px ${getConnectStatusColor(model.connect_status)}`;
+                      }}
+                    />
+                  </Tooltip>
                 </div>
               </Option>
             ))}
           </Select.OptGroup>
         )}
       </Select>
-      {selectedModel && (
-        <div className="mt-1 text-xs text-gray-600 flex justify-between mx-2">
-          <span>来源: {getModelSource(selectedModel)}</span>
-          <span className="flex items-center">
-            连通性: 
-            <Tooltip title="点击可验证连通性">
-              <span
-                className="ml-1 status-text" 
-                style={{ 
-                  color: getModelSource(selectedModel) === "ModelEngine" 
-                    ? getConnectStatusColor("可用")
-                    : getConnectStatusColor(
-                        modelsData.custom.find(m => m.name === selectedModel)?.connect_status
-                      ),
-                  cursor: getModelSource(selectedModel) !== "ModelEngine" ? "pointer" : "default",
-                  textDecoration: "underline"
-                }}
-                onClick={(e) => {
-                  if (getModelSource(selectedModel) !== "ModelEngine" && onVerifyModel) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    e.nativeEvent.stopImmediatePropagation();
-                    
-                    // 先更新本地状态为"检测中"
-                    const modelToUpdate = modelsData.custom.find(m => m.name === selectedModel && m.type === type);
-                    if (modelToUpdate) {
-                      updateLocalModelStatus(selectedModel, "检测中");
-                    }
-                    
-                    onVerifyModel(selectedModel, type);
-                    return false;
-                  }
-                }}
-                onMouseDown={(e: React.MouseEvent) => {
-                  if (getModelSource(selectedModel) !== "ModelEngine" && onVerifyModel) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    
-                    // 先更新本地状态为"检测中"
-                    const modelToUpdate = modelsData.custom.find(m => m.name === selectedModel && m.type === type);
-                    if (modelToUpdate) {
-                      updateLocalModelStatus(selectedModel, "检测中");
-                    }
-                    
-                    onVerifyModel(selectedModel, type);
-                    return false;
-                  }
-                }}
-              >
-                {getModelSource(selectedModel) === "ModelEngine" 
-                  ? "可用" 
-                  : getConnectStatusText(
-                      modelsData.custom.find(m => m.name === selectedModel)?.connect_status
-                    )
-                }
-              </span>
-            </Tooltip>
-          </span>
-        </div>
-      )}
     </div>
   )
 } 

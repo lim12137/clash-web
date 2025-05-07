@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nexent"
 version = "0.1.1"
-description = "Nexent 智能体框架"
+description = "Nexent Agent Framework"
 authors = [
     { name = "Shuangrui Chen" },
     { name = "Simeng Bian" },

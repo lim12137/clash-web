@@ -5,6 +5,7 @@ from nexent.core.models.stt_model import STTModel, STTConfig
 from nexent.core.models.tts_model import TTSModel, TTSConfig
 from fastapi import WebSocket, APIRouter
 
+logging.getLogger("uvicorn").setLevel(logging.INFO)
 
 class VoiceService:
     """Unified voice service that hosts both STT and TTS on a single FastAPI application"""
@@ -122,11 +123,13 @@ class VoiceService:
             tts_connected = False
 
             if model_type == 'stt':
+                logging.info(f'STT Config: {self.stt_config}')
                 stt_connected = await self.stt_model.check_connectivity()
                 if not stt_connected:
                     logging.error("Speech Recognition (STT) service connection failed")
 
             if model_type == 'tts':
+                logging.info(f'TTS Config: {self.tts_config}')
                 tts_connected = await self.tts_model.check_connectivity()
                 if not tts_connected:
                     logging.error("Text-to-Speech (TTS) service connection failed")

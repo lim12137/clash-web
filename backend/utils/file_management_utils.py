@@ -98,9 +98,9 @@ async def trigger_data_process(file_paths: List[str], process_params: ProcessPar
 
 
 def convert_image_to_text(query: str, image_input: Union[str, BinaryIO]):
-    print(config_manager.get_config("VL_MODEL_NAME"), config_manager.get_config("VL_MODEL_URL"))
-    image_to_text_model = OpenAIVLModel(observer=MessageObserver(), model_id=config_manager.get_config("VL_MODEL_NAME"),
-        api_base=config_manager.get_config("VL_MODEL_URL"), api_key=config_manager.get_config("VL_API_KEY"),
+    print(config_manager.get_config("VLM_MODEL_NAME"), config_manager.get_config("VLM_MODEL_URL"))
+    image_to_text_model = OpenAIVLModel(observer=MessageObserver(), model_id=config_manager.get_config("VLM_MODEL_NAME"),
+        api_base=config_manager.get_config("VLM_MODEL_URL"), api_key=config_manager.get_config("VLM_API_KEY"),
         temperature=0.7, top_p=0.7, frequency_penalty=0.5, max_tokens=512)
     prompt = f"用户提出了一个问题：{query}，请从回答这个问题的角度精简、仔细描述一下这个图片，200字以内。"
     text = image_to_text_model.analyze_image(image_input=image_input, system_prompt=prompt).content
