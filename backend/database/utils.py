@@ -1,5 +1,4 @@
-import logging
-from typing import Dict, Any, List, Tuple
+from typing import List, Tuple
 
 def add_creation_timestamp(fields: List[str], placeholders: str) -> Tuple[List[str], str]:
     """
