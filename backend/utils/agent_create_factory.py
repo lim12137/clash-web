@@ -1,14 +1,14 @@
 import json
 import re
-
+import logging
 import yaml
+
 from nexent.core.agents import CoreAgent
 from nexent.core.models import OpenAIModel
 from nexent.core.utils import MessageObserver
 from nexent.core.tools import EXASearchTool, SummaryTool, KnowledgeBaseSearchTool # not remove
 
 from utils.config_utils import config_manager
-
 
 class AgentCreateFactory:
     def __init__(self, mcp_tool_collection, observer:MessageObserver):
@@ -155,6 +155,7 @@ class AgentCreateFactory:
         # load the prompt templates
         prompt_templates_path = agent_config.get("prompt_templates_path")
         prompt_templates = self.load_prompt_templates(prompt_templates_path)
+        logging.info(f"prompt_templates: {prompt_templates_path}")
         tools = self.create_tools_list(agent_config)
         # create the agent
         agent = CoreAgent(

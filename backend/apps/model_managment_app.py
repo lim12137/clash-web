@@ -6,7 +6,7 @@ from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest
 from database.model_management_db import create_model_record, update_model_record, delete_model_record, \
     get_model_records, get_model_by_name, get_model_by_display_name
 from database.utils import get_current_user_id
-from services.model_health_service import check_me_model_connectivity, check_model_connectivity
+from services.model_health_service import check_model_connectivity
 from utils.model_name_utils import split_repo_name, add_repo_to_name
 
 router = APIRouter(prefix="/model")

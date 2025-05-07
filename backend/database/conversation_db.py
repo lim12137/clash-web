@@ -1,20 +1,14 @@
 import json
-from contextlib import contextmanager
 from datetime import datetime
 from typing import Dict, List, Any, Optional, TypedDict
 
-import psycopg2.extras
+from sqlalchemy import insert, func, select, asc, desc, update
 
-from .client import db_client
-from .utils import add_creation_tracking, add_update_tracking, add_creation_timestamp, add_update_timestamp
+from .utils import add_creation_tracking, add_update_tracking
 
-
-class ConversationRecord(TypedDict):
-    conversation_id: int
-    conversation_title: str
-    create_time: int
-    update_time: int
-
+from .client import get_db_session, as_dict
+from .db_models import ConversationRecord, ConversationMessage, ConversationMessageUnit, ConversationSourceSearch, \
+    ConversationSourceImage
 
 class MessageRecord(TypedDict):
     message_id: int
@@ -64,49 +58,29 @@ def create_conversation(conversation_title: str, user_id: Optional[str] = None) 
     Returns:
         Dict[str, Any]: Dictionary containing complete information of the newly created conversation
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
+    with get_db_session() as session:
         # Prepare data dictionary
         data = {"conversation_title": conversation_title, "delete_flag": 'N'}
-
         if user_id:
             data = add_creation_tracking(data, user_id)
-        # Build SQL
-        fields = list(data.keys())
-        values = list(data.values())
 
-        # Add timestamp fields
-        placeholders = ', '.join(['%s'] * len(values))
-        fields, placeholders = add_creation_timestamp(fields, placeholders)
-        fields_str = ', '.join(fields)
+        stmt = insert(ConversationRecord).values(**data).returning(
+            ConversationRecord.conversation_id,
+            ConversationRecord.conversation_title,
+            (func.extract('epoch', ConversationRecord.create_time) * 1000).label('create_time'),
+            (func.extract('epoch', ConversationRecord.update_time) * 1000).label('update_time')
+        )
 
-        sql = f"""
-            INSERT INTO agent_engine.conversation_record_t 
-            ({fields_str})
-            VALUES ({placeholders})
-            RETURNING conversation_id, conversation_title, 
-                EXTRACT(EPOCH FROM create_time) * 1000 as create_time,
-                EXTRACT(EPOCH FROM update_time) * 1000 as update_time
-        """
-
-        cursor.execute(sql, values)
-        record = cursor.fetchone()
-        conn.commit()
+        record = session.execute(stmt).fetchone()
 
         # Convert to dictionary and ensure timestamps are integers
-        result = dict(record)
-        result['create_time'] = int(result['create_time'])
-        result['update_time'] = int(result['update_time'])
-        return result
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        result_dict = {
+            "conversation_id": record.conversation_id,
+            "conversation_title": record.conversation_title,
+            "create_time": int(record.create_time),
+            "update_time": int(record.update_time)
+        }
+        return result_dict
 
 
 def create_conversation_message(message_data: Dict[str, Any], user_id: Optional[str] = None) -> int:
@@ -125,11 +99,7 @@ def create_conversation_message(message_data: Dict[str, Any], user_id: Optional[
     Returns:
         int: Newly created message ID (auto-increment ID)
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor()
-
+    with get_db_session() as session:
         # Ensure conversation_id is integer type
         conversation_id = int(message_data['conversation_id'])
         message_idx = int(message_data['message_idx'])
@@ -145,36 +115,14 @@ def create_conversation_message(message_data: Dict[str, Any], user_id: Optional[
         data = {"conversation_id": conversation_id, "message_index": message_idx, "message_role": message_data['role'],
                 "message_content": message_data['content'], "minio_files": minio_files, "opinion_flag": None,
                 "delete_flag": 'N'}
-
         if user_id:
             data = add_creation_tracking(data, user_id)
-        # Build SQL
-        fields = list(data.keys())
-        values = list(data.values())
 
-        # Add timestamp fields
-        placeholders = ', '.join(['%s'] * len(values))
-        fields, placeholders = add_creation_timestamp(fields, placeholders)
-
-        fields_str = ', '.join(fields)
-
-        sql = f"""
-            INSERT INTO agent_engine.conversation_message_t 
-            ({fields_str})
-            VALUES ({placeholders})
-            RETURNING message_id
-        """
-
-        cursor.execute(sql, values)
-        message_id = cursor.fetchone()[0]  # Get returned ID (integer type)
-        conn.commit()
+        # insert into conversation_message_t
+        stmt = insert(ConversationMessage).values(**data).returning(ConversationMessage.message_id)
+        result = session.execute(stmt)
+        message_id = result.scalar()
         return message_id
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
 
 
 def create_message_units(message_units: List[Dict[str, Any]], message_id: int, conversation_id: int,
@@ -196,53 +144,32 @@ def create_message_units(message_units: List[Dict[str, Any]], message_id: int, c
     if not message_units:
         return True  # No message units, considered successful
 
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor()
-
+    with get_db_session() as session:
         # Ensure IDs are integer type
         message_id = int(message_id)
         conversation_id = int(conversation_id)
 
-        # Batch insert all message units
-        values = []
-        base_fields = ["message_id", "conversation_id", "unit_index", "unit_type", "unit_content", "delete_flag"]
-
-        if user_id:
-            base_fields.extend(["created_by", "updated_by"])
-        placeholders_list = ['%s'] * len(base_fields)
-        placeholders = ', '.join(placeholders_list)
-
-        # Add timestamp fields
-        base_fields, placeholders = add_creation_timestamp(base_fields, placeholders)
-
+        data_list = []
         for idx, unit in enumerate(message_units):
             # Basic data
-            row_values = [message_id, conversation_id, idx, unit['type'], unit['content'], 'N']
+            row_data = {
+                "message_id": message_id,
+                "conversation_id": conversation_id,
+                "unit_index": idx,
+                "unit_type": unit['type'],
+                "unit_content": unit['content'],
+                "delete_flag": 'N'
+            }
 
             if user_id:
-                row_values.extend([user_id, user_id])
-            values.append(tuple(row_values))
+                row_data["created_by"] = user_id
+                row_data["updated_by"] = user_id
+            data_list.append(row_data)
 
-        # Build SQL
-        fields_str = ', '.join(base_fields)
-
-        sql = f"""
-            INSERT INTO agent_engine.conversation_message_unit_t 
-            ({fields_str})
-            VALUES ({placeholders})
-        """
-
-        psycopg2.extras.execute_batch(cursor, sql, values)
-        conn.commit()
+        # insert into conversation_message_unit_t
+        stmt = insert(ConversationMessageUnit).values(data_list)
+        session.execute(stmt)
         return True
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
 
 
 def get_conversation(conversation_id: int, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -256,35 +183,24 @@ def get_conversation(conversation_id: int, user_id: Optional[str] = None) -> Opt
     Returns:
         Optional[Dict[str, Any]]: Conversation details, or None if it doesn't exist
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
+    with get_db_session() as session:
         # Ensure conversation_id is integer type
         conversation_id = int(conversation_id)
 
-        sql = """
-            SELECT * FROM agent_engine.conversation_record_t
-            WHERE conversation_id = %s AND delete_flag = 'N'
-        """
+        # Build the query statement
+        stmt = select(ConversationRecord).where(
+            ConversationRecord.conversation_id == conversation_id,
+            ConversationRecord.delete_flag == 'N'
+        )
 
-        # If user_id is provided, add filter condition
-        values = [conversation_id]
         if user_id:
-            sql += " AND created_by = %s"
-            values.append(user_id)
+            stmt = stmt.where(
+                ConversationRecord.created_by == user_id
+            )
 
-        cursor.execute(sql, values)
-        record = cursor.fetchone()
-
-        if record:
-            return dict(record)
-        return None
-    except Exception as e:
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Execute the query
+        record = session.scalars(stmt).first()
+        return None if record is None else as_dict(record)
 
 
 def get_conversation_messages(conversation_id: int) -> List[Dict[str, Any]]:
@@ -297,27 +213,21 @@ def get_conversation_messages(conversation_id: int) -> List[Dict[str, Any]]:
     Returns:
         List[Dict[str, Any]]: List of messages, sorted by message_index
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-        # Ensure conversation_id is integer type
+    with get_db_session() as session:
+        # Ensure conversation_id is of integer type
         conversation_id = int(conversation_id)
 
-        sql = """
-            SELECT * FROM agent_engine.conversation_message_t
-            WHERE conversation_id = %s AND delete_flag = 'N'
-            ORDER BY message_index
-        """
+        # Build the query statement
+        stmt = select(ConversationMessage).where(
+            ConversationMessage.conversation_id == conversation_id,
+            ConversationMessage.delete_flag == 'N'
+        ).order_by(asc(ConversationMessage.message_index))
 
-        cursor.execute(sql, (conversation_id,))
-        records = cursor.fetchall()
-        return [dict(record) for record in records]
-    except Exception as e:
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Execute the query
+        records = session.scalars(stmt).all()
+
+        # Convert SQLAlchemy model instances to dictionaries
+        return list(map(as_dict, records))
 
 
 def get_message_units(message_id: int) -> List[Dict[str, Any]]:
@@ -330,27 +240,21 @@ def get_message_units(message_id: int) -> List[Dict[str, Any]]:
     Returns:
         List[Dict[str, Any]]: List of message units, sorted by unit_index
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
+    with get_db_session() as session:
         # Ensure message_id is integer type
         message_id = int(message_id)
 
-        sql = """
-            SELECT * FROM agent_engine.conversation_message_unit_t
-            WHERE message_id = %s AND delete_flag = 'N'
-            ORDER BY unit_index
-        """
+        # Build the query statement
+        stmt = select(ConversationMessageUnit).where(
+            ConversationMessageUnit.message_id == message_id,
+            ConversationMessageUnit.delete_flag == 'N'
+        ).order_by(asc(ConversationMessageUnit.unit_index))
 
-        cursor.execute(sql, (message_id,))
-        records = cursor.fetchall()
-        return [dict(record) for record in records]
-    except Exception as e:
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Execute the query
+        records = session.scalars(stmt).all()
+
+        # Convert SQLAlchemy model instances to dictionaries
+        return list(map(as_dict, records))
 
 
 def get_conversation_list(user_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -363,43 +267,35 @@ def get_conversation_list(user_id: Optional[str] = None) -> List[Dict[str, Any]]
     Returns:
         List[Dict[str, Any]]: List of conversations, each containing id, title and timestamp information
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    with get_db_session() as session:
+        # Build the query statement
+        stmt = select(
+            ConversationRecord.conversation_id,
+            ConversationRecord.conversation_title,
+            (func.extract('epoch', ConversationRecord.create_time) * 1000).label('create_time'),
+            (func.extract('epoch', ConversationRecord.update_time) * 1000).label('update_time')
+        ).where(
+            ConversationRecord.delete_flag == 'N'
+        ).order_by(
+            desc(ConversationRecord.create_time)
+        )
 
-        # Base query
-        sql = """
-            SELECT 
-                conversation_id,
-                conversation_title,
-                EXTRACT(EPOCH FROM create_time) * 1000 as create_time,
-                EXTRACT(EPOCH FROM update_time) * 1000 as update_time
-            FROM agent_engine.conversation_record_t
-            WHERE delete_flag = 'N'
-        """
+        # If user_id is provided, additional filter conditions can be added here
+        if user_id:
+            stmt = stmt.where(ConversationRecord.created_by == user_id)
 
-        values = []
+        # Execute the query
+        records = session.execute(stmt)
 
-        # Add sorting
-        sql += " ORDER BY create_time DESC"
-
-        cursor.execute(sql, values)
-        records = cursor.fetchall()
-
-        # Convert to dictionary list and ensure timestamps are integers
+        # Convert query results to a list of dictionaries and ensure timestamps are integers
         result = []
         for record in records:
-            conversation = dict(record)
+            conversation = as_dict(record)
             conversation['create_time'] = int(conversation['create_time'])
             conversation['update_time'] = int(conversation['update_time'])
             result.append(conversation)
 
         return result
-    except Exception as e:
-        raise e
-    finally:
-        db_client.close_connection(conn)
 
 
 def rename_conversation(conversation_id: int, new_title: str, user_id: Optional[str] = None) -> bool:
@@ -414,47 +310,29 @@ def rename_conversation(conversation_id: int, new_title: str, user_id: Optional[
     Returns:
         bool: Whether the operation was successful
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor()
-
-        # Ensure conversation_id is integer type
+    with get_db_session() as session:
+        # Ensure conversation_id is of integer type
         conversation_id = int(conversation_id)
 
         # Prepare update data
-        update_data = {"conversation_title": new_title}
-
+        update_data = {
+            "conversation_title": new_title,
+            "update_time": func.current_timestamp()  # Use the database's CURRENT_TIMESTAMP function
+        }
         if user_id:
             update_data = add_update_tracking(update_data, user_id)
-        # Build SQL
-        set_clause = [f"{key} = %s" for key in update_data.keys()]
-        values = list(update_data.values())
 
-        # Add update time
-        set_clause = add_update_timestamp(set_clause)
+        # Build the update statement
+        stmt = update(ConversationRecord).where(
+            ConversationRecord.conversation_id == conversation_id,
+            ConversationRecord.delete_flag == 'N'
+        ).values(update_data)
 
-        # Add ID condition value
-        values.append(conversation_id)
+        # Execute the update statement
+        result = session.execute(stmt)
 
-        set_clause_str = ', '.join(set_clause)
-
-        sql = f"""
-            UPDATE agent_engine.conversation_record_t
-            SET {set_clause_str}
-            WHERE conversation_id = %s AND delete_flag = 'N'
-        """
-
-        cursor.execute(sql, values)
-        affected_rows = cursor.rowcount
-        conn.commit()
-        return affected_rows > 0
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Check if any rows were affected
+        return result.rowcount > 0
 
 
 def delete_conversation(conversation_id: int, user_id: Optional[str] = None) -> bool:
@@ -468,102 +346,55 @@ def delete_conversation(conversation_id: int, user_id: Optional[str] = None) -> 
     Returns:
         bool: Whether the operation was successful
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor()
-
-        # Ensure conversation_id is integer type
+    with get_db_session() as session:
+        # Ensure conversation_id is of integer type
         conversation_id = int(conversation_id)
 
-        # Wrap in transaction
-        conn.autocommit = False
+        # Prepare update data
+        update_data = {
+            "delete_flag": 'Y',
+            "update_time": func.current_timestamp()
+        }
+        if user_id:
+            update_data = add_update_tracking(update_data, user_id)
 
-        try:
-            # Prepare update data
-            update_data = {"delete_flag": 'Y'}
+        # 1. Mark conversation as deleted
+        conversation_stmt = update(ConversationRecord).where(
+            ConversationRecord.conversation_id == conversation_id,
+            ConversationRecord.delete_flag == 'N'
+        ).values(update_data)
+        conversation_result = session.execute(conversation_stmt)
 
-            # 1. Mark conversation as deleted
-            if user_id:
-                update_data = add_update_tracking(update_data, user_id)
-            set_clause = [f"{key} = %s" for key in update_data.keys()]
-            values = list(update_data.values())
+        # 2. Mark related messages as deleted
+        message_stmt = update(ConversationMessage).where(
+            ConversationMessage.conversation_id == conversation_id,
+            ConversationMessage.delete_flag == 'N'
+        ).values(update_data)
+        session.execute(message_stmt)
 
-            # Add update time
-            set_clause = add_update_timestamp(set_clause)
+        # 3. Mark message units as deleted
+        unit_stmt = update(ConversationMessageUnit).where(
+            ConversationMessageUnit.conversation_id == conversation_id,
+            ConversationMessageUnit.delete_flag == 'N'
+        ).values(update_data)
+        session.execute(unit_stmt)
 
-            # Add ID condition value
-            values.append(conversation_id)
+        # 4. Mark search sources as deleted
+        search_stmt = update(ConversationSourceSearch).where(
+            ConversationSourceSearch.conversation_id == conversation_id,
+            ConversationSourceSearch.delete_flag == 'N'
+        ).values(update_data)
+        session.execute(search_stmt)
 
-            set_clause_str = ', '.join(set_clause)
+        # 5. Mark image sources as deleted
+        image_stmt = update(ConversationSourceImage).where(
+            ConversationSourceImage.conversation_id == conversation_id,
+            ConversationSourceImage.delete_flag == 'N'
+        ).values(update_data)
+        session.execute(image_stmt)
 
-            sql = f"""
-                UPDATE agent_engine.conversation_record_t
-                SET {set_clause_str}
-                WHERE conversation_id = %s AND delete_flag = 'N'
-            """
-
-            cursor.execute(sql, values)
-            conversation_affected = cursor.rowcount
-
-            # 2. Mark related messages as deleted
-            values = list(update_data.values())
-            values.append(conversation_id)
-
-            sql = f"""
-                UPDATE agent_engine.conversation_message_t
-                SET {set_clause_str}
-                WHERE conversation_id = %s AND delete_flag = 'N'
-            """
-
-            cursor.execute(sql, values)
-
-            # 3. Mark message units as deleted
-            values = list(update_data.values())
-            values.append(conversation_id)
-
-            sql = f"""
-                UPDATE agent_engine.conversation_message_unit_t
-                SET {set_clause_str}
-                WHERE conversation_id = %s AND delete_flag = 'N'
-            """
-            cursor.execute(sql, values)
-
-            # 4. Mark search sources as deleted
-            values = list(update_data.values())
-            values.append(conversation_id)
-
-            sql = f"""
-                UPDATE agent_engine.conversation_source_search_t
-                SET {set_clause_str}
-                WHERE conversation_id = %s AND delete_flag = 'N'
-            """
-            cursor.execute(sql, values)
-
-            # 5. Mark image sources as deleted
-            values = list(update_data.values())
-            values.append(conversation_id)
-
-            sql = f"""
-                UPDATE agent_engine.conversation_source_image_t
-                SET {set_clause_str}
-                WHERE conversation_id = %s AND delete_flag = 'N'
-            """
-            cursor.execute(sql, values)
-
-            conn.commit()
-            return conversation_affected > 0
-        except Exception as e:
-            conn.rollback()
-            raise e
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        if conn:
-            conn.autocommit = True  # Restore autocommit
-            db_client.close_connection(conn)
+        # Check if the conversation record was affected
+        return conversation_result.rowcount > 0
 
 
 def update_message_opinion(message_id: int, opinion: str, user_id: Optional[str] = None) -> bool:
@@ -578,69 +409,29 @@ def update_message_opinion(message_id: int, opinion: str, user_id: Optional[str]
     Returns:
         bool: Whether the operation was successful
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor()
-
-        # Ensure message_id is integer type
+    with get_db_session() as session:
+        # Ensure message_id is of integer type
         message_id = int(message_id)
 
         # Prepare update data
-        update_data = {"opinion_flag": opinion}
-
+        update_data = {
+            "opinion_flag": opinion,
+            "update_time": func.current_timestamp()  # Use the database's CURRENT_TIMESTAMP function
+        }
         if user_id:
             update_data = add_update_tracking(update_data, user_id)
-        # Build SQL
-        set_clause = [f"{key} = %s" for key in update_data.keys()]
-        values = list(update_data.values())
 
-        # Add update time
-        set_clause = add_update_timestamp(set_clause)
+        # Build the update statement
+        stmt = update(ConversationMessage).where(
+            ConversationMessage.message_id == message_id,
+            ConversationMessage.delete_flag == 'N'
+        ).values(update_data)
 
-        # Add ID condition value
-        values.append(message_id)
+        # Execute the update statement
+        result = session.execute(stmt)
 
-        set_clause_str = ', '.join(set_clause)
-
-        sql = f"""
-            UPDATE agent_engine.conversation_message_t
-            SET {set_clause_str}
-            WHERE message_id = %s AND delete_flag = 'N'
-        """
-
-        cursor.execute(sql, values)
-        affected_rows = cursor.rowcount
-        conn.commit()
-        return affected_rows > 0
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
-
-
-@contextmanager
-def get_db_connection():
-    """
-    Database connection context manager
-
-    Usage example:
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(sql)
-    """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        yield conn
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Check if any rows were affected
+        return result.rowcount > 0
 
 
 def get_conversation_history(conversation_id: int, user_id: Optional[str] = None) -> Optional[ConversationHistory]:
@@ -654,118 +445,101 @@ def get_conversation_history(conversation_id: int, user_id: Optional[str] = None
     Returns:
         Optional[ConversationHistory]: Contains basic conversation information and raw data of all messages and message units
     """
-    try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    with get_db_session() as session:
+        # Ensure conversation_id is of integer type
+        conversation_id = int(conversation_id)
 
-            # First check if conversation exists
-            check_sql = """
-                SELECT conversation_id, EXTRACT(EPOCH FROM create_time) * 1000 as create_time
-                FROM agent_engine.conversation_record_t
-                WHERE conversation_id = %s AND delete_flag = 'N'
-            """
+        # First check if conversation exists
+        check_stmt = select(
+            ConversationRecord.conversation_id,
+            (func.extract('epoch', ConversationRecord.create_time) * 1000).label('create_time')
+        ).where(
+            ConversationRecord.conversation_id == conversation_id,
+            ConversationRecord.delete_flag == 'N'
+        )
+        if user_id:
+            check_stmt = check_stmt.where(ConversationRecord.created_by == user_id)
 
-            values = [conversation_id]
-            if user_id:
-                check_sql += " AND created_by = %s"
-                values.append(user_id)
+        conversation = session.execute(check_stmt).first()
 
-            cursor.execute(check_sql, values)
-            conversation = cursor.fetchone()
+        if not conversation:
+            return None
 
-            if not conversation:
-                return None
+        conversation = as_dict(conversation)
 
-            # Get message data (including message content)
-            message_sql = """
-                SELECT 
-                    m.message_id,
-                    m.message_index,
-                    m.message_role as role,
-                    m.message_content,
-                    m.minio_files,
-                    m.opinion_flag,
-                    (
-                        SELECT json_agg(
-                            json_build_object(
-                                'type', u.unit_type,
-                                'content', u.unit_content
-                            ) ORDER BY u.unit_index
-                        )
-                        FROM agent_engine.conversation_message_unit_t u
-                        WHERE u.message_id = m.message_id 
-                            AND u.delete_flag = 'N'
-                            AND u.unit_type IS NOT NULL
-                    ) as units
-                FROM agent_engine.conversation_message_t m
-                WHERE m.conversation_id = %s AND m.delete_flag = 'N'
-                ORDER BY m.message_index
-            """
-            cursor.execute(message_sql, (conversation_id,))
-            message_records = cursor.fetchall()
+        # Get message data (including message content)
+        message_stmt = select(
+            ConversationMessage.message_id,
+            ConversationMessage.message_index,
+            ConversationMessage.message_role.label('role'),
+            ConversationMessage.message_content,
+            ConversationMessage.minio_files,
+            ConversationMessage.opinion_flag,
+            func.json_agg(
+                func.json_build_object(
+                    'type', ConversationMessageUnit.unit_type,
+                    'content', ConversationMessageUnit.unit_content
+                ).order_by(ConversationMessageUnit.unit_index)
+            ).filter(
+                ConversationMessageUnit.message_id == ConversationMessage.message_id,
+                ConversationMessageUnit.delete_flag == 'N',
+                ConversationMessageUnit.unit_type.is_not(None)
+            ).label('units')
+        ).join(
+            ConversationMessageUnit,
+            ConversationMessageUnit.message_id == ConversationMessage.message_id,
+            isouter=True
+        ).where(
+            ConversationMessage.conversation_id == conversation_id,
+            ConversationMessage.delete_flag == 'N'
+        ).group_by(
+            ConversationMessage.message_id
+        ).order_by(
+            ConversationMessage.message_index
+        )
+        message_records = session.execute(message_stmt).all()
 
-            # Get search data
-            search_sql = """
-                SELECT 
-                    message_id,
-                    source_type,
-                    source_title,
-                    source_location,
-                    source_content,
-                    score_overall,
-                    score_accuracy,
-                    score_semantic,
-                    published_date,
-                    cite_index,
-                    search_type,
-                    tool_sign
-                FROM agent_engine.conversation_source_search_t
-                WHERE conversation_id = %s AND delete_flag = 'N'
-            """
-            cursor.execute(search_sql, (conversation_id,))
-            search_records = cursor.fetchall()
+        # Get search data
+        search_stmt = select(ConversationSourceSearch).where(
+            ConversationSourceSearch.conversation_id == conversation_id,
+            ConversationSourceSearch.delete_flag == 'N'
+        )
+        search_records = session.scalars(search_stmt).all()
 
-            # Get image data
-            image_sql = """
-                SELECT 
-                    message_id,
-                    image_url
-                FROM agent_engine.conversation_source_image_t
-                WHERE conversation_id = %s AND delete_flag = 'N'
-            """
-            cursor.execute(image_sql, (conversation_id,))
-            image_records = cursor.fetchall()
+        # Get image data
+        image_stmt = select(ConversationSourceImage).where(
+            ConversationSourceImage.conversation_id == conversation_id,
+            ConversationSourceImage.delete_flag == 'N'
+        )
+        image_records = session.scalars(image_stmt).all()
 
-            # Integrate message and unit data
-            message_list = []
-            for record in message_records:
-                message_data = dict(record)
+        # Integrate message and unit data
+        message_list = []
+        for record in message_records:
+            message_data = as_dict(record)
 
-                # Ensure units field is empty list instead of None
-                if message_data['units'] is None:
-                    message_data['units'] = []
+            # Ensure units field is empty list instead of None
+            if message_data['units'] is None:
+                message_data['units'] = []
 
-                # Process minio_files field - if it's a JSON string, parse it into Python object
-                if message_data.get('minio_files'):
-                    try:
-                        if isinstance(message_data['minio_files'], str):
-                            message_data['minio_files'] = json.loads(message_data['minio_files'])
-                    except (json.JSONDecodeError, TypeError):
-                        # If parsing fails, keep original value
-                        pass
+            # Process minio_files field - if it's a JSON string, parse it into Python object
+            if message_data.get('minio_files'):
+                try:
+                    if isinstance(message_data['minio_files'], str):
+                        message_data['minio_files'] = json.loads(message_data['minio_files'])
+                except (json.JSONDecodeError, TypeError):
+                    # If parsing fails, keep original value
+                    pass
 
-                message_list.append(message_data)
+            message_list.append(message_data)
 
-            # Process result and ensure create_time is integer
-            conversation_dict = dict(conversation)
-
-            return {'conversation_id': conversation_dict['conversation_id'],
-                    'create_time': int(conversation_dict['create_time']), 'message_records': message_list,
-                    'search_records': [dict(record) for record in search_records] if search_records else [],
-                    'image_records': [dict(record) for record in image_records] if image_records else []}
-
-    except Exception as e:
-        raise e
+        return {
+            'conversation_id': conversation['conversation_id'],
+            'create_time': int(conversation['create_time']),
+            'message_records': message_list,
+            'search_records': [as_dict(record) for record in search_records],
+            'image_records': [as_dict(record) for record in image_records]
+        }
 
 
 def create_source_image(image_data: Dict[str, Any], user_id: Optional[str] = None) -> int:
@@ -781,47 +555,30 @@ def create_source_image(image_data: Dict[str, Any], user_id: Optional[str] = Non
     Returns:
         int: Newly created image ID (auto-increment ID)
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor()
-
-        # Ensure message_id is integer type
+    with get_db_session() as session:
+        # Ensure message_id is of integer type
         message_id = int(image_data['message_id'])
 
         # Prepare data dictionary
-        data = {"message_id": message_id, "conversation_id": image_data.get('conversation_id'),
-                "image_url": image_data['image_url'], "delete_flag": 'N'}
+        data = {
+            "message_id": message_id,
+            "conversation_id": image_data.get('conversation_id'),
+            "image_url": image_data['image_url'],
+            "delete_flag": 'N',
+            "create_time": func.current_timestamp()  # Use the database's CURRENT_TIMESTAMP function
+        }
 
         if user_id:
             data = add_creation_tracking(data, user_id)
-        # Build SQL
-        fields = list(data.keys())
-        values = list(data.values())
 
-        # Add timestamp fields
-        placeholders = ', '.join(['%s'] * len(values))
-        fields, placeholders = add_creation_timestamp(fields, placeholders)
+        # Build the insert statement and return the newly created image ID
+        stmt = insert(ConversationSourceImage).values(**data).returning(ConversationSourceImage.image_id)
 
-        fields_str = ', '.join(fields)
+        # Execute the insert statement
+        result = session.execute(stmt)
+        image_id = result.scalar_one()
 
-        sql = f"""
-            INSERT INTO agent_engine.conversation_source_image_t 
-            ({fields_str})
-            VALUES ({placeholders})
-            RETURNING image_id
-        """
-
-        cursor.execute(sql, values)
-        image_id = cursor.fetchone()[0]  # Get returned ID (integer type)
-        conn.commit()
         return image_id
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
 
 
 def delete_source_image(image_id: int, user_id: Optional[str] = None) -> bool:
@@ -835,47 +592,30 @@ def delete_source_image(image_id: int, user_id: Optional[str] = None) -> bool:
     Returns:
         bool: Whether the operation was successful
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor()
-
-        # Ensure image_id is integer type
+    with get_db_session() as session:
+        # Ensure image_id is an integer
         image_id = int(image_id)
 
         # Prepare update data
-        update_data = {"delete_flag": 'Y'}
+        update_data = {
+            "delete_flag": 'Y',
+            "update_time": func.current_timestamp()  # Use database's CURRENT_TIMESTAMP function
+        }
 
         if user_id:
             update_data = add_update_tracking(update_data, user_id)
-        # Build SQL
-        set_clause = [f"{key} = %s" for key in update_data.keys()]
-        values = list(update_data.values())
 
-        # Add update time
-        set_clause = add_update_timestamp(set_clause)
+        # Build the update statement
+        stmt = update(ConversationSourceImage).where(
+            ConversationSourceImage.image_id == image_id,
+            ConversationSourceImage.delete_flag == 'N'
+        ).values(update_data)
 
-        # Add ID condition value
-        values.append(image_id)
+        # Execute the update statement
+        result = session.execute(stmt)
 
-        set_clause_str = ', '.join(set_clause)
-
-        sql = f"""
-            UPDATE agent_engine.conversation_source_image_t
-            SET {set_clause_str}
-            WHERE image_id = %s AND delete_flag = 'N'
-        """
-
-        cursor.execute(sql, values)
-        affected_rows = cursor.rowcount
-        conn.commit()
-        return affected_rows > 0
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Check if any rows were affected
+        return result.rowcount > 0
 
 
 def get_source_images_by_message(message_id: int, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -889,37 +629,30 @@ def get_source_images_by_message(message_id: int, user_id: Optional[str] = None)
     Returns:
         List[Dict[str, Any]]: List of image source information
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-        # Ensure message_id is integer type
+    with get_db_session() as session:
+        # Ensure message_id is an integer
         message_id = int(message_id)
 
-        # Base query
-        sql = """
-            SELECT i.* FROM agent_engine.conversation_source_image_t i
-            JOIN agent_engine.conversation_message_t m ON i.message_id = m.message_id
-            JOIN agent_engine.conversation_record_t c ON m.conversation_id = c.conversation_id
-            WHERE i.message_id = %s AND i.delete_flag = 'N'
-        """
+        # Build the query using SQLAlchemy's ORM
+        stmt = select(ConversationSourceImage).join(
+            ConversationMessage, ConversationSourceImage.message_id == ConversationMessage.message_id
+        ).join(
+            ConversationRecord, ConversationMessage.conversation_id == ConversationRecord.conversation_id
+        ).where(
+            ConversationSourceImage.message_id == message_id,
+            ConversationSourceImage.delete_flag == 'N'
+        ).order_by(
+            ConversationSourceImage.image_id
+        )
 
-        values = [message_id]
         if user_id:
-            sql += " AND c.created_by = %s"
-            values.append(user_id)
+            stmt = stmt.where(ConversationRecord.created_by == user_id)
 
-        # Add sorting
-        sql += " ORDER BY i.image_id"
+        # Execute the query
+        image_records = session.scalars(stmt).all()
 
-        cursor.execute(sql, values)
-        records = cursor.fetchall()
-        return [dict(record) for record in records]
-    except Exception as e:
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Convert SQLAlchemy model instances to dictionaries
+        return [as_dict(record) for record in image_records]
 
 
 def get_source_images_by_conversation(conversation_id: int, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -933,36 +666,28 @@ def get_source_images_by_conversation(conversation_id: int, user_id: Optional[st
     Returns:
         List[Dict[str, Any]]: List of image source information
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-        # Ensure conversation_id is integer type
+    with get_db_session() as session:
+        # Ensure conversation_id is an integer
         conversation_id = int(conversation_id)
 
-        # Base query
-        sql = """
-            SELECT i.* FROM agent_engine.conversation_source_image_t i
-            JOIN agent_engine.conversation_record_t c ON i.conversation_id = c.conversation_id
-            WHERE i.conversation_id = %s AND i.delete_flag = 'N'
-        """
+        # Build the query
+        stmt = select(ConversationSourceImage).join(
+            ConversationRecord, ConversationSourceImage.conversation_id == ConversationRecord.conversation_id
+        ).where(
+            ConversationSourceImage.conversation_id == conversation_id,
+            ConversationSourceImage.delete_flag == 'N'
+        ).order_by(
+            ConversationSourceImage.image_id
+        )
 
-        values = [conversation_id]
         if user_id:
-            sql += " AND c.created_by = %s"
-            values.append(user_id)
+            stmt = stmt.where(ConversationRecord.created_by == user_id)
 
-        # Add sorting
-        sql += " ORDER BY i.image_id"
+        # Execute the query
+        image_records = session.scalars(stmt).all()
 
-        cursor.execute(sql, values)
-        records = cursor.fetchall()
-        return [dict(record) for record in records]
-    except Exception as e:
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Convert SQLAlchemy model instances to dictionaries
+        return [as_dict(record) for record in image_records]
 
 
 def create_source_search(search_data: Dict[str, Any], user_id: Optional[str] = None) -> int:
@@ -989,63 +714,45 @@ def create_source_search(search_data: Dict[str, Any], user_id: Optional[str] = N
     Returns:
         int: Newly created search ID (auto-increment ID)
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor()
-
-        # Ensure message_id is integer type
+    with get_db_session() as session:
+        # Ensure message_id is an integer
         message_id = int(search_data['message_id'])
 
         # Prepare basic data dictionary
-        data = {"message_id": message_id, "conversation_id": search_data.get('conversation_id'),
-                "source_type": search_data['source_type'], "source_title": search_data['source_title'],
-                "source_location": search_data['source_location'], "source_content": search_data['source_content'],
-                "cite_index": search_data['cite_index'], "search_type": search_data['search_type'],
-                "tool_sign": search_data['tool_sign'], "delete_flag": 'N'}
+        data = {
+            "message_id": message_id,
+            "conversation_id": search_data.get('conversation_id'),
+            "source_type": search_data['source_type'],
+            "source_title": search_data['source_title'],
+            "source_location": search_data['source_location'],
+            "source_content": search_data['source_content'],
+            "cite_index": search_data['cite_index'],
+            "search_type": search_data['search_type'],
+            "tool_sign": search_data['tool_sign'],
+            "delete_flag": 'N',
+            "create_time": func.current_timestamp()  # Use the database's CURRENT_TIMESTAMP function
+        }
 
         # Add optional fields
         if 'score_overall' in search_data:
             data["score_overall"] = search_data['score_overall']
-
         if 'score_accuracy' in search_data:
             data["score_accuracy"] = search_data['score_accuracy']
-
         if 'score_semantic' in search_data:
             data["score_semantic"] = search_data['score_semantic']
-
         if 'published_date' in search_data:
             data["published_date"] = search_data['published_date']
-
         if user_id:
             data = add_creation_tracking(data, user_id)
-        # Build SQL
-        fields = list(data.keys())
-        values = list(data.values())
 
-        # Add timestamp fields
-        placeholders = ', '.join(['%s'] * len(values))
-        fields, placeholders = add_creation_timestamp(fields, placeholders)
+        # Build the insert statement and return the newly created search ID
+        stmt = insert(ConversationSourceSearch).values(**data).returning(ConversationSourceSearch.search_id)
 
-        fields_str = ', '.join(fields)
+        # Execute the insert statement
+        result = session.execute(stmt)
+        search_id = result.scalar_one()
 
-        sql = f"""
-            INSERT INTO agent_engine.conversation_source_search_t 
-            ({fields_str})
-            VALUES ({placeholders})
-            RETURNING search_id
-        """
-
-        cursor.execute(sql, values)
-        search_id = cursor.fetchone()[0]  # Get returned ID (integer type)
-        conn.commit()
         return search_id
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
 
 
 def delete_source_search(search_id: int, user_id: Optional[str] = None) -> bool:
@@ -1059,47 +766,29 @@ def delete_source_search(search_id: int, user_id: Optional[str] = None) -> bool:
     Returns:
         bool: Whether the operation was successful
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor()
-
-        # Ensure search_id is integer type
+    with get_db_session() as session:
+        # Ensure search_id is an integer
         search_id = int(search_id)
 
         # Prepare update data
-        update_data = {"delete_flag": 'Y'}
-
+        update_data = {
+            "delete_flag": 'Y',
+            "update_time": func.current_timestamp()  # Use the database's CURRENT_TIMESTAMP function
+        }
         if user_id:
             update_data = add_update_tracking(update_data, user_id)
-        # Build SQL
-        set_clause = [f"{key} = %s" for key in update_data.keys()]
-        values = list(update_data.values())
 
-        # Add update time
-        set_clause = add_update_timestamp(set_clause)
+        # Build the update statement
+        stmt = update(ConversationSourceSearch).where(
+            ConversationSourceSearch.search_id == search_id,
+            ConversationSourceSearch.delete_flag == 'N'
+        ).values(update_data)
 
-        # Add ID condition value
-        values.append(search_id)
+        # Execute the update statement
+        result = session.execute(stmt)
 
-        set_clause_str = ', '.join(set_clause)
-
-        sql = f"""
-            UPDATE agent_engine.conversation_source_search_t
-            SET {set_clause_str}
-            WHERE search_id = %s AND delete_flag = 'N'
-        """
-
-        cursor.execute(sql, values)
-        affected_rows = cursor.rowcount
-        conn.commit()
-        return affected_rows > 0
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Check if any rows were affected
+        return result.rowcount > 0
 
 
 def get_source_searches_by_message(message_id: int, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -1113,37 +802,30 @@ def get_source_searches_by_message(message_id: int, user_id: Optional[str] = Non
     Returns:
         List[Dict[str, Any]]: List of search source information
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-        # Ensure message_id is integer type
+    with get_db_session() as session:
+        # Ensure message_id is an integer
         message_id = int(message_id)
 
-        # Base query
-        sql = """
-            SELECT s.* FROM agent_engine.conversation_source_search_t s
-            JOIN agent_engine.conversation_message_t m ON s.message_id = m.message_id
-            JOIN agent_engine.conversation_record_t c ON m.conversation_id = c.conversation_id
-            WHERE s.message_id = %s AND s.delete_flag = 'N'
-        """
+        # Build the query
+        stmt = select(ConversationSourceSearch).join(
+            ConversationMessage, ConversationSourceSearch.message_id == ConversationMessage.message_id
+        ).join(
+            ConversationRecord, ConversationMessage.conversation_id == ConversationRecord.conversation_id
+        ).where(
+            ConversationSourceSearch.message_id == message_id,
+            ConversationSourceSearch.delete_flag == 'N'
+        ).order_by(
+            ConversationSourceSearch.search_id
+        )
 
-        values = [message_id]
         if user_id:
-            sql += " AND c.created_by = %s"
-            values.append(user_id)
+            stmt = stmt.where(ConversationRecord.created_by == user_id)
 
-        # Add sorting
-        sql += " ORDER BY s.search_id"
+        # Execute the query
+        search_records = session.scalars(stmt).all()
 
-        cursor.execute(sql, values)
-        records = cursor.fetchall()
-        return [dict(record) for record in records]
-    except Exception as e:
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Convert SQLAlchemy model instances to dictionaries
+        return [as_dict(record) for record in search_records]
 
 
 def get_source_searches_by_conversation(conversation_id: int, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -1157,36 +839,29 @@ def get_source_searches_by_conversation(conversation_id: int, user_id: Optional[
     Returns:
         List[Dict[str, Any]]: List of search source information
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-        # Ensure conversation_id is integer type
+    with get_db_session() as session:
+        # Convert conversation_id to integer
         conversation_id = int(conversation_id)
 
-        # Base query
-        sql = """
-            SELECT s.* FROM agent_engine.conversation_source_search_t s
-            JOIN agent_engine.conversation_record_t c ON s.conversation_id = c.conversation_id
-            WHERE s.conversation_id = %s AND s.delete_flag = 'N'
-        """
+        # Build the SQL query
+        stmt = select(ConversationSourceSearch).join(
+            ConversationRecord,
+            ConversationSourceSearch.conversation_id == ConversationRecord.conversation_id
+        ).where(
+            ConversationSourceSearch.conversation_id == conversation_id,
+            ConversationSourceSearch.delete_flag == 'N'
+        ).order_by(
+            ConversationSourceSearch.search_id
+        )
 
-        values = [conversation_id]
         if user_id:
-            sql += " AND c.created_by = %s"
-            values.append(user_id)
+            stmt = stmt.where(ConversationRecord.created_by == user_id)
 
-        # Add sorting
-        sql += " ORDER BY s.search_id"
+        # Execute the query and get all results
+        search_records = session.scalars(stmt).all()
 
-        cursor.execute(sql, values)
-        records = cursor.fetchall()
-        return [dict(record) for record in records]
-    except Exception as e:
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Convert SQLAlchemy objects to dictionaries
+        return [as_dict(record) for record in search_records]
 
 
 def get_message(message_id: int, user_id: Optional[str] = None) -> Dict[str, Any]:
@@ -1200,32 +875,23 @@ def get_message(message_id: int, user_id: Optional[str] = None) -> Dict[str, Any
     Returns:
         Dict[str, Any]: Message details
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-        # Ensure message_id is integer type
+    with get_db_session() as session:
+        # Ensure message_id is an integer
         message_id = int(message_id)
 
-        sql = """
-            SELECT m.* FROM agent_engine.conversation_message_t m
-            JOIN agent_engine.conversation_record_t c ON m.conversation_id = c.conversation_id
-            WHERE m.message_id = %s AND m.delete_flag = 'N'
-        """
+        # Build the query
+        stmt = select(ConversationMessage).join(
+            ConversationRecord, ConversationMessage.conversation_id == ConversationRecord.conversation_id
+        ).where(
+            ConversationMessage.message_id == message_id,
+            ConversationMessage.delete_flag == 'N'
+        )
 
-        values = [message_id]
         if user_id:
-            sql += " AND c.created_by = %s"
-            values.append(user_id)
+            stmt = stmt.where(ConversationRecord.created_by == user_id)
 
-        cursor.execute(sql, values)
-        record = cursor.fetchone()
+        # Execute the query and get the first result
+        record = session.scalars(stmt).first()
 
-        if record is None:
-            return None
-        return dict(record)
-    except Exception as e:
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Convert the SQLAlchemy object to a dictionary if it exists
+        return as_dict(record) if record else None

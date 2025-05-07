@@ -1,11 +1,18 @@
+import logging
 import os
+from contextlib import contextmanager
 from typing import Optional, BinaryIO, Dict, Any, Tuple, List
 
 import boto3
-import psycopg2
 import psycopg2.extras
 from botocore.client import Config
 from botocore.exceptions import ClientError
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, class_mapper
+
+from .db_models import Base
+
+logger = logging.getLogger("database.client")
 
 
 class PostgresClient:
@@ -21,22 +28,22 @@ class PostgresClient:
         self.host = os.getenv('POSTGRES_HOST', 'localhost')
         self.user = os.getenv('POSTGRES_USER')
         self.password = os.getenv('POSTGRES_PASSWORD')
-        self.database = os.getenv('POSTGRES_DB', 'agent_engine')
+        self.database = os.getenv('POSTGRES_DB', 'nexent')
         self.port = os.getenv('POSTGRES_PORT', 5432)
-
-    def get_connection(self):
-        """Get database connection"""
-        try:
-            conn = psycopg2.connect(host=self.host, user=self.user, password=self.password, dbname=self.database,
-                                    port=self.port)
-            return conn
-        except Exception as e:
-            raise Exception(f"Database connection failed: {str(e)}")
-
-    def close_connection(self, conn):
-        """Close database connection"""
-        if conn:
-            conn.close()
+        self.engine = create_engine("postgresql://",
+                                    connect_args={
+                                        "host": self.host,
+                                        "user": self.user,
+                                        "password": self.password,
+                                        "database": self.database,
+                                        "port": self.port,
+                                        "client_encoding": "utf8"
+                                    },
+                                    echo=True,
+                                    pool_size=10,
+                                    pool_pre_ping=True,
+                                    pool_timeout=30)
+        self.session_maker = sessionmaker(bind=self.engine)
 
     def clean_string_values(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Ensure all strings are UTF-8 encoded"""
@@ -64,10 +71,19 @@ class MinioClient:
         self.region = os.getenv('MINIO_REGION')
         self.default_bucket = os.getenv('MINIO_DEFAULT_BUCKET')
 
-        # Initialize S3 client
-        self.client = boto3.client('s3', endpoint_url=self.endpoint, aws_access_key_id=self.access_key,
-                                   aws_secret_access_key=self.secret_key, region_name=self.region,
-                                   config=Config(signature_version='s3v4'))
+        # Initialize S3 client with proxy settings
+        self.client = boto3.client('s3', 
+            endpoint_url=self.endpoint, 
+            aws_access_key_id=self.access_key,
+            aws_secret_access_key=self.secret_key, 
+            region_name=self.region,
+            config=Config(
+                signature_version='s3v4',
+                proxies={
+                    'http': None,
+                    'https': None
+                }
+            ))
 
         # Ensure default bucket exists
         self._ensure_bucket_exists(self.default_bucket)
@@ -211,3 +227,23 @@ db_client = PostgresClient()
 
 # Create global MinIO client instance
 minio_client = MinioClient()
+
+@contextmanager
+def get_db_session():
+    """Provide a transactional scope around a series of operations."""
+    session = db_client.session_maker()
+    try:
+        yield session
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Database operation failed: {str(e)}")
+        raise e
+    finally:
+        session.close()
+
+def as_dict(obj):
+    if isinstance(obj, Base):
+        return {c.key: getattr(obj, c.key) for c in class_mapper(obj.__class__).columns}
+    # noinspection PyProtectedMember
+    return dict(obj._mapping)
