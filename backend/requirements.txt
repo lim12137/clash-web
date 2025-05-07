@@ -17,3 +17,4 @@ PyJWT>=2.8.0
 supabase>=2.15.0
 pydantic[email]>=2.11.1
 httpx[socks]>=0.28.1
+sqlalchemy~=2.0.37
