@@ -1,9 +1,10 @@
 from typing import Optional, Dict, List, Any
 
-import psycopg2.extras
+from sqlalchemy import func, insert, update, select, and_
 
-from .client import db_client
-from .utils import add_creation_tracking, add_update_tracking, add_creation_timestamp, add_update_timestamp
+from .client import db_client, get_db_session, as_dict
+from .db_models import ModelRecord
+from .utils import add_creation_tracking, add_update_tracking
 
 
 # 创建模型记录
@@ -18,45 +19,22 @@ def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = Non
     Returns:
         bool: Whether the operation was successful
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor()
-
+    with get_db_session() as session:
         # Data cleaning
         cleaned_data = db_client.clean_string_values(model_data)
 
+        # Add creation timestamp
+        cleaned_data["create_time"] = func.current_timestamp()
         if user_id:
             cleaned_data = add_creation_tracking(cleaned_data, user_id)
-        fields = []
-        values = []
-        placeholders = []
 
-        for key, value in cleaned_data.items():
-            fields.append(key)
-            values.append(value)
-            placeholders.append('%s')
+        # Build the insert statement
+        stmt = insert(ModelRecord).values(cleaned_data)
 
-        # Add timestamp fields
-        placeholders_str = ', '.join(placeholders)
-        fields, placeholders_str = add_creation_timestamp(fields, placeholders_str)
+        # Execute the insert statement
+        result = session.execute(stmt)
 
-        fields_str = ', '.join(fields)
-
-        sql = f"""
-            INSERT INTO agent_engine.model_record_t ({fields_str})
-            VALUES ({placeholders_str})
-        """
-
-        cursor.execute(sql, values)
-        conn.commit()
-        return True
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        return result.rowcount > 0
 
 
 def update_model_record(model_id: int, update_data: Dict[str, Any], user_id: Optional[str] = None) -> bool:
@@ -71,48 +49,24 @@ def update_model_record(model_id: int, update_data: Dict[str, Any], user_id: Opt
     Returns:
         bool: Whether the operation was successful
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor()
-
+    with get_db_session() as session:
         # Data cleaning
         cleaned_data = db_client.clean_string_values(update_data)
 
-        # Build SQL update statement
+        # Add update timestamp
+        cleaned_data["update_time"] = func.current_timestamp()
         if user_id:
             cleaned_data = add_update_tracking(cleaned_data, user_id)
-        set_clause = []
-        values = []
 
-        for key, value in cleaned_data.items():
-            set_clause.append(f"{key} = %s")
-            values.append(value)
+        # Build the update statement
+        stmt = update(ModelRecord).where(
+            ModelRecord.model_id == model_id
+        ).values(cleaned_data)
 
-        # Add update timestamp
-        set_clause = add_update_timestamp(set_clause)
+        # Execute the update statement
+        result = session.execute(stmt)
 
-        # Add model_id condition
-        values.append(model_id)
-
-        set_clause_str = ', '.join(set_clause)
-
-        sql = f"""
-            UPDATE agent_engine.model_record_t
-            SET {set_clause_str}
-            WHERE model_id = %s
-        """
-
-        cursor.execute(sql, values)
-        affected_rows = cursor.rowcount
-        conn.commit()
-        return affected_rows > 0
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        return result.rowcount > 0
 
 
 def delete_model_record(model_id: int, user_id: Optional[str] = None) -> bool:
@@ -126,44 +80,25 @@ def delete_model_record(model_id: int, user_id: Optional[str] = None) -> bool:
     Returns:
         bool: Whether the operation was successful
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor()
-
-        # Prepare update data
-        update_data = {"delete_flag": 'Y'}
-
+    with get_db_session() as session:
+        # Prepare update data for soft delete
+        update_data = {
+            "delete_flag": 'Y',
+            "update_time": func.current_timestamp()
+        }
         if user_id:
             update_data = add_update_tracking(update_data, user_id)
-        # Build SQL
-        set_clause = [f"{key} = %s" for key in update_data.keys()]
-        values = list(update_data.values())
 
-        # Add update timestamp
-        set_clause = add_update_timestamp(set_clause)
+        # Build the update statement
+        stmt = update(ModelRecord).where(
+            ModelRecord.model_id == model_id
+        ).values(update_data)
 
-        # Add ID condition value
-        values.append(model_id)
+        # Execute the update statement
+        result = session.execute(stmt)
 
-        set_clause_str = ', '.join(set_clause)
-
-        sql = f"""
-            UPDATE agent_engine.model_record_t
-            SET {set_clause_str}
-            WHERE model_id = %s
-        """
-
-        cursor.execute(sql, values)
-        affected_rows = cursor.rowcount
-        conn.commit()
-        return affected_rows > 0
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Check if any rows were affected
+        return result.rowcount > 0
 
 
 def get_model_records(filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
@@ -176,48 +111,25 @@ def get_model_records(filters: Optional[Dict[str, Any]] = None) -> List[Dict[str
     Returns:
         List[Dict[str, Any]]: List of model records
     """
-    conn = None
-    try:
-        conn = db_client.get_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
+    with get_db_session() as session:
         # Base query
-        sql = """
-            SELECT * FROM agent_engine.model_record_t
-            WHERE delete_flag = 'N'
-        """
+        stmt = select(ModelRecord).where(ModelRecord.delete_flag == 'N')
 
         # Add filter conditions
-        values = []
         if filters:
-            where_clauses = []
+            conditions = []
             for key, value in filters.items():
                 if value is None:
-                    where_clauses.append(f"{key} IS NULL")
+                    conditions.append(getattr(ModelRecord, key).is_(None))
                 else:
-                    where_clauses.append(f"{key} = %s")
-                    values.append(value)
+                    conditions.append(getattr(ModelRecord, key) == value)
+            stmt = stmt.where(and_(*conditions))
 
-            if where_clauses:
-                sql += " AND " + " AND ".join(where_clauses)
+        # Execute the query
+        records = session.scalars(stmt).all()
 
-        cursor.execute(sql, values)
-        records = cursor.fetchall()
-        result = []
-
-        # Process connect_status for each record
-        for record in records:
-            record_dict = dict(record)
-            # Ensure connect_status has a valid value
-            if not record_dict.get("connect_status"):
-                record_dict["connect_status"] = ""
-            result.append(record_dict)
-
-        return result
-    except Exception as e:
-        raise e
-    finally:
-        db_client.close_connection(conn)
+        # Convert SQLAlchemy model instances to dictionaries
+        return [as_dict(record) for record in records]
 
 
 def get_model_by_name(model_name: str, model_repo: str) -> Optional[Dict[str, Any]]:

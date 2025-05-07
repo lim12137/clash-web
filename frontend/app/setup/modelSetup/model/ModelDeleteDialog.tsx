@@ -123,28 +123,21 @@ export const ModelDeleteDialog = ({
         updateModelConfig(configUpdates)
       }
 
-      // 先显示成功消息
+      // 显示成功消息
       message.success(`删除模型成功: ${displayName}`)
       
-      // 同步模型列表并更新所有相关显示组件
-      try {
-        // 1. 调用模型同步接口
-        await modelService.syncModels()
-        
-        // 2. 获取最新的模型列表
-        const updatedModels = await modelService.getCustomModels()
-        
-        // 3. 更新当前组件中的customModels数据（通过父组件的onSuccess回调）
-        await onSuccess()
-        
-        // 4. 如果当前类型没有模型了，则返回到模型类型选择界面
-        const modelsOfCurrentType = updatedModels.filter(model => model.type === deletingModelType)
-        if (updatedModels.length === 0 || modelsOfCurrentType.length === 0) {
-          setDeletingModelType(null)
-        }
-      } catch (error) {
-        console.error('同步模型列表失败:', error)
-        message.error('同步模型列表失败')
+      // 直接调用父组件的onSuccess回调刷新模型列表
+      // 这会触发一次modelService.getCustomModels()调用，避免重复请求
+      await onSuccess()
+      
+      // 如果当前没有模型了，则返回到模型类型选择界面
+      // 使用从父组件传入的customModels来判断，不再单独获取
+      const currentTypeModels = customModels.filter(model => 
+        model.type === deletingModelType && model.name !== modelName
+      )
+      
+      if (currentTypeModels.length === 0) {
+        setDeletingModelType(null)
       }
     } catch (error) {
       console.error('删除模型失败:', error)

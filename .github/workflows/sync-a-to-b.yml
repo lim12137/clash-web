@@ -18,7 +18,7 @@ jobs:
 
       - name: Add community repo as remote
         run: |
-          git remote add repo-community git@github.com:nexent-hub/nexent-community.git
+          git remote add repo-community git@github.com:nexent-hub/nexent.git
           git fetch repo-community --tags
 
       - name: Merge community into commercial

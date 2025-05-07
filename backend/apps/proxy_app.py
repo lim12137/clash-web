@@ -45,7 +45,7 @@ async def proxy_image(url: str):
             image = await load_image(session, decoded_url)
             
             if image is None:
-                logger.error(f"Failed to fetch image, URL: {decoded_url[:50]}...")
+                # logger.error(f"Failed to fetch image, URL: {decoded_url}...")
                 return {"success": False, "error": "Failed to fetch image or image format not supported"}
             
             # Convert PIL image to base64

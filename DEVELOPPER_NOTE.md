@@ -61,9 +61,9 @@ def my_tool(param1: str, param2: int) -> str:
 ## Chapter 3: Developing Custom Agents 🤖
 
 ### 1. System Prompts
-System prompt templates are located in the `sdk/nexent/core/prompts` directory, including:
-- `code_agent.yaml`: Base agent prompt
-- `code_agent_demo.yaml`: Demo agent prompt
+System prompt templates are located in the `backend/prompts` directory, including:
+- `manager_agent.yaml`: Base multi-agent prompt
+- `search_agent.yaml`: Base agent prompt
 
 ### 2. Agent Implementation
 Refer to the implementation in `agent_utils.py`:

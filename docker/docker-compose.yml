@@ -5,6 +5,10 @@ x-minio-vars: &minio-vars
   MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
   MINIO_REGION: ${MINIO_REGION}
   MINIO_DEFAULT_BUCKET: ${MINIO_DEFAULT_BUCKET}
+x-proxy-vars: &proxy-vars
+  HTTP_PROXY: ${HTTP_PROXY}
+  HTTPS_PROXY: ${HTTPS_PROXY}
+  NO_PROXY: ${NO_PROXY}
 
 services:
   nexent-elasticsearch:
@@ -115,6 +119,7 @@ services:
     volumes:
       - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
+      <<: *proxy-vars
       skip_proxy: "true"
     env_file:
       - .env
@@ -141,7 +146,7 @@ services:
       - "9010:9000"
       - "9011:9001"
     environment:
-      <<: *minio-vars
+      <<: [*minio-vars, *proxy-vars]
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       TZ: "Asia/Shanghai"

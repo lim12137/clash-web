@@ -215,22 +215,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       });
   }
 
-  // 取消正在进行的验证
-  const cancelVerification = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-
-    if (throttleTimerRef.current) {
-      clearTimeout(throttleTimerRef.current);
-      throttleTimerRef.current = null;
-    }
-
-    setIsVerifying(false);
-    message.info({ content: "已取消验证", key: "verifying" });
-  };
-
   // 加载模型列表
   const loadModelLists = async (skipVerify: boolean = false) => {
     try {
@@ -843,8 +827,16 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
           onSuccess={async (newModel) => {
-            await loadModelLists();
+            await loadModelLists(true);
             message.success('添加模型成功');
+            
+            // 如果有新添加的模型信息，对该模型进行静默连通性校验
+            if (newModel && newModel.name && newModel.type) {
+              // 使用setTimeout确保不阻塞UI
+              setTimeout(() => {
+                verifyOneModel(newModel.name, newModel.type);
+              }, 100);
+            }
           }}
         />
 
@@ -852,7 +844,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           isOpen={isDeleteModalOpen}
           onClose={() => setIsDeleteModalOpen(false)}
           onSuccess={async () => {
-            await loadModelLists();
+            await loadModelLists(true);
             return;
           }}
           customModels={customModels}
