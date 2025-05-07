@@ -38,8 +38,9 @@ Most of all, we need visibility. Star ⭐ and watch the repo, share it with frie
 
 ```bash
 git clone https://github.com/nexent-hub/nexent.git
-cp docker/.env.example docker/.env # fill only nessasary configs
-bash docker/deploy.sh
+cd nexent/docker
+cp .env.example .env # fill only nessasary configs
+bash deploy.sh
 ```
 
 When the containers are running, open **http://localhost:3000** in your browser and follow the setup wizard.
