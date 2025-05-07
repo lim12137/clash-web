@@ -50,11 +50,11 @@ bash docker/deploy.sh
 
 | 模型类型 | 提供商 | 说明 |
 |------------|----------|-------|
-| LLM 与 VLLM | [硅基流动](https://siliconflow.cn/) | 支持所有 OpenAI 兼容的模型服务。推荐使用硅基流动，因其提供免费额度。 |
-| LLM 与 VLLM | [阿里云百炼](https://bailian.console.aliyun.com/) | 支持所有 OpenAI 兼容的模型服务。推荐使用阿里云百炼，因其提供免费额度。 |
-| Embedding | [Jina](https://jina.ai/) | 推荐使用，因其提供免费额度。 |
-| TTS 与 STT | [火山引擎语音](https://www.volcengine.com/product/voice-tech) | 推荐个人用户使用，基本永久免费。 |
-| 搜索 | [EXA](https://exa.ai/) | 推荐使用，因其搜索全面且基本免费。 |
+| LLM 与 VLLM | [硅基流动](https://siliconflow.cn/) | 提供免费额度 |
+| LLM 与 VLLM | [阿里云百炼](https://bailian.console.aliyun.com/) | 提供免费额度 |
+| Embedding | [Jina](https://jina.ai/) | 提供免费额度 |
+| TTS 与 STT | [火山引擎语音](https://www.volcengine.com/product/voice-tech) | 个人用户免费 |
+| 搜索 | [EXA](https://exa.ai/) | 提供免费额度 |
 
 您需要在模型配置页面输入以下信息：
 - Base URL
