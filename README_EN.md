@@ -38,7 +38,7 @@ Most of all, we need visibility. Star ⭐ and watch the repo, share it with frie
 
 ```bash
 git clone https://github.com/nexent-hub/nexent.git
-cp .env.example .env # fill nessasary configs
+cp docker/.env.example docker/.env # fill only nessasary configs
 bash docker/deploy.sh
 ```
 
