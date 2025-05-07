@@ -3,10 +3,11 @@ from typing import Union, BinaryIO
 
 from utils.config_utils import config_manager
 
-from nexent.core.models.stt_model import OpenAIVLModel
+from nexent.core.models.openai_vlm import OpenAIVLModel
 from nexent.core import MessageObserver
 
 def convert_image_to_text(query: str, image_input: Union[str, BinaryIO]):
+    
     logging.info("%s %s", config_manager.get_config("VLM_MODEL_NAME"), config_manager.get_config("VLM_MODEL_URL"))
     
     image_to_text_model = OpenAIVLModel(
