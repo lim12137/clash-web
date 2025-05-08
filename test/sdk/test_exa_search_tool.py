@@ -7,7 +7,7 @@ from nexent.core.utils import MessageObserver
 
 class TestEXASearchTool(unittest.TestCase):
     def setUp(self):
-        """测试前的设置"""
+        """Setup before tests"""
         self.api_key = ""
         self.observer = MessageObserver()
         self.tool = EXASearchTool(
@@ -17,15 +17,14 @@ class TestEXASearchTool(unittest.TestCase):
         )
 
     def test_initialization(self):
-        """测试工具初始化"""
+        """Test tool initialization"""
         self.assertEqual(self.tool.name, "exa_web_search")
         self.assertEqual(self.tool.max_results, 3)
         self.assertFalse(self.tool.image_filter)
 
     @patch('exa_py.Exa.search_and_contents')
     def test_basic_search(self, mock_search):
-        """测试基本搜索功能"""
-        # 模拟搜索结果
+        """Test basic search functionality"""
         mock_result = Mock()
         mock_result.results = [
             Mock(
@@ -46,7 +45,7 @@ class TestEXASearchTool(unittest.TestCase):
 
     @patch('exa_py.Exa.search_and_contents')
     def test_empty_results(self, mock_search):
-        """测试空结果情况"""
+        """Test empty results scenario"""
         mock_result = Mock()
         mock_result.results = []
         mock_search.return_value = mock_result
@@ -54,26 +53,25 @@ class TestEXASearchTool(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             self.tool.forward("测试查询")
         
-        self.assertIn("未找到结果", str(context.exception))
+        self.assertIn("No results found", str(context.exception))
 
     def test_real_search(self):
-        """测试真实的搜索调用（不验证结果）"""
+        """Test real search call (without validating results)"""
         try:
-            # 创建一个真实的搜索工具实例
+            # Create a real search tool instance
             real_tool = EXASearchTool(
                 exa_api_key=self.api_key,
-                max_results=1
-            )
+                max_results=1)
             
-            # 执行搜索
+            # Execute search
             result = real_tool.forward("测试查询")
             
-            # 只验证搜索是否成功执行（不检查具体结果）
+            # Only verify that the search executed successfully (without checking specific results)
             self.assertIsNotNone(result)
             self.assertIsInstance(result, str)
             
         except Exception as e:
-            self.fail(f"搜索执行失败: {str(e)}")
+            self.fail(f"Search execution failed: {str(e)}")
 
 if __name__ == '__main__':
     unittest.main() 
