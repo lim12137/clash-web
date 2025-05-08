@@ -8,13 +8,17 @@ export interface StepSection {
 
 export interface StepContent {
   id: string
-  type: "model_output" | "parsing" | "execution" | "error" | "agent_run" | "executing" | "generating_code"
+  type: "model_output" | "parsing" | "execution" | "error" | "agent_new_run" | "executing" | "generating_code" | "search_content" | "card" | "search_content_placeholder" | "virtual"
   content: string
   expanded: boolean
   timestamp: number
   subType?: "thinking" | "code"
   isLoading?: boolean
   _preserve?: boolean
+  _messageContainer?: {
+    search?: any[]
+    [key: string]: any
+  }
 }
 
 export interface AgentStep {
@@ -157,6 +161,7 @@ export interface ApiMessage {
   picture?: string[]
   search?: SearchResultItem[]
   minio_files?: MinioFileItem[]
+  cards?: any[]
 }
 
 export interface ApiConversationDetail {
@@ -212,4 +217,9 @@ export interface FilePreview {
   content?: string
   url?: string
   file: File
+}
+
+// Task message type
+export interface TaskMessageType extends ChatMessageType {
+  type?: string;
 } 
