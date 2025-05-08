@@ -96,10 +96,67 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
           break;
         }
 
+        case "search_content_placeholder": {
+          const currentStep = steps[steps.length - 1];
+          if (currentStep && dialog_msg.search && dialog_msg.search.length > 0) {
+            // 将search_content_placeholder转换为search_content
+            const contentId = `search-content-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+            
+            // 创建搜索内容的JSON字符串
+            try {
+              const searchContent = JSON.stringify(dialog_msg.search);
+              
+              // 添加为search_content类型消息
+              currentStep.contents.push({
+                id: contentId,
+                type: "search_content",
+                content: searchContent, // 使用实际的搜索结果
+                expanded: true,
+                timestamp: Date.now()
+              });
+            } catch (e) {
+              console.error("无法解析搜索结果:", e);
+            }
+          }
+          break;
+        }
+
         case "token_count": {
           const currentStep = steps[steps.length - 1];
           if (currentStep) {
             currentStep.metrics = msg.content;
+          }
+          break;
+        }
+
+        case "card": {
+          const currentStep = steps[steps.length - 1];
+          if (currentStep) {
+            // 创建卡片内容
+            const contentId = `card-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+            currentStep.contents.push({
+              id: contentId,
+              type: "card",
+              content: msg.content,
+              expanded: true,
+              timestamp: Date.now()
+            });
+          }
+          break;
+        }
+
+        case "tool": {
+          const currentStep = steps[steps.length - 1];
+          if (currentStep) {
+            // 创建工具调用内容
+            const contentId = `tool-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+            currentStep.contents.push({
+              id: contentId,
+              type: "executing", // 使用现有的executing类型来表示工具调用
+              content: msg.content,
+              expanded: true,
+              timestamp: Date.now()
+            });
           }
           break;
         }

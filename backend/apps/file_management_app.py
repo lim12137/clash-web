@@ -222,7 +222,7 @@ async def get_storage_files(
         )
 
 
-@router.get("/storage/{object_name}")
+@router.get("/storage/{path}/{object_name}")
 async def get_storage_file(
     object_name: str = PathParam(..., description="File object name"),
     download: bool = Query(False, description="Whether to download file directly"),
@@ -240,7 +240,6 @@ async def get_storage_file(
     try:
         # Get file URL
         result = get_file_url(object_name=object_name, expires=expires)
-
         if not result["success"]:
             raise HTTPException(
                 status_code=404,
