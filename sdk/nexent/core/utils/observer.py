@@ -22,6 +22,9 @@ class ProcessType(Enum):
     SEARCH_CONTENT = "search_content"  # 工具中的搜索内容
     PICTURE_WEB = "picture_web"  # 记录联网搜索后的图片
 
+    CARD = "card"  # 需要前端用卡片渲染的内容
+    TOOL = "tool"  # 工具名称
+
 
 # 消息转换器基类
 class MessageTransformer:
@@ -134,13 +137,15 @@ class MessageObserver:
         """初始化消息类型到转换器的映射"""
         default_transformer = DefaultTransformer()
 
-        self.transformers = {# ProcessType.AGENT_NEW_RUN: AgentNewRunTransformer(),
+        self.transformers = {
             ProcessType.AGENT_NEW_RUN: default_transformer, ProcessType.STEP_COUNT: StepCountTransformer(),
             ProcessType.PARSE: ParseTransformer(), ProcessType.EXECUTION_LOGS: ExecutionLogsTransformer(),
             ProcessType.FINAL_ANSWER: FinalAnswerTransformer(), ProcessType.ERROR: ErrorTransformer(),
             ProcessType.OTHER: default_transformer, ProcessType.SEARCH_CONTENT: default_transformer,
             ProcessType.TOKEN_COUNT: TokenCountTransformer(), ProcessType.PICTURE_WEB: default_transformer,
-            ProcessType.AGENT_FINISH: default_transformer, }
+            ProcessType.AGENT_FINISH: default_transformer, ProcessType.CARD: default_transformer,
+            ProcessType.TOOL: default_transformer
+        }
 
     def add_model_new_token(self, new_token):
         """
