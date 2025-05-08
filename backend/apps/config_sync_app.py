@@ -46,6 +46,11 @@ async def save_config(config: GlobalConfig):
                 else:
                     env_key = f"{model_prefix}_{get_env_key(key)}"
                     env_config[env_key] = safe_value(value)
+            
+            # Only store dimension for embedding or multiEmbedding models
+            if model_type in ["embedding", "multiEmbedding"] and model_config.get("dimension") is not None:
+                env_key = f"{model_prefix}_DIMENSION"
+                env_config[env_key] = safe_value(model_config.get("dimension"))
 
         # Process knowledge base configuration - use key names directly without prefix, store lists in JSON format
         for key, value in config_dict.get("data", {}).items():
@@ -102,7 +107,7 @@ async def load_config():
                         "modelUrl": config_manager.get_config("LLM_MODEL_URL", "")
                     }
                 },
-                "secondaryLlm": {
+                "llmSecondary": {
                     "name": config_manager.get_config("LLM_SECONDARY_MODEL_NAME", ""),
                     "displayName": config_manager.get_config("LLM_SECONDARY_DISPLAY_NAME", ""),
                     "apiConfig": {
@@ -116,7 +121,17 @@ async def load_config():
                     "apiConfig": {
                         "apiKey": config_manager.get_config("EMBEDDING_API_KEY", ""),
                         "modelUrl": config_manager.get_config("EMBEDDING_MODEL_URL", "")
-                    }
+                    },
+                    "dimension": int(config_manager.get_config("EMBEDDING_DIMENSION", "0")) or None
+                },
+                "multiEmbedding": {
+                    "name": config_manager.get_config("MULTI_EMBEDDING_MODEL_NAME", ""),
+                    "displayName": config_manager.get_config("MULTI_EMBEDDING_DISPLAY_NAME", ""),
+                    "apiConfig": {
+                        "apiKey": config_manager.get_config("MULTI_EMBEDDING_API_KEY", ""),
+                        "modelUrl": config_manager.get_config("MULTI_EMBEDDING_MODEL_URL", "")
+                    },
+                    "dimension": int(config_manager.get_config("MULTI_EMBEDDING_DIMENSION", "0")) or None
                 },
                 "rerank": {
                     "name": config_manager.get_config("RERANK_MODEL_NAME", ""),

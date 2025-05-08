@@ -51,63 +51,6 @@ const getStatusStyle = (status?: ModelConnectStatus): React.CSSProperties => {
 
 const { Option } = Select
 
-// 创建全局变量以确保多个组件实例共享同一个fetchTimestamp
-let lastFetchTimestamp = 0;
-// 全局请求标记，防止并发请求
-let isFetching = false;
-// 全局定时器引用
-let globalTimerRef: NodeJS.Timeout | null = null;
-// 全局注册表，存储所有ModelListCard实例的更新函数
-type UpdateFunction = (data: ModelOption[]) => void;
-const modelUpdateRegistry = new Map<string, UpdateFunction>();
-
-// 全局函数：获取模型状态
-const fetchModelStatus = async () => {
-  // 如果距离上次请求不足2秒或者当前有正在进行的请求，则不执行
-  const now = Date.now();
-  if (now - lastFetchTimestamp < 2000 || isFetching) {
-    return;
-  }
-  
-  try {
-    // 设置请求标志和时间戳
-    isFetching = true;
-    lastFetchTimestamp = now;
-    
-    // 使用modelService获取自定义模型列表，与ModelConfigSection共享同一逻辑
-    const customModels = await modelService.getCustomModels();
-    
-    // 通知所有注册的组件更新
-    if (customModels && customModels.length > 0) {
-      
-      // 检查各模型状态并记录
-      const statusCounts = {
-        "可用": 0,
-        "不可用": 0,
-        "检测中": 0,
-        "未检测": 0,
-        "未知": 0
-      };
-      
-      customModels.forEach(model => {
-        const status = model.connect_status || "未知";
-        statusCounts[status] = (statusCounts[status] || 0) + 1;
-      });
-      
-      // 通知所有注册的组件更新
-      modelUpdateRegistry.forEach((updateFn, instanceId) => {
-        updateFn(customModels);
-      });
-    } else {
-      console.warn("全局定时器：获取模型状态返回空数据");
-    }
-  } catch (error) {
-    console.error("全局定时器：获取模型状态失败:", error);
-  } finally {
-    // 无论成功或失败，都清除请求标志
-    isFetching = false;
-  }
-};
 
 interface ModelListCardProps {
   type: ModelType
@@ -175,9 +118,6 @@ export const ModelListCard = ({
   // 组件唯一ID，用于注册表
   const instanceIdRef = useRef(`${type}-${modelId}-${Math.random().toString(36).substring(2, 9)}`);
 
-  // 添加下拉框展开状态
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
   // 在组件中创建一个style元素，包含动画定义
   useEffect(() => {
     // 创建style元素
@@ -194,7 +134,7 @@ export const ModelListCard = ({
 
   // 获取模型列表时需要考虑具体的选项类型
   const getModelsBySource = (): Record<ModelSource, ModelOption[]> => {
-    // 具体处理不同类型的模型获取逻辑
+    // 每种类型只显示对应类型的模型
     return {
       official: modelsData.official.filter(model => model.type === type),
       custom: modelsData.custom.filter(model => model.type === type)
@@ -213,12 +153,6 @@ export const ModelListCard = ({
 
     const customModel = modelsData.custom.find((m) => m.type === type && m.name === modelName)
     return customModel ? "自定义" : "未知来源"
-  }
-
-  // 获取连接状态对应的文字描述
-  const getConnectStatusText = (status?: ModelConnectStatus): string => {
-    if (!status) return "未知状态";
-    return status;
   }
 
   // 获取连接状态指示器的颜色
@@ -245,55 +179,12 @@ export const ModelListCard = ({
     onModelChange(value)
   }
 
-  // 更新当前组件的自定义模型状态
-  const updateModelStatus = useCallback((apiData: any[]) => {
-    // 获取当前组件关注的模型类型
-    const currentType = type;
-    
-    // 过滤出当前组件关注的模型类型的数据
-    const relevantModels = apiData.filter(m => 
-      m.type === currentType || 
-      m.model_type === currentType || 
-      (currentType === 'vlm' && (m.type === 'vlm' || m.model_type === 'vlm'))
-    );
-    
-    // 如果没有找到相关模型数据，则不更新
-    if (relevantModels.length === 0) return;
-    
-    // 更新UI状态
-    setModelsData(prevData => {
-      const updatedCustomModels = prevData.custom.map(model => {
-        // 查找对应的模型数据，注意字段映射关系
-        const updatedModel = apiData.find(
-          (m: any) => (m.name === model.name || m.model_name === model.name) && 
-                      (m.type === model.type || m.model_type === model.type)
-        );
-        
-        // 如果找到了模型更新信息
-        if (updatedModel) {
-          const newStatus = (updatedModel.connect_status as ModelConnectStatus) || model.connect_status || "未检测";
-          
-          return {
-            ...model,
-            connect_status: newStatus
-          };
-        }
-        return model; // 没有找到对应的更新数据，保持原状态
-      });
-      
-      // 保持官方模型不变
-      return {
-        official: prevData.official,
-        custom: updatedCustomModels
-      };
-    });
-  }, [type]);
-
   // 本地更新模型状态
   const updateLocalModelStatus = (modelName: string, status: ModelConnectStatus) => {
     setModelsData(prevData => {
       // 查找要更新的模型
       const modelToUpdate = prevData.custom.find(m => m.name === modelName && m.type === type);
+      
       if (!modelToUpdate) {
         console.warn(`未找到要更新的模型: ${modelName}, 类型: ${type}`);
         return prevData;
@@ -318,11 +209,6 @@ export const ModelListCard = ({
 
   // 当父组件传入的模型列表更新时，更新本地状态
   useEffect(() => {
-    // 输出当前自定义模型的状态以便调试
-    if (customModels.length > 0) {
-      const typeModels = customModels.filter(m => m.type === type);
-    }
-    
     // 更新本地状态，但不触发fetchModelsStatus
     setModelsData(prevData => {
       const updatedOfficialModels = officialModels.map(model => {
@@ -348,19 +234,6 @@ export const ModelListCard = ({
       };
     });
   }, [officialModels, customModels, type, modelId]);
-
-  // 组件挂载时注册更新函数，组件卸载时注销
-  useEffect(() => {
-    const instanceId = instanceIdRef.current;
-    
-    // 注册更新函数
-    modelUpdateRegistry.set(instanceId, updateModelStatus);
-    
-    // 组件卸载时清理
-    return () => {
-      modelUpdateRegistry.delete(instanceId);
-    };
-  }, [updateModelStatus]);
 
   // 处理状态指示灯点击事件
   const handleStatusClick = (e: React.MouseEvent, modelName: string) => {
@@ -389,7 +262,7 @@ export const ModelListCard = ({
       <div className="font-medium mb-1.5 flex items-center justify-between">
         <div className="flex items-center">
           {modelName}
-          {(modelName === "主模型" || modelName === "向量模型") && (
+          {(modelName === "主模型") && (
             <span className="text-red-500 ml-1">*</span>
           )}
         </div>
@@ -417,7 +290,6 @@ export const ModelListCard = ({
         getPopupContainer={(triggerNode) => triggerNode.parentNode as HTMLElement}
         status={errorFields && errorFields[`${type}.${modelId}`] ? "error" : ""}
         className={errorFields && errorFields[`${type}.${modelId}`] ? "error-select" : ""}
-        onDropdownVisibleChange={setIsDropdownOpen}
       >
         {modelsBySource.official.length > 0 && (
           <Select.OptGroup label="ModelEngine模型">
