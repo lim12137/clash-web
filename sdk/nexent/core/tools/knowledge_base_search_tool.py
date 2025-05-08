@@ -1,4 +1,5 @@
 import json
+from typing import List
 
 import requests
 from smolagents.tools import Tool
@@ -16,22 +17,15 @@ class KnowledgeBaseSearchTool(Tool):
                   "Prioritize for company-specific queries. " \
                   "Use for proprietary knowledge or restricted information" \
                   "Avoid for publicly available general knowledge"
-
     inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"
 
-    # 所有工具内部的message支持中英文两种语言
-    supported_languages = {'zh', 'en'}
-    messages = {'en': {'search_failed': 'Search request failed: {}',
-        'no_results': 'No results found! Try a less restrictive/shorter query.',
-        'search_success': 'Knowledge Base Search Results'},
-        'zh': {'search_failed': '搜索请求失败：{}', 'no_results': '未找到结果！请尝试使用更宽泛或更短的搜索词。',
-            'search_success': '知识库搜索结果'}}
-
     tool_sign = "a"  # 用于给总结区分不同的索引来源
 
-    def __init__(self, index_names: list[str] = [], base_url: str = "http://localhost:8000", top_k: int = 5,
-                 observer: MessageObserver = None, lang: str = "zh") -> None:
+    def __init__(self, index_names: List[str],
+                 base_url: str,
+                 top_k: int = 5,
+                 observer: MessageObserver = None):
         """Initialize the KBSearchTool.
         
         Args:
@@ -49,25 +43,26 @@ class KnowledgeBaseSearchTool(Tool):
         self.top_k = top_k
         self.observer = observer
         self.base_url = base_url
-
-        if lang not in self.supported_languages:
-            raise ValueError(f"Language must be one of {self.supported_languages}")
-        self.lang = lang
-
         self.record_ops = 0  # 用于记录序号
+        self.running_prompt = "知识库检索中..."
 
     def forward(self, query: str) -> str:
+        # 发送工具运行消息
+        self.observer.add_message("", ProcessType.TOOL, self.running_prompt)
+        card_content = [{"icon": "search", "text": query}]
+        self.observer.add_message("", ProcessType.CARD, json.dumps(card_content, ensure_ascii=False))
+
         kb_search_response = requests.post(f"{self.base_url}/indices/search/hybrid",
             json={"index_names": self.index_names, "query": query, "top_k": self.top_k})
 
         if kb_search_response.status_code != 200:
-            raise Exception(self.messages[self.lang]['search_failed'].format(kb_search_response.text))
+            raise Exception(f"Search request failed: {kb_search_response.text}")
 
         kb_search_data = kb_search_response.json()
         kb_search_results = kb_search_data["results"]
 
         if not kb_search_results:
-            raise Exception(self.messages[self.lang]['no_results'])
+            raise Exception("No results found! Try a less restrictive/shorter query.")
 
         search_results_json = []  # 将检索结果整理成统一格式
         search_results_return = []  # 输入给大模型的格式
@@ -89,14 +84,3 @@ class KnowledgeBaseSearchTool(Tool):
             search_results_data = json.dumps(search_results_json, ensure_ascii=False)
             self.observer.add_message("", ProcessType.SEARCH_CONTENT, search_results_data)
         return json.dumps(search_results_return, ensure_ascii=False)
-
-
-if __name__ == "__main__":
-    try:
-        tool = KnowledgeBaseSearchTool(index_names=["medical"], base_url="http://localhost:8000", top_k=3)
-
-        query = "乳腺癌的风险"
-        result1 = tool.forward(query)
-        print(result1)
-    except Exception as e:
-        print(e)
