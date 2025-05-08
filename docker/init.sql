@@ -193,3 +193,197 @@ COMMENT ON TABLE "model_record_t" IS '用户在配置页面定义的模型清单
 
 INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'tts_model', 'OpenAI-API-Compatible', 'tts', '', '', 0, 0, 'Volcano TTS', '不可用');
 INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'stt_model', 'OpenAI-API-Compatible', 'stt', '', '', 0, 0, 'Volcano STT', '不可用');
+
+-- Create the tool_info_t table
+CREATE TABLE IF NOT EXISTS nexent.tool_info_t (
+    id SERIAL PRIMARY KEY NOT NULL,
+    name VARCHAR(100) UNIQUE,
+    display_name VARCHAR(100),
+    description VARCHAR(2048),
+    source VARCHAR(100),
+    author VARCHAR(100),
+    usage VARCHAR(100),
+    params JSON,
+    tenant_ids VARCHAR(100)[],
+    create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100),
+    delete_flag VARCHAR(1) DEFAULT 'N'
+);
+
+-- Trigger to update update_time when the record is modified
+CREATE OR REPLACE FUNCTION update_tool_info_update_time()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.update_time = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_tool_info_update_time_trigger
+BEFORE UPDATE ON nexent.tool_info_t
+FOR EACH ROW
+EXECUTE FUNCTION update_tool_info_update_time();
+
+-- Add comment to the table
+COMMENT ON TABLE nexent.tool_info_t IS 'Information table for prompt tools';
+
+-- Add comments to the columns
+COMMENT ON COLUMN nexent.tool_info_t.id IS 'ID';
+COMMENT ON COLUMN nexent.tool_info_t.name IS 'Unique key name';
+COMMENT ON COLUMN nexent.tool_info_t.display_name IS 'Tool display name';
+COMMENT ON COLUMN nexent.tool_info_t.description IS 'Prompt tool description';
+COMMENT ON COLUMN nexent.tool_info_t.source IS 'Source';
+COMMENT ON COLUMN nexent.tool_info_t.author IS 'Tool author';
+COMMENT ON COLUMN nexent.tool_info_t.usage IS 'Usage';
+COMMENT ON COLUMN nexent.tool_info_t.params IS 'Tool parameter information (json)';
+COMMENT ON COLUMN nexent.tool_info_t.tenant_ids IS 'Visible tenant IDs';
+COMMENT ON COLUMN nexent.tool_info_t.create_time IS 'Creation time';
+COMMENT ON COLUMN nexent.tool_info_t.update_time IS 'Update time';
+COMMENT ON COLUMN nexent.tool_info_t.created_by IS 'Creator';
+COMMENT ON COLUMN nexent.tool_info_t.updated_by IS 'Updater';
+COMMENT ON COLUMN nexent.tool_info_t.delete_flag IS 'Whether it is deleted. Optional values: Y/N';
+
+-- Create the tenant_agent_t table in the nexent schema
+CREATE TABLE IF NOT EXISTS nexent.tenant_agent_t (
+    id SERIAL PRIMARY KEY NOT NULL,
+    name VARCHAR(100),
+    description VARCHAR(2048),
+    model_name VARCHAR(100),
+    max_steps INTEGER,
+    prompt_core TEXT,
+    prompt_tool TEXT,
+    prompt_demo TEXT,
+    parent_agent_id INTEGER,
+    tenant_id VARCHAR(100),
+    tool_children VARCHAR(100)[],
+    create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100),
+    delete_flag VARCHAR(1) DEFAULT 'N'
+);
+
+-- Create a function to update the update_time column
+CREATE OR REPLACE FUNCTION update_tenant_agent_update_time()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.update_time = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create a trigger to call the function before each update
+CREATE TRIGGER update_tenant_agent_update_time_trigger
+BEFORE UPDATE ON nexent.tenant_agent_t
+FOR EACH ROW
+EXECUTE FUNCTION update_tenant_agent_update_time();
+-- Add comments to the table
+COMMENT ON TABLE nexent.tenant_agent_t IS 'Information table for agents';
+
+-- Add comments to the columns
+COMMENT ON COLUMN nexent.tenant_agent_t.id IS 'ID';
+COMMENT ON COLUMN nexent.tenant_agent_t.name IS 'Agent name';
+COMMENT ON COLUMN nexent.tenant_agent_t.description IS 'Description';
+COMMENT ON COLUMN nexent.tenant_agent_t.model_name IS 'Name of the model used';
+COMMENT ON COLUMN nexent.tenant_agent_t.max_steps IS 'Maximum number of steps';
+COMMENT ON COLUMN nexent.tenant_agent_t.prompt_core IS 'Core responsibility prompt';
+COMMENT ON COLUMN nexent.tenant_agent_t.prompt_tool IS 'Tool order prompt';
+COMMENT ON COLUMN nexent.tenant_agent_t.prompt_demo IS 'Example prompt';
+COMMENT ON COLUMN nexent.tenant_agent_t.parent_agent_id IS 'Parent Agent ID';
+COMMENT ON COLUMN nexent.tenant_agent_t.tenant_id IS 'Belonging tenant';
+COMMENT ON COLUMN nexent.tenant_agent_t.tool_children IS 'List of included tools';
+COMMENT ON COLUMN nexent.tenant_agent_t.create_time IS 'Creation time';
+COMMENT ON COLUMN nexent.tenant_agent_t.update_time IS 'Update time';
+COMMENT ON COLUMN nexent.tenant_agent_t.created_by IS 'Creator';
+COMMENT ON COLUMN nexent.tenant_agent_t.updated_by IS 'Updater';
+COMMENT ON COLUMN nexent.tenant_agent_t.delete_flag IS 'Whether it is deleted. Optional values: Y/N';
+
+-- Create the user_agent_t table in the nexent schema
+CREATE TABLE IF NOT EXISTS nexent.user_agent_t (
+    id SERIAL PRIMARY KEY NOT NULL,
+    user_id VARCHAR(100),
+    agent_name VARCHAR(100),
+    description VARCHAR(2048),
+    create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    delete_flag VARCHAR(1) DEFAULT 'N'
+);
+
+-- Add comment to the table
+COMMENT ON TABLE nexent.user_agent_t IS 'Information table for user agents';
+
+-- Add comments to the columns
+COMMENT ON COLUMN nexent.user_agent_t.id IS 'ID';
+COMMENT ON COLUMN nexent.user_agent_t.user_id IS 'User ID';
+COMMENT ON COLUMN nexent.user_agent_t.agent_name IS 'Agent name';
+COMMENT ON COLUMN nexent.user_agent_t.description IS 'Agent description';
+COMMENT ON COLUMN nexent.user_agent_t.create_time IS 'Creation time';
+COMMENT ON COLUMN nexent.user_agent_t.update_time IS 'Update time';
+COMMENT ON COLUMN nexent.user_agent_t.delete_flag IS 'Whether it is deleted. Optional values: Y/N';
+
+-- Create a function to update the update_time column
+CREATE OR REPLACE FUNCTION update_user_agent_update_time()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.update_time = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add comment to the function
+COMMENT ON FUNCTION update_user_agent_update_time() IS 'Function to update the update_time column when a record in user_agent_t is updated';
+
+-- Create a trigger to call the function before each update
+CREATE TRIGGER update_user_agent_update_time_trigger
+BEFORE UPDATE ON nexent.user_agent_t
+FOR EACH ROW
+EXECUTE FUNCTION update_user_agent_update_time();
+
+-- Add comment to the trigger
+COMMENT ON TRIGGER update_user_agent_update_time_trigger ON nexent.user_agent_t IS 'Trigger to call update_user_agent_update_time function before each update on user_agent_t table';
+
+-- Create the tool_instance_t table in the nexent schema
+CREATE TABLE IF NOT EXISTS nexent.tool_instance_t (
+    id SERIAL PRIMARY KEY NOT NULL,
+    tool_id INTEGER,
+    params JSON,
+    user_id VARCHAR(100),
+    tenant_id VARCHAR(100),
+    create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add comment to the table
+COMMENT ON TABLE nexent.tool_instance_t IS 'Information table for tenant tool configuration.';
+
+-- Add comments to the columns
+COMMENT ON COLUMN nexent.tool_instance_t.id IS 'ID';
+COMMENT ON COLUMN nexent.tool_instance_t.tool_id IS 'Tenant tool ID';
+COMMENT ON COLUMN nexent.tool_instance_t.params IS 'Parameter configuration';
+COMMENT ON COLUMN nexent.tool_instance_t.user_id IS 'User ID';
+COMMENT ON COLUMN nexent.tool_instance_t.tenant_id IS 'Tenant ID';
+COMMENT ON COLUMN nexent.tool_instance_t.create_time IS 'Creation time';
+COMMENT ON COLUMN nexent.tool_instance_t.update_time IS 'Update time';
+
+-- Create a function to update the update_time column
+CREATE OR REPLACE FUNCTION update_tool_instance_update_time()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.update_time = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add comment to the function
+COMMENT ON FUNCTION update_tool_instance_update_time() IS 'Function to update the update_time column when a record in tool_instance_t is updated';
+
+-- Create a trigger to call the function before each update
+CREATE TRIGGER update_tool_instance_update_time_trigger
+BEFORE UPDATE ON nexent.tool_instance_t
+FOR EACH ROW
+EXECUTE FUNCTION update_tool_instance_update_time();
+
+-- Add comment to the trigger
+COMMENT ON TRIGGER update_tool_instance_update_time_trigger ON nexent.tool_instance_t IS 'Trigger to call update_tool_instance_update_time function before each update on tool_instance_t table';
