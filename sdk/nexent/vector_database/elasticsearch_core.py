@@ -791,3 +791,18 @@ class ElasticSearchCore:
         except Exception as e:
             print(f"Error getting all indices statistics: {str(e)}")
             return {}
+
+    def get_index_count(self, index_name: str):
+        # use count API to get total document count
+        count_query = {"query": {"match_all": {}}}
+
+        try:
+            # 执行计数查询
+            count_response = self.client.count( index=index_name, body=count_query)
+            total_docs = count_response['count']
+            print(f"索引 {index_name} 中共有 {total_docs} 条数据")
+            return total_docs
+        except Exception as e:
+            print(f"获取文档数量时出错: {e}")
+            return 0
+
