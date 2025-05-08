@@ -34,6 +34,19 @@ docker build -t nexent/nexent-data-process -f make/data_process/Dockerfile .
 docker builder prune -f && docker system prune -f
 ```
 
+### 💾 Local Build and Load
+
+```bash
+# 🔨 Build and load base image (auto-detect local architecture)
+docker buildx build -t nexent/nexent-base -f make/base/Dockerfile . --load
+
+# 🚀 Build and load application image (auto-detect local architecture)
+docker buildx build -t nexent/nexent -f make/main/Dockerfile . --load
+
+# 📊 Build and load data process image (auto-detect local architecture)
+docker buildx build -t nexent/nexent-data-process -f make/data_process/Dockerfile . --load
+```
+
 Notes:
 - 🔧 Use `--platform linux/amd64,linux/arm64` to specify target architectures
 - 📤 The `--push` flag automatically pushes the built images to Docker Hub
@@ -43,3 +56,6 @@ Notes:
   - `docker builder prune -f`: Cleans build cache
   - `docker system prune -f`: Cleans unused data (including dangling images, networks, etc.)
   - The `-f` flag forces execution without confirmation
+- 🔧 The `--load` flag loads the built image into the local Docker images list
+- ⚠️ `--load` can only be used with single architecture builds
+- 📝 Use `docker images` to verify the images are loaded locally
