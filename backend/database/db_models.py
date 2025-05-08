@@ -30,7 +30,7 @@ class ConversationMessage(Base):
     __table_args__ = {"schema": SCHEMA}
 
     message_id = Column(Integer, Sequence("conversation_message_t_message_id_seq", schema=SCHEMA), primary_key=True, nullable=False)
-    conversation_id = Column(Integer, doc="Formal foreign key used to associate with the所属 conversation")
+    conversation_id = Column(Integer, doc="Formal foreign key used to associate with the conversation")
     message_index = Column(Integer, doc="Sequence number for frontend display sorting")
     message_role = Column(String(30), doc="The role sending the message, such as system, assistant, user")
     message_content = Column(String, doc="The complete content of the message")
@@ -50,8 +50,8 @@ class ConversationMessageUnit(Base):
     __table_args__ = {"schema": SCHEMA}
 
     unit_id = Column(Integer, Sequence("conversation_message_unit_t_unit_id_seq", schema=SCHEMA), primary_key=True, nullable=False)
-    message_id = Column(Integer, doc="Formal foreign key used to associate with the所属 message")
-    conversation_id = Column(Integer, doc="Formal foreign key used to associate with the所属 conversation")
+    message_id = Column(Integer, doc="Formal foreign key used to associate with the message")
+    conversation_id = Column(Integer, doc="Formal foreign key used to associate with the conversation")
     unit_index = Column(Integer, doc="Sequence number for frontend display sorting")
     unit_type = Column(String(100), doc="Type of the smallest answer unit")
     unit_content = Column(String, doc="Complete content of the smallest reply unit")
