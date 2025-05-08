@@ -52,8 +52,15 @@ class EXASearchTool(Tool):
         self.image_filter_threshold = image_filter_threshold
 
         self.record_ops = 0  # 用于记录序号
+        self.running_prompt = "网络检索中..."
 
     def forward(self, query: str) -> str:
+        # 发送工具运行消息
+        if self.observer:
+            self.observer.add_message("", ProcessType.TOOL, self.running_prompt)
+            card_content = [{"icon": "search", "text": query}]
+            self.observer.add_message("", ProcessType.CARD, json.dumps(card_content, ensure_ascii=False))
+
         if self.is_model_summary:
             # 使用LLM总结功能会导致搜索速度变慢
             summary_prompt = self.messages[self.lang]['summary_prompt'].format(query=query)

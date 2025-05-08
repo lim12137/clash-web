@@ -55,8 +55,14 @@ class KnowledgeBaseSearchTool(Tool):
         self.lang = lang
 
         self.record_ops = 0  # 用于记录序号
+        self.running_prompt = "知识库检索中..."
 
     def forward(self, query: str) -> str:
+        # 发送工具运行消息
+        self.observer.add_message("", ProcessType.TOOL, self.running_prompt)
+        card_content = [{"icon": "search", "text": query}]
+        self.observer.add_message("", ProcessType.CARD, json.dumps(card_content, ensure_ascii=False))
+
         kb_search_response = requests.post(f"{self.base_url}/indices/search/hybrid",
             json={"index_names": self.index_names, "query": query, "top_k": self.top_k})
 

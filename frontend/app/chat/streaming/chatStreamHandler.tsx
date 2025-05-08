@@ -4,7 +4,7 @@ import { ChatMessageType, AgentStep } from '@/types/chat';
  import {
    deduplicateImages,
    deduplicateSearchResults
- } from './chatHelpers';
+ } from '../internal/chatHelpers';
 
 interface JsonData {
   type: string;
@@ -43,7 +43,7 @@ export const handleStreamResponse = async (
   };
 
   let currentContentId = "";
-  let lastContentType: "model_output" | "parsing" | "execution" | "agent_run" | "generating_code" | null = null;
+  let lastContentType: "model_output" | "parsing" | "execution" | "agent_new_run" | "generating_code" | "search_content" | "card" | null = null;
   let currentContentText = "";
   let lastModelOutputIndex = -1;  // 跟踪currentStep.contents最后一个模型输出的索引
   let searchResultsContent: any[] = [];
@@ -74,12 +74,6 @@ export const handleStreamResponse = async (
               const messageType = jsonData.type;
               const messageContent = jsonData.content;
 
-              // 删除临时的"正在执行代码..."内容
-              if (messageType !== "model_output_code") {
-                currentStep.contents = currentStep.contents.filter(content => 
-                  !(content.isLoading || content.type === "executing" || content.type === "generating_code")
-                );
-              }
 
               // 处理不同类型的消息
               switch (messageType) {
@@ -141,6 +135,20 @@ export const handleStreamResponse = async (
                     lastContentType = "model_output";
                   }
                   break;
+
+                case "card":
+                  // 处理卡片内容
+                  currentStep.contents.push({
+                    id: `card-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    type: "card",
+                    content: messageContent,
+                    expanded: true,
+                    timestamp: Date.now()
+                  });
+                  
+                  // 更新最后处理的内容类型
+                  lastContentType = "card";
+                  break;
                   
                 case "search_content":
                   try {
@@ -160,6 +168,21 @@ export const handleStreamResponse = async (
                       // 累加搜索结果
                       searchResultsContent = [...searchResultsContent, ...newSearchResults];
                       allSearchResults = [...allSearchResults, ...newSearchResults];
+                      
+                      // 额外添加到当前步骤的contents数组中
+                      if (currentStep) {
+                        // 添加为search_content类型消息
+                        currentStep.contents.push({
+                          id: `search-content-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                          type: "search_content",
+                          content: messageContent, // 保留原始JSON字符串
+                          expanded: true,
+                          timestamp: Date.now()
+                        });
+                        
+                        // 更新最后处理的内容类型
+                        lastContentType = "search_content";
+                      }
                     }
                     
                     // 更新当前消息的搜索结果
@@ -233,7 +256,7 @@ export const handleStreamResponse = async (
                   const newGeneratingItem = {
                     id: `generating-code-${stepIdCounter.current}`,
                     type: "generating_code" as const,
-                    content: "代码生成中...",
+                    content: "工具调用中...",
                     expanded: true,
                     timestamp: Date.now(),
                     isLoading: true,
@@ -244,8 +267,12 @@ export const handleStreamResponse = async (
                   // 标记为代码生成类型
                   lastContentType = "generating_code";
                   break;
-                  
+                
                 case "parse":
+                  // 代码展示消息，跳过
+                  break;
+                
+                case "tool":
                   // 只有当上一个类型不是executing时，才创建新的执行提示
                   // 这样可以保持动画效果的连续性
                   if (lastContentType === "execution") {
@@ -256,7 +283,7 @@ export const handleStreamResponse = async (
                   currentStep.contents.push({
                     id: `executing-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                     type: "executing",
-                    content: "正在执行代码...",
+                    content: messageContent,
                     expanded: true,
                     timestamp: Date.now(),
                     isLoading: true
@@ -270,23 +297,18 @@ export const handleStreamResponse = async (
                   break;
                 
                 case "execution_logs":
-                  // 添加新的内容到数组
-                  currentStep.contents.push({
-                    id: `execution-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                    type: "execution",
-                    content: messageContent,
-                    expanded: true,
-                    timestamp: Date.now()
-                  });
-                  // 更新最后处理的内容类型
-                  lastContentType = "execution";
+                  // 执行结果消息，跳过
                   break;
                   
                 case "agent_new_run":
-                  // 当前不做处理
-
-                  // 更新最后处理的内容类型
-                  lastContentType = "agent_run";
+                  // 添加一个"正在思考中..."的内容
+                  currentStep.contents.push({
+                    id: `agent-run-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    type: "agent_new_run",
+                    content: "正在思考中...",
+                    expanded: true,
+                    timestamp: Date.now()
+                  });
                   break;
                   
                 case "error":
@@ -353,7 +375,7 @@ export const handleStreamResponse = async (
           const messageType = jsonData.type;
           const messageContent = jsonData.content;
 
-          // 处理最后一条消息，重点关注final_answer
+          // 处理最后一条消息，重点关注final_answer和card
           if (messageType === "final_answer") {
             finalAnswer += messageContent;
           }
@@ -403,7 +425,7 @@ export const handleStreamResponse = async (
               // 准备对话历史
               const history = newMessages.map(msg => ({
                 role: msg.role as 'user' | 'assistant',
-                content: msg.role === 'assistant' ? (msg.finalAnswer || msg.content || '') : msg.content
+                content: msg.role === 'assistant' ? (msg.finalAnswer || msg.content || '') : (msg.content || '')
               }));
 
               // 调用生成标题接口
@@ -420,7 +442,7 @@ export const handleStreamResponse = async (
             } catch (error) {
               console.error("生成标题失败:", error);
             }
-          }, 0);
+          }, 100); // 增加延迟以确保状态更新
         }
       }
 
