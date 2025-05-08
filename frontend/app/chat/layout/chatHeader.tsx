@@ -5,14 +5,18 @@ import {
   Share,
   Bookmark,
   MoreHorizontal,
+  Zap,
+  LayoutDashboard
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdownMenu"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface ChatHeaderProps {
   title: string
   onShare?: () => void
   onRename?: (newTitle: string) => void
 }
+
 export function ChatHeader({
   title,
   onShare,
@@ -65,6 +69,10 @@ export function ChatHeader({
     <header className="border-b border-transparent bg-background z-10">
       <div className="p-3 pb-1">
         <div className="relative flex flex-1">
+          <div className="absolute left-0 top-1/2 transform -translate-y-1/2">
+            {/* 左侧按钮区域 */}
+          </div>
+
           <div className="w-full flex justify-center">
             <div className="max-w-3xl w-full flex justify-center mt-2 mb-0">
               {isEditing ? (
