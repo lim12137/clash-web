@@ -496,9 +496,8 @@ const messageHandlers: MessageHandler[] = [
         lineHeight: 1.5,
         color: "#dc2626",
         fontWeight: 500,
-        backgroundColor: "rgba(220, 38, 38, 0.05)",
         borderRadius: "0.25rem",
-        padding: "0.5rem"
+        paddingTop: "0.2rem"
       }}>
         <span>{message.content}</span>
       </div>
