@@ -467,37 +467,36 @@ def get_conversation_history(conversation_id: int, user_id: Optional[str] = None
 
         conversation = as_dict(conversation)
 
-        # Get message data (including message content)
-        message_stmt = select(
+        subquery = select(
+            # Move the order_by to the json_agg function
+            func.json_agg(
+                func.json_build_object(
+                    'type', ConversationMessageUnit.unit_type,
+                    'content', ConversationMessageUnit.unit_content
+                )
+            )
+        ).select_from(
+            ConversationMessageUnit
+        ).where(
+            ConversationMessageUnit.message_id == ConversationMessage.message_id,
+            ConversationMessageUnit.delete_flag == 'N',
+            ConversationMessageUnit.unit_type != None
+        ).scalar_subquery()
+
+        query = select(
             ConversationMessage.message_id,
             ConversationMessage.message_index,
             ConversationMessage.message_role.label('role'),
             ConversationMessage.message_content,
             ConversationMessage.minio_files,
             ConversationMessage.opinion_flag,
-            func.json_agg(
-                func.json_build_object(
-                    'type', ConversationMessageUnit.unit_type,
-                    'content', ConversationMessageUnit.unit_content
-                ).order_by(ConversationMessageUnit.unit_index)
-            ).filter(
-                ConversationMessageUnit.message_id == ConversationMessage.message_id,
-                ConversationMessageUnit.delete_flag == 'N',
-                ConversationMessageUnit.unit_type.is_not(None)
-            ).label('units')
-        ).join(
-            ConversationMessageUnit,
-            ConversationMessageUnit.message_id == ConversationMessage.message_id,
-            isouter=True
+            subquery.label('units')
         ).where(
             ConversationMessage.conversation_id == conversation_id,
             ConversationMessage.delete_flag == 'N'
-        ).group_by(
-            ConversationMessage.message_id
-        ).order_by(
-            ConversationMessage.message_index
-        )
-        message_records = session.execute(message_stmt).all()
+        ).order_by(ConversationMessage.message_index)
+
+        message_records = session.execute(query).all()
 
         # Get search data
         search_stmt = select(ConversationSourceSearch).where(
