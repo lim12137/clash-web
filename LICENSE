@@ -7,7 +7,7 @@ Nexent is licensed under the Apache License 2.0, with the following additional c
 a. Multi-tenant SaaS service: Unless explicitly authorized by Nexent in writing, you may not use the Nexent source code to operate a multi-tenant SaaS service.
 b. LOGO and copyright information: In the process of using Nexent's frontend, you may not remove or modify the LOGO or copyright information in the Nexent console or applications. This restriction is inapplicable to uses of Nexent that do not involve its frontend.
 
-Please contact XXX@huawei.com by email to inquire about licensing matters.
+Please contact chenshuangrui@huawei.com by email to inquire about licensing matters.
 
 2. As a contributor, you should agree that:
 
@@ -17,4 +17,4 @@ b. Your contributed code may be used for commercial purposes, such as Nexent's c
 Apart from the specific conditions mentioned above, all other rights and restrictions follow the Apache License 2.0. Detailed information about the Apache License 2.0 can be found at http://www.apache.org/licenses/LICENSE-2.0.
 
 
-© 2025 [Company/Organization Name]
+Copyright © 2025 Huawei Technologies Co., Ltd.

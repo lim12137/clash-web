@@ -35,7 +35,6 @@
 						"exa_api_key": "${EXA_API_KEY}",
 						"max_results": 5,
 						"image_filter": false,
-						"image_filter_model_path": "${IMAGE_FILTER_MODEL_PATH}",
 						"image_filter_threshold": 0.5
 					}
 				},
@@ -46,6 +45,6 @@
 					"params": {}
 				}
 			],
-		"prompt_templates_path": "backend/consts/prompts/search_agent.yaml"
+		"prompt_templates_path": "backend/prompts/search_agent.yaml"
 	}
 }
