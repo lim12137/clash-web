@@ -2,6 +2,7 @@ import logging
 
 def configure_elasticsearch_logging():
     """Configure logging for Elasticsearch client to reduce verbosity"""
+    
     # Configure logging for elasticsearch
     logging.getLogger('elastic_transport').setLevel(logging.WARNING)
     
@@ -15,3 +16,4 @@ def configure_elasticsearch_logging():
     # Configure logging for FastAPI/uvicorn access logs
     logging.getLogger('uvicorn.access').setLevel(logging.WARNING)
     logging.getLogger('fastapi').setLevel(logging.WARNING) 
+    

@@ -1,4 +1,4 @@
-from smolagents import handle_agent_output_types, AgentText, ActionStep
+from smolagents import ActionStep, AgentText, handle_agent_output_types
 
 from ..agents import CoreAgent
 from ..utils.observer import MessageObserver, ProcessType
@@ -7,7 +7,7 @@ from ..utils.observer import MessageObserver, ProcessType
 def add_message_to_observer(observer: MessageObserver, step_log: ActionStep):
     if not isinstance(step_log, ActionStep):
         return
-    # 保留耗时
+    # Keep duration
     if hasattr(step_log, "duration"):
         observer.add_message("", ProcessType.TOKEN_COUNT, str(round(float(step_log.duration), 2)))
 
@@ -20,9 +20,9 @@ def agent_run_with_observer(agent: CoreAgent, query, reset=True):
     observer = agent.observer
     try:
         for step_log in agent.run(query, stream=True, reset=reset):
-            # 检查是否需要停止
+            # Check if we need to stop
             if agent.should_stop:
-                observer.add_message(agent.agent_name, ProcessType.ERROR, "Agent运行被用户中断")
+                observer.add_message(agent.agent_name, ProcessType.ERROR, "Agent execution interrupted by user")
                 break
 
             if getattr(agent.model, "last_input_token_count", None) is not None:
@@ -32,7 +32,7 @@ def agent_run_with_observer(agent: CoreAgent, query, reset=True):
                     step_log.input_token_count = agent.model.last_input_token_count
                     step_log.output_token_count = agent.model.last_output_token_count
 
-            # 把内容放入到observer
+            # Add content to observer
             add_message_to_observer(observer, step_log)
 
         final_answer = step_log  # Last log is the run's final_answer

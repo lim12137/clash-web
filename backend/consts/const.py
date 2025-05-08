@@ -1,7 +1,7 @@
 import os
 
-ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-TEST_VOICE_PATH = os.path.join(ROOT_PATH, 'assets', 'test.wav')
+# Test voice file path
+TEST_VOICE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'test.wav')
 
 # ModelEngine Configuration
 MODEL_ENGINE_HOST = os.getenv('MODEL_ENGINE_HOST')
