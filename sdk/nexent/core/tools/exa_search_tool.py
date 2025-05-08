@@ -35,6 +35,7 @@ class EXASearchTool(Tool):
         self.image_filter = image_filter
         self.image_filter_threshold = image_filter_threshold
         self.record_ops = 0  # Used to record sequence number
+        self.running_prompt = "网络检索中..."
 
     def forward(self, query: str) -> str:
 
@@ -42,6 +43,14 @@ class EXASearchTool(Tool):
         exa_search_result = self.exa.search_and_contents(query,
                                                          text={"max_characters": 2000},
                                                          livecrawl="always",
+            extras={"links": 0, "image_links": 10}, num_results=self.max_results)
+        # 发送工具运行消息
+        if self.observer:
+            self.observer.add_message("", ProcessType.TOOL, self.running_prompt)
+            card_content = [{"icon": "search", "text": query}]
+            self.observer.add_message("", ProcessType.CARD, json.dumps(card_content, ensure_ascii=False))
+
+        exa_search_result = self.exa.search_and_contents(query, text={"max_characters": 2000}, livecrawl="always",
             extras={"links": 0, "image_links": 10}, num_results=self.max_results)
 
         if len(exa_search_result.results) == 0:
