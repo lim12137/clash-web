@@ -1,14 +1,13 @@
 #!/bin/bash
 
-root_path=$(dirname "$(realpath "$0")")
-source $root_path/.env
+source .env
 
 generate_minio_ak_sk() {
-  # Generate a random AK (12-character alphanumeric)
-  ACCESS_KEY=$(openssl rand -hex 12 | tr -d '\n')
+  # Generate a random AK (12-character alphanumeric) and clean it
+  ACCESS_KEY=$(openssl rand -hex 12 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9]//g')
 
-  # Generate a random SK (32-character high-strength random string)
-  SECRET_KEY=$(openssl rand -base64 32 | tr -d '\n')
+  # Generate a random SK (32-character high-strength random string) and clean it
+  SECRET_KEY=$(openssl rand -base64 32 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9+/=]//g')
 
   export MINIO_ACCESS_KEY=$ACCESS_KEY
   export MINIO_SECRET_KEY=$SECRET_KEY
@@ -17,7 +16,6 @@ generate_minio_ak_sk() {
 clean() {
   export MINIO_ACCESS_KEY=
   export MINIO_SECRET_KEY=
-  rm -rf "$root_path/docker"
 }
 
 # Function to create a directory and set permissions
@@ -52,18 +50,18 @@ create_dir_with_permission() {
 
 
 add_permission() {
-  # sql 初始化脚本权限
-  chmod 644 "$root_path/init.sql"
+  # Initialize the sql script permission
+  chmod 644 "init.sql"
 
-  create_dir_with_permission "$ROOT_DIR/elasticsearch" 775
-  create_dir_with_permission "$ROOT_DIR/postgresql" 775
-  create_dir_with_permission "$ROOT_DIR/minio" 775
-  create_dir_with_permission "$ROOT_DIR/uploads" 777
+  create_dir_with_permission "elasticsearch" 775
+  create_dir_with_permission "postgresql" 775
+  create_dir_with_permission "minio" 775
+  create_dir_with_permission "uploads" 777
 }
 
 install() {
   cd "$root_path"
-  docker-compose -p nexent -f "$root_path/docker-compose.yml" up -d
+  docker-compose -p nexent -f "docker-compose.yml" up -d
 }
 
 add_permission
