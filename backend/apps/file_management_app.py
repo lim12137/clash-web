@@ -240,7 +240,6 @@ async def get_storage_file(
     try:
         # Get file URL
         result = get_file_url(object_name=object_name, expires=expires)
-        print(result)
         if not result["success"]:
             raise HTTPException(
                 status_code=404,
