@@ -10,7 +10,8 @@ from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from consts.model import ProcessParams
 from consts.const import MAX_CONCURRENT_UPLOADS, UPLOAD_FOLDER
-from utils.file_management_utils import allowed_file, save_upload_file, trigger_data_process, convert_image_to_text
+from utils.file_management_utils import allowed_file, save_upload_file, trigger_data_process
+from utils.image_utils import convert_image_to_text
 from database.attachment_db import (
     upload_fileobj, delete_file, get_file_url, list_files
 )
