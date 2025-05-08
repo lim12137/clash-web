@@ -19,7 +19,7 @@ class GetEmailTool(Tool):
         "subject": {"type": "string", "description": "Filter by subject, optional", "nullable": True},
         "max_emails": {"type": "integer", "description": "Maximum number of emails to retrieve, default is 10",
                        "default": 10, "nullable": True}}
-    output_type = "array"
+    output_type = "string"
 
     def __init__(self, imap_server: str, imap_port: int, username: str, password: str, use_ssl: bool = True,
             timeout: int = 30):
