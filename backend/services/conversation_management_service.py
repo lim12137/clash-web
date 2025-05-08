@@ -116,6 +116,12 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
                             'search_type': result.get('search_type') if result.get('search_type') and result.get(
                                 'search_type') != '' else None, 'tool_sign': result.get('tool_sign', '')}
                         create_source_search(search_data, user_id)
+
+                    # 添加搜索内容占位标记
+                    filtered_message_units.append({
+                        'type': 'search_content_placeholder',
+                        'content': '{"placeholder": true}'
+                    })
                 except Exception as e:
                     logging.error(f"Failed to save search content: {str(e)}")  # Do not add to filtered_message_units if save fails
 

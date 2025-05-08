@@ -14,6 +14,7 @@ from utils.agent_utils import agent_run_thread
 
 from nexent.core.utils.observer import MessageObserver
 
+
 router = APIRouter(prefix="/agent")
 
 
@@ -100,6 +101,3 @@ async def reload_config():
     Manually trigger configuration reload
     """
     return config_manager.force_reload()
-
-
-
