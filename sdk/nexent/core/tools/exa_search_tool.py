@@ -18,10 +18,15 @@ class EXASearchTool(Tool):
 
     inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"
-    tool_sign = "b"  # Used to distinguish different index sources for summarization
+    tool_sign = "b"  # 用于给总结区分不同的索引来源
 
-    def __init__(self, exa_api_key, observer: MessageObserver = None, max_results=5,
-                 image_filter=False, image_filter_threshold: float = 0.4):
+    def __init__(self, exa_api_key:str,
+                 observer: MessageObserver = None,
+                 max_results:int=5,
+                 image_filter:bool=False,
+                 image_filter_model_path:str="",
+                 image_filter_threshold:float=0.4):
+
         super().__init__()
 
         self.observer = observer
@@ -32,7 +37,11 @@ class EXASearchTool(Tool):
         self.record_ops = 0  # Used to record sequence number
 
     def forward(self, query: str) -> str:
-        exa_search_result = self.exa.search_and_contents(query, text={"max_characters": 2000}, livecrawl="always",
+
+
+        exa_search_result = self.exa.search_and_contents(query,
+                                                         text={"max_characters": 2000},
+                                                         livecrawl="always",
             extras={"links": 0, "image_links": 10}, num_results=self.max_results)
 
         if len(exa_search_result.results) == 0:
