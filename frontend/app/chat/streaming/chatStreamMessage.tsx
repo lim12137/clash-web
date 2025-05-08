@@ -1,0 +1,295 @@
+import { useEffect, useRef, useState } from "react"
+import { MarkdownRenderer } from '@/components/ui/markdownRenderer'
+import { ChatMessageType } from '@/types/chat'
+import { Copy, Volume2, ChevronRight, SquareCheckBig, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { FaRegThumbsDown, FaRegThumbsUp } from "react-icons/fa"
+import { useConfig } from "@/hooks/useConfig"
+import { ChatAttachment, AttachmentItem } from '@/app/chat/internal/chatAttachment'
+
+interface StreamMessageProps {
+  message: ChatMessageType
+  onSelectMessage?: (messageId: string) => void
+  isSelected?: boolean
+  searchResultsCount?: number
+  imagesCount?: number
+  onImageClick?: (imageUrl: string) => void
+  onOpinionChange?: (messageId: number, opinion: 'Y' | 'N' | null) => void
+}
+
+export function ChatStreamMessage({
+  message,
+  onSelectMessage,
+  isSelected = false,
+  searchResultsCount = 0,
+  imagesCount = 0,
+  onImageClick,
+  onOpinionChange,
+}: StreamMessageProps) {
+  const { getAppAvatarUrl } = useConfig();
+  const avatarUrl = getAppAvatarUrl(20); // 消息头像大小为 20px
+  
+  const messageRef = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
+  const [localOpinion, setLocalOpinion] = useState<string | null>(message.opinion_flag ?? null);
+  const [isVisible, setIsVisible] = useState(false);
+  
+  // 动画效果 - 消息进入时淡入
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, 10);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 当消息更新时滚动元素到可见区域
+  useEffect(() => {
+    if (message.role === "assistant" && !message.isComplete && messageRef.current) {
+      messageRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [message.content, message.isComplete, message.role]);
+
+  // 更新opinion状态
+  useEffect(() => {
+    setLocalOpinion(message.opinion_flag ?? null);
+  }, [message.opinion_flag]);
+
+  // 复制内容到剪贴板
+  const handleCopyContent = () => {
+    if (message.finalAnswer) {
+      navigator.clipboard.writeText(message.finalAnswer)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch(err => {
+          console.error("复制失败:", err);
+        });
+    }
+  };
+
+  // 处理点赞
+  const handleThumbsUp = () => {
+    const newOpinion = localOpinion === 'Y' ? null : 'Y';
+    setLocalOpinion(newOpinion);
+    if (onOpinionChange && message.message_id) {
+      onOpinionChange(message.message_id, newOpinion as 'Y' | 'N' | null);
+    }
+  };
+
+  // 处理点踩
+  const handleThumbsDown = () => {
+    const newOpinion = localOpinion === 'N' ? null : 'N';
+    setLocalOpinion(newOpinion);
+    if (onOpinionChange && message.message_id) {
+      onOpinionChange(message.message_id, newOpinion as 'Y' | 'N' | null);
+    }
+  };
+
+  // 处理消息选择
+  const handleMessageSelect = () => {
+    if (message.id && onSelectMessage) {
+      onSelectMessage(message.id);
+    }
+  };
+
+  return (
+    <div 
+      ref={messageRef}
+      className={`flex gap-2 mb-6 transition-all duration-500 ${
+        message.role === "user" ? 'flex-row-reverse' : ''
+      } ${!isVisible ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}
+    >
+      {/* 头像部分 - 只为AI助手显示头像 */}
+      {message.role === "assistant" && (
+        <div className="flex-shrink-0">
+          <div className="h-8 w-8 rounded-full overflow-hidden bg-primary/10">
+            <img src={avatarUrl} alt="应用图标" className="h-full w-full object-cover" />
+          </div>
+        </div>
+      )}
+
+      {/* 消息内容部分 */}
+      <div className={`${
+        message.role === "user" 
+          ? 'flex items-end flex-col w-full' 
+          : 'flex-1 max-w-[calc(100%-60px)]'
+      }`}>
+        {/* 用户消息部分 */}
+        {message.role === "user" && (
+          <>
+            {/* 附件部分 - 放在文本上方 */}
+            {message.attachments && message.attachments.length > 0 && (
+              <div className="mb-2 w-full flex justify-end">
+                <div className="max-w-[80%]">
+                  <ChatAttachment 
+                    attachments={message.attachments as AttachmentItem[]} 
+                    onImageClick={onImageClick}
+                    className="justify-end" // 靠右对齐
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* 文本内容 */}
+            {message.content && (
+              <div className="rounded-lg border bg-blue-50 border-blue-100 user-message-container py-2 px-3 ml-auto text-sm">
+                <MarkdownRenderer content={message.content} className="user-message-content" />
+              </div>
+            )}
+          </>
+        )}
+        
+        {/* 助手消息部分 */}
+        {message.role === "assistant" && (
+          <>
+            {/* 附件部分 - 放在文本上方 */}
+            {message.attachments && message.attachments.length > 0 && (
+              <div className="mb-2 w-full">
+                <div className="max-w-[80%]">
+                  <ChatAttachment 
+                    attachments={message.attachments as AttachmentItem[]} 
+                    onImageClick={onImageClick}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* 文本内容 - 流式渲染区域 */}
+            {message.content && (
+              <div className={`rounded-lg border mr-auto bg-white border-gray-200 w-full p-3 text-sm ${
+                !message.isComplete ? 'border-l-4 border-l-blue-400 shadow-sm shadow-blue-100' : ''
+              }`}>
+                <MarkdownRenderer content={message.content} />
+              </div>
+            )}
+
+            {/* 思考中状态 */}
+            {!message.isComplete && message.thinking && message.thinking.length > 0 && (
+              <div className="flex items-center mt-2 ml-2">
+                <Loader2 className="h-4 w-4 animate-spin mr-2 text-blue-500" />
+                <div className="text-sm text-gray-500">
+                  {message.thinking[0].content}
+                </div>
+              </div>
+            )}
+
+            {/* 最终回答 */}
+            {message.finalAnswer && (
+              <div className="mt-4 rounded-lg border border-gray-200 shadow-sm transition-all duration-500">
+                <div className="flex items-center w-full py-2 px-3 font-medium bg-gradient-to-r from-purple-50 to-transparent border-b border-gray-200">
+                  <SquareCheckBig className="h-4 w-4 mr-2 text-purple-500" />
+                  <span className="font-medium">最终回答</span>
+                </div>
+                <div className="px-3 pb-3">
+                  <MarkdownRenderer 
+                    content={message.finalAnswer} 
+                    searchResults={message.searchResults}
+                  />
+                  
+                  {/* 按钮组 */}
+                  <div className="flex items-center justify-between mt-3">
+                    {/* 溯源按钮 */}
+                    {((message.searchResults && message.searchResults.length > 0) || (message.images && message.images.length > 0)) && (
+                      <div className="flex items-center text-xs text-gray-500">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`flex items-center gap-1 p-1 pl-3 hover:bg-gray-100 rounded transition-all duration-200 border border-gray-200 ${
+                            isSelected ? 'bg-gray-100' : ''
+                          }`}
+                          onClick={handleMessageSelect}
+                        >
+                          <span>
+                            {`${searchResultsCount ? `${searchResultsCount}条来源` : ""}${searchResultsCount && imagesCount ? "，" : ""}${imagesCount ? `${imagesCount}张图片` : ""}`}
+                          </span>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* 工具按钮 */}
+                    <div className="flex items-center space-x-2 mt-3 justify-end">
+                      <TooltipProvider>
+                        {/* 复制按钮 */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className={`h-8 w-8 rounded-full bg-white hover:bg-gray-100 transition-all duration-200 shadow-sm ${
+                                copied ? "bg-green-100 text-green-600 border-green-200" : ""
+                              }`}
+                              onClick={handleCopyContent}
+                              disabled={copied}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{copied ? "已复制" : "复制内容"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+
+                        {/* 点赞按钮 */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant={localOpinion === 'Y' ? "secondary" : "outline"}
+                              size="icon"
+                              className={`h-8 w-8 rounded-full ${localOpinion === 'Y' ? 'bg-green-100 text-green-600 border-green-200' : 'bg-white hover:bg-gray-100'} transition-all duration-200 shadow-sm`}
+                              onClick={handleThumbsUp}
+                            >
+                              <FaRegThumbsUp className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{localOpinion === 'Y' ? "取消点赞" : "点赞"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+
+                        {/* 点踩按钮 */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant={localOpinion === 'N' ? "secondary" : "outline"}
+                              size="icon"
+                              className={`h-8 w-8 rounded-full ${localOpinion === 'N' ? 'bg-red-100 text-red-600 border-red-200' : 'bg-white hover:bg-gray-100'} transition-all duration-200 shadow-sm`}
+                              onClick={handleThumbsDown}
+                            >
+                              <FaRegThumbsDown className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{localOpinion === 'N' ? "取消点踩" : "点踩"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+
+                        {/* 语音播报按钮 */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 rounded-full bg-white hover:bg-gray-100 transition-all duration-200 shadow-sm"
+                            >
+                              <Volume2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>语音播报</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+} 
