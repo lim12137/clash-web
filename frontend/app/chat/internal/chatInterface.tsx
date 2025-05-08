@@ -13,10 +13,10 @@ import { useAuth } from "@/hooks/useAuth"
 
 // 在文件顶部添加导入
 import { ChatSidebar } from "@/app/chat/layout/chatLeftSidebar"
-import { ChatInput, FilePreview } from "@/app/chat/layout/chatInput"
+import { FilePreview } from "@/app/chat/layout/chatInput"
 import { ChatHeader } from "@/app/chat/layout/chatHeader"
 import { ChatRightPanel } from "@/app/chat/layout/chatRightPanel"
-import { ChatMain } from "@/app/chat/layout/chatMain"
+import { ChatStreamMain } from "@/app/chat/streaming/chatStreamMain"
 
 // 导入预处理工具函数
 import {
@@ -36,7 +36,7 @@ import { ChatMessageType, AgentStep } from '@/types/chat'
 
 
 // 导入流式处理函数
-import { handleStreamResponse } from "@/app/chat/internal/chatStreamHandler"
+import { handleStreamResponse } from "@/app/chat/streaming/chatStreamHandler"
 import { extractUserMsgFromResponse, extractAssistantMsgFromResponse } from "./extractMsgFromHistoryResponse"
 
 const stepIdCounter = {current: 0};
@@ -303,13 +303,37 @@ export function ChatInterface() {
       let fileDescriptionsMap: Record<string, string> = {};
 
       if (attachments.length > 0) {
-        // 设置thinking状态
+        // 附件预处理步骤，作为 assistant steps 的独立步骤
         setMessages(prev => {
           const newMessages = [...prev];
           const lastMsg = newMessages[newMessages.length - 1];
           if (lastMsg && lastMsg.role === "assistant") {
-            // 创建thinking步骤数组
-            lastMsg.thinking = [createThinkingStep()];
+            if (!lastMsg.steps) lastMsg.steps = [];
+            let step = lastMsg.steps.find(s => s.title === '文件预处理');
+            if (!step) {
+              step = {
+                id: `preprocess-${Date.now()}`,
+                title: '文件预处理',
+                content: '',
+                expanded: true,
+                metrics: '',
+                thinking: { content: '', expanded: false },
+                code: { content: '', expanded: false },
+                output: { content: '', expanded: false },
+                contents: [{
+                  id: `preprocess-content-${Date.now()}`,
+                  type: 'agent_new_run',
+                  content: '正在解析文件…',
+                  expanded: false,
+                  timestamp: Date.now()
+                }]
+              };
+              lastMsg.steps.push(step);
+            } else if (step.contents && step.contents.length > 0) {
+              // 如果已存在，重置内容为初始提示
+              step.contents[0].content = '正在解析文件…';
+              step.contents[0].timestamp = Date.now();
+            }
           }
           return newMessages;
         });
@@ -320,44 +344,54 @@ export function ChatInterface() {
           attachments,
           abortControllerRef.current.signal,
           (jsonData) => {
-            // 预处理进度回调
             setMessages(prev => {
               const newMessages = [...prev];
               const lastMsg = newMessages[newMessages.length - 1];
-
               if (lastMsg && lastMsg.role === "assistant") {
-                // 确保thinking数组存在
-                if (!lastMsg.thinking) {
-                  lastMsg.thinking = [createThinkingStep()];
+                if (!lastMsg.steps) lastMsg.steps = [];
+                // 找到最新的预处理 step
+                let step = lastMsg.steps.find(s => s.title === '文件预处理');
+                if (!step) {
+                  step = {
+                    id: `preprocess-${Date.now()}`,
+                    title: '文件预处理',
+                    content: '',
+                    expanded: true,
+                    metrics: '',
+                    thinking: { content: '', expanded: false },
+                    code: { content: '', expanded: false },
+                    output: { content: '', expanded: false },
+                    contents: [{
+                      id: `preprocess-content-${Date.now()}`,
+                      type: 'agent_new_run',
+                      content: '正在解析文件…',
+                      expanded: false,
+                      timestamp: Date.now()
+                    }]
+                  };
+                  lastMsg.steps.push(step);
                 }
-
-                // 根据不同类型的消息更新内容
-                if (lastMsg.thinking && lastMsg.thinking.length > 0) {
-                  switch (jsonData.type) {
-                    case "progress":
-                      // 更新thinking状态显示进度
-                      lastMsg.thinking[0].content = jsonData.message;
-                      lastMsg.thinking[0].thinking.content = jsonData.message;
-                      break;
-
-                    case "error":
-                      // 更新thinking状态显示错误
-                      lastMsg.thinking[0].content = `解析文件 ${jsonData.filename} 失败: ${jsonData.message}`;
-                      lastMsg.thinking[0].thinking.content = `解析文件 ${jsonData.filename} 失败: ${jsonData.message}`;
-                      break;
-
-                    case "file_processed":
-                      // 更新thinking状态显示文件已处理
-                      lastMsg.thinking[0].content = `文件 ${jsonData.filename} 已解析完成`;
-                      lastMsg.thinking[0].thinking.content = `文件 ${jsonData.filename} 已解析完成`;
-                      break;
-
-                    case "complete":
-                      // 记录最终生成的查询，但不要立即移除thinking状态
-                      lastMsg.thinking[0].content = "文件解析完成，开始分析...";
-                      lastMsg.thinking[0].thinking.content = "文件解析完成，开始分析...";
-                      break;
-                  }
+                let stepContent = '';
+                switch (jsonData.type) {
+                  case "progress":
+                    stepContent = jsonData.message;
+                    break;
+                  case "error":
+                    stepContent = `解析文件 ${jsonData.filename} 失败: ${jsonData.message}`;
+                    break;
+                  case "file_processed":
+                    stepContent = `文件 ${jsonData.filename} 已解析完成`;
+                    break;
+                  case "complete":
+                    stepContent = "文件解析完成";
+                    break;
+                  default:
+                    stepContent = jsonData.message || '';
+                }
+                // 只更新第一个内容，不新增
+                if (step && step.contents && step.contents.length > 0) {
+                  step.contents[0].content = stepContent;
+                  step.contents[0].timestamp = Date.now();
                 }
               }
               return newMessages;
@@ -367,37 +401,20 @@ export function ChatInterface() {
 
         // 处理预处理结果
         if (!result.success) {
-          // 更新错误信息
           setMessages(prev => {
             const newMessages = [...prev];
             const lastMsg = newMessages[newMessages.length - 1];
-
             if (lastMsg && lastMsg.role === "assistant") {
               lastMsg.error = `文件处理失败: ${result.error}`;
-              lastMsg.thinking = undefined; // 移除thinking状态
               lastMsg.isComplete = true;
             }
             return newMessages;
           });
-          return; // 如果预处理失败，直接返回
+          return;
         }
 
-        // 使用预处理后的查询
         finalQuery = result.finalQuery;
-        // 保存文件描述信息
         fileDescriptionsMap = result.fileDescriptions || {};
-
-        // 发送请求到后端API之前，更新thinking状态为"思考中"
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMsg = newMessages[newMessages.length - 1];
-
-          if (lastMsg && lastMsg.role === "assistant" && lastMsg.thinking && lastMsg.thinking.length > 0) {
-            lastMsg.thinking[0].content = "正在思考中...";
-            lastMsg.thinking[0].thinking.content = "正在思考中..";
-          }
-          return newMessages;
-        });
       }
 
       // 发送请求到后端API，添加 signal 参数
@@ -529,11 +546,11 @@ export function ChatInterface() {
     setIsLoading(false);
     setConversationId(-1);
     setIsSwitchedConversation(false);
-    setIsNewConversation(true);
     setConversationTitle("新对话");
     setSelectedConversationId(null);
+    setIsNewConversation(true); // 确保设置为新对话状态
 
-    // 重置消息和步骤 - 使用空数组而不是undefined
+    // 重置消息和步骤
     setMessages([]);
 
     // 重置流式传输状态
@@ -578,7 +595,6 @@ export function ChatInterface() {
     setConversationTitle(dialog.conversation_title)
     setSelectedConversationId(dialog.conversation_id)
     setIsSwitchedConversation(true)
-    setIsNewConversation(false) // 切换现有对话时设置为非新对话状态
 
     // 重置选中的消息ID，确保右侧面板的状态正确
     setSelectedMessageId(undefined)
@@ -837,7 +853,6 @@ export function ChatInterface() {
           onRename={handleConversationRename}
           onDelete={handleConversationDeleteClick}
           onSettingsClick={() => {
-            // 设置一个标志，指示应该显示知识库配置选项卡
             localStorage.setItem('show_kb_config', 'true');
             router.push("/setup");
           }}
@@ -852,50 +867,36 @@ export function ChatInterface() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex flex-1 overflow-hidden">
             <div className="flex-1 flex flex-col">
-              {!isNewConversation && (
-                <ChatHeader
-                  title={conversationTitle}
-                  onShare={() => {
-                    console.log("Share clicked")
-                  }}
-                  onRename={handleTitleRename}
-                />
-              )}
+              <ChatHeader
+                title={conversationTitle}
+                onShare={() => {
+                  console.log("Share clicked")
+                }}
+                onRename={handleTitleRename}
+              />
 
-              {isNewConversation ? (
-                <ChatInput
-                  input={input}
-                  isLoading={isLoading}
-                  isInitialMode={true}
-                  onInputChange={(value) => setInput(value)}
-                  onSend={handleSend}
-                  onStop={handleStop}
-                  onKeyDown={handleKeyDown}
-                  attachments={attachments}
-                  onAttachmentsChange={handleAttachmentsChange}
-                  onFileUpload={handleFileUpload}
-                  onImageUpload={handleImageUpload}
-                />
-              ) : (
-                <ChatMain
-                  messages={messages}
-                  input={input}
-                  isLoading={isLoading}
-                  isStreaming={isStreaming}
-                  onInputChange={(value) => setInput(value)}
-                  onSend={handleSend}
-                  onStop={handleStop}
-                  onKeyDown={handleKeyDown}
-                  onSelectMessage={handleMessageSelect}
-                  selectedMessageId={selectedMessageId}
-                  onImageClick={handleImageClick}
-                  attachments={attachments}
-                  onAttachmentsChange={handleAttachmentsChange}
-                  onFileUpload={handleFileUpload}
-                  onImageUpload={handleImageUpload}
-                  onOpinionChange={handleOpinionChange}
-                />
-              )}
+              <ChatStreamMain
+                messages={messages}
+                input={input}
+                isLoading={isLoading}
+                isStreaming={isStreaming}
+                onInputChange={(value) => setInput(value)}
+                onSend={handleSend}
+                onStop={handleStop}
+                onKeyDown={handleKeyDown}
+                onSelectMessage={handleMessageSelect}
+                selectedMessageId={selectedMessageId}
+                onImageClick={handleImageClick}
+                attachments={attachments}
+                onAttachmentsChange={handleAttachmentsChange}
+                onFileUpload={handleFileUpload}
+                onImageUpload={handleImageUpload}
+                onOpinionChange={handleOpinionChange}
+                isNewConversation={isNewConversation}
+                currentConversationId={conversationId}
+                setConversationTitle={setConversationTitle}
+                fetchConversationList={fetchConversationList}
+              />
 
               {/* Footer */}
               <div className="flex-shrink-0 mt-auto">

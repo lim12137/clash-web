@@ -7,6 +7,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { SearchResult } from '@/types/chat'
+import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
 interface MarkdownRendererProps {
   content: string
@@ -28,7 +29,7 @@ const getBackgroundColor = (toolSign: string) => {
 
 // 替换原来的 LinkIcon 组件
 const CitationBadge = ({ toolSign, citeIndex }: { toolSign: string, citeIndex: number }) => (
-  <span 
+  <span
     className="ds-markdown-cite"
     style={{
       verticalAlign: 'middle',
@@ -197,47 +198,78 @@ const HoverableText = ({ text, searchResults }: {
               <CitationBadge toolSign={toolSign} citeIndex={citeIndex} />
             </span>
           </TooltipTrigger>
-          <TooltipContent 
-            side="top"
-            align="center"
-            sideOffset={5}
-            className="z-[9999] bg-white px-4 py-3 text-sm border shadow-lg max-w-md rounded-2xl"
-            style={{ minWidth: '300px', maxWidth: '500px' }}
-          >
-            <div
-              ref={tooltipRef}
-              className="flex flex-col"
+          {/* 强制 Portal 到 body */}
+          <TooltipPrimitive.Portal>
+            <TooltipContent
+              side="top"
+              align="center"
+              sideOffset={5}
+              className="z-[9999] bg-white px-3 py-2 text-sm border shadow-md max-w-md"
+              style={{
+                '--scrollbar-width': '8px',
+                '--scrollbar-height': '8px',
+                '--scrollbar-track-bg': 'transparent',
+                '--scrollbar-thumb-bg': 'rgb(209, 213, 219)',
+                '--scrollbar-thumb-hover-bg': 'rgb(156, 163, 175)',
+                '--scrollbar-thumb-radius': '9999px'
+              } as React.CSSProperties}
             >
-              {matchedResult ? (
-                <>
-                  <div className="sticky top-0 pb-2 mb-1 border-b border-gray-200 bg-white">
+              <div
+                ref={tooltipRef}
+                className="whitespace-pre-wrap overflow-y-auto"
+                style={{
+                  maxHeight: 240,
+                  minWidth: 200,
+                  maxWidth: 400,
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'var(--scrollbar-thumb-bg) var(--scrollbar-track-bg)'
+                }}
+              >
+                <style jsx>{`
+                  div::-webkit-scrollbar {
+                    width: var(--scrollbar-width);
+                    height: var(--scrollbar-height);
+                  }
+                  div::-webkit-scrollbar-track {
+                    background: var(--scrollbar-track-bg);
+                  }
+                  div::-webkit-scrollbar-thumb {
+                    background: var(--scrollbar-thumb-bg);
+                    border-radius: var(--scrollbar-thumb-radius);
+                  }
+                  div::-webkit-scrollbar-thumb:hover {
+                    background: var(--scrollbar-thumb-hover-bg);
+                  }
+                  @media (prefers-color-scheme: dark) {
+                    div::-webkit-scrollbar-thumb {
+                      background: rgb(55, 65, 81);
+                    }
+                    div::-webkit-scrollbar-thumb:hover {
+                      background: rgb(75, 85, 99);
+                    }
+                  }
+                `}</style>
+                {matchedResult ? (
+                  <>
                     {matchedResult.url && matchedResult.url !== "#" ? (
                       <a
                         href={matchedResult.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-medium text-blue-600 hover:underline block text-base"
+                        className="font-medium mb-1 text-blue-600 hover:underline block"
                         style={{ wordBreak: 'break-all' }}
                       >
                         {matchedResult.title}
                       </a>
                     ) : (
-                      <p className="font-medium text-base">{matchedResult.title}</p>
+                      <p className="font-medium mb-1">{matchedResult.title}</p>
                     )}
-                  </div>
-                  <div 
-                    className="whitespace-pre-wrap overflow-y-auto"
-                    style={{
-                      maxHeight: 200,
-                      padding: '2px'
-                    }}
-                  >
                     <p className="text-gray-600">{matchedResult.text}</p>
-                  </div>
-                </>
-              ) : null}
-            </div>
-          </TooltipContent>
+                  </>
+                ) : null}
+              </div>
+            </TooltipContent>
+          </TooltipPrimitive.Portal>
         </div>
       </Tooltip>
     </TooltipProvider>
@@ -326,94 +358,131 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   };
   
   return (
-    <div className={`markdown-content text-base leading-relaxed space-y-4 ${className || ''}`}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          p: ({children}: any) => (
-            <p className={`my-3 text-base leading-relaxed ${isUserMessage ? 'user-paragraph' : ''}`}>
-              <TextWrapper>{children}</TextWrapper>
-            </p>
-          ),
-          // 标题样式
-          h1: ({children}: any) => <h1 className="text-2xl font-bold my-6"><TextWrapper>{children}</TextWrapper></h1>,
-          h2: ({children}: any) => <h2 className="text-xl font-bold my-5"><TextWrapper>{children}</TextWrapper></h2>,
-          h3: ({children}: any) => <h3 className="text-lg font-bold my-4"><TextWrapper>{children}</TextWrapper></h3>,
-          h4: ({children}: any) => <h4 className="text-base font-bold my-3"><TextWrapper>{children}</TextWrapper></h4>,
-          h5: ({children}: any) => <h5 className="text-sm font-bold my-2"><TextWrapper>{children}</TextWrapper></h5>,
-          h6: ({children}: any) => <h6 className="text-xs font-bold my-2"><TextWrapper>{children}</TextWrapper></h6>,
-          // 列表样式
-          ul: ({children}: any) => <ul className="list-disc ml-5 my-4 text-base leading-relaxed space-y-2">{children}</ul>,
-          ol: ({children}: any) => <ol className="list-decimal ml-5 my-4 text-base leading-relaxed space-y-2">{children}</ol>,
-          // 列表项
-          li: ({children}: any) => (
-            <li className="my-1.5 leading-relaxed">
-              <TextWrapper>{children}</TextWrapper>
-            </li>
-          ),
-          // 代码块样式
-          code({node, inline, className, children, ...props}: any) {
-            const match = /language-(\w+)/.exec(className || '')
-            return !inline && match ? (
-              <SyntaxHighlighter
-                style={customStyle}
-                language={match[1]}
-                PreTag="div"
-                {...props}
-              >
-                {String(children).replace(/\n$/, '')}
-              </SyntaxHighlighter>
-            ) : (
-              <code className={`bg-gray-100 px-1 rounded text-sm ${className || ''}`} {...props}>
-                {children}
-              </code>
-            )
-          },
-          // 粗体文本样式
-          strong: ({children}: any) => <strong className="font-bold"><TextWrapper>{children}</TextWrapper></strong>,
-          // 表格样式
-          table: ({children}: any) => (
-            <div className="overflow-x-auto my-5">
-              <table className="min-w-full border-collapse border border-gray-300 text-base">
-                {children}
-              </table>
-            </div>
-          ),
-          thead: ({children}: any) => <thead className="bg-gray-100">{children}</thead>,
-          tbody: ({children}: any) => <tbody className="leading-relaxed">{children}</tbody>,
-          tr: ({children}: any) => <tr className="border-b border-gray-300">{children}</tr>,
-          th: ({children}: any) => (
-            <th className="px-4 py-3 border border-gray-300 text-left">
-              <TextWrapper>{children}</TextWrapper>
-            </th>
-          ),
-          td: ({children}: any) => (
-            <td className="px-4 py-3 border border-gray-300">
-              <TextWrapper>{children}</TextWrapper>
-            </td>
-          ),
-          // 引用块样式
-          blockquote: ({children}: any) => (
-            <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-4 bg-gray-50 italic text-base leading-relaxed">
-              <TextWrapper>{children}</TextWrapper>
-            </blockquote>
-          ),
-          // 水平线样式
-          hr: () => <hr className="my-6 border-t border-gray-300" />,
-          // 添加链接样式
-          a: ({href, children}: any) => (
-            <a href={href} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
-              <TextWrapper>{children}</TextWrapper>
-            </a>
-          ),
-          // 添加图片样式
-          img: ({src, alt}: any) => (
-            <img src={src} alt={alt} className="max-w-full h-auto my-4 rounded" />
-          ),
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-    </div>
+    <>
+      <style jsx global>{`
+        /* 全局滚动条样式 */
+        .tooltip-content-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgb(209 213 219) transparent;
+        }
+        
+        .tooltip-content-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .tooltip-content-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        .tooltip-content-scroll::-webkit-scrollbar-thumb {
+          background-color: rgb(209 213 219);
+          border-radius: 9999px;
+        }
+        
+        .tooltip-content-scroll::-webkit-scrollbar-thumb:hover {
+          background-color: rgb(156 163 175);
+        }
+        
+        /* 暗色模式 */
+        @media (prefers-color-scheme: dark) {
+          .tooltip-content-scroll::-webkit-scrollbar-thumb {
+            background-color: rgb(55 65 81);
+          }
+          
+          .tooltip-content-scroll::-webkit-scrollbar-thumb:hover {
+            background-color: rgb(75 85 99);
+          }
+        }
+      `}</style>
+      <div className={`markdown-content text-base leading-relaxed space-y-4 ${className || ''}`}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            p: ({children}: any) => (
+              <p className={`my-3 text-base leading-relaxed ${isUserMessage ? 'user-paragraph' : ''}`}>
+                <TextWrapper>{children}</TextWrapper>
+              </p>
+            ),
+            // 标题样式
+            h1: ({children}: any) => <h1 className="text-2xl font-bold my-6"><TextWrapper>{children}</TextWrapper></h1>,
+            h2: ({children}: any) => <h2 className="text-xl font-bold my-5"><TextWrapper>{children}</TextWrapper></h2>,
+            h3: ({children}: any) => <h3 className="text-lg font-bold my-4"><TextWrapper>{children}</TextWrapper></h3>,
+            h4: ({children}: any) => <h4 className="text-base font-bold my-3"><TextWrapper>{children}</TextWrapper></h4>,
+            h5: ({children}: any) => <h5 className="text-sm font-bold my-2"><TextWrapper>{children}</TextWrapper></h5>,
+            h6: ({children}: any) => <h6 className="text-xs font-bold my-2"><TextWrapper>{children}</TextWrapper></h6>,
+            // 列表样式
+            ul: ({children}: any) => <ul className="list-disc ml-5 my-4 text-base leading-relaxed space-y-2">{children}</ul>,
+            ol: ({children}: any) => <ol className="list-decimal ml-5 my-4 text-base leading-relaxed space-y-2">{children}</ol>,
+            // 列表项
+            li: ({children}: any) => (
+              <li className="my-1.5 leading-relaxed">
+                <TextWrapper>{children}</TextWrapper>
+              </li>
+            ),
+            // 代码块样式
+            code({node, inline, className, children, ...props}: any) {
+              const match = /language-(\w+)/.exec(className || '')
+              return !inline && match ? (
+                <SyntaxHighlighter
+                  style={customStyle}
+                  language={match[1]}
+                  PreTag="div"
+                  {...props}
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              ) : (
+                <code className={`bg-gray-100 px-1 rounded text-sm ${className || ''}`} {...props}>
+                  {children}
+                </code>
+              )
+            },
+            // 粗体文本样式
+            strong: ({children}: any) => <strong className="font-bold"><TextWrapper>{children}</TextWrapper></strong>,
+            // 表格样式
+            table: ({children}: any) => (
+              <div className="overflow-x-auto my-5">
+                <table className="min-w-full border-collapse border border-gray-300 text-base">
+                  {children}
+                </table>
+              </div>
+            ),
+            thead: ({children}: any) => <thead className="bg-gray-100">{children}</thead>,
+            tbody: ({children}: any) => <tbody className="leading-relaxed">{children}</tbody>,
+            tr: ({children}: any) => <tr className="border-b border-gray-300">{children}</tr>,
+            th: ({children}: any) => (
+              <th className="px-4 py-3 border border-gray-300 text-left">
+                <TextWrapper>{children}</TextWrapper>
+              </th>
+            ),
+            td: ({children}: any) => (
+              <td className="px-4 py-3 border border-gray-300">
+                <TextWrapper>{children}</TextWrapper>
+              </td>
+            ),
+            // 引用块样式
+            blockquote: ({children}: any) => (
+              <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-4 bg-gray-50 italic text-base leading-relaxed">
+                <TextWrapper>{children}</TextWrapper>
+              </blockquote>
+            ),
+            // 水平线样式
+            hr: () => <hr className="my-6 border-t border-gray-300" />,
+            // 添加链接样式
+            a: ({href, children}: any) => (
+              <a href={href} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                <TextWrapper>{children}</TextWrapper>
+              </a>
+            ),
+            // 添加图片样式
+            img: ({src, alt}: any) => (
+              <img src={src} alt={alt} className="max-w-full h-auto my-4 rounded" />
+            ),
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+    </>
   );
 };
