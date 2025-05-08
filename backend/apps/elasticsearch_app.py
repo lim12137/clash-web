@@ -143,3 +143,17 @@ def health_check(es_core: ElasticSearchCore = Depends(get_es_core)):
         return ElasticSearchService.health_check(es_core)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{str(e)}")
+
+
+@router.get("/{index_name}/summery")
+def summery(
+            index_name: str = Path(..., description="Name of the index to get documents from"),
+            batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
+            es_core: ElasticSearchCore = Depends(get_es_core)
+    ):
+    """Summery Elasticsearch index_name"""
+    try:
+        # Try to list indices as a health check
+        return ElasticSearchService().summery_index_name(index_name=index_name,batch_size=batch_size, es_core=es_core)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{str(e)}")

@@ -16,6 +16,9 @@ from typing import Optional
 import requests
 from nexent.core.models.embedding_model import JinaEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
+from nexent.core.nlp.tokenizer import calculate_term_weights
+from nexent.core.tools import SummaryTool
+from nexent.core.models import OpenAIModel
 from fastapi import HTTPException, Query, Body, Path, Depends
 
 from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST
@@ -23,6 +26,7 @@ from consts.model import IndexingRequest, IndexingResponse, SearchRequest, Hybri
 from utils.agent_utils import config_manager
 from utils.elasticsearch_utils import get_active_tasks_status
 
+YUZHI = 100
 
 # Initialize ElasticSearchCore instance with HTTPS support
 elastic_core = ElasticSearchCore(
@@ -578,3 +582,131 @@ class ElasticSearchService:
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+
+    def summery_index_name(self,
+            index_name: str = Path(..., description="Name of the index to get documents from"),
+            batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
+            es_core: ElasticSearchCore = Depends(get_es_core)
+    ):
+        try:
+            all_documents = ElasticSearchService.get_all_documents(index_name, batch_size, es_core)
+            all_chunks = self._clean_chunks_for_summery(all_documents)
+            keywords_dict = calculate_term_weights(all_chunks)
+            keywords_for_summery = ""
+            for _, key in enumerate(keywords_dict):
+                keywords_for_summery = keywords_for_summery + "、" + key
+            # 调用总结模型
+            # 创建OpenAI模型实例
+            model = OpenAIModel(
+                model_id=os.getenv('LLM_MODEL_NAME'),
+                api_base=os.getenv('LLM_MODEL_URL'),
+                api_key=os.getenv('LLM_API_KEY'),
+                temperature=0.7,
+                top_p=0.95
+            )
+
+            # 创建SummaryTool实例
+            summary_tool = SummaryTool(model=model)
+
+            # 调用总结功能
+            summary_result = summary_tool.forward(
+                query="请总结以下关键词的主要内容：",
+                search_result=[keywords_for_summery]
+            )
+
+            # 存到sql里
+            return summary_result
+
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{str(e)}")
+
+
+    @staticmethod
+    def _clean_chunks_for_summery(all_documents):
+        # 只要这三个字段用于总结
+        # all_contents = []
+        all_chunks = ""
+        for _, chunk in enumerate(all_documents['documents']):
+            # all_contents.append({"title":chunk["title"], "file_name": chunk["filename"], "content": chunk["content"]})
+            all_chunks = all_chunks + "\n" + chunk["title"] + "\n" + chunk["filename"] + "\n" + chunk["content"]
+        return all_chunks
+
+    @staticmethod
+    def get_all_documents(
+            index_name: str = Path(..., description="Name of the index to get documents from"),
+            batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
+            es_core: ElasticSearchCore = Depends(get_es_core)
+    ):
+        """
+        获取指定索引中的所有文档数据
+
+        Args:
+            index_name: 要获取文档的索引名称
+            batch_size: 每批次获取的文档数量，默认1000
+            es_core: ElasticSearchCore实例
+
+        Returns:
+            包含所有文档的列表
+        """
+        sampling_interval = 1
+        try:
+            dounts_count = es_core.get_index_count(index_name)
+            if dounts_count > YUZHI:
+                sampling_interval = int(dounts_count/YUZHI)
+            # 初始化scroll查询
+            query = {
+                "query": {
+                    "match_all": {}
+                },
+                "size": batch_size
+            }
+
+            # 执行初始搜索
+            response = es_core.client.search(
+                index=index_name,
+                body=query,
+                scroll='5m'  # 设置scroll上下文保持时间为5分钟
+            )
+
+            # 获取第一批结果
+            scroll_id = response['_scroll_id']
+            hits = response['hits']['hits']
+            all_documents = []
+
+            # 处理第一批结果
+            sampled_hits = hits[::sampling_interval]  # 每隔10个取一个
+            for hit in sampled_hits:
+                doc = hit['_source']
+                doc['_id'] = hit['_id']  # 添加文档ID
+                all_documents.append(doc)
+
+            # 继续获取后续批次
+            while len(hits) > 0:
+                response = es_core.client.scroll(
+                    scroll_id=scroll_id,
+                    scroll='5m'
+                )
+                scroll_id = response['_scroll_id']
+                hits = response['hits']['hits']
+
+                # 处理当前批次的结果
+                sampled_hits = hits[::sampling_interval]  # 每隔10个取一个
+                for hit in sampled_hits:
+                    doc = hit['_source']
+                    doc['_id'] = hit['_id']  # 添加文档ID
+                    all_documents.append(doc)
+
+            # 清理scroll上下文
+            es_core.client.clear_scroll(scroll_id=scroll_id)
+
+            return {
+                "total": len(all_documents),
+                "documents": all_documents
+            }
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error retrieving documents from index {index_name}: {str(e)}"
+            )
