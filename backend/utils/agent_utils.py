@@ -1,5 +1,5 @@
 import time
-
+import logging
 from threading import Lock, Thread
 from typing import List, Dict
 
@@ -63,6 +63,7 @@ def agent_run_thread(observer, query, history=None):
     try:
         mcp_host = config_manager.get_config("MCP_SERVICE")
         agent_create_json = config_manager.get_config("AGENT_CREATE_FILE")
+        logging.info(f"mcp_host: {mcp_host}")
 
         with ToolCollection.from_mcp({"url": mcp_host}) as tool_collection:
             factory = AgentCreateFactory(observer=observer,

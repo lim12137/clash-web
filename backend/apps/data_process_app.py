@@ -7,7 +7,7 @@ from fastapi import HTTPException, APIRouter
 
 from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTaskRequest, SimpleTaskStatusResponse, \
     SimpleTasksListResponse
-from utils.task_status_utils import TaskStatusUtil
+from utils.task_status_utils import format_status_for_api, get_status_display
 
 # Configure logging
 logger = logging.getLogger("data_process.service")
@@ -120,8 +120,8 @@ class DataProcessService:
             if not task:
                 raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
 
-            # Get status and convert to lowercase - using utility class
-            status = TaskStatusUtil.format_status_for_api(task["status"])
+            # Get status and convert to lowercase - using utility function
+            status = format_status_for_api(task["status"])
 
             return SimpleTaskStatusResponse(
                 id=task["id"],
@@ -139,7 +139,7 @@ class DataProcessService:
             task_responses = []
             for task in tasks:
                 # Use unified status conversion method
-                status = TaskStatusUtil.format_status_for_api(task["status"])
+                status = format_status_for_api(task["status"])
 
                 task_responses.append(
                     SimpleTaskStatusResponse(
@@ -178,7 +178,7 @@ class DataProcessService:
                 raise HTTPException(status_code=404, detail="Task not found")
 
             # Use utility method to get formatted task status information
-            return TaskStatusUtil.get_status_display(task)
+            return get_status_display(task)
 
         return router
 

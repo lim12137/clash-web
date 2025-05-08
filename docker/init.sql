@@ -1,8 +1,8 @@
 -- 1. 创建自定义 Schema（如果不存在）
-CREATE SCHEMA IF NOT EXISTS agent_engine;
+CREATE SCHEMA IF NOT EXISTS nexent;
 
 -- 2. 切换到该 Schema（后续操作默认在此 Schema 下）
-SET search_path TO agent_engine;
+SET search_path TO nexent;
 
 CREATE TABLE "conversation_message_t" (
   "message_id" SERIAL,
@@ -170,7 +170,7 @@ CREATE TABLE "model_record_t" (
   "update_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "updated_by" varchar(100) COLLATE "pg_catalog"."default",
   "created_by" varchar(100) COLLATE "pg_catalog"."default",
-  CONSTRAINT "agent_engine_models_t_pk" PRIMARY KEY ("model_id")
+  CONSTRAINT "nexent_models_t_pk" PRIMARY KEY ("model_id")
 );
 ALTER TABLE "model_record_t" OWNER TO "root";
 COMMENT ON COLUMN "model_record_t"."model_id" IS '模型ID，唯一主键';
@@ -191,5 +191,5 @@ COMMENT ON COLUMN "model_record_t"."updated_by" IS '最后更新人ID，审计�
 COMMENT ON COLUMN "model_record_t"."created_by" IS '创建人ID，审计字段';
 COMMENT ON TABLE "model_record_t" IS '用户在配置页面定义的模型清单';
 
-INSERT INTO "agent_engine"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'tts_model', 'OpenAI-API-Compatible', 'tts', '', '', 0, 0, 'Volcano TTS', '不可用');
-INSERT INTO "agent_engine"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'stt_model', 'OpenAI-API-Compatible', 'stt', '', '', 0, 0, 'Volcano STT', '不可用');
+INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'tts_model', 'OpenAI-API-Compatible', 'tts', '', '', 0, 0, 'Volcano TTS', '不可用');
+INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'stt_model', 'OpenAI-API-Compatible', 'stt', '', '', 0, 0, 'Volcano STT', '不可用');

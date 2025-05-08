@@ -11,7 +11,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -t nexent/nexent-base -f 
 docker buildx build --platform linux/amd64,linux/arm64 -t nexent/nexent -f make/main/Dockerfile . --push
 
 # 📊 build data_process for multiple architectures
-docker buildx build --platform linux/amd64,linux/arm64 -t nexent/nexent-data-process -f make/dataprocess/Dockerfile . --push
+docker buildx build --platform linux/amd64,linux/arm64 -t nexent/nexent-data-process -f make/data_process/Dockerfile . --push
 ```
 
 ### 💻 Local Development Build
@@ -24,7 +24,7 @@ docker build -t nexent/nexent-base -f make/base/Dockerfile .
 docker build -t nexent/nexent -f make/main/Dockerfile .
 
 # 📊 Build data process image (current architecture only)
-docker build -t nexent/nexent-data-process -f make/dataprocess/Dockerfile .
+docker build -t nexent/nexent-data-process -f make/data_process/Dockerfile .
 ```
 
 ### 🧹 Clean up Docker resources
