@@ -3,7 +3,7 @@ import logging
 import requests
 from nexent.core import MessageObserver
 from nexent.core.models import OpenAIModel, OpenAIVLModel
-from nexent.core.models.embedding_model import JinaEmbedding
+from nexent.core.models.embedding_model import JinaEmbedding, OpenAICompatibleEmbedding
 
 from apps.voice_app import VoiceService
 from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
@@ -42,8 +42,10 @@ async def check_model_connectivity(model_name: str):
         connectivity: bool
         # Test connectivity based on different model types
         if model_type == "embedding":
-            # TODO: Implement non-Jina model instantiation in the future
-            connectivity = JinaEmbedding(api_key=model_api_key).check_connectivity()
+            connectivity = OpenAICompatibleEmbedding(model_name=model_name, base_url=model_base_url, api_key=model_api_key, embedding_dim=1024).check_connectivity()
+
+        elif model_type == "multi_embedding":
+            connectivity = JinaEmbedding(model_name=model_name, base_url=model_base_url, api_key=model_api_key, embedding_dim=1024).check_connectivity()
 
         elif model_type == "llm":
             observer = MessageObserver()
