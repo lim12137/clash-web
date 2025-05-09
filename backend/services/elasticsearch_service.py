@@ -17,15 +17,14 @@ import requests
 from nexent.core.models.embedding_model import JinaEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from nexent.core.nlp.tokenizer import calculate_term_weights
-from nexent.core.tools import SummaryTool
-from nexent.core.models import OpenAIModel
+from nexent.core.utils.title_generator import generate_knowledge_summery
 from fastapi import HTTPException, Query, Body, Path, Depends
 
 from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST
 from consts.model import IndexingRequest, SearchRequest, HybridSearchRequest
 from utils.agent_utils import config_manager
 from utils.elasticsearch_utils import get_active_tasks_status
-
+from database.knowledge_db import create_knowledge_record, get_knowledge_by_name, update_knowledge_record
 YUZHI = 100
 
 # Initialize ElasticSearchCore instance with HTTPS support
@@ -51,7 +50,8 @@ class ElasticSearchService:
     def create_index(
             index_name: str = Path(..., description="Name of the index to create"),
             embedding_dim: Optional[int] = Query(None, description="Dimension of the embedding vectors"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
+            es_core: ElasticSearchCore = Depends(get_es_core),
+            user_id: Optional[str] = Body(None, description="ID of the user creating the knowledge base"),
     ):
         """
         创建新的向量索引
@@ -67,33 +67,55 @@ class ElasticSearchService:
         try:
             success = es_core.create_vector_index(index_name, embedding_dim)
 
-            if success:
-                return {
-                    "status": "success",
-                    "message": f"Index {index_name} created successfully",
-                    "embedding_dim": embedding_dim or es_core.embedding_dim
-                }
-            else:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to create index {index_name}"
-                )
-
         except Exception as e:
             raise HTTPException(
                 status_code=500,
                 detail=f"Error creating index: {str(e)}"
             )
 
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create index {index_name}"
+            )
+        # 创建知识库成功后，将新建的知识库信息存到知识库表中
+        knowledge_data = {'index_name': index_name}
+        try:
+            knowledge_id = create_knowledge_record(knowledge_data, user_id)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error add index{index_name} to sql: {str(e)}"
+            )
+
+        return {
+            "status": "success",
+            "message": f"Index {index_name} created successfully",
+            "embedding_dim": embedding_dim or es_core.embedding_dim
+        }
+
     @staticmethod
     def delete_index(
             index_name: str = Path(..., description="Name of the index to delete"),
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
-        success = es_core.delete_index(index_name)
-        if not success:
-            raise HTTPException(status_code=404, detail=f"Index {index_name} not found or could not be deleted")
-        return {"status": "success", "message": f"Index {index_name} deleted successfully"}
+        try:
+            # First delete the index in Elasticsearch
+            success = es_core.delete_index(index_name)
+            if not success:
+                raise HTTPException(status_code=404, detail=f"Index {index_name} not found or could not be deleted")
+
+            # Update the delete_flag in knowledge record table
+            knowledge_record = get_knowledge_by_name(index_name)
+            if knowledge_record:
+                update_data = {
+                    "delete_flag": "Y", # Set status to unavailable
+                }
+                update_knowledge_record(knowledge_record["knowledge_id"], update_data)
+
+            return {"status": "success", "message": f"Index {index_name} deleted successfully"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error deleting index: {str(e)}")
 
     @staticmethod
     def list_indices(
@@ -595,28 +617,18 @@ class ElasticSearchService:
             keywords_for_summery = ""
             for _, key in enumerate(keywords_dict):
                 keywords_for_summery = keywords_for_summery + "、" + key
-            # 调用总结模型
-            # 创建OpenAI模型实例
-            model = OpenAIModel(
-                model_id=os.getenv('LLM_MODEL_NAME'),
-                api_base=os.getenv('LLM_MODEL_URL'),
-                api_key=os.getenv('LLM_API_KEY'),
-                temperature=0.7,
-                top_p=0.95
-            )
 
             # 创建SummaryTool实例
-            summary_tool = SummaryTool(model=model)
+            summary_result = generate_knowledge_summery(keywords_for_summery)
 
-            # 调用总结功能
-            summary_result = summary_tool.forward(
-                query="请总结以下关键词的主要内容：",
-                search_result=[keywords_for_summery]
-            )
-
+            knowledge_record = get_knowledge_by_name(index_name)
+            if knowledge_record:
+                update_data = {
+                    "knowledge_describe": summary_result,  # Set status to unavailable
+                }
+                update_knowledge_record(knowledge_record["knowledge_id"], update_data)
             # 存到sql里
-            return summary_result
-
+            return {"status": "success", "message": f"Index {index_name} summery successfully"}
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{str(e)}")

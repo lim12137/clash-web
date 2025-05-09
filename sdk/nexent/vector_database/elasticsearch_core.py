@@ -103,7 +103,7 @@ class ElasticSearchCore:
             # Check if index already exists
             if self.client.indices.exists(index=index_name):
                 print(f"Index {index_name} already exists, skipping creation")
-                return True
+                return False
                 
             # Define the mapping with vector field
             mappings = {

@@ -5,6 +5,7 @@ from consts.model import IndexingRequest, IndexingResponse, SearchRequest, Hybri
 
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core
+from database.knowledge_db import create_knowledge_record
 router = APIRouter(prefix="/indices")
 
 
@@ -12,11 +13,13 @@ router = APIRouter(prefix="/indices")
 def create_new_index(
         index_name: str = Path(..., description="Name of the index to create"),
         embedding_dim: Optional[int] = Query(None, description="Dimension of the embedding vectors"),
+        user_id: Optional[str] = Body(None, description="ID of the user creating the knowledge base"),
         es_core: ElasticSearchCore = Depends(get_es_core)
 ):
-    """Create a new vector index"""
+    """Create a new vector index and store it in the knowledge table"""
     try:
-        return ElasticSearchService.create_index(index_name, embedding_dim, es_core)
+        # Create the index in Elasticsearch
+        return ElasticSearchService.create_index(index_name, embedding_dim, es_core, user_id)
     except Exception as e:
         raise HTTPException(
             status_code=500,

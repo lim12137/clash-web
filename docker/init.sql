@@ -193,3 +193,25 @@ COMMENT ON TABLE "model_record_t" IS '用户在配置页面定义的模型清单
 
 INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'tts_model', 'OpenAI-API-Compatible', 'tts', '', '', 0, 0, 'Volcano TTS', '不可用');
 INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'stt_model', 'OpenAI-API-Compatible', 'stt', '', '', 0, 0, 'Volcano STT', '不可用');
+
+CREATE TABLE "knowledge_record_t" (
+  "knowledge_id" SERIAL,
+  "index_name" varchar(100) COLLATE "pg_catalog"."default",
+  "knowledge_describe" varchar(300) COLLATE "pg_catalog"."default",
+  "create_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
+  "update_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
+  "delete_flag" varchar(1) COLLATE "pg_catalog"."default" DEFAULT 'N'::character varying,
+  "updated_by" varchar(100) COLLATE "pg_catalog"."default",
+  "created_by" varchar(100) COLLATE "pg_catalog"."default",
+  CONSTRAINT "knowledge_record_t_pk" PRIMARY KEY ("knowledge_id")
+);
+ALTER TABLE "knowledge_record_t" OWNER TO "root";
+COMMENT ON COLUMN "knowledge_record_t"."knowledge_id" IS '知识库ID，唯一主键';
+COMMENT ON COLUMN "knowledge_record_t"."index_name" IS '知识库名字';
+COMMENT ON COLUMN "knowledge_record_t"."knowledge_describe" IS '知识库描述';
+COMMENT ON COLUMN "knowledge_record_t"."create_time" IS '创建时间，审计字段';
+COMMENT ON COLUMN "knowledge_record_t"."update_time" IS '更新日期，审计字段';
+COMMENT ON COLUMN "knowledge_record_t"."delete_flag" IS '用户前端删除后，删除标识将被置为true，达到数据软删除的效果。可选值Y/N';
+COMMENT ON COLUMN "knowledge_record_t"."updated_by" IS '最后更新人ID，审计字段';
+COMMENT ON COLUMN "knowledge_record_t"."created_by" IS '创建人ID，审计字段';
+COMMENT ON TABLE "knowledge_record_t" IS '记录知识库的描述和状态等信息';

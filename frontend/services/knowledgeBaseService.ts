@@ -120,6 +120,7 @@ class KnowledgeBaseService {
           name: params.name,
           description: params.description || "",
           embeddingModel: params.embeddingModel || "",
+          userId: params.userId || "",  // 添加用户ID
         }),
       });
 
