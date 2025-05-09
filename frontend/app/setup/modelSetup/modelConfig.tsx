@@ -57,13 +57,14 @@ const modelData = {
     ],
   },
   embedding: {
-    title: "Embedding模型",
+    title: "向量化模型",
     options: [
       { id: "embedding", name: "向量模型" },
+      { id: "multi_embedding", name: "多模态向量模型" },
     ],
   },
   reranker: {
-    title: "Reranker模型",
+    title: "重排模型",
     options: [
       { id: "reranker", name: "重排模型" },
     ],
@@ -71,14 +72,14 @@ const modelData = {
   multimodal: {
     title: "多模态模型",
     options: [
-      { id: "vlm", name: "VLM模型" },
+      { id: "vlm", name: "视觉语言模型" },
     ],
   },
   voice: {
     title: "语音模型",
     options: [
-      { id: "tts", name: "TTS模型" },
-      { id: "stt", name: "STT模型" },
+      { id: "tts", name: "语音合成模型" },
+      { id: "stt", name: "语音识别模型" },
     ],
   },
 }
@@ -107,7 +108,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   // 错误状态管理
   const [errorFields, setErrorFields] = useState<{[key: string]: boolean}>({
     'llm.main': false,
-    'embedding.embedding': false
+    'embedding.embedding': false,
+    'embedding.multi_embedding': false
   })
   
   // 用于取消API请求的控制器
@@ -118,7 +120,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   // 模型选择状态
   const [selectedModels, setSelectedModels] = useState<Record<string, Record<string, string>>>({
     llm: { main: "", secondary: "" },
-    embedding: { embedding: "" },
+    embedding: { embedding: "", multi_embedding: "" },
     reranker: { reranker: "" },
     multimodal: { vlm: "" },
     voice: { tts: "", stt: "" },
@@ -247,6 +249,9 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       const embedding = modelConfig.embedding.modelName
       const embeddingExists = embedding ? allModels.some(m => m.name === embedding && m.type === 'embedding') : true
 
+      const multiEmbedding = modelConfig.multiEmbedding.modelName
+      const multiEmbeddingExists = multiEmbedding ? allModels.some(m => m.name === multiEmbedding && m.type === 'multi_embedding') : true
+
       const rerank = modelConfig.rerank.modelName
       const rerankExists = rerank ? allModels.some(m => m.name === rerank && m.type === 'rerank') : true
 
@@ -266,7 +271,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           secondary: llmSecondaryExists ? llmSecondary : ""
         },
         embedding: {
-          embedding: embeddingExists ? embedding : ""
+          embedding: embeddingExists ? embedding : "",
+          multi_embedding: multiEmbeddingExists ? multiEmbedding : ""
         },
         reranker: {
           reranker: rerankExists ? rerank : ""
@@ -298,6 +304,10 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         configUpdates.embedding = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
       }
 
+      if (!multiEmbeddingExists && multiEmbedding) {
+        configUpdates.multiEmbedding = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
+      }
+
       if (!rerankExists && rerank) {
         configUpdates.rerank = { modelName: "", displayName: "" }
       }
@@ -324,6 +334,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         !!modelConfig.llm.modelName ||
         !!modelConfig.llmSecondary.modelName ||
         !!modelConfig.embedding.modelName ||
+        !!modelConfig.multiEmbedding.modelName ||
         !!modelConfig.rerank.modelName ||
         !!modelConfig.vlm.modelName ||
         !!modelConfig.tts.modelName ||
@@ -392,6 +403,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         currentSelectedModels.llm.main = modelConfig.llm.modelName;
         currentSelectedModels.llm.secondary = modelConfig.llmSecondary.modelName;
         currentSelectedModels.embedding.embedding = modelConfig.embedding.modelName;
+        currentSelectedModels.embedding.multi_embedding = modelConfig.multiEmbedding.modelName || "";
         currentSelectedModels.reranker.reranker = modelConfig.rerank.modelName;
         currentSelectedModels.multimodal.vlm = modelConfig.vlm.modelName;
         currentSelectedModels.voice.tts = modelConfig.tts.modelName;
@@ -432,6 +444,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
             modelType = "rerank";
           } else if (category === "multimodal") {
             modelType = "vlm";
+          } else if (category === "embedding") {
+            modelType = optionId === "multi_embedding" ? "multi_embedding" : "embedding";
           }
 
           // 查找模型在officialData或customData中
@@ -601,6 +615,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       modelType = 'rerank';
     } else if (category === 'multimodal') {
       modelType = 'vlm';
+    } else if (category === 'embedding') {
+      modelType = option === 'multi_embedding' ? 'multi_embedding' : 'embedding';
     }
 
     const modelInfo = [...officialModels, ...customModels].find(
@@ -625,6 +641,17 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           apiKey: modelInfo.apiKey,
           modelUrl: modelInfo.apiUrl || '',
         } : undefined
+      }
+    } else if (category === "embedding") {
+      const modelKey = option === 'multi_embedding' ? 'multiEmbedding' : 'embedding';
+      configUpdate[modelKey] = {
+        modelName: value,
+        displayName: displayName,
+        apiConfig: modelInfo?.apiKey ? {
+          apiKey: modelInfo.apiKey,
+          modelUrl: modelInfo.apiUrl || '',
+        } : undefined,
+        dimension: modelInfo?.maxTokens || undefined
       }
     } else if (category === "reranker") {
       configUpdate.rerank = { 
@@ -805,7 +832,15 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
                     {category.options.map((option) => (
                       <ModelListCard
                         key={option.id}
-                        type={key === "voice" ? (option.id === "tts" ? "tts" : "stt") : key === "multimodal" ? "vlm" : key as ModelType}
+                        type={
+                          key === "voice" 
+                            ? (option.id === "tts" ? "tts" : "stt") 
+                            : key === "multimodal" 
+                              ? "vlm" 
+                              : (key === "embedding" && option.id === "multi_embedding") 
+                                ? "multi_embedding" 
+                                : key as ModelType
+                        }
                         modelId={option.id}
                         modelName={option.name}
                         selectedModel={selectedModels[key]?.[option.id] || ""}
