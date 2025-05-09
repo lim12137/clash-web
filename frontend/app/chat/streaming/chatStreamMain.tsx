@@ -327,45 +327,6 @@ export function ChatStreamMain({
     return isStreaming && isLastMessageFromUser;
   };
 
-  // 在消息更新时检查是否需要生成标题
-  useEffect(() => {
-    const generateTitle = async () => {
-      // 如果是新对话的第一次回答完成，生成标题
-      if (isNewConversation && processedMessages.finalMessages.length === 2 && currentConversationId && setConversationTitle && fetchConversationList) {
-        try {
-          // 准备对话历史
-          const history = processedMessages.finalMessages.map(msg => ({
-            role: msg.role as 'user' | 'assistant',
-            content: msg.role === 'assistant' ? (msg.finalAnswer || msg.content || '') : (msg.content || '')
-          }));
-
-          // 调用生成标题接口
-          const title = await conversationService.generateTitle({
-            conversation_id: currentConversationId,
-            history
-          });
-          
-          // 更新对话上方标题
-          if (title) {
-            setConversationTitle(title);
-          }
-          
-          // 更新列表
-          await fetchConversationList();
-        } catch (error) {
-          console.error("生成标题失败:", error);
-        }
-      }
-    };
-
-    // 延迟执行以确保状态已更新
-    const timer = setTimeout(() => {
-      generateTitle();
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [processedMessages.finalMessages.length, isNewConversation, currentConversationId, setConversationTitle, fetchConversationList]);
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
       {/* 主要消息区域 */}
