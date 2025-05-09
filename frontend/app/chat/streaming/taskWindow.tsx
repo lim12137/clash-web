@@ -14,7 +14,7 @@ const iconMap: Record<string, React.ReactNode> = {
   "file": <FileText size={16} className="mr-2" color="#4b5563" />,
   "globe": <Globe size={16} className="mr-2" color="#4b5563" />,
   "zap": <Zap size={16} className="mr-2" color="#4b5563" />,
-  // 添加更多图标映射...
+  "knowledge": <FileText size={16} className="mr-2" color="#4b5563" />,
   "default": <HelpCircle size={16} className="mr-2" color="#4b5563" /> // 默认图标
 };
 
@@ -70,14 +70,22 @@ const messageHandlers: MessageHandler[] = [
       // 处理网站信息用于显示
       const siteInfos = searchResults.map((result: any) => {
         const pageUrl = result.url || "";
+        const filename = result.filename || "";
         let domain = "未知来源";
         let displayName = "未知来源";
         let baseUrl = "";
         let faviconUrl = "";
         let useDefaultIcon = false;
+        let isKnowledgeBase = false;
         
-        // 解析URL
-        if (pageUrl) {
+        // 如果有文件名，说明是本地知识库的内容
+        if (filename) {
+          isKnowledgeBase = true;
+          displayName = filename;
+          useDefaultIcon = true;
+        }
+        // 否则尝试解析URL
+        else if (pageUrl) {
           try {
             const parsedUrl = new URL(pageUrl);
             baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
@@ -102,7 +110,15 @@ const messageHandlers: MessageHandler[] = [
           useDefaultIcon = true;
         }
         
-        return { domain, displayName, faviconUrl, url: pageUrl, useDefaultIcon };
+        return { 
+          domain, 
+          displayName, 
+          faviconUrl, 
+          url: pageUrl, 
+          useDefaultIcon, 
+          isKnowledgeBase,
+          filename 
+        };
       });
       
       // 渲染搜索结果信息条
@@ -147,8 +163,8 @@ const messageHandlers: MessageHandler[] = [
                     fontSize: "0.75rem",
                     color: "#4b5563",
                     border: "1px solid #e5e7eb",
-                    cursor: "pointer", /* 添加指针样式表明可点击 */
-                    transition: "background-color 0.2s" /* 添加过渡效果 */
+                    cursor: site.url ? "pointer" : "default", /* 只有在有URL时才显示指针样式 */
+                    transition: site.url ? "background-color 0.2s" : "none" /* 只有在有URL时才有hover效果 */
                   }}
                   onClick={() => {
                     if (site.url) {
@@ -156,14 +172,24 @@ const messageHandlers: MessageHandler[] = [
                     }
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#f3f4f6"; /* 悬停时变色 */
+                    if (site.url) {
+                      e.currentTarget.style.backgroundColor = "#f3f4f6"; /* 只有在有URL时才有hover效果 */
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "#f9fafb"; /* 恢复原色 */
+                    if (site.url) {
+                      e.currentTarget.style.backgroundColor = "#f9fafb";
+                    }
                   }}
-                  title={`访问 ${site.domain}`} /* 使用完整域名作为提示文字 */
+                  title={site.url ? `访问 ${site.domain}` : site.filename} /* 根据类型显示不同的提示文字 */
                 >
-                  {site.useDefaultIcon ? (
+                  {site.isKnowledgeBase ? (
+                    <FileText 
+                      size={16} 
+                      className="mr-2"
+                      color="#6b7280"
+                    />
+                  ) : site.useDefaultIcon ? (
                     <Globe 
                       size={16} 
                       className="mr-2"
@@ -321,14 +347,22 @@ const messageHandlers: MessageHandler[] = [
       // 处理网站信息用于显示
       const siteInfos = searchResults.map((result: any) => {
         const pageUrl = result.url || "";
+        const filename = result.filename || "";
         let domain = "未知来源";
         let displayName = "未知来源";
         let baseUrl = "";
         let faviconUrl = "";
         let useDefaultIcon = false;
+        let isKnowledgeBase = false;
         
-        // 解析URL
-        if (pageUrl) {
+        // 如果有文件名，说明是本地知识库的内容
+        if (filename) {
+          isKnowledgeBase = true;
+          displayName = filename;
+          useDefaultIcon = true;
+        }
+        // 否则尝试解析URL
+        else if (pageUrl) {
           try {
             const parsedUrl = new URL(pageUrl);
             baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
@@ -353,7 +387,15 @@ const messageHandlers: MessageHandler[] = [
           useDefaultIcon = true;
         }
         
-        return { domain, displayName, faviconUrl, url: pageUrl, useDefaultIcon };
+        return { 
+          domain, 
+          displayName, 
+          faviconUrl, 
+          url: pageUrl, 
+          useDefaultIcon, 
+          isKnowledgeBase,
+          filename 
+        };
       });
       
       // 渲染搜索结果信息条
@@ -398,8 +440,8 @@ const messageHandlers: MessageHandler[] = [
                     fontSize: "0.75rem",
                     color: "#4b5563",
                     border: "1px solid #e5e7eb",
-                    cursor: "pointer", /* 添加指针样式表明可点击 */
-                    transition: "background-color 0.2s" /* 添加过渡效果 */
+                    cursor: site.url ? "pointer" : "default", /* 只有在有URL时才显示指针样式 */
+                    transition: site.url ? "background-color 0.2s" : "none" /* 只有在有URL时才有hover效果 */
                   }}
                   onClick={() => {
                     if (site.url) {
@@ -407,14 +449,24 @@ const messageHandlers: MessageHandler[] = [
                     }
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#f3f4f6"; /* 悬停时变色 */
+                    if (site.url) {
+                      e.currentTarget.style.backgroundColor = "#f3f4f6"; /* 只有在有URL时才有hover效果 */
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "#f9fafb"; /* 恢复原色 */
+                    if (site.url) {
+                      e.currentTarget.style.backgroundColor = "#f9fafb";
+                    }
                   }}
-                  title={`访问 ${site.domain}`} /* 使用完整域名作为提示文字 */
+                  title={site.url ? `访问 ${site.domain}` : site.filename} /* 根据类型显示不同的提示文字 */
                 >
-                  {site.useDefaultIcon ? (
+                  {site.isKnowledgeBase ? (
+                    <FileText 
+                      size={16} 
+                      className="mr-2"
+                      color="#6b7280"
+                    />
+                  ) : site.useDefaultIcon ? (
                     <Globe 
                       size={16} 
                       className="mr-2"

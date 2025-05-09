@@ -353,3 +353,23 @@ few_shots: |-
   answer = "太阳从东边升起。"
   final_answer(answer)
   ```<end_code>
+
+  ---
+  任务："请帮我查询一下我的邮箱，我需要查看一下我的邮件。"
+
+  思考：这是一个需要使用邮箱工具的问题，请使用get_email_tool工具查询我的邮箱，并使用summary_content工具生成最终回答。
+  代码：
+  ```py
+  email_info = get_email_tool(query="请帮我查询一下我的邮箱，我需要查看一下我的邮件。")
+  print(email_info)
+  ```<end_code>
+
+  观察结果：
+  [我的邮箱信息]
+
+  思考：现在我将使用summary_content工具生成最终回答。
+  代码：
+  ```py
+  answer = summary_content(query="请帮我查询一下我的邮箱，我需要查看一下我的邮件。", search_result=[email_info])
+  final_answer(answer)
+  ```<end_code>
