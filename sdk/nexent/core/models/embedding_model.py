@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Optional
 
 import requests
 
@@ -11,7 +11,7 @@ class BaseEmbedding(ABC):
     """
 
     @abstractmethod
-    def __init__(self, model_name: str = None, base_url: str = None, api_key: str = None):
+    def __init__(self, model_name: str = None, base_url: str = None, api_key: str = None, embedding_dim: int = None):
         """
         初始化嵌入模型。
 
@@ -19,17 +19,19 @@ class BaseEmbedding(ABC):
             model_name: Embedding模型的名称
             base_url: Embedding API的基础URL
             api_key: Embedding API的密钥
+            embedding_dim: 嵌入向量的维度
         """
         pass
 
     @abstractmethod
-    def get_embeddings(self, inputs: list, with_metadata: bool = False) -> Union[List[List[float]], Dict[str, Any]]:
+    def get_embeddings(self, inputs, with_metadata: bool = False, timeout: Optional[float] = None) -> Union[List[List[float]], Dict[str, Any]]:
         """
-        获取输入列表的嵌入向量。
+        获取输入的嵌入向量。
         
         Args:
             inputs: 希望执行嵌入的对象
             with_metadata: 是否返回包含元数据的完整响应
+            timeout: 请求超时时间，单位为秒
             
         Returns:
             如果with_metadata为False，返回嵌入向量列表；否则，返回包含嵌入和元数据的字典
@@ -50,13 +52,65 @@ class BaseEmbedding(ABC):
         pass
 
 
-class JinaEmbedding(BaseEmbedding):
-    def __init__(self, api_key: str):
-        """Initialize JinaEmbedding with configuration from environment variables."""
+class TextEmbedding(BaseEmbedding):
+    """
+    文本嵌入模型的抽象类，专门处理文本的向量化任务。
+    输入格式为字符串或字符串数组。
+    """
+    
+    @abstractmethod
+    def __init__(self, model_name: str = None, base_url: str = None, api_key: str = None, embedding_dim: int = None):
+        super().__init__(model_name, base_url, api_key, embedding_dim)
+    
+    @abstractmethod
+    def get_embeddings(self, inputs: Union[str, List[str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[List[List[float]], Dict[str, Any]]:
+        """
+        获取文本输入的嵌入向量。
+        
+        Args:
+            inputs: 文本字符串或文本字符串列表
+            with_metadata: 是否返回包含元数据的完整响应
+            timeout: 请求超时时间，单位为秒
+            
+        Returns:
+            如果with_metadata为False，返回嵌入向量列表；否则，返回包含嵌入和元数据的字典
+        """
+        pass
+
+
+class MultimodalEmbedding(BaseEmbedding):
+    """
+    多模态嵌入模型的抽象类，可以处理文本、图像、视频等多类型向量化任务。
+    输入格式为包含类型信息的字典列表List[Dict[str, str]]。
+    """
+    
+    @abstractmethod
+    def __init__(self, model_name: str = None, base_url: str = None, api_key: str = None, embedding_dim: int = None):
+        super().__init__(model_name, base_url, api_key, embedding_dim)
+    
+    @abstractmethod
+    def get_embeddings(self, inputs: List[Dict[str, str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[List[List[float]], Dict[str, Any]]:
+        """
+        获取多模态输入的嵌入向量。
+        
+        Args:
+            inputs: 包含类型信息的字典列表，例如[{"text": "内容"}, {"image": "图片URL"}]
+            with_metadata: 是否返回包含元数据的完整响应
+            timeout: 请求超时时间，单位为秒
+            
+        Returns:
+            如果with_metadata为False，返回嵌入向量列表；否则，返回包含嵌入和元数据的字典
+        """
+        pass
+
+
+class JinaEmbedding(MultimodalEmbedding):
+    def __init__(self, api_key: str, base_url: str = "https://api.jina.ai/v1/embeddings", model_name: str = "jina-clip-v2", embedding_dim: int = 1024):
+        """Initialize JinaEmbedding with configuration."""
         self.api_key = api_key
-        self.api_url = "https://api.jina.ai/v1/embeddings"
-        self.model = "jina-clip-v2"
-        self.embedding_dim = 1024
+        self.api_url = base_url
+        self.model = model_name
+        self.embedding_dim = embedding_dim
 
         self.headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
 
@@ -64,7 +118,7 @@ class JinaEmbedding(BaseEmbedding):
         """Prepare the input data for the API request."""
         return {"model": self.model, "input": inputs}
 
-    def _make_request(self, data: Dict[str, Any], timeout: float = None) -> Dict[str, Any]:
+    def _make_request(self, data: Dict[str, Any], timeout: Optional[float] = None) -> Dict[str, Any]:
         """
         Make the API request and return the response.
         
@@ -79,7 +133,7 @@ class JinaEmbedding(BaseEmbedding):
         response.raise_for_status()
         return response.json()
 
-    def get_embeddings(self, inputs: List[Dict[str, str]], with_metadata: bool = False, timeout: float = None) -> Union[
+    def get_embeddings(self, inputs: List[Dict[str, str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[
         List[List[float]], Dict[str, Any]]:
         """
         Get embeddings for a list of inputs (text or image URLs).
@@ -122,7 +176,7 @@ class JinaEmbedding(BaseEmbedding):
         """
         try:
             # 创建一个简单的测试输入
-            test_input = [{"text": "hw"}]
+            test_input = [{"text": "Hello, nexent!"}]
 
             # 尝试获取嵌入向量，设置超时时间
             embeddings = self.get_embeddings(test_input, timeout=timeout)
@@ -141,20 +195,24 @@ class JinaEmbedding(BaseEmbedding):
             return False
 
 
-class OpenAIBaseEmbedding(BaseEmbedding):
-    def __init__(self, model_name: str, base_url: str, api_key: str):
-        """Initialize OpenAIBaseEmbedding with configuration from environment variables or provided parameters."""
+class OpenAICompatibleEmbedding(TextEmbedding):
+    def __init__(self, model_name: str, base_url: str, api_key: str, embedding_dim: int):
+        """Initialize OpenAICompatibleEmbedding with configuration from environment variables or provided parameters."""
         self.api_key = api_key
         self.api_url = base_url
         self.model_name = model_name
+        self.embedding_dim = embedding_dim
 
         self.headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
 
-    def _prepare_input(self, inputs: List[str]) -> Dict[str, Any]:
+    def _prepare_input(self, inputs: Union[str, List[str]]) -> Dict[str, Any]:
         """Prepare the input data for the API request."""
+        # 确保输入总是列表格式
+        if isinstance(inputs, str):
+            inputs = [inputs]
         return {"model": self.model_name, "input": inputs}
 
-    def _make_request(self, data: Dict[str, Any], timeout: float = None) -> Dict[str, Any]:
+    def _make_request(self, data: Dict[str, Any], timeout: Optional[float] = None) -> Dict[str, Any]:
         """
         Make the API request and return the response.
         
@@ -169,13 +227,13 @@ class OpenAIBaseEmbedding(BaseEmbedding):
         response.raise_for_status()
         return response.json()
 
-    def get_embeddings(self, inputs: List[str], with_metadata: bool = False, timeout: float = None) -> Union[
+    def get_embeddings(self, inputs: Union[str, List[str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[
         List[List[float]], Dict[str, Any]]:
         """
-        Get embeddings for a list of inputs (text).
+        Get embeddings for text inputs.
         
         Args:
-            inputs: List of text strings
+            inputs: 单个文本字符串或文本字符串列表
             with_metadata: Whether to return the full response with metadata or just a list of embedding vectors
             timeout: 请求超时时间，单位为秒
             
@@ -203,7 +261,7 @@ class OpenAIBaseEmbedding(BaseEmbedding):
             bool: 连接成功返回True，失败或超时返回False
         """
         try:
-            test_input = ["hw"]
+            test_input = "Hello, nexent!"
 
             # 尝试获取嵌入向量，设置超时时间
             embeddings = self.get_embeddings(test_input, timeout=timeout)
