@@ -225,7 +225,17 @@ export class ConfigStore {
         apiConfig: {
           apiKey: backendConfig.models.embedding?.apiConfig?.apiKey || "",
           modelUrl: backendConfig.models.embedding?.apiConfig?.modelUrl || ""
-        }
+        },
+        dimension: backendConfig.models.embedding?.dimension || 0
+      },
+      multiEmbedding: {
+        modelName: backendConfig.models.multiEmbedding?.modelName || "",
+        displayName: backendConfig.models.multiEmbedding?.displayName || "",
+        apiConfig: {
+          apiKey: backendConfig.models.multiEmbedding?.apiConfig?.apiKey || "",
+          modelUrl: backendConfig.models.multiEmbedding?.apiConfig?.modelUrl || ""
+        },
+        dimension: backendConfig.models.multiEmbedding?.dimension || 0
       },
       rerank: {
         modelName: backendConfig.models.rerank?.modelName || "",

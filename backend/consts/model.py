@@ -91,12 +91,14 @@ class SingleModelConfig(BaseModel):
     modelName: str
     displayName: str
     apiConfig: Optional[ModelApiConfig] = None
+    dimension: Optional[int] = None
 
 
 class ModelConfig(BaseModel):
     llm: SingleModelConfig
     llmSecondary: SingleModelConfig
     embedding: SingleModelConfig
+    multiEmbedding: SingleModelConfig
     rerank: SingleModelConfig
     vlm: SingleModelConfig
     stt: SingleModelConfig
