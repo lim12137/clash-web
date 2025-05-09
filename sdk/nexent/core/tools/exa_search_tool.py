@@ -4,6 +4,7 @@ import threading
 
 from exa_py import Exa
 from smolagents.tools import Tool
+from pydantic import Field
 
 from ..utils import MessageObserver, ProcessType
 from ..utils.image_filter import AsyncImageProcessor, LabelSet
@@ -20,12 +21,12 @@ class EXASearchTool(Tool):
     output_type = "string"
     tool_sign = "b"  # 用于给总结区分不同的索引来源
 
-    def __init__(self, exa_api_key:str,
-                 observer: MessageObserver = None,
-                 max_results:int=5,
-                 image_filter:bool=False,
-                 image_filter_model_path:str="",
-                 image_filter_threshold:float=0.4):
+    def __init__(self, exa_api_key:str=Field(description="key"),
+                 observer: MessageObserver=Field(description="键", default=None, exclude=True),
+                 max_results:int=Field(description="最大检索个数", default=5),
+                 image_filter:bool=Field(description="是否开启图片过滤", default=False),
+                 image_filter_model_path:str=Field(description="模型路径", default=""),
+                 image_filter_threshold:float=Field(description="图片过滤阈值", default=0.4)):
 
         super().__init__()
 
@@ -38,12 +39,6 @@ class EXASearchTool(Tool):
         self.running_prompt = "网络检索中..."
 
     def forward(self, query: str) -> str:
-
-
-        exa_search_result = self.exa.search_and_contents(query,
-                                                         text={"max_characters": 2000},
-                                                         livecrawl="always",
-            extras={"links": 0, "image_links": 10}, num_results=self.max_results)
         # 发送工具运行消息
         if self.observer:
             self.observer.add_message("", ProcessType.TOOL, self.running_prompt)
