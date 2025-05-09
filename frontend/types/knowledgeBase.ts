@@ -25,6 +25,7 @@ export interface KnowledgeBaseCreateParams {
   description: string;
   source?: string;
   embeddingModel?: string;
+  userId?: string;
 }
 
 // 文档类型

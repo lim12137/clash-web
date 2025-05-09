@@ -71,3 +71,50 @@ def generate_title(history: List[Dict[str, str]]) -> str:
     response = llm(messages)
 
     return response.content.strip()
+
+def load_knowledge_prompts() -> Dict[str, str]:
+    """
+    加载知识库总结的提示词
+
+    Returns:
+        Dict[str, str]: 包含system和user提示词的字典
+    """
+    current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    prompt_path = os.path.join(current_dir, "prompts", "knowledge_summery_generator.yaml")
+
+    with open(prompt_path, 'r', encoding='utf-8') as f:
+        prompts = yaml.safe_load(f)
+
+    return prompts['knowledge_summery_generator']
+
+
+def generate_knowledge_summery(keywords: str) -> str:
+    """
+    根据关键词生成知识库总结
+
+    Args:
+        keywords: 知识库内容中高频出现的关键词
+
+    Returns:
+        str: 生成知识库总结
+    """
+
+    # 加载环境变量
+    load_dotenv()
+
+    # 加载提示词
+    prompts = load_knowledge_prompts()
+
+    # 创建OpenAIServerModel实例
+    llm = OpenAIServerModel(model_id=os.getenv('LLM_SECONDARY_MODEL_NAME'),
+        api_base=os.getenv('LLM_SECONDARY_MODEL_URL'), api_key=os.getenv('LLM_SECONDARY_API_KEY'), temperature=0.3,
+        top_p=0.95)
+
+    # 构建消息
+    messages = [{"role": "system", "content": prompts['system']},
+        {"role": "user", "content": prompts['user'].format(content=keywords)}]
+
+    # 调用模型
+    response = llm(messages)
+
+    return response.content.strip()
