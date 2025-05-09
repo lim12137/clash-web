@@ -257,7 +257,7 @@ function BusinessLogicInput({ value, onChange, onGenerate, selectedAgents, onSav
   };
   
   return (
-    <div className="flex flex-col bg-white rounded-lg border border-gray-200 p-4 h-[40%]">
+    <div className="flex flex-col p-4 h-[40%]">
       <h2 className="text-lg font-medium mb-2">业务逻辑描述</h2>
       <div className="flex flex-col flex-1">
         <TextArea
@@ -294,7 +294,7 @@ function BusinessLogicInput({ value, onChange, onGenerate, selectedAgents, onSav
  */
 function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent }: SubAgentPoolProps) {
   return (
-    <div className="flex flex-col bg-white rounded-lg border border-gray-200 p-4 overflow-hidden h-[30%]">
+    <div className="flex flex-col p-4 overflow-hidden h-[30%]">
       <h2 className="text-lg font-medium mb-2">Agent池</h2>
       <div className="grid grid-cols-2 gap-1 overflow-y-auto custom-scrollbar h-[200px] border-t pt-2 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 shadow-[inset_0_5px_5px_-5px_rgba(0,0,0,0.2)]">
         {mockAgents.map((agent) => (
@@ -360,7 +360,7 @@ function ToolPool({ selectedTools, onSelectTool }: ToolPoolProps) {
   };
 
   return (
-    <div className="flex flex-col bg-white rounded-lg border border-gray-200 p-4 overflow-hidden h-[30%]">
+    <div className="flex flex-col p-4 overflow-hidden h-[30%]">
       <h2 className="text-lg font-medium mb-2">工具池</h2>
       <div className="grid grid-cols-3 gap-2 overflow-y-auto custom-scrollbar h-[200px] border-t pt-2 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 shadow-[inset_0_5px_5px_-5px_rgba(0,0,0,0.2)]">
         {mockTools.map((tool) => (
@@ -494,7 +494,7 @@ export default function BusinessLogicConfig({
   };
 
   return (
-    <div className="flex flex-col w-full gap-2 overflow-hidden">
+    <div className="flex flex-col w-full gap-2 overflow-hidden mt-[-16px]">
       <SubAgentPool
         selectedAgents={selectedAgents}
         onSelectAgent={(agent, isSelected) => {

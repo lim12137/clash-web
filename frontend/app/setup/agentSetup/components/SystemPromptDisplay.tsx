@@ -16,7 +16,7 @@ export interface SystemPromptDisplayProps {
  */
 export default function SystemPromptDisplay({ prompt, isGenerating, onPromptChange }: SystemPromptDisplayProps) {
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg border border-gray-200 p-4">
+    <div className="flex flex-col h-full">
       <h2 className="text-lg font-medium mb-2">系统提示词</h2>
       <div className="flex-grow overflow-hidden">
         <TextArea
