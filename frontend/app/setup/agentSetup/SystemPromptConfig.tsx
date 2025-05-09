@@ -1,9 +1,11 @@
 "use client"
 
 import { useState } from 'react'
-import { message } from 'antd'
+import { message, Typography } from 'antd'
 import SystemPromptDisplay from './components/SystemPromptDisplay'
 import AdditionalRequestInput from './components/AdditionalRequestInput'
+
+const { Text } = Typography
 
 // 主组件Props接口
 interface SystemPromptConfigProps {
@@ -27,18 +29,23 @@ export default function SystemPromptConfig({
   }
 
   return (
-    <div className="flex flex-col w-full h-full gap-4 overflow-hidden">
+    <div className="flex flex-col h-full gap-4 pl-4">
       <div className="flex-grow overflow-hidden">
-        <SystemPromptDisplay 
-          prompt={systemPrompt} 
-          isGenerating={isGenerating} 
-          onPromptChange={setSystemPrompt} 
-        />
+        <div className="h-full">
+          <SystemPromptDisplay 
+            prompt={systemPrompt} 
+            isGenerating={isGenerating} 
+            onPromptChange={setSystemPrompt} 
+          />
+        </div>
       </div>
       <div className="flex-shrink-0 mt-auto">
-        <AdditionalRequestInput 
-          onSend={handleSendAdditionalRequest} 
-        />
+        <div>
+          <Text className="text-sm text-gray-500 mb-2 block">附加请求</Text>
+          <AdditionalRequestInput 
+            onSend={handleSendAdditionalRequest} 
+          />
+        </div>
       </div>
     </div>
   )

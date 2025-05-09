@@ -247,6 +247,7 @@ export default function CreatePage() {
       onBackToFirstPage={handleBackToFirstPage}
       onCompleteConfig={handleCompleteConfig}
       isSavingConfig={isSavingConfig}
+      showDebugButton={selectedKey === "3"}
     >
       {renderContent()}
     </Layout>

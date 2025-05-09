@@ -35,39 +35,35 @@ function AgentDebugging({ question, answer, onAskQuestion }: AgentDebuggingProps
   }
   
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg border border-gray-200 p-4">
-      <h2 className="text-lg font-medium mb-2">应用调试</h2>
-      
-      <div className="flex flex-col gap-4 h-full">
-        <div className="flex flex-col gap-2 flex-grow overflow-hidden">
-          <div className="flex flex-col gap-3 h-full">
-            <div className="flex flex-col gap-1">
-              <Text className="text-sm text-gray-500">用户提问</Text>
-              <div className="border rounded-md p-3 bg-gray-50 min-h-[40px] text-sm">
-                {question || "尚未提问"}
-              </div>
+    <div className="flex flex-col h-full p-4">
+      <div className="flex flex-col gap-4 flex-grow overflow-hidden">
+        <div className="flex flex-col gap-3 h-full">
+          <div className="flex flex-col gap-1">
+            <Text className="text-sm text-gray-500">用户提问</Text>
+            <div className="border rounded-md p-3 bg-gray-50 min-h-[40px] text-sm">
+              {question || "尚未提问"}
             </div>
-            
-            <div className="flex flex-col gap-1 flex-grow overflow-hidden">
-              <Text className="text-sm text-gray-500">Agent回答</Text>
-              <div className="border rounded-md p-3 bg-gray-50 h-full overflow-y-auto text-sm custom-scrollbar">
-                {answer || "等待回答..."}
-              </div>
+          </div>
+          
+          <div className="flex flex-col gap-1 flex-grow overflow-hidden">
+            <Text className="text-sm text-gray-500">Agent回答</Text>
+            <div className="border rounded-md p-3 bg-gray-50 h-full overflow-y-auto text-sm custom-scrollbar">
+              {answer || "等待回答..."}
             </div>
           </div>
         </div>
-        
-        <div className="flex gap-2 mt-auto">
-          <Input
-            value={inputQuestion}
-            onChange={(e) => setInputQuestion(e.target.value)}
-            placeholder="输入测试问题..."
-            onPressEnter={handleSend}
-          />
-          <Button type="primary" onClick={handleSend}>
-            <SendOutlined />
-          </Button>
-        </div>
+      </div>
+      
+      <div className="flex gap-2 mt-4">
+        <Input
+          value={inputQuestion}
+          onChange={(e) => setInputQuestion(e.target.value)}
+          placeholder="输入测试问题..."
+          onPressEnter={handleSend}
+        />
+        <Button type="primary" onClick={handleSend}>
+          <SendOutlined />
+        </Button>
       </div>
     </div>
   )
@@ -93,7 +89,7 @@ export default function DebugConfig({
   }
 
   return (
-    <div className="w-full h-full overflow-hidden">
+    <div className="w-full h-full bg-white">
       <AgentDebugging 
         question={testQuestion} 
         answer={testAnswer} 
