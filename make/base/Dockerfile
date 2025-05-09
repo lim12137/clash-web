@@ -16,5 +16,5 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install
 # Install Python dependencies
 COPY backend/requirements.txt /opt/backend/requirements.txt
 COPY sdk /opt/sdk
-RUN cd /opt/sdk && pip install .
+RUN cd /opt/sdk && pip install . -i https://mirrors.aliyun.com/pypi/simple
 RUN pip install --user --no-cache-dir -r /opt/backend/requirements.txt -i https://mirrors.aliyun.com/pypi/simple

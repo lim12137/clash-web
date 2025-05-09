@@ -4,7 +4,10 @@ const next = require('next');
 const { createProxyServer } = require('http-proxy');
 
 const dev = process.env.NODE_ENV !== 'production';
-const app = next({ dev });
+const app = next({ 
+  dev,
+  hostname: 'localhost'
+});
 const handle = app.getRequestHandler();
 const wsHandle = app.getUpgradeHandler();
 
@@ -41,7 +44,7 @@ app.prepare().then(() => {
     }
   });
 
-  server.listen(PORT, () => {
+  server.listen(PORT, 'localhost', () => {
     console.log(`> Ready on http://localhost:${PORT}`);
   });
 });
