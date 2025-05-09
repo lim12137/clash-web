@@ -9,7 +9,7 @@ export type ModelConnectStatus = "未检测" | "检测中" | "可用" | "不可�
 export type ModelSource = "official" | "custom"
 
 // 模型类型
-export type ModelType = "llm" | "embedding" | "rerank" | "stt" | "tts" | "vlm"
+export type ModelType = "llm" | "embedding" | "rerank" | "stt" | "tts" | "vlm" | "multi_embedding"
 
 // 配置存储键名
 export const APP_CONFIG_KEY = 'app';
@@ -48,7 +48,17 @@ export const defaultConfig: GlobalConfig = {
       apiConfig: {
         apiKey: "",
         modelUrl: "",
-      }
+      },
+      dimension: 0
+    },
+    multiEmbedding: {
+      modelName: "",
+      displayName: "",
+      apiConfig: {
+        apiKey: "",
+        modelUrl: "",
+      },
+      dimension: 0
     },
     rerank: {
       modelName: "",
@@ -111,6 +121,7 @@ export interface SingleModelConfig {
   modelName: string
   displayName: string
   apiConfig?: ModelApiConfig
+  dimension?: number  // 只用于 embedding 和 multiEmbedding 模型
 }
 
 // 模型配置接口
@@ -118,6 +129,7 @@ export interface ModelConfig {
   llm: SingleModelConfig
   llmSecondary: SingleModelConfig
   embedding: SingleModelConfig
+  multiEmbedding: SingleModelConfig
   rerank: SingleModelConfig
   vlm: SingleModelConfig
   stt: SingleModelConfig

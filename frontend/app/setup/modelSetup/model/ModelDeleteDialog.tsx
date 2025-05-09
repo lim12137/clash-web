@@ -29,14 +29,16 @@ export const ModelDeleteDialog = ({
         return { bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-100" }
       case "embedding":
         return { bg: "bg-green-50", text: "text-green-600", border: "border-green-100" }
+      case "multi_embedding":
+        return { bg: "bg-teal-50", text: "text-teal-600", border: "border-teal-100" }
       case "rerank":
         return { bg: "bg-purple-50", text: "text-purple-600", border: "border-purple-100" }
-      case "stt":
-        return { bg: "bg-yellow-50", text: "text-yellow-600", border: "border-yellow-100" }
-      case "tts":
-        return { bg: "bg-red-50", text: "text-red-600", border: "border-red-100" }
       case "vlm":
-        return { bg: "bg-indigo-50", text: "text-indigo-600", border: "border-indigo-100" }
+        return { bg: "bg-yellow-50", text: "text-yellow-600", border: "border-yellow-100" }
+      case "stt":
+        return { bg: "bg-red-50", text: "text-red-600", border: "border-red-100" }
+      case "tts":
+        return { bg: "bg-pink-50", text: "text-pink-600", border: "border-pink-100" }
       default:
         return { bg: "bg-gray-50", text: "text-gray-600", border: "border-gray-100" }
     }
@@ -49,6 +51,8 @@ export const ModelDeleteDialog = ({
         return "🤖"
       case "embedding":
         return "🔢"
+      case "multi_embedding":
+        return "🖼️🔢"
       case "rerank":
         return "🔍"
       case "stt":
@@ -68,9 +72,11 @@ export const ModelDeleteDialog = ({
       case "llm":
         return "大语言模型"
       case "embedding":
-        return "Embedding模型"
+        return "文本向量模型"
+      case "multi_embedding":
+        return "多模态向量模型"
       case "rerank":
-        return "Rerank模型"
+        return "重排模型"
       case "stt":
         return "语音识别模型"
       case "tts":
@@ -100,6 +106,10 @@ export const ModelDeleteDialog = ({
       
       if (modelConfig.embedding.modelName === modelName) {
         configUpdates.embedding = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
+      }
+      
+      if (modelConfig.multiEmbedding.modelName === modelName) {
+        configUpdates.multiEmbedding = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
       }
       
       if (modelConfig.rerank.modelName === modelName) {
@@ -176,7 +186,7 @@ export const ModelDeleteDialog = ({
           <p className="text-sm text-gray-600 mb-4">请选择要删除的模型类型：</p>
 
           <div className="grid grid-cols-1 gap-2">
-            {(["llm", "embedding", "rerank", "vlm", "stt", "tts"] as ModelType[]).map((type) => {
+            {(["llm", "embedding", "multi_embedding", "rerank", "vlm", "stt", "tts"] as ModelType[]).map((type) => {
               const customModelsByType = customModels.filter((model) => model.type === type)
               const colorScheme = getModelColorScheme(type)
 
