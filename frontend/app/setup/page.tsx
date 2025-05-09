@@ -200,18 +200,6 @@ export default function CreatePage() {
           return // 中断跳转
         }
         
-        // 检查向量模型
-        if (!currentConfig.models.embedding.modelName) {
-          message.error("请选择向量模型")
-          
-          // 触发自定义事件，通知ModelConfigSection将向量模型下拉框标记为错误
-          window.dispatchEvent(new CustomEvent('highlightMissingField', {
-            detail: { field: 'embedding.embedding' }
-          }))
-          
-          return // 中断跳转
-        }
-        
         // 所有必填项都已填写，允许跳转到第二页
         setSelectedKey("2")
 
