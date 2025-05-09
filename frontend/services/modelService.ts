@@ -317,13 +317,20 @@ export const modelService = {
 
   // 将ModelOption转换为SingleModelConfig
   convertToSingleModelConfig: (modelOption: ModelOption): SingleModelConfig => {
-    return {
+    const config: SingleModelConfig = {
       modelName: modelOption.name,
       displayName: modelOption.displayName || modelOption.name,
       apiConfig: modelOption.apiKey ? {
         apiKey: modelOption.apiKey,
         modelUrl: modelOption.apiUrl || '',
       } : undefined
+    };
+    
+    // For embedding models, copy maxTokens to dimension
+    if (modelOption.type === 'embedding' || modelOption.type === 'multi_embedding') {
+      config.dimension = modelOption.maxTokens;
     }
+    
+    return config;
   }
 } 
