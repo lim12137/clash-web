@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { message } from "antd"
 import AppModelConfig from "./modelSetup/config"
 import DataConfig from "./knowledgeBaseSetup/KnowledgeBaseManager"
+import AgentConfig from "./agentSetup/AgentConfig"
 import { configStore } from "@/lib/config"
 import { configService } from "@/services/configService"
 import knowledgeBaseService from "@/services/knowledgeBaseService"
@@ -135,6 +136,8 @@ export default function CreatePage() {
         return <AppModelConfig skipModelVerification={isFromSecondPage} />
       case "2":
         return <DataConfig />
+      case "3":
+        return <AgentConfig />
       default:
         return null
     }
@@ -142,7 +145,7 @@ export default function CreatePage() {
 
   // 处理完成配置
   const handleCompleteConfig = async () => {
-    if (selectedKey === "2") {
+    if (selectedKey === "3") {
       setIsSavingConfig(true)
       try {
         // 获取当前全局配置
@@ -164,6 +167,9 @@ export default function CreatePage() {
       } finally {
         setIsSavingConfig(false)
       }
+    } else if (selectedKey === "2") {
+      // 从第二页跳转到第三页
+      setSelectedKey("3")
     } else if (selectedKey === "1") {
       // 从第一页跳转到第二页时验证必填项
       try {
@@ -220,7 +226,9 @@ export default function CreatePage() {
 
   // 处理用户切换到第一页的逻辑
   const handleBackToFirstPage = () => {
-    if (selectedKey === "2") {
+    if (selectedKey === "3") {
+      setSelectedKey("2")
+    } else if (selectedKey === "2") {
       setSelectedKey("1")
       // 设置标志，表示用户是从第二页返回第一页
       setIsFromSecondPage(true)
