@@ -1,4 +1,4 @@
-FROM nexent/nexent-base
+FROM nexent/nexent-base-commercial
 
 # Set correct permissions as root
 USER root
