@@ -6,7 +6,7 @@ from smolagents.tools import Tool
 
 from ..utils import MessageObserver, ProcessType
 from ..utils.tools_common_message import SearchResultTextMessage
-
+from pydantic import Field
 
 class KnowledgeBaseSearchTool(Tool):
     """支持中英文的知识库检索工具。
@@ -22,10 +22,10 @@ class KnowledgeBaseSearchTool(Tool):
 
     tool_sign = "a"  # 用于给总结区分不同的索引来源
 
-    def __init__(self, index_names: List[str],
-                 base_url: str,
-                 top_k: int = 5,
-                 observer: MessageObserver = None):
+    def __init__(self, index_names: List[str]=Field(description="知识库索引名称列表"),
+                 base_url: str=Field(description="知识库服务地址"),
+                 top_k: int = Field(description="返回结果数量", default=5),
+                 observer: MessageObserver = Field(description="消息观察者", default=None, exclude=True)):
         """Initialize the KBSearchTool.
         
         Args:
