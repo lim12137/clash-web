@@ -10,14 +10,14 @@ NODE_ENV=production npm run build
 # Create distribution directory
 mkdir -p ./nexent-dist
 
-# Copy the standalone output (using output: 'standalone' config)
-cp -r .next/standalone/* ./nexent-dist/
-
-# Copy the entire .next directory
+# Copy the .next directory
 cp -r .next ./nexent-dist/
 
 # Copy public folder
 cp -r public ./nexent-dist/
+
+# Copy our custom server.js
+cp server.js ./nexent-dist/server.js
 
 # Create optimized package.json
 cat > ./nexent-dist/package.json << EOL
@@ -39,7 +39,7 @@ cat > ./nexent-dist/package.json << EOL
 EOL
 
 # Install dependencies
-cd ../nexent-dist
+cd nexent-dist
 npm install --omit=dev --production
 
 echo "Deployment package created in nexent-dist directory" 
