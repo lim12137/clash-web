@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 
 from .client import get_db_session, as_dict
-from .db_models import ToolInfo, AgentInfo, UserAgent
+from .db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
 
 
 def update_tools(tools):
@@ -105,15 +105,65 @@ def update_agent(agent_id, agent_info):
             setattr(agent, key, value)
 
 
-def create_user_agent(agent_info):
+def create_or_update_user_agent(agent_info, tenant_id: str = None, user_id: str = None):
     """
-    Create a new user agent in the database.
+    Create or update a user agent in the database.
     :param agent_info: Dictionary containing user agent information
-    :return: Created user agent object
+    :param tenant_id: Optional tenant ID for filtering
+    :param user_id: Optional user ID for merging
+    :return: Created or updated user agent object
     """
     with get_db_session() as session:
-        new_user_agent = UserAgent(**agent_info)
-        new_user_agent.delete_flag = 'N'
-        session.add(new_user_agent)
+        user_agent = session.query(UserAgent).filter(
+            UserAgent.tenant_id == tenant_id,
+            UserAgent.user_id == user_id,
+            UserAgent.agent_id == agent_info['agent_id'],
+            UserAgent.delete_flag != 'Y'
+        ).first()
+        if not user_agent:
+            new_user_agent = UserAgent(**agent_info)
+            new_user_agent.delete_flag = 'N'
+            session.add(new_user_agent)
+            session.flush()
+            return as_dict(new_user_agent)
+
+        for key, value in agent_info.items():
+            setattr(user_agent, key, value)
+
+
+def create_or_update_tool(tool_info, tenant_id: str, agent_id: int, user_id: str = None):
+    """
+    Create or update a ToolInstance in the database based on tenant_id and agent_id, optional user_id.
+
+    :param tool_info: Dictionary containing tool information
+    :param tenant_id: Tenant ID for filtering, mandatory
+    :param user_id: Optional user ID for filtering
+    :param agent_id: Optional agent ID for filtering
+    :return: Created or updated ToolInstance object
+    """
+    # Add tenant_id and user_id to tool_info
+    tool_info['tenant_id'] = tenant_id
+    tool_info['user_id'] = user_id
+
+    with get_db_session() as session:
+        # Query if there is an existing ToolInstance
+        query = session.query(ToolInstance).filter(ToolInstance.tenant_id == tenant_id).filter(
+            ToolInstance.agent_id == agent_id)
+        if user_id:
+            query = query.filter(ToolInstance.user_id == user_id)
+
+        tool_instance = query.first()
+
+        if tool_instance:
+            # Update the existing ToolInstance
+            for key, value in tool_info.items():
+                if hasattr(tool_instance, key):
+                    setattr(tool_instance, key, value)
+        else:
+            # Create a new ToolInstance
+            new_tool_instance = ToolInstance(**tool_info)
+            session.add(new_tool_instance)
+            tool_instance = new_tool_instance
+
         session.flush()
-        return as_dict(new_user_agent)
+        return tool_instance
