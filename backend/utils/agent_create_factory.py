@@ -6,7 +6,7 @@ import yaml
 from nexent.core.agents import CoreAgent
 from nexent.core.models import OpenAIModel
 from nexent.core.utils import MessageObserver
-from nexent.core.tools import EXASearchTool, SummaryTool, KnowledgeBaseSearchTool # not remove
+from nexent.core.tools import *
 
 from utils.config_utils import config_manager
 

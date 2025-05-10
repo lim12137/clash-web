@@ -6,7 +6,6 @@ const { createProxyServer } = require('http-proxy');
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ 
   dev,
-  hostname: 'localhost'
 });
 const handle = app.getRequestHandler();
 const wsHandle = app.getUpgradeHandler();
@@ -44,7 +43,7 @@ app.prepare().then(() => {
     }
   });
 
-  server.listen(PORT, 'localhost', () => {
+  server.listen(PORT, () => {
     console.log(`> Ready on http://localhost:${PORT}`);
   });
 });
