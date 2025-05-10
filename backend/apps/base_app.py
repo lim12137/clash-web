@@ -2,6 +2,7 @@ import logging
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from .agent_app import router as agent_router
 from .config_sync_app import router as config_sync_router
@@ -17,6 +18,15 @@ from .user_management_app import router as user_management_router
 
 
 app = FastAPI(root_path="/api")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 app.include_router(me_model_manager_router)
 app.include_router(model_manager_router)

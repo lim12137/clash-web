@@ -4,7 +4,9 @@
 rm -rf nexent-dist
 
 # Build Next.js application
-npm install
+echo "Installing dependencies for build..."
+npm install --verbose
+echo "Building Next.js application..."
 NODE_ENV=production npm run build
 
 # Create distribution directory
@@ -40,6 +42,7 @@ EOL
 
 # Install dependencies
 cd nexent-dist
-npm install --omit=dev --production
+echo "Installing production dependencies..."
+npm install --verbose --omit=dev --production
 
 echo "Deployment package created in nexent-dist directory" 
