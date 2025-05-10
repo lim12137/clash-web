@@ -373,3 +373,42 @@ few_shots: |-
   answer = summary_content(query="请帮我查询一下我的邮箱，我需要查看一下我的邮件。", search_result=[email_info])
   final_answer(answer)
   ```<end_code>
+
+  ---
+  任务："请帮我搜索一下XXX信息，然后发送给XXX@123.com邮箱。"
+
+  思考：这是一个需要检索与发送邮件的问题，请使用exa_web_search工具检索信息，然后使用send_email工具发送邮件。
+  代码：
+  ```py
+  search_result = exa_web_search(query="XXX信息")
+  print(search_result)
+  ```<end_code>
+  
+  观察结果：
+  [检索到的信息]
+
+  思考：现在我将使用summary_content工具生成最终回答。
+  代码：
+  ```py
+  answer = summary_content(query="请帮我搜索一下XXX信息，然后发送给XXX@123.com邮箱。", search_result=[search_result])
+  final_answer(answer)
+  ```<end_code>
+
+  观察结果：
+  [总结后的回答]
+
+  思考：现在我将使用send_email工具发送邮件，我要注意使用HTML格式编写邮件。
+  代码：
+  ```py
+  email_content = """
+  <html>
+  <body>
+  [检索到的信息编辑成高可读的HTML格式]  
+  </body>
+  </html>
+  """
+  send_email(subject="XXX信息总结", content=email_content, to="XXX@123.com")
+  ```<end_code>
+
+  观察结果：
+  [发送邮件的结果]
