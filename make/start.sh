@@ -15,6 +15,8 @@ fi
 cd "$root_path/frontend"
 npm run start &
 
+cd "$root_path"
+
 
 # 启动后端
 python $root_path/backend/main_service.py &
