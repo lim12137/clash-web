@@ -137,10 +137,10 @@ class ToolInfo(Base):
     """
     Information table for prompt tools
     """
-    __tablename__ = "tool_info_t"
+    __tablename__ = "ag_tool_info_t"
     __table_args__ = {"schema": SCHEMA}
 
-    id = Column(Integer, primary_key=True, nullable=False, doc="ID")
+    tool_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
     name = Column(String(100), unique=True, doc="Unique key name")
     display_name = Column(String(100), doc="Tool display name")
     description = Column(String(2048), doc="Prompt tool description")
@@ -148,7 +148,6 @@ class ToolInfo(Base):
     author = Column(String(100), doc="Tool author")
     usage = Column(String(100), doc="Usage")
     params = Column(JSON, doc="Tool parameter information (json)")
-    tenant_ids = Column(ARRAY(String), doc="Visible tenant IDs")
     create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time")
     update_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), onupdate=func.now(), doc="Update time")
     created_by = Column(String(100), doc="Creator")
@@ -159,10 +158,10 @@ class AgentInfo(Base):
     """
     Information table for agents
     """
-    __tablename__ = "tenant_agent_t"
+    __tablename__ = "ag_tenant_agent_t"
     __table_args__ = {"schema": SCHEMA}
 
-    id = Column(Integer, primary_key=True, nullable=False, doc="ID")
+    tenant_agent_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
     name = Column(String(100), doc="Agent name")
     description = Column(String(2048), doc="Description")
     model_name = Column(String(100), doc="Name of the model used")
@@ -172,7 +171,6 @@ class AgentInfo(Base):
     prompt_demo = Column(String, doc="Example prompt")
     parent_agent_id = Column(Integer, doc="Parent Agent ID")
     tenant_id = Column(String(100), doc="Belonging tenant")
-    tool_children = Column(ARRAY(String), doc="List of included tools")
     create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time")
     update_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), onupdate=func.now(), doc="Update time")
     created_by = Column(String(100), doc="Creator")
@@ -183,10 +181,10 @@ class UserAgent(Base):
     """
     Information table for agent - related prompts.
     """
-    __tablename__ = "user_agent_t"
+    __tablename__ = "ag_user_agent_t"
     __table_args__ = {"schema": SCHEMA}
 
-    id = Column(Integer, primary_key=True, nullable=False, doc="ID")
+    user_agent_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
     agent_id = Column(Integer, doc="AgentID")
     prompt_core = Column(String, doc="Core responsibility prompt")
     prompt_tool = Column(String, doc="Tool order prompt")
@@ -201,11 +199,12 @@ class ToolInstance(Base):
     """
     Information table for tenant tool configuration.
     """
-    __tablename__ = "tool_instance_t"
+    __tablename__ = "ag_tool_instance_t"
     __table_args__ = {"schema": SCHEMA}
 
-    id = Column(Integer, primary_key=True, nullable=False, doc="ID")
+    tool_instance_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
     tool_id = Column(Integer, doc="Tenant tool ID")
+    agent_id = Column(Integer, doc="Agent ID")
     params = Column(JSON, doc="Parameter configuration")
     user_id = Column(String(100), doc="User ID")
     tenant_id = Column(String(100), doc="Tenant ID")
