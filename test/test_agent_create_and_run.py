@@ -2,7 +2,6 @@ import os
 import sys
 import pytest
 from unittest.mock import patch, MagicMock
-from dotenv import load_dotenv
 from smolagents import ToolCollection
 from nexent.core.utils.observer import MessageObserver
 
