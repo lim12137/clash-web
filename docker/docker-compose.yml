@@ -86,7 +86,7 @@ services:
     command: bash
     restart: always
     ports:
-      - "3000:3000"
+      - "5010:5010"  # Expose backend port
     volumes:
       - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
@@ -99,7 +99,7 @@ services:
     user: root
     depends_on:
       nexent-elasticsearch:
-        condition: service_healthy  # 确保 Key 已生成
+        condition: service_healthy
     logging:
       driver: "json-file"
       options:
@@ -107,6 +107,24 @@ services:
         max-file: "3"
     networks:
       - nexent
+
+  nexent-web:
+    image: nexent/nexent-web
+    container_name: nexent-web
+    restart: always
+    networks:
+      - nexent
+    ports:
+      - "3000:3000"
+    environment:
+      - HTTP_BACKEND=http://nexent:5010
+      - WS_BACKEND=ws://nexent:5010
+      - MINIO_ENDPOINT=http://nexent-minio:9000
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nexent-data-process:
     image: nexent/nexent-data-process
