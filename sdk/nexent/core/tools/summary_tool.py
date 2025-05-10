@@ -1,5 +1,5 @@
 from typing import List
-
+from pydantic import Field
 from smolagents.models import MessageRole
 from smolagents.tools import Tool
 
@@ -30,7 +30,8 @@ class SummaryTool(Tool):
     }
     output_type = "string"
 
-    def __init__(self, model: OpenAIModel, system_prompt: str = default_system_prompt):
+    def __init__(self, model: OpenAIModel=Field(description="模型"),
+                 system_prompt: str = Field(description="系统提示", default=default_system_prompt)):
         super().__init__()
         self.model = model
         self.observer = MessageObserver()
