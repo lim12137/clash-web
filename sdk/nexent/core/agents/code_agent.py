@@ -18,21 +18,13 @@ from ..utils.observer import MessageObserver, ProcessType
 
 
 class CoreAgent(CodeAgent):
-    def __init__(self, observer: MessageObserver, lang="zh", prompt_templates=None, *args, **kwargs):
+    def __init__(self, observer: MessageObserver, prompt_templates, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.observer = observer
         self.should_stop = False
 
-        if prompt_templates is not None:
-            self.prompt_templates = prompt_templates
-            self.system_prompt = self.initialize_system_prompt()
-        else:
-            self.lang = lang
-            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-            prompt_path = os.path.normpath(os.path.join(file_path, "../prompts/code_agent.yaml"))
-            with open(prompt_path, "r", encoding="utf-8") as f:
-                self.prompt_templates = yaml.safe_load(f)
-                self.system_prompt = self.initialize_system_prompt()
+        self.prompt_templates = prompt_templates
+        self.system_prompt = self.initialize_system_prompt()
 
     def initialize_system_prompt(self) -> str:
         system_prompt = populate_template(
