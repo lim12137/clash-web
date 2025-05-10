@@ -84,7 +84,7 @@ add_permission() {
 install() {
   cd "$root_path"
   echo "Deploying services in ${DEPLOYMENT_MODE} mode..."
-  docker-compose -p nexent -f "${COMPOSE_FILE}" up -d
+  docker-compose -p nexent-commercial -f "${COMPOSE_FILE}" up -d
 }
 
 # Main execution flow
