@@ -11,9 +11,6 @@ if [ ! -f "$root_path/.env" ]; then
   echo "ELASTICSEARCH_API_KEY generated and saved to .env file"
 fi
 
-cd "$root_path"
-
-
 # 启动后端
 python $root_path/backend/main_service.py &
 
