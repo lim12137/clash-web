@@ -144,7 +144,7 @@ class AgentCreateFactory:
         model = self.get_model(model_name)
         # load the prompt templates
         prompt_templates_path = agent_config.get("prompt_templates_path")
-        prompt_templates = load_prompt_templates(prompt_templates_path)
+        prompt_templates = load_prompt_templates(prompt_templates_path, is_manager_agent=len(managed_agents)>0)
         logging.info(f"prompt_templates: {prompt_templates_path}")
         tools = self.create_tools_list(agent_config)
         # create the agent
