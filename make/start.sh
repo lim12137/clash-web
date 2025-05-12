@@ -1,5 +1,4 @@
 #!/bin/bash
-
 root_path=$(dirname "$(realpath "$0")")/../
 
 # Check if environment variable is already set
@@ -8,12 +7,9 @@ if [ -z "$ELASTICSEARCH_API_KEY" ]; then
 
   # Extract Key and set as environment variable
   export ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
-  
-  # Write to .bashrc file
-  if ! grep -q "export ELASTICSEARCH_API_KEY" ~/.bashrc; then
-    echo "export ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY" >> ~/.bashrc
-    echo "ELASTICSEARCH_API_KEY has been set as environment variable and added to ~/.bashrc"
-  fi
+
+  # Write to .env file
+  echo "ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY" > /opt/deployment/.env
 fi
 
 # Start backend services

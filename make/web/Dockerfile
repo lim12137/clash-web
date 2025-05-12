@@ -36,6 +36,7 @@ RUN npm install --verbose && \
 
 # Production stage
 FROM node:20-alpine
+LABEL authors="nexent"
 
 WORKDIR /opt/frontend-dist
 
