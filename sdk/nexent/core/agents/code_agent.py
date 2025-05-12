@@ -19,12 +19,9 @@ from ..utils.observer import MessageObserver, ProcessType
 
 class CoreAgent(CodeAgent):
     def __init__(self, observer: MessageObserver, prompt_templates, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(prompt_templates=prompt_templates, *args, **kwargs)
         self.observer = observer
         self.should_stop = False
-
-        self.prompt_templates = prompt_templates
-        self.system_prompt = self.initialize_system_prompt()
 
     def initialize_system_prompt(self) -> str:
         system_prompt = populate_template(

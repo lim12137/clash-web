@@ -10,6 +10,9 @@ RUN chown -R notebook-user:notebook-user /opt/backend
 RUN chown -R notebook-user:notebook-user /opt/sdk
 RUN chmod +x /opt/backend/data_process_service.py
 
+COPY sdk /opt/sdk
+RUN cd /opt/sdk && pip install --user --no-cache-dir . -i https://mirrors.aliyun.com/pypi/simple
+
 WORKDIR /opt
 
 USER notebook-user
