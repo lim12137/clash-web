@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nexent"
-version = "0.1.0"
+version = "0.1.2"
 description = "Nexent Agent Framework"
 authors = [
     { name = "Shuangrui Chen" },
@@ -46,19 +46,19 @@ dependencies = [
     "jieba>=0.42.1",
     "boto3>=1.37.34",
     "botocore>=1.37.34",
-    "python-multipart>=0.0.20",
-    "unstructured[all-docs]"
+    "python-multipart>=0.0.20"
 ]
 
 [project.optional-dependencies]
 quality = [
-    "ruff>=0.9.0"
-]
-test = [
+    "ruff>=0.9.0",
     "pytest>=8.1.0"
 ]
+data_process = [
+    "unstructured[all-docs]"
+]
 dev = [
-    "nexent[quality,test]"
+    "nexent[dev, data_process]"
 ]
 
 [tool.setuptools.packages.find]

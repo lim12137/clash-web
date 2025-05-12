@@ -11,5 +11,5 @@ RUN pip config --user set global.progress_bar off
 # Install Python dependencies
 COPY backend/requirements.txt /opt/backend/requirements.txt
 COPY sdk /opt/sdk
-RUN cd /opt/sdk && pip install . -i https://mirrors.aliyun.com/pypi/simple
+RUN cd /opt/sdk && pip install --user --no-cache-dir . -i https://mirrors.aliyun.com/pypi/simple
 RUN pip install --user --no-cache-dir -r /opt/backend/requirements.txt -i https://mirrors.aliyun.com/pypi/simple

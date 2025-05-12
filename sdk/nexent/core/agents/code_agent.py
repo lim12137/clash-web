@@ -19,29 +19,9 @@ from ..utils.observer import MessageObserver, ProcessType
 
 class CoreAgent(CodeAgent):
     def __init__(self, observer: MessageObserver, prompt_templates, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(prompt_templates=prompt_templates, *args, **kwargs)
         self.observer = observer
         self.should_stop = False
-
-        self.prompt_templates = prompt_templates
-        self.system_prompt = self.initialize_system_prompt()
-
-    def initialize_system_prompt(self) -> str:
-        system_prompt = populate_template(
-            self.prompt_templates["system_prompt"],
-            variables={
-                "tools": self.tools,
-                "managed_agents": self.managed_agents,
-                "tools_requirement": self.prompt_templates.get("tools_requirement", ""),
-                "authorized_imports": (
-                    "You can import from any package you want."
-                    if "*" in self.authorized_imports
-                    else str(self.authorized_imports)
-                ),
-                "few_shots": self.prompt_templates.get("few_shots", "")
-            },
-        )
-        return system_prompt
 
     def step(self, memory_step: ActionStep) -> Union[None, Any]:
         """
@@ -59,7 +39,7 @@ class CoreAgent(CodeAgent):
         try:
             additional_args = {"grammar": self.grammar} if self.grammar is not None else {}
             chat_message: ChatMessage = self.model(self.input_messages,
-                stop_sequences=["<end_code>", "Observation:", "<end_code"], **additional_args, )
+                stop_sequences=["<end_code>", "Observation:", "Calling tools:", "<end_code"], **additional_args, )
             memory_step.model_output_message = chat_message
             model_output = chat_message.content
             memory_step.model_output = model_output
