@@ -70,6 +70,7 @@ def agent_run_thread(observer, query, history=None):
                                          mcp_tool_collection=tool_collection)
             agent = factory.create_from_json(agent_create_json)
             add_history_to_agent(agent, history)
+            # print(agent.write_memory_to_messages())
 
             agent_run_with_observer(agent=agent, query=query, reset=False)
 
