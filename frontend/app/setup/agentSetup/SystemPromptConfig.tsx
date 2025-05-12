@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { message, Typography } from 'antd'
 import SystemPromptDisplay from './components/SystemPromptDisplay'
-import AdditionalRequestInput from './components/AdditionalRequestInput'
 
 const { Text } = Typography
 
@@ -22,12 +21,6 @@ export default function SystemPromptConfig({
   setSystemPrompt,
   isGenerating
 }: SystemPromptConfigProps) {
-  // 处理发送附加请求
-  const handleSendAdditionalRequest = (request: string) => {
-    console.log("发送附加请求:", request)
-    message.success("附加指令已发送")
-  }
-
   return (
     <div className="flex flex-col h-full gap-4 pl-4">
       <div className="flex-grow overflow-hidden">
@@ -36,14 +29,6 @@ export default function SystemPromptConfig({
             prompt={systemPrompt} 
             isGenerating={isGenerating} 
             onPromptChange={setSystemPrompt} 
-          />
-        </div>
-      </div>
-      <div className="flex-shrink-0 mt-auto">
-        <div>
-          <Text className="text-sm text-gray-500 mb-2 block">附加请求</Text>
-          <AdditionalRequestInput 
-            onSend={handleSendAdditionalRequest} 
           />
         </div>
       </div>

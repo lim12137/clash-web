@@ -10,7 +10,7 @@ const { Title } = Typography
 
 // 布局高度常量配置
 const LAYOUT_CONFIG = {
-  MAIN_CONTENT_HEIGHT: "calc(70vh - 48px)",
+  MAIN_CONTENT_HEIGHT: "calc(75vh - 45px)",
   CARD_HEADER_PADDING: "10px 24px",
   CARD_BODY_PADDING: "12px 20px",
   CARD_GAP: 12,
@@ -64,12 +64,8 @@ export default function AgentConfig() {
       <div className="w-full">
         <Row gutter={[LAYOUT_CONFIG.CARD_GAP, LAYOUT_CONFIG.CARD_GAP]}>
           {/* 左侧面板 - 业务逻辑配置 */}
-          <Col xs={24} md={24} lg={12} xl={12}>
+          <Col xs={24} md={24} lg={17} xl={17}>
             <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
-              <div className="mb-4 px-2">
-                <Title level={4}>业务逻辑配置</Title>
-                <div className="h-[1px] bg-gray-200 mt-2"></div>
-              </div>
               <div style={{ 
                 height: LAYOUT_CONFIG.MAIN_CONTENT_HEIGHT, 
                 overflowY: "auto",
@@ -90,12 +86,8 @@ export default function AgentConfig() {
           </Col>
           
           {/* 中间面板 - 系统提示词配置 */}
-          <Col xs={24} md={24} lg={12} xl={12}>
+          <Col xs={24} md={24} lg={7} xl={7}>
             <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
-              <div className="mb-4 px-2">
-                <Title level={4}>系统提示词配置</Title>
-                <div className="h-[1px] bg-gray-200 mt-2"></div>
-              </div>
               <div style={{ 
                 height: LAYOUT_CONFIG.MAIN_CONTENT_HEIGHT, 
                 overflowY: "auto",
