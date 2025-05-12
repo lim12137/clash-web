@@ -47,7 +47,7 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
         thread_id = f"{time.time()}_{id(observer)}"
 
         thread_agent = Thread(target=agent_run_thread,
-                              args=(observer, final_query, False))
+                              args=(observer, final_query, request.history))
         thread_agent.start()
 
         # Add thread to manager
