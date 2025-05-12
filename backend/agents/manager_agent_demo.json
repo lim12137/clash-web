@@ -20,7 +20,7 @@
 			"description": "一个专用于搜索的Agent，它具备多种搜索工具来获取相关信息。对于你不确定的事情，使用它来收集信息，而不是用于解决问题。使用规范：1. 每次调用只能执行一个具体的搜索任务，例如'产品A的特点有哪些'或'产品B的售价'；2. 对于包含多个查询的问题，必须拆分为多个独立的搜索任务，每个任务只关注一个具体数据点；3. 搜索任务描述要简洁明确，避免包含多个查询目标。",
 			"max_steps": 5,
 			"provide_run_summary": false,
-			"prompt_templates_path": "backend/consts/prompts/search_agent.yaml",
+			"prompt_templates_path": "backend/prompts/search_agent.yaml",
 			"tools": [
 				{
 					"name": "KnowledgeBaseSearchTool",
@@ -55,6 +55,6 @@
 		"model": "main_model",
 		"max_steps": 5,
 		"tools": [],
-		"prompt_templates_path": "backend/consts/prompts/manager_agent.yaml"
+		"prompt_templates_path": "backend/prompts/manager_agent.yaml"
 	}
 }
