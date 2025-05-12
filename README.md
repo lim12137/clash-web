@@ -41,6 +41,9 @@ git clone https://github.com/nexent-hub/nexent.git
 cd nexent/docker
 cp .env.example .env # fill only nessasary configs
 bash deploy.sh
+
+# 创建管理员
+docker exec -ti nexent bash -c 'curl -X POST http://kong:8000/auth/v1/admin/users -H "apikey: ${SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" -H "Content-Type: application/json" -d "{\"email\":\"admin@example.com\",\"password\": \"123123\",\"role\": \"admin\",\"email_confirm\":true}"'
 ```
 
 当容器运行后，在浏览器中打开 **http://localhost:3000** 并按照设置向导操作。

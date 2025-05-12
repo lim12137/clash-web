@@ -107,23 +107,28 @@ generate_jwt() {
   local payload_base64=$(echo -n "$payload" | base64 | tr -d '\n=' | tr '/+' '_-')
 
   local signature=$(echo -n "$header_base64.$payload_base64" | openssl dgst -sha256 -hmac "$secret" -binary | base64 | tr -d '\n=' | tr '/+' '_-')
+
+  echo "$header_base64.$payload_base64.$signature"
 }
 
 add_jwt_to_env() {
-  # 检查.env文件中是否包含 "# Supabase secrets"
-  if grep -q "# Supabase secrets" .env; then
-    echo "env file already contains Supabase secrets, skipping..."
+  # define Supabase secrets comment
+  local supabase_secrets_comment="# Supabase secrets"
+
+  # check if .env file contains "# Supabase secrets"
+  if grep -q "$supabase_secrets_comment" .env; then
+    echo ".env file already contains Supabase secrets. Skipping..."
     return
   fi
 
-  ANON_KEY=$(generate_jwt "anon")
-  SERVICE_ROLE_KEY=$(generate_jwt "service_role")
+  local anon_key=$(generate_jwt "anon")
+  local service_role_key=$(generate_jwt "service_role")
 
   echo "# Supabase secrets" >> .env
   echo "JWT_SECRET=\"$JWT_SECRET\"" >> .env
-  echo "ANON_KEY=\"$ANON_KEY\"" >> .env
-  echo "SUPABASE_KEY=\"$ANON_KEY\"" >> .env
-  echo "SERVICE_ROLE_KEY=\"$SERVICE_ROLE_KEY\"" >> .env
+  echo "ANON_KEY=\"$anon_key\"" >> .env
+  echo "SUPABASE_KEY=\"$anon_key\"" >> .env
+  echo "SERVICE_ROLE_KEY=\"$service_role_key\"" >> .env
   echo "SECRET_KEY_BASE=\"$SECRET_KEY_BASE\"" >> .env
   echo "VAULT_ENC_KEY=\"$VAULT_ENC_KEY\"" >> .env
 }

@@ -8,6 +8,8 @@ services:
       - "8443:8443/tcp"
     volumes:
       - ./volumes/api/kong.yml:/home/kong/temp.yml
+    networks:
+      - nexent
     depends_on:
       db:
         condition: service_healthy
@@ -51,6 +53,8 @@ services:
       timeout: 10s
       interval: 10s
       retries: 5
+    networks:
+      - nexent
     depends_on:
       db:
         condition: service_healthy
@@ -59,7 +63,7 @@ services:
       GOTRUE_API_PORT: 9999
       API_EXTERNAL_URL: ${API_EXTERNAL_URL}
       GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${SUPABASE_POSTGRES_PASSWORD}@${SUPABASE_POSTGRES_HOST}:${SUPABASE_POSTGRES_PORT}/${SUPABASE_POSTGRES_DB}
       GOTRUE_SITE_URL: ${SITE_URL}
       GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
       GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP}
@@ -89,7 +93,7 @@ services:
     restart: unless-stopped
     # 暴露数据库端口，以便直连管理
     ports:
-      - ${SUPABASE_POSTGRES_PORT}:5432
+      - ${SUPABASE_POSTGRES_PORT}:${SUPABASE_POSTGRES_PORT}
     volumes:
       - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql
       - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql
@@ -99,6 +103,8 @@ services:
       - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql
       - ./logs:/var/log/postgresql
       - db-config:/etc/postgresql-custom
+    networks:
+      - nexent
     healthcheck:
       test:
         [
@@ -116,10 +122,10 @@ services:
       POSTGRES_HOST: /var/run/postgresql
       PGPORT: ${SUPABASE_POSTGRES_PORT}
       POSTGRES_PORT: ${SUPABASE_POSTGRES_PORT}
-      PGPASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      PGDATABASE: ${POSTGRES_DB}
-      POSTGRES_DB: ${POSTGRES_DB}
+      PGPASSWORD: ${SUPABASE_POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${SUPABASE_POSTGRES_PASSWORD}
+      PGDATABASE: ${SUPABASE_POSTGRES_DB}
+      POSTGRES_DB: ${SUPABASE_POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXP: ${JWT_EXPIRY}
     command:
