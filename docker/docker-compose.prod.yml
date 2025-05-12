@@ -36,9 +36,6 @@ services:
       TZ: "Asia/Shanghai"
     volumes:
       - ${ROOT_DIR}/elasticsearch:/usr/share/elasticsearch/data
-    ports:
-      - "9210:9200"  # HTTP API
-      - "9310:9300"  # Cluster communication port
     networks:
       - nexent
     restart: always
@@ -64,8 +61,6 @@ services:
     volumes:
       - ${ROOT_DIR}/postgresql/data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5434:5432"
     security_opt:
       - seccomp:unconfined
     restart: always
@@ -82,8 +77,6 @@ services:
     container_name: nexent
     command: bash
     restart: always
-    ports:
-      - "5010:5010"  # Backend service port
     volumes:
       - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
@@ -129,8 +122,6 @@ services:
     command: bash
     restart: always
     privileged: true
-    ports:
-      - "5012:5012"
     volumes:
       - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
@@ -157,9 +148,6 @@ services:
     image: quay.io/minio/minio:RELEASE.2023-12-20T01-00-02Z
     container_name: nexent-minio
     command: server /data
-    ports:
-      - "9010:9000"  # MinIO API port
-      - "9011:9001"  # MinIO Console port
     environment:
       <<: [*minio-vars, *proxy-vars]
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -190,4 +178,4 @@ services:
 
 networks:
   nexent:
-    driver: bridge
+    driver: bridge 
