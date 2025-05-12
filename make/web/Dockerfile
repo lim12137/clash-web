@@ -1,0 +1,49 @@
+# Build stage
+FROM node:20-alpine AS builder
+
+# Copy frontend directory
+COPY frontend /opt/frontend
+
+# Build Next.js application
+WORKDIR /opt/frontend
+RUN npm install --verbose && \
+    NODE_ENV=production npm run build && \
+    mkdir -p ../frontend-dist && \
+    cp -r .next ../frontend-dist/ && \
+    cp -r public ../frontend-dist/ && \
+    cp server.js ../frontend-dist/server.js && \
+    echo '{\
+  "name": "nexent",\
+  "version": "0.1.0",\
+  "private": true,\
+  "scripts": {\
+    "start": "NODE_ENV=production HOSTNAME=localhost node server.js"\
+  },\
+  "dependencies": {\
+    "next": "14.2.5",\
+    "react": "18.2.0",\
+    "react-dom": "18.2.0",\
+    "http-proxy": "^1.18.1",\
+    "dotenv": "^16.4.7"\
+  }\
+}' > ../frontend-dist/package.json && \
+    cd ../frontend-dist && \
+    npm install --verbose --omit=dev --production && \
+    npm cache clean --force && \
+    rm -rf /root/.npm && \
+    rm -rf /root/.cache && \
+    rm -rf .next/cache
+
+# Production stage
+FROM node:20-alpine
+
+WORKDIR /opt/frontend-dist
+
+# Copy only the necessary files from builder
+COPY --from=builder /opt/frontend-dist .
+
+# Expose the service port
+EXPOSE 3000
+
+# Start the server
+CMD ["npm", "start"] 
