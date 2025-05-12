@@ -7,8 +7,9 @@ Nexent is an open-source agent SDK and platform that turns a single prompt into 
 
 > One prompt. Endless reach.
 
-<video width="600" controls>
+<video style="max-width: 100%; height: auto;" controls>
   <source src="https://github.com/nexent-hub/nexent/releases/download/v0.1.2/Nexent.Demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
 </video>
 
 # 🤝 Join Our Community
