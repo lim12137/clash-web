@@ -111,6 +111,12 @@ class KnowledgeBaseService {
   // Create a new knowledge base
   async createKnowledgeBase(params: KnowledgeBaseCreateParams): Promise<KnowledgeBase> {
     try {
+      // 先检查Elasticsearch健康状态，避免后续操作失败
+      const isHealthy = await this.checkHealth();
+      if (!isHealthy) {
+        throw new Error("Elasticsearch服务不可用，无法创建知识库");
+      }
+      
       const response = await fetch(API_ENDPOINTS.knowledgeBase.indexDetail(params.name), {
         method: "POST",
         headers: {
@@ -124,7 +130,8 @@ class KnowledgeBaseService {
       });
 
       const result = await response.json();
-      if (!result.success) {
+      // 修改判断逻辑，后端返回status字段而不是success字段
+      if (result.status !== "success" || !result.success) {
         throw new Error(result.message || "创建知识库失败");
       }
 
