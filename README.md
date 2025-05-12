@@ -7,6 +7,8 @@ Nexent 是一个开源智能体SDK和平台，能够将描述流程的自然语�
 
 > 一个提示词，无限种可能。
 
+https://github.com/nexent-hub/nexent/releases/download/v0.1.2/Nexent.Demo.mp4
+
 # 🤝 加入我们的社区
 
 > *If you want to go fast, go alone; if you want to go far, go together.*
