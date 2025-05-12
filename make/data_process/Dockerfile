@@ -14,7 +14,7 @@ WORKDIR /opt
 
 RUN pip install --user --no-cache-dir -r backend/requirements.txt -i https://mirrors.aliyun.com/pypi/simple
 RUN cd /opt/sdk && pip install . -i https://mirrors.aliyun.com/pypi/simple
-RUN pip install --user --no-cache-dir "unstructured[all-docs]"
+RUN pip install --user --no-cache-dir "unstructured[all-docs]" -i https://mirrors.aliyun.com/pypi/simple
 
 USER notebook-user
 
