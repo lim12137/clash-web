@@ -12,6 +12,15 @@ export interface STTResponse {
   text?: string;
 }
 
+// 获取授权头的辅助函数,非正常功能函数，用于适配
+export const getAuthHeaders = () => {
+  return {
+    'Content-Type': 'application/json',
+    'User-Agent': 'AgentFrontEnd/1.0',
+    'Authorization': 'Bearer 1234'
+  };
+};
+
 const getHeaders = () => {
   return {
     'Content-Type': 'application/json',

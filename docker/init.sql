@@ -198,6 +198,7 @@ CREATE TABLE "knowledge_record_t" (
   "knowledge_id" SERIAL,
   "index_name" varchar(100) COLLATE "pg_catalog"."default",
   "knowledge_describe" varchar(300) COLLATE "pg_catalog"."default",
+  "tenant_id" varchar(100) COLLATE "pg_catalog"."default",
   "create_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "update_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "delete_flag" varchar(1) COLLATE "pg_catalog"."default" DEFAULT 'N'::character varying,
@@ -209,6 +210,7 @@ ALTER TABLE "knowledge_record_t" OWNER TO "root";
 COMMENT ON COLUMN "knowledge_record_t"."knowledge_id" IS '知识库ID，唯一主键';
 COMMENT ON COLUMN "knowledge_record_t"."index_name" IS '知识库名字';
 COMMENT ON COLUMN "knowledge_record_t"."knowledge_describe" IS '知识库描述';
+COMMENT ON COLUMN "knowledge_record_t"."tenant_id" IS '租户ID';
 COMMENT ON COLUMN "knowledge_record_t"."create_time" IS '创建时间，审计字段';
 COMMENT ON COLUMN "knowledge_record_t"."update_time" IS '更新日期，审计字段';
 COMMENT ON COLUMN "knowledge_record_t"."delete_flag" IS '用户前端删除后，删除标识将被置为true，达到数据软删除的效果。可选值Y/N';
