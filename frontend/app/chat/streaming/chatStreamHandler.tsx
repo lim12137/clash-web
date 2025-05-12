@@ -117,7 +117,14 @@ export const handleStreamResponse = async (
                     if (lastContentType === "model_output" && lastModelOutputIndex >= 0) {
                       const modelOutput = currentStep.contents[lastModelOutputIndex];
                       // 更新内容
-                      modelOutput.content += messageContent;
+                      const newContent = modelOutput.content + messageContent;
+                      
+                      // 检查完整内容是否以"思考："开头
+                      if (newContent.startsWith("思考：")) {
+                        modelOutput.content = newContent.substring(3);
+                      } else {
+                        modelOutput.content = newContent;
+                      }
                     } else {
                       // 否则创建新的thinking内容
                       currentStep.contents.push({
