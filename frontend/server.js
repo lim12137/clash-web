@@ -6,15 +6,14 @@ const { createProxyServer } = require('http-proxy');
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ 
   dev,
-  hostname: 'localhost'
 });
 const handle = app.getRequestHandler();
 const wsHandle = app.getUpgradeHandler();
 
 // 后端地址
-const HTTP_BACKEND = 'http://localhost:5010';
-const WS_BACKEND = 'ws://localhost:5010';
-const MINIO_BACKEND = process.env.MINIO_ENDPOINT;
+const HTTP_BACKEND = process.env.HTTP_BACKEND || 'http://localhost:5010';
+const WS_BACKEND = process.env.WS_BACKEND || 'ws://localhost:5010';
+const MINIO_BACKEND = process.env.MINIO_ENDPOINT || 'http://localhost:9000';
 const PORT = 3000
 
 const proxy = createProxyServer();
@@ -44,7 +43,11 @@ app.prepare().then(() => {
     }
   });
 
-  server.listen(PORT, 'localhost', () => {
+  server.listen(PORT, () => {
     console.log(`> Ready on http://localhost:${PORT}`);
+    console.log('> Backend URLs:');
+    console.log(`  HTTP Backend: ${HTTP_BACKEND}`);
+    console.log(`  WebSocket Backend: ${WS_BACKEND}`);
+    console.log(`  MinIO Backend: ${MINIO_BACKEND}`);
   });
 });
