@@ -63,7 +63,7 @@ function AgentDebugging({ question, answer, onAskQuestion }: AgentDebuggingProps
         />
         <button
           onClick={handleSend}
-          className="px-4 py-1.5 rounded-md flex items-center text-sm bg-blue-500 text-white hover:bg-blue-600"
+          className="min-w-[56px] px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 whitespace-nowrap"
           style={{ border: "none" }}
         >
           发送
