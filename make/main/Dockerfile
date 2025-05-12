@@ -1,4 +1,5 @@
 FROM nexent/nexent-base
+LABEL authors="nexent"
 
 # Set correct permissions as root
 USER root
