@@ -2,6 +2,7 @@
 
 import { Document, KnowledgeBase, KnowledgeBaseCreateParams, IndexInfoResponse } from '@/types/knowledgeBase';
 import { API_ENDPOINTS } from './api';
+import { getAuthHeaders } from './conversationService';
 
 // Knowledge base service class
 class KnowledgeBaseService {
@@ -113,14 +114,11 @@ class KnowledgeBaseService {
     try {
       const response = await fetch(API_ENDPOINTS.knowledgeBase.indexDetail(params.name), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: getAuthHeaders(), // 添加用户健全信息，用于获取用户id
         body: JSON.stringify({
           name: params.name,
           description: params.description || "",
           embeddingModel: params.embeddingModel || "",
-          userId: params.userId || "",  // 添加用户ID
         }),
       });
 

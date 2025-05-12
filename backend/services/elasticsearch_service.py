@@ -97,7 +97,8 @@ class ElasticSearchService:
     @staticmethod
     def delete_index(
             index_name: str = Path(..., description="Name of the index to delete"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
+            es_core: ElasticSearchCore = Depends(get_es_core),
+            user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base"),
     ):
         try:
             # First delete the index in Elasticsearch
@@ -110,6 +111,7 @@ class ElasticSearchService:
             if knowledge_record:
                 update_data = {
                     "delete_flag": "Y", # Set status to unavailable
+                    "updated_by": user_id,
                 }
                 update_knowledge_record(knowledge_record["knowledge_id"], update_data)
 
@@ -608,7 +610,8 @@ class ElasticSearchService:
     def summery_index_name(self,
             index_name: str = Path(..., description="Name of the index to get documents from"),
             batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
+            es_core: ElasticSearchCore = Depends(get_es_core),
+            user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base")
     ):
         try:
             all_documents = ElasticSearchService.get_all_documents(index_name, batch_size, es_core)
@@ -625,6 +628,7 @@ class ElasticSearchService:
             if knowledge_record:
                 update_data = {
                     "knowledge_describe": summary_result,  # Set status to unavailable
+                    "updated_by": user_id,
                 }
                 update_knowledge_record(knowledge_record["knowledge_id"], update_data)
             # 存到sql里
