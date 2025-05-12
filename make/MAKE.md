@@ -14,7 +14,6 @@ docker buildx build --platform linux/amd64,linux/arm64 -t nexent/nexent -f make/
 docker buildx build --platform linux/amd64,linux/arm64 -t nexent/nexent-data-process -f make/data_process/Dockerfile . --push
 
 # 🌐 build web frontend for multiple architectures
-cd frontend && sh build.sh && cd ..
 docker buildx build --platform linux/amd64,linux/arm64 -t nexent/nexent-web -f make/web/Dockerfile . --push
 ```
 
@@ -31,7 +30,6 @@ docker build -t nexent/nexent -f make/main/Dockerfile .
 docker build -t nexent/nexent-data-process -f make/data_process/Dockerfile .
 
 # 🌐 Build web frontend image (current architecture only)
-cd frontend && sh build.sh && cd ..
 docker build -t nexent/nexent-web -f make/web/Dockerfile .
 ```
 
@@ -55,7 +53,6 @@ docker buildx build -t nexent/nexent -f make/main/Dockerfile . --load
 docker buildx build -t nexent/nexent-data-process -f make/data_process/Dockerfile . --load
 
 # 🌐 Build and load web frontend image (auto-detect local architecture)
-cd frontend && sh build.sh && cd ..
 docker buildx build -t nexent/nexent-web -f make/web/Dockerfile . --load
 ```
 
