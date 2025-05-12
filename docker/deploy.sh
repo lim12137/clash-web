@@ -110,6 +110,12 @@ generate_jwt() {
 }
 
 add_jwt_to_env() {
+  # 检查.env文件中是否包含 "# Supabase secrets"
+  if grep -q "# Supabase secrets" .env; then
+    echo "env file already contains Supabase secrets, skipping..."
+    return
+  fi
+
   ANON_KEY=$(generate_jwt "anon")
   SERVICE_ROLE_KEY=$(generate_jwt "service_role")
 
