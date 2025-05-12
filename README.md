@@ -7,10 +7,7 @@ Nexent 是一个开源智能体SDK和平台，能够将描述流程的自然语�
 
 > 一个提示词，无限种可能。
 
-<video style="max-width: 100%; height: auto;" controls>
-  <source src="https://github.com/nexent-hub/nexent/releases/download/v0.1.2/Nexent.Demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+   https://github.com/user-attachments/assets/a72421fe-dfc0-4c49-b8c6-e3b44d19b049
 
 # 🤝 加入我们的社区
 
