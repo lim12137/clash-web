@@ -15,7 +15,7 @@ USER notebook-user
 RUN pip config --user set global.progress_bar off
 RUN pip install --user --no-cache-dir -r backend/requirements.txt -i https://mirrors.aliyun.com/pypi/simple
 RUN cd /opt/sdk && pip install . -i https://mirrors.aliyun.com/pypi/simple
-RUN pip install --user --no-cache-dir "unstructured[all-docs]"
+RUN pip install --user --no-cache-dir "unstructured[all-docs]" -i https://mirrors.aliyun.com/pypi/simple
 
 # Expose the service port
 EXPOSE 5012
