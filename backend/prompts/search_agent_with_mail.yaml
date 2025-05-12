@@ -370,7 +370,7 @@ few_shots: |-
   思考：现在我将使用summary_content工具生成最终回答。
   代码：
   ```py
-  answer = summary_content(query="请帮我查询一下我的邮箱，我需要查看一下我的邮件。", search_result=[email_info])
+  answer = summary_content(query="请帮我查询一下我的邮箱，我需要查看一下我的邮件。", content=[email_info])
   final_answer(answer)
   ```<end_code>
 
@@ -390,7 +390,7 @@ few_shots: |-
   思考：现在我将使用summary_content工具生成最终回答。
   代码：
   ```py
-  answer = summary_content(query="请帮我搜索一下XXX信息，然后发送给XXX@123.com邮箱。", search_result=[search_result])
+  answer = summary_content(query="请帮我搜索一下XXX信息，然后发送给XXX@123.com邮箱。", content=[search_result])
   final_answer(answer)
   ```<end_code>
 
