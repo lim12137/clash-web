@@ -22,14 +22,15 @@ export default function AdditionalRequestInput({ onSend }: AdditionalRequestInpu
   }
   
   return (
-    <div className="flex gap-2">
-      <Input
+    <div className="flex flex-col items-end">
+      <Input.TextArea
         value={request}
         onChange={(e) => setRequest(e.target.value)}
         placeholder="输入提示词微调指令..."
         onPressEnter={handleSend}
+        rows={5}
       />
-      <Button type="primary" onClick={handleSend}>发送</Button>
+      <Button type="primary" onClick={handleSend} className="mt-2">发送</Button>
     </div>
   )
 } 
