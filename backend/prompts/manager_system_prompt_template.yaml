@@ -77,3 +77,10 @@ system_prompt: |-
   {{ few_shots }}
 
   现在开始！如果你正确解决任务，你将获得100万美元的奖励。
+
+
+managed_agent:
+  task: |-
+
+  report: |-
+      {{final_answer}}

@@ -35,16 +35,10 @@ def fill_system_prompt(duty,
                             constraint,
                             few_shots,
                        is_manager_agent=True):
-    agent_prompt = {}
-
     if is_manager_agent:
         prompt_file = 'backend/prompts/manager_system_prompt_template.yaml'
     else:
         prompt_file = 'backend/prompts/managed_system_prompt_template.yaml'
-        with open('backend/prompts/managed_agent_template.yaml', "r", encoding="utf-8") as file:
-            managed_agent = yaml.safe_load(file)
-            agent_prompt["managed_agent"] = managed_agent
-
     with open(prompt_file, "r", encoding="utf-8") as file:
         manager_system_prompt_template = yaml.safe_load(file)
     protected_template = protect_jinja_blocks(manager_system_prompt_template["system_prompt"])
@@ -55,13 +49,17 @@ def fill_system_prompt(duty,
         "constraint": constraint,
         "few_shots": few_shots
     })
-    agent_prompt["system_prompt"] = system_prompt
+
+    agent_prompt = {
+        "system_prompt": system_prompt,
+        "managed_agent": manager_system_prompt_template["managed_agent"]
+    }
 
     return agent_prompt
 
-def load_prompt_templates(path):
+def load_prompt_templates(path, is_manager_agent):
     with open(path, "r", encoding="utf-8") as f:
         agent_prompt = yaml.safe_load(f)
-    return fill_system_prompt(**agent_prompt)
+    return fill_system_prompt(is_manager_agent=is_manager_agent, **agent_prompt)
 
 
