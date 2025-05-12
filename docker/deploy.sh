@@ -1,6 +1,10 @@
 #!/bin/bash
 
 source .env
+# 生成密钥
+JWT_SECRET=$(openssl rand -base64 32 | tr -d '\n')
+SECRET_KEY_BASE=$(openssl rand -base64 64 | tr -d '\n')
+VAULT_ENC_KEY=$(openssl rand -base64 32 | tr -d '\n')
 
 # Add deployment mode selection function
 select_deployment_mode() {
@@ -12,12 +16,12 @@ select_deployment_mode() {
     case $mode_choice in
         2)
             export DEPLOYMENT_MODE="production"
-            export COMPOSE_FILE="docker-compose.prod.yml"
+            export COMPOSE_FILE_SUFFIX=".prod.yml"
             echo "Selected production mode deployment"
             ;;
         *)
             export DEPLOYMENT_MODE="development"
-            export COMPOSE_FILE="docker-compose.yml"
+            export COMPOSE_FILE_SUFFIX=".yml"
             echo "Selected development mode deployment"
             ;;
     esac
@@ -38,7 +42,7 @@ clean() {
   export MINIO_ACCESS_KEY=
   export MINIO_SECRET_KEY=
   export DEPLOYMENT_MODE=
-  export COMPOSE_FILE=
+  export COMPOSE_FILE_SUFFIX=
 }
 
 # Function to create a directory and set permissions
@@ -84,13 +88,56 @@ add_permission() {
 install() {
   cd "$root_path"
   echo "Deploying services in ${DEPLOYMENT_MODE} mode..."
-  docker-compose -p nexent-commercial -f "${COMPOSE_FILE}" up -d
+  docker-compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d
+  docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d
+}
+
+
+# 生成JWT的函数
+generate_jwt() {
+  local role=$1
+  local secret=$JWT_SECRET
+  local now=$(date +%s)
+  local exp=$((now + 157680000))
+
+  local header='{"alg":"HS256","typ":"JWT"}'
+  local header_base64=$(echo -n "$header" | base64 | tr -d '\n=' | tr '/+' '_-')
+
+  local payload="{\"role\":\"$role\",\"iss\":\"supabase\",\"iat\":$now,\"exp\":$exp}"
+  local payload_base64=$(echo -n "$payload" | base64 | tr -d '\n=' | tr '/+' '_-')
+
+  local signature=$(echo -n "$header_base64.$payload_base64" | openssl dgst -sha256 -hmac "$secret" -binary | base64 | tr -d '\n=' | tr '/+' '_-')
+
+  echo "$header_base64.$payload_base64.$signature"
+}
+
+add_jwt_to_env() {
+  # define Supabase secrets comment
+  local supabase_secrets_comment="# Supabase secrets"
+
+  # check if .env file contains "# Supabase secrets"
+  if grep -q "$supabase_secrets_comment" .env; then
+    echo ".env file already contains Supabase secrets. Skipping..."
+    return
+  fi
+
+  local anon_key=$(generate_jwt "anon")
+  local service_role_key=$(generate_jwt "service_role")
+
+  echo "# Supabase secrets" >> .env
+  echo "JWT_SECRET=\"$JWT_SECRET\"" >> .env
+  echo "ANON_KEY=\"$anon_key\"" >> .env
+  echo "SUPABASE_KEY=\"$anon_key\"" >> .env
+  echo "SERVICE_ROLE_KEY=\"$service_role_key\"" >> .env
+  echo "SECRET_KEY_BASE=\"$SECRET_KEY_BASE\"" >> .env
+  echo "VAULT_ENC_KEY=\"$VAULT_ENC_KEY\"" >> .env
 }
 
 # Main execution flow
 echo "=== Nexent Deployment Script ==="
 select_deployment_mode
 add_permission
+add_jwt_to_env
 generate_minio_ak_sk
 install
 clean

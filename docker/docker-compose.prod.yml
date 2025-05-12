@@ -73,7 +73,7 @@ services:
       - nexent
 
   nexent:
-    image: nexent/nexent
+    image: nexent/nexent-commercial
     container_name: nexent
     command: bash
     restart: always
@@ -99,7 +99,7 @@ services:
       - nexent
 
   nexent-web:
-    image: nexent/nexent-web
+    image: nexent/nexent-web-commercial
     container_name: nexent-web
     restart: always
     networks:
@@ -117,7 +117,7 @@ services:
         max-file: "3"    # Maximum number of log files to keep
 
   nexent-data-process:
-    image: nexent/nexent-data-process
+    image: nexent/nexent-data-process-commercial
     container_name: nexent-data-process
     command: bash
     restart: always
