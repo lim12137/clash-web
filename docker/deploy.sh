@@ -16,12 +16,12 @@ select_deployment_mode() {
     case $mode_choice in
         2)
             export DEPLOYMENT_MODE="production"
-            export COMPOSE_FILE="docker-compose.prod.yml"
+            export COMPOSE_FILE_SUFFIX=".prod.yml"
             echo "Selected production mode deployment"
             ;;
         *)
             export DEPLOYMENT_MODE="development"
-            export COMPOSE_FILE="docker-compose.yml"
+            export COMPOSE_FILE_SUFFIX=".yml"
             echo "Selected development mode deployment"
             ;;
     esac
@@ -42,7 +42,7 @@ clean() {
   export MINIO_ACCESS_KEY=
   export MINIO_SECRET_KEY=
   export DEPLOYMENT_MODE=
-  export COMPOSE_FILE=
+  export COMPOSE_FILE_SUFFIX=
 }
 
 # Function to create a directory and set permissions
@@ -88,8 +88,8 @@ add_permission() {
 install() {
   cd "$root_path"
   echo "Deploying services in ${DEPLOYMENT_MODE} mode..."
-  docker-compose -p nexent-commercial -f "${COMPOSE_FILE}" up -d
-  docker-compose -p nexent-commercial -f docker-compose-supabase.yml up -d
+  docker-compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d
+  docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d
 }
 
 
