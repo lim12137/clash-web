@@ -160,6 +160,7 @@ class KnowledgeBaseService {
       // 使用REST风格的DELETE请求删除索引
       const response = await fetch(API_ENDPOINTS.knowledgeBase.indexDetail(id), {
         method: "DELETE",
+        headers: getAuthHeaders(),
       });
 
       const result = await response.json();
@@ -261,6 +262,7 @@ class KnowledgeBaseService {
       // 发送请求
       const response = await fetch(API_ENDPOINTS.knowledgeBase.upload, {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
 
@@ -307,7 +309,8 @@ class KnowledgeBaseService {
       const response = await fetch(
         `${API_ENDPOINTS.knowledgeBase.indexDetail(kbId)}/documents?path_or_url=${encodeURIComponent(docId)}`, 
         {
-          method: "DELETE"
+          method: "DELETE",
+          headers: getAuthHeaders(),
         }
       );
 
