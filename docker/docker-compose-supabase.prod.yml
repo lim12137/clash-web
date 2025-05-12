@@ -135,5 +135,5 @@ volumes:
   db-config:
 
 networks:
-  default:
-    name: nexent
+  nexent:
+    driver: bridge
