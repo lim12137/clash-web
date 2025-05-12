@@ -3,8 +3,6 @@ import asyncio
 from typing import Dict, Any, TYPE_CHECKING
 from concurrent.futures import ThreadPoolExecutor
 
-from unstructured.chunking.basic import chunk_elements
-
 from .task_store import TaskStatus
 
 logger = logging.getLogger("data_process.worker_pool")
@@ -148,8 +146,15 @@ class ProcessWorkerPool:
         Returns:
             List of processed data items
         """
-        # Import here to avoid circular imports
-        from unstructured.partition.auto import partition
+        # Dynamic imports with error handling
+        try:
+            from unstructured.partition.auto import partition
+            from unstructured.chunking.basic import chunk_elements
+        except ImportError:
+            raise ImportError(
+                "Processing features require additional dependencies. "
+                "Please install them with: pip install nexent[process]"
+            )
 
         # Validate source_type
         if source_type not in ["file", "url", "text"]:
