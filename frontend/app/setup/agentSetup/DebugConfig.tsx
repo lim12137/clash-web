@@ -61,9 +61,13 @@ function AgentDebugging({ question, answer, onAskQuestion }: AgentDebuggingProps
           placeholder="输入测试问题..."
           onPressEnter={handleSend}
         />
-        <Button type="primary" onClick={handleSend}>
-          <SendOutlined />
-        </Button>
+        <button
+          onClick={handleSend}
+          className="px-4 py-1.5 rounded-md flex items-center text-sm bg-blue-500 text-white hover:bg-blue-600"
+          style={{ border: "none" }}
+        >
+          发送
+        </button>
       </div>
     </div>
   )

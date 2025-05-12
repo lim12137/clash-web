@@ -105,14 +105,24 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
       title="工具配置"
       open={isOpen}
       onCancel={onCancel}
-      footer={[
-        <Button key="cancel" onClick={onCancel}>
-          取消
-        </Button>,
-        <Button key="save" type="primary" onClick={handleSave}>
-          保存
-        </Button>,
-      ]}
+      footer={(
+        <div className="flex justify-end gap-2">
+          <button 
+            onClick={onCancel}
+            className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+            style={{ border: "none" }}
+          >
+            取消
+          </button>
+          <button 
+            onClick={handleSave}
+            className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600"
+            style={{ border: "none" }}
+          >
+            保存
+          </button>
+        </div>
+      )}
       width={700}
     >
       {tool && (

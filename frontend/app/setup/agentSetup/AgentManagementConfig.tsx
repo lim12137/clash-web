@@ -6,6 +6,7 @@ import { SettingOutlined } from '@ant-design/icons'
 import ToolConfigModal from './components/ToolConfigModal'
 import { mockAgents, mockTools } from './mockData'
 import { AgentModalProps, Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent } from './ConstInterface'
+import MainAgentConfig from './components/MainAgentConfig'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -111,23 +112,38 @@ function AgentModal({
       title={title}
       open={isOpen}
       onCancel={onCancel}
-      footer={readOnly ? [
-        <Button key="cancel" onClick={onCancel}>
-          关闭
-        </Button>
-      ] : [
-        <Button key="cancel" onClick={onCancel}>
-          取消
-        </Button>,
-        <Button 
-          key="submit" 
-          type="primary" 
-          onClick={handleSave}
-          disabled={!name.trim()}
-        >
-          保存
-        </Button>,
-      ]}
+      footer={readOnly ? (
+        <div className="flex justify-end gap-2">
+          <button 
+            key="cancel" 
+            onClick={onCancel}
+            className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+            style={{ border: "none" }}
+          >
+            关闭
+          </button>
+        </div>
+      ) : (
+        <div className="flex justify-end gap-2">
+          <button 
+            key="cancel" 
+            onClick={onCancel}
+            className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+            style={{ border: "none" }}
+          >
+            取消
+          </button>
+          <button 
+            key="submit" 
+            onClick={handleSave}
+            disabled={!name.trim()}
+            className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ border: "none" }}
+          >
+            保存
+          </button>
+        </div>
+      )}
       width={700}
     >
       <div className="flex flex-col gap-4">
@@ -257,7 +273,7 @@ function BusinessLogicInput({ value, onChange, onGenerate, selectedAgents, onSav
   };
   
   return (
-    <div className="flex flex-col p-4 h-[40%]">
+    <div className="flex flex-col pt-2 pr-2 pl-2 pb-0">
       <h2 className="text-lg font-medium mb-2">业务逻辑描述</h2>
       <div className="flex flex-col flex-1">
         <TextArea
@@ -268,21 +284,22 @@ function BusinessLogicInput({ value, onChange, onGenerate, selectedAgents, onSav
           rows={5}
         />
         <div className="flex justify-between gap-2 mt-2">
-          <Button
+          <button
             onClick={onSaveAsAgent}
             disabled={!canSaveAsAgent}
             title={getButtonTitle()}
-            className="flex-1"
+            className="flex-1 px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ border: "none" }}
           >
             保存到Agent池
-          </Button>
-          <Button 
-            type="primary" 
+          </button>
+          <button 
             onClick={onGenerate}
-            className="flex-1"
+            className="flex-1 px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600"
+            style={{ border: "none" }}
           >
             生成系统提示词
-          </Button>
+          </button>
         </div>
       </div>
     </div>
@@ -294,13 +311,13 @@ function BusinessLogicInput({ value, onChange, onGenerate, selectedAgents, onSav
  */
 function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent }: SubAgentPoolProps) {
   return (
-    <div className="flex flex-col p-4 overflow-hidden h-[30%]">
+    <div className="flex flex-col p-2 overflow-hidden">
       <h2 className="text-lg font-medium mb-2">Agent池</h2>
-      <div className="grid grid-cols-2 gap-1 overflow-y-auto custom-scrollbar h-[200px] border-t pt-2 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 shadow-[inset_0_5px_5px_-5px_rgba(0,0,0,0.2)]">
+      <div className="grid gap-2 grid-cols-[repeat(auto-fit,minmax(240px,1fr))] max-h-[180px] overflow-y-auto border-t pt-2 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 shadow-[inset_0_5px_5px_-5px_rgba(0,0,0,0.2)]">
         {mockAgents.map((agent) => (
           <div 
             key={agent.id} 
-            className={`border rounded-md p-3 flex flex-col cursor-pointer transition-colors duration-200 ${
+            className={`border rounded-md p-3 flex flex-col justify-center cursor-pointer transition-colors duration-200 w-[240px] h-[80px] ${
               selectedAgents.some(a => a.id === agent.id) ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
             }`}
             onClick={() => onSelectAgent(
@@ -308,27 +325,27 @@ function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent }: SubAgentPo
               !selectedAgents.some(a => a.id === agent.id)
             )}
           >
-            <div className="flex justify-between items-center">
-              <div className="w-full overflow-hidden">
+            <div className="flex items-center h-full">
+              <div className="flex-1 overflow-hidden">
                 <div className="font-medium truncate" title={agent.name}>{agent.name}</div>
                 <div 
-                  className="text-xs text-gray-500 line-clamp-3" 
+                  className="text-xs text-gray-500 line-clamp-2" 
                   title={agent.description}
-                  style={{ minHeight: '48px' }}
                 >
                   {agent.description}
                 </div>
               </div>
-              <Button 
-                type="text" 
-                icon={<SettingOutlined style={{ fontSize: '18px' }} />} 
-                size="middle"
+              <button 
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEditAgent(agent);
                 }}
-                className="text-gray-500 hover:text-blue-500 flex items-center justify-center ml-2 flex-shrink-0"
-              />
+                className="ml-2 flex-shrink-0 flex items-center justify-center text-gray-500 hover:text-blue-500 bg-transparent"
+                style={{ border: "none", padding: "4px" }}
+              >
+                <SettingOutlined style={{ fontSize: '18px' }} />
+              </button>
             </div>
           </div>
         ))}
@@ -360,13 +377,13 @@ function ToolPool({ selectedTools, onSelectTool }: ToolPoolProps) {
   };
 
   return (
-    <div className="flex flex-col p-4 overflow-hidden h-[30%]">
+    <div className="flex flex-col p-2 overflow-hidden">
       <h2 className="text-lg font-medium mb-2">工具池</h2>
-      <div className="grid grid-cols-3 gap-2 overflow-y-auto custom-scrollbar h-[200px] border-t pt-2 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 shadow-[inset_0_5px_5px_-5px_rgba(0,0,0,0.2)]">
+      <div className="grid gap-2 grid-cols-[repeat(auto-fit,minmax(180px,1fr))] max-h-[148px] overflow-y-auto border-t pt-2 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 shadow-[inset_0_5px_5px_-5px_rgba(0,0,0,0.2)]">
         {mockTools.map((tool) => (
           <div 
             key={tool.id} 
-            className={`border rounded-md p-2 flex flex-col cursor-pointer transition-colors duration-200 ${
+            className={`border rounded-md p-2 flex flex-col justify-center cursor-pointer transition-colors duration-200 w-[180px] h-[64px] ${
               selectedTools.some(t => t.id === tool.id) ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
             }`}
             onClick={(e) => onSelectTool(
@@ -374,24 +391,24 @@ function ToolPool({ selectedTools, onSelectTool }: ToolPoolProps) {
               !selectedTools.some(t => t.id === tool.id)
             )}
           >
-            <div className="flex justify-between items-center">
-              <div className="w-full overflow-hidden">
+            <div className="flex items-center h-full">
+              <div className="flex-1 overflow-hidden">
                 <div className="font-medium text-sm truncate" title={tool.name}>{tool.name}</div>
                 <div 
                   className="text-xs text-gray-500 line-clamp-2" 
                   title={tool.description}
-                  style={{ minHeight: '32px' }}
                 >
                   {tool.description}
                 </div>
               </div>
-              <Button 
-                type="text" 
-                icon={<SettingOutlined style={{ fontSize: '16px' }} />} 
-                size="small"
+              <button 
+                type="button"
                 onClick={(e) => showToolModal(tool, e)}
-                className="text-gray-500 hover:text-blue-500 flex items-center justify-center ml-2 flex-shrink-0"
-              />
+                className="ml-2 flex-shrink-0 flex items-center justify-center text-gray-500 hover:text-blue-500 bg-transparent"
+                style={{ border: "none", padding: "4px" }}
+              >
+                <SettingOutlined style={{ fontSize: '16px' }} />
+              </button>
             </div>
           </div>
         ))}
@@ -425,6 +442,9 @@ export default function BusinessLogicConfig({
   const [newAgentDescription, setNewAgentDescription] = useState("");
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [mainAgentModel, setMainAgentModel] = useState('gpt-4-turbo');
+  const [mainAgentMaxStep, setMainAgentMaxStep] = useState(10);
+  const [mainAgentPrompt, setMainAgentPrompt] = useState('');
 
   const handleSaveAsAgent = () => {
     if (systemPrompt.trim()) {
@@ -494,7 +514,16 @@ export default function BusinessLogicConfig({
   };
 
   return (
-    <div className="flex flex-col w-full gap-2 overflow-hidden mt-[-16px]">
+    <div className="flex flex-col w-full h-full overflow-y-auto gap-0 justify-between mt-[-16px]">
+      {/* 主Agent配置项 */}
+      <MainAgentConfig
+        model={mainAgentModel}
+        setModel={setMainAgentModel}
+        maxStep={mainAgentMaxStep}
+        setMaxStep={setMainAgentMaxStep}
+        prompt={mainAgentPrompt}
+        setPrompt={setMainAgentPrompt}
+      />
       <SubAgentPool
         selectedAgents={selectedAgents}
         onSelectAgent={(agent, isSelected) => {
