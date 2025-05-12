@@ -9,6 +9,7 @@ from nexent.core.utils import MessageObserver
 from nexent.core.tools import *
 
 from utils.config_utils import config_manager
+from services.prompt_service import load_prompt_templates
 
 class AgentCreateFactory:
     def __init__(self, mcp_tool_collection, observer:MessageObserver):
@@ -102,17 +103,6 @@ class AgentCreateFactory:
             print(f"Error in creating tool: {e}")
             return None
 
-    @staticmethod
-    def load_prompt_templates(path):
-        """load the prompt templates"""
-        if path:
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    return yaml.safe_load(f)
-            except FileNotFoundError:
-                print(f"warning: prompt template file {path} not found")
-        return None
-
     def get_model(self, model_name):
         model = self.models.get(model_name, None)
         if model is None:
@@ -154,7 +144,7 @@ class AgentCreateFactory:
         model = self.get_model(model_name)
         # load the prompt templates
         prompt_templates_path = agent_config.get("prompt_templates_path")
-        prompt_templates = self.load_prompt_templates(prompt_templates_path)
+        prompt_templates = load_prompt_templates(prompt_templates_path)
         logging.info(f"prompt_templates: {prompt_templates_path}")
         tools = self.create_tools_list(agent_config)
         # create the agent

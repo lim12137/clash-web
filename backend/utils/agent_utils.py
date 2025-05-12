@@ -1,5 +1,5 @@
 import time
-import logging
+
 from threading import Lock, Thread
 from typing import List, Dict
 
@@ -50,6 +50,7 @@ def add_history_to_agent(agent: CoreAgent, history: List[Dict]):
     if not history:
         return
 
+    agent.memory.reset()
     # Add conversation history to memory sequentially
     for msg in history:
         if msg['role'] == 'user':
@@ -63,14 +64,12 @@ def agent_run_thread(observer, query, history=None):
     try:
         mcp_host = config_manager.get_config("MCP_SERVICE")
         agent_create_json = config_manager.get_config("AGENT_CREATE_FILE")
-        logging.info(f"mcp_host: {mcp_host}")
 
         with ToolCollection.from_mcp({"url": mcp_host}) as tool_collection:
             factory = AgentCreateFactory(observer=observer,
                                          mcp_tool_collection=tool_collection)
             agent = factory.create_from_json(agent_create_json)
             add_history_to_agent(agent, history)
-            # print(agent.write_memory_to_messages())
 
             agent_run_with_observer(agent=agent, query=query, reset=False)
 
