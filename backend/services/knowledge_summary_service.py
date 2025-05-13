@@ -13,13 +13,12 @@ def load_knowledge_prompts() -> Dict[str, str]:
     Returns:
         Dict[str, str]: A dictionary containing the prompt words "system" and "user"
     """
-    current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    prompt_path = os.path.join(current_dir, "prompts", "knowledge_summery_agent.yaml")
+    prompt_file = 'backend/prompts/knowledge_summery_agent.yaml'
 
-    with open(prompt_path, 'r', encoding='utf-8') as f:
+    with open(prompt_file, 'r', encoding='utf-8') as f:
         prompts = yaml.safe_load(f)
 
-    return prompts['knowledge_summery_generator']
+    return prompts
 
 
 def generate_knowledge_summery(keywords: str) -> str:
@@ -45,8 +44,8 @@ def generate_knowledge_summery(keywords: str) -> str:
         top_p=0.95)
 
     # Build messages
-    messages = [{"role": "system", "content": prompts['system']},
-        {"role": "user", "content": prompts['user'].format(content=keywords)}]
+    messages = [{"role": "system", "content": prompts['system_prompt']},
+        {"role": "user", "content": prompts['user_prompt'].format(content=keywords)}]
 
     # Call the model
     response = llm(messages)
