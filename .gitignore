@@ -19,3 +19,5 @@ docker/uploads
 docker/.env
 
 frontend_standalone/
+
+backend/assets/clip-vit-base-patch32
