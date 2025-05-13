@@ -17,7 +17,7 @@ import requests
 from nexent.core.models.embedding_model import JinaEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from nexent.core.nlp.tokenizer import calculate_term_weights
-from services.knowledge_summary_service import generate_knowledge_summery
+from services.knowledge_summary_service import generate_knowledge_summary
 from fastapi import HTTPException, Query, Body, Path, Depends
 
 from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST
@@ -607,7 +607,7 @@ class ElasticSearchService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 
-    def summery_index_name(self,
+    def summary_index_name(self,
             index_name: str = Path(..., description="Name of the index to get documents from"),
             batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
             es_core: ElasticSearchCore = Depends(get_es_core),
@@ -615,14 +615,14 @@ class ElasticSearchService:
     ):
         try:
             all_documents = ElasticSearchService.get_all_documents(index_name, batch_size, es_core)
-            all_chunks = self._clean_chunks_for_summery(all_documents)
+            all_chunks = self._clean_chunks_for_summary(all_documents)
             keywords_dict = calculate_term_weights(all_chunks)
-            keywords_for_summery = ""
+            keywords_for_summary = ""
             for _, key in enumerate(keywords_dict):
-                keywords_for_summery = keywords_for_summery + "、" + key
+                keywords_for_summary = keywords_for_summary + "、" + key
 
             # 创建SummaryTool实例
-            summary_result = generate_knowledge_summery(keywords_for_summery)
+            summary_result = generate_knowledge_summary(keywords_for_summary)
 
             knowledge_record = get_knowledge_by_name(index_name)
             if knowledge_record:
@@ -632,14 +632,14 @@ class ElasticSearchService:
                 }
                 update_knowledge_record(knowledge_record["knowledge_id"], update_data)
             # 存到sql里
-            return {"status": "success", "message": f"Index {index_name} summery successfully"}
+            return {"status": "success", "message": f"Index {index_name} summary successfully"}
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{str(e)}")
 
 
     @staticmethod
-    def _clean_chunks_for_summery(all_documents):
+    def _clean_chunks_for_summary(all_documents):
         # Only use these three fields for summarization
         # all_contents = []
         all_chunks = ""

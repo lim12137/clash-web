@@ -151,17 +151,17 @@ def health_check(es_core: ElasticSearchCore = Depends(get_es_core)):
         raise HTTPException(status_code=500, detail=f"{str(e)}")
 
 
-@router.get("/{index_name}/summery")
-def summery(
+@router.get("/{index_name}/summary")
+def summary(
             index_name: str = Path(..., description="Name of the index to get documents from"),
             batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
             es_core: ElasticSearchCore = Depends(get_es_core),
             authorization: Optional[str] = Header(None)
     ):
-    """Summery Elasticsearch index_name"""
+    """Summary Elasticsearch index_name"""
     try:
         user_id = get_current_user_id(authorization)
         # Try to list indices as a health check
-        return ElasticSearchService().summery_index_name(index_name=index_name,batch_size=batch_size, es_core=es_core,user_id=user_id)
+        return ElasticSearchService().summary_index_name(index_name=index_name,batch_size=batch_size, es_core=es_core,user_id=user_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{str(e)}")
