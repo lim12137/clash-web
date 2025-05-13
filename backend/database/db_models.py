@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP, Sequence, Numeric, JSON, ARRAY
+from sqlalchemy import Column, Integer, String, TIMESTAMP, Sequence, Numeric, JSON, Boolean
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import func
 
@@ -171,6 +171,7 @@ class AgentInfo(Base):
     prompt_demo = Column(String, doc="Example prompt")
     parent_agent_id = Column(Integer, doc="Parent Agent ID")
     tenant_id = Column(String(100), doc="Belonging tenant")
+    enabled = Column(Boolean, doc="Enabled")
 
 class UserAgent(Base):
     """
@@ -186,6 +187,7 @@ class UserAgent(Base):
     prompt_demo = Column(String, doc="Example prompt")
     tenant_id = Column(String(100), doc="Belonging tenant")
     user_id = Column(String(100), doc="Belonging user")
+    enabled = Column(Boolean, doc="Enabled")
 
 class ToolInstance(Base):
     """
@@ -200,3 +202,4 @@ class ToolInstance(Base):
     params = Column(JSON, doc="Parameter configuration")
     user_id = Column(String(100), doc="User ID")
     tenant_id = Column(String(100), doc="Tenant ID")
+    enabled = Column(Boolean, doc="Enabled")
