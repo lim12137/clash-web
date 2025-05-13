@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional, Any, List, Dict
 
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field
 
 
 class ModelConnectStatusEnum(Enum):
@@ -23,11 +23,13 @@ class ModelConnectStatusEnum(Enum):
             return cls.NOT_DETECTED.value
         return status
 
+
 # Response models for user management
 class ServiceResponse(BaseModel):
     code: int
     message: str
     data: Optional[Any] = None
+
 
 # Response models for model management
 class ModelResponse(BaseModel):
@@ -236,3 +238,27 @@ class ProcessParams(BaseModel):
 class OpinionRequest(BaseModel):
     message_id: int
     opinion: Optional[str] = None
+
+
+class AgentToolInfoRequest(BaseModel):
+    tool_instance_id: int
+    tool_id: int
+    agent_id: int
+    params: Dict[str, Any]
+    user_id: str
+    tenant_id: str
+    enable: bool
+
+
+class AgentInfoRequest(BaseModel):
+    agent_id: int
+    agent_name: str
+    agent_description: str
+    model_name: str
+    business_description: str
+    max_steps: int
+    is_run_summary: bool
+    prompt: str
+    parent_id: Optional[int] = None
+    enable: bool
+    tools: List[AgentToolInfoRequest]
