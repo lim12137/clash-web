@@ -60,6 +60,7 @@ def test_update_agents():
         "name": "test_agent",
         "description": "Description 1",
         "prompt_core": "Prompt 1",
+        "xx": 1
     }
 
     try:
