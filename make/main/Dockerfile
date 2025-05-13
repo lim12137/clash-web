@@ -6,6 +6,10 @@ USER root
 COPY backend /opt/backend
 COPY make/start.sh /opt/deployment/start.sh
 
+# Update SDK
+COPY sdk /opt/sdk
+RUN cd /opt/sdk && pip install --user --no-cache-dir . -i https://mirrors.aliyun.com/pypi/simple
+
 WORKDIR /opt
 
 # Expose the service port
