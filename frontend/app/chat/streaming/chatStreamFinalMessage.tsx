@@ -16,6 +16,7 @@ interface FinalMessageProps {
   imagesCount?: number
   onImageClick?: (imageUrl: string) => void
   onOpinionChange?: (messageId: number, opinion: 'Y' | 'N' | null) => void
+  hideButtons?: boolean
 }
 
 export function ChatStreamFinalMessage({
@@ -26,6 +27,7 @@ export function ChatStreamFinalMessage({
   imagesCount = 0,
   onImageClick,
   onOpinionChange,
+  hideButtons = false,
 }: FinalMessageProps) {
   const { getAppAvatarUrl } = useConfig();
   const avatarUrl = getAppAvatarUrl(20); // 消息头像大小为 20px
@@ -136,102 +138,104 @@ export function ChatStreamFinalMessage({
               searchResults={message.searchResults}
             />
             
-            {/* 按钮组 */}
-            <div className="flex items-center justify-between mt-3">
-              {/* 溯源按钮 */}
-              {((message.searchResults && message.searchResults.length > 0) || (message.images && message.images.length > 0)) && (
-                <div className="flex items-center text-xs text-gray-500">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`flex items-center gap-1 p-1 pl-3 hover:bg-gray-100 rounded transition-all duration-200 border border-gray-200 ${
-                      isSelected ? 'bg-gray-100' : ''
-                    }`}
-                    onClick={handleMessageSelect}
-                  >
-                    <span>
-                      {`${searchResultsCount ? `${searchResultsCount}条来源` : ""}${searchResultsCount && imagesCount ? "，" : ""}${imagesCount ? `${imagesCount}张图片` : ""}`}
-                    </span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+            {/* 按钮组 - 只在 hideButtons 为 false 时显示 */}
+            {!hideButtons && (
+              <div className="flex items-center justify-between mt-3">
+                {/* 溯源按钮 */}
+                {((message.searchResults && message.searchResults.length > 0) || (message.images && message.images.length > 0)) && (
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`flex items-center gap-1 p-1 pl-3 hover:bg-gray-100 rounded transition-all duration-200 border border-gray-200 ${
+                        isSelected ? 'bg-gray-100' : ''
+                      }`}
+                      onClick={handleMessageSelect}
+                    >
+                      <span>
+                        {`${searchResultsCount ? `${searchResultsCount}条来源` : ""}${searchResultsCount && imagesCount ? "，" : ""}${imagesCount ? `${imagesCount}张图片` : ""}`}
+                      </span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                
+                {/* 工具按钮 */}
+                <div className="flex items-center space-x-2">
+                  <TooltipProvider>
+                    {/* 复制按钮 */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className={`h-8 w-8 rounded-full bg-white hover:bg-gray-100 transition-all duration-200 shadow-sm ${
+                            copied ? "bg-green-100 text-green-600 border-green-200" : ""
+                          }`}
+                          onClick={handleCopyContent}
+                          disabled={copied}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{copied ? "已复制" : "复制内容"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* 点赞按钮 */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={localOpinion === 'Y' ? "secondary" : "outline"}
+                          size="icon"
+                          className={`h-8 w-8 rounded-full ${localOpinion === 'Y' ? 'bg-green-100 text-green-600 border-green-200' : 'bg-white hover:bg-gray-100'} transition-all duration-200 shadow-sm`}
+                          onClick={handleThumbsUp}
+                        >
+                          <FaRegThumbsUp className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{localOpinion === 'Y' ? "取消点赞" : "点赞"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* 点踩按钮 */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={localOpinion === 'N' ? "secondary" : "outline"}
+                          size="icon"
+                          className={`h-8 w-8 rounded-full ${localOpinion === 'N' ? 'bg-red-100 text-red-600 border-red-200' : 'bg-white hover:bg-gray-100'} transition-all duration-200 shadow-sm`}
+                          onClick={handleThumbsDown}
+                        >
+                          <FaRegThumbsDown className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{localOpinion === 'N' ? "取消点踩" : "点踩"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* 语音播报按钮 */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 rounded-full bg-white hover:bg-gray-100 transition-all duration-200 shadow-sm"
+                        >
+                          <Volume2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>语音播报</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
-              )}
-              
-              {/* 工具按钮 */}
-              <div className="flex items-center space-x-2 mt-1 justify-end">
-                <TooltipProvider>
-                  {/* 复制按钮 */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className={`h-8 w-8 rounded-full bg-white hover:bg-gray-100 transition-all duration-200 shadow-sm ${
-                          copied ? "bg-green-100 text-green-600 border-green-200" : ""
-                        }`}
-                        onClick={handleCopyContent}
-                        disabled={copied}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{copied ? "已复制" : "复制内容"}</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  {/* 点赞按钮 */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={localOpinion === 'Y' ? "secondary" : "outline"}
-                        size="icon"
-                        className={`h-8 w-8 rounded-full ${localOpinion === 'Y' ? 'bg-green-100 text-green-600 border-green-200' : 'bg-white hover:bg-gray-100'} transition-all duration-200 shadow-sm`}
-                        onClick={handleThumbsUp}
-                      >
-                        <FaRegThumbsUp className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{localOpinion === 'Y' ? "取消点赞" : "点赞"}</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  {/* 点踩按钮 */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={localOpinion === 'N' ? "secondary" : "outline"}
-                        size="icon"
-                        className={`h-8 w-8 rounded-full ${localOpinion === 'N' ? 'bg-red-100 text-red-600 border-red-200' : 'bg-white hover:bg-gray-100'} transition-all duration-200 shadow-sm`}
-                        onClick={handleThumbsDown}
-                      >
-                        <FaRegThumbsDown className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{localOpinion === 'N' ? "取消点踩" : "点踩"}</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  {/* 语音播报按钮 */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8 rounded-full bg-white hover:bg-gray-100 transition-all duration-200 shadow-sm"
-                      >
-                        <Volume2 className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>语音播报</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
