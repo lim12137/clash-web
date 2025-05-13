@@ -1,12 +1,12 @@
 """
-Elasticsearch应用程序接口模块
+Elasticsearch Application Interface Module
 
-这个模块提供了与Elasticsearch交互的REST API接口，包括索引管理、文档操作和搜索功能。
-主要功能包括：
-1. 索引的创建、删除和查询
-2. 文档的索引、删除和搜索
-3. 支持多种搜索方式：精确搜索、语义搜索和混合搜索
-4. 健康检查接口
+This module provides REST API interfaces for interacting with Elasticsearch, including index management, document operations, and search functionality.
+Main features include:
+1. Index creation, deletion, and querying
+2. Document indexing, deletion, and searching
+3. Support for multiple search methods: exact search, semantic search, and hybrid search
+4. Health check interface
 """
 
 import os
@@ -17,7 +17,7 @@ import requests
 from nexent.core.models.embedding_model import JinaEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from nexent.core.nlp.tokenizer import calculate_term_weights
-from nexent.core.utils.title_generator import generate_knowledge_summery
+from services.knowledge_summary_service import generate_knowledge_summery
 from fastapi import HTTPException, Query, Body, Path, Depends
 
 from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST
@@ -54,15 +54,15 @@ class ElasticSearchService:
             user_id: Optional[str] = Body(None, description="ID of the user creating the knowledge base"),
     ):
         """
-        创建新的向量索引
+        Create a new vector index
 
         Args:
-            index_name: 要创建的索引名称
-            embedding_dim: 向量维度（可选）
-            es_core: ElasticSearchCore实例
+            index_name: Name of the index to create
+            embedding_dim: Vector dimension (optional)
+            es_core: ElasticSearchCore instance
 
         Returns:
-            成功时返回索引创建信息，失败时抛出HTTP异常
+            Returns index creation information on success, throws HTTP exception on failure
         """
         try:
             success = es_core.create_vector_index(index_name, embedding_dim)
@@ -151,16 +151,16 @@ class ElasticSearchService:
 
     @staticmethod
     def _get_file_actual_size(source_type: str, path_or_url: str) -> int:
-        """查询文件的实际大小"""
+        """Query the actual size of the file"""
         try:
             if source_type == "url":
-                # 对于URL类型，使用requests库获取文件大小
+                # For URL type, use requests library to get file size
                 response = requests.head(path_or_url)
                 if 'content-length' in response.headers:
                     return int(response.headers['content-length'])
                 return 0
             else:
-                # 对于本地文件，使用os.path.getsize获取文件大小
+                # For local files, use os.path.getsize to get file size
                 return os.path.getsize(path_or_url)
         except Exception as e:
             print(f"Error getting file size for {path_or_url}: {str(e)}")
@@ -174,16 +174,16 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        获取索引的详细信息，包括统计信息、字段映射、文件列表和处理信息
+        Get detailed information about the index, including statistics, field mappings, file list, and processing information
 
         Args:
-            index_name: 索引名称
-            include_files: 是否包含文件列表
-            include_chunks: 是否包含每个文件的文本块
-            es_core: ElasticSearchCore实例
+            index_name: Index name
+            include_files: Whether to include file list
+            include_chunks: Whether to include text chunks for each file
+            es_core: ElasticSearchCore instance
 
         Returns:
-            包含索引详细信息的字典
+            Dictionary containing detailed index information
         """
         try:
             # Get all the info in one combined response
@@ -454,14 +454,14 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        使用模糊文本匹配在多个索引中搜索文档
+        Search documents in multiple indices using fuzzy text matching
 
         Args:
-            request: 包含搜索参数的SearchRequest对象
-            es_core: ElasticSearchCore实例
+            request: SearchRequest object containing search parameters
+            es_core: ElasticSearchCore instance
 
         Returns:
-            包含搜索结果、总数和查询时间的响应
+            Response containing search results, total count, and query time
         """
         try:
             # 验证查询不为空
@@ -498,14 +498,14 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        使用向量相似度在多个索引中搜索相似文档
+        Search for similar documents in multiple indices using vector similarity
 
         Args:
-            request: 包含搜索参数的SearchRequest对象
-            es_core: ElasticSearchCore实例
+            request: SearchRequest object containing search parameters
+            es_core: ElasticSearchCore instance
 
         Returns:
-            包含搜索结果、总数和查询时间的响应
+            Response containing search results, total count, and query time
         """
         try:
             # 验证查询不为空
@@ -542,14 +542,14 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        使用混合搜索在多个索引中搜索相似文档
+        Search for similar documents in multiple indices using hybrid search
 
         Args:
-            request: 包含搜索参数的HybridSearchRequest对象
-            es_core: ElasticSearchCore实例
+            request: HybridSearchRequest object containing search parameters
+            es_core: ElasticSearchCore instance
 
         Returns:
-            包含搜索结果、总数、查询时间和详细分数信息的响应
+            Response containing search results, total count, query time, and detailed score information
         """
         try:
             # 验证查询不为空
@@ -588,13 +588,13 @@ class ElasticSearchService:
     @staticmethod
     def health_check(es_core: ElasticSearchCore = Depends(get_es_core)):
         """
-        检查API和Elasticsearch的健康状态
+        Check the health status of the API and Elasticsearch
 
         Args:
-            es_core: ElasticSearchCore实例
+            es_core: ElasticSearchCore instance
 
         Returns:
-            包含健康状态信息的响应
+            Response containing health status information
         """
         try:
             # 尝试列出索引作为健康检查
@@ -640,7 +640,7 @@ class ElasticSearchService:
 
     @staticmethod
     def _clean_chunks_for_summery(all_documents):
-        # 只要这三个字段用于总结
+        # Only use these three fields for summarization
         # all_contents = []
         all_chunks = ""
         for _, chunk in enumerate(all_documents['documents']):
@@ -655,22 +655,22 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        获取指定索引中的所有文档数据
+        Get all document data from the specified index
 
         Args:
-            index_name: 要获取文档的索引名称
-            batch_size: 每批次获取的文档数量，默认1000
-            es_core: ElasticSearchCore实例
+            index_name: Name of the index to get documents from
+            batch_size: Number of documents to retrieve per batch, default 1000
+            es_core: ElasticSearchCore instance
 
         Returns:
-            包含所有文档的列表
+            List containing all documents
         """
         sampling_interval = 1
         try:
             dounts_count = es_core.get_index_count(index_name)
             if dounts_count > YUZHI:
                 sampling_interval = int(dounts_count/YUZHI)
-            # 初始化scroll查询
+            # Initialize scroll query
             query = {
                 "query": {
                     "match_all": {}
@@ -678,26 +678,26 @@ class ElasticSearchService:
                 "size": batch_size
             }
 
-            # 执行初始搜索
+            # Execute initial search
             response = es_core.client.search(
                 index=index_name,
                 body=query,
-                scroll='5m'  # 设置scroll上下文保持时间为5分钟
+                scroll='5m'  # Set scroll context retention time to 5 minutes
             )
 
-            # 获取第一批结果
+            # Get first batch of results
             scroll_id = response['_scroll_id']
             hits = response['hits']['hits']
             all_documents = []
 
-            # 处理第一批结果
-            sampled_hits = hits[::sampling_interval]  # 每隔10个取一个
+            # Process first batch of results
+            sampled_hits = hits[::sampling_interval]  # Sample every nth document
             for hit in sampled_hits:
                 doc = hit['_source']
-                doc['_id'] = hit['_id']  # 添加文档ID
+                doc['_id'] = hit['_id']  # Add document ID
                 all_documents.append(doc)
 
-            # 继续获取后续批次
+            # Continue fetching subsequent batches
             while len(hits) > 0:
                 response = es_core.client.scroll(
                     scroll_id=scroll_id,
@@ -706,14 +706,14 @@ class ElasticSearchService:
                 scroll_id = response['_scroll_id']
                 hits = response['hits']['hits']
 
-                # 处理当前批次的结果
-                sampled_hits = hits[::sampling_interval]  # 每隔10个取一个
+                # Process current batch of results
+                sampled_hits = hits[::sampling_interval]  # Sample every nth document
                 for hit in sampled_hits:
                     doc = hit['_source']
-                    doc['_id'] = hit['_id']  # 添加文档ID
+                    doc['_id'] = hit['_id']  # Add document ID
                     all_documents.append(doc)
 
-            # 清理scroll上下文
+            # Clean up scroll context
             es_core.client.clear_scroll(scroll_id=scroll_id)
 
             return {

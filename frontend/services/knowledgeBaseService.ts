@@ -114,7 +114,7 @@ class KnowledgeBaseService {
     try {
       const response = await fetch(API_ENDPOINTS.knowledgeBase.indexDetail(params.name), {
         method: "POST",
-        headers: getAuthHeaders(), // 添加用户健全信息，用于获取用户id
+        headers: getAuthHeaders(), // Add user authentication information to obtain the user id
         body: JSON.stringify({
           name: params.name,
           description: params.description || "",

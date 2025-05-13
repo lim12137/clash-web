@@ -12,7 +12,7 @@ export interface STTResponse {
   text?: string;
 }
 
-// 获取授权头的辅助函数,非正常功能函数，用于适配
+// Obtain the auxiliary functions and abnormal function functions of the authorization header for adaptation
 export const getAuthHeaders = () => {
   return {
     'Content-Type': 'application/json',
