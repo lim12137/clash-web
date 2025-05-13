@@ -37,13 +37,32 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
                     data=None
                 )
 
-        # Pass user ID to database function
-        create_model_record(model_data)
-        return ModelResponse(
-            code=200,
-            message=f"Model {add_repo_to_name(model_repo, model_name)} created successfully",
-            data=None
-        )
+        # Check if this is a multimodal embedding model
+        is_multimodal = model_data.get("model_type") == "multi_embedding"
+        
+        # If it's multi_embedding type, create both embedding and multi_embedding records
+        if is_multimodal:
+            # Create the multi_embedding record
+            create_model_record(model_data)
+            
+            # Create the embedding record with the same data but different model_type
+            embedding_data = model_data.copy()
+            embedding_data["model_type"] = "embedding"
+            create_model_record(embedding_data)
+            
+            return ModelResponse(
+                code=200,
+                message=f"Multimodal embedding model {add_repo_to_name(model_repo, model_name)} created successfully",
+                data=None
+            )
+        else:
+            # For non-multimodal models, just create one record
+            create_model_record(model_data)
+            return ModelResponse(
+                code=200,
+                message=f"Model {add_repo_to_name(model_repo, model_name)} created successfully",
+                data=None
+            )
     except Exception as e:
         return ModelResponse(
             code=500,
@@ -103,6 +122,7 @@ def update_model(request: ModelRequest, authorization: Optional[str] = Header(No
 async def delete_model(model_name: str = Body(..., embed=True), authorization: Optional[str] = Header(None)):
     """
     Soft delete the specified model
+    If the model is an embedding or multi_embedding type, both types will be deleted
 
     Args:
         model_name: Model name to delete. Includes model_repo, e.g.: openai/gpt-3.5-turbo
@@ -113,20 +133,27 @@ async def delete_model(model_name: str = Body(..., embed=True), authorization: O
         model_repo, name = split_repo_name(model_name)
         # Ensure model_repo is empty string instead of null
         model_repo = model_repo if model_repo else ""
-        # Find model using split model_repo and model_name
-        model = get_model_by_name(name, model_repo)
-        if not model:
+        
+        # Find all models with this name and repo (sometimes can find both embedding and multi_embedding models with same repo/name)
+        all_models = get_model_records({'model_name': name, 'model_repo': model_repo})
+        
+        if not all_models:
             return ModelResponse(
                 code=404,
                 message=f"Model not found: {model_name}",
                 data=None
             )
 
-        # Pass user ID to delete_model_record function
-        delete_model_record(model["model_id"])
+        deleted_types = []
+        
+        # Delete all matching models (could be both embedding and multi_embedding types)
+        for model in all_models:
+            delete_model_record(model["model_id"])
+            deleted_types.append(model.get("model_type", "unknown"))
+        
         return ModelResponse(
             code=200,
-            message="Model deleted successfully",
+            message=f"Successfully deleted model(s) in types: {', '.join(deleted_types)}",
             data={"model_name": model_name}
         )
     except Exception as e:
