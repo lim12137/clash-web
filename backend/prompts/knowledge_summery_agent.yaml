@@ -1,5 +1,4 @@
-knowledge_summery_generator:
-  system: |
+system_prompt: |-
     请为以下内容生成一个准确的知识库总结（不超过150字），要求描述出该知识库内容的核心主题或关键信息。
     
     应自然流畅，避免生硬的关键词堆砌。
@@ -12,9 +11,8 @@ knowledge_summery_generator:
 
     请直接输出生成的总结，无需额外解释。
   
-  user: |
-    请根据以下关键词内容生成一个简洁的知识库总结，不超过150个字：
-    {content}
-
-    关键词内容： 
+user_prompt: |
+  请根据以下关键词内容生成一个简洁的知识库总结，不超过150个字：
+  关键词内容：{keywords}
+ 
     
