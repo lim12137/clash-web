@@ -2,8 +2,8 @@ import unittest
 import sys
 import os
 
-from backend.services.prompt_service import generate_system_prompt, fine_tune_prompt
-from backend.consts.model import GeneratePromptRequest, SubAgent, FineTunePromptRequest
+from services.prompt_service import generate_system_prompt, fine_tune_prompt
+from consts.model import GeneratePromptRequest, SubAgent, FineTunePromptRequest
 
 
 class TestPromptGenerate(unittest.TestCase):
