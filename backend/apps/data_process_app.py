@@ -1,186 +1,161 @@
 import logging
-import time
 from contextlib import asynccontextmanager
-
-from nexent.data_process.core import DataProcessCore
-from fastapi import HTTPException, APIRouter
+from fastapi import HTTPException, APIRouter, Form
 
 from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTaskRequest, SimpleTaskStatusResponse, \
     SimpleTasksListResponse
 from utils.task_status_utils import format_status_for_api, get_status_display
+from services.data_process_service import DataProcessService
 
 # Configure logging
-logger = logging.getLogger("data_process.service")
+logger = logging.getLogger("data_process.app")
+
+# Initialize service
+service = DataProcessService(num_workers=3)
+
+@asynccontextmanager
+async def lifespan(app: APIRouter):
+    # Startup
+    try:
+        await service.start()
+        yield
+    finally:
+        # Shutdown
+        await service.stop()
+
+router = APIRouter(
+    prefix="/tasks",
+    lifespan=lifespan
+)
 
 
-class DataProcessService:
-    def __init__(self, host: str = "0.0.0.0", port: int = 5000,
-                 num_workers: int = 3):
-        """
-        Initialize the Data Process Service
-        
-        Args:
-            host: Host to bind to
-            port: Port to bind to
-            num_workers: Number of worker threads for parallel processing
-        """
-        self.host = host
-        self.port = port
+@router.post("", response_model=TaskResponse, status_code=201)
+async def create_task(request: TaskRequest):
+    """
+    Create a new data processing task
+    
+    Returns task ID immediately. Processing happens in the background.
+    Tasks are forwarded to Elasticsearch when complete.
+    """
+    # Extract parameters
+    params = {}
+    if request.additional_params:
+        params.update(request.additional_params)
 
-        # Initialize core
-        self.core = DataProcessCore(num_workers=num_workers)
+    # Create task using service
+    task_id = await service.create_task(
+        source=request.source,
+        source_type=request.source_type,
+        chunking_strategy=request.chunking_strategy,
+        index_name=request.index_name,
+        **params
+    )
 
-        # Create FastAPI app
-        self.router = self._create_router()
+    return TaskResponse(task_id=task_id)
 
-    def _create_router(self) -> APIRouter:
-        """Create FastAPI application"""
 
-        @asynccontextmanager
-        async def lifespan(app: APIRouter):
-            # Startup
-            try:
-                await self.core.start()
-                yield
-            finally:
-                # Shutdown
-                await self.core.stop()
+@router.post("/batch", response_model=BatchTaskResponse, status_code=201)
+async def create_batch_tasks(request: BatchTaskRequest):
+    """
+    Create multiple data processing tasks at once
+    
+    Returns list of task IDs immediately. Processing happens in the background.
+    """
+    # Create batch tasks using service
+    task_ids = await service.create_batch_tasks(request.sources)
+    
+    return BatchTaskResponse(task_ids=task_ids)
 
-        router = APIRouter(
-            prefix="/tasks",
-            lifespan=lifespan
-        )
 
-        # API Endpoints
-        @router.post("", response_model=TaskResponse, status_code=201)
-        async def create_task(request: TaskRequest):
-            """
-            Create a new data processing task
+@router.get("/{task_id}", response_model=SimpleTaskStatusResponse)
+async def get_task(task_id: str):
+    """Get basic status information for a specific task"""
+    task = service.get_task(task_id)
 
-            Creates a data processing task and immediately returns the task ID.
-            The task will be processed asynchronously in the background,
-            and will be forwarded to Elasticsearch service upon completion.
+    if not task:
+        raise HTTPException(
+            status_code=404, detail=f"Task with ID {task_id} not found")
 
-            After processing, the task status will change to forwarding, then
-            automatically forwarded to Elasticsearch, and finally the status
-            will become completed or failed.
-            """
-            # Extract parameters
-            params = {}
-            if request.additional_params:
-                params.update(request.additional_params)
+    # Get status and convert to lowercase - using utility function
+    status = format_status_for_api(task["status"])
 
-            # Create task directly - no need to wait for processing
-            start_time = time.time()
-            task_id = await self.core.create_task(
-                source=request.source,
-                source_type=request.source_type,
-                chunking_strategy=request.chunking_strategy,
-                index_name=request.index_name,
-                **params
-            )
-            logger.info(f"Task creation took {(time.time() - start_time) * 1000:.2f}ms",
-                        extra={'task_id': task_id, 'stage': 'API-CREATE', 'source': 'service'})
+    return SimpleTaskStatusResponse(
+        id=task["id"],
+        status=status,
+        created_at=task["created_at"],
+        updated_at=task["updated_at"],
+        error=task.get("error")
+    )
 
-            return TaskResponse(task_id=task_id)
 
-        @router.post("/batch", response_model=BatchTaskResponse, status_code=201)
-        async def create_batch_tasks(request: BatchTaskRequest):
-            """
-            Create a batch of data processing tasks
+@router.get("", response_model=SimpleTasksListResponse)
+async def list_tasks():
+    """Get a list of all tasks with their basic status information"""
+    tasks = service.get_all_tasks()
 
-            Creates multiple data processing tasks and immediately returns the task ID list.
-            Tasks will be processed asynchronously in the background,
-            and will be forwarded to Elasticsearch service upon completion.
+    task_responses = []
+    for task in tasks:
+        # Use unified status conversion method
+        status = format_status_for_api(task["status"])
 
-            After processing, each task status will change to forwarding, then
-            automatically forwarded to Elasticsearch, and finally the status
-            will become completed or failed.
-            """
-            # Create batch tasks directly - no need to wait for processing
-            start_time = time.time()
-            batch_id = f"batch-{int(time.time())}"
-
-            logger.info(f"Processing batch request with {len(request.sources)} sources",
-                        extra={'task_id': batch_id, 'stage': 'API-BATCH', 'source': 'service'})
-
-            task_ids = await self.core.create_batch_tasks(request.sources)
-
-            elapsed_ms = (time.time() - start_time) * 1000
-            logger.info(f"Batch task creation took {elapsed_ms:.2f}ms for {len(task_ids)} tasks",
-                        extra={'task_id': batch_id, 'stage': 'API-BATCH', 'source': 'service'})
-
-            return BatchTaskResponse(task_ids=task_ids)
-
-        @router.get("/{task_id}", response_model=SimpleTaskStatusResponse)
-        async def get_task(task_id: str):
-            """Get task status (without results and metadata)"""
-            task = self.core.get_task(task_id)
-
-            if not task:
-                raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
-
-            # Get status and convert to lowercase - using utility function
-            status = format_status_for_api(task["status"])
-
-            return SimpleTaskStatusResponse(
+        task_responses.append(
+            SimpleTaskStatusResponse(
                 id=task["id"],
                 status=status,
                 created_at=task["created_at"],
                 updated_at=task["updated_at"],
                 error=task.get("error")
             )
+        )
 
-        @router.get("", response_model=SimpleTasksListResponse)
-        async def list_tasks():
-            """List all tasks (without results and metadata)"""
-            tasks = self.core.get_all_tasks()
-
-            task_responses = []
-            for task in tasks:
-                # Use unified status conversion method
-                status = format_status_for_api(task["status"])
-
-                task_responses.append(
-                    SimpleTaskStatusResponse(
-                        id=task["id"],
-                        status=status,
-                        created_at=task["created_at"],
-                        updated_at=task["updated_at"],
-                        error=task.get("error")
-                    )
-                )
-
-            return SimpleTasksListResponse(tasks=task_responses)
-
-        @router.get("/indices/{index_name}/tasks")
-        async def get_index_tasks(index_name: str):
-            """
-            Get all active tasks for a specific index that are in WAITING, PROCESSING, FORWARDING or FAILED state
-
-            Args:
-                index_name: Name of the index to filter tasks for
-
-            Returns:
-                Dictionary containing index name and list of file information
-            """
-            try:
-                return self.core.get_index_tasks(index_name)
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=str(e))
-
-        @router.get("/{task_id}/details")
-        async def get_task_details(task_id: str):
-            """Get task status and results."""
-            task = self.core.get_task(task_id)
-
-            if not task:
-                raise HTTPException(status_code=404, detail="Task not found")
-
-            # Use utility method to get formatted task status information
-            return get_status_display(task)
-
-        return router
+    return SimpleTasksListResponse(tasks=task_responses)
 
 
-router = DataProcessService().router
+@router.get("/indices/{index_name}/tasks")
+async def get_index_tasks(index_name: str):
+    """
+    Get all active tasks for a specific index
+    
+    Returns tasks that are being processed or waiting to be processed
+    """
+    try:
+        return service.get_index_tasks(index_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{task_id}/details")
+async def get_task_details(task_id: str):
+    """Get detailed information about a task, including results"""
+    task = service.get_task(task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Use utility method to get formatted task status information
+    return get_status_display(task)
+
+
+@router.post("/filter_important_image", response_model=dict)
+async def filter_important_image(
+    image_url: str = Form(...),
+    positive_prompt: str = Form("an important image"),
+    negative_prompt: str = Form("an unimportant image")
+):
+    """
+    Check if an image is important
+    
+    Uses AI to determine image importance based on provided prompts.
+    Returns importance score and confidence level.
+    """
+    try:
+        result = await service.filter_important_image(
+            image_url=image_url,
+            positive_prompt=positive_prompt,
+            negative_prompt=negative_prompt
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error processing image: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error processing image: {str(e)}")
