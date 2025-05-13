@@ -1,21 +1,16 @@
 import { message } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
 import knowledgeBaseService from '@/services/knowledgeBaseService';
+import knowledgeBasePollingService from '@/services/knowledgeBasePollingService';
 
 // 添加类型定义
 export interface AbortableError extends Error {
   name: string;
 }
 
-// 添加更新缓存的通用函数
-export const updateKnowledgeBaseCache = () => {
-  // 清除所有相关缓存
-  localStorage.removeItem('preloaded_kb_data');
-  
-  // 触发知识库数据更新事件
-  window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
-    detail: { forceRefresh: true }
-  }));
+// 简化更新缓存的通用函数
+export const updateKnowledgeBaseCache = (forceRefresh: boolean = true) => {
+  knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(forceRefresh);
 };
 
 // 自定义上传请求函数
@@ -61,94 +56,88 @@ export const customUploadRequest = async (
       const result = await response.json();
       onSuccess(result, file);
 
-      // 清除缓存并立即触发一次更新事件
-      localStorage.removeItem('preloaded_kb_data');
-      window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
-        detail: { forceRefresh: true }
-      }));
+      // 通过轮询服务触发知识库数据更新
+      knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
 
-      // 新增：在上传成功后等待3秒，然后刷新文档详细信息
-      setTimeout(() => {
-        // 刷新知识库数据
-        updateKnowledgeBaseCache();
-        
-        // 如果不是创建模式，直接更新文档信息
-        if (!isCreatingMode) {
-          try {
-            // 获取最新的文档信息
-            knowledgeBaseService.getDocuments(effectiveIndexName).then(documents => {
-              // 触发文档更新事件
-              window.dispatchEvent(new CustomEvent('documentsUpdated', {
-                detail: { 
-                  kbId: effectiveIndexName,
-                  documents: documents
-                }
-              }));
-            });
-          } catch (error) {
-            console.error('更新知识库文档信息失败:', error);
-          }
-        }
-      }, 3000); // 等待3秒
-
+      // 如果是创建模式，使用轮询服务等待知识库创建
       if (isCreatingMode) {
-        let checkCount = 0;
-        const maxChecks = 30; // 最多检查30次(约30秒)
-        
-        const checkForNewKnowledgeBase = () => {
-          // 使用通用函数更新缓存
-          updateKnowledgeBaseCache();
-          
-          checkCount++;
-          
-          // 如果没有达到最大检查次数，继续检查
-          if (checkCount < maxChecks) {
-            setTimeout(() => {
-              // 检查知识库是否已经创建
-              const checkIfCreated = () => {
-                // 获取当前知识库列表
-                const knowledgeBases = JSON.parse(localStorage.getItem('preloaded_kb_data') || '[]');
-                
-                // 查找是否包含指定名称的知识库
-                const newKb = knowledgeBases.find((kb: {name: string, id: string}) => kb.name === effectiveIndexName);
-                
-                if (newKb) {
-                  // 找到了新创建的知识库，触发选中事件
-                  window.dispatchEvent(new CustomEvent('selectNewKnowledgeBase', {
-                    detail: { name: effectiveIndexName }
-                  }));
+        // 等待2秒后开始轮询，给后端处理时间
+        setTimeout(() => {
+          knowledgeBasePollingService.waitForKnowledgeBaseCreation(
+            effectiveIndexName,
+            async (found) => {
+              if (found) {
+                try {
+                  // 先获取最新的知识库列表
+                  const knowledgeBases = await knowledgeBaseService.getKnowledgeBases(true);
+                  const newKB = knowledgeBases.find(kb => kb.name === effectiveIndexName);
                   
-                  // 新增：找到知识库后，再等待3秒获取最新的文档信息
-                  setTimeout(() => {
-                    try {
+                  if (newKB) {
+                    // 找到知识库后，触发选中事件，并传递完整的知识库信息
+                    window.dispatchEvent(new CustomEvent('selectNewKnowledgeBase', {
+                      detail: { knowledgeBase: newKB }
+                    }));
+                    
+                    // 延迟3秒后获取该知识库的文档
+                    setTimeout(() => {
                       knowledgeBaseService.getDocuments(effectiveIndexName).then(documents => {
-                        // 触发文档更新事件
-                        window.dispatchEvent(new CustomEvent('documentsUpdated', {
-                          detail: { 
-                            kbId: effectiveIndexName,
-                            documents: documents
-                          }
-                        }));
+                        knowledgeBasePollingService.triggerDocumentsUpdate(effectiveIndexName, documents);
+                        
+                        // 如果文档有正在处理的状态，开始文档状态轮询
+                        const hasProcessingDocs = documents.some(doc => 
+                          doc.status === "PROCESSING" || doc.status === "FORWARDING"
+                        );
+                        
+                        if (hasProcessingDocs) {
+                          knowledgeBasePollingService.startDocumentStatusPolling(
+                            effectiveIndexName,
+                            (updatedDocs) => {
+                              knowledgeBasePollingService.triggerDocumentsUpdate(
+                                effectiveIndexName, 
+                                updatedDocs
+                              );
+                            }
+                          );
+                        }
                       });
-                    } catch (error) {
-                      console.error('新知识库创建后更新文档信息失败:', error);
-                    }
-                  }, 3000);
-                  
-                  return true; // 成功找到
+                    }, 3000);
+                  }
+                } catch (error) {
+                  console.error('获取新创建的知识库信息失败:', error);
                 }
-                
-                return false; // 未找到
-              };
-              
-              if (!checkIfCreated()) {
-                checkForNewKnowledgeBase();
+              } else {
+                message.warning(`知识库 ${effectiveIndexName} 创建可能未完成`);
               }
-            }, 1000);
+            }
+          );
+        }, 2000);
+      } else {
+        // 非创建模式：延迟3秒后获取文档状态
+        setTimeout(async () => {
+          try {
+            const documents = await knowledgeBaseService.getDocuments(effectiveIndexName, true);
+            knowledgeBasePollingService.triggerDocumentsUpdate(effectiveIndexName, documents);
+            
+            // 检查是否有需要轮询的文档
+            const hasProcessingDocs = documents.some(doc => 
+              doc.status === "PROCESSING" || doc.status === "FORWARDING"
+            );
+            
+            if (hasProcessingDocs) {
+              knowledgeBasePollingService.startDocumentStatusPolling(
+                effectiveIndexName,
+                (updatedDocs) => {
+                  knowledgeBasePollingService.triggerDocumentsUpdate(
+                    effectiveIndexName, 
+                    updatedDocs
+                  );
+                }
+              );
+            }
+          } catch (error) {
+            console.error('更新文档信息失败:', error);
           }
-        };
-        
-        setTimeout(checkForNewKnowledgeBase, 2000);
+        }, 3000);
       }
     } else {
       onError(new Error('上传失败'));

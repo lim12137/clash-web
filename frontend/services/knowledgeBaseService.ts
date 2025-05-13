@@ -5,24 +5,43 @@ import { API_ENDPOINTS } from './api';
 
 // Knowledge base service class
 class KnowledgeBaseService {
-  // 新增：添加一个记录空列表请求的时间戳
+  // 添加一个记录空列表请求的时间戳
   private emptyListTimestamp: number | null = null;
-  // 新增：空列表缓存有效期（毫秒）
+  // 空列表缓存有效期（毫秒）
   private emptyListCacheDuration = 30000; // 30秒
+  // 健康检查缓存
+  private healthCheckCache: { isHealthy: boolean; timestamp: number } | null = null;
+  // 健康检查缓存有效期（毫秒）
+  private healthCheckCacheDuration = 60000; // 60秒
 
-  // Check Elasticsearch health
+  // Check Elasticsearch health (with caching)
   async checkHealth(): Promise<boolean> {
     try {
+      // 检查缓存是否有效
+      const now = Date.now();
+      if (this.healthCheckCache && (now - this.healthCheckCache.timestamp < this.healthCheckCacheDuration)) {
+        console.log("使用健康检查缓存");
+        return this.healthCheckCache.isHealthy;
+      }
+
       const response = await fetch(API_ENDPOINTS.knowledgeBase.health);
       const data = await response.json();
       
-      if (data.status === "healthy" && data.elasticsearch === "connected") {
-        return true;
-      } else {
-        return false;
-      }
+      const isHealthy = data.status === "healthy" && data.elasticsearch === "connected";
+      
+      // 更新缓存
+      this.healthCheckCache = {
+        isHealthy,
+        timestamp: now
+      };
+      
+      return isHealthy;
     } catch (error) {
       console.error("Elasticsearch健康检查失败:", error);
+      this.healthCheckCache = {
+        isHealthy: false,
+        timestamp: Date.now()
+      };
       return false;
     }
   }
@@ -97,6 +116,22 @@ class KnowledgeBaseService {
     }
   }
 
+  // 检查知识库是否存在（不获取详细统计信息，更轻量）
+  async checkKnowledgeBaseExists(name: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=false`);
+      const data = await response.json();
+      
+      if (data.indices && Array.isArray(data.indices)) {
+        return data.indices.includes(name);
+      }
+      return false;
+    } catch (error) {
+      console.error("检查知识库存在性失败:", error);
+      return false;
+    }
+  }
+
   // 检查知识库名称是否已存在
   async checkKnowledgeBaseNameExists(name: string): Promise<boolean> {
     try {
@@ -131,7 +166,7 @@ class KnowledgeBaseService {
 
       const result = await response.json();
       // 修改判断逻辑，后端返回status字段而不是success字段
-      if (result.status !== "success" || !result.success) {
+      if (result.status !== "success") {
         throw new Error(result.message || "创建知识库失败");
       }
 

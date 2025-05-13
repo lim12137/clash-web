@@ -16,6 +16,7 @@ interface UploadAreaProps {
   onDragLeave?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  selectedFiles?: File[];
   onUpload?: () => void;
   isUploading?: boolean;
   disabled?: boolean;
@@ -39,7 +40,8 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
   isCreatingMode = false,
   uploadUrl = '/api/upload',
   indexName = '',
-  newKnowledgeBaseName = ''
+  newKnowledgeBaseName = '',
+  selectedFiles = []
 }, ref) => {
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [nameExists, setNameExists] = useState(false);
@@ -219,6 +221,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
       disabled={disabled}
       componentHeight={componentHeight}
       newKnowledgeBaseName={newKnowledgeBaseName}
+      selectedFiles={selectedFiles}
     />
   );
 });
