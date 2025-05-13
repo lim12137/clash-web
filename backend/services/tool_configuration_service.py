@@ -1,10 +1,12 @@
+from typing import List, Optional
+
 from utils.config_utils import config_manager
 from smolagents import ToolCollection
-from fastapi import HTTPException
 import importlib
 import inspect
 import logging
 from pydantic_core import PydanticUndefined
+from backend.consts.model import ToolDetailInformation
 
 
 logging.basicConfig(level=logging.INFO)
@@ -59,7 +61,7 @@ def get_local_tools():
     return tools_info
 
 
-def get_local_tools_classes():
+def get_local_tools_classes()-> List[type]:
     tools_package = importlib.import_module('nexent.core.tools')
     tools_classes = []
     for name in dir(tools_package):
@@ -88,9 +90,33 @@ def get_mcp_tools():
     except Exception as e:
         logger.error(f"mcp connection error: {str(e)}")
         return []
-    
+
+
+def get_tool_detail_information(tool_name: str)-> Optional[ToolDetailInformation]:
+    detail_information = ToolDetailInformation()
+
+    local_tool_class = get_local_tools_classes()
+    for tool_class in local_tool_class:
+        if tool_name == tool_class.name:
+            detail_information.name = tool_name
+            detail_information.description = tool_class.description
+            detail_information.inputs = str(tool_class.inputs)
+            detail_information.output_type = tool_class.output_type
+            return detail_information
+
+    mcp_service = config_manager.get_config("MCP_SERVICE")
+    try:
+        with ToolCollection.from_mcp({"url": mcp_service}) as tool_collection:
+            for tool_class in tool_collection.tools:
+                if tool_name == tool_class.name:
+                    detail_information.name = tool_name
+                    detail_information.description = tool_class.description
+                    detail_information.inputs = str(tool_class.inputs)
+                    detail_information.output_type = tool_class.output_type
+                    return detail_information
+    except Exception as e:
+        logger.error(f"mcp connection error: {str(e)}")
+        return None
 
 if __name__ == "__main__":
-    # print(get_local_tools())
-    print(get_mcp_tools())
-
+    print(get_tool_detail_information("exa_web_search"))
