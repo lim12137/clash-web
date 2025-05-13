@@ -705,31 +705,31 @@ class ElasticSearchCore:
             Tuple containing the index name and number of documents indexed
         """
         index_name = "sample_articles"
-        print(f"\nChecking if test knowledge base '{index_name}' exists...")
+        logging.info(f"Checking if test knowledge base '{index_name}' exists...")
         
         # Check if index already exists
         if self.client.indices.exists(index=index_name):
-            print(f"Index {index_name} already exists, skipping creation")
+            logging.info(f"Index {index_name} already exists, skipping creation")
             # Get current document count
             try:
                 stats = self.client.indices.stats(index=index_name)
                 doc_count = stats["indices"][index_name]["primaries"]["docs"]["count"]
                 return index_name, doc_count
             except Exception as e:
-                print(f"Error getting index statistics: {str(e)}")
+                logging.error(f"Error getting index statistics: {str(e)}")
                 return index_name, 0
         
         # If index doesn't exist, continue with creation process
-        print("Creating new test knowledge base...")
+        logging.info("Creating new test knowledge base...")
         
         # Fetch sample articles data
-        print("Fetching sample articles data...")
+        logging.info("Fetching sample articles data...")
         url = "https://raw.githubusercontent.com/elastic/elasticsearch-labs/main/notebooks/search/articles.json"
         try:
             # Create a new vector index
             success = self.create_vector_index(index_name, embedding_dim)
             if not success:
-                print(f"Failed to create {index_name}")
+                logging.error(f"Failed to create {index_name}")
                 return index_name, 0
             
             response = urlopen(url)
@@ -739,7 +739,7 @@ class ElasticSearchCore:
             current_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
             
             # Prepare documents for indexing
-            print("Preparing documents for indexing...")
+            logging.info("Preparing documents for indexing...")
             for article in articles:
                 # Add required fields if not present
                 if "id" not in article:
@@ -761,14 +761,14 @@ class ElasticSearchCore:
                     article["title"] = f"Article {article['id']}"
             
             # Index documents (limit to sample_size)
-            print(f"Indexing {len(articles)} documents...")
+            logging.info(f"Indexing {len(articles)} documents...")
             num_indexed = self.index_documents(index_name, articles)
             
-            print(f"Test knowledge base created with {num_indexed} documents")
+            logging.info(f"Test knowledge base created with {num_indexed} documents")
             return index_name, num_indexed
             
         except Exception as e:
-            print(f"Error creating test knowledge base: {str(e)}")
+            logging.error(f"Error creating test knowledge base: {str(e)}")
             return index_name, 0
 
     def get_all_indices_stats(self, index_pattern: str = "*") -> Dict[str, Dict[str, Dict[str, Any]]]:
@@ -798,11 +798,11 @@ class ElasticSearchCore:
 
         try:
             # Execute count query
-            count_response = self.client.count( index=index_name, body=count_query)
+            count_response = self.client.count(index=index_name, body=count_query)
             total_docs = count_response['count']
-            print(f"索引 {index_name} 中共有 {total_docs} 条数据")
+            logging.info(f"Index {index_name} contains {total_docs} documents")
             return total_docs
         except Exception as e:
-            print(f"获取文档数量时出错: {e}")
+            logging.error(f"Error getting document count: {e}")
             return 0
 

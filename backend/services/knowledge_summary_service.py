@@ -13,7 +13,7 @@ def load_knowledge_prompts() -> Dict[str, str]:
     Returns:
         Dict[str, str]: A dictionary containing the prompt words "system" and "user"
     """
-    prompt_file = 'backend/prompts/knowledge_summery_agent.yaml'
+    prompt_file = 'backend/prompts/knowledge_summary_agent.yaml'
 
     with open(prompt_file, 'r', encoding='utf-8') as f:
         prompts = yaml.safe_load(f)
@@ -21,7 +21,7 @@ def load_knowledge_prompts() -> Dict[str, str]:
     return prompts
 
 
-def generate_knowledge_summery(keywords: str) -> str:
+def generate_knowledge_summary(keywords: str) -> str:
     """
     Generate a knowledge base summary based on keywords
 
