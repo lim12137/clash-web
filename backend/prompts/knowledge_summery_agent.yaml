@@ -13,6 +13,6 @@ system_prompt: |-
   
 user_prompt: |
   请根据以下关键词内容生成一个简洁的知识库总结，不超过150个字：
-  关键词内容：{keywords}
+  关键词内容：{content}
  
     
