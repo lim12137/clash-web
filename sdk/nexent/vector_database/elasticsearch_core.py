@@ -10,7 +10,7 @@ from urllib.request import urlopen
 
 from ..core.nlp.tokenizer import calculate_term_weights
 
-# 配置 elastic_transport 的日志级别
+# Configure elastic_transport logging level
 logging.getLogger('elastic_transport').setLevel(logging.WARNING)
 
 class ElasticSearchCore:
@@ -797,7 +797,7 @@ class ElasticSearchCore:
         count_query = {"query": {"match_all": {}}}
 
         try:
-            # 执行计数查询
+            # Execute count query
             count_response = self.client.count( index=index_name, body=count_query)
             total_docs = count_response['count']
             print(f"索引 {index_name} 中共有 {total_docs} 条数据")
