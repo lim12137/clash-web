@@ -667,9 +667,10 @@ class ElasticSearchService:
         """
         sampling_interval = 1
         try:
+            chunk_group_threshold = int(os.getenv('CHUNK_GROUP_THRESHOLD'))
             dounts_count = es_core.get_index_count(index_name)
-            if dounts_count > YUZHI:
-                sampling_interval = int(dounts_count/YUZHI)
+            if dounts_count > chunk_group_threshold:
+                sampling_interval = int(dounts_count/chunk_group_threshold)
             # Initialize scroll query
             query = {
                 "query": {
