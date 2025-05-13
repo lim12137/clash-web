@@ -5,34 +5,32 @@
 docker buildx create --name nexent_builder --use
 
 # 🔨 build base image for multiple architectures
-docker buildx build --platform linux/amd64,linux/arm64 -t nexent/nexent-base -f make/base/Dockerfile . --push
+docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-base -f make/base/Dockerfile . --push
 
 # 🚀 build application for multiple architectures
-docker buildx build --platform linux/amd64,linux/arm64 -t nexent/nexent -f make/main/Dockerfile . --push
+docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent -f make/main/Dockerfile . --push
 
 # 📊 build data_process for multiple architectures
-docker buildx build --platform linux/amd64,linux/arm64 -t nexent/nexent-data-process -f make/data_process/Dockerfile . --push
+docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-data-process -f make/data_process/Dockerfile . --push
 
 # 🌐 build web frontend for multiple architectures
-cd frontend && sh build.sh && cd ..
-docker buildx build --platform linux/amd64,linux/arm64 -t nexent/nexent-web -f make/web/Dockerfile . --push
+docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-web -f make/web/Dockerfile . --push
 ```
 
 ### 💻 Local Development Build
 
 ```bash
 # 🔨 Build base image (current architecture only)
-docker build -t nexent/nexent-base -f make/base/Dockerfile .
+docker build --progress=plain -t nexent/nexent-base -f make/base/Dockerfile .
 
 # 🚀 Build application image (current architecture only)
-docker build -t nexent/nexent -f make/main/Dockerfile .
+docker build --progress=plain -t nexent/nexent -f make/main/Dockerfile .
 
 # 📊 Build data process image (current architecture only)
-docker build -t nexent/nexent-data-process -f make/data_process/Dockerfile .
+docker build --progress=plain -t nexent/nexent-data-process -f make/data_process/Dockerfile .
 
 # 🌐 Build web frontend image (current architecture only)
-cd frontend && sh build.sh && cd ..
-docker build -t nexent/nexent-web -f make/web/Dockerfile .
+docker build --progress=plain -t nexent/nexent-web -f make/web/Dockerfile .
 ```
 
 ### 🧹 Clean up Docker resources
@@ -46,17 +44,16 @@ docker builder prune -f && docker system prune -f
 
 ```bash
 # 🔨 Build and load base image (auto-detect local architecture)
-docker buildx build -t nexent/nexent-base -f make/base/Dockerfile . --load
+docker buildx build --progress=plain -t nexent/nexent-base -f make/base/Dockerfile . --load
 
 # 🚀 Build and load application image (auto-detect local architecture)
-docker buildx build -t nexent/nexent -f make/main/Dockerfile . --load
+docker buildx build --progress=plain -t nexent/nexent -f make/main/Dockerfile . --load
 
 # 📊 Build and load data process image (auto-detect local architecture)
-docker buildx build -t nexent/nexent-data-process -f make/data_process/Dockerfile . --load
+docker buildx build --progress=plain -t nexent/nexent-data-process -f make/data_process/Dockerfile . --load
 
 # 🌐 Build and load web frontend image (auto-detect local architecture)
-cd frontend && sh build.sh && cd ..
-docker buildx build -t nexent/nexent-web -f make/web/Dockerfile . --load
+docker buildx build --progress=plain -t nexent/nexent-web -f make/web/Dockerfile . --load
 ```
 
 Notes:
@@ -71,3 +68,4 @@ Notes:
 - 🔧 The `--load` flag loads the built image into the local Docker images list
 - ⚠️ `--load` can only be used with single architecture builds
 - 📝 Use `docker images` to verify the images are loaded locally
+- 📊 Use `--progress=plain` to see detailed build and push progress
