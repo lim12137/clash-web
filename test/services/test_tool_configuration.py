@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from backend.services.tool_configuration_service import get_tool_detail_information
-from backend.consts.model import ToolDetailInformation
+from services.tool_configuration_service import get_tool_detail_information
+from consts.model import ToolDetailInformation
 from nexent.core.tools.exa_search_tool import EXASearchTool
 
 

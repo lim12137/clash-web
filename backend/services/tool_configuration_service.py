@@ -6,7 +6,7 @@ import importlib
 import inspect
 import logging
 from pydantic_core import PydanticUndefined
-from backend.consts.model import ToolDetailInformation
+from consts.model import ToolDetailInformation
 
 
 logging.basicConfig(level=logging.INFO)
