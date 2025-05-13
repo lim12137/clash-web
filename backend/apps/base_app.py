@@ -14,6 +14,7 @@ from .proxy_app import router as proxy_router
 from .file_management_app import router as file_manager_router
 from .voice_app import router as voice_router
 from .tool_config_app import router as tool_config_router
+from .prompt_app import router as prompt_router
 
 
 app = FastAPI(root_path="/api")
@@ -37,6 +38,7 @@ app.include_router(voice_router)
 app.include_router(file_manager_router)
 app.include_router(proxy_router)
 app.include_router(tool_config_router)
+app.include_router(prompt_router)
 
 # Global exception handler for HTTP exceptions
 @app.exception_handler(HTTPException)
