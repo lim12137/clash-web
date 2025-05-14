@@ -27,8 +27,9 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
     """
     # Ensure configuration is up to date
     config_manager.load_config()
-    # Save user message
-    submit(save_conversation_user, request, authorization)
+    # Save user message only if not in debug mode
+    if not request.is_debug:
+        submit(save_conversation_user, request, authorization)
     minio_files = request.minio_files
     final_query = request.query
     if minio_files and isinstance(minio_files, list):
@@ -81,7 +82,9 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
             finally:
                 # Clean up thread
                 thread_manager.remove_thread(thread_id)
-                submit(save_conversation_assistant, request, messages, authorization)
+                # Save assistant message only if not in debug mode
+                if not request.is_debug:
+                    submit(save_conversation_assistant, request, messages, authorization)
 
         return StreamingResponse(
             generate(),

@@ -6,13 +6,6 @@ import { Badge, Button, Tooltip } from "antd"
 import { useRouter } from "next/navigation"
 import { BugOutlined } from '@ant-design/icons'
 
-// 扩展 Window 接口
-declare global {
-  interface Window {
-    openDebugDrawer?: () => void;
-  }
-}
-
 // ================ Header 组件 ================
 interface HeaderProps {
   connectionStatus: "success" | "error" | "processing";
@@ -116,15 +109,6 @@ function Navigation({
       </div>
 
       <div className="flex gap-2">
-        {showDebugButton && (
-          <button
-            onClick={() => window.openDebugDrawer?.()}
-            className={"px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"}
-          >
-            <BugOutlined className="mr-2" />
-            调试
-          </button>
-        )}
         <button
           onClick={onCompleteConfig}
           disabled={isSavingConfig}
