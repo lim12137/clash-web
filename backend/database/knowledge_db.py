@@ -1,8 +1,8 @@
 from typing import Dict, List, Any, Optional
 from sqlalchemy import insert, func, select, update, and_
 
-from client import get_db_session, as_dict
-from db_models import KnowledgeRecord
+from .client import get_db_session, as_dict
+from .db_models import KnowledgeRecord
 
 def create_knowledge_record(knowledge_data: Dict[str, Any], user_id: Optional[str] = None) -> int:
     """
