@@ -15,7 +15,7 @@ export default function ChatPage() {
     configService.loadConfigToFrontend()
 
     if (appConfig.appName) {
-      document.title = `ModelEngine | ${appConfig.appName}`
+      document.title = `${appConfig.appName}`
     }
   }, [appConfig.appName])
 

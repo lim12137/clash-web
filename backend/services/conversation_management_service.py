@@ -1,8 +1,10 @@
 import json
 import logging
 import os
+import yaml
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from jinja2 import StrictUndefined, Template
 
 from fastapi import HTTPException, Header
 from smolagents import OpenAIServerModel
@@ -211,14 +213,22 @@ def call_llm_for_title(content: str) -> str:
     Returns:
         str: Generated title
     """
+    with open('backend/prompts/utils/generate_title.yaml', "r", encoding="utf-8") as f:
+        prompt_template = yaml.safe_load(f)
+
     # Create OpenAIServerModel instance
     llm = OpenAIServerModel(model_id=os.getenv('LLM_MODEL_NAME'), api_base=os.getenv('LLM_MODEL_URL'),
         api_key=os.getenv('LLM_API_KEY'), temperature=0.7, top_p=0.95)
 
     # Build messages
+    compiled_template = Template(prompt_template["USER_PROMPT"], undefined=StrictUndefined)
+    user_prompt = compiled_template.render({
+        "content": content
+    })
     messages = [{"role": "system",
-                 "content": "Please generate a concise and accurate title (no more than 12 characters) for the following conversation, highlighting the core theme or key information. The title should be natural and fluent, avoiding forced keyword stacking.\n\n**Title Generation Requirements:**\n1. If the conversation involves specific questions, the title should summarize the essence of the question (e.g., 'How to solve XX issue?');\n2. If the conversation is about knowledge sharing, the title should highlight the core knowledge point (e.g., 'Key Steps of Photosynthesis');\n3. Avoid using generic terms like 'Q&A' or 'Consultation', prioritize domain specificity;\n4. The title language should match the conversation language.\n\n**Examples:**\n- Conversation: User asking about multiple methods for Python list deduplication → Title: Python List Deduplication Techniques\n- Conversation: Discussion about factors affecting new energy vehicle battery life → Title: Factors Affecting EV Battery Life\n- Conversation: 你好 → Title: 你好\n\nPlease output only the generated title without additional explanation."},
-        {"role": "user", "content": f"Please generate a concise title (no more than 12 characters) based on the following conversation:\n{content}\n\nTitle："}]
+                 "content": prompt_template["SYSTEM_PROMPT"]},
+                {"role": "user",
+                 "content": user_prompt}]
 
     # Call the model
     response = llm(messages, max_tokens=10)
