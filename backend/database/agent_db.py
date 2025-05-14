@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 
-from .client import get_db_session, as_dict
+from .client import get_db_session, as_dict, filter_property
 from .db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
 
 
@@ -75,34 +75,39 @@ def query_agents(tenant_id: str = None, user_id: str = None):
         return [as_dict(agent) for agent in agents]
 
 
-def create_agent(agent_info):
+def create_agent(agent_info, db_session=None):
     """
     Create a new agent in the database.
     :param agent_info: Dictionary containing agent information
+    :param db_session: Database session
     :return: Created agent object
     """
-    with get_db_session() as session:
-        new_agent = AgentInfo(**agent_info)
+    with get_db_session(db_session) as session:
+        new_agent = AgentInfo(**filter_property(agent_info, AgentInfo))
         new_agent.delete_flag = 'N'
         session.add(new_agent)
         session.flush()
         return as_dict(new_agent)
 
 
-def update_agent(agent_id, agent_info):
+def update_agent(agent_id, agent_info, tenant_id=None, user_id=None):
     """
     Update an existing agent in the database.
     :param agent_id: ID of the agent to update
     :param agent_info: Dictionary containing updated agent information
+    :param tenant_id: Optional tenant ID
+    :param user_id: Optional user ID
     :return: Updated agent object
     """
     with get_db_session() as session:
-        agent = session.query(AgentInfo).filter(AgentInfo.agent_id == agent_id).first()
+        agent = session.query(AgentInfo).filter(AgentInfo.agent_id == agent_id).filter(
+            AgentInfo.tenant_id == tenant_id).first()
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
 
-        for key, value in agent_info.items():
+        for key, value in filter_property(agent_info, AgentInfo).items():
             setattr(agent, key, value)
+        agent.updated_by = user_id
 
 
 def create_or_update_user_agent(agent_info, tenant_id: str = None, user_id: str = None):
@@ -131,7 +136,28 @@ def create_or_update_user_agent(agent_info, tenant_id: str = None, user_id: str 
             setattr(user_agent, key, value)
 
 
-def create_or_update_tool(tool_info, tenant_id: str, agent_id: int, user_id: str = None):
+def create_tool(tool_info, tenant_id: str, agent_id: int, user_id: str = None, db_session=None):
+    """
+    Create ToolInstance in the database based on tenant_id and agent_id, optional user_id.
+    :param tool_info: Dictionary containing tool information
+    :param tenant_id: Tenant ID for filtering, mandatory
+    :param user_id: Optional user ID for filtering
+    :param agent_id: Optional agent ID for filtering
+    :param db_session: Optional database session
+    :return: Created or updated ToolInstance object
+    """
+    # Add tenant_id and user_id to tool_info
+    tool_info['tenant_id'] = tenant_id
+    tool_info['user_id'] = user_id
+    tool_info['agent_id'] = agent_id
+    with get_db_session(db_session) as session:
+        # Create a new ToolInstance
+        new_tool_instance = ToolInstance(**filter_property(tool_info, ToolInstance))
+        session.add(new_tool_instance)
+        return new_tool_instance
+
+
+def create_or_update_tool(tool_info, tenant_id: str, agent_id: int, user_id: str = None, db_session=None):
     """
     Create or update a ToolInstance in the database based on tenant_id and agent_id, optional user_id.
 
@@ -139,13 +165,14 @@ def create_or_update_tool(tool_info, tenant_id: str, agent_id: int, user_id: str
     :param tenant_id: Tenant ID for filtering, mandatory
     :param user_id: Optional user ID for filtering
     :param agent_id: Optional agent ID for filtering
+    :param db_session: Optional database session
     :return: Created or updated ToolInstance object
     """
     # Add tenant_id and user_id to tool_info
     tool_info['tenant_id'] = tenant_id
     tool_info['user_id'] = user_id
 
-    with get_db_session() as session:
+    with get_db_session(db_session) as session:
         # Query if there is an existing ToolInstance
         query = session.query(ToolInstance).filter(ToolInstance.tenant_id == tenant_id).filter(
             ToolInstance.agent_id == agent_id)
@@ -160,10 +187,48 @@ def create_or_update_tool(tool_info, tenant_id: str, agent_id: int, user_id: str
                 if hasattr(tool_instance, key):
                     setattr(tool_instance, key, value)
         else:
-            # Create a new ToolInstance
-            new_tool_instance = ToolInstance(**tool_info)
-            session.add(new_tool_instance)
-            tool_instance = new_tool_instance
+            create_tool(tool_info, tenant_id, agent_id, user_id, db_session)
 
         session.flush()
         return tool_instance
+
+
+def query_tools():
+    """
+    Query ToolInfo in the database based on tenant_id and agent_id, optional user_id.
+    :return: List of ToolInfo objects
+    """
+    with get_db_session() as session:
+        tools = session.query(ToolInfo).filter(ToolInfo.delete_flag != 'Y').all()
+        return [as_dict(tool) for tool in tools]
+
+
+def query_tool_instances(tenant_id: str, user_id: str = None):
+    """
+    Query ToolInstance in the database based on tenant_id and agent_id, optional user_id.
+    :param tenant_id: Tenant ID for filtering, mandatory
+    :param user_id: Optional user ID for filtering
+    :return: List of ToolInstance objects
+    """
+    with get_db_session() as session:
+        query = session.query(ToolInstance).filter(ToolInstance.tenant_id == tenant_id).filter(
+            ToolInstance.delete_flag != 'Y')
+        if user_id:
+            query = query.filter(ToolInstance.user_id == user_id)
+        tools = query.all()
+        return [as_dict(tool) for tool in tools]
+
+
+def delete_agent(agent_id, tenant_id: str = None, user_id: str = None):
+    """
+    Delete an agent in the database.
+    :param agent_id: ID of the agent to delete
+    :param tenant_id: Tenant ID for filtering, mandatory
+    :param user_id: Optional user ID for filtering
+    :return: None
+    """
+    with get_db_session() as session:
+        session.query(AgentInfo).filter(AgentInfo.agent_id == agent_id).filter(AgentInfo.tenant_id == tenant_id).update(
+            {'delete_flag': 'Y', 'updated_by': user_id})
+        session.query(ToolInstance).filter(ToolInstance.agent_id == agent_id).filter(
+            AgentInfo.tenant_id == tenant_id).update({ToolInstance.delete_flag: 'Y', 'updated_by': user_id})
