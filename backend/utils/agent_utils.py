@@ -50,6 +50,7 @@ def add_history_to_agent(agent: CoreAgent, history: List[Dict]):
     if not history:
         return
 
+    agent.memory.reset()
     # Add conversation history to memory sequentially
     for msg in history:
         if msg['role'] == 'user':

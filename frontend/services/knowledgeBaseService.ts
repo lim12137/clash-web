@@ -1,7 +1,8 @@
-// 统一封装知识库相关API调用
+// Unified encapsulation of knowledge base related API calls
 
 import { Document, KnowledgeBase, KnowledgeBaseCreateParams, IndexInfoResponse } from '@/types/knowledgeBase';
 import { API_ENDPOINTS } from './api';
+import { getAuthHeaders } from './conversationService';
 
 // Knowledge base service class
 class KnowledgeBaseService {
@@ -53,12 +54,12 @@ class KnowledgeBaseService {
       if (!skipHealthCheck) {
         const isElasticsearchHealthy = await this.checkHealth();
         if (!isElasticsearchHealthy) {
-          console.warn("Elasticsearch服务不可用");
+          console.warn("Elasticsearch service unavailable");
           return [];
         }
       }
 
-      // 新增：检查空列表缓存是否有效
+      // New: Check if empty list cache is valid
       if (this.emptyListTimestamp !== null) {
         const now = Date.now();
         if (now - this.emptyListTimestamp < this.emptyListCacheDuration) {
@@ -81,7 +82,7 @@ class KnowledgeBaseService {
             return {
               id: indexInfo.name,
               name: indexInfo.name,
-              description: "Elasticsearch索引",
+              description: "Elasticsearch index",
               documentCount: stats.doc_count || 0,
               chunkCount: stats.chunk_count || 0,
               createdAt: stats.creation_date || new Date().toISOString().split("T")[0],
@@ -98,20 +99,20 @@ class KnowledgeBaseService {
           });
         }
       } catch (error) {
-        console.error("获取Elasticsearch索引失败:", error);
+        console.error("Failed to get Elasticsearch indices:", error);
       }
       
-      // 新增：如果列表为空，设置空列表缓存时间戳
+      // New: If list is empty, set empty list cache timestamp
       if (knowledgeBases.length === 0) {
         this.emptyListTimestamp = Date.now();
       } else {
-        // 如果列表不为空，清除缓存
+        // If list is not empty, clear cache
         this.emptyListTimestamp = null;
       }
       
       return knowledgeBases;
     } catch (error) {
-      console.error("获取知识库列表失败:", error);
+      console.error("Failed to get knowledge base list:", error);
       throw error;
     }
   }
@@ -138,7 +139,7 @@ class KnowledgeBaseService {
       const knowledgeBases = await this.getKnowledgeBases(true);
       return knowledgeBases.some(kb => kb.name === name);
     } catch (error) {
-      console.error("检查知识库名称存在性失败:", error);
+      console.error("Failed to check knowledge base name existence:", error);
       throw error;
     }
   }
@@ -146,17 +147,15 @@ class KnowledgeBaseService {
   // Create a new knowledge base
   async createKnowledgeBase(params: KnowledgeBaseCreateParams): Promise<KnowledgeBase> {
     try {
-      // 先检查Elasticsearch健康状态，避免后续操作失败
+      // First check Elasticsearch health status to avoid subsequent operation failures
       const isHealthy = await this.checkHealth();
       if (!isHealthy) {
-        throw new Error("Elasticsearch服务不可用，无法创建知识库");
+        throw new Error("Elasticsearch service unavailable, cannot create knowledge base");
       }
       
       const response = await fetch(API_ENDPOINTS.knowledgeBase.indexDetail(params.name), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: getAuthHeaders(), // Add user authentication information to obtain the user id
         body: JSON.stringify({
           name: params.name,
           description: params.description || "",
@@ -170,12 +169,12 @@ class KnowledgeBaseService {
         throw new Error(result.message || "创建知识库失败");
       }
 
-      // 创建知识库后清除空列表缓存
+      // Clear empty list cache after creating knowledge base
       this.emptyListTimestamp = null;
 
       // Create a full KnowledgeBase object with default values
       return {
-        id: result.id || params.name, // 使用返回的ID或者名称作为ID
+        id: result.id || params.name, // Use returned ID or name as ID
         name: params.name,
         description: params.description || null,
         documentCount: 0,
@@ -192,7 +191,7 @@ class KnowledgeBaseService {
         source: params.source || "elasticsearch",
       };
     } catch (error) {
-      console.error("创建知识库失败:", error);
+      console.error("Failed to create knowledge base:", error);
       throw error;
     }
   }
@@ -200,20 +199,21 @@ class KnowledgeBaseService {
   // Delete a knowledge base
   async deleteKnowledgeBase(id: string): Promise<void> {
     try {
-      // 使用REST风格的DELETE请求删除索引
+      // Use REST-style DELETE request to delete index
       const response = await fetch(API_ENDPOINTS.knowledgeBase.indexDetail(id), {
         method: "DELETE",
+        headers: getAuthHeaders(),
       });
 
       const result = await response.json();
       if (result.status !== "success") {
-        throw new Error(result.message || "删除知识库失败");
+        throw new Error(result.message || "Failed to delete knowledge base");
       }
       
-      // 删除知识库后清除空列表缓存，因为状态可能已改变
+      // Clear empty list cache after deleting knowledge base as state may have changed
       this.emptyListTimestamp = null;
     } catch (error) {
-      console.error("删除知识库失败:", error);
+      console.error("Failed to delete knowledge base:", error);
       throw error;
     }
   }
@@ -221,44 +221,44 @@ class KnowledgeBaseService {
   // Get documents from a knowledge base
   async getDocuments(kbId: string, forceRefresh: boolean = false): Promise<Document[]> {
     try {
-      // 添加随机查询参数，绕过浏览器缓存（仅在强制刷新时）
+      // Add random query parameter to bypass browser cache (only when force refresh)
       const cacheParam = forceRefresh ? `&_t=${Date.now()}` : '';
       
-      // 使用新接口 /indices/{index_name}/info 获取知识库详细信息，包含文件列表
+      // Use new interface /indices/{index_name}/info to get knowledge base details, including file list
       const response = await fetch(
         `${API_ENDPOINTS.knowledgeBase.indexInfo(kbId)}?include_files=true${cacheParam}`
       );
       const result = await response.json() as IndexInfoResponse;
 
-      // 处理不同的响应格式，有些API返回success字段，有些直接返回数据
+      // Handle different response formats, some APIs return success field, some return data directly
       if (result.success === false) {
-        throw new Error(result.message || "获取文档列表失败");
+        throw new Error(result.message || "Failed to get document list");
       }
 
-      // 标准API响应格式处理
+      // Standard API response format processing
       if (result.base_info && result.files && Array.isArray(result.files)) {
         return result.files.map((file) => ({
-          id: file.path_or_url, // 使用路径或URL作为ID
+          id: file.path_or_url, // Use path or URL as ID
           kb_id: kbId,
           name: file.file || file.path_or_url.split('/').pop() || 'Unknown',
           type: this.getFileTypeFromName(file.file || file.path_or_url),
           size: file.file_size || 0,
           create_time: file.create_time || new Date().toISOString(),
           chunk_num: file.chunk_count || 0,
-          token_num: 0, // API 中没有提供，使用默认值
-          status: file.status || "UNKNOWN" // 从API获取状态
+          token_num: 0, // Not provided by API, use default value
+          status: file.status || "UNKNOWN" // Get status from API
         }));
       }
 
-      // 如果未能获取到任何文档信息，返回空数组
+      // If no document information is obtained, return empty array
       return [];
     } catch (error) {
-      console.error("获取文档列表失败:", error);
+      console.error("Failed to get document list:", error);
       throw error;
     }
   }
   
-  // 根据文件名获取文件类型
+  // Get file type from filename
   private getFileTypeFromName(filename: string): string {
     if (!filename) return "Unknown";
     
@@ -287,58 +287,59 @@ class KnowledgeBaseService {
   // Upload documents to a knowledge base
   async uploadDocuments(kbId: string, files: File[], chunkingStrategy?: string): Promise<void> {
     try {
-      // 创建 FormData 对象
+      // Create FormData object
       const formData = new FormData();
       formData.append("index_name", kbId);
 
-      // 添加文件
+      // Add files
       for (let i = 0; i < files.length; i++) {
         formData.append("file", files[i]);
       }
 
-      // 如果提供了分块策略，则添加到请求中
+      // If chunking strategy is provided, add it to the request
       if (chunkingStrategy) {
         formData.append("chunking_strategy", chunkingStrategy);
       }
 
-      // 发送请求
+      // Send request
       const response = await fetch(API_ENDPOINTS.knowledgeBase.upload, {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
 
-      // 检查响应状态码
+      // Check response status code
       if (!response.ok) {
         const result = await response.json();
         
-        // 处理400错误（无文件或无效文件）
+        // Handle 400 error (no files or invalid files)
         if (response.status === 400) {
           if (result.error === "No files in the request") {
-            throw new Error("请求中没有文件");
+            throw new Error("No files in the request");
           } else if (result.error === "No valid files uploaded") {
-            throw new Error(`无效的文件上传: ${result.errors.join(", ")}`);
+            throw new Error(`Invalid file upload: ${result.errors.join(", ")}`);
           }
-          throw new Error(result.error || "文件上传验证失败");
+          throw new Error(result.error || "File upload validation failed");
         }
         
-        // 处理500错误（数据处理服务失败）
+        // Handle 500 error (data processing service failure)
         if (response.status === 500) {
-          const errorMessage = `数据处理服务失败: ${result.error}. 已上传文件: ${result.files.join(", ")}`;
+          const errorMessage = `Data processing service failed: ${result.error}. Uploaded files: ${result.files.join(", ")}`;
           throw new Error(errorMessage);
         }
         
-        throw new Error("文件上传失败");
+        throw new Error("File upload failed");
       }
 
-      // 处理成功响应（201）
+      // Handle successful response (201)
       const result = await response.json();
       if (response.status === 201) {
         return;
       }
 
-      throw new Error("未知的响应状态");
+      throw new Error("Unknown response status");
     } catch (error) {
-      console.error("上传文件失败:", error);
+      console.error("Failed to upload files:", error);
       throw error;
     }
   }
@@ -346,20 +347,21 @@ class KnowledgeBaseService {
   // Delete a document from a knowledge base
   async deleteDocument(docId: string, kbId: string): Promise<void> {
     try {
-      // 使用REST风格的DELETE请求删除文档，需要知识库ID和文档路径
+      // Use REST-style DELETE request to delete document, requires knowledge base ID and document path
       const response = await fetch(
         `${API_ENDPOINTS.knowledgeBase.indexDetail(kbId)}/documents?path_or_url=${encodeURIComponent(docId)}`, 
         {
-          method: "DELETE"
+          method: "DELETE",
+          headers: getAuthHeaders(),
         }
       );
 
       const result = await response.json();
       if (result.status !== "success") {
-        throw new Error(result.message || "删除文档失败");
+        throw new Error(result.message || "Failed to delete document");
       }
     } catch (error) {
-      console.error("删除文档失败:", error);
+      console.error("Failed to delete document:", error);
       throw error;
     }
   }
