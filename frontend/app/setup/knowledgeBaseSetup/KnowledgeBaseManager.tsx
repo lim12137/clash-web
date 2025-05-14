@@ -305,15 +305,30 @@ function DataConfig() {
       setHasClickedUpload(true); // 已点击上传按钮，则立即锁定知识库名称输入
       
       try {
-        // 创建知识库
-        const newKB = await createKnowledgeBase(newKbName.trim(), "通过文档上传创建的知识库");
+        // 1. 先进行知识库名称重复校验
+        const nameExists = await knowledgeBaseService.checkKnowledgeBaseNameExists(newKbName.trim());
+
+        if (nameExists) {
+          message.error(`知识库名称"${newKbName.trim()}"已存在，请更换名称`);
+          setHasShownNameError(true);
+          setHasClickedUpload(false); // 重置上传按钮点击状态，允许用户修改名称
+          return; // 如果名称重复，直接返回，不继续执行后续逻辑
+        }
+
+        // 2. 创建知识库
+        const newKB = await createKnowledgeBase(
+          newKbName.trim(),
+          "通过文档上传创建的知识库",
+          "elasticsearch"
+        );
+        
         if (!newKB) {
           message.error("知识库创建失败");
           setHasClickedUpload(false); // 重置上传按钮点击状态，允许重试
           return;
         }
         
-        // 上传文件到新知识库
+        // 3. 上传文件到新知识库
         await uploadDocuments(newKB.id, filesToUpload);
         message.success("文件上传成功");
         setUploadFiles([]);
@@ -324,8 +339,10 @@ function DataConfig() {
         
         // 退出创建模式，防止用户修改知识库名称
         setIsCreatingMode(false);
+        setHasClickedUpload(false); // 重置上传状态
+        setHasShownNameError(false); // 重置错误状态
         
-        // 使用轮询服务等待知识库创建完成
+        // 使用轮询服务等待知识库创建完成并监控文档处理状态
         knowledgeBasePollingService.waitForKnowledgeBaseCreation(
           newKB.name,
           (found) => {
@@ -344,14 +361,12 @@ function DataConfig() {
                 }
               );
               
-              // 获取最新文档
+              // 获取最新文档并触发知识库列表更新
               fetchDocuments(newKB.id);
+              knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
             }
           }
         );
-        
-        // 使用polling service触发知识库和文档更新
-        knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
         
       } catch (error) {
         console.error("知识库创建失败:", error);
