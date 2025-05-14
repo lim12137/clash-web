@@ -1,4 +1,5 @@
 import { API_ENDPOINTS, ApiError } from './api';
+import { v4 as uuidv4 } from 'uuid';
 import type { 
   ConversationListResponse, 
   ConversationListItem,
@@ -11,6 +12,15 @@ export interface STTResponse {
   };
   text?: string;
 }
+
+// Obtain the auxiliary functions and abnormal function functions of the authorization header for adaptation
+export const getAuthHeaders = () => {
+  return {
+    'Content-Type': 'application/json',
+    'User-Agent': 'AgentFrontEnd/1.0',
+    'Authorization': uuidv4()
+  };
+};
 
 const getHeaders = () => {
   return {

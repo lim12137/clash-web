@@ -1,7 +1,7 @@
--- 1. 创建自定义 Schema（如果不存在）
+-- 1. Create custom Schema (if not exists)
 CREATE SCHEMA IF NOT EXISTS nexent;
 
--- 2. 切换到该 Schema（后续操作默认在此 Schema 下）
+-- 2. Switch to the Schema (subsequent operations default to this Schema)
 SET search_path TO nexent;
 
 CREATE TABLE "conversation_message_t" (
@@ -20,18 +20,18 @@ CREATE TABLE "conversation_message_t" (
   CONSTRAINT "conversation_message_t_pk" PRIMARY KEY ("message_id")
 );
 ALTER TABLE "conversation_message_t" OWNER TO "root";
-COMMENT ON COLUMN "conversation_message_t"."conversation_id" IS '形式外键，用于关联所属的对话';
-COMMENT ON COLUMN "conversation_message_t"."message_index" IS '顺序号，用于前端展示排序';
-COMMENT ON COLUMN "conversation_message_t"."message_role" IS '发送消息的角色，如 system, assistant, user';
-COMMENT ON COLUMN "conversation_message_t"."message_content" IS '消息的完整内容';
-COMMENT ON COLUMN "conversation_message_t"."minio_files" IS '用户在聊天页面上传的图片或文档，以列表形式存储';
-COMMENT ON COLUMN "conversation_message_t"."opinion_flag" IS '用户对于对话的评价，枚举值Y代表好评，N代表差评';
-COMMENT ON COLUMN "conversation_message_t"."delete_flag" IS '用户前端删除后，删除标识将被置为true，达到数据软删除的效果。可选值Y/N';
-COMMENT ON COLUMN "conversation_message_t"."create_time" IS '创建时间，审计字段';
-COMMENT ON COLUMN "conversation_message_t"."update_time" IS '更新日期，审计字段';
-COMMENT ON COLUMN "conversation_message_t"."created_by" IS '创建人ID，审计字段';
-COMMENT ON COLUMN "conversation_message_t"."updated_by" IS '最后更新人ID，审计字段';
-COMMENT ON TABLE "conversation_message_t" IS '承载对话中具体的响应消息内容';
+COMMENT ON COLUMN "conversation_message_t"."conversation_id" IS 'Formal foreign key, used to associate with the conversation';
+COMMENT ON COLUMN "conversation_message_t"."message_index" IS 'Sequence number, used for frontend display sorting';
+COMMENT ON COLUMN "conversation_message_t"."message_role" IS 'Role sending the message, such as system, assistant, user';
+COMMENT ON COLUMN "conversation_message_t"."message_content" IS 'Complete content of the message';
+COMMENT ON COLUMN "conversation_message_t"."minio_files" IS 'Images or documents uploaded by users in the chat interface, stored as a list';
+COMMENT ON COLUMN "conversation_message_t"."opinion_flag" IS 'User feedback on the conversation, enum value Y represents positive, N represents negative';
+COMMENT ON COLUMN "conversation_message_t"."delete_flag" IS 'When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N';
+COMMENT ON COLUMN "conversation_message_t"."create_time" IS 'Creation time, audit field';
+COMMENT ON COLUMN "conversation_message_t"."update_time" IS 'Update time, audit field';
+COMMENT ON COLUMN "conversation_message_t"."created_by" IS 'Creator ID, audit field';
+COMMENT ON COLUMN "conversation_message_t"."updated_by" IS 'Last updater ID, audit field';
+COMMENT ON TABLE "conversation_message_t" IS 'Carries specific response message content in conversations';
 
 CREATE TABLE "conversation_message_unit_t" (
   "unit_id" SERIAL,
@@ -48,17 +48,17 @@ CREATE TABLE "conversation_message_unit_t" (
   CONSTRAINT "conversation_message_unit_t_pk" PRIMARY KEY ("unit_id")
 );
 ALTER TABLE "conversation_message_unit_t" OWNER TO "root";
-COMMENT ON COLUMN "conversation_message_unit_t"."message_id" IS '形式外键，用于关联所属消息';
-COMMENT ON COLUMN "conversation_message_unit_t"."conversation_id" IS '形式外键，用于关联所属对话';
-COMMENT ON COLUMN "conversation_message_unit_t"."unit_index" IS '顺序号，用于前端展示排序';
-COMMENT ON COLUMN "conversation_message_unit_t"."unit_type" IS '最小回答单元的类型';
-COMMENT ON COLUMN "conversation_message_unit_t"."unit_content" IS '最小回复单元的完整内容';
-COMMENT ON COLUMN "conversation_message_unit_t"."delete_flag" IS '用户前端删除后，删除标识将被置为true，达到数据软删除的效果。可选值Y/N';
-COMMENT ON COLUMN "conversation_message_unit_t"."create_time" IS '创建时间，审计字段';
-COMMENT ON COLUMN "conversation_message_unit_t"."update_time" IS '更新日期，审计字段';
-COMMENT ON COLUMN "conversation_message_unit_t"."updated_by" IS '最后更新人ID，审计字段';
-COMMENT ON COLUMN "conversation_message_unit_t"."created_by" IS '创建人ID，审计字段';
-COMMENT ON TABLE "conversation_message_unit_t" IS '承载每条消息中agent的输出内容';
+COMMENT ON COLUMN "conversation_message_unit_t"."message_id" IS 'Formal foreign key, used to associate with the message';
+COMMENT ON COLUMN "conversation_message_unit_t"."conversation_id" IS 'Formal foreign key, used to associate with the conversation';
+COMMENT ON COLUMN "conversation_message_unit_t"."unit_index" IS 'Sequence number, used for frontend display sorting';
+COMMENT ON COLUMN "conversation_message_unit_t"."unit_type" IS 'Type of minimum response unit';
+COMMENT ON COLUMN "conversation_message_unit_t"."unit_content" IS 'Complete content of the minimum response unit';
+COMMENT ON COLUMN "conversation_message_unit_t"."delete_flag" IS 'When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N';
+COMMENT ON COLUMN "conversation_message_unit_t"."create_time" IS 'Creation time, audit field';
+COMMENT ON COLUMN "conversation_message_unit_t"."update_time" IS 'Update time, audit field';
+COMMENT ON COLUMN "conversation_message_unit_t"."updated_by" IS 'Last updater ID, audit field';
+COMMENT ON COLUMN "conversation_message_unit_t"."created_by" IS 'Creator ID, audit field';
+COMMENT ON TABLE "conversation_message_unit_t" IS 'Carries agent output content in each message';
 
 CREATE TABLE "conversation_record_t" (
   "conversation_id" SERIAL,
@@ -71,13 +71,13 @@ CREATE TABLE "conversation_record_t" (
   CONSTRAINT "conversation_record_t_pk" PRIMARY KEY ("conversation_id")
 );
 ALTER TABLE "conversation_record_t" OWNER TO "root";
-COMMENT ON COLUMN "conversation_record_t"."conversation_title" IS '对话标题';
-COMMENT ON COLUMN "conversation_record_t"."delete_flag" IS '用户前端删除后，删除标识将被置为true，达到数据软删除的效果。可选值Y/N';
-COMMENT ON COLUMN "conversation_record_t"."update_time" IS '更新日期，审计字段';
-COMMENT ON COLUMN "conversation_record_t"."create_time" IS '创建时间，审计字段';
-COMMENT ON COLUMN "conversation_record_t"."updated_by" IS '最后更新人ID，审计字段';
-COMMENT ON COLUMN "conversation_record_t"."created_by" IS '创建人ID，审计字段';
-COMMENT ON TABLE "conversation_record_t" IS '问答对话整体信息';
+COMMENT ON COLUMN "conversation_record_t"."conversation_title" IS 'Conversation title';
+COMMENT ON COLUMN "conversation_record_t"."delete_flag" IS 'When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N';
+COMMENT ON COLUMN "conversation_record_t"."update_time" IS 'Update time, audit field';
+COMMENT ON COLUMN "conversation_record_t"."create_time" IS 'Creation time, audit field';
+COMMENT ON COLUMN "conversation_record_t"."updated_by" IS 'Last updater ID, audit field';
+COMMENT ON COLUMN "conversation_record_t"."created_by" IS 'Creator ID, audit field';
+COMMENT ON TABLE "conversation_record_t" IS 'Overall information of Q&A conversations';
 
 CREATE TABLE "conversation_source_image_t" (
   "image_id" SERIAL,
@@ -95,18 +95,18 @@ CREATE TABLE "conversation_source_image_t" (
   CONSTRAINT "conversation_source_image_t_pk" PRIMARY KEY ("image_id")
 );
 ALTER TABLE "conversation_source_image_t" OWNER TO "root";
-COMMENT ON COLUMN "conversation_source_image_t"."conversation_id" IS '形式外键，用于关联搜索来源所属的对话';
-COMMENT ON COLUMN "conversation_source_image_t"."message_id" IS '形式外键，用于关联搜索来源所属的对话消息';
-COMMENT ON COLUMN "conversation_source_image_t"."unit_id" IS '形式外键，用于关联搜索来源所属的最小消息单元（若有）';
-COMMENT ON COLUMN "conversation_source_image_t"."image_url" IS '图片的url地址';
-COMMENT ON COLUMN "conversation_source_image_t"."cite_index" IS '【预留】引用序列号，用于精确溯源';
-COMMENT ON COLUMN "conversation_source_image_t"."search_type" IS '【预留】检索源类型，用于区分该记录来源的检索工具，可选值web/local';
-COMMENT ON COLUMN "conversation_source_image_t"."delete_flag" IS '用户前端删除后，删除标识将被置为true，达到数据软删除的效果。可选值Y/N';
-COMMENT ON COLUMN "conversation_source_image_t"."create_time" IS '创建时间，审计字段';
-COMMENT ON COLUMN "conversation_source_image_t"."update_time" IS '更新日期，审计字段';
-COMMENT ON COLUMN "conversation_source_image_t"."created_by" IS '创建人ID，审计字段';
-COMMENT ON COLUMN "conversation_source_image_t"."updated_by" IS '最后更新人ID，审计字段';
-COMMENT ON TABLE "conversation_source_image_t" IS '承载对话消息的搜索图片源信息';
+COMMENT ON COLUMN "conversation_source_image_t"."conversation_id" IS 'Formal foreign key, used to associate with the conversation of the search source';
+COMMENT ON COLUMN "conversation_source_image_t"."message_id" IS 'Formal foreign key, used to associate with the conversation message of the search source';
+COMMENT ON COLUMN "conversation_source_image_t"."unit_id" IS 'Formal foreign key, used to associate with the minimum message unit of the search source (if any)';
+COMMENT ON COLUMN "conversation_source_image_t"."image_url" IS 'URL address of the image';
+COMMENT ON COLUMN "conversation_source_image_t"."cite_index" IS '[Reserved] Citation sequence number, used for precise tracing';
+COMMENT ON COLUMN "conversation_source_image_t"."search_type" IS '[Reserved] Search source type, used to distinguish the search tool used for this record, optional values web/local';
+COMMENT ON COLUMN "conversation_source_image_t"."delete_flag" IS 'When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N';
+COMMENT ON COLUMN "conversation_source_image_t"."create_time" IS 'Creation time, audit field';
+COMMENT ON COLUMN "conversation_source_image_t"."update_time" IS 'Update time, audit field';
+COMMENT ON COLUMN "conversation_source_image_t"."created_by" IS 'Creator ID, audit field';
+COMMENT ON COLUMN "conversation_source_image_t"."updated_by" IS 'Last updater ID, audit field';
+COMMENT ON TABLE "conversation_source_image_t" IS 'Carries search image source information for conversation messages';
 
 CREATE TABLE "conversation_source_search_t" (
   "search_id" SERIAL,
@@ -132,26 +132,26 @@ CREATE TABLE "conversation_source_search_t" (
   CONSTRAINT "conversation_source_search_t_pk" PRIMARY KEY ("search_id")
 );
 ALTER TABLE "conversation_source_search_t" OWNER TO "root";
-COMMENT ON COLUMN "conversation_source_search_t"."unit_id" IS '形式外键，用于关联搜索来源所属的最小消息单元（若有）';
-COMMENT ON COLUMN "conversation_source_search_t"."message_id" IS '形式外键，用于关联搜索来源所属的对话消息';
-COMMENT ON COLUMN "conversation_source_search_t"."conversation_id" IS '形式外键，用于关联搜索来源所属的对话';
-COMMENT ON COLUMN "conversation_source_search_t"."source_type" IS '来源类型，用于区分source_location为网址或路径，可选值url/text';
-COMMENT ON COLUMN "conversation_source_search_t"."source_title" IS '搜索来源的标题或文件名';
-COMMENT ON COLUMN "conversation_source_search_t"."source_location" IS '搜索来源的网址链接或文件路径';
-COMMENT ON COLUMN "conversation_source_search_t"."source_content" IS '搜索来源的原始文本';
-COMMENT ON COLUMN "conversation_source_search_t"."score_overall" IS '来源与用户查询的整体相似度得分，由明细加权平均计算得出';
-COMMENT ON COLUMN "conversation_source_search_t"."score_accuracy" IS '准确率评分';
-COMMENT ON COLUMN "conversation_source_search_t"."score_semantic" IS '语义相似度评分';
-COMMENT ON COLUMN "conversation_source_search_t"."published_date" IS '本地文件的上传日期或网络搜索的';
-COMMENT ON COLUMN "conversation_source_search_t"."cite_index" IS '引用序列号，用于精确溯源';
-COMMENT ON COLUMN "conversation_source_search_t"."search_type" IS '检索源类型，具体描述该搜索记录所使用的检索工具，可选值exa_web_search/knowledge_base_search';
-COMMENT ON COLUMN "conversation_source_search_t"."tool_sign" IS '工具简单标识符，用于区分大模型输出总结文本中的索引来源';
-COMMENT ON COLUMN "conversation_source_search_t"."create_time" IS '创建时间，审计字段';
-COMMENT ON COLUMN "conversation_source_search_t"."update_time" IS '更新日期，审计字段';
-COMMENT ON COLUMN "conversation_source_search_t"."delete_flag" IS '用户前端删除后，删除标识将被置为true，达到数据软删除的效果。可选值Y/N';
-COMMENT ON COLUMN "conversation_source_search_t"."updated_by" IS '最后更新人ID，审计字段';
-COMMENT ON COLUMN "conversation_source_search_t"."created_by" IS '创建人ID，审计字段';
-COMMENT ON TABLE "conversation_source_search_t" IS '承载对话中响应消息所引用的搜索文本源信息';
+COMMENT ON COLUMN "conversation_source_search_t"."unit_id" IS 'Formal foreign key, used to associate with the minimum message unit of the search source (if any)';
+COMMENT ON COLUMN "conversation_source_search_t"."message_id" IS 'Formal foreign key, used to associate with the conversation message of the search source';
+COMMENT ON COLUMN "conversation_source_search_t"."conversation_id" IS 'Formal foreign key, used to associate with the conversation of the search source';
+COMMENT ON COLUMN "conversation_source_search_t"."source_type" IS 'Source type, used to distinguish if source_location is URL or path, optional values url/text';
+COMMENT ON COLUMN "conversation_source_search_t"."source_title" IS 'Title or filename of the search source';
+COMMENT ON COLUMN "conversation_source_search_t"."source_location" IS 'URL link or file path of the search source';
+COMMENT ON COLUMN "conversation_source_search_t"."source_content" IS 'Original text of the search source';
+COMMENT ON COLUMN "conversation_source_search_t"."score_overall" IS 'Overall similarity score between source and user query, calculated as weighted average of details';
+COMMENT ON COLUMN "conversation_source_search_t"."score_accuracy" IS 'Accuracy score';
+COMMENT ON COLUMN "conversation_source_search_t"."score_semantic" IS 'Semantic similarity score';
+COMMENT ON COLUMN "conversation_source_search_t"."published_date" IS 'Upload date of local file or network search date';
+COMMENT ON COLUMN "conversation_source_search_t"."cite_index" IS 'Citation sequence number, used for precise tracing';
+COMMENT ON COLUMN "conversation_source_search_t"."search_type" IS 'Search source type, specifically describes the search tool used for this record, optional values exa_web_search/knowledge_base_search';
+COMMENT ON COLUMN "conversation_source_search_t"."tool_sign" IS 'Simple tool identifier, used to distinguish index sources in large model output summary text';
+COMMENT ON COLUMN "conversation_source_search_t"."create_time" IS 'Creation time, audit field';
+COMMENT ON COLUMN "conversation_source_search_t"."update_time" IS 'Update time, audit field';
+COMMENT ON COLUMN "conversation_source_search_t"."delete_flag" IS 'When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N';
+COMMENT ON COLUMN "conversation_source_search_t"."updated_by" IS 'Last updater ID, audit field';
+COMMENT ON COLUMN "conversation_source_search_t"."created_by" IS 'Creator ID, audit field';
+COMMENT ON TABLE "conversation_source_search_t" IS 'Carries search text source information referenced in conversation response messages';
 
 CREATE TABLE "model_record_t" (
   "model_id" SERIAL,
@@ -173,23 +173,47 @@ CREATE TABLE "model_record_t" (
   CONSTRAINT "nexent_models_t_pk" PRIMARY KEY ("model_id")
 );
 ALTER TABLE "model_record_t" OWNER TO "root";
-COMMENT ON COLUMN "model_record_t"."model_id" IS '模型ID，唯一主键';
-COMMENT ON COLUMN "model_record_t"."model_repo" IS '模型路径地址';
-COMMENT ON COLUMN "model_record_t"."model_name" IS '模型名称';
-COMMENT ON COLUMN "model_record_t"."model_factory" IS '模型厂商，决定api-key与模型响应的具体格式。当前默认为OpenAI-API-Compatible。';
-COMMENT ON COLUMN "model_record_t"."model_type" IS '模型类型，例如chat, embedding, rerank, tts, asr';
-COMMENT ON COLUMN "model_record_t"."api_key" IS '模型APIkey，部分模型可用于鉴权';
-COMMENT ON COLUMN "model_record_t"."base_url" IS '基础URL地址，用于请求远程模型服务';
-COMMENT ON COLUMN "model_record_t"."max_tokens" IS '模型的最大可用Token数';
-COMMENT ON COLUMN "model_record_t"."used_token" IS '模型在问答中已经使用的token数量';
-COMMENT ON COLUMN "model_record_t"."display_name" IS '前台直接展示的模型名称，由用户自定义';
-COMMENT ON COLUMN "model_record_t"."connect_status" IS '近一次检测的模型连通性状态，可选值：检测中、可用、不可用';
-COMMENT ON COLUMN "model_record_t"."create_time" IS '创建时间，审计字段';
-COMMENT ON COLUMN "model_record_t"."delete_flag" IS '用户前端删除后，删除标识将被置为true，达到数据软删除的效果。可选值Y/N';
-COMMENT ON COLUMN "model_record_t"."update_time" IS '更新日期，审计字段';
-COMMENT ON COLUMN "model_record_t"."updated_by" IS '最后更新人ID，审计字段';
-COMMENT ON COLUMN "model_record_t"."created_by" IS '创建人ID，审计字段';
-COMMENT ON TABLE "model_record_t" IS '用户在配置页面定义的模型清单';
+COMMENT ON COLUMN "model_record_t"."model_id" IS 'Model ID, unique primary key';
+COMMENT ON COLUMN "model_record_t"."model_repo" IS 'Model path address';
+COMMENT ON COLUMN "model_record_t"."model_name" IS 'Model name';
+COMMENT ON COLUMN "model_record_t"."model_factory" IS 'Model manufacturer, determines specific format of api-key and model response. Currently defaults to OpenAI-API-Compatible';
+COMMENT ON COLUMN "model_record_t"."model_type" IS 'Model type, e.g. chat, embedding, rerank, tts, asr';
+COMMENT ON COLUMN "model_record_t"."api_key" IS 'Model API key, used for authentication for some models';
+COMMENT ON COLUMN "model_record_t"."base_url" IS 'Base URL address, used for requesting remote model services';
+COMMENT ON COLUMN "model_record_t"."max_tokens" IS 'Maximum available tokens for the model';
+COMMENT ON COLUMN "model_record_t"."used_token" IS 'Number of tokens already used by the model in Q&A';
+COMMENT ON COLUMN "model_record_t"."display_name" IS 'Model name displayed directly in frontend, customized by user';
+COMMENT ON COLUMN "model_record_t"."connect_status" IS 'Model connectivity status from last check, optional values: "检测中"、"可用"、"不可用"';
+COMMENT ON COLUMN "model_record_t"."create_time" IS 'Creation time, audit field';
+COMMENT ON COLUMN "model_record_t"."delete_flag" IS 'When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N';
+COMMENT ON COLUMN "model_record_t"."update_time" IS 'Update time, audit field';
+COMMENT ON COLUMN "model_record_t"."updated_by" IS 'Last updater ID, audit field';
+COMMENT ON COLUMN "model_record_t"."created_by" IS 'Creator ID, audit field';
+COMMENT ON TABLE "model_record_t" IS 'List of models defined by users in the configuration page';
 
-INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'tts_model', 'OpenAI-API-Compatible', 'tts', '', '', 0, 0, 'Volcano TTS', '不可用');
-INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'stt_model', 'OpenAI-API-Compatible', 'stt', '', '', 0, 0, 'Volcano STT', '不可用');
+INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'tts_model', 'OpenAI-API-Compatible', 'tts', '', '', 0, 0, 'Volcano TTS', 'unavailable');
+INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'stt_model', 'OpenAI-API-Compatible', 'stt', '', '', 0, 0, 'Volcano STT', 'unavailable');
+
+CREATE TABLE "knowledge_record_t" (
+  "knowledge_id" SERIAL,
+  "index_name" varchar(100) COLLATE "pg_catalog"."default",
+  "knowledge_describe" varchar(300) COLLATE "pg_catalog"."default",
+  "tenant_id" varchar(100) COLLATE "pg_catalog"."default",
+  "create_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
+  "update_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
+  "delete_flag" varchar(1) COLLATE "pg_catalog"."default" DEFAULT 'N'::character varying,
+  "updated_by" varchar(100) COLLATE "pg_catalog"."default",
+  "created_by" varchar(100) COLLATE "pg_catalog"."default",
+  CONSTRAINT "knowledge_record_t_pk" PRIMARY KEY ("knowledge_id")
+);
+ALTER TABLE "knowledge_record_t" OWNER TO "root";
+COMMENT ON COLUMN "knowledge_record_t"."knowledge_id" IS 'Knowledge base ID, unique primary key';
+COMMENT ON COLUMN "knowledge_record_t"."index_name" IS 'Knowledge base name';
+COMMENT ON COLUMN "knowledge_record_t"."knowledge_describe" IS 'Knowledge base description';
+COMMENT ON COLUMN "knowledge_record_t"."tenant_id" IS 'Tenant ID';
+COMMENT ON COLUMN "knowledge_record_t"."create_time" IS 'Creation time, audit field';
+COMMENT ON COLUMN "knowledge_record_t"."update_time" IS 'Update time, audit field';
+COMMENT ON COLUMN "knowledge_record_t"."delete_flag" IS 'When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N';
+COMMENT ON COLUMN "knowledge_record_t"."updated_by" IS 'Last updater ID, audit field';
+COMMENT ON COLUMN "knowledge_record_t"."created_by" IS 'Creator ID, audit field';
+COMMENT ON TABLE "knowledge_record_t" IS 'Records knowledge base description and status information';
