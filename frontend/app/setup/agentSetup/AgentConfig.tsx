@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import BusinessLogicConfig from './AgentManagementConfig'
 import SystemPromptConfig from './SystemPromptConfig'
 import { generateSystemPrompt } from './components/utils'
@@ -31,24 +31,40 @@ export default function AgentConfig() {
   const [testAnswer, setTestAnswer] = useState("")
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false)
   const [isCreatingNewAgent, setIsCreatingNewAgent] = useState(false)
+  const [mainAgentModel, setMainAgentModel] = useState("gpt-4-turbo")
+  const [mainAgentMaxStep, setMainAgentMaxStep] = useState(10)
+  const [mainAgentPrompt, setMainAgentPrompt] = useState("")
 
-  // 处理生成系统提示词
-  const handleGenerateSystemPrompt = async () => {
-    if (!businessLogic.trim()) return
+  // 监听创建新Agent状态变化，重置相关状态
+  useEffect(() => {
+    // 重置所有状态到初始值
+    setBusinessLogic('');
+    setSystemPrompt('');
+    setSelectedAgents([]);
+    setSelectedTools([]);
+    setTestQuestion('');
+    setTestAnswer('');
     
-    setIsGenerating(true)
-    setSystemPrompt("")
-    
-    try {
-      // 使用generateSystemPrompt服务
-      const generatedPrompt = await generateSystemPrompt(businessLogic, selectedAgents, selectedTools)
-      setSystemPrompt(generatedPrompt)
-    } catch (error) {
-      console.error("Error generating system prompt:", error)
-    } finally {
-      setIsGenerating(false)
+    // 重置主Agent配置相关状态
+    if (!isCreatingNewAgent) {
+      setMainAgentModel('gpt-4-turbo');
+      setMainAgentMaxStep(10);
+      setMainAgentPrompt('');
     }
-  }
+  }, [isCreatingNewAgent]);
+
+  // 处理系统提示词生成
+  const handleGeneratePrompt = async () => {
+    setIsGenerating(true);
+    try {
+      const generated = await generateSystemPrompt(businessLogic, selectedAgents, selectedTools);
+      setSystemPrompt(generated);
+    } catch (err) {
+      console.error("生成系统提示词失败:", err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return (
     <div className="w-full h-full mx-auto px-4" style={{ maxWidth: "1920px" }}>
@@ -91,10 +107,16 @@ export default function AgentConfig() {
                   setSelectedAgents={setSelectedAgents}
                   selectedTools={selectedTools}
                   setSelectedTools={setSelectedTools}
-                  onGenerateSystemPrompt={handleGenerateSystemPrompt}
+                  onGenerateSystemPrompt={handleGeneratePrompt}
                   systemPrompt={systemPrompt}
                   isCreatingNewAgent={isCreatingNewAgent}
                   setIsCreatingNewAgent={setIsCreatingNewAgent}
+                  mainAgentModel={mainAgentModel}
+                  setMainAgentModel={setMainAgentModel}
+                  mainAgentMaxStep={mainAgentMaxStep}
+                  setMainAgentMaxStep={setMainAgentMaxStep}
+                  mainAgentPrompt={mainAgentPrompt}
+                  setMainAgentPrompt={setMainAgentPrompt}
                 />
               </div>
             </div>
@@ -113,7 +135,7 @@ export default function AgentConfig() {
                   setSystemPrompt={setSystemPrompt}
                   isGenerating={isGenerating}
                   onDebug={() => setIsDebugDrawerOpen(true)}
-                  onGenerate={handleGenerateSystemPrompt}
+                  onGenerate={handleGeneratePrompt}
                 />
               </div>
             </div>

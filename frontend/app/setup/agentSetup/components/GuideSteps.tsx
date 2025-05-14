@@ -23,11 +23,11 @@ const GUIDE_STEPS = {
     },
     {
       title: '调试Agent',
-      description: '生成系统提示词并微调',
+      description: '输入问题调试主Agent',
     },
     {
       title: '完成配置',
-      description: '生成系统提示词并微调',
+      description: '点击完成配置开始问答',
     }
   ],
   creating: [
@@ -45,7 +45,7 @@ const GUIDE_STEPS = {
     },
     {
       title: '调试Agent',
-      description: '生成系统提示词并微调',
+      description: '输入问题调试当前Agent',
     },
     {
       title: '保存Agent',

@@ -17,7 +17,6 @@ export default function AdditionalRequestInput({ onSend }: AdditionalRequestInpu
   const handleSend = () => {
     if (request.trim()) {
       onSend(request)
-      setRequest("")
     }
   }
   
