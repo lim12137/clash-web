@@ -1,4 +1,4 @@
-// 处理聊天流式响应的工具函数
+// Tool function for processing chat streaming response
 
 import { ChatMessageType, AgentStep } from '@/types/chat';
  import {
@@ -11,7 +11,7 @@ interface JsonData {
   content: any;
 }
 
-// 处理流式响应数据
+// Processing Streaming Response Data
 export const handleStreamResponse = async (
   reader: ReadableStreamDefaultReader<Uint8Array>,
   setMessages: React.Dispatch<React.SetStateAction<ChatMessageType[]>>,
@@ -27,9 +27,9 @@ export const handleStreamResponse = async (
   const decoder = new TextDecoder();
   let buffer = "";
 
-  // 用于累积不同类型的内容
+  // Used to accumulate different types of content
 
-  // 创建空的步骤对象
+  // Create an empty step object
   let currentStep: AgentStep = {
     id: ``,
     title: "",
@@ -45,7 +45,7 @@ export const handleStreamResponse = async (
   let currentContentId = "";
   let lastContentType: "model_output" | "parsing" | "execution" | "agent_new_run" | "generating_code" | "search_content" | "card" | null = null;
   let currentContentText = "";
-  let lastModelOutputIndex = -1;  // 跟踪currentStep.contents最后一个模型输出的索引
+  let lastModelOutputIndex = -1;  // Track the index of the last model output in currentStep.contents
   let searchResultsContent: any[] = [];
   let allSearchResults: any[] = [];
   let finalAnswer = "";
@@ -63,11 +63,11 @@ export const handleStreamResponse = async (
 
       for (const line of lines) {
         if (line.startsWith("data:")) {
-          resetTimeout(); // 每次收到新数据时重置超时计时器
+          resetTimeout(); // Reset the timeout timer each time new data is received
           const jsonStr = line.substring(5).trim();
 
           try {
-            // 解析每一次收到的JSON数据
+            // Parse the JSON data received each time
             const jsonData: JsonData = JSON.parse(jsonStr);
 
             if (jsonData.type && jsonData.content) {
@@ -75,26 +75,26 @@ export const handleStreamResponse = async (
               const messageContent = jsonData.content;
 
 
-              // 处理不同类型的消息
+              // Process different types of messages
               switch (messageType) {
                 case "step_count":
-                  // 为每个新步骤增加计数器
+                  // Increment the counter for each new step
                   stepIdCounter.current += 1;
 
-                  // 创建新步骤 - 使用计数器和UUID组合生成唯一ID
+                  // Create a new step - use the counter and UUID combination to generate a unique ID
                   currentStep = {
                     id: `step-${stepIdCounter.current}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                     title: messageContent.trim(),
                     content: "",
                     expanded: true,
-                    contents: [], // 使用数组按顺序存储所有内容
+                    contents: [], // Use an array to store all content in order
                     metrics: "",
                     thinking: { content: "", expanded: true },
                     code: { content: "", expanded: true },
                     output: { content: "", expanded: true }
                   };
 
-                  // 重置状态追踪变量
+                  // Reset status tracking variables
                   currentContentId = "";
                   currentContentText = "";
                   lastContentType = null;
@@ -103,30 +103,30 @@ export const handleStreamResponse = async (
                   break;
                   
                 case "token_count":
-                  // 处理token计数逻辑
+                  // Process token counting logic
                   currentStep.metrics = messageContent;
                   break;
                   
                 case "model_output_thinking":
-                  // 处理思考内容
+                  // Process thinking content
                   if (currentStep) {
-                    // 确保 contents 存在
+                    // Ensure contents exists
                     currentContentText = messageContent;
 
-                    // 如果上一个流式输出是thinking内容，则追加
+                    // If the last streaming output is thinking content, append
                     if (lastContentType === "model_output" && lastModelOutputIndex >= 0) {
                       const modelOutput = currentStep.contents[lastModelOutputIndex];
-                      // 更新内容
+                      // Update content
                       const newContent = modelOutput.content + messageContent;
                       
-                      // 检查完整内容是否以"思考："开头
+                      // Check if the complete content starts with "Thinking:"
                       if (newContent.startsWith("思考：")) {
                         modelOutput.content = newContent.substring(3);
                       } else {
                         modelOutput.content = newContent;
                       }
                     } else {
-                      // 否则创建新的thinking内容
+                      // Otherwise, create new thinking content
                       currentStep.contents.push({
                         id: `model-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                         type: "model_output",
@@ -138,13 +138,13 @@ export const handleStreamResponse = async (
                       lastModelOutputIndex = currentStep.contents.length - 1;
                     }
                     
-                    // 更新最后处理的内容类型
+                    // Update the last processed content type
                     lastContentType = "model_output";
                   }
                   break;
 
                 case "card":
-                  // 处理卡片内容
+                  // Process card content
                   currentStep.contents.push({
                     id: `card-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                     type: "card",
@@ -153,16 +153,16 @@ export const handleStreamResponse = async (
                     timestamp: Date.now()
                   });
                   
-                  // 更新最后处理的内容类型
+                  // Update the last processed content type
                   lastContentType = "card";
                   break;
                   
                 case "search_content":
                   try {
-                    // 解析搜索结果内容
+                    // Parse search result content
                     const searchResults = JSON.parse(messageContent);
                     if (Array.isArray(searchResults)) {
-                      // 修改映射以符合组件级的SearchResult类型
+                      // Modify mapping to match the SearchResult type at the component level
                       const newSearchResults = searchResults.map(item => ({
                         title: item.title || "未知标题",
                         url: item.url || "#",
@@ -172,27 +172,27 @@ export const handleStreamResponse = async (
                         cite_index: typeof item.cite_index === 'number' ? item.cite_index : -1
                       }));
 
-                      // 累加搜索结果
+                      // Accumulate search results
                       searchResultsContent = [...searchResultsContent, ...newSearchResults];
                       allSearchResults = [...allSearchResults, ...newSearchResults];
                       
-                      // 额外添加到当前步骤的contents数组中
+                      // Add to the current step's contents array
                       if (currentStep) {
-                        // 添加为search_content类型消息
+                        // Add as a search_content type message
                         currentStep.contents.push({
                           id: `search-content-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                           type: "search_content",
-                          content: messageContent, // 保留原始JSON字符串
+                          content: messageContent, // Keep the original JSON string
                           expanded: true,
                           timestamp: Date.now()
                         });
                         
-                        // 更新最后处理的内容类型
+                        // Update the last processed content type
                         lastContentType = "search_content";
                       }
                     }
                     
-                    // 更新当前消息的搜索结果
+                    // Update the search results of the current message
                     setMessages((prev) => {
                       const recordMessages = [...prev];
                       const lastMsg = recordMessages[recordMessages.length - 1];
@@ -201,7 +201,7 @@ export const handleStreamResponse = async (
                         lastMsg.searchResults = [];
                       }
 
-                      // 使用公共去重函数处理搜索结果
+                      // Use the public deduplication function to process search results
                       if (searchResultsContent && searchResultsContent.length > 0) {
                         lastMsg.searchResults = deduplicateSearchResults(
                           lastMsg.searchResults,
@@ -218,21 +218,21 @@ export const handleStreamResponse = async (
                   
                 case "picture_web":
                   try {
-                    // 解析图片数据结构
+                    // Parse the image data structure
                     let imageUrls = JSON.parse(messageContent).images_url;
 
                     if (imageUrls.length > 0) {
-                      // 更新当前消息的图片
+                      // Update the images of the current message
                       setMessages((prev) => {
                         const newMessages = [...prev];
                         const lastMsg = newMessages[newMessages.length - 1];
 
-                        // 如果没有图片数组，则初始化
+                        // If there is no image array, initialize it
                         if (!lastMsg.images) {
                           lastMsg.images = [];
                         }
 
-                        // 使用公共去重函数处理图片
+                        // Use the public deduplication function to process images
                         lastMsg.images = deduplicateImages(
                           lastMsg.images,
                           imageUrls
@@ -248,22 +248,22 @@ export const handleStreamResponse = async (
                   break;
                   
                 case "final_answer":
-                  // 累加最终答案内容
+                  // Accumulate final answer content
                   finalAnswer += messageContent;
                   break;
                   
                 case "model_output_code":
-                  // 处理代码生成 - 添加一个稳定的加载提示
-                  // 检查是否存在代码生成提示
+                  // Process code generation - add a stable loading prompt
+                  // Check if there is a code generation prompt
                   if (lastContentType === "generating_code") {
                     break;
                   }
                   
-                  // 如果不存在，则添加一个
+                  // If it does not exist, add one
                   const newGeneratingItem = {
                     id: `generating-code-${stepIdCounter.current}`,
                     type: "generating_code" as const,
-                    content: "工具调用中...",
+                    content: "Tool call in progress...",
                     expanded: true,
                     timestamp: Date.now(),
                     isLoading: true,
@@ -271,22 +271,22 @@ export const handleStreamResponse = async (
                   
                   currentStep.contents.push(newGeneratingItem);
                   
-                  // 标记为代码生成类型
+                  // Mark as code generation type
                   lastContentType = "generating_code";
                   break;
                 
                 case "parse":
-                  // 代码展示消息，跳过
+                  // Code display message, skip
                   break;
                 
                 case "tool":
-                  // 只有当上一个类型不是executing时，才创建新的执行提示
-                  // 这样可以保持动画效果的连续性
+                  // Only create a new execution prompt if the previous type is not executing
+                  // This keeps the animation effect continuous
                   if (lastContentType === "execution") {
                     break;
                   }
 
-                  // 添加正在执行代码的临时内容
+                  // Add temporary content for executing code
                   currentStep.contents.push({
                     id: `executing-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                     type: "executing",
@@ -296,23 +296,23 @@ export const handleStreamResponse = async (
                     isLoading: true
                   });
 
-                  // 保存原始解析内容，但不在前端显示
+                  // Save the original parsing content, but do not display it in the frontend
                   currentStep.parsingContent = messageContent;
 
-                  // 更新最后处理的内容类型
+                  // Update the last processed content type
                   lastContentType = "execution";
                   break;
                 
                 case "execution_logs":
-                  // 执行结果消息，跳过
+                  // Execution result message, skip
                   break;
                   
                 case "agent_new_run":
-                  // 添加一个"正在思考中..."的内容
+                  // Add a "Thinking..." content
                   currentStep.contents.push({
                     id: `agent-run-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                     type: "agent_new_run",
-                    content: "正在思考中...",
+                    content: "Thinking...",
                     expanded: true,
                     timestamp: Date.now()
                   });

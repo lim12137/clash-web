@@ -6,7 +6,7 @@ import { Globe, Search, Zap, Bot, Code, FileText, HelpCircle, ChevronRight } fro
 import { Button } from "@/components/ui/button"
 import { useChatTaskMessage } from "@/hooks/useChatTaskMessage"
 
-// 图标映射字典 - 将字符串映射到对应的图标组件
+// Icon mapping dictionary - map strings to corresponding icon components
 const iconMap: Record<string, React.ReactNode> = {
   "search": <Search size={16} className="mr-2" color="#4b5563" />,
   "bot": <Bot size={16} className="mr-2" color="#4b5563" />,
@@ -15,25 +15,25 @@ const iconMap: Record<string, React.ReactNode> = {
   "globe": <Globe size={16} className="mr-2" color="#4b5563" />,
   "zap": <Zap size={16} className="mr-2" color="#4b5563" />,
   "knowledge": <FileText size={16} className="mr-2" color="#4b5563" />,
-  "default": <HelpCircle size={16} className="mr-2" color="#4b5563" /> // 默认图标
+  "default": <HelpCircle size={16} className="mr-2" color="#4b5563" /> // Default icon
 };
 
-// 定义卡片项的类型
+// Define the type for card items
 interface CardItem {
   icon?: string;
   text: string;
-  [key: string]: any; // 允许其他属性
+  [key: string]: any; // Allow other properties
 }
 
-// 定义消息处理器接口，提高可扩展性
+// Define the interface for message handlers to improve extensibility
 interface MessageHandler {
   canHandle: (message: any) => boolean;
   render: (message: any) => React.ReactNode;
 }
 
-// 定义不同类型消息的处理器
+// Define the handlers for different types of messages to improve extensibility
 const messageHandlers: MessageHandler[] = [
-  // 处理中 类型处理器 - 思考中，代码生成中，代码执行中
+  // Processing type processor - thinking, code generation, code execution
   {
     canHandle: (message) => 
       message.type === "agent_new_run" || 
@@ -54,31 +54,31 @@ const messageHandlers: MessageHandler[] = [
       )
   },
   
-  // 添加search_content_placeholder类型处理器 - 用于历史记录
+  // Add search_content_placeholder type processor - for history records
   {
     canHandle: (message) => message.type === "search_content_placeholder",
     render: (message) => {
-      // 查找message上下文中的搜索结果
+      // Find search results in the message context
       const messageContainer = message._messageContainer;
       if (!messageContainer || !messageContainer.search || messageContainer.search.length === 0) {
         return null;
       }
       
-      // 构建搜索结果展示内容
+      // Build the content for displaying search results
       const searchResults = messageContainer.search;
       
-      // 处理网站信息用于显示
+      // Process website information for display
       const siteInfos = searchResults.map((result: any) => {
         const pageUrl = result.url || "";
         const filename = result.filename || "";
-        let domain = "未知来源";
-        let displayName = "未知来源";
+        let domain = "Unknown source";
+        let displayName = "Unknown source";
         let baseUrl = "";
         let faviconUrl = "";
         let useDefaultIcon = false;
         let isKnowledgeBase = false;
         
-        // 如果有文件名，说明是本地知识库的内容
+        // If there is a filename, it means it is local knowledge base content
         if (filename) {
           isKnowledgeBase = true;
           displayName = filename;

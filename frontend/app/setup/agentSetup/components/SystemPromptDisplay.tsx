@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scrollArea'
 
 const { TextArea } = Input
 
-// 系统提示词显示组件Props接口
+// System prompt display component Props interface
 export interface SystemPromptDisplayProps {
   prompt: string;
   isGenerating: boolean;

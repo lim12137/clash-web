@@ -16,7 +16,7 @@ interface SystemPromptConfigProps {
 }
 
 /**
- * 系统提示词配置主组件
+ * System prompt configuration main component
  */
 export default function SystemPromptConfig({
   systemPrompt,
