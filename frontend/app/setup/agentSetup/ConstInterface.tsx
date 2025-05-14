@@ -69,4 +69,10 @@ export interface BusinessLogicConfigProps {
   systemPrompt: string;
   isCreatingNewAgent: boolean;
   setIsCreatingNewAgent: (value: boolean) => void;
+  mainAgentModel: string;
+  setMainAgentModel: (value: string) => void;
+  mainAgentMaxStep: number;
+  setMainAgentMaxStep: (value: number) => void;
+  mainAgentPrompt: string;
+  setMainAgentPrompt: (value: string) => void;
 }
