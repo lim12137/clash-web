@@ -638,7 +638,7 @@ class ElasticSearchService:
                 }
                 update_knowledge_record(knowledge_record["knowledge_id"], update_data)
             # 存到sql里
-            return {"status": "success", "message": f"Index {index_name} summary successfully"}
+            return {"status": "success", "message": f"Index {index_name} summary successfully", "summary": summary_result}
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{str(e)}")
