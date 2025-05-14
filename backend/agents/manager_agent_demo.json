@@ -36,9 +36,9 @@
 					"source": "local",
 					"params": {
 						"exa_api_key": "${EXA_API_KEY}",
+						"data_process_service": "${DATA_PROCESS_SERVICE}",
 						"max_results": 5,
-						"image_filter": false,
-						"image_filter_threshold": 0.5
+						"image_filter": true
 					}
 				},
 				{
