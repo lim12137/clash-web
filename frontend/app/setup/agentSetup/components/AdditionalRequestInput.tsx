@@ -3,13 +3,13 @@
 import { useState } from 'react'
 import { Input, Button } from 'antd'
 
-// 附加请求输入组件Props接口
+// Additional request input component Props interface
 export interface AdditionalRequestInputProps {
   onSend: (request: string) => void;
 }
 
 /**
- * 附加请求输入组件
+ * Additional request input component
  */
 export default function AdditionalRequestInput({ onSend }: AdditionalRequestInputProps) {
   const [request, setRequest] = useState("")
