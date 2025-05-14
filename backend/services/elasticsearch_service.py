@@ -25,7 +25,7 @@ from consts.model import IndexingRequest, SearchRequest, HybridSearchRequest
 from utils.agent_utils import config_manager
 from utils.elasticsearch_utils import get_active_tasks_status
 from database.knowledge_db import create_knowledge_record, get_knowledge_by_name, update_knowledge_record
-YUZHI = 100
+
 
 # Initialize ElasticSearchCore instance with HTTPS support
 elastic_core = ElasticSearchCore(
@@ -638,7 +638,7 @@ class ElasticSearchService:
                 }
                 update_knowledge_record(knowledge_record["knowledge_id"], update_data)
             # 存到sql里
-            return {"status": "success", "message": f"Index {index_name} summary successfully"}
+            return {"status": "success", "message": f"Index {index_name} summary successfully", "summary": summary_result}
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{str(e)}")
