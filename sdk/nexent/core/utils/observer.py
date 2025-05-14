@@ -56,7 +56,8 @@ class StepCountTransformer(MessageTransformer):
 
 class ParseTransformer(MessageTransformer):
     # 解析模板
-    TEMPLATES = {"zh": "\n🛠️ 使用Python解释器执行代码\n", "en": "\n🛠️ Used tool python_interpreter\n"}
+    TEMPLATES = {"zh": "\n🛠️ 使用Python解释器执行代码\n",
+                 "en": "\n🛠️ Used tool python_interpreter\n"}
 
     def transform(self, **kwargs: Any) -> str:
         """转换解析结果的消息"""
@@ -138,12 +139,18 @@ class MessageObserver:
         default_transformer = DefaultTransformer()
 
         self.transformers = {
-            ProcessType.AGENT_NEW_RUN: default_transformer, ProcessType.STEP_COUNT: StepCountTransformer(),
-            ProcessType.PARSE: ParseTransformer(), ProcessType.EXECUTION_LOGS: ExecutionLogsTransformer(),
-            ProcessType.FINAL_ANSWER: FinalAnswerTransformer(), ProcessType.ERROR: ErrorTransformer(),
-            ProcessType.OTHER: default_transformer, ProcessType.SEARCH_CONTENT: default_transformer,
-            ProcessType.TOKEN_COUNT: TokenCountTransformer(), ProcessType.PICTURE_WEB: default_transformer,
-            ProcessType.AGENT_FINISH: default_transformer, ProcessType.CARD: default_transformer,
+            ProcessType.AGENT_NEW_RUN: default_transformer,
+            ProcessType.STEP_COUNT: StepCountTransformer(),
+            ProcessType.PARSE: ParseTransformer(),
+            ProcessType.EXECUTION_LOGS: ExecutionLogsTransformer(),
+            ProcessType.FINAL_ANSWER: FinalAnswerTransformer(),
+            ProcessType.ERROR: ErrorTransformer(),
+            ProcessType.OTHER: default_transformer,
+            ProcessType.SEARCH_CONTENT: default_transformer,
+            ProcessType.TOKEN_COUNT: TokenCountTransformer(),
+            ProcessType.PICTURE_WEB: default_transformer,
+            ProcessType.AGENT_FINISH: default_transformer,
+            ProcessType.CARD: default_transformer,
             ProcessType.TOOL: default_transformer
         }
 
@@ -168,12 +175,14 @@ class MessageObserver:
             # 将匹配位置之前的内容作为思考发送
             prefix_text = buffer_text[:match_start]
             if prefix_text:
-                self.message_query.append(Message(ProcessType.MODEL_OUTPUT_THINKING, prefix_text).to_json())
+                self.message_query.append(
+                    Message(ProcessType.MODEL_OUTPUT_THINKING, prefix_text).to_json())
 
             # 将匹配部分及之后的内容作为代码发送
             code_text = buffer_text[match_start:]
             if code_text:
-                self.message_query.append(Message(ProcessType.MODEL_OUTPUT_CODE, code_text).to_json())
+                self.message_query.append(
+                    Message(ProcessType.MODEL_OUTPUT_CODE, code_text).to_json())
 
             # 切换模式
             self.current_mode = ProcessType.MODEL_OUTPUT_CODE
@@ -185,7 +194,8 @@ class MessageObserver:
             max_buffer_size = 10  # 设置最大缓冲区大小，可以根据需要调整
             while len(self.token_buffer) > max_buffer_size:
                 oldest_token = self.token_buffer.popleft()
-                self.message_query.append(Message(self.current_mode, oldest_token).to_json())
+                self.message_query.append(
+                    Message(self.current_mode, oldest_token).to_json())
 
     def flush_remaining_tokens(self):
         """
@@ -196,16 +206,20 @@ class MessageObserver:
 
         # 将缓冲区拼接成文本
         buffer_text = ''.join(self.token_buffer)
-        self.message_query.append(Message(self.current_mode, buffer_text).to_json())
+        self.message_query.append(
+            Message(self.current_mode, buffer_text).to_json())
 
         # 清空缓冲区
         self.token_buffer.clear()
 
     def add_message(self, agent_name, process_type, content, **kwargs):
         """添加消息到队列"""
-        transformer = self.transformers.get(process_type, self.transformers[ProcessType.OTHER])
-        formatted_content = transformer.transform(content=content, lang=self.lang, agent_name=agent_name, **kwargs)
-        self.message_query.append(Message(process_type, formatted_content).to_json())
+        transformer = self.transformers.get(
+            process_type, self.transformers[ProcessType.OTHER])
+        formatted_content = transformer.transform(
+            content=content, lang=self.lang, agent_name=agent_name, **kwargs)
+        self.message_query.append(
+            Message(process_type, formatted_content).to_json())
 
     def get_cached_message(self):
         cached_message = self.message_query
