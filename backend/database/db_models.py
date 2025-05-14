@@ -142,7 +142,7 @@ class KnowledgeRecord(Base):
     index_name = Column(String(100), doc="Knowledge base name")
     knowledge_describe = Column(String(300), doc="Knowledge base description")
     tenant_id = Column(String(100), doc="Tenant ID")
-    delete_flag = Column(String(1), doc="Knowledge base status. Currently defaults to 1, if knowledge base status is 0, then this knowledge base is unavailable")
+    delete_flag = Column(String(1), default="N", doc="Knowledge base status. Currently defaults to 1, if knowledge base status is 0, then this knowledge base is unavailable")
     create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time, audit field")
     update_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Update date, audit field")
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
