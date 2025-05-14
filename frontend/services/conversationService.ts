@@ -1,4 +1,5 @@
 import { API_ENDPOINTS, ApiError } from './api';
+import { v4 as uuidv4 } from 'uuid';
 import type { 
   ConversationListResponse, 
   ConversationListItem,
@@ -17,7 +18,7 @@ export const getAuthHeaders = () => {
   return {
     'Content-Type': 'application/json',
     'User-Agent': 'AgentFrontEnd/1.0',
-    'Authorization': 'Bearer 1234'
+    'Authorization': uuidv4()
   };
 };
 
