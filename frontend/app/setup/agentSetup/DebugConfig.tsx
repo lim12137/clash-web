@@ -191,7 +191,7 @@ function AgentDebugging({
           } whitespace-nowrap`}
           style={{ border: "none" }}
         >
-          {isStreaming ? '发送中...' : '发送'}
+          {isStreaming ? '调试中...' : '发送'}
         </button>
       </div>
     </div>
@@ -253,7 +253,8 @@ export default function DebugConfig({
         query: question,
         conversation_id: -1, // 调试模式不需要保存对话
         is_set: true,
-        history: []
+        history: [],
+        is_debug: true  // 添加调试模式标记
       });
 
       if (!reader) throw new Error("Response body is null");

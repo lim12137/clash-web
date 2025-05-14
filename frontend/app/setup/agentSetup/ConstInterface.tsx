@@ -41,9 +41,7 @@ export interface AgentModalProps {
 export interface BusinessLogicInputProps {
   value: string;
   onChange: (value: string) => void;
-  onGenerate: () => void;
   selectedAgents: Agent[];
-  onSaveAsAgent: () => void;
   systemPrompt: string;
 }
 // 子代理池组件Props接口
@@ -51,11 +49,13 @@ export interface SubAgentPoolProps {
   selectedAgents: Agent[];
   onSelectAgent: (agent: Agent, isSelected: boolean) => void;
   onEditAgent: (agent: Agent) => void;
+  onCreateNewAgent: () => void;
 }
 // 工具池组件Props接口
 export interface ToolPoolProps {
   selectedTools: Tool[];
   onSelectTool: (tool: Tool, isSelected: boolean) => void;
+  isCreatingNewAgent?: boolean;
 }
 // 主组件Props接口
 export interface BusinessLogicConfigProps {
@@ -67,4 +67,6 @@ export interface BusinessLogicConfigProps {
   setSelectedTools: (tools: Tool[]) => void;
   onGenerateSystemPrompt: () => void;
   systemPrompt: string;
+  isCreatingNewAgent: boolean;
+  setIsCreatingNewAgent: (value: boolean) => void;
 }

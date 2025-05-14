@@ -5,6 +5,7 @@ import BusinessLogicConfig from './AgentManagementConfig'
 import SystemPromptConfig from './SystemPromptConfig'
 import { generateSystemPrompt } from './components/utils'
 import DebugConfig from './DebugConfig'
+import GuideSteps from './components/GuideSteps'
 import { Typography, Row, Col, Drawer } from 'antd'
 const { Title } = Typography
 
@@ -14,13 +15,7 @@ const LAYOUT_CONFIG = {
   CARD_HEADER_PADDING: "10px 24px",
   CARD_BODY_PADDING: "12px 20px",
   CARD_GAP: 12,
-  DRAWER_WIDTH: 400,
-}
-
-// 卡片主题
-const cardTheme = {
-  borderColor: "#e6e6e6",
-  backgroundColor: "#ffffff",
+  DRAWER_WIDTH: "40%",
 }
 
 /**
@@ -35,6 +30,7 @@ export default function AgentConfig() {
   const [testQuestion, setTestQuestion] = useState("")
   const [testAnswer, setTestAnswer] = useState("")
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false)
+  const [isCreatingNewAgent, setIsCreatingNewAgent] = useState(false)
 
   // 处理生成系统提示词
   const handleGenerateSystemPrompt = async () => {
@@ -54,17 +50,34 @@ export default function AgentConfig() {
     }
   }
 
-  // 暴露调试抽屉控制方法给父组件
-  if (typeof window !== 'undefined') {
-    window.openDebugDrawer = () => setIsDebugDrawerOpen(true)
-  }
-
   return (
-    <div className="w-full mx-auto px-4" style={{ maxWidth: "1920px" }}>
-      <div className="w-full">
-        <Row gutter={[LAYOUT_CONFIG.CARD_GAP, LAYOUT_CONFIG.CARD_GAP]}>
-          {/* 左侧面板 - 业务逻辑配置 */}
-          <Col xs={24} md={24} lg={17} xl={17}>
+    <div className="w-full h-full mx-auto px-4" style={{ maxWidth: "1920px" }}>
+      <div className="w-full h-full">
+        <Row gutter={[LAYOUT_CONFIG.CARD_GAP, LAYOUT_CONFIG.CARD_GAP]} className="h-full">
+          {/* 左侧时间线引导 */}
+          <Col xs={24} md={24} lg={4} xl={4} className="h-full">
+            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
+              <div
+                className="h-full flex flex-col"
+                style={{
+                  height: LAYOUT_CONFIG.MAIN_CONTENT_HEIGHT,
+                  overflowY: "auto",
+                  overflowX: "hidden"
+                }}
+              >
+                <GuideSteps
+                  isCreatingNewAgent={isCreatingNewAgent}
+                  systemPrompt={systemPrompt}
+                  businessLogic={businessLogic}
+                  selectedTools={selectedTools}
+                  selectedAgents={selectedAgents}
+                />
+              </div>
+            </div>
+          </Col>
+
+          {/* 中间面板 - 业务逻辑配置 */}
+          <Col xs={24} md={24} lg={13} xl={13}>
             <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
               <div style={{ 
                 height: LAYOUT_CONFIG.MAIN_CONTENT_HEIGHT, 
@@ -80,12 +93,14 @@ export default function AgentConfig() {
                   setSelectedTools={setSelectedTools}
                   onGenerateSystemPrompt={handleGenerateSystemPrompt}
                   systemPrompt={systemPrompt}
+                  isCreatingNewAgent={isCreatingNewAgent}
+                  setIsCreatingNewAgent={setIsCreatingNewAgent}
                 />
               </div>
             </div>
           </Col>
           
-          {/* 中间面板 - 系统提示词配置 */}
+          {/* 右侧面板 - 系统提示词配置 */}
           <Col xs={24} md={24} lg={7} xl={7}>
             <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
               <div style={{ 
@@ -97,6 +112,8 @@ export default function AgentConfig() {
                   systemPrompt={systemPrompt}
                   setSystemPrompt={setSystemPrompt}
                   isGenerating={isGenerating}
+                  onDebug={() => setIsDebugDrawerOpen(true)}
+                  onGenerate={handleGenerateSystemPrompt}
                 />
               </div>
             </div>
@@ -106,7 +123,7 @@ export default function AgentConfig() {
 
       {/* 调试抽屉 */}
       <Drawer
-        title="调试配置"
+        title="Agent调试"
         placement="right"
         onClose={() => setIsDebugDrawerOpen(false)}
         open={isDebugDrawerOpen}

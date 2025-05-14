@@ -102,6 +102,7 @@ class AgentRequest(BaseModel):
     is_set: Optional[bool] = False
     history: Optional[List[Dict]] = None
     minio_files: Optional[List[Dict[str, Any]]] = None  # Complete list of attachment information
+    is_debug: Optional[bool] = False
 
 
 # Request and response models

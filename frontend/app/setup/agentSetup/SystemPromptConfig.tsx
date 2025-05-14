@@ -11,6 +11,8 @@ interface SystemPromptConfigProps {
   systemPrompt: string;
   setSystemPrompt: (value: string) => void;
   isGenerating: boolean;
+  onDebug?: () => void;
+  onGenerate?: () => void;
 }
 
 /**
@@ -19,7 +21,9 @@ interface SystemPromptConfigProps {
 export default function SystemPromptConfig({
   systemPrompt,
   setSystemPrompt,
-  isGenerating
+  isGenerating,
+  onDebug,
+  onGenerate
 }: SystemPromptConfigProps) {
   return (
     <div className="flex flex-col h-full gap-4 pl-4">
@@ -28,7 +32,9 @@ export default function SystemPromptConfig({
           <SystemPromptDisplay 
             prompt={systemPrompt} 
             isGenerating={isGenerating} 
-            onPromptChange={setSystemPrompt} 
+            onPromptChange={setSystemPrompt}
+            onDebug={onDebug}
+            onGenerate={onGenerate || (() => {})}
           />
         </div>
       </div>

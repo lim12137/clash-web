@@ -1,18 +1,25 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Typography, Input, Button, Switch, Modal, message } from 'antd'
+import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber } from 'antd'
 import { SettingOutlined } from '@ant-design/icons'
 import ToolConfigModal from './components/ToolConfigModal'
 import { mockAgents, mockTools } from './mockData'
 import { AgentModalProps, Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent } from './ConstInterface'
-import MainAgentConfig from './components/MainAgentConfig'
 
 const { Text } = Typography
 const { TextArea } = Input
 
+const modelOptions = [
+  { label: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+  { label: 'GPT-4o', value: 'gpt-4o' },
+  { label: 'Claude 3 Opus', value: 'claude-3-opus-20240229' },
+  { label: 'Claude 3 Sonnet', value: 'claude-3-sonnet-20240229' },
+  { label: 'Claude 3 Haiku', value: 'claude-3-haiku-20240307' },
+];
+
 /**
- * Agent弹窗组件
+ * Agent Modal Component
  */
 function AgentModal({ 
   isOpen, 
@@ -96,16 +103,6 @@ function AgentModal({
     setCurrentTools(newTools);
     setIsToolModalOpen(false);
   };
-
-  const modelOptions = [
-    { label: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
-    { label: 'GPT-4o', value: 'gpt-4o' },
-    { label: 'GPT-4-1106-preview', value: 'gpt-4-1106-preview' },
-    { label: 'GPT-4-0125-preview', value: 'gpt-4-0125-preview' },
-    { label: 'Claude 3 Opus', value: 'claude-3-opus-20240229' },
-    { label: 'Claude 3 Sonnet', value: 'claude-3-sonnet-20240229' },
-    { label: 'Claude 3 Haiku', value: 'claude-3-haiku-20240307' },
-  ];
 
   return (
     <Modal
@@ -209,7 +206,7 @@ function AgentModal({
           </div>
         </div>
         
-        {/* 显示使用的工具 */}
+        {/* Tools Used */}
         <div>
           <Text>使用的工具</Text>
           <div className="border rounded-md p-3 bg-gray-50 min-h-[80px] text-sm">
@@ -231,7 +228,7 @@ function AgentModal({
           </div>
         </div>
         
-        {/* 显示系统提示词 */}
+        {/* System Prompt */}
         <div>
           <Text>系统提示词</Text>
           <TextArea
@@ -256,68 +253,48 @@ function AgentModal({
 }
 
 /**
- * 业务逻辑输入组件
+ * Business Logic Input Component
  */
-function BusinessLogicInput({ value, onChange, onGenerate, selectedAgents, onSaveAsAgent, systemPrompt }: BusinessLogicInputProps) {
-  const canSaveAsAgent = selectedAgents.length === 0 && systemPrompt.trim().length > 0;
-  
-  // 根据条件生成更智能的提示信息
-  const getButtonTitle = () => {
-    if (selectedAgents.length > 0) {
-      return "请确保未选择Agent";
-    }
-    if (systemPrompt.trim().length === 0) {
-      return "请先生成系统提示词";
-    }
-    return "";
-  };
-  
+function BusinessLogicInput({ value, onChange, selectedAgents, systemPrompt }: BusinessLogicInputProps) {
   return (
-    <div className="flex flex-col pt-2 pr-2 pl-2 pb-0">
+    <div className="flex flex-col h-full">
       <h2 className="text-lg font-medium mb-2">业务逻辑描述</h2>
-      <div className="flex flex-col flex-1">
+      <div className="flex-1 flex flex-col">
         <TextArea
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="请描述您的业务场景和需求..."
-          className="w-full resize-none p-3 text-sm flex-1"
-          rows={5}
+          className="w-full h-full resize-none p-3 text-sm"
+          style={{ height: '100%' }}
+          autoSize={false}
         />
-        <div className="flex justify-between gap-2 mt-2">
-          <button
-            onClick={onSaveAsAgent}
-            disabled={!canSaveAsAgent}
-            title={getButtonTitle()}
-            className="flex-1 px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ border: "none" }}
-          >
-            保存到Agent池
-          </button>
-          <button 
-            onClick={onGenerate}
-            className="flex-1 px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600"
-            style={{ border: "none" }}
-          >
-            生成系统提示词
-          </button>
-        </div>
       </div>
     </div>
   )
 }
 
 /**
- * 子代理池组件
+ * Sub Agent Pool Component
  */
-function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent }: SubAgentPoolProps) {
+function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent, onCreateNewAgent }: SubAgentPoolProps) {
   return (
-    <div className="flex flex-col p-2 overflow-hidden">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <h2 className="text-lg font-medium mb-2">Agent池</h2>
-      <div className="grid gap-2 grid-cols-[repeat(auto-fit,minmax(240px,1fr))] max-h-[180px] overflow-y-auto border-t pt-2 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 shadow-[inset_0_5px_5px_-5px_rgba(0,0,0,0.2)]">
+      <div className="flex-1 min-h-0 grid grid-cols-1 gap-3 overflow-y-auto border-t pt-2 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 shadow-[inset_0_5px_5px_-5px_rgba(0,0,0,0.2)]">
+        <div 
+          className="border rounded-md p-3 flex flex-col justify-center items-center cursor-pointer transition-colors duration-200 h-[80px] hover:border-blue-300 hover:bg-blue-50"
+          onClick={onCreateNewAgent}
+        >
+          <div className="flex items-center justify-center h-full text-blue-500">
+            <span className="text-lg mr-2">+</span>
+            <span className="text-sm">新建Agent</span>
+          </div>
+        </div>
+        
         {mockAgents.map((agent) => (
           <div 
             key={agent.id} 
-            className={`border rounded-md p-3 flex flex-col justify-center cursor-pointer transition-colors duration-200 w-[240px] h-[80px] ${
+            className={`border rounded-md p-3 flex flex-col justify-center cursor-pointer transition-colors duration-200 h-[80px] ${
               selectedAgents.some(a => a.id === agent.id) ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
             }`}
             onClick={() => onSelectAgent(
@@ -327,7 +304,7 @@ function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent }: SubAgentPo
           >
             <div className="flex items-center h-full">
               <div className="flex-1 overflow-hidden">
-                <div className="font-medium truncate" title={agent.name}>{agent.name}</div>
+                <div className="font-medium text-sm truncate" title={agent.name}>{agent.name}</div>
                 <div 
                   className="text-xs text-gray-500 line-clamp-2" 
                   title={agent.description}
@@ -344,7 +321,7 @@ function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent }: SubAgentPo
                 className="ml-2 flex-shrink-0 flex items-center justify-center text-gray-500 hover:text-blue-500 bg-transparent"
                 style={{ border: "none", padding: "4px" }}
               >
-                <SettingOutlined style={{ fontSize: '18px' }} />
+                <SettingOutlined style={{ fontSize: '16px' }} />
               </button>
             </div>
           </div>
@@ -355,9 +332,9 @@ function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent }: SubAgentPo
 }
 
 /**
- * 工具池组件
+ * Tool Pool Component
  */
-function ToolPool({ selectedTools, onSelectTool }: ToolPoolProps) {
+function ToolPool({ selectedTools, onSelectTool, isCreatingNewAgent }: ToolPoolProps) {
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [currentTool, setCurrentTool] = useState<Tool | null>(null);
 
@@ -377,13 +354,15 @@ function ToolPool({ selectedTools, onSelectTool }: ToolPoolProps) {
   };
 
   return (
-    <div className="flex flex-col p-2 overflow-hidden">
-      <h2 className="text-lg font-medium mb-2">工具池</h2>
-      <div className="grid gap-2 grid-cols-[repeat(auto-fit,minmax(180px,1fr))] max-h-[148px] overflow-y-auto border-t pt-2 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 shadow-[inset_0_5px_5px_-5px_rgba(0,0,0,0.2)]">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-lg font-medium">工具池</h2>
+      </div>
+      <div className={`flex-1 min-h-0 grid ${isCreatingNewAgent ? 'grid-cols-4' : 'grid-cols-2'} gap-3 overflow-y-auto border-t pt-2 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 shadow-[inset_0_5px_5px_-5px_rgba(0,0,0,0.2)]`}>
         {mockTools.map((tool) => (
           <div 
             key={tool.id} 
-            className={`border rounded-md p-2 flex flex-col justify-center cursor-pointer transition-colors duration-200 w-[180px] h-[64px] ${
+            className={`border rounded-md p-3 flex flex-col justify-center cursor-pointer transition-colors duration-200 h-[80px] ${
               selectedTools.some(t => t.id === tool.id) ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
             }`}
             onClick={(e) => onSelectTool(
@@ -425,7 +404,7 @@ function ToolPool({ selectedTools, onSelectTool }: ToolPoolProps) {
 }
 
 /**
- * 业务逻辑配置主组件
+ * Business Logic Configuration Main Component
  */
 export default function BusinessLogicConfig({
   businessLogic,
@@ -435,7 +414,9 @@ export default function BusinessLogicConfig({
   selectedTools,
   setSelectedTools,
   onGenerateSystemPrompt,
-  systemPrompt
+  systemPrompt,
+  isCreatingNewAgent,
+  setIsCreatingNewAgent
 }: BusinessLogicConfigProps) {
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [newAgentName, setNewAgentName] = useState("");
@@ -513,52 +494,119 @@ export default function BusinessLogicConfig({
     }
   };
 
+  const canSaveAsAgent = selectedAgents.length === 0 && systemPrompt.trim().length > 0;
+  
+  // 根据条件生成更智能的提示信息
+  const getButtonTitle = () => {
+    if (selectedAgents.length > 0) {
+      return "请确保未选择Agent";
+    }
+    if (systemPrompt.trim().length === 0) {
+      return "请先生成系统提示词";
+    }
+    return "";
+  };
+
   return (
-    <div className="flex flex-col w-full h-full overflow-y-auto gap-0 justify-between mt-[-16px]">
-      {/* 主Agent配置项 */}
-      <MainAgentConfig
-        model={mainAgentModel}
-        setModel={setMainAgentModel}
-        maxStep={mainAgentMaxStep}
-        setMaxStep={setMainAgentMaxStep}
-        prompt={mainAgentPrompt}
-        setPrompt={setMainAgentPrompt}
-      />
-      <SubAgentPool
-        selectedAgents={selectedAgents}
-        onSelectAgent={(agent, isSelected) => {
-          if (isSelected) {
-            setSelectedAgents([...selectedAgents, agent]);
-          } else {
-            setSelectedAgents(selectedAgents.filter((a) => a.id !== agent.id));
-          }
-        }}
-        onEditAgent={handleEditAgent}
-      />
-      <ToolPool
-        selectedTools={selectedTools}
-        onSelectTool={(tool, isSelected) => {
-          if (isSelected) {
-            setSelectedTools([...selectedTools, tool]);
-          } else {
-            setSelectedTools(selectedTools.filter((t) => t.id !== tool.id));
-          }
-        }}
-      />
-      <BusinessLogicInput 
-        value={businessLogic} 
-        onChange={setBusinessLogic} 
-        onGenerate={onGenerateSystemPrompt}
-        selectedAgents={selectedAgents}
-        onSaveAsAgent={handleSaveAsAgent}
-        systemPrompt={systemPrompt}
-      />
+    <div className="flex flex-col h-full w-full gap-0 justify-between">
+      {/* 上半部分：Agent池+工具池 */}
+      <div className="flex gap-4 flex-1 min-h-0 pb-4 pr-4 pl-4">
+        <div className={`w-[300px] h-full ${isCreatingNewAgent ? 'hidden' : ''}`}>
+          <SubAgentPool
+            selectedAgents={selectedAgents}
+            onSelectAgent={(agent, isSelected) => {
+              if (isSelected) {
+                setSelectedAgents([...selectedAgents, agent]);
+              } else {
+                setSelectedAgents(selectedAgents.filter((a) => a.id !== agent.id));
+              }
+            }}
+            onEditAgent={handleEditAgent}
+            onCreateNewAgent={() => setIsCreatingNewAgent(true)}
+          />
+        </div>
+        <div className={`${isCreatingNewAgent ? 'w-full' : 'flex-1'} h-full`}>
+          <ToolPool
+            selectedTools={selectedTools}
+            onSelectTool={(tool, isSelected) => {
+              if (isSelected) {
+                setSelectedTools([...selectedTools, tool]);
+              } else {
+                setSelectedTools(selectedTools.filter((t) => t.id !== tool.id));
+              }
+            }}
+            isCreatingNewAgent={isCreatingNewAgent}
+          />
+        </div>
+      </div>
+      {/* 下半部分：业务逻辑描述 */}
+      <div className="flex gap-4 h-[240px] pb-4 pr-4 pl-4">
+        <div className="flex-1 h-full">
+          <BusinessLogicInput 
+            value={businessLogic} 
+            onChange={setBusinessLogic} 
+            selectedAgents={selectedAgents}
+            systemPrompt={systemPrompt}
+          />
+        </div>
+        <div className="w-[280px] h-[200px] flex flex-col">
+          <div className="flex flex-col gap-5 flex-1">
+            <div>
+              <span className="block text-lg font-medium mb-2">模型</span>
+              <Select
+                value={mainAgentModel}
+                onChange={setMainAgentModel}
+                className="w-full"
+                options={modelOptions}
+              />
+            </div>
+            <div>
+              <span className="block text-lg font-medium mb-2">最大步骤数</span>
+              <InputNumber
+                min={1}
+                max={50}
+                value={mainAgentMaxStep}
+                onChange={v => setMainAgentMaxStep(v ?? 10)}
+                className="w-full"
+              />
+            </div>
+            <div className="flex justify-end gap-2 w-full mt-2">
+              {isCreatingNewAgent && (
+                <>
+                  <button
+                    onClick={() => setIsCreatingNewAgent(false)}
+                    className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    style={{ border: "none" }}
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleSaveAsAgent}
+                    disabled={!canSaveAsAgent}
+                    title={getButtonTitle()}
+                    className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ border: "none" }}
+                  >
+                    保存到Agent池
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
       
       {/* 新增Agent弹窗 */}
       <AgentModal 
         isOpen={isAgentModalOpen}
-        onCancel={() => setIsAgentModalOpen(false)}
-        onSave={handleSaveNewAgent}
+        onCancel={() => {
+          setIsAgentModalOpen(false);
+          setIsCreatingNewAgent(false);
+        }}
+        onSave={(name, description, model, max_step, provide_run_summary, prompt) => {
+          handleSaveNewAgent(name, description, model, max_step, provide_run_summary, prompt);
+          setIsCreatingNewAgent(false);
+        }}
         title="保存到Agent池"
         selectedTools={selectedTools}
         systemPrompt={systemPrompt}
