@@ -255,6 +255,7 @@ CREATE TABLE IF NOT EXISTS nexent.ag_tenant_agent_t (
     prompt_demo TEXT,
     parent_agent_id INTEGER,
     tenant_id VARCHAR(100),
+    enable BOOLEAN DEFAULT TRUE,
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
@@ -290,6 +291,7 @@ COMMENT ON COLUMN nexent.ag_tenant_agent_t.prompt_tool IS 'Tool order prompt';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.prompt_demo IS 'Example prompt';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.parent_agent_id IS 'Parent Agent ID';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.tenant_id IS 'Belonging tenant';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.enable IS 'Enable flag';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.create_time IS 'Creation time';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.update_time IS 'Update time';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.created_by IS 'Creator';
@@ -305,6 +307,7 @@ CREATE TABLE IF NOT EXISTS nexent.ag_user_agent_t (
     prompt_demo TEXT,
     tenant_id VARCHAR(100),
     user_id VARCHAR(100),
+    enable BOOLEAN DEFAULT TRUE,
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
@@ -323,6 +326,7 @@ COMMENT ON COLUMN nexent.ag_user_agent_t.prompt_tool IS 'Tool order prompt';
 COMMENT ON COLUMN nexent.ag_user_agent_t.prompt_demo IS 'Example prompt';
 COMMENT ON COLUMN nexent.ag_user_agent_t.tenant_id IS 'Belonging tenant';
 COMMENT ON COLUMN nexent.ag_user_agent_t.user_id IS 'User ID';
+COMMENT ON COLUMN nexent.ag_user_agent_t.enable IS 'Enable flag';
 COMMENT ON COLUMN nexent.ag_user_agent_t.create_time IS 'Creation time';
 COMMENT ON COLUMN nexent.ag_user_agent_t.update_time IS 'Update time';
 COMMENT ON COLUMN nexent.ag_user_agent_t.delete_flag IS 'Whether it is deleted. Optional values: Y/N';
@@ -356,6 +360,7 @@ CREATE TABLE IF NOT EXISTS nexent.ag_tool_instance_t (
     params JSON,
     user_id VARCHAR(100),
     tenant_id VARCHAR(100),
+    enable BOOLEAN DEFAULT TRUE,
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
@@ -373,6 +378,7 @@ COMMENT ON COLUMN nexent.ag_tool_instance_t.agent_id IS 'Agent ID';
 COMMENT ON COLUMN nexent.ag_tool_instance_t.params IS 'Parameter configuration';
 COMMENT ON COLUMN nexent.ag_tool_instance_t.user_id IS 'User ID';
 COMMENT ON COLUMN nexent.ag_tool_instance_t.tenant_id IS 'Tenant ID';
+COMMENT ON COLUMN nexent.ag_tool_instance_t.enable IS 'Enable flag';
 COMMENT ON COLUMN nexent.ag_tool_instance_t.create_time IS 'Creation time';
 COMMENT ON COLUMN nexent.ag_tool_instance_t.update_time IS 'Update time';
 
