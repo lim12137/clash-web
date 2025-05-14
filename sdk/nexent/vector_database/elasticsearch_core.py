@@ -102,7 +102,7 @@ class ElasticSearchCore:
             
             # Check if index already exists
             if self.client.indices.exists(index=index_name):
-                print(f"Index {index_name} already exists, skipping creation")
+                logging.info(f"Index {index_name} already exists, skipping creation")
                 return False
                 
             # Define the mapping with vector field
@@ -135,18 +135,18 @@ class ElasticSearchCore:
                 mappings=mappings
             )
             
-            print(f"Successfully created index: {index_name}")
+            logging.info(f"Successfully created index: {index_name}")
             return True
             
         except exceptions.RequestError as e:
             # Handle the case where index already exists (error 400)
             if "resource_already_exists_exception" in str(e):
-                print(f"Index {index_name} already exists, skipping creation")
+                logging.info(f"Index {index_name} already exists, skipping creation")
                 return True
-            print(f"Error creating index: {str(e)}")
+            logging.error(f"Error creating index: {str(e)}")
             return False
         except Exception as e:
-            print(f"Error creating index: {str(e)}")
+            logging.error(f"Error creating index: {str(e)}")
             return False
     
     def delete_index(self, index_name: str) -> bool:
@@ -161,13 +161,13 @@ class ElasticSearchCore:
         """
         try:
             self.client.indices.delete(index=index_name)
-            print(f"Successfully deleted the index: {index_name}")
+            logging.info(f"Successfully deleted the index: {index_name}")
             return True
         except exceptions.NotFoundError:
-            print(f"Index {index_name} not found")
+            logging.info(f"Index {index_name} not found")
             return False
         except Exception as e:
-            print(f"Error deleting index: {str(e)}")
+            logging.error(f"Error deleting index: {str(e)}")
             return False
     
     def get_user_indices(self, index_pattern: str = "*") -> List[str]:
@@ -185,7 +185,7 @@ class ElasticSearchCore:
             # Filter out system indices (starting with '.')
             return [index_name for index_name in indices.keys() if not index_name.startswith('.')]
         except Exception as e:
-            print(f"Error getting user indices: {str(e)}")
+            logging.error(f"Error getting user indices: {str(e)}")
             return []
     
     # ---- DOCUMENT OPERATIONS ----
@@ -209,7 +209,7 @@ class ElasticSearchCore:
         Returns:
             int: Number of documents successfully indexed
         """
-        print(f"Indexing {len(documents)} documents to {index_name}")
+        logging.info(f"Indexing {len(documents)} documents to {index_name}")
         
         operations = []
         total_indexed = 0
@@ -265,7 +265,7 @@ class ElasticSearchCore:
                         doc["embedding_model_name"] = self.embedding_model.embedding_model_name
                     operations.append(doc)
                     
-                print(f"Processed batch {i//batch_size + 1}, documents {i} to {min(i+batch_size, len(documents))}")
+                logging.info(f"Processed batch {i//batch_size + 1}, documents {i} to {min(i+batch_size, len(documents))}")
                 
                 # Bulk index the batch
                 if operations:
@@ -277,10 +277,10 @@ class ElasticSearchCore:
                 time.sleep(1)
                 
             except Exception as e:
-                print(f"Error processing batch {i//batch_size + 1}: {str(e)}")
+                logging.error(f"Error processing batch {i//batch_size + 1}: {str(e)}")
                 continue
         
-        print(f"Indexing completed. Successfully indexed {total_indexed} documents.")
+        logging.info(f"Indexing completed. Successfully indexed {total_indexed} documents.")
         return total_indexed
     
     def delete_documents_by_path_or_url(self, index_name: str, path_or_url: str) -> int:
@@ -305,10 +305,10 @@ class ElasticSearchCore:
                     }
                 }
             )
-            print(f"Successfully deleted {result['deleted']} documents with path_or_url: {path_or_url} from index: {index_name}")
+            logging.info(f"Successfully deleted {result['deleted']} documents with path_or_url: {path_or_url} from index: {index_name}")
             return result['deleted']
         except Exception as e:
-            print(f"Error deleting documents: {str(e)}")
+            logging.error(f"Error deleting documents: {str(e)}")
             return 0
     
     # ---- SEARCH OPERATIONS ----
@@ -428,7 +428,7 @@ class ElasticSearchCore:
                     'index': result['index']  # Keep track of source index
                 }
             except KeyError as e:
-                print(f"Warning: Missing required field in accurate result: {e}")
+                logging.warning(f"Warning: Missing required field in accurate result: {e}")
                 continue
 
         # Process semantic search results
@@ -445,7 +445,7 @@ class ElasticSearchCore:
                         'index': result['index']  # Keep track of source index
                     }
             except KeyError as e:
-                print(f"Warning: Missing required field in semantic result: {e}")
+                logging.warning(f"Warning: Missing required field in semantic result: {e}")
                 continue
 
         # Calculate maximum scores
@@ -478,7 +478,7 @@ class ElasticSearchCore:
                     }
                 })
             except KeyError as e:
-                print(f"Warning: Error processing result for doc_id {doc_id}: {e}")
+                logging.warning(f"Warning: Error processing result for doc_id {doc_id}: {e}")
                 continue
 
         # Sort by combined score and return top k results
@@ -507,7 +507,7 @@ class ElasticSearchCore:
             )
             return agg_result['aggregations']['unique_path_or_url_count']['value']
         except Exception as e:
-            print(f"Error getting unique sources count: {str(e)}")
+            logging.error(f"Error getting unique sources count: {str(e)}")
             return 0
             
     def get_process_source_info(self, index_name: str) -> str:
@@ -534,7 +534,7 @@ class ElasticSearchCore:
                 return sources[0]['key']  # Return the most common process_source
             return "Unknown"
         except Exception as e:
-            print(f"Error getting process source info: {str(e)}")
+            logging.error(f"Error getting process source info: {str(e)}")
             return "Unknown"
             
     def get_embedding_model_info(self, index_name: str) -> str:
@@ -561,7 +561,7 @@ class ElasticSearchCore:
                 return models[0]['key']  # Return the most common embedding model
             return "Unknown"
         except Exception as e:
-            print(f"Error getting embedding model info: {str(e)}")
+            logging.error(f"Error getting embedding model info: {str(e)}")
             return "Unknown"
             
     def get_file_list_with_details(self, index_name: str) -> List[Dict[str, Any]]:
@@ -613,7 +613,7 @@ class ElasticSearchCore:
             
             return file_list
         except Exception as e:
-            print(f"Error getting file list: {str(e)}")
+            logging.error(f"Error getting file list: {str(e)}")
             return []
             
     def get_index_mapping(self, index_names: List[str]) -> Dict[str, List[str]]:
@@ -627,7 +627,7 @@ class ElasticSearchCore:
                 else:
                     mappings[index_name] = []
             except Exception as e:
-                print(f"Error getting mapping for index {index_name}: {str(e)}")
+                logging.error(f"Error getting mapping for index {index_name}: {str(e)}")
                 mappings[index_name] = []
         return mappings
             
@@ -667,7 +667,7 @@ class ElasticSearchCore:
                     }
                 }
             except Exception as e:
-                print(f"Error getting stats for index {index_name}: {str(e)}")
+                logging.error(f"Error getting stats for index {index_name}: {str(e)}")
                 all_stats[index_name] = {"error": str(e)}
 
         return all_stats
@@ -677,19 +677,19 @@ class ElasticSearchCore:
         user_indices = self.get_user_indices(index_pattern)
         
         if not user_indices:
-            print("No user indices found")
+            logging.info("No user indices found")
             return
         
-        print("=== User Index List ===")
+        logging.info("=== User Index List ===")
         for index_name in user_indices:
-            print(f"Index Name: {index_name}")
+            logging.info(f"Index Name: {index_name}")
         
-        print("\n=== Knowledge Base Core Statistics ===")
+        logging.info("\n=== Knowledge Base Core Statistics ===")
         try:
             stats = self.get_index_stats(user_indices)
-            print(stats)
+            logging.info(stats)
         except Exception as e:
-            print(f"Error getting index statistics: {str(e)}")
+            logging.error(f"Error getting index statistics: {str(e)}")
 
     def create_test_knowledge_base(
         self,
@@ -789,7 +789,7 @@ class ElasticSearchCore:
         try:
             return self.get_index_stats(user_indices)
         except Exception as e:
-            print(f"Error getting all indices statistics: {str(e)}")
+            logging.error(f"Error getting all indices statistics: {str(e)}")
             return {}
 
     def get_index_count(self, index_name: str):
