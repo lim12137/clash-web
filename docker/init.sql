@@ -183,7 +183,7 @@ COMMENT ON COLUMN "model_record_t"."base_url" IS 'Base URL address, used for req
 COMMENT ON COLUMN "model_record_t"."max_tokens" IS 'Maximum available tokens for the model';
 COMMENT ON COLUMN "model_record_t"."used_token" IS 'Number of tokens already used by the model in Q&A';
 COMMENT ON COLUMN "model_record_t"."display_name" IS 'Model name displayed directly in frontend, customized by user';
-COMMENT ON COLUMN "model_record_t"."connect_status" IS 'Model connectivity status from last check, optional values: checking, available, unavailable';
+COMMENT ON COLUMN "model_record_t"."connect_status" IS 'Model connectivity status from last check, optional values: "检测中"、"可用"、"不可用"';
 COMMENT ON COLUMN "model_record_t"."create_time" IS 'Creation time, audit field';
 COMMENT ON COLUMN "model_record_t"."delete_flag" IS 'When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N';
 COMMENT ON COLUMN "model_record_t"."update_time" IS 'Update time, audit field';
