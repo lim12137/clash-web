@@ -65,6 +65,10 @@ class ElasticSearchService:
             Returns index creation information on success, throws HTTP exception on failure
         """
         try:
+            is_record_to_sql = True
+            if es_core.client.indices.exists(index=index_name):
+                is_record_to_sql = False
+
             success = es_core.create_vector_index(index_name, embedding_dim)
 
         except Exception as e:
@@ -78,15 +82,17 @@ class ElasticSearchService:
                 status_code=500,
                 detail=f"Failed to create index {index_name}"
             )
-        # 创建知识库成功后，将新建的知识库信息存到知识库表中
-        knowledge_data = {'index_name': index_name}
-        try:
-            knowledge_id = create_knowledge_record(knowledge_data, user_id)
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error add index{index_name} to sql: {str(e)}"
-            )
+
+        if is_record_to_sql:
+            # After successfully creating the knowledge base, store the newly created knowledge base information in the knowledge base table
+            knowledge_data = {'index_name': index_name}
+            try:
+                knowledge_id = create_knowledge_record(knowledge_data, user_id)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error add index{index_name} to sql: {str(e)}"
+                )
 
         return {
             "status": "success",
