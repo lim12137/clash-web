@@ -220,6 +220,7 @@ export const conversationService = {
       url?: string;
       description?: string; // 添加文件描述字段
     }>; // 更新为完整的附件信息对象数组
+    is_debug?: boolean; // 添加调试模式参数
   }, signal?: AbortSignal) {
     try {
       // 构造请求参数
@@ -228,7 +229,8 @@ export const conversationService = {
         conversation_id: params.conversation_id,
         is_set: params.is_set,
         history: params.history,
-        minio_files: params.minio_files || null // 添加minio_files参数
+        minio_files: params.minio_files || null, // 添加minio_files参数
+        is_debug: params.is_debug || false // 添加is_debug参数
       };
 
       const response = await fetch(API_ENDPOINTS.agent.run, {

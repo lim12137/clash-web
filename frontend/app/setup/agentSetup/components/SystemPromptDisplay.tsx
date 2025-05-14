@@ -11,28 +11,49 @@ export interface SystemPromptDisplayProps {
   prompt: string;
   isGenerating: boolean;
   onPromptChange: (value: string) => void;
+  onGenerate: () => void;
+  onDebug?: () => void;
 }
 
 /**
  * 系统提示词显示组件
  */
-export default function SystemPromptDisplay({ prompt, isGenerating, onPromptChange }: SystemPromptDisplayProps) {
+export default function SystemPromptDisplay({ prompt, isGenerating, onPromptChange, onGenerate, onDebug }: SystemPromptDisplayProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   const handleSendAdditionalRequest = (request: string) => {
     console.log("发送附加请求:", request)
     setIsModalOpen(false)
-  }
+  } 
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">系统提示词</h2>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-4 py-1.5 rounded-md flex items-center text-sm bg-blue-500 text-white hover:bg-blue-600"
-          style={{ border: "none" }}
-        >微调</button>
+        <div className="flex gap-2">
+          <button
+            onClick={onGenerate}
+            disabled={isGenerating}
+            className="px-4 py-1.5 rounded-md flex items-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ border: "none" }}
+          >
+            生成
+          </button>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+            style={{ border: "none" }}
+          >
+            微调
+          </button>
+          <button
+            onClick={onDebug}
+            className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+            style={{ border: "none" }}
+          >
+            调试
+          </button>
+        </div>
       </div>
       <div className="flex-grow overflow-hidden">
         <TextArea
