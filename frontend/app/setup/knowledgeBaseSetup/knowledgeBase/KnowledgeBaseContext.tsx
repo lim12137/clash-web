@@ -88,6 +88,7 @@ export const KnowledgeBaseContext = createContext<{
   setActiveKnowledgeBase: (kb: KnowledgeBase) => void;
   isKnowledgeBaseSelectable: (kb: KnowledgeBase) => boolean;
   refreshKnowledgeBaseData: (forceRefresh?: boolean) => Promise<void>;
+  summaryIndex: (indexName: string) => Promise<string>;
 }>({
   state: {
     knowledgeBases: [],
@@ -104,7 +105,8 @@ export const KnowledgeBaseContext = createContext<{
   selectKnowledgeBase: () => {},
   setActiveKnowledgeBase: () => {},
   isKnowledgeBaseSelectable: () => false,
-  refreshKnowledgeBaseData: async () => {}
+  refreshKnowledgeBaseData: async () => {},
+  summaryIndex: async () => ''
 });
 
 // Custom hook for using the context
@@ -295,6 +297,21 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     }
   }, [state.currentEmbeddingModel]);
 
+    // 创建知识库 - memoized with useCallback
+    const summaryKnowledgeBase = useCallback(async (name: string) => {
+      try {
+        const newKB = await knowledgeBaseService.summaryKnowledgeBase(name);
+        
+        // 更新知识库列表
+        dispatch({ type: 'ADD_KNOWLEDGE_BASE', payload: newKB });
+        return newKB;
+      } catch (error) {
+        console.error('总结知识库失败:', error);
+        dispatch({ type: 'ERROR', payload: '创建知识库失败' });
+        return null;
+      }
+    }, [state.currentEmbeddingModel]);
+
   // 删除知识库 - memoized with useCallback
   const deleteKnowledgeBase = useCallback(async (id: string) => {
     try {
@@ -344,6 +361,18 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       return false;
     }
   }, [state.knowledgeBases, state.selectedIds, state.activeKnowledgeBase]);
+
+  // 总结知识库内容 - memoized with useCallback
+  const summaryIndex = useCallback(async (indexName: string) => {
+    try {
+      const summary = await knowledgeBaseService.summaryIndex(indexName);
+      return summary;
+    } catch (error) {
+      console.error('获取知识库总结失败:', error);
+      dispatch({ type: 'ERROR', payload: '获取知识库总结失败' });
+      throw error;
+    }
+  }, []);
 
   // 添加刷新知识库数据的函数
   const refreshKnowledgeBaseData = useCallback(async (forceRefresh = false) => {
@@ -487,7 +516,8 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     selectKnowledgeBase,
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
-    refreshKnowledgeBaseData
+    refreshKnowledgeBaseData,
+    summaryIndex
   }), [
     state,
     fetchKnowledgeBases,
@@ -496,7 +526,8 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     selectKnowledgeBase,
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
-    refreshKnowledgeBaseData
+    refreshKnowledgeBaseData,
+    summaryIndex
   ]);
   
   return (

@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 
-import { message } from 'antd'
+import { message, Button } from 'antd'
 import { InfoCircleFilled } from '@ant-design/icons'
 
 // Import AppProvider and hooks
@@ -79,7 +79,8 @@ function DataConfig() {
     selectKnowledgeBase,
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
-    refreshKnowledgeBaseData
+    refreshKnowledgeBaseData,
+    summaryIndex
   } = useKnowledgeBaseContext();
 
   const {
@@ -103,6 +104,7 @@ function DataConfig() {
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [hasClickedUpload, setHasClickedUpload] = useState(false);
   const [hasShownNameError, setHasShownNameError] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
 
   // 添加预加载逻辑
   useEffect(() => {
@@ -406,6 +408,28 @@ function DataConfig() {
       }
     }, 500); // 延迟执行，降低优先级
   }
+
+  // 处理自动总结
+  const handleAutoSummary = async () => {
+    if (!viewingKbName) {
+      message.warning('请先选择一个知识库');
+      return;
+    }
+
+    setIsSummarizing(true);
+    try {
+      const summary = await summaryIndex(viewingKbName);
+      // 这里可以根据实际需求处理返回的总结内容
+      // 例如显示在对话框中或更新到某个状态中
+      message.success('知识库总结完成');
+      // TODO: 处理总结内容
+    } catch (error) {
+      message.error('获取知识库总结失败');
+      console.error('获取知识库总结失败:', error);
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
 
   return (
     <>

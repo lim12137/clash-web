@@ -330,6 +330,29 @@ class KnowledgeBaseService {
       throw error;
     }
   }
+
+  // Summary index content
+  async summaryIndex(indexName: string): Promise<any> {
+    try {
+      const response = await fetch(
+        API_ENDPOINTS.knowledgeBase.summary(indexName),
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Failed to get index summary");
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Failed to get index summary:", error);
+      throw error;
+    }
+  }
 }
 
 // Export a singleton instance
