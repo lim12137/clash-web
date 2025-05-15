@@ -753,3 +753,18 @@ class ElasticSearchService:
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{str(e)}")
+
+    def get_summary(self,
+            index_name: str = Path(..., description="Name of the index to get documents from"),
+    ):
+        try:
+            knowledge_record = get_knowledge_by_name(index_name)
+            if knowledge_record:
+                summary_result = knowledge_record["knowledge_describe"]
+                return {"status": "success", "message": f"Index {index_name} summary successfully", "summary": summary_result}
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get index {index_name} summary"
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{str(e)}")

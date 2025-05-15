@@ -170,3 +170,16 @@ def update_knowledge_describe(knowledge_id: int, new_description: str, user_id: 
         "knowledge_describe": new_description
     }
     return update_knowledge_record(knowledge_id, update_data, user_id)
+
+def get_knowledge_describe_by_name(index_name: str) -> Optional[str]:
+    """
+    Get the description of a knowledge base record by index name
+
+    Args:
+        index_name: Knowledge base index name
+
+    Returns:
+        Optional[str]: Knowledge base description, None if not found
+    """
+    knowledge = get_knowledge_by_name(index_name)
+    return knowledge.get('knowledge_describe') if knowledge else None
