@@ -15,6 +15,7 @@ interface UploadAreaUIProps {
   disabled: boolean;
   componentHeight: string;
   newKnowledgeBaseName: string;
+  selectedFiles: File[];
 }
 
 const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
