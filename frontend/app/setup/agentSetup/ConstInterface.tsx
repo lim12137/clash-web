@@ -1,6 +1,12 @@
 "use client";
 // 定义类型
 
+// 模型枚举类
+export enum OpenAIModel {
+  MainModel = 'main_model',
+  SubModel = 'sub_model'
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -22,9 +28,10 @@ export interface Tool {
 
 export interface ToolParam {
   name: string;
-  type: 'string' | 'number' | 'boolean' | 'array' | 'object';
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object' | 'OpenAIModel' | 'Optional';
   required: boolean;
   value?: any;
+  description?: string;
 }
 // 新增Agent弹窗Props接口
 export interface AgentModalProps {
@@ -56,6 +63,8 @@ export interface ToolPoolProps {
   selectedTools: Tool[];
   onSelectTool: (tool: Tool, isSelected: boolean) => void;
   isCreatingNewAgent?: boolean;
+  tools?: Tool[];
+  loadingTools?: boolean;
 }
 // 主组件Props接口
 export interface BusinessLogicConfigProps {
@@ -75,4 +84,6 @@ export interface BusinessLogicConfigProps {
   setMainAgentMaxStep: (value: number) => void;
   mainAgentPrompt: string;
   setMainAgentPrompt: (value: string) => void;
+  tools?: Tool[];
+  loadingTools?: boolean;
 }

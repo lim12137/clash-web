@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Modal, Input, Switch, Select, InputNumber } from 'antd'
-import { Tool, ToolParam } from '../ConstInterface'
-import { ScrollArea } from '@/components/ui/scrollArea'
+import { Modal, Input, Switch, Select, InputNumber, Tag } from 'antd'
+import { Tool, ToolParam, OpenAIModel } from '../ConstInterface'
+
 
 interface ToolConfigModalProps {
   isOpen: boolean;
@@ -38,12 +38,49 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
     }
   };
 
+  // 根据字符串长度确定文本框行数，最多5行
+  const getTextAreaRows = (value: string): number => {
+    if (!value) return 1;
+    const length = value.length;
+    if (length < 15) return 1;
+    if (length < 30) return 2;
+    if (length < 45) return 3;
+    if (length < 60) return 4;
+    return 5;
+  };
+
   const renderParamInput = (param: ToolParam, index: number) => {
     switch (param.type) {
+      case 'OpenAIModel':
+        return (
+          <Select
+            value={param.value as string}
+            onChange={(value) => handleParamChange(index, value)}
+            placeholder="请选择模型"
+            style={{ width: '100%' }}
+            options={[
+              { label: '主模型', value: OpenAIModel.MainModel },
+              { label: '副模型', value: OpenAIModel.SubModel }
+            ]}
+          />
+        );
       case 'string':
+        const stringValue = param.value as string;
+        // 如果字符串长度超过15，使用TextArea
+        if (stringValue && stringValue.length > 15) {
+          return (
+            <Input.TextArea
+              value={stringValue}
+              onChange={(e) => handleParamChange(index, e.target.value)}
+              placeholder={`请输入${param.name}`}
+              rows={getTextAreaRows(stringValue)}
+              style={{ resize: 'vertical' }}
+            />
+          );
+        }
         return (
           <Input
-            value={param.value as string}
+            value={stringValue}
             onChange={(e) => handleParamChange(index, e.target.value)}
             placeholder={`请输入${param.name}`}
           />
@@ -63,10 +100,29 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
             onChange={(checked) => handleParamChange(index, checked)}
           />
         );
-      case 'object':
+      case 'array':
+        const arrayValue = Array.isArray(param.value) ? JSON.stringify(param.value, null, 2) : param.value as string;
         return (
           <Input.TextArea
-            value={typeof param.value === 'object' ? JSON.stringify(param.value, null, 2) : param.value as string}
+            value={arrayValue}
+            onChange={(e) => {
+              try {
+                const value = JSON.parse(e.target.value);
+                handleParamChange(index, value);
+              } catch {
+                handleParamChange(index, e.target.value);
+              }
+            }}
+            placeholder="请输入JSON数组"
+            rows={getTextAreaRows(arrayValue)}
+            style={{ resize: 'vertical' }}
+          />
+        );
+      case 'object':
+        const objectValue = typeof param.value === 'object' ? JSON.stringify(param.value, null, 2) : param.value as string;
+        return (
+          <Input.TextArea
+            value={objectValue}
             onChange={(e) => {
               try {
                 const value = JSON.parse(e.target.value);
@@ -76,7 +132,8 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
               }
             }}
             placeholder="请输入JSON对象"
-            rows={4}
+            rows={getTextAreaRows(objectValue)}
+            style={{ resize: 'vertical' }}
           />
         );
       default:
@@ -88,7 +145,14 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
 
   return (
     <Modal
-      title={`配置工具: ${tool.name}`}
+      title={
+        <div className="flex justify-between items-center w-full pr-8">
+          <span>{`配置工具: ${tool.name}`}</span>
+          <Tag color={tool.source === 'mcp' ? 'blue' : 'green'}>
+            {tool.source === 'mcp' ? 'MCP' : '本地工具'}
+          </Tag>
+        </div>
+      }
       open={isOpen}
       onCancel={onCancel}
       onOk={handleSave}
@@ -97,19 +161,26 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
       <div className="mb-4">
         <p className="text-sm text-gray-500 mb-4">{tool.description}</p>
         <div className="text-sm font-medium mb-2">参数配置</div>
-        <ScrollArea className="max-h-[400px] pr-2">
-          <div className="space-y-4">
+        <div style={{ maxHeight: '500px', overflow: 'auto' }}>
+          <div className="space-y-4 pr-2">
             {currentParams.map((param, index) => (
-              <div key={param.name} className="border-b pb-4 last:border-b-0">
-                <div className="flex items-center mb-2">
-                  <div className="font-medium">{param.name}</div>
-                  {param.required && <span className="text-red-500 ml-1">*</span>}
+              <div key={param.name} className="border-b pb-4 mb-4 last:border-b-0 last:mb-0">
+                <div className="flex items-start gap-4">
+                  <div className="flex-1 pt-1">
+                    {param.description ? (
+                      <div className="text-sm text-gray-600">{param.description}{param.required && <span className="text-red-500 ml-1">*</span>}</div>
+                    ) : (
+                      <div className="text-sm text-gray-600">{param.name}{param.required && <span className="text-red-500 ml-1">*</span>}</div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    {renderParamInput(param, index)}
+                  </div>
                 </div>
-                {renderParamInput(param, index)}
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </div>
     </Modal>
   );
