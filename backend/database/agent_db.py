@@ -1,7 +1,9 @@
 from fastapi import HTTPException
 
-from .client import get_db_session, as_dict, filter_property
-from .db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
+from services.tool_configuration_service import scan_tools
+from utils.user_utils import get_user_info
+from database.client import get_db_session, as_dict, filter_property
+from database.db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
 
 
 def update_tools(tools):
@@ -232,3 +234,23 @@ def delete_agent(agent_id, tenant_id: str = None, user_id: str = None):
             {'delete_flag': 'Y', 'updated_by': user_id})
         session.query(ToolInstance).filter(ToolInstance.agent_id == agent_id).filter(
             AgentInfo.tenant_id == tenant_id).update({ToolInstance.delete_flag: 'Y', 'updated_by': user_id})
+
+def update_tool_table_from_scan_tool_list():
+    """
+    scan all tools and update the tool table in PG database, remove the duplicate tools
+    """
+    user_id, _ = get_user_info()
+    tool_list = scan_tools()
+    with get_db_session() as session:
+        # get the existing tool names in the database
+        existing_tools = session.query(ToolInfo.name).all()
+        existing_tool_names = {tool.name for tool in existing_tools}
+        
+        # filter out the new tools
+        new_tools = [tool for tool in tool_list if tool.name not in existing_tool_names]
+        
+        if new_tools:
+            new_tool_info_list = [ToolInfo(**filter_property(
+                tool.__dict__ | {"created_by": user_id, "updated_by": user_id, "author":user_id}, ToolInfo))
+                                  for tool in new_tools]
+            session.add_all(new_tool_info_list)
