@@ -7,6 +7,7 @@ import { formatFileSize, formatDateTime } from '@/lib/utils'
 import { Input, Button } from 'antd'
 import { useKnowledgeBaseContext } from '../knowledgeBase/KnowledgeBaseContext'
 import { message } from 'antd'
+import knowledgeBaseService from '@/services/knowledgeBaseService'
 
 // UI布局配置，内部管理各部分高度比例
 export const UI_CONFIG = {
@@ -122,7 +123,13 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
   const [showDetail, setShowDetail] = React.useState(false);
   const [summary, setSummary] = useState('');
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { summaryIndex } = useKnowledgeBaseContext();
+
+  // 当知识库名称改变时，重置showDetail状态
+  React.useEffect(() => {
+    setShowDetail(false);
+  }, [knowledgeBaseName]);
 
   // 处理自动总结
   const handleAutoSummary = async () => {
@@ -133,7 +140,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
 
     setIsSummarizing(true);
     try {
-      const result = await summaryIndex(knowledgeBaseName);
+      const result = await summaryIndex(knowledgeBaseName, 1000);
       if (result) {
         setSummary(result);
         message.success('知识库总结完成');
@@ -145,6 +152,38 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
       console.error('获取知识库总结失败:', error);
     } finally {
       setIsSummarizing(false);
+    }
+  };
+
+  // 处理保存总结
+  const handleSaveSummary = async () => {
+    if (!knowledgeBaseName) {
+      message.warning('请先选择一个知识库');
+      return;
+    }
+
+    if (!summary.trim()) {
+      message.warning('总结内容不能为空');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      console.log('开始保存总结:', { 
+        knowledgeBaseName, 
+        summary,
+        summaryLength: summary.length,
+        summaryContent: summary.substring(0, 100) + '...' // 只显示前100个字符
+      });
+      await knowledgeBaseService.changeSummary(knowledgeBaseName, summary);
+      message.success('保存成功');
+      setShowDetail(false);
+    } catch (error: any) {
+      console.error('保存总结失败:', error);
+      const errorMessage = error?.message || error?.detail || '保存失败';
+      message.error(errorMessage);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -222,21 +261,45 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                 自动总结
               </Button>
             </div>
-            <Input.TextArea
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              style={{
-                flex: 1,
-                minHeight: 0,
-                marginBottom: 20,
-                resize: 'none',
-                fontSize: 18,
-                lineHeight: 1.7,
-                padding: 20
-              }}
-            />
+            {isSummarizing ? (
+              <div style={{ 
+                flex: 1, 
+                display: 'flex', 
+                flexDirection: 'column', 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                backgroundColor: '#fafafa',
+                borderRadius: '8px',
+                marginBottom: 20
+              }}>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p style={{ fontSize: 16, color: '#666' }}>正在总结知识库内容，请稍候...</p>
+              </div>
+            ) : (
+              <Input.TextArea
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  marginBottom: 20,
+                  resize: 'none',
+                  fontSize: 18,
+                  lineHeight: 1.7,
+                  padding: 20
+                }}
+              />
+            )}
             <div style={{ display: 'flex', gap: 12 }}>
-              <Button type="primary" size="large">保存</Button>
+              <Button 
+                type="primary" 
+                size="large" 
+                onClick={handleSaveSummary}
+                loading={isSaving}
+                disabled={!summary || isSaving}
+              >
+                保存
+              </Button>
               <Button size="large" onClick={() => setShowDetail(false)}>返回</Button>
             </div>
           </div>

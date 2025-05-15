@@ -44,10 +44,12 @@ def generate_knowledge_summary(keywords: str) -> str:
         top_p=0.95)
 
     # Build messages
-    messages = [{"role": "system", "content": prompts['system_prompt']},
-        {"role": "user", "content": prompts['user_prompt'].format(content=keywords)}]
-
-    # Call the model
-    response = llm(messages)
-
-    return response.content.strip()
+    # todo调试，推代码前记得修正
+    # messages = [{"role": "system", "content": prompts['system_prompt']},
+    #     {"role": "user", "content": prompts['user_prompt'].format(content=keywords)}]
+    #
+    # # Call the model
+    # response = llm(messages)
+    #
+    # return response.content.strip()
+    return "你好"

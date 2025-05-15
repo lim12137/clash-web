@@ -332,25 +332,53 @@ class KnowledgeBaseService {
   }
 
   // Summary index content
-  async summaryIndex(indexName: string): Promise<any> {
+  async summaryIndex(indexName: string, batchSize: number = 1000): Promise<string> {
     try {
-      const response = await fetch(
-        API_ENDPOINTS.knowledgeBase.summary(indexName),
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-        }
-      );
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.summary(indexName) + `?batch_size=${batchSize}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || "Failed to get index summary");
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      return data.summary;
     } catch (error) {
-      console.error("Failed to get index summary:", error);
+      console.error('Error summarizing index:', error);
       throw error;
+    }
+  }
+
+  // Change knowledge base summary
+  async changeSummary(indexName: string, summaryResult: string): Promise<void> {
+    try {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.changeSummary(indexName, summaryResult), {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || data.message || `HTTP error! status: ${response.status}`);
+      }
+
+      if (data.status !== "success") {
+        throw new Error(data.message || "Failed to change summary");
+      }
+    } catch (error) {
+      console.error('Error changing summary:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to change summary');
     }
   }
 }
