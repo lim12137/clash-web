@@ -9,7 +9,7 @@ import GuideSteps from './components/GuideSteps'
 import { Typography, Row, Col, Drawer } from 'antd'
 const { Title } = Typography
 
-// 布局高度常量配置
+// Layout Height Constant Configuration
 const LAYOUT_CONFIG = {
   MAIN_CONTENT_HEIGHT: "calc(75vh - 45px)",
   CARD_HEADER_PADDING: "10px 24px",
@@ -19,7 +19,7 @@ const LAYOUT_CONFIG = {
 }
 
 /**
- * Agent配置主组件
+ * Agent configuration main component
  */
 export default function AgentConfig() {
   const [businessLogic, setBusinessLogic] = useState("")
@@ -35,9 +35,9 @@ export default function AgentConfig() {
   const [mainAgentMaxStep, setMainAgentMaxStep] = useState(10)
   const [mainAgentPrompt, setMainAgentPrompt] = useState("")
 
-  // 监听创建新Agent状态变化，重置相关状态
+  // Monitor the status change of creating a new agent, and reset the relevant status
   useEffect(() => {
-    // 重置所有状态到初始值
+    // Reset all states to initial values
     setBusinessLogic('');
     setSystemPrompt('');
     setSelectedAgents([]);
@@ -45,7 +45,7 @@ export default function AgentConfig() {
     setTestQuestion('');
     setTestAnswer('');
     
-    // 重置主Agent配置相关状态
+    // Reset the main agent configuration related status
     if (!isCreatingNewAgent) {
       setMainAgentModel('gpt-4-turbo');
       setMainAgentMaxStep(10);
@@ -53,7 +53,7 @@ export default function AgentConfig() {
     }
   }, [isCreatingNewAgent]);
 
-  // 处理系统提示词生成
+  // Processing system prompt word generation
   const handleGeneratePrompt = async () => {
     setIsGenerating(true);
     try {
@@ -70,7 +70,7 @@ export default function AgentConfig() {
     <div className="w-full h-full mx-auto px-4" style={{ maxWidth: "1920px" }}>
       <div className="w-full h-full">
         <Row gutter={[LAYOUT_CONFIG.CARD_GAP, LAYOUT_CONFIG.CARD_GAP]} className="h-full">
-          {/* 左侧时间线引导 */}
+          {/* Left Timeline Guide */}
           <Col xs={24} md={24} lg={4} xl={4} className="h-full">
             <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
               <div
@@ -92,7 +92,7 @@ export default function AgentConfig() {
             </div>
           </Col>
 
-          {/* 中间面板 - 业务逻辑配置 */}
+          {/* Middle Panel - Business Logic Configuration */}
           <Col xs={24} md={24} lg={13} xl={13}>
             <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
               <div style={{ 
@@ -122,7 +122,7 @@ export default function AgentConfig() {
             </div>
           </Col>
           
-          {/* 右侧面板 - 系统提示词配置 */}
+          {/* Right Panel - System Prompt Word Configuration */}
           <Col xs={24} md={24} lg={7} xl={7}>
             <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
               <div style={{ 
@@ -143,7 +143,7 @@ export default function AgentConfig() {
         </Row>
       </div>
 
-      {/* 调试抽屉 */}
+      {/* Commissioning drawer */}
       <Drawer
         title="Agent调试"
         placement="right"

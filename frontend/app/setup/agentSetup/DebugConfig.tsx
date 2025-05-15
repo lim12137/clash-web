@@ -11,7 +11,7 @@ import { TaskWindow } from '@/app/chat/streaming/taskWindow'
 
 const { Text } = Typography
 
-// Agent调试组件Props接口
+// Agent debugging component Props interface
 interface AgentDebuggingProps {
   question: string;
   answer: string;
@@ -22,7 +22,7 @@ interface AgentDebuggingProps {
   conversationGroups: Map<string, TaskMessageType[]>;
 }
 
-// 主组件Props接口
+// Main component Props interface
 interface DebugConfigProps {
   testQuestion: string;
   setTestQuestion: (question: string) => void;
@@ -30,11 +30,11 @@ interface DebugConfigProps {
   setTestAnswer: (answer: string) => void;
 }
 
-// 用于生成唯一ID的计数器
+// Counter for generating unique IDs
 const stepIdCounter = { current: 0 };
 
 /**
- * Agent调试组件
+ * Agent debugging component
  */
 function AgentDebugging({ 
   question, 
@@ -51,21 +51,21 @@ function AgentDebugging({
   const handleSend = async () => {
     if (!inputQuestion.trim()) return;
     
-    // 创建新的 AbortController
+    // Create a new AbortController
     abortControllerRef.current = new AbortController();
     
     try {
-      // 调用父组件的处理函数
+      // Call the parent component's processing function
       await onAskQuestion(inputQuestion);
       setInputQuestion("");
     } catch (error) {
-      console.error("发送问题失败:", error);
+      console.error("Failed to send question:", error);
     } finally {
       abortControllerRef.current = null;
     }
   }
   
-  // 处理消息的步骤内容
+  // Process the step content of the message
   const processMessageSteps = (message: ChatMessageType): TaskMessageType[] => {
     if (!message.steps || message.steps.length === 0) return [];
     
