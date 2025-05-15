@@ -1,6 +1,8 @@
-from fastapi import HTTPException, APIRouter, Header
-from services.tool_configuration_service import scan_tools
+from fastapi import HTTPException, APIRouter
 import logging
+from database.agent_db import create_or_update_tool, query_tools
+from consts.model import AgentToolInfoRequest
+from utils.user_utils import get_user_info
 
 router = APIRouter(prefix="/tool")
 
@@ -8,11 +10,27 @@ router = APIRouter(prefix="/tool")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-@router.get("/tool_list")
-async def get_tool_list():
+
+@router.get("/search")
+async def list_tools():
     """
-    get local and mcp service tools list
+    List all system tools from PG dataset
     """
-    tools_list = scan_tools()
-    # TODO 访问PG库更新tool默认参数
-    return tools_list
+    try:
+        return query_tools()
+    except Exception as e:
+        logging.error(f"Failed to get tool info, error in: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get tool info, error in: {str(e)}")
+
+
+@router.post("/update")
+async def update_tool_info(request: AgentToolInfoRequest):
+    """
+    Update an existing tool, create or update tool instance
+    """
+    try:
+        user_id, tenant_id = get_user_info()
+        return create_or_update_tool(request, tenant_id, request.agent_id, user_id)
+    except Exception as e:
+        logging.error(f"Failed to update tool, error in: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update tool, error in: {str(e)}")

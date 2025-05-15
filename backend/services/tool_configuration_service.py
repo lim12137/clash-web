@@ -7,18 +7,32 @@ import inspect
 import logging
 from pydantic_core import PydanticUndefined
 from consts.model import ToolDetailInformation
+from enum import Enum
+from dataclasses import dataclass, asdict
+from typing import List, Optional
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def scan_tools():
+class ToolSourceEnum(Enum):
+    LOCAL = "local"
+    MCP = "mcp"
+
+@dataclass()
+class ToolInfo:
+    name: str
+    description: str
+    params: List
+    source: str
+
+def scan_tools()->List[ToolInfo]:
     local_tools = get_local_tools()
     mcp_tools = get_mcp_tools()
-    return {"local_tools": local_tools, "mcp_tools": mcp_tools}
+    return local_tools+mcp_tools
 
-def get_local_tools():
+def get_local_tools()->List[ToolInfo]:
     tools_info = []
     tools_classes = get_local_tools_classes()
     for tool_class in tools_classes:
@@ -52,11 +66,12 @@ def get_local_tools():
             init_params_list.append(param_info)
 
         # get tool fixed attributes
-        tool_info = {
-            "name": getattr(tool_class, 'name'),
-            "description": getattr(tool_class, 'description'),
-            "init_params": init_params_list
-        }
+        tool_info = ToolInfo(
+            name=getattr(tool_class, 'name'),
+            description=getattr(tool_class, 'description'),
+            params=init_params_list,
+            source=ToolSourceEnum.LOCAL.value
+        )
         tools_info.append(tool_info)
     return tools_info
 
@@ -71,7 +86,7 @@ def get_local_tools_classes()-> List[type]:
     return tools_classes
 
 
-def get_mcp_tools():
+def get_mcp_tools()->List[ToolInfo]:
     mcp_service = config_manager.get_config("MCP_SERVICE")
     try:
         with ToolCollection.from_mcp({"url": mcp_service}) as tool_collection:
@@ -79,11 +94,12 @@ def get_mcp_tools():
 
             # iterate all MCP tools
             for tool_class in tool_collection.tools:
-                tool_info = {
-                    "name": getattr(tool_class, 'name'),
-                    "description": getattr(tool_class, 'description'),
-                    "init_params": {},
-                }
+                tool_info = ToolInfo(
+                    name=getattr(tool_class, 'name'),
+                    description=getattr(tool_class, 'description'),
+                    params=[],
+                    source=ToolSourceEnum.MCP.value
+                )
 
                 tools_info.append(tool_info)
             return tools_info
@@ -117,6 +133,3 @@ def get_tool_detail_information(tool_name: str)-> Optional[ToolDetailInformation
     except Exception as e:
         logger.error(f"mcp connection error: {str(e)}")
         return None
-
-if __name__ == "__main__":
-    print(get_tool_detail_information("exa_web_search"))
