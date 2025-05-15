@@ -152,7 +152,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                   }}
                   prefix={<span className="text-blue-600">📚</span>}
                   autoFocus
-                  disabled={hasDocuments || isUploading || nameLockedAfterUpload} // 如果已有文档或正在上传，则禁止编辑名称
+                  disabled={hasDocuments || isUploading || nameLockedAfterUpload || loading} // 如果已有文档或正在上传，则禁止编辑名称
                 />
               )
             ) : (
