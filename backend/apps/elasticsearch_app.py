@@ -182,3 +182,15 @@ def change_summary(
         return ElasticSearchService().change_summary(index_name=index_name,summary_result=summary_result, es_core=es_core,user_id=user_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{str(e)}")
+
+
+@router.get("/{index_name}/summary")
+def get_summary(
+            index_name: str = Path(..., description="Name of the index to get documents from"),
+    ):
+    """Get Elasticsearch index_name Summary"""
+    try:
+        # Try to list indices as a health check
+        return ElasticSearchService().get_summary(index_name=index_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{str(e)}")
