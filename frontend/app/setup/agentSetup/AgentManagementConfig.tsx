@@ -353,7 +353,7 @@ function ToolPool({ selectedTools, onSelectTool, isCreatingNewAgent }: ToolPoolP
   };
 
   const handleToolSave = (updatedTool: Tool) => {
-    // 更新工具池中的工具配置
+    // Update tool configuration in tool pool
     const index = mockTools.findIndex(t => t.id === updatedTool.id);
     if (index !== -1) {
       mockTools[index] = updatedTool;
@@ -438,20 +438,20 @@ export default function BusinessLogicConfig({
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // 监听创建新Agent状态变化，并在状态切换时重置配置
+  // Listen to create new agent status changes, and reset the configuration when the status switches
   useEffect(() => {
-    // 当切换到创建新Agent状态时
+    // When switching to the Create New Agent state
     if (isCreatingNewAgent) {
-      // 清空已选的Agent和业务描述
+      // Clear the selected agent and business description
       setSelectedAgents([]);
       setBusinessLogic('');
-      // 重置工具选择状态
+      // Reset tool selection status
       setSelectedTools([]);
     } else {
-      // 从创建Agent状态切换回主Agent配置时
+      // When switching back to the main agent configuration from the Create Agent state
       setBusinessLogic('');
       setSelectedTools([]);
-      // 重置主Agent配置
+      // Reset Master Agent Configuration
       setMainAgentModel('gpt-4-turbo');
       setMainAgentMaxStep(10);
       setMainAgentPrompt('');
@@ -466,9 +466,9 @@ export default function BusinessLogicConfig({
 
   const handleSaveNewAgent = (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string) => {
     if (name.trim()) {
-      // 创建新的代理，使用独立的工具配置
+      // Create a new agent and configure it with a separate tool
       const newAgent: Agent = {
-        id: `custom_${Date.now()}`, // 生成唯一ID
+        id: `custom_${Date.now()}`,
         name: name,
         description: description || businessLogic.substring(0, 50) + (businessLogic.length > 50 ? "..." : ""),
         model: model,
@@ -484,16 +484,16 @@ export default function BusinessLogicConfig({
         prompt: prompt
       };
       
-      // 将新代理添加到mockAgents（实际应用中应该保存到后端）
+      // Add a new agent to mockAgents (it should be saved to the back end in practical applications)
       mockAgents.unshift(newAgent);
       
-      // 关闭弹窗
+      // Close pop-up window
       setIsAgentModalOpen(false);
       
-      // 显示成功消息
+      // Display success message
       message.success(`Agent:"${name}"创建成功`);
       
-      // 保存后重置状态
+      // Reset status after saving
       setBusinessLogic('');
       setSelectedTools([]);
       setIsCreatingNewAgent(false);
@@ -507,7 +507,7 @@ export default function BusinessLogicConfig({
 
   const handleUpdateAgent = (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string) => {
     if (currentAgent && name.trim()) {
-      // 更新代理，保持独立的工具配置
+      // Update the agent and maintain independent tool configuration
       const index = mockAgents.findIndex(a => a.id === currentAgent.id);
       if (index !== -1) {
         mockAgents[index] = {
@@ -517,20 +517,20 @@ export default function BusinessLogicConfig({
           model,
           max_step,
           provide_run_summary,
-          tools: currentAgent.tools, // 保持原有的工具配置
+          tools: currentAgent.tools, // Keep the original tool configuration
           prompt
         };
       }
       
-      // 关闭弹窗
+      // Close pop-up window
       setIsEditModalOpen(false);
       
-      // 显示成功消息
+      // Display success message
       message.success(`子代理"${name}"更新成功`);
     }
   };
 
-  // 在用户取消创建Agent时重置状态
+  // Reset state when user cancels agent creation
   const handleCancelCreating = () => {
     setIsCreatingNewAgent(false);
     setBusinessLogic('');
@@ -540,14 +540,14 @@ export default function BusinessLogicConfig({
     setMainAgentPrompt('');
   };
 
-  // 处理模态框关闭
+  // Processing mode box closed
   const handleModalClose = () => {
     setIsAgentModalOpen(false);
   };
 
   const canSaveAsAgent = selectedAgents.length === 0 && systemPrompt.trim().length > 0;
   
-  // 根据条件生成更智能的提示信息
+  // Generate more intelligent prompt information according to conditions
   const getButtonTitle = () => {
     if (selectedAgents.length > 0) {
       return "请确保未选择Agent";
@@ -560,7 +560,7 @@ export default function BusinessLogicConfig({
 
   return (
     <div className="flex flex-col h-full w-full gap-0 justify-between">
-      {/* 上半部分：Agent池+工具池 */}
+      {/* Upper part: Agent pool + Tool pool */}
       <div className="flex gap-4 flex-1 min-h-0 pb-4 pr-4 pl-4">
         <div className={`w-[360px] h-full ${isCreatingNewAgent ? 'hidden' : ''}`}>
           <SubAgentPool
@@ -590,7 +590,7 @@ export default function BusinessLogicConfig({
           />
         </div>
       </div>
-      {/* 下半部分：业务逻辑描述 */}
+      {/* The second half: business logic description */}
       <div className="flex gap-4 h-[240px] pb-4 pr-4 pl-4">
         <div className="flex-1 h-full">
           <BusinessLogicInput 
@@ -638,7 +638,7 @@ export default function BusinessLogicConfig({
                     className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ border: "none" }}
                   >
-                    保存到Agent仓库
+                    保存到Agent池
                   </button>
                 </>
               )}
@@ -647,19 +647,19 @@ export default function BusinessLogicConfig({
         </div>
       </div>
       
-      {/* 新增Agent弹窗 */}
+      {/* New Agent pop-up window */}
       <AgentModal 
         isOpen={isAgentModalOpen}
         onCancel={handleModalClose}
         onSave={(name, description, model, max_step, provide_run_summary, prompt) => {
           handleSaveNewAgent(name, description, model, max_step, provide_run_summary, prompt);
         }}
-        title="保存到Agent仓库"
+        title="保存到Agent池"
         selectedTools={selectedTools}
         systemPrompt={systemPrompt}
       />
 
-      {/* 编辑Agent弹窗 */}
+      {/* Edit Agent pop-up window */}
       <AgentModal 
         isOpen={isEditModalOpen}
         onCancel={() => setIsEditModalOpen(false)}

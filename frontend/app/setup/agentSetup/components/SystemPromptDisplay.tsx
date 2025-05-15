@@ -18,7 +18,7 @@ export interface SystemPromptDisplayProps {
 }
 
 /**
- * 系统提示词显示组件
+ * System prompt word display component
  */
 export default function SystemPromptDisplay({ prompt, isGenerating, onPromptChange, onGenerate, onDebug }: SystemPromptDisplayProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -30,7 +30,7 @@ export default function SystemPromptDisplay({ prompt, isGenerating, onPromptChan
   const handleSendAdditionalRequest = (request: string) => {
     setIsTuning(true)
     
-    // 模拟API调用，生成新的提示词
+    // Simulate API calls and generate new prompt words
     setTimeout(() => {
       const newPrompt = `# 优化后的系统提示词
 
@@ -128,7 +128,8 @@ export default function SystemPromptDisplay({ prompt, isGenerating, onPromptChan
           setTunedPrompt("")
         }}
         footer={null}
-        width={700}
+        width={800}
+        style={{ top: 20 }}
       >
         <div className="flex flex-col">
           <AdditionalRequestInput onSend={handleSendAdditionalRequest} />
@@ -153,7 +154,7 @@ export default function SystemPromptDisplay({ prompt, isGenerating, onPromptChan
                     onBlur={() => setIsEditingTuned(false)}
                   />
                 ) : (
-                  <div style={{ height: '300px' }}>
+                  <div style={{ height: '400px' }}>
                     <ScrollArea className="h-full">
                       <div 
                         className="p-3 cursor-text"
