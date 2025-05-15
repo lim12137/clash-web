@@ -27,6 +27,7 @@ export interface KnowledgeBaseCreateParams {
   embeddingModel?: string;
 }
 
+
 // 文档类型
 export interface Document {
   id: string

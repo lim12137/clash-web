@@ -151,7 +151,7 @@ def health_check(es_core: ElasticSearchCore = Depends(get_es_core)):
         raise HTTPException(status_code=500, detail=f"{str(e)}")
 
 
-@router.get("/{index_name}/summary")
+@router.post("/{index_name}/summary")
 def summary(
             index_name: str = Path(..., description="Name of the index to get documents from"),
             batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
