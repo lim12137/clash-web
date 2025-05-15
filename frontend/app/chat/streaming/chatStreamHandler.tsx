@@ -263,7 +263,7 @@ export const handleStreamResponse = async (
                   const newGeneratingItem = {
                     id: `generating-code-${stepIdCounter.current}`,
                     type: "generating_code" as const,
-                    content: "Tool call in progress...",
+                    content: "工具调用中...",
                     expanded: true,
                     timestamp: Date.now(),
                     isLoading: true,
@@ -312,14 +312,14 @@ export const handleStreamResponse = async (
                   currentStep.contents.push({
                     id: `agent-run-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                     type: "agent_new_run",
-                    content: "Thinking...",
+                    content: "正在思考中...",
                     expanded: true,
                     timestamp: Date.now()
                   });
                   break;
                   
                 case "error":
-                  // 添加错误内容到当前步骤的contents数组
+                  // Add error content to the current step's contents array
                   currentStep.contents.push({
                     id: `error-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                     type: "error",
@@ -330,33 +330,33 @@ export const handleStreamResponse = async (
                   break;
 
                 default:
-                  // 处理其他类型的消息
+                  // Process other types of messages
                   break;
               }
 
-              // 更新消息内容，实时前端显示
+              // Update message content, display in real time
               setMessages((prev) => {
                 const newMessages = [...prev];
                 const lastMsg = newMessages[newMessages.length - 1];
 
                 if (lastMsg && lastMsg.role === "assistant") {
-                  // 更新当前步骤
+                  // Update the current step
                   if (currentStep) {
                     if (!lastMsg.steps) lastMsg.steps = [];
 
-                    // 查找并更新现有步骤
+                    // Find and update existing steps
                     const stepIndex = lastMsg.steps.findIndex(s => s.id === currentStep?.id);
                     if (stepIndex >= 0) {
-                      lastMsg.steps[stepIndex] = JSON.parse(JSON.stringify(currentStep)); // 深拷贝确保状态更新
+                      lastMsg.steps[stepIndex] = JSON.parse(JSON.stringify(currentStep)); // Deep copy to ensure state update
                     } else {
-                      // 只有在有内容时才添加新步骤
+                      // Only add new steps when there is content
                       if (currentStep.contents && currentStep.contents.length > 0) {
                         lastMsg.steps.push(JSON.parse(JSON.stringify(currentStep)));
                       }
                     }
                   }
 
-                  // 更新其他特殊内容
+                  // Update other special content
                   if (finalAnswer) lastMsg.finalAnswer = finalAnswer;
                 }
 
@@ -370,10 +370,10 @@ export const handleStreamResponse = async (
       }
     }
 
-    // 处理buffer中的最后一行
+    // Process the last line of buffer
     if (buffer.trim() && buffer.startsWith("data:")) {
-      // 处理最后一行的数据...
-      resetTimeout(); // 最后一行数据也重置超时计时器
+      // Process the last line of data...
+      resetTimeout(); // The last line of data also resets the timeout timer
       try {
         const jsonStr = buffer.substring(5).trim();
         const jsonData: JsonData = JSON.parse(jsonStr);
@@ -382,7 +382,7 @@ export const handleStreamResponse = async (
           const messageType = jsonData.type;
           const messageContent = jsonData.content;
 
-          // 处理最后一条消息，重点关注final_answer和card
+          // Process the last message, focusing on final_answer and card
           if (messageType === "final_answer") {
             finalAnswer += messageContent;
           }
@@ -392,7 +392,7 @@ export const handleStreamResponse = async (
       }
     }
 
-    // 标记消息完成，并再次检查所有步骤以防止重复
+    // Mark message as complete, and check all steps again to prevent duplicates
     setMessages((prev) => {
       const newMessages = [...prev];
       const lastMsg = newMessages[newMessages.length - 1];
@@ -400,13 +400,13 @@ export const handleStreamResponse = async (
       if (lastMsg && lastMsg.role === "assistant") {
         lastMsg.isComplete = true;
 
-        // 检查并移除重复的步骤
+        // Check and remove duplicate steps
         if (lastMsg.steps && lastMsg.steps.length > 0) {
           const uniqueSteps = [];
           const seenTitles = new Set();
 
           for (const step of lastMsg.steps) {
-            // 如果是空步骤或者已经有相同标题的步骤，跳过它
+            // If it is an empty step or there is already a step with the same title, skip it
             if (
               !step.contents ||
               step.contents.length === 0 ||
@@ -420,48 +420,48 @@ export const handleStreamResponse = async (
             uniqueSteps.push(step);
           }
 
-          // 更新为去重后的步骤列表
+          // Update to the deduplicated step list
           lastMsg.steps = uniqueSteps;
         }
 
-        // 如果是新对话的第一次回答完成，生成标题
+        // If it is the first answer of a new conversation, generate a title
         if (isNewConversation && newMessages.length === 2) {
-          // 使用setTimeout确保状态已更新
+          // Use setTimeout to ensure the state has been updated
           setTimeout(async () => {
             try {
-              // 准备对话历史
+              // Prepare conversation history
               const history = newMessages.map(msg => ({
                 role: msg.role as 'user' | 'assistant',
                 content: msg.role === 'assistant' ? (msg.finalAnswer || msg.content || '') : (msg.content || '')
               }));
 
-              // 调用生成标题接口
+              // Call the generate title interface
               const title = await conversationService.generateTitle({
                 conversation_id: currentConversationId,
                 history
               });
-              // 更新对话上方标题
+              // Update the title above the conversation
               if (title) {
                 setConversationTitle(title);
               }
-              // 更新列表
+              // Update the list
               await fetchConversationList();
             } catch (error) {
               console.error("生成标题失败:", error);
             }
-          }, 100); // 增加延迟以确保状态更新
+          }, 100); // Add a delay to ensure the state has been updated
         }
       }
 
       return newMessages;
     });
 
-    // 重置对话切换状态
+    // Reset the conversation switch status
     setIsSwitchedConversation(false);
     
   } catch (error) {
     console.error("处理流式响应时出错:", error);
-    throw error; // 将错误传回原函数进行处理
+    throw error; // Pass the error back to the original function for processing
   }
   
   return { finalAnswer };
