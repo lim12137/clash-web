@@ -1,7 +1,7 @@
 from typing import Optional
 
 from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter, Header
-from consts.model import IndexingRequest, IndexingResponse, SearchRequest, HybridSearchRequest
+from consts.model import IndexingRequest, IndexingResponse, SearchRequest, HybridSearchRequest, ChangeSummaryRequest
 
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core
@@ -170,13 +170,14 @@ def summary(
 @router.post("/{index_name}/change_summary")
 def change_summary(
             index_name: str = Path(..., description="Name of the index to get documents from"),
-            summary_result: Optional[str] = Body(None, description="knowledge base summary"),
+            change_summary_request: ChangeSummaryRequest = Body(None, description="knowledge base summary"),
             es_core: ElasticSearchCore = Depends(get_es_core),
             authorization: Optional[str] = Header(None)
     ):
     """Summary Elasticsearch index_name"""
     try:
         user_id = get_current_user_id(authorization)
+        summary_result = change_summary_request.summary_result
         # Try to list indices as a health check
         return ElasticSearchService().change_summary(index_name=index_name,summary_result=summary_result, es_core=es_core,user_id=user_id)
     except Exception as e:

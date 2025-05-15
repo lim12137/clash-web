@@ -356,12 +356,15 @@ class KnowledgeBaseService {
   // Change knowledge base summary
   async changeSummary(indexName: string, summaryResult: string): Promise<void> {
     try {
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.changeSummary(indexName, summaryResult), {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.changeSummary(indexName), {
         method: 'POST',
         headers: {
           ...getAuthHeaders(),
           'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify({
+          summary_result: summaryResult
+        })
       });
 
       const data = await response.json();
