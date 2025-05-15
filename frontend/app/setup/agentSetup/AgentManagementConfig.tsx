@@ -342,7 +342,7 @@ function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent, onCreateNewA
 /**
  * Tool Pool Component
  */
-function ToolPool({ selectedTools, onSelectTool, isCreatingNewAgent }: ToolPoolProps) {
+function ToolPool({ selectedTools, onSelectTool, isCreatingNewAgent, tools = [], loadingTools = false }: ToolPoolProps) {
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [currentTool, setCurrentTool] = useState<Tool | null>(null);
 
@@ -354,21 +354,20 @@ function ToolPool({ selectedTools, onSelectTool, isCreatingNewAgent }: ToolPoolP
 
   const handleToolSave = (updatedTool: Tool) => {
     // Update tool configuration in tool pool
-    const index = mockTools.findIndex(t => t.id === updatedTool.id);
-    if (index !== -1) {
-      mockTools[index] = updatedTool;
-    }
     setIsToolModalOpen(false);
   };
+
+  const displayTools = tools.length > 0 ? tools : mockTools;
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">工具</h2>
+        {loadingTools && <span className="text-sm text-gray-500">加载中...</span>}
       </div>
       <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
         <div className={`grid ${isCreatingNewAgent ? 'grid-cols-4' : 'grid-cols-2'} gap-3 pr-2`}>
-          {mockTools.map((tool) => (
+          {displayTools.map((tool) => (
             <div 
               key={tool.id} 
               className={`border rounded-md p-3 flex flex-col justify-center cursor-pointer transition-colors duration-200 h-[80px] ${
@@ -432,7 +431,9 @@ export default function BusinessLogicConfig({
   mainAgentMaxStep,
   setMainAgentMaxStep,
   mainAgentPrompt,
-  setMainAgentPrompt
+  setMainAgentPrompt,
+  tools,
+  loadingTools
 }: BusinessLogicConfigProps) {
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
@@ -587,6 +588,8 @@ export default function BusinessLogicConfig({
               }
             }}
             isCreatingNewAgent={isCreatingNewAgent}
+            tools={tools}
+            loadingTools={loadingTools}
           />
         </div>
       </div>

@@ -9,9 +9,21 @@ export const mockTools: Tool[] = [
     description: '搜索互联网获取最新信息',
     source: 'mcp',
     initParams: [
-      { name: 'search_engine', type: 'string', required: true, value: 'google' },
-      { name: 'max_results', type: 'number', required: false, value: 5 },
-      { name: 'include_images', type: 'boolean', required: false, value: false }
+      { name: 'search_engine', type: 'string', required: true, value: 'google', description: '搜索引擎' },
+      { name: 'max_results', type: 'number', required: false, value: 5, description: '最大结果数' },
+      { name: 'include_images', type: 'number', required: false, value: 0.5, description: '图片比例' },
+      { name: 'include_news', type: 'object', required: false, value: {
+        "include_news": true,
+        "include_videos": false,
+        "include_images": false
+      } ,description: '新闻比例'},
+      { name: 'include_videos', type: 'array', required: false, value: [
+        {
+          "include_videos": true,
+          "include_news": false,
+          "include_images": false
+        }
+      ] ,description: '视频比例'},
     ]
   },
   {
