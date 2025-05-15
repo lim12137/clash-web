@@ -5,8 +5,8 @@ from threading import Thread
 from fastapi import HTTPException, APIRouter, Header
 from fastapi.responses import StreamingResponse
 
-from consts.model import AgentRequest, AgentInfoRequest, AgentToolInfoRequest
-from database.agent_db import create_or_update_tool, query_tools, delete_agent, update_agent
+from consts.model import AgentRequest, AgentInfoRequest
+from database.agent_db import delete_agent, update_agent
 from nexent.core.utils.observer import MessageObserver
 from services.agent_service import create_agent_api, query_agents_api
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
@@ -112,8 +112,11 @@ async def list_agent():
     """
     List all agents, create if the main Agent cannot be found.
     """
-    user_id, tenant_id = get_user_info()
-    return query_agents_api(tenant_id, user_id)
+    try:
+        user_id, tenant_id = get_user_info()
+        return query_agents_api(tenant_id, user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
 
 
 @router.post("/create")
@@ -121,8 +124,11 @@ async def create_agent_info(request: AgentInfoRequest):
     """
     Create a new sub agent
     """
-    user_id, tenant_id = get_user_info()
-    return create_agent_api(request, tenant_id, user_id)
+    try:
+        user_id, tenant_id = get_user_info()
+        return create_agent_api(request, tenant_id, user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent create error: {str(e)}")
 
 
 @router.delete("")
@@ -130,8 +136,11 @@ async def delete_agent_api(request: AgentInfoRequest):
     """
     Delete an agent
     """
-    user_id, tenant_id = get_user_info()
-    return delete_agent(request, tenant_id, user_id)
+    try:
+        user_id, tenant_id = get_user_info()
+        return delete_agent(request, tenant_id, user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent delete error: {str(e)}")
 
 
 @router.post("/update")
@@ -139,22 +148,8 @@ async def update_agent_info(request: AgentInfoRequest):
     """
     Update an existing agent
     """
-    user_id, tenant_id = get_user_info()
-    return update_agent(request.agent_id, request, tenant_id, user_id)
-
-
-@router.get("/tools")
-async def list_tools():
-    """
-    List all system tools
-    """
-    return query_tools()
-
-
-@router.post("/update/tool")
-async def update_tool_info(request: AgentToolInfoRequest):
-    """
-    Update an existing tool
-    """
-    user_id, tenant_id = get_user_info()
-    return create_or_update_tool(request, tenant_id, request.agent_id, user_id)
+    try:
+        user_id, tenant_id = get_user_info()
+        return update_agent(request.agent_id, request, tenant_id, user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent update error: {str(e)}")
