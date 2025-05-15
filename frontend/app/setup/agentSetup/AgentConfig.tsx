@@ -6,7 +6,8 @@ import SystemPromptConfig from './SystemPromptConfig'
 import { generateSystemPrompt } from './components/utils'
 import DebugConfig from './DebugConfig'
 import GuideSteps from './components/GuideSteps'
-import { Typography, Row, Col, Drawer } from 'antd'
+import { Typography, Row, Col, Drawer, message } from 'antd'
+import { fetchTools } from '@/services/agentConfigService'
 const { Title } = Typography
 
 // Layout Height Constant Configuration
@@ -34,6 +35,30 @@ export default function AgentConfig() {
   const [mainAgentModel, setMainAgentModel] = useState("gpt-4-turbo")
   const [mainAgentMaxStep, setMainAgentMaxStep] = useState(10)
   const [mainAgentPrompt, setMainAgentPrompt] = useState("")
+  const [tools, setTools] = useState<any[]>([])
+  const [loadingTools, setLoadingTools] = useState(false)
+
+  // 进入页面时加载工具列表
+  useEffect(() => {
+    const loadTools = async () => {
+      setLoadingTools(true)
+      try {
+        const result = await fetchTools()
+        if (result.success) {
+          setTools(result.data)
+        } else {
+          message.error(result.message)
+        }
+      } catch (error) {
+        console.error('加载工具列表失败:', error)
+        message.error('获取工具列表失败，请刷新页面重试')
+      } finally {
+        setLoadingTools(false)
+      }
+    }
+    
+    loadTools()
+  }, [])
 
   // Monitor the status change of creating a new agent, and reset the relevant status
   useEffect(() => {
@@ -117,6 +142,8 @@ export default function AgentConfig() {
                   setMainAgentMaxStep={setMainAgentMaxStep}
                   mainAgentPrompt={mainAgentPrompt}
                   setMainAgentPrompt={setMainAgentPrompt}
+                  tools={tools}
+                  loadingTools={loadingTools}
                 />
               </div>
             </div>
