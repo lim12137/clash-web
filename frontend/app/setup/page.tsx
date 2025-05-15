@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { message } from "antd"
+import { message, Modal } from "antd"
+import { ExclamationCircleOutlined } from '@ant-design/icons'
 import AppModelConfig from "./modelSetup/config"
 import DataConfig from "./knowledgeBaseSetup/KnowledgeBaseManager"
 import { configStore } from "@/lib/config"
@@ -20,7 +21,37 @@ export default function CreatePage() {
   const [lastChecked, setLastChecked] = useState<string | null>(null)
   const [isSavingConfig, setIsSavingConfig] = useState(false)
   const [isFromSecondPage, setIsFromSecondPage] = useState(false)
-  const { user } = useAuth()
+  const { user, isLoading: userLoading, openLoginModal } = useAuth()
+  const { confirm } = Modal
+
+  // 检查登录状态和权限
+  useEffect(() => {
+    if (!userLoading) {
+      if (!user) {
+        // 用户未登录，显示登录提示框
+        confirm({
+          title: '登录已过期',
+          icon: <ExclamationCircleOutlined />,
+          content: '您的登录信息已过期，请重新登录以继续使用。',
+          okText: '立即登录',
+          cancelText: '返回首页',
+          closable: false,
+          onOk() {
+            openLoginModal();
+          },
+          onCancel() {
+            router.push('/');
+          }
+        });
+        return
+      }
+      
+      // 如果用户不是管理员且当前在第一页，自动跳转到第二页
+      if (user.role !== "admin" && selectedKey === "1") {
+        setSelectedKey("2")
+      }
+    }
+  }, [user, userLoading, selectedKey, confirm, openLoginModal, router])
 
   // 初始化时检查连接状态
   useEffect(() => {
@@ -132,6 +163,11 @@ export default function CreatePage() {
   }
 
   const renderContent = () => {
+    // 如果用户不是管理员且尝试访问第一页，强制显示第二页内容
+    if (user?.role !== "admin" && selectedKey === "1") {
+      return <DataConfig />
+    }
+    
     switch (selectedKey) {
       case "1":
         return <AppModelConfig skipModelVerification={isFromSecondPage} />
@@ -210,6 +246,12 @@ export default function CreatePage() {
 
   // 处理用户切换到第一页的逻辑
   const handleBackToFirstPage = () => {
+    // 只有管理员才能返回第一页
+    if (user?.role !== "admin") {
+      message.error("只有管理员可以访问模型配置页面")
+      return
+    }
+    
     if (selectedKey === "2") {
       setSelectedKey("1")
       // 设置标志，表示用户是从第二页返回第一页
@@ -220,18 +262,20 @@ export default function CreatePage() {
   }
 
   return (
-    <Layout
-      connectionStatus={connectionStatus}
-      lastChecked={lastChecked}
-      isCheckingConnection={isCheckingConnection}
-      onCheckConnection={checkModelEngineConnection}
-      selectedKey={selectedKey}
-      onBackToFirstPage={handleBackToFirstPage}
-      onCompleteConfig={handleCompleteConfig}
-      isSavingConfig={isSavingConfig}
-      userRole={user?.role}
-    >
-      {renderContent()}
-    </Layout>
+    <>
+      <Layout
+        connectionStatus={connectionStatus}
+        lastChecked={lastChecked}
+        isCheckingConnection={isCheckingConnection}
+        onCheckConnection={checkModelEngineConnection}
+        selectedKey={selectedKey}
+        onBackToFirstPage={handleBackToFirstPage}
+        onCompleteConfig={handleCompleteConfig}
+        isSavingConfig={isSavingConfig}
+        userRole={user?.role}
+      >
+        {renderContent()}
+      </Layout>
+    </>
   )
 }
