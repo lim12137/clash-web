@@ -13,7 +13,7 @@ export interface STTResponse {
 }
 
 // 获取授权头的辅助函数
-const getAuthHeaders = () => {
+export const getAuthHeaders = () => {
   const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
   const sessionObj = session ? JSON.parse(session) : null;
 
