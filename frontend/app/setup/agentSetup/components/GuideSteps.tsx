@@ -2,7 +2,7 @@
 
 import { Steps } from 'antd'
 
-// 时间线步骤配置
+// Timeline Step Configuration
 const GUIDE_STEPS = {
   normal: [
     {
@@ -22,7 +22,7 @@ const GUIDE_STEPS = {
       description: '生成系统提示词并微调',
     },
     {
-      title: '调试Agent',
+      title: '调试Agent（可选）',
       description: '输入问题调试主Agent',
     },
     {
@@ -44,7 +44,7 @@ const GUIDE_STEPS = {
       description: '生成系统提示词并微调',
     },
     {
-      title: '调试Agent',
+      title: '调试Agent（可选）',
       description: '输入问题调试当前Agent',
     },
     {
@@ -69,13 +69,22 @@ export default function GuideSteps({
   selectedTools,
   selectedAgents
 }: GuideStepsProps) {
-  // 获取当前步骤
+  // Get Current Step
   const getCurrentStep = () => {
-    if (systemPrompt) return 3;
-    if (businessLogic) return 2;
-    if (selectedTools.length > 0) return 1;
-    if (!isCreatingNewAgent && selectedAgents.length > 0) return 0;
-    return 0;
+    if (isCreatingNewAgent) {
+      // New Agent creation mode step sequence
+      if (systemPrompt) return 3;
+      if (businessLogic) return 2;
+      if (selectedTools.length > 0) return 1;
+      return 0;
+    } else {
+      // Main Agent configuration mode step sequence
+      if (systemPrompt) return 4;
+      if (businessLogic) return 3;
+      if (selectedTools.length > 0) return 2;
+      if (selectedAgents.length > 0) return 1;
+      return 0;
+    }
   };
 
   return (
