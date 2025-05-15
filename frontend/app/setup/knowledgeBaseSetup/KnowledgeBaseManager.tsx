@@ -80,7 +80,8 @@ function DataConfig() {
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
     refreshKnowledgeBaseData,
-    summaryIndex
+    summaryIndex,
+    changeSummary
   } = useKnowledgeBaseContext();
 
   const {
