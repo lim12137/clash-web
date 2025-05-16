@@ -10,6 +10,7 @@ from consts.model import ToolDetailInformation
 from enum import Enum
 from dataclasses import dataclass, asdict
 from typing import List, Optional
+import json
 
 
 logging.basicConfig(level=logging.INFO)
@@ -26,6 +27,8 @@ class ToolInfo:
     description: str
     params: List
     source: str
+    inputs: str
+    output_type: str
 
 def scan_tools()->List[ToolInfo]:
     local_tools = get_local_tools()
@@ -70,7 +73,9 @@ def get_local_tools()->List[ToolInfo]:
             name=getattr(tool_class, 'name'),
             description=getattr(tool_class, 'description'),
             params=init_params_list,
-            source=ToolSourceEnum.LOCAL.value
+            source=ToolSourceEnum.LOCAL.value,
+            inputs=json.dumps(getattr(tool_class, 'inputs'), ensure_ascii=False),
+            output_type=getattr(tool_class, 'output_type')
         )
         tools_info.append(tool_info)
     return tools_info
@@ -98,7 +103,9 @@ def get_mcp_tools()->List[ToolInfo]:
                     name=getattr(tool_class, 'name'),
                     description=getattr(tool_class, 'description'),
                     params=[],
-                    source=ToolSourceEnum.MCP.value
+                    source=ToolSourceEnum.MCP.value,
+                    inputs=json.dumps(getattr(tool_class, 'inputs'), ensure_ascii=False),
+                    output_type=getattr(tool_class, 'output_type')
                 )
 
                 tools_info.append(tool_info)
