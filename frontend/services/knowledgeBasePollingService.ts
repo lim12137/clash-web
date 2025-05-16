@@ -1,171 +1,202 @@
-// 知识库轮询服务 - 封装轮询相关逻辑，从组件中分离业务逻辑
+// Knowledge Base Polling Service - Encapsulates polling logic, separates business logic from components
 
 import { Document } from '@/types/knowledgeBase';
 import knowledgeBaseService from './knowledgeBaseService';
 
 class KnowledgeBasePollingService {
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
-  private docStatusPollingInterval: number = 5000; // 5秒
-  private knowledgeBasePollingInterval: number = 1000; // 1秒
-  private maxKnowledgeBasePolls: number = 30; // 最多轮询30次
-  private activeKnowledgeBaseId: string | null = null; // 记录当前活动的知识库ID
+  private docStatusPollingInterval: number = 5000; // 5 seconds
+  private knowledgeBasePollingInterval: number = 1000; // 1 second
+  private maxKnowledgeBasePolls: number = 30; // Maximum 30 polling attempts
+  private activeKnowledgeBaseId: string | null = null; // Record current active knowledge base ID
 
-  // 设置当前活动的知识库ID
+  // Set current active knowledge base ID
   setActiveKnowledgeBase(kbId: string | null): void {
     this.activeKnowledgeBaseId = kbId;
   }
 
-  // 获取当前活动的知识库ID
+  // Get current active knowledge base ID
   getActiveKnowledgeBase(): string | null {
     return this.activeKnowledgeBaseId;
   }
 
-  // 启动文档状态轮询，只更新指定知识库的文档
+  // Start document status polling, only update documents for specified knowledge base
   startDocumentStatusPolling(kbId: string, callback: (documents: Document[]) => void): void {
-    console.log(`开始轮询知识库 ${kbId} 的文档状态`);
+    console.log(`Start polling documents status for knowledge base ${kbId}`);
     
-    // 先清除已有的轮询
+    // Clear existing polling first
     this.stopPolling(kbId);
     
-    // 创建新的轮询
+    // Initialize polling counter
+    let pollCount = 0;
+    const maxPollCount = 60; // Maximum 60 polling attempts (5 minutes)
+    
+    // Create new polling
     const interval = setInterval(async () => {
       try {
-        // 如果当前有活动知识库，且轮询的知识库与活动知识库不一致，则停止轮询
+        // Increment polling counter
+        pollCount++;
+        
+        // If there is an active knowledge base and polling knowledge base doesn't match active one, stop polling
         if (this.activeKnowledgeBaseId !== null && this.activeKnowledgeBaseId !== kbId) {
-          console.log(`知识库 ${kbId} 不是当前活动知识库，停止轮询`);
           this.stopPolling(kbId);
           return;
         }
         
-        // 获取最新文档状态，使用强制刷新参数
+        // If exceeded maximum polling count, stop polling
+        if (pollCount > maxPollCount) {
+          this.stopPolling(kbId);
+          return;
+        }
+        
+        // Get latest document status, use force refresh parameter
         const documents = await knowledgeBaseService.getDocuments(kbId, true);
         
-        // 调用回调函数传递最新文档
+        // Call callback function with latest documents first to ensure UI updates immediately
         callback(documents);
         
-        // 检查是否还有文档在处理中
+        // Check if any documents are in processing
         const hasProcessingDocs = documents.some(doc => 
-          doc.status === "PROCESSING" || doc.status === "FORWARDING"
+          doc.status === "PROCESSING" || doc.status === "FORWARDING" || doc.status === "WAITING"
         );
         
-        // 如果没有处理中的文档，停止轮询
-        if (!hasProcessingDocs) {
-          console.log('所有文档处理完成，停止轮询');
-          this.stopPolling(kbId);
+        // Check if any documents have zero size (any status)
+        const hasZeroSizeDocs = documents.some(doc => doc.size === 0);
+        
+        // If there are processing documents or zero size documents, continue polling
+        if (hasProcessingDocs || hasZeroSizeDocs) {
+          console.log('Documents processing or information incomplete, continue polling');
           
-          // 触发知识库列表更新
-          this.triggerKnowledgeBaseListUpdate(true);
+          // If found COMPLETED status but size is 0, check again after short delay
+          const hasIncompleteCompletedDocs = documents.some(doc => 
+            doc.status === "COMPLETED" && doc.size === 0
+          );
+          
+          if (hasIncompleteCompletedDocs) {
+            console.log('Found completed but incomplete documents, checking again in 1 second');
+            setTimeout(async () => {
+              try {
+                const updatedDocs = await knowledgeBaseService.getDocuments(kbId, true);
+                callback(updatedDocs);
+              } catch (error) {
+                console.error('Failed to get updated document information:', error);
+              }
+            }, 1000);
+          }
+          
+          // Continue polling, don't stop
+          return;
         }
+        
+        // 如果所有文档处理完成且信息完整，停止轮询
+        console.log('所有文档处理完成且信息完整，停止轮询');
+        this.stopPolling(kbId);
+        
+        // Trigger knowledge base list update
+        this.triggerKnowledgeBaseListUpdate(true);
       } catch (error) {
-        console.error(`轮询知识库 ${kbId} 文档状态出错:`, error);
+        console.error(`Error polling knowledge base ${kbId} document status:`, error);
       }
     }, this.docStatusPollingInterval);
     
-    // 保存轮询标识
+    // Save polling identifier
     this.pollingIntervals.set(kbId, interval);
   }
   
-  // 轮询检查新知识库是否创建成功，并且至少有一个文档
+  // Poll to check if new knowledge base is created successfully and has at least one document
   waitForKnowledgeBaseCreation(kbName: string, onSuccess: (found: boolean) => void): void {
     let count = 0;
     
     const checkForKnowledgeBase = async () => {
       try {
-        // 使用轻量级API查询知识库是否存在，不获取详细统计信息
+        // Use lightweight API to check if knowledge base exists, without getting detailed statistics
         const exists = await knowledgeBaseService.checkKnowledgeBaseExists(kbName);
         
         if (exists) {
-          // 知识库存在，检查是否有文档
+          // Knowledge base exists, check if it has documents
           try {
             const documents = await knowledgeBaseService.getDocuments(kbName, true);
             
             if (documents && documents.length > 0) {
-              console.log(`知识库 ${kbName} 创建成功，文档数量: ${documents.length}`);
-              
-              // 知识库创建成功且有文档后，获取完整信息（带统计数据）
+              // After knowledge base is created successfully and has documents, get complete info (with statistics)
               this.triggerKnowledgeBaseListUpdate(true);
               
-              // 调用成功回调
+              // Call success callback
               onSuccess(true);
               return;
             } else {
-              console.log(`知识库 ${kbName} 已创建但尚无文档，继续等待...`);
+              console.log(`Knowledge base ${kbName} created but no documents yet, continue waiting...`);
             }
           } catch (docError) {
-            // 文档获取失败，可能是文档索引尚未创建完成
-            console.log(`知识库 ${kbName} 已创建但获取文档失败，继续等待...`);
+            // Document fetch failed, possibly document index not created yet
+            console.log(`Knowledge base ${kbName} created but failed to get documents, continue waiting...`);
           }
         } else {
-          console.log(`知识库 ${kbName} 尚未创建，继续等待...`);
+          console.log(`Knowledge base ${kbName} not created yet, continue waiting...`);
         }
         
-        // 增加计数
+        // Increment counter
         count++;
         
-        // 如果未达到最大尝试次数，继续轮询
+        // If not reached maximum attempts, continue polling
         if (count < this.maxKnowledgeBasePolls) {
           setTimeout(checkForKnowledgeBase, this.knowledgeBasePollingInterval);
         } else {
-          console.error(`知识库 ${kbName} 创建检查超时，已尝试 ${count} 次`);
+          console.error(`Knowledge base ${kbName} creation check timed out, attempted ${count} times`);
           onSuccess(false);
         }
       } catch (error) {
-        console.error(`检查知识库 ${kbName} 是否创建失败:`, error);
+        console.error(`Failed to check if knowledge base ${kbName} is created:`, error);
         
-        // 出错后继续尝试，除非达到最大次数
+        // Continue trying after error unless maximum attempts reached
         if (count < this.maxKnowledgeBasePolls) {
           setTimeout(checkForKnowledgeBase, this.knowledgeBasePollingInterval);
           count++;
         } else {
-          console.error(`检查知识库 ${kbName} 是否创建失败，已尝试 ${count} 次`);
+          console.error(`Failed to check if knowledge base ${kbName} is created, attempted ${count} times`);
           onSuccess(false);
         }
       }
     };
     
-    // 开始轮询
+    // Start polling
     checkForKnowledgeBase();
   }
   
-  // 停止特定知识库的轮询
+  // Stop polling for specific knowledge base
   stopPolling(kbId: string): void {
     const interval = this.pollingIntervals.get(kbId);
     if (interval) {
       clearInterval(interval);
       this.pollingIntervals.delete(kbId);
-      console.log(`停止知识库 ${kbId} 的轮询`);
     }
   }
   
-  // 停止所有轮询
+  // Stop all polling
   stopAllPolling(): void {
-    this.pollingIntervals.forEach((interval, kbId) => {
+    this.pollingIntervals.forEach((interval) => {
       clearInterval(interval);
-      console.log(`停止知识库 ${kbId} 的轮询`);
     });
     this.pollingIntervals.clear();
   }
   
-  // 触发知识库列表更新（可选择是否强制刷新）
+  // Trigger knowledge base list update (optionally force refresh)
   triggerKnowledgeBaseListUpdate(forceRefresh: boolean = false): void {
-    // 清除缓存
-    localStorage.removeItem('preloaded_kb_data');
-    
-    // 触发自定义事件，通知更新知识库列表
+    // Trigger custom event to notify knowledge base list update
     window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
       detail: { forceRefresh }
     }));
   }
   
-  // 触发文档列表更新 - 只更新指定知识库的文档
+  // Trigger document list update - only update documents for specified knowledge base
   triggerDocumentsUpdate(kbId: string, documents: Document[]): void {
-    // 如果当前有活动知识库，且更新的知识库与活动知识库不一致，则忽略此次更新
+    // If there is an active knowledge base and update knowledge base doesn't match active one, ignore this update
     if (this.activeKnowledgeBaseId !== null && this.activeKnowledgeBaseId !== kbId) {
-      console.log(`知识库 ${kbId} 不是当前活动知识库，忽略文档更新`);
+      console.log(`Knowledge base ${kbId} is not current active knowledge base, ignoring document update`);
       return;
     }
     
-    // 使用自定义事件更新文档，并确保包含知识库ID
+    // Use custom event to update documents, ensure knowledge base ID is included
     window.dispatchEvent(new CustomEvent('documentsUpdated', {
       detail: { 
         kbId,
@@ -175,6 +206,6 @@ class KnowledgeBasePollingService {
   }
 }
 
-// 导出单例实例
+// Export singleton instance
 const knowledgeBasePollingService = new KnowledgeBasePollingService();
 export default knowledgeBasePollingService;

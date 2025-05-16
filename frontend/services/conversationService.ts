@@ -1,5 +1,4 @@
 import { API_ENDPOINTS, ApiError } from './api';
-import { v4 as uuidv4 } from 'uuid';
 import type { 
   ConversationListResponse, 
   ConversationListItem,

@@ -22,15 +22,13 @@ export default function CreatePage() {
 
   // 初始化时检查连接状态
   useEffect(() => {
+    // 检查连接状态
     checkModelEngineConnection()
     
-    // 预加载知识库数据
-    preloadKnowledgeBaseData()
-
-    // 一秒后触发知识库数据更新事件，确保DataConfig组件可以获取到数据
-    const timerId = setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated'))
-    }, 1000)
+    // 只在页面初始化时触发一次知识库数据获取
+    window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
+      detail: { forceRefresh: true }
+    }))
 
     // 检查是否需要显示知识库配置选项卡
     const showKbConfig = localStorage.getItem('show_kb_config')
@@ -40,34 +38,7 @@ export default function CreatePage() {
       // 清除标志，避免下次访问页面时自动切换
       localStorage.removeItem('show_kb_config')
     }
-
-    return () => clearTimeout(timerId)
   }, [])
-
-  // 添加预加载知识库数据的函数
-  const preloadKnowledgeBaseData = async () => {
-    try {
-      // 总是直接调用API获取最新知识库列表数据
-      const knowledgeBases = await knowledgeBaseService.getKnowledgeBases(true)
-      
-      // 将知识库数据保存到localStorage中，这样可以被KnowledgeBaseContext直接使用
-      if (knowledgeBases && knowledgeBases.length > 0) {
-        const now = Date.now()
-        localStorage.setItem('preloaded_kb_data', JSON.stringify(knowledgeBases))
-        // 保存缓存时间信息
-        localStorage.setItem('kb_data_cache_info', JSON.stringify({
-          timestamp: now,
-          count: knowledgeBases.length
-        }))
-      }
-      
-      // 触发自定义事件，通知KnowledgeBaseContext立即更新数据
-      window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated'))
-    } catch (error) {
-      console.error("预加载知识库数据失败:", error)
-      // 错误发生时不阻止页面加载，但会记录错误
-    }
-  }
 
   // 添加自动检查间隔
   useEffect(() => {
@@ -84,34 +55,12 @@ export default function CreatePage() {
     if (selectedKey === "2") {
       // 进入第二页时，重置标志
       setIsFromSecondPage(false)
-      // 进入第二页时，主动更新知识库数据
-      updateKnowledgeBaseData()
+      // 进入第二页时，获取最新知识库数据
+      window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
+        detail: { forceRefresh: true }
+      }))
     }
   }, [selectedKey])
-
-  // 更新知识库数据的函数
-  const updateKnowledgeBaseData = async () => {
-    try {
-      // 直接调用API获取最新知识库列表
-      const knowledgeBases = await knowledgeBaseService.getKnowledgeBases(true)
-      
-      if (knowledgeBases && knowledgeBases.length > 0) {
-        const now = Date.now()
-        // 更新本地缓存
-        localStorage.setItem('preloaded_kb_data', JSON.stringify(knowledgeBases))
-        // 更新缓存时间信息
-        localStorage.setItem('kb_data_cache_info', JSON.stringify({
-          timestamp: now,
-          count: knowledgeBases.length
-        }))
-        
-        // 触发自定义事件，通知KnowledgeBaseContext重新获取数据
-        window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated'))
-      }
-    } catch (error) {
-      console.error("更新知识库数据失败:", error)
-    }
-  }
 
   // 检查ModelEngine连接状态的函数
   const checkModelEngineConnection = async () => {
@@ -212,8 +161,6 @@ export default function CreatePage() {
       setSelectedKey("1")
       // 设置标志，表示用户是从第二页返回第一页
       setIsFromSecondPage(true)
-      // 当用户从第二页返回第一页时，预加载数据以备后用
-      preloadKnowledgeBaseData()
     }
   }
 
