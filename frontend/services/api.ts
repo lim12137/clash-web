@@ -41,7 +41,7 @@ export const API_ENDPOINTS = {
     preprocess: `${UPLOAD_SERVICE_URL}/preprocess`,
   },
   proxy: {
-    image: (url: string) => `${API_BASE_URL}/proxy/image?url=${encodeURIComponent(url)}`,
+    image: (url: string) => `${API_BASE_URL}/image?url=${encodeURIComponent(url)}`,
   },
   modelEngine: {
     // 基本健康检查
