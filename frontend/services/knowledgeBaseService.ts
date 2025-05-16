@@ -336,9 +336,7 @@ class KnowledgeBaseService {
     try {
       const response = await fetch(API_ENDPOINTS.knowledgeBase.summary(indexName) + `?batch_size=${batchSize}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -358,13 +356,10 @@ class KnowledgeBaseService {
     try {
       const response = await fetch(API_ENDPOINTS.knowledgeBase.changeSummary(indexName), {
         method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           summary_result: summaryResult
-        })
+        }),
       });
 
       const data = await response.json();
@@ -382,6 +377,41 @@ class KnowledgeBaseService {
         throw error;
       }
       throw new Error('Failed to change summary');
+    }
+  }
+
+  // Get knowledge base summary
+  async getSummary(indexName: string): Promise<string> {
+    console.log(`[getSummary] 开始获取索引摘要，indexName: ${indexName}`, {
+        timestamp: new Date().toISOString(),
+        indexName
+        });
+    try {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.getSummary(indexName), {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+    console.log(`[getSummary] 开始获取索引摘要，indexName: ${indexName}`, {
+        timestamp: new Date().toISOString(),
+        indexName
+        });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || data.message || `HTTP error! status: ${response.status}`);
+      }
+
+      if (data.status !== "success") {
+        throw new Error(data.message || "Failed to get summary");
+      }
+      return data.summary;
+
+    } catch (error) {
+      console.error('Error geting summary:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to get summary');
     }
   }
 }
