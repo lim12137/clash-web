@@ -125,90 +125,36 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     error: null
   });
   
-  // 判断知识库是否可选择 - memoized with useCallback
+  // Check if knowledge base is selectable - memoized with useCallback
   const isKnowledgeBaseSelectable = useCallback((kb: KnowledgeBase): boolean => {
-    // 如果没有设置当前embedding模型，则不可选择
+    // If no current embedding model is set, not selectable
     if (!state.currentEmbeddingModel) {
       return false;
     }
-    // 只有当知识库的模型与当前模型完全匹配时，才可选择
+    // Only selectable when knowledge base model exactly matches current model
     return kb.embeddingModel === state.currentEmbeddingModel;
   }, [state.currentEmbeddingModel]);
 
-  // 加载知识库列表 - memoized with useCallback
+  // Load knowledge base list - memoized with useCallback
   const fetchKnowledgeBases = useCallback(async (skipHealthCheck = true, shouldLoadSelected = false) => {
-    // 如果已经在加载中，直接返回
+    // If already loading, return directly
     if (state.isLoading) {
       return;
     }
 
     dispatch({ type: 'LOADING', payload: true });
     try {
-      let kbs: KnowledgeBase[] = [];
-      
-      // 如果skipHealthCheck为false，总是从服务器获取数据
-      if (skipHealthCheck === false) {
-        kbs = await knowledgeBaseService.getKnowledgeBases(false);
-        
-        // 如果成功获取到数据，更新缓存
-        if (kbs.length > 0) {
-          localStorage.setItem('preloaded_kb_data', JSON.stringify(kbs));
-        } else {
-          // 新增：即使是空列表也缓存起来，以减少请求
-          localStorage.setItem('preloaded_kb_data_empty', Date.now().toString());
-        }
-      } else {
-        // 首先尝试从预加载的缓存数据获取知识库列表
-        if (typeof window !== 'undefined') {
-          // 新增：检查是否有空知识库列表缓存
-          const emptyKbDataTimestamp = localStorage.getItem('preloaded_kb_data_empty');
-          if (emptyKbDataTimestamp) {
-            // 检查空缓存是否在有效期内（30秒）
-            const now = Date.now();
-            const timestamp = parseInt(emptyKbDataTimestamp, 10);
-            if (now - timestamp < 30000) { // 30秒缓存期
-              kbs = [];
-            } else {
-              // 缓存已过期，清除
-              localStorage.removeItem('preloaded_kb_data_empty');
-            }
-          }
-          
-          // 如果没有空列表缓存或已过期，则尝试获取正常缓存
-          if (kbs.length === 0 && !emptyKbDataTimestamp) {
-            const preloadedKbData = localStorage.getItem('preloaded_kb_data');
-            if (preloadedKbData) {
-              try {
-                kbs = JSON.parse(preloadedKbData);
-              } catch (e) {
-                console.error("解析预加载知识库数据失败:", e);
-              }
-            }
-          }
-        }
-        
-        // 如果没有预加载数据，则从服务器获取
-        if (kbs.length === 0 && !localStorage.getItem('preloaded_kb_data_empty')) {
-          kbs = await knowledgeBaseService.getKnowledgeBases(true);
-          
-          // 如果成功获取到数据，更新缓存
-          if (kbs.length > 0) {
-            localStorage.setItem('preloaded_kb_data', JSON.stringify(kbs));
-          } else {
-            // 新增：即使是空列表也缓存起来，以减少请求
-            localStorage.setItem('preloaded_kb_data_empty', Date.now().toString());
-          }
-        }
-      }
+      // Get knowledge base list data directly from server
+      const kbs = await knowledgeBaseService.getKnowledgeBases(skipHealthCheck);
       
       dispatch({ type: 'FETCH_SUCCESS', payload: kbs });
       
-      // 如果需要加载已选中的知识库
+      // If need to load selected knowledge bases
       if (shouldLoadSelected && kbs.length > 0) {
-        // 从配置中获取已选中的知识库名称
+        // Get selected knowledge base names from config
         const config = configStore.getDataConfig();
         if (config.selectedKbNames && config.selectedKbNames.length > 0) {
-          // 根据名称找到对应的知识库ID
+          // Find corresponding knowledge base IDs by name
           const selectedIds = kbs
             .filter(kb => config.selectedKbNames.includes(kb.name))
             .map(kb => kb.id);
@@ -220,30 +166,30 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       }
     } catch (error) {
       console.error('Failed to fetch knowledge bases:', error);
-      dispatch({ type: 'ERROR', payload: '加载知识库失败' });
+      dispatch({ type: 'ERROR', payload: 'Failed to load knowledge bases' });
     } finally {
       dispatch({ type: 'LOADING', payload: false });
     }
   }, [state.isLoading]);
 
-  // 选择知识库 - memoized with useCallback
+  // Select knowledge base - memoized with useCallback
   const selectKnowledgeBase = useCallback((id: string) => {
     const kb = state.knowledgeBases.find((kb) => kb.id === id);
     if (!kb) return;
 
-    // 检查模型兼容性
+    // Check model compatibility
     if (!isKnowledgeBaseSelectable(kb)) {
       console.warn(`Cannot select knowledge base ${kb.name}, model mismatch`);
       return;
     }
 
-    // 切换选择状态
+    // Toggle selection status
     const isSelected = state.selectedIds.includes(id);
     const newSelectedIds = isSelected
       ? state.selectedIds.filter(kbId => kbId !== id)
       : [...state.selectedIds, id];
     
-    // 准备名称、模型和来源数组
+    // Prepare arrays of names, models and sources
     const selectedNames = newSelectedIds.map(id => {
       const kb = state.knowledgeBases.find(kb => kb.id === id);
       return kb ? kb.name : '';
@@ -259,10 +205,10 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       return kb ? kb.source : '';
     }).filter(source => source !== '');
     
-    // 更新状态
+    // Update state
     dispatch({ type: 'SELECT_KNOWLEDGE_BASE', payload: newSelectedIds });
     
-    // 保存选择状态到配置
+    // Save selection status to config
     configStore.updateDataConfig({
       selectedKbNames: selectedNames,
       selectedKbModels: selectedModels,
@@ -270,12 +216,12 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     });
   }, [state.knowledgeBases, state.selectedIds, isKnowledgeBaseSelectable]);
 
-  // 设置当前活动知识库 - memoized with useCallback
+  // Set current active knowledge base - memoized with useCallback
   const setActiveKnowledgeBase = useCallback((kb: KnowledgeBase) => {
     dispatch({ type: 'SET_ACTIVE', payload: kb });
   }, []);
 
-  // 创建知识库 - memoized with useCallback
+  // Create knowledge base - memoized with useCallback
   const createKnowledgeBase = useCallback(async (name: string, description: string, source: string = "elasticsearch") => {
     try {
       const newKB = await knowledgeBaseService.createKnowledgeBase({
@@ -285,34 +231,34 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
         embeddingModel: state.currentEmbeddingModel || "text-embedding-3-small"
       });
       
-      // 更新知识库列表
+      // Update knowledge base list
       dispatch({ type: 'ADD_KNOWLEDGE_BASE', payload: newKB });
       return newKB;
     } catch (error) {
-      console.error('创建知识库失败:', error);
-      dispatch({ type: 'ERROR', payload: '创建知识库失败' });
+      console.error('Failed to create knowledge base:', error);
+      dispatch({ type: 'ERROR', payload: 'Failed to create knowledge base' });
       return null;
     }
   }, [state.currentEmbeddingModel]);
 
-  // 删除知识库 - memoized with useCallback
+  // Delete knowledge base - memoized with useCallback
   const deleteKnowledgeBase = useCallback(async (id: string) => {
     try {
       await knowledgeBaseService.deleteKnowledgeBase(id);
       
-      // 更新知识库列表
+      // Update knowledge base list
       dispatch({ type: 'DELETE_KNOWLEDGE_BASE', payload: id });
       
-      // 如果当前激活的知识库被删除，清除激活状态
+      // If current active knowledge base is deleted, clear active state
       if (state.activeKnowledgeBase?.id === id) {
         dispatch({ type: 'SET_ACTIVE', payload: null });
       }
       
-      // 更新选中的知识库列表
+      // Update selected knowledge base list
       const newSelectedIds = state.selectedIds.filter(kbId => kbId !== id);
       
       if (newSelectedIds.length !== state.selectedIds.length) {
-        // 准备名称、模型和来源数组
+        // Prepare arrays of names, models and sources
         const selectedNames = newSelectedIds.map(id => {
           const kb = state.knowledgeBases.find(kb => kb.id === id);
           return kb ? kb.name : '';
@@ -328,7 +274,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
           return kb ? kb.source : '';
         }).filter(source => source !== '');
         
-        // 更新配置
+        // Update config
         configStore.updateDataConfig({
           selectedKbNames: selectedNames,
           selectedKbModels: selectedModels,
@@ -339,131 +285,92 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       
       return true;
     } catch (error) {
-      console.error('删除知识库失败:', error);
-      dispatch({ type: 'ERROR', payload: '删除知识库失败' });
+      console.error('Failed to delete knowledge base:', error);
+      dispatch({ type: 'ERROR', payload: 'Failed to delete knowledge base' });
       return false;
     }
   }, [state.knowledgeBases, state.selectedIds, state.activeKnowledgeBase]);
 
-  // 添加刷新知识库数据的函数
+  // Add function to refresh knowledge base data
   const refreshKnowledgeBaseData = useCallback(async (forceRefresh = false) => {
     try {
+      // Get latest knowledge base data directly from server
+      await fetchKnowledgeBases(false, true);
       
-      if (forceRefresh) {
-        // 如果强制刷新，清除缓存并从服务器获取
-        localStorage.removeItem('preloaded_kb_data');
-        localStorage.removeItem('preloaded_kb_data_empty');
-        await fetchKnowledgeBases(false, true);
-        return;
-      }
-      
-      // 获取最新知识库数据但不清除缓存
-      const knowledgeBases = await knowledgeBaseService.getKnowledgeBases(true);
-      
-      // 更新知识库缓存
-      if (knowledgeBases && knowledgeBases.length > 0) {
-        localStorage.setItem('preloaded_kb_data', JSON.stringify(knowledgeBases));
-        
-        // 更新状态
-        dispatch({ type: 'FETCH_SUCCESS', payload: knowledgeBases });
-      } else {
-        // 为空列表设置缓存
-        localStorage.setItem('preloaded_kb_data_empty', Date.now().toString());
-        dispatch({ type: 'FETCH_SUCCESS', payload: [] });
+      // If there is an active knowledge base, also refresh its document information
+      if (state.activeKnowledgeBase) {
+        // Publish document update event to notify document list component to refresh document data
+        try {
+          const documents = await knowledgeBaseService.getDocuments(state.activeKnowledgeBase.id, forceRefresh);
+          window.dispatchEvent(new CustomEvent('documentsUpdated', {
+            detail: {
+              kbId: state.activeKnowledgeBase.id,
+              documents
+            }
+          }));
+        } catch (error) {
+          console.error("Failed to refresh document information:", error);
+        }
       }
     } catch (error) {
-      console.error("刷新知识库数据失败:", error);
-      dispatch({ type: 'ERROR', payload: '刷新知识库数据失败' });
+      console.error("Failed to refresh knowledge base data:", error);
+      dispatch({ type: 'ERROR', payload: 'Failed to refresh knowledge base data' });
     }
-  }, [fetchKnowledgeBases]);
+  }, [fetchKnowledgeBases, state.activeKnowledgeBase]);
 
-  // 初始加载数据 - with optimized dependencies
+  // Initial data loading - with optimized dependencies
   useEffect(() => {
-    // 初始加载时，获取当前的模型配置
+    // Use ref to track if data has been loaded to avoid duplicate loading
+    let initialDataLoaded = false;
+    
+    // Get current model config at initial load
     const loadInitialData = async () => {
       const modelConfig = configStore.getModelConfig();
       if (modelConfig.embedding?.modelName) {
         dispatch({ type: 'SET_MODEL', payload: modelConfig.embedding.modelName });
       }
       
-      // 初始加载知识库列表
-      fetchKnowledgeBases(true);
+      // Don't load knowledge base list here, wait for knowledgeBaseDataUpdated event
     };
     
     loadInitialData();
     
-    // 监听embedding模型变化事件
+    // Listen for embedding model change event
     const handleEmbeddingModelChange = (e: CustomEvent) => {
       const newModel = e.detail.model || null;
       
-      // 如果模型发生变化
+      // If model changes
       if (newModel !== state.currentEmbeddingModel) {
         dispatch({ type: 'SET_MODEL', payload: newModel });
         
-        // 模型变化时重新加载知识库列表
+        // Reload knowledge base list when model changes
         fetchKnowledgeBases(true);
       }
     };
     
-    // 监听env配置变化事件
+    // Listen for env config change event
     const handleEnvConfigChanged = () => {
-      // 重新加载与env相关的配置
+      // Reload env related config
       const newModelConfig = configStore.getModelConfig();
       if (newModelConfig.embedding?.modelName !== state.currentEmbeddingModel) {
         dispatch({ type: 'SET_MODEL', payload: newModelConfig.embedding?.modelName || null });
         
-        // 模型变化时重新加载知识库列表
+        // Reload knowledge base list when model changes
         fetchKnowledgeBases(true);
       }
     };
     
-    // 监听知识库数据更新事件
+    // Listen for knowledge base data update event
     const handleKnowledgeBaseDataUpdated = (e: Event) => {
-      
-      // 检查是否需要强制从服务器获取数据
+      // Check if need to force fetch data from server
       const customEvent = e as CustomEvent;
       const forceRefresh = customEvent.detail?.forceRefresh === true;
       
-      if (forceRefresh) {
-        // 清除所有缓存，确保强制刷新时获取最新数据
-        localStorage.removeItem('preloaded_kb_data');
-        localStorage.removeItem('preloaded_kb_data_empty');
+      // If first time loading data or force refresh, get from server
+      if (!initialDataLoaded || forceRefresh) {
         fetchKnowledgeBases(false, true);
-        return;
+        initialDataLoaded = true;
       }
-      
-      // 检查是否有预加载数据，如果有则使用，否则从服务器获取
-      if (typeof window !== 'undefined') {
-        // 先检查空列表缓存是否存在且有效
-        const emptyKbDataTimestamp = localStorage.getItem('preloaded_kb_data_empty');
-        if (emptyKbDataTimestamp) {
-          // 检查空缓存是否在有效期内（30秒）
-          const now = Date.now();
-          const timestamp = parseInt(emptyKbDataTimestamp, 10);
-          if (now - timestamp < 30000) { // 30秒缓存期
-            dispatch({ type: 'FETCH_SUCCESS', payload: [] });
-            return;
-          } else {
-            // 缓存已过期，清除
-            localStorage.removeItem('preloaded_kb_data_empty');
-          }
-        }
-        
-        // 如果没有空列表缓存或已过期，尝试获取正常缓存
-        const preloadedData = localStorage.getItem('preloaded_kb_data');
-        if (preloadedData) {
-          try {
-            const knowledgeBases = JSON.parse(preloadedData);
-            dispatch({ type: 'FETCH_SUCCESS', payload: knowledgeBases });
-            return;
-          } catch (e) {
-            console.error("解析预加载数据失败:", e);
-          }
-        }
-      }
-      
-      // 如果没有预加载数据或解析失败，则从服务器获取最新数据
-      fetchKnowledgeBases(false, true);
     };
     
     window.addEventListener("embeddingModelChanged", handleEmbeddingModelChange as EventListener);
@@ -475,7 +382,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       window.removeEventListener("configChanged", handleEnvConfigChanged as EventListener);
       window.removeEventListener("knowledgeBaseDataUpdated", handleKnowledgeBaseDataUpdated as EventListener);
     };
-  }, [fetchKnowledgeBases]);
+  }, [fetchKnowledgeBases, state.currentEmbeddingModel]);
 
   // Memoized context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
