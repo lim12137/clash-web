@@ -126,12 +126,12 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const { summaryIndex } = useKnowledgeBaseContext();
 
-  // 当知识库名称改变时，重置showDetail状态
+  // Reset showDetail state when knowledge base name changes
   React.useEffect(() => {
     setShowDetail(false);
   }, [knowledgeBaseName]);
 
-  // 当显示详细内容时，获取总结
+  // Get summary when showing detailed content
   React.useEffect(() => {
     const fetchSummary = async () => {
       if (showDetail && knowledgeBaseName) {
@@ -147,7 +147,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
     fetchSummary();
   }, [showDetail, knowledgeBaseName]);
 
-  // 处理自动总结
+  // Handle auto summary
   const handleAutoSummary = async () => {
     if (!knowledgeBaseName) {
       message.warning('请先选择一个知识库');
@@ -171,38 +171,38 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
     }
   };
 
-  // 处理保存总结
+  // Handle save summary
   const handleSaveSummary = async () => {
     if (!knowledgeBaseName) {
-      message.warning('请先选择一个知识库');
+      message.warning('Please select a knowledge base first');
       return;
     }
 
     if (!summary.trim()) {
-      message.warning('总结内容不能为空');
+      message.warning('Summary content cannot be empty');
       return;
     }
 
     setIsSaving(true);
     try {
-      console.log('开始保存总结:', { 
+      console.log('Starting to save summary:', { 
         knowledgeBaseName, 
         summary,
         summaryLength: summary.length,
-        summaryContent: summary.substring(0, 100) + '...' // 只显示前100个字符
+        summaryContent: summary.substring(0, 100) + '...' // Only show first 100 characters
       });
       await knowledgeBaseService.changeSummary(knowledgeBaseName, summary);
-      message.success('保存成功');
+      message.success('Save successful');
     } catch (error: any) {
-      console.error('保存总结失败:', error);
-      const errorMessage = error?.message || error?.detail || '保存失败';
+      console.error('Failed to save summary:', error);
+      const errorMessage = error?.message || error?.detail || 'Save failed';
       message.error(errorMessage);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // 重构：风格被嵌入在组件内
+  // Refactored: Style is embedded within the component
   return (
     <div className="flex flex-col w-full bg-white border border-gray-200 rounded-md shadow-sm h-full" style={{ height: containerHeight }}>
       {/* 标题栏 */}

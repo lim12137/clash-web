@@ -349,7 +349,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     }
   }, [state.knowledgeBases, state.selectedIds, state.activeKnowledgeBase]);
 
-  // 总结知识库内容 - memoized with useCallback
+  // Summarize the content of the knowledge base
   const summaryIndex = useCallback(async (indexName: string, batchSize: number = 1000) => {
     try {
       const result = await knowledgeBaseService.summaryIndex(indexName, batchSize);
@@ -360,7 +360,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     }
   }, []);
 
-  // 修改知识库总结 - memoized with useCallback
+  // Modify the summary of the knowledge base
   const changekKnowledgeSummary = useCallback(async (indexName: string, summary: string) => {
     try {
       const result = await knowledgeBaseService.changeSummary(indexName, summary);
@@ -371,7 +371,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     }
   }, []);
 
-  // 添加刷新知识库数据的函数
+  // Add a function to refresh the knowledge base data
   const refreshKnowledgeBaseData = useCallback(async (forceRefresh = false) => {
     try {
       
@@ -403,16 +403,16 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     }
   }, [fetchKnowledgeBases]);
 
-  // 初始加载数据 - with optimized dependencies
+  // Initial loading data - with optimized dependencies
   useEffect(() => {
-    // 初始加载时，获取当前的模型配置
+    // When initially loading, obtain the current model configuration
     const loadInitialData = async () => {
       const modelConfig = configStore.getModelConfig();
       if (modelConfig.embedding?.modelName) {
         dispatch({ type: 'SET_MODEL', payload: modelConfig.embedding.modelName });
       }
       
-      // 初始加载知识库列表
+      // Initially load the knowledge base list
       fetchKnowledgeBases(true);
     };
     
