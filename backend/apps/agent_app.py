@@ -107,7 +107,7 @@ async def reload_config():
     return config_manager.force_reload()
 
 
-@router.post("/list")
+@router.get("/list")
 async def list_agent():
     """
     List all agents, create if the main Agent cannot be found.
