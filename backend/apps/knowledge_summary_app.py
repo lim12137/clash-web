@@ -6,7 +6,7 @@ from consts.model import ChangeSummaryRequest
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core
 from database.utils import get_current_user_id
-router = APIRouter(prefix="/indices")
+router = APIRouter(prefix="/summary")
 
 @router.post("/{index_name}/auto_summary")
 def summary(
