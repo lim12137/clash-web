@@ -158,7 +158,7 @@ def summary(
             es_core: ElasticSearchCore = Depends(get_es_core),
             authorization: Optional[str] = Header(None)
     ):
-    """Summary Elasticsearch index_name"""
+    """Summary Elasticsearch index_name by model"""
     try:
         user_id = get_current_user_id(authorization)
         # Try to list indices as a health check
@@ -174,7 +174,7 @@ def change_summary(
             es_core: ElasticSearchCore = Depends(get_es_core),
             authorization: Optional[str] = Header(None)
     ):
-    """Summary Elasticsearch index_name"""
+    """Summary Elasticsearch index_name by user"""
     try:
         user_id = get_current_user_id(authorization)
         summary_result = change_summary_request.summary_result

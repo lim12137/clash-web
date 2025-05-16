@@ -382,19 +382,12 @@ class KnowledgeBaseService {
 
   // Get knowledge base summary
   async getSummary(indexName: string): Promise<string> {
-    console.log(`[getSummary] 开始获取索引摘要，indexName: ${indexName}`, {
-        timestamp: new Date().toISOString(),
-        indexName
-        });
     try {
       const response = await fetch(API_ENDPOINTS.knowledgeBase.getSummary(indexName), {
         method: 'GET',
         headers: getAuthHeaders(),
       });
-    console.log(`[getSummary] 开始获取索引摘要，indexName: ${indexName}`, {
-        timestamp: new Date().toISOString(),
-        indexName
-        });
+
       const data = await response.json();
 
       if (!response.ok) {

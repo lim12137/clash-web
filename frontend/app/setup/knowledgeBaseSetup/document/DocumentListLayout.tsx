@@ -264,7 +264,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
       {/* 文档列表/详细内容视图 */}
       <div className="p-2 overflow-auto flex-grow" style={{ height: contentHeight }}>
         {showDetail ? (
-          <div style={{ padding: 32, height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '16px 32px', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <span style={{ fontWeight: 700, fontSize: 18 }}>知识库总结</span>
               <Button 

@@ -21,7 +21,7 @@ import DocumentList from './document/DocumentListContainer'
 
 import ConfirmModal from './components/ConfirmModal'
 
-// EmptyState组件直接定义在此文件中
+// EmptyState component defined directly in this file
 interface EmptyStateProps {
   icon?: React.ReactNode | string
   title: string
@@ -99,7 +99,7 @@ function DataConfig() {
     showNotification
   } = useUIContext();
 
-  // 创建模式状态
+  // Create mode state
   const [isCreatingMode, setIsCreatingMode] = useState(false);
   const [newKbName, setNewKbName] = useState("");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
@@ -107,13 +107,13 @@ function DataConfig() {
   const [hasShownNameError, setHasShownNameError] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
-  // 添加预加载逻辑
+  // Add preload logic
   useEffect(() => {
     // 在组件挂载时预加载知识库列表
     fetchKnowledgeBases(true, true);
   }, [fetchKnowledgeBases]);
 
-  // 添加监听选中新知识库的事件
+  // Add event listener for selecting new knowledge base
   useEffect(() => {
     const handleSelectNewKnowledgeBase = (e: CustomEvent) => {
       const kbName = e.detail.name;
@@ -134,13 +134,13 @@ function DataConfig() {
     };
   }, [kbState.knowledgeBases, setActiveKnowledgeBase, fetchDocuments, setIsCreatingMode, setHasClickedUpload]);
 
-  // UI配置变量
+  // UI configuration variables
   const UI_CONFIG = {
     CREATE_BUTTON_HEIGHT: '50px',                // 创建知识库按钮高度
-    CONTAINER_HEIGHT: '71.6vh'                     // 容器整体高度
+    CONTAINER_HEIGHT: '75.6vh'                     // 容器整体高度
   };
 
-  // 生成唯一的知识库名称
+  // Generate unique knowledge base name
   const generateUniqueKbName = (existingKbs: KnowledgeBase[]): string => {
     const baseNamePrefix = "新知识库";
     const existingNames = new Set(existingKbs.map(kb => kb.name));
@@ -159,7 +159,7 @@ function DataConfig() {
     return `${baseNamePrefix}${counter}`;
   };
 
-  // 处理点击知识库的逻辑，设置当前活动知识库
+  // Handle knowledge base click logic, set current active knowledge base
   const handleKnowledgeBaseClick = (kb: KnowledgeBase) => {
     setIsCreatingMode(false); // Reset creating mode
     setHasClickedUpload(false); // 重置上传按钮点击状态
@@ -170,23 +170,23 @@ function DataConfig() {
     handleKnowledgeBaseChange(kb);
   }
 
-  // 处理知识库切换事件
+  // Handle knowledge base change event
   const handleKnowledgeBaseChange = async (kb: KnowledgeBase) => {
-    // 首先使用当前缓存中的知识库数据
+    // First use the current cached knowledge base data
     
-    // 后台发送请求获取最新文档数据 (不阻塞UI)
+    // Background request to get latest document data (non-blocking UI)
     setTimeout(async () => {
       try {
-        // 使用上下文中的刷新方法更新知识库数据
+        // Use the refresh method from context to update knowledge base data
         await refreshKnowledgeBaseData(false); // 不强制刷新，先使用缓存
       } catch (error) {
         console.error("获取知识库最新数据失败:", error);
-        // 错误发生时不影响用户体验，继续使用缓存数据
+        // Error doesn't affect user experience, continue using cached data
       }
     }, 100);
   };
 
-  // 添加一个拖拽上传相关的处理函数
+  // Add a drag and drop upload related handler function
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(true);
@@ -212,7 +212,7 @@ function DataConfig() {
     }
   }
 
-  // 处理删除知识库
+  // Handle knowledge base deletion
   const handleDelete = (id: string) => {
     ConfirmModal.confirm({
       title: '确定要删除这个知识库吗？',
@@ -224,10 +224,10 @@ function DataConfig() {
         try {
           await deleteKnowledgeBase(id);
           
-          // 清除预加载数据，强制从服务器获取最新数据
+          // Clear preloaded data, force fetch latest data from server
           localStorage.removeItem('preloaded_kb_data');
           
-          // 延迟1秒后刷新知识库列表，确保后端处理完成
+          // Delay 1 second before refreshing knowledge base list to ensure backend processing is complete
           setTimeout(async () => {
             await fetchKnowledgeBases(false, false);
             message.success("删除知识库成功");
@@ -239,9 +239,9 @@ function DataConfig() {
     });
   }
 
-  // 处理同步知识库
+  // Handle knowledge base sync
   const handleSync = () => {
-    // 手动同步时强制从服务器获取最新数据
+    // When manually syncing, force fetch latest data from server
     refreshKnowledgeBaseData(true)
       .then(() => {
         message.success("同步知识库成功");
@@ -251,9 +251,9 @@ function DataConfig() {
       });
   }
 
-  // 处理创建新知识库
+  // Handle new knowledge base creation
   const handleCreateNew = () => {
-    // 生成默认知识库名称
+    // Generate default knowledge base name
     const defaultName = generateUniqueKbName(kbState.knowledgeBases);
     setNewKbName(defaultName);
     setIsCreatingMode(true);
@@ -262,7 +262,7 @@ function DataConfig() {
     setUploadFiles([]); // 重置上传文件数组，清空所有待上传文件
   };
 
-  // 处理删除文档
+  // Handle document deletion
   const handleDeleteDocument = (docId: string) => {
     const kbId = kbState.activeKnowledgeBase?.id;
     if (!kbId) return;
@@ -284,37 +284,37 @@ function DataConfig() {
     });
   }
 
-  // 处理上传文件
+  // Handle file upload
   const handleFileUpload = async (files?: File[]) => {
     const filesToUpload = files || uploadFiles;
     
-    // 如果没有文件，不显示警告，直接返回
+    // If no files, don't show warning, return directly
     if (filesToUpload.length === 0) {
       return;
     }
 
-    // 设置上传按钮已点击标志
+    // Set upload button clicked flag
     setHasClickedUpload(true);
 
-    // 在用户点击Upload Files按钮时，立即禁用标题编辑
+    // When user clicks Upload Files button, immediately disable title editing
     if (isCreatingMode) {
-      // 先修整知识库名称，如果为空则生成一个默认名称
+      // First trim knowledge base name, if empty generate a default name
       const trimmedName = newKbName.trim();
       const effectiveKbName = trimmedName || generateUniqueKbName(kbState.knowledgeBases);
       setNewKbName(effectiveKbName);
       
       try {
-        // 1. 先进行知识库名称重复校验
+        // 1. First perform knowledge base name duplicate check
         const nameExists = await knowledgeBaseService.checkKnowledgeBaseNameExists(effectiveKbName);
         
         if (nameExists) {
           message.error(`知识库名称"${effectiveKbName}"已存在，请更换名称`);
           setHasShownNameError(true);
           setHasClickedUpload(false); // 重置上传按钮点击状态，允许用户修改名称
-          return; // 如果名称重复，直接返回，不继续执行后续逻辑
+          return; // If name is duplicate, return directly, don't continue with subsequent logic
         }
         
-        // 2. 创建知识库
+        // 2. Create knowledge base
         const kb = await createKnowledgeBase(
           effectiveKbName,
           "",
@@ -327,22 +327,22 @@ function DataConfig() {
           return;
         }
         
-        // 3. 上传文件到新知识库
+        // 3. Upload files to new knowledge base
         await uploadDocuments(kb.id, filesToUpload);
         
-        // 4. 显示成功消息
+        // 4. Show success message
         message.success("知识库创建成功");
         
-        // 5. 重置创建模式状态
+        // 5. Reset creation mode state
         setIsCreatingMode(false);
         setHasClickedUpload(false); // 重置上传状态
         setHasShownNameError(false); // 重置错误状态
         setUploadFiles([]); // 清空上传文件列表
         
-        // 清除预加载数据，强制从服务器获取最新数据
+        // Clear preloaded data, force fetch latest data from server
         localStorage.removeItem('preloaded_kb_data');
         
-        // 通知系统知识库数据已更新，需要强制刷新
+        // Notify system knowledge base data has been updated, force refresh needed
         window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
           detail: { forceRefresh: true }
         }));
@@ -355,7 +355,7 @@ function DataConfig() {
       return;
     }
     
-    // 非创建模式上传
+    // Non-creation mode upload
     const kbId = kbState.activeKnowledgeBase?.id;
     if (!kbId) {
       message.warning("请先选择一个知识库");
@@ -367,9 +367,9 @@ function DataConfig() {
       message.success("文件上传成功");
       setUploadFiles([]);
       
-      // 延迟2秒后刷新知识库列表，确保后端处理完成
+      // Delay 2 seconds before refreshing knowledge base list to ensure backend processing is complete
       setTimeout(async () => {
-        // 清除预加载数据，强制从服务器获取最新数据
+        // Clear preloaded data, force fetch latest data from server
         localStorage.removeItem('preloaded_kb_data');
         await fetchKnowledgeBases(false, false);
       }, 2000);
@@ -379,38 +379,38 @@ function DataConfig() {
     }
   }
 
-  // 文件选择处理
+  // File selection handling
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setUploadFiles(Array.from(e.target.files));
     }
   }
 
-  // 获取当前查看的知识库文档
+  // Get current viewing knowledge base documents
   const viewingDocuments = kbState.activeKnowledgeBase 
     ? docState.documentsMap[kbState.activeKnowledgeBase.id] || []
     : [];
 
-  // 获取当前知识库名称
+  // Get current knowledge base name
   const viewingKbName = kbState.activeKnowledgeBase?.name || "";
 
-  // 处理选择知识库
+  // Handle knowledge base selection
   const handleSelectKnowledgeBase = (id: string) => {
     selectKnowledgeBase(id);
     
-    // 选择知识库时也获取最新数据（低优先级后台操作）
+    // When selecting knowledge base also get latest data (low priority background operation)
     setTimeout(async () => {
       try {
-        // 使用较低优先级刷新数据，因为这不是关键操作
+        // Use lower priority to refresh data as this is not a critical operation
         await refreshKnowledgeBaseData(false);
       } catch (error) {
         console.error("刷新知识库数据失败:", error);
-        // 错误不影响用户体验
+        // Error doesn't affect user experience
       }
-    }, 500); // 延迟执行，降低优先级
+    }, 500); // Delay execution, lower priority
   }
 
-  // 处理自动总结
+  // Handle auto summary
   const handleAutoSummary = async () => {
     if (!viewingKbName) {
       message.warning('请先选择一个知识库');
@@ -420,10 +420,10 @@ function DataConfig() {
     setIsSummarizing(true);
     try {
       const summary = await summaryIndex(viewingKbName);
-      // 这里可以根据实际需求处理返回的总结内容
-      // 例如显示在对话框中或更新到某个状态中
+      // Here you can process the returned summary content based on actual needs
+      // For example display in dialog or update to some state
       message.success('知识库总结完成');
-      // TODO: 处理总结内容
+      // TODO: Handle summary content
     } catch (error) {
       message.error('获取知识库总结失败');
       console.error('获取知识库总结失败:', error);
@@ -435,13 +435,13 @@ function DataConfig() {
   return (
     <>
       <div 
-        className="flex h-full mb-8"
+        className="flex h-full mb-4"
         style={{ height: UI_CONFIG.CONTAINER_HEIGHT }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* 左侧知识库列表 - 占据1/3空间 */}
+        {/* Left knowledge base list - occupies 1/3 space */}
         <div className="w-1/3 p-3 pr-1.5">
           <KnowledgeBaseList
             knowledgeBases={kbState.knowledgeBases}
@@ -457,11 +457,11 @@ function DataConfig() {
             isSelectable={isKnowledgeBaseSelectable}
             getModelDisplayName={(modelId) => modelId}
             containerHeight={UI_CONFIG.CONTAINER_HEIGHT}
-            onKnowledgeBaseChange={() => {}} // 这里不需要重复触发，因为已经在handleKnowledgeBaseClick中处理了
+            onKnowledgeBaseChange={() => {}} // No need to trigger repeatedly here as it's already handled in handleKnowledgeBaseClick
           />
         </div>
         
-        {/* 右侧内容区域 - 占据2/3空间 */}
+        {/* Right content area - occupies 2/3 space */}
         <div className="w-2/3 p-3 pl-1.5 flex flex-col h-full">
           {isCreatingMode ? (
             <DocumentList
@@ -472,7 +472,7 @@ function DataConfig() {
               onNameChange={setNewKbName}
               containerHeight={UI_CONFIG.CONTAINER_HEIGHT}
               hasDocuments={hasClickedUpload || docState.isUploading}
-              // 上传相关props
+              // Upload related props
               isDragging={uiState.isDragging}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -498,7 +498,7 @@ function DataConfig() {
               }
               containerHeight={UI_CONFIG.CONTAINER_HEIGHT}
               hasDocuments={viewingDocuments.length > 0}
-              // 上传相关props
+              // Upload related props
               isDragging={uiState.isDragging}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -509,7 +509,7 @@ function DataConfig() {
               isUploading={docState.isUploading}
             />
           ) : (
-            <div className="flex items-center justify-center h-full border border-gray-200 rounded-md bg-white" style={{ height: UI_CONFIG.CONTAINER_HEIGHT }}>
+            <div className="flex items-center justify-center h-full border border-gray-200 rounded-md bg-white h-full">
               <EmptyState
                 title="未选择知识库"
                 description="请在左侧列表选择一个知识库，或创建新的知识库"
