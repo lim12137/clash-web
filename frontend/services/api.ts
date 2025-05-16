@@ -57,6 +57,7 @@ export const API_ENDPOINTS = {
     indexDetail: (indexName: string) => `${API_BASE_URL}/indices/${indexName}`,
     summary: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/summary`,
     changeSummary: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/change_summary`,
+    getSummary: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/summary`,
     
     // 文件上传服务
     upload: `${UPLOAD_SERVICE_URL}/upload`,

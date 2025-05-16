@@ -131,6 +131,22 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
     setShowDetail(false);
   }, [knowledgeBaseName]);
 
+  // 当显示详细内容时，获取总结
+  React.useEffect(() => {
+    const fetchSummary = async () => {
+      if (showDetail && knowledgeBaseName) {
+        try {
+          const result = await knowledgeBaseService.getSummary(knowledgeBaseName);
+          setSummary(result);
+        } catch (error) {
+          console.error('获取知识库总结失败:', error);
+          message.error('获取知识库总结失败');
+        }
+      }
+    };
+    fetchSummary();
+  }, [showDetail, knowledgeBaseName]);
+
   // 处理自动总结
   const handleAutoSummary = async () => {
     if (!knowledgeBaseName) {
@@ -251,7 +267,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
         {showDetail ? (
           <div style={{ padding: 32, height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <span style={{ fontWeight: 500, fontSize: 18 }}>知识库总结：</span>
+              <span style={{ fontWeight: 700, fontSize: 18 }}>知识库总结</span>
               <Button 
                 type="default" 
                 onClick={handleAutoSummary}
