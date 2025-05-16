@@ -204,6 +204,8 @@ CREATE TABLE IF NOT EXISTS nexent.ag_tool_info_t (
     author VARCHAR(100),
     usage VARCHAR(100),
     params JSON,
+    inputs VARCHAR(2048),
+    output_type VARCHAR(100),
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
@@ -237,6 +239,8 @@ COMMENT ON COLUMN nexent.ag_tool_info_t.source IS 'Source';
 COMMENT ON COLUMN nexent.ag_tool_info_t.author IS 'Tool author';
 COMMENT ON COLUMN nexent.ag_tool_info_t.usage IS 'Usage';
 COMMENT ON COLUMN nexent.ag_tool_info_t.params IS 'Tool parameter information (json)';
+COMMENT ON COLUMN nexent.ag_tool_info_t.inputs IS 'Prompt tool inputs description';
+COMMENT ON COLUMN nexent.ag_tool_info_t.output_type IS 'Prompt tool output description';
 COMMENT ON COLUMN nexent.ag_tool_info_t.create_time IS 'Creation time';
 COMMENT ON COLUMN nexent.ag_tool_info_t.update_time IS 'Update time';
 COMMENT ON COLUMN nexent.ag_tool_info_t.created_by IS 'Creator';

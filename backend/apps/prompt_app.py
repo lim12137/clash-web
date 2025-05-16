@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @router.post("/generate")
-async def generate_system_prompt(request: GeneratePromptRequest):
+async def generate_system_prompt_service(request: GeneratePromptRequest):
     try:
         system_prompt = generate_system_prompt(request)
         return {"success": True, "data": system_prompt}
@@ -20,7 +20,7 @@ async def generate_system_prompt(request: GeneratePromptRequest):
 
 
 @router.post("/fine_tune")
-async def generate_system_prompt(request: FineTunePromptRequest):
+async def fine_tune_system_prompt_service(request: FineTunePromptRequest):
     try:
         system_prompt = fine_tune_prompt(request)
         return {"success": True, "data": system_prompt}
