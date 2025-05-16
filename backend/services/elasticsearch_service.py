@@ -736,7 +736,7 @@ class ElasticSearchService:
 
     def change_summary(self,
             index_name: str = Path(..., description="Name of the index to get documents from"),
-            summary_result: Optional[str] = Body("请输入知识库总结", description="knowledge base summary"),
+            summary_result: Optional[str] = Body(description="knowledge base summary"),
             es_core: ElasticSearchCore = Depends(get_es_core),
             user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base")
     ):
