@@ -235,6 +235,7 @@ def delete_agent(agent_id, tenant_id: str = None, user_id: str = None):
         session.query(ToolInstance).filter(ToolInstance.agent_id == agent_id).filter(
             AgentInfo.tenant_id == tenant_id).update({ToolInstance.delete_flag: 'Y', 'updated_by': user_id})
 
+
 def update_tool_table_from_scan_tool_list():
     """
     scan all tools and update the tool table in PG database, remove the duplicate tools
@@ -242,15 +243,23 @@ def update_tool_table_from_scan_tool_list():
     user_id, _ = get_user_info()
     tool_list = scan_tools()
     with get_db_session() as session:
-        # get the existing tool names in the database
-        existing_tools = session.query(ToolInfo.name).all()
-        existing_tool_names = {tool.name for tool in existing_tools}
+        # get all existing tools (including complete information)
+        existing_tools = session.query(ToolInfo).filter(ToolInfo.delete_flag != 'Y').all()
+        existing_tool_dict = {f"{tool.name}&{tool.source}": tool for tool in existing_tools}
         
-        # filter out the new tools
-        new_tools = [tool for tool in tool_list if tool.name not in existing_tool_names]
+        for tool in tool_list:
+            filtered_tool_data = filter_property(tool.__dict__, ToolInfo)
+            
+            if f"{tool.name}&{tool.source}" in existing_tool_dict:
+                # by tool name and source to identify the existing tool
+                existing_tool = existing_tool_dict[f"{tool.name}&{tool.source}"]
+                for key, value in filtered_tool_data.items():
+                    setattr(existing_tool, key, value)
+                existing_tool.updated_by = user_id
+            else:
+                # create new tool
+                filtered_tool_data.update({"created_by": user_id, "updated_by": user_id, "author": user_id})
+                new_tool = ToolInfo(**filtered_tool_data)
+                session.add(new_tool)
         
-        if new_tools:
-            new_tool_info_list = [ToolInfo(**filter_property(
-                tool.__dict__ | {"created_by": user_id, "updated_by": user_id, "author":user_id}, ToolInfo))
-                                  for tool in new_tools]
-            session.add_all(new_tool_info_list)
+        session.flush()

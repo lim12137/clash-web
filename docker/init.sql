@@ -19,7 +19,7 @@ CREATE TABLE "conversation_message_t" (
   "updated_by" varchar(100) COLLATE "pg_catalog"."default",
   CONSTRAINT "conversation_message_t_pk" PRIMARY KEY ("message_id")
 );
-ALTER TABLE "conversation_message_t" OWNER TO "root";
+ALTER TABLE "conversation_message_t" OWNER TO "postgres";
 COMMENT ON COLUMN "conversation_message_t"."conversation_id" IS '形式外键，用于关联所属的对话';
 COMMENT ON COLUMN "conversation_message_t"."message_index" IS '顺序号，用于前端展示排序';
 COMMENT ON COLUMN "conversation_message_t"."message_role" IS '发送消息的角色，如 system, assistant, user';
@@ -47,7 +47,7 @@ CREATE TABLE "conversation_message_unit_t" (
   "created_by" varchar(100) COLLATE "pg_catalog"."default",
   CONSTRAINT "conversation_message_unit_t_pk" PRIMARY KEY ("unit_id")
 );
-ALTER TABLE "conversation_message_unit_t" OWNER TO "root";
+ALTER TABLE "conversation_message_unit_t" OWNER TO "postgres";
 COMMENT ON COLUMN "conversation_message_unit_t"."message_id" IS '形式外键，用于关联所属消息';
 COMMENT ON COLUMN "conversation_message_unit_t"."conversation_id" IS '形式外键，用于关联所属对话';
 COMMENT ON COLUMN "conversation_message_unit_t"."unit_index" IS '顺序号，用于前端展示排序';
@@ -70,7 +70,7 @@ CREATE TABLE "conversation_record_t" (
   "created_by" varchar(100) COLLATE "pg_catalog"."default",
   CONSTRAINT "conversation_record_t_pk" PRIMARY KEY ("conversation_id")
 );
-ALTER TABLE "conversation_record_t" OWNER TO "root";
+ALTER TABLE "conversation_record_t" OWNER TO "postgres";
 COMMENT ON COLUMN "conversation_record_t"."conversation_title" IS '对话标题';
 COMMENT ON COLUMN "conversation_record_t"."delete_flag" IS '用户前端删除后，删除标识将被置为true，达到数据软删除的效果。可选值Y/N';
 COMMENT ON COLUMN "conversation_record_t"."update_time" IS '更新日期，审计字段';
@@ -94,7 +94,7 @@ CREATE TABLE "conversation_source_image_t" (
   "updated_by" varchar(100) COLLATE "pg_catalog"."default",
   CONSTRAINT "conversation_source_image_t_pk" PRIMARY KEY ("image_id")
 );
-ALTER TABLE "conversation_source_image_t" OWNER TO "root";
+ALTER TABLE "conversation_source_image_t" OWNER TO "postgres";
 COMMENT ON COLUMN "conversation_source_image_t"."conversation_id" IS '形式外键，用于关联搜索来源所属的对话';
 COMMENT ON COLUMN "conversation_source_image_t"."message_id" IS '形式外键，用于关联搜索来源所属的对话消息';
 COMMENT ON COLUMN "conversation_source_image_t"."unit_id" IS '形式外键，用于关联搜索来源所属的最小消息单元（若有）';
@@ -131,7 +131,7 @@ CREATE TABLE "conversation_source_search_t" (
   "created_by" varchar(100) COLLATE "pg_catalog"."default",
   CONSTRAINT "conversation_source_search_t_pk" PRIMARY KEY ("search_id")
 );
-ALTER TABLE "conversation_source_search_t" OWNER TO "root";
+ALTER TABLE "conversation_source_search_t" OWNER TO "postgres";
 COMMENT ON COLUMN "conversation_source_search_t"."unit_id" IS '形式外键，用于关联搜索来源所属的最小消息单元（若有）';
 COMMENT ON COLUMN "conversation_source_search_t"."message_id" IS '形式外键，用于关联搜索来源所属的对话消息';
 COMMENT ON COLUMN "conversation_source_search_t"."conversation_id" IS '形式外键，用于关联搜索来源所属的对话';
@@ -172,7 +172,7 @@ CREATE TABLE "model_record_t" (
   "created_by" varchar(100) COLLATE "pg_catalog"."default",
   CONSTRAINT "nexent_models_t_pk" PRIMARY KEY ("model_id")
 );
-ALTER TABLE "model_record_t" OWNER TO "root";
+ALTER TABLE "model_record_t" OWNER TO "postgres";
 COMMENT ON COLUMN "model_record_t"."model_id" IS '模型ID，唯一主键';
 COMMENT ON COLUMN "model_record_t"."model_repo" IS '模型路径地址';
 COMMENT ON COLUMN "model_record_t"."model_name" IS '模型名称';
@@ -204,6 +204,8 @@ CREATE TABLE IF NOT EXISTS nexent.ag_tool_info_t (
     author VARCHAR(100),
     usage VARCHAR(100),
     params JSON,
+    inputs VARCHAR(2048),
+    output_type VARCHAR(100),
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
@@ -237,6 +239,8 @@ COMMENT ON COLUMN nexent.ag_tool_info_t.source IS 'Source';
 COMMENT ON COLUMN nexent.ag_tool_info_t.author IS 'Tool author';
 COMMENT ON COLUMN nexent.ag_tool_info_t.usage IS 'Usage';
 COMMENT ON COLUMN nexent.ag_tool_info_t.params IS 'Tool parameter information (json)';
+COMMENT ON COLUMN nexent.ag_tool_info_t.inputs IS 'Prompt tool inputs description';
+COMMENT ON COLUMN nexent.ag_tool_info_t.output_type IS 'Prompt tool output description';
 COMMENT ON COLUMN nexent.ag_tool_info_t.create_time IS 'Creation time';
 COMMENT ON COLUMN nexent.ag_tool_info_t.update_time IS 'Update time';
 COMMENT ON COLUMN nexent.ag_tool_info_t.created_by IS 'Creator';
