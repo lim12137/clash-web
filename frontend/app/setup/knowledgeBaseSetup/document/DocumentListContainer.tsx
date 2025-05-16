@@ -144,35 +144,75 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
   
   // 仅更新文档状态，而不替换整个文档列表
   const updateDocumentStatuses = (newDocs: Document[]): void => {
-    // 从新文档创建状态映射
+    // 从新文档创建状态映射和大小映射
     const newStatusMap = new Map<string, string>();
+    const newSizeMap = new Map<string, number>();
     newDocs.forEach((doc: Document) => {
       newStatusMap.set(doc.id, doc.status);
+      newSizeMap.set(doc.id, doc.size);
     });
     
-    // 检查是否有状态变化
-    let hasStatusChange = false;
+    // 检查是否有状态或大小变化
+    let hasChanges = false;
     newStatusMap.forEach((status: string, id: string) => {
-      if (!documentStatusMap.has(id) || documentStatusMap.get(id) !== status) {
-        hasStatusChange = true;
+      if (!documentStatusMap.has(id) || 
+          documentStatusMap.get(id) !== status || 
+          newSizeMap.get(id) !== localDocuments.find(doc => doc.id === id)?.size) {
+        hasChanges = true;
       }
     });
     
-    if (hasStatusChange) {
-      console.log('文档状态发生变化，增量更新');
+    if (hasChanges) {
+      console.log('文档状态或大小发生变化，增量更新');
       // 更新状态映射
       setDocumentStatusMap(newStatusMap);
       
-      // 增量更新本地文档状态
+      // 增量更新本地文档状态和大小
       setLocalDocuments(prevDocs => 
         prevDocs.map((doc: Document) => {
           const newStatus = newStatusMap.get(doc.id);
-          if (newStatus && newStatus !== doc.status) {
-            return { ...doc, status: newStatus };
+          const newSize = newSizeMap.get(doc.id);
+          if ((newStatus && newStatus !== doc.status) || 
+              (typeof newSize !== 'undefined' && newSize !== doc.size)) {
+            return { 
+              ...doc, 
+              status: newStatus || doc.status,
+              size: typeof newSize !== 'undefined' ? newSize : doc.size
+            };
           }
           return doc;
         })
       );
+      
+      // 检查是否需要继续轮询
+      const hasProcessingDocs = newDocs.some(doc => 
+        doc.status === "PROCESSING" || doc.status === "FORWARDING" || doc.status === "WAITING"
+      );
+      
+      const hasIncompleteCompletedDocs = newDocs.some(doc => 
+        doc.status === "COMPLETED" && doc.size === 0
+      );
+      
+      // 如果有处理中的文档或不完整的文档，确保轮询服务在运行
+      if ((hasProcessingDocs || hasIncompleteCompletedDocs) && activeKbIdRef.current) {
+        knowledgeBasePollingService.startDocumentStatusPolling(
+          activeKbIdRef.current,
+          (updatedDocs) => {
+            if (shouldReplaceDocuments(updatedDocs, localDocuments)) {
+              setLocalDocuments(updatedDocs);
+              
+              // 更新文档状态映射
+              const newStatusMap = new Map<string, string>();
+              updatedDocs.forEach((doc: Document) => {
+                newStatusMap.set(doc.id, doc.status);
+              });
+              setDocumentStatusMap(newStatusMap);
+            } else {
+              updateDocumentStatuses(updatedDocs);
+            }
+          }
+        );
+      }
     }
   };
   
@@ -232,16 +272,31 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
     activeKbIdRef.current = docs[0].kb_id;
     knowledgeBasePollingService.setActiveKnowledgeBase(docs[0].kb_id);
     
-    // 检查是否有文档正在处理中
+    // 检查是否有文档正在处理中，增加 WAITING 状态的检查
     const hasProcessingDocs = docs.some((doc: Document) => 
-      doc.status === "PROCESSING" || doc.status === "FORWARDING"
+      doc.status === "PROCESSING" || 
+      doc.status === "FORWARDING" || 
+      doc.status === "WAITING"
     );
     
-    if (hasProcessingDocs) {
+    // 检查是否有文档状态为"已完成"但文件大小为0的情况
+    const hasIncompleteCompletedDocs = docs.some((doc: Document) => 
+      doc.status === "COMPLETED" && doc.size === 0
+    );
+    
+    // 检查是否有新上传的文档（通常文件大小为0表示刚上传）
+    const hasNewUploadedDocs = docs.some((doc: Document) => 
+      doc.size === 0
+    );
+    
+    // 如果有正在处理的文档或有不完整的已完成文档或有新上传的文档，启动轮询
+    if (hasProcessingDocs || hasIncompleteCompletedDocs || hasNewUploadedDocs) {
+      console.log('检测到需要监控的文档状态，启动轮询');
       // 启动文档状态轮询
       knowledgeBasePollingService.startDocumentStatusPolling(
         docs[0].kb_id,
         (updatedDocs) => {
+          console.log('轮询获取到更新的文档:', updatedDocs.length);
           // 使用增量更新而不是完全替换
           if (shouldReplaceDocuments(updatedDocs, localDocuments)) {
             setLocalDocuments(updatedDocs);

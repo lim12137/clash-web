@@ -122,7 +122,7 @@ const documentReducer = (state: DocumentState, action: DocumentAction): Document
 export const DocumentContext = createContext<{
   state: DocumentState;
   dispatch: React.Dispatch<DocumentAction>;
-  fetchDocuments: (kbId: string) => Promise<void>;
+  fetchDocuments: (kbId: string, forceRefresh?: boolean) => Promise<void>;
   uploadDocuments: (kbId: string, files: File[]) => Promise<void>;
   deleteDocument: (kbId: string, docId: string) => Promise<void>;
 }>({
@@ -158,14 +158,14 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     error: null
   });
 
-  // 监听文档更新事件
+  // Listen for document update events
   useEffect(() => {
     const handleDocumentsUpdated = (event: Event) => {
       const customEvent = event as CustomEvent;
       if (customEvent.detail && customEvent.detail.kbId && customEvent.detail.documents) {
         const { kbId, documents } = customEvent.detail;
         
-        // 直接更新文档信息
+        // Update document information directly
         dispatch({ 
           type: 'FETCH_SUCCESS', 
           payload: { kbId, documents } 
@@ -173,36 +173,37 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
       }
     };
     
-    // 添加事件监听器
+    // Add event listener
     window.addEventListener('documentsUpdated', handleDocumentsUpdated as EventListener);
     
-    // 清理函数
+    // Cleanup function
     return () => {
       window.removeEventListener('documentsUpdated', handleDocumentsUpdated as EventListener);
     };
   }, []);
 
   // Fetch documents for a knowledge base
-  const fetchDocuments = useCallback(async (kbId: string) => {
+  const fetchDocuments = useCallback(async (kbId: string, forceRefresh?: boolean) => {
     // Skip if already loading this kb
     if (state.loadingKbIds.has(kbId)) return;
     
-    // 首先检查是否已经在缓存中
-    if (state.documentsMap[kbId] && state.documentsMap[kbId].length > 0) {
-      return; // 如果已经有缓存数据，直接返回，不再请求服务器
+    // If forceRefresh is false and we have cached data, return directly
+    if (!forceRefresh && state.documentsMap[kbId] && state.documentsMap[kbId].length > 0) {
+      return; // If we have cached data and don't need force refresh, return directly without server request
     }
     
     dispatch({ type: 'SET_LOADING_KB_ID', payload: { kbId, isLoading: true } });
     
     try {
-      const documents = await knowledgeBaseService.getDocuments(kbId);
+      // When forceRefresh is true, use forceRefresh parameter to call knowledgeBaseService.getDocuments
+      const documents = await knowledgeBaseService.getDocuments(kbId, forceRefresh);
       dispatch({ 
         type: 'FETCH_SUCCESS', 
         payload: { kbId, documents } 
       });
     } catch (error) {
       console.error('Failed to fetch documents:', error);
-      dispatch({ type: 'ERROR', payload: '加载文档失败' });
+      dispatch({ type: 'ERROR', payload: 'Failed to load documents' });
     } finally {
       dispatch({ type: 'SET_LOADING_KB_ID', payload: { kbId, isLoading: false } });
     }
@@ -215,16 +216,16 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     try {
       await knowledgeBaseService.uploadDocuments(kbId, files);
       
-      // 上传完成后立即获取一次最新状态（使用forceRefresh参数）
+      // Get latest status immediately after upload (using forceRefresh parameter)
       const latestDocuments = await knowledgeBaseService.getDocuments(kbId, true);
       
-      // 更新文档状态
+      // Update document status
       dispatch({ 
         type: 'FETCH_SUCCESS', 
         payload: { kbId, documents: latestDocuments } 
       });
       
-      // 触发文档状态更新事件，通知其他组件
+      // Trigger document status update event to notify other components
       window.dispatchEvent(new CustomEvent('documentsUpdated', {
         detail: { 
           kbId,
@@ -232,11 +233,11 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
         }
       }));
       
-      // 清除上传文件
+      // Clear upload files
       dispatch({ type: 'SET_UPLOAD_FILES', payload: [] });
     } catch (error) {
       console.error('Failed to upload documents:', error);
-      dispatch({ type: 'ERROR', payload: '上传文档失败' });
+      dispatch({ type: 'ERROR', payload: 'Failed to upload documents' });
     } finally {
       dispatch({ type: 'SET_UPLOADING', payload: false });
     }
@@ -252,7 +253,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
       });
     } catch (error) {
       console.error('Failed to delete document:', error);
-      dispatch({ type: 'ERROR', payload: '删除文档失败' });
+      dispatch({ type: 'ERROR', payload: 'Failed to delete document' });
     }
   }, []);
 

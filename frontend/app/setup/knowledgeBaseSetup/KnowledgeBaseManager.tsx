@@ -105,12 +105,6 @@ function DataConfig() {
   const [hasClickedUpload, setHasClickedUpload] = useState(false);
   const [hasShownNameError, setHasShownNameError] = useState(false);
 
-  // 添加预加载逻辑
-  useEffect(() => {
-    // 在组件挂载时预加载知识库列表
-    fetchKnowledgeBases(true, true);
-  }, [fetchKnowledgeBases]);
-
   // 添加监听选中新知识库的事件
   useEffect(() => {
     const handleSelectNewKnowledgeBase = (e: CustomEvent) => {
@@ -159,7 +153,14 @@ function DataConfig() {
   const handleKnowledgeBaseClick = (kb: KnowledgeBase) => {
     setIsCreatingMode(false); // Reset creating mode
     setHasClickedUpload(false); // 重置上传按钮点击状态
-    setActiveKnowledgeBase(kb);
+    
+    // 无论是否切换知识库，都需要获取最新文档信息
+    const isChangingKB = !kbState.activeKnowledgeBase || kb.id !== kbState.activeKnowledgeBase.id;
+    
+    // 如果是切换知识库，更新激活状态
+    if (isChangingKB) {
+      setActiveKnowledgeBase(kb);
+    }
     
     // 设置活动知识库ID到轮询服务
     knowledgeBasePollingService.setActiveKnowledgeBase(kb.id);
@@ -173,18 +174,25 @@ function DataConfig() {
 
   // 处理知识库切换事件
   const handleKnowledgeBaseChange = async (kb: KnowledgeBase) => {
-    // 首先使用当前缓存中的知识库数据
-    
-    // 后台发送请求获取最新文档数据 (不阻塞UI)
-    setTimeout(async () => {
-      try {
-        // 使用上下文中的刷新方法更新知识库数据
-        await refreshKnowledgeBaseData(false); // 不强制刷新，先使用缓存
-      } catch (error) {
-        console.error("获取知识库最新数据失败:", error);
-        // 错误发生时不影响用户体验，继续使用缓存数据
-      }
-    }, 100);
+    try {
+      // 直接获取最新文档数据，强制从服务器获取最新数据
+      const documents = await knowledgeBaseService.getDocuments(kb.id, true);
+      
+      // 触发文档更新事件
+      knowledgeBasePollingService.triggerDocumentsUpdate(kb.id, documents);
+      
+      // 后台更新知识库统计信息
+      setTimeout(async () => {
+        try {
+          await refreshKnowledgeBaseData(true);
+        } catch (error) {
+          console.error("获取知识库最新数据失败:", error);
+        }
+      }, 100);
+    } catch (error) {
+      console.error("获取文档列表失败:", error);
+      message.error("获取文档列表失败");
+    }
   };
 
   // 添加一个拖拽上传相关的处理函数
@@ -224,9 +232,6 @@ function DataConfig() {
       onConfirm: async () => {
         try {
           await deleteKnowledgeBase(id);
-          
-          // 清除预加载数据，强制从服务器获取最新数据
-          localStorage.removeItem('preloaded_kb_data');
           
           // 延迟1秒后刷新知识库列表，确保后端处理完成
           setTimeout(async () => {
@@ -391,21 +396,43 @@ function DataConfig() {
       // 使用新的轮询服务
       knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
       
-      // 启动文档状态轮询
+      // 先获取最新文档状态
+      const latestDocs = await knowledgeBaseService.getDocuments(kbId, true);
+      
+      // 手动触发文档更新，确保UI立即更新
+      window.dispatchEvent(new CustomEvent('documentsUpdated', {
+        detail: {
+          kbId,
+          documents: latestDocs
+        }
+      }));
+      
+      // 立即强制获取最新文档
+      fetchDocuments(kbId, true);
+      
+      // 立即启动文档状态轮询 - 保证即使文档列表为空也能启动轮询
       knowledgeBasePollingService.startDocumentStatusPolling(
         kbId,
         (documents) => {
+          console.log(`轮询服务获取到 ${documents.length} 个文档`);
+          // 更新文档列表
           knowledgeBasePollingService.triggerDocumentsUpdate(
             kbId,
             documents
           );
+          
+          // 同时更新文档上下文
+          window.dispatchEvent(new CustomEvent('documentsUpdated', {
+            detail: {
+              kbId,
+              documents
+            }
+          }));
         }
       );
       
-      // 获取最新文档
-      fetchDocuments(kbId);
-      
     } catch (error) {
+      console.error('文件上传失败:', error);
       message.error("文件上传失败");
     }
   }
@@ -433,7 +460,7 @@ function DataConfig() {
     setTimeout(async () => {
       try {
         // 使用较低优先级刷新数据，因为这不是关键操作
-        await refreshKnowledgeBaseData(false);
+        await refreshKnowledgeBaseData(true);
       } catch (error) {
         console.error("刷新知识库数据失败:", error);
         // 错误不影响用户体验
