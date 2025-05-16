@@ -193,7 +193,6 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
       });
       await knowledgeBaseService.changeSummary(knowledgeBaseName, summary);
       message.success('保存成功');
-      setShowDetail(false);
     } catch (error: any) {
       console.error('保存总结失败:', error);
       const errorMessage = error?.message || error?.detail || '保存失败';
@@ -306,7 +305,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                 }}
               />
             )}
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
               <Button 
                 type="primary" 
                 size="large" 
