@@ -150,56 +150,56 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     try {
       let kbs: KnowledgeBase[] = [];
       
-      // 如果skipHealthCheck为false，总是从服务器获取数据
+      // If skipHealthCheck is false, always fetch data from server
       if (skipHealthCheck === false) {
         kbs = await knowledgeBaseService.getKnowledgeBases(false);
         
-        // 如果成功获取到数据，更新缓存
+        // If data is successfully retrieved, update cache
         if (kbs.length > 0) {
           localStorage.setItem('preloaded_kb_data', JSON.stringify(kbs));
         } else {
-          // 新增：即使是空列表也缓存起来，以减少请求
+          // Cache empty list to reduce requests
           localStorage.setItem('preloaded_kb_data_empty', Date.now().toString());
         }
       } else {
-        // 首先尝试从预加载的缓存数据获取知识库列表
+        // First try to get knowledge base list from preloaded cache
         if (typeof window !== 'undefined') {
-          // 新增：检查是否有空知识库列表缓存
+          // Check if there's an empty knowledge base list cache
           const emptyKbDataTimestamp = localStorage.getItem('preloaded_kb_data_empty');
           if (emptyKbDataTimestamp) {
-            // 检查空缓存是否在有效期内（30秒）
+            // Check if empty cache is still valid (30 seconds)
             const now = Date.now();
             const timestamp = parseInt(emptyKbDataTimestamp, 10);
-            if (now - timestamp < 30000) { // 30秒缓存期
+            if (now - timestamp < 30000) { // 30 second cache period
               kbs = [];
             } else {
-              // 缓存已过期，清除
+              // Cache expired, clear it
               localStorage.removeItem('preloaded_kb_data_empty');
             }
           }
           
-          // 如果没有空列表缓存或已过期，则尝试获取正常缓存
+          // If no empty list cache or expired, try to get normal cache
           if (kbs.length === 0 && !emptyKbDataTimestamp) {
             const preloadedKbData = localStorage.getItem('preloaded_kb_data');
             if (preloadedKbData) {
               try {
                 kbs = JSON.parse(preloadedKbData);
               } catch (e) {
-                console.error("解析预加载知识库数据失败:", e);
+                console.error("Failed to parse preloaded knowledge base data:", e);
               }
             }
           }
         }
         
-        // 如果没有预加载数据，则从服务器获取
+        // If no preloaded data, fetch from server
         if (kbs.length === 0 && !localStorage.getItem('preloaded_kb_data_empty')) {
           kbs = await knowledgeBaseService.getKnowledgeBases(true);
           
-          // 如果成功获取到数据，更新缓存
+          // If data is successfully retrieved, update cache
           if (kbs.length > 0) {
             localStorage.setItem('preloaded_kb_data', JSON.stringify(kbs));
           } else {
-            // 新增：即使是空列表也缓存起来，以减少请求
+            // Cache empty list to reduce requests
             localStorage.setItem('preloaded_kb_data_empty', Date.now().toString());
           }
         }
@@ -376,24 +376,24 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     try {
       
       if (forceRefresh) {
-        // 如果强制刷新，清除缓存并从服务器获取
+        // If force refresh, clear cache and fetch from server
         localStorage.removeItem('preloaded_kb_data');
         localStorage.removeItem('preloaded_kb_data_empty');
         await fetchKnowledgeBases(false, true);
         return;
       }
       
-      // 获取最新知识库数据但不清除缓存
+      // Get latest knowledge base data without clearing cache
       const knowledgeBases = await knowledgeBaseService.getKnowledgeBases(true);
       
-      // 更新知识库缓存
+      // Update knowledge base cache
       if (knowledgeBases && knowledgeBases.length > 0) {
         localStorage.setItem('preloaded_kb_data', JSON.stringify(knowledgeBases));
         
-        // 更新状态
+        // Update state
         dispatch({ type: 'FETCH_SUCCESS', payload: knowledgeBases });
       } else {
-        // 为空列表设置缓存
+        // Set cache for empty list
         localStorage.setItem('preloaded_kb_data_empty', Date.now().toString());
         dispatch({ type: 'FETCH_SUCCESS', payload: [] });
       }
@@ -446,36 +446,36 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     // 监听知识库数据更新事件
     const handleKnowledgeBaseDataUpdated = (e: Event) => {
       
-      // 检查是否需要强制从服务器获取数据
+      // Check if need to force fetch from server
       const customEvent = e as CustomEvent;
       const forceRefresh = customEvent.detail?.forceRefresh === true;
       
       if (forceRefresh) {
-        // 清除所有缓存，确保强制刷新时获取最新数据
+        // Clear all cache to ensure getting latest data on force refresh
         localStorage.removeItem('preloaded_kb_data');
         localStorage.removeItem('preloaded_kb_data_empty');
         fetchKnowledgeBases(false, true);
         return;
       }
       
-      // 检查是否有预加载数据，如果有则使用，否则从服务器获取
+      // Check if there's preloaded data, use it if available, otherwise fetch from server
       if (typeof window !== 'undefined') {
-        // 先检查空列表缓存是否存在且有效
+        // First check if empty list cache exists and is valid
         const emptyKbDataTimestamp = localStorage.getItem('preloaded_kb_data_empty');
         if (emptyKbDataTimestamp) {
-          // 检查空缓存是否在有效期内（30秒）
+          // Check if empty cache is still valid (30 seconds)
           const now = Date.now();
           const timestamp = parseInt(emptyKbDataTimestamp, 10);
-          if (now - timestamp < 30000) { // 30秒缓存期
+          if (now - timestamp < 30000) { // 30 second cache period
             dispatch({ type: 'FETCH_SUCCESS', payload: [] });
             return;
           } else {
-            // 缓存已过期，清除
+            // Cache expired, clear it
             localStorage.removeItem('preloaded_kb_data_empty');
           }
         }
         
-        // 如果没有空列表缓存或已过期，尝试获取正常缓存
+        // If no empty list cache or expired, try to get normal cache
         const preloadedData = localStorage.getItem('preloaded_kb_data');
         if (preloadedData) {
           try {
@@ -483,12 +483,12 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
             dispatch({ type: 'FETCH_SUCCESS', payload: knowledgeBases });
             return;
           } catch (e) {
-            console.error("解析预加载数据失败:", e);
+            console.error("Failed to parse preloaded data:", e);
           }
         }
       }
       
-      // 如果没有预加载数据或解析失败，则从服务器获取最新数据
+      // If no preloaded data or parsing failed, fetch latest data from server
       fetchKnowledgeBases(false, true);
     };
     

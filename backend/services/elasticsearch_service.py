@@ -740,6 +740,7 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core),
             user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base")
     ):
+        """Summary Elasticsearch index_name by user"""
         try:
             knowledge_record = get_knowledge_by_name(index_name)
             if knowledge_record:
@@ -748,7 +749,7 @@ class ElasticSearchService:
                     "updated_by": user_id,
                 }
                 update_knowledge_record(knowledge_record["knowledge_id"], update_data)
-            # 存到sql里
+
             return {"status": "success", "message": f"Index {index_name} summary successfully", "summary": summary_result}
 
         except Exception as e:
@@ -757,6 +758,7 @@ class ElasticSearchService:
     def get_summary(self,
             index_name: str = Path(..., description="Name of the index to get documents from"),
     ):
+        """Get Elasticsearch index_name Summary"""
         try:
             knowledge_record = get_knowledge_by_name(index_name)
             if knowledge_record:

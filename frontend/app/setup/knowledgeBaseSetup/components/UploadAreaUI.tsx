@@ -34,7 +34,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
   // 重构：风格被嵌入在组件内
   if (isLoading) {
     return (
-      <div className="p-3 bg-gray-50 border-t border-gray-200" style={{ height: componentHeight }}>
+      <div className="p-3 bg-gray-50 border-t border-gray-200 h-[30%]">
         <div className="h-full flex transition-all duration-300 ease-in-out">
           <div className={`transition-all duration-300 ease-in-out ${
             !isLoading && fileList.length > 0 ? 'w-[40%] pr-2' : 'w-full'
@@ -132,7 +132,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
   // 知识库未就绪UI
   if (!isKnowledgeBaseReady && !isCreatingMode) {
     return (
-      <div className="p-3 bg-gray-50 border-t border-gray-200" style={{ height: componentHeight }}>
+      <div className="p-3 bg-gray-50 border-t border-gray-200 h-[30%]">
         <div className="h-full border-2 border-dashed border-gray-200 rounded-md flex flex-col items-center justify-center bg-white">
           <WarningFilled style={{ fontSize: '32px', color: '#faad14', marginBottom: '16px' }} />
           <p className="text-gray-600 text-base mb-2">知识库未就绪</p>
@@ -159,7 +159,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
   // 名称已存在UI
   if (isCreatingMode && nameExists) {
     return (
-      <div className="p-3 bg-gray-50 border-t border-gray-200" style={{ height: componentHeight }}>
+      <div className="p-3 bg-gray-50 border-t border-gray-200 h-[30%]">
         <div className="border-2 border-dashed border-red-200 bg-white rounded-md p-4 text-center flex flex-col items-center justify-center h-full">
           <div className="mb-4 text-red-500 text-lg">
             <WarningFilled style={{ fontSize: 36, color: '#ff4d4f' }} />
@@ -177,7 +177,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
   
   // 默认UI状态
   return (
-    <div className="p-3 bg-gray-50 border-t border-gray-200" style={{ height: componentHeight }}>
+<div className="p-3 bg-gray-50 border-t border-gray-200 h-[30%]">
       <div className="h-full flex transition-all duration-300 ease-in-out">
         {/* 上传区域容器 */}
         <div className={`transition-all duration-300 ease-in-out ${
