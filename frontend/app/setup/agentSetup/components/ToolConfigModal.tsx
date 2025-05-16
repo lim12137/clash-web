@@ -147,7 +147,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
     <Modal
       title={
         <div className="flex justify-between items-center w-full pr-8">
-          <span>{`配置工具: ${tool.name}`}</span>
+          <span>{`${tool.name}`}</span>
           <Tag color={tool.source === 'mcp' ? 'blue' : 'green'}>
             {tool.source === 'mcp' ? 'MCP' : '本地工具'}
           </Tag>
