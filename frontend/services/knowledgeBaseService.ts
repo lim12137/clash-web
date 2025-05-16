@@ -6,10 +6,6 @@ import { getAuthHeaders } from './conversationService';
 
 // Knowledge base service class
 class KnowledgeBaseService {
-  // 添加一个记录空列表请求的时间戳
-  private emptyListTimestamp: number | null = null;
-  // 空列表缓存有效期（毫秒）
-  private emptyListCacheDuration = 30000; // 30秒
   // 健康检查缓存
   private healthCheckCache: { isHealthy: boolean; timestamp: number } | null = null;
   // 健康检查缓存有效期（毫秒）
@@ -59,14 +55,6 @@ class KnowledgeBaseService {
         }
       }
 
-      // New: Check if empty list cache is valid
-      if (this.emptyListTimestamp !== null) {
-        const now = Date.now();
-        if (now - this.emptyListTimestamp < this.emptyListCacheDuration) {
-          return [];
-        }
-      }
-
       let knowledgeBases: KnowledgeBase[] = [];
 
       // Get knowledge bases from Elasticsearch
@@ -100,14 +88,6 @@ class KnowledgeBaseService {
         }
       } catch (error) {
         console.error("Failed to get Elasticsearch indices:", error);
-      }
-      
-      // New: If list is empty, set empty list cache timestamp
-      if (knowledgeBases.length === 0) {
-        this.emptyListTimestamp = Date.now();
-      } else {
-        // If list is not empty, clear cache
-        this.emptyListTimestamp = null;
       }
       
       return knowledgeBases;
@@ -169,9 +149,6 @@ class KnowledgeBaseService {
         throw new Error(result.message || "创建知识库失败");
       }
 
-      // Clear empty list cache after creating knowledge base
-      this.emptyListTimestamp = null;
-
       // Create a full KnowledgeBase object with default values
       return {
         id: result.id || params.name, // Use returned ID or name as ID
@@ -209,9 +186,6 @@ class KnowledgeBaseService {
       if (result.status !== "success") {
         throw new Error(result.message || "Failed to delete knowledge base");
       }
-      
-      // Clear empty list cache after deleting knowledge base as state may have changed
-      this.emptyListTimestamp = null;
     } catch (error) {
       console.error("Failed to delete knowledge base:", error);
       throw error;
