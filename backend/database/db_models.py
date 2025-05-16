@@ -153,6 +153,8 @@ class ToolInfo(Base):
     author = Column(String(100), doc="Tool author")
     usage = Column(String(100), doc="Usage")
     params = Column(JSON, doc="Tool parameter information (json)")
+    inputs = Column(String(2048), doc="Prompt tool inputs description")
+    output_type = Column(String(100), doc="Prompt tool output description")
 
 class AgentInfo(Base):
     """
