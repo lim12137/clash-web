@@ -59,7 +59,7 @@ function AgentDebugging({
       await onAskQuestion(inputQuestion);
       setInputQuestion("");
     } catch (error) {
-      console.error("Failed to send question:", error);
+      console.error("发送问题失败:", error);
     } finally {
       abortControllerRef.current = null;
     }
@@ -71,7 +71,7 @@ function AgentDebugging({
     
     const taskMsgs: TaskMessageType[] = [];
     message.steps.forEach(step => {
-      // 处理 step.contents
+      // Process step.contents
       if (step.contents && step.contents.length > 0) {
         step.contents.forEach(content => {
           taskMsgs.push({
@@ -84,7 +84,7 @@ function AgentDebugging({
         });
       }
       
-      // 处理 step.thinking
+      // Process step.thinking
       if (step.thinking && step.thinking.content) {
         taskMsgs.push({
           id: `thinking-${step.id}`,
@@ -95,7 +95,7 @@ function AgentDebugging({
         });
       }
       
-      // 处理 step.code
+      // Process step.code 
       if (step.code && step.code.content) {
         taskMsgs.push({
           id: `code-${step.id}`,
@@ -106,7 +106,7 @@ function AgentDebugging({
         });
       }
       
-      // 处理 step.output
+      // Process step.output
       if (step.output && step.output.content) {
         taskMsgs.push({
           id: `output-${step.id}`,
@@ -124,15 +124,15 @@ function AgentDebugging({
   return (
     <div className="flex flex-col h-full p-4">
       <div className="flex flex-col gap-4 flex-grow overflow-hidden">
-        {/* 消息展示区域 */}
+        {/* Message display area */}
         <div className="flex flex-col gap-3 h-full overflow-y-auto custom-scrollbar">
           {messages.map((message, index) => {
-            // 处理当前消息的任务内容
+            // Process the task content of the current message
             const currentTaskMessages = message.role === "assistant" ? processMessageSteps(message) : [];
             
             return (
               <div key={message.id || index} className="flex flex-col gap-2">
-                {/* 用户消息 */}
+                {/* User message */}
                 {message.role === "user" && (
                   <ChatStreamFinalMessage
                     message={message}
@@ -146,7 +146,7 @@ function AgentDebugging({
                   />
                 )}
                 
-                {/* 助手消息的任务窗口 */}
+                {/* Assistant message task window */}
                 {message.role === "assistant" && currentTaskMessages.length > 0 && (
                   <TaskWindow
                     messages={currentTaskMessages}
@@ -154,7 +154,7 @@ function AgentDebugging({
                   />
                 )}
                 
-                {/* 助手消息的最终回答 */}
+                {/* Assistant message final answer */}
                 {message.role === "assistant" && (
                   <ChatStreamFinalMessage
                     message={message}
@@ -199,7 +199,7 @@ function AgentDebugging({
 }
 
 /**
- * 调试配置主组件
+ * Debug configuration main component
  */
 export default function DebugConfig({
   testQuestion,
@@ -213,22 +213,22 @@ export default function DebugConfig({
   const [conversationGroups] = useState<Map<string, TaskMessageType[]>>(new Map());
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 重置超时计时器
+  // Reset timeout timer
   const resetTimeout = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
     timeoutRef.current = setTimeout(() => {
       setIsStreaming(false);
-    }, 30000); // 30秒超时
+    }, 30000); // 30 seconds timeout
   };
 
-  // 处理测试问题
+  // Process test question
   const handleTestQuestion = async (question: string) => {
     setTestQuestion(question);
     setIsStreaming(true);
     
-    // 添加用户消息
+    // Add user message
     const userMessage: ChatMessageType = {
       id: Date.now().toString(),
       role: "user",
@@ -236,7 +236,7 @@ export default function DebugConfig({
       timestamp: new Date()
     };
     
-    // 添加助手消息（初始状态）
+    // Add assistant message (initial state)
     const assistantMessage: ChatMessageType = {
       id: (Date.now() + 1).toString(),
       role: "assistant",
@@ -248,32 +248,32 @@ export default function DebugConfig({
     setMessages([userMessage, assistantMessage]);
     
     try {
-      // 调用 agent_run
+      // Call agent_run
       const reader = await conversationService.runAgent({
         query: question,
-        conversation_id: -1, // 调试模式不需要保存对话
+        conversation_id: -1, // Debug mode does not need to save conversation
         is_set: true,
         history: [],
-        is_debug: true  // 添加调试模式标记
+        is_debug: true  // Add debug mode flag
       });
 
       if (!reader) throw new Error("Response body is null");
 
-      // 处理流式响应
+      // Process stream response
       await handleStreamResponse(
         reader,
         setMessages,
         resetTimeout,
         stepIdCounter,
-        () => {}, // setIsSwitchedConversation - 调试模式不需要
-        false, // isNewConversation - 调试模式不需要
-        () => {}, // setConversationTitle - 调试模式不需要
-        async () => {}, // fetchConversationList - 调试模式不需要
-        -1, // currentConversationId - 调试模式不需要
+        () => {}, // setIsSwitchedConversation - Debug mode does not need
+        false, // isNewConversation - Debug mode does not need
+        () => {}, // setConversationTitle - Debug mode does not need
+        async () => {}, // fetchConversationList - Debug mode does not need
+        -1, // currentConversationId - Debug mode does not need
         conversationService
       );
 
-      // 更新最终答案
+      // Update final answer
       const lastMessage = messages[messages.length - 1];
       if (lastMessage && lastMessage.role === "assistant") {
         setTestAnswer(lastMessage.finalAnswer || lastMessage.content || "");

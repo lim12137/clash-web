@@ -105,8 +105,8 @@ export default function AgentConfig() {
 
   // Processing system prompt word generation
   const handleGeneratePrompt = async () => {
-    // 此函数仅用于开始和结束提示词生成的状态控制
-    // 所有API调用已移至SystemPromptDisplay组件中
+    // This function is only used to control the status of starting and ending prompt generation
+    // All API calls have been moved to the SystemPromptDisplay component
     setIsGenerating(true);
     setTimeout(() => {
       setIsGenerating(false);

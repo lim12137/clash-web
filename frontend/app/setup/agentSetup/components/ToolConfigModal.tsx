@@ -38,7 +38,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
     }
   };
 
-  // 根据字符串长度确定文本框行数，最多5行
+  // Determine the number of text box rows based on the string length, up to 5 rows
   const getTextAreaRows = (value: string): number => {
     if (!value) return 1;
     const length = value.length;
@@ -66,7 +66,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
         );
       case 'string':
         const stringValue = param.value as string;
-        // 如果字符串长度超过15，使用TextArea
+        // If the string length exceeds 15, use TextArea
         if (stringValue && stringValue.length > 15) {
           return (
             <Input.TextArea

@@ -6,7 +6,7 @@ import { Input, Button } from 'antd'
 // Additional request input component Props interface
 export interface AdditionalRequestInputProps {
   onSend: (request: string) => void;
-  isTuning?: boolean;  // 添加微调状态属性
+  isTuning?: boolean;
 }
 
 /**
@@ -18,7 +18,7 @@ export default function AdditionalRequestInput({ onSend, isTuning = false }: Add
   const handleSend = () => {
     if (request.trim()) {
       onSend(request)
-      setRequest("")  // 发送后清空输入框
+      setRequest("")
     }
   }
   
@@ -29,21 +29,21 @@ export default function AdditionalRequestInput({ onSend, isTuning = false }: Add
         onChange={(e) => setRequest(e.target.value)}
         placeholder="输入提示词微调指令..."
         onPressEnter={(e) => {
-          if (!e.shiftKey) {  // 只有在不按Shift键时才发送
+          if (!e.shiftKey) {
             e.preventDefault()
             handleSend()
           }
         }}
         rows={7}
         style={{ resize: 'none' }}
-        disabled={isTuning}  // 微调时禁用输入框
+        disabled={isTuning}
       />
       <Button 
         type="primary" 
         onClick={handleSend} 
         className="mt-2"
-        disabled={isTuning || !request.trim()}  // 微调时或输入为空时禁用按钮
-        loading={isTuning}  // 微调时显示加载状态
+        disabled={isTuning || !request.trim()}
+        loading={isTuning}
       >
         {isTuning ? "微调中..." : "发送"}
       </Button>
