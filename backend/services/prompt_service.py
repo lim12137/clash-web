@@ -1,80 +1,22 @@
-import re
 import os
+import concurrent.futures
+
 import yaml
 from smolagents import OpenAIServerModel
 from smolagents.utils import BASE_BUILTIN_MODULES
 from smolagents.agents import populate_template
-
+from jinja2 import StrictUndefined, Template
 from dotenv import load_dotenv
-from consts.model import GeneratePromptRequest, FineTunePromptRequest
+
+from consts.model import GeneratePromptRequest, FineTunePromptRequest, AgentDetailInformation
 from services.tool_configuration_service import get_tool_detail_information
-import concurrent.futures
-from jinja2 import Undefined, StrictUndefined, Template
+from database.agent_db import query_tool_instances, query_sub_agents
+from utils.prompt_utils import fill_agent_prompt
+from utils.user_utils import get_user_info
 
 
 load_dotenv()
 
-class KeepTemplateUndefined(Undefined):
-    """
-    use to handle undefined variables in Jinja2 templates
-    """
-    def __str__(self):
-        return f"{{{{ {self._undefined_name} }}}}"
-
-    def __getattr__(self, name):
-        # when accessing undefined variable properties (e.g. {{ user.name }}), return {{ user.name }}
-        return KeepTemplateUndefined(name=f"{self._undefined_name}.{name}")
-
-    def __iter__(self):
-        # key point: return a placeholder for undefined iterable objects to keep for loop structure
-        return iter([KeepTemplateUndefined(name="tool")])  # return a virtual tool object
-
-    def __call__(self, *args, **kwargs):
-        # when calling undefined variable methods (e.g. {{ tools.values() }}), return the original call form
-        return KeepTemplateUndefined(name=f"{self._undefined_name}()")
-
-def protect_jinja_blocks(template_str):
-    """ protect the {% %} tags to {{ '{%' }} and {{ '%}' }} to avoid Jinja2 parsing """
-    protected = re.sub(
-        r'(\{%-\s*.*?\s*%}|\{%\s*.*?\s*%})',
-        lambda m: f"{{{{ '{m.group(0)}' }}}}",
-        template_str
-    )
-    return protected
-
-def fill_agent_prompt(duty,
-                      constraint,
-                      few_shots,
-                      is_manager_agent=True):
-    """
-    use three parts to fill the system prompt
-    """
-    if is_manager_agent:
-        prompt_file = 'backend/prompts/manager_system_prompt_template.yaml'
-    else:
-        prompt_file = 'backend/prompts/managed_system_prompt_template.yaml'
-    with open(prompt_file, "r", encoding="utf-8") as file:
-        manager_system_prompt_template = yaml.safe_load(file)
-    protected_template = protect_jinja_blocks(manager_system_prompt_template["system_prompt"])
-    compiled_template = Template(protected_template, undefined=KeepTemplateUndefined)
-
-    system_prompt = compiled_template.render({
-        "duty": duty,
-        "constraint": constraint,
-        "few_shots": few_shots
-    })
-
-    agent_prompt = {
-        "system_prompt": system_prompt,
-        "managed_agent": manager_system_prompt_template["managed_agent"]
-    }
-
-    return agent_prompt
-
-def load_prompt_templates(path, is_manager_agent):
-    with open(path, "r", encoding="utf-8") as f:
-        agent_prompt = yaml.safe_load(f)
-    return fill_agent_prompt(is_manager_agent=is_manager_agent, **agent_prompt)
 
 def call_llm_for_system_prompt(user_prompt: str, system_prompt: str) -> str:
     """
@@ -96,20 +38,32 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str) -> str:
 
     return response.content.strip()
 
-def generate_system_prompt(prompt_info: GeneratePromptRequest):
+
+def generate_system_prompt_impl(prompt_info: GeneratePromptRequest):
     with open('backend/prompts/utils/prompt_generate.yaml', "r", encoding="utf-8") as f:
         prompt_for_generate = yaml.safe_load(f)
-    tool_list = [get_tool_detail_information(tool) for tool in prompt_info.tool_list]
+    _, tenant_id = get_user_info()
+    tool_list = query_tool_instances(tenant_id=tenant_id, agent_id=prompt_info.agent_id)
 
-    task_description = prompt_info.task_description
-    tool_description = "\n".join([str(tool) for tool in tool_list])
-    agent_description = "\n".join([str(sub_agent) for sub_agent in prompt_info.sub_agent_list])
+    tool_id_list = [tool.get("tool_id") for tool in tool_list]
+    tool_info_list = get_tool_detail_information(tool_id_list)
+    tool_description = "\n".join([str(tool) for tool in tool_info_list])
+
+    agent_id = prompt_info.agent_id
+    sub_agent_raw_info_list = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id)
+    sub_agent_info_list = []
+    for sub_agent_raw_info in sub_agent_raw_info_list:
+        agent_detail_information = AgentDetailInformation()
+        agent_detail_information.name = sub_agent_raw_info.get("name")
+        agent_detail_information.description = sub_agent_raw_info.get("description")
+        sub_agent_info_list.append(agent_detail_information)
+    agent_description = "\n".join([str(sub_agent_info) for sub_agent_info in sub_agent_info_list])
 
     compiled_template = Template(prompt_for_generate["USER_PROMPT"], undefined=StrictUndefined)
     content = compiled_template.render({
         "tool_description": tool_description,
         "agent_description": agent_description,
-        "task_description":task_description
+        "task_description": prompt_info.task_description
     })
 
     # use thread pool to execute three functions
@@ -125,18 +79,20 @@ def generate_system_prompt(prompt_info: GeneratePromptRequest):
         few_shots_prompt = few_shots_future.result()
 
     # fill the system prompt
-    agent_prompt = fill_agent_prompt(duty=duty_prompt,
-                                      constraint=constraint_prompt,
-                                      few_shots=few_shots_prompt,
-                                      is_manager_agent=len(prompt_info.sub_agent_list)>0)
+    agent_prompt = fill_agent_prompt(
+        duty=duty_prompt,
+        constraint=constraint_prompt,
+        few_shots=few_shots_prompt,
+        is_manager_agent=len(sub_agent_raw_info_list) > 0
+    )
     need_filled_system_prompt = agent_prompt["system_prompt"]
 
     # fill the tool description and agent description
     system_prompt = populate_template(
         need_filled_system_prompt,
         variables={
-            "tools": {tool.name: tool for tool in tool_list},
-            "managed_agents": {sub_agent.name: sub_agent for sub_agent in prompt_info.sub_agent_list},
+            "tools": {tool.name: tool for tool in tool_info_list},
+            "managed_agents": {sub_agent.name: sub_agent for sub_agent in sub_agent_info_list},
             "authorized_imports": str(BASE_BUILTIN_MODULES),
         },
     )
@@ -154,6 +110,8 @@ def fine_tune_prompt(req: FineTunePromptRequest):
         "command": req.command
     })
 
-    regenerate_prompt = call_llm_for_system_prompt(user_prompt=content,
-                                                  system_prompt=prompt_for_fine_tune["FINE_TUNE_SYSTEM_PROMPT"])
+    regenerate_prompt = call_llm_for_system_prompt(
+        user_prompt=content,
+        system_prompt=prompt_for_fine_tune["FINE_TUNE_SYSTEM_PROMPT"]
+    )
     return regenerate_prompt

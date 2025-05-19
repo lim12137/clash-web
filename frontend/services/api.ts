@@ -16,6 +16,10 @@ export const API_ENDPOINTS = {
   agent: {
     run: `${API_BASE_URL}/agent/run`,
   },
+  prompt: {
+    generate: `${API_BASE_URL}/prompt/generate`,
+    fineTune: `${API_BASE_URL}/prompt/fine_tune`,
+  },
   stt: {
     ws: `/api/voice/stt/ws`,
   },

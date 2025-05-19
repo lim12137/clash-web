@@ -1,7 +1,9 @@
+from typing import List
+
 from fastapi import HTTPException
 
-from services.tool_configuration_service import scan_tools
 from utils.user_utils import get_user_info
+from utils.agent_utils import scan_tools
 from database.client import get_db_session, as_dict, filter_property
 from database.db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
 
@@ -225,7 +227,18 @@ def query_tools():
         return [as_dict(tool) for tool in tools]
 
 
-def query_tool_instances(tenant_id: str, user_id: str = None):
+def query_tools_by_ids(tool_id_list: List[int]):
+    """
+    Query ToolInfo in the database based on tool_id_list.
+    :param tool_id_list: List of tool IDs
+    :return: List of ToolInfo objects
+    """
+    with get_db_session() as session:
+        tools = session.query(ToolInfo).filter(ToolInfo.tool_id.in_(tool_id_list)).filter(ToolInfo.delete_flag != 'Y').all()
+        return [as_dict(tool) for tool in tools]
+
+
+def query_tool_instances(tenant_id: str, user_id: str = None, agent_id: int = None):
     """
     Query ToolInstance in the database based on tenant_id and agent_id, optional user_id.
     :param tenant_id: Tenant ID for filtering, mandatory
@@ -237,6 +250,8 @@ def query_tool_instances(tenant_id: str, user_id: str = None):
             ToolInstance.delete_flag != 'Y')
         if user_id:
             query = query.filter(ToolInstance.user_id == user_id)
+        if agent_id:
+            query = query.filter(ToolInstance.agent_id == agent_id)
         tools = query.all()
         return [as_dict(tool) for tool in tools]
 
@@ -260,6 +275,8 @@ def update_tool_table_from_scan_tool_list():
     """
     scan all tools and update the tool table in PG database, remove the duplicate tools
     """
+
+
     user_id, _ = get_user_info()
     tool_list = scan_tools()
     with get_db_session() as session:
