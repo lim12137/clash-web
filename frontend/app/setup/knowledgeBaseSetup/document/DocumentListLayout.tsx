@@ -9,50 +9,50 @@ import { useKnowledgeBaseContext } from '../knowledgeBase/KnowledgeBaseContext'
 import { message } from 'antd'
 import knowledgeBaseService from '@/services/knowledgeBaseService'
 
-// UI布局配置，内部管理各部分高度比例
+// UI layout configuration, internally manages height ratios of each section
 export const UI_CONFIG = {
-  TITLE_BAR_HEIGHT: '56.8px',               // 标题栏固定高度
-  UPLOAD_COMPONENT_HEIGHT: '250px',         // 上传组件固定高度
+  TITLE_BAR_HEIGHT: '56.8px',               // Fixed height for title bar
+  UPLOAD_COMPONENT_HEIGHT: '250px',         // Fixed height for upload component
 };
 
-// 列宽常量配置，便于统一管理
+// Column width constants configuration for unified management
 export const COLUMN_WIDTHS = {
-  NAME: '47%',     // 文档名称列宽
-  STATUS: '11%',   // 状态列宽
-  SIZE: '11%',     // 大小列宽
-  DATE: '20%',     // 日期列宽
-  ACTION: '11%'    // 操作列宽
+  NAME: '47%',     // Document name column width
+  STATUS: '11%',   // Status column width
+  SIZE: '11%',     // Size column width
+  DATE: '20%',     // Date column width
+  ACTION: '11%'    // Action column width
 }
 
-// 文档名称显示配置
+// Document name display configuration
 export const DOCUMENT_NAME_CONFIG = {
-  MAX_WIDTH: '450px',          // 文档名称最大宽度
-  TEXT_OVERFLOW: 'ellipsis',   // 溢出文本显示省略号
-  WHITE_SPACE: 'nowrap',       // 不换行
-  OVERFLOW: 'hidden'           // 溢出隐藏
+  MAX_WIDTH: '450px',          // Maximum width for document name
+  TEXT_OVERFLOW: 'ellipsis',   // Show ellipsis for overflow text
+  WHITE_SPACE: 'nowrap',       // No line break
+  OVERFLOW: 'hidden'           // Hide overflow
 }
 
-// 布局和间距配置
+// Layout and spacing configuration
 export const LAYOUT = {
-  // 单元格和间距
-  CELL_PADDING: 'px-3 py-1.5',  // 单元格内边距
-  TEXT_SIZE: 'text-sm',       // 标准文本大小
-  HEADER_TEXT: 'text-sm font-semibold text-gray-600 uppercase tracking-wider', // 表头文本样式
+  // Cells and spacing
+  CELL_PADDING: 'px-3 py-1.5',  // Cell padding
+  TEXT_SIZE: 'text-sm',       // Standard text size
+  HEADER_TEXT: 'text-sm font-semibold text-gray-600 uppercase tracking-wider', // Header text style
   
-  // 知识库标题区域
-  KB_HEADER_PADDING: 'p-3',  // 知识库标题区域内边距
-  KB_TITLE_SIZE: 'text-lg',  // 知识库标题文字大小
-  KB_TITLE_MARGIN: 'ml-3',   // 知识库标题左边距
+  // Knowledge base title area
+  KB_HEADER_PADDING: 'p-3',  // Knowledge base title area padding
+  KB_TITLE_SIZE: 'text-lg',  // Knowledge base title text size
+  KB_TITLE_MARGIN: 'ml-3',   // Knowledge base title left margin
   
-  // 表格行样式
-  TABLE_ROW_HOVER: 'hover:bg-gray-50',  // 表格行悬停背景
-  TABLE_HEADER_BG: 'bg-gray-50',        // 表头背景色
-  TABLE_ROW_DIVIDER: 'divide-y divide-gray-200', // 表格行分隔线
+  // Table row styles
+  TABLE_ROW_HOVER: 'hover:bg-gray-50',  // Table row hover background
+  TABLE_HEADER_BG: 'bg-gray-50',        // Table header background color
+  TABLE_ROW_DIVIDER: 'divide-y divide-gray-200', // Table row divider
   
-  // 图标和按钮
-  ICON_SIZE: 'text-lg',  // 文件图标大小
-  ICON_MARGIN: 'mr-2',   // 文件图标右边距
-  ACTION_TEXT: 'text-red-500 hover:text-red-700 font-medium text-xs' // 操作按钮文本样式
+  // Icons and buttons
+  ICON_SIZE: 'text-lg',  // File icon size
+  ICON_MARGIN: 'mr-2',   // File icon right margin
+  ACTION_TEXT: 'text-red-500 hover:text-red-700 font-medium text-xs' // Action button text style
 }
 
 export interface DocumentListLayoutProps {
@@ -70,13 +70,13 @@ export interface DocumentListLayoutProps {
   titleBarHeight: string
   uploadHeight: string
   
-  // 函数
+  // Functions
   getFileIcon: (type: string) => string
   getMismatchInfo: () => string
   onNameChange?: (name: string) => void
   onDelete: (id: string) => void
   
-  // 上传相关props
+  // Upload related props
   uploadAreaRef: React.RefObject<any>
   isDragging: boolean
   onDragOver?: (e: React.DragEvent) => void
@@ -103,13 +103,13 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
   titleBarHeight,
   uploadHeight,
   
-  // 函数
+  // Functions
   getFileIcon,
   getMismatchInfo,
   onNameChange,
   onDelete,
   
-  // 上传相关props
+  // Upload related props
   uploadAreaRef,
   isDragging,
   onDragOver,
@@ -185,8 +185,8 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
 
     setIsSaving(true);
     try {
-      console.log('Starting to save summary:', { 
-        knowledgeBaseName, 
+      console.log('Starting to save summary:', {
+        knowledgeBaseName,
         summary,
         summaryLength: summary.length,
         summaryContent: summary.substring(0, 100) + '...' // Only show first 100 characters
@@ -205,10 +205,9 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
   // Refactored: Style is embedded within the component
   return (
     <div className="flex flex-col w-full bg-white border border-gray-200 rounded-md shadow-sm h-full" style={{ height: containerHeight }}>
-      {/* 标题栏 */}
+      {/* Title bar */}
       <div className={`${LAYOUT.KB_HEADER_PADDING} border-b border-gray-200 flex-shrink-0 flex items-center`} style={{ height: titleBarHeight }}>
         <div className="flex items-center justify-between w-full">
-          {/* 左侧：知识库名称和模型不匹配提示 */}
           <div className="flex items-center">
             {isCreatingMode ? (
               nameLockedAfterUpload ? (
@@ -238,7 +237,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                   }}
                   prefix={<span className="text-blue-600">📚</span>}
                   autoFocus
-                  disabled={hasDocuments || isUploading || nameLockedAfterUpload} // 如果已有文档或正在上传，则禁止编辑名称
+                  disabled={hasDocuments || isUploading || nameLockedAfterUpload || loading} // Disable editing name if there are documents or uploading
                 />
               )
             ) : (
@@ -267,14 +266,14 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
         </div>
       </div>
 
-      {/* 文档列表/详细内容视图 */}
+      {/* Document list */}
       <div className="p-2 overflow-auto flex-grow" style={{ height: contentHeight }}>
         {showDetail ? (
           <div style={{ padding: '16px 32px', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <span style={{ fontWeight: 700, fontSize: 18 }}>知识库总结</span>
-              <Button 
-                type="default" 
+              <Button
+                type="default"
                 onClick={handleAutoSummary}
                 loading={isSummarizing}
                 disabled={!knowledgeBaseName || isSummarizing}
@@ -283,11 +282,11 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
               </Button>
             </div>
             {isSummarizing ? (
-              <div style={{ 
-                flex: 1, 
-                display: 'flex', 
-                flexDirection: 'column', 
-                justifyContent: 'center', 
+              <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
                 alignItems: 'center',
                 backgroundColor: '#fafafa',
                 borderRadius: '8px',
@@ -312,9 +311,9 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
               />
             )}
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-              <Button 
-                type="primary" 
-                size="large" 
+              <Button
+                type="primary"
+                size="large"
                 onClick={handleSaveSummary}
                 loading={isSaving}
                 disabled={!summary || isSaving}
@@ -374,9 +373,9 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                           <span className={`${LAYOUT.ICON_MARGIN} ${LAYOUT.ICON_SIZE}`}>
                             {getFileIcon(doc.type)}
                           </span>
-                          <span 
-                            className={`${LAYOUT.TEXT_SIZE} font-medium text-gray-800 truncate`} 
-                            style={{ 
+                          <span
+                            className={`${LAYOUT.TEXT_SIZE} font-medium text-gray-800 truncate`}
+                            style={{
                               maxWidth: DOCUMENT_NAME_CONFIG.MAX_WIDTH,
                               textOverflow: DOCUMENT_NAME_CONFIG.TEXT_OVERFLOW,
                               whiteSpace: DOCUMENT_NAME_CONFIG.WHITE_SPACE,
@@ -390,8 +389,8 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                       </td>
                       <td className={LAYOUT.CELL_PADDING}>
                         <div className="flex items-center">
-                          <DocumentStatus 
-                            status={doc.status} 
+                          <DocumentStatus
+                            status={doc.status}
                             showIcon={true}
                           />
                         </div>
@@ -424,7 +423,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
         )}
       </div>
 
-      {/* 上传区域 */}
+      {/* Upload area */}
       {!showDetail && (
         <UploadArea
           ref={uploadAreaRef}
