@@ -11,7 +11,7 @@ export const DocumentStatus: React.FC<DocumentStatusProps> = ({
   showIcon = false, 
   size = 'small' 
 }) => {
-  // 将API状态映射到显示状态
+  // Map API status to display status
   const getDisplayStatus = (apiStatus: string): string => {
     switch (apiStatus) {
       case 'WAITING':
@@ -29,7 +29,7 @@ export const DocumentStatus: React.FC<DocumentStatusProps> = ({
     }
   }
 
-  // 获取状态类型和对应的样式
+  // Get status type and corresponding styles
   const getStatusStyles = (): { bgColor: string, textColor: string, borderColor: string } => {
     switch (status) {
       case 'COMPLETED':
@@ -66,7 +66,7 @@ export const DocumentStatus: React.FC<DocumentStatusProps> = ({
     }
   }
 
-  // 获取状态图标
+  // Get status icon
   const getStatusIcon = () => {
     if (!showIcon) return null
 
