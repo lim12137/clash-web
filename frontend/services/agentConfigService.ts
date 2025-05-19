@@ -85,7 +85,7 @@ export const fetchAgentList = async () => {
           })) : []
         };
       }) : [],
-      provide_run_summary: true
+      provide_run_summary: agent.provide_run_summary
     }));
     
     return {
