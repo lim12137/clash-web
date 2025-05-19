@@ -1,26 +1,20 @@
 from collections import defaultdict
 
-from consts.model import AgentInfoRequest
-from database.agent_db import create_agent, create_tool, query_tool_instances, query_tools, \
-    query_or_create_main_agent_id, query_sub_agents
-from database.client import get_db_session
+from database.agent_db import create_agent, query_all_tool_instances, query_tools, \
+    query_or_create_main_agent_id, query_sub_agents, search_sub_agent_by_main_agent_id
 
 
-def create_agent_api(request: AgentInfoRequest, tenant_id: str = None, user_id: str = None):
-    """
-    Create agent API endpoint
-    :param request: AgentInfoRequest
-    :param tenant_id: str
-    :param user_id: str
-    :return: AgentInfo
-    """
-    # Ensure configuration is up to date
-    with get_db_session() as session:
-        agent = create_agent(request, session)
-        for tool in request.tools:
-            create_tool(tool, tenant_id, agent["agent_id"], user_id, session)
-        return agent
-
+def get_creating_sub_agent_id_api(main_agent_id: int, tenant_id: str = None) -> int:
+    #  first find the sub agent, if it exists, it means the agent was created before, but exited prematurely; if it does not exist, create a new one
+    sub_agent_id = search_sub_agent_by_main_agent_id(main_agent_id, tenant_id)
+    if sub_agent_id:
+        return sub_agent_id
+    else:
+        return create_agent({"tenant_id": tenant_id,
+                            "created_by": tenant_id,
+                            "updated_by": tenant_id,
+                            "enabled": False,
+                            "parent_agent_id": main_agent_id})["agent_id"]
 
 def query_or_create_main_agents_api(tenant_id: str = None):
     main_agents_id = query_or_create_main_agent_id(tenant_id)
@@ -30,7 +24,7 @@ def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str
     sub_agents = query_sub_agents(main_agent_id, tenant_id, user_id)
 
     tools = query_tools()
-    tool_instances = query_tool_instances(tenant_id, user_id)
+    tool_instances = query_all_tool_instances(tenant_id, user_id)
     merge_tool_instance(tool_instances, tools)
 
     # Add tool instances to agent

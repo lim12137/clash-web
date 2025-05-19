@@ -1,8 +1,8 @@
 import { Tool, convertParamType } from '@/types/agentAndToolConst';
 
 /**
- * Get tool list from backend
- * @returns Converted tool list
+ * get tool list from backend
+ * @returns converted tool list
  */
 export const fetchTools = async () => {
   try {
@@ -12,7 +12,7 @@ export const fetchTools = async () => {
     }
     const data = await response.json();
     
-    // Convert backend Tool format to frontend Tool format
+    // convert backend Tool format to frontend Tool format
     const formattedTools = data.map((tool: Tool) => ({
       id: String(tool.tool_id),
       name: tool.name,
@@ -45,8 +45,8 @@ export const fetchTools = async () => {
 };
 
 /**
- * Get agent list from backend
- * @returns Object containing main_agent_id and sub_agent_list
+ * get agent list from backend
+ * @returns object containing main_agent_id and sub_agent_list
  */
 export const fetchAgentList = async () => {
   try {
@@ -56,7 +56,7 @@ export const fetchAgentList = async () => {
     }
     const data = await response.json();
     
-    // Convert backend data to frontend format
+    // convert backend data to frontend format
     const formattedAgents = data.sub_agent_list.map((agent: any) => ({
       id: agent.agent_id,
       name: agent.name,
@@ -105,6 +105,133 @@ export const fetchAgentList = async () => {
         subAgentList: []
       },
       message: '获取 agent 列表失败，请稍后重试'
+    };
+  }
+};
+
+/**
+ * get creating sub agent id
+ * @param mainAgentId current main agent id
+ * @returns new sub agent id
+ */
+export const getCreatingSubAgentId = async (mainAgentId: string | null) => {
+  try {
+    const response = await fetch('/api/agent/get_creating_sub_agent_id', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ main_agent_id: mainAgentId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data: data.agent_id,
+      message: ''
+    };
+  } catch (error) {
+    console.error('获取创建子代理ID失败:', error);
+    return {
+      success: false,
+      data: null,
+      message: '获取创建子代理ID失败，请稍后重试'
+    };
+  }
+};
+
+/**
+ * update tool config
+ * @param toolId tool id
+ * @param agentId agent id
+ * @param params tool params config
+ * @param enable whether enable tool
+ * @returns update result
+ */
+export const updateToolConfig = async (
+  toolId: number,
+  agentId: number,
+  params: Record<string, any>,
+  enable: boolean
+) => {
+  try {
+    console.log({"tool_id":toolId, "agent_id":agentId, "params":params, "enabled":enable})
+
+    const response = await fetch('/api/tool/update', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tool_id: toolId,
+        agent_id: agentId,
+        params: params,
+        enabled: enable
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data: data,
+      message: '工具配置更新成功'
+    };
+  } catch (error) {
+    console.error('更新工具配置失败:', error);
+    return {
+      success: false,
+      data: null,
+      message: '更新工具配置失败，请稍后重试'
+    };
+  }
+};
+
+/**
+ * search tool config
+ * @param toolId tool id
+ * @param agentId agent id
+ * @returns tool config info
+ */
+export const searchToolConfig = async (toolId: number, agentId: number) => {
+  try {
+    const response = await fetch('/api/tool/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tool_id: toolId,
+        agent_id: agentId
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data: {
+        params: data.params,
+        enabled: data.enabled
+      },
+      message: ''
+    };
+  } catch (error) {
+    console.error('搜索工具配置失败:', error);
+    return {
+      success: false,
+      data: null,
+      message: '搜索工具配置失败，请稍后重试'
     };
   }
 };

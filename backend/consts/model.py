@@ -302,6 +302,20 @@ class AgentInfoRequest(BaseModel):
     enable: bool
     tools: List[AgentToolInfoRequest]
 
+class CreatingSubAgentIDRequest(BaseModel):
+    main_agent_id: int
+    
+
+class ToolInstanceInfoRequest(BaseModel):
+    tool_id: int
+    agent_id: int
+    params: Dict[str, Any]
+    enabled: bool
+
+class ToolInstanceSearchRequest(BaseModel):
+    tool_id: int
+    agent_id: int
+
 
 class ToolSourceEnum(Enum):
     LOCAL = "local"
