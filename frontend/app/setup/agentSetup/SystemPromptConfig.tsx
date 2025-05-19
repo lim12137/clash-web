@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { message, Typography } from 'antd'
 import SystemPromptDisplay from './components/SystemPromptDisplay'
+import { Agent, Tool } from './ConstInterface'
 
 const { Text } = Typography
 
@@ -13,6 +14,10 @@ interface SystemPromptConfigProps {
   isGenerating: boolean;
   onDebug?: () => void;
   onGenerate?: () => void;
+  agentId?: number;
+  taskDescription?: string;
+  selectedAgents?: Agent[];
+  selectedTools?: Tool[];
 }
 
 /**
@@ -23,7 +28,11 @@ export default function SystemPromptConfig({
   setSystemPrompt,
   isGenerating,
   onDebug,
-  onGenerate
+  onGenerate,
+  agentId,
+  taskDescription,
+  selectedAgents = [],
+  selectedTools = []
 }: SystemPromptConfigProps) {
   return (
     <div className="flex flex-col h-full gap-4 pl-4">
@@ -35,6 +44,10 @@ export default function SystemPromptConfig({
             onPromptChange={setSystemPrompt}
             onDebug={onDebug}
             onGenerate={onGenerate || (() => {})}
+            agentId={agentId}
+            taskDescription={taskDescription}
+            selectedAgents={selectedAgents}
+            selectedTools={selectedTools}
           />
         </div>
       </div>

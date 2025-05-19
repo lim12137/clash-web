@@ -1,10 +1,11 @@
 "use client"
 
-import { Input, Button, Modal, Spin } from 'antd'
+import { Input, Button, Modal, Spin, message } from 'antd'
 import { useState } from 'react'
 import AdditionalRequestInput from './AdditionalRequestInput'
 import { MarkdownRenderer } from '@/components/ui/markdownRenderer'
 import { ScrollArea } from '@/components/ui/scrollArea'
+import { Agent, Tool } from '../ConstInterface'
 
 const { TextArea } = Input
 
@@ -15,50 +16,144 @@ export interface SystemPromptDisplayProps {
   onPromptChange: (value: string) => void;
   onGenerate: () => void;
   onDebug?: () => void;
+  agentId?: number;
+  taskDescription?: string;
+  selectedAgents?: Agent[];
+  selectedTools?: Tool[];
 }
 
 /**
- * System prompt word display component
+ * 系统提示词展示组件
  */
-export default function SystemPromptDisplay({ prompt, isGenerating, onPromptChange, onGenerate, onDebug }: SystemPromptDisplayProps) {
+export default function SystemPromptDisplay({ 
+  prompt, 
+  isGenerating, 
+  onPromptChange, 
+  onGenerate: parentOnGenerate, 
+  onDebug, 
+  agentId, 
+  taskDescription,
+  selectedAgents = [],
+  selectedTools = []
+}: SystemPromptDisplayProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
   const [tunedPrompt, setTunedPrompt] = useState("")
   const [isTuning, setIsTuning] = useState(false)
   const [isEditingTuned, setIsEditingTuned] = useState(false)
+  const [localIsGenerating, setLocalIsGenerating] = useState(false)
 
-  const handleSendAdditionalRequest = (request: string) => {
-    setIsTuning(true)
+  // 使用API调用生成系统提示词
+  const handleGenerateWithApi = async () => {
+    if (!taskDescription || taskDescription.trim() === '') {
+      message.warning("请先输入业务描述");
+      return;
+    }
     
-    // Simulate API calls and generate new prompt words
-    setTimeout(() => {
-      const newPrompt = `# 优化后的系统提示词
-
-## 角色定义
-你是一个智能AI助手，专门负责${request || '通用任务'}。
-
-## 行为准则
-- 保持友好和专业的态度
-- 提供准确的信息和有用的建议
-- 在不确定时，坦诚表明自己的局限性
-
-## 回应格式
-1. 简洁明了地回答问题
-2. 必要时提供相关上下文
-3. 对于复杂问题，分步骤解释
-
-请始终在能力范围内回答问题，如果不确定，请说明你不知道。`
+    if (!agentId) {
+      message.warning("无法生成提示词：未指定Agent ID");
+      return;
+    }
+    
+    try {
+      setLocalIsGenerating(true);
+      console.log("开始调用API生成提示词", { agent_id: agentId, task_description: taskDescription });
       
-      setTunedPrompt(newPrompt)
-      setIsTuning(false)
-    }, 1500)
-  }
+      const response = await fetch('/api/prompt/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          agent_id: agentId,
+          task_description: taskDescription
+        }),
+      });
+      
+      console.log("API响应状态", { status: response.status, statusText: response.statusText });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "生成提示词失败");
+      }
+      
+      const data = await response.json();
+      console.log("API返回结果", data);
+      
+      if (data.success && data.data) {
+        onPromptChange(data.data);
+        message.success("提示词生成成功");
+      } else {
+        throw new Error("生成提示词失败：服务器未返回有效数据");
+      }
+    } catch (error) {
+      console.error("生成提示词失败:", error);
+      message.error(`生成提示词失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      setLocalIsGenerating(false);
+    }
+  };
+  
+  // 处理生成按钮点击
+  const handleGenerate = async () => {
+    // 只使用API调用方式
+    await handleGenerateWithApi();
+  };
+
+  // 处理微调请求
+  const handleSendAdditionalRequest = async (request: string) => {
+    if (!prompt) {
+      message.warning("请先生成系统提示词");
+      return;
+    }
+    
+    if (!request || request.trim() === '') {
+      message.warning("请输入微调指令");
+      return;
+    }
+    
+    setIsTuning(true);
+    
+    try {
+      // 使用API进行微调
+      const response = await fetch('/api/prompt/fine_tune', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          system_prompt: prompt,
+          command: request
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "微调提示词失败");
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setTunedPrompt(data.data);
+        message.success("提示词微调成功");
+      } else {
+        throw new Error("微调提示词失败：服务器未返回有效数据");
+      }
+    } catch (error) {
+      console.error("微调提示词失败:", error);
+      message.error(`微调提示词失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      setIsTuning(false);
+    }
+  };
   
   const handleSaveTunedPrompt = () => {
-    onPromptChange(tunedPrompt)
-    setIsModalOpen(false)
-    setTunedPrompt("")
-  }
+    onPromptChange(tunedPrompt);
+    setIsModalOpen(false);
+    setTunedPrompt("");
+    message.success("已保存微调后的提示词");
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -66,12 +161,12 @@ export default function SystemPromptDisplay({ prompt, isGenerating, onPromptChan
         <h2 className="text-lg font-medium">系统提示词</h2>
         <div className="flex gap-2">
           <button
-            onClick={onGenerate}
-            disabled={isGenerating}
+            onClick={handleGenerate}
+            disabled={isGenerating || localIsGenerating}
             className="px-4 py-1.5 rounded-md flex items-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ border: "none" }}
           >
-            生成
+            {(isGenerating || localIsGenerating) ? "生成中..." : "生成"}
           </button>
           <button
             onClick={() => setIsModalOpen(true)}
@@ -94,7 +189,7 @@ export default function SystemPromptDisplay({ prompt, isGenerating, onPromptChan
           <TextArea
             value={prompt}
             onChange={(e) => onPromptChange(e.target.value)}
-            placeholder={isGenerating ? "正在生成系统提示词..." : "系统提示词将在这里显示..."}
+            placeholder={isGenerating || localIsGenerating ? "正在生成系统提示词..." : "系统提示词将在这里显示..."}
             className="w-full h-full resize-none border-none"
             style={{ height: '100%', minHeight: '100%' }}
             autoFocus
@@ -107,12 +202,12 @@ export default function SystemPromptDisplay({ prompt, isGenerating, onPromptChan
             title="双击编辑"
           >
             <ScrollArea className="h-full">
-              <div className="p-3">
+              <div className="p-3 markdown-content" style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
                 {prompt ? (
                   <MarkdownRenderer content={prompt} />
                 ) : (
                   <div className="text-gray-400 italic">
-                    {isGenerating ? "正在生成系统提示词..." : "系统提示词将在这里显示..."}
+                    {isGenerating || localIsGenerating ? "正在生成系统提示词..." : "系统提示词将在这里显示..."}
                   </div>
                 )}
               </div>
@@ -157,9 +252,10 @@ export default function SystemPromptDisplay({ prompt, isGenerating, onPromptChan
                   <div style={{ height: '400px' }}>
                     <ScrollArea className="h-full">
                       <div 
-                        className="p-3 cursor-text"
+                        className="p-3 cursor-text markdown-content"
                         onDoubleClick={() => setIsEditingTuned(true)}
                         title="双击编辑"
+                        style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}
                       >
                         <MarkdownRenderer content={tunedPrompt} />
                       </div>
