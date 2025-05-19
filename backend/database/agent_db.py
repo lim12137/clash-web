@@ -39,18 +39,38 @@ def update_tools(tools):
         for name in set(existing_tools.keys()) - tool_names_in_input:
             existing_tools[name].delete_flag = 'Y'
 
+def query_or_create_main_agent_id(tenant_id: str = None) -> int:
+    """
+    obtain the main_agent id, create a blank placeholder if it does not exist
+    """
+    with get_db_session() as session:
+        query = session.query(AgentInfo).filter(AgentInfo.delete_flag != 'Y').filter(AgentInfo.parent_agent_id is not None)
+        if tenant_id:
+            query = query.filter(AgentInfo.tenant_id == tenant_id)
+        main_agent = query.first()
 
-def query_agents(tenant_id: str = None, user_id: str = None):
+        if main_agent is None:
+            main_agent = create_agent({"name": "main",
+                               "tenant_id": tenant_id,
+                               "created_by": tenant_id,
+                               "updated_by": tenant_id,
+                               "enabled": True})
+            return main_agent["agent_id"]
+        else:
+            return main_agent.agent_id
+
+def query_sub_agents(main_agent_id: int, tenant_id: str = None, user_id: str = None):
     """
     Query the TenantAgent list based on the optional tenant_id.
     Filter out records with delete_flag set to 'Y'.
 
+    :param main_agent_id: Optional main agent ID for filtering
     :param tenant_id: Optional tenant ID for filtering
     :param user_id: Optional user ID for merging
     :return: List of TenantAgent objects that meet the criteria
     """
     with get_db_session() as session:
-        query = session.query(AgentInfo).filter(AgentInfo.delete_flag != 'Y')
+        query = session.query(AgentInfo).filter(AgentInfo.delete_flag != 'Y').filter(AgentInfo.parent_agent_id == main_agent_id)
         if tenant_id:
             query = query.filter(AgentInfo.tenant_id == tenant_id)
         agents = query.all()

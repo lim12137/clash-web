@@ -19,7 +19,7 @@ CREATE TABLE "conversation_message_t" (
   "updated_by" varchar(100) COLLATE "pg_catalog"."default",
   CONSTRAINT "conversation_message_t_pk" PRIMARY KEY ("message_id")
 );
-ALTER TABLE "conversation_message_t" OWNER TO "root";
+ALTER TABLE "conversation_message_t" OWNER TO "postgres";
 COMMENT ON COLUMN "conversation_message_t"."conversation_id" IS '形式外键，用于关联所属的对话';
 COMMENT ON COLUMN "conversation_message_t"."message_index" IS '顺序号，用于前端展示排序';
 COMMENT ON COLUMN "conversation_message_t"."message_role" IS '发送消息的角色，如 system, assistant, user';
@@ -47,7 +47,7 @@ CREATE TABLE "conversation_message_unit_t" (
   "created_by" varchar(100) COLLATE "pg_catalog"."default",
   CONSTRAINT "conversation_message_unit_t_pk" PRIMARY KEY ("unit_id")
 );
-ALTER TABLE "conversation_message_unit_t" OWNER TO "root";
+ALTER TABLE "conversation_message_unit_t" OWNER TO "postgres";
 COMMENT ON COLUMN "conversation_message_unit_t"."message_id" IS '形式外键，用于关联所属消息';
 COMMENT ON COLUMN "conversation_message_unit_t"."conversation_id" IS '形式外键，用于关联所属对话';
 COMMENT ON COLUMN "conversation_message_unit_t"."unit_index" IS '顺序号，用于前端展示排序';
@@ -70,7 +70,7 @@ CREATE TABLE "conversation_record_t" (
   "created_by" varchar(100) COLLATE "pg_catalog"."default",
   CONSTRAINT "conversation_record_t_pk" PRIMARY KEY ("conversation_id")
 );
-ALTER TABLE "conversation_record_t" OWNER TO "root";
+ALTER TABLE "conversation_record_t" OWNER TO "postgres";
 COMMENT ON COLUMN "conversation_record_t"."conversation_title" IS '对话标题';
 COMMENT ON COLUMN "conversation_record_t"."delete_flag" IS '用户前端删除后，删除标识将被置为true，达到数据软删除的效果。可选值Y/N';
 COMMENT ON COLUMN "conversation_record_t"."update_time" IS '更新日期，审计字段';
@@ -94,7 +94,7 @@ CREATE TABLE "conversation_source_image_t" (
   "updated_by" varchar(100) COLLATE "pg_catalog"."default",
   CONSTRAINT "conversation_source_image_t_pk" PRIMARY KEY ("image_id")
 );
-ALTER TABLE "conversation_source_image_t" OWNER TO "root";
+ALTER TABLE "conversation_source_image_t" OWNER TO "postgres";
 COMMENT ON COLUMN "conversation_source_image_t"."conversation_id" IS '形式外键，用于关联搜索来源所属的对话';
 COMMENT ON COLUMN "conversation_source_image_t"."message_id" IS '形式外键，用于关联搜索来源所属的对话消息';
 COMMENT ON COLUMN "conversation_source_image_t"."unit_id" IS '形式外键，用于关联搜索来源所属的最小消息单元（若有）';
@@ -131,7 +131,7 @@ CREATE TABLE "conversation_source_search_t" (
   "created_by" varchar(100) COLLATE "pg_catalog"."default",
   CONSTRAINT "conversation_source_search_t_pk" PRIMARY KEY ("search_id")
 );
-ALTER TABLE "conversation_source_search_t" OWNER TO "root";
+ALTER TABLE "conversation_source_search_t" OWNER TO "postgres";
 COMMENT ON COLUMN "conversation_source_search_t"."unit_id" IS '形式外键，用于关联搜索来源所属的最小消息单元（若有）';
 COMMENT ON COLUMN "conversation_source_search_t"."message_id" IS '形式外键，用于关联搜索来源所属的对话消息';
 COMMENT ON COLUMN "conversation_source_search_t"."conversation_id" IS '形式外键，用于关联搜索来源所属的对话';
@@ -172,7 +172,7 @@ CREATE TABLE "model_record_t" (
   "created_by" varchar(100) COLLATE "pg_catalog"."default",
   CONSTRAINT "nexent_models_t_pk" PRIMARY KEY ("model_id")
 );
-ALTER TABLE "model_record_t" OWNER TO "root";
+ALTER TABLE "model_record_t" OWNER TO "postgres";
 COMMENT ON COLUMN "model_record_t"."model_id" IS '模型ID，唯一主键';
 COMMENT ON COLUMN "model_record_t"."model_repo" IS '模型路径地址';
 COMMENT ON COLUMN "model_record_t"."model_name" IS '模型名称';
@@ -258,6 +258,7 @@ CREATE TABLE IF NOT EXISTS nexent.ag_tenant_agent_t (
     parent_agent_id INTEGER,
     tenant_id VARCHAR(100),
     enabled BOOLEAN DEFAULT FALSE,
+    provide_run_summary BOOLEAN DEFAULT FALSE,
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
@@ -292,6 +293,7 @@ COMMENT ON COLUMN nexent.ag_tenant_agent_t.prompt IS 'System prompt';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.parent_agent_id IS 'Parent Agent ID';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.tenant_id IS 'Belonging tenant';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.enabled IS 'Enable flag';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.provide_run_summary IS 'Whether to provide the running summary to the manager agent';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.create_time IS 'Creation time';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.update_time IS 'Update time';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.created_by IS 'Creator';
@@ -306,6 +308,7 @@ CREATE TABLE IF NOT EXISTS nexent.ag_user_agent_t (
     tenant_id VARCHAR(100),
     user_id VARCHAR(100),
     enabled BOOLEAN DEFAULT FALSE,
+    provide_run_summary BOOLEAN DEFAULT FALSE,
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
@@ -323,6 +326,7 @@ COMMENT ON COLUMN nexent.ag_user_agent_t.prompt IS 'System prompt';
 COMMENT ON COLUMN nexent.ag_user_agent_t.tenant_id IS 'Belonging tenant';
 COMMENT ON COLUMN nexent.ag_user_agent_t.user_id IS 'User ID';
 COMMENT ON COLUMN nexent.ag_user_agent_t.enabled IS 'Enable flag';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.provide_run_summary IS 'Whether to provide the running summary to the manager agent';
 COMMENT ON COLUMN nexent.ag_user_agent_t.create_time IS 'Creation time';
 COMMENT ON COLUMN nexent.ag_user_agent_t.update_time IS 'Update time';
 COMMENT ON COLUMN nexent.ag_user_agent_t.delete_flag IS 'Whether it is deleted. Optional values: Y/N';
