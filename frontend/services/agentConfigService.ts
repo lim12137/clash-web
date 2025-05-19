@@ -1,8 +1,8 @@
 import { Tool, convertParamType } from '@/types/agentAndToolConst';
 
 /**
- * 从后端获取工具列表
- * @returns 转换后的工具列表
+ * Get tool list from backend
+ * @returns Converted tool list
  */
 export const fetchTools = async () => {
   try {
@@ -12,7 +12,7 @@ export const fetchTools = async () => {
     }
     const data = await response.json();
     
-    // 将后端Tool格式转换为前端需要的Tool格式
+    // Convert backend Tool format to frontend Tool format
     const formattedTools = data.map((tool: Tool) => ({
       id: String(tool.tool_id),
       name: tool.name,
@@ -45,8 +45,8 @@ export const fetchTools = async () => {
 };
 
 /**
- * 从后端获取 agent 列表
- * @returns 包含 main_agent_id 和 sub_agent_list 的对象
+ * Get agent list from backend
+ * @returns Object containing main_agent_id and sub_agent_list
  */
 export const fetchAgentList = async () => {
   try {
@@ -56,7 +56,7 @@ export const fetchAgentList = async () => {
     }
     const data = await response.json();
     
-    // 将后端数据转换为前端需要的格式
+    // Convert backend data to frontend format
     const formattedAgents = data.sub_agent_list.map((agent: any) => ({
       id: agent.agent_id,
       name: agent.name,
