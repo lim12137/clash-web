@@ -282,10 +282,13 @@ function BusinessLogicInput({ value, onChange, selectedAgents, systemPrompt }: B
 /**
  * Sub Agent Pool Component
  */
-function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent, onCreateNewAgent }: SubAgentPoolProps) {
+function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent, onCreateNewAgent, subAgentList = [], loadingAgents = false }: SubAgentPoolProps) {
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      <h2 className="text-lg font-medium mb-2">Agent</h2>
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-lg font-medium">Agent</h2>
+        {loadingAgents && <span className="text-sm text-gray-500">加载中...</span>}
+      </div>
       <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
         <div className="grid grid-cols-1 gap-3 pr-2">
           <div 
@@ -298,7 +301,7 @@ function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent, onCreateNewA
             </div>
           </div>
           
-          {mockAgents.map((agent) => (
+          {subAgentList.map((agent) => (
             <div 
               key={agent.id} 
               className={`border rounded-md p-3 flex flex-col justify-center cursor-pointer transition-colors duration-200 h-[80px] ${
@@ -433,7 +436,9 @@ export default function BusinessLogicConfig({
   mainAgentPrompt,
   setMainAgentPrompt,
   tools,
-  loadingTools
+  loadingTools,
+  subAgentList = [],
+  loadingAgents = false
 }: BusinessLogicConfigProps) {
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
@@ -575,6 +580,8 @@ export default function BusinessLogicConfig({
             }}
             onEditAgent={handleEditAgent}
             onCreateNewAgent={() => setIsCreatingNewAgent(true)}
+            subAgentList={subAgentList}
+            loadingAgents={loadingAgents}
           />
         </div>
         <div className={`${isCreatingNewAgent ? 'w-full' : 'flex-1'} h-full`}>
@@ -593,6 +600,7 @@ export default function BusinessLogicConfig({
           />
         </div>
       </div>
+
       {/* The second half: business logic description */}
       <div className="flex gap-4 h-[240px] pb-4 pr-4 pl-4">
         <div className="flex-1 h-full">
@@ -649,7 +657,7 @@ export default function BusinessLogicConfig({
           </div>
         </div>
       </div>
-      
+
       {/* New Agent pop-up window */}
       <AgentModal 
         isOpen={isAgentModalOpen}
@@ -674,4 +682,4 @@ export default function BusinessLogicConfig({
       />
     </div>
   )
-} 
+}

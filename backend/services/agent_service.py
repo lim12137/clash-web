@@ -1,7 +1,8 @@
 from collections import defaultdict
 
 from consts.model import AgentInfoRequest
-from database.agent_db import create_agent, create_tool, query_agents, query_tool_instances, query_tools
+from database.agent_db import create_agent, create_tool, query_tool_instances, query_tools, \
+    query_or_create_main_agent_id, query_sub_agents
 from database.client import get_db_session
 
 
@@ -20,29 +21,22 @@ def create_agent_api(request: AgentInfoRequest, tenant_id: str = None, user_id: 
             create_tool(tool, tenant_id, agent["agent_id"], user_id, session)
         return agent
 
-def query_agents_api(tenant_id: str = None, user_id: str = None):
-    """
-    Query agent API endpoint, create if the main Agent cannot be found.
-    :param tenant_id: str
-    :param user_id: str
-    :return: List[AgentInfo]
-    """
-    agents = query_agents(tenant_id, user_id)
-    if len(agents) == 0:
-        main_agent = create_agent({"name": "main", "tenant_id": tenant_id})
-        agents.append(main_agent)
-        return agents
+
+def query_or_create_main_agents_api(tenant_id: str = None):
+    main_agents_id = query_or_create_main_agent_id(tenant_id)
+    return main_agents_id
+
+def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str = None):
+    sub_agents = query_sub_agents(main_agent_id, tenant_id, user_id)
 
     tools = query_tools()
     tool_instances = query_tool_instances(tenant_id, user_id)
-
-    # Merge tool instance with tool
     merge_tool_instance(tool_instances, tools)
 
     # Add tool instances to agent
-    add_tools_to_agent(agents, tool_instances)
+    add_tools_to_agent(sub_agents, tool_instances)
+    return sub_agents
 
-    return agents
 
 
 def add_tools_to_agent(agents, tool_instances):
