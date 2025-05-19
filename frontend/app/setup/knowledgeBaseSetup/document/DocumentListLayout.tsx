@@ -4,7 +4,7 @@ import DocumentStatus from './DocumentStatus'
 import { InfoCircleFilled } from '@ant-design/icons'
 import UploadArea from '../components/UploadArea'
 import { formatFileSize, formatDateTime } from '@/lib/utils'
-import { Input, Button } from 'antd'
+import { Input, Button, Tooltip } from 'antd'
 import { useKnowledgeBaseContext } from '../knowledgeBase/KnowledgeBaseContext'
 import { message } from 'antd'
 import knowledgeBaseService from '@/services/knowledgeBaseService'
@@ -256,7 +256,13 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
           </div>
           {/* 右侧：详细内容 */}
           {!isCreatingMode && (
-            <Button type="primary" onClick={() => setShowDetail(true)}>详细内容</Button>
+            <Tooltip 
+              title={summary || "暂无知识库总结"} 
+              placement="left"
+              mouseEnterDelay={0.5}
+            >
+              <Button type="primary" onClick={() => setShowDetail(true)}>详细内容</Button>
+            </Tooltip>
           )}
         </div>
       </div>

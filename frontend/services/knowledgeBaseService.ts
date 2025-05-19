@@ -343,8 +343,36 @@ class KnowledgeBaseService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      return data.summary;
+      // 创建 EventSource 来处理流式响应
+      const eventSource = new EventSource(API_ENDPOINTS.knowledgeBase.summary(indexName) + `?batch_size=${batchSize}`);
+      
+      return new Promise((resolve, reject) => {
+        let summary = '';
+        
+        eventSource.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          
+          switch(data.status) {
+            case 'processing':
+              console.log('Processing:', data.message);
+              break;
+            case 'success':
+              summary = data.summary;
+              eventSource.close();
+              resolve(summary);
+              break;
+            case 'error':
+              eventSource.close();
+              reject(new Error(data.message));
+              break;
+          }
+        };
+
+        eventSource.onerror = (error) => {
+          eventSource.close();
+          reject(new Error('EventSource failed'));
+        };
+      });
     } catch (error) {
       console.error('Error summarizing index:', error);
       throw error;
