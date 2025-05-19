@@ -1,27 +1,97 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Modal, Input, Switch, Select, InputNumber, Tag } from 'antd'
+import { Modal, Input, Switch, Select, InputNumber, Tag, message } from 'antd'
 import { Tool, ToolParam, OpenAIModel } from '../ConstInterface'
-
+import { updateToolConfig, searchToolConfig } from '@/services/agentConfigService'
 
 interface ToolConfigModalProps {
   isOpen: boolean;
   onCancel: () => void;
   onSave: (tool: Tool) => void;
   tool: Tool | null;
+  mainAgentId: number;
+  selectedTools?: Tool[];
 }
 
-export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: ToolConfigModalProps) {
+export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAgentId, selectedTools = [] }: ToolConfigModalProps) {
   const [currentParams, setCurrentParams] = useState<ToolParam[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // 加载工具配置
   useEffect(() => {
-    if (tool) {
-      setCurrentParams(tool.initParams.map(param => ({ ...param })));
+    const loadToolConfig = async () => {
+      if (tool && mainAgentId) {
+        setIsLoading(true);
+        try {
+          const result = await searchToolConfig(parseInt(tool.id), mainAgentId);
+          if (result.success) {
+            if (result.data?.params) {
+              // 使用后端返回的配置内容
+              const savedParams = tool.initParams.map(param => {
+                // 如果后端返回的配置中有该参数的值，使用后端返回的值
+                // 否则使用参数的默认值
+                const savedValue = result.data.params[param.name];
+                return {
+                  ...param,
+                  value: savedValue !== undefined ? savedValue : param.value
+                };
+              });
+              setCurrentParams(savedParams);
+            } else {
+              // 如果后端返回 params 为 null，说明没有保存的配置，使用默认配置
+              setCurrentParams(tool.initParams.map(param => ({
+                ...param,
+                value: param.value // 使用默认值
+              })));
+            }
+          } else {
+            message.error(result.message || '加载工具配置失败');
+            // 加载失败时使用默认配置
+            setCurrentParams(tool.initParams.map(param => ({
+              ...param,
+              value: param.value
+            })));
+          }
+        } catch (error) {
+          console.error('加载工具配置失败:', error);
+          message.error('加载工具配置失败，使用默认配置');
+          // 发生错误时使用默认配置
+          setCurrentParams(tool.initParams.map(param => ({
+            ...param,
+            value: param.value
+          })));
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        // 如果没有 tool 或 mainAgentId，清空参数
+        setCurrentParams([]);
+      }
+    };
+
+    if (isOpen && tool) {
+      loadToolConfig();
     } else {
+      // 当模态框关闭时，清空参数
       setCurrentParams([]);
     }
-  }, [tool]);
+  }, [isOpen, tool, mainAgentId]);
+
+  // 检查必填字段是否已填写
+  const checkRequiredFields = () => {
+    if (!tool) return false;
+    
+    const missingRequiredFields = currentParams
+      .filter(param => param.required && (param.value === undefined || param.value === '' || param.value === null))
+      .map(param => param.name);
+
+    if (missingRequiredFields.length > 0) {
+      message.error(`以下必填字段未填写: ${missingRequiredFields.join(', ')}`);
+      return false;
+    }
+    return true;
+  };
 
   const handleParamChange = (index: number, value: any) => {
     const newParams = [...currentParams];
@@ -29,12 +99,38 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
     setCurrentParams(newParams);
   };
 
-  const handleSave = () => {
-    if (tool) {
-      onSave({
-        ...tool,
-        initParams: currentParams
-      });
+  const handleSave = async () => {
+    if (!tool || !checkRequiredFields()) return;
+
+    try {
+      // 将参数转换为后端需要的格式
+      const params = currentParams.reduce((acc, param) => {
+        acc[param.name] = param.value;
+        return acc;
+      }, {} as Record<string, any>);
+
+      // 根据工具是否在 selectedTools 中来决定 enabled 状态
+      const isEnabled = selectedTools.some(t => t.id === tool.id);
+
+      const result = await updateToolConfig(
+        parseInt(tool.id),
+        mainAgentId,
+        params,
+        isEnabled
+      );
+
+      if (result.success) {
+        message.success('工具配置保存成功');
+        onSave({
+          ...tool,
+          initParams: currentParams
+        });
+      } else {
+        message.error(result.message || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存工具配置失败:', error);
+      message.error('保存失败，请稍后重试');
     }
   };
 
@@ -147,9 +243,9 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
     <Modal
       title={
         <div className="flex justify-between items-center w-full pr-8">
-          <span>{`${tool.name}`}</span>
-          <Tag color={tool.source === 'mcp' ? 'blue' : 'green'}>
-            {tool.source === 'mcp' ? 'MCP' : '本地工具'}
+          <span>{`${tool?.name}`}</span>
+          <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'}>
+            {tool?.source === 'mcp' ? 'MCP' : '本地工具'}
           </Tag>
         </div>
       }
@@ -157,9 +253,10 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
       onCancel={onCancel}
       onOk={handleSave}
       width={600}
+      confirmLoading={isLoading}
     >
       <div className="mb-4">
-        <p className="text-sm text-gray-500 mb-4">{tool.description}</p>
+        <p className="text-sm text-gray-500 mb-4">{tool?.description}</p>
         <div className="text-sm font-medium mb-2">参数配置</div>
         <div style={{ maxHeight: '500px', overflow: 'auto' }}>
           <div className="space-y-4 pr-2">
@@ -168,9 +265,15 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool }: Tool
                 <div className="flex items-start gap-4">
                   <div className="flex-1 pt-1">
                     {param.description ? (
-                      <div className="text-sm text-gray-600">{param.description}{param.required && <span className="text-red-500 ml-1">*</span>}</div>
+                      <div className="text-sm text-gray-600">
+                        {param.description}
+                        {param.required && <span className="text-red-500 ml-1">*</span>}
+                      </div>
                     ) : (
-                      <div className="text-sm text-gray-600">{param.name}{param.required && <span className="text-red-500 ml-1">*</span>}</div>
+                      <div className="text-sm text-gray-600">
+                        {param.name}
+                        {param.required && <span className="text-red-500 ml-1">*</span>}
+                      </div>
                     )}
                   </div>
                   <div className="flex-1">

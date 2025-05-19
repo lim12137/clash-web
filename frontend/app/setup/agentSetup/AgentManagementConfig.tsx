@@ -7,6 +7,7 @@ import ToolConfigModal from './components/ToolConfigModal'
 import { mockAgents, mockTools } from './mockData'
 import { AgentModalProps, Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent } from './ConstInterface'
 import { ScrollArea } from '@/components/ui/scrollArea'
+import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig } from '@/services/agentConfigService'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -19,6 +20,76 @@ const modelOptions = [
   { label: 'Claude 3 Haiku', value: 'claude-3-haiku-20240307' },
 ];
 
+// 提取公共的 handleToolSelect 逻辑
+const handleToolSelectCommon = async (
+  tool: Tool,
+  isSelected: boolean,
+  mainAgentId: string | null | undefined,
+  onSuccess?: (tool: Tool, isSelected: boolean) => void
+) => {
+  if (!mainAgentId) {
+    message.error('主代理ID未设置，无法更新工具状态');
+    return { shouldProceed: false, params: {} };
+  }
+
+  try {
+    // step 1: get tool config from database
+    const searchResult = await searchToolConfig(parseInt(tool.id), parseInt(mainAgentId));
+    if (!searchResult.success) {
+      message.error('获取工具配置失败');
+      return { shouldProceed: false, params: {} };
+    }
+
+    let params: Record<string, any> = {};
+
+    // use config from database or default config
+    if (searchResult.data?.params) {
+      params = searchResult.data.params || {};
+    } else {
+      // if there is no saved config, use default value
+      params = (tool.initParams || []).reduce((acc, param) => {
+        if (param && param.name) {
+          acc[param.name] = param.value;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+    }
+
+    // step 2: if the tool is enabled, check required fields
+    if (isSelected && tool.initParams && tool.initParams.length > 0) {
+      const missingRequiredFields = tool.initParams
+        .filter(param => param && param.required && (params[param.name] === undefined || params[param.name] === '' || params[param.name] === null))
+        .map(param => param.name);
+
+      if (missingRequiredFields.length > 0) {
+        return { shouldProceed: false, params };
+      }
+    }
+
+    // step 3: if all checks pass, update tool config
+    const updateResult = await updateToolConfig(
+      parseInt(tool.id),
+      parseInt(mainAgentId),
+      params,
+      isSelected
+    );
+
+    if (updateResult.success) {
+      if (onSuccess) {
+        onSuccess(tool, isSelected);
+      }
+      message.success(`工具"${tool.name}"${isSelected ? '已启用' : '已禁用'}`);
+      return { shouldProceed: true, params };
+    } else {
+      message.error(updateResult.message || '更新工具状态失败');
+      return { shouldProceed: false, params };
+    }
+  } catch (error) {
+    message.error('更新工具状态失败，请稍后重试');
+    return { shouldProceed: false, params: {} };
+  }
+};
+
 /**
  * Agent Modal Component
  */
@@ -30,7 +101,8 @@ function AgentModal({
   agent, 
   selectedTools, 
   systemPrompt,
-  readOnly = false 
+  readOnly = false,
+  mainAgentId
 }: AgentModalProps) {
   const [name, setName] = useState(agent?.name || "");
   const [description, setDescription] = useState(agent?.description || "");
@@ -52,6 +124,7 @@ function AgentModal({
   });
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [currentTool, setCurrentTool] = useState<Tool | null>(null);
+  const [pendingToolSelection, setPendingToolSelection] = useState<{tool: Tool, isSelected: boolean} | null>(null);
 
   useEffect(() => {
     // 当模态框打开或agent/systemPrompt/selectedTools变化时更新状态
@@ -95,17 +168,73 @@ function AgentModal({
     onSave(agentData.name, agentData.description, agentData.model, agentData.maxStep, agentData.provideSummary, agentData.prompt);
   };
 
-  const showToolModal = (tool: Tool) => {
-    setCurrentTool(tool);
-    setIsToolModalOpen(true);
+  const handleToolSelect = async (tool: Tool, isSelected: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const { shouldProceed, params } = await handleToolSelectCommon(
+      tool,
+      isSelected,
+      mainAgentId,
+      (tool, isSelected) => {
+        setCurrentTools(prevTools => {
+          if (isSelected) {
+            return [...prevTools, tool];
+          } else {
+            return prevTools.filter(t => t.id !== tool.id);
+          }
+        });
+      }
+    );
+
+    if (!shouldProceed && params) {
+      // if there are required fields not filled, open config modal
+      setCurrentTool({
+        ...tool,
+        initParams: tool.initParams.map(param => ({
+          ...param,
+          value: params[param.name] || param.value
+        }))
+      });
+      setPendingToolSelection({ tool, isSelected });
+      setIsToolModalOpen(true);
+    }
   };
 
   const handleToolSave = (updatedTool: Tool) => {
-    const newTools = currentTools.map(t => 
-      t.id === updatedTool.id ? updatedTool : t
-    );
-    setCurrentTools(newTools);
+    // if there is pending tool selection, check required fields
+    if (pendingToolSelection) {
+      const { tool, isSelected } = pendingToolSelection;
+      const missingRequiredFields = updatedTool.initParams
+        .filter(param => param.required && (param.value === undefined || param.value === '' || param.value === null))
+        .map(param => param.name);
+
+      if (missingRequiredFields.length > 0) {
+        message.error(`以下必填字段未填写: ${missingRequiredFields.join(', ')}`);
+        return;
+      }
+
+      // all required fields are filled, continue to enable tool
+      // create a mock click event
+      const mockEvent = {
+        stopPropagation: () => {},
+        preventDefault: () => {},
+        nativeEvent: new MouseEvent('click'),
+        isDefaultPrevented: () => false,
+        isPropagationStopped: () => false,
+        persist: () => {}
+      } as React.MouseEvent;
+      
+      handleToolSelect(updatedTool, isSelected, mockEvent);
+    }
+    
     setIsToolModalOpen(false);
+    setPendingToolSelection(null);
+  };
+
+  // handle tool config button click
+  const handleConfigClick = (tool: Tool) => {
+    setCurrentTool(tool);
+    setIsToolModalOpen(true);
   };
 
   return (
@@ -221,7 +350,7 @@ function AgentModal({
                     <div 
                       key={tool.id} 
                       className="bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-xs flex items-center cursor-pointer hover:bg-blue-200"
-                      onClick={() => !readOnly && showToolModal(tool)}
+                      onClick={() => !readOnly && handleConfigClick(tool)}
                     >
                       {tool.name}
                     </div>
@@ -253,6 +382,8 @@ function AgentModal({
         onCancel={() => setIsToolModalOpen(false)}
         onSave={handleToolSave}
         tool={currentTool}
+        mainAgentId={parseInt(mainAgentId || '0')}
+        selectedTools={currentTools}
       />
     </Modal>
   );
@@ -345,19 +476,79 @@ function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent, onCreateNewA
 /**
  * Tool Pool Component
  */
-function ToolPool({ selectedTools, onSelectTool, isCreatingNewAgent, tools = [], loadingTools = false }: ToolPoolProps) {
+function ToolPool({ 
+  selectedTools, 
+  onSelectTool, 
+  isCreatingNewAgent, 
+  tools = [], 
+  loadingTools = false,
+  mainAgentId
+}: ToolPoolProps) {
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [currentTool, setCurrentTool] = useState<Tool | null>(null);
+  const [pendingToolSelection, setPendingToolSelection] = useState<{tool: Tool, isSelected: boolean} | null>(null);
 
-  const showToolModal = (tool: Tool, e: React.MouseEvent) => {
+  // 处理工具选中状态变更
+  const handleToolSelect = async (tool: Tool, isSelected: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const { shouldProceed, params } = await handleToolSelectCommon(
+      tool,
+      isSelected,
+      mainAgentId,
+      (tool, isSelected) => onSelectTool(tool, isSelected)
+    );
+
+    if (!shouldProceed && params) {
+      // 如果有必填字段未填写，打开配置模态框
+      setCurrentTool({
+        ...tool,
+        initParams: tool.initParams.map(param => ({
+          ...param,
+          value: params[param.name] || param.value
+        }))
+      });
+      setPendingToolSelection({ tool, isSelected });
+      setIsToolModalOpen(true);
+    }
+  };
+
+  // 处理工具配置按钮点击
+  const handleConfigClick = (tool: Tool, e: React.MouseEvent) => {
     e.stopPropagation();
     setCurrentTool(tool);
     setIsToolModalOpen(true);
   };
 
   const handleToolSave = (updatedTool: Tool) => {
-    // Update tool configuration in tool pool
+    // 如果有待处理的工具选择，检查必填字段
+    if (pendingToolSelection) {
+      const { tool, isSelected } = pendingToolSelection;
+      const missingRequiredFields = updatedTool.initParams
+        .filter(param => param.required && (param.value === undefined || param.value === '' || param.value === null))
+        .map(param => param.name);
+
+      if (missingRequiredFields.length > 0) {
+        message.error(`以下必填字段未填写: ${missingRequiredFields.join(', ')}`);
+        return;
+      }
+
+      // 所有必填字段都已填写，继续启用工具
+      // 创建一个模拟的点击事件
+      const mockEvent = {
+        stopPropagation: () => {},
+        preventDefault: () => {},
+        nativeEvent: new MouseEvent('click'),
+        isDefaultPrevented: () => false,
+        isPropagationStopped: () => false,
+        persist: () => {}
+      } as React.MouseEvent;
+      
+      handleToolSelect(updatedTool, isSelected, mockEvent);
+    }
+    
     setIsToolModalOpen(false);
+    setPendingToolSelection(null);
   };
 
   const displayTools = tools.length > 0 ? tools : mockTools;
@@ -376,9 +567,10 @@ function ToolPool({ selectedTools, onSelectTool, isCreatingNewAgent, tools = [],
               className={`border rounded-md p-3 flex flex-col justify-center cursor-pointer transition-colors duration-200 h-[80px] ${
                 selectedTools.some(t => t.id === tool.id) ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
               }`}
-              onClick={(e) => onSelectTool(
+              onClick={(e) => handleToolSelect(
                 tool, 
-                !selectedTools.some(t => t.id === tool.id)
+                !selectedTools.some(t => t.id === tool.id),
+                e
               )}
             >
               <div className="flex items-center h-full">
@@ -393,7 +585,7 @@ function ToolPool({ selectedTools, onSelectTool, isCreatingNewAgent, tools = [],
                 </div>
                 <button 
                   type="button"
-                  onClick={(e) => showToolModal(tool, e)}
+                  onClick={(e) => handleConfigClick(tool, e)}
                   className="ml-2 flex-shrink-0 flex items-center justify-center text-gray-500 hover:text-blue-500 bg-transparent"
                   style={{ border: "none", padding: "4px" }}
                 >
@@ -407,12 +599,17 @@ function ToolPool({ selectedTools, onSelectTool, isCreatingNewAgent, tools = [],
 
       <ToolConfigModal
         isOpen={isToolModalOpen}
-        onCancel={() => setIsToolModalOpen(false)}
+        onCancel={() => {
+          setIsToolModalOpen(false);
+          setPendingToolSelection(null);
+        }}
         onSave={handleToolSave}
         tool={currentTool}
+        mainAgentId={parseInt(mainAgentId || '0')}
+        selectedTools={selectedTools}
       />
     </div>
-  )
+  );
 }
 
 /**
@@ -438,7 +635,9 @@ export default function BusinessLogicConfig({
   tools,
   loadingTools,
   subAgentList = [],
-  loadingAgents = false
+  loadingAgents = false,
+  mainAgentId,
+  setMainAgentId
 }: BusinessLogicConfigProps) {
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
@@ -537,13 +736,24 @@ export default function BusinessLogicConfig({
   };
 
   // Reset state when user cancels agent creation
-  const handleCancelCreating = () => {
-    setIsCreatingNewAgent(false);
-    setBusinessLogic('');
-    setSelectedTools([]);
-    setMainAgentModel('gpt-4-turbo');
-    setMainAgentMaxStep(10);
-    setMainAgentPrompt('');
+  const handleCancelCreating = async () => {
+    try {
+      const result = await fetchAgentList();
+      if (result.success) {
+        setMainAgentId(result.data.mainAgentId);
+        setIsCreatingNewAgent(false);
+        setBusinessLogic('');
+        setSelectedTools([]);
+        setMainAgentModel('gpt-4-turbo');
+        setMainAgentMaxStep(10);
+        setMainAgentPrompt('');
+      } else {
+        message.error(result.message || '重置Agent状态失败');
+      }
+    } catch (error) {
+      console.error('重置Agent状态失败:', error);
+      message.error('重置Agent状态失败，请稍后重试');
+    }
   };
 
   // Processing mode box closed
@@ -564,6 +774,22 @@ export default function BusinessLogicConfig({
     return "";
   };
 
+  // 处理创建新Agent
+  const handleCreateNewAgent = async () => {
+    try {
+      const result = await getCreatingSubAgentId(mainAgentId);
+      if (result.success && result.data) {
+        setMainAgentId(result.data);
+        setIsCreatingNewAgent(true);
+      } else {
+        message.error(result.message || '获取新Agent ID失败');
+      }
+    } catch (error) {
+      console.error('创建新Agent失败:', error);
+      message.error('创建新Agent失败，请稍后重试');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full gap-0 justify-between">
       {/* Upper part: Agent pool + Tool pool */}
@@ -579,7 +805,7 @@ export default function BusinessLogicConfig({
               }
             }}
             onEditAgent={handleEditAgent}
-            onCreateNewAgent={() => setIsCreatingNewAgent(true)}
+            onCreateNewAgent={handleCreateNewAgent}
             subAgentList={subAgentList}
             loadingAgents={loadingAgents}
           />
@@ -597,6 +823,7 @@ export default function BusinessLogicConfig({
             isCreatingNewAgent={isCreatingNewAgent}
             tools={tools}
             loadingTools={loadingTools}
+            mainAgentId={mainAgentId}
           />
         </div>
       </div>
@@ -668,6 +895,7 @@ export default function BusinessLogicConfig({
         title="保存到Agent池"
         selectedTools={selectedTools}
         systemPrompt={systemPrompt}
+        mainAgentId={mainAgentId}
       />
 
       {/* Edit Agent pop-up window */}
@@ -679,6 +907,7 @@ export default function BusinessLogicConfig({
         agent={currentAgent}
         selectedTools={selectedTools}
         readOnly={false}
+        mainAgentId={mainAgentId}
       />
     </div>
   )
