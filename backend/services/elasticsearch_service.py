@@ -733,3 +733,40 @@ class ElasticSearchService:
                 status_code=500,
                 detail=f"Error retrieving documents from index {index_name}: {str(e)}"
             )
+
+    def change_summary(self,
+            index_name: str = Path(..., description="Name of the index to get documents from"),
+            summary_result: Optional[str] = Body(description="knowledge base summary"),
+            es_core: ElasticSearchCore = Depends(get_es_core),
+            user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base")
+    ):
+        """Summary Elasticsearch index_name by user"""
+        try:
+            knowledge_record = get_knowledge_by_name(index_name)
+            if knowledge_record:
+                update_data = {
+                    "knowledge_describe": summary_result,  # Set status to unavailable
+                    "updated_by": user_id,
+                }
+                update_knowledge_record(knowledge_record["knowledge_id"], update_data)
+
+            return {"status": "success", "message": f"Index {index_name} summary successfully", "summary": summary_result}
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{str(e)}")
+
+    def get_summary(self,
+            index_name: str = Path(..., description="Name of the index to get documents from"),
+    ):
+        """Get Elasticsearch index_name Summary"""
+        try:
+            knowledge_record = get_knowledge_by_name(index_name)
+            if knowledge_record:
+                summary_result = knowledge_record["knowledge_describe"]
+                return {"status": "success", "message": f"Index {index_name} summary successfully", "summary": summary_result}
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get index {index_name} summary"
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{str(e)}")
