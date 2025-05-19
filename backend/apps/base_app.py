@@ -10,7 +10,7 @@ from .conversation_management_app import router as conversation_management_route
 from .elasticsearch_app import router as elasticsearch_router
 from .me_model_managment_app import router as me_model_manager_router
 from .model_managment_app import router as model_manager_router
-from .proxy_app import router as proxy_router
+from .image_app import router as proxy_router
 from .file_management_app import router as file_manager_router
 from .voice_app import router as voice_router
 from .tool_config_app import router as tool_config_router

@@ -1,6 +1,8 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import HTTPException, APIRouter, Form
+import base64
+import io
 
 from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTaskRequest, SimpleTaskStatusResponse, \
     SimpleTasksListResponse
@@ -67,14 +69,51 @@ async def create_batch_tasks(request: BatchTaskRequest):
     return BatchTaskResponse(task_ids=task_ids)
 
 
+@router.get("/load_image")
+async def load_image(url: str):
+    """
+    Load an image from URL and return it as base64 encoded data
+    
+    Parameters:
+        url: Image URL to load
+    
+    Returns:
+        JSON object containing base64 encoded image data and content type
+    """
+    try:
+        # Use the service to load the image
+        image = await service.load_image(url)
+        
+        if image is None:
+            raise HTTPException(status_code=404, detail="Failed to load image or image format not supported")
+        
+        # Convert PIL image to base64
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format=image.format or 'JPEG')
+        img_byte_arr.seek(0)
+        
+        # Convert to base64
+        image_data = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
+        
+        # Determine correct content_type
+        content_type = f"image/{image.format.lower() if image.format else 'jpeg'}"
+        
+        return {"success": True, "base64": image_data, "content_type": content_type}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error loading image: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error loading image: {str(e)}")
+
+
 @router.get("/{task_id}", response_model=SimpleTaskStatusResponse)
 async def get_task(task_id: str):
     """Get basic status information for a specific task"""
     task = service.get_task(task_id)
 
     if not task:
-        raise HTTPException(
-            status_code=404, detail=f"Task with ID {task_id} not found")
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
 
     # Get status and convert to lowercase - using utility function
     status = format_status_for_api(task["status"])
