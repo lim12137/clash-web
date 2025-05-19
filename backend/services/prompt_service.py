@@ -52,99 +52,91 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str) -> str:
 
 def generate_system_prompt_impl(prompt_info: GeneratePromptRequest):
     logger.info(f"Starting prompt generation for agent_id: {prompt_info.agent_id}")
-    logger.info(f"Task description: {prompt_info.task_description}")
+    _, tenant_id = get_user_info()
+    with open('backend/prompts/utils/prompt_generate.yaml', "r", encoding="utf-8") as f:
+        prompt_for_generate = yaml.safe_load(f)
 
-    try:
-        with open('backend/prompts/utils/prompt_generate.yaml', "r", encoding="utf-8") as f:
-            prompt_for_generate = yaml.safe_load(f)
+    # Get description of tool and agent
+    tool_info_list, sub_agent_info_list = get_tool_and_agent_description(tenant_id, prompt_info)
+    tool_description = "\n".join([str(tool) for tool in tool_info_list])
+    agent_description = "\n".join([str(sub_agent_info) for sub_agent_info in sub_agent_info_list])
 
-        _, tenant_id = get_user_info()
-        logger.info(f"Processing for tenant_id: {tenant_id}")
+    # Generate content using template
+    compiled_template = Template(prompt_for_generate["USER_PROMPT"], undefined=StrictUndefined)
+    content = compiled_template.render({
+        "tool_description": tool_description,
+        "agent_description": agent_description,
+        "task_description": prompt_info.task_description
+    })
 
-        # Get tool information
-        logger.info("Fetching tool instances")
-        tool_list = query_tool_instances(tenant_id=tenant_id, agent_id=prompt_info.agent_id)
-        logger.info(f"Found {len(tool_list)} tool instances")
+    # Generate prompts using thread pool
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        duty_future = executor.submit(call_llm_for_system_prompt, content, prompt_for_generate["DUTY_SYSTEM_PROMPT"])
+        constraint_future = executor.submit(call_llm_for_system_prompt, content, prompt_for_generate["CONSTRAINT_SYSTEM_PROMPT"])
+        few_shots_future = executor.submit(call_llm_for_system_prompt, content, prompt_for_generate["FEW_SHOTS_SYSTEM_PROMPT"])
+        duty_prompt = duty_future.result()
+        constraint_prompt = constraint_future.result()
+        few_shots_prompt = few_shots_future.result()
 
-        tool_id_list = [tool.get("tool_id") for tool in tool_list]
-        tool_info_list = get_tool_detail_information(tool_id_list)
-        tool_description = "\n".join([str(tool) for tool in tool_info_list])
+    # Fill the system prompt
+    logger.info("Filling agent prompt template")
+    agent_prompt = fill_agent_prompt(
+        duty=duty_prompt,
+        constraint=constraint_prompt,
+        few_shots=few_shots_prompt,
+        is_manager_agent=len(sub_agent_info_list) > 0
+    )
+    need_filled_system_prompt = agent_prompt["system_prompt"]
 
-        # Get agent information
-        logger.info("Fetching sub-agents information")
-        agent_id = prompt_info.agent_id
-        sub_agent_raw_info_list = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id)
-        logger.info(f"Found {len(sub_agent_raw_info_list)} sub-agents")
+    # Populate template with variables
+    logger.info("Populating template with variables")
+    system_prompt = populate_template(
+        need_filled_system_prompt,
+        variables={
+            "tools": {tool.name: tool for tool in tool_info_list},
+            "managed_agents": {sub_agent.name: sub_agent for sub_agent in sub_agent_info_list},
+            "authorized_imports": str(BASE_BUILTIN_MODULES),
+        },
+    )
 
-        sub_agent_info_list = []
-        for sub_agent_raw_info in sub_agent_raw_info_list:
-            agent_detail_information = AgentDetailInformation()
-            agent_detail_information.name = sub_agent_raw_info.get("name")
-            agent_detail_information.description = sub_agent_raw_info.get("description")
-            sub_agent_info_list.append(agent_detail_information)
-        agent_description = "\n".join([str(sub_agent_info) for sub_agent_info in sub_agent_info_list])
+    # Save the prompt
+    logger.info("Saving generated prompt to database")
+    save_agent_prompt(
+        agent_id=prompt_info.agent_id,
+        prompt=system_prompt,
+        tenant_id=tenant_id
+    )
 
-        # Generate content using template
-        logger.info("Generating content using template")
-        compiled_template = Template(prompt_for_generate["USER_PROMPT"], undefined=StrictUndefined)
-        content = compiled_template.render({
-            "tool_description": tool_description,
-            "agent_description": agent_description,
-            "task_description": prompt_info.task_description
-        })
+    logger.info("Prompt generation completed successfully")
+    return system_prompt
 
-        # Generate prompts using thread pool
-        logger.info("Starting parallel prompt generation using thread pool")
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            duty_future = executor.submit(call_llm_for_system_prompt, content, prompt_for_generate["DUTY_SYSTEM_PROMPT"])
-            constraint_future = executor.submit(call_llm_for_system_prompt, content, prompt_for_generate["CONSTRAINT_SYSTEM_PROMPT"])
-            few_shots_future = executor.submit(call_llm_for_system_prompt, content, prompt_for_generate["FEW_SHOTS_SYSTEM_PROMPT"])
 
-            logger.info("Waiting for all prompt generation tasks to complete")
-            duty_prompt = duty_future.result()
-            constraint_prompt = constraint_future.result()
-            few_shots_prompt = few_shots_future.result()
+def get_tool_and_agent_description(tenant_id, prompt_info):
 
-        # Fill the system prompt
-        logger.info("Filling agent prompt template")
-        agent_prompt = fill_agent_prompt(
-            duty=duty_prompt,
-            constraint=constraint_prompt,
-            few_shots=few_shots_prompt,
-            is_manager_agent=len(sub_agent_raw_info_list) > 0
-        )
-        need_filled_system_prompt = agent_prompt["system_prompt"]
+    logger.info(f"Processing for tenant_id: {tenant_id}")
 
-        # Populate template with variables
-        logger.info("Populating template with variables")
-        system_prompt = populate_template(
-            need_filled_system_prompt,
-            variables={
-                "tools": {tool.name: tool for tool in tool_info_list},
-                "managed_agents": {sub_agent.name: sub_agent for sub_agent in sub_agent_info_list},
-                "authorized_imports": str(BASE_BUILTIN_MODULES),
-            },
-        )
+    # Get tool information
+    logger.info("Fetching tool instances")
+    tool_list = query_tool_instances(tenant_id=tenant_id, agent_id=prompt_info.agent_id)
+    logger.info(f"Found {len(tool_list)} tool instances")
 
-        # Save the prompt
-        logger.info("Saving generated prompt to database")
-        try:
-            save_agent_prompt(
-                agent_id=prompt_info.agent_id,
-                prompt=system_prompt,
-                tenant_id=tenant_id
-            )
-            logger.info("Successfully saved prompt to database")
-        except Exception as e:
-            logger.error(f"Failed to save prompt to database: {str(e)}")
-            raise e
+    tool_id_list = [tool.get("tool_id") for tool in tool_list]
+    tool_info_list = get_tool_detail_information(tool_id_list)
 
-        logger.info("Prompt generation completed successfully")
-        return system_prompt
+    # Get agent information
+    logger.info("Fetching sub-agents information")
+    agent_id = prompt_info.agent_id
+    sub_agent_raw_info_list = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id)
+    logger.info(f"Found {len(sub_agent_raw_info_list)} sub-agents")
 
-    except Exception as e:
-        logger.error(f"Error in prompt generation process: {str(e)}")
-        raise e
+    sub_agent_info_list = []
+    for sub_agent_raw_info in sub_agent_raw_info_list:
+        agent_detail_information = AgentDetailInformation()
+        agent_detail_information.name = sub_agent_raw_info.get("name")
+        agent_detail_information.description = sub_agent_raw_info.get("description")
+        sub_agent_info_list.append(agent_detail_information)
+
+    return tool_info_list, sub_agent_info_list
 
 
 def fine_tune_prompt(req: FineTunePromptRequest):
