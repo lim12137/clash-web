@@ -24,7 +24,7 @@ export interface SystemPromptDisplayProps {
 }
 
 /**
- * 系统提示词展示组件
+ * System Prompt Display Component
  */
 export default function SystemPromptDisplay({ 
   prompt, 
@@ -43,9 +43,9 @@ export default function SystemPromptDisplay({
   const [isTuning, setIsTuning] = useState(false)
   const [isEditingTuned, setIsEditingTuned] = useState(false)
   const [localIsGenerating, setLocalIsGenerating] = useState(false)
-  const originalPromptRef = useRef(prompt) // 用于记录编辑前的提示词
+  const originalPromptRef = useRef(prompt)
 
-  // 使用API调用生成系统提示词
+  // Use API to generate system prompt
   const handleGenerateWithApi = async () => {
     if (!taskDescription || taskDescription.trim() === '') {
       message.warning("请先输入业务描述");
@@ -96,13 +96,13 @@ export default function SystemPromptDisplay({
     }
   };
   
-  // 处理生成按钮点击
+  // Handle generate button click
   const handleGenerate = async () => {
-    // 只使用API调用方式
+    // Only use API call method
     await handleGenerateWithApi();
   };
 
-  // 处理微调请求
+  // Handle fine-tuning request
   const handleSendAdditionalRequest = async (request: string) => {
     if (!prompt) {
       message.warning("请先生成系统提示词");
@@ -117,7 +117,7 @@ export default function SystemPromptDisplay({
     setIsTuning(true);
     
     try {
-      // 使用API进行微调
+      // Use API for fine-tuning
       const response = await fetch('/api/prompt/fine_tune', {
         method: 'POST',
         headers: {
@@ -156,7 +156,7 @@ export default function SystemPromptDisplay({
         message.warning("无法保存提示词：未指定Agent ID");
         return;
       }
-      // 调用保存接口
+      // Call save interface
       await savePrompt({
         agent_id: agentId,
         prompt: tunedPrompt
@@ -171,23 +171,23 @@ export default function SystemPromptDisplay({
     }
   };
 
-  // 处理提示词编辑完成
+  // Handle prompt edit complete
   const handlePromptEditComplete = async (newPrompt: string) => {
     setIsEditMode(false);
-    // 检查提示词是否有变化
+    // Check if the prompt has changed
     if (newPrompt !== originalPromptRef.current) {
       try {
         if (!agentId) {
           message.warning("无法保存提示词：未指定Agent ID");
           return;
         }
-        // 调用保存接口
+        // Call save interface
         await savePrompt({
           agent_id: agentId,
           prompt: newPrompt
         });
         message.success("提示词已自动保存");
-        originalPromptRef.current = newPrompt; // 更新原始提示词引用
+        originalPromptRef.current = newPrompt; // Update the original prompt reference
       } catch (error) {
         console.error("保存提示词失败:", error);
         message.error("保存提示词失败，请重试");
@@ -195,9 +195,9 @@ export default function SystemPromptDisplay({
     }
   };
 
-  // 处理开始编辑
+  // Handle start editing
   const handleStartEditing = () => {
-    originalPromptRef.current = prompt; // 记录开始编辑时的提示词
+    originalPromptRef.current = prompt; // Record the prompt when editing starts
     setIsEditMode(true);
   };
 
