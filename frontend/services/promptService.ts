@@ -1,7 +1,7 @@
 import { API_ENDPOINTS } from './api';
 
 /**
- * 提示词生成请求参数
+ * Prompt Generation Request Parameters
  */
 export interface GeneratePromptParams {
   agent_id: number;
@@ -9,7 +9,7 @@ export interface GeneratePromptParams {
 }
 
 /**
- * 提示词微调请求参数
+ * Fine-tuning Prompt Request Parameters
  */
 export interface FineTunePromptParams {
   system_prompt: string;
@@ -17,7 +17,15 @@ export interface FineTunePromptParams {
 }
 
 /**
- * 获取请求头
+ * Save Prompt Request Parameters
+ */
+export interface SavePromptParams {
+  agent_id: number;
+  prompt: string;
+}
+
+/**
+ * Get Request Headers
  */
 const getHeaders = () => {
   return {
@@ -27,13 +35,14 @@ const getHeaders = () => {
 };
 
 /**
- * 生成系统提示词
- * @param params 请求参数
- * @returns 生成的提示词
+ * Generate System Prompt
+ * @param params
+ * @param savePrompt
+ * @returns
  */
-export const generatePrompt = async (params: GeneratePromptParams): Promise<string> => {
+export const generatePrompt = async (params: GeneratePromptParams, savePrompt: boolean = false): Promise<string> => {
   try {
-    const response = await fetch(API_ENDPOINTS.prompt.generate, {
+    const response = await fetch(`${API_ENDPOINTS.prompt.generate}?save_prompt=${savePrompt}`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(params),
@@ -53,9 +62,9 @@ export const generatePrompt = async (params: GeneratePromptParams): Promise<stri
 };
 
 /**
- * 微调系统提示词
- * @param params 请求参数
- * @returns 微调后的提示词
+ * Fine-tuning System Prompt
+ * @param params
+ * @returns
  */
 export const fineTunePrompt = async (params: FineTunePromptParams): Promise<string> => {
   try {
@@ -74,6 +83,32 @@ export const fineTunePrompt = async (params: FineTunePromptParams): Promise<stri
     return data.data || '';
   } catch (error) {
     console.error('微调提示词失败:', error);
+    throw error;
+  }
+};
+
+/**
+ * Save System Prompt
+ * @param params
+ * @returns
+ */
+export const savePrompt = async (params: SavePromptParams): Promise<any> => {
+  try {
+    const response = await fetch(API_ENDPOINTS.prompt.save, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || '保存提示词失败');
+    }
+
+    const data = await response.json();
+    return data.data || null;
+  } catch (error) {
+    console.error('保存提示词失败:', error);
     throw error;
   }
 }; 

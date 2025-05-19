@@ -274,6 +274,7 @@ class AgentDetailInformation:
 
 
 class FineTunePromptRequest(BaseModel):
+    agent_id: int
     system_prompt: str
     command: str
 
@@ -314,3 +315,8 @@ class ToolInfo(BaseModel):
     source: str
     inputs: str
     output_type: str
+
+
+class SavePromptRequest(BaseModel):
+    agent_id: int
+    prompt: str
