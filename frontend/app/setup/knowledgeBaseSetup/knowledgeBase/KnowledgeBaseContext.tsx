@@ -88,6 +88,8 @@ export const KnowledgeBaseContext = createContext<{
   setActiveKnowledgeBase: (kb: KnowledgeBase) => void;
   isKnowledgeBaseSelectable: (kb: KnowledgeBase) => boolean;
   refreshKnowledgeBaseData: (forceRefresh?: boolean) => Promise<void>;
+  summaryIndex: (indexName: string, batchSize: number) => Promise<string>;
+  changeSummary: (indexName: string, summary: string) => Promise<string>;
 }>({
   state: {
     knowledgeBases: [],
@@ -104,7 +106,9 @@ export const KnowledgeBaseContext = createContext<{
   selectKnowledgeBase: () => {},
   setActiveKnowledgeBase: () => {},
   isKnowledgeBaseSelectable: () => false,
-  refreshKnowledgeBaseData: async () => {}
+  refreshKnowledgeBaseData: async () => {},
+  summaryIndex: async () => '',
+  changeSummary: async () => '',
 });
 
 // Custom hook for using the context
@@ -291,12 +295,34 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     }
   }, [state.knowledgeBases, state.selectedIds, state.activeKnowledgeBase]);
 
-  // Add function to refresh knowledge base data
+  // Summarize the content of the knowledge base
+  const summaryIndex = useCallback(async (indexName: string, batchSize: number = 1000) => {
+    try {
+      const result = await knowledgeBaseService.summaryIndex(indexName, batchSize);
+      return result;
+    } catch (error) {
+      dispatch({ type: 'ERROR', payload: error as Error });
+      throw error;
+    }
+  }, []);
+
+  // Modify the summary of the knowledge base
+  const changekKnowledgeSummary = useCallback(async (indexName: string, summary: string) => {
+    try {
+      const result = await knowledgeBaseService.changeSummary(indexName, summary);
+      return result;
+    } catch (error) {
+      dispatch({ type: 'ERROR', payload: error as Error });
+      throw error;
+    }
+  }, []);
+
+  // Add a function to refresh the knowledge base data
   const refreshKnowledgeBaseData = useCallback(async (forceRefresh = false) => {
     try {
       // Get latest knowledge base data directly from server
       await fetchKnowledgeBases(false, true);
-      
+
       // If there is an active knowledge base, also refresh its document information
       if (state.activeKnowledgeBase) {
         // Publish document update event to notify document list component to refresh document data
@@ -322,7 +348,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
   useEffect(() => {
     // Use ref to track if data has been loaded to avoid duplicate loading
     let initialDataLoaded = false;
-    
+
     // Get current model config at initial load
     const loadInitialData = async () => {
       const modelConfig = configStore.getModelConfig();
@@ -394,7 +420,8 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     selectKnowledgeBase,
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
-    refreshKnowledgeBaseData
+    refreshKnowledgeBaseData,
+    summaryIndex
   }), [
     state,
     fetchKnowledgeBases,
@@ -403,7 +430,8 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     selectKnowledgeBase,
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
-    refreshKnowledgeBaseData
+    refreshKnowledgeBaseData,
+    summaryIndex
   ]);
   
   return (
