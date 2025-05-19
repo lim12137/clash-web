@@ -339,6 +339,83 @@ class KnowledgeBaseService {
       throw error;
     }
   }
+
+  // Summary index content
+  async summaryIndex(indexName: string, batchSize: number = 1000): Promise<string> {
+    try {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.summary(indexName) + `?batch_size=${batchSize}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.summary;
+    } catch (error) {
+      console.error('Error summarizing index:', error);
+      throw error;
+    }
+  }
+
+  // Change knowledge base summary
+  async changeSummary(indexName: string, summaryResult: string): Promise<void> {
+    try {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.changeSummary(indexName), {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          summary_result: summaryResult
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || data.message || `HTTP error! status: ${response.status}`);
+      }
+
+      if (data.status !== "success") {
+        throw new Error(data.message || "Failed to change summary");
+      }
+    } catch (error) {
+      console.error('Error changing summary:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to change summary');
+    }
+  }
+
+  // Get knowledge base summary
+  async getSummary(indexName: string): Promise<string> {
+    try {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.getSummary(indexName), {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || data.message || `HTTP error! status: ${response.status}`);
+      }
+
+      if (data.status !== "success") {
+        throw new Error(data.message || "Failed to get summary");
+      }
+      return data.summary;
+
+    } catch (error) {
+      console.error('Error geting summary:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to get summary');
+    }
+  }
 }
 
 // Export a singleton instance
