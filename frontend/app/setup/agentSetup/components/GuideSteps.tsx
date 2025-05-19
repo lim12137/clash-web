@@ -60,6 +60,9 @@ interface GuideStepsProps {
   businessLogic: string;
   selectedTools: any[];
   selectedAgents: any[];
+  mainAgentId: number | null;
+  subAgentList: any[];
+  loadingAgents: boolean;
 }
 
 export default function GuideSteps({

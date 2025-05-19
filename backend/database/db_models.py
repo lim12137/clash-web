@@ -172,6 +172,7 @@ class AgentInfo(Base):
     parent_agent_id = Column(Integer, doc="Parent Agent ID")
     tenant_id = Column(String(100), doc="Belonging tenant")
     enabled = Column(Boolean, doc="Enabled")
+    provide_run_summary = Column(Boolean, doc="Whether to provide the running summary to the manager agent")
 
 class UserAgent(Base):
     """

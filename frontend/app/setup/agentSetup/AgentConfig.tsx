@@ -7,7 +7,7 @@ import { generateSystemPrompt } from './components/utils'
 import DebugConfig from './DebugConfig'
 import GuideSteps from './components/GuideSteps'
 import { Typography, Row, Col, Drawer, message } from 'antd'
-import { fetchTools } from '@/services/agentConfigService'
+import { fetchTools, fetchAgentList } from '@/services/agentConfigService'
 const { Title } = Typography
 
 // Layout Height Constant Configuration
@@ -37,6 +37,9 @@ export default function AgentConfig() {
   const [mainAgentPrompt, setMainAgentPrompt] = useState("")
   const [tools, setTools] = useState<any[]>([])
   const [loadingTools, setLoadingTools] = useState(false)
+  const [mainAgentId, setMainAgentId] = useState<number | null>(null)
+  const [subAgentList, setSubAgentList] = useState<any[]>([])
+  const [loadingAgents, setLoadingAgents] = useState(false)
 
   // 进入页面时加载工具列表
   useEffect(() => {
@@ -58,6 +61,29 @@ export default function AgentConfig() {
     }
     
     loadTools()
+  }, [])
+
+  // 进入页面时加载 agent 列表
+  useEffect(() => {
+    const loadAgents = async () => {
+      setLoadingAgents(true)
+      try {
+        const result = await fetchAgentList()
+        if (result.success) {
+          setMainAgentId(result.data.mainAgentId)
+          setSubAgentList(result.data.subAgentList)
+        } else {
+          message.error(result.message)
+        }
+      } catch (error) {
+        console.error('加载 agent 列表失败:', error)
+        message.error('获取 agent 列表失败，请刷新页面重试')
+      } finally {
+        setLoadingAgents(false)
+      }
+    }
+    
+    loadAgents()
   }, [])
 
   // Monitor the status change of creating a new agent, and reset the relevant status
@@ -112,6 +138,9 @@ export default function AgentConfig() {
                   businessLogic={businessLogic}
                   selectedTools={selectedTools}
                   selectedAgents={selectedAgents}
+                  mainAgentId={mainAgentId}
+                  subAgentList={subAgentList}
+                  loadingAgents={loadingAgents}
                 />
               </div>
             </div>
@@ -144,6 +173,8 @@ export default function AgentConfig() {
                   setMainAgentPrompt={setMainAgentPrompt}
                   tools={tools}
                   loadingTools={loadingTools}
+                  subAgentList={subAgentList}
+                  loadingAgents={loadingAgents}
                 />
               </div>
             </div>

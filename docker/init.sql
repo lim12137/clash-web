@@ -258,6 +258,7 @@ CREATE TABLE IF NOT EXISTS nexent.ag_tenant_agent_t (
     parent_agent_id INTEGER,
     tenant_id VARCHAR(100),
     enabled BOOLEAN DEFAULT FALSE,
+    provide_run_summary BOOLEAN DEFAULT FALSE,
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
@@ -292,6 +293,7 @@ COMMENT ON COLUMN nexent.ag_tenant_agent_t.prompt IS 'System prompt';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.parent_agent_id IS 'Parent Agent ID';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.tenant_id IS 'Belonging tenant';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.enabled IS 'Enable flag';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.provide_run_summary IS 'Whether to provide the running summary to the manager agent';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.create_time IS 'Creation time';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.update_time IS 'Update time';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.created_by IS 'Creator';
@@ -306,6 +308,7 @@ CREATE TABLE IF NOT EXISTS nexent.ag_user_agent_t (
     tenant_id VARCHAR(100),
     user_id VARCHAR(100),
     enabled BOOLEAN DEFAULT FALSE,
+    provide_run_summary BOOLEAN DEFAULT FALSE,
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
@@ -323,6 +326,7 @@ COMMENT ON COLUMN nexent.ag_user_agent_t.prompt IS 'System prompt';
 COMMENT ON COLUMN nexent.ag_user_agent_t.tenant_id IS 'Belonging tenant';
 COMMENT ON COLUMN nexent.ag_user_agent_t.user_id IS 'User ID';
 COMMENT ON COLUMN nexent.ag_user_agent_t.enabled IS 'Enable flag';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.provide_run_summary IS 'Whether to provide the running summary to the manager agent';
 COMMENT ON COLUMN nexent.ag_user_agent_t.create_time IS 'Creation time';
 COMMENT ON COLUMN nexent.ag_user_agent_t.update_time IS 'Update time';
 COMMENT ON COLUMN nexent.ag_user_agent_t.delete_flag IS 'Whether it is deleted. Optional values: Y/N';
