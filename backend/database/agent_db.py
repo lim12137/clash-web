@@ -300,3 +300,30 @@ def update_tool_table_from_scan_tool_list():
                 session.add(new_tool)
         
         session.flush()
+
+
+def save_agent_prompt(agent_id: int, prompt: str, tenant_id: str = None, user_id: str = None):
+    """
+    Save or update the prompt for an agent in the database.
+    :param agent_id: ID of the agent to update
+    :param prompt: The prompt to save
+    :param tenant_id: Optional tenant ID
+    :param user_id: Optional user ID
+    :return: Updated agent object
+    """
+    with get_db_session() as session:
+        agent = session.query(AgentInfo).filter(
+            AgentInfo.agent_id == agent_id,
+            AgentInfo.delete_flag != 'Y'
+        )
+        if tenant_id:
+            agent = agent.filter(AgentInfo.tenant_id == tenant_id)
+        agent = agent.first()
+        
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+            
+        agent.prompt = prompt
+        agent.updated_by = user_id
+        session.flush()
+        return as_dict(agent)

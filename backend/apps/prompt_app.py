@@ -1,7 +1,8 @@
 from fastapi import HTTPException, APIRouter, Header
-from services.prompt_service import generate_system_prompt_impl, fine_tune_prompt
+from services.prompt_service import generate_system_prompt_impl, fine_tune_prompt, save_prompt_impl
 import logging
-from consts.model import GeneratePromptRequest, FineTunePromptRequest
+from consts.model import GeneratePromptRequest, FineTunePromptRequest, SavePromptRequest
+from typing import Optional
 
 router = APIRouter(prefix="/prompt")
 
@@ -27,3 +28,13 @@ async def fine_tune_system_prompt_service(request: FineTunePromptRequest):
     except Exception as e:
         logger.error(f"Error occurred while fine tuning system prompt: {e}")
         raise HTTPException(status_code=500, detail=f"Error occurred while fine tuning system prompt: {str(e)}")
+
+
+@router.post("/save")
+async def save_prompt_service(request: SavePromptRequest):
+    try:
+        result = save_prompt_impl(request.agent_id, request.prompt)
+        return {"success": True, "data": result}
+    except Exception as e:
+        logger.error(f"Error occurred while saving prompt: {e}")
+        raise HTTPException(status_code=500, detail=f"Error occurred while saving prompt: {str(e)}")
