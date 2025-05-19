@@ -9,7 +9,8 @@ from nexent.core.utils import MessageObserver
 from nexent.core.tools import *
 
 from utils.config_utils import config_manager
-from services.prompt_service import load_prompt_templates
+from utils.prompt_utils import load_prompt_templates
+
 
 class AgentCreateFactory:
     def __init__(self, mcp_tool_collection, observer:MessageObserver):
