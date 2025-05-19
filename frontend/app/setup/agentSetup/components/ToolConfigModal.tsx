@@ -18,7 +18,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
   const [currentParams, setCurrentParams] = useState<ToolParam[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 加载工具配置
+  // load tool config
   useEffect(() => {
     const loadToolConfig = async () => {
       if (tool && mainAgentId) {
@@ -27,10 +27,10 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
           const result = await searchToolConfig(parseInt(tool.id), mainAgentId);
           if (result.success) {
             if (result.data?.params) {
-              // 使用后端返回的配置内容
+              // use backend returned config content
               const savedParams = tool.initParams.map(param => {
-                // 如果后端返回的配置中有该参数的值，使用后端返回的值
-                // 否则使用参数的默认值
+                // if backend returned config has this param value, use backend returned value
+                // otherwise use param default value
                 const savedValue = result.data.params[param.name];
                 return {
                   ...param,
@@ -39,15 +39,15 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
               });
               setCurrentParams(savedParams);
             } else {
-              // 如果后端返回 params 为 null，说明没有保存的配置，使用默认配置
+              // if backend returned params is null, means no saved config, use default config
               setCurrentParams(tool.initParams.map(param => ({
                 ...param,
-                value: param.value // 使用默认值
+                value: param.value // use default value
               })));
             }
           } else {
             message.error(result.message || '加载工具配置失败');
-            // 加载失败时使用默认配置
+            // when load failed, use default config
             setCurrentParams(tool.initParams.map(param => ({
               ...param,
               value: param.value
@@ -56,7 +56,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
         } catch (error) {
           console.error('加载工具配置失败:', error);
           message.error('加载工具配置失败，使用默认配置');
-          // 发生错误时使用默认配置
+          // when error occurs, use default config
           setCurrentParams(tool.initParams.map(param => ({
             ...param,
             value: param.value
@@ -65,7 +65,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
           setIsLoading(false);
         }
       } else {
-        // 如果没有 tool 或 mainAgentId，清空参数
+        // if there is no tool or mainAgentId, clear params
         setCurrentParams([]);
       }
     };
@@ -73,12 +73,12 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
     if (isOpen && tool) {
       loadToolConfig();
     } else {
-      // 当模态框关闭时，清空参数
+      // when modal is closed, clear params
       setCurrentParams([]);
     }
   }, [isOpen, tool, mainAgentId]);
 
-  // 检查必填字段是否已填写
+  // check required fields
   const checkRequiredFields = () => {
     if (!tool) return false;
     
@@ -103,13 +103,13 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
     if (!tool || !checkRequiredFields()) return;
 
     try {
-      // 将参数转换为后端需要的格式
+      // convert params to backend format
       const params = currentParams.reduce((acc, param) => {
         acc[param.name] = param.value;
         return acc;
       }, {} as Record<string, any>);
 
-      // 根据工具是否在 selectedTools 中来决定 enabled 状态
+      // decide enabled status based on whether the tool is in selectedTools
       const isEnabled = selectedTools.some(t => t.id === tool.id);
 
       const result = await updateToolConfig(
@@ -134,7 +134,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
     }
   };
 
-  // Determine the number of text box rows based on the string length, up to 5 rows
+  // determine textbox rows based on string length, max 5 rows
   const getTextAreaRows = (value: string): number => {
     if (!value) return 1;
     const length = value.length;
@@ -162,7 +162,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
         );
       case 'string':
         const stringValue = param.value as string;
-        // If the string length exceeds 15, use TextArea
+        // if string length is greater than 15, use TextArea
         if (stringValue && stringValue.length > 15) {
           return (
             <Input.TextArea
