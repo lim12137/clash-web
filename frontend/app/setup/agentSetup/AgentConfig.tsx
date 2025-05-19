@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import BusinessLogicConfig from './AgentManagementConfig'
 import SystemPromptConfig from './SystemPromptConfig'
-import { generateSystemPrompt } from './components/utils'
 import DebugConfig from './DebugConfig'
 import GuideSteps from './components/GuideSteps'
 import { Typography, Row, Col, Drawer, message } from 'antd'
@@ -106,15 +105,12 @@ export default function AgentConfig() {
 
   // Processing system prompt word generation
   const handleGeneratePrompt = async () => {
+    // 此函数仅用于开始和结束提示词生成的状态控制
+    // 所有API调用已移至SystemPromptDisplay组件中
     setIsGenerating(true);
-    try {
-      const generated = await generateSystemPrompt(businessLogic, selectedAgents, selectedTools);
-      setSystemPrompt(generated);
-    } catch (err) {
-      console.error("生成系统提示词失败:", err);
-    } finally {
+    setTimeout(() => {
       setIsGenerating(false);
-    }
+    }, 100);
   };
 
   return (
@@ -194,6 +190,10 @@ export default function AgentConfig() {
                   isGenerating={isGenerating}
                   onDebug={() => setIsDebugDrawerOpen(true)}
                   onGenerate={handleGeneratePrompt}
+                  agentId={isCreatingNewAgent ? undefined : 1}
+                  taskDescription={businessLogic}
+                  selectedAgents={selectedAgents}
+                  selectedTools={selectedTools}
                 />
               </div>
             </div>

@@ -251,8 +251,8 @@ class SubAgent(BaseModel):
 
 class GeneratePromptRequest(BaseModel):
     task_description: str
-    tool_list: List[str]
-    sub_agent_list: List[SubAgent]
+    agent_id: int
+    sub_agent_list: Optional[List[SubAgent]] = Field(default_factory=list)
 
 
 class ToolDetailInformation:
@@ -263,6 +263,15 @@ class ToolDetailInformation:
 
     def __str__(self):
         return f"- {self.name}: {self.description} \n  接受输入: {self.inputs}\n  返回输出类型: {self.output_type}"
+
+
+class AgentDetailInformation:
+    name: str
+    description: str
+
+    def __str__(self):
+        return f"- {self.name}: {self.description}"
+
 
 class FineTunePromptRequest(BaseModel):
     system_prompt: str
@@ -291,3 +300,17 @@ class AgentInfoRequest(BaseModel):
     parent_id: Optional[int] = None
     enable: bool
     tools: List[AgentToolInfoRequest]
+
+
+class ToolSourceEnum(Enum):
+    LOCAL = "local"
+    MCP = "mcp"
+
+
+class ToolInfo(BaseModel):
+    name: str
+    description: str
+    params: List
+    source: str
+    inputs: str
+    output_type: str

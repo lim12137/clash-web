@@ -2,7 +2,7 @@ import unittest
 import sys
 import os
 
-from services.prompt_service import generate_system_prompt, fine_tune_prompt
+from services.prompt_service import generate_system_prompt_impl, fine_tune_prompt
 from consts.model import GeneratePromptRequest, SubAgent, FineTunePromptRequest
 
 
@@ -17,7 +17,7 @@ class TestPromptGenerate(unittest.TestCase):
             sub_agent_list=[SubAgent(name="mail_manager",
                                      description="管理邮件相关功能的助手，具有邮件阅读、发送的能力")])
 
-        system_prompt = generate_system_prompt(req)
+        system_prompt = generate_system_prompt_impl(req)
 
         self.assertGreater(len(system_prompt), 0, "length of the returned result should be greater than 0")
         print(f"generated prompt: {system_prompt}")
@@ -30,7 +30,7 @@ class TestPromptGenerate(unittest.TestCase):
             tool_list=["exa_web_search", "knowledge_base_search", "summary_content"],
             sub_agent_list=[])
 
-        system_prompt = generate_system_prompt(req)
+        system_prompt = generate_system_prompt_impl(req)
         
         self.assertGreater(len(system_prompt), 0, "length of the returned result should be greater than 0")
         print(f"generated prompt: \n{system_prompt}")
