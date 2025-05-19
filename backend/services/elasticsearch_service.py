@@ -17,9 +17,9 @@ import requests
 from nexent.core.models.embedding_model import JinaEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from nexent.core.nlp.tokenizer import calculate_term_weights
-from services.knowledge_summary_service import generate_knowledge_summary
+from services.knowledge_summary_service import generate_knowledge_summary_stream
 from fastapi import HTTPException, Query, Body, Path, Depends
-
+from fastapi.responses import StreamingResponse
 from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST
 from consts.model import IndexingRequest, SearchRequest, HybridSearchRequest
 from utils.agent_utils import config_manager
@@ -613,13 +613,14 @@ class ElasticSearchService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 
-    def summary_index_name(self,
+    async def summary_index_name(self,
             index_name: str = Path(..., description="Name of the index to get documents from"),
             batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
             es_core: ElasticSearchCore = Depends(get_es_core),
             user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base")
     ):
         try:
+            # get all document
             all_documents = ElasticSearchService.get_all_documents(index_name, batch_size, es_core)
             all_chunks = self._clean_chunks_for_summary(all_documents)
             keywords_dict = calculate_term_weights(all_chunks)
@@ -627,22 +628,36 @@ class ElasticSearchService:
             for _, key in enumerate(keywords_dict):
                 keywords_for_summary = keywords_for_summary + "、" + key
 
-            # 创建SummaryTool实例
-            summary_result = generate_knowledge_summary(keywords_for_summary)
+            async def generate_summary():
+                token_join = []
+                try:
+                    for new_token in generate_knowledge_summary_stream(keywords_for_summary):
+                        print(new_token)
+                        token_join.append(new_token)
+                        yield f"data: {{\"status\": \"success\", \"message\": \"Index {index_name} summary successfully\", \"summary\": \"{new_token}\"}}\n\n"
 
-            knowledge_record = get_knowledge_by_name(index_name)
-            if knowledge_record:
-                update_data = {
-                    "knowledge_describe": summary_result,  # Set status to unavailable
-                    "updated_by": user_id,
-                }
-                update_knowledge_record(knowledge_record["knowledge_id"], update_data)
-            # 存到sql里
-            return {"status": "success", "message": f"Index {index_name} summary successfully", "summary": summary_result}
+                    if new_token == "END":
+                        model_output = "".join(token_join)
+                        # updata sql
+                        knowledge_record = get_knowledge_by_name(index_name)
+                        if knowledge_record:
+                            update_data = {
+                                "knowledge_describe": model_output,
+                                "updated_by": user_id,
+                            }
+                            update_knowledge_record(knowledge_record["knowledge_id"], update_data)
+
+                except Exception as e:
+                    yield f"data: {{\"status\": \"error\", \"message\": \"{str(e)}\"}}\n\n"
+
+            # Return the flow response
+            return StreamingResponse(
+                generate_summary(),
+                media_type="text/event-stream"
+            )
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{str(e)}")
-
 
     @staticmethod
     def _clean_chunks_for_summary(all_documents):
