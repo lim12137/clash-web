@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-@router.get("/search")
+@router.get("/list")
 async def list_tools():
     """
     List all system tools from PG dataset

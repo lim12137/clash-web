@@ -57,6 +57,8 @@ export interface SubAgentPoolProps {
   onSelectAgent: (agent: Agent, isSelected: boolean) => void;
   onEditAgent: (agent: Agent) => void;
   onCreateNewAgent: () => void;
+  subAgentList?: Agent[];
+  loadingAgents?: boolean;
 }
 // 工具池组件Props接口
 export interface ToolPoolProps {
@@ -86,4 +88,6 @@ export interface BusinessLogicConfigProps {
   setMainAgentPrompt: (value: string) => void;
   tools?: Tool[];
   loadingTools?: boolean;
+  subAgentList?: Agent[];
+  loadingAgents?: boolean;
 }

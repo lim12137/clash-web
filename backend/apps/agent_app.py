@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 from threading import Thread
 
@@ -8,7 +9,8 @@ from fastapi.responses import StreamingResponse
 from consts.model import AgentRequest, AgentInfoRequest
 from database.agent_db import delete_agent, update_agent
 from nexent.core.utils.observer import MessageObserver
-from services.agent_service import create_agent_api, query_agents_api
+from services.agent_service import create_agent_api, query_or_create_main_agents_api, \
+    query_sub_agents_api
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 from utils.agent_utils import agent_run_thread
 from utils.agent_utils import thread_manager
@@ -17,7 +19,9 @@ from utils.thread_utils import submit
 from utils.user_utils import get_user_info
 
 router = APIRouter(prefix="/agent")
-
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Define API route
 @router.post("/run")
@@ -114,7 +118,13 @@ async def list_agent():
     """
     try:
         user_id, tenant_id = get_user_info()
-        return query_agents_api(tenant_id, user_id)
+        main_agent_id = query_or_create_main_agents_api(tenant_id=tenant_id)
+        sub_agent_list = query_sub_agents_api(main_agent_id, tenant_id, user_id)
+
+        return {
+            "main_agent_id": main_agent_id,
+            "sub_agent_list": sub_agent_list
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
 
