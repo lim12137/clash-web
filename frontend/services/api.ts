@@ -19,6 +19,7 @@ export const API_ENDPOINTS = {
   prompt: {
     generate: `${API_BASE_URL}/prompt/generate`,
     fineTune: `${API_BASE_URL}/prompt/fine_tune`,
+    save: `${API_BASE_URL}/prompt/save`,
   },
   stt: {
     ws: `/api/voice/stt/ws`,
@@ -37,15 +38,15 @@ export const API_ENDPOINTS = {
     image: (url: string) => `${API_BASE_URL}/proxy/image?url=${encodeURIComponent(url)}`,
   },
   modelEngine: {
-    // 基本健康检查
+    // Basic health check
     healthcheck: `${API_BASE_URL}/me/healthcheck`,
     
-    // 官方模型服务
+    // Official model service
     officialModelList: `${API_BASE_URL}/me/model/list`,
     officialModelHealthcheck: (modelName: string, timeout: number = 2) => 
       `${API_BASE_URL}/me/model/healthcheck?model_name=${encodeURIComponent(modelName)}&timeout=${timeout}`,
       
-    // 自定义模型服务
+    // Custom model service
     customModelList: `${API_BASE_URL}/model/list`,
     customModelCreate: `${API_BASE_URL}/model/create`,
     customModelDelete: `${API_BASE_URL}/model/delete`,
@@ -54,13 +55,13 @@ export const API_ENDPOINTS = {
     updateConnectStatus: `${API_BASE_URL}/model/update_connect_status`,
   },
   knowledgeBase: {
-    // Elasticsearch 服务
+    // Elasticsearch service
     health: `${API_BASE_URL}/indices/health`,
     indices: `${API_BASE_URL}/indices`,
     indexInfo: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/info`,
     indexDetail: (indexName: string) => `${API_BASE_URL}/indices/${indexName}`,
     
-    // 文件上传服务
+    // File upload service
     upload: `${UPLOAD_SERVICE_URL}/upload`,
   },
   config: {
@@ -69,7 +70,7 @@ export const API_ENDPOINTS = {
   }
 };
 
-// 通用错误处理
+// Common error handling
 export class ApiError extends Error {
   constructor(public code: number, message: string) {
     super(message);
@@ -77,7 +78,7 @@ export class ApiError extends Error {
   }
 }
 
-// 为TypeScript添加全局接口扩展
+// Add global interface extensions for TypeScript
 declare global {
   interface Window {
     __isHandlingSessionExpired?: boolean;

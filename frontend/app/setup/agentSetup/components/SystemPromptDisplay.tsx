@@ -1,11 +1,12 @@
 "use client"
 
 import { Input, Button, Modal, Spin, message } from 'antd'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import AdditionalRequestInput from './AdditionalRequestInput'
 import { MarkdownRenderer } from '@/components/ui/markdownRenderer'
 import { ScrollArea } from '@/components/ui/scrollArea'
 import { Agent, Tool } from '../ConstInterface'
+import { savePrompt } from '@/services/promptService'
 
 const { TextArea } = Input
 
@@ -23,7 +24,7 @@ export interface SystemPromptDisplayProps {
 }
 
 /**
- * 系统提示词展示组件
+ * System Prompt Display Component
  */
 export default function SystemPromptDisplay({ 
   prompt, 
@@ -42,8 +43,9 @@ export default function SystemPromptDisplay({
   const [isTuning, setIsTuning] = useState(false)
   const [isEditingTuned, setIsEditingTuned] = useState(false)
   const [localIsGenerating, setLocalIsGenerating] = useState(false)
+  const originalPromptRef = useRef(prompt)
 
-  // 使用API调用生成系统提示词
+  // Use API to generate system prompt
   const handleGenerateWithApi = async () => {
     if (!taskDescription || taskDescription.trim() === '') {
       message.warning("请先输入业务描述");
@@ -94,13 +96,13 @@ export default function SystemPromptDisplay({
     }
   };
   
-  // 处理生成按钮点击
+  // Handle generate button click
   const handleGenerate = async () => {
-    // 只使用API调用方式
+    // Only use API call method
     await handleGenerateWithApi();
   };
 
-  // 处理微调请求
+  // Handle fine-tuning request
   const handleSendAdditionalRequest = async (request: string) => {
     if (!prompt) {
       message.warning("请先生成系统提示词");
@@ -115,7 +117,7 @@ export default function SystemPromptDisplay({
     setIsTuning(true);
     
     try {
-      // 使用API进行微调
+      // Use API for fine-tuning
       const response = await fetch('/api/prompt/fine_tune', {
         method: 'POST',
         headers: {
@@ -148,11 +150,55 @@ export default function SystemPromptDisplay({
     }
   };
   
-  const handleSaveTunedPrompt = () => {
-    onPromptChange(tunedPrompt);
-    setIsModalOpen(false);
-    setTunedPrompt("");
-    message.success("已保存微调后的提示词");
+  const handleSaveTunedPrompt = async () => {
+    try {
+      if (!agentId) {
+        message.warning("无法保存提示词：未指定Agent ID");
+        return;
+      }
+      // Call save interface
+      await savePrompt({
+        agent_id: agentId,
+        prompt: tunedPrompt
+      });
+      onPromptChange(tunedPrompt);
+      setIsModalOpen(false);
+      setTunedPrompt("");
+      message.success("已保存微调后的提示词");
+    } catch (error) {
+      console.error("保存提示词失败:", error);
+      message.error("保存提示词失败，请重试");
+    }
+  };
+
+  // Handle prompt edit complete
+  const handlePromptEditComplete = async (newPrompt: string) => {
+    setIsEditMode(false);
+    // Check if the prompt has changed
+    if (newPrompt !== originalPromptRef.current) {
+      try {
+        if (!agentId) {
+          message.warning("无法保存提示词：未指定Agent ID");
+          return;
+        }
+        // Call save interface
+        await savePrompt({
+          agent_id: agentId,
+          prompt: newPrompt
+        });
+        message.success("提示词已自动保存");
+        originalPromptRef.current = newPrompt; // Update the original prompt reference
+      } catch (error) {
+        console.error("保存提示词失败:", error);
+        message.error("保存提示词失败，请重试");
+      }
+    }
+  };
+
+  // Handle start editing
+  const handleStartEditing = () => {
+    originalPromptRef.current = prompt; // Record the prompt when editing starts
+    setIsEditMode(true);
   };
 
   return (
@@ -193,12 +239,12 @@ export default function SystemPromptDisplay({
             className="w-full h-full resize-none border-none"
             style={{ height: '100%', minHeight: '100%' }}
             autoFocus
-            onBlur={() => setIsEditMode(false)}
+            onBlur={() => handlePromptEditComplete(prompt)}
           />
         ) : (
           <div 
             className="w-full h-full cursor-text"
-            onDoubleClick={() => setIsEditMode(true)}
+            onDoubleClick={handleStartEditing}
             title="双击编辑"
           >
             <ScrollArea className="h-full">
@@ -227,7 +273,10 @@ export default function SystemPromptDisplay({
         style={{ top: 20 }}
       >
         <div className="flex flex-col">
-          <AdditionalRequestInput onSend={handleSendAdditionalRequest} />
+          <AdditionalRequestInput 
+            onSend={handleSendAdditionalRequest} 
+            isTuning={isTuning}
+          />
           
           {isTuning && (
             <div className="mt-4 flex justify-center">
