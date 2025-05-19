@@ -1,11 +1,12 @@
 "use client"
 
 import { Input, Button, Modal, Spin, message } from 'antd'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import AdditionalRequestInput from './AdditionalRequestInput'
 import { MarkdownRenderer } from '@/components/ui/markdownRenderer'
 import { ScrollArea } from '@/components/ui/scrollArea'
 import { Agent, Tool } from '../ConstInterface'
+import { savePrompt } from '@/services/promptService'
 
 const { TextArea } = Input
 
@@ -42,6 +43,7 @@ export default function SystemPromptDisplay({
   const [isTuning, setIsTuning] = useState(false)
   const [isEditingTuned, setIsEditingTuned] = useState(false)
   const [localIsGenerating, setLocalIsGenerating] = useState(false)
+  const originalPromptRef = useRef(prompt) // 用于记录编辑前的提示词
 
   // 使用API调用生成系统提示词
   const handleGenerateWithApi = async () => {
@@ -148,11 +150,55 @@ export default function SystemPromptDisplay({
     }
   };
   
-  const handleSaveTunedPrompt = () => {
-    onPromptChange(tunedPrompt);
-    setIsModalOpen(false);
-    setTunedPrompt("");
-    message.success("已保存微调后的提示词");
+  const handleSaveTunedPrompt = async () => {
+    try {
+      if (!agentId) {
+        message.warning("无法保存提示词：未指定Agent ID");
+        return;
+      }
+      // 调用保存接口
+      await savePrompt({
+        agent_id: agentId,
+        prompt: tunedPrompt
+      });
+      onPromptChange(tunedPrompt);
+      setIsModalOpen(false);
+      setTunedPrompt("");
+      message.success("已保存微调后的提示词");
+    } catch (error) {
+      console.error("保存提示词失败:", error);
+      message.error("保存提示词失败，请重试");
+    }
+  };
+
+  // 处理提示词编辑完成
+  const handlePromptEditComplete = async (newPrompt: string) => {
+    setIsEditMode(false);
+    // 检查提示词是否有变化
+    if (newPrompt !== originalPromptRef.current) {
+      try {
+        if (!agentId) {
+          message.warning("无法保存提示词：未指定Agent ID");
+          return;
+        }
+        // 调用保存接口
+        await savePrompt({
+          agent_id: agentId,
+          prompt: newPrompt
+        });
+        message.success("提示词已自动保存");
+        originalPromptRef.current = newPrompt; // 更新原始提示词引用
+      } catch (error) {
+        console.error("保存提示词失败:", error);
+        message.error("保存提示词失败，请重试");
+      }
+    }
+  };
+
+  // 处理开始编辑
+  const handleStartEditing = () => {
+    originalPromptRef.current = prompt; // 记录开始编辑时的提示词
+    setIsEditMode(true);
   };
 
   return (
@@ -193,12 +239,12 @@ export default function SystemPromptDisplay({
             className="w-full h-full resize-none border-none"
             style={{ height: '100%', minHeight: '100%' }}
             autoFocus
-            onBlur={() => setIsEditMode(false)}
+            onBlur={() => handlePromptEditComplete(prompt)}
           />
         ) : (
           <div 
             className="w-full h-full cursor-text"
-            onDoubleClick={() => setIsEditMode(true)}
+            onDoubleClick={handleStartEditing}
             title="双击编辑"
           >
             <ScrollArea className="h-full">
@@ -227,7 +273,10 @@ export default function SystemPromptDisplay({
         style={{ top: 20 }}
       >
         <div className="flex flex-col">
-          <AdditionalRequestInput onSend={handleSendAdditionalRequest} />
+          <AdditionalRequestInput 
+            onSend={handleSendAdditionalRequest} 
+            isTuning={isTuning}
+          />
           
           {isTuning && (
             <div className="mt-4 flex justify-center">

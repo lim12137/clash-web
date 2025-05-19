@@ -19,6 +19,7 @@ export const API_ENDPOINTS = {
   prompt: {
     generate: `${API_BASE_URL}/prompt/generate`,
     fineTune: `${API_BASE_URL}/prompt/fine_tune`,
+    save: `${API_BASE_URL}/prompt/save`,
   },
   stt: {
     ws: `/api/voice/stt/ws`,
