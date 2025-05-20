@@ -79,7 +79,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
   };
 
   return (
-    <div className="w-full bg-white border border-gray-200 rounded-md flex flex-col h-full" style={{ height: containerHeight }}>
+    <div className="w-full bg-white border border-gray-200 rounded-md flex flex-col h-full">
       <div className={`${KB_LAYOUT.HEADER_PADDING} border-b border-gray-200 shrink-0`}>
         <div className="flex items-center justify-between">
           <div>

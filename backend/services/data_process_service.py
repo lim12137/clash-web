@@ -27,7 +27,7 @@ class DataProcessService:
             num_workers: Number of worker processes for data processing
         """
         # Initialize core
-        self.core = DataProcessCore(num_workers=num_workers)
+        self.core = DataProcessCore(num_workers=num_workers, use_ray=True)
 
         # Initialize CLIP model and processor with fallback
         self.model = None
