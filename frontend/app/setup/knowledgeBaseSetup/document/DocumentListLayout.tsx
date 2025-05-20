@@ -4,7 +4,7 @@ import DocumentStatus from './DocumentStatus'
 import { InfoCircleFilled } from '@ant-design/icons'
 import UploadArea from '../components/UploadArea'
 import { formatFileSize, formatDateTime } from '@/lib/utils'
-import { Input, Button } from 'antd'
+import { Input, Button, Tooltip } from 'antd'
 import { useKnowledgeBaseContext } from '../knowledgeBase/KnowledgeBaseContext'
 import { message } from 'antd'
 import knowledgeBaseService from '@/services/knowledgeBaseService'
@@ -124,7 +124,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
   const [summary, setSummary] = useState('');
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const { summaryIndex } = useKnowledgeBaseContext();
+  const { } = useKnowledgeBaseContext();
 
   // Reset showDetail state when knowledge base name changes
   React.useEffect(() => {
@@ -155,14 +155,19 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
     }
 
     setIsSummarizing(true);
+    // 清空现有的摘要，准备流式更新
+    setSummary('');
+    
     try {
-      const result = await summaryIndex(knowledgeBaseName, 1000);
-      if (result) {
-        setSummary(result);
-        message.success('知识库总结完成');
-      } else {
-        message.warning('知识库总结为空');
-      }
+      // 使用带有进度回调的summaryIndex方法
+      await knowledgeBaseService.summaryIndex(
+        knowledgeBaseName, 
+        1000,
+        (newText) => {
+          setSummary(prev => prev + newText);
+        }
+      );
+      message.success('知识库总结完成');
     } catch (error) {
       message.error('获取知识库总结失败');
       console.error('获取知识库总结失败:', error);
@@ -255,7 +260,13 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
           </div>
           {/* 右侧：详细内容 */}
           {!isCreatingMode && (
-            <Button type="primary" onClick={() => setShowDetail(true)}>详细内容</Button>
+            <Tooltip 
+              title={summary || "暂无知识库总结"} 
+              placement="left"
+              mouseEnterDelay={0.5}
+            >
+              <Button type="primary" onClick={() => setShowDetail(true)}>详细内容</Button>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -275,35 +286,19 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                 自动总结
               </Button>
             </div>
-            {isSummarizing ? (
-              <div style={{
+            <Input.TextArea
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              style={{
                 flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                backgroundColor: '#fafafa',
-                borderRadius: '8px',
-                marginBottom: 20
-              }}>
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-                <p style={{ fontSize: 16, color: '#666' }}>正在总结知识库内容，请稍候...</p>
-              </div>
-            ) : (
-              <Input.TextArea
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                style={{
-                  flex: 1,
-                  minHeight: 0,
-                  marginBottom: 20,
-                  resize: 'none',
-                  fontSize: 18,
-                  lineHeight: 1.7,
-                  padding: 20
-                }}
-              />
-            )}
+                minHeight: 0,
+                marginBottom: 20,
+                resize: 'none',
+                fontSize: 18,
+                lineHeight: 1.7,
+                padding: 20
+              }}
+            />
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
               <Button
                 type="primary"
