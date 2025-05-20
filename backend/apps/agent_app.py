@@ -130,6 +130,7 @@ async def list_agent():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
 
+
 @router.post("/search_info")
 async def get_agent_info(request: AgentInfoRequest):
     """

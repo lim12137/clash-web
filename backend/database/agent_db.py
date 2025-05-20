@@ -7,7 +7,7 @@ from utils.agent_utils import scan_tools
 from database.client import get_db_session, as_dict, filter_property
 from database.db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
 
-def search_agent_info_by_agent_id_api(agent_id: int, tenant_id: str, user_id:str=None):
+def search_agent_info_by_agent_id_api(agent_id: int, tenant_id: str, user_id: str = None):
     """
     Search agent info by agent_id
     """
@@ -20,7 +20,7 @@ def search_agent_info_by_agent_id_api(agent_id: int, tenant_id: str, user_id:str
         if agent:
             return as_dict(agent)
         else:
-            return None
+            return {}
 
     # TODO 如果存在user_id, 需要使用ag_user_agent_t表中的数据
 
