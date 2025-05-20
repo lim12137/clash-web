@@ -291,15 +291,15 @@ class AgentToolInfoRequest(BaseModel):
 
 class AgentInfoRequest(BaseModel):
     agent_id: int
-    agent_name: Optional[str] = None
-    agent_description: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
     business_description: Optional[str] = None
     model_name: Optional[str] = None
     max_steps: Optional[int] = None
-    is_run_summary: Optional[bool] = None
+    provide_run_summary: Optional[bool] = None
     prompt: Optional[str] = None
     parent_id: Optional[int] = None
-    enable: Optional[bool] = None
+    enabled: Optional[bool] = None
 
 
 
