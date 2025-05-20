@@ -63,7 +63,7 @@ def query_or_create_main_agent_id(tenant_id: str = None) -> int:
     obtain the main_agent id, create a blank placeholder if it does not exist
     """
     with get_db_session() as session:
-        query = session.query(AgentInfo).filter(AgentInfo.delete_flag != 'Y').filter(AgentInfo.parent_agent_id is not None)
+        query = session.query(AgentInfo).filter(AgentInfo.delete_flag != 'Y').filter(AgentInfo.parent_agent_id.is_(None))
         if tenant_id:
             query = query.filter(AgentInfo.tenant_id == tenant_id)
         main_agent = query.first()
