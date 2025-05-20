@@ -7,7 +7,7 @@ import DebugConfig from './DebugConfig'
 import GuideSteps from './components/GuideSteps'
 import { Row, Col, Drawer, message } from 'antd'
 import { fetchTools, fetchAgentList } from '@/services/agentConfigService'
-
+import { OpenAIModel } from '@/app/setup/agentSetup/ConstInterface'
 // Layout Height Constant Configuration
 const LAYOUT_CONFIG = {
   MAIN_CONTENT_HEIGHT: "calc(75vh - 45px)",
@@ -30,7 +30,7 @@ export default function AgentConfig() {
   const [testAnswer, setTestAnswer] = useState("")
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false)
   const [isCreatingNewAgent, setIsCreatingNewAgent] = useState(false)
-  const [mainAgentModel, setMainAgentModel] = useState("gpt-4-turbo")
+  const [mainAgentModel, setMainAgentModel] = useState(OpenAIModel.MainModel)
   const [mainAgentMaxStep, setMainAgentMaxStep] = useState(10)
   const [mainAgentPrompt, setMainAgentPrompt] = useState("")
   const [tools, setTools] = useState<any[]>([])
@@ -38,6 +38,7 @@ export default function AgentConfig() {
   const [mainAgentId, setMainAgentId] = useState<string | null>(null)
   const [subAgentList, setSubAgentList] = useState<any[]>([])
   const [loadingAgents, setLoadingAgents] = useState(false)
+  const [enabledToolIds, setEnabledToolIds] = useState<number[]>([])
 
   // load tools when page is loaded
   useEffect(() => {
@@ -69,6 +70,7 @@ export default function AgentConfig() {
       if (result.success) {
         setSubAgentList(result.data.subAgentList);
         setMainAgentId(result.data.mainAgentId ? String(result.data.mainAgentId) : null);
+        setEnabledToolIds(result.data.enabledToolIds);
       } else {
         message.error(result.message || '获取Agent列表失败');
       }
@@ -86,6 +88,16 @@ export default function AgentConfig() {
     fetchAgents();
   }, []);
 
+  // 当工具列表加载完成时，检查并设置已启用的工具
+  useEffect(() => {
+    if (tools.length > 0 && enabledToolIds.length > 0) {
+      const enabledTools = tools.filter(tool => 
+        enabledToolIds.includes(Number(tool.id))
+      );
+      setSelectedTools(enabledTools);
+    }
+  }, [tools, enabledToolIds]);
+
   // Monitor the status change of creating a new agent, and reset the relevant status
   useEffect(() => {
     // Reset all states to initial values
@@ -98,7 +110,7 @@ export default function AgentConfig() {
     
     // Reset the main agent configuration related status
     if (!isCreatingNewAgent) {
-      setMainAgentModel('gpt-4-turbo');
+      setMainAgentModel(OpenAIModel.MainModel);
       setMainAgentMaxStep(10);
       setMainAgentPrompt('');
     }
