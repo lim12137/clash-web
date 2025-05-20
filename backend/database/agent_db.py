@@ -16,9 +16,7 @@ def search_sub_agent_by_main_agent_id(main_agent_id: int, tenant_id: str = None)
             AgentInfo.parent_agent_id == main_agent_id,
             AgentInfo.tenant_id == tenant_id,
             AgentInfo.delete_flag != 'Y',
-            AgentInfo.name.is_(None),
-            AgentInfo.description.is_(None),
-            AgentInfo.model_name.is_(None),
+            AgentInfo.name.is_(None)
         ).first()
         if sub_agent:
             return sub_agent.agent_id
