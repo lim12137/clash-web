@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback, memo } from 'react'
 import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber } from 'antd'
 import { SettingOutlined } from '@ant-design/icons'
 import ToolConfigModal from './components/ToolConfigModal'
 import { mockAgents, mockTools } from './mockData'
-import { AgentModalProps, Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent } from './ConstInterface'
+import { AgentModalProps, Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
 import { ScrollArea } from '@/components/ui/scrollArea'
 import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig } from '@/services/agentConfigService'
 
@@ -13,11 +13,8 @@ const { Text } = Typography
 const { TextArea } = Input
 
 const modelOptions = [
-  { label: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
-  { label: 'GPT-4o', value: 'gpt-4o' },
-  { label: 'Claude 3 Opus', value: 'claude-3-opus-20240229' },
-  { label: 'Claude 3 Sonnet', value: 'claude-3-sonnet-20240229' },
-  { label: 'Claude 3 Haiku', value: 'claude-3-haiku-20240307' },
+  { label: '主模型', value: OpenAIModel.MainModel },
+  { label: '副模型', value: OpenAIModel.SubModel },
 ];
 
 // 提取公共的 handleToolSelect 逻辑
@@ -106,7 +103,7 @@ function AgentModal({
 }: AgentModalProps) {
   const [name, setName] = useState(agent?.name || "");
   const [description, setDescription] = useState(agent?.description || "");
-  const [model, setModel] = useState(agent?.model || "gpt-4-turbo");
+  const [model, setModel] = useState(agent?.model || OpenAIModel.MainModel);
   const [maxStep, setMaxStep] = useState(agent?.max_step || 5);
   const [provideSummary, setProvideSummary] = useState<boolean>(agent?.provide_run_summary ?? false);
   const [prompt, setPrompt] = useState(agent?.prompt || systemPrompt || "");
@@ -140,7 +137,7 @@ function AgentModal({
       } else {
         setName("");
         setDescription("");
-        setModel("gpt-4-turbo");
+        setModel(OpenAIModel.MainModel);
         setMaxStep(10);
         setProvideSummary(true);
         setPrompt(systemPrompt || "");
@@ -488,8 +485,18 @@ function ToolPool({
   const [currentTool, setCurrentTool] = useState<Tool | null>(null);
   const [pendingToolSelection, setPendingToolSelection] = useState<{tool: Tool, isSelected: boolean} | null>(null);
 
-  // 处理工具选中状态变更
-  const handleToolSelect = async (tool: Tool, isSelected: boolean, e: React.MouseEvent) => {
+  // 使用 useMemo 缓存工具列表，避免不必要的重新计算
+  const displayTools = useMemo(() => {
+    return tools.length > 0 ? tools : mockTools;
+  }, [tools]);
+
+  // 使用 useMemo 缓存选中状态的工具ID集合，提高查找效率
+  const selectedToolIds = useMemo(() => {
+    return new Set(selectedTools.map(tool => tool.id));
+  }, [selectedTools]);
+
+  // 使用 useCallback 缓存工具选择处理函数
+  const handleToolSelect = useCallback(async (tool: Tool, isSelected: boolean, e: React.MouseEvent) => {
     e.stopPropagation();
     
     const { shouldProceed, params } = await handleToolSelectCommon(
@@ -500,7 +507,6 @@ function ToolPool({
     );
 
     if (!shouldProceed && params) {
-      // 如果有必填字段未填写，打开配置模态框
       setCurrentTool({
         ...tool,
         initParams: tool.initParams.map(param => ({
@@ -511,17 +517,17 @@ function ToolPool({
       setPendingToolSelection({ tool, isSelected });
       setIsToolModalOpen(true);
     }
-  };
+  }, [mainAgentId, onSelectTool]);
 
-  // 处理工具配置按钮点击
-  const handleConfigClick = (tool: Tool, e: React.MouseEvent) => {
+  // 使用 useCallback 缓存工具配置点击处理函数
+  const handleConfigClick = useCallback((tool: Tool, e: React.MouseEvent) => {
     e.stopPropagation();
     setCurrentTool(tool);
     setIsToolModalOpen(true);
-  };
+  }, []);
 
-  const handleToolSave = (updatedTool: Tool) => {
-    // 如果有待处理的工具选择，检查必填字段
+  // 使用 useCallback 缓存工具保存处理函数
+  const handleToolSave = useCallback((updatedTool: Tool) => {
     if (pendingToolSelection) {
       const { tool, isSelected } = pendingToolSelection;
       const missingRequiredFields = updatedTool.initParams
@@ -533,8 +539,6 @@ function ToolPool({
         return;
       }
 
-      // 所有必填字段都已填写，继续启用工具
-      // 创建一个模拟的点击事件
       const mockEvent = {
         stopPropagation: () => {},
         preventDefault: () => {},
@@ -549,9 +553,47 @@ function ToolPool({
     
     setIsToolModalOpen(false);
     setPendingToolSelection(null);
-  };
+  }, [pendingToolSelection, handleToolSelect]);
 
-  const displayTools = tools.length > 0 ? tools : mockTools;
+  // 使用 useCallback 缓存模态框关闭处理函数
+  const handleModalClose = useCallback(() => {
+    setIsToolModalOpen(false);
+    setPendingToolSelection(null);
+  }, []);
+
+  // 使用 memo 优化工具项的渲染
+  const ToolItem = memo(({ tool }: { tool: Tool }) => {
+    const isSelected = selectedToolIds.has(tool.id);
+    
+    return (
+      <div 
+        className={`border rounded-md p-3 flex flex-col justify-center cursor-pointer transition-colors duration-200 h-[80px] ${
+          isSelected ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
+        }`}
+        onClick={(e) => handleToolSelect(tool, !isSelected, e)}
+      >
+        <div className="flex items-center h-full">
+          <div className="flex-1 overflow-hidden">
+            <div className="font-medium text-sm truncate" title={tool.name}>{tool.name}</div>
+            <div 
+              className="text-xs text-gray-500 line-clamp-2" 
+              title={tool.description}
+            >
+              {tool.description}
+            </div>
+          </div>
+          <button 
+            type="button"
+            onClick={(e) => handleConfigClick(tool, e)}
+            className="ml-2 flex-shrink-0 flex items-center justify-center text-gray-500 hover:text-blue-500 bg-transparent"
+            style={{ border: "none", padding: "4px" }}
+          >
+            <SettingOutlined style={{ fontSize: '16px' }} />
+          </button>
+        </div>
+      </div>
+    );
+  });
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
@@ -560,49 +602,22 @@ function ToolPool({
         {loadingTools && <span className="text-sm text-gray-500">加载中...</span>}
       </div>
       <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
-        <div className={`grid ${isCreatingNewAgent ? 'grid-cols-4' : 'grid-cols-2'} gap-3 pr-2`}>
-          {displayTools.map((tool) => (
-            <div 
-              key={tool.id} 
-              className={`border rounded-md p-3 flex flex-col justify-center cursor-pointer transition-colors duration-200 h-[80px] ${
-                selectedTools.some(t => t.id === tool.id) ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
-              }`}
-              onClick={(e) => handleToolSelect(
-                tool, 
-                !selectedTools.some(t => t.id === tool.id),
-                e
-              )}
-            >
-              <div className="flex items-center h-full">
-                <div className="flex-1 overflow-hidden">
-                  <div className="font-medium text-sm truncate" title={tool.name}>{tool.name}</div>
-                  <div 
-                    className="text-xs text-gray-500 line-clamp-2" 
-                    title={tool.description}
-                  >
-                    {tool.description}
-                  </div>
-                </div>
-                <button 
-                  type="button"
-                  onClick={(e) => handleConfigClick(tool, e)}
-                  className="ml-2 flex-shrink-0 flex items-center justify-center text-gray-500 hover:text-blue-500 bg-transparent"
-                  style={{ border: "none", padding: "4px" }}
-                >
-                  <SettingOutlined style={{ fontSize: '16px' }} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        {loadingTools ? (
+          <div className="flex items-center justify-center h-full">
+            <span className="text-gray-500">加载工具中...</span>
+          </div>
+        ) : (
+          <div className={`grid ${isCreatingNewAgent ? 'grid-cols-4' : 'grid-cols-2'} gap-3 pr-2`}>
+            {displayTools.map((tool) => (
+              <ToolItem key={tool.id} tool={tool} />
+            ))}
+          </div>
+        )}
       </ScrollArea>
 
       <ToolConfigModal
         isOpen={isToolModalOpen}
-        onCancel={() => {
-          setIsToolModalOpen(false);
-          setPendingToolSelection(null);
-        }}
+        onCancel={handleModalClose}
         onSave={handleToolSave}
         tool={currentTool}
         mainAgentId={parseInt(mainAgentId || '0')}
@@ -611,6 +626,9 @@ function ToolPool({
     </div>
   );
 }
+
+// 使用 memo 优化 ToolPool 组件的渲染
+export const MemoizedToolPool = memo(ToolPool);
 
 /**
  * Business Logic Configuration Main Component
@@ -642,36 +660,105 @@ export default function BusinessLogicConfig({
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
+  const [isLoadingTools, setIsLoadingTools] = useState(false);
 
-  // Listen to create new agent status changes, and reset the configuration when the status switches
-  useEffect(() => {
-    // When switching to the Create New Agent state
-    if (isCreatingNewAgent) {
-      // Clear the selected agent and business description
-      setSelectedAgents([]);
-      setBusinessLogic('');
-      // Reset tool selection status
-      setSelectedTools([]);
-    } else {
-      // When switching back to the main agent configuration from the Create Agent state
-      setBusinessLogic('');
-      setSelectedTools([]);
-      // Reset Master Agent Configuration
-      setMainAgentModel('gpt-4-turbo');
-      setMainAgentMaxStep(10);
-      setMainAgentPrompt('');
-    }
-  }, [isCreatingNewAgent, setSelectedAgents, setBusinessLogic, setSelectedTools, setMainAgentModel, setMainAgentMaxStep, setMainAgentPrompt]);
-
-  const handleSaveAsAgent = () => {
-    if (systemPrompt.trim()) {
-      setIsAgentModalOpen(true);
+  // 提取获取工具状态的公共函数
+  const fetchAgentToolsState = async (agentId: string | null) => {
+    if (!agentId) return;
+    
+    setIsLoadingTools(true);
+    // 在加载开始时清空工具选中状态
+    setSelectedTools([]);
+    setEnabledToolIds([]);
+    
+    try {
+      const result = await fetchAgentList();
+      if (result.success) {
+        const newEnabledToolIds = result.data.enabledToolIds || [];
+        setEnabledToolIds(newEnabledToolIds);
+        setMainAgentId(result.data.mainAgentId);
+      } else {
+        message.error(result.message || '获取工具状态失败');
+      }
+    } catch (error) {
+      console.error('获取工具状态失败:', error);
+      message.error('获取工具状态失败，请稍后重试');
+    } finally {
+      setIsLoadingTools(false);
     }
   };
 
-  const handleSaveNewAgent = (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string) => {
+  const fetchSubAgentIdAndEnableToolList = async () => {
+    setIsLoadingTools(true);
+    // 在加载开始时清空工具选中状态
+    setSelectedTools([]);
+    setEnabledToolIds([]);
+    
+    try {
+      const result = await getCreatingSubAgentId(mainAgentId);
+      if (result.success && result.data) {
+        const newEnabledToolIds = result.data.enabledToolIds || [];
+        setMainAgentId(result.data.agentId);
+        setEnabledToolIds(newEnabledToolIds);
+      } else {
+        message.error(result.message || '获取新Agent ID失败');
+      }
+    } catch (error) {
+      console.error('创建新Agent失败:', error);
+      message.error('创建新Agent失败，请稍后重试');
+    } finally {
+      setIsLoadingTools(false);
+    }
+  };
+
+  // 监听创建新Agent状态变化
+  useEffect(() => {
+    if (isCreatingNewAgent) {
+      // 切换到创建新Agent状态时，清空相关状态
+      setSelectedAgents([]);
+      setBusinessLogic('');
+      fetchSubAgentIdAndEnableToolList();
+    } else {
+      // 退出创建新Agent状态时，重置主Agent配置并重新获取工具状态
+      setBusinessLogic('');
+      setMainAgentModel(OpenAIModel.MainModel);
+      setMainAgentMaxStep(10);
+      setMainAgentPrompt('');
+      fetchAgentToolsState(mainAgentId);
+    }
+  }, [isCreatingNewAgent]);
+
+  // 监听工具状态变化，更新选中的工具
+  useEffect(() => {
+    if (!tools || !enabledToolIds || isLoadingTools) return;
+
+    const enabledTools = tools.filter(tool => 
+      enabledToolIds.includes(Number(tool.id))
+    );
+
+    setSelectedTools(prevTools => {
+      // 只有当工具列表确实不同时才更新
+      if (JSON.stringify(prevTools) !== JSON.stringify(enabledTools)) {
+        return enabledTools;
+      }
+      return prevTools;
+    });
+  }, [tools, enabledToolIds, isLoadingTools]);
+
+  // 处理创建新Agent
+  const handleCreateNewAgent = async () => {
+    setIsCreatingNewAgent(true);
+  };
+
+  // 重置状态当用户取消创建agent
+  const handleCancelCreating = async () => {
+    setIsCreatingNewAgent(false);
+  };
+
+  // 保存新Agent后的处理
+  const handleSaveNewAgent = async (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string) => {
     if (name.trim()) {
-      // Create a new agent and configure it with a separate tool
       const newAgent: Agent = {
         id: `custom_${Date.now()}`,
         name: name,
@@ -683,25 +770,31 @@ export default function BusinessLogicConfig({
           ...tool,
           initParams: tool.initParams.map(param => ({
             ...param,
-            value: param.value // 复制默认值
+            value: param.value
           }))
         })),
         prompt: prompt
       };
       
-      // Add a new agent to mockAgents (it should be saved to the back end in practical applications)
       mockAgents.unshift(newAgent);
-      
-      // Close pop-up window
       setIsAgentModalOpen(false);
-      
-      // Display success message
       message.success(`Agent:"${name}"创建成功`);
       
-      // Reset status after saving
+      // 先退出创建模式
+      setIsCreatingNewAgent(false);
+      // 重置状态
       setBusinessLogic('');
       setSelectedTools([]);
-      setIsCreatingNewAgent(false);
+      // 最后重新获取工具状态
+      if (mainAgentId) {
+        await fetchAgentToolsState(mainAgentId);
+      }
+    }
+  };
+
+  const handleSaveAsAgent = () => {
+    if (systemPrompt.trim()) {
+      setIsAgentModalOpen(true);
     }
   };
 
@@ -735,27 +828,6 @@ export default function BusinessLogicConfig({
     }
   };
 
-  // Reset state when user cancels agent creation
-  const handleCancelCreating = async () => {
-    try {
-      const result = await fetchAgentList();
-      if (result.success) {
-        setMainAgentId(result.data.mainAgentId);
-        setIsCreatingNewAgent(false);
-        setBusinessLogic('');
-        setSelectedTools([]);
-        setMainAgentModel('gpt-4-turbo');
-        setMainAgentMaxStep(10);
-        setMainAgentPrompt('');
-      } else {
-        message.error(result.message || '重置Agent状态失败');
-      }
-    } catch (error) {
-      console.error('重置Agent状态失败:', error);
-      message.error('重置Agent状态失败，请稍后重试');
-    }
-  };
-
   // Processing mode box closed
   const handleModalClose = () => {
     setIsAgentModalOpen(false);
@@ -772,22 +844,6 @@ export default function BusinessLogicConfig({
       return "请先生成系统提示词";
     }
     return "";
-  };
-
-  // 处理创建新Agent
-  const handleCreateNewAgent = async () => {
-    try {
-      const result = await getCreatingSubAgentId(mainAgentId);
-      if (result.success && result.data) {
-        setMainAgentId(result.data);
-        setIsCreatingNewAgent(true);
-      } else {
-        message.error(result.message || '获取新Agent ID失败');
-      }
-    } catch (error) {
-      console.error('创建新Agent失败:', error);
-      message.error('创建新Agent失败，请稍后重试');
-    }
   };
 
   return (
@@ -811,18 +867,21 @@ export default function BusinessLogicConfig({
           />
         </div>
         <div className={`${isCreatingNewAgent ? 'w-full' : 'flex-1'} h-full`}>
-          <ToolPool
-            selectedTools={selectedTools}
+          <MemoizedToolPool
+            selectedTools={isLoadingTools ? [] : selectedTools}
             onSelectTool={(tool, isSelected) => {
-              if (isSelected) {
-                setSelectedTools([...selectedTools, tool]);
-              } else {
-                setSelectedTools(selectedTools.filter((t) => t.id !== tool.id));
-              }
+              if (isLoadingTools) return;
+              setSelectedTools(prevTools => {
+                if (isSelected) {
+                  return [...prevTools, tool];
+                } else {
+                  return prevTools.filter(t => t.id !== tool.id);
+                }
+              });
             }}
             isCreatingNewAgent={isCreatingNewAgent}
             tools={tools}
-            loadingTools={loadingTools}
+            loadingTools={isLoadingTools}
             mainAgentId={mainAgentId}
           />
         </div>

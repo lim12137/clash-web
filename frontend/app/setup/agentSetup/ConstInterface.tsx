@@ -76,13 +76,13 @@ export interface BusinessLogicConfigProps {
   selectedAgents: Agent[];
   setSelectedAgents: (agents: Agent[]) => void;
   selectedTools: Tool[];
-  setSelectedTools: (tools: Tool[]) => void;
+  setSelectedTools: (tools: Tool[] | ((prevTools: Tool[]) => Tool[])) => void;
   onGenerateSystemPrompt: () => void;
   systemPrompt: string;
   isCreatingNewAgent: boolean;
   setIsCreatingNewAgent: (value: boolean) => void;
-  mainAgentModel: string;
-  setMainAgentModel: (value: string) => void;
+  mainAgentModel: OpenAIModel;
+  setMainAgentModel: (value: OpenAIModel) => void;
   mainAgentMaxStep: number;
   setMainAgentMaxStep: (value: number) => void;
   mainAgentPrompt: string;
