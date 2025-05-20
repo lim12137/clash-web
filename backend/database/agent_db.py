@@ -7,6 +7,23 @@ from utils.agent_utils import scan_tools
 from database.client import get_db_session, as_dict, filter_property
 from database.db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
 
+def search_agent_info_by_agent_id_api(agent_id: int, tenant_id: str, user_id:str=None):
+    """
+    Search agent info by agent_id
+    """
+    with get_db_session() as session:
+        agent = session.query(AgentInfo).filter(
+            AgentInfo.agent_id == agent_id,
+            AgentInfo.tenant_id == tenant_id,
+            AgentInfo.delete_flag != 'Y'
+        ).first()
+        if agent:
+            return as_dict(agent)
+        else:
+            return None
+
+    # TODO 如果存在user_id, 需要使用ag_user_agent_t表中的数据
+
 def search_sub_agent_by_main_agent_id(main_agent_id: int, tenant_id: str = None):
     """
     Search sub agent by main agent id， if the sub agent is not created, then create a blank placeholder
@@ -117,7 +134,6 @@ def query_sub_agents(main_agent_id: int, tenant_id: str = None, user_id: str = N
 
         return [as_dict(agent) for agent in agents]
 
-
 def create_agent(agent_info, db_session=None):
     """
     Create a new agent in the database.
@@ -131,7 +147,6 @@ def create_agent(agent_info, db_session=None):
         session.add(new_agent)
         session.flush()
         return as_dict(new_agent)
-
 
 def update_agent(agent_id, agent_info, tenant_id=None, user_id=None):
     """
@@ -152,8 +167,11 @@ def update_agent(agent_id, agent_info, tenant_id=None, user_id=None):
             if value is None:
                 continue
             setattr(agent, key, value)
-        agent.updated_by = user_id
 
+        if user_id:
+            agent.updated_by = user_id
+
+            ## TODO 还需要修改ag_user_agent_t表中的数据
 
 def create_or_update_user_agent(agent_info, tenant_id: str = None, user_id: str = None):
     """
@@ -180,7 +198,6 @@ def create_or_update_user_agent(agent_info, tenant_id: str = None, user_id: str 
         for key, value in agent_info.items():
             setattr(user_agent, key, value)
 
-
 def create_tool(tool_info):
     """
     Create ToolInstance in the database based on tenant_id and agent_id, optional user_id.
@@ -192,7 +209,6 @@ def create_tool(tool_info):
         # Create a new ToolInstance
         new_tool_instance = ToolInstance(**filter_property(tool_info, ToolInstance))
         session.add(new_tool_instance)
-
 
 def create_or_update_tool(tool_info, tenant_id: str, user_id: str = None):
     """
@@ -227,7 +243,6 @@ def create_or_update_tool(tool_info, tenant_id: str, user_id: str = None):
             create_tool(tool_info_dict)
 
         session.flush()
-
 
 def query_tools():
     """
