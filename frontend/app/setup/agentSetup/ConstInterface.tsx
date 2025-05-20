@@ -1,7 +1,6 @@
 "use client";
-// 定义类型
 
-// 模型枚举类
+// model enum class
 export enum OpenAIModel {
   MainModel = 'main_model',
   SubModel = 'sub_model'
@@ -33,7 +32,7 @@ export interface ToolParam {
   value?: any;
   description?: string;
 }
-// 新增Agent弹窗Props接口
+// add agent modal props interface
 export interface AgentModalProps {
   isOpen: boolean;
   onCancel: () => void;
@@ -43,15 +42,16 @@ export interface AgentModalProps {
   selectedTools: Tool[];
   systemPrompt?: string;
   readOnly?: boolean;
+  mainAgentId?: string | null;
 }
-// 业务逻辑输入组件Props接口
+// business logic input component props interface
 export interface BusinessLogicInputProps {
   value: string;
   onChange: (value: string) => void;
   selectedAgents: Agent[];
   systemPrompt: string;
 }
-// 子代理池组件Props接口
+// sub agent pool component props interface
 export interface SubAgentPoolProps {
   selectedAgents: Agent[];
   onSelectAgent: (agent: Agent, isSelected: boolean) => void;
@@ -60,15 +60,16 @@ export interface SubAgentPoolProps {
   subAgentList?: Agent[];
   loadingAgents?: boolean;
 }
-// 工具池组件Props接口
+// tool pool component props interface
 export interface ToolPoolProps {
   selectedTools: Tool[];
   onSelectTool: (tool: Tool, isSelected: boolean) => void;
   isCreatingNewAgent?: boolean;
   tools?: Tool[];
   loadingTools?: boolean;
+  mainAgentId?: string | null;
 }
-// 主组件Props接口
+// main component props interface
 export interface BusinessLogicConfigProps {
   businessLogic: string;
   setBusinessLogic: (value: string) => void;
@@ -90,4 +91,6 @@ export interface BusinessLogicConfigProps {
   loadingTools?: boolean;
   subAgentList?: Agent[];
   loadingAgents?: boolean;
+  mainAgentId: string | null;
+  setMainAgentId: (id: string | null) => void;
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { Steps } from 'antd'
+import { useEffect } from 'react'
 
 // Timeline Step Configuration
 const GUIDE_STEPS = {
@@ -60,7 +61,7 @@ interface GuideStepsProps {
   businessLogic: string;
   selectedTools: any[];
   selectedAgents: any[];
-  mainAgentId: number | null;
+  mainAgentId: string | null;
   subAgentList: any[];
   loadingAgents: boolean;
 }
@@ -70,8 +71,16 @@ export default function GuideSteps({
   systemPrompt,
   businessLogic,
   selectedTools,
-  selectedAgents
+  selectedAgents,
+  mainAgentId,
+  subAgentList,
+  loadingAgents
 }: GuideStepsProps) {
+  // print mainAgentId in the console
+  useEffect(() => {
+    console.log('当前 mainAgentId:', mainAgentId);
+  }, [mainAgentId]);
+
   // Get Current Step
   const getCurrentStep = () => {
     if (isCreatingNewAgent) {
