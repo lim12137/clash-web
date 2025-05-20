@@ -31,8 +31,6 @@ def generate_knowledge_summary_stream(keywords: str) -> Generator:
     Returns:
         str:  Generate a knowledge base summary
     """
-    # todo
-    keywords = "医疗"
     # Load environment variables
     load_dotenv()
 
@@ -43,19 +41,19 @@ def generate_knowledge_summary_stream(keywords: str) -> Generator:
     messages = [{"role": "system", "content": prompts['system_prompt']},
         {"role": "user", "content": prompts['user_prompt'].format(content=keywords)}]
 
-    # 初始化 OpenAI 客户端
+    # initialize OpenAI client
     client = OpenAI(api_key=os.getenv('LLM_SECONDARY_API_KEY'),
                     base_url=os.getenv('LLM_SECONDARY_MODEL_URL'))
 
     try:
-        # 创建流式聊天完成请求
+        # Create stream chat completion request
         stream = client.chat.completions.create(
-            model=os.getenv('LLM_SECONDARY_MODEL_NAME'),  # 可以根据需要更换模型
+            model=os.getenv('LLM_SECONDARY_MODEL_NAME'),  # can change model as needed
             messages=messages,
-            stream=True  # 启用流式输出
+            stream=True  # enable stream output
         )
 
-        # 迭代处理流式响应
+        # Iterate through stream response
         for chunk in stream:
             new_token = chunk.choices[0].delta.content
             if new_token is not None:

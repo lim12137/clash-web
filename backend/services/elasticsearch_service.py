@@ -8,7 +8,8 @@ Main features include:
 3. Support for multiple search methods: exact search, semantic search, and hybrid search
 4. Health check interface
 """
-
+import asyncio
+import logging
 import os
 import time
 from typing import Optional
@@ -632,23 +633,23 @@ class ElasticSearchService:
                 token_join = []
                 try:
                     for new_token in generate_knowledge_summary_stream(keywords_for_summary):
-                        print(new_token)
-                        token_join.append(new_token)
-                        yield f"data: {{\"status\": \"success\", \"message\": \"Index {index_name} summary successfully\", \"summary\": \"{new_token}\"}}\n\n"
-
-                    if new_token == "END":
-                        model_output = "".join(token_join)
-                        # updata sql
-                        knowledge_record = get_knowledge_by_name(index_name)
-                        if knowledge_record:
-                            update_data = {
-                                "knowledge_describe": model_output,
-                                "updated_by": user_id,
-                            }
-                            update_knowledge_record(knowledge_record["knowledge_id"], update_data)
+                        if new_token == "END":
+                            model_output = "".join(token_join)
+                            knowledge_record = get_knowledge_by_name(index_name)
+                            if knowledge_record:
+                                update_data = {
+                                    "knowledge_describe": model_output,
+                                    "updated_by": user_id,
+                                }
+                                update_knowledge_record(knowledge_record["knowledge_id"], update_data)
+                            break
+                        else:
+                            token_join.append(new_token)
+                            yield f"data: {{\"status\": \"success\", \"message\": \"{new_token}\"}}\n\n"
+                        await asyncio.sleep(0.1)
 
                 except Exception as e:
-                    yield f"data: {{\"status\": \"error\", \"message\": \"{str(e)}\"}}\n\n"
+                    yield f"data: {{\"status\": \"error\", \"message\": \"{e}\"}}\n\n"
 
             # Return the flow response
             return StreamingResponse(
@@ -778,10 +779,10 @@ class ElasticSearchService:
             knowledge_record = get_knowledge_by_name(index_name)
             if knowledge_record:
                 summary_result = knowledge_record["knowledge_describe"]
-                return {"status": "success", "message": f"Index {index_name} summary successfully", "summary": summary_result}
+                return {"status": "success", "message": f"索引 {index_name} 摘要获取成功", "summary": summary_result}
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to get index {index_name} summary"
+                detail=f"无法获取索引 {index_name} 的摘要"
             )
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"{str(e)}")
+            raise HTTPException(status_code=500, detail=f"获取摘要失败: {str(e)}")
