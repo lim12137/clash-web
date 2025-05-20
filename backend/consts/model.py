@@ -294,13 +294,11 @@ class AgentInfoRequest(BaseModel):
     agent_name: str
     agent_description: str
     model_name: str
-    business_description: str
     max_steps: int
     is_run_summary: bool
     prompt: str
     parent_id: Optional[int] = None
     enable: bool
-    tools: List[AgentToolInfoRequest]
 
 class CreatingSubAgentIDRequest(BaseModel):
     main_agent_id: int

@@ -92,7 +92,8 @@ export const fetchAgentList = async () => {
       success: true,
       data: {
         mainAgentId: data.main_agent_id,
-        subAgentList: formattedAgents
+        subAgentList: formattedAgents,
+        enabledToolIds: data.enable_tool_id_list || []
       },
       message: ''
     };
@@ -102,7 +103,8 @@ export const fetchAgentList = async () => {
       success: false,
       data: {
         mainAgentId: null,
-        subAgentList: []
+        subAgentList: [],
+        enabledToolIds: []
       },
       message: '获取 agent 列表失败，请稍后重试'
     };
@@ -131,7 +133,10 @@ export const getCreatingSubAgentId = async (mainAgentId: string | null) => {
     const data = await response.json();
     return {
       success: true,
-      data: data.agent_id,
+      data: {
+        agentId: data.agent_id,
+        enabledToolIds: data.enable_tool_id_list || []
+      },
       message: ''
     };
   } catch (error) {
