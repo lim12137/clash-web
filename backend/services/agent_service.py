@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from database.agent_db import create_agent, query_all_tool_instances, query_tools, \
+from database.agent_db import create_agent, query_tool_instances, query_tools, \
     query_or_create_main_agent_id, query_sub_agents, search_sub_agent_by_main_agent_id
 
 
@@ -24,7 +24,7 @@ def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str
     sub_agents = query_sub_agents(main_agent_id, tenant_id, user_id)
 
     tools = query_tools()
-    tool_instances = query_all_tool_instances(tenant_id, user_id)
+    tool_instances = query_tool_instances(tenant_id, user_id)
     merge_tool_instance(tool_instances, tools)
 
     # Add tool instances to agent
