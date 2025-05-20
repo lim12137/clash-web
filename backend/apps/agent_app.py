@@ -7,7 +7,7 @@ from fastapi import HTTPException, APIRouter, Header
 from fastapi.responses import StreamingResponse
 
 from consts.model import AgentRequest, AgentInfoRequest, CreatingSubAgentIDRequest
-from database.agent_db import delete_agent, update_agent, query_tool_instances
+from database.agent_db import delete_agent, update_agent, query_tool_instances, search_agent_info_by_agent_id_api
 from nexent.core.utils.observer import MessageObserver
 from services.agent_service import query_or_create_main_agents_api, \
     query_sub_agents_api, get_creating_sub_agent_id_api, get_enable_tool_id_by_agent_id
@@ -131,6 +131,19 @@ async def list_agent():
         raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
 
 
+@router.post("/search_info")
+async def get_agent_info(request: AgentInfoRequest):
+    """
+    Search agent info by agent_id
+    """
+    try:
+        user_id, tenant_id = get_user_info()
+        agent_info = search_agent_info_by_agent_id_api(request.agent_id, tenant_id, user_id)
+        return agent_info
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent search info error: {str(e)}")
+
+
 @router.post("/get_creating_sub_agent_id")
 async def get_creating_sub_agent_id(request: CreatingSubAgentIDRequest):
     """
@@ -153,7 +166,8 @@ async def update_agent_info(request: AgentInfoRequest):
     """
     try:
         user_id, tenant_id = get_user_info()
-        return update_agent(request.agent_id, request, tenant_id, user_id)
+        update_agent(request.agent_id, request, tenant_id, user_id)
+        return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent update error: {str(e)}")
 

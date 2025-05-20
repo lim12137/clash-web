@@ -291,14 +291,16 @@ class AgentToolInfoRequest(BaseModel):
 
 class AgentInfoRequest(BaseModel):
     agent_id: int
-    agent_name: str
-    agent_description: str
-    model_name: str
-    max_steps: int
-    is_run_summary: bool
-    prompt: str
+    name: Optional[str] = None
+    description: Optional[str] = None
+    business_description: Optional[str] = None
+    model_name: Optional[str] = None
+    max_steps: Optional[int] = None
+    provide_run_summary: Optional[bool] = None
+    prompt: Optional[str] = None
     parent_id: Optional[int] = None
-    enable: bool
+    enabled: Optional[bool] = None
+
 
 class CreatingSubAgentIDRequest(BaseModel):
     main_agent_id: int
@@ -309,6 +311,7 @@ class ToolInstanceInfoRequest(BaseModel):
     agent_id: int
     params: Dict[str, Any]
     enabled: bool
+
 
 class ToolInstanceSearchRequest(BaseModel):
     tool_id: int
