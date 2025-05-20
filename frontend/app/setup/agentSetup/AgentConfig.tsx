@@ -205,7 +205,7 @@ export default function AgentConfig() {
                   isGenerating={isGenerating}
                   onDebug={() => setIsDebugDrawerOpen(true)}
                   onGenerate={handleGeneratePrompt}
-                  agentId={isCreatingNewAgent ? undefined : 1}
+                  agentId={mainAgentId ? parseInt(mainAgentId) : undefined}
                   taskDescription={businessLogic}
                   selectedAgents={selectedAgents}
                   selectedTools={selectedTools}
