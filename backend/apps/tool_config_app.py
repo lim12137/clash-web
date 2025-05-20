@@ -1,6 +1,6 @@
 from fastapi import HTTPException, APIRouter
 import logging
-from database.agent_db import create_or_update_tool, query_tools, query_tool_instances
+from database.agent_db import create_or_update_tool, query_tools, query_tool_instances_by_id
 from consts.model import ToolInstanceInfoRequest, ToolInstanceSearchRequest
 from utils.user_utils import get_user_info
 
@@ -26,7 +26,7 @@ async def list_tools():
 async def update_tool_info(request: ToolInstanceSearchRequest):
     try:
         user_id, tenant_id = get_user_info()
-        tool_instance = query_tool_instances(request.agent_id, request.tool_id, tenant_id, user_id)
+        tool_instance = query_tool_instances_by_id(request.agent_id, request.tool_id, tenant_id, user_id)
         if tool_instance:
             return {
                 "params": tool_instance["params"],
