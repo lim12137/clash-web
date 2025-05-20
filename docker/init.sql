@@ -199,12 +199,12 @@ CREATE TABLE IF NOT EXISTS nexent.ag_tool_info_t (
     tool_id SERIAL PRIMARY KEY NOT NULL,
     name VARCHAR(100),
     display_name VARCHAR(100),
-    description VARCHAR(2048),
+    description VARCHAR,
     source VARCHAR(100),
     author VARCHAR(100),
     usage VARCHAR(100),
     params JSON,
-    inputs VARCHAR(2048),
+    inputs VARCHAR,
     output_type VARCHAR(100),
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -251,7 +251,8 @@ COMMENT ON COLUMN nexent.ag_tool_info_t.delete_flag IS 'Whether it is deleted. O
 CREATE TABLE IF NOT EXISTS nexent.ag_tenant_agent_t (
     agent_id SERIAL PRIMARY KEY NOT NULL,
     name VARCHAR(100),
-    description VARCHAR(2048),
+    description VARCHAR,
+    business_description VARCHAR,
     model_name VARCHAR(100),
     max_steps INTEGER,
     prompt TEXT,
@@ -287,6 +288,7 @@ COMMENT ON TABLE nexent.ag_tenant_agent_t IS 'Information table for agents';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.agent_id IS 'ID';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.name IS 'Agent name';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.description IS 'Description';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.business_description IS 'Manually entered by the user to describe the entire business process';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.model_name IS 'Name of the model used';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.max_steps IS 'Maximum number of steps';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.prompt IS 'System prompt';
@@ -303,7 +305,7 @@ COMMENT ON COLUMN nexent.ag_tenant_agent_t.delete_flag IS 'Whether it is deleted
 -- Create the ag_user_agent_t table in the nexent schema with new fields
 CREATE TABLE IF NOT EXISTS nexent.ag_user_agent_t (
     user_agent_id SERIAL PRIMARY KEY NOT NULL,
-    agent_id INTEGER ,
+    agent_id INTEGER,
     prompt TEXT,
     tenant_id VARCHAR(100),
     user_id VARCHAR(100),
