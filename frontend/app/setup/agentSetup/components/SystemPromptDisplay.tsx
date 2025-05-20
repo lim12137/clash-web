@@ -113,7 +113,7 @@ export default function SystemPromptDisplay({
       message.warning("请输入微调指令");
       return;
     }
-    
+
     setIsTuning(true);
     
     try {
@@ -124,6 +124,7 @@ export default function SystemPromptDisplay({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          agent_id: agentId,
           system_prompt: prompt,
           command: request
         }),
