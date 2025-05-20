@@ -12,6 +12,7 @@ export interface GeneratePromptParams {
  * Fine-tuning Prompt Request Parameters
  */
 export interface FineTunePromptParams {
+  agent_id: number;
   system_prompt: string;
   command: string;
 }
