@@ -6,11 +6,11 @@ from threading import Thread
 from fastapi import HTTPException, APIRouter, Header
 from fastapi.responses import StreamingResponse
 
-from consts.model import AgentRequest, AgentInfoRequest
+from consts.model import AgentRequest, AgentInfoRequest, CreatingSubAgentIDRequest
 from database.agent_db import delete_agent, update_agent
 from nexent.core.utils.observer import MessageObserver
-from services.agent_service import create_agent_api, query_or_create_main_agents_api, \
-    query_sub_agents_api
+from services.agent_service import query_or_create_main_agents_api, \
+    query_sub_agents_api, get_creating_sub_agent_id_api
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 from utils.agent_utils import agent_run_thread
 from utils.agent_utils import thread_manager
@@ -129,14 +129,14 @@ async def list_agent():
         raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
 
 
-@router.post("/create")
-async def create_agent_info(request: AgentInfoRequest):
+@router.post("/get_creating_sub_agent_id")
+async def get_creating_sub_agent_id(request: CreatingSubAgentIDRequest):
     """
-    Create a new sub agent
+    Create a new sub agent, return agent_ID
     """
     try:
-        user_id, tenant_id = get_user_info()
-        return create_agent_api(request, tenant_id, user_id)
+        _, tenant_id = get_user_info()
+        return {"agent_id": get_creating_sub_agent_id_api(request.main_agent_id, tenant_id)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent create error: {str(e)}")
 

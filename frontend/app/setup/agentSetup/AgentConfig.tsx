@@ -5,9 +5,8 @@ import BusinessLogicConfig from './AgentManagementConfig'
 import SystemPromptConfig from './SystemPromptConfig'
 import DebugConfig from './DebugConfig'
 import GuideSteps from './components/GuideSteps'
-import { Typography, Row, Col, Drawer, message } from 'antd'
+import { Row, Col, Drawer, message } from 'antd'
 import { fetchTools, fetchAgentList } from '@/services/agentConfigService'
-const { Title } = Typography
 
 // Layout Height Constant Configuration
 const LAYOUT_CONFIG = {
@@ -36,11 +35,11 @@ export default function AgentConfig() {
   const [mainAgentPrompt, setMainAgentPrompt] = useState("")
   const [tools, setTools] = useState<any[]>([])
   const [loadingTools, setLoadingTools] = useState(false)
-  const [mainAgentId, setMainAgentId] = useState<number | null>(null)
+  const [mainAgentId, setMainAgentId] = useState<string | null>(null)
   const [subAgentList, setSubAgentList] = useState<any[]>([])
   const [loadingAgents, setLoadingAgents] = useState(false)
 
-  // 进入页面时加载工具列表
+  // load tools when page is loaded
   useEffect(() => {
     const loadTools = async () => {
       setLoadingTools(true)
@@ -62,28 +61,30 @@ export default function AgentConfig() {
     loadTools()
   }, [])
 
-  // 进入页面时加载 agent 列表
-  useEffect(() => {
-    const loadAgents = async () => {
-      setLoadingAgents(true)
-      try {
-        const result = await fetchAgentList()
-        if (result.success) {
-          setMainAgentId(result.data.mainAgentId)
-          setSubAgentList(result.data.subAgentList)
-        } else {
-          message.error(result.message)
-        }
-      } catch (error) {
-        console.error('加载 agent 列表失败:', error)
-        message.error('获取 agent 列表失败，请刷新页面重试')
-      } finally {
-        setLoadingAgents(false)
+  // get agent list
+  const fetchAgents = async () => {
+    setLoadingAgents(true);
+    try {
+      const result = await fetchAgentList();
+      if (result.success) {
+        setSubAgentList(result.data.subAgentList);
+        setMainAgentId(result.data.mainAgentId ? String(result.data.mainAgentId) : null);
+      } else {
+        message.error(result.message || '获取Agent列表失败');
       }
+    } catch (error) {
+      console.error('获取Agent列表失败:', error);
+      message.error('获取Agent列表失败，请稍后重试');
+    } finally {
+      setLoadingAgents(false);
     }
-    
-    loadAgents()
-  }, [])
+  };
+  
+
+  // get agent list when component is loaded
+  useEffect(() => {
+    fetchAgents();
+  }, []);
 
   // Monitor the status change of creating a new agent, and reset the relevant status
   useEffect(() => {
@@ -171,6 +172,8 @@ export default function AgentConfig() {
                   loadingTools={loadingTools}
                   subAgentList={subAgentList}
                   loadingAgents={loadingAgents}
+                  mainAgentId={mainAgentId}
+                  setMainAgentId={setMainAgentId}
                 />
               </div>
             </div>
