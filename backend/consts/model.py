@@ -268,3 +268,7 @@ class ProcessParams(BaseModel):
 class OpinionRequest(BaseModel):
     message_id: int
     opinion: Optional[str] = None
+
+
+class ChangeSummaryRequest(BaseModel):
+    summary_result: str
