@@ -153,7 +153,8 @@ async def update_agent_info(request: AgentInfoRequest):
     """
     try:
         user_id, tenant_id = get_user_info()
-        return update_agent(request.agent_id, request, tenant_id, user_id)
+        update_agent(request.agent_id, request, tenant_id, user_id)
+        return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent update error: {str(e)}")
 

@@ -148,7 +148,9 @@ def update_agent(agent_id, agent_info, tenant_id=None, user_id=None):
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
 
-        for key, value in filter_property(agent_info, AgentInfo).items():
+        for key, value in filter_property(agent_info.__dict__, AgentInfo).items():
+            if value is None:
+                continue
             setattr(agent, key, value)
         agent.updated_by = user_id
 
