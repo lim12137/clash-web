@@ -281,7 +281,7 @@ def query_tool_instances(tenant_id: str, user_id: str = None, agent_id: int = No
     """
     with get_db_session() as session:
         query = session.query(ToolInstance).filter(ToolInstance.tenant_id == tenant_id).filter(
-            ToolInstance.delete_flag != 'Y')
+            ToolInstance.delete_flag != 'Y').filter(ToolInstance.enabled)
         if user_id:
             query = query.filter(ToolInstance.user_id == user_id)
         if agent_id:
@@ -315,10 +315,10 @@ def update_tool_table_from_scan_tool_list():
         # get all existing tools (including complete information)
         existing_tools = session.query(ToolInfo).filter(ToolInfo.delete_flag != 'Y').all()
         existing_tool_dict = {f"{tool.name}&{tool.source}": tool for tool in existing_tools}
-        
+
         for tool in tool_list:
             filtered_tool_data = filter_property(tool.__dict__, ToolInfo)
-            
+
             if f"{tool.name}&{tool.source}" in existing_tool_dict:
                 # by tool name and source to identify the existing tool
                 existing_tool = existing_tool_dict[f"{tool.name}&{tool.source}"]
@@ -330,7 +330,7 @@ def update_tool_table_from_scan_tool_list():
                 filtered_tool_data.update({"created_by": user_id, "updated_by": user_id, "author": user_id})
                 new_tool = ToolInfo(**filtered_tool_data)
                 session.add(new_tool)
-        
+
         session.flush()
 
 
