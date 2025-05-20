@@ -158,16 +158,16 @@ async def update_agent_info(request: AgentInfoRequest):
         raise HTTPException(status_code=500, detail=f"Agent update error: {str(e)}")
 
 
-# @router.delete("")
-# async def delete_agent_api(request: AgentInfoRequest):
-#     """
-#     Delete an agent
-#     """
-#     try:
-#         user_id, tenant_id = get_user_info()
-#         return delete_agent(request, tenant_id, user_id)
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"Agent delete error: {str(e)}")
+@router.delete("")
+async def delete_agent_api(request: AgentInfoRequest):
+    """
+    Delete an agent
+    """
+    try:
+        user_id, tenant_id = get_user_info()
+        return delete_agent(request, tenant_id, user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent delete error: {str(e)}")
 
 
 
