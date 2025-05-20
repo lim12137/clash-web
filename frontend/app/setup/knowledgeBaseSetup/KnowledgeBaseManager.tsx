@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 
-import { message } from 'antd'
+import { message, Button } from 'antd'
 import { InfoCircleFilled } from '@ant-design/icons'
 
 // Import AppProvider and hooks
@@ -22,7 +22,7 @@ import DocumentList from './document/DocumentListContainer'
 
 import ConfirmModal from './components/ConfirmModal'
 
-// EmptyState组件直接定义在此文件中
+// EmptyState component defined directly in this file
 interface EmptyStateProps {
   icon?: React.ReactNode | string
   title: string
@@ -80,7 +80,9 @@ function DataConfig() {
     selectKnowledgeBase,
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
-    refreshKnowledgeBaseData
+    refreshKnowledgeBaseData,
+    summaryIndex,
+    changeSummary
   } = useKnowledgeBaseContext();
 
   const {
@@ -98,12 +100,13 @@ function DataConfig() {
     showNotification
   } = useUIContext();
 
-  // 创建模式状态
+  // Create mode state
   const [isCreatingMode, setIsCreatingMode] = useState(false);
   const [newKbName, setNewKbName] = useState("");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [hasClickedUpload, setHasClickedUpload] = useState(false);
   const [hasShownNameError, setHasShownNameError] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
 
   // 添加监听选中新知识库的事件
   useEffect(() => {
@@ -124,13 +127,13 @@ function DataConfig() {
     };
   }, [kbState.knowledgeBases, setActiveKnowledgeBase, fetchDocuments, setIsCreatingMode, setHasClickedUpload]);
 
-  // UI配置变量
+  // UI configuration variables
   const UI_CONFIG = {
     CREATE_BUTTON_HEIGHT: '50px',                // 创建知识库按钮高度
-    CONTAINER_HEIGHT: '71.6vh'                     // 容器整体高度
+    CONTAINER_HEIGHT: '75.6vh'                     // 容器整体高度
   };
 
-  // 生成唯一的知识库名称
+  // Generate unique knowledge base name
   const generateUniqueKbName = (existingKbs: KnowledgeBase[]): string => {
     const baseNamePrefix = "新知识库";
     const existingNames = new Set(existingKbs.map(kb => kb.name));
@@ -149,22 +152,22 @@ function DataConfig() {
     return `${baseNamePrefix}${counter}`;
   };
 
-  // 处理点击知识库的逻辑，设置当前活动知识库
+  // Handle knowledge base click logic, set current active knowledge base
   const handleKnowledgeBaseClick = (kb: KnowledgeBase) => {
     setIsCreatingMode(false); // Reset creating mode
     setHasClickedUpload(false); // 重置上传按钮点击状态
-    
+
     // 无论是否切换知识库，都需要获取最新文档信息
     const isChangingKB = !kbState.activeKnowledgeBase || kb.id !== kbState.activeKnowledgeBase.id;
-    
+
     // 如果是切换知识库，更新激活状态
     if (isChangingKB) {
       setActiveKnowledgeBase(kb);
     }
-    
+
     // 设置活动知识库ID到轮询服务
     knowledgeBasePollingService.setActiveKnowledgeBase(kb.id);
-    
+
     // 获取文档
     fetchDocuments(kb.id);
     
@@ -172,15 +175,15 @@ function DataConfig() {
     handleKnowledgeBaseChange(kb);
   }
 
-  // 处理知识库切换事件
+  // Handle knowledge base change event
   const handleKnowledgeBaseChange = async (kb: KnowledgeBase) => {
     try {
       // 直接获取最新文档数据，强制从服务器获取最新数据
       const documents = await knowledgeBaseService.getDocuments(kb.id, true);
-      
+
       // 触发文档更新事件
       knowledgeBasePollingService.triggerDocumentsUpdate(kb.id, documents);
-      
+
       // 后台更新知识库统计信息
       setTimeout(async () => {
         try {
@@ -195,7 +198,7 @@ function DataConfig() {
     }
   };
 
-  // 添加一个拖拽上传相关的处理函数
+  // Add a drag and drop upload related handler function
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(true);
@@ -221,7 +224,7 @@ function DataConfig() {
     }
   }
 
-  // 处理删除知识库
+  // Handle knowledge base deletion
   const handleDelete = (id: string) => {
     ConfirmModal.confirm({
       title: '确定要删除这个知识库吗？',
@@ -233,7 +236,10 @@ function DataConfig() {
         try {
           await deleteKnowledgeBase(id);
           
-          // 延迟1秒后刷新知识库列表，确保后端处理完成
+          // Clear preloaded data, force fetch latest data from server
+          localStorage.removeItem('preloaded_kb_data');
+
+          // Delay 1 second before refreshing knowledge base list to ensure backend processing is complete
           setTimeout(async () => {
             await fetchKnowledgeBases(false, false);
             message.success("删除知识库成功");
@@ -245,9 +251,9 @@ function DataConfig() {
     });
   }
 
-  // 处理同步知识库
+  // Handle knowledge base sync
   const handleSync = () => {
-    // 手动同步时强制从服务器获取最新数据
+    // When manually syncing, force fetch latest data from server
     refreshKnowledgeBaseData(true)
       .then(() => {
         message.success("同步知识库成功");
@@ -257,9 +263,9 @@ function DataConfig() {
       });
   }
 
-  // 处理创建新知识库
+  // Handle new knowledge base creation
   const handleCreateNew = () => {
-    // 生成默认知识库名称
+    // Generate default knowledge base name
     const defaultName = generateUniqueKbName(kbState.knowledgeBases);
     setNewKbName(defaultName);
     setIsCreatingMode(true);
@@ -268,7 +274,7 @@ function DataConfig() {
     setUploadFiles([]); // 重置上传文件数组，清空所有待上传文件
   };
 
-  // 处理删除文档
+  // Handle document deletion
   const handleDeleteDocument = (docId: string) => {
     const kbId = kbState.activeKnowledgeBase?.id;
     if (!kbId) return;
@@ -297,16 +303,16 @@ function DataConfig() {
       message.warning("请先选择文件");
       return;
     }
-    
+
     const filesToUpload = uploadFiles;
-    
+
     // 创建模式逻辑
     if (isCreatingMode) {
       if (!newKbName || newKbName.trim() === "") {
         message.warning("请输入知识库名称");
         return;
       }
-      
+
       setHasClickedUpload(true); // 已点击上传按钮，则立即锁定知识库名称输入
       
       try {
@@ -354,7 +360,7 @@ function DataConfig() {
             if (found) {
               // 知识库创建成功后，设置为活动知识库
               setActiveKnowledgeBase(newKB);
-              
+
               // 触发文档轮询，监控处理状态
               knowledgeBasePollingService.startDocumentStatusPolling(
                 newKB.id,
@@ -365,7 +371,7 @@ function DataConfig() {
                   );
                 }
               );
-              
+
               // 获取最新文档并触发知识库列表更新
               fetchDocuments(newKB.id);
               knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
@@ -381,7 +387,7 @@ function DataConfig() {
       return;
     }
     
-    // 非创建模式上传
+    // Non-creation mode upload
     const kbId = kbState.activeKnowledgeBase?.id;
     if (!kbId) {
       message.warning("请先选择一个知识库");
@@ -395,10 +401,10 @@ function DataConfig() {
       
       // 使用新的轮询服务
       knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
-      
+
       // 先获取最新文档状态
       const latestDocs = await knowledgeBaseService.getDocuments(kbId, true);
-      
+
       // 手动触发文档更新，确保UI立即更新
       window.dispatchEvent(new CustomEvent('documentsUpdated', {
         detail: {
@@ -406,10 +412,10 @@ function DataConfig() {
           documents: latestDocs
         }
       }));
-      
+
       // 立即强制获取最新文档
       fetchDocuments(kbId, true);
-      
+
       // 立即启动文档状态轮询 - 保证即使文档列表为空也能启动轮询
       knowledgeBasePollingService.startDocumentStatusPolling(
         kbId,
@@ -420,7 +426,7 @@ function DataConfig() {
             kbId,
             documents
           );
-          
+
           // 同时更新文档上下文
           window.dispatchEvent(new CustomEvent('documentsUpdated', {
             detail: {
@@ -437,36 +443,58 @@ function DataConfig() {
     }
   }
 
-  // 文件选择处理
+  // File selection handling
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setUploadFiles(Array.from(e.target.files));
     }
   }
 
-  // 获取当前查看的知识库文档
+  // Get current viewing knowledge base documents
   const viewingDocuments = kbState.activeKnowledgeBase 
     ? docState.documentsMap[kbState.activeKnowledgeBase.id] || []
     : [];
 
-  // 获取当前知识库名称
+  // Get current knowledge base name
   const viewingKbName = kbState.activeKnowledgeBase?.name || "";
 
-  // 处理选择知识库
+  // Handle knowledge base selection
   const handleSelectKnowledgeBase = (id: string) => {
     selectKnowledgeBase(id);
     
-    // 选择知识库时也获取最新数据（低优先级后台操作）
+    // When selecting knowledge base also get latest data (low priority background operation)
     setTimeout(async () => {
       try {
         // 使用较低优先级刷新数据，因为这不是关键操作
         await refreshKnowledgeBaseData(true);
       } catch (error) {
         console.error("刷新知识库数据失败:", error);
-        // 错误不影响用户体验
+        // Error doesn't affect user experience
       }
-    }, 500); // 延迟执行，降低优先级
+    }, 500); // Delay execution, lower priority
   }
+
+  // Handle auto summary
+  const handleAutoSummary = async () => {
+    if (!viewingKbName) {
+      message.warning('请先选择一个知识库');
+      return;
+    }
+
+    setIsSummarizing(true);
+    try {
+      const summary = await summaryIndex(viewingKbName);
+      // Here you can process the returned summary content based on actual needs
+      // For example display in dialog or update to some state
+      message.success('知识库总结完成');
+      // TODO: Handle summary content
+    } catch (error) {
+      message.error('获取知识库总结失败');
+      console.error('获取知识库总结失败:', error);
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
 
   // 在组件初始化或活动知识库变化时更新轮询服务中的活动知识库ID
   useEffect(() => {
@@ -490,13 +518,13 @@ function DataConfig() {
   return (
     <>
       <div 
-        className="flex h-full mb-8"
+        className="flex h-full mb-4"
         style={{ height: UI_CONFIG.CONTAINER_HEIGHT }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* 左侧知识库列表 - 占据1/3空间 */}
+        {/* Left knowledge base list - occupies 1/3 space */}
         <div className="w-1/3 p-3 pr-1.5">
           <KnowledgeBaseList
             knowledgeBases={kbState.knowledgeBases}
@@ -512,11 +540,11 @@ function DataConfig() {
             isSelectable={isKnowledgeBaseSelectable}
             getModelDisplayName={(modelId) => modelId}
             containerHeight={UI_CONFIG.CONTAINER_HEIGHT}
-            onKnowledgeBaseChange={() => {}} // 这里不需要重复触发，因为已经在handleKnowledgeBaseClick中处理了
+            onKnowledgeBaseChange={() => {}} // No need to trigger repeatedly here as it's already handled in handleKnowledgeBaseClick
           />
         </div>
         
-        {/* 右侧内容区域 - 占据2/3空间 */}
+        {/* Right content area - occupies 2/3 space */}
         <div className="w-2/3 p-3 pl-1.5 flex flex-col h-full">
           {isCreatingMode ? (
             <DocumentList
@@ -527,7 +555,7 @@ function DataConfig() {
               onNameChange={setNewKbName}
               containerHeight={UI_CONFIG.CONTAINER_HEIGHT}
               hasDocuments={hasClickedUpload || docState.isUploading}
-              // 上传相关props
+              // Upload related props
               isDragging={uiState.isDragging}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -553,7 +581,7 @@ function DataConfig() {
               }
               containerHeight={UI_CONFIG.CONTAINER_HEIGHT}
               hasDocuments={viewingDocuments.length > 0}
-              // 上传相关props
+              // Upload related props
               isDragging={uiState.isDragging}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -564,7 +592,7 @@ function DataConfig() {
               isUploading={docState.isUploading}
             />
           ) : (
-            <div className="flex items-center justify-center h-full border border-gray-200 rounded-md bg-white" style={{ height: UI_CONFIG.CONTAINER_HEIGHT }}>
+            <div className="flex items-center justify-center h-full border border-gray-200 rounded-md bg-white h-full">
               <EmptyState
                 title="未选择知识库"
                 description="请在左侧列表选择一个知识库，或创建新的知识库"

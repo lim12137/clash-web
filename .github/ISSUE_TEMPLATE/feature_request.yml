@@ -18,8 +18,6 @@ body:
     attributes:
       label: 'Proposed Solution'
       description: Describe the solution you'd like in a clear and concise manner.
-    validations:
-      required: true
   - type: textarea
     attributes:
       label: 'Additional Information'
