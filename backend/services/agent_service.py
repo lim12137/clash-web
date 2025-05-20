@@ -16,9 +16,11 @@ def get_creating_sub_agent_id_api(main_agent_id: int, tenant_id: str = None) -> 
                             "enabled": False,
                             "parent_agent_id": main_agent_id})["agent_id"]
 
+
 def query_or_create_main_agents_api(tenant_id: str = None):
     main_agents_id = query_or_create_main_agent_id(tenant_id)
     return main_agents_id
+
 
 def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str = None):
     sub_agents = query_sub_agents(main_agent_id, tenant_id, user_id)
@@ -30,7 +32,6 @@ def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str
     # Add tool instances to agent
     add_tools_to_agent(sub_agents, tool_instances)
     return sub_agents
-
 
 
 def add_tools_to_agent(agents, tool_instances):
