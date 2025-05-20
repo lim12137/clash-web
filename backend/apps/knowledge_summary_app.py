@@ -29,7 +29,7 @@ async def auto_summary(
         )
     except Exception as e:
         async def generate_error():
-            yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {{\"status\": \"error\", \"message\": \"知识库摘要生成失败: {e}\"}}\n\n"
         return StreamingResponse(
             generate_error(),
             media_type="text/event-stream",
@@ -51,7 +51,7 @@ def change_summary(
         # Try to list indices as a health check
         return ElasticSearchService().change_summary(index_name=index_name,summary_result=summary_result, es_core=es_core,user_id=user_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{str(e)}")
+        raise HTTPException(status_code=500, detail=f"知识库摘要更新失败: {str(e)}")
 
 
 @router.get("/{index_name}/summary")
@@ -63,4 +63,4 @@ def get_summary(
         # Try to list indices as a health check
         return ElasticSearchService().get_summary(index_name=index_name)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取知识库摘要失败: {str(e)}")
