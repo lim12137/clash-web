@@ -32,7 +32,6 @@ class ElasticSearchCore:
         embedding_model: Optional[JinaEmbedding],
         verify_certs: bool = False,
         ssl_show_warn: bool = False,
-        init_test_kb: bool = True,
     ):
         """
         Initialize ElasticSearchCore with Elasticsearch client and JinaEmbedding model.
@@ -43,7 +42,6 @@ class ElasticSearchCore:
             verify_certs: Whether to verify SSL certificates
             ssl_show_warn: Whether to show SSL warnings
             embedding_model: Optional embedding model instance
-            init_test_kb: Whether to initialize test knowledge base
         """
         # Get credentials from environment if not provided
         self.host = host
@@ -59,10 +57,6 @@ class ElasticSearchCore:
         
         # Initialize embedding model
         self.embedding_model = embedding_model
-        
-        # Initialize test knowledge base if requested
-        if init_test_kb:
-            self.create_test_knowledge_base()
     
     @property
     def embedding_dim(self) -> int:
@@ -690,87 +684,7 @@ class ElasticSearchCore:
             logging.info(stats)
         except Exception as e:
             logging.error(f"Error getting index statistics: {str(e)}")
-
-    def create_test_knowledge_base(
-        self,
-        embedding_dim: Optional[int] = None,
-    ) -> Tuple[str, int]:
-        """
-        Create a test knowledge base with sample articles for testing.
-        
-        Args:
-            embedding_dim: Dimension of the embedding vectors (optional, will use model's dim if not provided)
-            
-        Returns:
-            Tuple containing the index name and number of documents indexed
-        """
-        index_name = "sample_articles"
-        logging.info(f"Checking if test knowledge base '{index_name}' exists...")
-        
-        # Check if index already exists
-        if self.client.indices.exists(index=index_name):
-            logging.info(f"Index {index_name} already exists, skipping creation")
-            # Get current document count
-            try:
-                stats = self.client.indices.stats(index=index_name)
-                doc_count = stats["indices"][index_name]["primaries"]["docs"]["count"]
-                return index_name, doc_count
-            except Exception as e:
-                logging.error(f"Error getting index statistics: {str(e)}")
-                return index_name, 0
-        
-        # If index doesn't exist, continue with creation process
-        logging.info("Creating new test knowledge base...")
-        
-        # Fetch sample articles data
-        logging.info("Fetching sample articles data...")
-        url = "https://raw.githubusercontent.com/elastic/elasticsearch-labs/main/notebooks/search/articles.json"
-        try:
-            # Create a new vector index
-            success = self.create_vector_index(index_name, embedding_dim)
-            if not success:
-                logging.error(f"Failed to create {index_name}")
-                return index_name, 0
-            
-            response = urlopen(url)
-            articles = json.loads(response.read())
-            
-            # Get current time for create_time
-            current_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
-            
-            # Prepare documents for indexing
-            logging.info("Preparing documents for indexing...")
-            for article in articles:
-                # Add required fields if not present
-                if "id" not in article:
-                    article["id"] = str(hash(article.get("passage", "") or article.get("content", "")))[:8]
-                
-                # Rename 'passage' to 'content' if present
-                if "passage" in article:
-                    article["content"] = article.pop("passage")
-                    
-                article["path_or_url"] = url  # Add source URL
-                article["filename"] = url.split("/")[-1]  # Add filename
-                article["process_source"] = "Unstructured"  # Add metadata
-                article["embedding_model_name"] = self.embedding_model.embedding_model_name  # Add model name
-                article["file_size"] = len(json.dumps(article))  # Approximate file size
-                article["create_time"] = current_time  # Add creation time
-                
-                # Ensure title is present
-                if "title" not in article:
-                    article["title"] = f"Article {article['id']}"
-            
-            # Index documents (limit to sample_size)
-            logging.info(f"Indexing {len(articles)} documents...")
-            num_indexed = self.index_documents(index_name, articles)
-            
-            logging.info(f"Test knowledge base created with {num_indexed} documents")
-            return index_name, num_indexed
-            
-        except Exception as e:
-            logging.error(f"Error creating test knowledge base: {str(e)}")
-            return index_name, 0
-
+    
     def get_all_indices_stats(self, index_pattern: str = "*") -> Dict[str, Dict[str, Dict[str, Any]]]:
         """
         Get statistics for all user indices.
