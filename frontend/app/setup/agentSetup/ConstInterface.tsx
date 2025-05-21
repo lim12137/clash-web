@@ -37,12 +37,13 @@ export interface AgentModalProps {
   isOpen: boolean;
   onCancel: () => void;
   onSave: (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string) => void;
+  onRefresh?: () => void;
   title: string;
   agent?: Agent | null;
   selectedTools: Tool[];
   systemPrompt?: string;
   readOnly?: boolean;
-  mainAgentId?: string | null;
+  agentId: string | null;
 }
 // business logic input component props interface
 export interface BusinessLogicInputProps {
@@ -93,4 +94,5 @@ export interface BusinessLogicConfigProps {
   loadingAgents?: boolean;
   mainAgentId: string | null;
   setMainAgentId: (id: string | null) => void;
+  setSubAgentList: (agents: Agent[]) => void;
 }
