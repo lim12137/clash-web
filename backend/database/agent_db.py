@@ -31,7 +31,7 @@ def search_agent_info_by_agent_id_api(agent_id: int, tenant_id: str, user_id: st
             UserAgent.user_id == user_id,
             UserAgent.delete_flag != 'Y'
         ).first()
-        # 使用user_agent_info 更新 agent
+        # update agent_dict with user_agent_info
         agent_dict.update(as_dict(user_agent_info))
         return agent_dict
 
