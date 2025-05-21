@@ -9,28 +9,71 @@ Main features include:
 4. Health check interface
 """
 import asyncio
-import logging
 import os
 import time
-from typing import Optional
-
+from typing import Optional, Generator
+from openai import OpenAI
+from dotenv import load_dotenv
+import yaml
 import requests
 from nexent.core.models.embedding_model import JinaEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from nexent.core.nlp.tokenizer import calculate_term_weights
-from services.knowledge_summary_service import generate_knowledge_summary_stream
 from fastapi import HTTPException, Query, Body, Path, Depends
 from fastapi.responses import StreamingResponse
 from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST
 from consts.model import IndexingRequest, SearchRequest, HybridSearchRequest
 from utils.agent_utils import config_manager
 from utils.elasticsearch_utils import get_active_tasks_status
-from database.knowledge_db import create_knowledge_record, get_knowledge_by_name, update_knowledge_record
+from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
 
+def generate_knowledge_summary_stream(keywords: str) -> Generator:
+    """
+    Generate a knowledge base summary based on keywords
+
+    Args:
+        keywords: Keywords that frequently appear in the knowledge base content
+
+    Returns:
+        str:  Generate a knowledge base summary
+    """
+    # Load environment variables
+    load_dotenv()
+
+    # Load prompt words
+    with open('backend/prompts/knowledge_summary_agent.yaml', 'r', encoding='utf-8') as f:
+        prompts = yaml.safe_load(f)
+
+    # Build messages
+    messages = [{"role": "system", "content": prompts['system_prompt']},
+        {"role": "user", "content": prompts['user_prompt'].format(content=keywords)}]
+
+    # initialize OpenAI client
+    client = OpenAI(api_key=os.getenv('LLM_SECONDARY_API_KEY'),
+                    base_url=os.getenv('LLM_SECONDARY_MODEL_URL'))
+
+    try:
+        # Create stream chat completion request
+        stream = client.chat.completions.create(
+            model=os.getenv('LLM_SECONDARY_MODEL_NAME'),  # can change model as needed
+            messages=messages,
+            stream=True  # enable stream output
+        )
+
+        # Iterate through stream response
+        for chunk in stream:
+            new_token = chunk.choices[0].delta.content
+            if new_token is not None:
+                yield new_token
+        yield "END"
+
+    except Exception as e:
+        print(f"发生错误: {str(e)}")
+        yield f"错误: {str(e)}"
+        
 
 # Initialize ElasticSearchCore instance with HTTPS support
 elastic_core = ElasticSearchCore(
-    init_test_kb=CREATE_TEST_KB,
     host=ES_HOST,
     api_key=ES_API_KEY,
     embedding_model=None,
@@ -46,7 +89,6 @@ def get_es_core():
 
 
 class ElasticSearchService:
-    # 索引管理接口
     @staticmethod
     def create_index(
             index_name: str = Path(..., description="Name of the index to create"),
@@ -65,41 +107,7 @@ class ElasticSearchService:
         Returns:
             Returns index creation information on success, throws HTTP exception on failure
         """
-        try:
-            is_record_to_sql = True
-            if es_core.client.indices.exists(index=index_name):
-                is_record_to_sql = False
-
-            success = es_core.create_vector_index(index_name, embedding_dim)
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error creating index: {str(e)}"
-            )
-
-        if not success:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to create index {index_name}"
-            )
-
-        if is_record_to_sql:
-            # After successfully creating the knowledge base, store the newly created knowledge base information in the knowledge base table
-            knowledge_data = {'index_name': index_name}
-            try:
-                knowledge_id = create_knowledge_record(knowledge_data, user_id)
-            except Exception as e:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Error add index{index_name} to sql: {str(e)}"
-                )
-
-        return {
-            "status": "success",
-            "message": f"Index {index_name} created successfully",
-            "embedding_dim": embedding_dim or es_core.embedding_dim
-        }
+        raise HTTPException(status_code=500, detail="Method not implemented")
 
     @staticmethod
     def delete_index(
@@ -111,16 +119,15 @@ class ElasticSearchService:
             # First delete the index in Elasticsearch
             success = es_core.delete_index(index_name)
             if not success:
-                raise HTTPException(status_code=404, detail=f"Index {index_name} not found or could not be deleted")
+                raise HTTPException(status_code=500, detail=f"Index {index_name} not found or could not be deleted")
 
-            # Update the delete_flag in knowledge record table
-            knowledge_record = get_knowledge_by_name(index_name)
-            if knowledge_record:
-                update_data = {
-                    "delete_flag": "Y", # Set status to unavailable
-                    "updated_by": user_id,
-                }
-                update_knowledge_record(knowledge_record["knowledge_id"], update_data)
+            update_data = {
+                "updated_by": user_id,
+                "index_name": index_name
+            }
+            success = delete_knowledge_record(update_data)
+            if not success:
+                raise HTTPException(status_code=500, detail=f"Error deleting knowledge record for index {index_name}")
 
             return {"status": "success", "message": f"Index {index_name} deleted successfully"}
         except Exception as e:
@@ -320,13 +327,24 @@ class ElasticSearchService:
             if not index_name:
                 raise HTTPException(status_code=400, detail="Index name is required")
 
-            # Check if index exists, create if it doesn't
-            indices = es_core.get_user_indices()
-
             # Create index if needed (ElasticSearchCore will handle embedding_dim automatically)
-            if index_name not in indices:
+            if not es_core.client.indices.exists(index=index_name):
                 print(f"Creating new index: {index_name}")
                 success = es_core.create_vector_index(index_name, embedding_dim=es_core.embedding_dim)
+                
+                # After successfully creating the knowledge base, 
+                # store the newly created knowledge base information in the knowledge base table
+                try:
+                    knowledge_data = {'index_name': index_name}
+                    print(f"Creating knowledge record for index {index_name}")
+                    _ = create_knowledge_record(knowledge_data)
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Error add index{index_name} to sql: {str(e)}"
+                    )
+                
+                
                 if not success:
                     raise HTTPException(status_code=500, detail=f"Failed to auto-create index {index_name}")
 
@@ -622,7 +640,7 @@ class ElasticSearchService:
     ):
         try:
             # get all document
-            all_documents = ElasticSearchService.get_all_documents(index_name, batch_size, es_core)
+            all_documents = ElasticSearchService.get_random_documents(index_name, batch_size, es_core)
             all_chunks = self._clean_chunks_for_summary(all_documents)
             keywords_dict = calculate_term_weights(all_chunks)
             keywords_for_summary = ""
@@ -634,20 +652,11 @@ class ElasticSearchService:
                 try:
                     for new_token in generate_knowledge_summary_stream(keywords_for_summary):
                         if new_token == "END":
-                            model_output = "".join(token_join)
-                            knowledge_record = get_knowledge_by_name(index_name)
-                            if knowledge_record:
-                                update_data = {
-                                    "knowledge_describe": model_output,
-                                    "updated_by": user_id,
-                                }
-                                update_knowledge_record(knowledge_record["knowledge_id"], update_data)
                             break
                         else:
                             token_join.append(new_token)
                             yield f"data: {{\"status\": \"success\", \"message\": \"{new_token}\"}}\n\n"
                         await asyncio.sleep(0.1)
-
                 except Exception as e:
                     yield f"data: {{\"status\": \"error\", \"message\": \"{e}\"}}\n\n"
 
@@ -671,103 +680,79 @@ class ElasticSearchService:
         return all_chunks
 
     @staticmethod
-    def get_all_documents(
+    def get_random_documents(
             index_name: str = Path(..., description="Name of the index to get documents from"),
-            batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
+            batch_size: int = Query(1000, description="Maximum number of documents to retrieve"),
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        Get all document data from the specified index
+        Get random sample of documents from the specified index
 
         Args:
             index_name: Name of the index to get documents from
-            batch_size: Number of documents to retrieve per batch, default 1000
+            batch_size: Maximum number of documents to retrieve, default 1000
             es_core: ElasticSearchCore instance
 
         Returns:
-            List containing all documents
+            Dictionary containing total count and sampled documents
         """
-        sampling_interval = 1
         try:
-            chunk_group_threshold = int(os.getenv('CHUNK_GROUP_THRESHOLD'))
-            dounts_count = es_core.get_index_count(index_name)
-            if dounts_count > chunk_group_threshold:
-                sampling_interval = int(dounts_count/chunk_group_threshold)
-            # Initialize scroll query
+            # Get total document count
+            count_response = es_core.client.count(index=index_name)
+            total_docs = count_response['count']
+
+            # Construct the random sampling query using random_score
             query = {
+                "size": batch_size,  # Limit return size
                 "query": {
-                    "match_all": {}
-                },
-                "size": batch_size
+                    "function_score": {
+                        "query": {"match_all": {}},
+                        "random_score": {
+                            "seed": int(time.time()),  # Use current time as random seed
+                            "field": "_seq_no"
+                        }
+                    }
+                }
             }
 
-            # Execute initial search
+            # Execute the query
             response = es_core.client.search(
                 index=index_name,
-                body=query,
-                scroll='5m'  # Set scroll context retention time to 5 minutes
+                body=query
             )
 
-            # Get first batch of results
-            scroll_id = response['_scroll_id']
-            hits = response['hits']['hits']
-            all_documents = []
-
-            # Process first batch of results
-            sampled_hits = hits[::sampling_interval]  # Sample every nth document
-            for hit in sampled_hits:
+            # Extract and process the sampled documents
+            sampled_docs = []
+            for hit in response['hits']['hits']:
                 doc = hit['_source']
                 doc['_id'] = hit['_id']  # Add document ID
-                all_documents.append(doc)
-
-            # Continue fetching subsequent batches
-            while len(hits) > 0:
-                response = es_core.client.scroll(
-                    scroll_id=scroll_id,
-                    scroll='5m'
-                )
-                scroll_id = response['_scroll_id']
-                hits = response['hits']['hits']
-
-                # Process current batch of results
-                sampled_hits = hits[::sampling_interval]  # Sample every nth document
-                for hit in sampled_hits:
-                    doc = hit['_source']
-                    doc['_id'] = hit['_id']  # Add document ID
-                    all_documents.append(doc)
-
-            # Clean up scroll context
-            es_core.client.clear_scroll(scroll_id=scroll_id)
+                sampled_docs.append(doc)
 
             return {
-                "total": len(all_documents),
-                "documents": all_documents
+                "total": total_docs,
+                "documents": sampled_docs
             }
 
         except Exception as e:
             raise HTTPException(
                 status_code=500,
-                detail=f"Error retrieving documents from index {index_name}: {str(e)}"
+                detail=f"Error retrieving random documents from index {index_name}: {str(e)}"
             )
 
     def change_summary(self,
             index_name: str = Path(..., description="Name of the index to get documents from"),
             summary_result: Optional[str] = Body(description="knowledge base summary"),
-            es_core: ElasticSearchCore = Depends(get_es_core),
             user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base")
     ):
         """Summary Elasticsearch index_name by user"""
         try:
-            knowledge_record = get_knowledge_by_name(index_name)
-            if knowledge_record:
-                update_data = {
-                    "knowledge_describe": summary_result,  # Set status to unavailable
-                    "updated_by": user_id,
-                }
-                update_knowledge_record(knowledge_record["knowledge_id"], update_data)
-
+            update_data = {
+                "knowledge_describe": summary_result,  # Set status to unavailable
+                "updated_by": user_id,
+                "index_name": index_name
+            }
+            update_knowledge_record(update_data)
             return {"status": "success", "message": f"Index {index_name} summary successfully", "summary": summary_result}
-
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{str(e)}")
 
@@ -776,7 +761,7 @@ class ElasticSearchService:
     ):
         """Get Elasticsearch index_name Summary"""
         try:
-            knowledge_record = get_knowledge_by_name(index_name)
+            knowledge_record = get_knowledge_record({'index_name': index_name})
             if knowledge_record:
                 summary_result = knowledge_record["knowledge_describe"]
                 return {"status": "success", "message": f"索引 {index_name} 摘要获取成功", "summary": summary_result}

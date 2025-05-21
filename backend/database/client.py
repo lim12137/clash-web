@@ -245,5 +245,6 @@ def get_db_session():
 def as_dict(obj):
     if isinstance(obj, Base):
         return {c.key: getattr(obj, c.key) for c in class_mapper(obj.__class__).columns}
+    
     # noinspection PyProtectedMember
     return dict(obj._mapping)
