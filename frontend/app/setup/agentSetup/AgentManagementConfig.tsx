@@ -377,32 +377,6 @@ export default function BusinessLogicConfig({
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
 
-  // // 提取获取工具状态的公共函数
-  // const fetchAgentToolsState = async (agentId: string | null) => {
-  //   if (!agentId) return;
-    
-  //   setIsLoadingTools(true);
-  //   // 在加载开始时清空工具选中状态
-  //   setSelectedTools([]);
-  //   setEnabledToolIds([]);
-    
-  //   try {
-  //     const result = await fetchAgentList();
-  //     if (result.success) {
-  //       const newEnabledToolIds = result.data.enabledToolIds || [];
-  //       setEnabledToolIds(newEnabledToolIds);
-  //       setMainAgentId(result.data.mainAgentId);
-  //     } else {
-  //       message.error(result.message || '获取工具状态失败');
-  //     }
-  //   } catch (error) {
-  //     console.error('获取工具状态失败:', error);
-  //     message.error('获取工具状态失败，请稍后重试');
-  //   } finally {
-  //     setIsLoadingTools(false);
-  //   }
-  // };
-
   const fetchSubAgentIdAndEnableToolList = async () => {
     setIsLoadingTools(true);
     // 在加载开始时清空工具选中状态
@@ -594,6 +568,20 @@ export default function BusinessLogicConfig({
         setMainAgentId(result.data.mainAgentId);
         const newEnabledToolIds = result.data.enabledToolIds || [];
         setEnabledToolIds(newEnabledToolIds);
+        
+        // 更新新增字段对应的状态
+        if (result.data.modelName) {
+          setMainAgentModel(result.data.modelName as OpenAIModel);
+        }
+        if (result.data.maxSteps) {
+          setMainAgentMaxStep(result.data.maxSteps);
+        }
+        if (result.data.businessDescription) {
+          setBusinessLogic(result.data.businessDescription);
+        }
+        if (result.data.prompt) {
+          setSystemPrompt(result.data.prompt);
+        }
         
         // 更新选中的工具
         if (tools && tools.length > 0) {
