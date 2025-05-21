@@ -17,12 +17,24 @@ def search_agent_info_by_agent_id_api(agent_id: int, tenant_id: str, user_id: st
             AgentInfo.tenant_id == tenant_id,
             AgentInfo.delete_flag != 'Y'
         ).first()
-        if agent:
-            return as_dict(agent)
-        else:
-            return {}
 
-    # TODO 如果存在user_id, 需要使用ag_user_agent_t表中的数据
+        if not agent:
+            raise ValueError("agent not found")
+
+        agent_dict = as_dict(agent)
+        if not user_id:
+            return agent_dict
+
+        user_agent_info = session.query(UserAgent).filter(
+            UserAgent.agent_id == agent_id,
+            UserAgent.tenant_id == tenant_id,
+            UserAgent.user_id == user_id,
+            UserAgent.delete_flag != 'Y'
+        ).first()
+        # 使用user_agent_info 更新 agent
+        agent_dict.update(as_dict(user_agent_info))
+        return agent_dict
+
 
 def search_sub_agent_by_main_agent_id(main_agent_id: int, tenant_id: str = None):
     """
@@ -73,7 +85,7 @@ def update_tools(tools):
         for name in set(existing_tools.keys()) - tool_names_in_input:
             existing_tools[name].delete_flag = 'Y'
 
-def query_or_create_main_agent_id(tenant_id: str = None) -> int:
+def query_or_create_main_agent_id(tenant_id, user_id: str = None) -> int:
     """
     obtain the main_agent id, create a blank placeholder if it does not exist
     """
@@ -88,7 +100,8 @@ def query_or_create_main_agent_id(tenant_id: str = None) -> int:
                                "tenant_id": tenant_id,
                                "created_by": tenant_id,
                                "updated_by": tenant_id,
-                               "enabled": True})
+                               "enabled": True}, user_id=user_id)
+
             return main_agent["agent_id"]
         else:
             return main_agent.agent_id
@@ -134,44 +147,66 @@ def query_sub_agents(main_agent_id: int, tenant_id: str = None, user_id: str = N
 
         return [as_dict(agent) for agent in agents]
 
-def create_agent(agent_info, db_session=None):
+def create_agent(agent_info, user_id:str = None):
     """
     Create a new agent in the database.
     :param agent_info: Dictionary containing agent information
-    :param db_session: Database session
+    :param user_id:
     :return: Created agent object
     """
-    with get_db_session(db_session) as session:
+    with get_db_session() as session:
         new_agent = AgentInfo(**filter_property(agent_info, AgentInfo))
         new_agent.delete_flag = 'N'
         session.add(new_agent)
         session.flush()
+
+        if user_id:
+            new_user_agent = UserAgent(**filter_property(agent_info | {"agent_id": new_agent.agent_id,
+                                                                       "delete_flag": "N",
+                                                                       "user_id": user_id,
+                                                                       "created_by": user_id,
+                                                                       "update_by": user_id}, UserAgent))
+            session.add(new_user_agent)
+
         return as_dict(new_agent)
 
-def update_agent(agent_id, agent_info, tenant_id=None, user_id=None):
+def update_agent(agent_id, agent_info, tenant_id, user_id=None):
     """
     Update an existing agent in the database.
     :param agent_id: ID of the agent to update
     :param agent_info: Dictionary containing updated agent information
-    :param tenant_id: Optional tenant ID
+    :param tenant_id: tenant ID
     :param user_id: Optional user ID
     :return: Updated agent object
     """
-    with get_db_session() as session:
-        agent = session.query(AgentInfo).filter(AgentInfo.agent_id == agent_id).filter(
-            AgentInfo.tenant_id == tenant_id).first()
+    with (get_db_session() as session):
+        # update ag_user_agent_t
+        if user_id:
+            user_agent = session.query(UserAgent).filter(UserAgent.agent_id == agent_id,
+                                                         UserAgent.tenant_id == tenant_id,
+                                                         UserAgent.user_id == user_id
+                                                        ).first()
+            if not user_agent:
+                raise ValueError("ag_user_agent_t Agent not found")
+            for key, value in filter_property(agent_info.__dict__, UserAgent).items():
+                if value is None:
+                    continue
+                setattr(user_agent, key, value)
+            user_agent.updated_by = user_id
+
+        # update ag_tenant_agent_t
+        agent = session.query(AgentInfo).filter(AgentInfo.agent_id == agent_id,
+                                                AgentInfo.tenant_id == tenant_id
+                                                ).first()
         if not agent:
-            raise HTTPException(status_code=404, detail="Agent not found")
+            raise ValueError("ag_tenant_agent_t Agent not found")
 
         for key, value in filter_property(agent_info.__dict__, AgentInfo).items():
             if value is None:
                 continue
             setattr(agent, key, value)
+        agent.updated_by = user_id
 
-        if user_id:
-            agent.updated_by = user_id
-
-            ## TODO 还需要修改ag_user_agent_t表中的数据
 
 def create_or_update_user_agent(agent_info, tenant_id: str = None, user_id: str = None):
     """
@@ -306,7 +341,7 @@ def query_tool_instances(tenant_id: str, user_id: str = None, agent_id: int = No
         return [as_dict(tool) for tool in tools]
 
 
-def delete_agent(agent_id, tenant_id: str = None, user_id: str = None):
+def delete_agent(agent_id, tenant_id: str = None, user_id: str = None) -> bool:
     """
     Delete an agent in the database.
     :param agent_id: ID of the agent to delete
@@ -315,10 +350,16 @@ def delete_agent(agent_id, tenant_id: str = None, user_id: str = None):
     :return: None
     """
     with get_db_session() as session:
-        session.query(AgentInfo).filter(AgentInfo.agent_id == agent_id).filter(AgentInfo.tenant_id == tenant_id).update(
+        session.query(AgentInfo).filter(AgentInfo.agent_id == agent_id,
+                                        AgentInfo.tenant_id == tenant_id).update(
             {'delete_flag': 'Y', 'updated_by': user_id})
-        session.query(ToolInstance).filter(ToolInstance.agent_id == agent_id).filter(
-            AgentInfo.tenant_id == tenant_id).update({ToolInstance.delete_flag: 'Y', 'updated_by': user_id})
+        session.query(ToolInstance).filter(ToolInstance.agent_id == agent_id,
+                                           AgentInfo.tenant_id == tenant_id).update(
+            {ToolInstance.delete_flag: 'Y', 'updated_by': user_id})
+        if user_id:
+            session.query(UserAgent).filter(UserAgent.agent_id == agent_id,
+                                            UserAgent.user_id == user_id).update(
+            {'delete_flag': 'Y', 'updated_by': user_id})
 
 
 def update_tool_table_from_scan_tool_list():
@@ -336,7 +377,7 @@ def update_tool_table_from_scan_tool_list():
             filtered_tool_data = filter_property(tool.__dict__, ToolInfo)
 
             if f"{tool.name}&{tool.source}" in existing_tool_dict:
-                # by tool name and source to identify the existing tool
+                # by tool name and source to update the existing tool
                 existing_tool = existing_tool_dict[f"{tool.name}&{tool.source}"]
                 for key, value in filtered_tool_data.items():
                     setattr(existing_tool, key, value)

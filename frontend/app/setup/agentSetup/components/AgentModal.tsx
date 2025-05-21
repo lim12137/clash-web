@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scrollArea'
 import ToolConfigModal from './ToolConfigModal'
 import { AgentModalProps, Tool, OpenAIModel, Agent } from '../ConstInterface'
 import { handleToolSelectCommon } from '../utils/toolUtils'
-import { updateAgent } from '@/services/agentConfigService'
+import { updateAgent, deleteAgent } from '@/services/agentConfigService'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -48,13 +48,14 @@ export default function AgentModal({
   onRefresh,
   title, 
   agent, 
-  selectedTools, 
+  selectedTools = [], 
   systemPrompt,
   readOnly = false,
   agentId
 }: AgentModalProps) {
   const [name, setName] = useState(agent?.name || "");
   const [description, setDescription] = useState(agent?.description || "");
+  const [business_description, setBusinessDescription] = useState(agent?.business_description || "");
   const [model, setModel] = useState(agent?.model || OpenAIModel.MainModel);
   const [maxStep, setMaxStep] = useState(agent?.max_step || 10);
   const [provideSummary, setProvideSummary] = useState(agent?.provide_run_summary ?? true);
@@ -65,13 +66,17 @@ export default function AgentModal({
   const [pendingToolSelection, setPendingToolSelection] = useState<{tool: Tool, isSelected: boolean} | null>(null);
   const [nameError, setNameError] = useState<string>('');
   const [descriptionError, setDescriptionError] = useState<string>('');
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       if (agent) {
-        // 编辑模式：先设置基本信息
+
+        console.log('agent', agent);
+        // 编辑模式：使用 agent 中的业务描述
         setName(agent.name);
         setDescription(agent.description);
+        setBusinessDescription(agent.business_description || "");
         setModel(agent.model);
         setMaxStep(agent.max_step);
         setProvideSummary(agent.provide_run_summary);
@@ -84,9 +89,10 @@ export default function AgentModal({
 
         fetchToolConfigs();
       } else {
-        // 创建模式：使用传入的 selectedTools
+        // 创建模式：使用空业务描述
         setName("");
         setDescription("");
+        setBusinessDescription("");
         setModel(OpenAIModel.MainModel);
         setMaxStep(10);
         setProvideSummary(true);
@@ -127,12 +133,14 @@ export default function AgentModal({
         model,
         maxStep,
         provideSummary,
-        prompt
+        prompt,
+        undefined, // enabled
+        business_description
       );
 
       if (result.success) {
         message.success('保存成功');
-        onSave(name, description, model, maxStep, provideSummary, prompt);
+        onSave(name, description, model, maxStep, provideSummary, prompt, business_description);
         onRefresh?.();
       } else {
         message.error(result.message || '保存失败');
@@ -270,150 +278,230 @@ export default function AgentModal({
     setDescriptionError(validation.message);
   };
 
+  const handleDelete = async () => {
+    if (!agentId) {
+      message.error('Agent ID 不存在');
+      return;
+    }
+
+    try {
+      const result = await deleteAgent(parseInt(agentId));
+      if (result.success) {
+        message.success('Agent 删除成功');
+        setIsDeleteConfirmOpen(false);
+        onCancel(); // 关闭编辑弹窗
+        onRefresh?.(); // 刷新列表
+      } else {
+        message.error(result.message || '删除失败');
+      }
+    } catch (error) {
+      console.error('删除 Agent 失败:', error);
+      message.error('删除失败，请稍后重试');
+    }
+  };
+
   return (
-    <Modal
-      title={title}
-      open={isOpen}
-      onCancel={onCancel}
-      footer={readOnly ? (
-        <div className="flex justify-end gap-2">
-          <button 
-            key="cancel" 
-            onClick={onCancel}
-            className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
-            style={{ border: "none" }}
-          >
-            关闭
-          </button>
-        </div>
-      ) : (
-        <div className="flex justify-end gap-2">
-          <button 
-            key="cancel" 
-            onClick={onCancel}
-            className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
-            style={{ border: "none" }}
-          >
-            取消
-          </button>
-          <button 
-            key="submit" 
-            onClick={handleSave}
-            disabled={!isFormValid}
-            className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ border: "none" }}
-            title={!isFormValid ? "请确保名称和描述符合要求" : ""}
-          >
-            保存
-          </button>
-        </div>
-      )}
-      width={700}
-    >
-      <ScrollArea className="max-h-[70vh]">
-        <div className="flex flex-col gap-4 pr-2">
-          <div>
-            <Text>名称</Text>
-            <Input 
-              value={name} 
-              onChange={handleNameChange}
-              placeholder="请输入代理名称（只能包含字母、数字和下划线，且必须以字母或下划线开头）"
-              disabled={readOnly}
-              status={nameError ? 'error' : ''}
-            />
-            {nameError && <Text type="danger" className="text-xs mt-1">{nameError}</Text>}
+    <div>
+      <Modal
+        title={title}
+        open={isOpen}
+        onCancel={onCancel}
+        footer={readOnly ? (
+          <div className="flex justify-end gap-2">
+            <button 
+              key="cancel" 
+              onClick={onCancel}
+              className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+              style={{ border: "none" }}
+            >
+              关闭
+            </button>
           </div>
-          <div>
-            <Text>描述</Text>
-            <TextArea
-              value={description}
-              onChange={handleDescriptionChange}
-              placeholder="请输入代理描述"
-              rows={3}
-              disabled={readOnly}
-              status={descriptionError ? 'error' : ''}
-            />
-            {descriptionError && <Text type="danger" className="text-xs mt-1">{descriptionError}</Text>}
-          </div>
-          
-          <div>
-            <Text>模型</Text>
-            <div className={readOnly ? 'opacity-70' : ''}>
-              <select 
-                className="w-full border rounded-md p-2"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                disabled={readOnly}
+        ) : (
+          <div className="flex justify-between">
+            <div>
+              <button 
+                key="delete" 
+                onClick={() => setIsDeleteConfirmOpen(true)}
+                className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-red-50 text-red-600 hover:bg-red-100"
+                style={{ border: "none" }}
               >
-                {modelOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                删除Agent
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                key="cancel" 
+                onClick={onCancel}
+                className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+                style={{ border: "none" }}
+              >
+                取消
+              </button>
+              <button 
+                key="submit" 
+                onClick={handleSave}
+                disabled={!isFormValid}
+                className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ border: "none" }}
+                title={!isFormValid ? "请确保名称和描述符合要求" : ""}
+              >
+                保存
+              </button>
             </div>
           </div>
-          
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <Text>最大步骤数</Text>
-              <Input 
-                type="number" 
-                min={1} 
-                max={50}
-                value={maxStep} 
-                onChange={(e) => setMaxStep(parseInt(e.target.value) || 10)}
-                disabled={readOnly}
-              />
-            </div>
-            <div className="flex-1">
-              <Text>是否提供运行摘要</Text>
-              <div className="mt-2">
-                <Switch 
-                  checked={provideSummary} 
-                  onChange={(checked) => setProvideSummary(checked)}
+        )}
+        width={1000}
+      >
+        <ScrollArea className="max-h-[70vh]">
+          <div className="flex gap-6 pr-2">
+            {/* 左侧：基本信息 */}
+            <div className="flex-1 flex flex-col gap-4 border-r border-gray-200 pr-6">
+              <div>
+                <Text>名称</Text>
+                <Input 
+                  value={name} 
+                  onChange={handleNameChange}
+                  placeholder="请输入代理名称（只能包含字母、数字和下划线，且必须以字母或下划线开头）"
                   disabled={readOnly}
+                  status={nameError ? 'error' : ''}
+                />
+                {nameError && <Text type="danger" className="text-xs mt-1">{nameError}</Text>}
+              </div>
+              <div>
+                <Text>描述</Text>
+                <TextArea
+                  value={description}
+                  onChange={handleDescriptionChange}
+                  placeholder="请输入代理描述"
+                  rows={3}
+                  disabled={readOnly}
+                  status={descriptionError ? 'error' : ''}
+                />
+                {descriptionError && <Text type="danger" className="text-xs mt-1">{descriptionError}</Text>}
+              </div>
+              <div>
+                <Text>使用的工具</Text>
+                <div className="border rounded-md p-3 bg-gray-50 min-h-[80px] text-sm">
+                  {currentTools.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {currentTools.map(tool => (
+                        <div 
+                          key={tool.id} 
+                          className="bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-xs flex items-center cursor-pointer hover:bg-blue-200"
+                          onClick={() => !readOnly && handleConfigClick(tool)}
+                        >
+                          {tool.name}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Text className="text-gray-400">未选择任何工具</Text>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Text>模型</Text>
+                <div className={readOnly ? 'opacity-70' : ''}>
+                  <select 
+                    className="w-full border rounded-md p-2"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    disabled={readOnly}
+                  >
+                    {modelOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <Text>最大步骤数</Text>
+                  <Input 
+                    type="number" 
+                    min={1} 
+                    max={50}
+                    value={maxStep} 
+                    onChange={(e) => setMaxStep(parseInt(e.target.value) || 10)}
+                    disabled={readOnly}
+                  />
+                </div>
+                <div className="flex-1">
+                  <Text>是否提供运行摘要</Text>
+                  <div className="mt-2">
+                    <Switch 
+                      checked={provideSummary} 
+                      onChange={(checked) => setProvideSummary(checked)}
+                      disabled={readOnly}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <Text>业务描述</Text>
+                <TextArea
+                  value={business_description}
+                  readOnly
+                  placeholder="暂无业务描述"
+                  rows={4}
+                  className="bg-gray-50 cursor-default"
+                  style={{ resize: 'none' }}
                 />
               </div>
             </div>
-          </div>
-          
-          {/* Tools Used */}
-          <div>
-            <Text>使用的工具</Text>
-            <div className="border rounded-md p-3 bg-gray-50 min-h-[80px] text-sm">
-              {currentTools.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {currentTools.map(tool => (
-                    <div 
-                      key={tool.id} 
-                      className="bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-xs flex items-center cursor-pointer hover:bg-blue-200"
-                      onClick={() => !readOnly && handleConfigClick(tool)}
-                    >
-                      {tool.name}
-                    </div>
-                  ))}
+
+            {/* 右侧：提示词 */}
+            <div className="w-[400px] flex flex-col pl-2">
+              <div className="flex-1 flex flex-col">
+                <Text className="text-base font-medium mb-2">系统提示词</Text>
+                <div className="flex-1 mt-2 border border-gray-200 rounded-md overflow-hidden">
+                  <TextArea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="请输入系统提示词"
+                    disabled={readOnly}
+                    className="w-full h-full border-0"
+                    style={{ height: '100%', resize: 'none' }}
+                  />
                 </div>
-              ) : (
-                <Text className="text-gray-400">未选择任何工具</Text>
-              )}
+              </div>
             </div>
           </div>
-          
-          {/* System Prompt */}
-          <div>
-            <Text>系统提示词</Text>
-            <TextArea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="请输入系统提示词"
-              rows={6}
-              disabled={readOnly}
-              className="w-full"
-            />
+        </ScrollArea>
+      </Modal>
+
+      {/* 删除确认弹窗 */}
+      <Modal
+        title="确认删除"
+        open={isDeleteConfirmOpen}
+        onCancel={() => setIsDeleteConfirmOpen(false)}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button 
+              onClick={() => setIsDeleteConfirmOpen(false)}
+              className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+              style={{ border: "none" }}
+            >
+              取消
+            </button>
+            <button 
+              onClick={handleDelete}
+              className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-red-500 text-white hover:bg-red-600"
+              style={{ border: "none" }}
+            >
+              确认删除
+            </button>
           </div>
+        }
+        width={400}
+      >
+        <div className="py-4">
+          <Text>确定要删除该 Agent 吗？此操作不可恢复。</Text>
         </div>
-      </ScrollArea>
+      </Modal>
 
       <ToolConfigModal
         isOpen={isToolModalOpen}
@@ -423,6 +511,6 @@ export default function AgentModal({
         mainAgentId={parseInt(agentId || '0')}
         selectedTools={currentTools}
       />
-    </Modal>
+    </div>
   );
 } 

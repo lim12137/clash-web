@@ -301,8 +301,8 @@ class AgentInfoRequest(BaseModel):
     enabled: Optional[bool] = None
 
 
-class CreatingSubAgentIDRequest(BaseModel):
-    main_agent_id: int
+class AgentIDRequest(BaseModel):
+    agent_id: int
     
 
 class ToolInstanceInfoRequest(BaseModel):
@@ -329,6 +329,7 @@ class ToolInfo(BaseModel):
     source: str
     inputs: str
     output_type: str
+    class_name: str
 
 
 class SavePromptRequest(BaseModel):

@@ -198,7 +198,7 @@ INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factor
 CREATE TABLE IF NOT EXISTS nexent.ag_tool_info_t (
     tool_id SERIAL PRIMARY KEY NOT NULL,
     name VARCHAR(100),
-    display_name VARCHAR(100),
+    class_name VARCHAR(100),
     description VARCHAR,
     source VARCHAR(100),
     author VARCHAR(100),
@@ -233,7 +233,7 @@ COMMENT ON TABLE nexent.ag_tool_info_t IS 'Information table for prompt tools';
 -- Add comments to the columns
 COMMENT ON COLUMN nexent.ag_tool_info_t.tool_id IS 'ID';
 COMMENT ON COLUMN nexent.ag_tool_info_t.name IS 'Unique key name';
-COMMENT ON COLUMN nexent.ag_tool_info_t.display_name IS 'Tool display name';
+COMMENT ON COLUMN nexent.ag_tool_info_t.class_name IS 'Tool class name, used when the tool is instantiated';
 COMMENT ON COLUMN nexent.ag_tool_info_t.description IS 'Prompt tool description';
 COMMENT ON COLUMN nexent.ag_tool_info_t.source IS 'Source';
 COMMENT ON COLUMN nexent.ag_tool_info_t.author IS 'Tool author';
