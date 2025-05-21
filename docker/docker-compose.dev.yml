@@ -1,0 +1,90 @@
+name: nexent
+
+services:
+  nexent:
+    image: nexent/nexent
+    container_name: nexent
+    restart: always
+    ports:
+      - "5010:5010"
+    volumes:
+      - ../:/opt/
+      - ./uploads:/opt/backend/uploads
+    environment:
+      ELASTIC_PASSWORD: nexent@2025
+      ELASTICSEARCH_API_KEY: xxxxx
+      MINIO_ACCESS_KEY: xxxxx
+      MINIO_SECRET_KEY: xxxxx
+      MINIO_REGION: cn-north-1
+      MINIO_DEFAULT_BUCKET: nexent
+      skip_proxy: "true"
+      UPLOAD_FOLDER: /opt/backend/uploads
+      UMASK: 0022
+    env_file:
+      - .env
+    user: root
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - nexent
+    entrypoint: "/bin/bash"
+    command: >
+      -c "
+      apt-get update &&
+      apt-get install -y iputils-ping netcat-openbsd net-tools dnsutils curl &&
+      rm -rf /var/lib/apt/lists/* &&
+      sleep infinity
+      "
+
+  nexent-web:
+    image: nexent/nexent-web:latest
+    container_name: nexent-web
+    restart: always
+    networks:
+      - nexent
+    ports:
+      - "3000:3000"
+    environment:
+      - HTTP_BACKEND=http://nexent:5010
+      - WS_BACKEND=ws://nexent:5010
+      - MINIO_ENDPOINT=http://nexent-minio:9000
+    env_file:
+      - .env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    entrypoint: "/bin/sh"
+    command: "-c 'sleep infinity'"
+
+  nexent-data-process:
+    image: nexent/nexent-data-process:latest
+    container_name: nexent-data-process
+    restart: always
+    privileged: true
+    ports:
+      - "5012:5012"
+    volumes:
+      - ../:/opt/
+      - ./uploads:/opt/backend/uploads
+    environment:
+      skip_proxy: "true"
+    env_file:
+      - .env
+    networks:
+      - nexent
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    entrypoint: "/bin/bash"
+    command: "-c 'sleep infinity'"
+
+networks:
+  nexent:
+    driver: bridge
