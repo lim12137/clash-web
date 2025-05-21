@@ -2,7 +2,6 @@ from typing import Optional
 
 from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter, Header
 from consts.model import ChangeSummaryRequest
-import json
 from fastapi.responses import StreamingResponse
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core
@@ -28,10 +27,8 @@ async def auto_summary(
             user_id=user_id
         )
     except Exception as e:
-        async def generate_error():
-            yield f"data: {{\"status\": \"error\", \"message\": \"知识库摘要生成失败: {e}\"}}\n\n"
         return StreamingResponse(
-            generate_error(),
+            f"data: {{\"status\": \"error\", \"message\": \"知识库摘要生成失败: {e}\"}}\n\n",
             media_type="text/event-stream",
             status_code=500
         )
@@ -41,15 +38,13 @@ async def auto_summary(
 def change_summary(
             index_name: str = Path(..., description="Name of the index to get documents from"),
             change_summary_request: ChangeSummaryRequest = Body(None, description="knowledge base summary"),
-            es_core: ElasticSearchCore = Depends(get_es_core),
             authorization: Optional[str] = Header(None)
     ):
     """Summary Elasticsearch index_name by user"""
     try:
         user_id = get_current_user_id(authorization)
         summary_result = change_summary_request.summary_result
-        # Try to list indices as a health check
-        return ElasticSearchService().change_summary(index_name=index_name,summary_result=summary_result, es_core=es_core,user_id=user_id)
+        return ElasticSearchService().change_summary(index_name=index_name,summary_result=summary_result,user_id=user_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"知识库摘要更新失败: {str(e)}")
 
