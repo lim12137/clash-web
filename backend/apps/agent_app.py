@@ -10,7 +10,8 @@ from consts.model import AgentRequest, AgentInfoRequest, CreatingSubAgentIDReque
 from database.agent_db import delete_agent, update_agent, query_tool_instances, search_agent_info_by_agent_id_api
 from nexent.core.utils.observer import MessageObserver
 from services.agent_service import query_or_create_main_agents_api, \
-    query_sub_agents_api, get_creating_sub_agent_id_api, get_enable_tool_id_by_agent_id
+    query_sub_agents_api, get_creating_sub_agent_id_api, get_enable_tool_id_by_agent_id, \
+    get_enable_sub_agent_id_by_agent_id
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 from utils.agent_utils import agent_run_thread
 from utils.agent_utils import thread_manager
@@ -119,13 +120,21 @@ async def list_agent():
     try:
         user_id, tenant_id = get_user_info()
         main_agent_id = query_or_create_main_agents_api(tenant_id=tenant_id)
+        main_agent_info = search_agent_info_by_agent_id_api(agent_id=main_agent_id, tenant_id=tenant_id, user_id=user_id)
+
         sub_agent_list = query_sub_agents_api(main_agent_id, tenant_id, user_id)
         enable_tool_id_list = get_enable_tool_id_by_agent_id(main_agent_id, tenant_id, user_id)
+        enable_agent_id_list = get_enable_sub_agent_id_by_agent_id(main_agent_id, tenant_id, user_id)
 
         return {
             "main_agent_id": main_agent_id,
             "sub_agent_list": sub_agent_list,
-            "enable_tool_id_list": enable_tool_id_list
+            "enable_tool_id_list": enable_tool_id_list,
+            "enable_agent_id_list": enable_agent_id_list,
+            "model_name": main_agent_info["model_name"],
+            "max_steps": main_agent_info["max_steps"],
+            "business_description": main_agent_info["business_description"],
+            "prompt": main_agent_info["prompt"]
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
@@ -153,8 +162,15 @@ async def get_creating_sub_agent_id(request: CreatingSubAgentIDRequest):
         user_id, tenant_id = get_user_info()
         sub_agent_id = get_creating_sub_agent_id_api(request.main_agent_id, tenant_id)
         enable_tool_id_list = get_enable_tool_id_by_agent_id(sub_agent_id, tenant_id, user_id)
+
+        agent_info = search_agent_info_by_agent_id_api(agent_id=sub_agent_id, tenant_id=tenant_id, user_id=user_id)
+
         return {"agent_id": sub_agent_id,
-                "enable_tool_id_list": enable_tool_id_list}
+                "enable_tool_id_list": enable_tool_id_list,
+                "model_name": agent_info["model_name"],
+                "max_steps": agent_info["max_steps"],
+                "business_description": agent_info["business_description"],
+                "prompt": agent_info["prompt"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent create error: {str(e)}")
 

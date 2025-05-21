@@ -8,7 +8,7 @@ import AgentModalComponent from './components/AgentModal'
 import { mockAgents, mockTools } from './mockData'
 import { AgentModalProps, Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
 import { ScrollArea } from '@/components/ui/scrollArea'
-import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig } from '@/services/agentConfigService'
+import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent } from '@/services/agentConfigService'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -112,7 +112,15 @@ function BusinessLogicInput({ value, onChange, selectedAgents, systemPrompt }: B
 /**
  * Sub Agent Pool Component
  */
-function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent, onCreateNewAgent, subAgentList = [], loadingAgents = false }: SubAgentPoolProps) {
+function SubAgentPool({ 
+  selectedAgents, 
+  onSelectAgent, 
+  onEditAgent, 
+  onCreateNewAgent, 
+  subAgentList = [], 
+  loadingAgents = false,
+  enabledAgentIds = []
+}: SubAgentPoolProps) {
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-2">
@@ -131,41 +139,41 @@ function SubAgentPool({ selectedAgents, onSelectAgent, onEditAgent, onCreateNewA
             </div>
           </div>
           
-          {subAgentList.map((agent) => (
-            <div 
-              key={agent.id} 
-              className={`border rounded-md p-3 flex flex-col justify-center cursor-pointer transition-colors duration-200 h-[80px] ${
-                selectedAgents.some(a => a.id === agent.id) ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
-              }`}
-              onClick={() => onSelectAgent(
-                agent, 
-                !selectedAgents.some(a => a.id === agent.id)
-              )}
-            >
-              <div className="flex items-center h-full">
-                <div className="flex-1 overflow-hidden">
-                  <div className="font-medium text-sm truncate" title={agent.name}>{agent.name}</div>
-                  <div 
-                    className="text-xs text-gray-500 line-clamp-2" 
-                    title={agent.description}
-                  >
-                    {agent.description}
+          {subAgentList.map((agent) => {
+            const isEnabled = enabledAgentIds.includes(Number(agent.id));
+            return (
+              <div 
+                key={agent.id} 
+                className={`border rounded-md p-3 flex flex-col justify-center cursor-pointer transition-colors duration-200 h-[80px] ${
+                  isEnabled ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
+                }`}
+                onClick={() => onSelectAgent(agent, !isEnabled)}
+              >
+                <div className="flex items-center h-full">
+                  <div className="flex-1 overflow-hidden">
+                    <div className="font-medium text-sm truncate" title={agent.name}>{agent.name}</div>
+                    <div 
+                      className="text-xs text-gray-500 line-clamp-2" 
+                      title={agent.description}
+                    >
+                      {agent.description}
+                    </div>
                   </div>
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditAgent(agent);
+                    }}
+                    className="ml-2 flex-shrink-0 flex items-center justify-center text-gray-500 hover:text-blue-500 bg-transparent"
+                    style={{ border: "none", padding: "4px" }}
+                  >
+                    <SettingOutlined style={{ fontSize: '16px' }} />
+                  </button>
                 </div>
-                <button 
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditAgent(agent);
-                  }}
-                  className="ml-2 flex-shrink-0 flex items-center justify-center text-gray-500 hover:text-blue-500 bg-transparent"
-                  style={{ border: "none", padding: "4px" }}
-                >
-                  <SettingOutlined style={{ fontSize: '16px' }} />
-                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </ScrollArea>
     </div>
@@ -344,6 +352,7 @@ export default function BusinessLogicConfig({
   setSelectedTools,
   onGenerateSystemPrompt,
   systemPrompt,
+  setSystemPrompt,
   isCreatingNewAgent,
   setIsCreatingNewAgent,
   mainAgentModel,
@@ -358,7 +367,9 @@ export default function BusinessLogicConfig({
   loadingAgents = false,
   mainAgentId,
   setMainAgentId,
-  setSubAgentList
+  setSubAgentList,
+  enabledAgentIds,
+  setEnabledAgentIds
 }: BusinessLogicConfigProps) {
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
@@ -366,31 +377,31 @@ export default function BusinessLogicConfig({
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
 
-  // 提取获取工具状态的公共函数
-  const fetchAgentToolsState = async (agentId: string | null) => {
-    if (!agentId) return;
+  // // 提取获取工具状态的公共函数
+  // const fetchAgentToolsState = async (agentId: string | null) => {
+  //   if (!agentId) return;
     
-    setIsLoadingTools(true);
-    // 在加载开始时清空工具选中状态
-    setSelectedTools([]);
-    setEnabledToolIds([]);
+  //   setIsLoadingTools(true);
+  //   // 在加载开始时清空工具选中状态
+  //   setSelectedTools([]);
+  //   setEnabledToolIds([]);
     
-    try {
-      const result = await fetchAgentList();
-      if (result.success) {
-        const newEnabledToolIds = result.data.enabledToolIds || [];
-        setEnabledToolIds(newEnabledToolIds);
-        setMainAgentId(result.data.mainAgentId);
-      } else {
-        message.error(result.message || '获取工具状态失败');
-      }
-    } catch (error) {
-      console.error('获取工具状态失败:', error);
-      message.error('获取工具状态失败，请稍后重试');
-    } finally {
-      setIsLoadingTools(false);
-    }
-  };
+  //   try {
+  //     const result = await fetchAgentList();
+  //     if (result.success) {
+  //       const newEnabledToolIds = result.data.enabledToolIds || [];
+  //       setEnabledToolIds(newEnabledToolIds);
+  //       setMainAgentId(result.data.mainAgentId);
+  //     } else {
+  //       message.error(result.message || '获取工具状态失败');
+  //     }
+  //   } catch (error) {
+  //     console.error('获取工具状态失败:', error);
+  //     message.error('获取工具状态失败，请稍后重试');
+  //   } finally {
+  //     setIsLoadingTools(false);
+  //   }
+  // };
 
   const fetchSubAgentIdAndEnableToolList = async () => {
     setIsLoadingTools(true);
@@ -401,9 +412,28 @@ export default function BusinessLogicConfig({
     try {
       const result = await getCreatingSubAgentId(mainAgentId);
       if (result.success && result.data) {
-        const newEnabledToolIds = result.data.enabledToolIds || [];
-        setMainAgentId(result.data.agentId);
-        setEnabledToolIds(newEnabledToolIds);
+        const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, prompt } = result.data;
+        
+        // 更新主代理ID
+        setMainAgentId(agentId);
+        // 更新启用的工具ID列表
+        setEnabledToolIds(enabledToolIds);
+        // 更新模型
+        if (modelName) {
+          setMainAgentModel(modelName as OpenAIModel);
+        }
+        // 更新最大步骤数
+        if (maxSteps) {
+          setMainAgentMaxStep(maxSteps);
+        }
+        // 更新业务描述
+        if (businessDescription) {
+          setBusinessLogic(businessDescription);
+        }
+        // 更新系统提示词
+        if (prompt) {
+          setSystemPrompt(prompt);
+        }
       } else {
         message.error(result.message || '获取新Agent ID失败');
       }
@@ -583,6 +613,101 @@ export default function BusinessLogicConfig({
     }
   };
 
+  // 处理 Agent 选择状态更新
+  const handleAgentSelect = async (agent: Agent, isSelected: boolean) => {
+    try {
+      const result = await updateAgent(
+        Number(agent.id),
+        undefined, // name
+        undefined, // description
+        undefined, // modelName
+        undefined, // maxSteps
+        undefined, // provideRunSummary
+        undefined, // prompt
+        isSelected // enabled
+      );
+
+      if (result.success) {
+        if (isSelected) {
+          setSelectedAgents([...selectedAgents, agent]);
+          setEnabledAgentIds([...enabledAgentIds, Number(agent.id)]);
+        } else {
+          setSelectedAgents(selectedAgents.filter((a) => a.id !== agent.id));
+          setEnabledAgentIds(enabledAgentIds.filter(id => id !== Number(agent.id)));
+        }
+        message.success(`Agent"${agent.name}"${isSelected ? '已启用' : '已禁用'}`);
+      } else {
+        message.error(result.message || '更新 Agent 状态失败');
+      }
+    } catch (error) {
+      console.error('更新 Agent 状态失败:', error);
+      message.error('更新 Agent 状态失败，请稍后重试');
+    }
+  };
+
+  // 处理模型更新
+  const handleModelChange = async (value: OpenAIModel) => {
+    if (!mainAgentId) {
+      message.error('主代理ID未设置，无法更新模型');
+      return;
+    }
+
+    try {
+      const result = await updateAgent(
+        Number(mainAgentId),
+        undefined, // name
+        undefined, // description
+        value, // modelName
+        undefined, // maxSteps
+        undefined, // provideRunSummary
+        undefined, // prompt
+        undefined // enabled
+      );
+
+      if (result.success) {
+        setMainAgentModel(value);
+        message.success('模型更新成功');
+      } else {
+        message.error(result.message || '更新模型失败');
+      }
+    } catch (error) {
+      console.error('更新模型失败:', error);
+      message.error('更新模型失败，请稍后重试');
+    }
+  };
+
+  // 处理最大步骤数更新
+  const handleMaxStepChange = async (value: number | null) => {
+    if (!mainAgentId) {
+      message.error('主代理ID未设置，无法更新最大步骤数');
+      return;
+    }
+
+    const newValue = value ?? 10;
+    try {
+      const result = await updateAgent(
+        Number(mainAgentId),
+        undefined, // name
+        undefined, // description
+        undefined, // modelName
+        newValue, // maxSteps
+        undefined, // provideRunSummary
+        undefined, // prompt
+        undefined // enabled
+      );
+
+      if (result.success) {
+        setMainAgentMaxStep(newValue);
+        message.success('最大步骤数更新成功');
+      } else {
+        message.error(result.message || '更新最大步骤数失败');
+      }
+    } catch (error) {
+      console.error('更新最大步骤数失败:', error);
+      message.error('更新最大步骤数失败，请稍后重试');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full gap-0 justify-between">
       {/* Upper part: Agent pool + Tool pool */}
@@ -590,17 +715,12 @@ export default function BusinessLogicConfig({
         <div className={`w-[360px] h-full ${isCreatingNewAgent ? 'hidden' : ''}`}>
           <SubAgentPool
             selectedAgents={selectedAgents}
-            onSelectAgent={(agent, isSelected) => {
-              if (isSelected) {
-                setSelectedAgents([...selectedAgents, agent]);
-              } else {
-                setSelectedAgents(selectedAgents.filter((a) => a.id !== agent.id));
-              }
-            }}
+            onSelectAgent={handleAgentSelect}
             onEditAgent={handleEditAgent}
             onCreateNewAgent={handleCreateNewAgent}
             subAgentList={subAgentList}
             loadingAgents={loadingAgents}
+            enabledAgentIds={enabledAgentIds}
           />
         </div>
         <div className={`${isCreatingNewAgent ? 'w-full' : 'flex-1'} h-full`}>
@@ -640,7 +760,7 @@ export default function BusinessLogicConfig({
               <span className="block text-lg font-medium mb-2">模型</span>
               <Select
                 value={mainAgentModel}
-                onChange={setMainAgentModel}
+                onChange={handleModelChange}
                 className="w-full"
                 options={modelOptions}
               />
@@ -651,7 +771,7 @@ export default function BusinessLogicConfig({
                 min={1}
                 max={50}
                 value={mainAgentMaxStep}
-                onChange={v => setMainAgentMaxStep(v ?? 10)}
+                onChange={handleMaxStepChange}
                 className="w-full"
               />
             </div>

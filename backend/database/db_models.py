@@ -173,6 +173,7 @@ class AgentInfo(Base):
     tenant_id = Column(String(100), doc="Belonging tenant")
     enabled = Column(Boolean, doc="Enabled")
     provide_run_summary = Column(Boolean, doc="Whether to provide the running summary to the manager agent")
+    business_description = Column(Boolean, doc="Manually entered by the user to describe the entire business process")
 
 class UserAgent(Base):
     """
