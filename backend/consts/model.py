@@ -298,7 +298,6 @@ class AgentInfoRequest(BaseModel):
     max_steps: Optional[int] = None
     provide_run_summary: Optional[bool] = None
     prompt: Optional[str] = None
-    parent_id: Optional[int] = None
     enabled: Optional[bool] = None
 
 

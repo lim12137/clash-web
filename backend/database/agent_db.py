@@ -243,6 +243,7 @@ def create_or_update_tool(tool_info, tenant_id: str, user_id: str = None):
             create_tool(tool_info_dict)
 
         session.flush()
+        return tool_instance
 
 def query_tools():
     """
@@ -374,3 +375,39 @@ def save_agent_prompt(agent_id: int, prompt: str, tenant_id: str = None, user_id
         agent.updated_by = user_id
         session.flush()
         return as_dict(agent)
+
+
+def add_tool_field(tool_info):
+    with get_db_session() as session:
+        # Query if there is an existing ToolInstance
+        query = session.query(ToolInfo).filter(ToolInfo.tool_id == tool_info["tool_id"])
+        tool = query.first()
+
+        # add tool params
+        tool_params = tool.params
+        for ele in tool_params:
+            ele["default"] = tool_info["params"][ele["name"]]
+
+        tool_info["params"] =tool_params
+        tool_info["name"] = tool.name
+        tool_info["description"] = tool.description
+        return tool_info
+
+
+def search_tools_for_sub_agent(agent_id, tenant_id, user_id: str = None):
+    with get_db_session() as session:
+        # Query if there is an existing ToolInstance
+        query = session.query(ToolInstance).filter(ToolInstance.agent_id == agent_id,
+                                                   ToolInstance.tenant_id == tenant_id)
+        if user_id:
+            query = query.filter(ToolInstance.user_id == user_id)
+
+        tool_instances = query.all()
+
+        tools_list = []
+        for tool_instance in tool_instances:
+            tool_instance_dict = as_dict(tool_instance)
+            new_tool_instance_dict = add_tool_field(tool_instance_dict)
+
+            tools_list.append(new_tool_instance_dict)
+        return tools_list
