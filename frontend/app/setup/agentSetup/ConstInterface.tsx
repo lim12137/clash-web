@@ -60,6 +60,7 @@ export interface SubAgentPoolProps {
   onCreateNewAgent: () => void;
   subAgentList?: Agent[];
   loadingAgents?: boolean;
+  enabledAgentIds?: number[];
 }
 // tool pool component props interface
 export interface ToolPoolProps {
@@ -80,6 +81,7 @@ export interface BusinessLogicConfigProps {
   setSelectedTools: (tools: Tool[] | ((prevTools: Tool[]) => Tool[])) => void;
   onGenerateSystemPrompt: () => void;
   systemPrompt: string;
+  setSystemPrompt: (value: string) => void;
   isCreatingNewAgent: boolean;
   setIsCreatingNewAgent: (value: boolean) => void;
   mainAgentModel: OpenAIModel;
@@ -95,4 +97,6 @@ export interface BusinessLogicConfigProps {
   mainAgentId: string | null;
   setMainAgentId: (id: string | null) => void;
   setSubAgentList: (agents: Agent[]) => void;
+  enabledAgentIds: number[];
+  setEnabledAgentIds: (ids: number[]) => void;
 }
