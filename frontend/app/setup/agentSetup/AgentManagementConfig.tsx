@@ -357,7 +357,8 @@ export default function BusinessLogicConfig({
   subAgentList = [],
   loadingAgents = false,
   mainAgentId,
-  setMainAgentId
+  setMainAgentId,
+  setSubAgentList
 }: BusinessLogicConfigProps) {
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
@@ -422,12 +423,12 @@ export default function BusinessLogicConfig({
       setBusinessLogic('');
       fetchSubAgentIdAndEnableToolList();
     } else {
-      // 退出创建新Agent状态时，重置主Agent配置并重新获取工具状态
+      // 退出创建新Agent状态时，重置主Agent配置并刷新列表
       setBusinessLogic('');
       setMainAgentModel(OpenAIModel.MainModel);
       setMainAgentMaxStep(10);
       setMainAgentPrompt('');
-      fetchAgentToolsState(mainAgentId);
+      refreshAgentList();
     }
   }, [isCreatingNewAgent]);
 
@@ -487,10 +488,8 @@ export default function BusinessLogicConfig({
       // 重置状态
       setBusinessLogic('');
       setSelectedTools([]);
-      // 最后重新获取工具状态
-      if (mainAgentId) {
-        await fetchAgentToolsState(mainAgentId);
-      }
+      // 刷新列表
+      refreshAgentList();
     }
   };
 
@@ -546,6 +545,42 @@ export default function BusinessLogicConfig({
       return "请先生成系统提示词";
     }
     return "";
+  };
+
+  // 移除 fetchAgentToolsState 函数，将其功能合并到 refreshAgentList 中
+  const refreshAgentList = async () => {
+    if (!mainAgentId) return;
+    
+    setIsLoadingTools(true);
+    // 在加载开始时清空工具选中状态
+    setSelectedTools([]);
+    setEnabledToolIds([]);
+    
+    try {
+      const result = await fetchAgentList();
+      if (result.success) {
+        // 更新所有相关状态
+        setSubAgentList(result.data.subAgentList);
+        setMainAgentId(result.data.mainAgentId);
+        const newEnabledToolIds = result.data.enabledToolIds || [];
+        setEnabledToolIds(newEnabledToolIds);
+        
+        // 更新选中的工具
+        if (tools && tools.length > 0) {
+          const enabledTools = tools.filter(tool => 
+            newEnabledToolIds.includes(Number(tool.id))
+          );
+          setSelectedTools(enabledTools);
+        }
+      } else {
+        message.error(result.message || '获取 Agent 列表失败');
+      }
+    } catch (error) {
+      console.error('获取 Agent 列表失败:', error);
+      message.error('获取 Agent 列表失败，请稍后重试');
+    } finally {
+      setIsLoadingTools(false);
+    }
   };
 
   return (
@@ -646,6 +681,19 @@ export default function BusinessLogicConfig({
         </div>
       </div>
 
+      {/* Edit Agent pop-up window */}
+      <AgentModalComponent 
+        isOpen={isEditModalOpen}
+        onCancel={() => setIsEditModalOpen(false)}
+        onSave={handleUpdateAgent}
+        onRefresh={refreshAgentList}
+        title="配置Agent"
+        agent={currentAgent}
+        selectedTools={selectedTools}
+        readOnly={false}
+        agentId={currentAgent?.id || null}
+      />
+
       {/* New Agent pop-up window */}
       <AgentModalComponent 
         isOpen={isAgentModalOpen}
@@ -653,22 +701,11 @@ export default function BusinessLogicConfig({
         onSave={(name, description, model, max_step, provide_run_summary, prompt) => {
           handleSaveNewAgent(name, description, model, max_step, provide_run_summary, prompt);
         }}
+        onRefresh={refreshAgentList}
         title="保存到Agent池"
         selectedTools={selectedTools}
         systemPrompt={systemPrompt}
-        mainAgentId={mainAgentId}
-      />
-
-      {/* Edit Agent pop-up window */}
-      <AgentModalComponent 
-        isOpen={isEditModalOpen}
-        onCancel={() => setIsEditModalOpen(false)}
-        onSave={handleUpdateAgent}
-        title="配置Agent"
-        agent={currentAgent}
-        selectedTools={selectedTools}
-        readOnly={false}
-        mainAgentId={mainAgentId}
+        agentId={mainAgentId}
       />
     </div>
   )

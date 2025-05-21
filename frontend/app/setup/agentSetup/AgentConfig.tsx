@@ -186,6 +186,7 @@ export default function AgentConfig() {
                   loadingAgents={loadingAgents}
                   mainAgentId={mainAgentId}
                   setMainAgentId={setMainAgentId}
+                  setSubAgentList={setSubAgentList}
                 />
               </div>
             </div>
