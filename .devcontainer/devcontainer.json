@@ -1,0 +1,18 @@
+{
+  "name": "nexent",
+  "dockerComposeFile": "../docker/docker-compose.dev.yml",
+  "service": "nexent-data-process",
+  "workspaceFolder": "/opt",
+  "forwardPorts": [3000, 5012],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  },
+  "remoteUser": "root",
+  "shutdownAction": "none"
+}
