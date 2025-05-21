@@ -17,15 +17,7 @@ def create_new_index(
         authorization: Optional[str] = Header(None)
 ):
     """Create a new vector index and store it in the knowledge table"""
-    try:
-        # Create the index in Elasticsearch
-        user_id = get_current_user_id(authorization)
-        return ElasticSearchService.create_index(index_name, embedding_dim, es_core, user_id)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error creating index: {str(e)}"
-        )
+    raise HTTPException(status_code=500, detail="Method not implemented")
 
 
 @router.delete("/{index_name}")
@@ -39,7 +31,7 @@ def delete_index(
         user_id = get_current_user_id(authorization)
         return ElasticSearchService.delete_index(index_name, es_core, user_id)
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Error delete index: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error delete index: {str(e)}")
 
 
 @router.get("")
@@ -52,7 +44,7 @@ def get_list_indices(
     try:
         return ElasticSearchService.list_indices(pattern, include_stats, es_core)
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Error get index: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error get index: {str(e)}")
 
 
 @router.get("/{index_name}/info")
@@ -66,7 +58,7 @@ def get_es_index_info(
     try:
         return ElasticSearchService().get_index_info(index_name, include_files, include_chunks, es_core)
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"{str(e)}")
+        raise HTTPException(status_code=500, detail=f"{str(e)}")
 
 
 # Document Operations
