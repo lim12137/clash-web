@@ -5,8 +5,9 @@ import { Typography, Input, Button, Switch, Modal, message, Select } from 'antd'
 import { SettingOutlined } from '@ant-design/icons'
 import { ScrollArea } from '@/components/ui/scrollArea'
 import ToolConfigModal from './ToolConfigModal'
-import { AgentModalProps, Tool, OpenAIModel } from '../ConstInterface'
+import { AgentModalProps, Tool, OpenAIModel, Agent } from '../ConstInterface'
 import { handleToolSelectCommon } from '../utils/toolUtils'
+import { updateAgent } from '@/services/agentConfigService'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -20,12 +21,13 @@ export default function AgentModal({
   isOpen, 
   onCancel, 
   onSave, 
+  onRefresh,
   title, 
   agent, 
   selectedTools, 
   systemPrompt,
   readOnly = false,
-  mainAgentId
+  agentId
 }: AgentModalProps) {
   const [name, setName] = useState(agent?.name || "");
   const [description, setDescription] = useState(agent?.description || "");
@@ -39,17 +41,24 @@ export default function AgentModal({
   const [pendingToolSelection, setPendingToolSelection] = useState<{tool: Tool, isSelected: boolean} | null>(null);
 
   useEffect(() => {
-    // 当模态框打开或agent/systemPrompt/selectedTools变化时更新状态
     if (isOpen) {
       if (agent) {
+        // 编辑模式：先设置基本信息
         setName(agent.name);
         setDescription(agent.description);
         setModel(agent.model);
         setMaxStep(agent.max_step);
         setProvideSummary(agent.provide_run_summary);
         setPrompt(agent.prompt);
-        setCurrentTools(agent.tools);
+
+        // 直接使用 agent 中的工具配置
+        const fetchToolConfigs = () => {
+          setCurrentTools(agent.tools);
+        };
+
+        fetchToolConfigs();
       } else {
+        // 创建模式：使用传入的 selectedTools
         setName("");
         setDescription("");
         setModel(OpenAIModel.MainModel);
@@ -65,19 +74,36 @@ export default function AgentModal({
         })));
       }
     }
-  }, [isOpen, agent, systemPrompt, selectedTools]);
+  }, [isOpen, agent, systemPrompt, selectedTools, agentId]);
 
-  const handleSave = () => {
-    const agentData = {
-      name,
-      description,
-      model,
-      maxStep,
-      provideSummary,
-      prompt,
-      tools: currentTools
-    };
-    onSave(agentData.name, agentData.description, agentData.model, agentData.maxStep, agentData.provideSummary, agentData.prompt);
+  const handleSave = async () => {
+    if (!agentId) {
+      message.error('Agent ID 不存在');
+      return;
+    }
+
+    try {
+      const result = await updateAgent(
+        parseInt(agentId),
+        name,
+        description,
+        model,
+        maxStep,
+        provideSummary,
+        prompt
+      );
+
+      if (result.success) {
+        message.success('保存成功');
+        onSave(name, description, model, maxStep, provideSummary, prompt);
+        onRefresh?.();
+      } else {
+        message.error(result.message || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存 Agent 失败:', error);
+      message.error('保存失败，请稍后重试');
+    }
   };
 
   const handleToolSelect = async (tool: Tool, isSelected: boolean, e: React.MouseEvent) => {
@@ -86,7 +112,7 @@ export default function AgentModal({
     const { shouldProceed, params } = await handleToolSelectCommon(
       tool,
       isSelected,
-      mainAgentId,
+      agentId,
       (tool, isSelected) => {
         setCurrentTools(prevTools => {
           if (isSelected) {
@@ -99,15 +125,25 @@ export default function AgentModal({
     );
 
     if (!shouldProceed && params) {
-      // if there are required fields not filled, open config modal
-      setCurrentTool({
+      // 确保使用从后端获取的参数值
+      const updatedTool = {
         ...tool,
-        initParams: tool.initParams.map(param => ({
-          ...param,
-          value: params[param.name] || param.value
-        }))
-      });
-      setPendingToolSelection({ tool, isSelected });
+        initParams: tool.initParams.map(param => {
+          // 如果后端返回了参数值，优先使用后端值
+          // 如果后端没有返回该参数值，则使用默认值
+          const paramValue = params[param.name] !== undefined ? params[param.name] : param.value;
+          return {
+            ...param,
+            value: paramValue
+          };
+        })
+      };
+      
+      console.log('Tool params from backend:', params);
+      console.log('Updated tool with params:', updatedTool);
+      
+      setCurrentTool(updatedTool);
+      setPendingToolSelection({ tool: updatedTool, isSelected });
       setIsToolModalOpen(true);
     }
   };
@@ -143,9 +179,41 @@ export default function AgentModal({
     setPendingToolSelection(null);
   };
 
-  // handle tool config button click
-  const handleConfigClick = (tool: Tool) => {
-    setCurrentTool(tool);
+  // 修改 handleConfigClick 函数，确保在点击配置按钮时也获取最新参数
+  const handleConfigClick = async (tool: Tool) => {
+    try {
+      // 获取工具的最新配置
+      const { shouldProceed, params } = await handleToolSelectCommon(
+        tool,
+        true, // 假设工具是启用的
+        agentId,
+        () => {} // 不需要更新工具列表
+      );
+
+      if (params) {
+        const updatedTool = {
+          ...tool,
+          initParams: tool.initParams.map(param => {
+            const paramValue = params[param.name] !== undefined ? params[param.name] : param.value;
+            return {
+              ...param,
+              value: paramValue
+            };
+          })
+        };
+        
+        console.log('Tool params from backend (config click):', params);
+        console.log('Updated tool with params (config click):', updatedTool);
+        
+        setCurrentTool(updatedTool);
+      } else {
+        setCurrentTool(tool);
+      }
+    } catch (error) {
+      console.error('获取工具配置失败:', error);
+      message.error('获取工具配置失败，使用默认配置');
+      setCurrentTool(tool);
+    }
     setIsToolModalOpen(true);
   };
 
@@ -294,7 +362,7 @@ export default function AgentModal({
         onCancel={() => setIsToolModalOpen(false)}
         onSave={handleToolSave}
         tool={currentTool}
-        mainAgentId={parseInt(mainAgentId || '0')}
+        mainAgentId={parseInt(agentId || '0')}
         selectedTools={currentTools}
       />
     </Modal>
