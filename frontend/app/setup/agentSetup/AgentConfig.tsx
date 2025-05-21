@@ -39,6 +39,7 @@ export default function AgentConfig() {
   const [subAgentList, setSubAgentList] = useState<any[]>([])
   const [loadingAgents, setLoadingAgents] = useState(false)
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([])
+  const [enabledAgentIds, setEnabledAgentIds] = useState<number[]>([])
 
   // load tools when page is loaded
   useEffect(() => {
@@ -71,6 +72,21 @@ export default function AgentConfig() {
         setSubAgentList(result.data.subAgentList);
         setMainAgentId(result.data.mainAgentId ? String(result.data.mainAgentId) : null);
         setEnabledToolIds(result.data.enabledToolIds);
+        setEnabledAgentIds(result.data.enabledAgentIds);
+        
+        // 更新新增字段对应的状态
+        if (result.data.modelName) {
+          setMainAgentModel(result.data.modelName as OpenAIModel);
+        }
+        if (result.data.maxSteps) {
+          setMainAgentMaxStep(result.data.maxSteps);
+        }
+        if (result.data.businessDescription) {
+          setBusinessLogic(result.data.businessDescription);
+        }
+        if (result.data.prompt) {
+          setSystemPrompt(result.data.prompt);
+        }
       } else {
         message.error(result.message || '获取Agent列表失败');
       }
@@ -97,6 +113,16 @@ export default function AgentConfig() {
       setSelectedTools(enabledTools);
     }
   }, [tools, enabledToolIds]);
+
+  // 当 agent 列表加载完成时，检查并设置已选中的 agents
+  useEffect(() => {
+    if (subAgentList.length > 0 && enabledAgentIds.length > 0) {
+      const enabledAgents = subAgentList.filter(agent => 
+        enabledAgentIds.includes(Number(agent.id))
+      );
+      setSelectedAgents(enabledAgents);
+    }
+  }, [subAgentList, enabledAgentIds]);
 
   // Monitor the status change of creating a new agent, and reset the relevant status
   useEffect(() => {
@@ -172,6 +198,7 @@ export default function AgentConfig() {
                   setSelectedTools={setSelectedTools}
                   onGenerateSystemPrompt={handleGeneratePrompt}
                   systemPrompt={systemPrompt}
+                  setSystemPrompt={setSystemPrompt}
                   isCreatingNewAgent={isCreatingNewAgent}
                   setIsCreatingNewAgent={setIsCreatingNewAgent}
                   mainAgentModel={mainAgentModel}
@@ -186,6 +213,9 @@ export default function AgentConfig() {
                   loadingAgents={loadingAgents}
                   mainAgentId={mainAgentId}
                   setMainAgentId={setMainAgentId}
+                  setSubAgentList={setSubAgentList}
+                  enabledAgentIds={enabledAgentIds}
+                  setEnabledAgentIds={setEnabledAgentIds}
                 />
               </div>
             </div>

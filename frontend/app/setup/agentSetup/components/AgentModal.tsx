@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Typography, Input, Button, Switch, Modal, message, Select } from 'antd'
 import { SettingOutlined } from '@ant-design/icons'
 import { ScrollArea } from '@/components/ui/scrollArea'
 import ToolConfigModal from './ToolConfigModal'
-import { AgentModalProps, Tool, OpenAIModel } from '../ConstInterface'
+import { AgentModalProps, Tool, OpenAIModel, Agent } from '../ConstInterface'
 import { handleToolSelectCommon } from '../utils/toolUtils'
+import { updateAgent } from '@/services/agentConfigService'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -16,16 +17,41 @@ const modelOptions = [
   { label: '副模型', value: OpenAIModel.SubModel },
 ];
 
+// 添加变量命名规范的正则表达式
+const VARIABLE_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+// 添加验证函数
+const validateName = (name: string): { isValid: boolean; message: string } => {
+  if (!name.trim()) {
+    return { isValid: false, message: '名称不能为空' };
+  }
+  if (!VARIABLE_NAME_REGEX.test(name)) {
+    return { 
+      isValid: false, 
+      message: '名称只能包含字母、数字和下划线，且必须以字母或下划线开头' 
+    };
+  }
+  return { isValid: true, message: '' };
+};
+
+const validateDescription = (description: string): { isValid: boolean; message: string } => {
+  if (!description.trim()) {
+    return { isValid: false, message: '描述不能为空' };
+  }
+  return { isValid: true, message: '' };
+};
+
 export default function AgentModal({ 
   isOpen, 
   onCancel, 
   onSave, 
+  onRefresh,
   title, 
   agent, 
   selectedTools, 
   systemPrompt,
   readOnly = false,
-  mainAgentId
+  agentId
 }: AgentModalProps) {
   const [name, setName] = useState(agent?.name || "");
   const [description, setDescription] = useState(agent?.description || "");
@@ -37,19 +63,28 @@ export default function AgentModal({
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [currentTool, setCurrentTool] = useState<Tool | null>(null);
   const [pendingToolSelection, setPendingToolSelection] = useState<{tool: Tool, isSelected: boolean} | null>(null);
+  const [nameError, setNameError] = useState<string>('');
+  const [descriptionError, setDescriptionError] = useState<string>('');
 
   useEffect(() => {
-    // 当模态框打开或agent/systemPrompt/selectedTools变化时更新状态
     if (isOpen) {
       if (agent) {
+        // 编辑模式：先设置基本信息
         setName(agent.name);
         setDescription(agent.description);
         setModel(agent.model);
         setMaxStep(agent.max_step);
         setProvideSummary(agent.provide_run_summary);
         setPrompt(agent.prompt);
-        setCurrentTools(agent.tools);
+
+        // 直接使用 agent 中的工具配置
+        const fetchToolConfigs = () => {
+          setCurrentTools(agent.tools);
+        };
+
+        fetchToolConfigs();
       } else {
+        // 创建模式：使用传入的 selectedTools
         setName("");
         setDescription("");
         setModel(OpenAIModel.MainModel);
@@ -65,19 +100,47 @@ export default function AgentModal({
         })));
       }
     }
-  }, [isOpen, agent, systemPrompt, selectedTools]);
+  }, [isOpen, agent, systemPrompt, selectedTools, agentId]);
 
-  const handleSave = () => {
-    const agentData = {
-      name,
-      description,
-      model,
-      maxStep,
-      provideSummary,
-      prompt,
-      tools: currentTools
-    };
-    onSave(agentData.name, agentData.description, agentData.model, agentData.maxStep, agentData.provideSummary, agentData.prompt);
+  // 添加一个计算属性来判断表单是否有效
+  const isFormValid = useMemo(() => {
+    const nameValidation = validateName(name);
+    const descriptionValidation = validateDescription(description);
+    return nameValidation.isValid && descriptionValidation.isValid;
+  }, [name, description]);
+
+  const handleSave = async () => {
+    if (!agentId) {
+      message.error('Agent ID 不存在');
+      return;
+    }
+
+    if (!isFormValid) {
+      return;
+    }
+
+    try {
+      const result = await updateAgent(
+        parseInt(agentId),
+        name,
+        description,
+        model,
+        maxStep,
+        provideSummary,
+        prompt
+      );
+
+      if (result.success) {
+        message.success('保存成功');
+        onSave(name, description, model, maxStep, provideSummary, prompt);
+        onRefresh?.();
+      } else {
+        message.error(result.message || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存 Agent 失败:', error);
+      message.error('保存失败，请稍后重试');
+    }
   };
 
   const handleToolSelect = async (tool: Tool, isSelected: boolean, e: React.MouseEvent) => {
@@ -86,7 +149,7 @@ export default function AgentModal({
     const { shouldProceed, params } = await handleToolSelectCommon(
       tool,
       isSelected,
-      mainAgentId,
+      agentId,
       (tool, isSelected) => {
         setCurrentTools(prevTools => {
           if (isSelected) {
@@ -99,15 +162,25 @@ export default function AgentModal({
     );
 
     if (!shouldProceed && params) {
-      // if there are required fields not filled, open config modal
-      setCurrentTool({
+      // 确保使用从后端获取的参数值
+      const updatedTool = {
         ...tool,
-        initParams: tool.initParams.map(param => ({
-          ...param,
-          value: params[param.name] || param.value
-        }))
-      });
-      setPendingToolSelection({ tool, isSelected });
+        initParams: tool.initParams.map(param => {
+          // 如果后端返回了参数值，优先使用后端值
+          // 如果后端没有返回该参数值，则使用默认值
+          const paramValue = params[param.name] !== undefined ? params[param.name] : param.value;
+          return {
+            ...param,
+            value: paramValue
+          };
+        })
+      };
+      
+      console.log('Tool params from backend:', params);
+      console.log('Updated tool with params:', updatedTool);
+      
+      setCurrentTool(updatedTool);
+      setPendingToolSelection({ tool: updatedTool, isSelected });
       setIsToolModalOpen(true);
     }
   };
@@ -143,10 +216,58 @@ export default function AgentModal({
     setPendingToolSelection(null);
   };
 
-  // handle tool config button click
-  const handleConfigClick = (tool: Tool) => {
-    setCurrentTool(tool);
+  // 修改 handleConfigClick 函数，确保在点击配置按钮时也获取最新参数
+  const handleConfigClick = async (tool: Tool) => {
+    try {
+      // 获取工具的最新配置
+      const { shouldProceed, params } = await handleToolSelectCommon(
+        tool,
+        true, // 假设工具是启用的
+        agentId,
+        () => {} // 不需要更新工具列表
+      );
+
+      if (params) {
+        const updatedTool = {
+          ...tool,
+          initParams: tool.initParams.map(param => {
+            const paramValue = params[param.name] !== undefined ? params[param.name] : param.value;
+            return {
+              ...param,
+              value: paramValue
+            };
+          })
+        };
+        
+        console.log('Tool params from backend (config click):', params);
+        console.log('Updated tool with params (config click):', updatedTool);
+        
+        setCurrentTool(updatedTool);
+      } else {
+        setCurrentTool(tool);
+      }
+    } catch (error) {
+      console.error('获取工具配置失败:', error);
+      message.error('获取工具配置失败，使用默认配置');
+      setCurrentTool(tool);
+    }
     setIsToolModalOpen(true);
+  };
+
+  // 修改名称输入框的处理函数
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    setName(newName);
+    const validation = validateName(newName);
+    setNameError(validation.message);
+  };
+
+  // 修改描述输入框的处理函数
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newDescription = e.target.value;
+    setDescription(newDescription);
+    const validation = validateDescription(newDescription);
+    setDescriptionError(validation.message);
   };
 
   return (
@@ -178,9 +299,10 @@ export default function AgentModal({
           <button 
             key="submit" 
             onClick={handleSave}
-            disabled={!name.trim()}
+            disabled={!isFormValid}
             className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ border: "none" }}
+            title={!isFormValid ? "请确保名称和描述符合要求" : ""}
           >
             保存
           </button>
@@ -194,20 +316,24 @@ export default function AgentModal({
             <Text>名称</Text>
             <Input 
               value={name} 
-              onChange={(e) => setName(e.target.value)}
-              placeholder="请输入代理名称"
+              onChange={handleNameChange}
+              placeholder="请输入代理名称（只能包含字母、数字和下划线，且必须以字母或下划线开头）"
               disabled={readOnly}
+              status={nameError ? 'error' : ''}
             />
+            {nameError && <Text type="danger" className="text-xs mt-1">{nameError}</Text>}
           </div>
           <div>
             <Text>描述</Text>
             <TextArea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={handleDescriptionChange}
               placeholder="请输入代理描述"
               rows={3}
               disabled={readOnly}
+              status={descriptionError ? 'error' : ''}
             />
+            {descriptionError && <Text type="danger" className="text-xs mt-1">{descriptionError}</Text>}
           </div>
           
           <div>
@@ -294,7 +420,7 @@ export default function AgentModal({
         onCancel={() => setIsToolModalOpen(false)}
         onSave={handleToolSave}
         tool={currentTool}
-        mainAgentId={parseInt(mainAgentId || '0')}
+        mainAgentId={parseInt(agentId || '0')}
         selectedTools={currentTools}
       />
     </Modal>
