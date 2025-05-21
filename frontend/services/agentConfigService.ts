@@ -64,6 +64,7 @@ export const fetchAgentList = async () => {
       modelName: agent.model_name,
       max_step: agent.max_steps,
       prompt: agent.prompt,
+      businessDescription: agent.business_description,
       parentAgentId: agent.parent_agent_id,
       enabled: agent.enabled,
       createTime: agent.create_time,
@@ -92,7 +93,12 @@ export const fetchAgentList = async () => {
       data: {
         mainAgentId: data.main_agent_id,
         subAgentList: formattedAgents,
-        enabledToolIds: data.enable_tool_id_list || []
+        enabledToolIds: data.enable_tool_id_list || [],
+        enabledAgentIds: data.enable_agent_id_list || [],
+        modelName: data.model_name,
+        maxSteps: data.max_steps,
+        businessDescription: data.business_description,
+        prompt: data.prompt
       },
       message: ''
     };
@@ -103,7 +109,12 @@ export const fetchAgentList = async () => {
       data: {
         mainAgentId: null,
         subAgentList: [],
-        enabledToolIds: []
+        enabledToolIds: [],
+        enabledAgentIds: [],
+        modelName: null,
+        maxSteps: null,
+        businessDescription: null,
+        prompt: null
       },
       message: '获取 agent 列表失败，请稍后重试'
     };
@@ -134,7 +145,11 @@ export const getCreatingSubAgentId = async (mainAgentId: string | null) => {
       success: true,
       data: {
         agentId: data.agent_id,
-        enabledToolIds: data.enable_tool_id_list || []
+        enabledToolIds: data.enable_tool_id_list || [],
+        modelName: data.model_name,
+        maxSteps: data.max_steps,
+        businessDescription: data.business_description,
+        prompt: data.prompt
       },
       message: ''
     };
@@ -253,12 +268,13 @@ export const searchToolConfig = async (toolId: number, agentId: number) => {
  */
 export const updateAgent = async (
   agentId: number,
-  name: string,
-  description: string,
-  modelName: string,
-  maxSteps: number,
-  provideRunSummary: boolean,
-  prompt: string
+  name?: string,
+  description?: string,
+  modelName?: string,
+  maxSteps?: number,
+  provideRunSummary?: boolean,
+  prompt?: string,
+  enabled?: boolean
 ) => {
   try {
     const response = await fetch('/api/agent/update', {
@@ -266,6 +282,7 @@ export const updateAgent = async (
       headers: {
         'Content-Type': 'application/json',
       },
+
       body: JSON.stringify({
         agent_id: agentId,
         name: name,
@@ -273,7 +290,8 @@ export const updateAgent = async (
         model_name: modelName,
         max_steps: maxSteps,
         provide_run_summary: provideRunSummary,
-        prompt: prompt
+        prompt: prompt,
+        enabled: enabled
       }),
     });
 
