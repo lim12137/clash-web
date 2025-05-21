@@ -64,7 +64,7 @@ export const fetchAgentList = async () => {
       modelName: agent.model_name,
       max_step: agent.max_steps,
       prompt: agent.prompt,
-      businessDescription: agent.business_description,
+      business_description: agent.business_description,
       parentAgentId: agent.parent_agent_id,
       enabled: agent.enabled,
       createTime: agent.create_time,
@@ -133,7 +133,7 @@ export const getCreatingSubAgentId = async (mainAgentId: string | null) => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ main_agent_id: mainAgentId }),
+      body: JSON.stringify({ agent_id: mainAgentId }),
     });
 
     if (!response.ok) {
@@ -274,7 +274,8 @@ export const updateAgent = async (
   maxSteps?: number,
   provideRunSummary?: boolean,
   prompt?: string,
-  enabled?: boolean
+  enabled?: boolean,
+  businessDescription?: string
 ) => {
   try {
     const response = await fetch('/api/agent/update', {
@@ -282,7 +283,6 @@ export const updateAgent = async (
       headers: {
         'Content-Type': 'application/json',
       },
-
       body: JSON.stringify({
         agent_id: agentId,
         name: name,
@@ -291,7 +291,8 @@ export const updateAgent = async (
         max_steps: maxSteps,
         provide_run_summary: provideRunSummary,
         prompt: prompt,
-        enabled: enabled
+        enabled: enabled,
+        business_description: businessDescription
       }),
     });
 
@@ -311,6 +312,40 @@ export const updateAgent = async (
       success: false,
       data: null,
       message: '更新 Agent 失败，请稍后重试'
+    };
+  }
+};
+
+/**
+ * 删除 Agent
+ * @param agentId agent id
+ * @returns 删除结果
+ */
+export const deleteAgent = async (agentId: number) => {
+  try {
+    const response = await fetch('/api/agent', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        agent_id: agentId
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`);
+    }
+
+    return {
+      success: true,
+      message: 'Agent 删除成功'
+    };
+  } catch (error) {
+    console.error('删除 Agent 失败:', error);
+    return {
+      success: false,
+      message: '删除 Agent 失败，请稍后重试'
     };
   }
 };

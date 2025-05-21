@@ -22,7 +22,7 @@ def get_enable_sub_agent_id_by_agent_id(agent_id: int, tenant_id: str = None, us
 
     return sub_agents_list
 
-def get_creating_sub_agent_id_api(main_agent_id: int, tenant_id: str = None) -> int:
+def get_creating_sub_agent_id_service(main_agent_id: int, tenant_id: str, user_id: str = None) -> int:
     #  first find the sub agent, if it exists, it means the agent was created before, but exited prematurely; if it does not exist, create a new one
     sub_agent_id = search_sub_agent_by_main_agent_id(main_agent_id, tenant_id)
     if sub_agent_id:
@@ -34,11 +34,11 @@ def get_creating_sub_agent_id_api(main_agent_id: int, tenant_id: str = None) -> 
                             "enabled": False,
                             "parent_agent_id": main_agent_id,
                             "model_name": "sub_model",
-                            "max_steps": "10"})["agent_id"]
+                            "max_steps": "10"}, user_id=user_id)["agent_id"]
 
 
-def query_or_create_main_agents_api(tenant_id: str = None):
-    main_agents_id = query_or_create_main_agent_id(tenant_id)
+def query_or_create_main_agents_api(tenant_id: str, user_id: str = None):
+    main_agents_id = query_or_create_main_agent_id(tenant_id, user_id=user_id)
     return main_agents_id
 
 

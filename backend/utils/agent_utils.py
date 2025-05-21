@@ -132,7 +132,8 @@ def get_local_tools() -> List[ToolInfo]:
             params=init_params_list,
             source=ToolSourceEnum.LOCAL.value,
             inputs=json.dumps(getattr(tool_class, 'inputs'), ensure_ascii=False),
-            output_type=getattr(tool_class, 'output_type')
+            output_type=getattr(tool_class, 'output_type'),
+            class_name=tool_class.__name__
         )
         tools_info.append(tool_info)
     return tools_info
@@ -162,7 +163,8 @@ def get_mcp_tools() -> List[ToolInfo]:
                     params=[],
                     source=ToolSourceEnum.MCP.value,
                     inputs=json.dumps(getattr(tool_class, 'inputs'), ensure_ascii=False),
-                    output_type=getattr(tool_class, 'output_type')
+                    output_type=getattr(tool_class, 'output_type'),
+                    class_name=getattr(tool_class, 'name')
                 )
 
                 tools_info.append(tool_info)

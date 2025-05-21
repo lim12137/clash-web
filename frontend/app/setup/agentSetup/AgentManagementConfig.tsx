@@ -464,7 +464,7 @@ export default function BusinessLogicConfig({
   };
 
   // 保存新Agent后的处理
-  const handleSaveNewAgent = async (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string) => {
+  const handleSaveNewAgent = async (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string, business_description: string) => {
     if (name.trim()) {
       const newAgent: Agent = {
         id: `custom_${Date.now()}`,
@@ -480,7 +480,8 @@ export default function BusinessLogicConfig({
             value: param.value
           }))
         })),
-        prompt: prompt
+        prompt: prompt,
+        business_description: business_description
       };
       
       mockAgents.unshift(newAgent);
@@ -508,7 +509,7 @@ export default function BusinessLogicConfig({
     setIsEditModalOpen(true);
   };
 
-  const handleUpdateAgent = (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string) => {
+  const handleUpdateAgent = (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string, business_description: string) => {
     if (currentAgent && name.trim()) {
       // Update the agent and maintain independent tool configuration
       const index = mockAgents.findIndex(a => a.id === currentAgent.id);
@@ -521,7 +522,8 @@ export default function BusinessLogicConfig({
           max_step,
           provide_run_summary,
           tools: currentAgent.tools, // Keep the original tool configuration
-          prompt
+          prompt,
+          business_description
         };
       }
       
@@ -795,7 +797,7 @@ export default function BusinessLogicConfig({
         onCancel={() => setIsEditModalOpen(false)}
         onSave={handleUpdateAgent}
         onRefresh={refreshAgentList}
-        title="配置Agent"
+        title="修改Agent"
         agent={currentAgent}
         selectedTools={selectedTools}
         readOnly={false}
@@ -806,8 +808,8 @@ export default function BusinessLogicConfig({
       <AgentModalComponent 
         isOpen={isAgentModalOpen}
         onCancel={handleModalClose}
-        onSave={(name, description, model, max_step, provide_run_summary, prompt) => {
-          handleSaveNewAgent(name, description, model, max_step, provide_run_summary, prompt);
+        onSave={(name, description, model, max_step, provide_run_summary, prompt, business_description) => {
+          handleSaveNewAgent(name, description, model, max_step, provide_run_summary, prompt, business_description);
         }}
         onRefresh={refreshAgentList}
         title="保存到Agent池"

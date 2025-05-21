@@ -15,6 +15,7 @@ export interface Agent {
   provide_run_summary: boolean;
   tools: Tool[];
   prompt: string;
+  business_description?: string;
 }
 
 export interface Tool {
@@ -36,11 +37,11 @@ export interface ToolParam {
 export interface AgentModalProps {
   isOpen: boolean;
   onCancel: () => void;
-  onSave: (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string) => void;
+  onSave: (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string, business_description: string) => void;
   onRefresh?: () => void;
   title: string;
   agent?: Agent | null;
-  selectedTools: Tool[];
+  selectedTools?: Tool[];
   systemPrompt?: string;
   readOnly?: boolean;
   agentId: string | null;
