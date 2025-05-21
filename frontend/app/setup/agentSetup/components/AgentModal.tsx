@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Typography, Input, Button, Switch, Modal, message, Select } from 'antd'
 import { SettingOutlined } from '@ant-design/icons'
 import { ScrollArea } from '@/components/ui/scrollArea'
@@ -16,6 +16,30 @@ const modelOptions = [
   { label: '主模型', value: OpenAIModel.MainModel },
   { label: '副模型', value: OpenAIModel.SubModel },
 ];
+
+// 添加变量命名规范的正则表达式
+const VARIABLE_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+// 添加验证函数
+const validateName = (name: string): { isValid: boolean; message: string } => {
+  if (!name.trim()) {
+    return { isValid: false, message: '名称不能为空' };
+  }
+  if (!VARIABLE_NAME_REGEX.test(name)) {
+    return { 
+      isValid: false, 
+      message: '名称只能包含字母、数字和下划线，且必须以字母或下划线开头' 
+    };
+  }
+  return { isValid: true, message: '' };
+};
+
+const validateDescription = (description: string): { isValid: boolean; message: string } => {
+  if (!description.trim()) {
+    return { isValid: false, message: '描述不能为空' };
+  }
+  return { isValid: true, message: '' };
+};
 
 export default function AgentModal({ 
   isOpen, 
@@ -39,6 +63,8 @@ export default function AgentModal({
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [currentTool, setCurrentTool] = useState<Tool | null>(null);
   const [pendingToolSelection, setPendingToolSelection] = useState<{tool: Tool, isSelected: boolean} | null>(null);
+  const [nameError, setNameError] = useState<string>('');
+  const [descriptionError, setDescriptionError] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
@@ -76,9 +102,20 @@ export default function AgentModal({
     }
   }, [isOpen, agent, systemPrompt, selectedTools, agentId]);
 
+  // 添加一个计算属性来判断表单是否有效
+  const isFormValid = useMemo(() => {
+    const nameValidation = validateName(name);
+    const descriptionValidation = validateDescription(description);
+    return nameValidation.isValid && descriptionValidation.isValid;
+  }, [name, description]);
+
   const handleSave = async () => {
     if (!agentId) {
       message.error('Agent ID 不存在');
+      return;
+    }
+
+    if (!isFormValid) {
       return;
     }
 
@@ -217,6 +254,22 @@ export default function AgentModal({
     setIsToolModalOpen(true);
   };
 
+  // 修改名称输入框的处理函数
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    setName(newName);
+    const validation = validateName(newName);
+    setNameError(validation.message);
+  };
+
+  // 修改描述输入框的处理函数
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newDescription = e.target.value;
+    setDescription(newDescription);
+    const validation = validateDescription(newDescription);
+    setDescriptionError(validation.message);
+  };
+
   return (
     <Modal
       title={title}
@@ -246,9 +299,10 @@ export default function AgentModal({
           <button 
             key="submit" 
             onClick={handleSave}
-            disabled={!name.trim()}
+            disabled={!isFormValid}
             className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ border: "none" }}
+            title={!isFormValid ? "请确保名称和描述符合要求" : ""}
           >
             保存
           </button>
@@ -262,20 +316,24 @@ export default function AgentModal({
             <Text>名称</Text>
             <Input 
               value={name} 
-              onChange={(e) => setName(e.target.value)}
-              placeholder="请输入代理名称"
+              onChange={handleNameChange}
+              placeholder="请输入代理名称（只能包含字母、数字和下划线，且必须以字母或下划线开头）"
               disabled={readOnly}
+              status={nameError ? 'error' : ''}
             />
+            {nameError && <Text type="danger" className="text-xs mt-1">{nameError}</Text>}
           </div>
           <div>
             <Text>描述</Text>
             <TextArea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={handleDescriptionChange}
               placeholder="请输入代理描述"
               rows={3}
               disabled={readOnly}
+              status={descriptionError ? 'error' : ''}
             />
+            {descriptionError && <Text type="danger" className="text-xs mt-1">{descriptionError}</Text>}
           </div>
           
           <div>
