@@ -38,9 +38,9 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
     minio_files = request.minio_files
     final_query = request.query
     agent_id = request.agent_id
-    _, tenant_id = get_user_info()
+    user_id, tenant_id = get_user_info()
     if not agent_id:
-        agent_id = query_or_create_main_agents_api(tenant_id=tenant_id)
+        agent_id = query_or_create_main_agents_api(tenant_id=tenant_id, user_id=user_id)
         logger.info(f"Start chat! Agent ID: {agent_id}")
 
     if minio_files and isinstance(minio_files, list):
@@ -61,7 +61,7 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
 
         thread_agent = Thread(
             target=agent_run_thread,
-            args=(observer, final_query, agent_id, tenant_id, request.history)
+            args=(observer, final_query, agent_id, tenant_id, user_id, request.history)
         )
         thread_agent.start()
 

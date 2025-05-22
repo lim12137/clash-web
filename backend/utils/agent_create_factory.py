@@ -91,7 +91,7 @@ class AgentCreateFactory:
         """create a tool instance according to the tool config"""
         try:
             try:
-                tool_name = tool_config.get("name")
+                tool_name = tool_config.get("class_name")
                 params = tool_config.get("params", {})
                 source = tool_config.get("source")
                 model_name = tool_config.get("model", None)
@@ -202,8 +202,7 @@ class AgentCreateFactory:
             agent_info=main_agent_info,
             tenant_id=tenant_id,
             user_id=user_id,
-            prompt_template_path="backend/prompts/manager_system_prompt_template.yaml",
-            system_prompt=main_agent_info.get("prompt")
+            prompt_template_path="backend/prompts/manager_system_prompt_template.yaml"
         )
         
         # Create the main agent
@@ -213,7 +212,7 @@ class AgentCreateFactory:
         return main_agent
 
     @staticmethod
-    def _prepare_agent_config(agent_info, tenant_id, user_id, prompt_template_path=None, system_prompt=None):
+    def _prepare_agent_config(agent_info, tenant_id, user_id, prompt_template_path=None):
         """
         Prepare agent configuration by extracting agent info and tools from the database
         
@@ -243,7 +242,7 @@ class AgentCreateFactory:
             "provide_run_summary": agent_info.get("provide_run_summary", False),
             "prompt_templates_path": prompt_template_path,
             "tools": tools_list,
-            "system_prompt": system_prompt
+            "system_prompt": agent_info.get("prompt")
         }
 
         return agent_config

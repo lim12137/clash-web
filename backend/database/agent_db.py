@@ -127,7 +127,7 @@ def query_sub_agents(main_agent_id: int, tenant_id: str = None, user_id: str = N
         agents = query.all()
 
         if not user_id:
-            return agents
+            return as_dict(agents)
 
         user_agents = session.query(UserAgent).filter(
             UserAgent.tenant_id == tenant_id,
@@ -433,6 +433,7 @@ def add_tool_field(tool_info):
         tool_info["name"] = tool.name
         tool_info["description"] = tool.description
         tool_info["source"] = tool.source
+        tool_info["class_name"] = tool.class_name
         return tool_info
 
 
