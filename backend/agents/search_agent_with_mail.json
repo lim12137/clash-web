@@ -34,8 +34,8 @@
 					"params": {
 						"exa_api_key": "${EXA_API_KEY}",
 						"max_results": 5,
-						"image_filter": false,
-						"image_filter_threshold": 0.5
+						"image_filter": true,
+						"data_process_service": "${DATA_PROCESS_SERVICE}"
 					}
 				},
 				{
