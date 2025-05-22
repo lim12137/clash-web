@@ -202,7 +202,8 @@ class AgentCreateFactory:
             agent_info=main_agent_info,
             tenant_id=tenant_id,
             user_id=user_id,
-            prompt_template_path="backend/prompts/manager_system_prompt_template.yaml"
+            prompt_template_path="backend/prompts/manager_system_prompt_template.yaml",
+            system_prompt=main_agent_info.get("prompt")
         )
         
         # Create the main agent
@@ -212,7 +213,7 @@ class AgentCreateFactory:
         return main_agent
 
     @staticmethod
-    def _prepare_agent_config(agent_info, tenant_id, user_id, prompt_template_path=None):
+    def _prepare_agent_config(agent_info, tenant_id, user_id, prompt_template_path=None, system_prompt=None):
         """
         Prepare agent configuration by extracting agent info and tools from the database
         
@@ -241,7 +242,8 @@ class AgentCreateFactory:
             "max_steps": agent_info.get("max_steps", 10),
             "provide_run_summary": agent_info.get("provide_run_summary", False),
             "prompt_templates_path": prompt_template_path,
-            "tools": tools_list
+            "tools": tools_list,
+            "system_prompt": system_prompt
         }
 
         return agent_config
@@ -253,15 +255,9 @@ class AgentCreateFactory:
         # load the prompt templates
         prompt_templates_path = agent_config.get("prompt_templates_path")
 
-        # prompt_templates = load_prompt_templates(
-        #     prompt_templates_path,
-        #     is_manager_agent=len(managed_agents) > 0,
-        #     system_prompt=agent_config.get("prompt")
-        # )
-
         with open(prompt_templates_path, "r", encoding="utf-8") as f:
-            agent_prompt = yaml.safe_load(f)
-        agent_prompt["system_prompt"] = agent_config.get("prompt")
+            prompt_templates = yaml.safe_load(f)
+        prompt_templates["system_prompt"] = agent_config.get("system_prompt")
 
         tools = self.create_tools_list(agent_config)
         # create the agent
@@ -276,7 +272,7 @@ class AgentCreateFactory:
             provide_run_summary=agent_config.get("provide_run_summary", False),
             managed_agents=managed_agents
         )
-        print(f"Created agent with name {agent.system_prompt}")
+
         return agent
 
     def create_tools_list(self, main_config):
