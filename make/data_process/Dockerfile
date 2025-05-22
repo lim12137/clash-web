@@ -5,9 +5,12 @@ LABEL authors="nexent"
 USER root
 COPY backend /opt/backend
 COPY sdk /opt/sdk
+COPY backend/assets/clip-vit-base-patch32 /opt/models/clip-vit-base-patch32
 RUN chown -R notebook-user:notebook-user /opt/backend
 RUN chown -R notebook-user:notebook-user /opt/sdk
+RUN chown -R notebook-user:notebook-user /opt/models
 RUN chmod +x /opt/backend/data_process_service.py
+
 
 WORKDIR /opt
 

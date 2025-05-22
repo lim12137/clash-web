@@ -23,13 +23,11 @@ class ModelConnectStatusEnum(Enum):
             return cls.NOT_DETECTED.value
         return status
 
-
 # Response models for user management
 class ServiceResponse(BaseModel):
     code: int
     message: str
     data: Optional[Any] = None
-
 
 # Response models for model management
 class ModelResponse(BaseModel):
@@ -304,7 +302,7 @@ class AgentInfoRequest(BaseModel):
 
 class CreatingSubAgentIDRequest(BaseModel):
     main_agent_id: int
-    
+
 
 class ToolInstanceInfoRequest(BaseModel):
     tool_id: int
@@ -335,3 +333,7 @@ class ToolInfo(BaseModel):
 class SavePromptRequest(BaseModel):
     agent_id: int
     prompt: str
+
+
+class ChangeSummaryRequest(BaseModel):
+    summary_result: str

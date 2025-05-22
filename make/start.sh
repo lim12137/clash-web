@@ -9,7 +9,7 @@ if [ -z "$ELASTICSEARCH_API_KEY" ]; then
   export ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
 
   # Write to .env file
-  echo "ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY" > /opt/deployment/.env
+  echo "ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY" > .env
 fi
 
 # Start backend services
