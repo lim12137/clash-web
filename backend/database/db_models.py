@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP, Sequence, Numeric, JSON, Boolean
+from sqlalchemy import Column, Integer, String, TIMESTAMP, Sequence, Numeric, JSON, Boolean, Text
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import func
 
@@ -166,6 +166,7 @@ class AgentInfo(Base):
     agent_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
     name = Column(String(100), doc="Agent name")
     description = Column(String(2048), doc="Description")
+    business_description = Column(Text, doc="Business description")
     model_name = Column(String(100), doc="Name of the model used")
     max_steps = Column(Integer, doc="Maximum number of steps")
     prompt = Column(String, doc="System prompt")
