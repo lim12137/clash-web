@@ -7,11 +7,10 @@ from fastapi import HTTPException, APIRouter, Header
 from fastapi.responses import StreamingResponse
 
 from consts.model import AgentRequest, AgentInfoRequest, AgentIDRequest
-from database.agent_db import delete_agent, update_agent, query_tool_instances, search_agent_info_by_agent_id_api
 from nexent.core.utils.observer import MessageObserver
 from services.agent_service import query_or_create_main_agents_api, \
-    query_sub_agents_api, get_creating_sub_agent_id_service, get_enable_tool_id_by_agent_id, \
-    get_enable_sub_agent_id_by_agent_id, agent_run_thread
+    agent_run_thread, list_main_agent_info_service, get_agent_info_service, \
+    get_creating_sub_agent_info_service, update_agent_info_service, delete_agent_service
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 from utils.agent_utils import thread_manager
 from utils.config_utils import config_manager
@@ -121,29 +120,12 @@ async def reload_config():
 
 
 @router.get("/list")
-async def list_agent_api():
+async def list_main_agent_info_api():
     """
     List all agents, create if the main Agent cannot be found.
     """
     try:
-        user_id, tenant_id = get_user_info()
-        main_agent_id = query_or_create_main_agents_api(tenant_id=tenant_id, user_id=user_id)
-        main_agent_info = search_agent_info_by_agent_id_api(agent_id=main_agent_id, tenant_id=tenant_id, user_id=user_id)
-
-        sub_agent_list = query_sub_agents_api(main_agent_id, tenant_id, user_id)
-        enable_tool_id_list = get_enable_tool_id_by_agent_id(main_agent_id, tenant_id, user_id)
-        enable_agent_id_list = get_enable_sub_agent_id_by_agent_id(main_agent_id, tenant_id, user_id)
-
-        return {
-            "main_agent_id": main_agent_id,
-            "sub_agent_list": sub_agent_list,
-            "enable_tool_id_list": enable_tool_id_list,
-            "enable_agent_id_list": enable_agent_id_list,
-            "model_name": main_agent_info["model_name"],
-            "max_steps": main_agent_info["max_steps"],
-            "business_description": main_agent_info["business_description"],
-            "prompt": main_agent_info["prompt"]
-        }
+        return list_main_agent_info_service()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
 
@@ -154,31 +136,18 @@ async def get_agent_info_api(request: AgentInfoRequest):
     Search agent info by agent_id
     """
     try:
-        user_id, tenant_id = get_user_info()
-        agent_info = search_agent_info_by_agent_id_api(request.agent_id, tenant_id, user_id)
-        return agent_info
+        return get_agent_info_service(request.agent_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent search info error: {str(e)}")
 
 
 @router.post("/get_creating_sub_agent_id")
-async def get_creating_sub_agent_id_api(request: AgentIDRequest):
+async def get_creating_sub_agent_info_api(request: AgentIDRequest):
     """
     Create a new sub agent, return agent_ID
     """
     try:
-        user_id, tenant_id = get_user_info()
-        sub_agent_id = get_creating_sub_agent_id_service(request.agent_id, tenant_id, user_id)
-        enable_tool_id_list = get_enable_tool_id_by_agent_id(sub_agent_id, tenant_id, user_id)
-
-        agent_info = search_agent_info_by_agent_id_api(agent_id=sub_agent_id, tenant_id=tenant_id, user_id=user_id)
-
-        return {"agent_id": sub_agent_id,
-                "enable_tool_id_list": enable_tool_id_list,
-                "model_name": agent_info["model_name"],
-                "max_steps": agent_info["max_steps"],
-                "business_description": agent_info["business_description"],
-                "prompt": agent_info["prompt"]}
+        return get_creating_sub_agent_info_service(request.agent_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent create error: {str(e)}")
 
@@ -189,8 +158,7 @@ async def update_agent_info_api(request: AgentInfoRequest):
     Update an existing agent
     """
     try:
-        user_id, tenant_id = get_user_info()
-        update_agent(request.agent_id, request, tenant_id, user_id)
+        update_agent_info_service(request)
         return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent update error: {str(e)}")
@@ -202,8 +170,7 @@ async def delete_agent_api(request: AgentIDRequest):
     Delete an agent
     """
     try:
-        user_id, tenant_id = get_user_info()
-        delete_agent(request.agent_id, tenant_id, user_id)
+        delete_agent_service(request.agent_id)
         return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent delete error: {str(e)}")

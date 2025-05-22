@@ -165,8 +165,7 @@ class AgentInfo(Base):
 
     agent_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
     name = Column(String(100), doc="Agent name")
-    description = Column(String(2048), doc="Description")
-    business_description = Column(Text, doc="Business description")
+    description = Column(Text, doc="Description")
     model_name = Column(String(100), doc="Name of the model used")
     max_steps = Column(Integer, doc="Maximum number of steps")
     prompt = Column(String, doc="System prompt")
@@ -174,7 +173,7 @@ class AgentInfo(Base):
     tenant_id = Column(String(100), doc="Belonging tenant")
     enabled = Column(Boolean, doc="Enabled")
     provide_run_summary = Column(Boolean, doc="Whether to provide the running summary to the manager agent")
-    business_description = Column(String(2048), doc="Manually entered by the user to describe the entire business process")
+    business_description = Column(Text, doc="Manually entered by the user to describe the entire business process")
 
 class UserAgent(Base):
     """

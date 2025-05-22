@@ -96,11 +96,8 @@ def query_or_create_main_agent_id(tenant_id, user_id: str = None) -> int:
         main_agent = query.first()
 
         if main_agent is None:
-            main_agent = create_agent({"name": "main",
-                               "tenant_id": tenant_id,
-                               "created_by": tenant_id,
-                               "updated_by": tenant_id,
-                               "enabled": True}, user_id=user_id)
+            main_agent = create_agent(agent_info={"name": "main",
+                                                  "enabled": True}, tenant_id=tenant_id, user_id=user_id)
 
             return main_agent["agent_id"]
         else:
@@ -147,13 +144,19 @@ def query_sub_agents(main_agent_id: int, tenant_id: str = None, user_id: str = N
 
         return [as_dict(agent) for agent in agents]
 
-def create_agent(agent_info, user_id:str = None):
+def create_agent(agent_info, tenant_id: str, user_id:str = None):
     """
     Create a new agent in the database.
     :param agent_info: Dictionary containing agent information
+    :param tenant_id:
     :param user_id:
     :return: Created agent object
     """
+    agent_info.update({"tenant_id": tenant_id,
+                        "created_by": tenant_id,
+                        "updated_by": tenant_id,
+                        "model_name": "main_model",
+                        "max_steps": 10})
     with get_db_session() as session:
         new_agent = AgentInfo(**filter_property(agent_info, AgentInfo))
         new_agent.delete_flag = 'N'

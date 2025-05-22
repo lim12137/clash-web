@@ -816,6 +816,17 @@ export default function BusinessLogicConfig({
         selectedTools={selectedTools}
         systemPrompt={systemPrompt}
         agentId={mainAgentId}
+        agent={{
+          id: '',
+          name: '',
+          description: '',
+          model: mainAgentModel,
+          max_step: mainAgentMaxStep,
+          provide_run_summary: true,
+          tools: selectedTools,
+          prompt: systemPrompt,
+          business_description: businessLogic
+        }}
       />
     </div>
   )
