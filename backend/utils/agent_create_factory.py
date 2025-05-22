@@ -6,10 +6,15 @@ import yaml
 from nexent.core.agents import CoreAgent
 from nexent.core.models import OpenAIModel
 from nexent.core.utils import MessageObserver
-from nexent.core.tools import *
+from nexent.core.tools import *  # Do not delete
 
 from utils.config_utils import config_manager
 from utils.prompt_utils import load_prompt_templates
+from database.agent_db import (
+    search_agent_info_by_agent_id_api,
+    query_sub_agents,
+    search_tools_for_sub_agent
+)
 
 
 class AgentCreateFactory:
@@ -27,6 +32,23 @@ class AgentCreateFactory:
         self.observer = observer
         self.models = {}
         self.mcp_tool_collection = mcp_tool_collection
+
+    def init_models(self):
+        # Main model
+        self.models["main_model"] = self.create_model({
+            "model_id": config_manager.get_config("LLM_MODEL_NAME", ""),
+            "api_key": config_manager.get_config("LLM_API_KEY", ""),
+            "api_base": config_manager.get_config("LLM_MODEL_URL", ""),
+            "temperature": 0.1
+        })
+
+        # Sub model
+        self.models["sub_model"] = self.create_model({
+            "model_id": config_manager.get_config("LLM_SECONDARY_MODEL_NAME", ""),
+            "api_key": config_manager.get_config("LLM_SECONDARY_API_KEY", ""),
+            "api_base": config_manager.get_config("LLM_SECONDARY_MODEL_URL", ""),
+            "temperature": 0.1
+        })
 
     @staticmethod
     def _replace_env_vars(value):
@@ -105,7 +127,7 @@ class AgentCreateFactory:
             return None
 
     def get_model(self, model_name):
-        model = self.models.get(model_name, None)
+        model = self.models.get(model_name, "main_model")
         if model is None:
             print(f"Error: {model_name} is not found!")
         return model
@@ -139,14 +161,102 @@ class AgentCreateFactory:
                                               managed_agents=managed_agents)
         return main_agent
 
+    def create_from_db(self, agent_id, tenant_id=None, user_id=None):
+        """Create an agent from database information
+        
+        Args:
+            agent_id: ID of the main agent to create
+            tenant_id: Tenant ID for filtering
+            user_id: Optional user ID for personalization
+            
+        Returns:
+            The created main agent with all its sub-agents and tools
+        """
+        self.init_models()
+
+        # Get the main agent info
+        main_agent_info = search_agent_info_by_agent_id_api(agent_id, tenant_id, user_id)
+        if not main_agent_info:
+            raise ValueError(f"Agent with id {agent_id} not found")
+        
+        # Get sub-agents
+        sub_agents_info = query_sub_agents(agent_id, tenant_id, user_id)
+        managed_agents = []
+        
+        # Create sub-agents
+        for sub_agent_info in sub_agents_info:
+            # Prepare sub-agent config with is_manager=False and default sub-agent prompt template
+            sub_agent_config = self._prepare_agent_config(
+                agent_info=sub_agent_info,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                prompt_template_path="backend/prompts/search_agent.yaml"
+            )
+            
+            # Create the sub-agent
+            sub_agent = self.create_single_agent(agent_config=sub_agent_config, managed_agents=[])
+            managed_agents.append(sub_agent)
+        
+        # Prepare main agent config with is_manager=True and manager prompt template
+        main_agent_config = self._prepare_agent_config(
+            agent_info=main_agent_info,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            prompt_template_path="backend/prompts/manager_agent.yaml"
+        )
+        
+        # Create the main agent
+        main_agent = self.create_single_agent(agent_config=main_agent_config, 
+                                              managed_agents=managed_agents)
+
+        return main_agent
+
+    @staticmethod
+    def _prepare_agent_config(agent_info, tenant_id, user_id, prompt_template_path=None):
+        """
+        Prepare agent configuration by extracting agent info and tools from the database
+        
+        Args:
+            agent_info: Agent information from the database
+            tenant_id: Tenant ID for filtering
+            user_id: Optional user ID
+            prompt_template_path: Path to the prompt template
+            
+        Returns:
+            Agent configuration dictionary
+        """
+        agent_id = agent_info.get("agent_id")
+        tools_list = search_tools_for_sub_agent(agent_id, tenant_id, user_id)
+        for tool in tools_list:
+            param_dict = {}
+            for param in tool.get("params", []):
+                param_dict[param["name"]] = param
+            tool["params"] = param_dict
+
+        # Prepare agent config
+        agent_config = {
+            "name": agent_info.get("name"),
+            "model": agent_info.get("model_name"),
+            "description": agent_info.get("description", ""),
+            "max_steps": agent_info.get("max_steps", 10),
+            "provide_run_summary": agent_info.get("provide_run_summary", False),
+            "prompt_templates_path": prompt_template_path,
+            "tools": tools_list
+        }
+
+        return agent_config
+
     def create_single_agent(self, agent_config, managed_agents):
         # get the model
         model_name = agent_config.get("model")
         model = self.get_model(model_name)
         # load the prompt templates
         prompt_templates_path = agent_config.get("prompt_templates_path")
-        prompt_templates = load_prompt_templates(prompt_templates_path, is_manager_agent=len(managed_agents)>0)
-        logging.info(f"prompt_templates: {prompt_templates_path}")
+        prompt_templates = load_prompt_templates(
+            prompt_templates_path,
+            is_manager_agent=len(managed_agents) > 0,
+            system_prompt=agent_config.get("prompt")
+        )
         tools = self.create_tools_list(agent_config)
         # create the agent
         agent = CoreAgent(
@@ -160,6 +270,7 @@ class AgentCreateFactory:
             provide_run_summary=agent_config.get("provide_run_summary", False),
             managed_agents=managed_agents
         )
+
         return agent
 
     def create_tools_list(self, main_config):

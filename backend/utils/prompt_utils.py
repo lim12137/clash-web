@@ -24,9 +24,11 @@ class KeepTemplateUndefined(Undefined):
         return KeepTemplateUndefined(name=f"{self._undefined_name}()")
 
 
-def load_prompt_templates(path, is_manager_agent):
+def load_prompt_templates(path, is_manager_agent, system_prompt=None):
     with open(path, "r", encoding="utf-8") as f:
         agent_prompt = yaml.safe_load(f)
+    if system_prompt:
+        agent_prompt["system_prompt"] = system_prompt
     return fill_agent_prompt(is_manager_agent=is_manager_agent, **agent_prompt)
 
 
