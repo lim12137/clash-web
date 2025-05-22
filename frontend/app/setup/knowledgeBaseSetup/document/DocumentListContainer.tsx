@@ -1,7 +1,7 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
 import { Document } from '@/types/knowledgeBase'
 import { sortByStatusAndDate } from '@/lib/utils'
-import knowledgeBaseService from '@/services/knowledgeBaseService'
+import knowledgeBasePollingService from '@/services/knowledgeBasePollingService'
 import DocumentListLayout, { UI_CONFIG } from './DocumentListLayout'
 
 interface DocumentListProps {
@@ -63,10 +63,13 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
   const [localDocuments, setLocalDocuments] = useState<Document[]>(documents);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
   const uploadAreaRef = useRef<any>(null);
-  // 增加轮询状态控制
-  const [isPolling, setIsPolling] = useState<boolean>(false);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const activeKbIdRef = useRef<string | null>(null);
+  
+  // 文档状态映射，用于增量更新
+  const [documentStatusMap, setDocumentStatusMap] = useState<Map<string, string>>(new Map());
+  
+  // 添加等待文档加载状态
+  const [waitingForDocuments, setWaitingForDocuments] = useState<boolean>(false);
 
   // 暴露 uppy 实例给父组件
   useImperativeHandle(ref, () => ({
@@ -83,120 +86,234 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
   // 按状态和日期排序的文档列表
   const sortedDocuments = sortByStatusAndDate(localDocuments);
 
-  // 当外部documents更新时，更新本地状态
+  // 当外部documents更新时，更新本地状态和状态映射
   useEffect(() => {
-    setLocalDocuments(documents);
-    // 文档更新时检查是否需要启动轮询
-    checkIfPollingNeeded(documents);
-  }, [documents]);
-
-  // 添加检查是否需要轮询的函数
-  const checkIfPollingNeeded = (docs: Document[]) => {
-    // 检查是否有文档正在处理中
-    const hasProcessingDocs = docs.some(doc => 
-      doc.status === "PROCESSING" || doc.status === "FORWARDING"
-    );
+    // 只有当文档数量或ID变化时才完全替换本地文档
+    // 否则仅更新状态映射
+    if (shouldReplaceDocuments(documents, localDocuments)) {
+      console.log('文档列表发生变化，完全替换');
+      setLocalDocuments(documents);
+      
+      // 更新文档状态映射
+      const newStatusMap = new Map<string, string>();
+      documents.forEach((doc: Document) => {
+        newStatusMap.set(doc.id, doc.status);
+      });
+      setDocumentStatusMap(newStatusMap);
+      
+      // 如果收到文档，取消等待状态
+      if (documents.length > 0) {
+        setWaitingForDocuments(false);
+      }
+    } else {
+      // 仅更新文档状态
+      updateDocumentStatuses(documents);
+    }
     
-    if (hasProcessingDocs && !isPolling) {
-      // 如果有正在处理的文档且没有在轮询，则开始轮询
-      startPolling();
-    } else if (!hasProcessingDocs && isPolling) {
-      // 如果没有正在处理的文档且正在轮询，则停止轮询
-      stopPolling();
+    // 文档更新时检查是否需要启动文档状态轮询
+    checkIfPollingNeeded(documents);
+    
+    // 设置活动知识库ID到轮询服务
+    if (documents.length > 0 && documents[0].kb_id) {
+      activeKbIdRef.current = documents[0].kb_id;
+      knowledgeBasePollingService.setActiveKnowledgeBase(documents[0].kb_id);
+    } else if (knowledgeBaseName) {
+      // 如果没有文档但有知识库名称，也设置
+      knowledgeBasePollingService.setActiveKnowledgeBase(knowledgeBaseName);
+    }
+  }, [documents, knowledgeBaseName]);
+  
+  // 判断是否需要完全替换文档列表
+  const shouldReplaceDocuments = (newDocs: Document[], oldDocs: Document[]): boolean => {
+    if (newDocs.length !== oldDocs.length) return true;
+    
+    // 创建旧文档ID集合
+    const oldDocIds = new Set<string>();
+    oldDocs.forEach((doc: Document) => {
+      oldDocIds.add(doc.id);
+    });
+    
+    // 检查新文档中是否有ID不在旧文档中的
+    for (let i = 0; i < newDocs.length; i++) {
+      if (!oldDocIds.has(newDocs[i].id)) {
+        return true;
+      }
+    }
+    return false;
+  };
+  
+  // 仅更新文档状态，而不替换整个文档列表
+  const updateDocumentStatuses = (newDocs: Document[]): void => {
+    // 从新文档创建状态映射和大小映射
+    const newStatusMap = new Map<string, string>();
+    const newSizeMap = new Map<string, number>();
+    newDocs.forEach((doc: Document) => {
+      newStatusMap.set(doc.id, doc.status);
+      newSizeMap.set(doc.id, doc.size);
+    });
+    
+    // 检查是否有状态或大小变化
+    let hasChanges = false;
+    newStatusMap.forEach((status: string, id: string) => {
+      if (!documentStatusMap.has(id) || 
+          documentStatusMap.get(id) !== status || 
+          newSizeMap.get(id) !== localDocuments.find(doc => doc.id === id)?.size) {
+        hasChanges = true;
+      }
+    });
+    
+    if (hasChanges) {
+      console.log('文档状态或大小发生变化，增量更新');
+      // 更新状态映射
+      setDocumentStatusMap(newStatusMap);
+      
+      // 增量更新本地文档状态和大小
+      setLocalDocuments(prevDocs => 
+        prevDocs.map((doc: Document) => {
+          const newStatus = newStatusMap.get(doc.id);
+          const newSize = newSizeMap.get(doc.id);
+          if ((newStatus && newStatus !== doc.status) || 
+              (typeof newSize !== 'undefined' && newSize !== doc.size)) {
+            return { 
+              ...doc, 
+              status: newStatus || doc.status,
+              size: typeof newSize !== 'undefined' ? newSize : doc.size
+            };
+          }
+          return doc;
+        })
+      );
+      
+      // 检查是否需要继续轮询
+      const hasProcessingDocs = newDocs.some(doc => 
+        doc.status === "PROCESSING" || doc.status === "FORWARDING" || doc.status === "WAITING"
+      );
+      
+      const hasIncompleteCompletedDocs = newDocs.some(doc => 
+        doc.status === "COMPLETED" && doc.size === 0
+      );
+      
+      // 如果有处理中的文档或不完整的文档，确保轮询服务在运行
+      if ((hasProcessingDocs || hasIncompleteCompletedDocs) && activeKbIdRef.current) {
+        knowledgeBasePollingService.startDocumentStatusPolling(
+          activeKbIdRef.current,
+          (updatedDocs) => {
+            if (shouldReplaceDocuments(updatedDocs, localDocuments)) {
+              setLocalDocuments(updatedDocs);
+              
+              // 更新文档状态映射
+              const newStatusMap = new Map<string, string>();
+              updatedDocs.forEach((doc: Document) => {
+                newStatusMap.set(doc.id, doc.status);
+              });
+              setDocumentStatusMap(newStatusMap);
+            } else {
+              updateDocumentStatuses(updatedDocs);
+            }
+          }
+        );
+      }
     }
   };
-
-  // 启动轮询函数
-  const startPolling = () => {
-    // 如果没有知识库名称，不启动轮询
-    if (!knowledgeBaseName) return;
-    
-    setIsPolling(true);
-    console.log('开始轮询文档状态');
-    
-    // 清除可能存在的旧轮询
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-    
-    // 启动新的轮询，每5秒查询一次
-    pollingIntervalRef.current = setInterval(async () => {
-      // 存储当前知识库ID到ref，保持最新状态
-      // 找到第一个文档的知识库ID
-      if (localDocuments.length > 0) {
-        activeKbIdRef.current = localDocuments[0].kb_id;
-      }
-      
-      if (activeKbIdRef.current) {
-        try {
-          // 获取最新文档状态，使用强制刷新参数
-          const latestDocs = await knowledgeBaseService.getDocuments(activeKbIdRef.current, true);
+  
+  // 监听文档更新事件
+  useEffect(() => {
+    const handleDocumentsUpdated = (event: CustomEvent) => {
+      if (event.detail && event.detail.kbId && event.detail.documents) {
+        const { kbId, documents: updatedDocs } = event.detail;
+        
+        // 如果更新的知识库与当前活动知识库匹配，则更新文档
+        if (kbId === activeKbIdRef.current || 
+            (knowledgeBaseName && kbId === knowledgeBaseName)) {
           
-          // 检查是否有文档状态变化
-          const hasStatusChanged = checkStatusChanged(localDocuments, latestDocs);
-          
-          if (hasStatusChanged) {
-            console.log('文档状态已更新');
-            setLocalDocuments(latestDocs);
+          // 使用增量更新逻辑
+          if (shouldReplaceDocuments(updatedDocs, localDocuments)) {
+            setLocalDocuments(updatedDocs);
             
-            // 检查是否还需要继续轮询
-            const stillProcessing = latestDocs.some(doc => 
-              doc.status === "PROCESSING" || doc.status === "FORWARDING"
-            );
+            // 更新文档状态映射
+            const newStatusMap = new Map<string, string>();
+            updatedDocs.forEach((doc: Document) => {
+              newStatusMap.set(doc.id, doc.status);
+            });
+            setDocumentStatusMap(newStatusMap);
             
-            if (!stillProcessing) {
-              console.log('所有文档处理完成，停止轮询');
-              stopPolling();
+            // 如果收到文档，取消等待状态
+            if (updatedDocs.length > 0) {
+              setWaitingForDocuments(false);
             }
-            
-            // 触发全局事件，通知其他组件文档状态已更新
-            window.dispatchEvent(new CustomEvent('documentsUpdated', {
-              detail: { 
-                kbId: activeKbIdRef.current,
-                documents: latestDocs 
-              }
-            }));
+          } else {
+            updateDocumentStatuses(updatedDocs);
           }
-        } catch (err) {
-          console.error('轮询文档状态出错:', err);
         }
       }
-    }, 5000); // 5秒轮询一次
-  };
-
-  // 停止轮询函数
-  const stopPolling = () => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-    setIsPolling(false);
-    console.log('停止轮询文档状态');
-  };
-
-  // 检查文档状态是否发生变化
-  const checkStatusChanged = (oldDocs: Document[], newDocs: Document[]): boolean => {
-    if (oldDocs.length !== newDocs.length) return true;
-    
-    // 创建旧文档的状态映射
-    const oldStatusMap = new Map(
-      oldDocs.map(doc => [doc.id, doc.status])
-    );
-    
-    // 检查新文档中是否有状态变化
-    return newDocs.some(doc => 
-      !oldStatusMap.has(doc.id) || oldStatusMap.get(doc.id) !== doc.status
-    );
-  };
-
-  // 组件卸载时清除轮询
-  useEffect(() => {
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
     };
-  }, []);
+    
+    window.addEventListener('documentsUpdated', handleDocumentsUpdated as EventListener);
+    
+    return () => {
+      window.removeEventListener('documentsUpdated', handleDocumentsUpdated as EventListener);
+      
+      // 组件卸载时停止所有轮询
+      if (activeKbIdRef.current) {
+        knowledgeBasePollingService.stopPolling(activeKbIdRef.current);
+      }
+      
+      // 清除活动知识库引用
+      knowledgeBasePollingService.setActiveKnowledgeBase(null);
+    };
+  }, [localDocuments, knowledgeBaseName]);
+
+  // 添加检查是否需要轮询的函数 - 简化为只启动轮询
+  const checkIfPollingNeeded = (docs: Document[]) => {
+    // 若没有文档，不需要轮询
+    if (!docs.length || !knowledgeBaseName) return;
+    
+    // 更新当前活动知识库ID
+    activeKbIdRef.current = docs[0].kb_id;
+    knowledgeBasePollingService.setActiveKnowledgeBase(docs[0].kb_id);
+    
+    // 检查是否有文档正在处理中，增加 WAITING 状态的检查
+    const hasProcessingDocs = docs.some((doc: Document) => 
+      doc.status === "PROCESSING" || 
+      doc.status === "FORWARDING" || 
+      doc.status === "WAITING"
+    );
+    
+    // 检查是否有文档状态为"已完成"但文件大小为0的情况
+    const hasIncompleteCompletedDocs = docs.some((doc: Document) => 
+      doc.status === "COMPLETED" && doc.size === 0
+    );
+    
+    // 检查是否有新上传的文档（通常文件大小为0表示刚上传）
+    const hasNewUploadedDocs = docs.some((doc: Document) => 
+      doc.size === 0
+    );
+    
+    // 如果有正在处理的文档或有不完整的已完成文档或有新上传的文档，启动轮询
+    if (hasProcessingDocs || hasIncompleteCompletedDocs || hasNewUploadedDocs) {
+      console.log('检测到需要监控的文档状态，启动轮询');
+      // 启动文档状态轮询
+      knowledgeBasePollingService.startDocumentStatusPolling(
+        docs[0].kb_id,
+        (updatedDocs) => {
+          console.log('轮询获取到更新的文档:', updatedDocs.length);
+          // 使用增量更新而不是完全替换
+          if (shouldReplaceDocuments(updatedDocs, localDocuments)) {
+            setLocalDocuments(updatedDocs);
+            
+            // 更新文档状态映射
+            const newStatusMap = new Map<string, string>();
+            updatedDocs.forEach((doc: Document) => {
+              newStatusMap.set(doc.id, doc.status);
+            });
+            setDocumentStatusMap(newStatusMap);
+          } else {
+            updateDocumentStatuses(updatedDocs);
+          }
+        }
+      );
+    }
+  };
 
   // 当知识库名称改变时，清除上传文件
   useEffect(() => {
@@ -204,6 +321,9 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
       const emptyFileList = new DataTransfer();
       onFileSelect({ target: { files: emptyFileList.files } } as React.ChangeEvent<HTMLInputElement>);
     }
+    
+    // 设置活动知识库ID
+    knowledgeBasePollingService.setActiveKnowledgeBase(knowledgeBaseName || null);
   }, [knowledgeBaseName, onFileSelect]);
 
   // 当创建模式改变时，重置名称锁定状态
@@ -216,78 +336,18 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
   // 当上传按钮被点击时，需要锁定知识库名称
   const [nameLockedAfterUpload, setNameLockedAfterUpload] = useState(false);
   
-  // 修改上传处理函数，确保一旦上传开始，就锁定知识库名称
+  // 修改上传处理函数，确保一旦上传开始，就锁定知识库名称并进行通知
   const handleUpload = () => {
     if (isCreatingMode && knowledgeBaseName) {
       setNameLockedAfterUpload(true);
+      setWaitingForDocuments(true);
     }
     
     if (onUpload) {
       onUpload();
       
-      // 触发自定义事件，通知更新知识库列表
-      window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated'));
-      
-      // 启动轮询器，检查文档状态更新
-      startPolling();
-      
-      // 如果是创建模式，设置轮询检查新知识库是否创建成功
-      if (isCreatingMode) {
-        let checkCount = 0;
-        const maxChecks = 30; // 最多检查30次(约30秒)
-        
-        // 创建一个轮询函数
-        const checkForNewKnowledgeBase = () => {
-          // 清除缓存，强制从服务器获取最新数据
-          localStorage.removeItem('preloaded_kb_data');
-          
-          // 触发自定义事件，通知更新知识库列表(不使用缓存)
-          window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
-            detail: { forceRefresh: true }
-          }));
-          
-          // 增加检查计数
-          checkCount++;
-          
-          // 如果没有达到最大检查次数，1秒后再次检查
-          if (checkCount < maxChecks) {
-            setTimeout(() => {
-              // 检查知识库是否已经创建
-              const checkIfCreated = () => {
-                // 获取当前知识库列表
-                const knowledgeBases = JSON.parse(localStorage.getItem('preloaded_kb_data') || '[]');
-                
-                // 查找是否包含指定名称的知识库
-                const newKb = knowledgeBases.find((kb: {name: string, id: string}) => kb.name === knowledgeBaseName);
-                
-                if (newKb) {
-                  // 找到了新创建的知识库，触发选中事件
-                  window.dispatchEvent(new CustomEvent('selectNewKnowledgeBase', {
-                    detail: { name: knowledgeBaseName }
-                  }));
-
-                  return true; // 成功找到
-                }
-                
-                return false; // 未找到
-              };
-              
-              // 检查是否已创建
-              const found = checkIfCreated();
-              
-              // 如果未找到，继续轮询
-              if (!found) {
-                checkForNewKnowledgeBase();
-              }
-            }, 1000);
-          } else {
-            // 达到最大检查次数，停止检查
-          }
-        };
-        
-        // 开始第一次检查，延迟2秒，给服务器处理时间
-        setTimeout(checkForNewKnowledgeBase, 2000);
-      }
+      // 通知更新知识库列表
+      knowledgeBasePollingService.triggerKnowledgeBaseListUpdate();
     }
   };
 
@@ -316,11 +376,14 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
     return "当前模型不匹配，无法使用";
   }
 
+  // 计算实际的加载状态 - 如果正在等待文档，也显示加载中
+  const effectiveLoading = loading || waitingForDocuments;
+
   return (
     <DocumentListLayout
       sortedDocuments={sortedDocuments}
       knowledgeBaseName={knowledgeBaseName}
-      loading={loading}
+      loading={effectiveLoading}
       isInitialLoad={isInitialLoad}
       modelMismatch={modelMismatch}
       isCreatingMode={isCreatingMode}

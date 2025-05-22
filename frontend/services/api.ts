@@ -35,7 +35,7 @@ export const API_ENDPOINTS = {
     preprocess: `${UPLOAD_SERVICE_URL}/preprocess`,
   },
   proxy: {
-    image: (url: string) => `${API_BASE_URL}/proxy/image?url=${encodeURIComponent(url)}`,
+    image: (url: string) => `${API_BASE_URL}/image?url=${encodeURIComponent(url)}`,
   },
   modelEngine: {
     // Basic health check
@@ -60,6 +60,9 @@ export const API_ENDPOINTS = {
     indices: `${API_BASE_URL}/indices`,
     indexInfo: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/info`,
     indexDetail: (indexName: string) => `${API_BASE_URL}/indices/${indexName}`,
+    summary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/auto_summary`,
+    changeSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
+    getSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
     
     // File upload service
     upload: `${UPLOAD_SERVICE_URL}/upload`,
