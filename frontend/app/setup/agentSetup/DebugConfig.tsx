@@ -28,6 +28,7 @@ interface DebugConfigProps {
   setTestQuestion: (question: string) => void;
   testAnswer: string;
   setTestAnswer: (answer: string) => void;
+  agentId?: number; // Make agentId an optional prop
 }
 
 // Counter for generating unique IDs
@@ -205,7 +206,8 @@ export default function DebugConfig({
   testQuestion,
   setTestQuestion,
   testAnswer,
-  setTestAnswer
+  setTestAnswer,
+  agentId
 }: DebugConfigProps) {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -248,13 +250,27 @@ export default function DebugConfig({
     setMessages([userMessage, assistantMessage]);
     
     try {
+      console.log("Debug - Agent ID before API call:", agentId);
+      
+      // Ensure agent_id is a number
+      let agentIdValue = undefined;
+      if (agentId !== undefined && agentId !== null) {
+        agentIdValue = Number(agentId);
+        if (isNaN(agentIdValue)) {
+          agentIdValue = undefined;
+        }
+      }
+      
+      console.log("Debug - Parsed agent_id:", agentIdValue);
+      
       // Call agent_run
       const reader = await conversationService.runAgent({
         query: question,
         conversation_id: -1, // Debug mode does not need to save conversation
         is_set: true,
         history: [],
-        is_debug: true  // Add debug mode flag
+        is_debug: true,  // Add debug mode flag
+        agent_id: agentIdValue  // Use the properly parsed agent_id
       });
 
       if (!reader) throw new Error("Response body is null");

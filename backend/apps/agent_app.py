@@ -11,9 +11,8 @@ from database.agent_db import delete_agent, update_agent, query_tool_instances, 
 from nexent.core.utils.observer import MessageObserver
 from services.agent_service import query_or_create_main_agents_api, \
     query_sub_agents_api, get_creating_sub_agent_id_api, get_enable_tool_id_by_agent_id, \
-    get_enable_sub_agent_id_by_agent_id
+    get_enable_sub_agent_id_by_agent_id, agent_run_thread
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
-from utils.agent_utils import agent_run_thread
 from utils.agent_utils import thread_manager
 from utils.config_utils import config_manager
 from utils.thread_utils import submit
@@ -23,6 +22,7 @@ router = APIRouter(prefix="/agent")
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 # Define API route
 @router.post("/run")
@@ -37,6 +37,12 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
         submit(save_conversation_user, request, authorization)
     minio_files = request.minio_files
     final_query = request.query
+    agent_id = request.agent_id
+    _, tenant_id = get_user_info()
+    if not agent_id:
+        agent_id = query_or_create_main_agents_api(tenant_id=tenant_id)
+        logger.info(f"Start chat! Agent ID: {agent_id}")
+
     if minio_files and isinstance(minio_files, list):
         file_descriptions = []
         for file in minio_files:
@@ -53,8 +59,10 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
         # Generate unique thread ID
         thread_id = f"{time.time()}_{id(observer)}"
 
-        thread_agent = Thread(target=agent_run_thread,
-                              args=(observer, final_query, request.history))
+        thread_agent = Thread(
+            target=agent_run_thread,
+            args=(observer, final_query, agent_id, tenant_id, request.history)
+        )
         thread_agent.start()
 
         # Add thread to manager
