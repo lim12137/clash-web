@@ -222,18 +222,24 @@ export const conversationService = {
       url?: string;
       description?: string; // Add file description field
     }>; // Update to complete attachment information object array
+    agent_id?: number; // Add agent_id parameter
     is_debug?: boolean; // Add debug mode parameter
   }, signal?: AbortSignal) {
     try {
       // Construct request parameters
-      const requestParams = {
+      const requestParams: any = {
         query: params.query,
         conversation_id: params.conversation_id,
         is_set: params.is_set,
         history: params.history,
-        minio_files: params.minio_files || null, // Add minio_files parameter
-        is_debug: params.is_debug || false // Add is_debug parameter
+        minio_files: params.minio_files || null,
+        is_debug: params.is_debug || false,
       };
+      
+      // Only include agent_id if it has a value
+      if (params.agent_id !== undefined && params.agent_id !== null) {
+        requestParams.agent_id = params.agent_id;
+      }
 
       const response = await fetch(API_ENDPOINTS.agent.run, {
         method: 'POST',

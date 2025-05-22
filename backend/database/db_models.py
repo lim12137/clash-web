@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP, Sequence, Numeric, JSON, Boolean
+from sqlalchemy import Column, Integer, String, TIMESTAMP, Sequence, Numeric, JSON, Boolean, Text
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import func
 
@@ -147,7 +147,7 @@ class ToolInfo(Base):
 
     tool_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
     name = Column(String(100), doc="Unique key name")
-    display_name = Column(String(100), doc="Tool display name")
+    class_name = Column(String(100), doc="Tool class name, used when the tool is instantiated")
     description = Column(String(2048), doc="Prompt tool description")
     source = Column(String(100), doc="Source")
     author = Column(String(100), doc="Tool author")
@@ -165,7 +165,7 @@ class AgentInfo(Base):
 
     agent_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
     name = Column(String(100), doc="Agent name")
-    description = Column(String(2048), doc="Description")
+    description = Column(Text, doc="Description")
     model_name = Column(String(100), doc="Name of the model used")
     max_steps = Column(Integer, doc="Maximum number of steps")
     prompt = Column(String, doc="System prompt")
@@ -173,6 +173,7 @@ class AgentInfo(Base):
     tenant_id = Column(String(100), doc="Belonging tenant")
     enabled = Column(Boolean, doc="Enabled")
     provide_run_summary = Column(Boolean, doc="Whether to provide the running summary to the manager agent")
+    business_description = Column(Text, doc="Manually entered by the user to describe the entire business process")
 
 class UserAgent(Base):
     """

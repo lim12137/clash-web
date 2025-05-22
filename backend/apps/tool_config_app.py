@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/list")
-async def list_tools():
+async def list_tools_api():
     """
     List all system tools from PG dataset
     """
@@ -23,7 +23,7 @@ async def list_tools():
         raise HTTPException(status_code=500, detail=f"Failed to get tool info, error in: {str(e)}")
 
 @router.post("/search")
-async def update_tool_info(request: ToolInstanceSearchRequest):
+async def update_tool_info_api(request: ToolInstanceSearchRequest):
     try:
         user_id, tenant_id = get_user_info()
         tool_instance = query_tool_instances_by_id(request.agent_id, request.tool_id, tenant_id, user_id)

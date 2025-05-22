@@ -10,12 +10,9 @@ from threading import Lock, Thread
 from typing import List, Dict
 
 from nexent.core.agents import CoreAgent
-from nexent.core.utils.agent_utils import agent_run_with_observer
 from smolagents import TaskStep, ActionStep, ToolCollection
-from fastapi import HTTPException
 
 from utils.config_utils import config_manager
-from utils.agent_create_factory import AgentCreateFactory
 from consts.model import ToolSourceEnum, ToolInfo
 
 logging.basicConfig(level=logging.INFO)
@@ -68,24 +65,6 @@ def add_history_to_agent(agent: CoreAgent, history: List[Dict]):
             agent.memory.steps.append(ActionStep(action_output=msg['content'], model_output=msg['content']))
 
 
-def agent_run_thread(observer, query, history=None):
-    try:
-        mcp_host = config_manager.get_config("MCP_SERVICE")
-        agent_create_json = config_manager.get_config("AGENT_CREATE_FILE")
-
-        with ToolCollection.from_mcp({"url": mcp_host}) as tool_collection:
-            factory = AgentCreateFactory(observer=observer,
-                                         mcp_tool_collection=tool_collection)
-            agent = factory.create_from_json(agent_create_json)
-            add_history_to_agent(agent, history)
-
-            agent_run_with_observer(agent=agent, query=query, reset=False)
-
-    except Exception as e:
-        print(f"mcp connection error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"MCP server not connected: {str(e)}")
-
-
 def scan_tools() -> List[ToolInfo]:
     local_tools = get_local_tools()
     mcp_tools = get_mcp_tools()
@@ -132,7 +111,8 @@ def get_local_tools() -> List[ToolInfo]:
             params=init_params_list,
             source=ToolSourceEnum.LOCAL.value,
             inputs=json.dumps(getattr(tool_class, 'inputs'), ensure_ascii=False),
-            output_type=getattr(tool_class, 'output_type')
+            output_type=getattr(tool_class, 'output_type'),
+            class_name=tool_class.__name__
         )
         tools_info.append(tool_info)
     return tools_info
@@ -162,7 +142,8 @@ def get_mcp_tools() -> List[ToolInfo]:
                     params=[],
                     source=ToolSourceEnum.MCP.value,
                     inputs=json.dumps(getattr(tool_class, 'inputs'), ensure_ascii=False),
-                    output_type=getattr(tool_class, 'output_type')
+                    output_type=getattr(tool_class, 'output_type'),
+                    class_name=getattr(tool_class, 'name')
                 )
 
                 tools_info.append(tool_info)
