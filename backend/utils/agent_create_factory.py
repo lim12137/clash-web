@@ -230,7 +230,7 @@ class AgentCreateFactory:
         for tool in tools_list:
             param_dict = {}
             for param in tool.get("params", []):
-                param_dict[param["name"]] = param
+                param_dict[param["name"]] = param.get("default")
             tool["params"] = param_dict
 
         # Prepare agent config
@@ -270,7 +270,7 @@ class AgentCreateFactory:
             provide_run_summary=agent_config.get("provide_run_summary", False),
             managed_agents=managed_agents
         )
-
+        print(f"Created agent with name {agent.system_prompt}")
         return agent
 
     def create_tools_list(self, main_config):
