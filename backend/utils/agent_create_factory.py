@@ -190,7 +190,7 @@ class AgentCreateFactory:
                 agent_info=sub_agent_info,
                 tenant_id=tenant_id,
                 user_id=user_id,
-                prompt_template_path="backend/prompts/search_agent.yaml"
+                prompt_template_path="backend/prompts/managed_system_prompt_template.yaml"
             )
             
             # Create the sub-agent
@@ -202,7 +202,7 @@ class AgentCreateFactory:
             agent_info=main_agent_info,
             tenant_id=tenant_id,
             user_id=user_id,
-            prompt_template_path="backend/prompts/manager_agent.yaml"
+            prompt_template_path="backend/prompts/manager_system_prompt_template.yaml"
         )
         
         # Create the main agent
@@ -252,11 +252,17 @@ class AgentCreateFactory:
         model = self.get_model(model_name)
         # load the prompt templates
         prompt_templates_path = agent_config.get("prompt_templates_path")
-        prompt_templates = load_prompt_templates(
-            prompt_templates_path,
-            is_manager_agent=len(managed_agents) > 0,
-            system_prompt=agent_config.get("prompt")
-        )
+
+        # prompt_templates = load_prompt_templates(
+        #     prompt_templates_path,
+        #     is_manager_agent=len(managed_agents) > 0,
+        #     system_prompt=agent_config.get("prompt")
+        # )
+
+        with open(prompt_templates_path, "r", encoding="utf-8") as f:
+            agent_prompt = yaml.safe_load(f)
+        agent_prompt["system_prompt"] = agent_config.get("prompt")
+
         tools = self.create_tools_list(agent_config)
         # create the agent
         agent = CoreAgent(
