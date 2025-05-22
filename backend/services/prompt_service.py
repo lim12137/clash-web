@@ -9,9 +9,9 @@ from smolagents.agents import populate_template
 from jinja2 import StrictUndefined, Template
 from dotenv import load_dotenv
 
-from consts.model import GeneratePromptRequest, FineTunePromptRequest, AgentDetailInformation
+from consts.model import GeneratePromptRequest, FineTunePromptRequest, AgentDetailInformation, AgentInfoRequest
 from services.tool_configuration_service import get_tool_detail_information
-from database.agent_db import query_tool_instances, query_sub_agents, save_agent_prompt
+from database.agent_db import query_tool_instances, query_sub_agents, save_agent_prompt, update_agent
 from utils.prompt_utils import fill_agent_prompt
 from utils.user_utils import get_user_info
 
@@ -52,7 +52,7 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str) -> str:
 
 def generate_system_prompt_impl(prompt_info: GeneratePromptRequest):
     logger.info(f"Starting prompt generation for agent_id: {prompt_info.agent_id}")
-    _, tenant_id = get_user_info()
+    user_id, tenant_id = get_user_info()
     with open('backend/prompts/utils/prompt_generate.yaml', "r", encoding="utf-8") as f:
         prompt_for_generate = yaml.safe_load(f)
 
@@ -99,15 +99,21 @@ def generate_system_prompt_impl(prompt_info: GeneratePromptRequest):
         },
     )
 
-    # Save the prompt
-    logger.info("Saving generated prompt to database")
-    save_agent_prompt(
+    # Update agent with task_description and prompt
+    logger.info("Updating agent with business_description and prompt")
+    agent_info = AgentInfoRequest(
         agent_id=prompt_info.agent_id,
-        prompt=system_prompt,
-        tenant_id=tenant_id
+        business_description=prompt_info.task_description,
+        prompt=system_prompt
+    )
+    update_agent(
+        agent_id=prompt_info.agent_id,
+        agent_info=agent_info,
+        tenant_id=tenant_id,
+        user_id=user_id
     )
 
-    logger.info("Prompt generation completed successfully")
+    logger.info("Prompt generation and agent update completed successfully")
     return system_prompt
 
 

@@ -432,6 +432,7 @@ def add_tool_field(tool_info):
         tool_info["params"] =tool_params
         tool_info["name"] = tool.name
         tool_info["description"] = tool.description
+        tool_info["source"] = tool.source
         return tool_info
 
 
@@ -444,7 +445,6 @@ def search_tools_for_sub_agent(agent_id, tenant_id, user_id: str = None):
             query = query.filter(ToolInstance.user_id == user_id)
 
         tool_instances = query.all()
-
         tools_list = []
         for tool_instance in tool_instances:
             tool_instance_dict = as_dict(tool_instance)
