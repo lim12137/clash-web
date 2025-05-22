@@ -1,7 +1,7 @@
 services:
   kong:
     container_name: supabase-kong-mini
-    image: kong:2.8.1
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/kong:2.8.1
     restart: unless-stopped
     ports:
       - "8000:8000/tcp"
@@ -38,7 +38,7 @@ services:
 
   auth:
     container_name: supabase-auth-mini
-    image: supabase/gotrue:v2.170.0
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/supabase/gotrue:v2.170.0
     restart: unless-stopped
     healthcheck:
       test:
@@ -89,7 +89,7 @@ services:
 
   db:
     container_name: supabase-db-mini
-    image: supabase/postgres:15.8.1.060
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/supabase/postgres:15.8.1.060
     restart: unless-stopped
     # 暴露数据库端口，以便直连管理
     ports:

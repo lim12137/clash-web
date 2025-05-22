@@ -88,8 +88,8 @@ add_permission() {
 install() {
   cd "$root_path"
   echo "Deploying services in ${DEPLOYMENT_MODE} mode..."
-  docker-compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d
-  docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d
+  docker compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d
+  docker compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d
 }
 
 
