@@ -148,6 +148,7 @@ def create_agent(agent_info, db_session=None):
         session.flush()
         return as_dict(new_agent)
 
+
 def update_agent(agent_id, agent_info, tenant_id=None, user_id=None):
     """
     Update an existing agent in the database.
@@ -162,7 +163,6 @@ def update_agent(agent_id, agent_info, tenant_id=None, user_id=None):
             AgentInfo.tenant_id == tenant_id).first()
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
-
         for key, value in filter_property(agent_info.__dict__, AgentInfo).items():
             if value is None:
                 continue
@@ -389,8 +389,9 @@ def add_tool_field(tool_info):
             ele["default"] = tool_info["params"][ele["name"]]
 
         tool_info["params"] =tool_params
-        tool_info["name"] = tool.name
+        tool_info["name"] = tool.display_name
         tool_info["description"] = tool.description
+        tool_info["source"] = tool.source
         return tool_info
 
 
@@ -403,7 +404,6 @@ def search_tools_for_sub_agent(agent_id, tenant_id, user_id: str = None):
             query = query.filter(ToolInstance.user_id == user_id)
 
         tool_instances = query.all()
-
         tools_list = []
         for tool_instance in tool_instances:
             tool_instance_dict = as_dict(tool_instance)
