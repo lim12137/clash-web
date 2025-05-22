@@ -1,14 +1,15 @@
 """
-Elasticsearch应用程序接口模块
+Elasticsearch Application Interface Module
 
-这个模块提供了与Elasticsearch交互的REST API接口，包括索引管理、文档操作和搜索功能。
-主要功能包括：
-1. 索引的创建、删除和查询
-2. 文档的索引、删除和搜索
-3. 支持多种搜索方式：精确搜索、语义搜索和混合搜索
-4. 健康检查接口
+This module provides REST API interfaces for interacting with Elasticsearch, including index management, document operations, and search functionality.
+Main features include:
+1. Index creation, deletion, and querying
+2. Document indexing, deletion, and searching
+3. Support for multiple search methods: exact search, semantic search, and hybrid search
+4. Health check interface
 """
-
+import asyncio
+import logging
 import os
 import time
 from typing import Optional
@@ -16,17 +17,19 @@ from typing import Optional
 import requests
 from nexent.core.models.embedding_model import JinaEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
+from nexent.core.nlp.tokenizer import calculate_term_weights
+from services.knowledge_summary_service import generate_knowledge_summary_stream
 from fastapi import HTTPException, Query, Body, Path, Depends
-
-from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST
+from fastapi.responses import StreamingResponse
+from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, ES_HOST
 from consts.model import IndexingRequest, SearchRequest, HybridSearchRequest
 from utils.agent_utils import config_manager
 from utils.elasticsearch_utils import get_active_tasks_status
+from database.knowledge_db import create_knowledge_record, get_knowledge_by_name, update_knowledge_record
 
 
 # Initialize ElasticSearchCore instance with HTTPS support
 elastic_core = ElasticSearchCore(
-    init_test_kb=CREATE_TEST_KB,
     host=ES_HOST,
     api_key=ES_API_KEY,
     embedding_model=None,
@@ -47,33 +50,26 @@ class ElasticSearchService:
     def create_index(
             index_name: str = Path(..., description="Name of the index to create"),
             embedding_dim: Optional[int] = Query(None, description="Dimension of the embedding vectors"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
+            es_core: ElasticSearchCore = Depends(get_es_core),
+            user_id: Optional[str] = Body(None, description="ID of the user creating the knowledge base"),
     ):
         """
-        创建新的向量索引
+        Create a new vector index
 
         Args:
-            index_name: 要创建的索引名称
-            embedding_dim: 向量维度（可选）
-            es_core: ElasticSearchCore实例
+            index_name: Name of the index to create
+            embedding_dim: Vector dimension (optional)
+            es_core: ElasticSearchCore instance
 
         Returns:
-            成功时返回索引创建信息，失败时抛出HTTP异常
+            Returns index creation information on success, throws HTTP exception on failure
         """
         try:
-            success = es_core.create_vector_index(index_name, embedding_dim)
+            is_record_to_sql = True
+            if es_core.client.indices.exists(index=index_name):
+                is_record_to_sql = False
 
-            if success:
-                return {
-                    "status": "success",
-                    "message": f"Index {index_name} created successfully",
-                    "embedding_dim": embedding_dim or es_core.embedding_dim
-                }
-            else:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to create index {index_name}"
-                )
+            success = es_core.create_vector_index(index_name, embedding_dim)
 
         except Exception as e:
             raise HTTPException(
@@ -81,15 +77,53 @@ class ElasticSearchService:
                 detail=f"Error creating index: {str(e)}"
             )
 
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create index {index_name}"
+            )
+
+        if is_record_to_sql:
+            # After successfully creating the knowledge base, store the newly created knowledge base information in the knowledge base table
+            knowledge_data = {'index_name': index_name}
+            try:
+                knowledge_id = create_knowledge_record(knowledge_data, user_id)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error add index{index_name} to sql: {str(e)}"
+                )
+
+        return {
+            "status": "success",
+            "message": f"Index {index_name} created successfully",
+            "embedding_dim": embedding_dim or es_core.embedding_dim
+        }
+
     @staticmethod
     def delete_index(
             index_name: str = Path(..., description="Name of the index to delete"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
+            es_core: ElasticSearchCore = Depends(get_es_core),
+            user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base"),
     ):
-        success = es_core.delete_index(index_name)
-        if not success:
-            raise HTTPException(status_code=404, detail=f"Index {index_name} not found or could not be deleted")
-        return {"status": "success", "message": f"Index {index_name} deleted successfully"}
+        try:
+            # First delete the index in Elasticsearch
+            success = es_core.delete_index(index_name)
+            if not success:
+                raise HTTPException(status_code=404, detail=f"Index {index_name} not found or could not be deleted")
+
+            # Update the delete_flag in knowledge record table
+            knowledge_record = get_knowledge_by_name(index_name)
+            if knowledge_record:
+                update_data = {
+                    "delete_flag": "Y", # Set status to unavailable
+                    "updated_by": user_id,
+                }
+                update_knowledge_record(knowledge_record["knowledge_id"], update_data)
+
+            return {"status": "success", "message": f"Index {index_name} deleted successfully"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error deleting index: {str(e)}")
 
     @staticmethod
     def list_indices(
@@ -123,16 +157,16 @@ class ElasticSearchService:
 
     @staticmethod
     def _get_file_actual_size(source_type: str, path_or_url: str) -> int:
-        """查询文件的实际大小"""
+        """Query the actual size of the file"""
         try:
             if source_type == "url":
-                # 对于URL类型，使用requests库获取文件大小
+                # For URL type, use requests library to get file size
                 response = requests.head(path_or_url)
                 if 'content-length' in response.headers:
                     return int(response.headers['content-length'])
                 return 0
             else:
-                # 对于本地文件，使用os.path.getsize获取文件大小
+                # For local files, use os.path.getsize to get file size
                 return os.path.getsize(path_or_url)
         except Exception as e:
             print(f"Error getting file size for {path_or_url}: {str(e)}")
@@ -146,16 +180,16 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        获取索引的详细信息，包括统计信息、字段映射、文件列表和处理信息
+        Get detailed information about the index, including statistics, field mappings, file list, and processing information
 
         Args:
-            index_name: 索引名称
-            include_files: 是否包含文件列表
-            include_chunks: 是否包含每个文件的文本块
-            es_core: ElasticSearchCore实例
+            index_name: Index name
+            include_files: Whether to include file list
+            include_chunks: Whether to include text chunks for each file
+            es_core: ElasticSearchCore instance
 
         Returns:
-            包含索引详细信息的字典
+            Dictionary containing detailed index information
         """
         try:
             # Get all the info in one combined response
@@ -426,14 +460,14 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        使用模糊文本匹配在多个索引中搜索文档
+        Search documents in multiple indices using fuzzy text matching
 
         Args:
-            request: 包含搜索参数的SearchRequest对象
-            es_core: ElasticSearchCore实例
+            request: SearchRequest object containing search parameters
+            es_core: ElasticSearchCore instance
 
         Returns:
-            包含搜索结果、总数和查询时间的响应
+            Response containing search results, total count, and query time
         """
         try:
             # 验证查询不为空
@@ -470,14 +504,14 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        使用向量相似度在多个索引中搜索相似文档
+        Search for similar documents in multiple indices using vector similarity
 
         Args:
-            request: 包含搜索参数的SearchRequest对象
-            es_core: ElasticSearchCore实例
+            request: SearchRequest object containing search parameters
+            es_core: ElasticSearchCore instance
 
         Returns:
-            包含搜索结果、总数和查询时间的响应
+            Response containing search results, total count, and query time
         """
         try:
             # 验证查询不为空
@@ -514,14 +548,14 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        使用混合搜索在多个索引中搜索相似文档
+        Search for similar documents in multiple indices using hybrid search
 
         Args:
-            request: 包含搜索参数的HybridSearchRequest对象
-            es_core: ElasticSearchCore实例
+            request: HybridSearchRequest object containing search parameters
+            es_core: ElasticSearchCore instance
 
         Returns:
-            包含搜索结果、总数、查询时间和详细分数信息的响应
+            Response containing search results, total count, query time, and detailed score information
         """
         try:
             # 验证查询不为空
@@ -560,13 +594,13 @@ class ElasticSearchService:
     @staticmethod
     def health_check(es_core: ElasticSearchCore = Depends(get_es_core)):
         """
-        检查API和Elasticsearch的健康状态
+        Check the health status of the API and Elasticsearch
 
         Args:
-            es_core: ElasticSearchCore实例
+            es_core: ElasticSearchCore instance
 
         Returns:
-            包含健康状态信息的响应
+            Response containing health status information
         """
         try:
             # 尝试列出索引作为健康检查
@@ -578,3 +612,176 @@ class ElasticSearchService:
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+
+    async def summary_index_name(self,
+            index_name: str = Path(..., description="Name of the index to get documents from"),
+            batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
+            es_core: ElasticSearchCore = Depends(get_es_core),
+            user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base")
+    ):
+        try:
+            # get all document
+            all_documents = ElasticSearchService.get_all_documents(index_name, batch_size, es_core)
+            all_chunks = self._clean_chunks_for_summary(all_documents)
+            keywords_dict = calculate_term_weights(all_chunks)
+            keywords_for_summary = ""
+            for _, key in enumerate(keywords_dict):
+                keywords_for_summary = keywords_for_summary + "、" + key
+
+            async def generate_summary():
+                token_join = []
+                try:
+                    for new_token in generate_knowledge_summary_stream(keywords_for_summary):
+                        if new_token == "END":
+                            model_output = "".join(token_join)
+                            knowledge_record = get_knowledge_by_name(index_name)
+                            if knowledge_record:
+                                update_data = {
+                                    "knowledge_describe": model_output,
+                                    "updated_by": user_id,
+                                }
+                                update_knowledge_record(knowledge_record["knowledge_id"], update_data)
+                            break
+                        else:
+                            token_join.append(new_token)
+                            yield f"data: {{\"status\": \"success\", \"message\": \"{new_token}\"}}\n\n"
+                        await asyncio.sleep(0.1)
+
+                except Exception as e:
+                    yield f"data: {{\"status\": \"error\", \"message\": \"{e}\"}}\n\n"
+
+            # Return the flow response
+            return StreamingResponse(
+                generate_summary(),
+                media_type="text/event-stream"
+            )
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{str(e)}")
+
+    @staticmethod
+    def _clean_chunks_for_summary(all_documents):
+        # Only use these three fields for summarization
+        # all_contents = []
+        all_chunks = ""
+        for _, chunk in enumerate(all_documents['documents']):
+            # all_contents.append({"title":chunk["title"], "file_name": chunk["filename"], "content": chunk["content"]})
+            all_chunks = all_chunks + "\n" + chunk["title"] + "\n" + chunk["filename"] + "\n" + chunk["content"]
+        return all_chunks
+
+    @staticmethod
+    def get_all_documents(
+            index_name: str = Path(..., description="Name of the index to get documents from"),
+            batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
+            es_core: ElasticSearchCore = Depends(get_es_core)
+    ):
+        """
+        Get all document data from the specified index
+
+        Args:
+            index_name: Name of the index to get documents from
+            batch_size: Number of documents to retrieve per batch, default 1000
+            es_core: ElasticSearchCore instance
+
+        Returns:
+            List containing all documents
+        """
+        sampling_interval = 1
+        try:
+            chunk_group_threshold = int(os.getenv('CHUNK_GROUP_THRESHOLD'))
+            dounts_count = es_core.get_index_count(index_name)
+            if dounts_count > chunk_group_threshold:
+                sampling_interval = int(dounts_count/chunk_group_threshold)
+            # Initialize scroll query
+            query = {
+                "query": {
+                    "match_all": {}
+                },
+                "size": batch_size
+            }
+
+            # Execute initial search
+            response = es_core.client.search(
+                index=index_name,
+                body=query,
+                scroll='5m'  # Set scroll context retention time to 5 minutes
+            )
+
+            # Get first batch of results
+            scroll_id = response['_scroll_id']
+            hits = response['hits']['hits']
+            all_documents = []
+
+            # Process first batch of results
+            sampled_hits = hits[::sampling_interval]  # Sample every nth document
+            for hit in sampled_hits:
+                doc = hit['_source']
+                doc['_id'] = hit['_id']  # Add document ID
+                all_documents.append(doc)
+
+            # Continue fetching subsequent batches
+            while len(hits) > 0:
+                response = es_core.client.scroll(
+                    scroll_id=scroll_id,
+                    scroll='5m'
+                )
+                scroll_id = response['_scroll_id']
+                hits = response['hits']['hits']
+
+                # Process current batch of results
+                sampled_hits = hits[::sampling_interval]  # Sample every nth document
+                for hit in sampled_hits:
+                    doc = hit['_source']
+                    doc['_id'] = hit['_id']  # Add document ID
+                    all_documents.append(doc)
+
+            # Clean up scroll context
+            es_core.client.clear_scroll(scroll_id=scroll_id)
+
+            return {
+                "total": len(all_documents),
+                "documents": all_documents
+            }
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error retrieving documents from index {index_name}: {str(e)}"
+            )
+
+    def change_summary(self,
+            index_name: str = Path(..., description="Name of the index to get documents from"),
+            summary_result: Optional[str] = Body(description="knowledge base summary"),
+            es_core: ElasticSearchCore = Depends(get_es_core),
+            user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base")
+    ):
+        """Summary Elasticsearch index_name by user"""
+        try:
+            knowledge_record = get_knowledge_by_name(index_name)
+            if knowledge_record:
+                update_data = {
+                    "knowledge_describe": summary_result,  # Set status to unavailable
+                    "updated_by": user_id,
+                }
+                update_knowledge_record(knowledge_record["knowledge_id"], update_data)
+
+            return {"status": "success", "message": f"Index {index_name} summary successfully", "summary": summary_result}
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{str(e)}")
+
+    def get_summary(self,
+            index_name: str = Path(..., description="Name of the index to get documents from"),
+    ):
+        """Get Elasticsearch index_name Summary"""
+        try:
+            knowledge_record = get_knowledge_by_name(index_name)
+            if knowledge_record:
+                summary_result = knowledge_record["knowledge_describe"]
+                return {"status": "success", "message": f"索引 {index_name} 摘要获取成功", "summary": summary_result}
+            raise HTTPException(
+                status_code=500,
+                detail=f"无法获取索引 {index_name} 的摘要"
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"获取摘要失败: {str(e)}")

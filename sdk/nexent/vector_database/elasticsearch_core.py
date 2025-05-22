@@ -10,7 +10,7 @@ from urllib.request import urlopen
 
 from ..core.nlp.tokenizer import calculate_term_weights
 
-# 配置 elastic_transport 的日志级别
+# Configure elastic_transport logging level
 logging.getLogger('elastic_transport').setLevel(logging.WARNING)
 
 class ElasticSearchCore:
@@ -32,7 +32,6 @@ class ElasticSearchCore:
         embedding_model: Optional[JinaEmbedding],
         verify_certs: bool = False,
         ssl_show_warn: bool = False,
-        init_test_kb: bool = True,
     ):
         """
         Initialize ElasticSearchCore with Elasticsearch client and JinaEmbedding model.
@@ -43,7 +42,6 @@ class ElasticSearchCore:
             verify_certs: Whether to verify SSL certificates
             ssl_show_warn: Whether to show SSL warnings
             embedding_model: Optional embedding model instance
-            init_test_kb: Whether to initialize test knowledge base
         """
         # Get credentials from environment if not provided
         self.host = host
@@ -60,10 +58,6 @@ class ElasticSearchCore:
         # Initialize embedding model
         self.embedding_model = embedding_model
         
-        # Initialize test knowledge base if requested
-        if init_test_kb:
-            self.create_test_knowledge_base()
-    
     @property
     def embedding_dim(self) -> int:
         """
@@ -102,8 +96,8 @@ class ElasticSearchCore:
             
             # Check if index already exists
             if self.client.indices.exists(index=index_name):
-                print(f"Index {index_name} already exists, skipping creation")
-                return True
+                logging.info(f"Index {index_name} already exists, skipping creation")
+                return False
                 
             # Define the mapping with vector field
             mappings = {
@@ -135,18 +129,18 @@ class ElasticSearchCore:
                 mappings=mappings
             )
             
-            print(f"Successfully created index: {index_name}")
+            logging.info(f"Successfully created index: {index_name}")
             return True
             
         except exceptions.RequestError as e:
             # Handle the case where index already exists (error 400)
             if "resource_already_exists_exception" in str(e):
-                print(f"Index {index_name} already exists, skipping creation")
+                logging.info(f"Index {index_name} already exists, skipping creation")
                 return True
-            print(f"Error creating index: {str(e)}")
+            logging.error(f"Error creating index: {str(e)}")
             return False
         except Exception as e:
-            print(f"Error creating index: {str(e)}")
+            logging.error(f"Error creating index: {str(e)}")
             return False
     
     def delete_index(self, index_name: str) -> bool:
@@ -161,13 +155,13 @@ class ElasticSearchCore:
         """
         try:
             self.client.indices.delete(index=index_name)
-            print(f"Successfully deleted the index: {index_name}")
+            logging.info(f"Successfully deleted the index: {index_name}")
             return True
         except exceptions.NotFoundError:
-            print(f"Index {index_name} not found")
+            logging.info(f"Index {index_name} not found")
             return False
         except Exception as e:
-            print(f"Error deleting index: {str(e)}")
+            logging.error(f"Error deleting index: {str(e)}")
             return False
     
     def get_user_indices(self, index_pattern: str = "*") -> List[str]:
@@ -185,7 +179,7 @@ class ElasticSearchCore:
             # Filter out system indices (starting with '.')
             return [index_name for index_name in indices.keys() if not index_name.startswith('.')]
         except Exception as e:
-            print(f"Error getting user indices: {str(e)}")
+            logging.error(f"Error getting user indices: {str(e)}")
             return []
     
     # ---- DOCUMENT OPERATIONS ----
@@ -209,7 +203,7 @@ class ElasticSearchCore:
         Returns:
             int: Number of documents successfully indexed
         """
-        print(f"Indexing {len(documents)} documents to {index_name}")
+        logging.info(f"Indexing {len(documents)} documents to {index_name}")
         
         operations = []
         total_indexed = 0
@@ -265,7 +259,7 @@ class ElasticSearchCore:
                         doc["embedding_model_name"] = self.embedding_model.embedding_model_name
                     operations.append(doc)
                     
-                print(f"Processed batch {i//batch_size + 1}, documents {i} to {min(i+batch_size, len(documents))}")
+                logging.info(f"Processed batch {i//batch_size + 1}, documents {i} to {min(i+batch_size, len(documents))}")
                 
                 # Bulk index the batch
                 if operations:
@@ -277,10 +271,10 @@ class ElasticSearchCore:
                 time.sleep(1)
                 
             except Exception as e:
-                print(f"Error processing batch {i//batch_size + 1}: {str(e)}")
+                logging.error(f"Error processing batch {i//batch_size + 1}: {str(e)}")
                 continue
         
-        print(f"Indexing completed. Successfully indexed {total_indexed} documents.")
+        logging.info(f"Indexing completed. Successfully indexed {total_indexed} documents.")
         return total_indexed
     
     def delete_documents_by_path_or_url(self, index_name: str, path_or_url: str) -> int:
@@ -305,10 +299,10 @@ class ElasticSearchCore:
                     }
                 }
             )
-            print(f"Successfully deleted {result['deleted']} documents with path_or_url: {path_or_url} from index: {index_name}")
+            logging.info(f"Successfully deleted {result['deleted']} documents with path_or_url: {path_or_url} from index: {index_name}")
             return result['deleted']
         except Exception as e:
-            print(f"Error deleting documents: {str(e)}")
+            logging.error(f"Error deleting documents: {str(e)}")
             return 0
     
     # ---- SEARCH OPERATIONS ----
@@ -428,7 +422,7 @@ class ElasticSearchCore:
                     'index': result['index']  # Keep track of source index
                 }
             except KeyError as e:
-                print(f"Warning: Missing required field in accurate result: {e}")
+                logging.warning(f"Warning: Missing required field in accurate result: {e}")
                 continue
 
         # Process semantic search results
@@ -445,7 +439,7 @@ class ElasticSearchCore:
                         'index': result['index']  # Keep track of source index
                     }
             except KeyError as e:
-                print(f"Warning: Missing required field in semantic result: {e}")
+                logging.warning(f"Warning: Missing required field in semantic result: {e}")
                 continue
 
         # Calculate maximum scores
@@ -478,7 +472,7 @@ class ElasticSearchCore:
                     }
                 })
             except KeyError as e:
-                print(f"Warning: Error processing result for doc_id {doc_id}: {e}")
+                logging.warning(f"Warning: Error processing result for doc_id {doc_id}: {e}")
                 continue
 
         # Sort by combined score and return top k results
@@ -507,7 +501,7 @@ class ElasticSearchCore:
             )
             return agg_result['aggregations']['unique_path_or_url_count']['value']
         except Exception as e:
-            print(f"Error getting unique sources count: {str(e)}")
+            logging.error(f"Error getting unique sources count: {str(e)}")
             return 0
             
     def get_process_source_info(self, index_name: str) -> str:
@@ -534,7 +528,7 @@ class ElasticSearchCore:
                 return sources[0]['key']  # Return the most common process_source
             return "Unknown"
         except Exception as e:
-            print(f"Error getting process source info: {str(e)}")
+            logging.error(f"Error getting process source info: {str(e)}")
             return "Unknown"
             
     def get_embedding_model_info(self, index_name: str) -> str:
@@ -561,7 +555,7 @@ class ElasticSearchCore:
                 return models[0]['key']  # Return the most common embedding model
             return "Unknown"
         except Exception as e:
-            print(f"Error getting embedding model info: {str(e)}")
+            logging.error(f"Error getting embedding model info: {str(e)}")
             return "Unknown"
             
     def get_file_list_with_details(self, index_name: str) -> List[Dict[str, Any]]:
@@ -613,7 +607,7 @@ class ElasticSearchCore:
             
             return file_list
         except Exception as e:
-            print(f"Error getting file list: {str(e)}")
+            logging.error(f"Error getting file list: {str(e)}")
             return []
             
     def get_index_mapping(self, index_names: List[str]) -> Dict[str, List[str]]:
@@ -627,7 +621,7 @@ class ElasticSearchCore:
                 else:
                     mappings[index_name] = []
             except Exception as e:
-                print(f"Error getting mapping for index {index_name}: {str(e)}")
+                logging.error(f"Error getting mapping for index {index_name}: {str(e)}")
                 mappings[index_name] = []
         return mappings
             
@@ -667,7 +661,7 @@ class ElasticSearchCore:
                     }
                 }
             except Exception as e:
-                print(f"Error getting stats for index {index_name}: {str(e)}")
+                logging.error(f"Error getting stats for index {index_name}: {str(e)}")
                 all_stats[index_name] = {"error": str(e)}
 
         return all_stats
@@ -677,19 +671,19 @@ class ElasticSearchCore:
         user_indices = self.get_user_indices(index_pattern)
         
         if not user_indices:
-            print("No user indices found")
+            logging.info("No user indices found")
             return
         
-        print("=== User Index List ===")
+        logging.info("=== User Index List ===")
         for index_name in user_indices:
-            print(f"Index Name: {index_name}")
+            logging.info(f"Index Name: {index_name}")
         
-        print("\n=== Knowledge Base Core Statistics ===")
+        logging.info("\n=== Knowledge Base Core Statistics ===")
         try:
             stats = self.get_index_stats(user_indices)
-            print(stats)
+            logging.info(stats)
         except Exception as e:
-            print(f"Error getting index statistics: {str(e)}")
+            logging.error(f"Error getting index statistics: {str(e)}")
 
     def create_test_knowledge_base(
         self,
@@ -705,31 +699,31 @@ class ElasticSearchCore:
             Tuple containing the index name and number of documents indexed
         """
         index_name = "sample_articles"
-        print(f"\nChecking if test knowledge base '{index_name}' exists...")
+        logging.info(f"Checking if test knowledge base '{index_name}' exists...")
         
         # Check if index already exists
         if self.client.indices.exists(index=index_name):
-            print(f"Index {index_name} already exists, skipping creation")
+            logging.info(f"Index {index_name} already exists, skipping creation")
             # Get current document count
             try:
                 stats = self.client.indices.stats(index=index_name)
                 doc_count = stats["indices"][index_name]["primaries"]["docs"]["count"]
                 return index_name, doc_count
             except Exception as e:
-                print(f"Error getting index statistics: {str(e)}")
+                logging.error(f"Error getting index statistics: {str(e)}")
                 return index_name, 0
         
         # If index doesn't exist, continue with creation process
-        print("Creating new test knowledge base...")
+        logging.info("Creating new test knowledge base...")
         
         # Fetch sample articles data
-        print("Fetching sample articles data...")
+        logging.info("Fetching sample articles data...")
         url = "https://raw.githubusercontent.com/elastic/elasticsearch-labs/main/notebooks/search/articles.json"
         try:
             # Create a new vector index
             success = self.create_vector_index(index_name, embedding_dim)
             if not success:
-                print(f"Failed to create {index_name}")
+                logging.error(f"Failed to create {index_name}")
                 return index_name, 0
             
             response = urlopen(url)
@@ -739,7 +733,7 @@ class ElasticSearchCore:
             current_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
             
             # Prepare documents for indexing
-            print("Preparing documents for indexing...")
+            logging.info("Preparing documents for indexing...")
             for article in articles:
                 # Add required fields if not present
                 if "id" not in article:
@@ -761,14 +755,14 @@ class ElasticSearchCore:
                     article["title"] = f"Article {article['id']}"
             
             # Index documents (limit to sample_size)
-            print(f"Indexing {len(articles)} documents...")
+            logging.info(f"Indexing {len(articles)} documents...")
             num_indexed = self.index_documents(index_name, articles)
             
-            print(f"Test knowledge base created with {num_indexed} documents")
+            logging.info(f"Test knowledge base created with {num_indexed} documents")
             return index_name, num_indexed
             
         except Exception as e:
-            print(f"Error creating test knowledge base: {str(e)}")
+            logging.error(f"Error creating test knowledge base: {str(e)}")
             return index_name, 0
 
     def get_all_indices_stats(self, index_pattern: str = "*") -> Dict[str, Dict[str, Dict[str, Any]]]:
@@ -789,5 +783,20 @@ class ElasticSearchCore:
         try:
             return self.get_index_stats(user_indices)
         except Exception as e:
-            print(f"Error getting all indices statistics: {str(e)}")
+            logging.error(f"Error getting all indices statistics: {str(e)}")
             return {}
+
+    def get_index_count(self, index_name: str):
+        # use count API to get total document count
+        count_query = {"query": {"match_all": {}}}
+
+        try:
+            # Execute count query
+            count_response = self.client.count(index=index_name, body=count_query)
+            total_docs = count_response['count']
+            logging.info(f"Index {index_name} contains {total_docs} documents")
+            return total_docs
+        except Exception as e:
+            logging.error(f"Error getting document count: {e}")
+            return 0
+
