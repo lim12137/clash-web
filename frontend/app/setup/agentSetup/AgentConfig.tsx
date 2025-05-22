@@ -267,6 +267,7 @@ export default function AgentConfig() {
             setTestQuestion={setTestQuestion}
             testAnswer={testAnswer}
             setTestAnswer={setTestAnswer}
+            agentId={mainAgentId ? Number(mainAgentId) : undefined}
           />
         </div>
       </Drawer>
