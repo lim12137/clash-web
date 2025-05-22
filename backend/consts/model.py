@@ -100,6 +100,7 @@ class AgentRequest(BaseModel):
     is_set: Optional[bool] = False
     history: Optional[List[Dict]] = None
     minio_files: Optional[List[Dict[str, Any]]] = None  # Complete list of attachment information
+    agent_id: Optional[int] = None
     is_debug: Optional[bool] = False
 
 
@@ -296,13 +297,12 @@ class AgentInfoRequest(BaseModel):
     max_steps: Optional[int] = None
     provide_run_summary: Optional[bool] = None
     prompt: Optional[str] = None
-    parent_id: Optional[int] = None
     enabled: Optional[bool] = None
 
 
-class CreatingSubAgentIDRequest(BaseModel):
-    main_agent_id: int
-
+class AgentIDRequest(BaseModel):
+    agent_id: int
+    
 
 class ToolInstanceInfoRequest(BaseModel):
     tool_id: int
@@ -328,6 +328,7 @@ class ToolInfo(BaseModel):
     source: str
     inputs: str
     output_type: str
+    class_name: str
 
 
 class SavePromptRequest(BaseModel):
