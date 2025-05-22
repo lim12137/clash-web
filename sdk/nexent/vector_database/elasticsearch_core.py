@@ -32,7 +32,6 @@ class ElasticSearchCore:
         embedding_model: Optional[JinaEmbedding],
         verify_certs: bool = False,
         ssl_show_warn: bool = False,
-        init_test_kb: bool = True,
     ):
         """
         Initialize ElasticSearchCore with Elasticsearch client and JinaEmbedding model.
@@ -43,7 +42,6 @@ class ElasticSearchCore:
             verify_certs: Whether to verify SSL certificates
             ssl_show_warn: Whether to show SSL warnings
             embedding_model: Optional embedding model instance
-            init_test_kb: Whether to initialize test knowledge base
         """
         # Get credentials from environment if not provided
         self.host = host
@@ -60,10 +58,6 @@ class ElasticSearchCore:
         # Initialize embedding model
         self.embedding_model = embedding_model
         
-        # Initialize test knowledge base if requested
-        if init_test_kb:
-            self.create_test_knowledge_base()
-    
     @property
     def embedding_dim(self) -> int:
         """

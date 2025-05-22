@@ -21,7 +21,7 @@ from nexent.core.nlp.tokenizer import calculate_term_weights
 from services.knowledge_summary_service import generate_knowledge_summary_stream
 from fastapi import HTTPException, Query, Body, Path, Depends
 from fastapi.responses import StreamingResponse
-from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST
+from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, ES_HOST
 from consts.model import IndexingRequest, SearchRequest, HybridSearchRequest
 from utils.agent_utils import config_manager
 from utils.elasticsearch_utils import get_active_tasks_status
@@ -30,7 +30,6 @@ from database.knowledge_db import create_knowledge_record, get_knowledge_by_name
 
 # Initialize ElasticSearchCore instance with HTTPS support
 elastic_core = ElasticSearchCore(
-    init_test_kb=CREATE_TEST_KB,
     host=ES_HOST,
     api_key=ES_API_KEY,
     embedding_model=None,
