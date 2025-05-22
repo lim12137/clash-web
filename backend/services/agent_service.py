@@ -59,14 +59,14 @@ def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str
     return sub_agents
 
 
-def agent_run_thread(observer, query, agent_id, tenant_id, history=None):
+def agent_run_thread(observer, query, agent_id, tenant_id, user_id, history=None):
     try:
         mcp_host = config_manager.get_config("MCP_SERVICE")
 
         with ToolCollection.from_mcp({"url": mcp_host}) as tool_collection:
             factory = AgentCreateFactory(observer=observer,
                                          mcp_tool_collection=tool_collection)
-            agent = factory.create_from_db(agent_id, tenant_id)
+            agent = factory.create_from_db(agent_id, tenant_id, user_id)
             add_history_to_agent(agent, history)
 
             agent_run_with_observer(agent=agent, query=query, reset=False)

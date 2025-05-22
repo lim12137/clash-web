@@ -57,7 +57,7 @@ def generate_system_prompt_impl(prompt_info: GeneratePromptRequest):
         prompt_for_generate = yaml.safe_load(f)
 
     # Get description of tool and agent
-    tool_info_list, sub_agent_info_list = get_tool_and_agent_description(tenant_id, prompt_info)
+    tool_info_list, sub_agent_info_list = get_tool_and_agent_description(tenant_id, prompt_info, user_id)
     tool_description = "\n".join([str(tool) for tool in tool_info_list])
     agent_description = "\n".join([str(sub_agent_info) for sub_agent_info in sub_agent_info_list])
 
@@ -117,7 +117,7 @@ def generate_system_prompt_impl(prompt_info: GeneratePromptRequest):
     return system_prompt
 
 
-def get_tool_and_agent_description(tenant_id, prompt_info):
+def get_tool_and_agent_description(tenant_id, prompt_info, user_id: str = None):
 
     logger.info(f"Processing for tenant_id: {tenant_id}")
 
@@ -132,7 +132,8 @@ def get_tool_and_agent_description(tenant_id, prompt_info):
     # Get agent information
     logger.info("Fetching sub-agents information")
     agent_id = prompt_info.agent_id
-    sub_agent_raw_info_list = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id)
+    sub_agent_raw_info_list = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
+
     logger.info(f"Found {len(sub_agent_raw_info_list)} sub-agents")
 
     sub_agent_info_list = []
