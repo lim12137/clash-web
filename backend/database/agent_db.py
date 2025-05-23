@@ -369,7 +369,7 @@ def update_tool_table_from_scan_tool_list():
     """
     scan all tools and update the tool table in PG database, remove the duplicate tools
     """
-    user_id, _ = get_user_info()
+    user_id, tenant_id = get_user_info()
     tool_list = scan_tools()
     with get_db_session() as session:
         # get all existing tools (including complete information)
@@ -387,7 +387,7 @@ def update_tool_table_from_scan_tool_list():
                 existing_tool.updated_by = user_id
             else:
                 # create new tool
-                filtered_tool_data.update({"created_by": user_id, "updated_by": user_id, "author": user_id})
+                filtered_tool_data.update({"created_by": tenant_id, "updated_by": tenant_id, "author": tenant_id})
                 new_tool = ToolInfo(**filtered_tool_data)
                 session.add(new_tool)
 
@@ -444,7 +444,9 @@ def search_tools_for_sub_agent(agent_id, tenant_id, user_id: str = None):
     with get_db_session() as session:
         # Query if there is an existing ToolInstance
         query = session.query(ToolInstance).filter(ToolInstance.agent_id == agent_id,
-                                                   ToolInstance.tenant_id == tenant_id)
+                                                   ToolInstance.tenant_id == tenant_id,
+                                                   ToolInstance.delete_flag != 'Y',
+                                                   ToolInstance.enabled == True)
         if user_id:
             query = query.filter(ToolInstance.user_id == user_id)
 

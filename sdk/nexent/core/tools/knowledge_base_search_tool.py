@@ -22,29 +22,31 @@ class KnowledgeBaseSearchTool(Tool):
 
     tool_sign = "a"  # 用于给总结区分不同的索引来源
 
-    def __init__(self, index_names: List[str]=Field(description="知识库索引名称列表"),
-                 base_url: str=Field(description="知识库服务地址"),
-                 top_k: int = Field(description="返回结果数量", default=5),
+    base_url = "http://localhost:5010/api"
+    index_names = []
+
+    def __init__(self, top_k: int = Field(description="返回结果数量", default=5),
                  observer: MessageObserver = Field(description="消息观察者", default=None, exclude=True)):
         """Initialize the KBSearchTool.
         
         Args:
-            index_names (list[str]): Name list of the search index
-            base_url (str, optional): Base URL of the search service. Defaults to "http://localhost:8000".
             top_k (int, optional): Number of results to return. Defaults to 5.
             observer (MessageObserver, optional): Message observer instance. Defaults to None.
-            lang (str, optional): Language code ('zh' or 'en'). Defaults to 'en'.
         
         Raises:
             ValueError: If language is not supported
         """
         super().__init__()
-        self.index_names = index_names
         self.top_k = top_k
         self.observer = observer
-        self.base_url = base_url
         self.record_ops = 0  # 用于记录序号
         self.running_prompt = "知识库检索中..."
+
+    def update_search_index_names(self, index_names):
+        self.index_names = index_names
+
+    def update_base_url(self, base_url):
+        self.base_url = base_url
 
     def forward(self, query: str) -> str:
         # 发送工具运行消息
