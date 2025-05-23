@@ -138,6 +138,8 @@ def get_tool_and_agent_description(tenant_id, prompt_info, user_id: str = None):
 
     sub_agent_info_list = []
     for sub_agent_raw_info in sub_agent_raw_info_list:
+        if not sub_agent_raw_info["enabled"]:
+            continue
         agent_detail_information = AgentDetailInformation()
         agent_detail_information.name = sub_agent_raw_info.get("name")
         agent_detail_information.description = sub_agent_raw_info.get("description")
