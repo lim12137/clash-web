@@ -91,7 +91,7 @@ class AgentCreateFactory:
         """create a tool instance according to the tool config"""
         try:
             try:
-                tool_name = tool_config.get("class_name")
+                class_name = tool_config.get("class_name")
                 params = tool_config.get("params", {})
                 source = tool_config.get("source")
                 model_name = tool_config.get("model", None)
@@ -102,21 +102,24 @@ class AgentCreateFactory:
                 print(f"Error in loading tool config: {e}")
         
             if source == "local":
-                tool_class = globals().get(tool_name)
+                tool_class = globals().get(class_name)
                 if tool_class is None:
-                    raise ValueError(f"{tool_name} not found in local")
+                    raise ValueError(f"{class_name} not found in local")
                 else:
                     tools_obj = tool_class(**params)
                     if hasattr(tools_obj, 'observer'):
                         tools_obj.observer = self.observer
+
+                    if class_name == "KnowledgeBaseSearchTool":
+                        tools_obj.update_search_index_names(config_manager.get_config("SELECTED_KB_NAMES"))
             elif source == "mcp":
                 tools_obj = None
                 for tool in self.mcp_tool_collection.tools:
-                    if tool.name == tool_name:
+                    if tool.name == class_name:
                         tools_obj = tool
                         break
                 if tools_obj is None:
-                    raise ValueError(f"{tool_name} not found in MCP server")
+                    raise ValueError(f"{class_name} not found in MCP server")
 
             else:
                 raise ValueError(f"unsupported tool source: {source}")
@@ -185,6 +188,8 @@ class AgentCreateFactory:
         
         # Create sub-agents
         for sub_agent_info in sub_agents_info:
+            if not sub_agent_info.get("enabled"):
+                continue
             # Prepare sub-agent config with is_manager=False and default sub-agent prompt template
             sub_agent_config = self._prepare_agent_config(
                 agent_info=sub_agent_info,
@@ -258,7 +263,7 @@ class AgentCreateFactory:
             prompt_templates = yaml.safe_load(f)
         prompt_templates["system_prompt"] = agent_config.get("system_prompt")
 
-        tools = self.create_tools_list(agent_config)
+        tools = self.create_tools_list(agent_config.get("tools", []))
         # create the agent
         agent = CoreAgent(
             observer=self.observer,
@@ -274,10 +279,10 @@ class AgentCreateFactory:
 
         return agent
 
-    def create_tools_list(self, main_config):
+    def create_tools_list(self, tool_config_list):
         # create tools
         tools = []
-        for tool_config in main_config.get("tools", []):
+        for tool_config in tool_config_list:
             try:
                 tools.append(self.create_tool(tool_config))
             except Exception as e:
