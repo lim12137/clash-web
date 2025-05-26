@@ -204,7 +204,7 @@ export class ConfigStore {
     // 适配 models 字段
     const models = backendConfig.models ? {
       llm: {
-        modelName: backendConfig.models.llm?.modelName || "",
+        modelName: backendConfig.models.llm?.name || "",
         displayName: backendConfig.models.llm?.displayName || "",
         apiConfig: {
           apiKey: backendConfig.models.llm?.apiConfig?.apiKey || "",
@@ -212,7 +212,7 @@ export class ConfigStore {
         }
       },
       llmSecondary: {
-        modelName: backendConfig.models.llmSecondary?.modelName || "",
+        modelName: backendConfig.models.llmSecondary?.name || "",
         displayName: backendConfig.models.llmSecondary?.displayName || "",
         apiConfig: {
           apiKey: backendConfig.models.llmSecondary?.apiConfig?.apiKey || "",
