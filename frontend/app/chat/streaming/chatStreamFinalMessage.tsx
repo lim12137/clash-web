@@ -28,14 +28,14 @@ export function ChatStreamFinalMessage({
   onOpinionChange,
 }: FinalMessageProps) {
   const { getAppAvatarUrl } = useConfig();
-  const avatarUrl = getAppAvatarUrl(20); // 消息头像大小为 20px
+  const avatarUrl = getAppAvatarUrl(20);
   
   const messageRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const [localOpinion, setLocalOpinion] = useState<string | null>(message.opinion_flag ?? null);
   const [isVisible, setIsVisible] = useState(false);
   
-  // 动画效果 - 消息进入时淡入
+  // animation effect - fade in when message comes in
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(true);
@@ -43,12 +43,12 @@ export function ChatStreamFinalMessage({
     return () => clearTimeout(timer);
   }, []);
 
-  // 更新opinion状态
+  // update opinion status
   useEffect(() => {
     setLocalOpinion(message.opinion_flag ?? null);
   }, [message.opinion_flag]);
 
-  // 复制内容到剪贴板
+  // copy content to clipboard
   const handleCopyContent = () => {
     if (message.finalAnswer) {
       navigator.clipboard.writeText(message.finalAnswer)
@@ -62,7 +62,7 @@ export function ChatStreamFinalMessage({
     }
   };
 
-  // 处理点赞
+  // handle thumbs up
   const handleThumbsUp = () => {
     const newOpinion = localOpinion === 'Y' ? null : 'Y';
     setLocalOpinion(newOpinion);
@@ -71,7 +71,7 @@ export function ChatStreamFinalMessage({
     }
   };
 
-  // 处理点踩
+  // handle thumbs down
   const handleThumbsDown = () => {
     const newOpinion = localOpinion === 'N' ? null : 'N';
     setLocalOpinion(newOpinion);
@@ -80,7 +80,7 @@ export function ChatStreamFinalMessage({
     }
   };
 
-  // 处理消息选择
+  // handle message select
   const handleMessageSelect = () => {
     if (message.id && onSelectMessage) {
       onSelectMessage(message.id);
@@ -94,16 +94,16 @@ export function ChatStreamFinalMessage({
         message.role === "user" ? 'flex-row-reverse' : ''
       } ${!isVisible ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}
     >
-      {/* 消息内容部分 */}
+      {/* message content part */}
       <div className={`${
         message.role === "user" 
           ? 'flex items-end flex-col w-full' 
           : 'w-full'
       }`}>
-        {/* 用户消息部分 */}
+        {/* user message part */}
         {message.role === "user" && (
           <>
-            {/* 附件部分 - 放在文本上方 */}
+            {/* attachment part - put above text */}
             {message.attachments && message.attachments.length > 0 && (
               <div className="mb-2 w-full flex justify-end">
                 <div className="max-w-[80%]">
@@ -116,7 +116,7 @@ export function ChatStreamFinalMessage({
               </div>
             )}
             
-            {/* 文本内容 */}
+            {/* text content */}
             {message.content && (
               <div className="rounded-lg border bg-blue-50 border-blue-100 user-message-container px-3 ml-auto text-sm">
                 <MarkdownRenderer 
@@ -128,7 +128,7 @@ export function ChatStreamFinalMessage({
           </>
         )}
         
-        {/* 助手消息部分 - 只展示最终回答 */}
+        {/* assistant message part - only show final answer */}
         {message.role === "assistant" && message.finalAnswer && (
           <div className="bg-white rounded-lg w-full -mt-2">
             <MarkdownRenderer 
@@ -136,31 +136,33 @@ export function ChatStreamFinalMessage({
               searchResults={message.searchResults}
             />
             
-            {/* 按钮组 */}
+            {/* button group */}
             <div className="flex items-center justify-between mt-3">
-              {/* 溯源按钮 */}
-              {((message.searchResults && message.searchResults.length > 0) || (message.images && message.images.length > 0)) && (
-                <div className="flex items-center text-xs text-gray-500">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`flex items-center gap-1 p-1 pl-3 hover:bg-gray-100 rounded transition-all duration-200 border border-gray-200 ${
-                      isSelected ? 'bg-gray-100' : ''
-                    }`}
-                    onClick={handleMessageSelect}
-                  >
-                    <span>
-                      {`${searchResultsCount ? `${searchResultsCount}条来源` : ""}${searchResultsCount && imagesCount ? "，" : ""}${imagesCount ? `${imagesCount}张图片` : ""}`}
-                    </span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+              {/* source button */}
+              <div className="flex-1">
+                {((message.searchResults && message.searchResults.length > 0) || (message.images && message.images.length > 0)) && (
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`flex items-center gap-1 p-1 pl-3 hover:bg-gray-100 rounded transition-all duration-200 border border-gray-200 ${
+                        isSelected ? 'bg-gray-100' : ''
+                      }`}
+                      onClick={handleMessageSelect}
+                    >
+                      <span>
+                        {`${searchResultsCount ? `${searchResultsCount}条来源` : ""}${searchResultsCount && imagesCount ? "，" : ""}${imagesCount ? `${imagesCount}张图片` : ""}`}
+                      </span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
               
-              {/* 工具按钮 */}
+              {/* tool button */}
               <div className="flex items-center space-x-2 mt-1 justify-end">
                 <TooltipProvider>
-                  {/* 复制按钮 */}
+                  {/* copy button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -180,7 +182,7 @@ export function ChatStreamFinalMessage({
                     </TooltipContent>
                   </Tooltip>
 
-                  {/* 点赞按钮 */}
+                  {/* thumbs up button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -197,7 +199,7 @@ export function ChatStreamFinalMessage({
                     </TooltipContent>
                   </Tooltip>
 
-                  {/* 点踩按钮 */}
+                  {/* thumbs down button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -214,7 +216,7 @@ export function ChatStreamFinalMessage({
                     </TooltipContent>
                   </Tooltip>
 
-                  {/* 语音播报按钮 */}
+                  {/* voice button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
