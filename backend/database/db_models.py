@@ -2,10 +2,15 @@ from sqlalchemy import Column, Integer, String, TIMESTAMP, Sequence, Numeric
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import func
 
-class Base(DeclarativeBase):
+class TableBase(DeclarativeBase):
+    create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time")
+    update_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), onupdate=func.now(), doc="Update time")
+    created_by = Column(String(100), doc="Creator")
+    updated_by = Column(String(100), doc="Updater")
+    delete_flag = Column(String(1), default="N", doc="Whether it is deleted. Optional values: Y/N")
     pass
 
-class ConversationRecord(Base):
+class ConversationRecord(TableBase):
     """
     Overall information table for Q&A conversations
     """
@@ -20,7 +25,7 @@ class ConversationRecord(Base):
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
     created_by = Column(String(100), doc="ID of the creator, audit field")
 
-class ConversationMessage(Base):
+class ConversationMessage(TableBase):
     """
     Holds the specific response message content in the conversation
     """
@@ -40,7 +45,7 @@ class ConversationMessage(Base):
     created_by = Column(String(100), doc="ID of the creator, audit field")
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
 
-class ConversationMessageUnit(Base):
+class ConversationMessageUnit(TableBase):
     """
     Holds the agent's output content in each message
     """
@@ -59,7 +64,7 @@ class ConversationMessageUnit(Base):
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
     created_by = Column(String(100), doc="ID of the creator, audit field")
 
-class ConversationSourceImage(Base):
+class ConversationSourceImage(TableBase):
     """
     Holds the search image source information of conversation messages
     """
@@ -79,7 +84,7 @@ class ConversationSourceImage(Base):
     created_by = Column(String(100), doc="ID of the creator, audit field")
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
 
-class ConversationSourceSearch(Base):
+class ConversationSourceSearch(TableBase):
     """
     Holds the search text source information referenced by the response messages in the conversation
     """
@@ -107,7 +112,7 @@ class ConversationSourceSearch(Base):
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
     created_by = Column(String(100), doc="ID of the creator, audit field")
 
-class ModelRecord(Base):
+class ModelRecord(TableBase):
     """
     Model list defined by the user on the configuration page
     """
@@ -131,7 +136,73 @@ class ModelRecord(Base):
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
     created_by = Column(String(100), doc="ID of the creator, audit field")
 
-class KnowledgeRecord(Base):
+class ToolInfo(TableBase):
+    """
+    Information table for prompt tools
+    """
+    __tablename__ = "ag_tool_info_t"
+    __table_args__ = {"schema": SCHEMA}
+
+    tool_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
+    name = Column(String(100), doc="Unique key name")
+    class_name = Column(String(100), doc="Tool class name, used when the tool is instantiated")
+    description = Column(String(2048), doc="Prompt tool description")
+    source = Column(String(100), doc="Source")
+    author = Column(String(100), doc="Tool author")
+    usage = Column(String(100), doc="Usage")
+    params = Column(JSON, doc="Tool parameter information (json)")
+    inputs = Column(String(2048), doc="Prompt tool inputs description")
+    output_type = Column(String(100), doc="Prompt tool output description")
+
+class AgentInfo(TableBase):
+    """
+    Information table for agents
+    """
+    __tablename__ = "ag_tenant_agent_t"
+    __table_args__ = {"schema": SCHEMA}
+
+    agent_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
+    name = Column(String(100), doc="Agent name")
+    description = Column(Text, doc="Description")
+    model_name = Column(String(100), doc="Name of the model used")
+    max_steps = Column(Integer, doc="Maximum number of steps")
+    prompt = Column(String, doc="System prompt")
+    parent_agent_id = Column(Integer, doc="Parent Agent ID")
+    tenant_id = Column(String(100), doc="Belonging tenant")
+    enabled = Column(Boolean, doc="Enabled")
+    provide_run_summary = Column(Boolean, doc="Whether to provide the running summary to the manager agent")
+    business_description = Column(Text, doc="Manually entered by the user to describe the entire business process")
+
+class UserAgent(TableBase):
+    """
+    Information table for agent - related prompts.
+    """
+    __tablename__ = "ag_user_agent_t"
+    __table_args__ = {"schema": SCHEMA}
+
+    user_agent_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
+    agent_id = Column(Integer, doc="AgentID")
+    prompt = Column(String, doc="System prompt")
+    tenant_id = Column(String(100), doc="Belonging tenant")
+    user_id = Column(String(100), doc="Belonging user")
+    enabled = Column(Boolean, doc="Enabled")
+
+class ToolInstance(TableBase):
+    """
+    Information table for tenant tool configuration.
+    """
+    __tablename__ = "ag_tool_instance_t"
+    __table_args__ = {"schema": SCHEMA}
+
+    tool_instance_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
+    tool_id = Column(Integer, doc="Tenant tool ID")
+    agent_id = Column(Integer, doc="Agent ID")
+    params = Column(JSON, doc="Parameter configuration")
+    user_id = Column(String(100), doc="User ID")
+    tenant_id = Column(String(100), doc="Tenant ID")
+    enabled = Column(Boolean, doc="Enabled")
+
+class KnowledgeRecord(TableBase):
     """
     Records the description and status information of knowledge bases
     """
