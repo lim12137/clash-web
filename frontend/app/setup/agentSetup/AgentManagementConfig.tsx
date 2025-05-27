@@ -195,17 +195,17 @@ function ToolPool({
   const [currentTool, setCurrentTool] = useState<Tool | null>(null);
   const [pendingToolSelection, setPendingToolSelection] = useState<{tool: Tool, isSelected: boolean} | null>(null);
 
-  // 使用 useMemo 缓存工具列表，避免不必要的重新计算
+  // Use useMemo to cache the tool list to avoid unnecessary recalculations
   const displayTools = useMemo(() => {
     return tools.length > 0 ? tools : mockTools;
   }, [tools]);
 
-  // 使用 useMemo 缓存选中状态的工具ID集合，提高查找效率
+  // Use useMemo to cache the selected tool ID set to improve lookup efficiency
   const selectedToolIds = useMemo(() => {
     return new Set(selectedTools.map(tool => tool.id));
   }, [selectedTools]);
 
-  // 使用 useCallback 缓存工具选择处理函数
+  // Use useCallback to cache the tool selection processing function
   const handleToolSelect = useCallback(async (tool: Tool, isSelected: boolean, e: React.MouseEvent) => {
     e.stopPropagation();
     
@@ -229,14 +229,14 @@ function ToolPool({
     }
   }, [mainAgentId, onSelectTool]);
 
-  // 使用 useCallback 缓存工具配置点击处理函数
+  // Use useCallback to cache the tool configuration click processing function
   const handleConfigClick = useCallback((tool: Tool, e: React.MouseEvent) => {
     e.stopPropagation();
     setCurrentTool(tool);
     setIsToolModalOpen(true);
   }, []);
 
-  // 使用 useCallback 缓存工具保存处理函数
+  // Use useCallback to cache the tool save processing function
   const handleToolSave = useCallback((updatedTool: Tool) => {
     if (pendingToolSelection) {
       const { tool, isSelected } = pendingToolSelection;
@@ -265,13 +265,13 @@ function ToolPool({
     setPendingToolSelection(null);
   }, [pendingToolSelection, handleToolSelect]);
 
-  // 使用 useCallback 缓存模态框关闭处理函数
+  // Use useCallback to cache the modal close processing function
   const handleModalClose = useCallback(() => {
     setIsToolModalOpen(false);
     setPendingToolSelection(null);
   }, []);
 
-  // 使用 memo 优化工具项的渲染
+  // Use memo to optimize the rendering of tool items
   const ToolItem = memo(({ tool }: { tool: Tool }) => {
     const isSelected = selectedToolIds.has(tool.id);
     
@@ -337,7 +337,7 @@ function ToolPool({
   );
 }
 
-// 使用 memo 优化 ToolPool 组件的渲染
+// Use memo to optimize the rendering of ToolPool component
 export const MemoizedToolPool = memo(ToolPool);
 
 /**
@@ -379,7 +379,7 @@ export default function BusinessLogicConfig({
 
   const fetchSubAgentIdAndEnableToolList = async () => {
     setIsLoadingTools(true);
-    // 在加载开始时清空工具选中状态
+    // Clear the tool selection status when loading starts
     setSelectedTools([]);
     setEnabledToolIds([]);
     
@@ -388,23 +388,23 @@ export default function BusinessLogicConfig({
       if (result.success && result.data) {
         const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, prompt } = result.data;
         
-        // 更新主代理ID
+        // Update the main agent ID
         setMainAgentId(agentId);
-        // 更新启用的工具ID列表
+        // Update the enabled tool ID list
         setEnabledToolIds(enabledToolIds);
-        // 更新模型
+        // Update the model
         if (modelName) {
           setMainAgentModel(modelName as OpenAIModel);
         }
-        // 更新最大步骤数
+        // Update the maximum number of steps
         if (maxSteps) {
           setMainAgentMaxStep(maxSteps);
         }
-        // 更新业务描述
+        // Update the business description
         if (businessDescription) {
           setBusinessLogic(businessDescription);
         }
-        // 更新系统提示词
+        // Update the system prompt
         if (prompt) {
           setSystemPrompt(prompt);
         }
@@ -419,15 +419,15 @@ export default function BusinessLogicConfig({
     }
   };
 
-  // 监听创建新Agent状态变化
+  // Listen for changes in the creation of a new Agent
   useEffect(() => {
     if (isCreatingNewAgent) {
-      // 切换到创建新Agent状态时，清空相关状态
+      // When switching to the creation of a new Agent, clear the relevant status
       setSelectedAgents([]);
       setBusinessLogic('');
       fetchSubAgentIdAndEnableToolList();
     } else {
-      // 退出创建新Agent状态时，重置主Agent配置并刷新列表
+      // When exiting the creation of a new Agent, reset the main Agent configuration and refresh the list
       setBusinessLogic('');
       setMainAgentModel(OpenAIModel.MainModel);
       setMainAgentMaxStep(10);
@@ -436,7 +436,7 @@ export default function BusinessLogicConfig({
     }
   }, [isCreatingNewAgent]);
 
-  // 监听工具状态变化，更新选中的工具
+  // Listen for changes in the tool status, update the selected tool
   useEffect(() => {
     if (!tools || !enabledToolIds || isLoadingTools) return;
 
@@ -445,7 +445,7 @@ export default function BusinessLogicConfig({
     );
 
     setSelectedTools(prevTools => {
-      // 只有当工具列表确实不同时才更新
+      // Only update when the tool list is确实不同时
       if (JSON.stringify(prevTools) !== JSON.stringify(enabledTools)) {
         return enabledTools;
       }
@@ -453,17 +453,17 @@ export default function BusinessLogicConfig({
     });
   }, [tools, enabledToolIds, isLoadingTools]);
 
-  // 处理创建新Agent
+  // Handle the creation of a new Agent
   const handleCreateNewAgent = async () => {
     setIsCreatingNewAgent(true);
   };
 
-  // 重置状态当用户取消创建agent
+  // Reset the status when the user cancels the creation of an Agent
   const handleCancelCreating = async () => {
     setIsCreatingNewAgent(false);
   };
 
-  // 保存新Agent后的处理
+  // Handle the creation of a new Agent
   const handleSaveNewAgent = async (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string, business_description: string) => {
     if (name.trim()) {
       const newAgent: Agent = {
@@ -488,12 +488,12 @@ export default function BusinessLogicConfig({
       setIsAgentModalOpen(false);
       message.success(`Agent:"${name}"创建成功`);
       
-      // 先退出创建模式
+      // First exit the creation mode
       setIsCreatingNewAgent(false);
-      // 重置状态
+      // Reset the status
       setBusinessLogic('');
       setSelectedTools([]);
-      // 刷新列表
+      // Refresh the list
       refreshAgentList();
     }
   };
@@ -553,25 +553,25 @@ export default function BusinessLogicConfig({
     return "";
   };
 
-  // 移除 fetchAgentToolsState 函数，将其功能合并到 refreshAgentList 中
+  // Remove the fetchAgentToolsState function and merge its functionality into refreshAgentList
   const refreshAgentList = async () => {
     if (!mainAgentId) return;
     
     setIsLoadingTools(true);
-    // 在加载开始时清空工具选中状态
+    // Clear the tool selection status when loading starts
     setSelectedTools([]);
     setEnabledToolIds([]);
     
     try {
       const result = await fetchAgentList();
       if (result.success) {
-        // 更新所有相关状态
+        // Update all related states
         setSubAgentList(result.data.subAgentList);
         setMainAgentId(result.data.mainAgentId);
         const newEnabledToolIds = result.data.enabledToolIds || [];
         setEnabledToolIds(newEnabledToolIds);
         
-        // 更新新增字段对应的状态
+        // Update the status of the newly added fields
         if (result.data.modelName) {
           setMainAgentModel(result.data.modelName as OpenAIModel);
         }
@@ -585,7 +585,7 @@ export default function BusinessLogicConfig({
           setSystemPrompt(result.data.prompt);
         }
         
-        // 更新选中的工具
+        // Update the selected tools
         if (tools && tools.length > 0) {
           const enabledTools = tools.filter(tool => 
             newEnabledToolIds.includes(Number(tool.id))
@@ -603,7 +603,7 @@ export default function BusinessLogicConfig({
     }
   };
 
-  // 处理 Agent 选择状态更新
+  // Handle the update of the Agent selection status
   const handleAgentSelect = async (agent: Agent, isSelected: boolean) => {
     try {
       const result = await updateAgent(
@@ -635,7 +635,7 @@ export default function BusinessLogicConfig({
     }
   };
 
-  // 处理模型更新
+  // Handle the update of the model
   const handleModelChange = async (value: OpenAIModel) => {
     if (!mainAgentId) {
       message.error('主代理ID未设置，无法更新模型');
@@ -666,7 +666,7 @@ export default function BusinessLogicConfig({
     }
   };
 
-  // 处理最大步骤数更新
+  // Handle the update of the maximum number of steps
   const handleMaxStepChange = async (value: number | null) => {
     if (!mainAgentId) {
       message.error('主代理ID未设置，无法更新最大步骤数');
