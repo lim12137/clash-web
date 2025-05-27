@@ -23,7 +23,7 @@ async def generate_system_prompt_api(request: GeneratePromptRequest):
 @router.post("/fine_tune")
 async def fine_tune_system_prompt_api(request: FineTunePromptRequest):
     try:
-        system_prompt = fine_tune_prompt(request)
+        system_prompt = fine_tune_prompt(system_prompt=request.system_prompt, command=request.command)
         return {"success": True, "data": system_prompt}
     except Exception as e:
         logger.exception(f"Error occurred while fine tuning system prompt: {e}")
