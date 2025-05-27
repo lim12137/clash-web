@@ -131,7 +131,7 @@ async def list_main_agent_info_api():
 
 
 @router.post("/search_info")
-async def get_agent_info_api(request: AgentInfoRequest):
+async def search_agent_info_api(request: AgentInfoRequest):
     """
     Search agent info by agent_id
     """
