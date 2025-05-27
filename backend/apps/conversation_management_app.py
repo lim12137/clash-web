@@ -14,6 +14,7 @@ from services.conversation_management_service import (
     generate_conversation_title_service,
     update_message_opinion_service
 )
+from database.conversation_db import get_message_id_by_index
 
 router = APIRouter(prefix="/conversation")
 
@@ -200,6 +201,31 @@ async def update_opinion_endpoint(request: OpinionRequest, authorization: Option
         return ConversationResponse(code=0, message="success", data=True)
     except Exception as e:
         logging.error(f"Failed to update message like/dislike: {str(e)}")
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/message/id/{conversation_id}/{message_index}", response_model=ConversationResponse)
+async def get_message_id_endpoint(conversation_id: int, message_index: int, authorization: Optional[str] = Header(None)):
+    """
+    Get message ID by conversation ID and message index
+
+    Args:
+        conversation_id: Conversation ID
+        message_index: Message index
+        authorization: Authorization header
+
+    Returns:
+        ConversationResponse object containing message_id
+    """
+    try:
+        message_id = get_message_id_by_index(conversation_id, message_index)
+        if message_id is None:
+            raise HTTPException(status_code=404, detail="Message not found")
+
+        return ConversationResponse(code=0, message="success", data=message_id)
+    except Exception as e:
+        logging.error(f"Failed to get message ID: {str(e)}")
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))

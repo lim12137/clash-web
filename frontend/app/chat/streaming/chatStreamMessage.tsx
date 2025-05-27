@@ -73,6 +73,7 @@ export function ChatStreamMessage({
   const handleThumbsUp = () => {
     const newOpinion = localOpinion === 'Y' ? null : 'Y';
     setLocalOpinion(newOpinion);
+    console.log(`用户${newOpinion === 'Y' ? '点赞了' : '取消点赞了'}消息 ID: ${message.message_id}`);
     if (onOpinionChange && message.message_id) {
       onOpinionChange(message.message_id, newOpinion as 'Y' | 'N' | null);
     }

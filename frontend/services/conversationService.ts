@@ -346,4 +346,20 @@ export const conversationService = {
     }
     throw new ApiError(data.code, data.message);
   },
+
+  // 根据对话ID和消息索引获取消息ID
+  async getMessageId(conversationId: number, messageIndex: number) {
+    const response = await fetch(API_ENDPOINTS.conversation.messageId(conversationId, messageIndex), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    const data = await response.json();
+    
+    if (data.code === 0) {
+      return data.data;
+    }
+    
+    throw new ApiError(data.code, data.message);
+  },
 }; 

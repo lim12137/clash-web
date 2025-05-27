@@ -202,6 +202,14 @@ export function ChatInterface() {
       attachments: messageAttachments.length > 0 ? messageAttachments : undefined
     };
 
+    // 打印用户发送的消息信息
+    console.log('用户发送问题:', {
+      消息ID: userMessage.id,
+      内容: userMessage.content,
+      附件数量: userMessage.attachments?.length || 0,
+      时间: userMessage.timestamp
+    });
+
     // 先添加用户消息到聊天记录
     setMessages(prevMessages => [...prevMessages, userMessage])
 
@@ -219,6 +227,12 @@ export function ChatInterface() {
       isComplete: false,
       steps: []
     }
+
+    // 打印AI开始回复的消息信息
+    console.log('AI开始回复:', {
+      消息ID: assistantMessageId,
+      时间: initialAssistantMessage.timestamp
+    });
 
     // 添加初始的AI回复消息（会显示加载状态）
     setMessages(prevMessages => [...prevMessages, initialAssistantMessage])
