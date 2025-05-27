@@ -240,43 +240,18 @@ class OpinionRequest(BaseModel):
     opinion: Optional[str] = None
 
 
-class SubAgent(BaseModel):
-    name: str
-    description: str
-
-    def __str__(self):
-        return f"- {self.name}: {self.description}"
-
 # used in prompt/generate request
 class GeneratePromptRequest(BaseModel):
     task_description: str
     agent_id: int
 
-
-class AgentDetailInformation:
-    name: str
-    description: str
-
-    def __str__(self):
-        return f"- {self.name}: {self.description}"
-
-
+# used in prompt/finetune request
 class FineTunePromptRequest(BaseModel):
     agent_id: int
     system_prompt: str
     command: str
 
-
-class AgentToolInfoRequest(BaseModel):
-    tool_instance_id: int
-    tool_id: int
-    agent_id: int
-    params: Dict[str, Any]
-    user_id: str
-    tenant_id: str
-    enable: bool
-
-
+# used in agent/search agent/update for save agent info
 class AgentInfoRequest(BaseModel):
     agent_id: int
     name: Optional[str] = None

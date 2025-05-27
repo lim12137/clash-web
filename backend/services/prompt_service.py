@@ -7,7 +7,7 @@ from smolagents.utils import BASE_BUILTIN_MODULES
 from smolagents.agents import populate_template
 from jinja2 import StrictUndefined, Template
 
-from consts.model import FineTunePromptRequest, AgentDetailInformation, AgentInfoRequest
+from consts.model import AgentInfoRequest
 from services.agent_service import get_enable_tool_id_by_agent_id
 from database.agent_db import query_sub_agents, save_agent_prompt, update_agent, \
     query_tools_by_ids
@@ -63,8 +63,9 @@ def generate_system_prompt_impl(agent_id: int, task_description: str):
     sub_agent_info_list = get_enabled_sub_agent_description_for_generate_prompt(tenant_id=tenant_id,
                                                                       agent_id=agent_id,
                                                                       user_id=user_id)
-    tool_description = "\n".join([str(tool) for tool in tool_info_list])
-    agent_description = "\n".join([str(sub_agent_info) for sub_agent_info in sub_agent_info_list])
+    tool_description = "\n".join([f"- {tool['name']}: {tool['description']} \n 接受输入: {tool['inputs']}\n 返回输出类型: {tool['output_type']}"
+                                  for tool in tool_info_list])
+    agent_description = "\n".join([f"- {sub_agent_info['name']}: {sub_agent_info['description']}" for sub_agent_info in sub_agent_info_list])
 
     # Generate content using template
     compiled_template = Template(prompt_for_generate["USER_PROMPT"], undefined=StrictUndefined)
@@ -99,7 +100,7 @@ def generate_system_prompt_impl(agent_id: int, task_description: str):
         need_filled_system_prompt,
         variables={
             "tools": {tool.get("name"): tool for tool in tool_info_list},
-            "managed_agents": {sub_agent.name: sub_agent for sub_agent in sub_agent_info_list},
+            "managed_agents": {sub_agent.get("name"): sub_agent for sub_agent in sub_agent_info_list},
             "authorized_imports": str(BASE_BUILTIN_MODULES),
         },
     )
@@ -131,21 +132,17 @@ def get_enabled_tool_description_for_generate_prompt(agent_id: int, tenant_id: s
 def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
     logger.info("Fetching sub-agents information")
     sub_agent_raw_info_list = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
-
     logger.info(f"Found {len(sub_agent_raw_info_list)} sub-agents")
 
     sub_agent_info_list = []
     for sub_agent_raw_info in sub_agent_raw_info_list:
         if not sub_agent_raw_info["enabled"]:
             continue
-        agent_detail_information = AgentDetailInformation()
-        agent_detail_information.name = sub_agent_raw_info.get("name")
-        agent_detail_information.description = sub_agent_raw_info.get("description")
-        sub_agent_info_list.append(agent_detail_information)
+        sub_agent_info_list.append(sub_agent_raw_info)
     return sub_agent_info_list
 
 
-def fine_tune_prompt(req: FineTunePromptRequest):
+def fine_tune_prompt(system_prompt: str, command: str):
     logger.info("Starting prompt fine-tuning")
 
     try:
@@ -154,8 +151,8 @@ def fine_tune_prompt(req: FineTunePromptRequest):
 
         compiled_template = Template(prompt_for_fine_tune["FINE_TUNE_USER_PROMPT"], undefined=StrictUndefined)
         content = compiled_template.render({
-            "prompt": req.system_prompt,
-            "command": req.command
+            "prompt": system_prompt,
+            "command": command
         })
 
         logger.info("Calling LLM for prompt fine-tuning")
