@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from fastapi import HTTPException
@@ -306,29 +307,34 @@ def update_tool_table_from_scan_tool_list():
     """
     scan all tools and update the tool table in PG database, remove the duplicate tools
     """
-    user_id, tenant_id = get_user_info()
-    tool_list = scan_tools()
-    with get_db_session() as session:
-        # get all existing tools (including complete information)
-        existing_tools = session.query(ToolInfo).filter(ToolInfo.delete_flag != 'Y').all()
-        existing_tool_dict = {f"{tool.name}&{tool.source}": tool for tool in existing_tools}
+    try:
+        user_id, tenant_id = get_user_info()
+        tool_list = scan_tools()
+        with get_db_session() as session:
+            # get all existing tools (including complete information)
+            existing_tools = session.query(ToolInfo).filter(ToolInfo.delete_flag != 'Y').all()
+            existing_tool_dict = {f"{tool.name}&{tool.source}": tool for tool in existing_tools}
 
-        for tool in tool_list:
-            filtered_tool_data = filter_property(tool.__dict__, ToolInfo)
+            for tool in tool_list:
+                filtered_tool_data = filter_property(tool.__dict__, ToolInfo)
 
-            if f"{tool.name}&{tool.source}" in existing_tool_dict:
-                # by tool name and source to update the existing tool
-                existing_tool = existing_tool_dict[f"{tool.name}&{tool.source}"]
-                for key, value in filtered_tool_data.items():
-                    setattr(existing_tool, key, value)
-                existing_tool.updated_by = user_id
-            else:
-                # create new tool
-                filtered_tool_data.update({"created_by": tenant_id, "updated_by": tenant_id, "author": tenant_id})
-                new_tool = ToolInfo(**filtered_tool_data)
-                session.add(new_tool)
+                if f"{tool.name}&{tool.source}" in existing_tool_dict:
+                    # by tool name and source to update the existing tool
+                    existing_tool = existing_tool_dict[f"{tool.name}&{tool.source}"]
+                    for key, value in filtered_tool_data.items():
+                        setattr(existing_tool, key, value)
+                    existing_tool.updated_by = user_id
+                else:
+                    # create new tool
+                    filtered_tool_data.update({"created_by": tenant_id, "updated_by": tenant_id, "author": tenant_id})
+                    new_tool = ToolInfo(**filtered_tool_data)
+                    session.add(new_tool)
 
-        session.flush()
+            session.flush()
+        logging.info("Updated tool table in PG database")
+    except Exception as e:
+        logging.error(f"Updated tool table failed due to {e}")
+
 
 def save_agent_prompt(agent_id: int, prompt: str, tenant_id: str = None, user_id: str = None):
     """
