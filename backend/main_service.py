@@ -7,7 +7,6 @@ load_dotenv()
 
 from apps.base_app import app
 from utils.logging_utils import configure_elasticsearch_logging
-from database.agent_db import update_tool_table_from_scan_tool_list
 
 # Configure logging
 configure_elasticsearch_logging()
