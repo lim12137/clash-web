@@ -15,10 +15,11 @@ from database.agent_db import (
     search_tools_for_sub_agent
 )
 
-class AgentCreateFactory:
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("agent factory")
 
+
+class AgentCreateFactory:
     def __init__(self, mcp_tool_collection, observer:MessageObserver):
         """
         init the agent create factory   
@@ -92,11 +93,11 @@ class AgentCreateFactory:
     def create_tool(self, tool_config):
         """create a tool instance according to the tool config"""
         try:
+            class_name = tool_config.get("class_name")
+            params = tool_config.get("params", {})
+            source = tool_config.get("source")
+            model_name = tool_config.get("model", None)
             try:
-                class_name = tool_config.get("class_name")
-                params = tool_config.get("params", {})
-                source = tool_config.get("source")
-                model_name = tool_config.get("model", None)
                 if model_name is not None:
                     model = self.get_model(model_name)
                     params["model"] = model
@@ -153,7 +154,7 @@ class AgentCreateFactory:
         try:
             main_agent_info = search_agent_info_by_agent_id(agent_id, tenant_id, user_id)
         except Exception as e:
-            self.logger.error(f"create_from_db error in search_agent_info_by_agent_id_api, detail: {e}")
+            logger.error(f"create_from_db error in search_agent_info_by_agent_id_api, detail: {e}")
             raise ValueError(f"create_from_db error in search_agent_info_by_agent_id_api, detail: {e}")
         if not main_agent_info:
             raise ValueError(f"Agent with id {agent_id} not found")
