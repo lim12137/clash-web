@@ -9,7 +9,7 @@ router = APIRouter(prefix="/tool")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("tool config")
 
 
 @router.get("/list")

@@ -10,7 +10,7 @@ from ..utils import MessageObserver, ProcessType
 from ..utils.tools_common_message import SearchResultTextMessage
 
 # Get logger instance
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("exa_search tool")
 
 
 class EXASearchTool(Tool):
