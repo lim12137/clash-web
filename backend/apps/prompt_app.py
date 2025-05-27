@@ -1,5 +1,5 @@
 from fastapi import HTTPException, APIRouter, Header
-from services.prompt_service import generate_system_prompt_impl, fine_tune_prompt, save_prompt_impl
+from services.prompt_service import generate_and_save_system_prompt_impl, fine_tune_prompt, save_prompt_impl
 import logging
 from consts.model import GeneratePromptRequest, FineTunePromptRequest, SavePromptRequest
 
@@ -11,9 +11,9 @@ logger = logging.getLogger("prompt app")
 
 
 @router.post("/generate")
-async def generate_system_prompt_api(request: GeneratePromptRequest):
+async def generate_and_save_system_prompt_api(request: GeneratePromptRequest):
     try:
-        system_prompt = generate_system_prompt_impl(agent_id=request.agent_id, task_description=request.task_description)
+        system_prompt = generate_and_save_system_prompt_impl(agent_id=request.agent_id, task_description=request.task_description)
         return {"success": True, "data": system_prompt}
     except Exception as e:
         logger.exception(f"Error occurred while generating system prompt: {e}")
