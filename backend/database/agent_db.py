@@ -264,8 +264,7 @@ def query_tools_by_ids(tool_id_list: List[int]):
         tools = session.query(ToolInfo).filter(ToolInfo.tool_id.in_(tool_id_list)).filter(ToolInfo.delete_flag != 'Y').all()
         return [as_dict(tool) for tool in tools]
 
-
-def query_all_tool_instances(tenant_id: str, user_id: str = None, agent_id: int = None):
+def query_all_enabled_tool_instances(tenant_id: str, user_id: str = None, agent_id: int = None):
     """
     Query ToolInstance in the database based on tenant_id and agent_id, optional user_id.
     :param tenant_id: Tenant ID for filtering, mandatory

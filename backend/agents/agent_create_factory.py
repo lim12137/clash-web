@@ -62,7 +62,7 @@ class AgentCreateFactory:
                 env_value = config_manager.get_config(match, "")
                 value = value.replace(f"${{{match}}}", env_value)
                 
-            # 如果值看起来像是JSON数组，尝试解析它
+            # if the value looks like a JSON array, try to parse it
             if value.startswith("[") and value.endswith("]"):
                 try:
                     value = json.loads(value)
