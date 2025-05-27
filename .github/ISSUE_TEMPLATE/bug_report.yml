@@ -1,8 +1,8 @@
 name: 'Bug Report'
 description: 'Report errors or unexpected behavior'
 title: '[Bug] '
-labels: ['unconfirm']
 type: Bug
+labels: ['unconfirm']
 body:
   - type: markdown
     attributes:
