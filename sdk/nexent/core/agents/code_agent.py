@@ -54,7 +54,6 @@ class CoreAgent(CodeAgent):
             # 记录解析结果
             self.observer.add_message(self.agent_name, ProcessType.PARSE, code_action)
 
-
         except Exception as e:
             error_msg = f"Error in code parsing:\n{e}\nMake sure to provide correct code blobs."
             raise AgentParsingError(error_msg, self.logger)

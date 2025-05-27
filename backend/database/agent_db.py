@@ -7,7 +7,7 @@ from utils.agent_utils import scan_tools
 from database.client import get_db_session, as_dict, filter_property
 from database.db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
 
-def search_agent_info_by_agent_id_api(agent_id: int, tenant_id: str, user_id: str = None):
+def search_agent_info_by_agent_id(agent_id: int, tenant_id: str, user_id: str = None):
     """
     Search agent info by agent_id
     """
@@ -35,7 +35,6 @@ def search_agent_info_by_agent_id_api(agent_id: int, tenant_id: str, user_id: st
         agent_dict.update(as_dict(user_agent_info))
         return agent_dict
 
-
 def search_sub_agent_by_main_agent_id(main_agent_id: int, tenant_id: str = None):
     """
     Search sub agent by main agent id， if the sub agent is not created, then create a blank placeholder
@@ -51,39 +50,6 @@ def search_sub_agent_by_main_agent_id(main_agent_id: int, tenant_id: str = None)
             return sub_agent.agent_id
         else:
             return None
-
-def update_tools(tools):
-    """
-    Update the ToolInfo table based on the provided list of tools.
-
-    :param tools: List of dictionaries representing tools, each containing tool information
-    :return: None
-    """
-    with get_db_session() as session:
-        # Query all existing ToolInfo records from the database
-        existing_tools = {tool.name: tool for tool in session.query(ToolInfo).filter(ToolInfo.delete_flag != 'Y').all()}
-
-        tool_names_in_input = {tool['name'] for tool in tools}
-
-        # Handle new or updated tools
-        for tool in tools:
-            tool_name = tool['name']
-            if tool_name in existing_tools:
-                # Check if the tool needs to be updated
-                existing_tool = existing_tools[tool_name]
-                for key, value in tool.items():
-                    if hasattr(existing_tool, key) and getattr(existing_tool, key) != value:
-                        setattr(existing_tool, key, value)
-                existing_tool.delete_flag = 'N'
-            else:
-                # Insert new tool
-                new_tool = ToolInfo(**tool)
-                new_tool.delete_flag = 'N'
-                session.add(new_tool)
-
-        # Mark deleted tools
-        for name in set(existing_tools.keys()) - tool_names_in_input:
-            existing_tools[name].delete_flag = 'Y'
 
 def query_or_create_main_agent_id(tenant_id, user_id: str = None) -> int:
     """
@@ -210,32 +176,6 @@ def update_agent(agent_id, agent_info, tenant_id, user_id=None):
             setattr(agent, key, value)
         agent.updated_by = user_id
 
-
-def create_or_update_user_agent(agent_info, tenant_id: str = None, user_id: str = None):
-    """
-    Create or update a user agent in the database.
-    :param agent_info: Dictionary containing user agent information
-    :param tenant_id: Optional tenant ID for filtering
-    :param user_id: Optional user ID for merging
-    :return: Created or updated user agent object
-    """
-    with get_db_session() as session:
-        user_agent = session.query(UserAgent).filter(
-            UserAgent.tenant_id == tenant_id,
-            UserAgent.user_id == user_id,
-            UserAgent.agent_id == agent_info['agent_id'],
-            UserAgent.delete_flag != 'Y'
-        ).first()
-        if not user_agent:
-            new_user_agent = UserAgent(**agent_info)
-            new_user_agent.delete_flag = 'N'
-            session.add(new_user_agent)
-            session.flush()
-            return as_dict(new_user_agent)
-
-        for key, value in agent_info.items():
-            setattr(user_agent, key, value)
-
 def create_tool(tool_info):
     """
     Create ToolInstance in the database based on tenant_id and agent_id, optional user_id.
@@ -248,7 +188,7 @@ def create_tool(tool_info):
         new_tool_instance = ToolInstance(**filter_property(tool_info, ToolInstance))
         session.add(new_tool_instance)
 
-def create_or_update_tool(tool_info, tenant_id: str, user_id: str = None):
+def create_or_update_tool_by_tool_info(tool_info, tenant_id: str, user_id: str = None):
     """
     Create or update a ToolInstance in the database based on tenant_id and agent_id, optional user_id.
 
@@ -283,7 +223,7 @@ def create_or_update_tool(tool_info, tenant_id: str, user_id: str = None):
         session.flush()
         return tool_instance
 
-def query_tools():
+def query_all_tools():
     """
     Query ToolInfo in the database based on tenant_id and agent_id, optional user_id.
     :return: List of ToolInfo objects
@@ -325,7 +265,7 @@ def query_tools_by_ids(tool_id_list: List[int]):
         return [as_dict(tool) for tool in tools]
 
 
-def query_tool_instances(tenant_id: str, user_id: str = None, agent_id: int = None):
+def query_all_tool_instances(tenant_id: str, user_id: str = None, agent_id: int = None):
     """
     Query ToolInstance in the database based on tenant_id and agent_id, optional user_id.
     :param tenant_id: Tenant ID for filtering, mandatory
@@ -343,8 +283,7 @@ def query_tool_instances(tenant_id: str, user_id: str = None, agent_id: int = No
         tools = query.all()
         return [as_dict(tool) for tool in tools]
 
-
-def delete_agent(agent_id, tenant_id: str = None, user_id: str = None) -> bool:
+def delete_agent_by_id(agent_id, tenant_id: str = None, user_id: str = None):
     """
     Delete an agent in the database.
     :param agent_id: ID of the agent to delete
@@ -363,7 +302,6 @@ def delete_agent(agent_id, tenant_id: str = None, user_id: str = None) -> bool:
             session.query(UserAgent).filter(UserAgent.agent_id == agent_id,
                                             UserAgent.user_id == user_id).update(
             {'delete_flag': 'Y', 'updated_by': user_id})
-
 
 def update_tool_table_from_scan_tool_list():
     """
@@ -393,7 +331,6 @@ def update_tool_table_from_scan_tool_list():
 
         session.flush()
 
-
 def save_agent_prompt(agent_id: int, prompt: str, tenant_id: str = None, user_id: str = None):
     """
     Save or update the prompt for an agent in the database.
@@ -420,7 +357,6 @@ def save_agent_prompt(agent_id: int, prompt: str, tenant_id: str = None, user_id
         session.flush()
         return as_dict(agent)
 
-
 def add_tool_field(tool_info):
     with get_db_session() as session:
         # Query if there is an existing ToolInstance
@@ -438,7 +374,6 @@ def add_tool_field(tool_info):
         tool_info["source"] = tool.source
         tool_info["class_name"] = tool.class_name
         return tool_info
-
 
 def search_tools_for_sub_agent(agent_id, tenant_id, user_id: str = None):
     with get_db_session() as session:

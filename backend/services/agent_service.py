@@ -1,14 +1,12 @@
-from collections import defaultdict
-
 from fastapi import HTTPException
 from nexent.core.utils.agent_utils import agent_run_with_observer
 from smolagents import ToolCollection
 
 from consts.model import AgentInfoRequest
-from database.agent_db import create_agent, query_tool_instances, \
+from database.agent_db import create_agent, query_all_tool_instances, \
     query_or_create_main_agent_id, query_sub_agents, search_sub_agent_by_main_agent_id, \
-    search_tools_for_sub_agent, search_agent_info_by_agent_id_api, update_agent, delete_agent
-from utils.agent_create_factory import AgentCreateFactory
+    search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id
+from agents.agent_create_factory import AgentCreateFactory
 from utils.agent_utils import add_history_to_agent
 from utils.config_utils import config_manager
 from utils.user_utils import get_user_info
@@ -17,7 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str = None, user_id: str = None):
-    all_tool_instance = query_tool_instances(tenant_id=tenant_id, user_id=user_id, agent_id=agent_id)
+    all_tool_instance = query_all_tool_instances(tenant_id=tenant_id, user_id=user_id, agent_id=agent_id)
     enable_tool_id_set = set()
     for tool_instance in all_tool_instance:
         if tool_instance["enabled"]:
@@ -75,7 +73,7 @@ def agent_run_thread(observer, query, agent_id, tenant_id, user_id, history=None
         raise HTTPException(status_code=500, detail=f"MCP server not connected: {str(e)}")
 
 
-def list_main_agent_info_service():
+def list_main_agent_info_impl():
     user_id, tenant_id = get_user_info()
 
     try:
@@ -85,7 +83,7 @@ def list_main_agent_info_service():
         raise ValueError(f"Failed to get main agent id: {str(e)}")
         
     try:
-        main_agent_info = search_agent_info_by_agent_id_api(agent_id=main_agent_id, tenant_id=tenant_id, user_id=user_id)
+        main_agent_info = search_agent_info_by_agent_id(agent_id=main_agent_id, tenant_id=tenant_id, user_id=user_id)
     except Exception as e:
         logger.error(f"Failed to get main agent info: {str(e)}")
         raise ValueError(f"Failed to get main agent info: {str(e)}")
@@ -115,18 +113,18 @@ def list_main_agent_info_service():
     }
 
 
-def get_agent_info_service(agent_id: int):
+def get_agent_info_impl(agent_id: int):
     user_id, tenant_id = get_user_info()
     
     try:    
-        agent_info = search_agent_info_by_agent_id_api(agent_id, tenant_id, user_id)
+        agent_info = search_agent_info_by_agent_id(agent_id, tenant_id, user_id)
     except Exception as e:
         logger.error(f"Failed to get agent info: {str(e)}")
         raise ValueError(f"Failed to get agent info: {str(e)}")
 
     return agent_info
 
-def get_creating_sub_agent_info_service(agent_id: int):
+def get_creating_sub_agent_info_impl(agent_id: int):
     user_id, tenant_id = get_user_info()
     
     try:
@@ -136,7 +134,7 @@ def get_creating_sub_agent_info_service(agent_id: int):
         raise ValueError(f"Failed to get creating sub agent id: {str(e)}")
 
     try:
-        agent_info = search_agent_info_by_agent_id_api(agent_id=sub_agent_id, tenant_id=tenant_id, user_id=user_id)
+        agent_info = search_agent_info_by_agent_id(agent_id=sub_agent_id, tenant_id=tenant_id, user_id=user_id)
     except Exception as e:
         logger.error(f"Failed to get sub agent info: {str(e)}")
         raise ValueError(f"Failed to get sub agent info: {str(e)}")
@@ -154,7 +152,7 @@ def get_creating_sub_agent_info_service(agent_id: int):
             "business_description": agent_info["business_description"],
             "prompt": agent_info["prompt"]}
 
-def update_agent_info_service(request: AgentInfoRequest):
+def update_agent_info_impl(request: AgentInfoRequest):
     user_id, tenant_id = get_user_info()
     
     try:
@@ -163,11 +161,11 @@ def update_agent_info_service(request: AgentInfoRequest):
         logger.error(f"Failed to update agent info: {str(e)}")
         raise ValueError(f"Failed to update agent info: {str(e)}")
 
-def delete_agent_service(agent_id: int):
+def delete_agent_impl(agent_id: int):
     user_id, tenant_id = get_user_info()
 
     try:
-        delete_agent(agent_id, tenant_id, user_id)
+        delete_agent_by_id(agent_id, tenant_id, user_id)
     except Exception as e:
         logger.error(f"Failed to delete agent: {str(e)}")
         raise ValueError(f"Failed to delete agent: {str(e)}")
