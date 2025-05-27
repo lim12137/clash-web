@@ -20,7 +20,7 @@ from utils.user_utils import get_user_info
 router = APIRouter(prefix="/agent")
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("agent app")
 
 
 # Define API route
