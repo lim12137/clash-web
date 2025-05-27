@@ -27,18 +27,18 @@ class ThreadManager:
         self.lock = Lock()
 
     def add_thread(self, thread_id: str, thread: Thread):
-        """Add a new thread"""
+        """Add a new thread to the manager with its ID and start time"""
         with self.lock:
             self.active_threads[thread_id] = {'thread': thread, 'start_time': time.time()}
 
     def remove_thread(self, thread_id: str):
-        """Remove a thread"""
+        """Remove a thread from the manager by its ID"""
         with self.lock:
             if thread_id in self.active_threads:
                 del self.active_threads[thread_id]
 
     def stop_thread(self, thread_id: str):
-        """Stop a thread"""
+        """Stop a running thread by its ID and remove it from the manager"""
         with self.lock:
             if thread_id in self.active_threads:
                 thread_data = self.active_threads[thread_id]
@@ -51,7 +51,13 @@ thread_manager = ThreadManager()
 
 
 def add_history_to_agent(agent: CoreAgent, history: List[Dict]):
-    """Add conversation history to agent's memory"""
+    """
+    Add conversation history to agent's memory
+    
+    Args:
+        agent: The CoreAgent instance to update
+        history: List of conversation messages with role and content
+    """
     if not history:
         return
 
@@ -66,12 +72,24 @@ def add_history_to_agent(agent: CoreAgent, history: List[Dict]):
 
 
 def scan_tools() -> List[ToolInfo]:
+    """
+    Scan and gather all available tools from both local and MCP sources
+    
+    Returns:
+        List of ToolInfo objects containing tool metadata
+    """
     local_tools = get_local_tools()
     mcp_tools = get_mcp_tools()
     return local_tools+mcp_tools
 
 
 def get_local_tools() -> List[ToolInfo]:
+    """
+    Get metadata for all locally available tools
+    
+    Returns:
+        List of ToolInfo objects for local tools
+    """
     tools_info = []
     tools_classes = get_local_tools_classes()
     for tool_class in tools_classes:
@@ -119,6 +137,12 @@ def get_local_tools() -> List[ToolInfo]:
 
 
 def get_local_tools_classes() -> List[type]:
+    """
+    Get all tool classes from the nexent.core.tools package
+    
+    Returns:
+        List of tool class objects
+    """
     tools_package = importlib.import_module('nexent.core.tools')
     tools_classes = []
     for name in dir(tools_package):
@@ -129,6 +153,12 @@ def get_local_tools_classes() -> List[type]:
 
 
 def get_mcp_tools() -> List[ToolInfo]:
+    """
+    Get metadata for all tools available from the MCP service
+    
+    Returns:
+        List of ToolInfo objects for MCP tools, or empty list if connection fails
+    """
     mcp_service = config_manager.get_config("MCP_SERVICE")
     try:
         with ToolCollection.from_mcp({"url": mcp_service}) as tool_collection:
