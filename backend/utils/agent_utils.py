@@ -7,7 +7,7 @@ import json
 from pydantic_core import PydanticUndefined
 
 from threading import Lock, Thread
-from typing import List, Dict
+from typing import List, Dict, Any
 
 from nexent.core.agents import CoreAgent
 from smolagents import TaskStep, ActionStep, ToolCollection
@@ -16,7 +16,43 @@ from utils.config_utils import config_manager
 from consts.model import ToolSourceEnum, ToolInfo
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("agent_util")
+
+
+def python_type_to_json_schema(annotation: Any) -> str:
+    """
+    Convert Python type annotations to JSON Schema types
+    
+    Args:
+        annotation: Python type annotation
+        
+    Returns:
+        Corresponding JSON Schema type string
+    """
+    # Handle case with no type annotation
+    if annotation == inspect.Parameter.empty:
+        return "string"
+        
+    # Get type name
+    type_name = getattr(annotation, "__name__", str(annotation))
+    
+    # Type mapping dictionary
+    type_mapping = {
+        "str": "string",
+        "int": "integer",
+        "float": "float",
+        "bool": "boolean",
+        "list": "array",
+        "List": "array",
+        "tuple": "array",
+        "Tuple": "array",
+        "dict": "object",
+        "Dict": "object",
+        "Any": "any"
+    }
+    
+    # Return mapped type, or original type name if no mapping exists
+    return type_mapping.get(type_name, type_name)
 
 
 class ThreadManager:
@@ -98,19 +134,9 @@ def get_local_tools() -> List[ToolInfo]:
         for param_name, param in sig.parameters.items():
             if param_name == "self" or param.default.exclude:
                 continue
-            type_trans = {
-                "str": "string",
-                "int": "integer",
-                "float": "float",
-                "bool": "boolean",
-                "list": "array",
-                "List": "array",
-                "dict": "object",
-                "Dict": "object"
-            }
+            
             param_info = {
-                "type": "string" if param.annotation == inspect.Parameter.empty else type_trans.get(
-                    param.annotation.__name__, param.annotation.__name__),
+                "type": python_type_to_json_schema(param.annotation),
                 "name": param_name,
                 "description": param.default.description
             }
