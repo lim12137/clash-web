@@ -116,7 +116,7 @@ def scan_tools() -> List[ToolInfo]:
     """
     local_tools = get_local_tools()
     mcp_tools = get_mcp_tools()
-    return local_tools+mcp_tools
+    return local_tools + mcp_tools
 
 
 def get_local_tools() -> List[ToolInfo]:

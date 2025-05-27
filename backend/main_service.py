@@ -17,8 +17,4 @@ logger = logging.getLogger("main service")
 
 if __name__ == "__main__":
     # scan tools and update to database
-    try:
-        update_tool_table_from_scan_tool_list()
-    except Exception as e:
-        logger.error(f"Error updating tool table: {e}")
     uvicorn.run(app, host="0.0.0.0", port=5010, access_log=False)
