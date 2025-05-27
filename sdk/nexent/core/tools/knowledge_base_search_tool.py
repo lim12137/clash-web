@@ -9,8 +9,7 @@ from ..utils.tools_common_message import SearchResultTextMessage
 from pydantic import Field
 
 class KnowledgeBaseSearchTool(Tool):
-    """支持中英文的知识库检索工具。
-    """
+    """Knowledge base search tool supporting Chinese and English"""
     name = "knowledge_base_search"
     description = "Performs a local knowledge base search based on your query then returns the top search results. " \
                   "A tool for retrieving internal company documents, policies, processes and proprietary information. Use this tool when users ask questions related to internal company matters, product details, organizational structure, internal processes, or confidential information. " \
@@ -20,7 +19,7 @@ class KnowledgeBaseSearchTool(Tool):
     inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"
 
-    tool_sign = "a"  # 用于给总结区分不同的索引来源
+    tool_sign = "a"  # Used to distinguish different index sources for summaries
 
     base_url = "http://localhost:5010/api"
     index_names = []
@@ -39,7 +38,7 @@ class KnowledgeBaseSearchTool(Tool):
         super().__init__()
         self.top_k = top_k
         self.observer = observer
-        self.record_ops = 0  # 用于记录序号
+        self.record_ops = 0  # To record serial number
         self.running_prompt = "知识库检索中..."
 
     def update_search_index_names(self, index_names: List[str]):
@@ -49,7 +48,7 @@ class KnowledgeBaseSearchTool(Tool):
         self.base_url = base_url
 
     def forward(self, query: str) -> str:
-        # 发送工具运行消息
+        # Send tool run message
         self.observer.add_message("", ProcessType.TOOL, self.running_prompt)
         card_content = [{"icon": "search", "text": query}]
         self.observer.add_message("", ProcessType.CARD, json.dumps(card_content, ensure_ascii=False))
@@ -66,8 +65,8 @@ class KnowledgeBaseSearchTool(Tool):
         if not kb_search_results:
             raise Exception("No results found! Try a less restrictive/shorter query.")
 
-        search_results_json = []  # 将检索结果整理成统一格式
-        search_results_return = []  # 输入给大模型的格式
+        search_results_json = []  # Organize search results into a unified format
+        search_results_return = []  # Format for input to the large model
         for index, single_search_result in enumerate(kb_search_results):
             search_result_message = SearchResultTextMessage(title=single_search_result.get("title", ""),
                 text=single_search_result.get("content", ""), source_type=single_search_result.get("source_type", ""),
@@ -81,7 +80,7 @@ class KnowledgeBaseSearchTool(Tool):
 
         self.record_ops += len(search_results_return)
 
-        # 记录本次检索的详细内容
+        # Record the detailed content of this search
         if self.observer:
             search_results_data = json.dumps(search_results_json, ensure_ascii=False)
             self.observer.add_message("", ProcessType.SEARCH_CONTENT, search_results_data)
