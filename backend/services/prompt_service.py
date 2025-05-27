@@ -9,9 +9,10 @@ from smolagents.agents import populate_template
 from jinja2 import StrictUndefined, Template
 from dotenv import load_dotenv
 
-from consts.model import GeneratePromptRequest, FineTunePromptRequest, AgentDetailInformation, AgentInfoRequest
-from services.tool_configuration_service import get_tool_detail_information
-from database.agent_db import query_all_tool_instances, query_sub_agents, save_agent_prompt, update_agent
+from consts.model import FineTunePromptRequest, AgentDetailInformation, AgentInfoRequest
+from services.agent_service import get_enable_tool_id_by_agent_id
+from database.agent_db import query_sub_agents, save_agent_prompt, update_agent, \
+    query_tools_by_ids
 from utils.prompt_utils import fill_agent_prompt
 from utils.user_utils import get_user_info
 
@@ -50,14 +51,19 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str) -> str:
         raise e
 
 
-def generate_system_prompt_impl(prompt_info: GeneratePromptRequest):
-    logger.info(f"Starting prompt generation for agent_id: {prompt_info.agent_id}")
+def generate_system_prompt_impl(agent_id: int, task_description: str):
+    logger.info(f"Starting prompt generation for agent_id: {agent_id}")
     user_id, tenant_id = get_user_info()
     with open('backend/prompts/utils/prompt_generate.yaml', "r", encoding="utf-8") as f:
         prompt_for_generate = yaml.safe_load(f)
 
     # Get description of tool and agent
-    tool_info_list, sub_agent_info_list = get_tool_and_agent_description(tenant_id, prompt_info, user_id)
+    tool_info_list = get_enabled_tool_description_for_generate_prompt(tenant_id=tenant_id,
+                                                                      agent_id=agent_id,
+                                                                      user_id=user_id)
+    sub_agent_info_list = get_enabled_sub_agent_description_for_generate_prompt(tenant_id=tenant_id,
+                                                                      agent_id=agent_id,
+                                                                      user_id=user_id)
     tool_description = "\n".join([str(tool) for tool in tool_info_list])
     agent_description = "\n".join([str(sub_agent_info) for sub_agent_info in sub_agent_info_list])
 
@@ -66,7 +72,7 @@ def generate_system_prompt_impl(prompt_info: GeneratePromptRequest):
     content = compiled_template.render({
         "tool_description": tool_description,
         "agent_description": agent_description,
-        "task_description": prompt_info.task_description
+        "task_description": task_description
     })
 
     # Generate prompts using thread pool
@@ -93,7 +99,7 @@ def generate_system_prompt_impl(prompt_info: GeneratePromptRequest):
     system_prompt = populate_template(
         need_filled_system_prompt,
         variables={
-            "tools": {tool.name: tool for tool in tool_info_list},
+            "tools": {tool.get("name"): tool for tool in tool_info_list},
             "managed_agents": {sub_agent.name: sub_agent for sub_agent in sub_agent_info_list},
             "authorized_imports": str(BASE_BUILTIN_MODULES),
         },
@@ -102,12 +108,12 @@ def generate_system_prompt_impl(prompt_info: GeneratePromptRequest):
     # Update agent with task_description and prompt
     logger.info("Updating agent with business_description and prompt")
     agent_info = AgentInfoRequest(
-        agent_id=prompt_info.agent_id,
-        business_description=prompt_info.task_description,
+        agent_id=agent_id,
+        business_description=task_description,
         prompt=system_prompt
     )
     update_agent(
-        agent_id=prompt_info.agent_id,
+        agent_id=agent_id,
         agent_info=agent_info,
         tenant_id=tenant_id,
         user_id=user_id
@@ -116,22 +122,15 @@ def generate_system_prompt_impl(prompt_info: GeneratePromptRequest):
     logger.info("Prompt generation and agent update completed successfully")
     return system_prompt
 
-
-def get_tool_and_agent_description(tenant_id, prompt_info, user_id: str = None):
-
-    logger.info(f"Processing for tenant_id: {tenant_id}")
-
+def get_enabled_tool_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
     # Get tool information
     logger.info("Fetching tool instances")
-    tool_list = query_all_tool_instances(tenant_id=tenant_id, agent_id=prompt_info.agent_id)
-    logger.info(f"Found {len(tool_list)} tool instances")
+    tool_id_list = get_enable_tool_id_by_agent_id(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
+    tool_info_list = query_tools_by_ids(tool_id_list)
+    return tool_info_list
 
-    tool_id_list = [tool.get("tool_id") for tool in tool_list]
-    tool_info_list = get_tool_detail_information(tool_id_list)
-
-    # Get agent information
+def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
     logger.info("Fetching sub-agents information")
-    agent_id = prompt_info.agent_id
     sub_agent_raw_info_list = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
 
     logger.info(f"Found {len(sub_agent_raw_info_list)} sub-agents")
@@ -144,8 +143,7 @@ def get_tool_and_agent_description(tenant_id, prompt_info, user_id: str = None):
         agent_detail_information.name = sub_agent_raw_info.get("name")
         agent_detail_information.description = sub_agent_raw_info.get("description")
         sub_agent_info_list.append(agent_detail_information)
-
-    return tool_info_list, sub_agent_info_list
+    return sub_agent_info_list
 
 
 def fine_tune_prompt(req: FineTunePromptRequest):

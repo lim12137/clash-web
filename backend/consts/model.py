@@ -23,11 +23,13 @@ class ModelConnectStatusEnum(Enum):
             return cls.NOT_DETECTED.value
         return status
 
+
 # Response models for user management
 class ServiceResponse(BaseModel):
     code: int
     message: str
     data: Optional[Any] = None
+
 
 # Response models for model management
 class ModelResponse(BaseModel):
@@ -36,7 +38,6 @@ class ModelResponse(BaseModel):
     data: Any
 
 
-# Request models
 class ModelRequest(BaseModel):
     model_factory: Optional[str] = 'OpenAI-API-Compatible'
     model_name: str
@@ -104,7 +105,6 @@ class AgentRequest(BaseModel):
     is_debug: Optional[bool] = False
 
 
-# Request and response models
 class MessageUnit(BaseModel):
     type: str
     content: str
@@ -247,21 +247,10 @@ class SubAgent(BaseModel):
     def __str__(self):
         return f"- {self.name}: {self.description}"
 
-
+# used in prompt/generate request
 class GeneratePromptRequest(BaseModel):
     task_description: str
     agent_id: int
-    sub_agent_list: Optional[List[SubAgent]] = Field(default_factory=list)
-
-
-class ToolDetailInformation:
-    name: str
-    description: str
-    inputs: str
-    output_type: str
-
-    def __str__(self):
-        return f"- {self.name}: {self.description} \n  接受输入: {self.inputs}\n  返回输出类型: {self.output_type}"
 
 
 class AgentDetailInformation:
@@ -331,10 +320,12 @@ class ToolInfo(BaseModel):
     class_name: str
 
 
+# used in prompt/save request
 class SavePromptRequest(BaseModel):
     agent_id: int
     prompt: str
 
 
+# used in Knowledge Summary request
 class ChangeSummaryRequest(BaseModel):
     summary_result: str

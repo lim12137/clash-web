@@ -3,7 +3,7 @@ from nexent.core.utils.agent_utils import agent_run_with_observer
 from smolagents import ToolCollection
 
 from consts.model import AgentInfoRequest
-from database.agent_db import create_agent, query_all_tool_instances, \
+from database.agent_db import create_agent, query_all_enabled_tool_instances, \
     query_or_create_main_agent_id, query_sub_agents, search_sub_agent_by_main_agent_id, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id
 from agents.agent_create_factory import AgentCreateFactory
@@ -15,7 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str = None, user_id: str = None):
-    all_tool_instance = query_all_tool_instances(tenant_id=tenant_id, user_id=user_id, agent_id=agent_id)
+    all_tool_instance = query_all_enabled_tool_instances(tenant_id=tenant_id, user_id=user_id, agent_id=agent_id)
     enable_tool_id_set = set()
     for tool_instance in all_tool_instance:
         if tool_instance["enabled"]:
