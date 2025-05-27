@@ -1,8 +1,9 @@
 from fastapi import HTTPException, APIRouter
 import logging
-from database.agent_db import create_or_update_tool, query_tools, query_tool_instances_by_id
+from database.agent_db import query_all_tools
 from consts.model import ToolInstanceInfoRequest, ToolInstanceSearchRequest
-from utils.user_utils import get_user_info
+from services.tool_configuration_service import search_tool_info_impl, update_tool_info_impl
+
 
 router = APIRouter(prefix="/tool")
 
@@ -17,42 +18,27 @@ async def list_tools_api():
     List all system tools from PG dataset
     """
     try:
-        return query_tools()
+        return query_all_tools()
     except Exception as e:
         logging.error(f"Failed to get tool info, error in: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get tool info, error in: {str(e)}")
 
 @router.post("/search")
-async def update_tool_info_api(request: ToolInstanceSearchRequest):
+async def search_tool_info_api(request: ToolInstanceSearchRequest):
     try:
-        user_id, tenant_id = get_user_info()
-        tool_instance = query_tool_instances_by_id(request.agent_id, request.tool_id, tenant_id, user_id)
-        if tool_instance:
-            return {
-                "params": tool_instance["params"],
-                "enabled": tool_instance["enabled"]
-            }
-        else:
-            return {
-                "params": None,
-                "enabled": False
-            }
+        return search_tool_info_impl(request.agent_id, request.tool_id)
     except Exception as e: 
         logging.error(f"Failed to update tool, error in: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to update tool, error in: {str(e)}")
 
 
 @router.post("/update")
-async def update_tool_info(request: ToolInstanceInfoRequest):
+async def update_tool_info_api(request: ToolInstanceInfoRequest):
     """
     Update an existing tool, create or update tool instance
     """
     try:
-        user_id, tenant_id = get_user_info()
-        tool_instance = create_or_update_tool(request, tenant_id, user_id)
-        return {
-            "tool_instance": tool_instance
-        }
+        return update_tool_info_impl(request)
     except Exception as e:
         logging.error(f"Failed to update tool, error in: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to update tool, error in: {str(e)}")

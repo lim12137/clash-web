@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 from consts.model import GeneratePromptRequest, FineTunePromptRequest, AgentDetailInformation, AgentInfoRequest
 from services.tool_configuration_service import get_tool_detail_information
-from database.agent_db import query_tool_instances, query_sub_agents, save_agent_prompt, update_agent
+from database.agent_db import query_all_tool_instances, query_sub_agents, save_agent_prompt, update_agent
 from utils.prompt_utils import fill_agent_prompt
 from utils.user_utils import get_user_info
 
@@ -123,7 +123,7 @@ def get_tool_and_agent_description(tenant_id, prompt_info, user_id: str = None):
 
     # Get tool information
     logger.info("Fetching tool instances")
-    tool_list = query_tool_instances(tenant_id=tenant_id, agent_id=prompt_info.agent_id)
+    tool_list = query_all_tool_instances(tenant_id=tenant_id, agent_id=prompt_info.agent_id)
     logger.info(f"Found {len(tool_list)} tool instances")
 
     tool_id_list = [tool.get("tool_id") for tool in tool_list]

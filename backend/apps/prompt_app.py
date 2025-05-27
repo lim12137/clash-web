@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/generate")
-async def generate_system_prompt_service(request: GeneratePromptRequest):
+async def generate_system_prompt_api(request: GeneratePromptRequest):
     try:
         system_prompt = generate_system_prompt_impl(request)
         return {"success": True, "data": system_prompt}
@@ -21,7 +21,7 @@ async def generate_system_prompt_service(request: GeneratePromptRequest):
 
 
 @router.post("/fine_tune")
-async def fine_tune_system_prompt_service(request: FineTunePromptRequest):
+async def fine_tune_system_prompt_api(request: FineTunePromptRequest):
     try:
         system_prompt = fine_tune_prompt(request)
         return {"success": True, "data": system_prompt}
@@ -31,7 +31,7 @@ async def fine_tune_system_prompt_service(request: FineTunePromptRequest):
 
 
 @router.post("/save")
-async def save_prompt_service(request: SavePromptRequest):
+async def save_prompt_api(request: SavePromptRequest):
     try:
         result = save_prompt_impl(request.agent_id, request.prompt)
         return {"success": True, "data": result}
