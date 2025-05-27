@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 @router.post("/generate")
 async def generate_system_prompt_api(request: GeneratePromptRequest):
     try:
-        system_prompt = generate_system_prompt_impl(request)
+        system_prompt = generate_system_prompt_impl(agent_id=request.agent_id, task_description=request.task_description)
         return {"success": True, "data": system_prompt}
     except Exception as e:
         logger.exception(f"Error occurred while generating system prompt: {e}")
