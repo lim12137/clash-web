@@ -347,11 +347,18 @@ export const conversationService = {
     throw new ApiError(data.code, data.message);
   },
 
-  // 根据对话ID和消息索引获取消息ID
+  // Get message_id by conversationId and messageIndex
   async getMessageId(conversationId: number, messageIndex: number) {
-    const response = await fetch(API_ENDPOINTS.conversation.messageId(conversationId, messageIndex), {
-      method: 'GET',
-      headers: getAuthHeaders(),
+    const response = await fetch(API_ENDPOINTS.conversation.messageId, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        message_index: messageIndex
+      })
     });
 
     const data = await response.json();

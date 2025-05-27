@@ -2,8 +2,10 @@ import logging
 from typing import Dict, Any, Optional
 
 from fastapi import HTTPException, APIRouter, Header
+from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
 
-from consts.model import ConversationResponse, ConversationRequest, RenameRequest, GenerateTitleRequest, OpinionRequest
+from consts.model import ConversationResponse, ConversationRequest, RenameRequest, GenerateTitleRequest, OpinionRequest, MessageIdRequest
 from services.conversation_management_service import (
     create_new_conversation,
     get_conversation_list_service,
@@ -205,21 +207,23 @@ async def update_opinion_endpoint(request: OpinionRequest, authorization: Option
             raise e
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/message/id/{conversation_id}/{message_index}", response_model=ConversationResponse)
-async def get_message_id_endpoint(conversation_id: int, message_index: int, authorization: Optional[str] = Header(None)):
+
+@router.post("/message/id", response_model=ConversationResponse)
+async def get_message_id_endpoint(request: MessageIdRequest):
     """
     Get message ID by conversation ID and message index
 
     Args:
-        conversation_id: Conversation ID
-        message_index: Message index
+        request: MessageIdRequest object containing:
+            - conversation_id: Conversation ID
+            - message_index: Message index
         authorization: Authorization header
 
     Returns:
         ConversationResponse object containing message_id
     """
     try:
-        message_id = get_message_id_by_index(conversation_id, message_index)
+        message_id = get_message_id_by_index(request.conversation_id, request.message_index)
         if message_id is None:
             raise HTTPException(status_code=404, detail="Message not found")
 
