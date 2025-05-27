@@ -117,11 +117,10 @@ class AgentCreateFactory:
                         tools_obj.update_search_index_names(
                             json.loads(config_manager.get_config("SELECTED_KB_NAMES", [])))
             elif source == "mcp":
-                tools_obj = None
-                for tool in self.mcp_tool_collection.tools:
-                    if tool.name == class_name:
-                        tools_obj = tool
-                        break
+                tools_obj = next(
+                    (tool for tool in self.mcp_tool_collection.tools if tool.name == class_name), 
+                    None
+                )
                 if tools_obj is None:
                     raise ValueError(f"{class_name} not found in MCP server")
 
