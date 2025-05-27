@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP, Sequence, Numeric
+from sqlalchemy import Column, Integer, String, TIMESTAMP, Sequence, Numeric, JSON, Boolean, Text
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import func
+
+SCHEMA="nexent"
 
 class TableBase(DeclarativeBase):
     create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time")
