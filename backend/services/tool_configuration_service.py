@@ -5,7 +5,7 @@ from consts.model import ToolInstanceInfoRequest
 from utils.user_utils import get_user_info
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("tool config")
 
 def search_tool_info_impl(agent_id: int, tool_id: int):
     user_id, tenant_id = get_user_info()

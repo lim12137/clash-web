@@ -12,7 +12,7 @@ from utils.config_utils import config_manager
 from utils.user_utils import get_user_info
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("agent service")
 
 def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str = None, user_id: str = None):
     all_tool_instance = query_all_enabled_tool_instances(tenant_id=tenant_id, user_id=user_id, agent_id=agent_id)
