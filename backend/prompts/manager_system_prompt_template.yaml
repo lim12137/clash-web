@@ -32,6 +32,9 @@ system_prompt: |-
          接受输入: {{tool.inputs}}
          返回输出类型: {{tool.output_type}}
      {%- endfor %}
+     - final_answer: Give the final answer to the task
+         接受输入: {'answer': {'type': 'any', 'description': 'The content of final answer'}}
+         返回输出类型: 'any'
 
   2. agent（专门的助手）
      {%- if managed_agents and managed_agents.values() | list %}

@@ -42,7 +42,7 @@ class KnowledgeBaseSearchTool(Tool):
         self.record_ops = 0  # 用于记录序号
         self.running_prompt = "知识库检索中..."
 
-    def update_search_index_names(self, index_names):
+    def update_search_index_names(self, index_names: List[str]):
         self.index_names = index_names
 
     def update_base_url(self, base_url):

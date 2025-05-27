@@ -9,15 +9,16 @@ from nexent.core.utils import MessageObserver
 from nexent.core.tools import *  # Do not delete
 
 from utils.config_utils import config_manager
-from utils.prompt_utils import load_prompt_templates
 from database.agent_db import (
-    search_agent_info_by_agent_id_api,
+    search_agent_info_by_agent_id,
     query_sub_agents,
     search_tools_for_sub_agent
 )
 
-
 class AgentCreateFactory:
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
     def __init__(self, mcp_tool_collection, observer:MessageObserver):
         """
         init the agent create factory   
@@ -30,25 +31,26 @@ class AgentCreateFactory:
             raise ValueError("must provide a ConfigManager instance")
             
         self.observer = observer
-        self.models = {}
+        self.models_params = dict()
+        self.init_models_params()
         self.mcp_tool_collection = mcp_tool_collection
 
-    def init_models(self):
+    def init_models_params(self):
         # Main model
-        self.models["main_model"] = self.create_model({
+        self.models_params["main_model"] = {
             "model_id": config_manager.get_config("LLM_MODEL_NAME", ""),
             "api_key": config_manager.get_config("LLM_API_KEY", ""),
             "api_base": config_manager.get_config("LLM_MODEL_URL", ""),
             "temperature": 0.1
-        })
+        }
 
         # Sub model
-        self.models["sub_model"] = self.create_model({
+        self.models_params["sub_model"] = {
             "model_id": config_manager.get_config("LLM_SECONDARY_MODEL_NAME", ""),
             "api_key": config_manager.get_config("LLM_SECONDARY_API_KEY", ""),
             "api_base": config_manager.get_config("LLM_SECONDARY_MODEL_URL", ""),
             "temperature": 0.1
-        })
+        }
 
     @staticmethod
     def _replace_env_vars(value):
@@ -111,7 +113,8 @@ class AgentCreateFactory:
                         tools_obj.observer = self.observer
 
                     if class_name == "KnowledgeBaseSearchTool":
-                        tools_obj.update_search_index_names(config_manager.get_config("SELECTED_KB_NAMES"))
+                        tools_obj.update_search_index_names(
+                            json.loads(config_manager.get_config("SELECTED_KB_NAMES", [])))
             elif source == "mcp":
                 tools_obj = None
                 for tool in self.mcp_tool_collection.tools:
@@ -130,39 +133,10 @@ class AgentCreateFactory:
             return None
 
     def get_model(self, model_name):
-        model = self.models.get(model_name, "main_model")
+        model = self.create_model(self.models_params.get(model_name, "main_model"))
         if model is None:
             print(f"Error: {model_name} is not found!")
         return model
-    
-    def create_from_json(self, json_config_path):
-        """create an agent from a JSON file
-        
-        Args:
-            json_config_path:
-        """
-        # 加载JSON配置
-        with open(json_config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
-        
-        # process the environment variables
-        config = self._process_config_values(config)
-        
-        # create models
-        for model_name, model_config in config.get("models", {}).items():
-            self.models[model_name] = self.create_model(model_config)
-        
-        # create managed agents
-        managed_agents = []
-        for agent_config in config.get("managed_agents", []):
-            agent = self.create_single_agent(agent_config=agent_config,
-                                             managed_agents=[])
-            managed_agents.append(agent)
-        
-        # create the main agent
-        main_agent = self.create_single_agent(agent_config=config.get("main_agent"),
-                                              managed_agents=managed_agents)
-        return main_agent
 
     def create_from_db(self, agent_id, tenant_id=None, user_id=None):
         """Create an agent from database information
@@ -175,10 +149,12 @@ class AgentCreateFactory:
         Returns:
             The created main agent with all its sub-agents and tools
         """
-        self.init_models()
-
         # Get the main agent info
-        main_agent_info = search_agent_info_by_agent_id_api(agent_id, tenant_id, user_id)
+        try:
+            main_agent_info = search_agent_info_by_agent_id(agent_id, tenant_id, user_id)
+        except Exception as e:
+            self.logger.error(f"create_from_db error in search_agent_info_by_agent_id_api, detail: {e}")
+            raise ValueError(f"create_from_db error in search_agent_info_by_agent_id_api, detail: {e}")
         if not main_agent_info:
             raise ValueError(f"Agent with id {agent_id} not found")
         
@@ -207,7 +183,7 @@ class AgentCreateFactory:
             agent_info=main_agent_info,
             tenant_id=tenant_id,
             user_id=user_id,
-            prompt_template_path="backend/prompts/manager_system_prompt_template.yaml"
+            prompt_template_path="backend/prompts/manager_system_prompt_template.yaml" if len(managed_agents) else "backend/prompts/managed_system_prompt_template.yaml"
         )
         
         # Create the main agent

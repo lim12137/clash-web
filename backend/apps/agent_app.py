@@ -9,8 +9,8 @@ from fastapi.responses import StreamingResponse
 from consts.model import AgentRequest, AgentInfoRequest, AgentIDRequest
 from nexent.core.utils.observer import MessageObserver
 from services.agent_service import query_or_create_main_agents_api, \
-    agent_run_thread, list_main_agent_info_service, get_agent_info_service, \
-    get_creating_sub_agent_info_service, update_agent_info_service, delete_agent_service
+    agent_run_thread, list_main_agent_info_impl, get_agent_info_impl, \
+    get_creating_sub_agent_info_impl, update_agent_info_impl, delete_agent_impl
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 from utils.agent_utils import thread_manager
 from utils.config_utils import config_manager
@@ -125,7 +125,7 @@ async def list_main_agent_info_api():
     List all agents, create if the main Agent cannot be found.
     """
     try:
-        return list_main_agent_info_service()
+        return list_main_agent_info_impl()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
 
@@ -136,7 +136,7 @@ async def get_agent_info_api(request: AgentInfoRequest):
     Search agent info by agent_id
     """
     try:
-        return get_agent_info_service(request.agent_id)
+        return get_agent_info_impl(request.agent_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent search info error: {str(e)}")
 
@@ -147,7 +147,7 @@ async def get_creating_sub_agent_info_api(request: AgentIDRequest):
     Create a new sub agent, return agent_ID
     """
     try:
-        return get_creating_sub_agent_info_service(request.agent_id)
+        return get_creating_sub_agent_info_impl(request.agent_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent create error: {str(e)}")
 
@@ -158,7 +158,7 @@ async def update_agent_info_api(request: AgentInfoRequest):
     Update an existing agent
     """
     try:
-        update_agent_info_service(request)
+        update_agent_info_impl(request)
         return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent update error: {str(e)}")
@@ -170,7 +170,7 @@ async def delete_agent_api(request: AgentIDRequest):
     Delete an agent
     """
     try:
-        delete_agent_service(request.agent_id)
+        delete_agent_impl(request.agent_id)
         return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent delete error: {str(e)}")
