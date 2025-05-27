@@ -74,7 +74,7 @@ export default function AgentConfig() {
         setEnabledToolIds(result.data.enabledToolIds);
         setEnabledAgentIds(result.data.enabledAgentIds);
         
-        // 更新新增字段对应的状态
+        // Update the status of the newly added fields
         if (result.data.modelName) {
           setMainAgentModel(result.data.modelName as OpenAIModel);
         }
@@ -104,7 +104,7 @@ export default function AgentConfig() {
     fetchAgents();
   }, []);
 
-  // 当工具列表加载完成时，检查并设置已启用的工具
+  // When the tool list is loaded, check and set the enabled tools
   useEffect(() => {
     if (tools.length > 0 && enabledToolIds.length > 0) {
       const enabledTools = tools.filter(tool => 
@@ -114,7 +114,7 @@ export default function AgentConfig() {
     }
   }, [tools, enabledToolIds]);
 
-  // 当 agent 列表加载完成时，检查并设置已选中的 agents
+  // When the agent list is loaded, check and set the selected agents
   useEffect(() => {
     if (subAgentList.length > 0 && enabledAgentIds.length > 0) {
       const enabledAgents = subAgentList.filter(agent => 

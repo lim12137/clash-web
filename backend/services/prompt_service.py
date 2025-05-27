@@ -1,4 +1,3 @@
-import os
 import concurrent.futures
 import logging
 
@@ -7,16 +6,13 @@ from smolagents import OpenAIServerModel
 from smolagents.utils import BASE_BUILTIN_MODULES
 from smolagents.agents import populate_template
 from jinja2 import StrictUndefined, Template
-from dotenv import load_dotenv
 
 from consts.model import GeneratePromptRequest, FineTunePromptRequest, AgentDetailInformation, AgentInfoRequest
 from services.tool_configuration_service import get_tool_detail_information
 from database.agent_db import query_all_tool_instances, query_sub_agents, save_agent_prompt, update_agent
 from utils.prompt_utils import fill_agent_prompt
 from utils.user_utils import get_user_info
-
-
-load_dotenv()
+from utils.config_utils import config_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -35,12 +31,15 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str) -> str:
     """
     logger.info("Calling LLM for system prompt generation")
 
-    llm = OpenAIServerModel(model_id=os.getenv('LLM_MODEL_NAME'),
-                            api_base=os.getenv('LLM_MODEL_URL'),
-                            api_key=os.getenv('LLM_API_KEY'), temperature=0.3, top_p=0.95)
+    llm = OpenAIServerModel(
+        model_id=config_manager.get_config('LLM_MODEL_NAME'),
+        api_base=config_manager.get_config('LLM_MODEL_URL'),
+        api_key=config_manager.get_config('LLM_API_KEY'),
+        temperature=0.3,
+        top_p=0.95
+    )
     messages = [{"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}]
-    
     try:
         response = llm(messages)
         logger.info("Successfully generated prompt from LLM")
