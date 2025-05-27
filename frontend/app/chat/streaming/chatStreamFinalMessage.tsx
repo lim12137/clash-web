@@ -74,7 +74,7 @@ export function ChatStreamFinalMessage({
     
     let messageId = message.message_id;
     
-    // 如果消息ID不存在，则通过getMessageId获取
+    // If the message_id does not exist, fetch/obtain it via getMessageId.
     if (!messageId && typeof currentConversationId === 'number' && typeof index === 'number') {
       try {
         messageId = await conversationService.getMessageId(currentConversationId, index);
