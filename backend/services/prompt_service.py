@@ -100,7 +100,7 @@ def generate_system_prompt_impl(agent_id: int, task_description: str):
         need_filled_system_prompt,
         variables={
             "tools": {tool.get("name"): tool for tool in tool_info_list},
-            "managed_agents": {sub_agent.name: sub_agent for sub_agent in sub_agent_info_list},
+            "managed_agents": {sub_agent.get("name"): sub_agent for sub_agent in sub_agent_info_list},
             "authorized_imports": str(BASE_BUILTIN_MODULES),
         },
     )
