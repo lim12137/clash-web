@@ -15,7 +15,7 @@ from utils.user_utils import get_user_info
 from utils.config_utils import config_manager
 
 # Configure logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("prompt service")
 
 
 def call_llm_for_system_prompt(user_prompt: str, system_prompt: str) -> str:

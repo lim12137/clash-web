@@ -12,7 +12,7 @@ from database.agent_db import update_tool_table_from_scan_tool_list
 # Configure logging
 configure_elasticsearch_logging()
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("main service")
 
 
 if __name__ == "__main__":
