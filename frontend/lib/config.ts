@@ -204,7 +204,7 @@ export class ConfigStore {
     // 适配 models 字段
     const models = backendConfig.models ? {
       llm: {
-        modelName: backendConfig.models.llm?.modelName || "",
+        modelName: backendConfig.models.llm?.name || "",
         displayName: backendConfig.models.llm?.displayName || "",
         apiConfig: {
           apiKey: backendConfig.models.llm?.apiConfig?.apiKey || "",
@@ -212,7 +212,7 @@ export class ConfigStore {
         }
       },
       llmSecondary: {
-        modelName: backendConfig.models.llmSecondary?.modelName || "",
+        modelName: backendConfig.models.llmSecondary?.name || "",
         displayName: backendConfig.models.llmSecondary?.displayName || "",
         apiConfig: {
           apiKey: backendConfig.models.llmSecondary?.apiConfig?.apiKey || "",
@@ -220,7 +220,7 @@ export class ConfigStore {
         }
       },
       embedding: {
-        modelName: backendConfig.models.embedding?.modelName || "",
+        modelName: backendConfig.models.embedding?.name || "",
         displayName: backendConfig.models.embedding?.displayName || "",
         apiConfig: {
           apiKey: backendConfig.models.embedding?.apiConfig?.apiKey || "",
@@ -229,7 +229,7 @@ export class ConfigStore {
         dimension: backendConfig.models.embedding?.dimension || 0
       },
       multiEmbedding: {
-        modelName: backendConfig.models.multiEmbedding?.modelName || "",
+        modelName: backendConfig.models.multiEmbedding?.name || "",
         displayName: backendConfig.models.multiEmbedding?.displayName || "",
         apiConfig: {
           apiKey: backendConfig.models.multiEmbedding?.apiConfig?.apiKey || "",
@@ -238,11 +238,11 @@ export class ConfigStore {
         dimension: backendConfig.models.multiEmbedding?.dimension || 0
       },
       rerank: {
-        modelName: backendConfig.models.rerank?.modelName || "",
+        modelName: backendConfig.models.rerank?.name || "",
         displayName: backendConfig.models.rerank?.displayName || ""
       },
       vlm: {
-        modelName: backendConfig.models.vlm?.modelName || "",
+        modelName: backendConfig.models.vlm?.name || "",
         displayName: backendConfig.models.vlm?.displayName || "",
         apiConfig: {
           apiKey: backendConfig.models.vlm?.apiConfig?.apiKey || "",
@@ -250,11 +250,11 @@ export class ConfigStore {
         }
       },
       stt: {
-        modelName: backendConfig.models.stt?.modelName || "",
+        modelName: backendConfig.models.stt?.name || "",
         displayName: backendConfig.models.stt?.displayName || ""
       },
       tts: {
-        modelName: backendConfig.models.tts?.modelName || "",
+        modelName: backendConfig.models.tts?.name || "",
         displayName: backendConfig.models.tts?.displayName || ""
       }
     } : undefined;
