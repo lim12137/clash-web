@@ -843,3 +843,33 @@ def get_message(message_id: int, user_id: Optional[str] = None) -> Dict[str, Any
 
         # Convert the SQLAlchemy object to a dictionary if it exists
         return as_dict(record) if record else None
+
+
+def get_message_id_by_index(conversation_id: int, message_index: int) -> Optional[int]:
+    """
+    Get message ID by conversation ID and message index
+
+    Args:
+        conversation_id: Conversation ID (integer)
+        message_index: Message index (integer)
+        user_id: Reserved parameter for created_by and updated_by fields
+
+    Returns:
+        Optional[int]: Message ID if found, None otherwise
+    """
+    with get_db_session() as session:
+        # Ensure input parameters are integers
+        conversation_id = int(conversation_id)
+        message_index = int(message_index)
+
+        # Build the query
+        stmt = select(ConversationMessage.message_id).where(
+            ConversationMessage.conversation_id == conversation_id,
+            ConversationMessage.message_index == message_index,
+            ConversationMessage.delete_flag == 'N'
+        )
+
+        # Execute the query and get the first result
+        result = session.execute(stmt).scalar()
+
+        return result

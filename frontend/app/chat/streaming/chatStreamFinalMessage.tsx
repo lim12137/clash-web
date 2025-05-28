@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FaRegThumbsDown, FaRegThumbsUp } from "react-icons/fa"
 import { useConfig } from "@/hooks/useConfig"
 import { ChatAttachment, AttachmentItem } from '@/app/chat/internal/chatAttachment'
+import { conversationService } from '@/services/conversationService'
 
 interface FinalMessageProps {
   message: ChatMessageType
@@ -17,6 +18,8 @@ interface FinalMessageProps {
   onImageClick?: (imageUrl: string) => void
   onOpinionChange?: (messageId: number, opinion: 'Y' | 'N' | null) => void
   hideButtons?: boolean
+  index?: number
+  currentConversationId?: number
 }
 
 export function ChatStreamFinalMessage({
@@ -28,6 +31,8 @@ export function ChatStreamFinalMessage({
   onImageClick,
   onOpinionChange,
   hideButtons = false,
+  index,
+  currentConversationId,
 }: FinalMessageProps) {
   const { getAppAvatarUrl } = useConfig();
   const avatarUrl = getAppAvatarUrl(20); // Message avatar size is 20px
@@ -65,11 +70,24 @@ export function ChatStreamFinalMessage({
   };
 
   // Handle thumbs up
-  const handleThumbsUp = () => {
+  const handleThumbsUp = async () => {
     const newOpinion = localOpinion === 'Y' ? null : 'Y';
     setLocalOpinion(newOpinion);
-    if (onOpinionChange && message.message_id) {
-      onOpinionChange(message.message_id, newOpinion as 'Y' | 'N' | null);
+
+    let messageId = message.message_id;
+
+    // If the message_id does not exist, fetch/obtain it via getMessageId.
+    if (!messageId && typeof currentConversationId === 'number' && typeof index === 'number') {
+      try {
+        messageId = await conversationService.getMessageId(currentConversationId, index);
+      } catch (error) {
+        console.error('获取消息ID失败:', error);
+        return;
+      }
+    }
+
+    if (onOpinionChange && messageId) {
+      onOpinionChange(messageId, newOpinion as 'Y' | 'N' | null);
     }
   };
 
@@ -142,26 +160,28 @@ export function ChatStreamFinalMessage({
             {!hideButtons && (
               <div className="flex items-center justify-between mt-3">
                 {/* Source button */}
-                {((message.searchResults && message.searchResults.length > 0) || (message.images && message.images.length > 0)) && (
-                  <div className="flex items-center text-xs text-gray-500">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`flex items-center gap-1 p-1 pl-3 hover:bg-gray-100 rounded transition-all duration-200 border border-gray-200 ${
-                        isSelected ? 'bg-gray-100' : ''
-                      }`}
-                      onClick={handleMessageSelect}
-                    >
-                      <span>
-                        {`${searchResultsCount ? `${searchResultsCount}条来源` : ""}${searchResultsCount && imagesCount ? "，" : ""}${imagesCount ? `${imagesCount}张图片` : ""}`}
-                      </span>
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-                
+                <div className="flex-1">
+                    {((message.searchResults && message.searchResults.length > 0) || (message.images && message.images.length > 0)) && (
+                      <div className="flex items-center text-xs text-gray-500">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`flex items-center gap-1 p-1 pl-3 hover:bg-gray-100 rounded transition-all duration-200 border border-gray-200 ${
+                            isSelected ? 'bg-gray-100' : ''
+                          }`}
+                          onClick={handleMessageSelect}
+                        >
+                          <span>
+                            {`${searchResultsCount ? `${searchResultsCount}条来源` : ""}${searchResultsCount && imagesCount ? "，" : ""}${imagesCount ? `${imagesCount}张图片` : ""}`}
+                          </span>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                </div>
+
                 {/* Tool button */}
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 mt-1 justify-end">
                   <TooltipProvider>
                     {/* Copy button */}
                     <Tooltip>
