@@ -91,17 +91,22 @@ def run_tests_with_coverage():
     try:
         import coverage
         
-        # Initialize coverage
+        # Initialize coverage with better configuration
         cov = coverage.Coverage(
-            source=['backend'],  # Measure coverage for backend directory
+            source=[
+                str(project_root / 'backend'),  # Backend directory
+                str(project_root / 'sdk')       # SDK directory
+            ],
             omit=[
                 '*/test*',
                 '*/tests/*',
                 '*/__pycache__/*',
                 '*/venv/*',
                 '*/env/*',
-                '*/.venv/*'
-            ]
+                '*/.venv/*',
+                '*/__init__.py'  # Exclude empty __init__.py files from coverage
+            ],
+            config_file=False  # Don't use config file, use programmatic config
         )
         
         # Start coverage measurement
@@ -123,18 +128,36 @@ def run_tests_with_coverage():
         print("Coverage Report")
         print("=" * 60)
         
-        # Console report
-        cov.report(show_missing=True)
+        # Console report with more details
+        try:
+            cov.report(show_missing=True, skip_covered=False)
+        except coverage.exceptions.NoDataError:
+            print("No coverage data collected. This might be because:")
+            print("1. No backend/SDK modules were imported during tests")
+            print("2. All tested modules are mocked")
+            print("3. Tests are not actually calling the backend/SDK code")
+            
+            # Try to show what modules were loaded
+            print("\nLoaded modules that match backend/SDK pattern:")
+            for module_name in sys.modules:
+                if ('backend' in module_name or 'nexent' in module_name or 'sdk' in module_name) and not 'test' in module_name:
+                    print(f"  - {module_name}")
         
         # Generate HTML report
         html_dir = test_dir / 'coverage_html'
-        cov.html_report(directory=str(html_dir))
-        print(f"\nHTML coverage report generated in: {html_dir}")
+        try:
+            cov.html_report(directory=str(html_dir))
+            print(f"\nHTML coverage report generated in: {html_dir}")
+        except coverage.exceptions.NoDataError:
+            print(f"\nNo HTML report generated due to lack of coverage data")
         
         # Generate XML report for CI/CD
         xml_file = test_dir / 'coverage.xml'
-        cov.xml_report(outfile=str(xml_file))
-        print(f"XML coverage report generated: {xml_file}")
+        try:
+            cov.xml_report(outfile=str(xml_file))
+            print(f"XML coverage report generated: {xml_file}")
+        except coverage.exceptions.NoDataError:
+            print(f"No XML report generated due to lack of coverage data")
         
         return result.wasSuccessful()
         
