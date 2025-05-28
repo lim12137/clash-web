@@ -346,4 +346,27 @@ export const conversationService = {
     }
     throw new ApiError(data.code, data.message);
   },
+
+  // Get message_id by conversationId and messageIndex
+  async getMessageId(conversationId: number, messageIndex: number) {
+    const response = await fetch(API_ENDPOINTS.conversation.messageId, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        message_index: messageIndex
+      })
+    });
+
+    const data = await response.json();
+    
+    if (data.code === 0) {
+      return data.data;
+    }
+    
+    throw new ApiError(data.code, data.message);
+  },
 }; 

@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FaRegThumbsDown, FaRegThumbsUp } from "react-icons/fa"
 import { useConfig } from "@/hooks/useConfig"
 import { ChatAttachment, AttachmentItem } from '@/app/chat/internal/chatAttachment'
+import { conversationService } from '@/services/conversationService'
 
 interface FinalMessageProps {
   message: ChatMessageType
@@ -16,6 +17,8 @@ interface FinalMessageProps {
   imagesCount?: number
   onImageClick?: (imageUrl: string) => void
   onOpinionChange?: (messageId: number, opinion: 'Y' | 'N' | null) => void
+  index?: number
+  currentConversationId?: number
 }
 
 export function ChatStreamFinalMessage({
@@ -26,6 +29,8 @@ export function ChatStreamFinalMessage({
   imagesCount = 0,
   onImageClick,
   onOpinionChange,
+  index,
+  currentConversationId,
 }: FinalMessageProps) {
   const { getAppAvatarUrl } = useConfig();
   const avatarUrl = getAppAvatarUrl(20);
@@ -62,12 +67,25 @@ export function ChatStreamFinalMessage({
     }
   };
 
-  // handle thumbs up
-  const handleThumbsUp = () => {
+  // likes handling
+  const handleThumbsUp = async () => {
     const newOpinion = localOpinion === 'Y' ? null : 'Y';
     setLocalOpinion(newOpinion);
-    if (onOpinionChange && message.message_id) {
-      onOpinionChange(message.message_id, newOpinion as 'Y' | 'N' | null);
+    
+    let messageId = message.message_id;
+    
+    // If the message_id does not exist, fetch/obtain it via getMessageId.
+    if (!messageId && typeof currentConversationId === 'number' && typeof index === 'number') {
+      try {
+        messageId = await conversationService.getMessageId(currentConversationId, index);
+      } catch (error) {
+        console.error('获取消息ID失败:', error);
+        return;
+      }
+    }
+    
+    if (onOpinionChange && messageId) {
+      onOpinionChange(messageId, newOpinion as 'Y' | 'N' | null);
     }
   };
 
