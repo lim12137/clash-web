@@ -363,6 +363,8 @@ export function ChatStreamMain({
                     imagesCount={message.images?.length || 0}
                     onImageClick={onImageClick}
                     onOpinionChange={onOpinionChange}
+                    index={index}
+                    currentConversationId={currentConversationId}
                   />
                   {message.role === "user" && processedMessages.conversationGroups.has(message.id!) && (
                     <TaskWindow
