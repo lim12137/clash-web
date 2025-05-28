@@ -10,7 +10,7 @@ from botocore.exceptions import ClientError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, class_mapper
 
-from database.db_models import Base
+from database.db_models import TableBase
 
 logger = logging.getLogger("database.client")
 
@@ -249,8 +249,9 @@ def get_db_session(db_session = None):
             session.close()
 
 def as_dict(obj):
-    if isinstance(obj, Base):
+    if isinstance(obj, TableBase):
         return {c.key: getattr(obj, c.key) for c in class_mapper(obj.__class__).columns}
+    
     # noinspection PyProtectedMember
     return dict(obj._mapping)
 

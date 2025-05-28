@@ -304,3 +304,9 @@ class SavePromptRequest(BaseModel):
 # used in Knowledge Summary request
 class ChangeSummaryRequest(BaseModel):
     summary_result: str
+
+class MessageIdRequest(BaseModel):
+    conversation_id: int
+    message_index: int
+
+
