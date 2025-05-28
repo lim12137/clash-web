@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
     generateTitle: `${API_BASE_URL}/conversation/generate_title`,
     sources: `${API_BASE_URL}/conversation/sources`,
     opinion: `${API_BASE_URL}/conversation/message/update_opinion`,
+    messageId: `${API_BASE_URL}/conversation/message/id`,
   },
   agent: {
     run: `${API_BASE_URL}/agent/run`,

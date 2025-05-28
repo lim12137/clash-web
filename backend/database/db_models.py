@@ -4,7 +4,7 @@ from sqlalchemy.sql import func
 
 SCHEMA = "nexent"
 
-class Base(DeclarativeBase):
+class TableBase(DeclarativeBase):
     create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time")
     update_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), onupdate=func.now(), doc="Update time")
     created_by = Column(String(100), doc="Creator")
@@ -12,7 +12,7 @@ class Base(DeclarativeBase):
     delete_flag = Column(String(1), default="N", doc="Whether it is deleted. Optional values: Y/N")
     pass
 
-class ConversationRecord(Base):
+class ConversationRecord(TableBase):
     """
     Overall information table for Q&A conversations
     """
@@ -27,7 +27,7 @@ class ConversationRecord(Base):
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
     created_by = Column(String(100), doc="ID of the creator, audit field")
 
-class ConversationMessage(Base):
+class ConversationMessage(TableBase):
     """
     Holds the specific response message content in the conversation
     """
@@ -47,7 +47,7 @@ class ConversationMessage(Base):
     created_by = Column(String(100), doc="ID of the creator, audit field")
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
 
-class ConversationMessageUnit(Base):
+class ConversationMessageUnit(TableBase):
     """
     Holds the agent's output content in each message
     """
@@ -66,7 +66,7 @@ class ConversationMessageUnit(Base):
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
     created_by = Column(String(100), doc="ID of the creator, audit field")
 
-class ConversationSourceImage(Base):
+class ConversationSourceImage(TableBase):
     """
     Holds the search image source information of conversation messages
     """
@@ -86,7 +86,7 @@ class ConversationSourceImage(Base):
     created_by = Column(String(100), doc="ID of the creator, audit field")
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
 
-class ConversationSourceSearch(Base):
+class ConversationSourceSearch(TableBase):
     """
     Holds the search text source information referenced by the response messages in the conversation
     """
@@ -114,7 +114,7 @@ class ConversationSourceSearch(Base):
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
     created_by = Column(String(100), doc="ID of the creator, audit field")
 
-class ModelRecord(Base):
+class ModelRecord(TableBase):
     """
     Model list defined by the user on the configuration page
     """
@@ -138,7 +138,7 @@ class ModelRecord(Base):
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
     created_by = Column(String(100), doc="ID of the creator, audit field")
 
-class ToolInfo(Base):
+class ToolInfo(TableBase):
     """
     Information table for prompt tools
     """
@@ -156,7 +156,7 @@ class ToolInfo(Base):
     inputs = Column(String(2048), doc="Prompt tool inputs description")
     output_type = Column(String(100), doc="Prompt tool output description")
 
-class AgentInfo(Base):
+class AgentInfo(TableBase):
     """
     Information table for agents
     """
@@ -175,7 +175,7 @@ class AgentInfo(Base):
     provide_run_summary = Column(Boolean, doc="Whether to provide the running summary to the manager agent")
     business_description = Column(Text, doc="Manually entered by the user to describe the entire business process")
 
-class UserAgent(Base):
+class UserAgent(TableBase):
     """
     Information table for agent - related prompts.
     """
@@ -189,7 +189,7 @@ class UserAgent(Base):
     user_id = Column(String(100), doc="Belonging user")
     enabled = Column(Boolean, doc="Enabled")
 
-class ToolInstance(Base):
+class ToolInstance(TableBase):
     """
     Information table for tenant tool configuration.
     """
@@ -204,7 +204,7 @@ class ToolInstance(Base):
     tenant_id = Column(String(100), doc="Tenant ID")
     enabled = Column(Boolean, doc="Enabled")
 
-class KnowledgeRecord(Base):
+class KnowledgeRecord(TableBase):
     """
     Records the description and status information of knowledge bases
     """
