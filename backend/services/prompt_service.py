@@ -54,12 +54,12 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str):
     user_id, tenant_id = get_user_info()
 
     # Get description of tool and agent
-    tool_info_list = get_enabled_tool_description_for_generate_prompt(tenant_id=tenant_id,
-                                                                      agent_id=agent_id,
-                                                                      user_id=user_id)
-    sub_agent_info_list = get_enabled_sub_agent_description_for_generate_prompt(tenant_id=tenant_id,
-                                                                      agent_id=agent_id,
-                                                                      user_id=user_id)
+    tool_info_list = get_enabled_tool_description_for_generate_prompt(
+        tenant_id=tenant_id, agent_id=agent_id, user_id=user_id
+    )
+    sub_agent_info_list = get_enabled_sub_agent_description_for_generate_prompt(
+        tenant_id=tenant_id, agent_id=agent_id, user_id=user_id
+    )
     system_prompt = generate_system_prompt(sub_agent_info_list, task_description, tool_info_list)
 
     # Update agent with task_description and prompt
