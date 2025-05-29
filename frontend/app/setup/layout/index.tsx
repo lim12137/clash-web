@@ -4,6 +4,7 @@ import { ReactNode } from "react"
 import { FiRefreshCw, FiArrowLeft } from "react-icons/fi"
 import { Badge, Button, Tooltip } from "antd"
 import { useRouter } from "next/navigation"
+import { BugOutlined } from '@ant-design/icons'
 
 // ================ Header 组件 ================
 interface HeaderProps {
@@ -85,6 +86,7 @@ interface NavigationProps {
   onCompleteConfig: () => void;
   isSavingConfig: boolean;
   userRole?: "user" | "admin";
+  showDebugButton?: boolean;
 }
 
 function Navigation({
@@ -93,26 +95,31 @@ function Navigation({
   onCompleteConfig,
   isSavingConfig,
   userRole
+  showDebugButton = false,
 }: NavigationProps) {
   return (
     <div className="mt-3 flex justify-between px-6">
-      {selectedKey === "2" && userRole === "admin" && (
-        <button
-          onClick={onBackToFirstPage}
-          className={"px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"}
-        >
-          上一步
-        </button>
-      )}
+      <div className="flex gap-2">
+        {selectedKey === "2" && userRole === "admin" && (
+          <button
+            onClick={onBackToFirstPage}
+            className={"px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"}
+          >
+            上一步
+          </button>
+        )}
+      </div>
 
-      <button
-        onClick={onCompleteConfig}
-        disabled={isSavingConfig}
-        className={"px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-blue-500 text-white hover:bg-blue-600"}
-        style={{ border: "none", marginLeft: selectedKey === "1" || userRole !== "admin" ? "auto" : undefined }}
-      >
-        {selectedKey === "2" ? (isSavingConfig ? "保存中..." : "完成配置") : "下一步"}
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={onCompleteConfig}
+          disabled={isSavingConfig}
+          className={"px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-blue-500 text-white hover:bg-blue-600"}
+          style={{ border: "none", marginLeft: selectedKey === "1" || userRole !== "admin" ? "auto" : undefined }}
+        >
+          {selectedKey === "3" ? (isSavingConfig ? "保存中..." : "完成配置") : "下一步"}
+        </button>
+      </div>
     </div>
   )
 }
@@ -129,6 +136,7 @@ interface LayoutProps {
   onCompleteConfig: () => void;
   isSavingConfig: boolean;
   userRole?: "user" | "admin";
+  showDebugButton?: boolean;
 }
 
 function Layout({
@@ -142,6 +150,7 @@ function Layout({
   onCompleteConfig,
   isSavingConfig,
   userRole
+  showDebugButton = false,
 }: LayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -163,6 +172,7 @@ function Layout({
             onCompleteConfig={onCompleteConfig}
             isSavingConfig={isSavingConfig}
             userRole={userRole}
+            showDebugButton={showDebugButton}
           />
         </div>
       </div>

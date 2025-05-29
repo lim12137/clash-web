@@ -14,7 +14,7 @@ import { Modal, ConfigProvider } from "antd"
 export default function Home() {
   const [mounted, setMounted] = useState(false)
 
-  // 防止水合错误
+  // Prevent hydration errors
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -74,7 +74,7 @@ function FrontpageContent() {
   // 重构：风格被嵌入在组件内
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-      {/* 顶部导航栏 */}
+      {/* Top navigation bar */}
       <header className="w-full py-4 px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm fixed top-0 z-10">
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-start">
@@ -122,9 +122,9 @@ function FrontpageContent() {
         </Button>
       </header>
 
-      {/* 主要内容 */}
+      {/* Main content */}
       <main className="flex-1 pt-24 pb-16">
-        {/* 英雄区域 */}
+        {/* Hero area */}
         <section className="relative w-full py-16 flex flex-col items-center justify-center text-center px-4">
           <div className="absolute inset-0 bg-grid-slate-200 dark:bg-grid-slate-800 [mask-image:radial-gradient(ellipse_at_center,white_20%,transparent_75%)] -z-10"></div>
 
@@ -135,7 +135,7 @@ function FrontpageContent() {
           无需编排，无需复杂拖拉拽，将数据、模型和工具整合到一个智能中心中。
           </p>
 
-          {/* 两个平行按钮 */}
+          {/* Two parallel buttons */}
           <div className="flex flex-col sm:flex-row gap-4">
             {user ? (
               <Link href="/chat">
@@ -191,7 +191,7 @@ function FrontpageContent() {
           </div>
         </section>
 
-        {/* 功能卡片 */}
+        {/* Feature cards */}
         <section className="max-w-7xl mx-auto px-4 mb-16">
           <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">核心功能</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -228,7 +228,7 @@ function FrontpageContent() {
           </div>
         </section>
 
-        {/* 统计数据 */}
+        {/* Statistics data */}
         <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">极致体验</h3>
         <section className="bg-slate-50 dark:bg-slate-800/50 py-16">
           <div className="max-w-7xl mx-auto px-4">
@@ -241,7 +241,7 @@ function FrontpageContent() {
         </section>
       </main>
 
-      {/* 页脚 */}
+      {/* Footer */}
       <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 py-8">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center">
@@ -344,7 +344,7 @@ function FrontpageContent() {
   )
 }
 
-// 功能卡片组件
+// Feature card component
 interface FeatureCardProps {
   icon: React.ReactNode;
   title: string;
@@ -365,7 +365,7 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
   )
 }
 
-// 统计卡片组件
+// Statistic card component
 interface StatCardProps {
   number: string;
   label: string;

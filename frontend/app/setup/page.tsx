@@ -6,9 +6,9 @@ import { message, Modal } from "antd"
 import { ExclamationCircleOutlined } from '@ant-design/icons'
 import AppModelConfig from "./modelSetup/config"
 import DataConfig from "./knowledgeBaseSetup/KnowledgeBaseManager"
+import AgentConfig from "./agentSetup/AgentConfig"
 import { configStore } from "@/lib/config"
 import { configService } from "@/services/configService"
-import knowledgeBaseService from "@/services/knowledgeBaseService"
 import modelEngineService, { ConnectionStatus } from "@/services/modelEngineService"
 import { useAuth } from "@/hooks/useAuth"
 import Layout from "./layout"
@@ -45,7 +45,7 @@ export default function CreatePage() {
         });
         return
       }
-      
+
       // 如果用户不是管理员且当前在第一页，自动跳转到第二页
       if (user.role !== "admin" && selectedKey === "1") {
         setSelectedKey("2")
@@ -53,49 +53,49 @@ export default function CreatePage() {
     }
   }, [user, userLoading, selectedKey, confirm, openLoginModal, router])
 
-  // 初始化时检查连接状态
+  // Check the connection status when the page is initialized
   useEffect(() => {
-    // 检查连接状态
+    // Check the connection status
     checkModelEngineConnection()
     
-    // 只在页面初始化时触发一次知识库数据获取
+    // Trigger knowledge base data acquisition only when the page is initialized
     window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
       detail: { forceRefresh: true }
     }))
 
-    // 检查是否需要显示知识库配置选项卡
+    // Check if the knowledge base configuration option card needs to be displayed
     const showKbConfig = localStorage.getItem('show_kb_config')
     if (showKbConfig === 'true') {
-      // 切换到知识库配置选项卡
+      // Switch to the knowledge base configuration option card
       setSelectedKey("2")
-      // 清除标志，避免下次访问页面时自动切换
+      // Clear the flag to avoid automatic switching when accessing the page next time
       localStorage.removeItem('show_kb_config')
     }
   }, [])
 
-  // 添加自动检查间隔
+  // Add an automatic check interval
   useEffect(() => {
     const interval = setInterval(() => {
       checkModelEngineConnection()
     }, 30000) // 每30秒检查一次
 
-    // 清理函数
+    // Clean up function
     return () => clearInterval(interval)
   }, [])
 
-  // 监听selectedKey变化，在进入第二页时刷新知识库数据
+  // Listen for changes in selectedKey, refresh knowledge base data when entering the second page
   useEffect(() => {
     if (selectedKey === "2") {
-      // 进入第二页时，重置标志
+      // When entering the second page, reset the flag
       setIsFromSecondPage(false)
-      // 进入第二页时，获取最新知识库数据
+      // When entering the second page, get the latest knowledge base data
       window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
         detail: { forceRefresh: true }
       }))
     }
   }, [selectedKey])
 
-  // 检查ModelEngine连接状态的函数
+  // Function to check the ModelEngine connection status
   const checkModelEngineConnection = async () => {
     setIsCheckingConnection(true)
 
@@ -116,31 +116,33 @@ export default function CreatePage() {
     if (user?.role !== "admin" && selectedKey === "1") {
       return <DataConfig />
     }
-    
+
     switch (selectedKey) {
       case "1":
         return <AppModelConfig skipModelVerification={isFromSecondPage} />
       case "2":
         return <DataConfig />
+      case "3":
+        return <AgentConfig />
       default:
         return null
     }
   }
 
-  // 处理完成配置
+  // Handle completed configuration
   const handleCompleteConfig = async () => {
-    if (selectedKey === "2") {
+    if (selectedKey === "3") {
       setIsSavingConfig(true)
       try {
-        // 获取当前全局配置
+        // Get the current global configuration
         const currentConfig = configStore.getConfig()
         
-        // 调用后端保存配置API
+        // Call the backend save configuration API
         const saveResult = await configService.saveConfigToBackend(currentConfig)
         
         if (saveResult) {
           message.success("配置已保存")
-          // 保存成功后跳转到聊天页面
+          // After saving successfully, redirect to the chat page
           router.push("/chat")
         } else {
           message.error("保存配置失败，请重试")
@@ -151,29 +153,32 @@ export default function CreatePage() {
       } finally {
         setIsSavingConfig(false)
       }
+    } else if (selectedKey === "2") {
+      // Jump from the second page to the third page
+      setSelectedKey("3")
     } else if (selectedKey === "1") {
-      // 从第一页跳转到第二页时验证必填项
+      // Validate required fields when jumping from the first page to the second page
       try {
-        // 获取当前配置
+        // Get the current configuration
         const currentConfig = configStore.getConfig()
         
-        // 检查应用名称
+        // Check the application name
         if (!currentConfig.app.appName.trim()) {
           message.error("请填写应用名称")
           
-          // 触发自定义事件，通知AppConfigSection将应用名称输入框标记为错误
+          // Trigger a custom event to notify the AppConfigSection to mark the application name input box as an error
           window.dispatchEvent(new CustomEvent('highlightMissingField', {
             detail: { field: 'appName' }
           }))
           
-          return // 中断跳转
+          return // Interrupt the jump
         }
         
-        // 检查主模型
+        // Check the main model
         if (!currentConfig.models.llm.modelName) {
           message.error("请选择主模型")
           
-          // 触发自定义事件，通知ModelConfigSection将主模型下拉框标记为错误
+          // Trigger a custom event to notify the ModelConfigSection to mark the main model dropdown as an error
           window.dispatchEvent(new CustomEvent('highlightMissingField', {
             detail: { field: 'llm.main' }
           }))
@@ -181,10 +186,10 @@ export default function CreatePage() {
           return // 中断跳转
         }
         
-        // 所有必填项都已填写，允许跳转到第二页
+        // All required fields have been filled, allow the jump to the second page
         setSelectedKey("2")
 
-        // 调用后端保存配置API
+        // Call the backend save configuration API
         await configService.saveConfigToBackend(currentConfig)
       } catch (error) {
         console.error("验证配置异常:", error)
@@ -193,17 +198,18 @@ export default function CreatePage() {
     }
   }
 
-  // 处理用户切换到第一页的逻辑
+  // Handle the logic of the user switching to the first page
   const handleBackToFirstPage = () => {
-    // 只有管理员才能返回第一页
-    if (user?.role !== "admin") {
-      message.error("只有管理员可以访问模型配置页面")
-      return
-    }
-    
-    if (selectedKey === "2") {
+    if (selectedKey === "3") {
+      setSelectedKey("2")
+    } else if (selectedKey === "2") {
+        // 只有管理员才能返回第一页
+        if (user?.role !== "admin") {
+          message.error("只有管理员可以访问模型配置页面")
+          return
+        }
       setSelectedKey("1")
-      // 设置标志，表示用户是从第二页返回第一页
+      // Set the flag to indicate that the user is returning from the second page to the first page
       setIsFromSecondPage(true)
     }
   }
@@ -220,6 +226,7 @@ export default function CreatePage() {
         onCompleteConfig={handleCompleteConfig}
         isSavingConfig={isSavingConfig}
         userRole={user?.role}
+        showDebugButton={selectedKey === "3"}
       >
         {renderContent()}
       </Layout>
