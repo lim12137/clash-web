@@ -40,22 +40,6 @@ docker build --progress=plain -t nexent/nexent-web -f make/web/Dockerfile .
 docker builder prune -f && docker system prune -f
 ```
 
-### 💾 Local Build and Load
-
-```bash
-# 🔨 Build and load base image (auto-detect local architecture)
-docker buildx build --progress=plain -t nexent/nexent-base -f make/base/Dockerfile . --load
-
-# 🚀 Build and load application image (auto-detect local architecture)
-docker buildx build --progress=plain -t nexent/nexent -f make/main/Dockerfile . --load
-
-# 📊 Build and load data process image (auto-detect local architecture)
-docker buildx build --progress=plain -t nexent/nexent-data-process -f make/data_process/Dockerfile . --load
-
-# 🌐 Build and load web frontend image (auto-detect local architecture)
-docker buildx build --progress=plain -t nexent/nexent-web -f make/web/Dockerfile . --load
-```
-
 Notes:
 - 🔧 Use `--platform linux/amd64,linux/arm64` to specify target architectures
 - 📤 The `--push` flag automatically pushes the built images to Docker Hub
