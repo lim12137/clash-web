@@ -23,9 +23,15 @@ export const API_ENDPOINTS = {
     generateTitle: `${API_BASE_URL}/conversation/generate_title`,
     sources: `${API_BASE_URL}/conversation/sources`,
     opinion: `${API_BASE_URL}/conversation/message/update_opinion`,
+    messageId: `${API_BASE_URL}/conversation/message/id`,
   },
   agent: {
     run: `${API_BASE_URL}/agent/run`,
+  },
+  prompt: {
+    generate: `${API_BASE_URL}/prompt/generate`,
+    fineTune: `${API_BASE_URL}/prompt/fine_tune`,
+    save: `${API_BASE_URL}/prompt/save`,
   },
   stt: {
     ws: `/api/voice/stt/ws`,
@@ -44,10 +50,10 @@ export const API_ENDPOINTS = {
     image: (url: string) => `${API_BASE_URL}/image?url=${encodeURIComponent(url)}`,
   },
   modelEngine: {
-    // 基本健康检查
+    // Basic health check
     healthcheck: `${API_BASE_URL}/me/healthcheck`,
     
-    // 官方模型服务
+    // Official model service
     officialModelList: `${API_BASE_URL}/me/model/list`,
     officialModelHealthcheck: (modelName: string, timeout: number = 2) => 
       `${API_BASE_URL}/me/model/healthcheck?model_name=${encodeURIComponent(modelName)}&timeout=${timeout}`,
@@ -61,7 +67,7 @@ export const API_ENDPOINTS = {
     updateConnectStatus: `${API_BASE_URL}/model/update_connect_status`,
   },
   knowledgeBase: {
-    // Elasticsearch 服务
+    // Elasticsearch service
     health: `${API_BASE_URL}/indices/health`,
     indices: `${API_BASE_URL}/indices`,
     indexInfo: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/info`,
@@ -70,7 +76,7 @@ export const API_ENDPOINTS = {
     changeSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
     getSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
     
-    // 文件上传服务
+    // File upload service
     upload: `${UPLOAD_SERVICE_URL}/upload`,
   },
   config: {
@@ -79,7 +85,7 @@ export const API_ENDPOINTS = {
   }
 };
 
-// 通用错误处理
+// Common error handling
 export class ApiError extends Error {
   constructor(public code: number, message: string) {
     super(message);
@@ -92,7 +98,7 @@ export class ApiError extends Error {
 export const fetchWithErrorHandling = async (url: string, options: RequestInit = {}) => {
   try {
     const response = await fetch(url, options);
-    
+
     // 处理HTTP错误
     if (!response.ok) {
       // 检查是否为会话过期错误 (401)
@@ -100,18 +106,18 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
         handleSessionExpired();
         throw new ApiError(STATUS_CODES.TOKEN_EXPIRED, "登录已过期，请重新登录");
       }
-      
+
       // 处理自定义499错误码 (客户端关闭连接)
       if (response.status === 499) {
         handleSessionExpired();
         throw new ApiError(STATUS_CODES.TOKEN_EXPIRED, "连接已断开，会话可能已过期");
       }
-      
+
       // 其他HTTP错误
       const errorText = await response.text();
       throw new ApiError(response.status, errorText || `请求失败: ${response.status}`);
     }
-    
+
     return response;
   } catch (error) {
     // 处理网络错误
@@ -119,11 +125,11 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
       console.error('网络错误:', error);
       throw new ApiError(STATUS_CODES.SERVER_ERROR, "网络连接错误，请检查网络连接");
     }
-    
+
     // 处理连接重置错误
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
       console.error('连接错误:', error);
-      
+
       // 对于用户管理相关的请求，可能是登录过期
       if (url.includes('/user/session') || url.includes('/user/current_user_id')) {
         handleSessionExpired();
@@ -132,7 +138,7 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
         throw new ApiError(STATUS_CODES.SERVER_ERROR, "服务器连接错误，请稍后重试");
       }
     }
-    
+
     // 重新抛出其他错误
     throw error;
   }
@@ -144,14 +150,14 @@ function handleSessionExpired() {
   if (window.__isHandlingSessionExpired) {
     return;
   }
-  
+
   // 标记正在处理中
   window.__isHandlingSessionExpired = true;
-  
+
   // 清除本地存储的会话信息
   if (typeof window !== "undefined") {
     localStorage.removeItem("session");
-    
+
     // 使用自定义事件通知应用中的其他组件（如SessionExpiredListener）
     if (window.dispatchEvent) {
       // 确保使用与EVENTS.SESSION_EXPIRED常量一致的事件名
@@ -159,7 +165,7 @@ function handleSessionExpired() {
         detail: { message: "登录已过期，请重新登录" }
       }));
     }
-    
+
     // 300ms后重置标记，允许将来再次触发
     setTimeout(() => {
       window.__isHandlingSessionExpired = false;
@@ -167,7 +173,7 @@ function handleSessionExpired() {
   }
 }
 
-// 为TypeScript添加全局接口扩展
+// Add global interface extensions for TypeScript
 declare global {
   interface Window {
     __isHandlingSessionExpired?: boolean;

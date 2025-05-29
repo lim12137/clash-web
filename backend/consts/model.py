@@ -61,6 +61,7 @@ class ServiceResponse(BaseModel):
     message: str
     data: Optional[Any] = None
 
+
 # Response models for model management
 class ModelResponse(BaseModel):
     code: int = 200
@@ -68,7 +69,6 @@ class ModelResponse(BaseModel):
     data: Any
 
 
-# Request models
 class ModelRequest(BaseModel):
     model_factory: Optional[str] = 'OpenAI-API-Compatible'
     model_name: str
@@ -132,9 +132,10 @@ class AgentRequest(BaseModel):
     is_set: Optional[bool] = False
     history: Optional[List[Dict]] = None
     minio_files: Optional[List[Dict[str, Any]]] = None  # Complete list of attachment information
+    agent_id: Optional[int] = None
+    is_debug: Optional[bool] = False
 
 
-# Request and response models
 class MessageUnit(BaseModel):
     type: str
     content: str
@@ -270,5 +271,73 @@ class OpinionRequest(BaseModel):
     opinion: Optional[str] = None
 
 
+# used in prompt/generate request
+class GeneratePromptRequest(BaseModel):
+    task_description: str
+    agent_id: int
+
+# used in prompt/finetune request
+class FineTunePromptRequest(BaseModel):
+    agent_id: int
+    system_prompt: str
+    command: str
+
+# used in agent/search agent/update for save agent info
+class AgentInfoRequest(BaseModel):
+    agent_id: int
+    name: Optional[str] = None
+    description: Optional[str] = None
+    business_description: Optional[str] = None
+    model_name: Optional[str] = None
+    max_steps: Optional[int] = None
+    provide_run_summary: Optional[bool] = None
+    prompt: Optional[str] = None
+    enabled: Optional[bool] = None
+
+
+class AgentIDRequest(BaseModel):
+    agent_id: int
+
+
+class ToolInstanceInfoRequest(BaseModel):
+    tool_id: int
+    agent_id: int
+    params: Dict[str, Any]
+    enabled: bool
+
+
+class ToolInstanceSearchRequest(BaseModel):
+    tool_id: int
+    agent_id: int
+
+
+class ToolSourceEnum(Enum):
+    LOCAL = "local"
+    MCP = "mcp"
+
+
+class ToolInfo(BaseModel):
+    name: str
+    description: str
+    params: List
+    source: str
+    inputs: str
+    output_type: str
+    class_name: str
+
+
+# used in prompt/save request
+class SavePromptRequest(BaseModel):
+    agent_id: int
+    prompt: str
+
+
+# used in Knowledge Summary request
 class ChangeSummaryRequest(BaseModel):
     summary_result: str
+
+class MessageIdRequest(BaseModel):
+    conversation_id: int
+    message_index: int
+
+

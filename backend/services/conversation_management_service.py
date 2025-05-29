@@ -340,7 +340,7 @@ def delete_conversation_service(conversation_id: int, user_id: str) -> bool:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def get_conversation_history_service(conversation_id: int, user_id: str) -> Dict[str, Any]:
+def get_conversation_history_service(conversation_id: int, user_id: str) -> List[Dict[str, Any]]:
     """
     Get complete history of specified conversation
 
@@ -509,6 +509,7 @@ def get_sources_service(conversation_id: Optional[int], message_id: Optional[int
         # Get search sources
         if source_type in ["search", "all"]:
             searches = []
+            search_records = []
             if message_id:
                 search_records = get_source_searches_by_message(message_id, user_id)
             elif conversation_id:
