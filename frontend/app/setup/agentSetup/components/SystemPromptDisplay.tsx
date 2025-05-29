@@ -6,7 +6,7 @@ import AdditionalRequestInput from './AdditionalRequestInput'
 import { MarkdownRenderer } from '@/components/ui/markdownRenderer'
 import { ScrollArea } from '@/components/ui/scrollArea'
 import { Agent, Tool } from '../ConstInterface'
-import { savePrompt } from '@/services/promptService'
+import { generatePrompt, fineTunePrompt, savePrompt } from '@/services/promptService'
 
 const { TextArea } = Input
 
@@ -61,33 +61,15 @@ export default function SystemPromptDisplay({
       setLocalIsGenerating(true);
       console.log("开始调用API生成提示词", { agent_id: agentId, task_description: taskDescription });
       
-      const response = await fetch('/api/prompt/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          agent_id: agentId,
-          task_description: taskDescription
-        }),
+      const result = await generatePrompt({
+        agent_id: agentId,
+        task_description: taskDescription
       });
       
-      console.log("API响应状态", { status: response.status, statusText: response.statusText });
+      console.log("API返回结果", result);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "生成提示词失败");
-      }
-      
-      const data = await response.json();
-      console.log("API返回结果", data);
-      
-      if (data.success && data.data) {
-        onPromptChange(data.data);
-        message.success("提示词生成成功");
-      } else {
-        throw new Error("生成提示词失败：服务器未返回有效数据");
-      }
+      onPromptChange(result);
+      message.success("提示词生成成功");
     } catch (error) {
       console.error("生成提示词失败:", error);
       message.error(`生成提示词失败: ${error instanceof Error ? error.message : '未知错误'}`);
@@ -117,32 +99,15 @@ export default function SystemPromptDisplay({
     setIsTuning(true);
     
     try {
-      // Use API for fine-tuning
-      const response = await fetch('/api/prompt/fine_tune', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          agent_id: agentId,
-          system_prompt: prompt,
-          command: request
-        }),
+      // Use service for fine-tuning
+      const result = await fineTunePrompt({
+        agent_id: agentId!,
+        system_prompt: prompt,
+        command: request
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "微调提示词失败");
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        setTunedPrompt(data.data);
-        message.success("提示词微调成功");
-      } else {
-        throw new Error("微调提示词失败：服务器未返回有效数据");
-      }
+      setTunedPrompt(result);
+      message.success("提示词微调成功");
     } catch (error) {
       console.error("微调提示词失败:", error);
       message.error(`微调提示词失败: ${error instanceof Error ? error.message : '未知错误'}`);
