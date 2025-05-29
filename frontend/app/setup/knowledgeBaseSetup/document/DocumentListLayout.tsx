@@ -197,7 +197,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
         summaryContent: summary.substring(0, 100) + '...' // Only show first 100 characters
       });
       await knowledgeBaseService.changeSummary(knowledgeBaseName, summary);
-      message.success('Save successful');
+      message.success('保存成功');
     } catch (error: any) {
       console.error('Failed to save summary:', error);
       const errorMessage = error?.message || error?.detail || 'Save failed';

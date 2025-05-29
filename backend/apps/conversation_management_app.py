@@ -2,8 +2,10 @@ import logging
 from typing import Dict, Any, Optional
 
 from fastapi import HTTPException, APIRouter, Header
+from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
 
-from consts.model import ConversationResponse, ConversationRequest, RenameRequest, GenerateTitleRequest, OpinionRequest
+from consts.model import ConversationResponse, ConversationRequest, RenameRequest, GenerateTitleRequest, OpinionRequest, MessageIdRequest
 from services.conversation_management_service import (
     create_new_conversation,
     get_conversation_list_service,
@@ -14,6 +16,7 @@ from services.conversation_management_service import (
     generate_conversation_title_service,
     update_message_opinion_service
 )
+from database.conversation_db import get_message_id_by_index
 
 router = APIRouter(prefix="/conversation")
 
@@ -200,6 +203,33 @@ async def update_opinion_endpoint(request: OpinionRequest, authorization: Option
         return ConversationResponse(code=0, message="success", data=True)
     except Exception as e:
         logging.error(f"Failed to update message like/dislike: {str(e)}")
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/message/id", response_model=ConversationResponse)
+async def get_message_id_endpoint(request: MessageIdRequest):
+    """
+    Get message ID by conversation ID and message index
+
+    Args:
+        request: MessageIdRequest object containing:
+            - conversation_id: Conversation ID
+            - message_index: Message index
+        authorization: Authorization header
+
+    Returns:
+        ConversationResponse object containing message_id
+    """
+    try:
+        message_id = get_message_id_by_index(request.conversation_id, request.message_index)
+        if message_id is None:
+            raise HTTPException(status_code=404, detail="Message not found")
+
+        return ConversationResponse(code=0, message="success", data=message_id)
+    except Exception as e:
+        logging.error(f"Failed to get message ID: {str(e)}")
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))
