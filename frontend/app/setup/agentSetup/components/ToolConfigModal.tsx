@@ -134,17 +134,6 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
     }
   };
 
-  // determine textbox rows based on string length, max 5 rows
-  const getTextAreaRows = (value: string): number => {
-    if (!value) return 1;
-    const length = value.length;
-    if (length < 15) return 1;
-    if (length < 30) return 2;
-    if (length < 45) return 3;
-    if (length < 60) return 4;
-    return 5;
-  };
-
   const renderParamInput = (param: ToolParam, index: number) => {
     switch (param.type) {
       case 'OpenAIModel':
@@ -169,7 +158,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
               value={stringValue}
               onChange={(e) => handleParamChange(index, e.target.value)}
               placeholder={`请输入${param.name}`}
-              rows={getTextAreaRows(stringValue)}
+              autoSize={{ minRows: 1, maxRows: 8 }}
               style={{ resize: 'vertical' }}
             />
           );
@@ -210,7 +199,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
               }
             }}
             placeholder="请输入JSON数组"
-            rows={getTextAreaRows(arrayValue)}
+            autoSize={{ minRows: 1, maxRows: 8 }}
             style={{ resize: 'vertical' }}
           />
         );
@@ -228,7 +217,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
               }
             }}
             placeholder="请输入JSON对象"
-            rows={getTextAreaRows(objectValue)}
+            autoSize={{ minRows: 1, maxRows: 8 }}
             style={{ resize: 'vertical' }}
           />
         );
@@ -263,7 +252,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
             {currentParams.map((param, index) => (
               <div key={param.name} className="border-b pb-4 mb-4 last:border-b-0 last:mb-0">
                 <div className="flex items-start gap-4">
-                  <div className="flex-1 pt-1">
+                  <div className="flex-[0.3] pt-1">
                     {param.description ? (
                       <div className="text-sm text-gray-600">
                         {param.description}
@@ -276,7 +265,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
                       </div>
                     )}
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-[0.7]">
                     {renderParamInput(param, index)}
                   </div>
                 </div>
