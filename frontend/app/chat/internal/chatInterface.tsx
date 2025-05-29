@@ -851,7 +851,7 @@ export function ChatInterface() {
           onRename={handleConversationRename}
           onDelete={handleConversationDeleteClick}
           onSettingsClick={() => {
-            localStorage.setItem('show_kb_config', 'true');
+            localStorage.setItem('show_page', '1');
             router.push("/setup");
           }}
           onDropdownOpenChange={(open, id) => setOpenDropdownId(open ? id : null)}
@@ -887,10 +887,7 @@ export function ChatInterface() {
                 onFileUpload={handleFileUpload}
                 onImageUpload={handleImageUpload}
                 onOpinionChange={handleOpinionChange}
-                isNewConversation={isNewConversation}
                 currentConversationId={conversationId}
-                setConversationTitle={setConversationTitle}
-                fetchConversationList={fetchConversationList}
               />
 
               {/* Footer */}

@@ -93,7 +93,7 @@ export function ChatHeader({
             </div>
           </div>
           
-          <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
+          {/* <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-6 w-6 rounded">
@@ -111,7 +111,7 @@ export function ChatHeader({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+          </div> */}
         </div>
       </div>
     </header>

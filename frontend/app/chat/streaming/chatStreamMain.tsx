@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { ChevronDown } from "lucide-react"
 import { ChatStreamFinalMessage } from "./chatStreamFinalMessage"
 import { TaskWindow } from "./taskWindow"
-import { conversationService } from '@/services/conversationService'
 
 // Define a new message processing structure
 interface ProcessedMessages {
@@ -34,10 +33,7 @@ interface ChatStreamMainProps {
   onFileUpload?: (file: File) => void
   onImageUpload?: (file: File) => void
   onOpinionChange?: (messageId: number, opinion: 'Y' | 'N' | null) => void
-  isNewConversation?: boolean
   currentConversationId?: number
-  setConversationTitle?: (title: string) => void
-  fetchConversationList?: () => Promise<any>
 }
 
 export function ChatStreamMain({
@@ -57,10 +53,7 @@ export function ChatStreamMain({
   onFileUpload,
   onImageUpload,
   onOpinionChange,
-  isNewConversation,
   currentConversationId,
-  setConversationTitle,
-  fetchConversationList
 }: ChatStreamMainProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
@@ -287,13 +280,6 @@ export function ChatStreamMain({
     }, 0);
   };
 
-  // Handle likes/dislikes
-  const handleOpinionChange = async (messageId: number, opinion: 'Y' | 'N' | null) => {
-    if (onOpinionChange) {
-      onOpinionChange(messageId, opinion);
-    }
-  };
-
   // Scroll to bottom when messages are updated (if user is already at the bottom)
   useEffect(() => {
     if (processedMessages.finalMessages.length > 0) {
@@ -315,20 +301,8 @@ export function ChatStreamMain({
     }
   }, [processedMessages.taskMessages.length, isStreaming]);
 
-  // Check if current streaming response is in progress
-  const isInStreamingConversation = () => {
-    // Check if the last message is a user message
-    if (processedMessages.finalMessages.length === 0) return false;
-    
-    const lastMessage = processedMessages.finalMessages[processedMessages.finalMessages.length - 1];
-    const isLastMessageFromUser = lastMessage.role === "user";
-    
-    // If the streaming response status is in progress and the last message is a user message, then the streaming response is in progress
-    return isStreaming && isLastMessageFromUser;
-  };
-
   return (
-    <div className="flex-1 flex flex-col overflow-hidden relative">
+    <div className="flex-1 flex flex-col overflow-hidden relative custom-scrollbar">
       {/* Main message area */}
       <ScrollArea className="flex-1 px-4 pt-4" ref={scrollAreaRef}>
         <div className="max-w-3xl mx-auto">
@@ -354,7 +328,7 @@ export function ChatStreamMain({
           ) : (
             <>
               {processedMessages.finalMessages.map((message, index) => (
-                <div key={message.id || index}>
+                <div key={message.id || index} className="flex flex-col gap-2">
                   <ChatStreamFinalMessage
                     message={message}
                     onSelectMessage={onSelectMessage}
@@ -367,10 +341,12 @@ export function ChatStreamMain({
                     currentConversationId={currentConversationId}
                   />
                   {message.role === "user" && processedMessages.conversationGroups.has(message.id!) && (
-                    <TaskWindow
-                      messages={processedMessages.conversationGroups.get(message.id!) || []}
-                      isStreaming={isStreaming && lastUserMessageIdRef.current === message.id}
-                    />
+                    <div className="transition-all duration-500 opacity-0 translate-y-4 animate-task-window">
+                      <TaskWindow
+                        messages={processedMessages.conversationGroups.get(message.id!) || []}
+                        isStreaming={isStreaming && lastUserMessageIdRef.current === message.id}
+                      />
+                    </div>
                   )}
                 </div>
               ))}
@@ -418,6 +394,19 @@ export function ChatStreamMain({
           onImageUpload={onImageUpload}
         />
       )}
+
+      {/* Add animation keyframes */}
+      <style jsx global>{`
+        @keyframes taskWindowEnter {
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-task-window {
+          animation: taskWindowEnter 0.5s ease-out forwards;
+        }
+      `}</style>
     </div>
   )
 } 
