@@ -175,24 +175,3 @@ def fine_tune_prompt(system_prompt: str, command: str):
     except Exception as e:
         logger.error(f"Error in prompt fine-tuning process: {str(e)}")
         raise e
-
-
-def save_prompt_impl(agent_id: int, prompt: str):
-    """
-    Save a prompt for an agent
-    """
-    logger.info(f"Starting prompt save for agent_id: {agent_id}")
-    try:
-        _, tenant_id = get_user_info()
-        logger.info(f"Processing for tenant_id: {tenant_id}")
-        
-        result = save_agent_prompt(
-            agent_id=agent_id,
-            prompt=prompt,
-            tenant_id=tenant_id
-        )
-        logger.info("Successfully saved prompt")
-        return result
-    except Exception as e:
-        logger.error(f"Failed to save prompt: {str(e)}")
-        raise e

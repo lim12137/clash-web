@@ -18,7 +18,7 @@ export interface FineTunePromptParams {
 }
 
 /**
- * Save Prompt Request Parameters
+ * Save Prompt Request Parameters (using agent/update)
  */
 export interface SavePromptParams {
   agent_id: number;
@@ -89,16 +89,19 @@ export const fineTunePrompt = async (params: FineTunePromptParams): Promise<stri
 };
 
 /**
- * Save System Prompt
+ * Save System Prompt (using agent/update endpoint)
  * @param params
  * @returns
  */
 export const savePrompt = async (params: SavePromptParams): Promise<any> => {
   try {
-    const response = await fetch(API_ENDPOINTS.prompt.save, {
+    const response = await fetch(API_ENDPOINTS.agent.update, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify(params),
+      body: JSON.stringify({
+        agent_id: params.agent_id,
+        prompt: params.prompt
+      }),
     });
 
     if (!response.ok) {
