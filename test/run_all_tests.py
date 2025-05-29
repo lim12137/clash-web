@@ -14,6 +14,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+
 def install_coverage():
     """Install coverage package if not available"""
     try:
@@ -28,6 +29,7 @@ def install_coverage():
             print("Failed to install coverage package")
             return False
 
+
 def discover_test_files():
     """Discover all test files in the test directory"""
     test_dir = Path(__file__).parent
@@ -39,6 +41,7 @@ def discover_test_files():
                 test_files.append(os.path.join(root, file))
     
     return test_files
+
 
 def load_test_modules():
     """Load test modules and create test suite"""
@@ -74,6 +77,7 @@ def load_test_modules():
             continue
     
     return suite
+
 
 def run_tests_with_coverage():
     """Run all tests with coverage measurement"""
@@ -166,6 +170,7 @@ def run_tests_with_coverage():
         print("Falling back to running tests without coverage...")
         return run_tests_without_coverage()
 
+
 def run_tests_without_coverage():
     """Run tests without coverage measurement"""
     print("Running tests without coverage measurement...")
@@ -178,6 +183,7 @@ def run_tests_without_coverage():
     
     return result.wasSuccessful()
 
+
 def print_test_summary():
     """Print summary of discovered test files"""
     test_files = discover_test_files()
@@ -189,6 +195,7 @@ def print_test_summary():
         print(f"  • {rel_path}")
     print(f"\nTotal: {len(test_files)} test files")
     print()
+
 
 def main():
     """Main function to run all tests"""
@@ -209,5 +216,6 @@ def main():
         print("❌ Some tests failed!")
         sys.exit(1)
 
+
 if __name__ == "__main__":
-    main() 
+    main()
