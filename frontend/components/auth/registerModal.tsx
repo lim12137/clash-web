@@ -2,9 +2,10 @@
 
 import { useAuth } from "@/hooks/useAuth"
 import { useAuthForm, AuthFormValues } from "@/hooks/useAuthForm"
-import { Modal, Form, Input, Button, Typography, Space } from "antd"
+import { Modal, Form, Input, Button, Typography, Space, Alert } from "antd"
 import { UserOutlined, LockOutlined, SafetyOutlined } from "@ant-design/icons"
 import { STATUS_CODES } from "@/types/auth"
+import { useState } from "react"
 
 const { Text } = Typography
 
@@ -19,15 +20,17 @@ export function RegisterModal() {
     handleEmailChange,
     resetForm
   } = useAuthForm()
+  const [passwordError, setPasswordError] = useState("")
 
   const handleSubmit = async (values: AuthFormValues) => {
     setIsLoading(true)
-    setEmailError("") // 重置错误状态
+    setEmailError("") // Reset error state
+    setPasswordError("") // Reset password error state
 
     try {
       await register(values.email, values.password)
       
-      // 表单重置和清除错误状态
+      // Reset form and clear error states
       resetForm()
 
     } catch (error: any) {
@@ -41,7 +44,7 @@ export function RegisterModal() {
           },
         ]);
       } else {
-        // 处理其他注册错误
+        // Handle other registration errors
         setEmailError("注册失败，请稍后重试")
         form.setFields([
           {
@@ -58,13 +61,30 @@ export function RegisterModal() {
 
   const handleLoginClick = () => {
     resetForm()
+    setPasswordError("")
     closeRegisterModal()
     openLoginModal()
   }
 
   const handleCancel = () => {
     resetForm()
+    setPasswordError("")
     closeRegisterModal()
+  }
+
+  // Handle password input change
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    if (value && value.length < 6) {
+      setPasswordError("密码长度至少为6个字符")
+    } else {
+      setPasswordError("")
+      // Check if passwords match when confirm password exists
+      const confirmPassword = form.getFieldValue("confirmPassword")
+      if (confirmPassword && confirmPassword !== value) {
+        setPasswordError("两次输入的密码不一致")
+      }
+    }
   }
 
   return (
@@ -76,6 +96,14 @@ export function RegisterModal() {
       width={400}
       centered
     >
+      {passwordError && (
+        <Alert
+          message={passwordError}
+          type="error"
+          showIcon
+          className="mb-4"
+        />
+      )}
       <Form 
         id="register-form"
         form={form} 
@@ -115,7 +143,8 @@ export function RegisterModal() {
             id="register-password"
             prefix={<LockOutlined className="text-gray-400" />} 
             placeholder="请输入密码" 
-            size="large" 
+            size="large"
+            onChange={handlePasswordChange}
           />
         </Form.Item>
 
@@ -130,8 +159,10 @@ export function RegisterModal() {
             ({ getFieldValue }) => ({
               validator(_, value) {
                 if (!value || getFieldValue("password") === value) {
+                  setPasswordError("")
                   return Promise.resolve()
                 }
+                setPasswordError("两次输入的密码不一致")
                 return Promise.reject(new Error("两次输入的密码不一致"))
               },
             }),
