@@ -892,10 +892,7 @@ export function ChatInterface() {
                 onFileUpload={handleFileUpload}
                 onImageUpload={handleImageUpload}
                 onOpinionChange={handleOpinionChange}
-                isNewConversation={isNewConversation}
                 currentConversationId={conversationId}
-                setConversationTitle={setConversationTitle}
-                fetchConversationList={fetchConversationList}
               />
 
               {/* Footer */}
