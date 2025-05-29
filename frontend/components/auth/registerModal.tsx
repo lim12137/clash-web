@@ -75,15 +75,36 @@ export function RegisterModal() {
   // Handle password input change
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
+    // First priority: check password length
     if (value && value.length < 6) {
       setPasswordError("密码长度至少为6个字符")
+      return // Exit early if password length is invalid
+    }
+    
+    // Only check password match if length requirement is met
+    setPasswordError("")
+    const confirmPassword = form.getFieldValue("confirmPassword")
+    if (confirmPassword && confirmPassword !== value) {
+      setPasswordError("两次输入的密码不一致")
+    }
+  }
+
+  // Handle confirm password input change
+  const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    const password = form.getFieldValue("password")
+    
+    // First check if original password meets length requirement
+    if (password && password.length < 6) {
+      setPasswordError("密码长度至少为6个字符")
+      return
+    }
+    
+    // Then check password match
+    if (value && value !== password) {
+      setPasswordError("两次输入的密码不一致")
     } else {
       setPasswordError("")
-      // Check if passwords match when confirm password exists
-      const confirmPassword = form.getFieldValue("confirmPassword")
-      if (confirmPassword && confirmPassword !== value) {
-        setPasswordError("两次输入的密码不一致")
-      }
     }
   }
 
@@ -158,6 +179,13 @@ export function RegisterModal() {
             { required: true, message: "请确认密码" },
             ({ getFieldValue }) => ({
               validator(_, value) {
+                const password = getFieldValue("password")
+                // First check password length
+                if (password && password.length < 6) {
+                  setPasswordError("密码长度至少为6个字符")
+                  return Promise.reject(new Error("密码长度至少为6个字符"))
+                }
+                // Then check password match
                 if (!value || getFieldValue("password") === value) {
                   setPasswordError("")
                   return Promise.resolve()
@@ -172,7 +200,8 @@ export function RegisterModal() {
             id="register-confirm-password"
             prefix={<SafetyOutlined className="text-gray-400" />} 
             placeholder="请确认密码" 
-            size="large" 
+            size="large"
+            onChange={handleConfirmPasswordChange}
           />
         </Form.Item>
 
