@@ -31,23 +31,11 @@ export default function CreatePage() {
     }))
 
     // Check if the knowledge base configuration option card needs to be displayed
-    const showKbConfig = localStorage.getItem('show_kb_config')
-    if (showKbConfig === 'true') {
-      // Switch to the knowledge base configuration option card
-      setSelectedKey("2")
-      // Clear the flag to avoid automatic switching when accessing the page next time
-      localStorage.removeItem('show_kb_config')
+    const showPageConfig = localStorage.getItem('show_page')
+    if (showPageConfig) {
+      setSelectedKey(showPageConfig)
+      localStorage.removeItem('show_page')
     }
-  }, [])
-
-  // Add an automatic check interval
-  useEffect(() => {
-    const interval = setInterval(() => {
-      checkModelEngineConnection()
-    }, 30000) // 每30秒检查一次
-
-    // Clean up function
-    return () => clearInterval(interval)
   }, [])
 
   // Listen for changes in selectedKey, refresh knowledge base data when entering the second page
@@ -59,6 +47,11 @@ export default function CreatePage() {
       window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
         detail: { forceRefresh: true }
       }))
+      // When entering the second page, check the connection status
+      checkModelEngineConnection()
+    }else if (selectedKey === "1") {
+      // When entering the first page, check the connection status
+      checkModelEngineConnection()
     }
   }, [selectedKey])
 
