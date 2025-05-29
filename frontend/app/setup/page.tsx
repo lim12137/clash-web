@@ -31,12 +31,10 @@ export default function CreatePage() {
     }))
 
     // Check if the knowledge base configuration option card needs to be displayed
-    const showKbConfig = localStorage.getItem('show_kb_config')
-    if (showKbConfig === 'true') {
-      // Switch to the knowledge base configuration option card
-      setSelectedKey("2")
-      // Clear the flag to avoid automatic switching when accessing the page next time
-      localStorage.removeItem('show_kb_config')
+    const showPageConfig = localStorage.getItem('show_page')
+    if (showPageConfig) {
+      setSelectedKey(showPageConfig)
+      localStorage.removeItem('show_page')
     }
   }, [])
 
