@@ -596,8 +596,18 @@ export function TaskWindow({
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
   const [isExpanded, setIsExpanded] = useState(isStreaming)
+  const [contentHeight, setContentHeight] = useState(0)
+  const contentRef = useRef<HTMLDivElement>(null)
   
   const { hasMessages, hasVisibleMessages, groupedMessages } = useChatTaskMessage(messages as ChatMessageType[]);
+
+  // 计算内容高度
+  useEffect(() => {
+    if (isExpanded && contentRef.current) {
+      const height = contentRef.current.scrollHeight
+      setContentHeight(height)
+    }
+  }, [isExpanded, groupedMessages, messages])
 
   // The logic of automatically scrolling to the bottom
   useEffect(() => {
@@ -772,39 +782,54 @@ export function TaskWindow({
     );
   };
 
+  // 计算容器高度：内容高度 + header高度，但不超过最大高度
+  const maxHeight = 300
+  const headerHeight = 40
+  const availableHeight = maxHeight - headerHeight
+  const actualContentHeight = Math.min(contentHeight + 16, availableHeight) // +16 for padding
+  const containerHeight = isExpanded ? headerHeight + actualContentHeight : 'auto'
+  const needsScroll = contentHeight + 16 > availableHeight
+
   return (
     <>
-      {isExpanded ? (
-        <div className="relative rounded-lg border border-gray-200 shadow-md h-[300px] mb-2 overflow-hidden">
-          <div className="p-2 border-b border-gray-100/50">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-medium text-gray-500">任务详情</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 hover:bg-gray-100 rounded-full"
-                onClick={() => setIsExpanded(false)}
-              >
-                <ChevronRight className="h-4 w-4 rotate-90" />
-              </Button>
-            </div>
+      <div 
+        className="relative rounded-lg mb-4 overflow-hidden border border-gray-200 bg-gray-50"
+        style={{ 
+          height: containerHeight,
+          minHeight: isExpanded ? `${headerHeight}px` : 'auto'
+        }}
+      >
+        <div className="px-1 py-2">
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-gray-100 rounded-full mr-2"
+              onClick={() => setIsExpanded(!isExpanded)}
+            >
+              <ChevronRight className={`h-4 w-4 ${isExpanded ? 'rotate-90' : '-rotate-90'}`} />
+            </Button>
+            <span className="text-xs font-medium text-gray-500">任务详情</span>
           </div>
-          
-          <ScrollArea className="h-[252px] px-4" ref={scrollAreaRef}>
-            {renderMessages()}
-          </ScrollArea>
+          {isExpanded && <div className="h-px bg-gray-200 mt-2" />}
         </div>
-      ) : (
-        <Button
-          variant="outline"
-          size="sm"
-          className="mb-2 w-full bg-white hover:bg-gray-50 border border-gray-200 shadow-sm"
-          onClick={() => setIsExpanded(true)}
-        >
-          <ChevronRight className="h-4 w-4 mr-2 -rotate-90" />
-          <span className="text-xs text-gray-500">展开任务执行详情</span>
-        </Button>
-      )}
+        
+        {isExpanded && (
+          <div className="px-4" style={{ height: `${actualContentHeight}px` }}>
+            {needsScroll ? (
+              <ScrollArea className="h-full" ref={scrollAreaRef}>
+                <div className="pb-2" ref={contentRef}>
+                  {renderMessages()}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="pb-2" ref={contentRef}>
+                {renderMessages()}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Add necessary CSS animations */}
       <style jsx global>{`
