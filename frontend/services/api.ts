@@ -17,6 +17,14 @@ export const API_ENDPOINTS = {
   agent: {
     run: `${API_BASE_URL}/agent/run`,
     update: `${API_BASE_URL}/agent/update`,
+    list: `${API_BASE_URL}/agent/list`,
+    delete: `${API_BASE_URL}/agent`,
+    getCreatingSubAgentId: `${API_BASE_URL}/agent/get_creating_sub_agent_id`,
+  },
+  tool: {
+    list: `${API_BASE_URL}/tool/list`,
+    update: `${API_BASE_URL}/tool/update`,
+    search: `${API_BASE_URL}/tool/search`,
   },
   prompt: {
     generate: `${API_BASE_URL}/prompt/generate`,

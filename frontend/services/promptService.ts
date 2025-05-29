@@ -41,7 +41,7 @@ const getHeaders = () => {
  * @param savePrompt
  * @returns
  */
-export const generatePrompt = async (params: GeneratePromptParams, savePrompt: boolean = false): Promise<string> => {
+export const generatePrompt = async (params: GeneratePromptParams, savePrompt: boolean = true): Promise<string> => {
   try {
     const response = await fetch(`${API_ENDPOINTS.prompt.generate}?save_prompt=${savePrompt}`, {
       method: 'POST',
