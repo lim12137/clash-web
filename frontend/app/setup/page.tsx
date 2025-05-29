@@ -40,16 +40,6 @@ export default function CreatePage() {
     }
   }, [])
 
-  // Add an automatic check interval
-  useEffect(() => {
-    const interval = setInterval(() => {
-      checkModelEngineConnection()
-    }, 30000) // 每30秒检查一次
-
-    // Clean up function
-    return () => clearInterval(interval)
-  }, [])
-
   // Listen for changes in selectedKey, refresh knowledge base data when entering the second page
   useEffect(() => {
     if (selectedKey === "2") {
@@ -59,6 +49,11 @@ export default function CreatePage() {
       window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
         detail: { forceRefresh: true }
       }))
+      // When entering the second page, check the connection status
+      checkModelEngineConnection()
+    }else if (selectedKey === "1") {
+      // When entering the first page, check the connection status
+      checkModelEngineConnection()
     }
   }, [selectedKey])
 
