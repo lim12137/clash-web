@@ -40,6 +40,7 @@ export default function AgentConfig() {
   const [loadingAgents, setLoadingAgents] = useState(false)
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([])
   const [enabledAgentIds, setEnabledAgentIds] = useState<number[]>([])
+  const [localIsGenerating, setLocalIsGenerating] = useState(false)
 
   // load tools when page is loaded
   useEffect(() => {
@@ -216,6 +217,7 @@ export default function AgentConfig() {
                   setSubAgentList={setSubAgentList}
                   enabledAgentIds={enabledAgentIds}
                   setEnabledAgentIds={setEnabledAgentIds}
+                  localIsGenerating={localIsGenerating}
                 />
               </div>
             </div>
@@ -239,6 +241,7 @@ export default function AgentConfig() {
                   taskDescription={businessLogic}
                   selectedAgents={selectedAgents}
                   selectedTools={selectedTools}
+                  onLocalIsGeneratingChange={setLocalIsGenerating}
                 />
               </div>
             </div>
