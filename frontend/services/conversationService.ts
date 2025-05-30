@@ -170,7 +170,7 @@ export const conversationService = {
       return new WebSocket(API_ENDPOINTS.tts.ws);
     },
 
-    // TTS播放状态管理
+    // TTS playback status management
     createTTSService() {
       const audioRef = { current: null as HTMLAudioElement | null };
       const wsRef = { current: null as WebSocket | null };
@@ -180,7 +180,7 @@ export const conversationService = {
       const isStreamingPlaybackRef = { current: false };
       const pendingChunksRef = { current: [] as Uint8Array[] };
 
-      // 播放音频（主入口）
+      // Play audio (main entry)
       const playAudio = async (text: string, onStatusChange?: (status: 'idle' | 'generating' | 'playing' | 'error') => void): Promise<void> => {
         if (!text) return;
 
@@ -288,7 +288,7 @@ export const conversationService = {
         }
       };
 
-      // 初始化流式播放
+      // Initialize streaming playback
       const initStreamingPlayback = async (onStatusChange?: (status: 'idle' | 'generating' | 'playing' | 'error') => void): Promise<void> => {
         return new Promise((resolve, reject) => {
           try {
@@ -355,7 +355,7 @@ export const conversationService = {
         });
       };
 
-      // 处理流式音频块
+      // Process streaming audio chunks
       const handleStreamingAudioChunk = async (chunk: Uint8Array, onStatusChange?: (status: 'idle' | 'generating' | 'playing' | 'error') => void) => {
         if (!isStreamingPlaybackRef.current || !sourceBufferRef.current) {
           pendingChunksRef.current.push(chunk);
@@ -386,7 +386,7 @@ export const conversationService = {
         }
       };
 
-      // 处理待处理的音频块
+      // Process pending audio chunks
       const processPendingChunks = () => {
         if (!sourceBufferRef.current || sourceBufferRef.current.updating || pendingChunksRef.current.length === 0) {
           return;
@@ -402,7 +402,7 @@ export const conversationService = {
         }
       };
 
-      // 完成流式播放
+      // Complete streaming playback
       const finalizeStreamingPlayback = async () => {
         if (pendingChunksRef.current.length > 0 && sourceBufferRef.current) {
           const waitForPending = () => {
@@ -430,7 +430,7 @@ export const conversationService = {
         }
       };
 
-      // 清理流式播放资源
+      // Clean up streaming playback resources
       const cleanupStreamingPlayback = () => {
         isStreamingPlaybackRef.current = false;
         pendingChunksRef.current = [];
@@ -455,7 +455,7 @@ export const conversationService = {
         }
       };
 
-      // 传统播放方式
+      // Traditional playback method
       const playAudioTraditional = async (text: string, onStatusChange?: (status: 'idle' | 'generating' | 'playing' | 'error') => void) => {
         audioChunksRef.current = [];
 
@@ -526,7 +526,7 @@ export const conversationService = {
         };
       };
 
-      // 播放音频块（传统模式）
+      // Play audio chunks (traditional mode)
       const playAudioChunks = (onStatusChange?: (status: 'idle' | 'generating' | 'playing' | 'error') => void) => {
         if (audioChunksRef.current.length === 0) {
           onStatusChange?.('idle');
@@ -638,7 +638,7 @@ export const conversationService = {
         }
       };
 
-      // 停止播放
+      // stop audio
       const stopAudio = () => {
         if (wsRef.current) {
           wsRef.current.close();
@@ -654,7 +654,7 @@ export const conversationService = {
         audioChunksRef.current = [];
       };
 
-      // 清理资源
+      // clean up resources
       const cleanup = () => {
         stopAudio();
         cleanupStreamingPlayback();
