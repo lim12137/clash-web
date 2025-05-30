@@ -23,6 +23,43 @@ class ModelConnectStatusEnum(Enum):
             return cls.NOT_DETECTED.value
         return status
 
+
+class TaskStatusEnum(Enum):
+    """Enum class for task status"""
+    WAITING = "waiting"
+    PROCESSING = "processing"
+    FORWARDING = "forwarding"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def get_default(cls) -> str:
+        """Get default value"""
+        return cls.UNKNOWN
+
+    @classmethod
+    def is_valid(cls, status: str) -> bool:
+        """Check if the string is a valid status value"""
+        return status in [member.value for member in cls]
+
+    @classmethod
+    def from_string(cls, status: Optional[str]) -> 'TaskStatusEnum':
+        """Create Enum from string, return default value if invalid"""
+        if not status:
+            return cls.UNKNOWN
+        
+        try:
+            return cls(status)  # Find by value
+        except ValueError:
+            return cls.UNKNOWN
+
+    @classmethod
+    def __str__(self) -> str:
+        """String representation of the value"""
+        return self.value
+    
+
 # Response models for user management
 class ServiceResponse(BaseModel):
     code: int
@@ -159,6 +196,9 @@ class BatchTaskResponse(BaseModel):
 
 class SimpleTaskStatusResponse(BaseModel):
     id: str
+    task_name: str
+    index_name: str
+    path_or_url: str
     status: str
     created_at: float
     updated_at: float

@@ -12,9 +12,9 @@ services:
       - ./uploads:/opt/backend/uploads
     environment:
       ELASTIC_PASSWORD: nexent@2025
-      ELASTICSEARCH_API_KEY: xxxxx
-      MINIO_ACCESS_KEY: xxxxx
-      MINIO_SECRET_KEY: xxxxx
+      ELASTICSEARCH_API_KEY: bm9jR0g1Y0JUcW92OXVCRHdSUDM6MXJNcG1hTWRSSjIwUUFwY1dZRnZTQQ==
+      MINIO_ACCESS_KEY: 025b36e11e51354f92633956
+      MINIO_SECRET_KEY: wXgJ0sg9xfZy6fJQMveW69QnGxWsOz5I5YgMULoc3oY=
       MINIO_REGION: cn-north-1
       MINIO_DEFAULT_BUCKET: nexent
       skip_proxy: "true"
@@ -39,27 +39,6 @@ services:
       sleep infinity
       "
 
-  nexent-web:
-    image: nexent/nexent-web:latest
-    container_name: nexent-web
-    restart: always
-    networks:
-      - nexent
-    ports:
-      - "3000:3000"
-    environment:
-      - HTTP_BACKEND=http://nexent:5010
-      - WS_BACKEND=ws://nexent:5010
-      - MINIO_ENDPOINT=http://nexent-minio:9000
-    env_file:
-      - .env
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    entrypoint: "/bin/sh"
-    command: "-c 'sleep infinity'"
 
   nexent-data-process:
     image: nexent/nexent-data-process:latest
@@ -69,7 +48,7 @@ services:
     ports:
       - "5012:5012"
     volumes:
-      - ../:/opt/
+      - ../:/opt/:cached
       - ./uploads:/opt/backend/uploads
     environment:
       skip_proxy: "true"
@@ -77,6 +56,7 @@ services:
       - .env
     networks:
       - nexent
+    user: root
     logging:
       driver: "json-file"
       options:

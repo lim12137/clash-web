@@ -8,11 +8,11 @@ import warnings
 import tempfile
 from typing import Optional, List, Dict, Any
 
-from nexent.data_process.core import DataProcessCore
 from PIL import Image
 import torch
 from transformers import CLIPProcessor, CLIPModel
 
+from data_process.utils import get_task_info
 from consts.const import CLIP_MODEL_PATH, IMAGE_FILTER
 
 # Configure logging
@@ -20,15 +20,12 @@ logger = logging.getLogger("data_process.service")
 
 
 class DataProcessService:
-    def __init__(self, num_workers: int = 3):
+    def __init__(self):
         """Initialize the DataProcessService
 
         Args:
             num_workers: Number of worker processes for data processing
         """
-        # Initialize core
-        self.core = DataProcessCore(num_workers=num_workers, use_ray=True)
-
         # Initialize CLIP model and processor with fallback
         self.model = None
         self.processor = None
@@ -47,62 +44,12 @@ class DataProcessService:
         warnings.filterwarnings('ignore', category=UserWarning, module='PIL.Image')
 
     async def start(self):
-        """Start the data processing core"""
-        await self.core.start()
+        """Start the data processing service"""
+        logger.info("Data processing service started")
 
     async def stop(self):
-        """Stop the data processing core"""
-        await self.core.stop()
-
-    async def create_task(self, source: str, source_type: str, chunking_strategy: str,
-                          index_name: str, **params) -> str:
-        """Create a new data processing task
-
-        Args:
-            source: Source data to process
-            source_type: Type of the source data
-            chunking_strategy: Strategy for chunking the data
-            index_name: Name of the index to store results
-            **params: Additional parameters for the task
-
-        Returns:
-            str: Task ID
-        """
-        start_time = time.time()
-        task_id = await self.core.create_task(
-            source=source,
-            source_type=source_type,
-            chunking_strategy=chunking_strategy,
-            index_name=index_name,
-            **params
-        )
-        logger.info(f"Task creation took {(time.time() - start_time) * 1000:.2f}ms",
-                    extra={'task_id': task_id, 'stage': 'API-CREATE', 'source': 'service'})
-
-        return task_id
-
-    async def create_batch_tasks(self, sources: List[Dict[str, Any]]) -> List[str]:
-        """Create multiple data processing tasks in batch
-
-        Args:
-            sources: List of task source configurations
-
-        Returns:
-            List[str]: List of task IDs
-        """
-        start_time = time.time()
-        batch_id = f"batch-{int(time.time())}"
-
-        logger.info(f"Processing batch request with {len(sources)} sources",
-                    extra={'task_id': batch_id, 'stage': 'API-BATCH', 'source': 'service'})
-
-        task_ids = await self.core.create_batch_tasks(sources)
-
-        elapsed_ms = (time.time() - start_time) * 1000
-        logger.info(f"Batch task creation took {elapsed_ms:.2f}ms for {len(task_ids)} tasks",
-                    extra={'task_id': batch_id, 'stage': 'API-BATCH', 'source': 'service'})
-
-        return task_ids
+        """Stop the data processing service"""
+        logger.info("Data processing service stopped")
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Get task by ID
@@ -113,26 +60,100 @@ class DataProcessService:
         Returns:
             Optional[Dict[str, Any]]: Task data if found, None otherwise
         """
-        return self.core.get_task(task_id)
+        return get_task_info(task_id)
 
-    def get_all_tasks(self) -> List[Dict[str, Any]]:
+    def get_all_tasks(self, filter: bool=True) -> List[Dict[str, Any]]:
         """Get all tasks
+
+        Args:
+            filter: Whether to filter out useless task (i.e. process_and_forward) with no index_name and tast_name
 
         Returns:
             List[Dict[str, Any]]: List of all tasks
         """
-        return self.core.get_all_tasks()
+        from celery import current_app
+        from data_process.utils import get_task_info, get_all_task_ids_from_redis
+        
+        all_tasks = []
+        
+        try:
+            # Get inspector to check for active tasks
+            inspector = current_app.control.inspect()
+            
+            # Collect task IDs from different sources
+            task_ids = set()
+            
+            # Get active tasks
+            active_tasks_dict = inspector.active()
+            if active_tasks_dict:
+                for worker, tasks in active_tasks_dict.items():
+                    for task in tasks:
+                        task_id = task.get('id')
+                        if task_id:
+                            task_ids.add(task_id)
+            
+            # Get reserved (waiting) tasks  
+            reserved_tasks_dict = inspector.reserved()
+            if reserved_tasks_dict:
+                for worker, tasks in reserved_tasks_dict.items():
+                    for task in tasks:
+                        task_id = task.get('id')
+                        if task_id:
+                            task_ids.add(task_id)
+            
+            # Get scheduled tasks
+            scheduled_tasks_dict = inspector.scheduled()
+            if scheduled_tasks_dict:
+                for worker, tasks in scheduled_tasks_dict.items():
+                    for task in tasks:
+                        task_id = task.get('id')
+                        if task_id:
+                            task_ids.add(task_id)
+            
+            # Also get task IDs from Redis backend (covers completed/failed tasks within expiry)
+            try:
+                redis_task_ids = get_all_task_ids_from_redis()
+                for task_id in redis_task_ids:
+                    task_ids.add(task_id) # Add to the set, duplicates will be handled
+                
+            except Exception as redis_error:
+                logger.warning(f"Failed to query Redis for stored task IDs: {str(redis_error)}")
+            
+            logger.info(f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
+            
+            # Get task details for each found task ID
+            for task_id in task_ids:
+                try:
+                    task_info = get_task_info(task_id)
+                    if task_info:
+                        if filter and not (task_info.get('index_name') and task_info.get('task_name')):
+                                continue
+                        all_tasks.append(task_info)
+                except Exception as e:
+                    logger.warning(f"Failed to get status for task {task_id}: {str(e)}")
+                    continue # Skip this task if status retrieval fails
+            
+            logger.info(f"Successfully retrieved details for {len(all_tasks)} tasks.")
+            
+        except Exception as e:
+            logger.error(f"Error retrieving all tasks: {str(e)}")
+            # Fall back to empty list to avoid breaking the API
+            all_tasks = []
+        
+        return all_tasks
 
-    def get_index_tasks(self, index_name: str) -> Dict[str, Any]:
+    def get_index_tasks(self, index_name: str) -> List[Dict[str, Any]]:
         """Get all active tasks for a specific index
 
         Args:
             index_name: Name of the index to filter tasks for
 
         Returns:
-            Dict[str, Any]: Tasks for the specified index
+            List[Dict[str, Any]]: Tasks for the specified index
         """
-        return self.core.get_index_tasks(index_name)
+        task_list = self.get_all_tasks()
+        # May got multiple tasks for the same index
+        return [task for task in task_list if task.get('index_name') == index_name]
 
     def check_image_size(self, width: int, height: int, min_width: int = 200, min_height: int = 200) -> bool:
         """Check if the image dimensions meet the minimum requirements

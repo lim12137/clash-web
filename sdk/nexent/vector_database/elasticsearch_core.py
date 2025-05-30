@@ -213,12 +213,16 @@ class ElasticSearchCore:
             return 0
             
         # Ensure all documents have required fields
-        current_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
+        current_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
+        current_date = time.strftime('%Y-%m-%d', time.localtime())
         
         for doc in documents:
             # Set create_time if not present
             if not doc.get("create_time"):
                 doc["create_time"] = current_time
+            
+            if not doc.get("date"):
+                doc["date"] = current_date
             
             # Convert create_time to ISO string if it's a number
             if isinstance(doc.get("create_time"), (int, float)):
@@ -258,12 +262,22 @@ class ElasticSearchCore:
                     if "embedding_model_name" not in doc:
                         doc["embedding_model_name"] = self.embedding_model.embedding_model_name
                     operations.append(doc)
-                    
                 logging.info(f"Processed batch {i//batch_size + 1}, documents {i} to {min(i+batch_size, len(documents))}")
                 
                 # Bulk index the batch
                 if operations:
-                    self.client.bulk(index=index_name, operations=operations, refresh=True)
+                    response = self.client.bulk(index=index_name, operations=operations, refresh='wait_for')
+                    # Handle the error
+                    for item in response['items']:
+                        if 'error' in item['index']:
+                            error_type = item['index']['error']['type']
+                            error_reason = item['index']['error']['reason']
+                            error_cause = item['index']['error']['caused_by']
+                            if error_type == 'version_conflict_engine_exception':
+                                # ignore version conflict
+                                continue
+                            else:
+                                logging.error(f"FATAL ERROR {error_type}: {error_reason}\nCaused By: {error_cause['type']}: {error_cause['reason']}")
                     total_indexed += len(batch)
                     operations = []  # Clear operations after successful bulk
                 
