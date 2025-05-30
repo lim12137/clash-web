@@ -295,18 +295,11 @@ class ToolInfo(BaseModel):
     class_name: str
 
 
-# used in prompt/save request
-class SavePromptRequest(BaseModel):
-    agent_id: int
-    prompt: str
-
-
 # used in Knowledge Summary request
 class ChangeSummaryRequest(BaseModel):
     summary_result: str
 
+
 class MessageIdRequest(BaseModel):
     conversation_id: int
     message_index: int
-
-
