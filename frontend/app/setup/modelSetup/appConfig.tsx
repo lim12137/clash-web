@@ -239,7 +239,7 @@ export const AppConfigSection: React.FC = () => {
                     <Text className="text-lg text-red-500 font-bold ml-1">*</Text>
                   </div>
                   <Input
-                    placeholder="智能问答"
+                    placeholder="请输入您的应用名称"
                     value={localAppName}
                     onChange={handleAppNameChange}
                     onBlur={handleAppNameBlur}
