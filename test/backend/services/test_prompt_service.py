@@ -17,7 +17,6 @@ with patch('backend.database.client.MinioClient', return_value=minio_client_mock
         get_enabled_tool_description_for_generate_prompt,
         get_enabled_sub_agent_description_for_generate_prompt,
         fine_tune_prompt,
-        save_prompt_impl,
         generate_system_prompt,
         join_info_for_generate_system_prompt
     )
@@ -249,25 +248,6 @@ FINE_TUNE_SYSTEM_PROMPT: "Fine Tune System Prompt"
         # Assert
         self.assertEqual(result, "Fine-tuned prompt result")
         mock_call_llm.assert_called_once()
-        
-    @patch('backend.services.prompt_service.get_user_info')
-    @patch('backend.services.prompt_service.save_agent_prompt')
-    def test_save_prompt_impl(self, mock_save_agent_prompt, mock_get_user_info):
-        # Setup
-        mock_get_user_info.return_value = ("user123", "tenant456")
-        mock_save_agent_prompt.return_value = {"success": True}
-        
-        # Execute
-        result = save_prompt_impl(123, "Test prompt")
-        
-        # Assert
-        self.assertEqual(result, {"success": True})
-        mock_get_user_info.assert_called_once()
-        mock_save_agent_prompt.assert_called_once_with(
-            agent_id=123,
-            prompt="Test prompt",
-            tenant_id="tenant456"
-        )
         
     @patch('backend.services.prompt_service.OpenAIServerModel')
     @patch('backend.services.prompt_service.config_manager')
