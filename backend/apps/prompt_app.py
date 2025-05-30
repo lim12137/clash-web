@@ -1,7 +1,7 @@
 from fastapi import HTTPException, APIRouter, Header
 from services.prompt_service import generate_and_save_system_prompt_impl, fine_tune_prompt
 import logging
-from consts.model import GeneratePromptRequest, FineTunePromptRequest, SavePromptRequest
+from consts.model import GeneratePromptRequest, FineTunePromptRequest
 
 router = APIRouter(prefix="/prompt")
 
