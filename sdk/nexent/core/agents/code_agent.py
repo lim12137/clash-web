@@ -190,12 +190,7 @@ You have been provided with these additional arguments, that you can access usin
                 final_answer = self._execute_step(task, memory_step)
 
             except AgentError as e:
-                except_parse_error_pattern = ("Make sure to include code with the correct pattern, for instance:\n"
-                                              "Thoughts: Your thoughts\n"
-                                              "Code:\n"
-                                              "```py\n"
-                                              "# Your python code here\n"
-                                              "```<end_code>\n")
+                except_parse_error_pattern = """Make sure to include code with the correct pattern, for instance"""
                 if except_parse_error_pattern in e.message:
                     # 当检测到模型没有输出code时，直接将大模型内容当成final_answer
                     final_answer = memory_step.model_output
