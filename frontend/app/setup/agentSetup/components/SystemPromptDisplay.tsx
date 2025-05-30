@@ -1,7 +1,7 @@
 "use client"
 
 import { Input, Button, Modal, Spin, message } from 'antd'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import AdditionalRequestInput from './AdditionalRequestInput'
 import { MarkdownRenderer } from '@/components/ui/markdownRenderer'
 import { ScrollArea } from '@/components/ui/scrollArea'
@@ -21,6 +21,7 @@ export interface SystemPromptDisplayProps {
   taskDescription?: string;
   selectedAgents?: Agent[];
   selectedTools?: Tool[];
+  onLocalIsGeneratingChange?: (value: boolean) => void;
 }
 
 /**
@@ -35,7 +36,8 @@ export default function SystemPromptDisplay({
   agentId, 
   taskDescription,
   selectedAgents = [],
-  selectedTools = []
+  selectedTools = [],
+  onLocalIsGeneratingChange
 }: SystemPromptDisplayProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
@@ -59,6 +61,7 @@ export default function SystemPromptDisplay({
     
     try {
       setLocalIsGenerating(true);
+      onLocalIsGeneratingChange?.(true);
       console.log("开始调用API生成提示词", { agent_id: agentId, task_description: taskDescription });
       
       const result = await generatePrompt({
@@ -75,6 +78,7 @@ export default function SystemPromptDisplay({
       message.error(`生成提示词失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setLocalIsGenerating(false);
+      onLocalIsGeneratingChange?.(false);
     }
   };
   
