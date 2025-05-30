@@ -1,11 +1,17 @@
 {
-  "name": "nexent",
+  "name": "nexent-data-process",
   "dockerComposeFile": "../docker/docker-compose.dev.yml",
   "service": "nexent-data-process",
   "workspaceFolder": "/opt",
   "forwardPorts": [3000, 5012],
   "customizations": {
     "vscode": {
+      "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash",
+        "remote.extensionKind": {
+          "ms-vscode.vscode-typescript-next": ["workspace"]
+        }
+      },
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
@@ -14,5 +20,8 @@
     }
   },
   "remoteUser": "root",
-  "shutdownAction": "none"
+  "shutdownAction": "none",
+  "containerEnv": {
+    "VSCODE_SERVER_ARCH": "linux-x64"
+  }
 }

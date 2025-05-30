@@ -14,16 +14,20 @@ export const DocumentStatus: React.FC<DocumentStatusProps> = ({
   // Map API status to display status
   const getDisplayStatus = (apiStatus: string): string => {
     switch (apiStatus) {
-      case 'WAITING':
+      case 'WAITING_FOR_PROCESSING':
         return '等待解析'
+      case 'WAIT_FOR_FORWARDING':
+        return '等待入库'
       case 'PROCESSING':
         return '解析中'
-      case 'FORWARDING':
+      case 'FORWARDING': 
         return '入库中'
       case 'COMPLETED':
-        return '解析完成'
-      case 'FAILED':
+        return '已就绪'
+      case 'PROCESS_FAILED':
         return '解析失败'
+      case 'FORWARD_FAILED':
+        return '入库失败'
       default:
         return apiStatus
     }
@@ -45,13 +49,15 @@ export const DocumentStatus: React.FC<DocumentStatusProps> = ({
           textColor: 'text-blue-800', 
           borderColor: 'border-blue-200' 
         }
-      case 'FAILED':
+      case 'PROCESS_FAILED':
+      case 'FORWARD_FAILED':
         return { 
           bgColor: 'bg-red-100', 
           textColor: 'text-red-800', 
           borderColor: 'border-red-200' 
         }
-      case 'WAITING':
+      case 'WAITING_FOR_PROCESSING':
+      case 'WAIT_FOR_FORWARDING':
         return { 
           bgColor: 'bg-yellow-100', 
           textColor: 'text-yellow-800', 
@@ -76,9 +82,11 @@ export const DocumentStatus: React.FC<DocumentStatusProps> = ({
       case 'PROCESSING':
       case 'FORWARDING':
         return '⟳'
-      case 'FAILED':
+      case 'PROCESS_FAILED':
+      case 'FORWARD_FAILED':
         return '✗'
-      case 'WAITING':
+      case 'WAITING_FOR_PROCESSING':
+      case 'WAIT_FOR_FORWARDING':
         return '⏱'
       default:
         return null

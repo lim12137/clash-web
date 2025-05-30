@@ -21,10 +21,10 @@ from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from nexent.core.nlp.tokenizer import calculate_term_weights
 from fastapi import HTTPException, Query, Body, Path, Depends
 from fastapi.responses import StreamingResponse
-from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, CREATE_TEST_KB, ES_HOST
+from consts.const import ES_API_KEY, ES_HOST
 from consts.model import IndexingRequest, SearchRequest, HybridSearchRequest
 from utils.agent_utils import config_manager
-from utils.elasticsearch_utils import get_active_tasks_status
+from utils.file_management_utils import get_all_files_status
 from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
 
 def generate_knowledge_summary_stream(keywords: str) -> Generator:
@@ -163,6 +163,7 @@ class ElasticSearchService:
         else:
             return {"indices": indices, "count": len(indices)}
 
+
     @staticmethod
     def _get_file_actual_size(source_type: str, path_or_url: str) -> int:
         """Query the actual size of the file"""
@@ -210,13 +211,13 @@ class ElasticSearchService:
                 # Get existing files from ES
                 existing_files = es_core.get_file_list_with_details(index_name)
 
-                # Get active tasks status from data process service
-                active_tasks = get_active_tasks_status(DATA_PROCESS_SERVICE, index_name)
+                # Get unique celery files list and the status of each file
+                celery_task_files = get_all_files_status(index_name)
 
                 # Create a set of path_or_urls from existing files for quick lookup
                 existing_paths = {file_info.get('path_or_url') for file_info in existing_files}
 
-                # Get text chunks if requested
+                # Get text chunks info (modify existing_files directly)
                 if include_chunks:
                     for file_info in existing_files:
                         path_or_url = file_info.get('path_or_url')
@@ -254,37 +255,44 @@ class ElasticSearchService:
                             file_info['chunks'] = []
                             file_info['chunks_count'] = 0
 
-                # Update existing files with status information
+                # For files already stored in ES, simply add to files
                 for file_info in existing_files:
-                    path_or_url = file_info.get('path_or_url')
-                    source_type = file_info.get('source_type', 'file')
-                    if path_or_url in active_tasks:
-                        # If file is in active tasks, use its status
-                        file_info['status'] = active_tasks[path_or_url]
-                    else:
-                        # If file is not in active tasks, it's completed
-                        file_info['status'] = 'COMPLETED'
-                        # 更新文件大小
-                        if file_info['file_size'] <= 0:
-                            file_info['file_size'] = self._get_file_actual_size(source_type, path_or_url)
+                    file_data = {
+                        'path_or_url': file_info.get('path_or_url'),
+                        'file': file_info.get('filename', ''),
+                        'file_size': file_info.get('file_size', 0),
+                        'create_time': file_info.get('create_time', ''),
+                        'status': "COMPLETED",
+                        'chunks': file_info.get('chunks', []),
+                        'chunks_count': file_info.get('chunks_count', 0)
+                    }
+                    files.append(file_data)
 
-                # Add active tasks that don't exist in ES
-                for path_or_url, status in active_tasks.items():
+                # For files not yet stored in ES (files currently being processed)
+                for path_or_url, status in celery_task_files.items():
+                    # Skip files that are already in existing_files to avoid duplicates
                     if path_or_url not in existing_paths:
-                        # Create a new file info entry for the active task
                         file_info = {
                             'path_or_url': path_or_url,
-                            'file': path_or_url.split('/')[-1],  # Use last part of path as filename
-                            'file_size': 0,  # Size unknown for active tasks
-                            'create_time': time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()),
+                            'file': os.path.basename(path_or_url) if path_or_url else '',
+                            'file_size': ElasticSearchService._get_file_actual_size('file', path_or_url),
+                            'create_time': time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
                             'status': status,
                             'chunks': [],
                             'chunks_count': 0
                         }
                         files.append(file_info)
 
-                # Add existing files to the final list
-                files.extend(existing_files)
+            # Check if stats and mappings are valid
+            if index_name not in stats:
+                raise HTTPException(status_code=404, detail=f"Index {index_name} not found in stats")
+            
+            if index_name not in mappings:
+                raise HTTPException(status_code=404, detail=f"Index {index_name} not found in mappings")
+            
+            # Check if base_info exists in stats
+            if "base_info" not in stats[index_name]:
+                raise HTTPException(status_code=500, detail=f"Index {index_name} stats missing base_info - ElasticSearch may be unavailable")
 
             return {
                 "base_info": stats[index_name]["base_info"],
@@ -293,8 +301,14 @@ class ElasticSearchService:
                 "files": files if include_files else None
             }
         except Exception as e:
-            raise HTTPException(status_code=404, detail=f"Error getting info for index {index_name}: {str(e)}")
-
+            error_msg = str(e)
+            # Check if it's an ElasticSearch connection issue
+            if "503" in error_msg or "search_phase_execution_exception" in error_msg:
+                raise HTTPException(status_code=503, detail=f"ElasticSearch service unavailable for index {index_name}: {error_msg}")
+            elif "ApiError" in error_msg:
+                raise HTTPException(status_code=503, detail=f"ElasticSearch API error for index {index_name}: {error_msg}")
+            else:
+                raise HTTPException(status_code=404, detail=f"Error getting info for index {index_name}: {error_msg}")
 
     @staticmethod
     def index_documents(
@@ -377,7 +391,7 @@ class ElasticSearchService:
                 # Get other metadata
                 language = metadata.get("languages", ["null"])[0] if metadata.get("languages") else "null"
                 author = metadata.get("author", "null")
-                date = metadata.get("date", time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()))
+                date = metadata.get("date", time.strftime("%Y-%m-%d", time.localtime()))
                 file_size = metadata.get("file_size", 0)
 
                 # Get create_time from metadata or current time

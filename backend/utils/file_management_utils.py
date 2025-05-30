@@ -95,3 +95,128 @@ async def trigger_data_process(file_paths: List[str], process_params: ProcessPar
     except Exception as e:
         logging.info("Error triggering data process: %s", str(e))
         return {"status": "error", "code": "INTERNAL_ERROR", "message": f"Internal error: {str(e)}"}
+
+
+def get_all_files_status(index_name: str):
+    """
+    Get status for all files according to index_name, matching corresponding tasks, 
+    and then convert to custom state
+    
+    Args:
+        index_name: Index name to filter tasks
+        
+    Returns:
+        Dictionary with path_or_url as keys and custom_state as values
+    """
+    try:
+        from services.data_process_service import DataProcessService
+        service = DataProcessService()
+        tasks_list = service.get_all_tasks()
+        
+        # Dictionary to store file statuses: {path_or_url: {process_state, forward_state, timestamps}}
+        file_states = {}
+        
+        for task_info in tasks_list:
+            # Check if this task matches our criteria
+            task_index_name = task_info.get('index_name', '')
+            task_path_or_url = task_info.get('path_or_url', '')
+            task_name = task_info.get('task_name', '')
+            task_status = task_info.get('status', '')
+            task_created_at = task_info.get('created_at', 0)
+            
+            # Match by index_name
+            if task_index_name == index_name and task_path_or_url:
+                
+                # Initialize file state if not exists
+                if task_path_or_url not in file_states:
+                    file_states[task_path_or_url] = {
+                        'process_state': '',
+                        'forward_state': '',
+                        'latest_process_created_at': 0,
+                        'latest_forward_created_at': 0
+                    }
+                
+                file_state = file_states[task_path_or_url]
+                
+                # Update latest task states
+                if task_name == 'process' and task_created_at > file_state['latest_process_created_at']:
+                    file_state['latest_process_created_at'] = task_created_at
+                    file_state['process_state'] = task_status
+                elif task_name == 'forward' and task_created_at > file_state['latest_forward_created_at']:
+                    file_state['latest_forward_created_at'] = task_created_at
+                    file_state['forward_state'] = task_status
+        
+        # Convert states to custom states for each file
+        result = {}
+        for path_or_url, file_state in file_states.items():
+            custom_state = _convert_to_custom_state(
+                process_celery_state=file_state['process_state'] or '',
+                forward_celery_state=file_state['forward_state'] or ''
+            )
+            result[path_or_url] = custom_state
+            
+            logging.debug(f"File status for {path_or_url} in index {index_name}: "
+                         f"process={file_state['process_state']}, forward={file_state['forward_state']} -> {custom_state}")
+        
+        return result
+        
+    except Exception as e:
+        logging.error(f"Error getting all files status for index {index_name}: {str(e)}")
+        return {}  # Return empty dict on error
+
+
+def _convert_to_custom_state(process_celery_state: str, forward_celery_state: str) -> str:
+    """
+    Convert Celery task state to frontend representation
+    
+    Args:
+        state: Celery task state
+        task_name: Task name (process/forward)
+        
+    Returns:
+        Converted state for frontend, value set:
+        - WAIT_FOR_PROCESSING
+        - PROCESSING
+        - WAIT_FOR_FORWARDING
+        - FORWARDING
+        - COMPLETED
+        - PROCESS_FAILED
+        - FORWARD_FAILED
+    """
+    from celery import states
+    if process_celery_state == states.SUCCESS and forward_celery_state == states.SUCCESS:
+        return "COMPLETED"
+    
+    if process_celery_state == states.FAILURE:
+        return "PROCESS_FAILED"
+    if forward_celery_state == states.FAILURE:
+        return "FORWARD_FAILED"
+    # Not started
+    if not (process_celery_state or forward_celery_state):
+        return "WAIT_FOR_PROCESSING"
+
+    # Failed
+    if process_celery_state == states.FAILURE:
+        return "PROCESS_FAILED"
+    if forward_celery_state == states.FAILURE:
+        return "FORWARD_FAILED"
+    
+    # Completed
+    if process_celery_state == states.SUCCESS and forward_celery_state == states.SUCCESS:
+        return "COMPLETED"
+    forward_state_map = {
+        states.PENDING: "WAIT_FOR_FORWARDING",
+        states.STARTED: "FORWARDING",
+        states.FAILURE: "FORWARD_FAILED",
+    }
+    process_state_map = {
+        states.PENDING: "WAIT_FOR_PROCESSING",
+        states.STARTED: "PROCESSING",
+        states.FAILURE: "PROCESS_FAILED",
+    }
+    
+    # Processing
+    if forward_celery_state:
+        return forward_state_map[forward_celery_state]
+    else:
+        return process_state_map[process_celery_state]

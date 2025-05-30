@@ -7,7 +7,7 @@ from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core
 from database.utils import get_current_user_id
 router = APIRouter(prefix="/indices")
-
+service = ElasticSearchService()
 
 @router.post("/{index_name}")
 def create_new_index(
@@ -56,7 +56,7 @@ def get_es_index_info(
 ):
     """Get comprehensive information about an index including stats, fields, sources and process info"""
     try:
-        return ElasticSearchService().get_index_info(index_name, include_files, include_chunks, es_core)
+        return service.get_index_info(index_name, include_files, include_chunks, es_core)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{str(e)}")
 

@@ -37,7 +37,7 @@ export interface Document {
   create_time: string
   chunk_num: number
   token_num: number
-  status: string // 文档状态：解析中、解析完成、解析失败
+  status: string
   selected?: boolean // 用于UI选择状态
 }
 
@@ -67,5 +67,11 @@ export interface IndexInfoResponse {
     id?: string;
     status?: string;
     chunk_count?: number;
+    chunks?: Array<{
+      id: string;
+      title: string;
+      content: string;
+      create_time: string;
+    }>;
   }>;
 } 

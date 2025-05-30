@@ -106,7 +106,7 @@ export const customUploadRequest = async (
                   console.error('获取新创建的知识库信息失败:', error);
                 }
               } else {
-                message.warning(`知识库 ${effectiveIndexName} 创建可能未完成`);
+                message.error(`知识库 ${effectiveIndexName} 创建超时，请稍后再试`);
               }
             }
           );
