@@ -27,14 +27,17 @@ const pulsingAnimation = `
 
 const getStatusStyle = (status?: ModelConnectStatus): React.CSSProperties => {
   const baseStyle: React.CSSProperties = {
-    width: '12px',  // 扩大尺寸
-    height: '12px', // 扩大尺寸
+    width: 'clamp(8px, 1.5vw, 12px)',  // 响应式尺寸，最小8px，最大12px
+    height: 'clamp(8px, 1.5vw, 12px)',  // 与宽度保持一致
+    aspectRatio: '1/1',  // 强制保持1:1比例
     borderRadius: '50%',
     display: 'inline-block',
     marginRight: '4px',
-    cursor: 'pointer', // 添加指针样式表明可点击
-    transition: 'all 0.2s ease', // 添加过渡效果
-    position: 'relative', // 用于伪元素定位
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    position: 'relative',
+    flexShrink: 0,  // 防止被压缩
+    flexGrow: 0,    // 防止被拉伸
   };
   
   if (status === "检测中") {
@@ -308,45 +311,47 @@ export const ModelListCard = ({
           <Select.OptGroup label="自定义模型">
             {modelsBySource.custom.map((model) => (
               <Option key={`${type}-${model.displayName}-custom`} value={model.name}>
-                <div className="flex items-center justify-between">
-                  <div className="font-medium truncate" title={model.name}>
+                <div className="flex items-center justify-between" style={{ minWidth: 0 }}>
+                  <div className="font-medium truncate" style={{ flex: '1 1 auto', minWidth: 0 }} title={model.name}>
                     {model.displayName || model.name}
                   </div>
-                  <Tooltip title="点击可验证连通性">
-                    <span 
-                      onClick={(e) => handleStatusClick(e, model.name)}
-                      onMouseDown={(e: React.MouseEvent) => {
-                        e.stopPropagation(); 
-                        e.preventDefault();
-                        if (onVerifyModel) {
-                          updateLocalModelStatus(model.name, "检测中");
-                          onVerifyModel(model.name, type);
-                        }
-                        return false;
-                      }}
-                      style={{ 
-                        ...getStatusStyle(model.connect_status),
-                        backgroundColor: model.connect_status === "检测中" 
-                          ? "#2980b9" 
-                          : getConnectStatusColor(model.connect_status),
-                        boxShadow: model.connect_status === "检测中"
-                          ? "0 0 3px #2980b9"
-                          : `0 0 3px ${getConnectStatusColor(model.connect_status)}`
-                      }}
-                      className="status-indicator"
-                      onMouseEnter={(e) => {
-                        const target = e.currentTarget as HTMLElement;
-                        Object.assign(target.style, getHoverStyle);
-                      }}
-                      onMouseLeave={(e) => {
-                        const target = e.currentTarget as HTMLElement;
-                        target.style.transform = '';
-                        target.style.boxShadow = model.connect_status === "检测中"
-                          ? "0 0 3px #2980b9"
-                          : `0 0 3px ${getConnectStatusColor(model.connect_status)}`;
-                      }}
-                    />
-                  </Tooltip>
+                  <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', marginLeft: '8px' }}>
+                    <Tooltip title="点击可验证连通性">
+                      <span 
+                        onClick={(e) => handleStatusClick(e, model.name)}
+                        onMouseDown={(e: React.MouseEvent) => {
+                          e.stopPropagation(); 
+                          e.preventDefault();
+                          if (onVerifyModel) {
+                            updateLocalModelStatus(model.name, "检测中");
+                            onVerifyModel(model.name, type);
+                          }
+                          return false;
+                        }}
+                        style={{ 
+                          ...getStatusStyle(model.connect_status),
+                          backgroundColor: model.connect_status === "检测中" 
+                            ? "#2980b9" 
+                            : getConnectStatusColor(model.connect_status),
+                          boxShadow: model.connect_status === "检测中"
+                            ? "0 0 3px #2980b9"
+                            : `0 0 3px ${getConnectStatusColor(model.connect_status)}`
+                        }}
+                        className="status-indicator"
+                        onMouseEnter={(e) => {
+                          const target = e.currentTarget as HTMLElement;
+                          Object.assign(target.style, getHoverStyle);
+                        }}
+                        onMouseLeave={(e) => {
+                          const target = e.currentTarget as HTMLElement;
+                          target.style.transform = '';
+                          target.style.boxShadow = model.connect_status === "检测中"
+                            ? "0 0 3px #2980b9"
+                            : `0 0 3px ${getConnectStatusColor(model.connect_status)}`;
+                        }}
+                      />
+                    </Tooltip>
+                  </div>
                 </div>
               </Option>
             ))}
