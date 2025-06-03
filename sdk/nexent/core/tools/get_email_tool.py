@@ -127,16 +127,3 @@ class GetEmailTool(Tool):
         except Exception as e:
             print(f"Unexpected Error: {str(e)}")
             return [json.dumps({"error": f"An unexpected error occurred: {str(e)}"}, ensure_ascii=False)]
-
-
-if __name__ == "__main__":
-    # 创建邮件工具实例
-    email_tool = GetEmailTool(imap_server="imap.qq.com", imap_port=993,  # 使用SSL端口
-        username="564516720@qq.com", password="sxfktetgcswhbbha", use_ssl=True, timeout=30)
-
-    # 获取测试邮件
-    result = email_tool.forward(days=7,  # 获取最近7天的邮件
-        max_emails=5  # 最多获取5封邮件
-    )
-
-    # for i in result:  #     print(f"\n第{i}封邮件：")  #     print(i)  #     print("-"*100)
