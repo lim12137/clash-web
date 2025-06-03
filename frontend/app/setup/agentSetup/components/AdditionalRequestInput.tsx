@@ -15,10 +15,13 @@ export interface AdditionalRequestInputProps {
 export default function AdditionalRequestInput({ onSend, isTuning = false }: AdditionalRequestInputProps) {
   const [request, setRequest] = useState("")
   
-  const handleSend = () => {
+  const handleSend = async () => {
     if (request.trim()) {
-      onSend(request)
-      setRequest("")
+      try {
+        await onSend(request)
+      } catch (error) {
+        console.error("微调指令发送失败:", error)
+      }
     }
   }
   
