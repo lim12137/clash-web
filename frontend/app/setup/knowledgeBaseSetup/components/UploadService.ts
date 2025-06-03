@@ -199,7 +199,9 @@ export const validateFileType = (file: File): boolean => {
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'text/markdown',
-    'text/plain'
+    'text/plain',
+    'text/csv',
+    'application/csv'
   ];
 
   // 先判断 MIME type
@@ -208,13 +210,17 @@ export const validateFileType = (file: File): boolean => {
   // 如果 MIME type 为空或不在列表里，再根据文件名后缀判断
   if (!isValidType) {
     const name = file.name.toLowerCase();
-    if (name.endsWith('.md') || name.endsWith('.markdown')) {
+    if (
+      name.endsWith('.md') ||
+      name.endsWith('.markdown') ||
+      name.endsWith('.csv')
+    ) {
       isValidType = true;
     }
   }
 
   if (!isValidType) {
-    message.error('只支持 PDF、Word、PPT、Excel、MD、TXT 文件格式！');
+    message.error('只支持 PDF、Word、PPT、Excel、MD、TXT、CSV 文件格式！');
     return false;
   }
 

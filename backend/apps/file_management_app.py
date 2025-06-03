@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from consts.model import ProcessParams
 from consts.const import MAX_CONCURRENT_UPLOADS, UPLOAD_FOLDER
-from utils.file_management_utils import allowed_file, save_upload_file, trigger_data_process
+from utils.file_management_utils import save_upload_file, trigger_data_process
 from utils.image_utils import convert_image_to_text
 from database.attachment_db import (
     upload_fileobj, delete_file, get_file_url, list_files
@@ -62,22 +62,17 @@ async def upload_files(
             if not f:
                 continue
 
-            if not allowed_file(f.filename):
-                errors.append(f"File type not allowed: {f.filename}")
-                continue
-
-            # Safely handle filename
-            safe_filename = os.path.basename(f.filename)
-            upload_path = upload_dir / safe_filename
-            absolute_path = upload_path.absolute()
+            safe_filename = os.path.basename(f.filename);
+            upload_path = upload_dir / safe_filename;
+            absolute_path = upload_path.absolute();
 
             # Save file
             if await save_upload_file(f, upload_path):
-                uploaded_filenames.append(safe_filename)
-                uploaded_file_paths.append(str(absolute_path))
-                print(f"Successfully saved file: {safe_filename}")
+                uploaded_filenames.append(safe_filename);
+                uploaded_file_paths.append(str(absolute_path));
+                print(f"Successfully saved file: {safe_filename}");
             else:
-                errors.append(f"Failed to save file: {f.filename}")
+                errors.append(f"Failed to save file: {f.filename}");
 
     # Trigger data processing
     if uploaded_file_paths:
