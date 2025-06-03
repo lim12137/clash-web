@@ -1,4 +1,5 @@
 import { Tool, convertParamType } from '@/types/agentAndToolConst';
+import { API_ENDPOINTS } from './api';
 
 /**
  * get tool list from backend
@@ -6,7 +7,7 @@ import { Tool, convertParamType } from '@/types/agentAndToolConst';
  */
 export const fetchTools = async () => {
   try {
-    const response = await fetch('/api/tool/list');
+    const response = await fetch(API_ENDPOINTS.tool.list);
     if (!response.ok) {
       throw new Error(`请求失败: ${response.status}`);
     }
@@ -50,7 +51,7 @@ export const fetchTools = async () => {
  */
 export const fetchAgentList = async () => {
   try {
-    const response = await fetch('/api/agent/list');
+    const response = await fetch(API_ENDPOINTS.agent.list);
     if (!response.ok) {
       throw new Error(`请求失败: ${response.status}`);
     }
@@ -128,7 +129,7 @@ export const fetchAgentList = async () => {
  */
 export const getCreatingSubAgentId = async (mainAgentId: string | null) => {
   try {
-    const response = await fetch('/api/agent/get_creating_sub_agent_id', {
+    const response = await fetch(API_ENDPOINTS.agent.getCreatingSubAgentId, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -180,7 +181,7 @@ export const updateToolConfig = async (
   try {
     console.log({"tool_id":toolId, "agent_id":agentId, "params":params, "enabled":enable})
 
-    const response = await fetch('/api/tool/update', {
+    const response = await fetch(API_ENDPOINTS.tool.update, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -221,7 +222,7 @@ export const updateToolConfig = async (
  */
 export const searchToolConfig = async (toolId: number, agentId: number) => {
   try {
-    const response = await fetch('/api/tool/search', {
+    const response = await fetch(API_ENDPOINTS.tool.search, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -278,7 +279,7 @@ export const updateAgent = async (
   businessDescription?: string
 ) => {
   try {
-    const response = await fetch('/api/agent/update', {
+    const response = await fetch(API_ENDPOINTS.agent.update, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -323,7 +324,7 @@ export const updateAgent = async (
  */
 export const deleteAgent = async (agentId: number) => {
   try {
-    const response = await fetch('/api/agent', {
+    const response = await fetch(API_ENDPOINTS.agent.delete, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
