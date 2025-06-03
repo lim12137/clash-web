@@ -93,15 +93,3 @@ class SendEmailTool(Tool):
             print(f"Unexpected Error: {str(e)}")
             return json.dumps({"status": "error", "message": f"An unexpected error occurred: {str(e)}"},
                 ensure_ascii=False)
-
-
-if __name__ == "__main__":
-    # 创建邮件工具实例
-    email_tool = SendEmailTool(smtp_server="smtp.qq.com", smtp_port=465,  # 使用SSL端口
-        username="564516720@qq.com", password="sxfktetgcswhbbha", use_ssl=True, sender_name="Test Sender", timeout=30)
-
-    # 发送测试邮件
-    result = email_tool.forward(to="chenshuangrui@icloud.com", subject="Test Email from EmailTool",
-        content="<h1>Hello!</h1><p>This is a test email from EmailTool.</p>")
-
-    print(f"\nResult: {result}")

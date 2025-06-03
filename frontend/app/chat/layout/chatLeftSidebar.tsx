@@ -15,6 +15,7 @@ import { ConversationListItem } from "@/types/chat"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { ScrollArea } from "@/components/ui/scrollArea"
 import { useConfig } from "@/hooks/useConfig"
 import { useResponsiveTextSize } from "@/hooks/useResponsiveTextSize"
 import { extractColorsFromUri } from "@/lib/avatar"
@@ -180,7 +181,7 @@ export function ChatSidebar({
 
     return (
       <div className="space-y-1">
-        <p className="px-2 text-sm font-medium text-gray-500 tracking-wide font-sans sticky top-0 py-1 z-10" style={{ fontWeight:'bold',color:'#4d4d4d',backgroundColor: 'rgb(242 248 255)',fontSize:'16px', whiteSpace: 'nowrap' }}>{title}</p>
+        <p className="px-2 pr-3 text-sm font-medium text-gray-500 tracking-wide font-sans sticky top-0 py-1 z-10" style={{ fontWeight:'bold',color:'#4d4d4d',backgroundColor: 'rgb(242 248 255)',fontSize:'16px', whiteSpace: 'nowrap' }}>{title}</p>
         {dialogs.map((dialog) => (
           <div 
             key={dialog.conversation_id} 
@@ -372,8 +373,8 @@ export function ChatSidebar({
               </Button>
             </div>
 
-            <div className="flex-1 overflow-auto m-2 h-fit" >
-              <div className="space-y-4">
+            <ScrollArea className="flex-1 m-2 h-fit">
+              <div className="space-y-4 pr-2">
                 {conversationList.length > 0 ? (
                   <>
                     {renderDialogList(today, "今天")}
@@ -390,7 +391,7 @@ export function ChatSidebar({
                   </div>
                 )}
               </div>
-            </div>
+            </ScrollArea>
 
             <div className="mt-auto p-3 border-t border-transparent flex justify-between items-center">
               <Button
