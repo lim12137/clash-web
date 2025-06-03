@@ -40,8 +40,19 @@ const HoverableText = ({ text, searchResults }: {
   const [isOpen, setIsOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const tooltipRef = React.useRef<HTMLDivElement>(null);
-  // 跟踪当前鼠标位置
   const mousePositionRef = React.useRef({ x: 0, y: 0 });
+
+  // Function to handle multiple consecutive line breaks
+  const handleConsecutiveNewlines = (text: string) => {
+    if (!text) return text;
+    return text
+      // First, standardize all types of line breaks to \n
+      .replace(/\r\n/g, '\n')  // Windows line breaks
+      .replace(/\r/g, '\n')    // Old Mac line breaks
+      // Handle consecutive line breaks and whitespace
+      .replace(/[\n\s]*\n[\n\s]*/g, '\n')  // Process whitespace around line breaks
+      .replace(/^\s+|\s+$/g, '');  // Remove leading and trailing whitespace
+  };
 
   // 查找对应搜索结果
   const toolSign = text.charAt(0);
@@ -197,12 +208,12 @@ const HoverableText = ({ text, searchResults }: {
                         rel="noopener noreferrer"
                         className="rag-tooltip-title"
                       >
-                        {matchedResult.title}
+                        {handleConsecutiveNewlines(matchedResult.title)}
                       </a>
                     ) : (
-                      <p className="rag-tooltip-title">{matchedResult.title}</p>
+                      <p className="rag-tooltip-title">{handleConsecutiveNewlines(matchedResult.title)}</p>
                     )}
-                    <p className="rag-tooltip-desc">{matchedResult.text}</p>
+                    <p className="rag-tooltip-desc">{handleConsecutiveNewlines(matchedResult.text)}</p>
                   </>
                 ) : null}
               </div>
