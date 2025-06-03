@@ -212,10 +212,9 @@ export function ChatStreamFinalMessage({
             {/* Text content */}
             {message.content && (
               <div className="rounded-lg border bg-blue-50 border-blue-100 user-message-container px-3 ml-auto text-sm">
-                <MarkdownRenderer 
-                  content={message.content} 
-                  className="user-message-content" 
-                />
+                <div className="user-message-content whitespace-pre-wrap py-2">
+                  {message.content}
+                </div>
               </div>
             )}
           </>
