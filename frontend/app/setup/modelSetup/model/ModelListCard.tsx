@@ -2,8 +2,7 @@
 import { Select, Tooltip, Tag } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
 import { ModelConnectStatus, ModelOption, ModelSource, ModelType } from '@/types/config'
-import { useEffect, useState, useRef, useCallback } from 'react'
-import { modelService } from '@/services/modelService'
+import { useEffect, useState, useRef } from 'react'
 
 // 重构：风格被嵌入在组件内
 const pulsingAnimation = `
@@ -307,20 +306,20 @@ export const ModelListCard = ({
         {modelsBySource.custom.length > 0 && (
           <Select.OptGroup label="自定义模型">
             {modelsBySource.custom.map((model) => (
-              <Option key={`${type}-${model.displayName}-custom`} value={model.name}>
+              <Option key={`${type}-${model.displayName || model.name}-custom`} value={model.displayName || model.name}>
                 <div className="flex items-center justify-between">
-                  <div className="font-medium truncate" title={model.name}>
+                  <div className="font-medium truncate" title={model.displayName || model.name}>
                     {model.displayName || model.name}
                   </div>
                   <Tooltip title="点击可验证连通性">
                     <span 
-                      onClick={(e) => handleStatusClick(e, model.name)}
+                      onClick={(e) => handleStatusClick(e, model.displayName || model.name)}
                       onMouseDown={(e: React.MouseEvent) => {
                         e.stopPropagation(); 
                         e.preventDefault();
                         if (onVerifyModel) {
-                          updateLocalModelStatus(model.name, "检测中");
-                          onVerifyModel(model.name, type);
+                          updateLocalModelStatus(model.displayName || model.name, "检测中");
+                          onVerifyModel(model.displayName || model.name, type);
                         }
                         return false;
                       }}
