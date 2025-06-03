@@ -193,14 +193,25 @@ export const fetchKnowledgeBaseInfo = async (
 
 // 文件类型验证
 export const validateFileType = (file: File): boolean => {
-  const isValidType = [
+  const validTypes = [
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'text/markdown',
     'text/plain'
-  ].includes(file.type);
+  ];
+
+  // 先判断 MIME type
+  let isValidType = validTypes.includes(file.type);
+
+  // 如果 MIME type 为空或不在列表里，再根据文件名后缀判断
+  if (!isValidType) {
+    const name = file.name.toLowerCase();
+    if (name.endsWith('.md') || name.endsWith('.markdown')) {
+      isValidType = true;
+    }
+  }
 
   if (!isValidType) {
     message.error('只支持 PDF、Word、PPT、Excel、MD、TXT 文件格式！');
