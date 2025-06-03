@@ -246,7 +246,7 @@ export function ChatRightPanel({
           </div>
 
           <div className="mt-2 text-sm flex justify-between items-center">
-            <div className="flex items-center">
+            <div className="flex items-center min-w-0 flex-1">
               <div className="w-3 h-3 flex-shrink-0 mr-1">
                 {source_type === "url" ? (
                   <ExternalLink className="w-full h-full" />
@@ -254,7 +254,7 @@ export function ChatRightPanel({
                   <Database className="w-full h-full" />
                 ) : null}
               </div>
-              <span className="text-gray-500 break-all">
+              <span className="text-gray-500 truncate">
                 {formatUrl(result)}
               </span>
             </div>
