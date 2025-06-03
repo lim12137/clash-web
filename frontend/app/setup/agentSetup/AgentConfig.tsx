@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import BusinessLogicConfig from './AgentManagementConfig'
-import SystemPromptConfig from './SystemPromptConfig'
+import SystemPromptDisplay from './components/SystemPromptDisplay'
 import DebugConfig from './DebugConfig'
 import GuideSteps from './components/GuideSteps'
 import { Row, Col, Drawer, message } from 'antd'
 import { fetchTools, fetchAgentList } from '@/services/agentConfigService'
 import { OpenAIModel } from '@/app/setup/agentSetup/ConstInterface'
+
 // Layout Height Constant Configuration
 const LAYOUT_CONFIG = {
   MAIN_CONTENT_HEIGHT: "calc(75vh - 45px)",
@@ -229,16 +230,13 @@ export default function AgentConfig() {
                 overflowY: "auto",
                 overflowX: "hidden"
               }}>
-                <SystemPromptConfig 
-                  systemPrompt={systemPrompt}
-                  setSystemPrompt={setSystemPrompt}
+                <SystemPromptDisplay 
+                  prompt={systemPrompt}
+                  onPromptChange={setSystemPrompt}
                   isGenerating={isGenerating}
                   onDebug={() => setIsDebugDrawerOpen(true)}
-                  onGenerate={handleGeneratePrompt}
                   agentId={mainAgentId ? parseInt(mainAgentId) : undefined}
                   taskDescription={businessLogic}
-                  selectedAgents={selectedAgents}
-                  selectedTools={selectedTools}
                 />
               </div>
             </div>
