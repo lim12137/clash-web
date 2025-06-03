@@ -8,83 +8,66 @@ from nexent.core.models.embedding_model import JinaEmbedding, OpenAICompatibleEm
 from apps.voice_app import VoiceService
 from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
 from consts.model import ModelConnectStatusEnum, ModelResponse
-from database.model_management_db import get_model_by_name, update_model_record
-from utils.model_name_utils import split_repo_name
+from database.model_management_db import get_model_by_display_name, update_model_record
 
 
-async def check_model_connectivity(model_name: str):
+async def check_model_connectivity(display_name: str):
     try:
-        # Split model_name
-        repo, name = split_repo_name(model_name)
-        # Ensure repo is empty string instead of null
-        repo = repo if repo else ""
-        # Log target model info
-        model = get_model_by_name(name, repo)
-        log_str = f"Checking model connectivity: {repo}/{name}; "
+        # 用 display_name 查库
+        model = get_model_by_display_name(display_name)
+        if not model:
+            return ModelResponse(code=404, message=f"Model configuration not found for {display_name}",
+                data={"connectivity": False, "connect_status": "未找到"})
+            
+        # 仍然用 repo/name 拼接用于模型实例化
+        repo, name = model.get("model_repo", ""), model.get("model_name", "")
+        model_name = f"{repo}/{name}" if repo else name
+        log_str = f"Checking model connectivity: {model_name}; "
         if model.get("base_url"):
             log_str += f"base_url: {model.get('base_url')}; "
         if model.get("api_key"):
             log_str += f"api_key: {model.get('api_key')}; "
         logging.info(log_str)
-
-        # Find model based on split model_repo and model_name
-        if not model:
-            return ModelResponse(code=404, message=f"Model configuration not found for {model_name}",
-                data={"connectivity": False, "connect_status": ""})
-
+        
         # Set model to "detecting" status
         update_data = {"connect_status": ModelConnectStatusEnum.DETECTING.value}
         update_model_record(model["model_id"], update_data)
-
+        
         model_type = model["model_type"]
         model_base_url = model["base_url"]
         model_api_key = model["api_key"]
+        
         connectivity: bool
         # Test connectivity based on different model types
         if model_type == "embedding":
             connectivity = OpenAICompatibleEmbedding(model_name=model_name, base_url=model_base_url, api_key=model_api_key, embedding_dim=1024).check_connectivity()
-
         elif model_type == "multi_embedding":
             connectivity = JinaEmbedding(model_name=model_name, base_url=model_base_url, api_key=model_api_key, embedding_dim=1024).check_connectivity()
-
         elif model_type == "llm":
             observer = MessageObserver()
-            connectivity = OpenAIModel(observer, model_id=model_name, api_base=model_base_url,
-                                       api_key=model_api_key).check_connectivity()
-
+            connectivity = OpenAIModel(observer, model_id=model_name, api_base=model_base_url, api_key=model_api_key).check_connectivity()
         elif model_type == "rerank":
-            # connectivity =  RerankModel.check_connectivity()
-            # TODO: Implement RerankModel connectivity test
             connectivity = False
         elif model_type == "vlm":
             observer = MessageObserver()
-            connectivity = OpenAIVLModel(observer, model_id=model_name, api_base=model_base_url,
-                                       api_key=model_api_key).check_connectivity()
+            connectivity = OpenAIVLModel(observer, model_id=model_name, api_base=model_base_url, api_key=model_api_key).check_connectivity()
         elif model_type in ["tts", "stt"]:
             connectivity = await VoiceService().check_connectivity(model_type)
-
         else:
-            # Unsupported model type, update to unavailable status
             update_data = {"connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
             logging.error(f"Unsupported model type: {model_type}")
             update_model_record(model["model_id"], update_data)
             return ModelResponse(code=400, message=f"Unsupported model type: {model_type}",
                 data={"connectivity": False, "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
-
-        # Update model status based on connectivity result
         connect_status = ModelConnectStatusEnum.AVAILABLE.value if connectivity else ModelConnectStatusEnum.UNAVAILABLE.value
         update_data = {"connect_status": connect_status}
         update_model_record(model["model_id"], update_data)
-
-        return ModelResponse(code=200, message=f"Model {model_name} connectivity {'successful' if connectivity else 'failed'}",
+        return ModelResponse(code=200, message=f"Model {display_name} connectivity {'successful' if connectivity else 'failed'}",
             data={"connectivity": connectivity, "connect_status": connect_status})
-
     except Exception as e:
-        # Update to unavailable status when exception occurs
-        if model:
+        if 'model' in locals() and model:
             update_data = {"connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
             update_model_record(model["model_id"], update_data)
-
         return ModelResponse(code=500, message=f"Connectivity test error: {str(e)}",
             data={"connectivity": False, "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
 

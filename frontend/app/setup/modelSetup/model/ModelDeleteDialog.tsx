@@ -89,42 +89,42 @@ export const ModelDeleteDialog = ({
   }
 
   // 处理删除模型
-  const handleDeleteModel = async (modelName: string, displayName: string) => {
-    setDeletingModels(prev => new Set(prev).add(modelName))
+  const handleDeleteModel = async (displayName: string) => {
+    setDeletingModels(prev => new Set(prev).add(displayName))
     try {
-      await modelService.deleteCustomModel(modelName)
+      await modelService.deleteCustomModel(displayName)
       let configUpdates: any = {}
       
       // 检查每个模型配置，如果当前使用的是被删除的模型，则清空配置
-      if (modelConfig.llm.modelName === modelName) {
+      if (modelConfig.llm.displayName === displayName) {
         configUpdates.llm = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
       }
       
-      if (modelConfig.llmSecondary.modelName === modelName) {
+      if (modelConfig.llmSecondary.displayName === displayName) {
         configUpdates.llmSecondary = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
       }
       
-      if (modelConfig.embedding.modelName === modelName) {
+      if (modelConfig.embedding.displayName === displayName) {
         configUpdates.embedding = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
       }
       
-      if (modelConfig.multiEmbedding.modelName === modelName) {
+      if (modelConfig.multiEmbedding.displayName === displayName) {
         configUpdates.multiEmbedding = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
       }
       
-      if (modelConfig.rerank.modelName === modelName) {
+      if (modelConfig.rerank.displayName === displayName) {
         configUpdates.rerank = { modelName: "", displayName: "" }
       }
       
-      if (modelConfig.vlm.modelName === modelName) {
+      if (modelConfig.vlm.displayName === displayName) {
         configUpdates.vlm = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
       }
       
-      if (modelConfig.stt.modelName === modelName) {
+      if (modelConfig.stt.displayName === displayName) {
         configUpdates.stt = { modelName: "", displayName: "" }
       }
       
-      if (modelConfig.tts.modelName === modelName) {
+      if (modelConfig.tts.displayName === displayName) {
         configUpdates.tts = { modelName: "", displayName: "" }
       }
 
@@ -143,7 +143,7 @@ export const ModelDeleteDialog = ({
       // 如果当前没有模型了，则返回到模型类型选择界面
       // 使用从父组件传入的customModels来判断，不再单独获取
       const currentTypeModels = customModels.filter(model => 
-        model.type === deletingModelType && model.name !== modelName
+        model.type === deletingModelType && model.displayName !== displayName
       )
       
       if (currentTypeModels.length === 0) {
@@ -155,7 +155,7 @@ export const ModelDeleteDialog = ({
     } finally {
       setDeletingModels(prev => {
         const next = new Set(prev)
-        next.delete(modelName)
+        next.delete(displayName)
         return next
       })
     }
@@ -251,12 +251,12 @@ export const ModelDeleteDialog = ({
                     </div>
                   </div>
                   <button
-                    onClick={() => handleDeleteModel(model.name, model.displayName || model.name)}
-                    disabled={deletingModels.has(model.name)}
+                    onClick={() => handleDeleteModel(model.displayName || model.name)}
+                    disabled={deletingModels.has(model.displayName || model.name)}
                     className="text-red-500 hover:text-red-700 p-1"
                     title="删除模型"
                   >
-                    {deletingModels.has(model.name) ? (
+                    {deletingModels.has(model.displayName || model.name) ? (
                       <svg
                         className="animate-spin h-5 w-5"
                         xmlns="http://www.w3.org/2000/svg"

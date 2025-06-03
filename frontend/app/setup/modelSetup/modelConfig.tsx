@@ -176,47 +176,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     verifyModels
   }));
 
-  // 安全地更新特定自定义模型的连接状态
-  const updateCustomModelStatus = (modelName: string, modelType: string, status: ModelConnectStatus) => {
-    // 更新本地状态
-    setCustomModels(prev => {
-      const idx = prev.findIndex(model => model.name === modelName && model.type === modelType);
-      if (idx === -1) return prev;
-
-      const updated = [...prev];
-      updated[idx] = {
-        ...updated[idx],
-        connect_status: status
-      };
-      return updated;
-    });
-
-    // 同时同步到后端数据库
-    modelService.updateModelStatus(modelName, status)
-      .then(success => {
-        if (!success) {
-          console.error(`更新模型 ${modelName} 状态到数据库失败`);
-        } else {
-          // 状态成功更新到数据库后，主动触发全局模型状态更新
-          setTimeout(() => {
-            // 直接从后端获取最新数据更新模型卡片
-            modelService.getCustomModels().then(models => {
-              if (models && models.length > 0) {
-                // 确保在此处获取的模型列表中包含最新的状态
-                // 更新本地状态
-                setCustomModels(models);
-              }
-            }).catch(err => {
-              console.error("获取最新模型状态失败:", err);
-            });
-          }, 500);  // 延迟500ms，确保后端数据已更新
-        }
-      })
-      .catch(error => {
-        console.error(`同步模型 ${modelName} 状态到数据库出错:`, error);
-      });
-  }
-
   // 加载模型列表
   const loadModelLists = async (skipVerify: boolean = false) => {
     try {
@@ -553,12 +512,12 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   }
 
   // 验证单个模型连接状态 (添加节流逻辑)
-  const verifyOneModel = async (modelName: string, modelType: ModelType) => {
+  const verifyOneModel = async (displayName: string, modelType: ModelType) => {
     // 如果是空模型名，直接返回
-    if (!modelName) return;
+    if (!displayName) return;
 
     // 查找模型在officialModels或customModels中
-    const isOfficialModel = officialModels.some(model => model.name === modelName && model.type === modelType);
+    const isOfficialModel = officialModels.some(model => model.name === displayName && model.type === modelType);
 
     // 官方模型始终视为"可用"
     if (isOfficialModel) return;
@@ -571,17 +530,17 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     // 使用节流，延迟1s再执行验证，避免频繁切换模型时重复验证
     throttleTimerRef.current = setTimeout(async () => {
       // 更新自定义模型状态为"检测中"
-      updateCustomModelStatus(modelName, modelType, "检测中");
+      updateCustomModelStatus(displayName, modelType, "检测中");
 
       try {
         // 使用modelService验证自定义模型
-        const isConnected = await modelService.verifyCustomModel(modelName);
+        const isConnected = await modelService.verifyCustomModel(displayName);
 
         // 更新模型状态
-        updateCustomModelStatus(modelName, modelType, isConnected ? "可用" : "不可用");
+        updateCustomModelStatus(displayName, modelType, isConnected ? "可用" : "不可用");
       } catch (error: any) {
-        console.error(`校验自定义模型 ${modelName} 失败:`, error);
-        updateCustomModelStatus(modelName, modelType, "不可用");
+        console.error(`校验自定义模型 ${displayName} 失败:`, error);
+        updateCustomModelStatus(displayName, modelType, "不可用");
       } finally {
         throttleTimerRef.current = null;
       }
@@ -589,18 +548,18 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   }
 
   // 处理模型变更
-  const handleModelChange = async (category: string, option: string, value: string) => {
+  const handleModelChange = async (category: string, option: string, displayName: string) => {
     // 更新选中的模型
     setSelectedModels(prev => ({
       ...prev,
       [category]: {
         ...prev[category],
-        [option]: value,
+        [option]: displayName,
       }
     }))
     
     // 如果有值，清除错误状态
-    if (value) {
+    if (displayName) {
       setErrorFields(prev => ({
         ...prev,
         [`${category}.${option}`]: false
@@ -620,23 +579,23 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     }
 
     const modelInfo = [...officialModels, ...customModels].find(
-      m => m.name === value && m.type === modelType
+      m => m.name === displayName && m.type === modelType
     );
 
     // 新选择的模型如果是自定义模型，且之前没有设置状态，则设置为"未检测"
     if (modelInfo && modelInfo.source === "custom" && !modelInfo.connect_status) {
-      updateCustomModelStatus(value, modelType, "未检测");
+      updateCustomModelStatus(displayName, modelType, "未检测");
     }
     
     // 使用模型的显示名称，如果有的话，否则使用模型名称
-    const displayName = modelInfo?.displayName || value;
+    const modelName = modelInfo?.displayName || displayName;
 
     // 更新配置
     let configUpdate: any = {}
     if (category === "voice") {
       configUpdate[option] = { 
-        modelName: value,
-        displayName: displayName,
+        modelName: modelName,
+        displayName: modelName,
         apiConfig: modelInfo?.apiKey ? {
           apiKey: modelInfo.apiKey,
           modelUrl: modelInfo.apiUrl || '',
@@ -645,8 +604,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     } else if (category === "embedding") {
       const modelKey = option === 'multi_embedding' ? 'multiEmbedding' : 'embedding';
       configUpdate[modelKey] = {
-        modelName: value,
-        displayName: displayName,
+        modelName: modelName,
+        displayName: modelName,
         apiConfig: modelInfo?.apiKey ? {
           apiKey: modelInfo.apiKey,
           modelUrl: modelInfo.apiUrl || '',
@@ -655,8 +614,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       }
     } else if (category === "reranker") {
       configUpdate.rerank = { 
-        modelName: value,
-        displayName: displayName,
+        modelName: modelName,
+        displayName: modelName,
         apiConfig: modelInfo?.apiKey ? {
           apiKey: modelInfo.apiKey,
           modelUrl: modelInfo.apiUrl || '',
@@ -664,8 +623,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       }
     } else if (category === "multimodal") {
       configUpdate.vlm = { 
-        modelName: value,
-        displayName: displayName,
+        modelName: modelName,
+        displayName: modelName,
         apiConfig: modelInfo?.apiKey ? {
           apiKey: modelInfo.apiKey,
           modelUrl: modelInfo.apiUrl || '',
@@ -674,8 +633,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     } else if (category === "llm") {
       if (option === "main") {
         configUpdate.llm = { 
-          modelName: value,
-          displayName: displayName,
+          modelName: modelName,
+          displayName: modelName,
           apiConfig: modelInfo?.apiKey ? {
             apiKey: modelInfo.apiKey,
             modelUrl: modelInfo.apiUrl || '',
@@ -683,8 +642,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         }
       } else if (option === "secondary") {
         configUpdate.llmSecondary = {
-          modelName: value,
-          displayName: displayName,
+          modelName: modelName,
+          displayName: modelName,
           apiConfig: modelInfo?.apiKey ? {
             apiKey: modelInfo.apiKey,
             modelUrl: modelInfo.apiUrl || '',
@@ -693,8 +652,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       }
     } else {
       configUpdate[category] = { 
-        modelName: value,
-        displayName: displayName,
+        modelName: modelName,
+        displayName: modelName,
         apiConfig: modelInfo?.apiKey ? {
           apiKey: modelInfo.apiKey,
           modelUrl: modelInfo.apiUrl || '',
@@ -706,9 +665,23 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     updateModelConfig(configUpdate)
     
     // 当选择新模型时，自动验证该模型连通性
-    if (value) {
-      await verifyOneModel(value, modelType);
+    if (modelName) {
+      await verifyOneModel(modelName, modelType);
     }
+  }
+
+  // 只做本地 UI 状态更新，不涉及数据库
+  const updateCustomModelStatus = (displayName: string, modelType: string, status: ModelConnectStatus) => {
+    setCustomModels(prev => {
+      const idx = prev.findIndex(model => model.name === displayName && model.type === modelType);
+      if (idx === -1) return prev;
+      const updated = [...prev];
+      updated[idx] = {
+        ...updated[idx],
+        connect_status: status
+      };
+      return updated;
+    });
   }
 
   return (
