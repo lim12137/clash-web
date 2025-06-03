@@ -150,7 +150,7 @@ export const ModelListCard = ({
     const officialModel = modelsData.official.find((m) => m.type === type && m.name === modelName)
     if (officialModel) return "ModelEngine"
 
-    const customModel = modelsData.custom.find((m) => m.type === type && m.name === modelName)
+    const customModel = modelsData.custom.find((m) => m.type === type && m.displayName === modelName)
     return customModel ? "自定义" : "未知来源"
   }
 
