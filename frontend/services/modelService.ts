@@ -41,7 +41,7 @@ export const modelService = {
   // Get official model list
   getOfficialModels: async (): Promise<ModelOption[]> => {
     try {
-      const response = await fetch(API_ENDPOINTS.modelEngine.officialModelList, {
+      const response = await fetch(API_ENDPOINTS.model.officialModelList, {
         headers: getHeaders()
       })
       const result: ApiResponse<any[]> = await response.json()
@@ -85,7 +85,7 @@ export const modelService = {
   // Get custom model list
   getCustomModels: async (): Promise<ModelOption[]> => {
     try {
-      const response = await fetch(API_ENDPOINTS.modelEngine.customModelList, {
+      const response = await fetch(API_ENDPOINTS.model.customModelList, {
         headers: getHeaders()
       })
       const result: ApiResponse<any[]> = await response.json()
@@ -122,7 +122,7 @@ export const modelService = {
     displayName?: string
   }): Promise<void> => {
     try {
-      const response = await fetch(API_ENDPOINTS.modelEngine.customModelCreate, {
+      const response = await fetch(API_ENDPOINTS.model.customModelCreate, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -148,19 +148,13 @@ export const modelService = {
   },
 
   // Delete custom model
-  deleteCustomModel: async (modelName: string): Promise<void> => {
+  deleteCustomModel: async (displayName: string): Promise<void> => {
     try {
-      // Get local session information
-      const response = await fetch(API_ENDPOINTS.modelEngine.customModelDelete, {
+      const response = await fetch(API_ENDPOINTS.model.customModelDelete(displayName), {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({
-          model_name: modelName
-        })
       })
-      
       const result: ApiResponse = await response.json()
-      
       if (result.code !== 200) {
         throw new ModelError(result.message || '删除自定义模型失败', result.code)
       }
@@ -170,111 +164,27 @@ export const modelService = {
     }
   },
 
-  // Verify model connection status
-  verifyModel: async (modelConfig: SingleModelConfig): Promise<boolean> => {
-    try {
-      if (!modelConfig.modelName) return false
-
-      // Get official and custom model lists first
-      const [officialModels, customModels] = await Promise.all([
-        modelService.getOfficialModels(),
-        modelService.getCustomModels()
-      ])
-
-      // Determine if the model is in the official model list
-      const isOfficialModel = officialModels.some(model => model.name === modelConfig.modelName)
-
-      // Select different verification interfaces based on the model source
-      const endpoint = isOfficialModel 
-        ? API_ENDPOINTS.modelEngine.officialModelHealthcheck(modelConfig.modelName, 2)
-        : API_ENDPOINTS.modelEngine.customModelHealthcheck(modelConfig.modelName)
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          ...getHeaders(),
-          ...(modelConfig.apiConfig?.apiKey && { 'X-API-KEY': modelConfig.apiConfig.apiKey })
-        },
-        body: modelConfig.apiConfig ? JSON.stringify({
-          model_url: modelConfig.apiConfig.modelUrl
-        }) : undefined
-      })
-      
-      const result: ApiResponse<{connectivity: boolean}> = await response.json()
-      
-      if (result.code === 200 && result.data) {
-        return result.data.connectivity
-      }
-      return false
-    } catch (error) {
-      return false
-    }
-  },
-
   // Verify custom model connection
-  verifyCustomModel: async (modelName: string, signal?: AbortSignal): Promise<boolean> => {
+  verifyCustomModel: async (displayName: string, signal?: AbortSignal): Promise<boolean> => {
     try {
-      if (!modelName) return false
-
-      // Call the health check API
-      const response = await fetch(API_ENDPOINTS.modelEngine.customModelHealthcheck(modelName), {
-        method: "GET",
+      if (!displayName) return false
+      const response = await fetch(API_ENDPOINTS.model.customModelHealthcheck(displayName), {
+        method: "POST",
         headers: getHeaders(),
-        signal // Use AbortSignal if provided
+        signal
       })
-      
       const result: ApiResponse<{connectivity: boolean}> = await response.json()
-      
       if (result.code === 200 && result.data) {
         return result.data.connectivity
       }
       return false
     } catch (error) {
-      // Check if the error is due to the request being canceled
       if (error instanceof Error && error.name === 'AbortError') {
-        console.warn(`验证模型 ${modelName} 连接被取消`);
-        // Re-throw the abort error so the caller knows the request was canceled
+        console.warn(`验证模型 ${displayName} 连接被取消`);
         throw error;
       }
-      console.error(`验证模型 ${modelName} 连接失败:`, error)
+      console.error(`验证模型 ${displayName} 连接失败:`, error)
       return false
-    }
-  },
-
-  // Update model status to backend
-  updateModelStatus: async (modelName: string, status: string): Promise<boolean> => {
-    try {
-      if (!modelName) {
-        console.error('尝试更新状态时模型名为空');
-        return false;
-      }
-      
-      const response = await fetch(API_ENDPOINTS.modelEngine.updateConnectStatus, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({
-          model_name: modelName,
-          connect_status: status
-        })
-      });
-      
-      // Check HTTP status code
-      if (!response.ok) {
-        console.error(`更新模型状态HTTP错误，状态码: ${response.status}`);
-        return false;
-      }
-      
-      const result: ApiResponse = await response.json();
-      
-      if (result.code !== 200) {
-        console.error('同步模型状态到数据库失败:', result.message);
-        return false;
-      } else {
-        return true;
-      }
-    } catch (error) {
-      console.error('同步模型状态到数据库出错:', error);
-      return false;
     }
   },
 
@@ -283,7 +193,7 @@ export const modelService = {
     try {
       // Try to sync official models, but do not interrupt the process if it fails
       try {
-        const officialResponse = await fetch(API_ENDPOINTS.modelEngine.officialModelList, {
+        const officialResponse = await fetch(API_ENDPOINTS.model.officialModelList, {
           method: 'GET',
           headers: getHeaders()
         });
@@ -298,7 +208,7 @@ export const modelService = {
       }
       
       // Sync custom models, must succeed, otherwise throw an error
-      const customResponse = await fetch(API_ENDPOINTS.modelEngine.customModelList, {
+      const customResponse = await fetch(API_ENDPOINTS.model.customModelList, {
         method: 'GET',
         headers: getHeaders()
       });
