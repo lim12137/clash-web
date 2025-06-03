@@ -19,7 +19,7 @@ export const DATA_CONFIG_KEY = 'data';
 // 默认配置
 export const defaultConfig: GlobalConfig = {
   app: {
-    appName: "智能问答",
+    appName: "Nexent 智能体",
     appDescription: "定制化智能问答助手，基于理解复杂问题并提供精准解答。支持知识检索、Agent配置，为您提供专业、高效的信息服务和决策支持。",
     iconType: "preset",
     customIconUrl: null,
