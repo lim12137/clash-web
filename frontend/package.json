@@ -54,6 +54,7 @@
     "dicebear": "^9.2.2",
     "dotenv": "^16.4.7",
     "embla-carousel-react": "8.5.1",
+    "github-markdown-css": "^5.8.1",
     "http-proxy": "^1.18.1",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
