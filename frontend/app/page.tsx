@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bot, Globe, Database, Zap, Mic, FileSearch, Shield } from "lucide-react"
+import { Bot, Globe, Database, Zap, Mic, FileSearch, Shield, MessagesSquare, Microchip } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
@@ -123,7 +123,7 @@ function FrontpageContent() {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 pt-24 pb-16">
+      <main className="flex-1 pt-32 pb-32">
         {/* Hero area */}
         <section className="relative w-full py-16 flex flex-col items-center justify-center text-center px-4">
           <div className="absolute inset-0 bg-grid-slate-200 dark:bg-grid-slate-800 [mask-image:radial-gradient(ellipse_at_center,white_20%,transparent_75%)] -z-10"></div>
@@ -192,28 +192,28 @@ function FrontpageContent() {
         </section>
 
         {/* Feature cards */}
-        <section className="max-w-7xl mx-auto px-4 mb-16">
+        <section className="max-w-7xl mx-auto px-4 mb-6">
           <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">核心功能</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <FeatureCard
               icon={<Bot className="h-8 w-8 text-blue-500" />}
-              title="智能自主规划"
-              description="智能体自动业务判断，根据问题类型智能路由至最佳解决方案"
+              title="多智能体自主业务决策"
+              description="利用ReAct框架实现多智能体间的自主思考、任务规划、决策和执行，自动化MCP生态下的模型、数据与工具集"
             />
              <FeatureCard
               icon={<Zap className="h-8 w-8 text-blue-500" />}
               title="高效数据准备"
-              description="高效处理大规模数据，快速构建和更新企业专属知识库"
+              description="企业级别的 Scalable 处理、切片、向量化数据框架，支撑构建基于不同文件格式、数据来源的高质量多模态知识库。"
             />
             <FeatureCard
-              icon={<Database className="h-8 w-8 text-emerald-500" />}
-              title="企业知识库搜索"
-              description="深度整合企业内部知识资源，实现精准的内部信息检索"
+              icon={<Globe className="h-8 w-8 text-emerald-500" />}
+              title="多源知识获取与溯源"
+              description="多种知识库、互联网等数据来源连接的MCP工具，基于业务决策数据获取方式，同时具备完整的多模态知识溯源与解释能力。"
             />
             <FeatureCard
-              icon={<Globe className="h-8 w-8 text-amber-500" />}
-              title="互联网搜索"
-              description="实时接入互联网数据，提供最新、最全面的信息检索服务"
+              icon={<Microchip className="h-8 w-8 text-amber-500" />}
+              title="MCP工具支持"
+              description="支持MCP工具接入与调用，帮助实现更复杂的业务逻辑"
             />
             <FeatureCard
               icon={<FileSearch className="h-8 w-8 text-rose-500" />}
@@ -221,15 +221,15 @@ function FrontpageContent() {
               description="提供完整的信息来源追溯，确保回答的可靠性和可验证性"
             />
             <FeatureCard
-              icon={<Mic className="h-8 w-8 text-purple-500" />}
-              title="语音对话"
-              description="支持语音输入和语音播报，提供自然流畅的人机交互体验"
+              icon={<MessagesSquare className="h-8 w-8 text-purple-500" />}
+              title="多模态对话"
+              description="基于多模态知识库、数据处理能力，提供多模态的智能体服务，支持文本、图像、音频等多种数据类型的输入输出。"
             />
           </div>
         </section>
 
         {/* Statistics data */}
-        <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">极致体验</h3>
+        {/* <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">极致体验</h3>
         <section className="bg-slate-50 dark:bg-slate-800/50 py-16">
           <div className="max-w-7xl mx-auto px-4">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-8 text-center">
@@ -238,7 +238,7 @@ function FrontpageContent() {
               <StatCard number="3秒内" label="平均响应时间" />
             </div>
           </div>
-        </section>
+        </section> */}
       </main>
 
       {/* Footer */}
