@@ -135,7 +135,7 @@ export function ChatStreamMessage({
             {/* Text content */}
             {message.content && (
               <div className="rounded-lg border bg-blue-50 border-blue-100 user-message-container py-2 px-3 ml-auto text-sm">
-                <MarkdownRenderer content={message.content} className="user-message-content" />
+                <div className="user-message-content whitespace-pre-wrap">{message.content}</div>
               </div>
             )}
           </>
