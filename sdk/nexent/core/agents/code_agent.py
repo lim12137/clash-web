@@ -1,9 +1,8 @@
-import os
 import time
+import threading
 from collections import deque
 from typing import Union, Any, Optional, List, Dict, Generator
 
-import yaml
 from rich.console import Group
 from rich.text import Text
 from smolagents.agents import CodeAgent, populate_template, handle_agent_output_types, AgentError, AgentType
@@ -21,7 +20,7 @@ class CoreAgent(CodeAgent):
     def __init__(self, observer: MessageObserver, prompt_templates, *args, **kwargs):
         super().__init__(prompt_templates=prompt_templates, *args, **kwargs)
         self.observer = observer
-        self.should_stop = False
+        self.stop_event = threading.Event()
 
     def step(self, memory_step: ActionStep) -> Union[None, Any]:
         """
@@ -183,7 +182,7 @@ You have been provided with these additional arguments, that you can access usin
         ActionStep | AgentType, None, None]:
         final_answer = None
         self.step_number = 1
-        while final_answer is None and self.step_number <= max_steps and not self.should_stop:
+        while final_answer is None and self.step_number <= max_steps and not self.stop_event.is_set():
             step_start_time = time.time()
             memory_step = self._create_memory_step(step_start_time, images)
             try:
@@ -202,7 +201,7 @@ You have been provided with these additional arguments, that you can access usin
                 yield memory_step
                 self.step_number += 1
 
-        if self.should_stop:
+        if self.stop_event.is_set():
             yield ActionStep(action_output="Agent运行被中断", observations="用户中断了Agent的运行")
             return
 

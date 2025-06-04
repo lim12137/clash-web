@@ -16,7 +16,6 @@ with patch('backend.database.client.MinioClient', return_value=minio_client_mock
         get_creating_sub_agent_id_service,
         query_or_create_main_agents_api,
         query_sub_agents_api,
-        agent_run_thread,
         list_main_agent_info_impl,
         get_agent_info_impl,
         get_creating_sub_agent_info_impl,
@@ -170,66 +169,6 @@ class TestAgentService(unittest.TestCase):
         
         mock_query_sub_agents.assert_called_once_with(123, "test_tenant", "test_user")
         self.assertEqual(mock_search_tools.call_count, 2)
-
-    @patch('backend.services.agent_service.agent_run_with_observer')
-    @patch('backend.services.agent_service.add_history_to_agent')
-    @patch('backend.services.agent_service.AgentCreateFactory')
-    @patch('backend.services.agent_service.ToolCollection')
-    @patch('backend.services.agent_service.config_manager')
-    def test_agent_run_thread_success(self, mock_config, mock_tool_collection, 
-                                     mock_factory_class, mock_add_history, mock_agent_run):
-        # Setup
-        mock_config.get_config.return_value = "http://mcp-host:8080"
-        mock_observer = MagicMock()
-        mock_agent = MagicMock()
-        mock_factory = MagicMock()
-        mock_factory.create_from_db.return_value = mock_agent
-        mock_factory_class.return_value = mock_factory
-        
-        mock_tool_collection_instance = MagicMock()
-        mock_tool_collection.from_mcp.return_value.__enter__.return_value = mock_tool_collection_instance
-        
-        history = [{"role": "user", "content": "Hello"}]
-        
-        # Execute
-        agent_run_thread(
-            observer=mock_observer,
-            query="Test query",
-            agent_id=123,
-            tenant_id="test_tenant",
-            user_id="test_user",
-            history=history
-        )
-        
-        # Assert
-        mock_config.get_config.assert_called_once_with("MCP_SERVICE")
-        mock_tool_collection.from_mcp.assert_called_once_with({"url": "http://mcp-host:8080"})
-        mock_factory_class.assert_called_once_with(
-            observer=mock_observer,
-            mcp_tool_collection=mock_tool_collection_instance
-        )
-        mock_factory.create_from_db.assert_called_once_with(123, "test_tenant", "test_user")
-        mock_add_history.assert_called_once_with(mock_agent, history)
-        mock_agent_run.assert_called_once_with(agent=mock_agent, query="Test query", reset=False)
-
-    @patch('backend.services.agent_service.config_manager')
-    def test_agent_run_thread_exception(self, mock_config):
-        # Setup
-        mock_config.get_config.side_effect = Exception("MCP connection failed")
-        mock_observer = MagicMock()
-        
-        # Execute & Assert
-        with self.assertRaises(HTTPException) as context:
-            agent_run_thread(
-                observer=mock_observer,
-                query="Test query",
-                agent_id=123,
-                tenant_id="test_tenant",
-                user_id="test_user"
-            )
-        
-        self.assertEqual(context.exception.status_code, 500)
-        self.assertIn("MCP server not connected", str(context.exception.detail))
 
     @patch('backend.services.agent_service.get_enable_sub_agent_id_by_agent_id')
     @patch('backend.services.agent_service.get_enable_tool_id_by_agent_id')

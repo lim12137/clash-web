@@ -6,7 +6,7 @@ from exa_py import Exa
 from smolagents.tools import Tool
 from pydantic import Field
 
-from ..utils import MessageObserver, ProcessType
+from ..utils.observer import MessageObserver, ProcessType
 from ..utils.tools_common_message import SearchResultTextMessage
 
 # Get logger instance

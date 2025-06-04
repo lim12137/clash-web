@@ -4,7 +4,7 @@ from typing import List
 import requests
 from smolagents.tools import Tool
 
-from ..utils import MessageObserver, ProcessType
+from ..utils.observer import MessageObserver, ProcessType
 from ..utils.tools_common_message import SearchResultTextMessage
 from pydantic import Field
 
