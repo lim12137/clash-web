@@ -26,7 +26,7 @@ class EXASearchTool(Tool):
     def __init__(self, exa_api_key:str=Field(description="key"),
                  observer: MessageObserver=Field(description="键", default=None, exclude=True),
                  max_results:int=Field(description="最大检索个数", default=5),
-                 image_filter: bool = Field(description="是否开启图片过滤", default=False)
+                 image_filter: bool = Field(description="是否开启图片过滤", default=True)
      ):
 
         super().__init__()
