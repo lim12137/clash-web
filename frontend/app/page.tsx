@@ -252,19 +252,13 @@ function FrontpageContent() {
             </div>
             <div className="flex items-center gap-6">
               <Link
-                href="#"
-                className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-              >
-                隐私政策
-              </Link>
-              <Link
-                href="#"
+                href="https://github.com/nexent-hub/nexent?tab=License-1-ov-file#readme"
                 className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               >
                 使用条款
               </Link>
               <Link
-                href="#"
+                href="http://nexent.tech/contact"
                 className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               >
                 联系我们

@@ -122,43 +122,43 @@ def update_model(request: ModelRequest, authorization: Optional[str] = Header(No
 
 
 @router.post("/delete", response_model=ModelResponse)
-async def delete_model(model_name: str = Body(..., embed=True), authorization: Optional[str] = Header(None)):
+async def delete_model(display_name: str = Query(..., embed=True), authorization: Optional[str] = Header(None)):
     """
-    Soft delete the specified model
+    Soft delete the specified model by display_name
     If the model is an embedding or multi_embedding type, both types will be deleted
 
     Args:
-        model_name: Model name to delete. Includes model_repo, e.g.: openai/gpt-3.5-turbo
+        display_name: Display name of the model to delete (唯一键)
         authorization: Authorization header
     """
     try:
         user_id = get_current_user_id(authorization)
-        # Split model_name
-        model_repo, name = split_repo_name(model_name)
-        # Ensure model_repo is empty string instead of null
-        model_repo = model_repo if model_repo else ""
+        # Find model by display_name
+        model = get_model_by_display_name(display_name)
 
-        # Find all models with this name and repo (sometimes can find both embedding and multi_embedding models with same repo/name)
-        all_models = get_model_records({'model_name': name, 'model_repo': model_repo})
-
-        if not all_models:
+        if not model:
             return ModelResponse(
                 code=404,
-                message=f"Model not found: {model_name}",
+                message=f"Model not found: {display_name}",
                 data=None
             )
-
+        # 支持 embedding/multi_embedding 互删
         deleted_types = []
-
-        # Delete all matching models (could be both embedding and multi_embedding types)
-        for model in all_models:
+        if model["model_type"] in ["embedding", "multi_embedding"]:
+            # 查找所有 embedding/multi_embedding 且 display_name 相同的模型
+            for t in ["embedding", "multi_embedding"]:
+                m = get_model_by_display_name(display_name)
+                if m and m["model_type"] == t:
+                    delete_model_record(m["model_id"])
+                    deleted_types.append(t)
+        else:
             delete_model_record(model["model_id"], user_id)
             deleted_types.append(model.get("model_type", "unknown"))
 
         return ModelResponse(
             code=200,
             message=f"Successfully deleted model(s) in types: {', '.join(deleted_types)}",
-            data={"model_name": model_name}
+            data={"display_name": display_name}
         )
     except Exception as e:
         return ModelResponse(
@@ -200,59 +200,19 @@ async def get_model_list():
         )
 
 
-@router.get("/healthcheck", response_model=ModelResponse)
+@router.post("/healthcheck", response_model=ModelResponse)
 async def check_model_healthcheck(
-        model_name: str = Query(..., description="Model name to check")
-):
-    return await check_model_connectivity(model_name)
-
-
-@router.get("/get_connect_status", response_model=ModelResponse)
-async def get_model_connect_status(
-        model_name: str = Query(..., description="Model name")
+        display_name: str = Query(..., description="Display name to check")
 ):
     """
-    Query model connection status directly from database
-
+    检查并更新模型连通性（健康检查），并返回最新状态。
     Args:
-        model_name: Model name to query, including repository info, e.g. openai/gpt-3.5-turbo
-
+        display_name: 需要检查的模型 display_name
     Returns:
-        ModelResponse: Response containing model connection status
+        ModelResponse: 包含连通性和最新状态
     """
-    try:
-        # Split model_name
-        repo, name = split_repo_name(model_name)
-        # Ensure repo is empty string instead of null
-        repo = repo if repo else ""
+    return await check_model_connectivity(display_name)
 
-        # Query model information
-        model = get_model_by_name(name, repo)
-        if not model:
-            return ModelResponse(
-                code=404,
-                message=f"Model not found: {model_name}",
-                data={"connect_status": ""}
-            )
-
-        # Get connection status
-        connect_status = model.get("connect_status", "")
-        connect_status = ModelConnectStatusEnum.get_value(connect_status)
-
-        return ModelResponse(
-            code=200,
-            message=f"Successfully retrieved connection status for model {model_name}",
-            data={
-                "model_name": model_name,
-                "connect_status": connect_status
-            }
-        )
-    except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Failed to retrieve model connection status: {str(e)}",
-            data={"connect_status": ModelConnectStatusEnum.NOT_DETECTED.value}
-        )
 
 
 @router.post("/update_connect_status", response_model=ModelResponse)

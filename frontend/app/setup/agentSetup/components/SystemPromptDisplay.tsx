@@ -21,11 +21,12 @@ export interface SystemPromptDisplayProps {
   onDebug?: () => void;
   agentId?: number;
   taskDescription?: string;
+  onLocalIsGeneratingChange?: (value: boolean) => void;
 }
 
 // Milkdown Editor Component
-const PromptEditor = ({ value, onChange, placeholder }: { 
-  value: string; 
+const PromptEditor = ({ value, onChange, placeholder }: {
+  value: string;
   onChange: (value: string) => void;
   placeholder?: string;
 }) => {
@@ -35,7 +36,7 @@ const PromptEditor = ({ value, onChange, placeholder }: {
       .config(ctx => {
         ctx.set(rootCtx, root)
         ctx.set(defaultValueCtx, value || '')
-        
+
         // Configure listener for content changes
         const listenerManager = ctx.get(listenerCtx)
         listenerManager.markdownUpdated((ctx, markdown, prevMarkdown) => {
@@ -62,10 +63,11 @@ const PromptEditor = ({ value, onChange, placeholder }: {
 export default function SystemPromptDisplay({ 
   prompt, 
   isGenerating, 
-  onPromptChange, 
+  onPromptChange,
   onDebug, 
   agentId, 
   taskDescription,
+  onLocalIsGeneratingChange
 }: SystemPromptDisplayProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tunedPrompt, setTunedPrompt] = useState("")
@@ -90,6 +92,8 @@ export default function SystemPromptDisplay({
     
     try {
       setLocalIsGenerating(true);
+      console.log("onLocalIsGeneratingChange value:", onLocalIsGeneratingChange);
+      onLocalIsGeneratingChange?.(true);
       console.log("开始调用API生成提示词", { agent_id: agentId, task_description: taskDescription });
       
       const result = await generatePrompt({
@@ -106,6 +110,7 @@ export default function SystemPromptDisplay({
       message.error(`生成提示词失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setLocalIsGenerating(false);
+      onLocalIsGeneratingChange?.(false);
     }
   };
   
@@ -248,7 +253,7 @@ export default function SystemPromptDisplay({
             onSend={handleSendAdditionalRequest} 
             isTuning={isTuning}
           />
-          
+
           {tunedPrompt && !isTuning && (
             <div className="mt-4">
               <div className="font-medium text-gray-700 mb-2">微调后的提示词:</div>

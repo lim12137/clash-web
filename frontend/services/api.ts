@@ -57,7 +57,7 @@ export const API_ENDPOINTS = {
   proxy: {
     image: (url: string) => `${API_BASE_URL}/image?url=${encodeURIComponent(url)}`,
   },
-  modelEngine: {
+  model: {
     // Basic health check
     healthcheck: `${API_BASE_URL}/me/healthcheck`,
     
@@ -69,9 +69,8 @@ export const API_ENDPOINTS = {
     // 自定义模型服务
     customModelList: `${API_BASE_URL}/model/list`,
     customModelCreate: `${API_BASE_URL}/model/create`,
-    customModelDelete: `${API_BASE_URL}/model/delete`,
-    customModelHealthcheck: (modelName: string) => 
-      `${API_BASE_URL}/model/healthcheck?model_name=${encodeURIComponent(modelName)}`,
+    customModelDelete: (displayName: string) => `${API_BASE_URL}/model/delete?display_name=${encodeURIComponent(displayName)}`,
+    customModelHealthcheck: (displayName: string) => `${API_BASE_URL}/model/healthcheck?display_name=${encodeURIComponent(displayName)}`,
     updateConnectStatus: `${API_BASE_URL}/model/update_connect_status`,
   },
   knowledgeBase: {
