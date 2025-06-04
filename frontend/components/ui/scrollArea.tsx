@@ -23,6 +23,63 @@ const ScrollArea = React.forwardRef<
 ))
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
 
+// New StaticScrollArea component that prevents auto-scrolling
+const StaticScrollArea = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, children, ...props }, ref) => {
+  return (
+    <div 
+      ref={ref}
+      className={cn("relative overflow-hidden", className)}
+      {...props}
+    >
+      <div
+        className="h-full w-full overflow-y-auto overflow-x-hidden pr-4"
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#d1d5db transparent',
+        }}
+      >
+        <div className="pr-2">
+          {children}
+        </div>
+      </div>
+      
+      {/* Custom scrollbar styling */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .overflow-y-auto::-webkit-scrollbar {
+            width: 10px;
+          }
+          .overflow-y-auto::-webkit-scrollbar-track {
+            background: transparent;
+            border-left: 1px solid transparent;
+            padding: 1px;
+          }
+          .overflow-y-auto::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 9999px;
+            transition: background-color 0.2s;
+          }
+          .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+          }
+          @media (prefers-color-scheme: dark) {
+            .overflow-y-auto::-webkit-scrollbar-thumb {
+              background: #4b5563;
+            }
+            .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+              background: #6b7280;
+            }
+          }
+        `
+      }} />
+    </div>
+  )
+})
+StaticScrollArea.displayName = "StaticScrollArea"
+
 const ScrollBar = React.forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>,
   React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>
@@ -45,4 +102,4 @@ const ScrollBar = React.forwardRef<
 ))
 ScrollBar.displayName = ScrollAreaPrimitive.ScrollAreaScrollbar.displayName
 
-export { ScrollArea, ScrollBar }
+export { ScrollArea, StaticScrollArea, ScrollBar }
