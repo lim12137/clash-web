@@ -7,6 +7,7 @@ from utils.user_utils import get_user_info
 from database.client import get_db_session, as_dict, filter_property
 from database.db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
 
+
 def search_agent_info_by_agent_id(agent_id: int, tenant_id: str, user_id: str = None):
     """
     Search agent info by agent_id
@@ -63,6 +64,7 @@ def query_or_create_main_agent_id(tenant_id, user_id: str = None) -> int:
 
         if main_agent is None:
             main_agent = create_agent(agent_info={"name": "main",
+                                                  "description": "",
                                                   "enabled": True}, tenant_id=tenant_id, user_id=user_id)
 
             return main_agent["agent_id"]

@@ -1,14 +1,8 @@
-from fastapi import HTTPException
-from nexent.core.utils.agent_utils import agent_run_with_observer
-from smolagents import ToolCollection
-
 from consts.model import AgentInfoRequest
 from database.agent_db import create_agent, query_all_enabled_tool_instances, \
     query_or_create_main_agent_id, query_sub_agents, search_sub_agent_by_main_agent_id, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id
-from agents.agent_create_factory import AgentCreateFactory
-from utils.agent_utils import add_history_to_agent
-from utils.config_utils import config_manager
+
 from utils.user_utils import get_user_info
 import logging
 
@@ -54,23 +48,6 @@ def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str
         sub_agent["tools"] = tool_info
 
     return sub_agents
-
-
-def agent_run_thread(observer, query, agent_id, tenant_id, user_id, history=None):
-    try:
-        mcp_host = config_manager.get_config("MCP_SERVICE")
-
-        with ToolCollection.from_mcp({"url": mcp_host}) as tool_collection:
-            factory = AgentCreateFactory(observer=observer,
-                                         mcp_tool_collection=tool_collection)
-            agent = factory.create_from_db(agent_id, tenant_id, user_id)
-            add_history_to_agent(agent, history)
-
-            agent_run_with_observer(agent=agent, query=query, reset=False)
-
-    except Exception as e:
-        print(f"mcp connection error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"MCP server not connected: {str(e)}")
 
 
 def list_main_agent_info_impl():
