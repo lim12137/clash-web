@@ -121,12 +121,10 @@ async def agent_run(agent_run_info: AgentRunInfo):
     thread_agent = Thread(target=agent_run_thread, args=(agent_run_info,))
     thread_agent.start()
 
-    messages = []
     while thread_agent.is_alive():
         cached_message = observer.get_cached_message()
         for message in cached_message:
             yield message
-            messages.append(message)
 
             # Prevent artificial slowdown of model streaming output
             if len(cached_message) < 8:
@@ -138,4 +136,3 @@ async def agent_run(agent_run_info: AgentRunInfo):
     cached_message = observer.get_cached_message()
     for message in cached_message:
         yield message
-        messages.append(message)
