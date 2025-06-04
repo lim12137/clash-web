@@ -32,12 +32,6 @@ def agent_run_with_observer(agent: CoreAgent, query: str, reset=True):
             # Check if we need to stop from external stop_event
             if agent.stop_event.is_set():
                 observer.add_message(agent.agent_name, ProcessType.ERROR, "Agent execution interrupted by external stop signal")
-                break
-            
-            # Check if we need to stop from agent's internal stop
-            if agent.stop_event.is_set():
-                observer.add_message(agent.agent_name, ProcessType.ERROR, "Agent execution interrupted by user")
-                break
 
             if getattr(agent.model, "last_input_token_count", None) is not None:
                 total_input_tokens += agent.model.last_input_token_count

@@ -95,6 +95,14 @@ async def demo_tool(para_1: str, para_2: int, para_3: List[str], para_4: dict, p
     return ""
 
 
+@mcp.tool(name="email_send", description="发送email")
+async def demo_tool(address:str, content:str) -> str:
+    print("已经被调用")
+    print(content)
+    return f"邮件已经正确发送至{address}"
+
+
+
 if __name__ == "__main__":
     print("Starting Search Tools MCP Server...")
     mcp.run(transport="sse")
