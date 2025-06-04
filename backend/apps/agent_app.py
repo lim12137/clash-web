@@ -46,9 +46,9 @@ async def agent_run_api(http_req: Request, request: AgentRequest, authorization:
                 messages.append(chunk)
                 yield f"data: {chunk}\n\n"
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Agent运行异常: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Agent run error: {str(e)}")
         finally:
-            # 注销agent运行实例
+            # unregister agent run instance
             if not request.is_debug:
                 submit(save_conversation_assistant, request, messages, authorization)
                 agent_run_manager.unregister_agent_run(request.conversation_id)
@@ -66,13 +66,13 @@ async def agent_run_api(http_req: Request, request: AgentRequest, authorization:
 @router.get("/stop/{conversation_id}")
 async def agent_stop_api(conversation_id: int):
     """
-    停止指定conversation_id的agent运行
+    stop agent run for specified conversation_id
     """
     success = agent_run_manager.stop_agent_run(conversation_id)
     if success:
-        return {"status": "success", "message": f"已成功停止conversation_id {conversation_id}的agent运行"}
+        return {"status": "success", "message": f"successfully stopped agent run for conversation_id {conversation_id}"}
     else:
-        raise HTTPException(status_code=404, detail=f"未找到conversation_id {conversation_id}的运行中agent")
+        raise HTTPException(status_code=404, detail=f"no running agent found for conversation_id {conversation_id}")
 
 # Add configuration reload API
 @router.post("/reload_config")
