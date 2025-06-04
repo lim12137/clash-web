@@ -19,7 +19,7 @@ def create_mock_agent_run_info() -> AgentRunInfo:
     # 创建模型配置mock数据
     model_config_1 = ModelConfig(
         cite_name="main_model",
-        api_key="sk-rtlhqzuzvbkkzvssnckndluufknscdvbkybvmmxuugwuzrsq",
+        api_key="sk-",
         model_name="Qwen/Qwen2.5-32B-Instruct",
         url="https://api.siliconflow.cn/v1",
         temperature=0.1,
@@ -28,7 +28,7 @@ def create_mock_agent_run_info() -> AgentRunInfo:
     
     model_config_2 = ModelConfig(
         cite_name="sub_model",
-        api_key="sk-rtlhqzuzvbkkzvssnckndluufknscdvbkybvmmxuugwuzrsq",
+        api_key="sk-",
         model_name="Qwen/Qwen2.5-32B-Instruct",
         url="https://api.siliconflow.cn/v1",
         temperature=0.1,
@@ -38,7 +38,7 @@ def create_mock_agent_run_info() -> AgentRunInfo:
     # 创建工具配置mock数据
     tool_config_1 = ToolConfig(
         class_name="EXASearchTool",
-        params={"exa_api_key": "8c7b42fa-d6bf-4b61-ae8d-5b2786388145",
+        params={"exa_api_key": "",
                 "max_results": 5,
                 "image_filter": False},
         source="local"
@@ -124,7 +124,6 @@ async def main():
         if count==40:
             mock_data.stop_event.set()
 
-    print(1)
 
 if __name__ == "__main__":
     asyncio.run(main())
