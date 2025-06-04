@@ -532,6 +532,17 @@ export function ChatInterface() {
   }
 
   const handleNewConversation = async () => {
+    // 如果当前正在进行对话，先停止当前对话
+    if (isStreaming && conversationId && conversationId !== -1) {
+      try {
+        console.log('创建新对话前停止当前对话:', conversationId);
+        await conversationService.stop(conversationId);
+      } catch (error) {
+        console.error('停止当前对话失败:', error);
+        // 即使停止失败，也继续创建新对话
+      }
+    }
+
     // 先取消当前正在进行的请求
     if (abortControllerRef.current) {
       try {
@@ -597,6 +608,21 @@ export function ChatInterface() {
 
   // 用户点击左侧边栏组件，切换到对应的对话，触发函数，加载历史对话
   const handleDialogClick = async (dialog: ConversationListItem) => {
+    // 如果当前正在进行对话，先停止当前对话
+    if (isStreaming && conversationId && conversationId !== -1) {
+      try {
+        console.log('切换对话前停止当前对话:', conversationId);
+        await conversationService.stop(conversationId);
+        setIsStreaming(false);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('停止当前对话失败:', error);
+        // 即使停止失败，也继续切换对话
+        setIsStreaming(false);
+        setIsLoading(false);
+      }
+    }
+
     // 设置状态
     setConversationId(dialog.conversation_id)
     setConversationTitle(dialog.conversation_title)
@@ -742,6 +768,21 @@ export function ChatInterface() {
   // 左边栏历史对话删除
   const handleConversationDeleteClick = async (dialogId: number) => {
     try {
+      // 如果删除的是当前正在进行对话的会话，先停止对话
+      if (selectedConversationId === dialogId && isStreaming && conversationId === dialogId) {
+        try {
+          console.log('删除对话前停止当前对话:', dialogId);
+          await conversationService.stop(dialogId);
+          setIsStreaming(false);
+          setIsLoading(false);
+        } catch (error) {
+          console.error('停止要删除的对话失败:', error);
+          // 即使停止失败，也继续删除
+          setIsStreaming(false);
+          setIsLoading(false);
+        }
+      }
+
       await conversationService.delete(dialogId);
       await fetchConversationList();
 
