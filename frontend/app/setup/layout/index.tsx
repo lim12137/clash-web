@@ -94,7 +94,7 @@ function Navigation({
   onBackToFirstPage,
   onCompleteConfig,
   isSavingConfig,
-  userRole
+  userRole,
   showDebugButton = false,
 }: NavigationProps) {
   return (
@@ -149,7 +149,7 @@ function Layout({
   onBackToFirstPage,
   onCompleteConfig,
   isSavingConfig,
-  userRole
+  userRole,
   showDebugButton = false,
 }: LayoutProps) {
   return (

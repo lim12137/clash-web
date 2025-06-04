@@ -1,7 +1,7 @@
 "use client"
 
 import { useAuth } from "@/hooks/useAuth"
-import { Dropdown, Avatar, Spin, Button, Tag, ConfigProvider } from "antd"
+import { Dropdown, Avatar, Spin, Button, Tag, ConfigProvider, Modal } from "antd"
 import { UserOutlined, SettingOutlined, LogoutOutlined, UserSwitchOutlined, LoginOutlined, UserAddOutlined } from "@ant-design/icons"
 import { getRoleColor, getRoleText } from "@/lib/auth"
 import type { ItemType, MenuItemType } from "antd/es/menu/interface"
@@ -117,7 +117,17 @@ export function AvatarDropdown() {
       key: 'logout',
       icon: <LogoutOutlined />,
       label: '退出登录',
-      onClick: () => {logout()},
+      onClick: () => {
+        Modal.confirm({
+          title: '确认退出',
+          content: '您确定要退出登录吗？',
+          okText: '确认',
+          cancelText: '取消',
+          onOk: () => {
+            logout();
+          }
+        });
+      },
     },
   ]
 
