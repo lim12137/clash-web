@@ -30,13 +30,25 @@ export default function Home() {
         </div>
         <div className="hidden md:flex items-center gap-6">
           <Link
-            href="#"
+            href="http://nexent.tech"
+            className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
+          >
+            Nexent
+          </Link>
+          <Link
+            href="http://modelengine-ai.net"
             className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
           >
             ModelEngine
           </Link>
           <Link
-            href="#"
+            href="http://nexent.tech/contact"
+            className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
+          >
+            联系我们
+          </Link>
+          <Link
+            href="http://nexent.tech/about"
             className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
           >
             关于我们
@@ -160,19 +172,13 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-6">
               <Link
-                href="#"
-                className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-              >
-                隐私政策
-              </Link>
-              <Link
-                href="#"
+                href="https://github.com/nexent-hub/nexent?tab=License-1-ov-file#readme"
                 className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               >
                 使用条款
               </Link>
               <Link
-                href="#"
+                href="http://nexent.tech/contact"
                 className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               >
                 联系我们

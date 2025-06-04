@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import BusinessLogicConfig from './AgentManagementConfig'
-import SystemPromptConfig from './SystemPromptConfig'
+import SystemPromptDisplay from './components/SystemPromptDisplay'
 import DebugConfig from './DebugConfig'
 import GuideSteps from './components/GuideSteps'
 import { Row, Col, Drawer, message } from 'antd'
 import { fetchTools, fetchAgentList } from '@/services/agentConfigService'
 import { OpenAIModel } from '@/app/setup/agentSetup/ConstInterface'
+
 // Layout Height Constant Configuration
 const LAYOUT_CONFIG = {
   MAIN_CONTENT_HEIGHT: "calc(75vh - 45px)",
@@ -40,6 +41,7 @@ export default function AgentConfig() {
   const [loadingAgents, setLoadingAgents] = useState(false)
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([])
   const [enabledAgentIds, setEnabledAgentIds] = useState<number[]>([])
+  const [localIsGenerating, setLocalIsGenerating] = useState(false)
 
   // load tools when page is loaded
   useEffect(() => {
@@ -142,15 +144,6 @@ export default function AgentConfig() {
     }
   }, [isCreatingNewAgent]);
 
-  // Processing system prompt word generation
-  const handleGeneratePrompt = async () => {
-    // This function is only used to control the status of starting and ending prompt generation
-    // All API calls have been moved to the SystemPromptDisplay component
-    setIsGenerating(true);
-    setTimeout(() => {
-      setIsGenerating(false);
-    }, 100);
-  };
 
   return (
     <div className="w-full h-full mx-auto px-4" style={{ maxWidth: "1920px" }}>
@@ -196,7 +189,6 @@ export default function AgentConfig() {
                   setSelectedAgents={setSelectedAgents}
                   selectedTools={selectedTools}
                   setSelectedTools={setSelectedTools}
-                  onGenerateSystemPrompt={handleGeneratePrompt}
                   systemPrompt={systemPrompt}
                   setSystemPrompt={setSystemPrompt}
                   isCreatingNewAgent={isCreatingNewAgent}
@@ -216,6 +208,7 @@ export default function AgentConfig() {
                   setSubAgentList={setSubAgentList}
                   enabledAgentIds={enabledAgentIds}
                   setEnabledAgentIds={setEnabledAgentIds}
+                  localIsGenerating={localIsGenerating}
                 />
               </div>
             </div>
@@ -229,16 +222,14 @@ export default function AgentConfig() {
                 overflowY: "auto",
                 overflowX: "hidden"
               }}>
-                <SystemPromptConfig 
-                  systemPrompt={systemPrompt}
-                  setSystemPrompt={setSystemPrompt}
+                <SystemPromptDisplay
+                  prompt={systemPrompt}
+                  onPromptChange={setSystemPrompt}
                   isGenerating={isGenerating}
                   onDebug={() => setIsDebugDrawerOpen(true)}
-                  onGenerate={handleGeneratePrompt}
                   agentId={mainAgentId ? parseInt(mainAgentId) : undefined}
                   taskDescription={businessLogic}
-                  selectedAgents={selectedAgents}
-                  selectedTools={selectedTools}
+                  onLocalIsGeneratingChange={setLocalIsGenerating}
                 />
               </div>
             </div>
