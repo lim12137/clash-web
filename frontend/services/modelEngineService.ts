@@ -19,7 +19,7 @@ const modelEngineService = {
    */
   checkConnection: async (): Promise<ModelEngineCheckResult> => {
     try {
-      const response = await fetch(API_ENDPOINTS.modelEngine.healthcheck, {
+      const response = await fetch(API_ENDPOINTS.model.healthcheck, {
         method: "GET"
       })
 
