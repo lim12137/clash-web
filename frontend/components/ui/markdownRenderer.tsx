@@ -18,8 +18,8 @@ interface MarkdownRendererProps {
 
 // Get background color for different tool signs
 const getBackgroundColor = (toolSign: string) => {
-  // Use unified light gray background for numeric-only format
-  return '#f0f0f0';
+  // Use unified blue background for numeric-only format
+  return '#e3f2fd';
 };
 
 // Replace the original LinkIcon component
@@ -390,7 +390,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               </p>
             ),
             blockquote: ({children}: any) => (
-              <blockquote className="border-l-4 border-blue-300 pl-4 py-2 my-4 bg-gray-50 italic text-base leading-relaxed">
+              <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-4 bg-gray-50 italic text-base leading-relaxed">
                 <TextWrapper>{children}</TextWrapper>
               </blockquote>
             ),
