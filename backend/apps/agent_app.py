@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from fastapi import HTTPException, APIRouter, Header
+from fastapi import HTTPException, APIRouter, Header, Request
 from fastapi.responses import StreamingResponse
 
 from agents.build_agent_run_info import create_agent_run_info
@@ -21,7 +21,7 @@ logger = logging.getLogger("agent app")
 
 # Define API route
 @router.post("/run")
-async def agent_run_api(request: AgentRequest, authorization: str = Header(None)):
+async def agent_run_api(request: AgentRequest, http_req: Request, authorization: str = Header(None)):
     """
     Agent execution API endpoint
     """
@@ -37,8 +37,13 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
         messages = []
         try:
             async for chunk in agent_run(agent_run_info):
-                yield f"data: {chunk}\n\n"
+                if await http_req.is_disconnected():
+                    agent_run_info.stop_event.set()
+                    break
 
+                messages.append(chunk)
+                yield f"data: {chunk}\n\n"
+            
         except asyncio.CancelledError:
             agent_run_info.stop_event.set()
             raise HTTPException(status_code=499, detail="stopped by user")
@@ -55,6 +60,8 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
                 "Connection": "keep-alive"
             }
         )
+    except asyncio.CancelledError:
+        agent_run_info.stop_event.set()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent execution error: {str(e)}")
 
