@@ -557,7 +557,9 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         [option]: displayName,
       }
     }))
-    
+
+    console.log(`handleModelChange: ${category}, ${option}, ${displayName}`)
+
     // 如果有值，清除错误状态
     if (displayName) {
       setErrorFields(prev => ({
@@ -579,81 +581,81 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     }
 
     const modelInfo = [...officialModels, ...customModels].find(
-      m => m.name === displayName && m.type === modelType
+      m => m.displayName === displayName && m.type === modelType
     );
+
+    console.log(`officialModels: ${JSON.stringify(officialModels)}, customModels: ${JSON.stringify(customModels)}`)
+    console.log(`modelInfo: ${JSON.stringify(modelInfo)}`)
 
     // 新选择的模型如果是自定义模型，且之前没有设置状态，则设置为"未检测"
     if (modelInfo && modelInfo.source === "custom" && !modelInfo.connect_status) {
       updateCustomModelStatus(displayName, modelType, "未检测");
     }
-    
-    // 使用模型的显示名称，如果有的话，否则使用模型名称
-    const modelName = modelInfo?.displayName || displayName;
 
     // 更新配置
     let configUpdate: any = {}
     if (category === "voice") {
       configUpdate[option] = { 
-        modelName: modelName,
-        displayName: modelName,
-        apiConfig: modelInfo?.apiKey ? {
-          apiKey: modelInfo.apiKey,
-          modelUrl: modelInfo.apiUrl || '',
-        } : undefined
+        modelName: modelInfo?.name,
+        displayName: displayName,
+        apiConfig: {
+          apiKey: modelInfo?.apiKey || '',
+          modelUrl: modelInfo?.apiUrl || '',
+        }
       }
     } else if (category === "embedding") {
       const modelKey = option === 'multi_embedding' ? 'multiEmbedding' : 'embedding';
       configUpdate[modelKey] = {
-        modelName: modelName,
-        displayName: modelName,
-        apiConfig: modelInfo?.apiKey ? {
-          apiKey: modelInfo.apiKey,
-          modelUrl: modelInfo.apiUrl || '',
-        } : undefined,
+        modelName: modelInfo?.name,
+        displayName: displayName,
+        apiConfig: {
+          apiKey: modelInfo?.apiKey || '',
+          modelUrl: modelInfo?.apiUrl || '',
+        },
         dimension: modelInfo?.maxTokens || undefined
       }
     } else if (category === "reranker") {
       configUpdate.rerank = { 
-        modelName: modelName,
-        displayName: modelName,
-        apiConfig: modelInfo?.apiKey ? {
-          apiKey: modelInfo.apiKey,
-          modelUrl: modelInfo.apiUrl || '',
-        } : undefined
+        modelName: modelInfo?.name,
+        displayName: displayName,
+        apiConfig: {
+          apiKey: modelInfo?.apiKey || '',
+          modelUrl: modelInfo?.apiUrl || '',
+        }
       }
     } else if (category === "multimodal") {
       configUpdate.vlm = { 
-        modelName: modelName,
-        displayName: modelName,
-        apiConfig: modelInfo?.apiKey ? {
-          apiKey: modelInfo.apiKey,
-          modelUrl: modelInfo.apiUrl || '',
-        } : undefined
+        modelName: modelInfo?.name,
+        displayName: displayName,
+        apiConfig: {
+          apiKey: modelInfo?.apiKey || '',
+          modelUrl: modelInfo?.apiUrl || '',
+        }
       }
     } else if (category === "llm") {
       if (option === "main") {
         configUpdate.llm = { 
-          modelName: modelName,
-          displayName: modelName,
-          apiConfig: modelInfo?.apiKey ? {
-            apiKey: modelInfo.apiKey,
-            modelUrl: modelInfo.apiUrl || '',
-          } : undefined
+          modelName: modelInfo?.name,
+          displayName: displayName,
+          apiConfig: {
+            apiKey: modelInfo?.apiKey || '',
+            modelUrl: modelInfo?.apiUrl || '',
+          }
         }
       } else if (option === "secondary") {
         configUpdate.llmSecondary = {
-          modelName: modelName,
-          displayName: modelName,
-          apiConfig: modelInfo?.apiKey ? {
-            apiKey: modelInfo.apiKey,
-            modelUrl: modelInfo.apiUrl || '',
-          } : undefined
+          modelName: modelInfo?.name,
+          displayName: displayName,
+          apiConfig: {
+            apiKey: modelInfo?.apiKey || '',
+            modelUrl: modelInfo?.apiUrl || '',
+          }
         }
       }
     } else {
       configUpdate[category] = { 
-        modelName: modelName,
-        displayName: modelName,
+        modelName: modelInfo?.name,
+        displayName: displayName,
         apiConfig: modelInfo?.apiKey ? {
           apiKey: modelInfo.apiKey,
           modelUrl: modelInfo.apiUrl || '',
@@ -661,12 +663,14 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       }
     }
 
+    console.log(`configUpdate: ${JSON.stringify(configUpdate)}`)
+
     // 模型配置更新
     updateModelConfig(configUpdate)
-    
+
     // 当选择新模型时，自动验证该模型连通性
-    if (modelName) {
-      await verifyOneModel(modelName, modelType);
+    if (displayName) {
+      await verifyOneModel(displayName, modelType);
     }
   }
 
@@ -817,7 +821,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
                         modelId={option.id}
                         modelName={option.name}
                         selectedModel={selectedModels[key]?.[option.id] || ""}
-                        onModelChange={(value) => handleModelChange(key, option.id, value)}
+                        onModelChange={(modelName) => handleModelChange(key, option.id, modelName)}
                         officialModels={officialModels}
                         customModels={customModels}
                         onVerifyModel={verifyOneModel}
