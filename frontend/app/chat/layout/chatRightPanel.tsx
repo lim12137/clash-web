@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea } from "@/components/ui/scrollArea"
 import { ExternalLink, Database, X } from "lucide-react"
 import { ChatMessageType } from "@/types/chat"
 import { API_ENDPOINTS } from "@/services/api"
@@ -245,7 +246,7 @@ export function ChatRightPanel({
           </div>
 
           <div className="mt-2 text-sm flex justify-between items-center">
-            <div className="flex items-center">
+            <div className="flex items-center min-w-0 flex-1">
               <div className="w-3 h-3 flex-shrink-0 mr-1">
                 {source_type === "url" ? (
                   <ExternalLink className="w-full h-full" />
@@ -253,7 +254,7 @@ export function ChatRightPanel({
                   <Database className="w-full h-full" />
                 ) : null}
               </div>
-              <span className="text-gray-500 break-all">
+              <span className="text-gray-500 truncate">
                 {formatUrl(result)}
               </span>
             </div>
@@ -379,7 +380,7 @@ export function ChatRightPanel({
           </TabsTrigger>
         </TabsList>
 
-        <div className="flex-1 overflow-auto h-[calc(100vh-3rem)]">
+        <ScrollArea className="h-[calc(100vh-120px)]">
         <TabsContent value="sources" className="p-4">
           <div className="space-y-2">
             {searchResults.length > 0 ? (
@@ -444,7 +445,7 @@ export function ChatRightPanel({
             </div>
           )}
         </TabsContent>
-        </div>
+        </ScrollArea>
       </Tabs>
     </div>
   )

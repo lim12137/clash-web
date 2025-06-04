@@ -7,7 +7,6 @@ from .db_models import ModelRecord
 from .utils import add_creation_tracking, add_update_tracking
 
 
-# 创建模型记录
 def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = None) -> bool:
     """
     Create a model record
