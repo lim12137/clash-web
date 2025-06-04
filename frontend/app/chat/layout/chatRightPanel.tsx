@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scrollArea"
+import { StaticScrollArea } from "@/components/ui/scrollArea"
 import { ExternalLink, Database, X } from "lucide-react"
 import { ChatMessageType } from "@/types/chat"
 import { API_ENDPOINTS } from "@/services/api"
@@ -380,7 +380,7 @@ export function ChatRightPanel({
           </TabsTrigger>
         </TabsList>
 
-        <ScrollArea className="h-[calc(100vh-120px)]">
+        <StaticScrollArea className="h-[calc(100vh-120px)]">
         <TabsContent value="sources" className="p-4">
           <div className="space-y-2">
             {searchResults.length > 0 ? (
@@ -445,7 +445,7 @@ export function ChatRightPanel({
             </div>
           )}
         </TabsContent>
-        </ScrollArea>
+        </StaticScrollArea>
       </Tabs>
     </div>
   )
