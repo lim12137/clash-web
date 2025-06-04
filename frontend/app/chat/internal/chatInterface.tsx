@@ -238,9 +238,18 @@ export function ChatInterface() {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = setTimeout(async () => {
         if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
           try {
+            // 使用后端接口停止对话
+            if (conversationId && conversationId !== -1) {
+              try {
+                await conversationService.stop(conversationId);
+              } catch (error) {
+                console.error('停止超时请求失败:', error);
+              }
+            }
+            
             abortControllerRef.current.abort('请求超时');
             console.log('请求超过120秒已自动取消');
             setMessages(prev => {
@@ -770,34 +779,60 @@ export function ChatInterface() {
   };
 
   // 添加停止对话的处理函数
-  const handleStop = () => {
-    if (abortControllerRef.current) {
-      try {
-        abortControllerRef.current.abort('用户停止对话');
-      } catch (error) {
-        console.log('停止对话时出错', error);
-      } finally {
-        abortControllerRef.current = null;
-        setIsStreaming(false);
-        setIsLoading(false);
-
-        // 手动更新消息，清除thinking状态
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMsg = newMessages[newMessages.length - 1];
-          if (lastMsg && lastMsg.role === "assistant") {
-            lastMsg.isComplete = true;
-            lastMsg.thinking = undefined; // 明确清除thinking状态
-          }
-          return newMessages;
-        });
-      }
+  const handleStop = async () => {
+    // 如果没有有效的对话ID，就只是重置前端状态
+    if (!conversationId || conversationId === -1) {
+      setIsStreaming(false);
+      setIsLoading(false);
+      return;
     }
 
-    // 清除超时定时器
+    try {
+      // 调用后端停止接口
+      await conversationService.stop(conversationId);
+      
+      // 成功停止后更新前端状态
+      setIsStreaming(false);
+      setIsLoading(false);
+
+      // 手动更新消息，清除thinking状态
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMsg = newMessages[newMessages.length - 1];
+        if (lastMsg && lastMsg.role === "assistant") {
+          lastMsg.isComplete = true;
+          lastMsg.thinking = undefined; // 明确清除thinking状态
+        }
+        return newMessages;
+      });
+    } catch (error) {
+      console.error('停止对话失败:', error);
+      // 即使停止失败，也重置前端状态
+      setIsStreaming(false);
+      setIsLoading(false);
+      
+      // 可以选择显示错误信息
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMsg = newMessages[newMessages.length - 1];
+        if (lastMsg && lastMsg.role === "assistant") {
+          lastMsg.isComplete = true;
+          lastMsg.thinking = undefined; // 明确清除thinking状态
+          lastMsg.error = "停止对话失败，但前端已停止显示";
+        }
+        return newMessages;
+      });
+    }
+
+    // 清除超时定时器（如果还在使用的话）
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+
+    // 清理 AbortController 引用
+    if (abortControllerRef.current) {
+      abortControllerRef.current = null;
     }
   };
 

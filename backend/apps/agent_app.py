@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import threading
+from typing import Dict, Optional
 
 from fastapi import HTTPException, APIRouter, Header, Request
 from fastapi.responses import StreamingResponse
@@ -14,6 +16,9 @@ from utils.thread_utils import submit
 
 from nexent.core.utils.agent_utils import agent_run
 
+from agents.agent_run_manager import agent_run_manager
+
+
 router = APIRouter(prefix="/agent")
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,50 +26,53 @@ logger = logging.getLogger("agent app")
 
 # Define API route
 @router.post("/run")
-async def agent_run_api(request: AgentRequest, http_req: Request, authorization: str = Header(None)):
+async def agent_run_api(http_req: Request, request: AgentRequest, authorization: str = Header(None)):
     """
     Agent execution API endpoint
     """
-    # Save user message only if not in debug mode
-    if not request.is_debug:
-        submit(save_conversation_user, request, authorization)
-
     agent_run_info = await create_agent_run_info(agent_id=request.agent_id,
                                                  minio_files=request.minio_files,
                                                  query=request.query)
+    
+    # Save user message only if not in debug mode and register agent run info
+    if not request.is_debug:
+        submit(save_conversation_user, request, authorization)
+        agent_run_manager.register_agent_run(request.conversation_id, agent_run_info)
 
     async def generate():
         messages = []
         try:
             async for chunk in agent_run(agent_run_info):
-                if await http_req.is_disconnected():
-                    agent_run_info.stop_event.set()
-                    break
-
                 messages.append(chunk)
                 yield f"data: {chunk}\n\n"
-            
-        except asyncio.CancelledError:
-            agent_run_info.stop_event.set()
-            raise HTTPException(status_code=499, detail="stopped by user")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Agent运行异常: {str(e)}")
         finally:
+            # 注销agent运行实例
             if not request.is_debug:
                 submit(save_conversation_assistant, request, messages, authorization)
+                agent_run_manager.unregister_agent_run(request.conversation_id)
 
-    try:
-        return StreamingResponse(
-            generate(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive"
-            }
-        )
-    except asyncio.CancelledError:
-        agent_run_info.stop_event.set()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Agent execution error: {str(e)}")
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+        }
+    )
 
+
+@router.get("/stop/{conversation_id}")
+async def agent_stop_api(conversation_id: int):
+    """
+    停止指定conversation_id的agent运行
+    """
+    success = agent_run_manager.stop_agent_run(conversation_id)
+    if success:
+        return {"status": "success", "message": f"已成功停止conversation_id {conversation_id}的agent运行"}
+    else:
+        raise HTTPException(status_code=404, detail=f"未找到conversation_id {conversation_id}的运行中agent")
 
 # Add configuration reload API
 @router.post("/reload_config")
