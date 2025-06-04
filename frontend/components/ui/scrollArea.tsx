@@ -23,88 +23,174 @@ const ScrollArea = React.forwardRef<
 ))
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
 
-// New StaticScrollArea component that prevents auto-scrolling
+// StaticScrollArea that prevents auto-scrolling while using Radix UI
 const StaticScrollArea = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
+  React.ElementRef<typeof ScrollAreaPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root>
 >(({ className, children, ...props }, ref) => {
-  const [isHovered, setIsHovered] = React.useState(false)
-  const scrollAreaId = React.useId()
+  const [viewportElement, setViewportElement] = React.useState<HTMLDivElement | null>(null)
+  const scrollPositionRef = React.useRef<number>(0)
+  const lastUserInteractionTimeRef = React.useRef<number>(0)
+  const lastClickTimeRef = React.useRef<number>(0)
+  const isRestoringRef = React.useRef<boolean>(false)
+
+  // Save current scroll position
+  const saveScrollPosition = React.useCallback(() => {
+    if (viewportElement && !isRestoringRef.current) {
+      scrollPositionRef.current = viewportElement.scrollTop
+    }
+  }, [viewportElement])
+
+  // Restore scroll position to saved value
+  const restoreScrollPosition = React.useCallback(() => {
+    if (viewportElement && !isRestoringRef.current) {
+      const targetPosition = scrollPositionRef.current
+      const currentPosition = viewportElement.scrollTop
+      if (currentPosition !== targetPosition) {
+        isRestoringRef.current = true
+        viewportElement.scrollTop = targetPosition
+        // Briefly mark as restoring to prevent triggering new scroll events
+        setTimeout(() => {
+          isRestoringRef.current = false
+        }, 50)
+        return true
+      }
+    }
+    return false
+  }, [viewportElement])
+
+  // Determine if scroll is user-initiated based on timing
+  const isUserInitiatedScroll = React.useCallback(() => {
+    const now = Date.now()
+    const timeSinceLastUserInteraction = now - lastUserInteractionTimeRef.current
+    const timeSinceLastClick = now - lastClickTimeRef.current
+    
+    // If within 500ms of user interaction, consider it user scrolling
+    if (timeSinceLastUserInteraction < 500) {
+      return true
+    }
+    
+    // If within 100ms of a click, likely programmatic scrolling
+    if (timeSinceLastClick < 100) {
+      return false
+    }
+    
+    return false
+  }, [])
+
+  // Handle scroll events
+  const handleScroll = React.useCallback((e: Event) => {
+    if (isRestoringRef.current) {
+      return
+    }
+
+    if (isUserInitiatedScroll()) {
+      saveScrollPosition()
+    } else {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      restoreScrollPosition()
+    }
+  }, [isUserInitiatedScroll, saveScrollPosition, restoreScrollPosition])
+
+  // Record user interaction timestamp
+  const recordUserInteraction = React.useCallback(() => {
+    lastUserInteractionTimeRef.current = Date.now()
+  }, [])
+
+  // Record click timestamp
+  const recordClick = React.useCallback(() => {
+    lastClickTimeRef.current = Date.now()
+  }, [])
+
+  // Listen for genuine user scroll interactions
+  React.useEffect(() => {
+    if (viewportElement) {
+      const handleWheel = () => recordUserInteraction()
+      const handleTouchStart = () => recordUserInteraction()
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(e.key)) {
+          recordUserInteraction()
+        }
+      }
+
+      viewportElement.addEventListener('wheel', handleWheel, { passive: true })
+      viewportElement.addEventListener('touchstart', handleTouchStart, { passive: true })
+      viewportElement.addEventListener('keydown', handleKeyDown, { passive: true })
+      
+      return () => {
+        viewportElement.removeEventListener('wheel', handleWheel)
+        viewportElement.removeEventListener('touchstart', handleTouchStart)
+        viewportElement.removeEventListener('keydown', handleKeyDown)
+      }
+    }
+  }, [viewportElement, recordUserInteraction])
+
+  // Listen for click events that might trigger programmatic scrolling
+  React.useEffect(() => {
+    if (viewportElement) {
+      // Monitor document-wide clicks as they can happen anywhere
+      document.addEventListener('click', recordClick, { capture: true })
+      document.addEventListener('mousedown', recordClick, { capture: true })
+      
+      return () => {
+        document.removeEventListener('click', recordClick, { capture: true })
+        document.removeEventListener('mousedown', recordClick, { capture: true })
+      }
+    }
+  }, [viewportElement, recordClick])
+
+  // Listen for scroll events with highest priority interception
+  React.useEffect(() => {
+    if (viewportElement) {
+      viewportElement.addEventListener('scroll', handleScroll, { passive: false, capture: true })
+      
+      return () => {
+        viewportElement.removeEventListener('scroll', handleScroll, { capture: true })
+      }
+    }
+  }, [viewportElement, handleScroll])
+
+  // Set viewport element reference
+  const setViewportRef = React.useCallback((node: HTMLDivElement | null) => {
+    setViewportElement(node)
+    if (node) {
+      setTimeout(() => {
+        if (node) {
+          scrollPositionRef.current = node.scrollTop
+        }
+      }, 0)
+    }
+  }, [])
+
+  // Restore position on component re-renders
+  React.useEffect(() => {
+    // Short delay after re-render to restore scroll position if not user-initiated
+    const timeoutId = setTimeout(() => {
+      if (!isUserInitiatedScroll()) {
+        restoreScrollPosition()
+      }
+    }, 10)
+    
+    return () => clearTimeout(timeoutId)
+  }, [children, isUserInitiatedScroll, restoreScrollPosition])
 
   return (
-    <>
-      {/* Global CSS styles */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-          .static-scroll-area-${scrollAreaId.replace(/:/g, '')} {
-            height: 100%;
-            width: 100%;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding-right: 16px;
-            scrollbar-width: ${isHovered ? 'thin' : 'none'};
-            scrollbar-color: ${isHovered ? '#d1d5db transparent' : 'transparent transparent'};
-            transition: scrollbar-color 0.3s ease-in-out;
-          }
-          
-          .static-scroll-area-${scrollAreaId.replace(/:/g, '')}::-webkit-scrollbar {
-            width: 10px;
-          }
-          
-          .static-scroll-area-${scrollAreaId.replace(/:/g, '')}::-webkit-scrollbar-track {
-            background: transparent;
-          }
-          
-          .static-scroll-area-${scrollAreaId.replace(/:/g, '')}::-webkit-scrollbar-thumb {
-            background: ${isHovered ? '#d1d5db' : 'transparent'};
-            border-radius: 9999px;
-            transition: background-color 0.3s ease-in-out;
-          }
-          
-          .static-scroll-area-${scrollAreaId.replace(/:/g, '')}::-webkit-scrollbar-thumb:hover {
-            background: #9ca3af !important;
-          }
-          
-          .static-scroll-area-${scrollAreaId.replace(/:/g, '')}::-webkit-scrollbar-thumb:active {
-            background: #9ca3af !important;
-          }
-          
-          @media (prefers-color-scheme: dark) {
-            .static-scroll-area-${scrollAreaId.replace(/:/g, '')} {
-              scrollbar-color: ${isHovered ? '#4b5563 transparent' : 'transparent transparent'};
-            }
-            
-            .static-scroll-area-${scrollAreaId.replace(/:/g, '')}::-webkit-scrollbar-thumb {
-              background: ${isHovered ? '#4b5563' : 'transparent'};
-            }
-            
-            .static-scroll-area-${scrollAreaId.replace(/:/g, '')}::-webkit-scrollbar-thumb:hover {
-              background: #6b7280 !important;
-            }
-            
-            .static-scroll-area-${scrollAreaId.replace(/:/g, '')}::-webkit-scrollbar-thumb:active {
-              background: #6b7280 !important;
-            }
-          }
-        `
-      }} />
-      
-      <div 
-        ref={ref}
-        className={cn("relative overflow-hidden", className)}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        {...props}
+    <ScrollAreaPrimitive.Root
+      ref={ref}
+      className={cn("relative overflow-hidden", className)}
+      {...props}
+    >
+      <ScrollAreaPrimitive.Viewport 
+        ref={setViewportRef}
+        className="h-full w-full rounded-[inherit]"
+        tabIndex={0}
       >
-        <div
-          className={`static-scroll-area-${scrollAreaId.replace(/:/g, '')}`}
-        >
-          <div className="pr-2">
-            {children}
-          </div>
-        </div>
-      </div>
-    </>
+        {children}
+      </ScrollAreaPrimitive.Viewport>
+      <ScrollBar />
+      <ScrollAreaPrimitive.Corner />
+    </ScrollAreaPrimitive.Root>
   )
 })
 StaticScrollArea.displayName = "StaticScrollArea"
