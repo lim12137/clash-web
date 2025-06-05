@@ -18,9 +18,15 @@ interface MarkdownRendererProps {
 
 // Get background color for different tool signs
 const getBackgroundColor = (toolSign: string) => {
-  // Use unified blue background for numeric-only format
-  return '#e3f2fd';
-};
+  switch (toolSign) {
+    case 'a': return '#E3F2FD'; // 浅蓝色
+    case 'b': return '#E8F5E9'; // 浅绿色
+    case 'c': return '#FFF3E0'; // 浅橙色
+    case 'd': return '#F3E5F5'; // 浅紫色
+    case 'e': return '#FFEBEE'; // 浅红色
+    default: return '#E5E5E5'; // 默认浅灰色
+  }
+}
 
 // Replace the original LinkIcon component
 const CitationBadge = ({ toolSign, citeIndex }: { toolSign: string, citeIndex: number }) => (
@@ -74,8 +80,11 @@ const HoverableText = ({ text, searchResults }: {
   };
 
   // Find corresponding search result - simplified for numeric-only format
-  const citeIndex = parseInt(text);
-  const matchedResult = searchResults?.find(result => result.cite_index === citeIndex);
+  const toolSign = text.charAt(0);
+  const citeIndex = parseInt(text.slice(1))
+  const matchedResult = searchResults?.find(
+    result => result.tool_sign === toolSign && result.cite_index === citeIndex
+  );
 
   // Handle mouse events
   React.useEffect(() => {
@@ -198,7 +207,7 @@ const HoverableText = ({ text, searchResults }: {
         >
           <TooltipTrigger asChild>
             <span className="inline-flex items-center cursor-pointer transition-colors">
-              <CitationBadge toolSign="" citeIndex={citeIndex} />
+                <CitationBadge toolSign={toolSign} citeIndex={citeIndex} />
             </span>
           </TooltipTrigger>
           {/* Force Portal to body */}
@@ -319,13 +328,13 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           const match = part.match(/^\[\[([^\]]+)\]\]$/);
           if (match) {
             const innerText = match[1];
-            
-            // Numeric format: [[1]], [[2]], [[3]]
-            const citeIndex = parseInt(innerText);
-            
-            // Check if matching search result exists
-            const hasMatch = searchResults?.some(result => result.cite_index === citeIndex);
-            
+
+            const toolSign = innerText.charAt(0);
+            const citeIndex = parseInt(innerText.slice(1));
+            const hasMatch = searchResults?.some(
+              result => result.tool_sign === toolSign && result.cite_index === citeIndex
+            );
+
             // Only show citation icon when matching search result is found
             if (hasMatch) {
               return <HoverableText key={index} text={innerText} searchResults={searchResults} />;
