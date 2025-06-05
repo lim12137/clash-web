@@ -105,4 +105,4 @@ agent = CoreAgent(
 
 - Check the [FAQ](FAQ.md)
 - Join our [Discord community](https://discord.gg/tb5H3S3wyv)
-- Submit [GitHub Issues](https://github.com/nexent-hub/nexent/issues) 
+- Submit [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 

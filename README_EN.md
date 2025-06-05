@@ -21,8 +21,8 @@ Nexent is an open-source agent SDK and platform that turns a single prompt into 
 
 We're still in our very first open-source phase and aiming for **Nexent v1-stable in June 2025**. Until then we'll keep shipping core features rapidly — and we'd love your help:
 
-* **🗺️ Check our [Feature Map](https://github.com/orgs/nexent-hub/projects/2/views/1)** to explore current and upcoming features.
-* **🔍 Try the current build** and leave ideas or bugs in the [Issues](https://github.com/nexent-hub/nexent/issues) tab.
+* **🗺️ Check our [Feature Map](https://github.com/orgs/ModelEngine-Group/projects/6)** to explore current and upcoming features.
+* **🔍 Try the current build** and leave ideas or bugs in the [Issues](https://github.com/ModelEngine-Group/nexent/issues) tab.
 
 > *Rome wasn't built in a day.*
 
@@ -45,7 +45,7 @@ Most of all, we need visibility. Star ⭐ and watch the repo, share it with frie
 ### 2. 🛠️ Quick start with Docker Compose
 
 ```bash
-git clone https://github.com/nexent-hub/nexent-commercial.git
+git clone https://github.com/ModelEngine-Group/nexent-commercial.git
 cd nexent/docker
 cp .env.example .env # fill only nessasary configs
 bash deploy.sh
@@ -83,7 +83,7 @@ The following configurations need to be added to your `.env` file (we'll make th
 
 - Browse the [FAQ](FAQ.md) for common install issues.  
 - Drop questions in our [Discord community](https://discord.gg/tb5H3S3wyv).  
-- File bugs or feature ideas in [GitHub Issues](https://github.com/nexent-hub/nexent/issues).
+- File bugs or feature ideas in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues).
 
 ### 5. 🔧 Hack on Nexent
 
@@ -95,7 +95,7 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 
 ## ✨ Key Features
 
-`1` **Smart agent prompt generation (To Release)**  
+`1` **Smart agent prompt generation**  
    Turn plain language into runnable prompts. Nexent automatically chooses the right tools and plans the best action path for every request.
 
    ![Feature 1](./assets/Feature1.png)
@@ -149,7 +149,7 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 We welcome all kinds of contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes Nexent better for everyone. 
 
 - 📖 Read our [Contribution Guide](CONTRIBUTING.md) to get started
-- 🐛 Report bugs or suggest features in [GitHub Issues](https://github.com/nexent-hub/nexent/issues)
+- 🐛 Report bugs or suggest features in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)
 - 💬 Join our [Discord community](https://discord.gg/tb5H3S3wyv) to discuss ideas
 
 # 💬 Community & contact

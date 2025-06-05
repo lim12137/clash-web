@@ -17,7 +17,7 @@ import { ConversationListItem } from "@/types/chat"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { ScrollArea } from "@/components/ui/scrollArea"
+import { StaticScrollArea } from "@/components/ui/scrollArea"
 import { useConfig } from "@/hooks/useConfig"
 import { useResponsiveTextSize } from "@/hooks/useResponsiveTextSize"
 import { Spin, Tag, ConfigProvider } from "antd"
@@ -415,7 +415,7 @@ export function ChatSidebar({
               </Button>
             </div>
 
-            <ScrollArea className="flex-1 m-2 h-fit">
+            <StaticScrollArea className="flex-1 m-2 h-fit">
               <div className="space-y-4 pr-2">
                 {conversationList.length > 0 ? (
                   <>
@@ -433,7 +433,7 @@ export function ChatSidebar({
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </StaticScrollArea>
 
           <div className="mt-auto p-3 border-t border-transparent flex justify-between items-center">
             {userAuthLoading ? (

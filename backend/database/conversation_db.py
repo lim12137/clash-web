@@ -126,7 +126,7 @@ def create_conversation_message(message_data: Dict[str, Any], user_id: Optional[
 
 
 def create_message_units(message_units: List[Dict[str, Any]], message_id: int, conversation_id: int,
-                         user_id: Optional[str] = None) -> bool:
+                         user_id: Optional[str] = None) -> List[int]:
     """
     Batch create message unit records
 
@@ -139,17 +139,18 @@ def create_message_units(message_units: List[Dict[str, Any]], message_id: int, c
         user_id: Reserved parameter for created_by and updated_by fields
 
     Returns:
-        bool: Whether the operation was successful
+        List[int]: List of newly created unit IDs
     """
     if not message_units:
-        return True  # No message units, considered successful
+        return []  # No message units, return empty list
 
     with get_db_session() as session:
         # Ensure IDs are integer type
         message_id = int(message_id)
         conversation_id = int(conversation_id)
 
-        data_list = []
+        # Create units one by one to get unit_ids
+        unit_ids = []
         for idx, unit in enumerate(message_units):
             # Basic data
             row_data = {
@@ -164,12 +165,14 @@ def create_message_units(message_units: List[Dict[str, Any]], message_id: int, c
             if user_id:
                 row_data["created_by"] = user_id
                 row_data["updated_by"] = user_id
-            data_list.append(row_data)
 
-        # insert into conversation_message_unit_t
-        stmt = insert(ConversationMessageUnit).values(data_list)
-        session.execute(stmt)
-        return True
+            # Insert and get unit_id
+            stmt = insert(ConversationMessageUnit).values(**row_data).returning(ConversationMessageUnit.unit_id)
+            result = session.execute(stmt)
+            unit_id = result.scalar_one()
+            unit_ids.append(unit_id)
+
+        return unit_ids
 
 
 def get_conversation(conversation_id: int, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -471,8 +474,9 @@ def get_conversation_history(conversation_id: int, user_id: Optional[str] = None
             # Move the order_by to the json_agg function
             func.json_agg(
                 func.json_build_object(
-                    'type', ConversationMessageUnit.unit_type,
-                    'content', ConversationMessageUnit.unit_content
+                    'unit_id', ConversationMessageUnit.unit_id,
+                    'unit_type', ConversationMessageUnit.unit_type,
+                    'unit_content', ConversationMessageUnit.unit_content
                 )
             )
         ).select_from(
@@ -502,7 +506,7 @@ def get_conversation_history(conversation_id: int, user_id: Optional[str] = None
         search_stmt = select(ConversationSourceSearch).where(
             ConversationSourceSearch.conversation_id == conversation_id,
             ConversationSourceSearch.delete_flag == 'N'
-        )
+        ).order_by(ConversationSourceSearch.search_id)
         search_records = session.scalars(search_stmt).all()
 
         # Get image data
@@ -704,6 +708,7 @@ def create_source_search(search_data: Dict[str, Any], user_id: Optional[str] = N
             - search_type: Source tool
             - tool_sign: Source tool simple identifier, used for summary differentiation
             Optional fields:
+            - unit_id: Message unit ID (integer)
             - score_overall: Overall relevance score
             - score_accuracy: Accuracy score
             - score_semantic: Semantic relevance score
@@ -731,6 +736,10 @@ def create_source_search(search_data: Dict[str, Any], user_id: Optional[str] = N
             "delete_flag": 'N',
             "create_time": func.current_timestamp()  # Use the database's CURRENT_TIMESTAMP function
         }
+
+        # Add unit_id if provided
+        if 'unit_id' in search_data and search_data['unit_id'] is not None:
+            data["unit_id"] = int(search_data['unit_id'])
 
         # Add optional fields
         if 'score_overall' in search_data:

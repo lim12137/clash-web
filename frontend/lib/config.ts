@@ -272,6 +272,14 @@ export class ConfigStore {
       data,
     } as GlobalConfig;
   }
+
+  // 新增：从localStorage重新加载配置并触发configChanged事件
+  public reloadFromStorage(): void {
+    this.config = this.loadFromStorage();
+    window.dispatchEvent(new CustomEvent('configChanged', {
+      detail: { config: this.config }
+    }));
+  }
 }
 
 // 导出单例
