@@ -22,8 +22,7 @@ async def get_me_models(
             response = await client.get(
                 f"{MODEL_ENGINE_HOST}/open/router/v1/models",
                 headers=headers,
-                timeout=timeout,
-                verify=False
+                timeout=timeout
             )
             response.raise_for_status()
             result: list = response.json()['data']
