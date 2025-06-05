@@ -124,7 +124,7 @@ def create_agent(agent_info, tenant_id: str, user_id:str = None):
                         "created_by": tenant_id,
                         "updated_by": tenant_id,
                         "model_name": "main_model",
-                        "max_steps": 10})
+                        "max_steps": 5})
     with get_db_session() as session:
         new_agent = AgentInfo(**filter_property(agent_info, AgentInfo))
         new_agent.delete_flag = 'N'
