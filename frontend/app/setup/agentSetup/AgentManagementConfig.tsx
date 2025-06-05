@@ -5,7 +5,6 @@ import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber 
 import { SettingOutlined } from '@ant-design/icons'
 import ToolConfigModal from './components/ToolConfigModal'
 import AgentModalComponent from './components/AgentModal'
-import { mockAgents, mockTools } from './mockData'
 import { AgentModalProps, Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
 import { ScrollArea } from '@/components/ui/scrollArea'
 import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent } from '@/services/agentConfigService'
@@ -198,7 +197,7 @@ function ToolPool({
 
   // Use useMemo to cache the tool list to avoid unnecessary recalculations
   const displayTools = useMemo(() => {
-    return tools.length > 0 ? tools : mockTools;
+    return tools || [];
   }, [tools]);
 
   // Use useMemo to cache the selected tool ID set to improve lookup efficiency
@@ -493,8 +492,7 @@ export default function BusinessLogicConfig({
         prompt: prompt,
         business_description: business_description
       };
-      
-      mockAgents.unshift(newAgent);
+
       setIsAgentModalOpen(false);
       message.success(`Agent:"${name}"创建成功`);
       
@@ -521,27 +519,14 @@ export default function BusinessLogicConfig({
 
   const handleUpdateAgent = (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string, business_description: string) => {
     if (currentAgent && name.trim()) {
-      // Update the agent and maintain independent tool configuration
-      const index = mockAgents.findIndex(a => a.id === currentAgent.id);
-      if (index !== -1) {
-        mockAgents[index] = {
-          ...currentAgent,
-          name,
-          description,
-          model,
-          max_step,
-          provide_run_summary,
-          tools: currentAgent.tools, // Keep the original tool configuration
-          prompt,
-          business_description
-        };
-      }
-      
       // Close pop-up window
       setIsEditModalOpen(false);
       
       // Display success message
       message.success(`子代理"${name}"更新成功`);
+      
+      // Refresh the agent list from backend
+      refreshAgentList();
     }
   };
 
