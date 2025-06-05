@@ -12,8 +12,7 @@ Nexent is an open-source agent SDK and platform that turns a single prompt into 
 - 🌐 Visit our [official website](http://nexent.tech/) to learn more
 - 🚀 [Try it now](http://nexent.tech/try) to experience the power of Nexent
 
-   
-   https://github.com/user-attachments/assets/0758629c-3477-4cd4-a737-0aab330d53a7
+https://github.com/user-attachments/assets/0758629c-3477-4cd4-a737-0aab330d53a7
 
 # 🤝 Join Our Community
 
