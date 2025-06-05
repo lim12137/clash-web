@@ -168,6 +168,10 @@ export const handleStreamResponse = async (
                         url: item.url || "#",
                         text: item.text || "无内容描述",
                         published_date: item.published_date || "",
+                        source_type: item.source_type || "",
+                        filename: item.filename || "",
+                        score: typeof item.score === 'number' ? item.score : undefined,
+                        score_details: item.score_details || {},
                         tool_sign: item.tool_sign || "",
                         cite_index: typeof item.cite_index === 'number' ? item.cite_index : -1
                       }));
