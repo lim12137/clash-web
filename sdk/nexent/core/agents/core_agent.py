@@ -5,6 +5,7 @@ from typing import Union, Any, Optional, List, Dict, Generator
 
 from rich.console import Group
 from rich.text import Text
+
 from smolagents.agents import CodeAgent, populate_template, handle_agent_output_types, AgentError, AgentType
 from smolagents.local_python_executor import fix_final_answer_code
 from smolagents.memory import ActionStep, ToolCall, TaskStep, SystemPromptStep

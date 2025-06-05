@@ -1,12 +1,9 @@
-import asyncio
 import logging
-import threading
-from typing import Dict, Optional
 
 from fastapi import HTTPException, APIRouter, Header, Request
 from fastapi.responses import StreamingResponse
 
-from agents.build_agent_run_info import create_agent_run_info
+from agents.create_agent_info import create_agent_run_info
 from consts.model import AgentRequest, AgentInfoRequest, AgentIDRequest
 from services.agent_service import list_main_agent_info_impl, get_agent_info_impl, \
     get_creating_sub_agent_info_impl, update_agent_info_impl, delete_agent_impl
@@ -14,7 +11,7 @@ from services.conversation_management_service import save_conversation_user, sav
 from utils.config_utils import config_manager
 from utils.thread_utils import submit
 
-from nexent.core.utils.agent_utils import agent_run
+from nexent.core.agents.run_agent import agent_run
 
 from agents.agent_run_manager import agent_run_manager
 
