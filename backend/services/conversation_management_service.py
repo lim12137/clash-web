@@ -82,49 +82,19 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
 
         # Process other types of units
         filtered_message_units = []
+        search_content_units = []
+        
         for unit in other_units:
             unit_type = unit['type']
             unit_content = unit['content']
 
             if unit_type == 'search_content':
-                # Process search content, save as source_search, do not add to filtered_message_units
-                try:
-                    # Parse search content
-                    import json
-                    search_results = json.loads(unit_content)
-
-                    # Ensure search_results is a list
-                    if not isinstance(search_results, list):
-                        search_results = [search_results]
-
-                    # Iterate through each search result and save separately
-                    for result in search_results:
-                        search_data = {'message_id': message_id, 'conversation_id': conversation_id,
-                            'source_type': result.get('source_type', ''), 'source_title': result.get('title', ''),
-                            'source_location': result.get('url', ''), 'source_content': result.get('text', ''),
-                            'score_overall': float(result.get('score')) if result.get('score') and result.get(
-                                'score') != '' else None,
-                            'score_accuracy': float(result.get('score_details', {}).get('accuracy')) if result.get(
-                                'score_details', {}).get('accuracy') and result.get('score_details', {}).get(
-                                'accuracy') != '' else None,
-                            'score_semantic': float(result.get('score_details', {}).get('semantic')) if result.get(
-                                'score_details', {}).get('semantic') and result.get('score_details', {}).get(
-                                'semantic') != '' else None,
-                            'published_date': result.get('published_date') if result.get(
-                                'published_date') and result.get('published_date') != '' else None,
-                            'cite_index': result.get('cite_index', None) if result.get('cite_index') != '' else None,
-                            'search_type': result.get('search_type') if result.get('search_type') and result.get(
-                                'search_type') != '' else None, 'tool_sign': result.get('tool_sign', '')}
-                        create_source_search(search_data)
-                    
-                    # 添加搜索内容占位标记
-                    filtered_message_units.append({
-                        'type': 'search_content_placeholder',
-                        'content': '{"placeholder": true}'
-                    })
-                except Exception as e:
-                    logging.error(f"Failed to save search content: {str(e)}")  # Do not add to filtered_message_units if save fails
-
+                # 为搜索内容创建占位符，稍后处理
+                search_content_units.append(unit_content)
+                filtered_message_units.append({
+                    'type': 'search_content_placeholder',
+                    'content': '{"placeholder": true}'
+                })
             elif unit_type == 'picture_web':
                 # Process image content, save as source_image, do not add to filtered_message_units
                 try:
@@ -137,15 +107,68 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
                                 'image_url': image_url}
                             create_source_image(image_data)
                 except Exception as e:
-                    logging.error(f"Failed to save image content: {str(e)}")  # Do not add to filtered_message_units if save fails
-
+                    logging.error(f"Failed to save image content: {str(e)}")
             else:
                 # Keep other types of message units
                 filtered_message_units.append(unit)
 
-        # Create filtered message unit records
+        # Create message unit records and get unit_ids
+        unit_ids = []
         if filtered_message_units and message_id is not None:
-            create_message_units(filtered_message_units, message_id, conversation_id)
+            unit_ids = create_message_units(filtered_message_units, message_id, conversation_id)
+
+        # Process search content using corresponding unit_ids
+        search_placeholder_index = 0
+        for search_content in search_content_units:
+            try:
+                # Find the unit_id for this search content placeholder
+                placeholder_unit_id = None
+                current_index = 0
+                for i, unit in enumerate(filtered_message_units):
+                    if unit['type'] == 'search_content_placeholder':
+                        if current_index == search_placeholder_index:
+                            placeholder_unit_id = unit_ids[i]
+                            break
+                        current_index += 1
+                
+                if placeholder_unit_id is None:
+                    logging.error("Could not find unit_id for search content placeholder")
+                    continue
+                
+                # Parse search content
+                import json
+                search_results = json.loads(search_content)
+
+                # Ensure search_results is a list
+                if not isinstance(search_results, list):
+                    search_results = [search_results]
+
+                # Iterate through each search result and save separately
+                for result in search_results:
+                    search_data = {'message_id': message_id, 'conversation_id': conversation_id,
+                        'unit_id': placeholder_unit_id,  # Use the placeholder's unit_id
+                        'source_type': result.get('source_type', ''), 'source_title': result.get('title', ''),
+                        'source_location': result.get('url', ''), 'source_content': result.get('text', ''),
+                        'score_overall': float(result.get('score')) if result.get('score') and result.get(
+                            'score') != '' else None,
+                        'score_accuracy': float(result.get('score_details', {}).get('accuracy')) if result.get(
+                            'score_details', {}).get('accuracy') and result.get('score_details', {}).get(
+                            'accuracy') != '' else None,
+                        'score_semantic': float(result.get('score_details', {}).get('semantic')) if result.get(
+                            'score_details', {}).get('semantic') and result.get('score_details', {}).get(
+                            'semantic') != '' else None,
+                        'published_date': result.get('published_date') if result.get(
+                            'published_date') and result.get('published_date') != '' else None,
+                        'cite_index': result.get('cite_index', None) if result.get('cite_index') != '' else None,
+                        'search_type': result.get('search_type') if result.get('search_type') and result.get(
+                            'search_type') != '' else None, 'tool_sign': result.get('tool_sign', '')}
+                    create_source_search(search_data)
+                
+                search_placeholder_index += 1
+                
+            except Exception as e:
+                logging.error(f"Failed to save search content: {str(e)}")
+                search_placeholder_index += 1
 
         return ConversationResponse(code=0, message="success", data=True)
 
@@ -353,10 +376,13 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
                 detail=f"Conversation {conversation_id} does not exist or has been deleted"
             )
 
-        # Collect search content, grouped by message_id
-        search_by_message = {}
+        # Collect search content, grouped by unit_id
+        search_by_unit_id = {}
+        search_by_message = {}  # 为消息级别的search字段收集数据
         for record in history_data['search_records']:
+            unit_id = record['unit_id']
             message_id = record['message_id']
+            
             # Process published_date, ensure it's a datetime object
             published_date = None
             if record['published_date'] is not None:
@@ -378,6 +404,13 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
             if record["score_semantic"] is not None:
                 search_item["score_details"]["semantic"] = record["score_semantic"]
 
+            # 按unit_id分组（用于前端根据unit_id匹配）
+            if unit_id is not None:
+                if unit_id not in search_by_unit_id:
+                    search_by_unit_id[unit_id] = []
+                search_by_unit_id[unit_id].append(search_item)
+            
+            # 按message_id分组（用于消息级别的search字段）
             if message_id not in search_by_message:
                 search_by_message[message_id] = []
             search_by_message[message_id].append(search_item)
@@ -397,6 +430,7 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
             message_id = msg['message_id']
             role = msg['role']
             message_content = msg['message_content']
+            message_units = msg['units'] or []  # Initialize for all message types
 
             if role == 'user':
                 # User message: directly use message_content as message field value
@@ -411,17 +445,37 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
                 if 'minio_files' in msg and msg['minio_files']:
                     message_item['minio_files'] = msg['minio_files']
             else:
-                # Assistant message: message is an array, need to add final_answer type message unit
-                message_units = msg['units'] or []
+                # Assistant message: message is an array, need to process search_content_placeholder
+                processed_units = []
+                for unit in message_units:
+                    unit_id = unit.get('unit_id')
+                    unit_type = unit.get('unit_type')
+                    unit_content = unit.get('unit_content')
+                    
+                    if unit_type == 'search_content_placeholder' and unit_id:
+                        placeholder_content = {
+                            "placeholder": True,
+                            "unit_id": unit_id
+                        }
+                        processed_units.append({
+                            'type': 'search_content_placeholder',
+                            'content': json.dumps(placeholder_content, ensure_ascii=False)
+                        })
+                    else:
+                        processed_units.append({
+                            'type': unit_type,
+                            'content': unit_content
+                        })
+                
                 # Add final_answer type message unit
-                message_units.append({
+                processed_units.append({
                     'type': 'final_answer',
                     'content': message_content
                 })
 
                 message_item = {
                     'role': role,
-                    'message': message_units,
+                    'message': processed_units,
                     'message_id': message_id,
                     'opinion_flag': msg['opinion_flag']
                 }
@@ -430,9 +484,21 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
             if message_id in image_by_message:
                 message_item['picture'] = image_by_message[message_id]
 
-            # Add search content (if any)
+            # Add search content (for frontend right panel display)
             if message_id in search_by_message:
                 message_item['search'] = search_by_message[message_id]
+
+            # Add searchByUnitId for precise matching in frontend
+            message_unit_search = {}
+            for unit_id, search_results in search_by_unit_id.items():
+                # 只包含属于当前消息的 unit_id
+                for unit in message_units:
+                    if unit.get('unit_id') == unit_id:
+                        message_unit_search[str(unit_id)] = search_results
+                        break
+            
+            if message_unit_search:
+                message_item['searchByUnitId'] = message_unit_search
 
             messages.append(message_item)
 
@@ -442,8 +508,7 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
             'create_time': history_data['create_time'],
             'message': messages
         }
-
-        return [formatted_history]  # Wrap in list to match expected format
+        return [formatted_history]
 
     except Exception as e:
         logging.error(f"Failed to get conversation history: {str(e)}")

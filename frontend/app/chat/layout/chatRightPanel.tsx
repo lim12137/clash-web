@@ -148,8 +148,8 @@ export function ChatRightPanel({
     // Process search results
     if (currentMessage?.searchResults && Array.isArray(currentMessage.searchResults)) {
       try {
-        const results = currentMessage.searchResults.map(result => {
-          return {
+        const results = currentMessage.searchResults.map((result, index) => {
+          const processed = {
             title: result.title || "未知标题",
             url: result.url || "#",
             text: result.text || "无内容描述",
@@ -160,7 +160,10 @@ export function ChatRightPanel({
             score_details: result.score_details || {},
             isExpanded: false
           };
+          
+          return processed;
         });
+        
         setSearchResults(results);
       } catch (error) {
         console.error("处理搜索结果时出错:", error);
