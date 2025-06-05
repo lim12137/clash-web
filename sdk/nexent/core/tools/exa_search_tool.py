@@ -39,7 +39,7 @@ class EXASearchTool(Tool):
         self.running_prompt = "网络检索中..."
 
         # TODO add data_process_service
-        self.data_process_service = None
+        self.data_process_service = "http://localhost:5012/api"
 
     def forward(self, query: str) -> str:
         # Perform exa search
