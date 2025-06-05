@@ -32,7 +32,7 @@ export default function AgentConfig() {
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false)
   const [isCreatingNewAgent, setIsCreatingNewAgent] = useState(false)
   const [mainAgentModel, setMainAgentModel] = useState(OpenAIModel.MainModel)
-  const [mainAgentMaxStep, setMainAgentMaxStep] = useState(10)
+  const [mainAgentMaxStep, setMainAgentMaxStep] = useState(5)
   const [mainAgentPrompt, setMainAgentPrompt] = useState("")
   const [tools, setTools] = useState<any[]>([])
   const [loadingTools, setLoadingTools] = useState(false)
@@ -158,7 +158,7 @@ export default function AgentConfig() {
     // Reset the main agent configuration related status
     if (!isCreatingNewAgent) {
       setMainAgentModel(OpenAIModel.MainModel);
-      setMainAgentMaxStep(10);
+      setMainAgentMaxStep(5);
       setMainAgentPrompt('');
     }
   }, [isCreatingNewAgent]);
