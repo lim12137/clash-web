@@ -198,9 +198,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       // 合并所有可用模型列表（官方和自定义）
       const allModels = [...officialWithStatus, ...custom]
       
-      console.log('allModels', allModels)
-      console.log('modelConfig', modelConfig)
-
       // 从配置中加载选中的模型，并检查模型是否仍然存在
       const llmMain = modelConfig.llm.displayName
       const llmMainExists = llmMain ? allModels.some(m => m.displayName === llmMain && m.type === 'llm') : true
@@ -247,7 +244,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           stt: sttExists ? stt : ""
         },
       }
-      console.log('updatedSelectedModels', updatedSelectedModels)
 
       // 更新状态
       setSelectedModels(updatedSelectedModels)
@@ -521,7 +517,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     if (!displayName) return;
 
     // 查找模型在officialModels或customModels中
-    const isOfficialModel = officialModels.some(model => model.name === displayName && model.type === modelType);
+    const isOfficialModel = officialModels.some(model => model.displayName === displayName && model.type === modelType);
 
     // 官方模型始终视为"可用"
     if (isOfficialModel) return;
@@ -649,7 +645,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   // 只做本地 UI 状态更新，不涉及数据库
   const updateCustomModelStatus = (displayName: string, modelType: string, status: ModelConnectStatus) => {
     setCustomModels(prev => {
-      const idx = prev.findIndex(model => model.name === displayName && model.type === modelType);
+      const idx = prev.findIndex(model => model.displayName === displayName && model.type === modelType);
       if (idx === -1) return prev;
       const updated = [...prev];
       updated[idx] = {
@@ -742,7 +738,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
                                 : key as ModelType
                         }
                         modelId={option.id}
-                        modelName={option.name}
+                        modelTypeName={option.name}
                         selectedModel={selectedModels[key]?.[option.id] || ""}
                         onModelChange={(modelName) => handleModelChange(key, option.id, modelName)}
                         officialModels={officialModels}
