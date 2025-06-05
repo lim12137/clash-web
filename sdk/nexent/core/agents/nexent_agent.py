@@ -8,7 +8,7 @@ from ..utils.observer import MessageObserver
 from ..models.openai_llm import OpenAIModel
 from .core_agent import CoreAgent
 from ..tools import (
-    EXASearchTool,
+    SearchTool,
     KnowledgeBaseSearchTool,
     SummaryTool,
     SendEmailTool,
