@@ -3,8 +3,8 @@ from pydantic import Field
 from smolagents.models import MessageRole
 from smolagents.tools import Tool
 
-from ..models import OpenAIModel
-from ..utils import MessageObserver, ProcessType
+from ..models.openai_llm import OpenAIModel
+from ..utils.observer import MessageObserver, ProcessType
 
 default_system_prompt = ("# 你是一个总结专家，你的任务是根据检索结果回答用户问题。\n"
                          "你需要按照以下要求进行总结：\n"

@@ -4,8 +4,17 @@ import { CloseOutlined } from '@ant-design/icons'
 import { ModelConnectStatus, ModelOption, ModelSource, ModelType } from '@/types/config'
 import { useEffect, useState, useRef } from 'react'
 
-// 重构：风格被嵌入在组件内
-const pulsingAnimation = `
+// 统一管理模型连接状态颜色
+const CONNECT_STATUS_COLORS: Record<ModelConnectStatus | 'default', string> = {
+  "可用": "#52c41a",
+  "不可用": "#ff4d4f",
+  "检测中": "#2980b9",
+  "未检测": "#95a5a6",
+  default: "#17202a"
+};
+
+// 动画定义不再包含颜色，由样式传递
+const PULSE_ANIMATION = `
   @keyframes pulse {
     0% {
       transform: scale(0.95);
@@ -24,44 +33,34 @@ const pulsingAnimation = `
   }
 `;
 
+// 只拼接样式，颜色和动画通过参数传递
 const getStatusStyle = (status?: ModelConnectStatus): React.CSSProperties => {
+  const color = (status && CONNECT_STATUS_COLORS[status]) || CONNECT_STATUS_COLORS.default;
   const baseStyle: React.CSSProperties = {
-    width: '12px',  // 扩大尺寸
-    height: '12px', // 扩大尺寸
+    width: 'clamp(8px, 1.5vw, 12px)',
+    height: 'clamp(8px, 1.5vw, 12px)',
+    aspectRatio: '1/1',
     borderRadius: '50%',
     display: 'inline-block',
     marginRight: '4px',
-    cursor: 'pointer', // 添加指针样式表明可点击
-    transition: 'all 0.2s ease', // 添加过渡效果
-    position: 'relative', // 用于伪元素定位
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    position: 'relative',
+    flexShrink: 0,
+    flexGrow: 0,
+    backgroundColor: color,
+    boxShadow: `0 0 3px ${color}`,
   };
-  
   if (status === "检测中") {
     return {
       ...baseStyle,
-      backgroundColor: '#2980b9',
-      boxShadow: '0 0 3px #2980b9',
-      animation: 'pulse 1.5s infinite'
+      animation: 'pulse 1.5s infinite',
+      // 用CSS变量传递动画色
+      ['--pulse-color' as any]: color
     };
   }
-  
   return baseStyle;
 };
-
-const { Option } = Select
-
-
-interface ModelListCardProps {
-  type: ModelType
-  modelId: string
-  modelName: string
-  selectedModel: string
-  onModelChange: (value: string) => void
-  officialModels: ModelOption[]
-  customModels: ModelOption[]
-  onVerifyModel?: (modelName: string, modelType: ModelType) => void // 新增验证模型的回调
-  errorFields?: {[key: string]: boolean} // 新增错误字段状态
-}
 
 // 获取模型来源对应的标签样式
 const getSourceTagStyle = (source: string): React.CSSProperties => {
@@ -97,10 +96,24 @@ const getSourceTagStyle = (source: string): React.CSSProperties => {
   }
 };
 
+const { Option } = Select
+
+interface ModelListCardProps {
+  type: ModelType
+  modelId: string
+  modelTypeName: string
+  selectedModel: string
+  onModelChange: (value: string) => void
+  officialModels: ModelOption[]
+  customModels: ModelOption[]
+  onVerifyModel?: (modelName: string, modelType: ModelType) => void // 新增验证模型的回调
+  errorFields?: {[key: string]: boolean} // 新增错误字段状态
+}
+
 export const ModelListCard = ({
   type,
   modelId,
-  modelName,
+  modelTypeName,
   selectedModel,
   onModelChange,
   officialModels,
@@ -114,15 +127,12 @@ export const ModelListCard = ({
     custom: [...customModels]
   });
 
-  // 组件唯一ID，用于注册表
-  const instanceIdRef = useRef(`${type}-${modelId}-${Math.random().toString(36).substring(2, 9)}`);
-
   // 在组件中创建一个style元素，包含动画定义
   useEffect(() => {
     // 创建style元素
     const styleElement = document.createElement('style');
     styleElement.type = 'text/css';
-    styleElement.innerHTML = pulsingAnimation;
+    styleElement.innerHTML = PULSE_ANIMATION;
     document.head.appendChild(styleElement);
 
     // 清理函数，组件卸载时移除style元素
@@ -141,56 +151,34 @@ export const ModelListCard = ({
   }
 
   // 获取模型来源
-  const getModelSource = (modelName: string): string => {
+  const getModelSource = (displayName: string): string => {
     if (type === 'tts' || type === 'stt' || type === 'vlm') {
-      const modelOfType = modelsData.custom.find((m) => m.type === type && m.name === modelName)
+      const modelOfType = modelsData.custom.find((m) => m.type === type && m.displayName === displayName)
       if (modelOfType) return "自定义"
     }
 
-    const officialModel = modelsData.official.find((m) => m.type === type && m.name === modelName)
+    const officialModel = modelsData.official.find((m) => m.type === type && m.name === displayName)
     if (officialModel) return "ModelEngine"
 
-    const customModel = modelsData.custom.find((m) => m.type === type && m.displayName === modelName)
+    const customModel = modelsData.custom.find((m) => m.type === type && m.displayName === displayName)
     return customModel ? "自定义" : "未知来源"
-  }
-
-  // 获取连接状态指示器的颜色
-  const getConnectStatusColor = (status?: ModelConnectStatus): string => {
-    if (!status) return "#17202a";
-    
-    switch (status) {
-      case "可用":
-        return "#52c41a";
-      case "不可用":
-        return "#ff4d4f";
-      case "检测中":
-        return "#2980b9";
-      case "未检测":
-      default:
-        return "#95a5a6";
-    }
   }
 
   const modelsBySource = getModelsBySource()
 
-  // 处理模型变更，需要清除连接状态样式
-  const handleModelChange = (value: string) => {
-    onModelChange(value)
-  }
-
   // 本地更新模型状态
-  const updateLocalModelStatus = (modelName: string, status: ModelConnectStatus) => {
+  const updateLocalModelStatus = (displayName: string, status: ModelConnectStatus) => {
     setModelsData(prevData => {
       // 查找要更新的模型
-      const modelToUpdate = prevData.custom.find(m => m.name === modelName && m.type === type);
+      const modelToUpdate = prevData.custom.find(m => m.displayName === displayName && m.type === type);
       
       if (!modelToUpdate) {
-        console.warn(`未找到要更新的模型: ${modelName}, 类型: ${type}`);
+        console.warn(`未找到要更新的模型: ${displayName}, 类型: ${type}`);
         return prevData;
       }
       
       const updatedCustomModels = prevData.custom.map(model => {
-        if (model.name === modelName && model.type === type) {
+        if (model.displayName === displayName && model.type === type) {
           return {
             ...model,
             connect_status: status
@@ -235,16 +223,16 @@ export const ModelListCard = ({
   }, [officialModels, customModels, type, modelId]);
 
   // 处理状态指示灯点击事件
-  const handleStatusClick = (e: React.MouseEvent, modelName: string) => {
+  const handleStatusClick = (e: React.MouseEvent, displayName: string) => {
     e.stopPropagation(); // 阻止事件冒泡
     e.preventDefault(); // 阻止默认行为
     e.nativeEvent.stopImmediatePropagation(); // 阻止所有同级事件处理程序
     
-    if (onVerifyModel && modelName) {
+    if (onVerifyModel && displayName) {
       // 先更新本地状态为"检测中"
-      updateLocalModelStatus(modelName, "检测中");
+      updateLocalModelStatus(displayName, "检测中");
       // 然后调用验证函数
-      onVerifyModel(modelName, type);
+      onVerifyModel(displayName, type);
     }
     
     return false; // 确保不会继续冒泡
@@ -260,8 +248,8 @@ export const ModelListCard = ({
     <div>
       <div className="font-medium mb-1.5 flex items-center justify-between">
         <div className="flex items-center">
-          {modelName}
-          {(modelName === "主模型") && (
+          {modelTypeName}
+          {(modelTypeName === "主模型") && (
             <span className="text-red-500 ml-1">*</span>
           )}
         </div>
@@ -279,11 +267,11 @@ export const ModelListCard = ({
         }}
         placeholder="选择模型"
         value={selectedModel || undefined}
-        onChange={handleModelChange}
+        onChange={onModelChange}
         allowClear={{ 
           clearIcon: <CloseOutlined />,
         }}
-        onClear={() => handleModelChange("")}
+        onClear={() => onModelChange("")}
         size="middle"
         onClick={(e) => e.stopPropagation()}
         getPopupContainer={(triggerNode) => triggerNode.parentNode as HTMLElement}
@@ -293,10 +281,10 @@ export const ModelListCard = ({
         {modelsBySource.official.length > 0 && (
           <Select.OptGroup label="ModelEngine模型">
             {modelsBySource.official.map((model) => (
-              <Option key={`${type}-${model.name}-official`} value={model.name}>
+              <Option key={`${type}-${model.name}-official`} value={model.displayName}>
                 <div className="flex items-center justify-between">
                   <div className="font-medium truncate" title={model.name}>
-                    {model.displayName || model.name}
+                    {model.displayName}
                   </div>
                 </div>
               </Option>
@@ -306,46 +294,24 @@ export const ModelListCard = ({
         {modelsBySource.custom.length > 0 && (
           <Select.OptGroup label="自定义模型">
             {modelsBySource.custom.map((model) => (
-              <Option key={`${type}-${model.displayName || model.name}-custom`} value={model.displayName || model.name}>
-                <div className="flex items-center justify-between">
-                  <div className="font-medium truncate" title={model.displayName || model.name}>
-                    {model.displayName || model.name}
+              <Option key={`${type}-${model.displayName}-custom`} value={model.displayName}>
+                <div className="flex items-center justify-between" style={{ minWidth: 0 }}>
+                  <div className="font-medium truncate" style={{ flex: '1 1 auto', minWidth: 0 }} title={model.displayName}>
+                    {model.displayName}
                   </div>
-                  <Tooltip title="点击可验证连通性">
-                    <span 
-                      onClick={(e) => handleStatusClick(e, model.displayName || model.name)}
-                      onMouseDown={(e: React.MouseEvent) => {
-                        e.stopPropagation(); 
-                        e.preventDefault();
-                        if (onVerifyModel) {
-                          updateLocalModelStatus(model.displayName || model.name, "检测中");
-                          onVerifyModel(model.displayName || model.name, type);
-                        }
-                        return false;
-                      }}
-                      style={{ 
-                        ...getStatusStyle(model.connect_status),
-                        backgroundColor: model.connect_status === "检测中" 
-                          ? "#2980b9" 
-                          : getConnectStatusColor(model.connect_status),
-                        boxShadow: model.connect_status === "检测中"
-                          ? "0 0 3px #2980b9"
-                          : `0 0 3px ${getConnectStatusColor(model.connect_status)}`
-                      }}
-                      className="status-indicator"
-                      onMouseEnter={(e) => {
-                        const target = e.currentTarget as HTMLElement;
-                        Object.assign(target.style, getHoverStyle);
-                      }}
-                      onMouseLeave={(e) => {
-                        const target = e.currentTarget as HTMLElement;
-                        target.style.transform = '';
-                        target.style.boxShadow = model.connect_status === "检测中"
-                          ? "0 0 3px #2980b9"
-                          : `0 0 3px ${getConnectStatusColor(model.connect_status)}`;
-                      }}
-                    />
-                  </Tooltip>
+                  <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', marginLeft: '8px' }}>
+                    <Tooltip title="点击可验证连通性">
+                      <span 
+                        onClick={(e) => handleStatusClick(e, model.displayName)}
+                        onMouseDown={(e: React.MouseEvent) => {
+                          e.stopPropagation(); 
+                          e.preventDefault();
+                        }}
+                        style={getStatusStyle(model.connect_status)}
+                        className="status-indicator"
+                      />
+                    </Tooltip>
+                  </div>
                 </div>
               </Option>
             ))}

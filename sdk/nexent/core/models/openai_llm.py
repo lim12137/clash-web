@@ -1,4 +1,5 @@
 import logging
+import threading
 from typing import List, Optional, Dict, Any
 
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
@@ -13,14 +14,9 @@ class OpenAIModel(OpenAIServerModel):
         self.observer = observer
         self.temperature = temperature
         self.top_p = top_p
-        self._current_request = None  # 用于存储当前请求
+        self.stop_event = threading.Event()
         super().__init__(*args, **kwargs)
 
-    def cancel_request(self):
-        """取消当前正在进行的请求"""
-        if self._current_request:
-            self._current_request.close()
-            self._current_request = None
 
     def __call__(self, messages: List[Dict[str, Any]], stop_sequences: Optional[List[str]] = None,
             grammar: Optional[str] = None, tools_to_call_from: Optional[List[Tool]] = None, **kwargs, ) -> ChatMessage:
@@ -30,16 +26,14 @@ class OpenAIModel(OpenAIServerModel):
                 custom_role_conversions=self.custom_role_conversions, convert_images_to_image_urls=True,
                 temperature=self.temperature, top_p=self.top_p, **kwargs, )
 
-            # 模型流式输出
-            self._current_request = self.client.chat.completions.create(stream=True, **completion_kwargs)
-
+            current_request = self.client.chat.completions.create(stream=True, **completion_kwargs)
             chunk_list = []
             token_join = []
             role = None
 
             # 重置输出模式
             self.observer.current_mode = ProcessType.MODEL_OUTPUT_THINKING
-            for chunk in self._current_request:
+            for chunk in current_request:
                 new_token = chunk.choices[0].delta.content
                 if new_token is not None:
                     print(new_token, end="")
@@ -47,10 +41,11 @@ class OpenAIModel(OpenAIServerModel):
                     token_join.append(new_token)
                     role = chunk.choices[0].delta.role
                 chunk_list.append(chunk)
+                if self.stop_event.is_set():
+                    raise RuntimeError("Model is interrupted by stop event")
 
             # 发送结束标记
             self.observer.flush_remaining_tokens()
-
             model_output = "".join(token_join)
 
             if chunk_list[-1].usage is not None:
@@ -64,13 +59,10 @@ class OpenAIModel(OpenAIServerModel):
                 ChatCompletionMessage(role=role if role else "assistant",  # 如果没有明确角色，默认使用 "assistant"
                     content=model_output).model_dump(include={"role", "content", "tool_calls"}))
 
-            message.raw = self._current_request
-            self._current_request = None  # 清除当前请求引用
-
+            message.raw = current_request
             return self.postprocess_message(message, tools_to_call_from)
 
         except Exception as e:
-            self._current_request = None  # 确保在发生异常时也清除请求引用
             if "context_length_exceeded" in str(e):
                 raise ValueError(f"Token limit exceeded: {str(e)}")
             raise e
