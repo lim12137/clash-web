@@ -2,14 +2,17 @@ import threading
 
 import json
 import yaml
+import logging
 from nexent.core.utils.observer import MessageObserver
-from nexent.core.agents import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
+from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
 
 from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents
 from services.agent_service import query_or_create_main_agents_api
 from utils.config_utils import config_manager
 from utils.user_utils import get_user_info
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("build agent")
 
 async def create_model_config_list():
      return [ModelConfig(cite_name="main_model",
@@ -48,8 +51,7 @@ async def create_agent_config(agent_id, tenant_id, user_id):
         managed_agents=managed_agents
     )
     
-    print(f"agent_config: {agent_config}")
-    
+    logger.info(f"agent_config: {agent_config}")
     return agent_config
 
 
@@ -69,7 +71,7 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
 
         # special logic for knowledge base search tool
         if tool_config.class_name == "KnowledgeBaseSearchTool":
-            tool_config.metadata = {"index_names": json.loads(config_manager.get_config("SELECTED_KB_NAMES", []))}
+            tool_config.metadata = {"index_names": json.loads(config_manager.get_config("SELECTED_KB_NAMES", "[]"))}
         tool_config_list.append(tool_config)
     return tool_config_list
 
@@ -105,10 +107,12 @@ async def create_agent_run_info(agent_id, minio_files, query):
     if not agent_id:
         agent_id = query_or_create_main_agents_api(tenant_id=tenant_id, user_id=user_id)
     final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
-    print(f"model list: {await create_model_config_list()}")
+
+    model_list = await create_model_config_list()
+    logger.info(f"model list: {model_list}")
     agent_run_info = AgentRunInfo(
         query=final_query,
-        model_config_list= await create_model_config_list(),
+        model_config_list= model_list,
         observer=MessageObserver(),
         agent_config=await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id),
         mcp_host=config_manager.get_config("MCP_SERVICE"),

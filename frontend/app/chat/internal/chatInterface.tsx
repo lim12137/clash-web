@@ -38,6 +38,8 @@ import { ChatMessageType, AgentStep } from '@/types/chat'
 import { handleStreamResponse } from "@/app/chat/streaming/chatStreamHandler"
 import { extractUserMsgFromResponse, extractAssistantMsgFromResponse } from "./extractMsgFromHistoryResponse"
 
+import { X } from "lucide-react"
+
 const stepIdCounter = {current: 0};
 
 export function ChatInterface() {
@@ -238,9 +240,18 @@ export function ChatInterface() {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = setTimeout(async () => {
         if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
           try {
+            // 使用后端接口停止对话
+            if (conversationId && conversationId !== -1) {
+              try {
+                await conversationService.stop(conversationId);
+              } catch (error) {
+                console.error('停止超时请求失败:', error);
+              }
+            }
+            
             abortControllerRef.current.abort('请求超时');
             console.log('请求超过120秒已自动取消');
             setMessages(prev => {
@@ -523,6 +534,17 @@ export function ChatInterface() {
   }
 
   const handleNewConversation = async () => {
+    // 如果当前正在进行对话，先停止当前对话
+    if (isStreaming && conversationId && conversationId !== -1) {
+      try {
+        console.log('创建新对话前停止当前对话:', conversationId);
+        await conversationService.stop(conversationId);
+      } catch (error) {
+        console.error('停止当前对话失败:', error);
+        // 即使停止失败，也继续创建新对话
+      }
+    }
+
     // 先取消当前正在进行的请求
     if (abortControllerRef.current) {
       try {
@@ -588,6 +610,21 @@ export function ChatInterface() {
 
   // 用户点击左侧边栏组件，切换到对应的对话，触发函数，加载历史对话
   const handleDialogClick = async (dialog: ConversationListItem) => {
+    // 如果当前正在进行对话，先停止当前对话
+    if (isStreaming && conversationId && conversationId !== -1) {
+      try {
+        console.log('切换对话前停止当前对话:', conversationId);
+        await conversationService.stop(conversationId);
+        setIsStreaming(false);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('停止当前对话失败:', error);
+        // 即使停止失败，也继续切换对话
+        setIsStreaming(false);
+        setIsLoading(false);
+      }
+    }
+
     // 设置状态
     setConversationId(dialog.conversation_id)
     setConversationTitle(dialog.conversation_title)
@@ -733,6 +770,21 @@ export function ChatInterface() {
   // 左边栏历史对话删除
   const handleConversationDeleteClick = async (dialogId: number) => {
     try {
+      // 如果删除的是当前正在进行对话的会话，先停止对话
+      if (selectedConversationId === dialogId && isStreaming && conversationId === dialogId) {
+        try {
+          console.log('删除对话前停止当前对话:', dialogId);
+          await conversationService.stop(dialogId);
+          setIsStreaming(false);
+          setIsLoading(false);
+        } catch (error) {
+          console.error('停止要删除的对话失败:', error);
+          // 即使停止失败，也继续删除
+          setIsStreaming(false);
+          setIsLoading(false);
+        }
+      }
+
       await conversationService.delete(dialogId);
       await fetchConversationList();
 
@@ -770,34 +822,60 @@ export function ChatInterface() {
   };
 
   // 添加停止对话的处理函数
-  const handleStop = () => {
-    if (abortControllerRef.current) {
-      try {
-        abortControllerRef.current.abort('用户停止对话');
-      } catch (error) {
-        console.log('停止对话时出错', error);
-      } finally {
-        abortControllerRef.current = null;
-        setIsStreaming(false);
-        setIsLoading(false);
-
-        // 手动更新消息，清除thinking状态
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMsg = newMessages[newMessages.length - 1];
-          if (lastMsg && lastMsg.role === "assistant") {
-            lastMsg.isComplete = true;
-            lastMsg.thinking = undefined; // 明确清除thinking状态
-          }
-          return newMessages;
-        });
-      }
+  const handleStop = async () => {
+    // 如果没有有效的对话ID，就只是重置前端状态
+    if (!conversationId || conversationId === -1) {
+      setIsStreaming(false);
+      setIsLoading(false);
+      return;
     }
 
-    // 清除超时定时器
+    try {
+      // 调用后端停止接口
+      await conversationService.stop(conversationId);
+      
+      // 成功停止后更新前端状态
+      setIsStreaming(false);
+      setIsLoading(false);
+
+      // 手动更新消息，清除thinking状态
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMsg = newMessages[newMessages.length - 1];
+        if (lastMsg && lastMsg.role === "assistant") {
+          lastMsg.isComplete = true;
+          lastMsg.thinking = undefined; // 明确清除thinking状态
+        }
+        return newMessages;
+      });
+    } catch (error) {
+      console.error('停止对话失败:', error);
+      // 即使停止失败，也重置前端状态
+      setIsStreaming(false);
+      setIsLoading(false);
+      
+      // 可以选择显示错误信息
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMsg = newMessages[newMessages.length - 1];
+        if (lastMsg && lastMsg.role === "assistant") {
+          lastMsg.isComplete = true;
+          lastMsg.thinking = undefined; // 明确清除thinking状态
+          lastMsg.error = "停止对话失败，但前端已停止显示";
+        }
+        return newMessages;
+      });
+    }
+
+    // 清除超时定时器（如果还在使用的话）
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+
+    // 清理 AbortController 引用
+    if (abortControllerRef.current) {
+      abortControllerRef.current = null;
     }
   };
 
@@ -920,23 +998,29 @@ export function ChatInterface() {
         </Tooltip>
       </TooltipProvider>
 
-      {/* 图片预览对话框 */}
+      {/* Image preview */}
       {viewingImage && (
-        <Dialog open={!!viewingImage} onOpenChange={(open) => !open && setViewingImage(null)}>
-          <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90">
-            <DialogHeader>
-              <DialogTitle className="sr-only">图片预览</DialogTitle>
-            </DialogHeader>
-            <div className="flex items-center justify-center h-full">
-              <img
-                src={viewingImage}
-                alt="图片预览"
-                className="max-h-[80vh] max-w-full"
-                onError={() => handleImageError(viewingImage)}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+          onClick={() => setViewingImage(null)}
+        >
+          <div className="relative max-w-[90%] max-h-[90%]" onClick={e => e.stopPropagation()}>
+            <img
+              src={viewingImage}
+              alt="图片预览"
+              className="max-w-full max-h-[90vh] object-contain"
+              onError={() => {
+                handleImageError(viewingImage);
+              }}
+            />
+            <button
+              onClick={() => setViewingImage(null)}
+              className="absolute -top-4 -right-4 bg-white p-1 rounded-full shadow-md hover:bg-white transition-colors"
+            >
+              <X size={16} className="text-gray-600 hover:text-red-500 transition-colors" />
+            </button>
+          </div>
+        </div>
       )}
     </>
   )
