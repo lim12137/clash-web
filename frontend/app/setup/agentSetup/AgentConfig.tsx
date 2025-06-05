@@ -106,6 +106,25 @@ export default function AgentConfig() {
     fetchAgents();
   }, []);
 
+  // 添加事件监听器来响应主页面的数据请求
+  useEffect(() => {
+    const handleGetAgentConfigData = () => {
+      // 发送当前配置数据到主页面
+      window.dispatchEvent(new CustomEvent('agentConfigDataResponse', {
+        detail: {
+          businessLogic: businessLogic,
+          systemPrompt: systemPrompt
+        }
+      }));
+    };
+
+    window.addEventListener('getAgentConfigData', handleGetAgentConfigData);
+
+    return () => {
+      window.removeEventListener('getAgentConfigData', handleGetAgentConfigData);
+    };
+  }, [businessLogic, systemPrompt]);
+
   // When the tool list is loaded, check and set the enabled tools
   useEffect(() => {
     if (tools.length > 0 && enabledToolIds.length > 0) {
