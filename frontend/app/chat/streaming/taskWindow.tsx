@@ -67,25 +67,44 @@ const messageHandlers: MessageHandler[] = [
       // Build the content for displaying search results
       const searchResults = messageContainer.search;
       
+      // deduplication logic - based on the combination of URL and filename
+      const uniqueSearchResults = searchResults.filter((result: any, index: number, array: any[]) => {
+        const currentKey = `${result.url || ''}-${result.filename || ''}-${result.title || ''}`;
+        return array.findIndex((item: any) => {
+          const itemKey = `${item.url || ''}-${item.filename || ''}-${item.title || ''}`;
+          return itemKey === currentKey;
+        }) === index;
+      });
+      
       // Process website information for display
-      const siteInfos = searchResults.map((result: any) => {
+      const siteInfos = uniqueSearchResults.map((result: any) => {
         const pageUrl = result.url || "";
         const filename = result.filename || "";
+        const sourceType = result.source_type || "";
         let domain = "未知来源";
         let displayName = "未知来源";
         let baseUrl = "";
         let faviconUrl = "";
         let useDefaultIcon = false;
         let isKnowledgeBase = false;
+        let canClick = true; // whether to allow click to jump
         
-        // If there is a filename, it means it is local knowledge base content
-        if (filename) {
+        // first judge based on source_type
+        if (sourceType === "file") {
+          isKnowledgeBase = true;
+          displayName = filename || result.title || "知识库文件";
+          useDefaultIcon = true;
+          canClick = false; // file type does not allow jump
+        }
+        // if there is no source_type, judge based on filename (compatibility processing)
+        else if (filename) {
           isKnowledgeBase = true;
           displayName = filename;
           useDefaultIcon = true;
+          canClick = false; // file type does not allow jump
         }
-        // Otherwise, try to parse the URL
-        else if (pageUrl) {
+        // handle webpage link
+        else if (pageUrl && pageUrl !== "#") {
           try {
             const parsedUrl = new URL(pageUrl);
             baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
@@ -102,12 +121,15 @@ const messageHandlers: MessageHandler[] = [
             }
             
             faviconUrl = `${baseUrl}/favicon.ico`;
+            canClick = true;
           } catch (e) {
             console.error("URL解析错误:", e);
             useDefaultIcon = true;
+            canClick = false;
           }
         } else {
           useDefaultIcon = true;
+          canClick = false;
         }
         
         return { 
@@ -117,7 +139,8 @@ const messageHandlers: MessageHandler[] = [
           url: pageUrl, 
           useDefaultIcon, 
           isKnowledgeBase,
-          filename 
+          filename,
+          canClick
         };
       });
       
@@ -163,25 +186,25 @@ const messageHandlers: MessageHandler[] = [
                     fontSize: "0.75rem",
                     color: "#4b5563",
                     border: "1px solid #e5e7eb",
-                    cursor: site.url ? "pointer" : "default", /* Only show pointer style when there is a URL */
-                    transition: site.url ? "background-color 0.2s" : "none" /* Only show hover effect when there is a URL */
+                    cursor: site.canClick ? "pointer" : "default",
+                    transition: site.canClick ? "background-color 0.2s" : "none"
                   }}
                   onClick={() => {
-                    if (site.url) {
+                    if (site.canClick && site.url) {
                       window.open(site.url, "_blank", "noopener,noreferrer");
                     }
                   }}
                   onMouseEnter={(e) => {
-                    if (site.url) {
-                      e.currentTarget.style.backgroundColor = "#f3f4f6"; /* Only show hover effect when there is a URL */
+                    if (site.canClick) {
+                      e.currentTarget.style.backgroundColor = "#f3f4f6";
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (site.url) {
+                    if (site.canClick) {
                       e.currentTarget.style.backgroundColor = "#f9fafb";
                     }
                   }}
-                  title={site.url ? `访问 ${site.domain}` : site.filename} /* Display different prompts based on type */
+                  title={site.canClick ? `访问 ${site.domain}` : site.filename || site.displayName}
                 >
                   {site.isKnowledgeBase ? (
                     <FileText 
@@ -344,25 +367,44 @@ const messageHandlers: MessageHandler[] = [
         );
       }
       
+      // deduplication logic - based on the combination of URL and filename
+      const uniqueSearchResults = searchResults.filter((result: any, index: number, array: any[]) => {
+        const currentKey = `${result.url || ''}-${result.filename || ''}-${result.title || ''}`;
+        return array.findIndex((item: any) => {
+          const itemKey = `${item.url || ''}-${item.filename || ''}-${item.title || ''}`;
+          return itemKey === currentKey;
+        }) === index;
+      });
+      
       // Process website information for display
-      const siteInfos = searchResults.map((result: any) => {
+      const siteInfos = uniqueSearchResults.map((result: any) => {
         const pageUrl = result.url || "";
         const filename = result.filename || "";
+        const sourceType = result.source_type || "";
         let domain = "未知来源";
         let displayName = "未知来源";
         let baseUrl = "";
         let faviconUrl = "";
         let useDefaultIcon = false;
         let isKnowledgeBase = false;
+        let canClick = true; // whether to allow click to jump
         
-        // If there is a filename, it means it is local knowledge base content
-        if (filename) {
+        // first judge based on source_type
+        if (sourceType === "file") {
+          isKnowledgeBase = true;
+          displayName = filename || result.title || "知识库文件";
+          useDefaultIcon = true;
+          canClick = false; // file type does not allow jump
+        }
+        // if there is no source_type, judge based on filename (compatibility processing)
+        else if (filename) {
           isKnowledgeBase = true;
           displayName = filename;
           useDefaultIcon = true;
+          canClick = false; // file type does not allow jump
         }
-        // Otherwise, try to parse the URL
-        else if (pageUrl) {
+        // handle webpage link
+        else if (pageUrl && pageUrl !== "#") {
           try {
             const parsedUrl = new URL(pageUrl);
             baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
@@ -379,12 +421,15 @@ const messageHandlers: MessageHandler[] = [
             }
             
             faviconUrl = `${baseUrl}/favicon.ico`;
+            canClick = true;
           } catch (e) {
             console.error("URL解析错误:", e);
             useDefaultIcon = true;
+            canClick = false;
           }
         } else {
           useDefaultIcon = true;
+          canClick = false;
         }
         
         return { 
@@ -394,7 +439,8 @@ const messageHandlers: MessageHandler[] = [
           url: pageUrl, 
           useDefaultIcon, 
           isKnowledgeBase,
-          filename 
+          filename,
+          canClick
         };
       });
       
@@ -440,25 +486,25 @@ const messageHandlers: MessageHandler[] = [
                     fontSize: "0.75rem",
                     color: "#4b5563",
                     border: "1px solid #e5e7eb",
-                    cursor: site.url ? "pointer" : "default", /* Only show pointer style when there is a URL */
-                    transition: site.url ? "background-color 0.2s" : "none" /* Only show hover effect when there is a URL */
+                    cursor: site.canClick ? "pointer" : "default",
+                    transition: site.canClick ? "background-color 0.2s" : "none"
                   }}
                   onClick={() => {
-                    if (site.url) {
+                    if (site.canClick && site.url) {
                       window.open(site.url, "_blank", "noopener,noreferrer");
                     }
                   }}
                   onMouseEnter={(e) => {
-                    if (site.url) {
-                      e.currentTarget.style.backgroundColor = "#f3f4f6"; /* Only show hover effect when there is a URL */
+                    if (site.canClick) {
+                      e.currentTarget.style.backgroundColor = "#f3f4f6";
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (site.url) {
+                    if (site.canClick) {
                       e.currentTarget.style.backgroundColor = "#f9fafb";
                     }
                   }}
-                  title={site.url ? `访问 ${site.domain}` : site.filename} /* Display different prompts based on type */
+                  title={site.canClick ? `访问 ${site.domain}` : site.filename || site.displayName}
                 >
                   {site.isKnowledgeBase ? (
                     <FileText 
@@ -601,7 +647,7 @@ export function TaskWindow({
   
   const { hasMessages, hasVisibleMessages, groupedMessages } = useChatTaskMessage(messages as ChatMessageType[]);
 
-  // 计算内容高度
+  // calculate the content height
   useEffect(() => {
     if (isExpanded && contentRef.current) {
       const height = contentRef.current.scrollHeight

@@ -16,7 +16,7 @@ interface MarkdownRendererProps {
   searchResults?: SearchResult[]
 }
 
-// 根据 tool_sign 获取背景色
+// Get background color for different tool signs
 const getBackgroundColor = (toolSign: string) => {
   switch (toolSign) {
     case 'a': return '#E3F2FD'; // 浅蓝色
@@ -26,9 +26,9 @@ const getBackgroundColor = (toolSign: string) => {
     case 'e': return '#FFEBEE'; // 浅红色
     default: return '#E5E5E5'; // 默认浅灰色
   }
-}
+};
 
-// 替换原来的 LinkIcon 组件
+// Replace the original LinkIcon component
 const CitationBadge = ({ toolSign, citeIndex }: { toolSign: string, citeIndex: number }) => (
   <span
     className="ds-markdown-cite"
@@ -57,7 +57,7 @@ const CitationBadge = ({ toolSign, citeIndex }: { toolSign: string, citeIndex: n
   </span>
 );
 
-// 修改 HoverableText 组件
+// Modified HoverableText component
 const HoverableText = ({ text, searchResults }: { 
   text: string;
   searchResults?: SearchResult[]
@@ -79,14 +79,14 @@ const HoverableText = ({ text, searchResults }: {
       .replace(/^\s+|\s+$/g, '');  // Remove leading and trailing whitespace
   };
 
-  // 查找对应搜索结果
+  // Find corresponding search result
   const toolSign = text.charAt(0);
   const citeIndex = parseInt(text.slice(1));
   const matchedResult = searchResults?.find(
     result => result.tool_sign === toolSign && result.cite_index === citeIndex
   );
 
-  // 处理鼠标事件
+  // Handle mouse events
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -110,26 +110,26 @@ const HoverableText = ({ text, searchResults }: {
         clearTimeout(timeoutId);
       }
       
-      // 延迟一小段时间再显示，避免用户快速划过时显示
+      // Delay before showing tooltip to avoid quick hover triggers
       timeoutId = setTimeout(() => {
         setIsOpen(true);
       }, 50);
     };
 
     const handleMouseLeave = () => {
-      // 清除打开定时器
+      // Clear open timer
       if (timeoutId) {
         clearTimeout(timeoutId);
         timeoutId = null;
       }
       
-      // 延迟关闭tooltip，以便用户可以移动到tooltip内容上
+      // Delay closing tooltip so user can move to tooltip content
       closeTimeoutId = setTimeout(() => {
         checkShouldClose();
       }, 100);
     };
     
-    // 检查是否应该关闭tooltip的函数
+    // Function to check if tooltip should be closed
     const checkShouldClose = () => {
       const tooltipContent = document.querySelector(".z-\\[9999\\]");
       const linkElement = containerRef.current;
@@ -143,7 +143,7 @@ const HoverableText = ({ text, searchResults }: {
       const linkRect = linkElement.getBoundingClientRect();
       const { x: mouseX, y: mouseY } = mousePositionRef.current;
       
-      // 检查鼠标是否在tooltip或链接图标上
+      // Check if mouse is over tooltip or link icon
       const isMouseOverTooltip = 
         mouseX >= tooltipRect.left && 
         mouseX <= tooltipRect.right && 
@@ -156,20 +156,20 @@ const HoverableText = ({ text, searchResults }: {
         mouseY >= linkRect.top && 
         mouseY <= linkRect.bottom;
         
-      // 如果鼠标既不在tooltip上也不在链接图标上，则关闭tooltip
+      // Close tooltip if mouse is neither over tooltip nor link icon
       if (!isMouseOverTooltip && !isMouseOverLink) {
         setIsOpen(false);
       }
     };
     
-    // 添加全局鼠标移动事件监听，处理任何位置移动
+    // Add global mouse move event listener to handle movement anywhere
     const handleGlobalMouseMove = (e: MouseEvent) => {
-      // 更新鼠标位置
+      // Update mouse position
       updateMousePosition(e);
       
       if (!isOpen) return;
       
-      // 使用防抖逻辑，避免频繁计算
+      // Use debounce logic to avoid frequent calculations
       if (closeTimeoutId) {
         clearTimeout(closeTimeoutId);
       }
@@ -179,7 +179,7 @@ const HoverableText = ({ text, searchResults }: {
       }, 100);
     };
 
-    // 添加事件监听
+    // Add event listeners
     document.addEventListener('mousemove', handleGlobalMouseMove);
     container.addEventListener('mouseenter', handleMouseEnter);
     container.addEventListener('mouseleave', handleMouseLeave);
@@ -210,18 +210,57 @@ const HoverableText = ({ text, searchResults }: {
               <CitationBadge toolSign={toolSign} citeIndex={citeIndex} />
             </span>
           </TooltipTrigger>
-          {/* 强制 Portal 到 body */}
+          {/* Force Portal to body */}
           <TooltipPrimitive.Portal>
-            <TooltipContent
+            <TooltipContent 
               side="top"
               align="center"
               sideOffset={5}
-              className="rag-tooltip"
+              className="z-[9999] bg-white px-3 py-2 text-sm border shadow-md max-w-md"
+              style={{
+                '--scrollbar-width': '8px',
+                '--scrollbar-height': '8px',
+                '--scrollbar-track-bg': 'transparent',
+                '--scrollbar-thumb-bg': 'rgb(209, 213, 219)',
+                '--scrollbar-thumb-hover-bg': 'rgb(156, 163, 175)',
+                '--scrollbar-thumb-radius': '9999px'
+              } as React.CSSProperties}
             >
               <div
                 ref={tooltipRef}
-                className="whitespace-pre-wrap"
+                className="whitespace-pre-wrap overflow-y-auto"
+                style={{
+                  maxHeight: 240,
+                  minWidth: 200,
+                  maxWidth: 400,
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'var(--scrollbar-thumb-bg) var(--scrollbar-track-bg)'
+                }}
               >
+                <style jsx>{`
+                  div::-webkit-scrollbar {
+                    width: var(--scrollbar-width);
+                    height: var(--scrollbar-height);
+                  }
+                  div::-webkit-scrollbar-track {
+                    background: var(--scrollbar-track-bg);
+                  }
+                  div::-webkit-scrollbar-thumb {
+                    background: var(--scrollbar-thumb-bg);
+                    border-radius: var(--scrollbar-thumb-radius);
+                  }
+                  div::-webkit-scrollbar-thumb:hover {
+                    background: var(--scrollbar-thumb-hover-bg);
+                  }
+                  @media (prefers-color-scheme: dark) {
+                    div::-webkit-scrollbar-thumb {
+                      background: rgb(55, 65, 81);
+                    }
+                    div::-webkit-scrollbar-thumb:hover {
+                      background: rgb(75, 85, 99);
+                    }
+                  }
+                `}</style>
                 {matchedResult ? (
                   <>
                     {matchedResult.url && matchedResult.url !== "#" ? (
@@ -229,14 +268,15 @@ const HoverableText = ({ text, searchResults }: {
                         href={matchedResult.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="rag-tooltip-title"
+                        className="font-medium mb-1 text-blue-600 hover:underline block"
+                        style={{ wordBreak: 'break-all' }}
                       >
                         {handleConsecutiveNewlines(matchedResult.title)}
                       </a>
                     ) : (
-                      <p className="rag-tooltip-title">{handleConsecutiveNewlines(matchedResult.title)}</p>
+                      <p className="font-medium mb-1">{handleConsecutiveNewlines(matchedResult.title)}</p>
                     )}
-                    <p className="rag-tooltip-desc">{handleConsecutiveNewlines(matchedResult.text)}</p>
+                    <p className="text-gray-600">{handleConsecutiveNewlines(matchedResult.text)}</p>
                   </>
                 ) : null}
               </div>
@@ -253,7 +293,31 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   className,
   searchResults = [] 
 }) => {
-  // 修改 processText 函数中的处理逻辑
+  // Customize code block style with light gray background
+  const customStyle = {
+    ...oneLight,
+    'pre[class*="language-"]': {
+      ...oneLight['pre[class*="language-"]'],
+      background: '#f5f5f5', // Light gray background
+      borderRadius: '4px',
+      padding: '12px',
+      margin: '8px 0',
+      fontSize: '1rem', // Adjust code block font size
+      lineHeight: '1.6' // Increase code block line spacing
+    },
+    'code[class*="language-"]': {
+      ...oneLight['code[class*="language-"]'],
+      background: '#f5f5f5', // Light gray background
+      color: '#333333', // Dark gray text for better readability
+      fontSize: '1rem', // Adjust code block font size
+      lineHeight: '1.6' // Increase code block line spacing
+    }
+  };
+
+  // Check if this is user message content
+  const isUserMessage = className?.includes('user-message-content');
+
+  // Modified processText function logic
   const processText = (text: string) => {
     if (typeof text !== 'string') return text;
     
@@ -271,11 +335,11 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               result => result.tool_sign === toolSign && result.cite_index === citeIndex
             );
             
-            // 只有找到匹配的搜索结果时才显示溯源图标
+            // Only show citation icon when matching search result is found
             if (hasMatch) {
               return <HoverableText key={index} text={innerText} searchResults={searchResults} />;
             } else {
-              // 如果没有找到匹配的结果，返回空字符串（不显示任何内容）
+              // Return empty string if no matching result found (display nothing)
               return '';
             }
           }
@@ -285,7 +349,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     );
   };
 
-  // 创建包装器组件处理不同类型的子元素
+  // Create wrapper component to handle different types of child elements
   const TextWrapper = ({ children }: { children: any }) => {
     if (typeof children === 'string') {
       return processText(children);
@@ -334,11 +398,16 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                 <TextWrapper>{children}</TextWrapper>
               </p>
             ),
+            blockquote: ({children}: any) => (
+              <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-4 bg-gray-50 italic text-base leading-relaxed">
+                <TextWrapper>{children}</TextWrapper>
+              </blockquote>
+            ),
             code({node, inline, className, children, ...props}: any) {
               const match = /language-(\w+)/.exec(className || '')
               return !inline && match ? (
                 <SyntaxHighlighter
-                  style={oneLight}
+                  style={customStyle}
                   language={match[1]}
                   PreTag="div"
                   {...props}
@@ -347,7 +416,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                 </SyntaxHighlighter>
               ) : (
                 <code {...props}>
-                  {children}
+                  <TextWrapper>{children}</TextWrapper>
                 </code>
               )
             },

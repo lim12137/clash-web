@@ -32,7 +32,7 @@ export default function AgentConfig() {
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false)
   const [isCreatingNewAgent, setIsCreatingNewAgent] = useState(false)
   const [mainAgentModel, setMainAgentModel] = useState(OpenAIModel.MainModel)
-  const [mainAgentMaxStep, setMainAgentMaxStep] = useState(10)
+  const [mainAgentMaxStep, setMainAgentMaxStep] = useState(5)
   const [mainAgentPrompt, setMainAgentPrompt] = useState("")
   const [tools, setTools] = useState<any[]>([])
   const [loadingTools, setLoadingTools] = useState(false)
@@ -106,6 +106,25 @@ export default function AgentConfig() {
     fetchAgents();
   }, []);
 
+  // add event listener to respond to the data request from the main page
+  useEffect(() => {
+    const handleGetAgentConfigData = () => {
+      // send the current configuration data to the main page
+      window.dispatchEvent(new CustomEvent('agentConfigDataResponse', {
+        detail: {
+          businessLogic: businessLogic,
+          systemPrompt: systemPrompt
+        }
+      }));
+    };
+
+    window.addEventListener('getAgentConfigData', handleGetAgentConfigData);
+
+    return () => {
+      window.removeEventListener('getAgentConfigData', handleGetAgentConfigData);
+    };
+  }, [businessLogic, systemPrompt]);
+
   // When the tool list is loaded, check and set the enabled tools
   useEffect(() => {
     if (tools.length > 0 && enabledToolIds.length > 0) {
@@ -139,7 +158,7 @@ export default function AgentConfig() {
     // Reset the main agent configuration related status
     if (!isCreatingNewAgent) {
       setMainAgentModel(OpenAIModel.MainModel);
-      setMainAgentMaxStep(10);
+      setMainAgentMaxStep(5);
       setMainAgentPrompt('');
     }
   }, [isCreatingNewAgent]);

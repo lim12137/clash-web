@@ -128,6 +128,22 @@ export const conversationService = {
     throw new ApiError(data.code, data.message);
   },
 
+  // Stop conversation agent
+  async stop(conversationId: number) {
+    const response = await fetch(API_ENDPOINTS.agent.stop(conversationId), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    const data = await response.json();
+    
+    if (data.status === 'success') {
+      return true;
+    }
+    
+    throw new ApiError(data.code || -1, data.message || data.detail || '停止失败');
+  },
+
   // STT related functionality
   stt: {
     // Create WebSocket connection
