@@ -1,4 +1,5 @@
-import requests
+import aiohttp
+import asyncio
 from fastapi import Query, APIRouter
 
 from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
@@ -18,14 +19,17 @@ async def get_me_models(
             'Authorization': f'Bearer {MODEL_ENGINE_APIKEY}',
         }
 
-        response = requests.get(
-            f"{MODEL_ENGINE_HOST}/open/router/v1/models",
-            headers=headers,
-            verify=False,
-            timeout=timeout
-        )
-        response.raise_for_status()
-        result: list = response.json()['data']
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=timeout),
+            connector=aiohttp.TCPConnector(verify_ssl=False)
+        ) as session:
+            async with session.get(
+                f"{MODEL_ENGINE_HOST}/open/router/v1/models",
+                headers=headers
+            ) as response:
+                response.raise_for_status()
+                result_data = await response.json()
+                result: list = result_data['data']
 
         # Type filtering
         filtered_result = []
@@ -49,6 +53,12 @@ async def get_me_models(
             data=filtered_result
         )
 
+    except asyncio.TimeoutError:
+        return ModelResponse(
+            code=408,
+            message="Request timeout",
+            data=[]
+        )
     except Exception as e:
         return ModelResponse(
             code=500,
@@ -61,35 +71,37 @@ async def get_me_models(
 async def check_me_connectivity(timeout: int = Query(default=2, description="Timeout in seconds")):
     try:
         headers = {'Authorization': f'Bearer {MODEL_ENGINE_APIKEY}'}
-        try:
-            response = requests.get(
-                f"{MODEL_ENGINE_HOST}/open/router/v1/models",
-                headers=headers,
-                verify=False,
-                timeout=timeout
-            )
-        except requests.exceptions.Timeout:
-            return ModelResponse(
-                code=408,
-                message="Connection timeout",
-                data={"status": "Disconnected", "desc": "Connection timeout",
-                      "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
-            )
-
-        if response.status_code == 200:
-            return ModelResponse(
-                code=200,
-                message="Connection successful",
-                data={"status": "Connected", "desc": "Connection successful",
-                      "connect_status": ModelConnectStatusEnum.AVAILABLE.value}
-            )
-        else:
-            return ModelResponse(
-                code=response.status_code,
-                message=f"Connection failed, error code: {response.status_code}",
-                data={"status": "Disconnected", "desc": f"Connection failed, error code: {response.status_code}",
-                      "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
-            )
+        
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=timeout),
+            connector=aiohttp.TCPConnector(verify_ssl=False)
+        ) as session:
+            try:
+                async with session.get(
+                    f"{MODEL_ENGINE_HOST}/open/router/v1/models",
+                    headers=headers
+                ) as response:
+                    if response.status == 200:
+                        return ModelResponse(
+                            code=200,
+                            message="Connection successful",
+                            data={"status": "Connected", "desc": "Connection successful",
+                                  "connect_status": ModelConnectStatusEnum.AVAILABLE.value}
+                        )
+                    else:
+                        return ModelResponse(
+                            code=response.status,
+                            message=f"Connection failed, error code: {response.status}",
+                            data={"status": "Disconnected", "desc": f"Connection failed, error code: {response.status}",
+                                  "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
+                        )
+            except asyncio.TimeoutError:
+                return ModelResponse(
+                    code=408,
+                    message="Connection timeout",
+                    data={"status": "Disconnected", "desc": "Connection timeout",
+                          "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
+                )
 
     except Exception as e:
         return ModelResponse(
