@@ -1,7 +1,7 @@
 import logging
 import threading
 from typing import Dict
-from nexent.core.agents.agent_const import AgentRunInfo
+from nexent.core.agents.agent_model import AgentRunInfo
 
 
 logging.basicConfig(level=logging.INFO)

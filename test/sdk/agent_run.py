@@ -1,6 +1,6 @@
 import asyncio
 
-from sdk.nexent.core.agents.agent_const import (
+from sdk.nexent.core.agents.agent_model import (
     AgentRunInfo, 
     AgentConfig, 
     ModelConfig, 
@@ -10,7 +10,7 @@ from sdk.nexent.core.agents.agent_const import (
 from sdk.nexent.core.utils.observer import MessageObserver
 import threading
 import yaml
-from sdk.nexent.core.utils.agent_utils import agent_run
+from sdk.nexent.core.agents.run_agent import agent_run
 
 
 def create_mock_agent_run_info() -> AgentRunInfo:
