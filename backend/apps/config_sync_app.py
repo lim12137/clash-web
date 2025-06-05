@@ -32,8 +32,6 @@ async def save_config(config: GlobalConfig):
 
             # Process basic model attributes
             for key, value in model_config.items():
-                print(f"key: {key}, value: {value}")
-                
                 if key == "apiConfig":
                     # Process API configuration - use model name as prefix directly, without API_
                     api_config = value or {}
