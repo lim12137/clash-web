@@ -5,6 +5,7 @@ from typing import Union, Any, Optional, List, Dict, Generator
 
 from rich.console import Group
 from rich.text import Text
+
 from smolagents.agents import CodeAgent, populate_template, handle_agent_output_types, AgentError, AgentType
 from smolagents.local_python_executor import fix_final_answer_code
 from smolagents.memory import ActionStep, ToolCall, TaskStep, SystemPromptStep
@@ -202,8 +203,7 @@ You have been provided with these additional arguments, that you can access usin
                 self.step_number += 1
 
         if self.stop_event.is_set():
-            yield ActionStep(action_output="Agent运行被中断", observations="用户中断了Agent的运行")
-            return
+            final_answer = "Agent运行被用户中断"
 
         if final_answer is None and self.step_number == max_steps + 1:
             final_answer = self._handle_max_steps_reached(task, images, step_start_time)
