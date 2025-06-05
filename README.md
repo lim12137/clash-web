@@ -92,7 +92,7 @@ bash deploy.sh
 
 ## ✨ 主要特性
 
-`1` **智能体提示词自动生成（To release）**  
+`1` **智能体提示词自动生成**  
    将自然语言转化为可被Agent执行的提示词。Nexent可以根据你的需要自动选择正确的工具并为每个请求规划最佳执行路径。
 
    ![Feature 1](./assets/Feature1.png)
