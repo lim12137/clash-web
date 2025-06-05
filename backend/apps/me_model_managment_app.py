@@ -1,4 +1,4 @@
-import requests
+import httpx
 from fastapi import Query, APIRouter
 
 from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
@@ -18,14 +18,15 @@ async def get_me_models(
             'Authorization': f'Bearer {MODEL_ENGINE_APIKEY}',
         }
 
-        response = requests.get(
-            f"{MODEL_ENGINE_HOST}/open/router/v1/models",
-            headers=headers,
-            verify=False,
-            timeout=timeout
-        )
-        response.raise_for_status()
-        result: list = response.json()['data']
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(
+                f"{MODEL_ENGINE_HOST}/open/router/v1/models",
+                headers=headers,
+                timeout=timeout,
+                verify=False
+            )
+            response.raise_for_status()
+            result: list = response.json()['data']
 
         # Type filtering
         filtered_result = []
@@ -46,7 +47,8 @@ async def get_me_models(
         return ModelResponse(
             code=200,
             message="Successfully retrieved",
-            data=filtered_result
+            data=filtered_result,
+            verify=False
         )
 
     except Exception as e:
@@ -62,13 +64,13 @@ async def check_me_connectivity(timeout: int = Query(default=2, description="Tim
     try:
         headers = {'Authorization': f'Bearer {MODEL_ENGINE_APIKEY}'}
         try:
-            response = requests.get(
-                f"{MODEL_ENGINE_HOST}/open/router/v1/models",
-                headers=headers,
-                verify=False,
-                timeout=timeout
-            )
-        except requests.exceptions.Timeout:
+            async with httpx.AsyncClient(verify=False) as client:
+                response = await client.get(
+                    f"{MODEL_ENGINE_HOST}/open/router/v1/models",
+                    headers=headers,
+                    timeout=timeout
+                )
+        except httpx.TimeoutException:
             return ModelResponse(
                 code=408,
                 message="Connection timeout",
