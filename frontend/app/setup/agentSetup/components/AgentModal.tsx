@@ -57,7 +57,7 @@ export default function AgentModal({
   const [description, setDescription] = useState(agent?.description || "");
   const [business_description, setBusinessDescription] = useState(agent?.business_description || "");
   const [model, setModel] = useState(agent?.model || OpenAIModel.MainModel);
-  const [maxStep, setMaxStep] = useState(agent?.max_step || 10);
+  const [maxStep, setMaxStep] = useState(agent?.max_step || 5);
   const [provideSummary, setProvideSummary] = useState(agent?.provide_run_summary ?? true);
   const [prompt, setPrompt] = useState(agent?.prompt || systemPrompt || "");
   const [currentTools, setCurrentTools] = useState<Tool[]>([]);
@@ -94,7 +94,7 @@ export default function AgentModal({
         setDescription("");
         setBusinessDescription("");
         setModel(OpenAIModel.MainModel);
-        setMaxStep(10);
+        setMaxStep(5);
         setProvideSummary(true);
         setPrompt(systemPrompt || "");
         setCurrentTools(selectedTools.map(tool => ({
@@ -423,9 +423,9 @@ export default function AgentModal({
                   <Input 
                     type="number" 
                     min={1} 
-                    max={50}
+                    max={20}
                     value={maxStep} 
-                    onChange={(e) => setMaxStep(parseInt(e.target.value) || 10)}
+                    onChange={(e) => setMaxStep(parseInt(e.target.value) || 5)}
                     disabled={readOnly}
                   />
                 </div>
