@@ -7,7 +7,7 @@ import os
 import redis
 from typing import Dict, Any, Optional, List
 from celery.result import AsyncResult
-from celery import states, current_app
+from celery import current_app
 
 # Configure logging
 logger = logging.getLogger("data_process.utils")

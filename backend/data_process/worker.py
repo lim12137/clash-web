@@ -287,7 +287,10 @@ def start_worker():
         f'--hostname={worker_name}@%h',
         f'--concurrency={concurrency}',
         '--pool=threads',
-        '--task-events',     # Enable task events (for Flower monitoring)
+        '--task-events',
+        '--without-gossip',
+        '--without-mingle',
+        '--without-heartbeat'
     ]
     
     try:

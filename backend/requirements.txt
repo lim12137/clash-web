@@ -6,6 +6,8 @@ fastapi>=0.115.12
 ray[default]>=2.46.0
 celery>=5.3.6
 redis>=5.0.0
-torch
-transformers
+setuptools>=80.9.0
+torch>=2.7.0
+transformers>=4.52.4
 flower>=2.0.1
+nest_asyncio>=1.5.6

@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import Dict, List, Any, Optional
 
 from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter, Header
-from consts.model import IndexingRequest, IndexingResponse, SearchRequest, HybridSearchRequest, ChangeSummaryRequest
+from consts.model import IndexingResponse, SearchRequest, HybridSearchRequest, ChangeSummaryRequest
 
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core
@@ -63,22 +63,38 @@ def get_es_index_info(
 
 # Document Operations
 @router.post("/{index_name}/documents", response_model=IndexingResponse)
-def get_index_documents(
+def create_index_documents(
         index_name: str = Path(..., description="Name of the index"),
-        data: IndexingRequest = Body(..., description="Indexing request to process"),
-        embedding_model_name: Optional[str] = Query(None, description="Name of the embedding model to use"),
+        data: List[Dict[str, Any]] = Body(..., description="Document List to process"),
         es_core: ElasticSearchCore = Depends(get_es_core)
 ):
     """
     Index documents with embeddings, creating the index if it doesn't exist.
-    Accepts an IndexingRequest object from data processing.
+    Accepts an document list from data processing.
     """
     try:
-        return ElasticSearchService.index_documents(index_name, data, embedding_model_name, es_core)
+        return ElasticSearchService.index_documents(index_name, data, es_core)
     except Exception as e:
         error_msg = str(e)
         print(f"Error indexing documents: {error_msg}")
         raise HTTPException(status_code=500, detail=f"Error indexing documents: {error_msg}")
+
+
+@router.get("/{index_name}/files")
+def get_index_files(
+        index_name: str = Path(..., description="Name of the index"),
+        es_core: ElasticSearchCore = Depends(get_es_core)
+):
+    """Get all files from an index, including those that are not yet stored in ES"""
+    try:
+        result = ElasticSearchService.list_files(index_name, include_chunks=False, es_core=es_core)
+        # Transform result to match frontend expectations
+        return {
+            "status": "success",
+            "files": result.get("files", [])
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{str(e)}")
 
 
 @router.delete("/{index_name}/documents")

@@ -13,9 +13,57 @@ from celery import chain, Task, states
 
 from nexent.data_process import DataProcessCore
 from .app import app
+from utils.file_management_utils import get_file_size
 
 # Configure logging
 logger = logging.getLogger("data_process.tasks")
+
+
+def run_async(coro):
+    """
+    Safely run async coroutine in Celery task context
+    Handles existing event loops and avoids conflicts
+    """
+    try:
+        # Check if we're already in an async context
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop, safe to use asyncio.run
+            return asyncio.run(coro)
+        
+        # We're in an existing event loop context
+        if loop.is_running():
+            # Try to use nest_asyncio for compatibility
+            try:
+                import nest_asyncio
+                nest_asyncio.apply()
+                return loop.run_until_complete(coro)
+            except ImportError:
+                logger.warning("nest_asyncio not available, creating new thread for async operation")
+                # Fallback: run in a new thread
+                import concurrent.futures
+                import threading
+                
+                def run_in_thread():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        return new_loop.run_until_complete(coro)
+                    finally:
+                        new_loop.close()
+                        asyncio.set_event_loop(None)
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_in_thread)
+                    return future.result()
+        else:
+            # Loop exists but not running, safe to use run_until_complete
+            return loop.run_until_complete(coro)
+            
+    except Exception as e:
+        logger.error(f"Error running async coroutine: {str(e)}")
+        raise
 
 
 # Initialize the data processing core LAZILY
@@ -41,8 +89,13 @@ class LoggingTask(Task):
         return super().on_success(retval, task_id, args, kwargs)
     
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        """Log task failure"""
+        """Log task failure with enhanced error handling"""
         logger.error(f"Task {self.name}[{task_id}] failed: {exc}")
+        # 确保异常信息完整
+        if hasattr(exc, '__class__'):
+            exc_type = exc.__class__.__name__
+            exc_msg = str(exc)
+            logger.error(f"Exception type: {exc_type}, message: {exc_msg}")
         return super().on_failure(exc, task_id, args, kwargs, einfo)
     
     def on_retry(self, exc, task_id, args, kwargs, einfo):
@@ -184,6 +237,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
     """
     start_time = time.time()
     task_id = self.request.id
+    source_type = 'file'  # Default to file type
     
     # Extract data from processed_data
     chunks = processed_data.get('chunks')
@@ -228,19 +282,17 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
             
             # Format as expected by the Elasticsearch API
             formatted_chunk = {
-                "metadata": {
-                    "filename": os.path.basename(original_source) if original_source else "unknown",
-                    "title": metadata.get("title", os.path.basename(original_source) if original_source else "unknown"),
-                    "languages": metadata.get("languages", ["en"]),
-                    "author": metadata.get("author", ""),
-                    "date": metadata.get("date", ""),
-                    "file_size": metadata.get("file_size", 0),
-                    "creation_date": metadata.get("creation_date", "")
-                },
-                "source": original_source or "unknown",
-                "text": text,
-                "source_type": "file"
+                "metadata": metadata,
+                "filename": os.path.basename(original_source) if original_source else "",
+                "path_or_url": original_source,
+                "content": text,
+                "process_source": "Unstructured",  # permanently use default source
+                "source_type": source_type,
+                "file_size": get_file_size(source_type, original_source),
+                "create_time": metadata.get("creation_date"),
+                "date": metadata.get("date"),
             }
+            print("formatted_chunk", formatted_chunk)
             formatted_chunks.append(formatted_chunk)
         
         if len(formatted_chunks) == 0:
@@ -249,22 +301,10 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
         
         # Call the Elasticsearch API to index the documents
         async def index_documents():
-            api_url = f"indices/{original_index_name}/documents"
+            elasticsearch_url = os.environ.get("ELASTICSEARCH_SERVICE") 
+            route_url = f"/indices/{original_index_name}/documents"
+            full_url = elasticsearch_url + route_url
             headers = {"Content-Type": "application/json"}
-            payload = {
-                "task_id": task_id,
-                "index_name": original_index_name,
-                "results": formatted_chunks
-            }
-            
-            api_host = os.environ.get("ELASTICSEARCH_SERVICE")
-            
-            # Ensure proper URL construction without duplication
-            # Remove trailing slash from api_host and leading slash from api_url for clean joining
-            api_host = api_host.rstrip('/')
-            api_url = api_url.lstrip('/')
-            
-            full_url = f"{api_host}/{api_url}"
             
             logger.info(f"[{self.request.id}] FORWARD TASK: About to send request to {full_url}")
             logger.debug(f"[{self.request.id}] FORWARD TASK: First chunk: {formatted_chunks[0] if formatted_chunks else 'No chunks'}")
@@ -282,7 +322,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                         async with session.post(
                             full_url, 
                             headers=headers,
-                            json=payload,
+                            json=formatted_chunks,
                             raise_for_status=True
                         ) as response:
                             result = await response.json()
@@ -332,9 +372,9 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                     else:
                         raise
         
-        # Run the async function - simplified approach
+        # Run the async function
         try:
-            es_result = asyncio.run(index_documents())
+            es_result = run_async(index_documents())
             logger.debug(f"[{self.request.id}] FORWARD TASK: API response from main_server for source '{original_source}': {es_result}")
 
             # Check the custom response from main_server
@@ -391,7 +431,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                  raise Exception("Unexpected API response format from main_server")
 
         except Exception as e:
-            # This will catch errors from asyncio.run(index_documents()) call itself (e.g. network issues to main_server)
+            # This will catch errors from run_async(index_documents()) call itself (e.g. network issues to main_server)
             # or errors raised by the logic above (e.g. if main_server reports success:false)
             logger.error(f"Error during indexing call to main_server or processing its response: {str(e)}")
             # Ensure state is updated; if it was already updated by the logic above, this might overwrite it,

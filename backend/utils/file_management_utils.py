@@ -1,10 +1,12 @@
 import logging
+import os
 from pathlib import Path
 from typing import List
 
 import aiofiles
 import httpx
 from fastapi import UploadFile
+import requests
 
 from consts.const import DATA_PROCESS_SERVICE
 from consts.model import ProcessParams
@@ -34,8 +36,6 @@ async def save_upload_file(file: UploadFile, upload_path: Path) -> bool:
 async def trigger_data_process(file_paths: List[str], process_params: ProcessParams):
     """Trigger data processing service to handle uploaded files"""
     try:
-        logging.info("Files to process: %s", file_paths)
-
         if not file_paths:
             return None
 
@@ -45,13 +45,9 @@ async def trigger_data_process(file_paths: List[str], process_params: ProcessPar
             payload = {"source": file_paths[0], "source_type": "file",
                 "chunking_strategy": process_params.chunking_strategy, "index_name": process_params.index_name}
 
-            logging.info("Payload: %s", payload)
-
             try:
                 async with httpx.AsyncClient() as client:
                     response = await client.post(f"{DATA_PROCESS_SERVICE}/tasks", json=payload, timeout=30.0)
-
-                logging.info("Data process service response: %s", response)
 
                 if response.status_code == 201:
                     return response.json()
@@ -109,9 +105,12 @@ def get_all_files_status(index_name: str):
         Dictionary with path_or_url as keys and custom_state as values
     """
     try:
-        from services.data_process_service import DataProcessService
-        service = DataProcessService()
-        tasks_list = service.get_all_tasks()
+        url = f"{DATA_PROCESS_SERVICE}/tasks"
+        response = requests.get(url, timeout=5, retry_on_timeout=True, retries=3)
+        response.raise_for_status()
+        
+        tasks_data = response.json()
+        tasks_list = tasks_data.get("tasks", [])
         
         # Dictionary to store file statuses: {path_or_url: {process_state, forward_state, timestamps}}
         file_states = {}
@@ -170,8 +169,8 @@ def _convert_to_custom_state(process_celery_state: str, forward_celery_state: st
     Convert Celery task state to frontend representation
     
     Args:
-        state: Celery task state
-        task_name: Task name (process/forward)
+        process_celery_state: Process task Celery state
+        forward_celery_state: Forward task Celery state
         
     Returns:
         Converted state for frontend, value set:
@@ -184,39 +183,61 @@ def _convert_to_custom_state(process_celery_state: str, forward_celery_state: st
         - FORWARD_FAILED
     """
     from celery import states
-    if process_celery_state == states.SUCCESS and forward_celery_state == states.SUCCESS:
-        return "COMPLETED"
     
+    # Handle failure states first
     if process_celery_state == states.FAILURE:
         return "PROCESS_FAILED"
     if forward_celery_state == states.FAILURE:
         return "FORWARD_FAILED"
-    # Not started
-    if not (process_celery_state or forward_celery_state):
+    
+    # Handle completed state - both must be SUCCESS
+    if process_celery_state == states.SUCCESS and forward_celery_state == states.SUCCESS:
+        return "COMPLETED"
+    
+    # Handle case where nothing has started
+    if not process_celery_state and not forward_celery_state:
         return "WAIT_FOR_PROCESSING"
-
-    # Failed
-    if process_celery_state == states.FAILURE:
-        return "PROCESS_FAILED"
-    if forward_celery_state == states.FAILURE:
-        return "FORWARD_FAILED"
     
-    # Completed
-    if process_celery_state == states.SUCCESS and forward_celery_state == states.SUCCESS:
-        return "COMPLETED"
+    # Define state mappings with SUCCESS included
     forward_state_map = {
         states.PENDING: "WAIT_FOR_FORWARDING",
         states.STARTED: "FORWARDING",
+        states.SUCCESS: "COMPLETED",  # Single SUCCESS case
         states.FAILURE: "FORWARD_FAILED",
     }
     process_state_map = {
-        states.PENDING: "WAIT_FOR_PROCESSING",
+        states.PENDING: "WAIT_FOR_PROCESSING", 
         states.STARTED: "PROCESSING",
+        states.SUCCESS: "WAIT_FOR_FORWARDING",  # Process done, waiting for forward
         states.FAILURE: "PROCESS_FAILED",
     }
     
-    # Processing
+    # Determine current state based on progress
     if forward_celery_state:
-        return forward_state_map[forward_celery_state]
+        # Forward task exists, use its state with fallback
+        return forward_state_map.get(forward_celery_state, "WAIT_FOR_FORWARDING")
+    elif process_celery_state:
+        # Only process task exists, use its state with fallback
+        return process_state_map.get(process_celery_state, "WAIT_FOR_PROCESSING")
     else:
-        return process_state_map[process_celery_state]
+        # Fallback case
+        return "WAIT_FOR_PROCESSING"
+    
+
+def get_file_size(source_type: str, path_or_url: str) -> int:
+        """Query the actual size(bytes) of the file"""
+        try:
+            if source_type == "url":
+                # For URL type, use requests library to get file size
+                response = requests.head(path_or_url)
+                if 'content-length' in response.headers:
+                    return int(response.headers['content-length'])
+                return 0
+            elif source_type == "file":
+                # For local files, use os.path.getsize to get file size
+                return os.path.getsize(path_or_url)
+            else:
+                raise NotImplementedError(f"Unexpected source type: {source_type}")
+        except Exception as e:
+            logging.error(f"Error getting file size for {path_or_url}: {str(e)}")
+            return 0

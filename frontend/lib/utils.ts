@@ -8,18 +8,22 @@ export function cn(...inputs: ClassValue[]) {
 // 获取状态优先级
 function getStatusPriority(status: string): number {
   switch (status) {
-    case 'FORWARDING':  // 入库中
+    case 'WAIT_FOR_PROCESSING': // 等待解析
       return 1;
-    case 'PROCESSING':  // 解析中
+    case 'PROCESSING': // 解析中
       return 2;
-    case 'WAITING':     // 等待解析
+    case 'WAIT_FOR_FORWARDING': // 等待入库
       return 3;
-    case 'COMPLETED':   // 解析完成
+    case 'FORWARDING': // 入库中
       return 4;
-    case 'FAILED':      // 解析失败
+    case 'COMPLETED': // 解析完成
       return 5;
-    default:
+    case 'PROCESS_FAILED': // 解析失败
       return 6;
+    case 'FORWARD_FAILED': // 入库失败
+      return 7;
+    default:
+      return 8;
   }
 }
 

@@ -11,7 +11,7 @@ Main features include:
 import asyncio
 import os
 import time
-from typing import Optional, Generator
+from typing import Optional, Generator, List, Dict, Any
 from openai import OpenAI
 from dotenv import load_dotenv
 import yaml
@@ -22,9 +22,9 @@ from nexent.core.nlp.tokenizer import calculate_term_weights
 from fastapi import HTTPException, Query, Body, Path, Depends
 from fastapi.responses import StreamingResponse
 from consts.const import ES_API_KEY, ES_HOST
-from consts.model import IndexingRequest, SearchRequest, HybridSearchRequest
+from consts.model import SearchRequest, HybridSearchRequest
 from utils.agent_utils import config_manager
-from utils.file_management_utils import get_all_files_status
+from utils.file_management_utils import get_all_files_status, get_file_size
 from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
 
 def generate_knowledge_summary_stream(keywords: str) -> Generator:
@@ -164,24 +164,6 @@ class ElasticSearchService:
             return {"indices": indices, "count": len(indices)}
 
 
-    @staticmethod
-    def _get_file_actual_size(source_type: str, path_or_url: str) -> int:
-        """Query the actual size of the file"""
-        try:
-            if source_type == "url":
-                # For URL type, use requests library to get file size
-                response = requests.head(path_or_url)
-                if 'content-length' in response.headers:
-                    return int(response.headers['content-length'])
-                return 0
-            else:
-                # For local files, use os.path.getsize to get file size
-                return os.path.getsize(path_or_url)
-        except Exception as e:
-            print(f"Error getting file size for {path_or_url}: {str(e)}")
-            return 0
-
-
     def get_index_info(self,
             index_name: str = Path(..., description="Name of the index"),
             include_files: bool = Query(True, description="Whether to include file list"),
@@ -208,97 +190,46 @@ class ElasticSearchService:
             # Get file list if requested
             files = []
             if include_files:
-                # Get existing files from ES
-                existing_files = es_core.get_file_list_with_details(index_name)
-
-                # Get unique celery files list and the status of each file
-                celery_task_files = get_all_files_status(index_name)
-
-                # Create a set of path_or_urls from existing files for quick lookup
-                existing_paths = {file_info.get('path_or_url') for file_info in existing_files}
-
-                # Get text chunks info (modify existing_files directly)
-                if include_chunks:
-                    for file_info in existing_files:
-                        path_or_url = file_info.get('path_or_url')
-                        chunks_query = {
-                            "query": {
-                                "term": {
-                                    "path_or_url": path_or_url
-                                }
-                            },
-                            "size": 100,
-                            "_source": ["id", "title", "content", "create_time"]
-                        }
-
-                        try:
-                            chunks_response = es_core.client.search(
-                                index=index_name,
-                                body=chunks_query
-                            )
-
-                            chunks = []
-                            for hit in chunks_response["hits"]["hits"]:
-                                source = hit["_source"]
-                                chunks.append({
-                                    "id": source.get("id"),
-                                    "title": source.get("title"),
-                                    "content": source.get("content"),
-                                    "create_time": source.get("create_time")
-                                })
-
-                            file_info['chunks'] = chunks
-                            file_info['chunks_count'] = len(chunks)
-
-                        except Exception as e:
-                            print(f"Error getting chunks for {path_or_url}: {str(e)}")
-                            file_info['chunks'] = []
-                            file_info['chunks_count'] = 0
-
-                # For files already stored in ES, simply add to files
-                for file_info in existing_files:
-                    file_data = {
-                        'path_or_url': file_info.get('path_or_url'),
-                        'file': file_info.get('filename', ''),
-                        'file_size': file_info.get('file_size', 0),
-                        'create_time': file_info.get('create_time', ''),
-                        'status': "COMPLETED",
-                        'chunks': file_info.get('chunks', []),
-                        'chunks_count': file_info.get('chunks_count', 0)
-                    }
-                    files.append(file_data)
-
-                # For files not yet stored in ES (files currently being processed)
-                for path_or_url, status in celery_task_files.items():
-                    # Skip files that are already in existing_files to avoid duplicates
-                    if path_or_url not in existing_paths:
-                        file_info = {
-                            'path_or_url': path_or_url,
-                            'file': os.path.basename(path_or_url) if path_or_url else '',
-                            'file_size': ElasticSearchService._get_file_actual_size('file', path_or_url),
-                            'create_time': time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
-                            'status': status,
-                            'chunks': [],
-                            'chunks_count': 0
-                        }
-                        files.append(file_info)
+                file_list_result = self.list_files(index_name, include_chunks, es_core)
+                files = file_list_result["files"]
 
             # Check if stats and mappings are valid
-            if index_name not in stats:
-                raise HTTPException(status_code=404, detail=f"Index {index_name} not found in stats")
+            index_stats = None
+            if stats and index_name in stats:
+                index_stats = stats[index_name]
+            else:
+                print(f"404: Index {index_name} not found in stats")
+                index_stats = {}
             
-            if index_name not in mappings:
-                raise HTTPException(status_code=404, detail=f"Index {index_name} not found in mappings")
+            fields = None
+            if mappings and index_name in mappings:
+                fields = mappings[index_name]
+            else:
+                print(f"mappings: {mappings}")
+                print(f"404: Index {index_name} not found in mappings")
+                fields = []
             
             # Check if base_info exists in stats
-            if "base_info" not in stats[index_name]:
-                raise HTTPException(status_code=500, detail=f"Index {index_name} stats missing base_info - ElasticSearch may be unavailable")
+            base_info = None
+            search_performance = {}
+            if index_stats and "base_info" in index_stats:
+                base_info = index_stats["base_info"]
+                search_performance = index_stats.get("search_performance", {})
+            else:
+                print(f"404: Index {index_name} may not be created yet")
+                base_info = {
+                    "doc_count": 0,
+                    "unique_sources_count": 0,
+                    "store_size": "0",
+                    "process_source": "Unknown",
+                    "embedding_model": "Unknown",
+                }
 
             return {
-                "base_info": stats[index_name]["base_info"],
-                "search_performance": stats[index_name]["search_performance"],
-                "fields": mappings[index_name],
-                "files": files if include_files else None
+                "base_info": base_info,
+                "search_performance": search_performance,
+                "fields": fields,
+                "files": files
             }
         except Exception as e:
             error_msg = str(e)
@@ -313,8 +244,7 @@ class ElasticSearchService:
     @staticmethod
     def index_documents(
             index_name: str = Path(..., description="Name of the index"),
-            data: IndexingRequest = Body(..., description="Indexing request to process"),
-            embedding_model_name: Optional[str] = Query(None, description="Name of the embedding model to use"),
+            data: List[Dict[str, Any]] = Body(..., description="Document List to process"),
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
@@ -322,8 +252,7 @@ class ElasticSearchService:
 
         Args:
             index_name: 索引名称
-            data: 包含要索引的文档数据的IndexingRequest对象
-            embedding_model_name: 要使用的嵌入模型名称（可选）
+            data: 包含要索引的文档数据的列表
             es_core: ElasticSearchCore实例
 
         Returns:
@@ -332,12 +261,6 @@ class ElasticSearchService:
         try:
             print(f"Received request for index {index_name}")
 
-            # Extract index_name from IndexingRequest if present
-            if data.index_name:
-                # Override path parameter with value from the data itself
-                print(f"Using index name from request: {data.index_name}")
-                index_name = data.index_name
-
             if not index_name:
                 raise HTTPException(status_code=400, detail="Index name is required")
 
@@ -345,6 +268,13 @@ class ElasticSearchService:
             if not es_core.client.indices.exists(index=index_name):
                 print(f"Creating new index: {index_name}")
                 success = es_core.create_vector_index(index_name, embedding_dim=es_core.embedding_dim)
+                
+                if not success:
+                    raise HTTPException(status_code=500, detail=f"Failed to auto-create index {index_name}")
+                
+                # Wait for index to be ready
+                print(f"Waiting for index {index_name} to be ready...")
+                time.sleep(1)
                 
                 # After successfully creating the knowledge base, 
                 # store the newly created knowledge base information in the knowledge base table
@@ -357,52 +287,39 @@ class ElasticSearchService:
                         status_code=500,
                         detail=f"Error add index{index_name} to sql: {str(e)}"
                     )
-                
-                
-                if not success:
-                    raise HTTPException(status_code=500, detail=f"Failed to auto-create index {index_name}")
-
-            # Handle indexing request format
-            task_id = data.task_id
-            results = data.results
-
-            print(f"Processing {len(results)} documents for task {task_id}")
 
             # Transform indexing request results to documents
             documents = []
 
-            for idx, item in enumerate(results):
+            for idx, item in enumerate(data):
                 # All items should be dictionaries
                 if not isinstance(item, dict):
                     print(f"Skipping item {idx} - not a dictionary")
                     continue
 
                 # Extract metadata
-                metadata = item.get("metadata", {})
-                source = item.get("source", "")
-                text = item.get("text", "")
+                metadata = item.get("metadata")
+                source = item.get("path_or_url")
+                text = item.get("content", "")
                 source_type = item.get("source_type", "file")
+                file_size = item.get("file_size")
+                file_name = item.get("filename", os.path.basename(source) if source and source_type == "file" else "")
 
-                file_name = metadata.get("filename", os.path.basename(source) if source else "unknown")
-
-                # Get title from metadata, or use filename
-                title = metadata.get("title", file_name)
-
-                # Get other metadata
+                # Get from metadata
+                title = metadata.get("title", "")
                 language = metadata.get("languages", ["null"])[0] if metadata.get("languages") else "null"
                 author = metadata.get("author", "null")
                 date = metadata.get("date", time.strftime("%Y-%m-%d", time.localtime()))
-                file_size = metadata.get("file_size", 0)
-
-                # Get create_time from metadata or current time
-                create_time = metadata.get("creation_date", time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()))
+                create_time = metadata.get("creation_date", time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()))
                 if isinstance(create_time, (int, float)):
                     import datetime
                     create_time = datetime.datetime.fromtimestamp(create_time).isoformat()
 
+                # Set embedding model name from the embedding model
+                embedding_model_name = es_core.embedding_model.model
+
                 # Create document
                 document = {
-                    "id": f"{task_id}_{idx}",
                     "title": title,
                     "filename": file_name,
                     "path_or_url": source,
@@ -414,32 +331,11 @@ class ElasticSearchService:
                     "process_source": "Unstructured",
                     "file_size": file_size,
                     "create_time": create_time,
-                    # Add additional metadata fields
-                    "languages": metadata.get("languages", [])
+                    "languages": metadata.get("languages", []),
+                    "embedding_model_name": embedding_model_name
                 }
 
                 documents.append(document)
-
-            # Ensure all documents have required fields
-            current_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
-            for doc in documents:
-                # Set embedding model name if provided or use the default from the embedding model
-                if embedding_model_name:
-                    doc["embedding_model_name"] = embedding_model_name
-                elif not doc.get("embedding_model_name"):
-                    doc["embedding_model_name"] = es_core.embedding_model.model
-
-                # Set create_time if not present
-                if not doc.get("create_time"):
-                    doc["create_time"] = current_time
-
-                # Ensure file_size is present (default to 0 if not provided)
-                if not doc.get("file_size"):
-                    doc["file_size"] = 0
-
-                # Ensure process_source is present
-                if not doc.get("process_source"):
-                    doc["process_source"] = "Unstructured"
 
             total_submitted = len(documents)
             if total_submitted == 0:
@@ -476,6 +372,108 @@ class ElasticSearchService:
             error_msg = str(e)
             print(f"Error indexing documents: {error_msg}")
             raise HTTPException(status_code=500, detail=f"Error indexing documents: {error_msg}")
+
+    @staticmethod
+    def list_files(
+            index_name: str = Path(..., description="Name of the index"),
+            include_chunks: bool = Query(False, description="Whether to include text chunks for each file"),
+            es_core: ElasticSearchCore = Depends(get_es_core)
+    ):
+        """
+        Get file list for the specified index, including files that are not yet stored in ES
+        
+        Args:
+            index_name: Name of the index
+            include_chunks: Whether to include text chunks for each file
+            es_core: ElasticSearchCore instance
+            
+        Returns:
+            Dictionary containing file list
+        """
+        try:
+            files = []
+            
+            # Get existing files from ES
+            existing_files = es_core.get_file_list_with_details(index_name)
+
+            # Get unique celery files list and the status of each file
+            celery_task_files = get_all_files_status(index_name)
+
+            # Create a set of path_or_urls from existing files for quick lookup
+            existing_paths = {file_info.get('path_or_url') for file_info in existing_files}
+
+            # For files already stored in ES, add to files list
+            for file_info in existing_files:
+                file_data = {
+                    'path_or_url': file_info.get('path_or_url'),
+                    'file': file_info.get('filename', ''),
+                    'file_size': file_info.get('file_size', 0),
+                    'create_time': file_info.get('create_time', ''),
+                    'status': "COMPLETED"
+                }
+                files.append(file_data)
+
+            # For files not yet stored in ES (files currently being processed)
+            for path_or_url, status in celery_task_files.items():
+                # Skip files that are already in existing_files to avoid duplicates
+                if path_or_url not in existing_paths:
+                    file_data = {
+                        'path_or_url': path_or_url,
+                        'file': os.path.basename(path_or_url) if path_or_url else '',
+                        'file_size': get_file_size('file', path_or_url),
+                        'create_time': time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
+                        'status': status
+                    }
+                    files.append(file_data)
+
+            # Unified chunks processing for all files
+            for file_data in files:
+                if include_chunks and file_data['status'] == "COMPLETED":
+                    # Only get chunks for completed files (files stored in ES)
+                    path_or_url = file_data['path_or_url']
+                    chunks_query = {
+                        "query": {
+                            "term": {
+                                "path_or_url": path_or_url
+                            }
+                        },
+                        "size": 100,
+                        "_source": ["id", "title", "content", "create_time"]
+                    }
+
+                    try:
+                        chunks_response = es_core.client.search(
+                            index=index_name,
+                            body=chunks_query
+                        )
+
+                        chunks = []
+                        for hit in chunks_response["hits"]["hits"]:
+                            source = hit["_source"]
+                            chunks.append({
+                                "id": source.get("id"),
+                                "title": source.get("title"),
+                                "content": source.get("content"),
+                                "create_time": source.get("create_time")
+                            })
+
+                        file_data['chunks'] = chunks
+                        file_data['chunk_count'] = len(chunks)
+
+                    except Exception as e:
+                        print(f"Error getting chunks for {path_or_url}: {str(e)}")
+                        file_data['chunks'] = []
+                        file_data['chunk_count'] = 0
+                else:
+                    # Set empty chunks for files not requiring chunks or not completed
+                    file_data['chunks'] = []
+                    file_data['chunk_count'] = 0
+                    
+            return {"files": files}
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error getting file list for index {index_name}: {str(e)}")
+
 
     @staticmethod
     def delete_documents(
