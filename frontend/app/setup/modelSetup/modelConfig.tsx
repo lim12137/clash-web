@@ -591,9 +591,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       m => m.displayName === displayName && m.type === modelType
     );
 
-    console.log(`officialModels: ${JSON.stringify(officialModels)}, customModels: ${JSON.stringify(customModels)}`)
-    console.log(`modelInfo: ${JSON.stringify(modelInfo)}`)
-
     // 新选择的模型如果是自定义模型，且之前没有设置状态，则设置为"未检测"
     if (modelInfo && modelInfo.source === "custom" && !modelInfo.connect_status) {
       updateCustomModelStatus(displayName, modelType, "未检测");
@@ -637,8 +634,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     if (configKey === "embedding" || configKey === "multiEmbedding") {
       configUpdate[configKey].dimension = modelInfo?.maxTokens || undefined;
     }
-
-    console.log(`configUpdate: ${JSON.stringify(configUpdate)}`)
 
     // 模型配置更新
     updateModelConfig(configUpdate)
