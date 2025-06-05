@@ -106,10 +106,10 @@ export default function AgentConfig() {
     fetchAgents();
   }, []);
 
-  // 添加事件监听器来响应主页面的数据请求
+  // add event listener to respond to the data request from the main page
   useEffect(() => {
     const handleGetAgentConfigData = () => {
-      // 发送当前配置数据到主页面
+      // send the current configuration data to the main page
       window.dispatchEvent(new CustomEvent('agentConfigDataResponse', {
         detail: {
           businessLogic: businessLogic,

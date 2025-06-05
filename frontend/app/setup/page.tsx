@@ -87,9 +87,9 @@ export default function CreatePage() {
   // Handle completed configuration
   const handleCompleteConfig = async () => {
     if (selectedKey === "3") {
-      // 在第三步完成配置前，检测必要步骤是否完成
+      // when finish the config in the third step, check if the necessary steps are completed
       try {
-        // 触发自定义事件来获取Agent配置的状态
+        // trigger a custom event to get the Agent configuration status
         const agentConfigData = await new Promise<{businessLogic: string, systemPrompt: string}>((resolve) => {
           const handleAgentConfigResponse = (event: Event) => {
             const customEvent = event as CustomEvent;
@@ -100,26 +100,26 @@ export default function CreatePage() {
           window.addEventListener('agentConfigDataResponse', handleAgentConfigResponse);
           window.dispatchEvent(new CustomEvent('getAgentConfigData'));
           
-          // 设置超时以防止无限等待
+          // set a timeout to prevent infinite waiting
           setTimeout(() => {
             window.removeEventListener('agentConfigDataResponse', handleAgentConfigResponse);
             resolve({businessLogic: '', systemPrompt: ''});
           }, 1000);
         });
 
-        // 检查业务描述是否已填写
+        // check if the business description is filled
         if (!agentConfigData.businessLogic || agentConfigData.businessLogic.trim() === '') {
           message.error("请先完成业务描述");
-          return; // 阻止继续执行
+          return; // prevent continue
         }
 
-        // 检查系统提示词是否已生成
+        // check if the system prompt is generated
         if (!agentConfigData.systemPrompt || agentConfigData.systemPrompt.trim() === '') {
           message.error("请先生成系统提示词");
-          return; // 阻止继续执行
+          return; // prevent continue
         }
 
-        // 如果检查通过，继续执行保存配置的逻辑
+        // if the check is passed, continue to execute the save configuration logic
         setIsSavingConfig(true)
         // Get the current global configuration
         const currentConfig = configStore.getConfig()
@@ -170,7 +170,7 @@ export default function CreatePage() {
             detail: { field: 'llm.main' }
           }))
           
-          return // 中断跳转
+          return
         }
         
         // All required fields have been filled, allow the jump to the second page
