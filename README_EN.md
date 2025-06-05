@@ -92,7 +92,7 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 
 ## ✨ Key Features
 
-`1` **Smart agent prompt generation (To Release)**  
+`1` **Smart agent prompt generation**  
    Turn plain language into runnable prompts. Nexent automatically chooses the right tools and plans the best action path for every request.
 
    ![Feature 1](./assets/Feature1.png)
