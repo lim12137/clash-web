@@ -101,7 +101,7 @@ const { Option } = Select
 interface ModelListCardProps {
   type: ModelType
   modelId: string
-  modelName: string
+  modelTypeName: string
   selectedModel: string
   onModelChange: (value: string) => void
   officialModels: ModelOption[]
@@ -113,7 +113,7 @@ interface ModelListCardProps {
 export const ModelListCard = ({
   type,
   modelId,
-  modelName,
+  modelTypeName,
   selectedModel,
   onModelChange,
   officialModels,
@@ -223,16 +223,16 @@ export const ModelListCard = ({
   }, [officialModels, customModels, type, modelId]);
 
   // 处理状态指示灯点击事件
-  const handleStatusClick = (e: React.MouseEvent, modelName: string) => {
+  const handleStatusClick = (e: React.MouseEvent, displayName: string) => {
     e.stopPropagation(); // 阻止事件冒泡
     e.preventDefault(); // 阻止默认行为
     e.nativeEvent.stopImmediatePropagation(); // 阻止所有同级事件处理程序
     
-    if (onVerifyModel && modelName) {
+    if (onVerifyModel && displayName) {
       // 先更新本地状态为"检测中"
-      updateLocalModelStatus(modelName, "检测中");
+      updateLocalModelStatus(displayName, "检测中");
       // 然后调用验证函数
-      onVerifyModel(modelName, type);
+      onVerifyModel(displayName, type);
     }
     
     return false; // 确保不会继续冒泡
@@ -248,8 +248,8 @@ export const ModelListCard = ({
     <div>
       <div className="font-medium mb-1.5 flex items-center justify-between">
         <div className="flex items-center">
-          {modelName}
-          {(modelName === "主模型") && (
+          {modelTypeName}
+          {(modelTypeName === "主模型") && (
             <span className="text-red-500 ml-1">*</span>
           )}
         </div>
