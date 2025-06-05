@@ -11,14 +11,14 @@ jobs:
       - name: Checkout commercial repo
         uses: actions/checkout@v4
         with:
-          repository: nexent-hub/nexent-commercial
+          repository: ModelEngine-Group/nexent-commercial
           ref: main  # 明确指定分支
           ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}  # 必须配置SSH Key
           fetch-depth: 0  # 获取完整历史
 
       - name: Add community repo as remote
         run: |
-          git remote add repo-community git@github.com:nexent-hub/nexent.git
+          git remote add repo-community git@github.com:ModelEngine-Group/nexent.git
           git fetch repo-community --tags
 
       - name: Merge community into commercial
