@@ -12,9 +12,9 @@ services:
       - ./uploads:/opt/backend/uploads
     environment:
       ELASTIC_PASSWORD: nexent@2025
-      ELASTICSEARCH_API_KEY: bm9jR0g1Y0JUcW92OXVCRHdSUDM6MXJNcG1hTWRSSjIwUUFwY1dZRnZTQQ==
-      MINIO_ACCESS_KEY: 025b36e11e51354f92633956
-      MINIO_SECRET_KEY: wXgJ0sg9xfZy6fJQMveW69QnGxWsOz5I5YgMULoc3oY=
+      ELASTICSEARCH_API_KEY: RnJwREpwY0JXbHZlcHBjS0Y0RDg6azRZdWRxSHZSSkNmV3ZKREI2SjYydw==
+      MINIO_ACCESS_KEY: c3689797b538eacd3ae2bbf0
+      MINIO_SECRET_KEY: ZwdNXaSQ1pxWzWTnK2waXrakDAFplmKe2rY3mRB+q0k=
       MINIO_REGION: cn-north-1
       MINIO_DEFAULT_BUCKET: nexent
       skip_proxy: "true"
@@ -50,7 +50,10 @@ services:
     volumes:
       - ../:/opt/:cached
       - ./uploads:/opt/backend/uploads
+      - ../backend/assets/clip-vit-base-patch32:/opt/models/clip-vit-base-patch32:ro
     environment:
+      ELASTIC_PASSWORD: nexent@2025
+      ELASTICSEARCH_API_KEY: RnJwREpwY0JXbHZlcHBjS0Y0RDg6azRZdWRxSHZSSkNmV3ZKREI2SjYydw==
       skip_proxy: "true"
     env_file:
       - .env
@@ -64,6 +67,29 @@ services:
         max-file: "3"
     entrypoint: "/bin/bash"
     command: "-c 'sleep infinity'"
+
+  nexent-web:
+    image: docker.io/node:20-slim
+    container_name: nexent-web
+    restart: always
+    networks:
+      - nexent
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../frontend:/opt/frontend:cached
+      - ../frontend/node_modules:/opt/frontend/node_modules:cached
+    environment:
+      - HTTP_BACKEND=http://nexent:5010
+      - WS_BACKEND=ws://nexent:5010
+      - MINIO_ENDPOINT=http://nexent-minio:9000
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: ["/bin/sh", "-c", "echo 'Web Service needs to be started manually. Use\nnpm install -g pnpm\npnpm install\npnpm dev\n under /opt/frontend to start.' && tail -f /dev/null"]
+
 
 networks:
   nexent:

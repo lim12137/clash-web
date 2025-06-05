@@ -188,29 +188,35 @@ except Exception as e_exec:
                 
                 # Start a thread to capture and log worker output
                 def log_worker_output(process, worker_name):
-                    for line in iter(process.stdout.readline, ''):
-                        if line.strip():
-                            # Clean up redundant timestamps and worker info from output
-                            clean_line = line.strip()
-                            
-                            # Remove timestamp prefix if present (e.g., "[2025-05-24 07:35:02,461: INFO/...")
-                            if clean_line.startswith('[') and ': ' in clean_line:
-                                # Find the first ']' and extract the message part
-                                bracket_end = clean_line.find(']', 1)
-                                if bracket_end != -1 and bracket_end < len(clean_line) - 1:
-                                    clean_line = clean_line[bracket_end + 1:].strip()
-                                    
-                            # Remove additional worker prefixes like "[process-worker]"
-                            while clean_line.startswith('[') and ']' in clean_line:
-                                bracket_end = clean_line.find(']')
-                                if bracket_end != -1:
-                                    clean_line = clean_line[bracket_end + 1:].strip()
-                                else:
-                                    break
-                            
-                            # Only log meaningful messages
-                            if clean_line and not clean_line.startswith('Worker module imported'):
-                                logger.info(f"[{worker_name}] {clean_line}")
+                    try:
+                        for line in iter(process.stdout.readline, ''):
+                            if line.strip():
+                                # Clean up redundant timestamps and worker info from output
+                                clean_line = line.strip()
+                                
+                                # Remove timestamp prefix if present (e.g., "[2025-05-24 07:35:02,461: INFO/...")
+                                if clean_line.startswith('[') and ': ' in clean_line:
+                                    # Find the first ']' and extract the message part
+                                    bracket_end = clean_line.find(']', 1)
+                                    if bracket_end != -1 and bracket_end < len(clean_line) - 1:
+                                        clean_line = clean_line[bracket_end + 1:].strip()
+                                        
+                                # Remove additional worker prefixes like "[process-worker]"
+                                while clean_line.startswith('[') and ']' in clean_line:
+                                    bracket_end = clean_line.find(']')
+                                    if bracket_end != -1:
+                                        clean_line = clean_line[bracket_end + 1:].strip()
+                                    else:
+                                        break
+                                
+                                # Only log meaningful messages
+                                if clean_line and not clean_line.startswith('Worker module imported'):
+                                    logger.info(f"[{worker_name}] {clean_line}")
+                    except Exception as e:
+                        logger.warning(f"Error in log thread for worker {worker_name}: {str(e)}")
+                        # Thread will exit gracefully, worker process continues
+                    finally:
+                        logger.debug(f"Log thread for worker {worker_name} has terminated")
                 
                 output_thread = threading.Thread(
                     target=log_worker_output, 
@@ -278,16 +284,22 @@ except Exception as e_exec:
             
             # Start thread to log Flower output
             def log_flower_output():
-                for line in iter(process.stdout.readline, ''):
-                    if line.strip():
-                        # Clean up redundant timestamps and logging info from Flower output
-                        clean_line = line.strip()
-                        if ' - ' in clean_line:
-                            # Remove timestamp and level if present in Flower log line
-                            parts = clean_line.split(' - ')
-                            if len(parts) > 1:
-                                clean_line = ' - '.join(parts[1:])
-                        logger.info(f"[Flower] {clean_line}")
+                try:
+                    for line in iter(process.stdout.readline, ''):
+                        if line.strip():
+                            # Clean up redundant timestamps and logging info from Flower output
+                            clean_line = line.strip()
+                            if ' - ' in clean_line:
+                                # Remove timestamp and level if present in Flower log line
+                                parts = clean_line.split(' - ')
+                                if len(parts) > 1:
+                                    clean_line = ' - '.join(parts[1:])
+                            logger.info(f"[Flower] {clean_line}")
+                except Exception as e:
+                    logger.warning(f"Error in Flower log thread: {str(e)}")
+                    # Thread will exit gracefully, Flower process continues
+                finally:
+                    logger.debug("Flower log thread has terminated")
             
             output_thread = threading.Thread(target=log_flower_output, daemon=True)
             output_thread.start()

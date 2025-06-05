@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from consts.model import ProcessParams
 from consts.const import MAX_CONCURRENT_UPLOADS, UPLOAD_FOLDER
-from utils.file_management_utils import allowed_file, save_upload_file, trigger_data_process
+from utils.file_management_utils import allowed_file, save_upload_file, trigger_data_process, get_all_files_status
 from utils.image_utils import convert_image_to_text
 from database.attachment_db import (
     upload_fileobj, delete_file, get_file_url, list_files
@@ -109,7 +109,7 @@ async def upload_files(
         return JSONResponse(
             status_code=201,
             content={
-                "message": "Files uploaded and processed successfully",
+                "message": "Files uploaded successfully",
                 "uploaded_files": uploaded_filenames,
                 "process_tasks": process_result
             }

@@ -227,13 +227,6 @@ class IndexInfo(BaseModel):
     files: Optional[List[FileInfo]] = Field(None, description="List of files in the index")
 
 
-class IndexingRequest(BaseModel):
-    task_id: str
-    index_name: str
-    results: List[Dict[str, Any]]
-    embedding_dim: Optional[int] = None
-
-
 class IndexingResponse(BaseModel):
     success: bool
     message: str
