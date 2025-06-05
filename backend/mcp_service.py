@@ -1,4 +1,3 @@
-import time
 from typing import List
 
 from dotenv import load_dotenv
@@ -89,10 +88,11 @@ load_dotenv()
 #     results = await handle_read_paper(arguments)
 #     return "\n\n".join(result.text for result in results)
 
-@mcp.tool(name="test_tool_name", description="test_tool_description")
-async def demo_tool(para_1: str, para_2: int, para_3: List[str], para_4: dict, para_5: bool) -> str:
-    time.sleep(1)
-    return ""
+# @mcp.tool(name="test_tool_name", description="test_tool_description")
+# async def demo_tool(para_1: str, para_2: int, para_3: List[str], para_4: dict, para_5: bool) -> str:
+#     import time
+#     time.sleep(1)
+#     return "demo_tool"
 
 
 if __name__ == "__main__":
