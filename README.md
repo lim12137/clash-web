@@ -21,8 +21,8 @@ Nexent 是一个开源智能体SDK和平台，能够将描述流程的自然语�
 
 我们仍处于首个开源阶段，目标是在 **2025 年 6 月发布 Nexent v1 稳定版**。在此之前，我们将持续快速发布核心功能 —— 我们期待您的参与：
 
-* **🗺️ 查看我们的 [功能地图](https://github.com/orgs/nexent-hub/projects/2/views/1)** 探索当前和即将推出的功能。
-* **🔍 试用当前版本** 并在 [问题反馈](https://github.com/nexent-hub/nexent/issues) 中留下想法或报告错误。
+* **🗺️ 查看我们的 [功能地图](https://github.com/orgs/ModelEngine-Group/projects/2/views/1)** 探索当前和即将推出的功能。
+* **🔍 试用当前版本** 并在 [问题反馈](https://github.com/ModelEngine-Group/nexent/issues) 中留下想法或报告错误。
 
 > *Rome wasn't built in a day.*
 
@@ -45,7 +45,7 @@ Nexent 是一个开源智能体SDK和平台，能够将描述流程的自然语�
 ### 2. 🛠️ 使用 Docker Compose 快速开始
 
 ```bash
-git clone https://github.com/nexent-hub/nexent.git
+git clone https://github.com/ModelEngine-Group/nexent.git
 cd nexent/docker
 cp .env.example .env # fill only nessasary configs
 bash deploy.sh
@@ -80,7 +80,7 @@ bash deploy.sh
 
 - 浏览 [常见问题](FAQ_CN.md) 了解常见安装问题。  
 - 在我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 中提问。  
-- 在 [GitHub Issues](https://github.com/nexent-hub/nexent/issues) 中提交错误报告或功能建议。
+- 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 中提交错误报告或功能建议。
 
 ### 5. 🔧 开发 Nexent
 
@@ -146,7 +146,7 @@ bash deploy.sh
 我们欢迎各种形式的贡献！无论是修复错误、添加功能还是改进文档，您的帮助都能让 Nexent 变得更好。
 
 - 📖 阅读我们的[贡献指南](CONTRIBUTING_CN.md)开始贡献
-- 🐛 在 [GitHub Issues](https://github.com/nexent-hub/nexent/issues) 中报告错误或提出功能建议
+- 🐛 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 中报告错误或提出功能建议
 - 💬 加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 讨论想法
 
 # 💬 社区与联系方式
