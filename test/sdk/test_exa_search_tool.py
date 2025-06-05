@@ -18,7 +18,7 @@ class TestEXASearchTool(unittest.TestCase):
 
     def test_initialization(self):
         """Test tool initialization"""
-        self.assertEqual(self.tool.name, "exa_web_search")
+        self.assertEqual(self.tool.name, "web_search")
         self.assertEqual(self.tool.max_results, 3)
         self.assertFalse(self.tool.image_filter)
 
