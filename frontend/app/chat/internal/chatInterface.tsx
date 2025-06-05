@@ -38,6 +38,8 @@ import { ChatMessageType, AgentStep } from '@/types/chat'
 import { handleStreamResponse } from "@/app/chat/streaming/chatStreamHandler"
 import { extractUserMsgFromResponse, extractAssistantMsgFromResponse } from "./extractMsgFromHistoryResponse"
 
+import { X } from "lucide-react"
+
 const stepIdCounter = {current: 0};
 
 export function ChatInterface() {
@@ -996,23 +998,29 @@ export function ChatInterface() {
         </Tooltip>
       </TooltipProvider>
 
-      {/* 图片预览对话框 */}
+      {/* Image preview */}
       {viewingImage && (
-        <Dialog open={!!viewingImage} onOpenChange={(open) => !open && setViewingImage(null)}>
-          <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90">
-            <DialogHeader>
-              <DialogTitle className="sr-only">图片预览</DialogTitle>
-            </DialogHeader>
-            <div className="flex items-center justify-center h-full">
-              <img
-                src={viewingImage}
-                alt="图片预览"
-                className="max-h-[80vh] max-w-full"
-                onError={() => handleImageError(viewingImage)}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+          onClick={() => setViewingImage(null)}
+        >
+          <div className="relative max-w-[90%] max-h-[90%]" onClick={e => e.stopPropagation()}>
+            <img
+              src={viewingImage}
+              alt="图片预览"
+              className="max-w-full max-h-[90vh] object-contain"
+              onError={() => {
+                handleImageError(viewingImage);
+              }}
+            />
+            <button
+              onClick={() => setViewingImage(null)}
+              className="absolute -top-4 -right-4 bg-white p-1 rounded-full shadow-md hover:bg-white transition-colors"
+            >
+              <X size={16} className="text-gray-600 hover:text-red-500 transition-colors" />
+            </button>
+          </div>
+        </div>
       )}
     </>
   )
