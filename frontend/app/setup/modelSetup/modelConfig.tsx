@@ -9,6 +9,8 @@ import {forwardRef, useEffect, useImperativeHandle, useState, useRef, ReactNode}
 import {ModelConnectStatus, ModelOption, ModelType} from '@/types/config'
 import {useConfig} from '@/hooks/useConfig'
 import {modelService} from '@/services/modelService'
+import {configService} from '@/services/configService'
+import {configStore} from '@/lib/config'
 import {ModelListCard} from './model/ModelListCard'
 import {ModelAddDialog} from './model/ModelAddDialog'
 import {ModelDeleteDialog} from './model/ModelDeleteDialog'
@@ -128,9 +130,13 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
 
   // 初始化加载
   useEffect(() => {
-    // 在组件加载时获取模型列表
+    // 在组件加载时先从后端加载配置，然后再加载模型列表
     const fetchData = async () => {
+      await configService.loadConfigToFrontend();
+      await configStore.reloadFromStorage();
       await loadModelLists(true);  // Skip verification when initializing
+      console.log('modelConfig', modelConfig)
+      console.log('selectedModels', selectedModels)
     };
 
     fetchData();
@@ -178,8 +184,9 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
 
   // 加载模型列表
   const loadModelLists = async (skipVerify: boolean = false) => {
+    const modelConfig = configStore.getConfig().models;
+    
     try {
-      // 使用Promise.all并行加载官方模型和自定义模型
       const [official, custom] = await Promise.all([
         modelService.getOfficialModels(),
         modelService.getCustomModels()
