@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react'
 import { Typography, Input, Button } from 'antd'
-import { SendOutlined } from '@ant-design/icons'
 import { conversationService } from '@/services/conversationService'
 import { handleStreamResponse } from '@/app/chat/streaming/chatStreamHandler'
 import { ChatMessageType, TaskMessageType } from '@/types/chat'

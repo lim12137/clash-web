@@ -62,7 +62,11 @@ export const defaultConfig: GlobalConfig = {
     },
     rerank: {
       modelName: "",
-      displayName: ""
+      displayName: "",
+      apiConfig: {
+        apiKey: "",
+        modelUrl: ""
+      }
     },
     vlm: {
       modelName: "",
@@ -74,11 +78,19 @@ export const defaultConfig: GlobalConfig = {
     },
     stt: {
       modelName: "",
-      displayName: ""
+      displayName: "",
+      apiConfig: {
+        apiKey: "",
+        modelUrl: ""
+      }
     },
     tts: {
       modelName: "",
-      displayName: ""
+      displayName: "",
+      apiConfig: {
+        apiKey: "",
+        modelUrl: ""
+      }
     }
   },
   data: {
@@ -94,9 +106,9 @@ export interface ModelOption {
   type: ModelType
   maxTokens: number
   source: ModelSource
-  apiKey?: string
-  apiUrl?: string
-  displayName?: string
+  apiKey: string
+  apiUrl: string
+  displayName: string
   connect_status?: ModelConnectStatus
 }
 
@@ -120,7 +132,7 @@ export interface ModelApiConfig {
 export interface SingleModelConfig {
   modelName: string
   displayName: string
-  apiConfig?: ModelApiConfig
+  apiConfig: ModelApiConfig
   dimension?: number  // 只用于 embedding 和 multiEmbedding 模型
 }
 
