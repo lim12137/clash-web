@@ -15,7 +15,7 @@ logger = logging.getLogger("prompt app")
 @router.post("/generate")
 async def generate_and_save_system_prompt_api(request: GeneratePromptRequest):
     try:
-        # 使用 run_in_executor 将同步函数转换为异步执行
+        # Using run_in_executor to convert synchronous functions for asynchronous execution
         loop = asyncio.get_event_loop()
         system_prompt = await loop.run_in_executor(
             None,
