@@ -6,7 +6,7 @@ from exa_py import Exa
 from smolagents.tools import Tool
 from pydantic import Field
 
-from ..utils import MessageObserver, ProcessType
+from ..utils.observer import MessageObserver, ProcessType
 from ..utils.tools_common_message import SearchResultTextMessage
 
 # Get logger instance
@@ -14,10 +14,10 @@ logger = logging.getLogger("exa_search tool")
 
 
 class EXASearchTool(Tool):
-    name = "exa_web_search"
-    description = "Performs a EXA web search based on your query (think a Google search) then returns the top search results. " \
-                  "A tool for retrieving publicly available information, news, general knowledge, or non-proprietary data from the internet. Use this for real-time updates, broad topics, or when the query falls outside the company's internal knowledge base." \
-                  "Use for open-domain, real-time, or general knowledge queries"
+    name = "web_search"
+    description = "Performs a web search based on your query (think a Google search) then returns the top search results. " \
+                  "A tool for retrieving publicly available information, news, general knowledge, or non-proprietary data from the internet. " \
+                  "Use this for real-time open-domain updates, broad topics, or or general knowledge queries" \
 
     inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"

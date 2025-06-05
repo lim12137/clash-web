@@ -150,7 +150,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       
       // 创建返回的模型信息
       const addedModel: AddedModel = {
-        name: form.name,
+        name: form.displayName,
         type: modelType
       }
       

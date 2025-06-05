@@ -144,7 +144,7 @@ COMMENT ON COLUMN "conversation_source_search_t"."score_accuracy" IS 'Accuracy s
 COMMENT ON COLUMN "conversation_source_search_t"."score_semantic" IS 'Semantic similarity score';
 COMMENT ON COLUMN "conversation_source_search_t"."published_date" IS 'Upload date of local file or network search date';
 COMMENT ON COLUMN "conversation_source_search_t"."cite_index" IS 'Citation sequence number, used for precise tracing';
-COMMENT ON COLUMN "conversation_source_search_t"."search_type" IS 'Search source type, specifically describes the search tool used for this record, optional values exa_web_search/knowledge_base_search';
+COMMENT ON COLUMN "conversation_source_search_t"."search_type" IS 'Search source type, specifically describes the search tool used for this record, optional values web_search/knowledge_base_search';
 COMMENT ON COLUMN "conversation_source_search_t"."tool_sign" IS 'Simple tool identifier, used to distinguish index sources in large model output summary text';
 COMMENT ON COLUMN "conversation_source_search_t"."create_time" IS 'Creation time, audit field';
 COMMENT ON COLUMN "conversation_source_search_t"."update_time" IS 'Update time, audit field';
