@@ -89,7 +89,7 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
             unit_content = unit['content']
 
             if unit_type == 'search_content':
-                # 为搜索内容创建占位符，稍后处理
+                # Create a placeholder for the search content and process it later
                 search_content_units.append(unit_content)
                 filtered_message_units.append({
                     'type': 'search_content_placeholder',
