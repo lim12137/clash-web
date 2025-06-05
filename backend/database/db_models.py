@@ -106,7 +106,7 @@ class ConversationSourceSearch(TableBase):
     score_semantic = Column(Numeric(7, 6), doc="Semantic similarity score")
     published_date = Column(TIMESTAMP(timezone=False), doc="Upload date of local files or network search date")
     cite_index = Column(Integer, doc="Citation serial number for precise traceability")
-    search_type = Column(String(100), doc="Search source type, specifically describing the retrieval tool used for this search record. Optional values: exa_web_search/knowledge_base_search")
+    search_type = Column(String(100), doc="Search source type, specifically describing the retrieval tool used for this search record. Optional values: web_search/knowledge_base_search")
     tool_sign = Column(String(30), doc="Simple tool identifier used to distinguish the index source in the summary text output by the large model")
     create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time, audit field")
     update_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Update date, audit field")
