@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import aiohttp
 from exa_py import Exa
 from smolagents.tools import Tool
@@ -13,7 +14,7 @@ from ..utils.tools_common_message import SearchResultTextMessage
 logger = logging.getLogger("exa_search tool")
 
 
-class EXASearchTool(Tool):
+class SearchTool(Tool):
     name = "web_search"
     description = "Performs a web search based on your query (think a Google search) then returns the top search results. " \
                   "A tool for retrieving publicly available information, news, general knowledge, or non-proprietary data from the internet. " \
@@ -39,7 +40,7 @@ class EXASearchTool(Tool):
         self.running_prompt = "网络检索中..."
 
         # TODO add data_process_service
-        self.data_process_service = None
+        self.data_process_service = os.getenv("DATA_PROCESS_SERVICE")
 
     def forward(self, query: str) -> str:
         # Perform exa search
