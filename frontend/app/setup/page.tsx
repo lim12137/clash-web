@@ -87,8 +87,40 @@ export default function CreatePage() {
   // Handle completed configuration
   const handleCompleteConfig = async () => {
     if (selectedKey === "3") {
-      setIsSavingConfig(true)
+      // 在第三步完成配置前，检测必要步骤是否完成
       try {
+        // 触发自定义事件来获取Agent配置的状态
+        const agentConfigData = await new Promise<{businessLogic: string, systemPrompt: string}>((resolve) => {
+          const handleAgentConfigResponse = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            resolve(customEvent.detail);
+            window.removeEventListener('agentConfigDataResponse', handleAgentConfigResponse);
+          };
+          
+          window.addEventListener('agentConfigDataResponse', handleAgentConfigResponse);
+          window.dispatchEvent(new CustomEvent('getAgentConfigData'));
+          
+          // 设置超时以防止无限等待
+          setTimeout(() => {
+            window.removeEventListener('agentConfigDataResponse', handleAgentConfigResponse);
+            resolve({businessLogic: '', systemPrompt: ''});
+          }, 1000);
+        });
+
+        // 检查业务描述是否已填写
+        if (!agentConfigData.businessLogic || agentConfigData.businessLogic.trim() === '') {
+          message.error("请先完成业务描述");
+          return; // 阻止继续执行
+        }
+
+        // 检查系统提示词是否已生成
+        if (!agentConfigData.systemPrompt || agentConfigData.systemPrompt.trim() === '') {
+          message.error("请先生成系统提示词");
+          return; // 阻止继续执行
+        }
+
+        // 如果检查通过，继续执行保存配置的逻辑
+        setIsSavingConfig(true)
         // Get the current global configuration
         const currentConfig = configStore.getConfig()
         
