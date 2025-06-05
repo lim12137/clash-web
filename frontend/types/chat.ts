@@ -160,6 +160,7 @@ export interface ApiMessage {
   opinion_flag?: string
   picture?: string[]
   search?: SearchResultItem[]
+  search_unit_id?: { [unitId: string]: SearchResultItem[] }
   minio_files?: MinioFileItem[]
   cards?: any[]
 }

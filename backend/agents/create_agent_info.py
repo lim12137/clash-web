@@ -71,7 +71,7 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
 
         # special logic for knowledge base search tool
         if tool_config.class_name == "KnowledgeBaseSearchTool":
-            tool_config.metadata = {"index_names": json.loads(config_manager.get_config("SELECTED_KB_NAMES", []))}
+            tool_config.metadata = {"index_names": json.loads(config_manager.get_config("SELECTED_KB_NAMES", "[]"))}
         tool_config_list.append(tool_config)
     return tool_config_list
 
