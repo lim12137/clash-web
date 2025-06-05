@@ -177,8 +177,8 @@ export const ModelListCard = ({
   const modelsBySource = getModelsBySource()
 
   // 处理模型变更，需要清除连接状态样式
-  const handleModelChange = (value: string) => {
-    onModelChange(value)
+  const handleModelChange = (modelName: string) => {
+    onModelChange(modelName)
   }
 
   // 本地更新模型状态
@@ -296,7 +296,7 @@ export const ModelListCard = ({
         {modelsBySource.official.length > 0 && (
           <Select.OptGroup label="ModelEngine模型">
             {modelsBySource.official.map((model) => (
-              <Option key={`${type}-${model.name}-official`} value={model.name}>
+              <Option key={`${type}-${model.name}-official`} value={model.displayName}>
                 <div className="flex items-center justify-between">
                   <div className="font-medium truncate" title={model.name}>
                     {model.displayName || model.name}
