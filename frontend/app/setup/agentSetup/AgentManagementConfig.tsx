@@ -439,7 +439,7 @@ export default function BusinessLogicConfig({
       // When exiting the creation of a new Agent, reset the main Agent configuration and refresh the list
       setBusinessLogic('');
       setMainAgentModel(OpenAIModel.MainModel);
-      setMainAgentMaxStep(10);
+      setMainAgentMaxStep(5);
       setMainAgentPrompt('');
       refreshAgentList();
     }
@@ -668,7 +668,7 @@ export default function BusinessLogicConfig({
       return;
     }
 
-    const newValue = value ?? 10;
+    const newValue = value ?? 5;
     try {
       const result = await updateAgent(
         Number(mainAgentId),
@@ -683,7 +683,7 @@ export default function BusinessLogicConfig({
 
       if (result.success) {
         setMainAgentMaxStep(newValue);
-        message.success('最大步骤数更新成功');
+        message.success('最大步骤数更新成功', 0.5);
       } else {
         message.error(result.message || '更新最大步骤数失败');
       }
@@ -755,7 +755,7 @@ export default function BusinessLogicConfig({
               <span className="block text-lg font-medium mb-2">最大步骤数</span>
               <InputNumber
                 min={1}
-                max={50}
+                max={20}
                 value={mainAgentMaxStep}
                 onChange={handleMaxStepChange}
                 className="w-full"
