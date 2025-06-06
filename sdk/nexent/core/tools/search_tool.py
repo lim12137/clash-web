@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import aiohttp
 from exa_py import Exa
 from smolagents.tools import Tool
