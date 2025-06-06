@@ -58,6 +58,7 @@ export function ChatStreamMain({
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [showTopFade, setShowTopFade] = useState(false)
+  const [autoScroll, setAutoScroll] = useState(true)
   const [processedMessages, setProcessedMessages] = useState<ProcessedMessages>({
     finalMessages: [],
     taskMessages: [],
@@ -247,6 +248,13 @@ export function ChatStreamMain({
       } else {
         setShowTopFade(false);
       }
+
+      // Control autoScroll based on user's scroll position
+      if (distanceToBottom < 50) {
+        setAutoScroll(true);
+      } else if (distanceToBottom > 80) { 
+        setAutoScroll(false);
+      }
     };
     
     // Add scroll event listener
@@ -282,24 +290,35 @@ export function ChatStreamMain({
 
   // Scroll to bottom when messages are updated (if user is already at the bottom)
   useEffect(() => {
-    if (processedMessages.finalMessages.length > 0) {
-      scrollToBottom();
+    if (processedMessages.finalMessages.length > 0 && autoScroll) {
+      const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+      if (!scrollAreaElement) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
+      const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Only auto-scroll if user is near the bottom (within 50px)
+      if (distanceToBottom < 50) {
+        scrollToBottom();
+      }
     }
-  }, [processedMessages.finalMessages.length, processedMessages.conversationGroups.size]);
+  }, [processedMessages.finalMessages.length, processedMessages.conversationGroups.size, autoScroll]);
 
   // Scroll to bottom when task messages are updated
   useEffect(() => {
-    const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-    if (!scrollAreaElement) return;
+    if (autoScroll) {
+      const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+      if (!scrollAreaElement) return;
 
-    const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
-    const distanceToBottom = scrollHeight - scrollTop - clientHeight;
-    
-    // If the user is already at the bottom or is streaming, automatically scroll
-    if (distanceToBottom < 100 || isStreaming) {
-      scrollToBottom();
+      const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
+      const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Only auto-scroll if user is near the bottom (within 150px)
+      if (distanceToBottom < 150) {
+        scrollToBottom();
+      }
     }
-  }, [processedMessages.taskMessages.length, isStreaming]);
+  }, [processedMessages.taskMessages.length, isStreaming, autoScroll]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative custom-scrollbar">
