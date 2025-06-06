@@ -135,8 +135,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       await configService.loadConfigToFrontend();
       await configStore.reloadFromStorage();
       await loadModelLists(true);
-      console.log('modelConfig', modelConfig)
-      console.log('selectedModels', selectedModels)
     };
 
     fetchData();

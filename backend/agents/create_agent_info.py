@@ -50,8 +50,6 @@ async def create_agent_config(agent_id, tenant_id, user_id):
         provide_run_summary=agent_info.get("provide_run_summary", False),
         managed_agents=managed_agents
     )
-    
-    logger.info(f"agent_config: {agent_config}")
     return agent_config
 
 
@@ -109,7 +107,6 @@ async def create_agent_run_info(agent_id, minio_files, query):
     final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
 
     model_list = await create_model_config_list()
-    logger.info(f"model list: {model_list}")
     agent_run_info = AgentRunInfo(
         query=final_query,
         model_config_list= model_list,
