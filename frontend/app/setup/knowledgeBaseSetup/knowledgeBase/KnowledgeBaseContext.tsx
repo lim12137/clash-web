@@ -318,7 +318,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
   }, []);
 
   // Add a function to refresh the knowledge base data
-  const refreshKnowledgeBaseData = useCallback(async (forceRefresh = false) => {
+  const refreshKnowledgeBaseData = useCallback(async () => {
     try {
       // Get latest knowledge base data directly from server
       await fetchKnowledgeBases(false, true);
@@ -327,7 +327,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       if (state.activeKnowledgeBase) {
         // Publish document update event to notify document list component to refresh document data
         try {
-          const documents = await knowledgeBaseService.getDocuments(state.activeKnowledgeBase.id, forceRefresh);
+          const documents = await knowledgeBaseService.getDocuments(state.activeKnowledgeBase.id);
           window.dispatchEvent(new CustomEvent('documentsUpdated', {
             detail: {
               kbId: state.activeKnowledgeBase.id,

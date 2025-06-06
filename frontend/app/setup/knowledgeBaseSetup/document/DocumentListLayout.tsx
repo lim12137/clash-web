@@ -394,7 +394,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                         <button
                           onClick={() => onDelete(doc.id)}
                           className={LAYOUT.ACTION_TEXT}
-                          disabled={doc.status === "PROCESSING" || doc.status === "FORWARDING"}
+                          disabled={doc.status === "WAIT_FOR_PROCESSING" || doc.status === "PROCESSING" || doc.status === "WAIT_FOR_FORWARDING" || doc.status === "FORWARDING"}
                         >
                           删除
                         </button>

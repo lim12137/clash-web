@@ -195,8 +195,9 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     dispatch({ type: 'SET_LOADING_KB_ID', payload: { kbId, isLoading: true } });
     
     try {
-      // When forceRefresh is true, use forceRefresh parameter to call knowledgeBaseService.getDocuments
-      const documents = await knowledgeBaseService.getDocuments(kbId, forceRefresh);
+      // Use getAllFiles() to get documents including those not yet in ES
+      const documents = await knowledgeBaseService.getAllFiles(kbId);
+      
       dispatch({ 
         type: 'FETCH_SUCCESS', 
         payload: { kbId, documents } 
@@ -216,8 +217,8 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     try {
       await knowledgeBaseService.uploadDocuments(kbId, files);
       
-      // Get latest status immediately after upload (using forceRefresh parameter)
-      const latestDocuments = await knowledgeBaseService.getDocuments(kbId, true);
+      // Get latest status immediately after upload
+      const latestDocuments = await knowledgeBaseService.getAllFiles(kbId);
       
       // Update document status
       dispatch({ 

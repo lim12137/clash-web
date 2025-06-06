@@ -1,5 +1,9 @@
 // 知识库相关类型定义
 
+// 文档状态常量
+export const TERMINAL_STATUSES = ["COMPLETED", "PROCESS_FAILED", "FORWARD_FAILED"];
+export const NON_TERMINAL_STATUSES = ["WAIT_FOR_PROCESSING", "PROCESSING", "WAIT_FOR_FORWARDING", "FORWARDING"];
+
 // 知识库基本类型
 export interface KnowledgeBase {
   id: string
