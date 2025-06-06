@@ -250,11 +250,11 @@ export function ChatInterface() {
       timeoutRef.current = setTimeout(async () => {
         if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
           try {
-            // 立刻断开agent_run连接
+            // Stop agent_run immediately
             abortControllerRef.current.abort('请求超时');
             console.log('请求超过120秒已自动取消');
             
-            // 立刻更新前端状态
+            // Update frontend state immediately
             setIsLoading(false);
             setIsStreaming(false);
             setMessages(prev => {
@@ -853,7 +853,7 @@ export function ChatInterface() {
 
   // Add conversation stop handling function
   const handleStop = async () => {
-    // 立刻断开agent_run连接
+    // stop agent_run immediately
     if (abortControllerRef.current) {
       try {
         abortControllerRef.current.abort('用户手动停止');
@@ -869,7 +869,7 @@ export function ChatInterface() {
       timeoutRef.current = null;
     }
 
-    // 立刻更新前端状态
+    // Immediately update frontend state
     setIsStreaming(false);
     setIsLoading(false);
 
