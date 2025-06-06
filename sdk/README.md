@@ -54,7 +54,7 @@ model = OpenAIModel(
 )
 
 # 创建工具
-search_tool = EXASearchTool(exa_api_key="your-exa-key", max_results=5)
+search_tool = SearchTool(exa_api_key="your-exa-key", max_results=5)
 final_answer_tool = FinalAnswerFormatTool(llm=model, system_prompt="自定义提示词")
 
 # 创建Agent
@@ -103,8 +103,7 @@ service.stop()
 
 - 继承 SmolAgent 的核心能力
 - 支持多种 Agent 工具:
-  - 博查 (Bocha) 搜索工具
-  - EXA 专业网络检索工具
+  - 专业网络检索工具
   - 本地知识库检索工具
   - 格式化输出工具
 - 模型流式输出支持
