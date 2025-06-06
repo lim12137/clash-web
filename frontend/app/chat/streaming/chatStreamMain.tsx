@@ -34,6 +34,7 @@ interface ChatStreamMainProps {
   onImageUpload?: (file: File) => void
   onOpinionChange?: (messageId: number, opinion: 'Y' | 'N' | null) => void
   currentConversationId?: number
+  shouldScrollToBottom?: boolean
 }
 
 export function ChatStreamMain({
@@ -54,6 +55,7 @@ export function ChatStreamMain({
   onImageUpload,
   onOpinionChange,
   currentConversationId,
+  shouldScrollToBottom,
 }: ChatStreamMainProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
@@ -287,6 +289,24 @@ export function ChatStreamMain({
       }
     }, 0);
   };
+
+  // Force scroll to bottom when entering history conversation
+  useEffect(() => {
+    if (shouldScrollToBottom && processedMessages.finalMessages.length > 0) {
+      setAutoScroll(true);
+      setTimeout(() => {
+        scrollToBottom(false);
+        
+        setTimeout(() => {
+          scrollToBottom(false);
+        }, 300);
+        
+        setTimeout(() => {
+          scrollToBottom(false);
+        }, 800);
+      }, 100);
+    }
+  }, [shouldScrollToBottom, processedMessages.finalMessages.length]);
 
   // Scroll to bottom when messages are updated (if user is already at the bottom)
   useEffect(() => {
