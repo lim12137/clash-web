@@ -211,7 +211,7 @@ export function ChatStreamFinalMessage({
             
             {/* Text content */}
             {message.content && (
-              <div className="rounded-lg border bg-blue-50 border-blue-100 user-message-container px-3 ml-auto text-sm">
+              <div className="rounded-lg border bg-blue-50 border-blue-100 user-message-container px-3 ml-auto text-normal">
                 <div className="user-message-content whitespace-pre-wrap py-2">
                   {message.content}
                 </div>
