@@ -279,18 +279,8 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
       doc.status === "WAITING"
     );
     
-    // 检查是否有文档状态为"已完成"但文件大小为0的情况
-    const hasIncompleteCompletedDocs = docs.some((doc: Document) => 
-      doc.status === "COMPLETED" && doc.size === 0
-    );
-    
-    // 检查是否有新上传的文档（通常文件大小为0表示刚上传）
-    const hasNewUploadedDocs = docs.some((doc: Document) => 
-      doc.size === 0
-    );
-    
-    // 如果有正在处理的文档或有不完整的已完成文档或有新上传的文档，启动轮询
-    if (hasProcessingDocs || hasIncompleteCompletedDocs || hasNewUploadedDocs) {
+    // 如果有正在处理的文档，启动轮询
+    if (hasProcessingDocs) {
       console.log('检测到需要监控的文档状态，启动轮询');
       // 启动文档状态轮询
       knowledgeBasePollingService.startDocumentStatusPolling(

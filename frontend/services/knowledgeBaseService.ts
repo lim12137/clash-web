@@ -43,8 +43,8 @@ class KnowledgeBaseService {
     }
   }
 
-  // Get knowledge bases
-  async getKnowledgeBases(skipHealthCheck = false, includeStats = true): Promise<KnowledgeBase[]> {
+  // Get knowledge bases with stats (very slow, don't use it)
+  async getKnowledgeBasesInfo(skipHealthCheck = false): Promise<KnowledgeBase[]> {
     try {
       // First check Elasticsearch health (unless skipped)
       if (!skipHealthCheck) {
@@ -59,7 +59,7 @@ class KnowledgeBaseService {
 
       // Get knowledge bases from Elasticsearch
       try {
-        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=${includeStats}`);
+        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=true`);
         const data = await response.json();
         
         if (data.indices && data.indices_info) {
@@ -97,27 +97,39 @@ class KnowledgeBaseService {
     }
   }
 
-  // 检查知识库是否存在（不获取详细统计信息，更轻量）
-  async checkKnowledgeBaseExists(name: string): Promise<boolean> {
+  async getKnowledgeBases(skipHealthCheck = false): Promise<string[]> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=false`);
-      const data = await response.json();
-      
-      if (data.indices && Array.isArray(data.indices)) {
-        return data.indices.includes(name);
+      // First check Elasticsearch health (unless skipped)
+      if (!skipHealthCheck) {
+        const isElasticsearchHealthy = await this.checkHealth();
+        if (!isElasticsearchHealthy) {
+          console.warn("Elasticsearch service unavailable");
+          return [];
+        }
       }
-      return false;
+
+      let knowledgeBases = [];
+
+      try{
+        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}`);
+        const data = await response.json();
+        knowledgeBases = data.indices;
+      } catch (error) {
+        console.error("Failed to get knowledge base list:", error);
+      }
+
+      return knowledgeBases;
     } catch (error) {
-      console.error("检查知识库存在性失败:", error);
-      return false;
+      console.error("Failed to get knowledge base list:", error);
+      throw error;
     }
   }
 
-  // 检查知识库名称是否已存在
+  // Check whether the knowledge base name already exists in Elasticsearch
   async checkKnowledgeBaseNameExists(name: string): Promise<boolean> {
     try {
-      const knowledgeBases = await this.getKnowledgeBases(true, false);
-      return knowledgeBases.some(kb => kb.name === name);
+      const knowledgeBases = await this.getKnowledgeBases(true);
+      return knowledgeBases.includes(name);
     } catch (error) {
       console.error("Failed to check knowledge base name existence:", error);
       throw error;
