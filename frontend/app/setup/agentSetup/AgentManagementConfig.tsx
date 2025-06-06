@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, memo } from 'react'
-import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber } from 'antd'
+import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber, Tag } from 'antd'
 import { SettingOutlined } from '@ant-design/icons'
 import ToolConfigModal from './components/ToolConfigModal'
 import AgentModalComponent from './components/AgentModal'
@@ -288,12 +288,9 @@ function ToolPool({
         <div className="flex items-center h-full">
           <div className="flex-1 overflow-hidden">
             <div className="font-medium text-sm truncate" title={tool.name}>{tool.name}</div>
-            <div 
-              className="text-xs text-gray-500 line-clamp-2" 
-              title={tool.description}
-            >
-              {tool.description}
-            </div>
+            <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} className="mt-3">
+              {tool?.source === 'mcp' ? 'MCP' : '本地工具'}
+            </Tag>
           </div>
           <button 
             type="button"
