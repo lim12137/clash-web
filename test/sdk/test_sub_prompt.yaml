@@ -30,7 +30,7 @@ system_prompt: |-
      
   ### 可用资源 ###
   你只能使用以下工具，不得使用任何其他工具：
-  - web_search: Performs a EXA web search based on your query (think a Google search) then returns the top search results. A tool for retrieving publicly available information, news, general knowledge, or non-proprietary data from the internet. Use this for real-time updates, broad topics, or when the query falls outside the company's internal knowledge base.Use for open-domain, real-time, or general knowledge queries
+  - web_search: Performs a web search based on your query (think a Google search) then returns the top search results. A tool for retrieving publicly available information, news, general knowledge, or non-proprietary data from the internet. Use this for real-time updates, broad topics, or when the query falls outside the company's internal knowledge base.Use for open-domain, real-time, or general knowledge queries
       接受输入: {"query": {"type": "string", "description": "The search query to perform."}}
       返回输出类型: string
   - knowledge_base_search: Performs a local knowledge base search based on your query then returns the top search results. A tool for retrieving internal company documents, policies, processes and proprietary information. Use this tool when users ask questions related to internal company matters, product details, organizational structure, internal processes, or confidential information. Prioritize for company-specific queries. Use for proprietary knowledge or restricted informationAvoid for publicly available general knowledge
