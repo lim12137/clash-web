@@ -594,7 +594,8 @@ const messageHandlers: MessageHandler[] = [
         lineHeight: 1.5,
         color: "#dc2626",
         fontWeight: 500,
-        borderRadius: "0.25rem"
+        borderRadius: "0.25rem",
+        paddingTop: "0.5rem"
       }}>
         <span>{message.content}</span>
       </div>
