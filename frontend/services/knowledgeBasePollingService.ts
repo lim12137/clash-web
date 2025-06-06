@@ -50,7 +50,7 @@ class KnowledgeBasePollingService {
         }
         
         // Get latest document status, use force refresh parameter
-        const documents = await knowledgeBaseService.getDocuments(kbId, true);
+        const documents = await knowledgeBaseService.getAllFiles(kbId);
         
         // Call callback function with latest documents first to ensure UI updates immediately
         callback(documents);
@@ -60,30 +60,9 @@ class KnowledgeBasePollingService {
           doc.status === "PROCESSING" || doc.status === "FORWARDING" || doc.status === "WAITING"
         );
         
-        // Check if any documents have zero size (any status)
-        const hasZeroSizeDocs = documents.some(doc => doc.size === 0);
-        
-        // If there are processing documents or zero size documents, continue polling
-        if (hasProcessingDocs || hasZeroSizeDocs) {
-          console.log('Documents processing or information incomplete, continue polling');
-          
-          // If found COMPLETED status but size is 0, check again after short delay
-          const hasIncompleteCompletedDocs = documents.some(doc => 
-            doc.status === "COMPLETED" && doc.size === 0
-          );
-          
-          if (hasIncompleteCompletedDocs) {
-            console.log('Found completed but incomplete documents, checking again in 1 second');
-            setTimeout(async () => {
-              try {
-                const updatedDocs = await knowledgeBaseService.getDocuments(kbId, true);
-                callback(updatedDocs);
-              } catch (error) {
-                console.error('Failed to get updated document information:', error);
-              }
-            }, 1000);
-          }
-          
+        // If there are processing documents, continue polling
+        if (hasProcessingDocs) {
+          console.log('Documents processing, continue polling');
           // Continue polling, don't stop
           return;
         }
@@ -110,12 +89,12 @@ class KnowledgeBasePollingService {
     const checkForKnowledgeBase = async () => {
       try {
         // Use lightweight API to check if knowledge base exists, without getting detailed statistics
-        const exists = await knowledgeBaseService.checkKnowledgeBaseExists(kbName);
+        const exists = await knowledgeBaseService.checkKnowledgeBaseNameExists(kbName);
         
         if (exists) {
           // Knowledge base exists, check if it has documents
           try {
-            const documents = await knowledgeBaseService.getDocuments(kbName, true);
+            const documents = await knowledgeBaseService.getAllFiles(kbName);
             
             if (documents && documents.length > 0) {
               // After knowledge base is created successfully and has documents, get complete info (with statistics)

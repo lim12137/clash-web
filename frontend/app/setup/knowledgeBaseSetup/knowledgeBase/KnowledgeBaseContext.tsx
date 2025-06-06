@@ -149,7 +149,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     dispatch({ type: 'LOADING', payload: true });
     try {
       // Get knowledge base list data directly from server
-      const kbs = await knowledgeBaseService.getKnowledgeBases(skipHealthCheck);
+      const kbs = await knowledgeBaseService.getKnowledgeBasesInfo(skipHealthCheck);
       
       dispatch({ type: 'FETCH_SUCCESS', payload: kbs });
       
@@ -301,7 +301,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       const result = await knowledgeBaseService.summaryIndex(indexName, batchSize);
       return result;
     } catch (error) {
-      dispatch({ type: 'ERROR', payload: error as Error });
+      dispatch({ type: 'ERROR', payload: error as string });
       throw error;
     }
   }, []);
@@ -312,7 +312,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       const result = await knowledgeBaseService.changeSummary(indexName, summary);
       return result;
     } catch (error) {
-      dispatch({ type: 'ERROR', payload: error as Error });
+      dispatch({ type: 'ERROR', payload: error as string });
       throw error;
     }
   }, []);

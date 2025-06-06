@@ -15,7 +15,7 @@ from urllib.request import urlopen
 from ..core.nlp.tokenizer import calculate_term_weights
 
 # Configure logging level
-logging.getLogger('nexent.elasticsearch_core').setLevel(logging.INFO)
+logging.getLogger('nexent.elasticsearch_core').setLevel(logging.WARNING)
 
 @dataclass
 class BulkOperation:

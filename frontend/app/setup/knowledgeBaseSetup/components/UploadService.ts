@@ -69,7 +69,7 @@ export const customUploadRequest = async (
               if (found) {
                 try {
                   // 先获取最新的知识库列表
-                  const knowledgeBases = await knowledgeBaseService.getKnowledgeBases(true);
+                  const knowledgeBases = await knowledgeBaseService.getKnowledgeBasesInfo(true);
                   const newKB = knowledgeBases.find(kb => kb.name === effectiveIndexName);
                   
                   if (newKB) {
@@ -80,7 +80,7 @@ export const customUploadRequest = async (
                     
                     // 延迟3秒后获取该知识库的文档
                     setTimeout(() => {
-                      knowledgeBaseService.getDocuments(effectiveIndexName).then(documents => {
+                      knowledgeBaseService.getAllFiles(effectiveIndexName).then(documents => {
                         knowledgeBasePollingService.triggerDocumentsUpdate(effectiveIndexName, documents);
                         
                         // 如果文档有正在处理的状态，开始文档状态轮询
@@ -115,7 +115,7 @@ export const customUploadRequest = async (
         // 非创建模式：延迟3秒后获取文档状态
         setTimeout(async () => {
           try {
-            const documents = await knowledgeBaseService.getDocuments(effectiveIndexName, true);
+            const documents = await knowledgeBaseService.getAllFiles(effectiveIndexName);
             knowledgeBasePollingService.triggerDocumentsUpdate(effectiveIndexName, documents);
             
             // 检查是否有需要轮询的文档
@@ -174,7 +174,7 @@ export const fetchKnowledgeBaseInfo = async (
 ) => {
   try {
     // 获取文档
-    const documents = await knowledgeBaseService.getDocuments(indexName);
+    const documents = await knowledgeBaseService.getAllFiles(indexName);
     
     // 如果这个请求没有被取消，且知识库名称仍然匹配
     if (!abortController.signal.aborted && indexName === currentKnowledgeBaseRef.current) {

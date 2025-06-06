@@ -105,7 +105,7 @@ function DataConfig() {
   const [newKbName, setNewKbName] = useState("");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [hasClickedUpload, setHasClickedUpload] = useState(false);
-  const [hasShownNameError, setHasShownNameError] = useState(false);
+  const [nameExists, setNameExists] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
   // 添加监听选中新知识库的事件
@@ -115,6 +115,7 @@ function DataConfig() {
       if (knowledgeBase) {
         setIsCreatingMode(false);
         setHasClickedUpload(false);
+        setNameExists(false);
         setActiveKnowledgeBase(knowledgeBase);
         fetchDocuments(knowledgeBase.id);
       }
@@ -156,6 +157,7 @@ function DataConfig() {
   const handleKnowledgeBaseClick = (kb: KnowledgeBase) => {
     setIsCreatingMode(false); // Reset creating mode
     setHasClickedUpload(false); // 重置上传按钮点击状态
+    setNameExists(false); // 重置名称存在状态
 
     // 无论是否切换知识库，都需要获取最新文档信息
     const isChangingKB = !kbState.activeKnowledgeBase || kb.id !== kbState.activeKnowledgeBase.id;
@@ -179,7 +181,7 @@ function DataConfig() {
   const handleKnowledgeBaseChange = async (kb: KnowledgeBase) => {
     try {
       // 直接获取最新文档数据，强制从服务器获取最新数据
-      const documents = await knowledgeBaseService.getDocuments(kb.id, true);
+      const documents = await knowledgeBaseService.getAllFiles(kb.id);
 
       // 触发文档更新事件
       knowledgeBasePollingService.triggerDocumentsUpdate(kb.id, documents);
@@ -270,6 +272,7 @@ function DataConfig() {
     setNewKbName(defaultName);
     setIsCreatingMode(true);
     setHasClickedUpload(false); // 重置上传按钮点击状态
+    setNameExists(false); // 重置名称存在状态
     setActiveKnowledgeBase(null as unknown as KnowledgeBase);
     setUploadFiles([]); // 重置上传文件数组，清空所有待上传文件
   };
@@ -317,11 +320,11 @@ function DataConfig() {
       
       try {
         // 1. 先进行知识库名称重复校验
-        const nameExists = await knowledgeBaseService.checkKnowledgeBaseNameExists(newKbName.trim());
+        const nameExistsResult = await knowledgeBaseService.checkKnowledgeBaseNameExists(newKbName.trim());
+        setNameExists(nameExistsResult);
 
-        if (nameExists) {
+        if (nameExistsResult) {
           message.error(`知识库名称"${newKbName.trim()}"已存在，请更换名称`);
-          setHasShownNameError(true);
           setHasClickedUpload(false); // 重置上传按钮点击状态，允许用户修改名称
           return; // 如果名称重复，直接返回，不继续执行后续逻辑
         }
@@ -351,7 +354,7 @@ function DataConfig() {
         // 退出创建模式，防止用户修改知识库名称
         setIsCreatingMode(false);
         setHasClickedUpload(false); // 重置上传状态
-        setHasShownNameError(false); // 重置错误状态
+        setNameExists(false); // 重置错误状态
         
         // 使用轮询服务等待知识库创建完成并监控文档处理状态
         knowledgeBasePollingService.waitForKnowledgeBaseCreation(
@@ -403,7 +406,7 @@ function DataConfig() {
       knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
 
       // 先获取最新文档状态
-      const latestDocs = await knowledgeBaseService.getDocuments(kbId, true);
+      const latestDocs = await knowledgeBaseService.getAllFiles(kbId);
 
       // 手动触发文档更新，确保UI立即更新
       window.dispatchEvent(new CustomEvent('documentsUpdated', {
@@ -476,14 +479,14 @@ function DataConfig() {
 
   // Handle auto summary
   const handleAutoSummary = async () => {
-    if (!viewingKbName) {
+    if (!kbState.activeKnowledgeBase) {
       message.warning('请先选择一个知识库');
       return;
     }
 
     setIsSummarizing(true);
     try {
-      const summary = await summaryIndex(viewingKbName);
+      const summary = await summaryIndex(viewingKbName, 100);
       // Here you can process the returned summary content based on actual needs
       // For example display in dialog or update to some state
       message.success('知识库总结完成');
@@ -514,6 +517,12 @@ function DataConfig() {
       knowledgeBasePollingService.stopAllPolling();
     };
   }, []);
+
+  // 创建模式下，知识库名称变化时，重置"名称已存在"状态
+  const handleNameChange = (name: string) => {
+    setNewKbName(name);
+    setNameExists(false);
+  };
 
   return (
     <>
@@ -552,7 +561,8 @@ function DataConfig() {
               onDelete={() => {}}
               isCreatingMode={true}
               knowledgeBaseName={newKbName}
-              onNameChange={setNewKbName}
+              onNameChange={handleNameChange}
+              nameExists={nameExists}
               containerHeight={UI_CONFIG.CONTAINER_HEIGHT}
               hasDocuments={hasClickedUpload || docState.isUploading}
               // Upload related props
