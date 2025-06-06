@@ -90,8 +90,8 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
         prompt_for_generate = yaml.safe_load(f)
     
     # Get app information from environment variables
-    app_name = os.getenv('APP_NAME', 'Nexent')
-    app_description = os.getenv('APP_DESCRIPTION', 'Nexent 是一个开源智能体SDK和平台')
+    app_name = config_manager.get_config('APP_NAME', 'Nexent')
+    app_description = config_manager.get_config('APP_DESCRIPTION', 'Nexent 是一个开源智能体SDK和平台')
     
     # Add app information to the template variables
     content = join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description,
