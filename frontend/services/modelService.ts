@@ -117,7 +117,7 @@ export const modelService = {
     name: string
     type: ModelType
     url: string
-    apiKey?: string
+    apiKey: string
     maxTokens: number
     displayName?: string
   }): Promise<void> => {
