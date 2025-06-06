@@ -1,7 +1,5 @@
 import concurrent.futures
 import logging
-import os
-from dotenv import load_dotenv
 
 import yaml
 from smolagents import OpenAIServerModel
@@ -18,9 +16,6 @@ from utils.config_utils import config_manager
 
 # Configure logging
 logger = logging.getLogger("prompt service")
-
-# Load environment variables
-load_dotenv()
 
 
 def call_llm_for_system_prompt(user_prompt: str, system_prompt: str) -> str:
