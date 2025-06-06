@@ -133,7 +133,7 @@ export function ChatInterface() {
           handleNewConversation()
         })
         .catch((err) => {
-          console.error("Failed to get conversation list during initialization:", err)
+          console.error("初始化时获取对话列表失败:", err)
           // Create new conversation even if getting conversation list fails
           handleNewConversation()
         })
@@ -250,17 +250,13 @@ export function ChatInterface() {
       timeoutRef.current = setTimeout(async () => {
         if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
           try {
-            // Use backend API to stop conversation
-            if (conversationId && conversationId !== -1) {
-              try {
-                await conversationService.stop(conversationId);
-              } catch (error) {
-                console.error('停止超时请求失败:', error);
-              }
-            }
-            
+            // 立刻断开agent_run连接
             abortControllerRef.current.abort('请求超时');
             console.log('请求超过120秒已自动取消');
+            
+            // 立刻更新前端状态
+            setIsLoading(false);
+            setIsStreaming(false);
             setMessages(prev => {
               const newMessages = [...prev];
               const lastMsg = newMessages[newMessages.length - 1];
@@ -271,8 +267,15 @@ export function ChatInterface() {
               }
               return newMessages;
             });
-            setIsLoading(false);
-            setIsStreaming(false);
+
+            // Use backend API to stop conversation
+            if (conversationId && conversationId !== -1) {
+              try {
+                await conversationService.stop(conversationId);
+              } catch (error) {
+                console.error('停止超时请求失败:', error);
+              }
+            }
           } catch (error) {
             console.log('取消请求时出错', error);
           }
@@ -541,17 +544,6 @@ export function ChatInterface() {
   }
 
   const handleNewConversation = async () => {
-    // If currently in conversation, stop current conversation first
-    if (isStreaming && conversationId && conversationId !== -1) {
-      try {
-        console.log('创建新对话前停止当前对话:', conversationId);
-        await conversationService.stop(conversationId);
-      } catch (error) {
-        console.error('停止当前对话失败:', error);
-        // Continue creating new conversation even if stopping fails
-      }
-    }
-
     // Cancel current ongoing request first
     if (abortControllerRef.current) {
       try {
@@ -566,6 +558,17 @@ export function ChatInterface() {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+
+    // If currently in conversation, stop current conversation
+    if (isStreaming && conversationId && conversationId !== -1) {
+      try {
+        console.log('创建新对话前停止当前对话:', conversationId);
+        await conversationService.stop(conversationId);
+      } catch (error) {
+        console.error('停止当前对话失败:', error);
+        // Continue creating new conversation even if stopping fails
+      }
     }
 
     // Reset all states
@@ -617,6 +620,22 @@ export function ChatInterface() {
 
   // When user clicks left sidebar component, switch to corresponding conversation, trigger function, load conversation history
   const handleDialogClick = async (dialog: ConversationListItem) => {
+    // Cancel current ongoing request first
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort('切换对话');
+      } catch (error) {
+        console.log('取消请求时出错', error);
+      }
+      abortControllerRef.current = null;
+    }
+
+    // Clear timeout timer
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     // If currently in conversation, stop current conversation first
     if (isStreaming && conversationId && conversationId !== -1) {
       try {
@@ -646,12 +665,6 @@ export function ChatInterface() {
     try {
       // Create new AbortController for current request
       const controller = new AbortController();
-
-      // Cancel previous timeout timer
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
 
       // Set timeout timer - 120 seconds
       timeoutRef.current = setTimeout(() => {
@@ -774,16 +787,31 @@ export function ChatInterface() {
     try {
       // If deleting the currently active conversation, stop conversation first
       if (selectedConversationId === dialogId && isStreaming && conversationId === dialogId) {
+        // Cancel current ongoing request first
+        if (abortControllerRef.current) {
+          try {
+            abortControllerRef.current.abort('删除对话');
+          } catch (error) {
+            console.log('取消请求时出错', error);
+          }
+          abortControllerRef.current = null;
+        }
+
+        // Clear timeout timer
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+
+        setIsStreaming(false);
+        setIsLoading(false);
+
         try {
           console.log('删除对话前停止当前对话:', dialogId);
           await conversationService.stop(dialogId);
-          setIsStreaming(false);
-          setIsLoading(false);
         } catch (error) {
           console.error('停止要删除的对话失败:', error);
           // Continue deleting even if stopping fails
-          setIsStreaming(false);
-          setIsLoading(false);
         }
       }
 
@@ -825,10 +853,28 @@ export function ChatInterface() {
 
   // Add conversation stop handling function
   const handleStop = async () => {
+    // 立刻断开agent_run连接
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort('用户手动停止');
+      } catch (error) {
+        console.log('取消请求时出错', error);
+      }
+      abortControllerRef.current = null;
+    }
+
+    // Clear timeout timer (if still in use)
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    // 立刻更新前端状态
+    setIsStreaming(false);
+    setIsLoading(false);
+
     // If no valid conversation ID, just reset frontend state
     if (!conversationId || conversationId === -1) {
-      setIsStreaming(false);
-      setIsLoading(false);
       return;
     }
 
@@ -836,10 +882,6 @@ export function ChatInterface() {
       // Call backend stop API
       await conversationService.stop(conversationId);
       
-      // Update frontend state after successful stop
-      setIsStreaming(false);
-      setIsLoading(false);
-
       // Manually update messages, clear thinking state
       setMessages(prev => {
         const newMessages = [...prev];
@@ -852,9 +894,6 @@ export function ChatInterface() {
       });
     } catch (error) {
       console.error('停止对话失败:', error);
-      // Reset frontend state even if stopping fails
-      setIsStreaming(false);
-      setIsLoading(false);
       
       // Optionally show error message
       setMessages(prev => {
@@ -867,17 +906,6 @@ export function ChatInterface() {
         }
         return newMessages;
       });
-    }
-
-    // Clear timeout timer (if still in use)
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-
-    // Clear AbortController reference
-    if (abortControllerRef.current) {
-      abortControllerRef.current = null;
     }
   };
 
