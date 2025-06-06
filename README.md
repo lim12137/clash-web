@@ -12,8 +12,7 @@ Nexent 是一个开源智能体SDK和平台，能够将描述流程的自然语�
 - 🌐 访问我们的[官方网站](http://nexent.tech/)了解更多信息
 - 🚀 [一键试用](http://nexent.tech/try)体验 Nexent 的强大功能
 
-   
-   https://github.com/user-attachments/assets/0758629c-3477-4cd4-a737-0aab330d53a7
+https://github.com/user-attachments/assets/0758629c-3477-4cd4-a737-0aab330d53a7
 
 # 🤝 加入我们的社区
 

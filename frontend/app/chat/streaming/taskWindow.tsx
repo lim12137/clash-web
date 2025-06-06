@@ -47,7 +47,7 @@ const messageHandlers: MessageHandler[] = [
           color: "#6b7280",
           fontWeight: 500,
           borderRadius: "0.25rem",
-          paddingTop: "0.2rem"
+          paddingTop: "0.5rem"
         }}>
           <span>{message.content}</span>
         </div>
@@ -162,8 +162,7 @@ const messageHandlers: MessageHandler[] = [
             <div style={{
               fontSize: "0.875rem",
               color: "#6b7280",
-              fontWeight: 500,
-              paddingTop: "0.15rem"
+              fontWeight: 500
             }}>
               阅读检索结果
             </div>
@@ -462,8 +461,7 @@ const messageHandlers: MessageHandler[] = [
             <div style={{
               fontSize: "0.875rem",
               color: "#6b7280",
-              fontWeight: 500,
-              paddingTop: "0.15rem"
+              fontWeight: 500
             }}>
               阅读检索结果
             </div>
@@ -594,8 +592,7 @@ const messageHandlers: MessageHandler[] = [
         lineHeight: 1.5,
         color: "#dc2626",
         fontWeight: 500,
-        borderRadius: "0.25rem",
-        paddingTop: "0.2rem"
+        borderRadius: "0.25rem"
       }}>
         <span>{message.content}</span>
       </div>
@@ -778,10 +775,8 @@ export function TaskWindow({
     }
 
     return (
-      <div className="relative pl-3">
-        {groupedMessages.length > 1 && (
-          <div className="absolute left-1.5 top-[0.65rem] bottom-[0.65rem] w-0.5 bg-gray-200"></div>
-        )}
+      <div className="relative">
+        <div className="absolute left-[0.2rem] top-[1.25rem] bottom-0 w-0.5 bg-gray-200"></div>
 
         {groupedMessages.map((group, groupIndex) => {
           const message = group.message;
@@ -789,37 +784,40 @@ export function TaskWindow({
           
           return (
             <div key={message.id || groupIndex} className="relative mb-5">
-              {/* Dot - add blinking effect based on condition */}
-              <div className="absolute left-[-9px] top-[0.55rem]">
-                <div 
-                  className={isBlinking ? "blinkingDot" : ""}
-                  style={isBlinking ? {
-                    width: "0.5rem",
-                    height: "0.5rem",
-                    borderRadius: "9999px"
-                  } : {
-                    width: "0.5rem",
-                    height: "0.5rem",
-                    borderRadius: "9999px",
-                    backgroundColor: message.type === "virtual" ? "transparent" : "#9ca3af"
-                  }}
-                ></div>
-              </div>
-              
-              {/* Message content */}
-              <div className="ml-3 text-sm break-words">
-                {renderMessageContent(message)}
+              {/* 使用flex布局确保圆点与文本内容对齐 */}
+              <div className="flex items-start">
+                {/* 圆点容器 */}
+                <div className="flex-shrink-0 mr-3" style={{ position: "relative", top: "0.95rem" }}>
+                  <div 
+                    className={isBlinking ? "blinkingDot" : ""}
+                    style={isBlinking ? {
+                      width: "0.5rem",
+                      height: "0.5rem",
+                      borderRadius: "9999px"
+                    } : {
+                      width: "0.5rem",
+                      height: "0.5rem",
+                      borderRadius: "9999px",
+                      backgroundColor: message.type === "virtual" ? "transparent" : "#9ca3af"
+                    }}
+                  ></div>
+                </div>
                 
-                {/* Render card messages */}
-                {group.cards.length > 0 && (
-                  <div className="mt-2">
-                    {group.cards.map((card, cardIndex) => (
-                      <div key={`card-${cardIndex}`} className="ml-0">
-                        {renderMessageContent(card)}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* 消息内容 */}
+                <div className="flex-1 text-sm break-words min-w-0">
+                  {renderMessageContent(message)}
+                  
+                  {/* Render card messages */}
+                  {group.cards.length > 0 && (
+                    <div className="mt-2">
+                      {group.cards.map((card, cardIndex) => (
+                        <div key={`card-${cardIndex}`} className="ml-0">
+                          {renderMessageContent(card)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -830,11 +828,11 @@ export function TaskWindow({
 
   // 计算容器高度：内容高度 + header高度，但不超过最大高度
   const maxHeight = 300
-  const headerHeight = 40
+  const headerHeight = 55
   const availableHeight = maxHeight - headerHeight
-  const actualContentHeight = Math.min(contentHeight + 16, availableHeight) // +16 for padding
+  const actualContentHeight = Math.min(contentHeight, availableHeight)
   const containerHeight = isExpanded ? headerHeight + actualContentHeight : 'auto'
-  const needsScroll = contentHeight + 16 > availableHeight
+  const needsScroll = contentHeight > availableHeight
 
   return (
     <>
@@ -864,12 +862,12 @@ export function TaskWindow({
           <div className="px-4" style={{ height: `${actualContentHeight}px` }}>
             {needsScroll ? (
               <ScrollArea className="h-full" ref={scrollAreaRef}>
-                <div className="pb-2" ref={contentRef}>
+                <div className="" ref={contentRef}>
                   {renderMessages()}
                 </div>
               </ScrollArea>
             ) : (
-              <div className="pb-2" ref={contentRef}>
+              <div className="" ref={contentRef}>
                 {renderMessages()}
               </div>
             )}
