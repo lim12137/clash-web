@@ -841,9 +841,9 @@ export function TaskWindow({
   const maxHeight = 300
   const headerHeight = 55
   const availableHeight = maxHeight - headerHeight
-  const actualContentHeight = Math.min(contentHeight, availableHeight)
+  const actualContentHeight = Math.min(contentHeight + 16, availableHeight)
   const containerHeight = isExpanded ? headerHeight + actualContentHeight : 'auto'
-  const needsScroll = contentHeight > availableHeight
+  const needsScroll = contentHeight + 16 > availableHeight
 
   return (
     <>
