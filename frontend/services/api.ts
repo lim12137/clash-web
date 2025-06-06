@@ -54,7 +54,7 @@ export const API_ENDPOINTS = {
     health: `${API_BASE_URL}/indices/health`,
     indices: `${API_BASE_URL}/indices`,
     indexInfo: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/info`,
-    getAllFiles: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/files`,
+    listFiles: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/files`,
     indexDetail: (indexName: string) => `${API_BASE_URL}/indices/${indexName}`,
     summary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/auto_summary`,
     changeSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,

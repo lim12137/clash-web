@@ -106,7 +106,7 @@ def get_all_files_status(index_name: str):
     """
     try:
         url = f"{DATA_PROCESS_SERVICE}/tasks"
-        response = requests.get(url, timeout=5, retry_on_timeout=True, retries=3)
+        response = requests.get(url, timeout=10)
         response.raise_for_status()
         
         tasks_data = response.json()
@@ -202,7 +202,7 @@ def _convert_to_custom_state(process_celery_state: str, forward_celery_state: st
     forward_state_map = {
         states.PENDING: "WAIT_FOR_FORWARDING",
         states.STARTED: "FORWARDING",
-        states.SUCCESS: "COMPLETED",  # Single SUCCESS case
+        states.SUCCESS: "COMPLETED",
         states.FAILURE: "FORWARD_FAILED",
     }
     process_state_map = {

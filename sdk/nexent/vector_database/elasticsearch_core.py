@@ -14,7 +14,7 @@ from urllib.request import urlopen
 
 from ..core.nlp.tokenizer import calculate_term_weights
 
-# Configure elastic_transport logging level
+# Configure logging level
 logging.getLogger('nexent.elasticsearch_core').setLevel(logging.INFO)
 
 @dataclass
@@ -129,7 +129,7 @@ class ElasticSearchCore:
                     "write": {
                         "wait_for_active_shards": "1"
                     },
-                    # Memory optimization
+                    # Memory optimization for bulk operations
                     "merge": {
                         "policy": {
                             "max_merge_at_once": 5,
@@ -198,7 +198,7 @@ class ElasticSearchCore:
     
     def _force_refresh_with_retry(self, index_name: str, max_retries: int = 3) -> bool:
         """
-        带重试的强制刷新 - 同步版本
+        Force refresh with retry - synchronous version
         """
         for attempt in range(max_retries):
             try:
@@ -214,13 +214,13 @@ class ElasticSearchCore:
     
     def _ensure_index_ready(self, index_name: str, timeout: int = 10) -> bool:
         """
-        确保索引就绪，避免503错误 - 同步版本
+        Ensure index is ready, avoid 503 error - synchronous version
         """
         start_time = time.time()
         
         while time.time() - start_time < timeout:
             try:
-                # 检查集群健康
+                # Check cluster health
                 health = self.client.cluster.health(
                     index=index_name,
                     wait_for_status="yellow",
@@ -228,7 +228,7 @@ class ElasticSearchCore:
                 )
                 
                 if health["status"] in ["green", "yellow"]:
-                    # 双重确认：尝试简单查询
+                    # Double check: try simple query
                     self.client.search(
                         index=index_name,
                         body={"query": {"match_all": {}}, "size": 0}
@@ -237,7 +237,7 @@ class ElasticSearchCore:
                     
             except Exception as e:
                 logging.debug(f"Index {index_name} not ready yet: {e}")
-                time.sleep(0.5)
+                time.sleep(0.1)
         
         logging.warning(f"Index {index_name} may not be fully ready after {timeout}s")
         return False
@@ -245,7 +245,7 @@ class ElasticSearchCore:
     @contextmanager
     def bulk_operation_context(self, index_name: str, estimated_duration: int = 60):
         """
-        🚀 Celery友好的上下文管理器 - 使用threading.Lock
+        Celery-friendly context manager - using threading.Lock
         """
         operation_id = f"bulk_{self._operation_counter}_{threading.current_thread().name}"
         self._operation_counter += 1
@@ -258,12 +258,12 @@ class ElasticSearchCore:
         )
         
         with self._settings_lock:
-            # 记录当前操作
+            # Record current operation
             if index_name not in self._bulk_operations:
                 self._bulk_operations[index_name] = []
             self._bulk_operations[index_name].append(operation)
             
-            # 如果这是第一个批量操作，调整设置
+            # If this is the first bulk operation, adjust settings
             if len(self._bulk_operations[index_name]) == 1:
                 self._apply_bulk_settings(index_name)
         
@@ -271,19 +271,19 @@ class ElasticSearchCore:
             yield operation_id
         finally:
             with self._settings_lock:
-                # 移除操作记录
+                # Remove operation record
                 self._bulk_operations[index_name] = [
                     op for op in self._bulk_operations[index_name] 
                     if op.operation_id != operation_id
                 ]
                 
-                # 如果没有其他批量操作了，恢复设置
+                # If there are no other bulk operations, restore settings
                 if not self._bulk_operations[index_name]:
                     self._restore_normal_settings(index_name)
                     del self._bulk_operations[index_name]
     
     def _apply_bulk_settings(self, index_name: str):
-        """应用批量操作优化设置"""
+        """Apply bulk operation optimization settings"""
         try:
             self.client.indices.put_settings(
                 index=index_name,
@@ -298,7 +298,7 @@ class ElasticSearchCore:
             logging.warning(f"Failed to apply bulk settings: {e}")
     
     def _restore_normal_settings(self, index_name: str):
-        """恢复正常设置"""
+        """Restore normal settings"""
         try:
             self.client.indices.put_settings(
                 index=index_name,
@@ -307,7 +307,7 @@ class ElasticSearchCore:
                     "translog.durability": "request"
                 }
             )
-            # 恢复后刷新一次
+            # Refresh after restoration
             self._force_refresh_with_retry(index_name)
             logging.info(f"Restored normal settings for {index_name}")
         except Exception as e:
@@ -362,7 +362,7 @@ class ElasticSearchCore:
         content_field: str = "content"
     ) -> int:
         """
-        🚀 智能批量插入 - 根据数据量自动选择策略
+        Smart batch insertion - automatically selecting strategy based on data size
         
         Args:
             index_name: Name of the index to add documents to
@@ -379,28 +379,28 @@ class ElasticSearchCore:
         if not documents:
             return 0
         
-        # 🚀 智能策略选择
+        # Smart strategy selection
         total_docs = len(documents)
         if total_docs < 100:
-            # 小数据量：直接插入，使用 wait_for 刷新
+            # Small data: direct insertion, using wait_for refresh
             return self._small_batch_insert(index_name, documents, content_field)
         else:
-            # 大数据量：使用上下文管理器
+            # Large data: using context manager
             estimated_duration = max(60, total_docs // 100)
             with self.bulk_operation_context(index_name, estimated_duration):
                 return self._large_batch_insert(index_name, documents, batch_size, content_field)
     
     def _small_batch_insert(self, index_name: str, documents: List[Dict[str, Any]], content_field: str) -> int:
-        """小批量插入：追求实时性"""
+        """Small batch insertion: real-time"""
         try:
-            # 预处理文档
+            # Preprocess documents
             processed_docs = self._preprocess_documents(documents, content_field)
             
-            # 获取嵌入
+            # Get embeddings
             inputs = [{"text": doc[content_field]} for doc in processed_docs]
             embeddings = self.embedding_model.get_embeddings(inputs)
             
-            # 准备批量操作
+            # Prepare bulk operations
             operations = []
             for doc, embedding in zip(processed_docs, embeddings):
                 operations.append({"index": {"_index": index_name}})
@@ -409,14 +409,14 @@ class ElasticSearchCore:
                     doc["embedding_model_name"] = self.embedding_model.embedding_model_name
                 operations.append(doc)
             
-            # 执行批量插入，等待刷新完成
+            # Execute bulk insertion, wait for refresh to complete
             response = self.client.bulk(
                 index=index_name,
                 operations=operations,
                 refresh='wait_for'
             )
             
-            # 处理错误
+            # Handle errors
             self._handle_bulk_errors(response)
             
             logging.info(f"Small batch insert completed: {len(documents)} docs")
@@ -427,9 +427,9 @@ class ElasticSearchCore:
             return 0
     
     def _large_batch_insert(self, index_name: str, documents: List[Dict[str, Any]], batch_size: int, content_field: str) -> int:
-        """大批量插入：追求性能"""
+        """Large batch insertion: performance"""
         try:
-            # 预处理所有文档
+            # Preprocess all documents
             processed_docs = self._preprocess_documents(documents, content_field)
             
             total_indexed = 0
@@ -439,11 +439,11 @@ class ElasticSearchCore:
                 batch = processed_docs[i:i + batch_size]
                 batch_num = i // batch_size + 1
                 
-                # 准备输入并获取嵌入
+                # Prepare input and get embeddings
                 inputs = [{"text": doc[content_field]} for doc in batch]
                 embeddings = self.embedding_model.get_embeddings(inputs)
                 
-                # 准备批量操作
+                # Prepare bulk operations
                 operations = []
                 for doc, embedding in zip(batch, embeddings):
                     operations.append({"index": {"_index": index_name}})
@@ -452,24 +452,24 @@ class ElasticSearchCore:
                         doc["embedding_model_name"] = self.embedding_model.embedding_model_name
                     operations.append(doc)
                 
-                # 执行批量插入（不立即刷新）
+                # Execute bulk insertion (no immediate refresh)
                 response = self.client.bulk(
                     index=index_name,
                     operations=operations,
                     refresh=False
                 )
                 
-                # 处理错误
+                # Handle errors
                 self._handle_bulk_errors(response)
                 
                 total_indexed += len(batch)
                 logging.info(f"Processed batch {batch_num}/{total_batches}, documents {i} to {min(i+batch_size, len(processed_docs))}")
                 
-                # 每隔几个批次休息一下，避免压垮ES
+                # Take a break after every few batches to avoid overwhelming ES
                 if batch_num % 10 == 0:
                     time.sleep(0.1)
             
-            # 最后手动刷新一次
+            # Finally, manually refresh once
             self._force_refresh_with_retry(index_name)
             logging.info(f"Large batch insert completed: {len(documents)} docs in {total_batches} batches")
             return total_indexed
@@ -479,7 +479,7 @@ class ElasticSearchCore:
             return 0
     
     def _preprocess_documents(self, documents: List[Dict[str, Any]], content_field: str) -> List[Dict[str, Any]]:
-        """Ensure all documents have the required fields"""
+        """Ensure all documents have the required fields and set default values"""
         current_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
         current_date = time.strftime('%Y-%m-%d', time.localtime())
         
@@ -813,7 +813,7 @@ class ElasticSearchCore:
                 stats = self.client.indices.stats(index=index_name)
                 settings = self.client.indices.get_settings(index=index_name)
 
-                # 合并查询
+                # Merge query
                 agg_query = {
                     "size": 0,
                     "aggs": {
@@ -837,7 +837,7 @@ class ElasticSearchCore:
                     }
                 }
 
-                # 执行合并查询
+                # Execute query
                 agg_result = self.client.search(
                     index=index_name,
                     body=agg_query
@@ -931,40 +931,40 @@ class ElasticSearchCore:
             return 0
 
     def diagnose_yellow_status(self, index_name):
-        print(f"=== 诊断索引 {index_name} 的 Yellow 状态 ===\n")
+        print(f"=== Diagnosing Yellow status for index {index_name} ===\n")
         
         try:
-            # 1. 基本信息
+            # 1. Basic information
             health = self.client.cluster.health(index=index_name)
-            print(f"索引健康状态: {health['status']}")
-            print(f"未分配分片数: {health['unassigned_shards']}")
-            print(f"活跃分片数: {health['active_shards']}")
-            print(f"副本分片数: {health['active_shards'] - health['active_primary_shards']}")
+            print(f"Index health status: {health['status']}")
+            print(f"Unassigned shards: {health['unassigned_shards']}")
+            print(f"Active shards: {health['active_shards']}")
+            print(f"Replica shards: {health['active_shards'] - health['active_primary_shards']}")
             
-            # 2. 节点信息
+            # 2. Node information
             nodes = self.client.cat.nodes(format='json')
-            print(f"集群节点数: {len(nodes)}")
+            print(f"Number of nodes: {len(nodes)}")
             
-            # 3. 索引设置
+            # 3. Index settings
             settings = self.client.indices.get_settings(index=index_name)
             replicas = int(settings[index_name]['settings']['index']['number_of_replicas'])
-            print(f"配置的副本数: {replicas}")
+            print(f"Configured replicas: {replicas}")
             
-            # 4. 分片状态
+            # 4. Shard status
             shards = self.client.cat.shards(index=index_name, format='json')
             unassigned_shards = [s for s in shards if s['state'] == 'UNASSIGNED']
             
-            print(f"未分配的分片:")
+            print(f"Unassigned shards:")
             for shard in unassigned_shards:
-                print(f"  - 分片 {shard['shard']}, 类型: {shard['prirep']}")
+                print(f"  - Shard {shard['shard']}, type: {shard['prirep']}")
             
-            # 5. 给出建议
+            # 5. Given advice
             if len(nodes) == 1 and replicas > 0:
-                print("\n📋 建议: 单节点集群建议设置副本数为0")
-                print("   执行: PUT /{}/_settings".format(index_name))
+                print("\n📋 Advice: For single-node cluster, set replicas to 0")
+                print("   Execute: PUT /{}/_settings".format(index_name))
                 print('   {"settings": {"number_of_replicas": 0}}')
                 
-            # 6. 分配解释（针对第一个未分配分片）
+            # 6. Allocation explanation (for the first unassigned shard)
             if unassigned_shards:
                 first_unassigned = unassigned_shards[0]
                 explain = self.client.cluster.allocation_explain(
@@ -974,8 +974,8 @@ class ElasticSearchCore:
                         "primary": first_unassigned['prirep'] == 'p'
                     }
                 )
-                print(f"\n分片分配失败原因:")
-                print(f"  {explain.get('allocate_explanation', '未知原因')}")
+                print(f"\nShard allocation failure reason:")
+                print(f"  {explain.get('allocate_explanation', 'Unknown reason')}")
                 
         except Exception as e:
-            print(f"诊断过程中出错: {e}")
+            print(f"Error during diagnosis: {e}")

@@ -44,7 +44,7 @@ class KnowledgeBaseService {
   }
 
   // Get knowledge bases
-  async getKnowledgeBases(skipHealthCheck = false): Promise<KnowledgeBase[]> {
+  async getKnowledgeBases(skipHealthCheck = false, includeStats = true): Promise<KnowledgeBase[]> {
     try {
       // First check Elasticsearch health (unless skipped)
       if (!skipHealthCheck) {
@@ -59,7 +59,7 @@ class KnowledgeBaseService {
 
       // Get knowledge bases from Elasticsearch
       try {
-        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=true`);
+        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=${includeStats}`);
         const data = await response.json();
         
         if (data.indices && data.indices_info) {
@@ -116,7 +116,7 @@ class KnowledgeBaseService {
   // 检查知识库名称是否已存在
   async checkKnowledgeBaseNameExists(name: string): Promise<boolean> {
     try {
-      const knowledgeBases = await this.getKnowledgeBases(true);
+      const knowledgeBases = await this.getKnowledgeBases(true, false);
       return knowledgeBases.some(kb => kb.name === name);
     } catch (error) {
       console.error("Failed to check knowledge base name existence:", error);
@@ -193,14 +193,11 @@ class KnowledgeBaseService {
   }
 
   // Get documents from a knowledge base
-  async getDocuments(kbId: string, forceRefresh: boolean = false): Promise<Document[]> {
+  async getDocuments(kbId: string): Promise<Document[]> {
     try {
-      // Add random query parameter to bypass browser cache (only when force refresh)
-      const cacheParam = forceRefresh ? `&_t=${Date.now()}` : '';
-      
       // Use new interface /indices/{index_name}/info to get knowledge base details, including file list
       const response = await fetch(
-        `${API_ENDPOINTS.knowledgeBase.indexInfo(kbId)}?include_files=true${cacheParam}`
+        `${API_ENDPOINTS.knowledgeBase.indexInfo(kbId)}?include_files=true`
       );
       const result = await response.json() as IndexInfoResponse;
 
@@ -214,13 +211,13 @@ class KnowledgeBaseService {
         return result.files.map((file) => ({
           id: file.path_or_url, // Use path or URL as ID
           kb_id: kbId,
-          name: file.file || file.path_or_url.split('/').pop() || 'Unknown',
+          name: file.file,
           type: this.getFileTypeFromName(file.file || file.path_or_url),
-          size: file.file_size || 0,
-          create_time: file.create_time || new Date().toISOString(),
+          size: file.file_size,
+          create_time: file.create_time,
           chunk_num: file.chunk_count || 0,
-          token_num: 0, // Not provided by API, use default value
-          status: file.status || "UNKNOWN" // Get status from API
+          token_num: 0,
+          status: file.status || "UNKNOWN"
         }));
       }
 
@@ -230,6 +227,38 @@ class KnowledgeBaseService {
       console.error("Failed to get document list:", error);
       throw error;
     }
+  }
+
+  // Get all files from a knowledge base, regardless of the existence of index
+  async getAllFiles(kbId: string): Promise<Document[]> {
+    try {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.listFiles(kbId));
+      const result = await response.json();
+
+      if (result.status !== "success") {
+        throw new Error("Failed to get file list");
+      }
+
+      if (!result.files || !Array.isArray(result.files)) {
+        return [];
+      }
+
+      return result.files.map((file: any) => ({
+        id: file.path_or_url,
+        kb_id: kbId,
+        name: file.file,
+        type: this.getFileTypeFromName(file.file || file.path_or_url),
+        size: file.file_size,
+        create_time: file.create_time,
+        chunk_num: file.chunk_count || 0,
+        token_num: 0,
+        status: file.status || "UNKNOWN"
+      }));
+    } catch (error) {
+      console.error("Failed to get all files:", error);
+      throw error;
+    }
+    
   }
   
   // Get file type from filename
