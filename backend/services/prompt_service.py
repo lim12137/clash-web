@@ -83,6 +83,12 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str):
 def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list):
     with open('backend/prompts/utils/prompt_generate.yaml', "r", encoding="utf-8") as f:
         prompt_for_generate = yaml.safe_load(f)
+    
+    # Get app information from environment variables
+    app_name = config_manager.get_config('APP_NAME', 'Nexent')
+    app_description = config_manager.get_config('APP_DESCRIPTION', 'Nexent 是一个开源智能体SDK和平台')
+    
+    # Add app information to the template variables
     content = join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description,
                                                    tool_info_list)
     # Generate prompts using thread pool
@@ -111,11 +117,13 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
             "tools": {tool.get("name"): tool for tool in tool_info_list},
             "managed_agents": {sub_agent.get("name"): sub_agent for sub_agent in sub_agent_info_list},
             "authorized_imports": str(BASE_BUILTIN_MODULES),
+            "APP_NAME": app_name,
+            "APP_DESCRIPTION": app_description
         },
     )
     return system_prompt
 
-def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description, tool_info_list):
+def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description, tool_info_list, app_name=None, app_description=None):
     tool_description = "\n".join(
         [f"- {tool['name']}: {tool['description']} \n 接受输入: {tool['inputs']}\n 返回输出类型: {tool['output_type']}"
          for tool in tool_info_list])
@@ -126,7 +134,9 @@ def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_lis
     content = compiled_template.render({
         "tool_description": tool_description,
         "agent_description": agent_description,
-        "task_description": task_description
+        "task_description": task_description,
+        "APP_NAME": app_name,
+        "APP_DESCRIPTION": app_description
     })
     return content
 
