@@ -10,6 +10,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Git LFS
+        run: git lfs install
+
+      - name: Cache HuggingFace model
+        uses: actions/cache@v4
+        with:
+          path: ./model-assets/clip-vit-base-patch32
+          key: clip-vit-base-patch32-${{ hashFiles('make/data_process/Dockerfile') }}
+
+      - name: Clone CLIP model (pointer files)
+        run: |
+          git clone https://huggingface.co/openai/clip-vit-base-patch32 ./model-assets/clip-vit-base-patch32
+
+      - name: Pull LFS files with progress
+        run: |
+          cd ./model-assets/clip-vit-base-patch32
+          GIT_LFS_SKIP_SMUDGE=0 git lfs pull --include="*" --verbose
+
+      - name: Clean up unnecessary files
+        run: |
+          rm -rf ./model-assets/clip-vit-base-patch32/.git
+          rm -f ./model-assets/clip-vit-base-patch32/flax_model.msgpack
+          rm -f ./model-assets/clip-vit-base-patch32/tf_model.h5
+
       - name: Build base image
         run: docker build --progress=plain -t nexent/nexent-base -f make/base/Dockerfile .
 
