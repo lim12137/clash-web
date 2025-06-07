@@ -10,45 +10,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build base image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./make/base/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: false
-          load: true
-          tags: nexent/nexent-base:latest
+        run: docker build --progress=plain -t nexent/nexent-base -f make/base/Dockerfile .
 
       - name: Build main application image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./make/main/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: false
-          load: true
-          tags: nexent/nexent:latest
+        run: docker build --progress=plain -t nexent/nexent -f make/main/Dockerfile .
 
       - name: Build data process image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./make/data_process/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: false
-          load: true
-          tags: nexent/nexent-data-process:latest
+        run: docker build --progress=plain -t nexent/nexent-data-process -f make/data_process/Dockerfile .
 
       - name: Build web frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./make/web/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: false
-          load: true
-          tags: nexent/nexent-web:latest 
+        run: docker build --progress=plain -t nexent/nexent-web -f make/web/Dockerfile . 
