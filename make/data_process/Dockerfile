@@ -5,7 +5,13 @@ LABEL authors="nexent"
 USER root
 COPY backend /opt/backend
 COPY sdk /opt/sdk
-COPY backend/assets/clip-vit-base-patch32 /opt/models/clip-vit-base-patch32
+
+# Download models and remove .git
+RUN apt-get update && apt-get install -y git && \
+    mkdir -p /opt/models/clip-vit-base-patch32 && \
+    git clone --depth=1 https://huggingface.co/openai/clip-vit-base-patch32 /opt/models/clip-vit-base-patch32 && \
+    rm -rf /opt/models/clip-vit-base-patch32/.git
+
 RUN chown -R notebook-user:notebook-user /opt/backend
 RUN chown -R notebook-user:notebook-user /opt/sdk
 RUN chown -R notebook-user:notebook-user /opt/models
