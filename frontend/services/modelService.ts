@@ -1,6 +1,6 @@
 "use client"
 
-import { ModelOption, ModelType, SingleModelConfig, ModelConnectStatus } from '../types/config'
+import { ModelOption, ModelType, ModelConnectStatus } from '../types/config'
 import { API_ENDPOINTS } from './api'
 
 // API响应类型
@@ -121,7 +121,7 @@ export const modelService = {
     name: string
     type: ModelType
     url: string
-    apiKey?: string
+    apiKey: string
     maxTokens: number
     displayName?: string
   }): Promise<void> => {
@@ -168,47 +168,6 @@ export const modelService = {
     }
   },
 
-  // Verify model connection status
-  verifyModel: async (modelConfig: SingleModelConfig): Promise<boolean> => {
-    try {
-      if (!modelConfig.modelName) return false
-
-      // Get official and custom model lists first
-      const [officialModels, customModels] = await Promise.all([
-        modelService.getOfficialModels(),
-        modelService.getCustomModels()
-      ])
-
-      // Determine if the model is in the official model list
-      const isOfficialModel = officialModels.some(model => model.name === modelConfig.modelName)
-
-      // Select different verification interfaces based on the model source
-      const endpoint = isOfficialModel 
-        ? API_ENDPOINTS.model.officialModelHealthcheck(modelConfig.modelName, 2)
-        : API_ENDPOINTS.model.customModelHealthcheck(modelConfig.modelName)
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          ...(modelConfig.apiConfig?.apiKey && { 'X-API-KEY': modelConfig.apiConfig.apiKey })
-        },
-        body: modelConfig.apiConfig ? JSON.stringify({
-          model_url: modelConfig.apiConfig.modelUrl
-        }) : undefined
-      })
-      
-      const result: ApiResponse<{connectivity: boolean}> = await response.json()
-      
-      if (result.code === 200 && result.data) {
-        return result.data.connectivity
-      }
-      return false
-    } catch (error) {
-      return false
-    }
-  },
-
   // Verify custom model connection
   verifyCustomModel: async (displayName: string, signal?: AbortSignal): Promise<boolean> => {
     try {
@@ -232,97 +191,4 @@ export const modelService = {
       return false
     }
   },
-
-  // Update model status to backend
-  updateModelStatus: async (modelName: string, status: string): Promise<boolean> => {
-    try {
-      if (!modelName) {
-        console.error('尝试更新状态时模型名为空');
-        return false;
-      }
-      
-      const response = await fetch(API_ENDPOINTS.model.updateConnectStatus, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          model_name: modelName,
-          connect_status: status
-        })
-      });
-      
-      // Check HTTP status code
-      if (!response.ok) {
-        console.error(`更新模型状态HTTP错误，状态码: ${response.status}`);
-        return false;
-      }
-      
-      const result: ApiResponse = await response.json();
-      
-      if (result.code !== 200) {
-        console.error('同步模型状态到数据库失败:', result.message);
-        return false;
-      } else {
-        return true;
-      }
-    } catch (error) {
-      console.error('同步模型状态到数据库出错:', error);
-      return false;
-    }
-  },
-
-  // Sync model list
-  syncModels: async (): Promise<void> => {
-    try {
-      // Try to sync official models, but do not interrupt the process if it fails
-      try {
-        const officialResponse = await fetch(API_ENDPOINTS.model.officialModelList, {
-          method: 'GET',
-          headers: getAuthHeaders()
-        });
-        
-        const officialResult: ApiResponse = await officialResponse.json();
-        
-        if (officialResult.code !== 200) {
-          console.error('同步ModelEngine模型失败:', officialResult.message || '未知错误');
-        }
-      } catch (officialError) {
-        console.error('同步ModelEngine模型时发生错误:', officialError);
-      }
-      
-      // Sync custom models, must succeed, otherwise throw an error
-      const customResponse = await fetch(API_ENDPOINTS.model.customModelList, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      const customResult: ApiResponse = await customResponse.json();
-      
-      if (customResult.code !== 200) {
-        throw new ModelError(customResult.message || '同步自定义模型失败', customResult.code);
-      }
-      
-    } catch (error) {
-      if (error instanceof ModelError) throw error;
-      throw new ModelError('同步模型失败', 500);
-    }
-  },
-
-  // Convert ModelOption to SingleModelConfig
-  convertToSingleModelConfig: (modelOption: ModelOption): SingleModelConfig => {
-    const config: SingleModelConfig = {
-      modelName: modelOption.name,
-      displayName: modelOption.displayName || modelOption.name,
-      apiConfig: modelOption.apiKey ? {
-        apiKey: modelOption.apiKey,
-        modelUrl: modelOption.apiUrl || '',
-      } : undefined
-    };
-    
-    // For embedding models, copy maxTokens to dimension
-    if (modelOption.type === 'embedding' || modelOption.type === 'multi_embedding') {
-      config.dimension = modelOption.maxTokens;
-    }
-    
-    return config;
-  }
 } 
