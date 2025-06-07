@@ -100,7 +100,7 @@ function Navigation({
   return (
     <div className="mt-3 flex justify-between px-6">
       <div className="flex gap-2">
-        {selectedKey === "2" && userRole === "admin" && (
+        {selectedKey != "1" && userRole === "admin" && (
           <button
             onClick={onBackToFirstPage}
             className={"px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"}
