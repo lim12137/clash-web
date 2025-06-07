@@ -59,9 +59,11 @@ export interface SubAgentPoolProps {
   onSelectAgent: (agent: Agent, isSelected: boolean) => void;
   onEditAgent: (agent: Agent) => void;
   onCreateNewAgent: () => void;
+  onImportAgent: () => void;
   subAgentList?: Agent[];
   loadingAgents?: boolean;
   enabledAgentIds?: number[];
+  isImporting?: boolean;
 }
 // tool pool component props interface
 export interface ToolPoolProps {
