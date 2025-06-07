@@ -89,10 +89,7 @@ export interface BusinessLogicConfigProps {
   setMainAgentModel: (value: OpenAIModel) => void;
   mainAgentMaxStep: number;
   setMainAgentMaxStep: (value: number) => void;
-  mainAgentPrompt: string;
-  setMainAgentPrompt: (value: string) => void;
   tools?: Tool[];
-  loadingTools?: boolean;
   subAgentList?: Agent[];
   loadingAgents?: boolean;
   mainAgentId: string | null;
@@ -100,5 +97,4 @@ export interface BusinessLogicConfigProps {
   setSubAgentList: (agents: Agent[]) => void;
   enabledAgentIds: number[];
   setEnabledAgentIds: (ids: number[]) => void;
-  localIsGenerating: boolean;
 }
