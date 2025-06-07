@@ -23,6 +23,7 @@ jobs:
         
   setup-builder:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs: checkout
     steps:
       - name: Set up Docker Buildx
         run: |
