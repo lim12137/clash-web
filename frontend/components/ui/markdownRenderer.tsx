@@ -212,7 +212,7 @@ const HoverableText = ({ text, searchResults }: {
           </TooltipTrigger>
           {/* Force Portal to body */}
           <TooltipPrimitive.Portal>
-            <TooltipContent 
+            <TooltipContent
               side="top"
               align="center"
               sideOffset={5}
@@ -328,13 +328,13 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           const match = part.match(/^\[\[([^\]]+)\]\]$/);
           if (match) {
             const innerText = match[1];
-            // 检查是否存在匹配的搜索结果
+
             const toolSign = innerText.charAt(0);
             const citeIndex = parseInt(innerText.slice(1));
             const hasMatch = searchResults?.some(
               result => result.tool_sign === toolSign && result.cite_index === citeIndex
             );
-            
+
             // Only show citation icon when matching search result is found
             if (hasMatch) {
               return <HoverableText key={index} text={innerText} searchResults={searchResults} />;

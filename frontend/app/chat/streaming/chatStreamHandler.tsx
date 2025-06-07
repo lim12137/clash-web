@@ -416,7 +416,6 @@ export const handleStreamResponse = async (
               step.contents.length === 0 ||
               seenTitles.has(step.title.trim())
             ) {
-              console.log("跳过重复或空步骤:", step.title);
               continue;
             }
 

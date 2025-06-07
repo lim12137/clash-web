@@ -162,7 +162,8 @@ const messageHandlers: MessageHandler[] = [
             <div style={{
               fontSize: "0.875rem",
               color: "#6b7280",
-              fontWeight: 500
+              fontWeight: 500,
+              paddingTop: "0.5rem"
             }}>
               阅读检索结果
             </div>
@@ -461,7 +462,8 @@ const messageHandlers: MessageHandler[] = [
             <div style={{
               fontSize: "0.875rem",
               color: "#6b7280",
-              fontWeight: 500
+              fontWeight: 500,
+              paddingTop: "0.5rem"
             }}>
               阅读检索结果
             </div>
@@ -592,7 +594,8 @@ const messageHandlers: MessageHandler[] = [
         lineHeight: 1.5,
         color: "#dc2626",
         fontWeight: 500,
-        borderRadius: "0.25rem"
+        borderRadius: "0.25rem",
+        paddingTop: "0.5rem"
       }}>
         <span>{message.content}</span>
       </div>
@@ -652,31 +655,40 @@ export function TaskWindow({
     }
   }, [isExpanded, groupedMessages, messages])
 
-  // The logic of automatically scrolling to the bottom
+  // Listen for message changes and automatically scroll to the bottom (only when user allows it)
   useEffect(() => {
-    if (autoScroll && isStreaming) {
-      scrollToBottom();
-    }
-  }, [messages, autoScroll, isStreaming]);
-
-  // Listen for message changes and automatically scroll to the bottom
-  useEffect(() => {
-    if (isExpanded) {
+    if (isExpanded && autoScroll) {
       const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
       if (!scrollAreaElement) return;
 
       const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
       
-      // If the user is already at the bottom or is streaming, automatically scroll
-      if (distanceToBottom < 100 || isStreaming) {
+      // Only auto-scroll if user is near the bottom (within 150px)
+      if (distanceToBottom < 150) {
         // Use requestAnimationFrame to avoid too frequent updates
         requestAnimationFrame(() => {
           scrollToBottom();
         });
       }
     }
-  }, [messages.length, isExpanded, isStreaming]);
+  }, [messages.length, isExpanded, autoScroll]);
+
+  // Auto-scroll during streaming when user allows it
+  useEffect(() => {
+    if (autoScroll && isStreaming && isExpanded) {
+      const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+      if (!scrollAreaElement) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
+      const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Only auto-scroll during streaming if user is near the bottom (within 150px)
+      if (distanceToBottom < 50) {
+        scrollToBottom();
+      }
+    }
+  }, [messages, autoScroll, isStreaming, isExpanded]);
 
   // Handle the scrolling event of the scroll area
   useEffect(() => {
@@ -688,11 +700,11 @@ export function TaskWindow({
       const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
       
-      // If the distance to the bottom is less than 20px, it is considered that the user has scrolled to the bottom, and enable automatic scrolling
-      if (distanceToBottom < 20) {
+      // If the distance to the bottom is less than 50px, it is considered that the user has scrolled to the bottom, and enable automatic scrolling
+      if (distanceToBottom < 50) {
         setAutoScroll(true);
-      } else if (distanceToBottom > 30) { 
-        // If the distance to the bottom is greater than 30px, and it is user-initiated scrolling, disable automatic scrolling
+      } else if (distanceToBottom > 80) { 
+        // If the distance to the bottom is greater than 80px, and it is user-initiated scrolling, disable automatic scrolling
         setAutoScroll(false);
       }
     };
@@ -830,9 +842,9 @@ export function TaskWindow({
   const maxHeight = 300
   const headerHeight = 55
   const availableHeight = maxHeight - headerHeight
-  const actualContentHeight = Math.min(contentHeight, availableHeight)
+  const actualContentHeight = Math.min(contentHeight + 16, availableHeight)
   const containerHeight = isExpanded ? headerHeight + actualContentHeight : 'auto'
-  const needsScroll = contentHeight > availableHeight
+  const needsScroll = contentHeight + 16 > availableHeight
 
   return (
     <>

@@ -136,11 +136,12 @@ add_jwt_to_env() {
 docker exec -ti nexent bash -c 'curl -X POST http://kong:8000/auth/v1/admin/users -H "apikey: ${SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" -H "Content-Type: application/json" -d "{\"email\":\"admin@example.com\",\"password\": \"123123\",\"role\": \"admin\",\"email_confirm\":true}"'
 
 # Main execution flow
-echo "=== Nexent Deployment Script ==="
+echo "🚀 Nexent Deployment Script 🚀"
 select_deployment_mode
 add_permission
 add_jwt_to_env
 generate_minio_ak_sk
 install
 clean
-echo "Deployment completed!"
+echo "🚀 Deployment completed!"
+echo "🔗 You can access the application at http://localhost:3000"
