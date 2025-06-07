@@ -3,23 +3,14 @@ name: Docker Build All Images
 on:
   workflow_dispatch:
     inputs:
-      runners:
-        description: 'Comma-separated runner labels'
+      runner_label_json:
+        description: 'JSON 格式的 runner 标签数组，例如 ["self-hosted", "Tony", "ARM64"]'
         required: true
-        default: cloud-builder,local-builder
-        type: string
-      architecture:
-        description: 'Architecture'
-        required: true
-        default: ARM64
-        type: choice
-        options:
-          - ARM64
-          - X86
+        default: '["self-hosted", "MacOS", "ARM64"]'
 
 jobs:
   checkout:
-    runs-on: self-hosted
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
     outputs:
       sha: ${{ steps.get-sha.outputs.sha }}
     steps:
