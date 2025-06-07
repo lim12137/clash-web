@@ -130,27 +130,29 @@ function SubAgentPool({
       </div>
       <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
         <div className="grid grid-cols-1 gap-3 pr-2">
-          <div 
-            className="border rounded-md p-3 flex flex-col justify-center items-center cursor-pointer transition-colors duration-200 h-[80px] hover:border-blue-300 hover:bg-blue-50"
-            onClick={onCreateNewAgent}
-          >
-            <div className="flex items-center justify-center h-full text-blue-500">
-              <span className="text-lg mr-2">+</span>
-              <span className="text-sm">新建Agent</span>
+          <div className="flex gap-2 mb-2">
+            <div 
+              className="flex-1 border rounded-md p-3 flex flex-col justify-center items-center cursor-pointer transition-colors duration-200 h-[80px] hover:border-blue-300 hover:bg-blue-50"
+              onClick={onCreateNewAgent}
+            >
+              <div className="flex items-center justify-center h-full text-blue-500">
+                <span className="text-lg mr-2">+</span>
+                <span className="text-sm">新建Agent</span>
+              </div>
             </div>
-          </div>
 
-          <div
-            className={`border rounded-md p-3 flex flex-col justify-center items-center transition-colors duration-200 h-[80px] ${
-              isImporting
-                ? 'opacity-50 cursor-not-allowed border-gray-300'
-                : 'cursor-pointer hover:border-green-300 hover:bg-green-50'
-            }`}
-            onClick={isImporting ? undefined : onImportAgent}
-          >
-            <div className={`flex items-center justify-center h-full ${isImporting ? 'text-gray-400' : 'text-green-500'}`}>
-              <UploadOutlined className="text-lg mr-2" />
-              <span className="text-sm">{isImporting ? '导入中...' : '导入Agent'}</span>
+            <div
+              className={`flex-1 border rounded-md p-3 flex flex-col justify-center items-center transition-colors duration-200 h-[80px] ${
+                isImporting
+                  ? 'opacity-50 cursor-not-allowed border-gray-300'
+                  : 'cursor-pointer hover:border-green-300 hover:bg-green-50'
+              }`}
+              onClick={isImporting ? undefined : onImportAgent}
+            >
+              <div className={`flex items-center justify-center h-full ${isImporting ? 'text-gray-400' : 'text-green-500'}`}>
+                <UploadOutlined className="text-lg mr-2" />
+                <span className="text-sm">{isImporting ? '导入中...' : '导入Agent'}</span>
+              </div>
             </div>
           </div>
 
@@ -293,7 +295,7 @@ function ToolPool({
     
     return (
       <div 
-        className={`border rounded-md p-3 flex flex-col justify-center transition-colors duration-200 h-[80px] ${
+        className={`border rounded-md p-2 flex items-center transition-colors duration-200 min-h-[45px] ${
           isSelected ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
         } ${localIsGenerating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         onClick={(e) => {
@@ -301,11 +303,15 @@ function ToolPool({
           handleToolSelect(tool, !isSelected, e);
         }}
       >
-        <div className="flex items-center h-full">
-          <div className="flex-1 overflow-hidden">
-            <div className="font-medium text-sm truncate" title={tool.name}>{tool.name}</div>
-            <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} className="mt-3">
-              {tool?.source === 'mcp' ? 'MCP' : '本地工具'}
+        {/* Tool name left */}
+        <div className="flex-1 overflow-hidden">
+          <div className="font-medium text-sm truncate" title={tool.name}>{tool.name}</div>
+        </div>
+        {/* Tag and settings button right */}
+        <div className="flex items-center gap-2 ml-2">
+          <div className="flex items-center justify-start min-w-[90px] w-[90px]">
+            <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} className="w-full text-center">
+              {tool?.source === 'mcp' ? 'MCP工具' : '本地工具'}
             </Tag>
           </div>
           <button 
@@ -315,7 +321,7 @@ function ToolPool({
               handleConfigClick(tool, e);
             }}
             disabled={localIsGenerating}
-            className={`ml-2 flex-shrink-0 flex items-center justify-center bg-transparent ${
+            className={`flex-shrink-0 flex items-center justify-center bg-transparent ${
               localIsGenerating ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-blue-500'
             }`}
             style={{ border: "none", padding: "4px" }}
@@ -339,7 +345,7 @@ function ToolPool({
             <span className="text-gray-500">加载工具中...</span>
           </div>
         ) : (
-          <div className={`grid ${isCreatingNewAgent ? 'grid-cols-4' : 'grid-cols-2'} gap-3 pr-2`}>
+          <div className="flex flex-col gap-3 pr-2">
             {displayTools.map((tool) => (
               <ToolItem key={tool.id} tool={tool} />
             ))}
