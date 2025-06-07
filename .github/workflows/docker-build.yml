@@ -22,7 +22,7 @@ jobs:
         run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
   build-base:
-    runs-on: self-hosted
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
     needs: checkout
     steps:
       - name: Checkout code
@@ -32,7 +32,7 @@ jobs:
         run: docker build --progress=plain -t nexent/nexent-base -f make/base/Dockerfile .
 
   build-main:
-    runs-on: self-hosted
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
     needs: build-base
     steps:
       - name: Checkout code
@@ -42,7 +42,7 @@ jobs:
         run: docker build --progress=plain -t nexent/nexent -f make/main/Dockerfile .
 
   build-data-process:
-    runs-on: self-hosted
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
     needs: checkout
     steps:
       - name: Checkout code
@@ -70,7 +70,7 @@ jobs:
         run: docker build --progress=plain -t nexent/nexent-data-process -f make/data_process/Dockerfile .
 
   build-web:
-    runs-on: self-hosted
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
     needs: checkout
     steps:
       - name: Checkout code
