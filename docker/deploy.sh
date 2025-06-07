@@ -133,6 +133,8 @@ add_jwt_to_env() {
   echo "VAULT_ENC_KEY=\"$VAULT_ENC_KEY\"" >> .env
 }
 
+docker exec -ti nexent bash -c 'curl -X POST http://kong:8000/auth/v1/admin/users -H "apikey: ${SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" -H "Content-Type: application/json" -d "{\"email\":\"admin@example.com\",\"password\": \"123123\",\"role\": \"admin\",\"email_confirm\":true}"'
+
 # Main execution flow
 echo "=== Nexent Deployment Script ==="
 select_deployment_mode
