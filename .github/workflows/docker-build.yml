@@ -2,16 +2,6 @@ name: Docker Build
 
 on:
   workflow_dispatch:
-    inputs:
-      build_type:
-        description: 'Build test'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - main
-          - data-process
 
 jobs:
   build:
@@ -23,8 +13,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Build base image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./make/base/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          load: true
+          tags: nexent/nexent-base:latest
+
       - name: Build main application image
-        if: ${{ github.event.inputs.build_type == 'all' || github.event.inputs.build_type == 'main' }}
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -35,12 +34,21 @@ jobs:
           tags: nexent/nexent:latest
 
       - name: Build data process image
-        if: ${{ github.event.inputs.build_type == 'all' || github.event.inputs.build_type == 'data-process' }}
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./make/dataprocess/Dockerfile
+          file: ./make/data_process/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: false
           load: true
-          tags: nexent/nexent-data-process:latest 
+          tags: nexent/nexent-data-process:latest
+
+      - name: Build web frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./make/web/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          load: true
+          tags: nexent/nexent-web:latest 
