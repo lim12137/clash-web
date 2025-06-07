@@ -1,4 +1,5 @@
 import concurrent.futures
+import json
 import logging
 
 import yaml
@@ -13,6 +14,7 @@ from database.agent_db import query_sub_agents, save_agent_prompt, update_agent,
     query_tools_by_ids
 from utils.user_utils import get_user_info
 from utils.config_utils import config_manager
+from services.elasticsearch_service import ElasticSearchService
 
 # Configure logging
 logger = logging.getLogger("prompt service")
@@ -140,12 +142,20 @@ def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_lis
     })
     return content
 
-
 def get_enabled_tool_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
     # Get tool information
     logger.info("Fetching tool instances")
     tool_id_list = get_enable_tool_id_by_agent_id(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
     tool_info_list = query_tools_by_ids(tool_id_list)
+
+    for tool in tool_info_list:
+        if "KnowledgeBaseSearchTool" == tool.get("class_name"):
+            knowledge_base_summary = "\n当前知识库包含的信息有:\n"
+            for knowledge_name in json.loads(config_manager.get_config("SELECTED_KB_NAMES", "[]")):
+                message = ElasticSearchService().get_summary(index_name=knowledge_name)
+                knowledge_base_summary += f"{knowledge_name}:{message['summary']}\n"
+
+            tool["description"] = tool.get("description") + knowledge_base_summary
     return tool_info_list
 
 def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
