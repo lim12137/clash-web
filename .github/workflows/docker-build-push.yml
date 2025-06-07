@@ -9,12 +9,24 @@ on:
         default: '["self-hosted", "MacOS", "ARM64"]'
 
 jobs:
+checkout:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    outputs:
+      sha: ${{ steps.get-sha.outputs.sha }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get commit SHA
+        id: get-sha
+        run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+        
   setup-builder:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
     steps:
       - name: Set up Docker Buildx
         run: |
-          docker buildx create --name nexent_builder --use
+          docker buildx create --name nexent_builder --use --append || docker buildx use nexent_builder
 
   build-and-push-base:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
