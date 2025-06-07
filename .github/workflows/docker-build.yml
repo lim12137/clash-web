@@ -23,9 +23,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Git LFS
-        run: GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
-
       - name: Check if model is cached locally
         id: check-model
         run: |
@@ -41,8 +38,14 @@ jobs:
           mkdir -p ./model-assets
           GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/openai/clip-vit-base-patch32 ./model-assets/clip-vit-base-patch32
           cd ./model-assets/clip-vit-base-patch32
-          git lfs pull
+          GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull git lfs pull
           rm -rf .git flax_model.msgpack tf_model.h5
+
+      - name: Upload model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clip-vit-model
+          path: ./model-assets/clip-vit-base-patch32
 
   build-base:
     runs-on: self-hosted
@@ -70,6 +73,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Download model artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: clip-vit-model
+          path: ./model-assets/clip-vit-base-patch32
 
       - name: Build data process image
         run: docker build --progress=plain -t nexent/nexent-data-process -f make/data_process/Dockerfile .
