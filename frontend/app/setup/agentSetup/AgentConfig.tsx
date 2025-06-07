@@ -42,6 +42,7 @@ export default function AgentConfig() {
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([])
   const [enabledAgentIds, setEnabledAgentIds] = useState<number[]>([])
   const [localIsGenerating, setLocalIsGenerating] = useState(false)
+  const [currentGuideStep, setCurrentGuideStep] = useState<number | undefined>(undefined)
 
   // load tools when page is loaded
   useEffect(() => {
@@ -132,6 +133,7 @@ export default function AgentConfig() {
         enabledToolIds.includes(Number(tool.id))
       );
       setSelectedTools(enabledTools);
+      setCurrentGuideStep(undefined);
     }
   }, [tools, enabledToolIds]);
 
@@ -142,6 +144,7 @@ export default function AgentConfig() {
         enabledAgentIds.includes(Number(agent.id))
       );
       setSelectedAgents(enabledAgents);
+      setCurrentGuideStep(undefined);
     }
   }, [subAgentList, enabledAgentIds]);
 
@@ -154,7 +157,7 @@ export default function AgentConfig() {
     setSelectedTools([]);
     setTestQuestion('');
     setTestAnswer('');
-    
+    setCurrentGuideStep(undefined);
     // Reset the main agent configuration related status
     if (!isCreatingNewAgent) {
       setMainAgentModel(OpenAIModel.MainModel);
@@ -186,8 +189,7 @@ export default function AgentConfig() {
                   selectedTools={selectedTools}
                   selectedAgents={selectedAgents}
                   mainAgentId={mainAgentId}
-                  subAgentList={subAgentList}
-                  loadingAgents={loadingAgents}
+                  currentStep={currentGuideStep}
                 />
               </div>
             </div>
@@ -245,7 +247,10 @@ export default function AgentConfig() {
                   prompt={systemPrompt}
                   onPromptChange={setSystemPrompt}
                   isGenerating={isGenerating}
-                  onDebug={() => setIsDebugDrawerOpen(true)}
+                  onDebug={() => {
+                    setIsDebugDrawerOpen(true);
+                    setCurrentGuideStep(isCreatingNewAgent ? 4 : 5);
+                  }}
                   agentId={mainAgentId ? parseInt(mainAgentId) : undefined}
                   taskDescription={businessLogic}
                   onLocalIsGeneratingChange={setLocalIsGenerating}
