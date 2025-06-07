@@ -1,6 +1,6 @@
 "use client"
 
-import { Input, Modal, Spin, message } from 'antd'
+import { Modal, message } from 'antd'
 import { useState, useRef, useEffect } from 'react'
 import AdditionalRequestInput from './AdditionalRequestInput'
 import { generatePrompt, fineTunePrompt, savePrompt } from '@/services/promptService'
@@ -76,7 +76,12 @@ export default function SystemPromptDisplay({
   const originalPromptRef = useRef(prompt)
   const [localPrompt, setLocalPrompt] = useState(prompt);
 
-  useEffect(() => { setLocalPrompt(prompt); }, [prompt]);
+  useEffect(() => { 
+    setLocalPrompt(prompt); 
+    if (originalPromptRef.current === "" && prompt) {
+      originalPromptRef.current = prompt;
+    }
+  }, [prompt]);
 
   // Use API to generate system prompt
   const handleGenerateWithApi = async () => {
@@ -100,8 +105,6 @@ export default function SystemPromptDisplay({
         agent_id: agentId,
         task_description: taskDescription
       });
-      
-      console.log("API返回结果", result);
       
       onPromptChange(result);
       message.success("提示词生成成功");
