@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       runner_label_json:
-        description: 'JSON 格式的 runner 标签数组，例如 ["self-hosted", "Tony", "ARM64"]'
+        description: 'JSON 格式的 runner 标签数组'
         required: true
         default: '["self-hosted", "MacOS", "ARM64"]'
 
