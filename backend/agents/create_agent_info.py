@@ -41,8 +41,8 @@ async def create_agent_config(agent_id, tenant_id, user_id):
         managed_agents.append(sub_agent_config)
 
     agent_config = AgentConfig(
-        name=agent_info["name"],
-        description=agent_info.get("description", ""),
+        name="" if agent_info["name"] is None else agent_info["name"],
+        description="" if agent_info["description"] is None else agent_info["description"],
         prompt_templates=await prepare_prompt_templates(is_manager=len(managed_agents)>0, system_prompt=agent_info.get("prompt")),
         tools=await create_tool_config_list(agent_id, tenant_id, user_id),
         max_steps=agent_info.get("max_steps", 10),
