@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useMemo, useCallback, memo } from 'react'
 import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber, Tag, Upload } from 'antd'
-import { SettingOutlined, UploadOutlined } from '@ant-design/icons'
+import { SettingOutlined, UploadOutlined, ThunderboltOutlined, LoadingOutlined } from '@ant-design/icons'
 import ToolConfigModal from './components/ToolConfigModal'
 import AgentModalComponent from './components/AgentModal'
-import { AgentModalProps, Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
+import { Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
 import { ScrollArea } from '@/components/ui/scrollArea'
 import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent, importAgent } from '@/services/agentConfigService'
+import { generatePrompt, savePrompt } from '@/services/promptService'
 
-const { Text } = Typography
 const { TextArea } = Input
 
 const modelOptions = [
@@ -99,7 +99,7 @@ function BusinessLogicInput({ value, onChange, selectedAgents, systemPrompt }: B
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="请描述您的业务场景和需求..."
-          className="w-full h-full resize-none p-3 text-sm"
+          className="w-full h-full resize-none p-3 text-base"
           style={{ height: '100%' }}
           autoSize={false}
         />
@@ -117,7 +117,7 @@ function SubAgentPool({
   onEditAgent, 
   onCreateNewAgent, 
   onImportAgent,
-  subAgentList = [], 
+  subAgentList = [],
   loadingAgents = false,
   enabledAgentIds = [],
   isImporting = false
@@ -139,11 +139,11 @@ function SubAgentPool({
               <span className="text-sm">新建Agent</span>
             </div>
           </div>
-          
-          <div 
+
+          <div
             className={`border rounded-md p-3 flex flex-col justify-center items-center transition-colors duration-200 h-[80px] ${
-              isImporting 
-                ? 'opacity-50 cursor-not-allowed border-gray-300' 
+              isImporting
+                ? 'opacity-50 cursor-not-allowed border-gray-300'
                 : 'cursor-pointer hover:border-green-300 hover:bg-green-50'
             }`}
             onClick={isImporting ? undefined : onImportAgent}
@@ -153,7 +153,7 @@ function SubAgentPool({
               <span className="text-sm">{isImporting ? '导入中...' : '导入Agent'}</span>
             </div>
           </div>
-          
+
           {subAgentList.map((agent) => {
             const isEnabled = enabledAgentIds.includes(Number(agent.id));
             return (
@@ -380,18 +380,14 @@ export default function BusinessLogicConfig({
   setMainAgentModel,
   mainAgentMaxStep,
   setMainAgentMaxStep,
-  mainAgentPrompt,
-  setMainAgentPrompt,
   tools,
-  loadingTools,
   subAgentList = [],
   loadingAgents = false,
   mainAgentId,
   setMainAgentId,
   setSubAgentList,
   enabledAgentIds,
-  setEnabledAgentIds,
-  localIsGenerating
+  setEnabledAgentIds
 }: BusinessLogicConfigProps) {
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
@@ -400,6 +396,9 @@ export default function BusinessLogicConfig({
   const [isLoadingTools, setIsLoadingTools] = useState(false);
   const [fileList, setFileList] = useState<any[]>([]);
   const [isImporting, setIsImporting] = useState(false);
+  const [isPromptGenerating, setIsPromptGenerating] = useState(false);
+  const [isPromptSaving, setIsPromptSaving] = useState(false);
+  const [localIsGenerating, setLocalIsGenerating] = useState(false);
 
   const fetchSubAgentIdAndEnableToolList = async () => {
     setIsLoadingTools(true);
@@ -455,7 +454,6 @@ export default function BusinessLogicConfig({
       setBusinessLogic('');
       setMainAgentModel(OpenAIModel.MainModel);
       setMainAgentMaxStep(5);
-      setMainAgentPrompt('');
       refreshAgentList();
     }
   }, [isCreatingNewAgent]);
@@ -551,7 +549,7 @@ export default function BusinessLogicConfig({
   };
 
   const canSaveAsAgent = selectedAgents.length === 0 && systemPrompt.trim().length > 0;
-  
+
   // Generate more intelligent prompt information according to conditions
   const getButtonTitle = () => {
     if (selectedAgents.length > 0) {
@@ -734,7 +732,7 @@ export default function BusinessLogicConfig({
         // Read file content
         const fileContent = await file.text();
         let agentInfo;
-        
+
         try {
           agentInfo = JSON.parse(fileContent);
         } catch (parseError) {
@@ -745,7 +743,7 @@ export default function BusinessLogicConfig({
 
         // Call import API
         const result = await importAgent(mainAgentId, agentInfo);
-        
+
         if (result.success) {
           message.success('Agent导入成功');
           // Refresh agent list
@@ -762,6 +760,56 @@ export default function BusinessLogicConfig({
     };
 
     fileInput.click();
+  };
+
+  // Generate system prompt
+  const handleGenerateSystemPrompt = async () => {
+    if (!businessLogic || businessLogic.trim() === '') {
+      message.warning('请先输入业务描述');
+      return;
+    }
+    if (!mainAgentId) {
+      message.warning('无法生成提示词：未指定Agent ID');
+      return;
+    }
+    try {
+      setIsPromptGenerating(true);
+      setLocalIsGenerating(true);
+      const result = await generatePrompt({
+        agent_id: Number(mainAgentId),
+        task_description: businessLogic
+      });
+      setSystemPrompt(result);
+      message.success('提示词生成成功');
+    } catch (error) {
+      console.error('生成提示词失败:', error);
+      message.error(`生成提示词失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      setIsPromptGenerating(false);
+      setLocalIsGenerating(false);
+    }
+  };
+
+  // Save system prompt
+  const handleSaveSystemPrompt = async () => {
+    if (!mainAgentId) {
+      message.warning('无法保存提示词：未指定Agent ID');
+      return;
+    }
+    if (!systemPrompt || systemPrompt.trim() === '') {
+      message.warning('提示词为空，无法保存');
+      return;
+    }
+    try {
+      setIsPromptSaving(true);
+      await savePrompt({ agent_id: Number(mainAgentId), prompt: systemPrompt });
+      message.success('提示词已保存');
+    } catch (error) {
+      console.error('保存提示词失败:', error);
+      message.error('保存提示词失败，请重试');
+    } finally {
+      setIsPromptSaving(false);
+    }
   };
 
   return (
@@ -804,7 +852,7 @@ export default function BusinessLogicConfig({
       </div>
 
       {/* The second half: business logic description */}
-      <div className="flex gap-4 h-[240px] pb-4 pr-4 pl-4">
+      <div className="flex gap-4 h-[240px] pb-4 pr-4 pl-4 items-start">
         <div className="flex-1 h-full">
           <BusinessLogicInput 
             value={businessLogic} 
@@ -813,7 +861,7 @@ export default function BusinessLogicConfig({
             systemPrompt={systemPrompt}
           />
         </div>
-        <div className="w-[280px] h-[200px] flex flex-col">
+        <div className="w-[280px] h-[200px] flex flex-col self-start">
           <div className="flex flex-col gap-5 flex-1">
             <div>
               <span className="block text-lg font-medium mb-2">模型</span>
@@ -834,24 +882,43 @@ export default function BusinessLogicConfig({
                 className="w-full"
               />
             </div>
-            <div className="flex justify-end gap-2 w-full mt-2">
+            <div className="flex justify-start gap-2 w-full mt-4">
+              <button
+                onClick={handleGenerateSystemPrompt}
+                disabled={isPromptGenerating || isPromptSaving}
+                className="px-3.5 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ border: 'none' }}
+              >
+                {isPromptGenerating ? (
+                  <>
+                    <LoadingOutlined spin className="mr-1" />
+                    智能生成提示词
+                  </>
+                ) : (
+                  <>
+                    <ThunderboltOutlined className="mr-1" />
+                    智能生成提示词
+                  </>
+                )}
+              </button>
               {isCreatingNewAgent && (
                 <>
-                  <button
-                    onClick={handleCancelCreating}
-                    className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    style={{ border: "none" }}
-                  >
-                    取消
-                  </button>
                   <button
                     onClick={handleSaveAsAgent}
                     disabled={!canSaveAsAgent}
                     title={getButtonTitle()}
-                    className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ border: "none" }}
                   >
-                    保存到Agent池
+                    {isPromptSaving ? '保存中...' : '保存'}
+                  </button>
+                  <button
+                    onClick={handleCancelCreating}
+                    disabled={isPromptGenerating || isPromptSaving}
+                    className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ border: 'none' }}
+                  >
+                    取消
                   </button>
                 </>
               )}
