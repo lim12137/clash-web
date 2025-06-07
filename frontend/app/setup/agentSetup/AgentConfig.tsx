@@ -11,7 +11,7 @@ import { OpenAIModel } from '@/app/setup/agentSetup/ConstInterface'
 
 // Layout Height Constant Configuration
 const LAYOUT_CONFIG = {
-  MAIN_CONTENT_HEIGHT: "calc(75vh - 45px)",
+  MAIN_CONTENT_HEIGHT: "72.5vh",
   CARD_HEADER_PADDING: "10px 24px",
   CARD_BODY_PADDING: "12px 20px",
   CARD_GAP: 12,
@@ -160,7 +160,7 @@ export default function AgentConfig() {
 
 
   return (
-    <div className="w-full h-full mx-auto px-4" style={{ maxWidth: "1920px" }}>
+    <div className="w-full h-full mx-auto px-4" style={{ maxWidth: "1920px"}}>
       <div className="w-full h-full">
         <Row gutter={[LAYOUT_CONFIG.CARD_GAP, LAYOUT_CONFIG.CARD_GAP]} className="h-full">
           {/* Left Timeline Guide */}
