@@ -9,7 +9,7 @@ on:
         default: '["self-hosted", "MacOS", "ARM64"]'
 
 jobs:
-checkout:
+  checkout:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
     outputs:
       sha: ${{ steps.get-sha.outputs.sha }}
