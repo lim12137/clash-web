@@ -4,44 +4,91 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  checkout:
     runs-on: self-hosted
+    outputs:
+      sha: ${{ steps.get-sha.outputs.sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Git LFS
-        run: git lfs install
+      - name: Get commit SHA
+        id: get-sha
+        run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
-      - name: Cache HuggingFace model
-        uses: actions/cache@v4
-        with:
-          path: ./model-assets/clip-vit-base-patch32
-          key: clip-vit-base-patch32-${{ hashFiles('make/data_process/Dockerfile') }}
+  prepare-models:
+    runs-on: self-hosted
+    needs: checkout
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Clone CLIP model (pointer files)
+      - name: Check if model is cached locally
+        id: check-model
         run: |
+          if [ -f ./model-assets/clip-vit-base-patch32/config.json ]; then
+            echo "cache-hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cache-hit=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Clone model if not cached
+        if: steps.check-model.outputs.cache-hit == 'false'
+        run: |
+          mkdir -p ./model-assets
           GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/openai/clip-vit-base-patch32 ./model-assets/clip-vit-base-patch32
-
-      - name: Pull LFS files with progress
-        run: |
           cd ./model-assets/clip-vit-base-patch32
-          git lfs pull
+          GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull git lfs pull
+          rm -rf .git flax_model.msgpack tf_model.h5
 
-      - name: Clean up unnecessary files
-        run: |
-          rm -rf ./model-assets/clip-vit-base-patch32/.git
-          rm -f ./model-assets/clip-vit-base-patch32/flax_model.msgpack
-          rm -f ./model-assets/clip-vit-base-patch32/tf_model.h5
+      - name: Upload model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clip-vit-model
+          path: ./model-assets/clip-vit-base-patch32
+
+  build-base:
+    runs-on: self-hosted
+    needs: checkout
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Build base image
         run: docker build --progress=plain -t nexent/nexent-base -f make/base/Dockerfile .
 
+  build-main:
+    runs-on: self-hosted
+    needs: build-base
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Build main application image
         run: docker build --progress=plain -t nexent/nexent -f make/main/Dockerfile .
 
+  build-data-process:
+    runs-on: self-hosted
+    needs: prepare-models
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download model artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: clip-vit-model
+          path: ./model-assets/clip-vit-base-patch32
+
       - name: Build data process image
         run: docker build --progress=plain -t nexent/nexent-data-process -f make/data_process/Dockerfile .
+
+  build-web:
+    runs-on: self-hosted
+    needs: checkout
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Build web frontend image
         run: docker build --progress=plain -t nexent/nexent-web -f make/web/Dockerfile . 
