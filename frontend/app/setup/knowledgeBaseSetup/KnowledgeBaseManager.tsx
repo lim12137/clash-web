@@ -114,6 +114,7 @@ function DataConfig() {
         fetchDocuments(knowledgeBase.id);
       }
     };
+    
     window.addEventListener('selectNewKnowledgeBase', handleSelectNewKnowledgeBase as EventListener);
     
     return () => {
