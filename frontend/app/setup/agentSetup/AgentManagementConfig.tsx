@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, memo } from 'react'
-import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber, Tag } from 'antd'
-import { SettingOutlined } from '@ant-design/icons'
+import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber, Tag, Upload } from 'antd'
+import { SettingOutlined, UploadOutlined } from '@ant-design/icons'
 import ToolConfigModal from './components/ToolConfigModal'
 import AgentModalComponent from './components/AgentModal'
 import { AgentModalProps, Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
 import { ScrollArea } from '@/components/ui/scrollArea'
-import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent } from '@/services/agentConfigService'
+import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent, importAgent } from '@/services/agentConfigService'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -116,9 +116,11 @@ function SubAgentPool({
   onSelectAgent, 
   onEditAgent, 
   onCreateNewAgent, 
+  onImportAgent,
   subAgentList = [], 
   loadingAgents = false,
-  enabledAgentIds = []
+  enabledAgentIds = [],
+  isImporting = false
 }: SubAgentPoolProps) {
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
@@ -135,6 +137,20 @@ function SubAgentPool({
             <div className="flex items-center justify-center h-full text-blue-500">
               <span className="text-lg mr-2">+</span>
               <span className="text-sm">新建Agent</span>
+            </div>
+          </div>
+          
+          <div 
+            className={`border rounded-md p-3 flex flex-col justify-center items-center transition-colors duration-200 h-[80px] ${
+              isImporting 
+                ? 'opacity-50 cursor-not-allowed border-gray-300' 
+                : 'cursor-pointer hover:border-green-300 hover:bg-green-50'
+            }`}
+            onClick={isImporting ? undefined : onImportAgent}
+          >
+            <div className={`flex items-center justify-center h-full ${isImporting ? 'text-gray-400' : 'text-green-500'}`}>
+              <UploadOutlined className="text-lg mr-2" />
+              <span className="text-sm">{isImporting ? '导入中...' : '导入Agent'}</span>
             </div>
           </div>
           
@@ -382,6 +398,8 @@ export default function BusinessLogicConfig({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
+  const [fileList, setFileList] = useState<any[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
 
   const fetchSubAgentIdAndEnableToolList = async () => {
     setIsLoadingTools(true);
@@ -690,6 +708,62 @@ export default function BusinessLogicConfig({
     }
   };
 
+  // Handle importing agent
+  const handleImportAgent = () => {
+    if (!mainAgentId) {
+      message.error('主代理ID未设置，无法导入Agent');
+      return;
+    }
+
+    // Create a hidden file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+    fileInput.onchange = async (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      // Check file type
+      if (!file.name.endsWith('.json')) {
+        message.error('请选择JSON格式的文件');
+        return;
+      }
+
+      setIsImporting(true);
+      try {
+        // Read file content
+        const fileContent = await file.text();
+        let agentInfo;
+        
+        try {
+          agentInfo = JSON.parse(fileContent);
+        } catch (parseError) {
+          message.error('文件格式错误，请检查JSON格式');
+          setIsImporting(false);
+          return;
+        }
+
+        // Call import API
+        const result = await importAgent(mainAgentId, agentInfo);
+        
+        if (result.success) {
+          message.success('Agent导入成功');
+          // Refresh agent list
+          refreshAgentList();
+        } else {
+          message.error(result.message || 'Agent导入失败');
+        }
+      } catch (error) {
+        console.error('导入Agent失败:', error);
+        message.error('导入Agent失败，请检查文件内容');
+      } finally {
+        setIsImporting(false);
+      }
+    };
+
+    fileInput.click();
+  };
+
   return (
     <div className="flex flex-col h-full w-full gap-0 justify-between">
       {/* Upper part: Agent pool + Tool pool */}
@@ -700,9 +774,11 @@ export default function BusinessLogicConfig({
             onSelectAgent={handleAgentSelect}
             onEditAgent={handleEditAgent}
             onCreateNewAgent={handleCreateNewAgent}
+            onImportAgent={handleImportAgent}
             subAgentList={subAgentList}
             loadingAgents={loadingAgents}
             enabledAgentIds={enabledAgentIds}
+            isImporting={isImporting}
           />
         </div>
         <div className={`${isCreatingNewAgent ? 'w-full' : 'flex-1'} h-full`}>

@@ -6,8 +6,9 @@ import logging
 from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
 
-from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents
-from services.agent_service import query_or_create_main_agents_api
+from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents, \
+    query_or_create_main_agent_id
+
 from utils.config_utils import config_manager
 from utils.user_utils import get_user_info
 
@@ -103,7 +104,7 @@ async def join_minio_file_description_to_query(minio_files, query):
 async def create_agent_run_info(agent_id, minio_files, query):
     user_id, tenant_id = get_user_info()
     if not agent_id:
-        agent_id = query_or_create_main_agents_api(tenant_id=tenant_id, user_id=user_id)
+        agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
     final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
 
     model_list = await create_model_config_list()
