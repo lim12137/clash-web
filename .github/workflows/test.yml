@@ -1,0 +1,18 @@
+name: Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      runners:
+        description: '逗号分隔的 runner 标签'
+        required: true
+        default: main-builder,data-builder
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        runner: ${{ fromJson('["main-builder","data-builder"]') }} # 实际你可以从 inputs.runners 拆分构造
+    runs-on: [self-hosted, ${{ matrix.runner }}]
+    steps:
+      - run: echo "Running on ${{ matrix.runner }}"
