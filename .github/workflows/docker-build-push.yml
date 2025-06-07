@@ -1,0 +1,73 @@
+name: Docker Build and Push All Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_label_json:
+        description: 'JSON 格式的 runner 标签数组'
+        required: true
+        default: '["self-hosted", "MacOS", "ARM64"]'
+
+jobs:
+  setup-builder:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    steps:
+      - name: Set up Docker Buildx
+        run: |
+          docker buildx create --name nexent_builder --use
+
+  build-and-push-base:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs: setup-builder
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build and push base image (multi-arch)
+        run: |
+          docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-base -f make/base/Dockerfile . --push
+
+  build-and-push-main:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs: build-and-push-base
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build and push main application image (multi-arch)
+        run: |
+          docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent -f make/main/Dockerfile . --push
+
+  build-and-push-data-process:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs: setup-builder
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Check if model is cached locally
+        id: check-model
+        run: |
+          if [ -f ./model-assets/clip-vit-base-patch32/config.json ]; then
+            echo "cache-hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cache-hit=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Clone model if not cached
+        if: steps.check-model.outputs.cache-hit == 'false'
+        run: |
+          mkdir -p ./model-assets
+          GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/openai/clip-vit-base-patch32 ./model-assets/clip-vit-base-patch32
+          cd ./model-assets/clip-vit-base-patch32
+          GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
+          rm -rf .git flax_model.msgpack tf_model.h5
+      - name: Build and push data process image (multi-arch)
+        run: |
+          docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-data-process -f make/data_process/Dockerfile . --push
+
+  build-and-push-web:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs: setup-builder
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build and push web frontend image (multi-arch)
+        run: |
+          docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-web -f make/web/Dockerfile . --push 
