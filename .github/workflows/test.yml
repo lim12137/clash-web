@@ -1,56 +1,26 @@
-name: Test Input Variants
+name: Mixed inputs
 
 on:
   workflow_dispatch:
     inputs:
-      env_name:
-        description: "环境名称（字符串）"
+      name:
+        type: choice
+        description: Who to greet
+        options: 
+        - monalisa
+        - cschleiden
+      message:
         required: true
-        default: "dev"
-
-      enable_feature:
-        description: "启用某个特性（布尔）"
-        required: true
+      use-emoji:
         type: boolean
-        default: false
-
-      runner_owner:
-        description: "Runner 所属者（枚举）"
-        required: true
-        type: choice
-        options:
-          - Shuangrui
-          - Tony
-          - Online
-        default: Shuangrui
-
-      runner_arch:
-        description: "Runner 架构（枚举）"
-        required: true
-        type: choice
-        options:
-          - ARM64
-          - X86
-        default: ARM64
+        description: Include 🎉🤣 emojis
+      environment:
+        type: environment
 
 jobs:
-  matrix-test:
-    name: Matrix Combination Test
-    strategy:
-      matrix:
-        role: [frontend, backend, data-process]
-    runs-on: [self-hosted, ${{ inputs.runner_owner }}, ${{ inputs.runner_arch }}]
+  greet:
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Show matrix + inputs
-        run: |
-          echo "Environment: ${{ inputs.env_name }}"
-          echo "Matrix role: ${{ matrix.role }}"
-          echo "Runner: ${{ runner.name }} [$RUNNER_OS / $RUNNER_ARCH]"
-
-      - name: Run if feature enabled
-        if: ${{ inputs.enable_feature == 'true' }}
-        run: echo "Feature flag is enabled ✅"
-
-      - name: Run if backend task
-        if: ${{ matrix.role == 'backend' }}
-        run: echo "Running backend-specific logic..."
+    - name: Send greeting
+      run: echo "${{ github.event.inputs.message }} ${{ fromJSON('["", "🥳"]')[github.event.inputs.use-emoji == 'true'] }} ${{ github.event.inputs.name }}"
