@@ -20,6 +20,9 @@ import KnowledgeBaseList from './knowledgeBase/KnowledgeBaseList'
 import DocumentList from './document/DocumentListContainer'
 import ConfirmModal from './components/ConfirmModal'
 
+// Layout Height Constant Configuration (shared with AgentConfig)
+export const MAIN_CONTENT_HEIGHT = '72.5vh';
+
 // EmptyState component defined directly in this file
 interface EmptyStateProps {
   icon?: React.ReactNode | string
@@ -520,7 +523,7 @@ function DataConfig() {
             onCreateNew={handleCreateNew}
             isSelectable={isKnowledgeBaseSelectable}
             getModelDisplayName={(modelId) => modelId}
-            containerHeight={'70.8vh'}
+            containerHeight={MAIN_CONTENT_HEIGHT}
             onKnowledgeBaseChange={() => {}} // No need to trigger repeatedly here as it's already handled in handleKnowledgeBaseClick
           />
         </div>
@@ -540,7 +543,7 @@ function DataConfig() {
                   isCreatingMode={true}
                   knowledgeBaseName={newKbName}
                   onNameChange={setNewKbName}
-                  containerHeight={'70.8vh'}
+                  containerHeight={MAIN_CONTENT_HEIGHT}
                   hasDocuments={hasClickedUpload || docState.isUploading}
                   // Upload related props
                   isDragging={uiState.isDragging}
@@ -566,7 +569,7 @@ function DataConfig() {
                     `当前模型${kbState.currentEmbeddingModel || ''}与知识库模型${kbState.activeKnowledgeBase.embeddingModel}不匹配，无法使用` :
                     undefined
                   }
-                  containerHeight={'70.8vh'}
+                  containerHeight={MAIN_CONTENT_HEIGHT}
                   hasDocuments={viewingDocuments.length > 0}
                   // Upload related props
                   isDragging={uiState.isDragging}
@@ -584,7 +587,7 @@ function DataConfig() {
                     title="未选择知识库"
                     description="请在左侧列表选择一个知识库，或创建新的知识库"
                     icon={<InfoCircleFilled style={{ fontSize: 36, color: '#1677ff' }} />}
-                    containerHeight={'70.8vh'}
+                    containerHeight={MAIN_CONTENT_HEIGHT}
                   />
                 </div>
               )}
