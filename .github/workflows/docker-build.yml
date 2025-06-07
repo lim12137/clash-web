@@ -2,6 +2,20 @@ name: Docker Build All Images
 
 on:
   workflow_dispatch:
+    inputs:
+      runners:
+        description: 'Comma-separated runner labels'
+        required: true
+        default: cloud-builder,local-builder
+        type: string
+      architecture:
+        description: 'Architecture'
+        required: true
+        default: ARM64
+        type: choice
+        options:
+          - ARM64
+          - X86
 
 jobs:
   checkout:
