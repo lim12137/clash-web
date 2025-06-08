@@ -3,7 +3,7 @@
 [![English](https://img.shields.io/badge/English-README-blue)](README.md)
 [![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
 
-Nexent is an open-source agent platform that turns process-level natural language into complete multimodal agents — no diagrams, no wiring. Built on the MCP tool ecosystem, Nexent offers flexible model integration, scalable data processing, robust knowledge-base management, and zero-code agent development. Our goal is simple: to bring data, models, and tools together in one smart hub, so anyone can easily integrate Nexent into projects and make daily workflows smarter and more connected.
+Nexent is an open-source agent platform that turns process-level natural language into complete multimodal agents — no diagrams, no wiring. Built on the MCP tool ecosystem, Nexent provides model integration, data processing, knowledge-base management, and zero-code agent development. Our goal is simple: to bring data, models, and tools together in one smart hub, making daily workflows smarter and more connected.
 
 > One prompt. Endless reach.
 
