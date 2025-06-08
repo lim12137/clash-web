@@ -154,4 +154,4 @@ bash deploy.sh
 
 # 📄 许可证
 
-Nexent 采用 [Apache License 2.0](LICENSE) 许可证，并附有额外条件。请阅读 [LICENSE](LICENSE) 文件了解详情。
+Nexent 采用 [MIT](LICENSE) 许可证，并附有额外条件。请阅读 [LICENSE](LICENSE) 文件了解详情。
