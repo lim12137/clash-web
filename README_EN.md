@@ -154,5 +154,5 @@ Join our [Discord community](https://discord.gg/tb5H3S3wyv) to chat with other d
 
 # 📄 License
 
-Nexent is licensed under the [Apache License 2.0](LICENSE) with additional conditions. Please read the [LICENSE](LICENSE) file for details.
+Nexent is licensed under the [MIT](LICENSE) with additional conditions. Please read the [LICENSE](LICENSE) file for details.
 
