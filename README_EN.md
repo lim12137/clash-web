@@ -129,16 +129,13 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 # 🐛 Known Issues
 
 1. 🔄 **Knowledge Base Refresh Delays**  
-   We are aware that the knowledge base refresh mechanism currently has some delays, occasional errors, or instances where refreshes don't take effect. We plan to refactor this part soon, but please note that this is only a task management logic issue - the actual data processing speed is not affected.
+   We are aware that the knowledge base refresh mechanism currently has some delays. We plan to refactor this part soon, but please note that this is only a task management logic issue - the actual data processing speed is not affected.
 
 2. 🤖 **Limited Model Provider Support**  
    We currently have limited support for different model providers, including voice and multimodal models. We will be rapidly updating this support in the coming weeks - stay tuned for updates!
 
-3. 🎨 **Missing Agent Creation & Configuration Interface**  
-   We acknowledge that we currently don't provide a visualization interface for agent creation, tool selection, and configuration. We plan to implement this feature in the coming weeks to make the agent creation process more intuitive and user-friendly.
-
-4. 📦 **Large Docker Image Size**  
-   We are aware that our current Docker image is quite large as it includes many development middleware components. We are actively working on optimizing and reducing the image size to make deployment faster and lighter.
+3. 📦 **Large Docker Image Size**  
+   We are aware that our current Docker image is quite large (around 10GB) as it includes a powerful, extensible data processing engine, algorithms, and models. We will soon release a Lite version to reduce the image size and make deployment faster and lighter.
 
 # 👥 Contributing
 
