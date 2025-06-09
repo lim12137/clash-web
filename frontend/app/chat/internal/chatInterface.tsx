@@ -232,6 +232,9 @@ export function ChatInterface() {
     // Add initial AI reply message (will show loading state)
     setMessages(prevMessages => [...prevMessages, initialAssistantMessage])
 
+    // 发送消息后自动滚动到底部
+    setShouldScrollToBottom(true);
+
     setIsLoading(true)
     setIsStreaming(true) // Set streaming state to true
 
@@ -603,6 +606,9 @@ export function ChatInterface() {
 
     // Wait for all state updates to complete
     await new Promise(resolve => setTimeout(resolve, 0));
+
+    // 确保新对话时滚动到底部
+    setShouldScrollToBottom(true);
   }
 
   const fetchConversationList = async () => {
