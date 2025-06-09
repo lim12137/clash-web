@@ -16,6 +16,7 @@ export interface Agent {
   tools: Tool[];
   prompt: string;
   business_description?: string;
+  is_available?: boolean;
 }
 
 export interface Tool {
@@ -24,6 +25,7 @@ export interface Tool {
   description: string;
   source: 'local' | 'mcp';
   initParams: ToolParam[];
+  is_available?: boolean;
 }
 
 export interface ToolParam {

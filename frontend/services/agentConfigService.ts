@@ -19,6 +19,7 @@ export const fetchTools = async () => {
       name: tool.name,
       description: tool.description,
       source: tool.source,
+      is_available: tool.is_available,
       initParams: tool.params.map(param => {
         return {
           name: param.name,
@@ -68,6 +69,7 @@ export const fetchAgentList = async () => {
       business_description: agent.business_description,
       parentAgentId: agent.parent_agent_id,
       enabled: agent.enabled,
+      is_available: agent.is_available,
       createTime: agent.create_time,
       updateTime: agent.update_time,
       tools: agent.tools ? agent.tools.map((tool: any) => {
@@ -77,6 +79,7 @@ export const fetchAgentList = async () => {
           name: tool.name,
           description: tool.description,
           source: tool.source,
+          is_available: tool.is_available,
           initParams: Array.isArray(params) ? params.map((param: any) => ({
             name: param.name,
             type: convertParamType(param.type),
