@@ -221,7 +221,11 @@ class AgentConfigurationService:
     default_agent_path = "backend/agents/default_agents/"
     def __init__(self):
         self.user_id, self.tenant_id = get_user_info()
-        self.import_default_agents()
+        try:
+            self.import_default_agents()
+        except Exception as e:
+            logger.error(f"Failed to import default agents: {str(e)}")
+            raise ValueError(f"Failed to import default agents: {str(e)}")
 
     def search_sub_agents(self):
         try:
@@ -255,12 +259,21 @@ class AgentConfigurationService:
         main_agent_id, sub_agent_list = self.search_sub_agents()
         sub_agent_name_list = [sub_agent["name"] for sub_agent in sub_agent_list]
         
-        default_agents = self.load_default_agents()
+        try:
+            default_agents = self.load_default_agents()
+        except Exception as e:
+            logger.error(f"Failed to load default agents: {str(e)}")
+            raise ValueError(f"Failed to load default agents: {str(e)}")
+        
         for agent in default_agents:
             if agent.name in sub_agent_name_list:
                 continue
             else:
-                import_agent_impl(parent_agent_id=main_agent_id, agent_info=agent)
+                try:
+                    import_agent_impl(parent_agent_id=main_agent_id, agent_info=agent)
+                except Exception as e:
+                    logger.error(f"agent name: {agent.name}, error: {str(e)}")
+                    raise ValueError(f"agent name: {agent.name}, error: {str(e)}")
 
 
 agent_configuration_service = AgentConfigurationService()
