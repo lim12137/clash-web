@@ -1,0 +1,48 @@
+name: Deploy Nexent Commercial
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_mode:
+        description: '部署模式: development or production'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - production
+      runner_label_json:
+        description: 'JSON 格式的 runner 标签数组'
+        required: true
+        default: '["self-hosted", "MacOS", "ARM64"]'
+
+jobs:
+  build-and-deploy:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 构建基础镜像
+      - name: Build base image
+        run: docker build --progress=plain -t nexent/nexent-base-commercial -f make/base/Dockerfile .
+
+      # 构建主应用镜像
+      - name: Build main application image
+        run: docker build --progress=plain -t nexent/nexent-commercial -f make/main/Dockerfile .
+
+      # 构建数据处理镜像
+      - name: Build data process image
+        run: docker build --progress=plain -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile .
+
+      # 构建前端镜像
+      - name: Build web frontend image
+        run: docker build --progress=plain -t nexent/nexent-web-commercial -f make/web/Dockerfile .
+
+      - name: Ensure deploy.sh is executable
+        run: chmod +x docker/deploy.sh
+
+      - name: Deploy with deploy.sh
+        env:
+          DEPLOYMENT_MODE: ${{ github.event.inputs.deployment_mode }}
+        run: ./docker/deploy.sh
