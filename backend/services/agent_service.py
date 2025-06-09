@@ -1,3 +1,8 @@
+import os
+import json
+import logging
+
+
 from agents.create_agent_info import create_tool_config_list
 from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ToolInstanceInfoRequest
 from database.agent_db import create_agent, query_all_enabled_tool_instances, \
@@ -6,7 +11,7 @@ from database.agent_db import create_agent, query_all_enabled_tool_instances, \
     create_or_update_tool_by_tool_info
 
 from utils.user_utils import get_user_info
-import logging
+
 
 logger = logging.getLogger("agent service")
 
@@ -211,3 +216,51 @@ def import_agent_impl(parent_agent_id: int, agent_info: ExportAndImportAgentInfo
     for tool in tool_list:
         tool.agent_id = new_agent_id
         create_or_update_tool_by_tool_info(tool_info=tool, tenant_id=tenant_id, user_id=user_id)
+
+class AgentConfigurationService:
+    default_agent_path = "backend/agents/default_agents/"
+    def __init__(self):
+        self.user_id, self.tenant_id = get_user_info()
+        self.import_default_agents()
+
+    def search_sub_agents(self):
+        try:
+            main_agent_id = query_or_create_main_agent_id(tenant_id=self.tenant_id, user_id=self.user_id)
+        except Exception as e:
+            logger.error(f"Failed to get main agent id: {str(e)}")
+            raise ValueError(f"Failed to get main agent id: {str(e)}")
+
+        try:
+            sub_agent_list = query_sub_agents(main_agent_id, self.tenant_id, self.user_id)
+        except Exception as e:
+            logger.error(f"Failed to get sub agent list: {str(e)}")
+            raise ValueError(f"Failed to get sub agent list: {str(e)}")
+
+        return main_agent_id, sub_agent_list
+
+    def load_default_agents(self):
+        # load all json files in the folder
+        all_json_files = []
+        agent_file_list = os.listdir(self.default_agent_path)
+        for agent_file in agent_file_list:
+            if agent_file.endswith(".json"):
+                with open(os.path.join(self.default_agent_path, agent_file), "r", encoding="utf-8") as f:
+                    agent_json = json.load(f)
+
+                export_agent_info = ExportAndImportAgentInfo.model_validate(agent_json)
+                all_json_files.append(export_agent_info)
+        return all_json_files
+    
+    def import_default_agents(self):
+        main_agent_id, sub_agent_list = self.search_sub_agents()
+        sub_agent_name_list = [sub_agent["name"] for sub_agent in sub_agent_list]
+        
+        default_agents = self.load_default_agents()
+        for agent in default_agents:
+            if agent.name in sub_agent_name_list:
+                continue
+            else:
+                import_agent_impl(parent_agent_id=main_agent_id, agent_info=agent)
+
+
+agent_configuration_service = AgentConfigurationService()
