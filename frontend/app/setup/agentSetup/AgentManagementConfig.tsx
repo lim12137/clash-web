@@ -24,6 +24,12 @@ const handleToolSelectCommon = async (
   mainAgentId: string | null | undefined,
   onSuccess?: (tool: Tool, isSelected: boolean) => void
 ) => {
+  // 首先检查工具是否可用
+  if (tool.is_available === false) {
+    message.error('该工具当前不可用，无法选择');
+    return { shouldProceed: false, params: {} };
+  }
+
   if (!mainAgentId) {
     message.error('主代理ID未设置，无法更新工具状态');
     return { shouldProceed: false, params: {} };
@@ -158,19 +164,28 @@ function SubAgentPool({
 
           {subAgentList.map((agent) => {
             const isEnabled = enabledAgentIds.includes(Number(agent.id));
+            const isAvailable = agent.is_available !== false; // 默认为true，只有明确为false时才不可用
             return (
               <div 
                 key={agent.id} 
-                className={`border rounded-md p-3 flex flex-col justify-center cursor-pointer transition-colors duration-200 h-[80px] ${
-                  isEnabled ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
+                className={`border rounded-md p-3 flex flex-col justify-center transition-colors duration-200 h-[80px] ${
+                  !isAvailable
+                    ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
+                    : isEnabled 
+                      ? 'bg-blue-100 border-blue-400 cursor-pointer' 
+                      : 'hover:border-blue-300 cursor-pointer'
                 }`}
-                onClick={() => onSelectAgent(agent, !isEnabled)}
+                title={!isAvailable ? 'Agent不可用' : undefined}
+                onClick={() => {
+                  if (!isAvailable) return;
+                  onSelectAgent(agent, !isEnabled);
+                }}
               >
                 <div className="flex items-center h-full">
                   <div className="flex-1 overflow-hidden">
-                    <div className="font-medium text-sm truncate" title={agent.name}>{agent.name}</div>
+                    <div className={`font-medium text-sm truncate ${!isAvailable ? 'text-gray-400' : ''}`} title={agent.name}>{agent.name}</div>
                     <div 
-                      className="text-xs text-gray-500 line-clamp-2" 
+                      className={`text-xs line-clamp-2 ${!isAvailable ? 'text-gray-400' : 'text-gray-500'}`}
                       title={agent.description}
                     >
                       {agent.description}
@@ -182,7 +197,9 @@ function SubAgentPool({
                       e.stopPropagation();
                       onEditAgent(agent);
                     }}
-                    className="ml-2 flex-shrink-0 flex items-center justify-center text-gray-500 hover:text-blue-500 bg-transparent"
+                    className={`ml-2 flex-shrink-0 flex items-center justify-center bg-transparent ${
+                      !isAvailable ? 'text-gray-400 hover:text-gray-600' : 'text-gray-500 hover:text-blue-500'
+                    }`}
                     style={{ border: "none", padding: "4px" }}
                   >
                     <SettingOutlined style={{ fontSize: '16px' }} />
@@ -292,37 +309,45 @@ function ToolPool({
   // Use memo to optimize the rendering of tool items
   const ToolItem = memo(({ tool }: { tool: Tool }) => {
     const isSelected = selectedToolIds.has(tool.id);
+    const isAvailable = tool.is_available !== false; // 默认为true，只有明确为false时才不可用
     
     return (
       <div 
         className={`border rounded-md p-2 flex items-center transition-colors duration-200 min-h-[45px] ${
-          isSelected ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
-        } ${localIsGenerating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+          !isAvailable
+            ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
+            : isSelected 
+              ? 'bg-blue-100 border-blue-400' 
+              : 'hover:border-blue-300'
+        } ${localIsGenerating && isAvailable ? 'opacity-50 cursor-not-allowed' : isAvailable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+        title={!isAvailable ? '工具不可用' : undefined}
         onClick={(e) => {
-          if (localIsGenerating) return;
+          if (localIsGenerating || !isAvailable) return;
           handleToolSelect(tool, !isSelected, e);
         }}
       >
         {/* Tool name left */}
         <div className="flex-1 overflow-hidden">
-          <div className="font-medium text-sm truncate" title={tool.name}>{tool.name}</div>
+          <div className={`font-medium text-sm truncate ${!isAvailable ? 'text-gray-400' : ''}`} title={tool.name}>
+            {tool.name}
+          </div>
         </div>
         {/* Tag and settings button right */}
         <div className="flex items-center gap-2 ml-2">
           <div className="flex items-center justify-start min-w-[90px] w-[90px]">
-            <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} className="w-full text-center">
+            <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} className={`w-full text-center ${!isAvailable ? 'opacity-50' : ''}`}>
               {tool?.source === 'mcp' ? 'MCP工具' : '本地工具'}
             </Tag>
           </div>
           <button 
             type="button"
             onClick={(e) => {
-              if (localIsGenerating) return;
+              if (localIsGenerating || !isAvailable) return;
               handleConfigClick(tool, e);
             }}
-            disabled={localIsGenerating}
+            disabled={localIsGenerating || !isAvailable}
             className={`flex-shrink-0 flex items-center justify-center bg-transparent ${
-              localIsGenerating ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-blue-500'
+              localIsGenerating || !isAvailable ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-blue-500'
             }`}
             style={{ border: "none", padding: "4px" }}
           >
@@ -619,6 +644,12 @@ export default function BusinessLogicConfig({
 
   // Handle the update of the Agent selection status
   const handleAgentSelect = async (agent: Agent, isSelected: boolean) => {
+    // 首先检查Agent是否可用
+    if (agent.is_available === false) {
+      message.error('该Agent当前不可用，无法选择');
+      return;
+    }
+
     try {
       const result = await updateAgent(
         Number(agent.id),
