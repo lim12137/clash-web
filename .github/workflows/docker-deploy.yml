@@ -86,19 +86,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Copy project to /opt/nexent-commercial
+      - name: Copy project to $HOME/nexent-commercial
         run: |
-          sudo rm -rf /opt/nexent-commercial
-          sudo mkdir -p /opt/nexent-commercial
-          sudo cp -r $GITHUB_WORKSPACE/* /opt/nexent-commercial/
-          sudo chown -R $(whoami):$(whoami) /opt/nexent-commercial
+          rm -rf $HOME/nexent-commercial
+          mkdir -p $HOME/nexent-commercial
+          cp -r $GITHUB_WORKSPACE/* $HOME/nexent-commercial/
       - name: Ensure deploy.sh is executable
-        run: chmod +x /opt/nexent-commercial/docker/deploy.sh
+        run: chmod +x $HOME/nexent-commercial/docker/deploy.sh
       - name: Deploy with deploy.sh
         env:
           DEPLOYMENT_MODE: ${{ github.event.inputs.deployment_mode }}
         run: |
-          cd /opt/nexent-commercial/docker
+          cd $HOME/nexent-commercial/docker
           if [ "$DEPLOYMENT_MODE" = "production" ]; then
             echo 2 | ./deploy.sh
           else
