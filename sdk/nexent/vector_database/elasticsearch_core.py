@@ -65,7 +65,7 @@ class ElasticSearchCore:
             api_key=self.api_key,
             verify_certs=verify_certs,
             ssl_show_warn=ssl_show_warn,
-            timeout=10,
+            timeout=20,
             max_retries=3,  # Reduce retries for faster failure detection
             retry_on_timeout=True,
             retry_on_status=[502, 503, 504],  # Retry on these status codes,

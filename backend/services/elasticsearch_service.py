@@ -163,11 +163,9 @@ class ElasticSearchService:
         else:
             return {"indices": indices, "count": len(indices)}
 
-
-    def get_index_info(self,
+    @staticmethod
+    def get_index_info(
             index_name: str = Path(..., description="Name of the index"),
-            include_files: bool = Query(True, description="Whether to include file list"),
-            include_chunks: bool = Query(False, description="Whether to include text chunks for each file"),
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
@@ -175,8 +173,6 @@ class ElasticSearchService:
 
         Args:
             index_name: Index name
-            include_files: Whether to include file list
-            include_chunks: Whether to include text chunks for each file
             es_core: ElasticSearchCore instance
 
         Returns:
@@ -186,12 +182,6 @@ class ElasticSearchService:
             # Get all the info in one combined response
             stats = es_core.get_index_stats([index_name])
             mappings = es_core.get_index_mapping([index_name])
-
-            # Get file list if requested
-            files = []
-            if include_files:
-                file_list_result = self.list_files(index_name, include_chunks, es_core)
-                files = file_list_result["files"]
 
             # Check if stats and mappings are valid
             index_stats = None
@@ -228,8 +218,7 @@ class ElasticSearchService:
             return {
                 "base_info": base_info,
                 "search_performance": search_performance,
-                "fields": fields,
-                "files": files
+                "fields": fields
             }
         except Exception as e:
             error_msg = str(e)
@@ -392,13 +381,10 @@ class ElasticSearchService:
         """
         try:
             files = []
-            
             # Get existing files from ES
             existing_files = es_core.get_file_list_with_details(index_name)
-
             # Get unique celery files list and the status of each file
             celery_task_files = get_all_files_status(index_name)
-
             # Create a set of path_or_urls from existing files for quick lookup
             existing_paths = {file_info.get('path_or_url') for file_info in existing_files}
 
@@ -427,45 +413,57 @@ class ElasticSearchService:
                     files.append(file_data)
 
             # Unified chunks processing for all files
-            for file_data in files:
-                if include_chunks and file_data['status'] == "COMPLETED":
-                    # Only get chunks for completed files (files stored in ES)
-                    path_or_url = file_data['path_or_url']
-                    chunks_query = {
-                        "query": {
-                            "term": {
-                                "path_or_url": path_or_url
-                            }
-                        },
+            if include_chunks:
+                # Prepare msearch body for all completed files
+                completed_files_map = {f['path_or_url']: f for f in files if f['status'] == "COMPLETED"}
+                msearch_body = []
+                
+                for path_or_url in completed_files_map.keys():
+                    msearch_body.append({'index': index_name})
+                    msearch_body.append({
+                        "query": {"term": {"path_or_url": path_or_url}},
                         "size": 100,
                         "_source": ["id", "title", "content", "create_time"]
-                    }
+                    })
 
+                # Initialize chunks for all files
+                for file_data in files:
+                    file_data['chunks'] = []
+                    file_data['chunk_count'] = 0
+                
+                if msearch_body:
                     try:
-                        chunks_response = es_core.client.search(
+                        msearch_responses = es_core.client.msearch(
+                            body=msearch_body, 
                             index=index_name,
-                            body=chunks_query
+                            request_timeout=30
                         )
+                        
+                        for i, file_path in enumerate(completed_files_map.keys()):
+                            response = msearch_responses['responses'][i]
+                            file_data = completed_files_map[file_path]
 
-                        chunks = []
-                        for hit in chunks_response["hits"]["hits"]:
-                            source = hit["_source"]
-                            chunks.append({
-                                "id": source.get("id"),
-                                "title": source.get("title"),
-                                "content": source.get("content"),
-                                "create_time": source.get("create_time")
-                            })
+                            if 'error' in response:
+                                print(f"Error getting chunks for {file_data.get('path_or_url')}: {response['error']}")
+                                continue
 
-                        file_data['chunks'] = chunks
-                        file_data['chunk_count'] = len(chunks)
+                            chunks = []
+                            for hit in response["hits"]["hits"]:
+                                source = hit["_source"]
+                                chunks.append({
+                                    "id": source.get("id"),
+                                    "title": source.get("title"),
+                                    "content": source.get("content"),
+                                    "create_time": source.get("create_time")
+                                })
 
+                            file_data['chunks'] = chunks
+                            file_data['chunk_count'] = len(chunks)
+                            
                     except Exception as e:
-                        print(f"Error getting chunks for {path_or_url}: {str(e)}")
-                        file_data['chunks'] = []
-                        file_data['chunk_count'] = 0
-                else:
-                    # Set empty chunks for files not requiring chunks or not completed
+                        print(f"Error during msearch for chunks: {str(e)}")
+            else:
+                for file_data in files:
                     file_data['chunks'] = []
                     file_data['chunk_count'] = 0
                     

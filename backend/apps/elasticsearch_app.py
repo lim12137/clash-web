@@ -50,13 +50,11 @@ def get_list_indices(
 @router.get("/{index_name}/info")
 def get_es_index_info(
         index_name: str = Path(..., description="Name of the index"),
-        include_files: bool = Query(True, description="Whether to include file list"),
-        include_chunks: bool = Query(False, description="Whether to include text chunks for each file"),
         es_core: ElasticSearchCore = Depends(get_es_core)
 ):
     """Get comprehensive information about an index including stats, fields, sources and process info"""
     try:
-        return service.get_index_info(index_name, include_files, include_chunks, es_core)
+        return ElasticSearchService.get_index_info(index_name, es_core)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{str(e)}")
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Document } from '@/types/knowledgeBase'
+import { Document, NON_TERMINAL_STATUSES } from '@/types/knowledgeBase'
 import DocumentStatus from './DocumentStatus'
 import { InfoCircleFilled } from '@ant-design/icons'
 import UploadArea from '../components/UploadArea'
@@ -394,7 +394,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                         <button
                           onClick={() => onDelete(doc.id)}
                           className={LAYOUT.ACTION_TEXT}
-                          disabled={doc.status === "WAIT_FOR_PROCESSING" || doc.status === "PROCESSING" || doc.status === "WAIT_FOR_FORWARDING" || doc.status === "FORWARDING"}
+                          disabled={NON_TERMINAL_STATUSES.includes(doc.status)}
                         >
                           删除
                         </button>

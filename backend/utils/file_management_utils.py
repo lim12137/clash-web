@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 from typing import List
+import traceback
 
 import aiofiles
 import httpx
@@ -105,26 +106,33 @@ def get_all_files_status(index_name: str):
         Dictionary with path_or_url as keys and custom_state as values
     """
     try:
-        url = f"{DATA_PROCESS_SERVICE}/tasks"
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
+        # Import here to avoid circular import
+        from services.data_process_service import get_data_process_service
         
-        tasks_data = response.json()
-        tasks_list = tasks_data.get("tasks", [])
+        # Use get_index_tasks to directly get tasks for the specified index
+        # This avoids the need for manual filtering and is more efficient
+        tasks_list = get_data_process_service().get_index_tasks(index_name)
+        
+        # Log the number of tasks found instead of printing all data
+        logging.info(f"Found {len(tasks_list)} tasks for index '{index_name}'")
+        
+        # If no tasks found, return empty dict
+        if not tasks_list:
+            logging.info(f"No tasks found for index '{index_name}'")
+            return {}
         
         # Dictionary to store file statuses: {path_or_url: {process_state, forward_state, timestamps}}
         file_states = {}
         
         for task_info in tasks_list:
-            # Check if this task matches our criteria
-            task_index_name = task_info.get('index_name', '')
+            # No need to check index_name since get_index_tasks already filters by it
             task_path_or_url = task_info.get('path_or_url', '')
             task_name = task_info.get('task_name', '')
             task_status = task_info.get('status', '')
             task_created_at = task_info.get('created_at', 0)
             
-            # Match by index_name
-            if task_index_name == index_name and task_path_or_url:
+            # Only process tasks with valid path_or_url
+            if task_path_or_url:
                 
                 # Initialize file state if not exists
                 if task_path_or_url not in file_states:
@@ -157,10 +165,12 @@ def get_all_files_status(index_name: str):
             logging.debug(f"File status for {path_or_url} in index {index_name}: "
                          f"process={file_state['process_state']}, forward={file_state['forward_state']} -> {custom_state}")
         
+        logging.info(f"Processed status for {len(result)} files in index '{index_name}'")
         return result
         
     except Exception as e:
         logging.error(f"Error getting all files status for index {index_name}: {str(e)}")
+        logging.error(f"Error details: {traceback.format_exc()}")
         return {}  # Return empty dict on error
 
 

@@ -1,6 +1,6 @@
 // Knowledge Base Polling Service - Encapsulates polling logic, separates business logic from components
 
-import { Document } from '@/types/knowledgeBase';
+import { Document, NON_TERMINAL_STATUSES, KnowledgeBase } from '@/types/knowledgeBase';
 import knowledgeBaseService from './knowledgeBaseService';
 
 class KnowledgeBasePollingService {
@@ -49,7 +49,7 @@ class KnowledgeBasePollingService {
           return;
         }
         
-        // Get latest document status, use force refresh parameter
+        // Get latest document status
         const documents = await knowledgeBaseService.getAllFiles(kbId);
         
         // Call callback function with latest documents first to ensure UI updates immediately
@@ -57,7 +57,7 @@ class KnowledgeBasePollingService {
         
         // Check if any documents are in processing
         const hasProcessingDocs = documents.some(doc => 
-          doc.status === "PROCESSING" || doc.status === "FORWARDING" || doc.status === "WAITING"
+          NON_TERMINAL_STATUSES.includes(doc.status)
         );
         
         // If there are processing documents, continue polling
@@ -67,8 +67,15 @@ class KnowledgeBasePollingService {
           return;
         }
         
-        // 如果所有文档处理完成且信息完整，停止轮询
-        console.log('所有文档处理完成且信息完整，停止轮询');
+        // All documents processed, stopping polling
+        console.log('All documents processed, stopping polling');
+        for (const doc of documents) {
+          console.log("================================================")
+          console.log(`Document Name: ${doc.name}`);
+          console.log(`Document Status: ${doc.status}`);
+          console.log(`Document Size: ${doc.size}`);
+          console.log("================================================")
+        }
         this.stopPolling(kbId);
         
         // Trigger knowledge base list update
@@ -82,64 +89,87 @@ class KnowledgeBasePollingService {
     this.pollingIntervals.set(kbId, interval);
   }
   
-  // Poll to check if new knowledge base is created successfully and has at least one document
-  waitForKnowledgeBaseCreation(kbName: string, onSuccess: (found: boolean) => void): void {
-    let count = 0;
-    
-    const checkForKnowledgeBase = async () => {
-      try {
-        // Use lightweight API to check if knowledge base exists, without getting detailed statistics
-        const exists = await knowledgeBaseService.checkKnowledgeBaseNameExists(kbName);
-        
-        if (exists) {
-          // Knowledge base exists, check if it has documents
-          try {
-            const documents = await knowledgeBaseService.getAllFiles(kbName);
-            
-            if (documents && documents.length > 0) {
-              // After knowledge base is created successfully and has documents, get complete info (with statistics)
+  /**
+   * Poll to check if knowledge base is ready (exists and stats updated).
+   * @param kbName Knowledge base name
+   * @param originalDocumentCount The document count before upload (for incremental upload)
+   * @param expectedIncrement The number of new files uploaded
+   */
+  pollForKnowledgeBaseReady(
+    kbName: string,
+    originalDocumentCount: number = 0,
+    expectedIncrement: number = 0
+  ): Promise<KnowledgeBase> {
+    return new Promise((resolve, reject) => {
+      let count = 0;
+      const checkForStats = async () => {
+        try {
+          const kbs = await knowledgeBaseService.getKnowledgeBasesInfo(true) as KnowledgeBase[];
+          const kb = kbs.find(k => k.name === kbName);
+
+          // Check if KB exists and its stats are populated
+          if (kb) {
+            // If expectedIncrement > 0, check if documentCount increased as expected
+            if (
+              expectedIncrement > 0 &&
+              kb.documentCount >= (originalDocumentCount + expectedIncrement)
+            ) {
+              console.log(
+                `Knowledge base ${kbName} documentCount increased as expected: ${kb.documentCount} (was ${originalDocumentCount}, expected increment ${expectedIncrement})`
+              );
               this.triggerKnowledgeBaseListUpdate(true);
-              
-              // Call success callback
-              onSuccess(true);
+              resolve(kb);
               return;
-            } else {
-              console.log(`Knowledge base ${kbName} created but no documents yet, continue waiting...`);
             }
-          } catch (docError) {
-            // Document fetch failed, possibly document index not created yet
-            console.log(`Knowledge base ${kbName} created but failed to get documents, continue waiting...`);
+            // Fallback: for new KB or no increment specified, use old logic
+            if (expectedIncrement === 0 && (kb.documentCount > 0 || kb.chunkCount > 0)) {
+              console.log(`Knowledge base ${kbName} is ready and stats are populated.`);
+              this.triggerKnowledgeBaseListUpdate(true);
+              resolve(kb);
+              return;
+            }
           }
-        } else {
-          console.log(`Knowledge base ${kbName} not created yet, continue waiting...`);
-        }
-        
-        // Increment counter
-        count++;
-        
-        // If not reached maximum attempts, continue polling
-        if (count < this.maxKnowledgeBasePolls) {
-          setTimeout(checkForKnowledgeBase, this.knowledgeBasePollingInterval);
-        } else {
-          console.error(`Knowledge base ${kbName} creation check timed out, attempted ${count} times`);
-          onSuccess(false);
-        }
-      } catch (error) {
-        console.error(`Failed to check if knowledge base ${kbName} is created:`, error);
-        
-        // Continue trying after error unless maximum attempts reached
-        if (count < this.maxKnowledgeBasePolls) {
-          setTimeout(checkForKnowledgeBase, this.knowledgeBasePollingInterval);
+
           count++;
-        } else {
-          console.error(`Failed to check if knowledge base ${kbName} is created, attempted ${count} times`);
-          onSuccess(false);
+          if (count < this.maxKnowledgeBasePolls) {
+            console.log(`Knowledge base ${kbName} not ready yet, continue waiting...`);
+            setTimeout(checkForStats, this.knowledgeBasePollingInterval);
+          } else {
+            console.error(`Knowledge base ${kbName} readiness check timed out.`);
+            reject(new Error(`Timed out waiting for stats for knowledge base ${kbName}.`));
+          }
+        } catch (error) {
+          console.error(`Failed to get stats for knowledge base ${kbName}:`, error);
+          count++;
+          if (count < this.maxKnowledgeBasePolls) {
+            setTimeout(checkForStats, this.knowledgeBasePollingInterval);
+          } else {
+            reject(new Error(`Failed to get stats for knowledge base ${kbName} after multiple attempts.`));
+          }
         }
-      }
-    };
-    
-    // Start polling
-    checkForKnowledgeBase();
+      };
+      checkForStats();
+    });
+  }
+
+  // Simplified method for new knowledge base creation workflow
+  async handleNewKnowledgeBaseCreation(kbName: string, originalDocumentCount: number = 0, expectedIncrement: number = 0, callback: (kb: KnowledgeBase) => void) {
+    try {
+      // Start document polling immediately - no need to wait for KB existence
+      this.startDocumentStatusPolling(kbName, (documents) => {
+        this.triggerDocumentsUpdate(kbName, documents);
+      });
+      
+      // Wait for the knowledge base to be ready (exist and have stats)
+      const populatedKB = await this.pollForKnowledgeBaseReady(kbName, originalDocumentCount, expectedIncrement);
+      
+      // Call success callback with populated knowledge base
+      callback(populatedKB);
+      
+    } catch (error) {
+      console.error(`Failed to handle new knowledge base creation for ${kbName}:`, error);
+      throw error;
+    }
   }
   
   // Stop polling for specific knowledge base

@@ -327,7 +327,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       if (state.activeKnowledgeBase) {
         // Publish document update event to notify document list component to refresh document data
         try {
-          const documents = await knowledgeBaseService.getDocuments(state.activeKnowledgeBase.id);
+          const documents = await knowledgeBaseService.getAllFiles(state.activeKnowledgeBase.id);
           window.dispatchEvent(new CustomEvent('documentsUpdated', {
             detail: {
               kbId: state.activeKnowledgeBase.id,

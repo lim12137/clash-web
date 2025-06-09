@@ -341,49 +341,38 @@ function DataConfig() {
           setHasClickedUpload(false); // 重置上传按钮点击状态，允许重试
           return;
         }
-        
-        // 3. 上传文件到新知识库
-        await uploadDocuments(newKB.id, filesToUpload);
-        message.success("文件上传成功");
-        setUploadFiles([]);
-        
+
         // 立即设置为活动知识库并退出创建模式
         setActiveKnowledgeBase(newKB);
         knowledgeBasePollingService.setActiveKnowledgeBase(newKB.id);
-        
-        // 退出创建模式，防止用户修改知识库名称
         setIsCreatingMode(false);
-        setHasClickedUpload(false); // 重置上传状态
-        setNameExists(false); // 重置错误状态
+        setHasClickedUpload(false);
+        setNameExists(false);
         
-        // 使用轮询服务等待知识库创建完成并监控文档处理状态
-        knowledgeBasePollingService.waitForKnowledgeBaseCreation(
+        // 3. 上传文件到新知识库
+        await uploadDocuments(newKB.id, filesToUpload);
+        message.success("文件上传成功，正在处理文档...");
+        setUploadFiles([]);
+        
+        // 4. 使用简化的轮询服务处理新知识库创建流程
+        knowledgeBasePollingService.handleNewKnowledgeBaseCreation(
           newKB.name,
-          (found) => {
-            if (found) {
-              // 知识库创建成功后，设置为活动知识库
-              setActiveKnowledgeBase(newKB);
-
-              // 触发文档轮询，监控处理状态
-              knowledgeBasePollingService.startDocumentStatusPolling(
-                newKB.id,
-                (documents) => {
-                  knowledgeBasePollingService.triggerDocumentsUpdate(
-                    newKB.id,
-                    documents
-                  );
-                }
-              );
-
-              // 获取最新文档并触发知识库列表更新
-              fetchDocuments(newKB.id);
-              knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
-            }
+          0,
+          filesToUpload.length,
+          (populatedKB) => {
+            // 更新为带有统计信息的知识库对象
+            setActiveKnowledgeBase(populatedKB);
+            // 刷新知识库列表和文档
+            fetchDocuments(populatedKB.id);
+            knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
           }
-        );
+        ).catch((pollingError) => {
+          console.error("Knowledge base creation polling failed:", pollingError);
+          message.error(pollingError instanceof Error ? pollingError.message : "等待知识库就绪时发生未知错误");
+        });
         
       } catch (error) {
-        console.error("知识库创建失败:", error);
+        console.error("知识库创建或文件上传流程失败:", error);
         message.error("知识库创建失败");
         setHasClickedUpload(false); // 重置上传按钮点击状态，允许重试
       }
@@ -398,14 +387,21 @@ function DataConfig() {
     }
     
     try {
+      // 1. 上传前获取当前知识库的 documentCount
+      const kbInfoList = await knowledgeBaseService.getKnowledgeBasesInfo(true);
+      const currentKbInfo = kbInfoList.find(kb => kb.id === kbId);
+      const originalDocumentCount = currentKbInfo?.documentCount || 0;
+      const expectedIncrement = filesToUpload.length;
+
+      // 2. 上传文件
       await uploadDocuments(kbId, filesToUpload);
       message.success("文件上传成功");
       setUploadFiles([]);
       
-      // 使用新的轮询服务
+      // 3. 使用新的轮询服务
       knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
 
-      // 先获取最新文档状态
+      // 4. 先获取最新文档状态
       const latestDocs = await knowledgeBaseService.getAllFiles(kbId);
 
       // 手动触发文档更新，确保UI立即更新
@@ -419,7 +415,7 @@ function DataConfig() {
       // 立即强制获取最新文档
       fetchDocuments(kbId, true);
 
-      // 立即启动文档状态轮询 - 保证即使文档列表为空也能启动轮询
+      // 5. 立即启动文档状态轮询
       knowledgeBasePollingService.startDocumentStatusPolling(
         kbId,
         (documents) => {
@@ -562,7 +558,6 @@ function DataConfig() {
               isCreatingMode={true}
               knowledgeBaseName={newKbName}
               onNameChange={handleNameChange}
-              nameExists={nameExists}
               containerHeight={UI_CONFIG.CONTAINER_HEIGHT}
               hasDocuments={hasClickedUpload || docState.isUploading}
               // Upload related props

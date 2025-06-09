@@ -12,7 +12,6 @@ from PIL import Image
 import torch
 from transformers import CLIPProcessor, CLIPModel
 
-from data_process.utils import get_task_info
 from consts.const import CLIP_MODEL_PATH, IMAGE_FILTER
 
 # Configure logging
@@ -60,6 +59,8 @@ class DataProcessService:
         Returns:
             Optional[Dict[str, Any]]: Task data if found, None otherwise
         """
+        # Import here to avoid circular import
+        from data_process.utils import get_task_info
         return get_task_info(task_id)
 
     def get_all_tasks(self, filter: bool=True) -> List[Dict[str, Any]]:
@@ -71,6 +72,7 @@ class DataProcessService:
         Returns:
             List[Dict[str, Any]]: List of all tasks
         """
+        # Import here to avoid circular import
         from celery import current_app
         from data_process.utils import get_task_info, get_all_task_ids_from_redis
         
@@ -112,6 +114,7 @@ class DataProcessService:
             
             # Also get task IDs from Redis backend (covers completed/failed tasks within expiry)
             try:
+                print("DEBUG REDIS_BACKEND_URL:", os.environ.get('REDIS_BACKEND_URL'))
                 redis_task_ids = get_all_task_ids_from_redis()
                 for task_id in redis_task_ids:
                     task_ids.add(task_id) # Add to the set, duplicates will be handled
@@ -142,7 +145,7 @@ class DataProcessService:
         
         return all_tasks
 
-    def get_index_tasks(self, index_name: str) -> List[Dict[str, Any]]:
+    def get_index_tasks(self, index_name: str, filter: bool=True) -> List[Dict[str, Any]]:
         """Get all active tasks for a specific index
 
         Args:
@@ -151,7 +154,7 @@ class DataProcessService:
         Returns:
             List[Dict[str, Any]]: Tasks for the specified index
         """
-        task_list = self.get_all_tasks()
+        task_list = self.get_all_tasks(filter)
         # May got multiple tasks for the same index
         return [task for task in task_list if task.get('index_name') == index_name]
 
@@ -368,3 +371,15 @@ class DataProcessService:
         except Exception as e:
             logger.error(f"Error processing image: {str(e)}")
             raise Exception(f"Error processing image: {str(e)}")
+
+
+# Global instance to be shared across modules
+# This avoids creating multiple instances and loading CLIP model multiple times
+_data_process_service = None
+
+def get_data_process_service():
+    """Get or create the global DataProcessService instance (lazy initialization)"""
+    global _data_process_service
+    if _data_process_service is None:
+        _data_process_service = DataProcessService()
+    return _data_process_service

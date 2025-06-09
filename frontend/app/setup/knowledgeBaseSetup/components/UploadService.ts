@@ -56,89 +56,6 @@ export const customUploadRequest = async (
       const result = await response.json();
       onSuccess(result, file);
 
-      // 通过轮询服务触发知识库数据更新
-      knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
-
-      // 如果是创建模式，使用轮询服务等待知识库创建
-      if (isCreatingMode) {
-        // 等待2秒后开始轮询，给后端处理时间
-        setTimeout(() => {
-          knowledgeBasePollingService.waitForKnowledgeBaseCreation(
-            effectiveIndexName,
-            async (found) => {
-              if (found) {
-                try {
-                  // 先获取最新的知识库列表
-                  const knowledgeBases = await knowledgeBaseService.getKnowledgeBasesInfo(true);
-                  const newKB = knowledgeBases.find(kb => kb.name === effectiveIndexName);
-                  
-                  if (newKB) {
-                    // 找到知识库后，触发选中事件，并传递完整的知识库信息
-                    window.dispatchEvent(new CustomEvent('selectNewKnowledgeBase', {
-                      detail: { knowledgeBase: newKB }
-                    }));
-                    
-                    // 延迟3秒后获取该知识库的文档
-                    setTimeout(() => {
-                      knowledgeBaseService.getAllFiles(effectiveIndexName).then(documents => {
-                        knowledgeBasePollingService.triggerDocumentsUpdate(effectiveIndexName, documents);
-                        
-                        // 如果文档有正在处理的状态，开始文档状态轮询
-                        const hasProcessingDocs = documents.some(doc => 
-                          doc.status === "PROCESSING" || doc.status === "FORWARDING"
-                        );
-                        
-                        if (hasProcessingDocs) {
-                          knowledgeBasePollingService.startDocumentStatusPolling(
-                            effectiveIndexName,
-                            (updatedDocs) => {
-                              knowledgeBasePollingService.triggerDocumentsUpdate(
-                                effectiveIndexName, 
-                                updatedDocs
-                              );
-                            }
-                          );
-                        }
-                      });
-                    }, 3000);
-                  }
-                } catch (error) {
-                  console.error('获取新创建的知识库信息失败:', error);
-                }
-              } else {
-                message.error(`知识库 ${effectiveIndexName} 创建超时，请稍后再试`);
-              }
-            }
-          );
-        }, 2000);
-      } else {
-        // 非创建模式：延迟3秒后获取文档状态
-        setTimeout(async () => {
-          try {
-            const documents = await knowledgeBaseService.getAllFiles(effectiveIndexName);
-            knowledgeBasePollingService.triggerDocumentsUpdate(effectiveIndexName, documents);
-            
-            // 检查是否有需要轮询的文档
-            const hasProcessingDocs = documents.some(doc => 
-              doc.status === "PROCESSING" || doc.status === "FORWARDING"
-            );
-            
-            if (hasProcessingDocs) {
-              knowledgeBasePollingService.startDocumentStatusPolling(
-                effectiveIndexName,
-                (updatedDocs) => {
-                  knowledgeBasePollingService.triggerDocumentsUpdate(
-                    effectiveIndexName, 
-                    updatedDocs
-                  );
-                }
-              );
-            }
-          } catch (error) {
-            console.error('更新文档信息失败:', error);
-          }
-        }, 3000);
-      }
     } else {
       onError(new Error('上传失败'));
       message.error(`文件 ${file.name} 上传失败`);
@@ -164,7 +81,7 @@ export const checkKnowledgeBaseNameExists = async (
   }
 };
 
-// 获取知识库文档信息
+// 获取知识库文档信息 - 简化版本，因为文档轮询不再需要知识库存在的前提
 export const fetchKnowledgeBaseInfo = async (
   indexName: string, 
   abortController: AbortController, 
@@ -173,10 +90,7 @@ export const fetchKnowledgeBaseInfo = async (
   onError: (error: unknown) => void
 ) => {
   try {
-    // 获取文档
-    const documents = await knowledgeBaseService.getAllFiles(indexName);
-    
-    // 如果这个请求没有被取消，且知识库名称仍然匹配
+    // 直接调用成功回调，因为不再需要预先检查知识库存在性
     if (!abortController.signal.aborted && indexName === currentKnowledgeBaseRef.current) {
       onSuccess();
     }

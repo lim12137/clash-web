@@ -91,11 +91,12 @@ class LoggingTask(Task):
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Log task failure with enhanced error handling"""
         logger.error(f"Task {self.name}[{task_id}] failed: {exc}")
-        # 确保异常信息完整
+        # Log exception details for debugging
         if hasattr(exc, '__class__'):
             exc_type = exc.__class__.__name__
             exc_msg = str(exc)
             logger.error(f"Exception type: {exc_type}, message: {exc_msg}")
+        # Let Celery handle the exception serialization automatically
         return super().on_failure(exc, task_id, args, kwargs, einfo)
     
     def on_retry(self, exc, task_id, args, kwargs, einfo):
@@ -207,19 +208,20 @@ def process(self, source: str, source_type: str = "file",
     except Exception as e:
         logger.error(f"Error processing file {source}: {str(e)}")
         
-        # Update task state to FAILURE with error information
+        # Update task state with custom metadata, but don't put exception info in meta
+        # Let Celery handle the exception serialization automatically
         self.update_state(
             state=states.FAILURE,
             meta={
                 'source': source,
                 'index_name': index_name,
                 'task_name': 'process',
-                'error': str(e),
-                'traceback': traceback.format_exc()
+                'custom_error': str(e),  # Use custom_error to avoid Celery confusion
+                'stage': 'processing_failed'
             }
         )
         
-        # Re-raise the exception to mark the task as failed
+        # Re-raise the exception to let Celery handle exception serialization
         raise
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.forward', queue='forward_q')
@@ -409,9 +411,9 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                         'source': original_source,
                         'index_name': original_index_name,
                         'task_name': 'forward',
-                        'error': f"main_server API error: {error_message}",
+                        'custom_error': f"main_server API error: {error_message}",
                         'es_result': es_result,
-                        'traceback': traceback.format_exc() # May not be very useful if error is from main_server
+                        'stage': 'main_server_api_failed'
                     }
                 )
                 raise Exception(f"main_server API error: {error_message}")
@@ -423,9 +425,9 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                         'source': original_source,
                         'index_name': original_index_name,
                         'task_name': 'forward',
-                        'error': "Unexpected API response format from main_server",
+                        'custom_error': "Unexpected API response format from main_server",
                         'es_result': es_result,
-                        'traceback': traceback.format_exc()
+                        'stage': 'api_response_format_error'
                     }
                 )
                  raise Exception("Unexpected API response format from main_server")
@@ -441,8 +443,8 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                 'source': original_source,
                 'index_name': original_index_name,
                 'task_name': 'forward',
-                'error': f"Forwarding to main_server failed: {str(e)}",
-                'traceback': traceback.format_exc()
+                'custom_error': f"Forwarding to main_server failed: {str(e)}",
+                'stage': 'forwarding_failed'
             })
             self.update_state(state=states.FAILURE, meta=current_meta)
             raise # Re-raise the exception to mark Celery task as FAILED
@@ -479,15 +481,15 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
     except Exception as e:
         logger.error(f"Error forwarding chunks to index {original_index_name}: {str(e)}")
         
-        # Update task state to FAILURE
+        # Update task state to FAILURE with custom metadata
         self.update_state(
             state=states.FAILURE,
             meta={
                 'source': original_source,
                 'index_name': original_index_name,
                 'task_name': 'forward',
-                'error': str(e),
-                'traceback': traceback.format_exc()
+                'custom_error': str(e),
+                'stage': 'forward_task_failed'
             }
         )
         
@@ -497,7 +499,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
             raise self.retry(countdown=60, max_retries=3)
         else:
             logger.error(f"Max retries exceeded for forward task {self.request.id}")
-            # Re-raise the original exception after max retries
+            # Re-raise the original exception after max retries, let Celery handle serialization
             raise
     finally:
         if chunks is not None:
@@ -629,16 +631,17 @@ def process_sync(self, source: str, source_type: str = "file",
     except Exception as e:
         logger.error(f"Error synchronously processing file {source}: {str(e)}")
         
-        # Update task state to FAILURE
+        # Update task state to FAILURE with custom metadata
         self.update_state(
             state=states.FAILURE,
             meta={
                 'source': source,
-                'task_name': '',
-                'error': str(e),
-                'traceback': traceback.format_exc(),
-                'sync_mode': True
+                'task_name': 'process_sync',
+                'custom_error': str(e),
+                'sync_mode': True,
+                'stage': 'sync_processing_failed'
             }
         )
         
+        # Re-raise to let Celery handle exception serialization
         raise

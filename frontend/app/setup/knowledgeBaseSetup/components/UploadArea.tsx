@@ -1,6 +1,8 @@
 import React, { useState, forwardRef, useImperativeHandle, useEffect, useCallback, useRef } from 'react';
+import { message } from 'antd';
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
 import { API_ENDPOINTS } from '@/services/api';
+import knowledgeBasePollingService from '@/services/knowledgeBasePollingService';
 import UploadAreaUI from './UploadAreaUI';
 import { 
   customUploadRequest,
@@ -49,6 +51,11 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
   const [isKnowledgeBaseReady, setIsKnowledgeBaseReady] = useState(false);
   const currentKnowledgeBaseRef = useRef<string>('');
   const pendingRequestRef = useRef<AbortController | null>(null);
+  const prevFileListRef = useRef<UploadFile[]>([]);
+  
+  useEffect(() => {
+    prevFileListRef.current = fileList;
+  }, [fileList]);
   
   // 重置所有状态的函数
   const resetAllStates = useCallback(() => {
@@ -153,13 +160,53 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
   // 处理文件变更
   const handleChange = useCallback(({ fileList: newFileList }: { fileList: UploadFile[] }) => {
     // 确保只更新当前知识库的文件列表
-    if (indexName === currentKnowledgeBaseRef.current) {
-      const currentUploadFiles = newFileList.filter((file: UploadFile) => 
-        file.status === 'uploading' || 
-        file.status === 'done' || 
-        file.status === 'error'
-      );
-      setFileList(currentUploadFiles);
+    if (isCreatingMode || indexName === currentKnowledgeBaseRef.current) {
+      setFileList(newFileList);
+    } else {
+      return;
+    }
+    
+    // 检查上传是否刚刚完成
+    const prevFileList = prevFileListRef.current;
+    const uploadWasInProgress = prevFileList.some(f => f.status === 'uploading');
+    const uploadIsNowFinished = newFileList.length > 0 && !newFileList.some(f => f.status === 'uploading');
+
+    if (uploadWasInProgress && uploadIsNowFinished) {
+      console.log('All files finished uploading. Starting polling...');
+      knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
+      
+      const kbName = isCreatingMode ? newKnowledgeBaseName : indexName;
+
+      if (!kbName) {
+        message.error('知识库名称丢失，无法启动轮询。');
+        return;
+      }
+
+      if (isCreatingMode) {
+        knowledgeBasePollingService.handleNewKnowledgeBaseCreation(
+          kbName,
+          0,
+          newFileList.length,
+          (newKB) => {
+            window.dispatchEvent(new CustomEvent('selectNewKnowledgeBase', {
+              detail: { knowledgeBase: newKB }
+            }));
+          }
+        ).catch((error) => {
+          console.error(`Polling for new knowledge base ${kbName} failed:`, error);
+          message.error(`知识库 ${kbName} 处理超时，请稍后再试`);
+        });
+      } else {
+        knowledgeBasePollingService.startDocumentStatusPolling(
+          kbName,
+          (updatedDocs) => {
+            knowledgeBasePollingService.triggerDocumentsUpdate(
+              kbName, 
+              updatedDocs
+            );
+          }
+        );
+      }
     }
     
     // 触发文件选择回调
@@ -174,7 +221,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
         }
       }
     }
-  }, [indexName, onFileSelect]);
+  }, [indexName, onFileSelect, isCreatingMode, newKnowledgeBaseName]);
 
   // 处理自定义上传请求
   const handleCustomRequest = useCallback((options: any) => {

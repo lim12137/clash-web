@@ -1,5 +1,5 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react'
-import { Document } from '@/types/knowledgeBase'
+import { Document, NON_TERMINAL_STATUSES } from '@/types/knowledgeBase'
 import { sortByStatusAndDate } from '@/lib/utils'
 import knowledgeBasePollingService from '@/services/knowledgeBasePollingService'
 import DocumentListLayout, { UI_CONFIG } from './DocumentListLayout'
@@ -186,15 +186,11 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
       
       // 检查是否需要继续轮询
       const hasProcessingDocs = newDocs.some(doc => 
-        doc.status === "PROCESSING" || doc.status === "FORWARDING" || doc.status === "WAITING"
-      );
-      
-      const hasIncompleteCompletedDocs = newDocs.some(doc => 
-        doc.status === "COMPLETED" && doc.size === 0
+        NON_TERMINAL_STATUSES.includes(doc.status)
       );
       
       // 如果有处理中的文档或不完整的文档，确保轮询服务在运行
-      if ((hasProcessingDocs || hasIncompleteCompletedDocs) && activeKbIdRef.current) {
+      if (hasProcessingDocs && activeKbIdRef.current) {
         knowledgeBasePollingService.startDocumentStatusPolling(
           activeKbIdRef.current,
           (updatedDocs) => {
@@ -274,9 +270,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
     
     // 检查是否有文档正在处理中，增加 WAITING 状态的检查
     const hasProcessingDocs = docs.some((doc: Document) => 
-      doc.status === "PROCESSING" || 
-      doc.status === "FORWARDING" || 
-      doc.status === "WAITING"
+      NON_TERMINAL_STATUSES.includes(doc.status)
     );
     
     // 如果有正在处理的文档，启动轮询
