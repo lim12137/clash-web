@@ -8,7 +8,7 @@ import AgentModalComponent from './components/AgentModal'
 import { Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
 import { ScrollArea } from '@/components/ui/scrollArea'
 import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent, importAgent } from '@/services/agentConfigService'
-import { generatePrompt, savePrompt } from '@/services/promptService'
+import {generatePromptStream, savePrompt} from '@/services/promptService'
 
 const { TextArea } = Input
 
@@ -781,16 +781,29 @@ export default function BusinessLogicConfig({
     try {
       setIsPromptGenerating(true);
       setLocalIsGenerating(true);
-      const result = await generatePrompt({
-        agent_id: Number(mainAgentId),
-        task_description: businessLogic
-      });
-      setSystemPrompt(result);
-      message.success('提示词生成成功');
+      setSystemPrompt('');
+      await generatePromptStream(
+        {
+          agent_id: Number(mainAgentId),
+          task_description: businessLogic
+        },
+        (streamedText) => {
+          setSystemPrompt(streamedText);
+        },
+        (err) => {
+          message.error(`生成提示词失败: ${err instanceof Error ? err.message : '未知错误'}`);
+          setIsPromptGenerating(false);
+          setLocalIsGenerating(false);
+        },
+        () => {
+          setIsPromptGenerating(false);
+          setLocalIsGenerating(false);
+          message.success('提示词生成成功');
+        }
+      );
     } catch (error) {
       console.error('生成提示词失败:', error);
       message.error(`生成提示词失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    } finally {
       setIsPromptGenerating(false);
       setLocalIsGenerating(false);
     }
