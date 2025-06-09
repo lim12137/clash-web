@@ -6,23 +6,29 @@ from email.header import decode_header
 from typing import List
 
 from smolagents.tools import Tool
+from pydantic import Field
 
 
 class GetEmailTool(Tool):
     name = "get_email"
-    description = "Get emails from email server. Supports filtering emails by time range, sender, subject, etc."
+    description = (
+        "Get emails from email server. Supports filtering emails by time range and sender (sender must be an email address, not a name or non-ASCII string; subject filtering is not supported due to IMAP limitations)."
+    )
 
     inputs = {
         "days": {"type": "integer", "description": "Get emails from the past few days, default is 7 days", "default": 7,
                  "nullable": True},
-        "sender": {"type": "string", "description": "Filter by sender, optional", "nullable": True},
-        "subject": {"type": "string", "description": "Filter by subject, optional", "nullable": True},
+        "sender": {"type": "string", "description": "Filter by sender (must be an email address, not a name or non-ASCII string)", "nullable": True},
         "max_emails": {"type": "integer", "description": "Maximum number of emails to retrieve, default is 10",
                        "default": 10, "nullable": True}}
     output_type = "string"
 
-    def __init__(self, imap_server: str, imap_port: int, username: str, password: str, use_ssl: bool = True,
-            timeout: int = 30):
+    def __init__(self, imap_server: str=Field(description="IMAP服务器地址"),
+                 imap_port: int=Field(description="IMAP服务器端口"), 
+                 username: str=Field(description="IMAP服务器用户名"), 
+                 password: str=Field(description="IMAP服务器密码"), 
+                 use_ssl: bool=Field(description="是否使用SSL", default=True),
+                 timeout: int = Field(description="超时时间", default=30)):
         super().__init__()
         self.imap_server = imap_server
         self.imap_port = imap_port
@@ -66,7 +72,7 @@ class GetEmailTool(Tool):
 
         return email_data
 
-    def forward(self, days: int = 7, sender: str = None, subject: str = None, max_emails: int = 10) -> List[str]:
+    def forward(self, days: int = 7, sender: str = None, max_emails: int = 10) -> List[str]:
         try:
             # 连接IMAP服务器
             mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port) if self.use_ssl else imaplib.IMAP4(
@@ -85,10 +91,6 @@ class GetEmailTool(Tool):
             # 添加发件人条件
             if sender:
                 search_criteria.append(f'(FROM "{sender}")')
-
-            # 添加主题条件
-            if subject:
-                search_criteria.append(f'(SUBJECT "{subject}")')
 
             # 执行搜索
             search_query = ' '.join(search_criteria)
@@ -122,16 +124,4 @@ class GetEmailTool(Tool):
         except Exception as e:
             print(f"Unexpected Error: {str(e)}")
             return [json.dumps({"error": f"An unexpected error occurred: {str(e)}"}, ensure_ascii=False)]
-
-
-if __name__ == "__main__":
-    # 创建邮件工具实例
-    email_tool = GetEmailTool(imap_server="imap.qq.com", imap_port=993,  # 使用SSL端口
-        username="564516720@qq.com", password="sxfktetgcswhbbha", use_ssl=True, timeout=30)
-
-    # 获取测试邮件
-    result = email_tool.forward(days=7,  # 获取最近7天的邮件
-        max_emails=5  # 最多获取5封邮件
-    )
-
-    # for i in result:  #     print(f"\n第{i}封邮件：")  #     print(i)  #     print("-"*100)
+        

@@ -21,8 +21,8 @@ from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from nexent.core.nlp.tokenizer import calculate_term_weights
 from fastapi import HTTPException, Query, Body, Path, Depends
 from fastapi.responses import StreamingResponse
-from consts.const import ES_API_KEY, ES_HOST
-from consts.model import SearchRequest, HybridSearchRequest
+from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, ES_HOST
+from consts.model import IndexingRequest, SearchRequest, HybridSearchRequest
 from utils.agent_utils import config_manager
 from utils.file_management_utils import get_all_files_status, get_file_size
 from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
@@ -190,7 +190,7 @@ class ElasticSearchService:
             else:
                 print(f"404: Index {index_name} not found in stats")
                 index_stats = {}
-            
+
             fields = None
             if mappings and index_name in mappings:
                 fields = mappings[index_name]
@@ -198,7 +198,7 @@ class ElasticSearchService:
                 print(f"mappings: {mappings}")
                 print(f"404: Index {index_name} not found in mappings")
                 fields = []
-            
+
             # Check if base_info exists in stats
             base_info = None
             search_performance = {}
@@ -260,12 +260,12 @@ class ElasticSearchService:
                 
                 if not success:
                     raise HTTPException(status_code=500, detail=f"Failed to auto-create index {index_name}")
-                
+
                 # Wait for index to be ready
                 print(f"Waiting for index {index_name} to be ready...")
                 time.sleep(1)
-                
-                # After successfully creating the knowledge base, 
+
+                # After successfully creating the knowledge base,
                 # store the newly created knowledge base information in the knowledge base table
                 try:
                     knowledge_data = {'index_name': index_name}
@@ -370,12 +370,12 @@ class ElasticSearchService:
     ):
         """
         Get file list for the specified index, including files that are not yet stored in ES
-        
+
         Args:
             index_name: Name of the index
             include_chunks: Whether to include text chunks for each file
             es_core: ElasticSearchCore instance
-            
+
         Returns:
             Dictionary containing file list
         """
@@ -417,7 +417,7 @@ class ElasticSearchService:
                 # Prepare msearch body for all completed files
                 completed_files_map = {f['path_or_url']: f for f in files if f['status'] == "COMPLETED"}
                 msearch_body = []
-                
+
                 for path_or_url in completed_files_map.keys():
                     msearch_body.append({'index': index_name})
                     msearch_body.append({
@@ -430,15 +430,15 @@ class ElasticSearchService:
                 for file_data in files:
                     file_data['chunks'] = []
                     file_data['chunk_count'] = 0
-                
+
                 if msearch_body:
                     try:
                         msearch_responses = es_core.client.msearch(
-                            body=msearch_body, 
+                            body=msearch_body,
                             index=index_name,
                             request_timeout=30
                         )
-                        
+
                         for i, file_path in enumerate(completed_files_map.keys()):
                             response = msearch_responses['responses'][i]
                             file_data = completed_files_map[file_path]
@@ -459,16 +459,16 @@ class ElasticSearchService:
 
                             file_data['chunks'] = chunks
                             file_data['chunk_count'] = len(chunks)
-                            
+
                     except Exception as e:
                         print(f"Error during msearch for chunks: {str(e)}")
             else:
                 for file_data in files:
                     file_data['chunks'] = []
                     file_data['chunk_count'] = 0
-                    
+
             return {"files": files}
-            
+
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error getting file list for index {index_name}: {str(e)}")
 

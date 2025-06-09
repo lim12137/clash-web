@@ -43,15 +43,13 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
   // 处理模型名称变更，自动更新展示名称
   const handleModelNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value
-    setForm(prev => {
-      // 只有在展示名称为空时才自动填充
-      const shouldUpdateDisplayName = !prev.displayName
-      return {
-        ...prev,
-        name,
-        displayName: shouldUpdateDisplayName ? parseModelName(name) : prev.displayName
-      }
-    })
+    setForm(prev => ({
+      ...prev,
+      name,
+      // 如果展示名称与模型名称的解析结果相同，说明用户没有手动修改过展示名称
+      // 此时应该自动更新展示名称
+      displayName: prev.displayName === parseModelName(prev.name) ? parseModelName(name) : prev.displayName
+    }))
   }
 
   // 处理表单变更
@@ -100,7 +98,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         name: form.name,
         type: modelType,
         url: form.url,
-        apiKey: form.apiKey,
+        apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey,
         maxTokens: maxTokensValue,
         displayName: form.displayName || form.name
       })
@@ -152,7 +150,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       
       // 创建返回的模型信息
       const addedModel: AddedModel = {
-        name: form.name,
+        name: form.displayName,
         type: modelType
       }
       

@@ -12,16 +12,6 @@ import requests
 from consts.const import DATA_PROCESS_SERVICE
 from consts.model import ProcessParams
 
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'docx', 'pptx', 'xlsx', 'md', 'eml', 'msg', 'epub',
-                      'xls', 'html', 'htm', 'org', 'odt', 'log', 'ppt', 'rst', 'rtf', 'tsv', 'doc', 'xml', 'js', 'py',
-                      'java', 'cpp', 'cc', 'cxx', 'c', 'cs', 'php', 'rb', 'swift', 'ts', 'go'}
-
-
-def allowed_file(filename: str) -> bool:
-    if not filename:
-        return False
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 async def save_upload_file(file: UploadFile, upload_path: Path) -> bool:
     try:

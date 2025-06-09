@@ -6,7 +6,6 @@ from .client import db_client, get_db_session, as_dict
 from .db_models import ModelRecord
 
 
-# 创建模型记录
 def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = None) -> bool:
     """
     Create a model record
@@ -123,27 +122,6 @@ def get_model_records(filters: Optional[Dict[str, Any]] = None) -> List[Dict[str
 
         # Convert SQLAlchemy model instances to dictionaries
         return [as_dict(record) for record in records]
-
-
-def get_model_by_name(model_name: str, model_repo: str) -> Optional[Dict[str, Any]]:
-    """
-    Get a model record by model name and repository
-
-    Args:
-        model_name: Model name
-        model_repo: Model repository
-
-    Returns:
-        Optional[Dict[str, Any]]: Model record
-    """
-    filters = {'model_name': model_name, 'model_repo': model_repo}
-
-    records = get_model_records(filters)
-    if not records:
-        return None
-
-    model = records[0]
-    return model
 
 
 def get_model_by_display_name(display_name: str) -> Optional[Dict[str, Any]]:

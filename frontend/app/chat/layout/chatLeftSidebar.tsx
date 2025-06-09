@@ -11,10 +11,11 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react"
-import { ConversationListItem } from "@/types/chat" // 需要创建这个类型文件
+import { ConversationListItem } from "@/types/chat"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { StaticScrollArea } from "@/components/ui/scrollArea"
 import { useConfig } from "@/hooks/useConfig"
 import { useResponsiveTextSize } from "@/hooks/useResponsiveTextSize"
 import { extractColorsFromUri } from "@/lib/avatar"
@@ -33,7 +34,7 @@ interface ChatSidebarProps {
   expanded: boolean
 }
 
-// 辅助函数 - 对话分类
+// Helper function - dialog classification
 const categorizeDialogs = (dialogs: ConversationListItem[]) => {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
@@ -80,20 +81,20 @@ export function ChatSidebar({
   const [editingTitle, setEditingTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 添加删除对话框状态
+  // Add delete dialog status
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [dialogToDelete, setDialogToDelete] = useState<number | null>(null);
   
-  // 使用配置系统获取头像内容
+  // Use the configuration system to get the avatar content
   const { appConfig, getAppAvatarUrl } = useConfig();
 
-  const sidebarAvatarUrl = getAppAvatarUrl(16); // 侧边栏头像大小为16
-  const collapsedAvatarUrl = getAppAvatarUrl(16); // 折叠状态的头像大小为16
+  const sidebarAvatarUrl = getAppAvatarUrl(16); // The avatar size of the sidebar is 16
+  const collapsedAvatarUrl = getAppAvatarUrl(16); // The avatar size of the collapsed state is 16
 
-  // 计算容器宽度 (300px - 图标宽度 - 按钮宽度 - 内边距)
-  const containerWidth = 300 - 40 - 40 - 40; // 大约180px可用空间
+  // Calculate the container width (300px - icon width - button width - padding)
+  const containerWidth = 300 - 40 - 40 - 40; // Approximately 180px available space
 
-  // 使用响应式文本大小hook
+  // Use the responsive text size hook
   const { textRef, fontSize } = useResponsiveTextSize(appConfig.appName, containerWidth);
 
   const [animationComplete, setAnimationComplete] = useState(false);
@@ -110,14 +111,14 @@ export function ChatSidebar({
     return () => clearTimeout(timer);
   }, [expanded]);
 
-  // 处理编辑开始
+  // Handle edit start
   const handleStartEdit = (dialogId: number, title: string) => {
     setEditingId(dialogId);
     setEditingTitle(title);
-    // 关闭任何打开的下拉菜单
+    // Close any open dropdown menus
     onDropdownOpenChange(false, null);
     
-    // 使用 setTimeout 确保 DOM 更新后聚焦输入框
+    // Use setTimeout to ensure that the input box is focused after the DOM is updated
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
@@ -126,7 +127,7 @@ export function ChatSidebar({
     }, 10);
   };
   
-  // 处理编辑提交
+  // Handle edit submission
   const handleSubmitEdit = () => {
     if (editingId !== null && editingTitle.trim()) {
       onRename(editingId, editingTitle.trim());
@@ -134,12 +135,12 @@ export function ChatSidebar({
     }
   };
   
-  // 处理编辑取消
+  // Handle edit cancellation
   const handleCancelEdit = () => {
     setEditingId(null);
   };
   
-  // 处理按键事件
+  // Handle key events
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleSubmitEdit();
@@ -148,15 +149,15 @@ export function ChatSidebar({
     }
   };
 
-  // 处理删除点击
+  // Handle delete click
   const handleDeleteClick = (dialogId: number) => {
     setDialogToDelete(dialogId);
     setIsDeleteDialogOpen(true);
-    // 关闭下拉菜单
+    // Close dropdown menus
     onDropdownOpenChange(false, null);
   };
 
-  // 确认删除
+  // Confirm delete
   const confirmDelete = () => {
     if (dialogToDelete !== null) {
       onDelete(dialogToDelete);
@@ -165,7 +166,7 @@ export function ChatSidebar({
     }
   };
 
-  // 渲染应用图标
+  // Render application icon
   const renderAppIcon = () => {
     return (
       <div className="h-8 w-8 rounded-full overflow-hidden mr-2">
@@ -174,13 +175,13 @@ export function ChatSidebar({
     );
   };
 
-  // 渲染对话列表项
+  // Render dialog list items
   const renderDialogList = (dialogs: ConversationListItem[], title: string) => {
     if (dialogs.length === 0) return null;
 
     return (
       <div className="space-y-1">
-        <p className="px-2 text-sm font-medium text-gray-500 tracking-wide font-sans sticky top-0 py-1 z-10" style={{ fontWeight:'bold',color:'#4d4d4d',backgroundColor: 'rgb(242 248 255)',fontSize:'16px', whiteSpace: 'nowrap' }}>{title}</p>
+        <p className="px-2 pr-3 text-sm font-medium text-gray-500 tracking-wide font-sans sticky top-0 py-1 z-10" style={{ fontWeight:'bold',color:'#4d4d4d',backgroundColor: 'rgb(242 248 255)',fontSize:'16px', whiteSpace: 'nowrap' }}>{title}</p>
         {dialogs.map((dialog) => (
           <div 
             key={dialog.conversation_id} 
@@ -189,7 +190,7 @@ export function ChatSidebar({
             }`}
           >
             {editingId === dialog.conversation_id ? (
-              // 编辑模式
+              // Edit mode
               <div className="flex-1 px-3 py-2">
                 <Input
                   ref={inputRef}
@@ -202,7 +203,7 @@ export function ChatSidebar({
                 />
               </div>
             ) : (
-              // 显示模式
+              // Display mode
               <>
                 <Button
                   variant="ghost"
@@ -247,11 +248,11 @@ export function ChatSidebar({
     );
   };
 
-  // 渲染收起状态的侧边栏
+  // Render collapsed state sidebar
   const renderCollapsedSidebar = () => {
     return (
       <>
-        {/* 应用图标 */}
+        {/* Application icon */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -305,8 +306,8 @@ export function ChatSidebar({
           </TooltipProvider>
         </div>
 
-        {/* 底部区域 */}
-        {/* 设置按钮 */}
+        {/* Bottom area */}
+        {/* Settings button */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -372,8 +373,8 @@ export function ChatSidebar({
               </Button>
             </div>
 
-            <div className="flex-1 overflow-auto m-2 h-fit" >
-              <div className="space-y-4">
+            <StaticScrollArea className="flex-1 m-2 h-fit">
+              <div className="space-y-4 pr-2">
                 {conversationList.length > 0 ? (
                   <>
                     {renderDialogList(today, "今天")}
@@ -390,7 +391,7 @@ export function ChatSidebar({
                   </div>
                 )}
               </div>
-            </div>
+            </StaticScrollArea>
 
             <div className="mt-auto p-3 border-t border-transparent flex justify-between items-center">
               <Button
@@ -408,7 +409,7 @@ export function ChatSidebar({
         )}
       </div>
       
-      {/* 删除确认对话框 */}
+      {/* Delete confirmation dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>

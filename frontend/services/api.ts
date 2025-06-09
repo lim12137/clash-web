@@ -12,9 +12,26 @@ export const API_ENDPOINTS = {
     generateTitle: `${API_BASE_URL}/conversation/generate_title`,
     sources: `${API_BASE_URL}/conversation/sources`,
     opinion: `${API_BASE_URL}/conversation/message/update_opinion`,
+    messageId: `${API_BASE_URL}/conversation/message/id`,
   },
   agent: {
     run: `${API_BASE_URL}/agent/run`,
+    update: `${API_BASE_URL}/agent/update`,
+    list: `${API_BASE_URL}/agent/list`,
+    delete: `${API_BASE_URL}/agent`,
+    getCreatingSubAgentId: `${API_BASE_URL}/agent/get_creating_sub_agent_id`,
+    stop: (conversationId: number) => `${API_BASE_URL}/agent/stop/${conversationId}`,
+    export: `${API_BASE_URL}/agent/export`,
+    import: `${API_BASE_URL}/agent/import`,
+  },
+  tool: {
+    list: `${API_BASE_URL}/tool/list`,
+    update: `${API_BASE_URL}/tool/update`,
+    search: `${API_BASE_URL}/tool/search`,
+  },
+  prompt: {
+    generate: `${API_BASE_URL}/prompt/generate`,
+    fineTune: `${API_BASE_URL}/prompt/fine_tune`,
   },
   stt: {
     ws: `/api/voice/stt/ws`,
@@ -32,25 +49,23 @@ export const API_ENDPOINTS = {
   proxy: {
     image: (url: string) => `${API_BASE_URL}/image?url=${encodeURIComponent(url)}`,
   },
-  modelEngine: {
-    // 基本健康检查
+  model: {
+    // Basic health check
     healthcheck: `${API_BASE_URL}/me/healthcheck`,
     
-    // 官方模型服务
+    // Official model service
     officialModelList: `${API_BASE_URL}/me/model/list`,
     officialModelHealthcheck: (modelName: string, timeout: number = 2) => 
       `${API_BASE_URL}/me/model/healthcheck?model_name=${encodeURIComponent(modelName)}&timeout=${timeout}`,
       
-    // 自定义模型服务
+    // Custom model service
     customModelList: `${API_BASE_URL}/model/list`,
     customModelCreate: `${API_BASE_URL}/model/create`,
-    customModelDelete: `${API_BASE_URL}/model/delete`,
-    customModelHealthcheck: (modelName: string) => 
-      `${API_BASE_URL}/model/healthcheck?model_name=${encodeURIComponent(modelName)}`,
-    updateConnectStatus: `${API_BASE_URL}/model/update_connect_status`,
+    customModelDelete: (displayName: string) => `${API_BASE_URL}/model/delete?display_name=${encodeURIComponent(displayName)}`,
+    customModelHealthcheck: (displayName: string) => `${API_BASE_URL}/model/healthcheck?display_name=${encodeURIComponent(displayName)}`,
   },
   knowledgeBase: {
-    // Elasticsearch 服务
+    // Elasticsearch service
     health: `${API_BASE_URL}/indices/health`,
     indices: `${API_BASE_URL}/indices`,
     indexInfo: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/info`,
@@ -60,7 +75,7 @@ export const API_ENDPOINTS = {
     changeSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
     getSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
     
-    // 文件上传服务
+    // File upload service
     upload: `${UPLOAD_SERVICE_URL}/upload`,
   },
   config: {
@@ -69,7 +84,7 @@ export const API_ENDPOINTS = {
   }
 };
 
-// 通用错误处理
+// Common error handling
 export class ApiError extends Error {
   constructor(public code: number, message: string) {
     super(message);
@@ -77,7 +92,7 @@ export class ApiError extends Error {
   }
 }
 
-// 为TypeScript添加全局接口扩展
+// Add global interface extensions for TypeScript
 declare global {
   interface Window {
     __isHandlingSessionExpired?: boolean;
