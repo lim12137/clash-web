@@ -21,7 +21,7 @@ jobs:
         id: get-sha
         run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
-  build-and-push-base-amd64:
+  build-and-push-base-main-amd64:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
     needs: checkout
     steps:
@@ -34,11 +34,22 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Build and push base image (amd64)
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
+      - name: Build base image (amd64) and load locally
         run: |
-          docker buildx build --progress=plain --platform linux/amd64 -t nexent/nexent-base:amd64 -f make/base/Dockerfile . --push
+          docker buildx build --platform linux/amd64 -t nexent/nexent-base:amd64 --load -f make/base/Dockerfile .
+      - name: Push base image (amd64)
+        run: |
+          docker push nexent/nexent-base:amd64
+      - name: Build main image (amd64) and load locally
+        run: |
+          docker buildx build --platform linux/amd64 -t nexent/nexent:amd64 --load -f make/main/Dockerfile .
+      - name: Push main image (amd64)
+        run: |
+          docker push nexent/nexent:amd64
 
-  build-and-push-base-arm64:
+  build-and-push-base-main-arm64:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
     needs: checkout
     steps:
@@ -51,43 +62,20 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Build and push base image (arm64)
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
+      - name: Build base image (arm64) and load locally
         run: |
-          docker buildx build --progress=plain --platform linux/arm64 -t nexent/nexent-base:arm64 -f make/base/Dockerfile . --push
-
-  build-and-push-main-amd64:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: build-and-push-base-amd64
-    steps:
-      - name: Set up Docker Buildx
+          docker buildx build --platform linux/arm64 -t nexent/nexent-base:arm64 --load -f make/base/Dockerfile .
+      - name: Push base image (arm64)
         run: |
-          if ! docker buildx inspect nexent_builder > /dev/null 2>&1; then
-            docker buildx create --name nexent_builder --use
-          else
-            docker buildx use nexent_builder
-          fi
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Build and push main application image (amd64)
+          docker push nexent/nexent-base:arm64
+      - name: Build main image (arm64) and load locally
         run: |
-          docker buildx build --progress=plain --platform linux/amd64 -t nexent/nexent:amd64 -f make/main/Dockerfile . --push
-
-  build-and-push-main-arm64:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: build-and-push-base-arm64
-    steps:
-      - name: Set up Docker Buildx
+          docker buildx build --platform linux/arm64 -t nexent/nexent:arm64 --load -f make/main/Dockerfile .
+      - name: Push main image (arm64)
         run: |
-          if ! docker buildx inspect nexent_builder > /dev/null 2>&1; then
-            docker buildx create --name nexent_builder --use
-          else
-            docker buildx use nexent_builder
-          fi
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Build and push main application image (arm64)
-        run: |
-          docker buildx build --progress=plain --platform linux/arm64 -t nexent/nexent:arm64 -f make/main/Dockerfile . --push
+          docker push nexent/nexent:arm64
 
   build-and-push-data-process-amd64:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -102,6 +90,8 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
       - name: Check if model is cached locally
         id: check-model
         run: |
@@ -118,9 +108,12 @@ jobs:
           cd ./model-assets/clip-vit-base-patch32
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
           rm -rf .git flax_model.msgpack tf_model.h5
-      - name: Build and push data process image (amd64)
+      - name: Build data process image (amd64) and load locally
         run: |
-          docker buildx build --progress=plain --platform linux/amd64 -t nexent/nexent-data-process:amd64 -f make/data_process/Dockerfile . --push
+          docker buildx build --platform linux/amd64 -t nexent/nexent-data-process:amd64 --load -f make/data_process/Dockerfile .
+      - name: Push data process image (amd64)
+        run: |
+          docker push nexent/nexent-data-process:amd64
 
   build-and-push-data-process-arm64:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -135,6 +128,8 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
       - name: Check if model is cached locally
         id: check-model
         run: |
@@ -151,9 +146,12 @@ jobs:
           cd ./model-assets/clip-vit-base-patch32
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
           rm -rf .git flax_model.msgpack tf_model.h5
-      - name: Build and push data process image (arm64)
+      - name: Build data process image (arm64) and load locally
         run: |
-          docker buildx build --progress=plain --platform linux/arm64 -t nexent/nexent-data-process:arm64 -f make/data_process/Dockerfile . --push
+          docker buildx build --platform linux/arm64 -t nexent/nexent-data-process:arm64 --load -f make/data_process/Dockerfile .
+      - name: Push data process image (arm64)
+        run: |
+          docker push nexent/nexent-data-process:arm64
 
   build-and-push-web-amd64:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -168,9 +166,14 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Build and push web frontend image (amd64)
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
+      - name: Build web image (amd64) and load locally
         run: |
-          docker buildx build --progress=plain --platform linux/amd64 -t nexent/nexent-web:amd64 -f make/web/Dockerfile . --push
+          docker buildx build --platform linux/amd64 -t nexent/nexent-web:amd64 --load -f make/web/Dockerfile .
+      - name: Push web image (amd64)
+        run: |
+          docker push nexent/nexent-web:amd64
 
   build-and-push-web-arm64:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -185,6 +188,71 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Build and push web frontend image (arm64)
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
+      - name: Build web image (arm64) and load locally
         run: |
-          docker buildx build --progress=plain --platform linux/arm64 -t nexent/nexent-web:arm64 -f make/web/Dockerfile . --push 
+          docker buildx build --platform linux/arm64 -t nexent/nexent-web:arm64 --load -f make/web/Dockerfile .
+      - name: Push web image (arm64)
+        run: |
+          docker push nexent/nexent-web:arm64
+
+  manifest-push-base:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs:
+      - build-and-push-base-main-amd64
+      - build-and-push-base-main-arm64
+    steps:
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
+      - name: Create and push manifest for base
+        run: |
+          docker manifest create nexent/nexent-base:latest \
+            nexent/nexent-base:amd64 \
+            nexent/nexent-base:arm64
+          docker manifest push nexent/nexent-base:latest
+
+  manifest-push-main:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs:
+      - build-and-push-base-main-amd64
+      - build-and-push-base-main-arm64
+    steps:
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
+      - name: Create and push manifest for main
+        run: |
+          docker manifest create nexent/nexent:latest \
+            nexent/nexent:amd64 \
+            nexent/nexent:arm64
+          docker manifest push nexent/nexent:latest
+
+  manifest-push-data-process:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs:
+      - build-and-push-data-process-amd64
+      - build-and-push-data-process-arm64
+    steps:
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
+      - name: Create and push manifest for data-process
+        run: |
+          docker manifest create nexent/nexent-data-process:latest \
+            nexent/nexent-data-process:amd64 \
+            nexent/nexent-data-process:arm64
+          docker manifest push nexent/nexent-data-process:latest
+
+  manifest-push-web:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs:
+      - build-and-push-web-amd64
+      - build-and-push-web-arm64
+    steps:
+      - name: Login to DockerHub
+        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
+      - name: Create and push manifest for web
+        run: |
+          docker manifest create nexent/nexent-web:latest \
+            nexent/nexent-web:amd64 \
+            nexent/nexent-web:arm64
+          docker manifest push nexent/nexent-web:latest 
