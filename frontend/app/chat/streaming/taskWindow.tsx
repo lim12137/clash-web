@@ -6,7 +6,7 @@ import { Globe, Search, Zap, Bot, Code, FileText, HelpCircle, ChevronRight } fro
 import { Button } from "@/components/ui/button"
 import { useChatTaskMessage } from "@/hooks/useChatTaskMessage"
 
-// 图标映射字典 - 将字符串映射到对应的图标组件
+// Icon mapping dictionary - map strings to corresponding icon components
 const iconMap: Record<string, React.ReactNode> = {
   "search": <Search size={16} className="mr-2" color="#4b5563" />,
   "bot": <Bot size={16} className="mr-2" color="#4b5563" />,
@@ -15,25 +15,25 @@ const iconMap: Record<string, React.ReactNode> = {
   "globe": <Globe size={16} className="mr-2" color="#4b5563" />,
   "zap": <Zap size={16} className="mr-2" color="#4b5563" />,
   "knowledge": <FileText size={16} className="mr-2" color="#4b5563" />,
-  "default": <HelpCircle size={16} className="mr-2" color="#4b5563" /> // 默认图标
+  "default": <HelpCircle size={16} className="mr-2" color="#4b5563" /> // Default icon
 };
 
-// 定义卡片项的类型
+// Define the type for card items
 interface CardItem {
   icon?: string;
   text: string;
-  [key: string]: any; // 允许其他属性
+  [key: string]: any; // Allow other properties
 }
 
-// 定义消息处理器接口，提高可扩展性
+// Define the interface for message handlers to improve extensibility
 interface MessageHandler {
   canHandle: (message: any) => boolean;
   render: (message: any) => React.ReactNode;
 }
 
-// 定义不同类型消息的处理器
+// Define the handlers for different types of messages to improve extensibility
 const messageHandlers: MessageHandler[] = [
-  // 处理中 类型处理器 - 思考中，代码生成中，代码执行中
+  // Processing type processor - thinking, code generation, code execution
   {
     canHandle: (message) => 
       message.type === "agent_new_run" || 
@@ -47,67 +47,89 @@ const messageHandlers: MessageHandler[] = [
           color: "#6b7280",
           fontWeight: 500,
           borderRadius: "0.25rem",
-          paddingTop: "0.2rem"
+          paddingTop: "0.5rem"
         }}>
           <span>{message.content}</span>
         </div>
       )
   },
   
-  // 添加search_content_placeholder类型处理器 - 用于历史记录
+  // Add search_content_placeholder type processor - for history records
   {
     canHandle: (message) => message.type === "search_content_placeholder",
     render: (message) => {
-      // 查找message上下文中的搜索结果
+      // Find search results in the message context
       const messageContainer = message._messageContainer;
       if (!messageContainer || !messageContainer.search || messageContainer.search.length === 0) {
         return null;
       }
       
-      // 构建搜索结果展示内容
+      // Build the content for displaying search results
       const searchResults = messageContainer.search;
       
-      // 处理网站信息用于显示
-      const siteInfos = searchResults.map((result: any) => {
+      // deduplication logic - based on the combination of URL and filename
+      const uniqueSearchResults = searchResults.filter((result: any, index: number, array: any[]) => {
+        const currentKey = `${result.url || ''}-${result.filename || ''}-${result.title || ''}`;
+        return array.findIndex((item: any) => {
+          const itemKey = `${item.url || ''}-${item.filename || ''}-${item.title || ''}`;
+          return itemKey === currentKey;
+        }) === index;
+      });
+      
+      // Process website information for display
+      const siteInfos = uniqueSearchResults.map((result: any) => {
         const pageUrl = result.url || "";
         const filename = result.filename || "";
+        const sourceType = result.source_type || "";
         let domain = "未知来源";
         let displayName = "未知来源";
         let baseUrl = "";
         let faviconUrl = "";
         let useDefaultIcon = false;
         let isKnowledgeBase = false;
+        let canClick = true; // whether to allow click to jump
         
-        // 如果有文件名，说明是本地知识库的内容
-        if (filename) {
+        // first judge based on source_type
+        if (sourceType === "file") {
+          isKnowledgeBase = true;
+          displayName = filename || result.title || "知识库文件";
+          useDefaultIcon = true;
+          canClick = false; // file type does not allow jump
+        }
+        // if there is no source_type, judge based on filename (compatibility processing)
+        else if (filename) {
           isKnowledgeBase = true;
           displayName = filename;
           useDefaultIcon = true;
+          canClick = false; // file type does not allow jump
         }
-        // 否则尝试解析URL
-        else if (pageUrl) {
+        // handle webpage link
+        else if (pageUrl && pageUrl !== "#") {
           try {
             const parsedUrl = new URL(pageUrl);
             baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
             domain = parsedUrl.hostname;
             
-            // 处理域名，移除www前缀和com/cn等后缀
+            // Process the domain, remove the www prefix and com/cn etc. suffix
             displayName = domain
-              .replace(/^www\./, '') // 移除www.前缀
-              .replace(/\.(com|cn|org|net|io|gov|edu|co|info|biz|xyz)(\.[a-z]{2})?$/, ''); // 移除常见后缀
+              .replace(/^www\./, '') // Remove the www. prefix
+              .replace(/\.(com|cn|org|net|io|gov|edu|co|info|biz|xyz)(\.[a-z]{2})?$/, ''); // Remove common suffixes
             
-            // 如果处理后为空，则使用原域名
+            // If the processing is empty, use the original domain
             if (!displayName) {
               displayName = domain;
             }
             
             faviconUrl = `${baseUrl}/favicon.ico`;
+            canClick = true;
           } catch (e) {
             console.error("URL解析错误:", e);
             useDefaultIcon = true;
+            canClick = false;
           }
         } else {
           useDefaultIcon = true;
+          canClick = false;
         }
         
         return { 
@@ -117,35 +139,36 @@ const messageHandlers: MessageHandler[] = [
           url: pageUrl, 
           useDefaultIcon, 
           isKnowledgeBase,
-          filename 
+          filename,
+          canClick
         };
       });
       
-      // 渲染搜索结果信息条
+      // Render the search result information bar
       return (
         <div style={{
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
           fontSize: "0.875rem",
           lineHeight: 1.5,
         }}>
-          {/* 单行显示多个来源网站 */}
+          {/* Display multiple source websites in a single line */}
           <div style={{
             display: "flex",
             flexDirection: "column",
             gap: "0.5rem",
             marginBottom: "0.25rem"
           }}>
-            {/* "正在阅读"标签 - 单独一行 */}
+            {/* "正在阅读" label - a single line */}
             <div style={{
               fontSize: "0.875rem",
               color: "#6b7280",
               fontWeight: 500,
-              paddingTop: "0.15rem"
+              paddingTop: "0.5rem"
             }}>
               阅读检索结果
             </div>
             
-            {/* 网站图标和域名列表 - 新的一行 */}
+            {/* Website icon and domain list - a new line */}
             <div style={{
               display: "flex",
               flexWrap: "wrap",
@@ -163,25 +186,25 @@ const messageHandlers: MessageHandler[] = [
                     fontSize: "0.75rem",
                     color: "#4b5563",
                     border: "1px solid #e5e7eb",
-                    cursor: site.url ? "pointer" : "default", /* 只有在有URL时才显示指针样式 */
-                    transition: site.url ? "background-color 0.2s" : "none" /* 只有在有URL时才有hover效果 */
+                    cursor: site.canClick ? "pointer" : "default",
+                    transition: site.canClick ? "background-color 0.2s" : "none"
                   }}
                   onClick={() => {
-                    if (site.url) {
+                    if (site.canClick && site.url) {
                       window.open(site.url, "_blank", "noopener,noreferrer");
                     }
                   }}
                   onMouseEnter={(e) => {
-                    if (site.url) {
-                      e.currentTarget.style.backgroundColor = "#f3f4f6"; /* 只有在有URL时才有hover效果 */
+                    if (site.canClick) {
+                      e.currentTarget.style.backgroundColor = "#f3f4f6";
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (site.url) {
+                    if (site.canClick) {
                       e.currentTarget.style.backgroundColor = "#f9fafb";
                     }
                   }}
-                  title={site.url ? `访问 ${site.domain}` : site.filename} /* 根据类型显示不同的提示文字 */
+                  title={site.canClick ? `访问 ${site.domain}` : site.filename || site.displayName}
                 >
                   {site.isKnowledgeBase ? (
                     <FileText 
@@ -206,14 +229,14 @@ const messageHandlers: MessageHandler[] = [
                         borderRadius: "2px"
                       }}
                       onError={(e) => {
-                        // 如果图标加载失败，替换为React组件
+                        // If the icon fails to load, replace it with a React component
                         const imgElement = e.target as HTMLImageElement;
-                        // 标记该元素，防止重复触发onError
+                        // Mark the element to prevent duplicate onError triggers
                         imgElement.style.display = 'none';
-                        // 获取父元素
+                        // Get the parent element
                         const parent = imgElement.parentElement;
                         if (parent) {
-                          // 创建一个占位符div，作为Globe组件的容器
+                          // Create a placeholder div, as the container of the Globe component
                           const placeholder = document.createElement('div');
                           placeholder.style.marginRight = '0.5rem';
                           placeholder.style.display = 'inline-flex';
@@ -221,9 +244,9 @@ const messageHandlers: MessageHandler[] = [
                           placeholder.style.justifyContent = 'center';
                           placeholder.style.width = '16px';
                           placeholder.style.height = '16px';
-                          // 插入到img前面
+                          // Insert it before the img
                           parent.insertBefore(placeholder, imgElement);
-                          // 渲染Globe图标到该元素 (这里只能用原生方式近似实现)
+                          // Render the Globe icon to this element (this can only be approximated using native methods)
                           placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>';
                         }
                       }}
@@ -239,14 +262,14 @@ const messageHandlers: MessageHandler[] = [
     }
   },
   
-  // card 类型处理器 - 展示带图标的卡片
+  // card type processor - display cards with icons
   {
     canHandle: (message) => message.type === "card",
     render: (message) => {
       let cardItems: CardItem[] = [];
       
       try {
-        // 解析卡片内容
+        // Parse the card content
         if (typeof message.content === 'string') {
           cardItems = JSON.parse(message.content);
         } else if (Array.isArray(message.content)) {
@@ -287,7 +310,7 @@ const messageHandlers: MessageHandler[] = [
                 fontWeight: 500
               }}
             >
-              {/* 根据图标名称从字典中获取对应图标组件 */}
+              {/* Get the corresponding icon component from the dictionary based on the icon name */}
               {card.icon && iconMap[card.icon] ? iconMap[card.icon] : iconMap["default"]}
               <span>{card.text}</span>
             </div>
@@ -297,7 +320,7 @@ const messageHandlers: MessageHandler[] = [
     }
   },
   
-  // search_content 类型处理器 - 搜索结果
+  // search_content type processor - search results
   {
     canHandle: (message) => {
       const isSearchContent = message.type === "search_content";
@@ -305,25 +328,25 @@ const messageHandlers: MessageHandler[] = [
     },
     render: (message) => {
       
-      // 从内容中提取搜索结果
+      // Extract search results from the content
       let searchResults = [];
       const content = message.content || "";
       
       try {
-        // 尝试解析JSON内容
+        // Try to parse the JSON content
         if (typeof content === 'string') {
-          // 解析JSON字符串
+          // Parse the JSON string
           const parsedContent = JSON.parse(content);
           
-          // 检查是否为数组
+          // Check if it is an array
           if (Array.isArray(parsedContent)) {
             searchResults = parsedContent;
           } else {
-            // 如果不是数组但是对象，可能是单个结果
+            // If it is not an array but an object, it may be a single result
             searchResults = [parsedContent];
           }
         } else if (Array.isArray(content)) {
-          // 如果已经是数组，直接使用
+          // If it is already an array, use it directly
           searchResults = content;
         }
       } catch (error: any) {
@@ -335,7 +358,7 @@ const messageHandlers: MessageHandler[] = [
         );
       }
       
-      // 如果没有搜索结果，显示空消息
+      // If there are no search results, display an empty message
       if (!searchResults || searchResults.length === 0) {
         return (
           <div style={{padding: "8px", color: "#6b7280"}}>
@@ -344,47 +367,69 @@ const messageHandlers: MessageHandler[] = [
         );
       }
       
-      // 处理网站信息用于显示
-      const siteInfos = searchResults.map((result: any) => {
+      // deduplication logic - based on the combination of URL and filename
+      const uniqueSearchResults = searchResults.filter((result: any, index: number, array: any[]) => {
+        const currentKey = `${result.url || ''}-${result.filename || ''}-${result.title || ''}`;
+        return array.findIndex((item: any) => {
+          const itemKey = `${item.url || ''}-${item.filename || ''}-${item.title || ''}`;
+          return itemKey === currentKey;
+        }) === index;
+      });
+      
+      // Process website information for display
+      const siteInfos = uniqueSearchResults.map((result: any) => {
         const pageUrl = result.url || "";
         const filename = result.filename || "";
+        const sourceType = result.source_type || "";
         let domain = "未知来源";
         let displayName = "未知来源";
         let baseUrl = "";
         let faviconUrl = "";
         let useDefaultIcon = false;
         let isKnowledgeBase = false;
+        let canClick = true; // whether to allow click to jump
         
-        // 如果有文件名，说明是本地知识库的内容
-        if (filename) {
+        // first judge based on source_type
+        if (sourceType === "file") {
+          isKnowledgeBase = true;
+          displayName = filename || result.title || "知识库文件";
+          useDefaultIcon = true;
+          canClick = false; // file type does not allow jump
+        }
+        // if there is no source_type, judge based on filename (compatibility processing)
+        else if (filename) {
           isKnowledgeBase = true;
           displayName = filename;
           useDefaultIcon = true;
+          canClick = false; // file type does not allow jump
         }
-        // 否则尝试解析URL
-        else if (pageUrl) {
+        // handle webpage link
+        else if (pageUrl && pageUrl !== "#") {
           try {
             const parsedUrl = new URL(pageUrl);
             baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
             domain = parsedUrl.hostname;
             
-            // 处理域名，移除www前缀和com/cn等后缀
+            // Process the domain, remove the www prefix and com/cn etc. suffix
             displayName = domain
-              .replace(/^www\./, '') // 移除www.前缀
-              .replace(/\.(com|cn|org|net|io|gov|edu|co|info|biz|xyz)(\.[a-z]{2})?$/, ''); // 移除常见后缀
+              .replace(/^www\./, '') // Remove the www. prefix
+              .replace(/\.(com|cn|org|net|io|gov|edu|co|info|biz|xyz)(\.[a-z]{2})?$/, ''); // Remove common suffixes
             
-            // 如果处理后为空，则使用原域名
+            // If the processing is empty, use the original domain
             if (!displayName) {
               displayName = domain;
             }
             
             faviconUrl = `${baseUrl}/favicon.ico`;
+            canClick = true;
           } catch (e) {
             console.error("URL解析错误:", e);
             useDefaultIcon = true;
+            canClick = false;
           }
         } else {
           useDefaultIcon = true;
+          canClick = false;
         }
         
         return { 
@@ -394,35 +439,36 @@ const messageHandlers: MessageHandler[] = [
           url: pageUrl, 
           useDefaultIcon, 
           isKnowledgeBase,
-          filename 
+          filename,
+          canClick
         };
       });
       
-      // 渲染搜索结果信息条
+      // Render the search result information bar
       return (
         <div style={{
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
           fontSize: "0.875rem",
           lineHeight: 1.5,
         }}>
-          {/* 单行显示多个来源网站 */}
+          {/* Display multiple source websites in a single line */}
           <div style={{
             display: "flex",
             flexDirection: "column",
             gap: "0.5rem",
             marginBottom: "0.25rem"
           }}>
-            {/* "正在阅读"标签 - 单独一行 */}
+            {/* "Reading search results" label - a single line */}
             <div style={{
               fontSize: "0.875rem",
               color: "#6b7280",
               fontWeight: 500,
-              paddingTop: "0.15rem"
+              paddingTop: "0.5rem"
             }}>
               阅读检索结果
             </div>
             
-            {/* 网站图标和域名列表 - 新的一行 */}
+            {/* Website icon and domain list - a new line */}
             <div style={{
               display: "flex",
               flexWrap: "wrap",
@@ -440,25 +486,25 @@ const messageHandlers: MessageHandler[] = [
                     fontSize: "0.75rem",
                     color: "#4b5563",
                     border: "1px solid #e5e7eb",
-                    cursor: site.url ? "pointer" : "default", /* 只有在有URL时才显示指针样式 */
-                    transition: site.url ? "background-color 0.2s" : "none" /* 只有在有URL时才有hover效果 */
+                    cursor: site.canClick ? "pointer" : "default",
+                    transition: site.canClick ? "background-color 0.2s" : "none"
                   }}
                   onClick={() => {
-                    if (site.url) {
+                    if (site.canClick && site.url) {
                       window.open(site.url, "_blank", "noopener,noreferrer");
                     }
                   }}
                   onMouseEnter={(e) => {
-                    if (site.url) {
-                      e.currentTarget.style.backgroundColor = "#f3f4f6"; /* 只有在有URL时才有hover效果 */
+                    if (site.canClick) {
+                      e.currentTarget.style.backgroundColor = "#f3f4f6";
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (site.url) {
+                    if (site.canClick) {
                       e.currentTarget.style.backgroundColor = "#f9fafb";
                     }
                   }}
-                  title={site.url ? `访问 ${site.domain}` : site.filename} /* 根据类型显示不同的提示文字 */
+                  title={site.canClick ? `访问 ${site.domain}` : site.filename || site.displayName}
                 >
                   {site.isKnowledgeBase ? (
                     <FileText 
@@ -483,14 +529,14 @@ const messageHandlers: MessageHandler[] = [
                         borderRadius: "2px"
                       }}
                       onError={(e) => {
-                        // 如果图标加载失败，替换为React组件
+                        // If the icon fails to load, replace it with a React component
                         const imgElement = e.target as HTMLImageElement;
-                        // 标记该元素，防止重复触发onError
+                        // Mark the element to prevent duplicate onError triggers
                         imgElement.style.display = 'none';
-                        // 获取父元素
+                        // Get the parent element
                         const parent = imgElement.parentElement;
                         if (parent) {
-                          // 创建一个占位符div，作为Globe组件的容器
+                          // Create a placeholder div, as the container of the Globe component
                           const placeholder = document.createElement('div');
                           placeholder.style.marginRight = '0.5rem';
                           placeholder.style.display = 'inline-flex';
@@ -498,9 +544,9 @@ const messageHandlers: MessageHandler[] = [
                           placeholder.style.justifyContent = 'center';
                           placeholder.style.width = '16px';
                           placeholder.style.height = '16px';
-                          // 插入到img前面
+                          // Insert it before the img
                           parent.insertBefore(placeholder, imgElement);
-                          // 渲染Globe图标到该元素 (这里只能用原生方式近似实现)
+                          // Render the Globe icon to this element (this can only be approximated using native methods)
                           placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>';
                         }
                       }}
@@ -516,7 +562,7 @@ const messageHandlers: MessageHandler[] = [
     }
   },
   
-  // model_output 类型处理器 - 模型输出
+  // model_output type processor - model output
   {
     canHandle: (message) => message.type === "model_output",
     render: (message) => (
@@ -532,13 +578,13 @@ const messageHandlers: MessageHandler[] = [
     )
   },
   
-  // execution 类型处理器 - 执行结果（不展示）
+  // execution type processor - execution result (not displayed)
   {
     canHandle: (message) => message.type === "execution",
-    render: (message) => null // 返回null，不渲染此类型的消息
+    render: (message) => null // Return null, do not render this type of message
   },
   
-  // error 类型处理器 - 错误信息
+  // error type processor - error information
   {
     canHandle: (message) => message.type === "error",
     render: (message) => (
@@ -549,20 +595,20 @@ const messageHandlers: MessageHandler[] = [
         color: "#dc2626",
         fontWeight: 500,
         borderRadius: "0.25rem",
-        paddingTop: "0.2rem"
+        paddingTop: "0.5rem"
       }}>
         <span>{message.content}</span>
       </div>
     )
   },
   
-  // virtual 类型处理器 - 虚拟消息（不显示内容，仅作为卡片容器）
+  // virtual type processor - virtual message (do not display content, only as a card container)
   {
     canHandle: (message) => message.type === "virtual",
     render: () => null
   },
 
-  // 默认处理器 - 应放在最后
+  // default processor - should be placed at the end
   {
     canHandle: () => true,
     render: (message) => {
@@ -596,36 +642,55 @@ export function TaskWindow({
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
   const [isExpanded, setIsExpanded] = useState(isStreaming)
+  const [contentHeight, setContentHeight] = useState(0)
+  const contentRef = useRef<HTMLDivElement>(null)
   
   const { hasMessages, hasVisibleMessages, groupedMessages } = useChatTaskMessage(messages as ChatMessageType[]);
 
-  // 自动滚动到底部的逻辑
+  // calculate the content height
   useEffect(() => {
-    if (autoScroll && isStreaming) {
-      scrollToBottom();
+    if (isExpanded && contentRef.current) {
+      const height = contentRef.current.scrollHeight
+      setContentHeight(height)
     }
-  }, [messages, autoScroll, isStreaming]);
+  }, [isExpanded, groupedMessages, messages])
 
-  // 监听消息变化，自动滚动到底部
+  // Listen for message changes and automatically scroll to the bottom (only when user allows it)
   useEffect(() => {
-    if (isExpanded) {
+    if (isExpanded && autoScroll) {
       const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
       if (!scrollAreaElement) return;
 
       const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
       
-      // 如果用户已经在底部附近或者正在流式输出，则自动滚动
-      if (distanceToBottom < 100 || isStreaming) {
-        // 使用 requestAnimationFrame 来避免过于频繁的更新
+      // Only auto-scroll if user is near the bottom (within 150px)
+      if (distanceToBottom < 150) {
+        // Use requestAnimationFrame to avoid too frequent updates
         requestAnimationFrame(() => {
           scrollToBottom();
         });
       }
     }
-  }, [messages.length, isExpanded, isStreaming]);
+  }, [messages.length, isExpanded, autoScroll]);
 
-  // 处理滚动区域的滚动事件
+  // Auto-scroll during streaming when user allows it
+  useEffect(() => {
+    if (autoScroll && isStreaming && isExpanded) {
+      const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+      if (!scrollAreaElement) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
+      const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Only auto-scroll during streaming if user is near the bottom (within 150px)
+      if (distanceToBottom < 50) {
+        scrollToBottom();
+      }
+    }
+  }, [messages, autoScroll, isStreaming, isExpanded]);
+
+  // Handle the scrolling event of the scroll area
   useEffect(() => {
     const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
     
@@ -635,11 +700,11 @@ export function TaskWindow({
       const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
       
-      // 如果距离底部小于20px，认为用户滚动到了底部，启用自动滚动
-      if (distanceToBottom < 20) {
+      // If the distance to the bottom is less than 50px, it is considered that the user has scrolled to the bottom, and enable automatic scrolling
+      if (distanceToBottom < 50) {
         setAutoScroll(true);
-      } else if (distanceToBottom > 30) { 
-        // 如果距离底部超过30px，且是用户主动滚动，则禁用自动滚动
+      } else if (distanceToBottom > 80) { 
+        // If the distance to the bottom is greater than 80px, and it is user-initiated scrolling, disable automatic scrolling
         setAutoScroll(false);
       }
     };
@@ -651,11 +716,11 @@ export function TaskWindow({
     };
   }, []);
 
-  // 监听消息变化时的自动折叠逻辑
+  // The logic of automatically folding when the message changes
   useEffect(() => {
     if (!isStreaming && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
-      // 检查最后一条消息是否包含 finalAnswer
+      // Check if the last message contains finalAnswer
       if (lastMessage.finalAnswer) {
         const timer = setTimeout(() => {
           setIsExpanded(false);
@@ -665,45 +730,45 @@ export function TaskWindow({
     }
   }, [messages, isStreaming]);
 
-  // 滚动到底部函数
+  // The function of scrolling to the bottom
   const scrollToBottom = () => {
     const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
     if (!scrollAreaElement) return;
     
-    // 使用 requestAnimationFrame 来优化性能
+    // Use requestAnimationFrame to optimize performance
     requestAnimationFrame(() => {
       (scrollAreaElement as HTMLElement).scrollTop = (scrollAreaElement as HTMLElement).scrollHeight;
     });
   };
 
-  // 使用处理器渲染消息内容
+  // Use the processor to render the message content
   const renderMessageContent = (message: any) => {
-    // 查找第一个能够处理此消息类型的处理器
+    // Find the first processor that can handle this message type
     
     const handler = messageHandlers.find(h => h.canHandle(message));
     if (handler) {
       return handler.render(message);
     }
     
-    // 兜底处理，正常不会执行到这里
-    console.warn("没有找到处理器:", { 
+    // Fallback processing, normally not executed here
+    console.warn("No processor found:", { 
       messageType: message.type 
     });
     return <div className="text-sm text-gray-500">未知消息类型: {message.type}</div>;
   };
 
-  // 判断是否为最后一条消息
+  // Check if it is the last message
   const isLastMessage = (index: number, messages: any[]) => {
     return index === messages.length - 1;
   };
 
-  // 判断一条消息是否应该显示闪烁的圆点
+  // Check if a message should display a blinking dot
   const shouldBlinkDot = (message: any, index: number, messages: any[]) => {
-    // 只要是最后一条消息且正在流式响应中，就应该闪烁，不论消息类型
+    // As long as it is the last message and is streaming, it should blink, regardless of the message type
     return isStreaming && isLastMessage(index, messages);
   };
 
-  // 渲染消息列表
+  // Render the message list
   const renderMessages = () => {
     if (!hasMessages) {
       return (
@@ -722,10 +787,8 @@ export function TaskWindow({
     }
 
     return (
-      <div className="relative pl-3">
-        {groupedMessages.length > 1 && (
-          <div className="absolute left-1.5 top-[0.65rem] bottom-[0.65rem] w-0.5 bg-gray-200"></div>
-        )}
+      <div className="relative">
+        <div className="absolute left-[0.2rem] top-[1.25rem] bottom-0 w-0.5 bg-gray-200"></div>
 
         {groupedMessages.map((group, groupIndex) => {
           const message = group.message;
@@ -733,37 +796,40 @@ export function TaskWindow({
           
           return (
             <div key={message.id || groupIndex} className="relative mb-5">
-              {/* 圆点 - 根据条件添加闪烁效果 */}
-              <div className="absolute left-[-9px] top-[0.55rem]">
-                <div 
-                  className={isBlinking ? "blinkingDot" : ""}
-                  style={isBlinking ? {
-                    width: "0.5rem",
-                    height: "0.5rem",
-                    borderRadius: "9999px"
-                  } : {
-                    width: "0.5rem",
-                    height: "0.5rem",
-                    borderRadius: "9999px",
-                    backgroundColor: message.type === "virtual" ? "transparent" : "#9ca3af"
-                  }}
-                ></div>
-              </div>
-              
-              {/* 消息内容 */}
-              <div className="ml-3 text-sm break-words">
-                {renderMessageContent(message)}
+              {/* 使用flex布局确保圆点与文本内容对齐 */}
+              <div className="flex items-start">
+                {/* 圆点容器 */}
+                <div className="flex-shrink-0 mr-3" style={{ position: "relative", top: "0.95rem" }}>
+                  <div 
+                    className={isBlinking ? "blinkingDot" : ""}
+                    style={isBlinking ? {
+                      width: "0.5rem",
+                      height: "0.5rem",
+                      borderRadius: "9999px"
+                    } : {
+                      width: "0.5rem",
+                      height: "0.5rem",
+                      borderRadius: "9999px",
+                      backgroundColor: message.type === "virtual" ? "transparent" : "#9ca3af"
+                    }}
+                  ></div>
+                </div>
                 
-                {/* 渲染卡片消息 */}
-                {group.cards.length > 0 && (
-                  <div className="mt-2">
-                    {group.cards.map((card, cardIndex) => (
-                      <div key={`card-${cardIndex}`} className="ml-0">
-                        {renderMessageContent(card)}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* 消息内容 */}
+                <div className="flex-1 text-sm break-words min-w-0">
+                  {renderMessageContent(message)}
+                  
+                  {/* Render card messages */}
+                  {group.cards.length > 0 && (
+                    <div className="mt-2">
+                      {group.cards.map((card, cardIndex) => (
+                        <div key={`card-${cardIndex}`} className="ml-0">
+                          {renderMessageContent(card)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -772,41 +838,56 @@ export function TaskWindow({
     );
   };
 
+  // 计算容器高度：内容高度 + header高度，但不超过最大高度
+  const maxHeight = 300
+  const headerHeight = 55
+  const availableHeight = maxHeight - headerHeight
+  const actualContentHeight = Math.min(contentHeight + 16, availableHeight)
+  const containerHeight = isExpanded ? headerHeight + actualContentHeight : 'auto'
+  const needsScroll = contentHeight + 16 > availableHeight
+
   return (
     <>
-      {isExpanded ? (
-        <div className="relative rounded-lg border border-gray-200 shadow-md h-[300px] mb-2 overflow-hidden">
-          <div className="p-2 border-b border-gray-100/50">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-medium text-gray-500">任务详情</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 hover:bg-gray-100 rounded-full"
-                onClick={() => setIsExpanded(false)}
-              >
-                <ChevronRight className="h-4 w-4 rotate-90" />
-              </Button>
-            </div>
+      <div 
+        className="relative rounded-lg mb-4 overflow-hidden border border-gray-200 bg-gray-50"
+        style={{ 
+          height: containerHeight,
+          minHeight: isExpanded ? `${headerHeight}px` : 'auto'
+        }}
+      >
+        <div className="px-1 py-2">
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-gray-100 rounded-full mr-2"
+              onClick={() => setIsExpanded(!isExpanded)}
+            >
+              <ChevronRight className={`h-4 w-4 ${isExpanded ? 'rotate-90' : '-rotate-90'}`} />
+            </Button>
+            <span className="text-xs font-medium text-gray-500">任务详情</span>
           </div>
-          
-          <ScrollArea className="h-[252px] px-4" ref={scrollAreaRef}>
-            {renderMessages()}
-          </ScrollArea>
+          {isExpanded && <div className="h-px bg-gray-200 mt-2" />}
         </div>
-      ) : (
-        <Button
-          variant="outline"
-          size="sm"
-          className="mb-2 w-full bg-white hover:bg-gray-50 border border-gray-200 shadow-sm"
-          onClick={() => setIsExpanded(true)}
-        >
-          <ChevronRight className="h-4 w-4 mr-2 -rotate-90" />
-          <span className="text-xs text-gray-500">展开任务执行详情</span>
-        </Button>
-      )}
+        
+        {isExpanded && (
+          <div className="px-4" style={{ height: `${actualContentHeight}px` }}>
+            {needsScroll ? (
+              <ScrollArea className="h-full" ref={scrollAreaRef}>
+                <div className="" ref={contentRef}>
+                  {renderMessages()}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="" ref={contentRef}>
+                {renderMessages()}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-      {/* 添加必要的CSS动画 */}
+      {/* Add necessary CSS animations */}
       <style jsx global>{`
         @keyframes blinkingDot {
           0% { background-color: rgba(59, 130, 246, 0.5); }

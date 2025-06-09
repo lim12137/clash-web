@@ -73,12 +73,12 @@ class ElasticSearchCore:
         
         # Initialize embedding model
         self.embedding_model = embedding_model
-        
+
         # 🚀 Add bulk operation management
         self._bulk_operations: Dict[str, List[BulkOperation]] = {}
         self._settings_lock = threading.Lock()
         self._operation_counter = 0
-    
+
     @property
     def embedding_dim(self) -> int:
         """
@@ -138,7 +138,7 @@ class ElasticSearchCore:
                     }
                 }
             }
-            
+
             # Check if index already exists
             if self.client.indices.exists(index=index_name):
                 logging.info(f"Index {index_name} already exists, skipping creation")
@@ -176,11 +176,11 @@ class ElasticSearchCore:
                 settings=settings,
                 wait_for_active_shards="1"
             )
-            
+
             # Force refresh to ensure visibility
             self._force_refresh_with_retry(index_name)
             self._ensure_index_ready(index_name)
-            
+
             logging.info(f"Successfully created index: {index_name}")
             return True
             
@@ -195,7 +195,7 @@ class ElasticSearchCore:
         except Exception as e:
             logging.error(f"Error creating index: {str(e)}")
             return False
-    
+
     def _force_refresh_with_retry(self, index_name: str, max_retries: int = 3) -> bool:
         """
         Force refresh with retry - synchronous version
@@ -211,13 +211,13 @@ class ElasticSearchCore:
                 logging.error(f"Failed to refresh index {index_name}: {e}")
                 return False
         return False
-    
+
     def _ensure_index_ready(self, index_name: str, timeout: int = 10) -> bool:
         """
         Ensure index is ready, avoid 503 error - synchronous version
         """
         start_time = time.time()
-        
+
         while time.time() - start_time < timeout:
             try:
                 # Check cluster health
@@ -226,7 +226,7 @@ class ElasticSearchCore:
                     wait_for_status="yellow",
                     timeout="1s"
                 )
-                
+
                 if health["status"] in ["green", "yellow"]:
                     # Double check: try simple query
                     self.client.search(
@@ -234,14 +234,14 @@ class ElasticSearchCore:
                         body={"query": {"match_all": {}}, "size": 0}
                     )
                     return True
-                    
+
             except Exception as e:
                 logging.debug(f"Index {index_name} not ready yet: {e}")
                 time.sleep(0.1)
-        
+
         logging.warning(f"Index {index_name} may not be fully ready after {timeout}s")
         return False
-    
+
     @contextmanager
     def bulk_operation_context(self, index_name: str, estimated_duration: int = 60):
         """
@@ -249,39 +249,39 @@ class ElasticSearchCore:
         """
         operation_id = f"bulk_{self._operation_counter}_{threading.current_thread().name}"
         self._operation_counter += 1
-        
+
         operation = BulkOperation(
             index_name=index_name,
             operation_id=operation_id,
             start_time=datetime.now(),
             expected_duration=timedelta(seconds=estimated_duration)
         )
-        
+
         with self._settings_lock:
             # Record current operation
             if index_name not in self._bulk_operations:
                 self._bulk_operations[index_name] = []
             self._bulk_operations[index_name].append(operation)
-            
+
             # If this is the first bulk operation, adjust settings
             if len(self._bulk_operations[index_name]) == 1:
                 self._apply_bulk_settings(index_name)
-        
+
         try:
             yield operation_id
         finally:
             with self._settings_lock:
                 # Remove operation record
                 self._bulk_operations[index_name] = [
-                    op for op in self._bulk_operations[index_name] 
+                    op for op in self._bulk_operations[index_name]
                     if op.operation_id != operation_id
                 ]
-                
+
                 # If there are no other bulk operations, restore settings
                 if not self._bulk_operations[index_name]:
                     self._restore_normal_settings(index_name)
                     del self._bulk_operations[index_name]
-    
+
     def _apply_bulk_settings(self, index_name: str):
         """Apply bulk operation optimization settings"""
         try:
@@ -296,7 +296,7 @@ class ElasticSearchCore:
             logging.info(f"Applied bulk settings to {index_name}")
         except Exception as e:
             logging.warning(f"Failed to apply bulk settings: {e}")
-    
+
     def _restore_normal_settings(self, index_name: str):
         """Restore normal settings"""
         try:
@@ -312,7 +312,7 @@ class ElasticSearchCore:
             logging.info(f"Restored normal settings for {index_name}")
         except Exception as e:
             logging.warning(f"Failed to restore settings: {e}")
-    
+
     def delete_index(self, index_name: str) -> bool:
         """
         Delete an entire index
@@ -374,11 +374,11 @@ class ElasticSearchCore:
             int: Number of documents successfully indexed
         """
         logging.info(f"Indexing {len(documents)} documents to {index_name}")
-        
+
         # Handle empty documents list
         if not documents:
             return 0
-        
+
         # Smart strategy selection
         total_docs = len(documents)
         if total_docs < 100:
@@ -389,7 +389,7 @@ class ElasticSearchCore:
             estimated_duration = max(60, total_docs // 100)
             with self.bulk_operation_context(index_name, estimated_duration):
                 return self._large_batch_insert(index_name, documents, batch_size, content_field)
-    
+
     def _small_batch_insert(self, index_name: str, documents: List[Dict[str, Any]], content_field: str) -> int:
         """Small batch insertion: real-time"""
         try:
@@ -399,7 +399,7 @@ class ElasticSearchCore:
             # Get embeddings
             inputs = [{"text": doc[content_field]} for doc in processed_docs]
             embeddings = self.embedding_model.get_embeddings(inputs)
-            
+
             # Prepare bulk operations
             operations = []
             for doc, embedding in zip(processed_docs, embeddings):
@@ -408,37 +408,37 @@ class ElasticSearchCore:
                 if "embedding_model_name" not in doc:
                     doc["embedding_model_name"] = self.embedding_model.embedding_model_name
                 operations.append(doc)
-            
+
             # Execute bulk insertion, wait for refresh to complete
             response = self.client.bulk(
                 index=index_name,
                 operations=operations,
                 refresh='wait_for'
             )
-            
+
             # Handle errors
             self._handle_bulk_errors(response)
-            
+
             logging.info(f"Small batch insert completed: {len(documents)} docs")
             return len(documents)
             
         except Exception as e:
             logging.error(f"Small batch insert failed: {e}")
             return 0
-    
+
     def _large_batch_insert(self, index_name: str, documents: List[Dict[str, Any]], batch_size: int, content_field: str) -> int:
         """Large batch insertion: performance"""
         try:
             # Preprocess all documents
             processed_docs = self._preprocess_documents(documents, content_field)
-            
+
             total_indexed = 0
             total_batches = (len(processed_docs) + batch_size - 1) // batch_size
-            
+
             for i in range(0, len(processed_docs), batch_size):
                 batch = processed_docs[i:i + batch_size]
                 batch_num = i // batch_size + 1
-                
+
                 # Prepare input and get embeddings
                 inputs = [{"text": doc[content_field]} for doc in batch]
                 embeddings = self.embedding_model.get_embeddings(inputs)
@@ -451,7 +451,7 @@ class ElasticSearchCore:
                     if "embedding_model_name" not in doc:
                         doc["embedding_model_name"] = self.embedding_model.embedding_model_name
                     operations.append(doc)
-                
+
                 # Execute bulk insertion (no immediate refresh)
                 response = self.client.bulk(
                     index=index_name,
@@ -461,62 +461,62 @@ class ElasticSearchCore:
                 
                 # Handle errors
                 self._handle_bulk_errors(response)
-                
+
                 total_indexed += len(batch)
                 logging.info(f"Processed batch {batch_num}/{total_batches}, documents {i} to {min(i+batch_size, len(processed_docs))}")
                 
                 # Take a break after every few batches to avoid overwhelming ES
                 if batch_num % 10 == 0:
                     time.sleep(0.1)
-            
+
             # Finally, manually refresh once
             self._force_refresh_with_retry(index_name)
             logging.info(f"Large batch insert completed: {len(documents)} docs in {total_batches} batches")
             return total_indexed
-            
+
         except Exception as e:
             logging.error(f"Large batch insert failed: {e}")
             return 0
-    
+
     def _preprocess_documents(self, documents: List[Dict[str, Any]], content_field: str) -> List[Dict[str, Any]]:
         """Ensure all documents have the required fields and set default values"""
         current_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
         current_date = time.strftime('%Y-%m-%d', time.localtime())
-        
+
         processed_docs = []
         for doc in documents:
             # Create a copy of the document to avoid modifying the original data
             doc_copy = doc.copy()
-            
+
             # Set create_time if not present
             if not doc_copy.get("create_time"):
                 doc_copy["create_time"] = current_time
-            
+
             if not doc_copy.get("date"):
                 doc_copy["date"] = current_date
-            
+
             # Convert create_time to ISO string if it's a number
             if isinstance(doc_copy.get("create_time"), (int, float)):
                 import datetime
                 doc_copy["create_time"] = datetime.datetime.fromtimestamp(doc_copy["create_time"]).isoformat()
-                
+
             # Ensure file_size is present (default to 0 if not provided)
             if not doc_copy.get("file_size"):
                 logging.warning(f"File size not found in {doc_copy}")
                 doc_copy["file_size"] = 0
-                
+
             # Ensure process_source is present
             if not doc_copy.get("process_source"):
                 doc_copy["process_source"] = "Unstructured"
-                
+
             # Ensure all documents have an ID
             if not doc_copy.get("id"):
                 doc_copy["id"] = f"{int(time.time())}_{hash(doc_copy[content_field])}"[:20]
-            
+
             processed_docs.append(doc_copy)
-        
+
         return processed_docs
-    
+
     def _handle_bulk_errors(self, response: Dict[str, Any]) -> None:
         """Handle bulk operation errors"""
         if response.get('errors'):
@@ -526,7 +526,7 @@ class ElasticSearchCore:
                     error_type = error_info.get('type')
                     error_reason = error_info.get('reason')
                     error_cause = error_info.get('caused_by', {})
-                    
+
                     if error_type == 'version_conflict_engine_exception':
                         # ignore version conflict
                         continue
@@ -894,7 +894,7 @@ class ElasticSearchCore:
             logging.info(stats)
         except Exception as e:
             logging.error(f"Error getting index statistics: {str(e)}")
-    
+
     def get_all_indices_stats(self, index_pattern: str = "*") -> Dict[str, Dict[str, Dict[str, Any]]]:
         """
         Get statistics for all user indices.
@@ -932,7 +932,7 @@ class ElasticSearchCore:
 
     def diagnose_yellow_status(self, index_name):
         print(f"=== Diagnosing Yellow status for index {index_name} ===\n")
-        
+
         try:
             # 1. Basic information
             health = self.client.cluster.health(index=index_name)
@@ -940,30 +940,30 @@ class ElasticSearchCore:
             print(f"Unassigned shards: {health['unassigned_shards']}")
             print(f"Active shards: {health['active_shards']}")
             print(f"Replica shards: {health['active_shards'] - health['active_primary_shards']}")
-            
+
             # 2. Node information
             nodes = self.client.cat.nodes(format='json')
             print(f"Number of nodes: {len(nodes)}")
-            
+
             # 3. Index settings
             settings = self.client.indices.get_settings(index=index_name)
             replicas = int(settings[index_name]['settings']['index']['number_of_replicas'])
             print(f"Configured replicas: {replicas}")
-            
+
             # 4. Shard status
             shards = self.client.cat.shards(index=index_name, format='json')
             unassigned_shards = [s for s in shards if s['state'] == 'UNASSIGNED']
-            
+
             print(f"Unassigned shards:")
             for shard in unassigned_shards:
                 print(f"  - Shard {shard['shard']}, type: {shard['prirep']}")
-            
+
             # 5. Given advice
             if len(nodes) == 1 and replicas > 0:
                 print("\n📋 Advice: For single-node cluster, set replicas to 0")
                 print("   Execute: PUT /{}/_settings".format(index_name))
                 print('   {"settings": {"number_of_replicas": 0}}')
-                
+
             # 6. Allocation explanation (for the first unassigned shard)
             if unassigned_shards:
                 first_unassigned = unassigned_shards[0]
@@ -976,6 +976,6 @@ class ElasticSearchCore:
                 )
                 print(f"\nShard allocation failure reason:")
                 print(f"  {explain.get('allocate_explanation', 'Unknown reason')}")
-                
+
         except Exception as e:
             print(f"Error during diagnosis: {e}")

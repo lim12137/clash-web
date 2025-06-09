@@ -19,7 +19,7 @@ export const DATA_CONFIG_KEY = 'data';
 // 默认配置
 export const defaultConfig: GlobalConfig = {
   app: {
-    appName: "智能问答",
+    appName: "Nexent 智能体",
     appDescription: "定制化智能问答助手，基于理解复杂问题并提供精准解答。支持知识检索、Agent配置，为您提供专业、高效的信息服务和决策支持。",
     iconType: "preset",
     customIconUrl: null,
@@ -62,7 +62,11 @@ export const defaultConfig: GlobalConfig = {
     },
     rerank: {
       modelName: "",
-      displayName: ""
+      displayName: "",
+      apiConfig: {
+        apiKey: "",
+        modelUrl: ""
+      }
     },
     vlm: {
       modelName: "",
@@ -74,11 +78,19 @@ export const defaultConfig: GlobalConfig = {
     },
     stt: {
       modelName: "",
-      displayName: ""
+      displayName: "",
+      apiConfig: {
+        apiKey: "",
+        modelUrl: ""
+      }
     },
     tts: {
       modelName: "",
-      displayName: ""
+      displayName: "",
+      apiConfig: {
+        apiKey: "",
+        modelUrl: ""
+      }
     }
   },
   data: {
@@ -94,9 +106,9 @@ export interface ModelOption {
   type: ModelType
   maxTokens: number
   source: ModelSource
-  apiKey?: string
-  apiUrl?: string
-  displayName?: string
+  apiKey: string
+  apiUrl: string
+  displayName: string
   connect_status?: ModelConnectStatus
 }
 
@@ -120,7 +132,7 @@ export interface ModelApiConfig {
 export interface SingleModelConfig {
   modelName: string
   displayName: string
-  apiConfig?: ModelApiConfig
+  apiConfig: ModelApiConfig
   dimension?: number  // 只用于 embedding 和 multiEmbedding 模型
 }
 

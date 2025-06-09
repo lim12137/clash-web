@@ -9,6 +9,8 @@ import {forwardRef, useEffect, useImperativeHandle, useState, useRef, ReactNode}
 import {ModelConnectStatus, ModelOption, ModelType} from '@/types/config'
 import {useConfig} from '@/hooks/useConfig'
 import {modelService} from '@/services/modelService'
+import {configService} from '@/services/configService'
+import {configStore} from '@/lib/config'
 import {ModelListCard} from './model/ModelListCard'
 import {ModelAddDialog} from './model/ModelAddDialog'
 import {ModelDeleteDialog} from './model/ModelDeleteDialog'
@@ -128,9 +130,11 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
 
   // 初始化加载
   useEffect(() => {
-    // 在组件加载时获取模型列表
+    // 在组件加载时先从后端加载配置，然后再加载模型列表
     const fetchData = async () => {
-      await loadModelLists(true);  // Skip verification when initializing
+      await configService.loadConfigToFrontend();
+      await configStore.reloadFromStorage();
+      await loadModelLists(true);
     };
 
     fetchData();
@@ -154,8 +158,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           const cardId = fieldParts[1];
 
           const selector = cardType === 'embedding'
-            ? '.model-card:nth-child(2)' // Embedding卡片通常是第二个
-            : '.model-card:nth-child(1)'; // LLM卡片通常是第一个
+            ? '.model-card:nth-child(2)'
+            : '.model-card:nth-child(1)';
 
           const card = document.querySelector(selector);
           if (card) {
@@ -176,51 +180,11 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     verifyModels
   }));
 
-  // 安全地更新特定自定义模型的连接状态
-  const updateCustomModelStatus = (modelName: string, modelType: string, status: ModelConnectStatus) => {
-    // 更新本地状态
-    setCustomModels(prev => {
-      const idx = prev.findIndex(model => model.name === modelName && model.type === modelType);
-      if (idx === -1) return prev;
-
-      const updated = [...prev];
-      updated[idx] = {
-        ...updated[idx],
-        connect_status: status
-      };
-      return updated;
-    });
-
-    // 同时同步到后端数据库
-    modelService.updateModelStatus(modelName, status)
-      .then(success => {
-        if (!success) {
-          console.error(`更新模型 ${modelName} 状态到数据库失败`);
-        } else {
-          // 状态成功更新到数据库后，主动触发全局模型状态更新
-          setTimeout(() => {
-            // 直接从后端获取最新数据更新模型卡片
-            modelService.getCustomModels().then(models => {
-              if (models && models.length > 0) {
-                // 确保在此处获取的模型列表中包含最新的状态
-                // 更新本地状态
-                setCustomModels(models);
-              }
-            }).catch(err => {
-              console.error("获取最新模型状态失败:", err);
-            });
-          }, 500);  // 延迟500ms，确保后端数据已更新
-        }
-      })
-      .catch(error => {
-        console.error(`同步模型 ${modelName} 状态到数据库出错:`, error);
-      });
-  }
-
   // 加载模型列表
   const loadModelLists = async (skipVerify: boolean = false) => {
+    const modelConfig = configStore.getConfig().models;
+    
     try {
-      // 使用Promise.all并行加载官方模型和自定义模型
       const [official, custom] = await Promise.all([
         modelService.getOfficialModels(),
         modelService.getCustomModels()
@@ -238,31 +202,31 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
 
       // 合并所有可用模型列表（官方和自定义）
       const allModels = [...officialWithStatus, ...custom]
-
+      
       // 从配置中加载选中的模型，并检查模型是否仍然存在
-      const llmMain = modelConfig.llm.modelName
-      const llmMainExists = llmMain ? allModels.some(m => m.name === llmMain && m.type === 'llm') : true
+      const llmMain = modelConfig.llm.displayName
+      const llmMainExists = llmMain ? allModels.some(m => m.displayName === llmMain && m.type === 'llm') : true
 
-      const llmSecondary = modelConfig.llmSecondary.modelName
-      const llmSecondaryExists = llmSecondary ? allModels.some(m => m.name === llmSecondary && m.type === 'llm') : true
+      const llmSecondary = modelConfig.llmSecondary.displayName
+      const llmSecondaryExists = llmSecondary ? allModels.some(m => m.displayName === llmSecondary && m.type === 'llm') : true
 
-      const embedding = modelConfig.embedding.modelName
-      const embeddingExists = embedding ? allModels.some(m => m.name === embedding && m.type === 'embedding') : true
+      const embedding = modelConfig.embedding.displayName
+      const embeddingExists = embedding ? allModels.some(m => m.displayName === embedding && m.type === 'embedding') : true
 
-      const multiEmbedding = modelConfig.multiEmbedding.modelName
-      const multiEmbeddingExists = multiEmbedding ? allModels.some(m => m.name === multiEmbedding && m.type === 'multi_embedding') : true
+      const multiEmbedding = modelConfig.multiEmbedding.displayName
+      const multiEmbeddingExists = multiEmbedding ? allModels.some(m => m.displayName === multiEmbedding && m.type === 'multi_embedding') : true
 
-      const rerank = modelConfig.rerank.modelName
-      const rerankExists = rerank ? allModels.some(m => m.name === rerank && m.type === 'rerank') : true
+      const rerank = modelConfig.rerank.displayName
+      const rerankExists = rerank ? allModels.some(m => m.displayName === rerank && m.type === 'rerank') : true
 
-      const vlm = modelConfig.vlm.modelName
-      const vlmExists = vlm ? allModels.some(m => m.name === vlm && m.type === 'vlm') : true
+      const vlm = modelConfig.vlm.displayName
+      const vlmExists = vlm ? allModels.some(m => m.displayName === vlm && m.type === 'vlm') : true
 
-      const stt = modelConfig.stt.modelName
-      const sttExists = stt ? allModels.some(m => m.name === stt && m.type === 'stt') : true
+      const stt = modelConfig.stt.displayName
+      const sttExists = stt ? allModels.some(m => m.displayName === stt && m.type === 'stt') : true
 
-      const tts = modelConfig.tts.modelName
-      const ttsExists = tts ? allModels.some(m => m.name === tts && m.type === 'tts') : true
+      const tts = modelConfig.tts.displayName
+      const ttsExists = tts ? allModels.some(m => m.displayName === tts && m.type === 'tts') : true
 
       // 创建更新后的选中模型对象
       const updatedSelectedModels = {
@@ -541,7 +505,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   const handleSyncModels = async () => {
     setIsSyncing(true)
     try {
-      await modelService.syncModels()
       await loadModelLists(true)
       message.success('模型同步成功')
     } catch (error) {
@@ -553,12 +516,12 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   }
 
   // 验证单个模型连接状态 (添加节流逻辑)
-  const verifyOneModel = async (modelName: string, modelType: ModelType) => {
+  const verifyOneModel = async (displayName: string, modelType: ModelType) => {
     // 如果是空模型名，直接返回
-    if (!modelName) return;
+    if (!displayName) return;
 
     // 查找模型在officialModels或customModels中
-    const isOfficialModel = officialModels.some(model => model.name === modelName && model.type === modelType);
+    const isOfficialModel = officialModels.some(model => model.displayName === displayName && model.type === modelType);
 
     // 官方模型始终视为"可用"
     if (isOfficialModel) return;
@@ -571,17 +534,17 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     // 使用节流，延迟1s再执行验证，避免频繁切换模型时重复验证
     throttleTimerRef.current = setTimeout(async () => {
       // 更新自定义模型状态为"检测中"
-      updateCustomModelStatus(modelName, modelType, "检测中");
+      updateCustomModelStatus(displayName, modelType, "检测中");
 
       try {
         // 使用modelService验证自定义模型
-        const isConnected = await modelService.verifyCustomModel(modelName);
+        const isConnected = await modelService.verifyCustomModel(displayName);
 
         // 更新模型状态
-        updateCustomModelStatus(modelName, modelType, isConnected ? "可用" : "不可用");
+        updateCustomModelStatus(displayName, modelType, isConnected ? "可用" : "不可用");
       } catch (error: any) {
-        console.error(`校验自定义模型 ${modelName} 失败:`, error);
-        updateCustomModelStatus(modelName, modelType, "不可用");
+        console.error(`校验自定义模型 ${displayName} 失败:`, error);
+        updateCustomModelStatus(displayName, modelType, "不可用");
       } finally {
         throttleTimerRef.current = null;
       }
@@ -589,18 +552,20 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   }
 
   // 处理模型变更
-  const handleModelChange = async (category: string, option: string, value: string) => {
+  const handleModelChange = async (category: string, option: string, displayName: string) => {
     // 更新选中的模型
     setSelectedModels(prev => ({
       ...prev,
       [category]: {
         ...prev[category],
-        [option]: value,
+        [option]: displayName,
       }
     }))
-    
+
+    console.log(`handleModelChange: ${category}, ${option}, ${displayName}`)
+
     // 如果有值，清除错误状态
-    if (value) {
+    if (displayName) {
       setErrorFields(prev => ({
         ...prev,
         [`${category}.${option}`]: false
@@ -620,170 +585,100 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     }
 
     const modelInfo = [...officialModels, ...customModels].find(
-      m => m.name === value && m.type === modelType
+      m => m.displayName === displayName && m.type === modelType
     );
 
     // 新选择的模型如果是自定义模型，且之前没有设置状态，则设置为"未检测"
     if (modelInfo && modelInfo.source === "custom" && !modelInfo.connect_status) {
-      updateCustomModelStatus(value, modelType, "未检测");
+      updateCustomModelStatus(displayName, modelType, "未检测");
     }
-    
-    // 使用模型的显示名称，如果有的话，否则使用模型名称
-    const displayName = modelInfo?.displayName || value;
 
     // 更新配置
-    let configUpdate: any = {}
-    if (category === "voice") {
-      configUpdate[option] = { 
-        modelName: value,
-        displayName: displayName,
-        apiConfig: modelInfo?.apiKey ? {
-          apiKey: modelInfo.apiKey,
-          modelUrl: modelInfo.apiUrl || '',
-        } : undefined
-      }
-    } else if (category === "embedding") {
-      const modelKey = option === 'multi_embedding' ? 'multiEmbedding' : 'embedding';
-      configUpdate[modelKey] = {
-        modelName: value,
-        displayName: displayName,
-        apiConfig: modelInfo?.apiKey ? {
-          apiKey: modelInfo.apiKey,
-          modelUrl: modelInfo.apiUrl || '',
-        } : undefined,
-        dimension: modelInfo?.maxTokens || undefined
-      }
-    } else if (category === "reranker") {
-      configUpdate.rerank = { 
-        modelName: value,
-        displayName: displayName,
-        apiConfig: modelInfo?.apiKey ? {
-          apiKey: modelInfo.apiKey,
-          modelUrl: modelInfo.apiUrl || '',
-        } : undefined
-      }
+    let configKey = category;
+    if (category === "llm" && option === "secondary") {
+      configKey = "llmSecondary";
+    } else if (category === "embedding" && option === "multi_embedding") {
+      configKey = "multiEmbedding";
     } else if (category === "multimodal") {
-      configUpdate.vlm = { 
-        modelName: value,
-        displayName: displayName,
-        apiConfig: modelInfo?.apiKey ? {
+      configKey = "vlm";
+    } else if (category === "reranker") {
+      configKey = "rerank";
+    } else if (category === "voice" && option === "tts") {
+      configKey = "tts";
+    } else if (category === "voice" && option === "stt") {
+      configKey = "stt";
+    }
+
+    const apiConfig = modelInfo?.apiKey
+      ? {
           apiKey: modelInfo.apiKey,
-          modelUrl: modelInfo.apiUrl || '',
-        } : undefined
-      }
-    } else if (category === "llm") {
-      if (option === "main") {
-        configUpdate.llm = { 
-          modelName: value,
-          displayName: displayName,
-          apiConfig: modelInfo?.apiKey ? {
-            apiKey: modelInfo.apiKey,
-            modelUrl: modelInfo.apiUrl || '',
-          } : undefined
+          modelUrl: modelInfo.apiUrl || "",
         }
-      } else if (option === "secondary") {
-        configUpdate.llmSecondary = {
-          modelName: value,
-          displayName: displayName,
-          apiConfig: modelInfo?.apiKey ? {
-            apiKey: modelInfo.apiKey,
-            modelUrl: modelInfo.apiUrl || '',
-          } : undefined
-        }
-      }
-    } else {
-      configUpdate[category] = { 
-        modelName: value,
+      : {
+          apiKey: "",
+          modelUrl: "",
+        };
+
+    let configUpdate: any = {
+      [configKey]: {
+        modelName: modelInfo?.name,
         displayName: displayName,
-        apiConfig: modelInfo?.apiKey ? {
-          apiKey: modelInfo.apiKey,
-          modelUrl: modelInfo.apiUrl || '',
-        } : undefined
-      }
+        apiConfig,
+      },
+    };
+
+    // embedding 需要加 dimension 字段
+    if (configKey === "embedding" || configKey === "multiEmbedding") {
+      configUpdate[configKey].dimension = modelInfo?.maxTokens || undefined;
     }
 
     // 模型配置更新
     updateModelConfig(configUpdate)
-    
+
     // 当选择新模型时，自动验证该模型连通性
-    if (value) {
-      await verifyOneModel(value, modelType);
+    if (displayName) {
+      await verifyOneModel(displayName, modelType);
     }
+  }
+
+  // 只做本地 UI 状态更新，不涉及数据库
+  const updateCustomModelStatus = (displayName: string, modelType: string, status: ModelConnectStatus) => {
+    setCustomModels(prev => {
+      const idx = prev.findIndex(model => model.displayName === displayName && model.type === modelType);
+      if (idx === -1) return prev;
+      const updated = [...prev];
+      updated[idx] = {
+        ...updated[idx],
+        connect_status: status
+      };
+      return updated;
+    });
   }
 
   return (
     <>
-      <div style={{ 
-        width: "100%", 
-        margin: "0 auto", 
-        height: "100%", 
-        display: "flex", 
-        flexDirection: "column",
-        gap: "12px"
-      }}>
-        <div style={{ 
-          display: "flex", 
-          justifyContent: "flex-start", 
-          paddingRight: 12, 
-          marginLeft: "4px",
-          height: LAYOUT_CONFIG.BUTTON_AREA_HEIGHT,
-        }}>
+      <div style={{ width: "100%", margin: "0 auto", height: "100%", display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div style={{ display: "flex", justifyContent: "flex-start", paddingRight: 12, marginLeft: "4px", height: LAYOUT_CONFIG.BUTTON_AREA_HEIGHT }}>
           <Space size={8}>
-            <Button
-              type="primary"
-              size="middle"
-              onClick={handleSyncModels}
-            >
-              <SyncOutlined spin={isSyncing} />
-              同步ModelEngine模型
+            <Button type="primary" size="middle" onClick={handleSyncModels}>
+              <SyncOutlined spin={isSyncing} /> 同步ModelEngine模型
             </Button>
-            <Button 
-              type="primary" 
-              size="middle"
-              icon={<PlusOutlined />} 
-              onClick={() => setIsAddModalOpen(true)}
-            >
+            <Button type="primary" size="middle" icon={<PlusOutlined />} onClick={() => setIsAddModalOpen(true)}>
               添加自定义模型
             </Button>
-            <Button 
-              type="primary" 
-              size="middle"
-              icon={<DeleteOutlined />} 
-              onClick={() => setIsDeleteModalOpen(true)}
-            >
+            <Button type="primary" size="middle" icon={<DeleteOutlined />} onClick={() => setIsDeleteModalOpen(true)}>
               删除自定义模型
             </Button>
-            <Button 
-              type="primary" 
-              size="middle"
-              icon={<SafetyCertificateOutlined />} 
-              onClick={verifyModels}
-              loading={isVerifying}
-            >
+            <Button type="primary" size="middle" icon={<SafetyCertificateOutlined />} onClick={verifyModels} loading={isVerifying}>
               检查模型连通性
             </Button>
           </Space>
         </div>
 
-        <div style={{ 
-          width: "100%", 
-          padding: "0 4px", 
-          flex: 1,
-          display: "flex",
-          flexDirection: "column"
-        }}>
-          <Row 
-            gutter={[LAYOUT_CONFIG.CARD_GAP, LAYOUT_CONFIG.CARD_GAP]} 
-            style={{ flex: 1 }}
-          >
+        <div style={{ width: "100%", padding: "0 4px", flex: 1, display: "flex", flexDirection: "column" }}>
+          <Row gutter={[LAYOUT_CONFIG.CARD_GAP, LAYOUT_CONFIG.CARD_GAP]} style={{ flex: 1 }}>
             {Object.entries(modelData).map(([key, category]) => (
-              <Col 
-                xs={24} 
-                md={8} 
-                lg={8} 
-                key={key} 
-                style={{ height: "calc((100% - 12px) / 2)" }}
-              >
+              <Col xs={24} md={8} lg={8} key={key} style={{ height: "calc((100% - 12px) / 2)" }}>
                 <Card
                   title={
                     <div style={{ 
@@ -842,9 +737,9 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
                                 : key as ModelType
                         }
                         modelId={option.id}
-                        modelName={option.name}
+                        modelTypeName={option.name}
                         selectedModel={selectedModels[key]?.[option.id] || ""}
-                        onModelChange={(value) => handleModelChange(key, option.id, value)}
+                        onModelChange={(modelName) => handleModelChange(key, option.id, modelName)}
                         officialModels={officialModels}
                         customModels={customModels}
                         onVerifyModel={verifyOneModel}

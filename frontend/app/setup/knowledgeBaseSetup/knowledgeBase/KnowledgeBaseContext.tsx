@@ -89,7 +89,6 @@ export const KnowledgeBaseContext = createContext<{
   isKnowledgeBaseSelectable: (kb: KnowledgeBase) => boolean;
   refreshKnowledgeBaseData: (forceRefresh?: boolean) => Promise<void>;
   summaryIndex: (indexName: string, batchSize: number) => Promise<string>;
-  changeSummary: (indexName: string, summary: string) => Promise<string>;
 }>({
   state: {
     knowledgeBases: [],
@@ -108,7 +107,6 @@ export const KnowledgeBaseContext = createContext<{
   isKnowledgeBaseSelectable: () => false,
   refreshKnowledgeBaseData: async () => {},
   summaryIndex: async () => '',
-  changeSummary: async () => '',
 });
 
 // Custom hook for using the context

@@ -1,11 +1,11 @@
-import os
 import time
+import threading
 from collections import deque
 from typing import Union, Any, Optional, List, Dict, Generator
 
-import yaml
 from rich.console import Group
 from rich.text import Text
+
 from smolagents.agents import CodeAgent, populate_template, handle_agent_output_types, AgentError, AgentType
 from smolagents.local_python_executor import fix_final_answer_code
 from smolagents.memory import ActionStep, ToolCall, TaskStep, SystemPromptStep
@@ -21,24 +21,7 @@ class CoreAgent(CodeAgent):
     def __init__(self, observer: MessageObserver, prompt_templates, *args, **kwargs):
         super().__init__(prompt_templates=prompt_templates, *args, **kwargs)
         self.observer = observer
-        self.should_stop = False
-
-    def initialize_system_prompt(self) -> str:
-        system_prompt = populate_template(
-            self.prompt_templates["system_prompt"],
-            variables={
-                "tools": self.tools,
-                "managed_agents": self.managed_agents,
-                "tools_requirement": self.prompt_templates.get("tools_requirement", ""),
-                "authorized_imports": (
-                    "You can import from any package you want."
-                    if "*" in self.authorized_imports
-                    else str(self.authorized_imports)
-                ),
-                "few_shots": self.prompt_templates.get("few_shots", "")
-            },
-        )
-        return system_prompt
+        self.stop_event = threading.Event()
 
     def step(self, memory_step: ActionStep) -> Union[None, Any]:
         """
@@ -56,7 +39,7 @@ class CoreAgent(CodeAgent):
         try:
             additional_args = {"grammar": self.grammar} if self.grammar is not None else {}
             chat_message: ChatMessage = self.model(self.input_messages,
-                stop_sequences=["<end_code>", "Observation:", "<end_code"], **additional_args, )
+                stop_sequences=["<end_code>", "Observation:", "Calling tools:", "<end_code"], **additional_args, )
             memory_step.model_output_message = chat_message
             model_output = chat_message.content
             memory_step.model_output = model_output
@@ -70,7 +53,6 @@ class CoreAgent(CodeAgent):
             code_action = fix_final_answer_code(parse_code_blobs(model_output))
             # 记录解析结果
             self.observer.add_message(self.agent_name, ProcessType.PARSE, code_action)
-
 
         except Exception as e:
             error_msg = f"Error in code parsing:\n{e}\nMake sure to provide correct code blobs."
@@ -201,19 +183,14 @@ You have been provided with these additional arguments, that you can access usin
         ActionStep | AgentType, None, None]:
         final_answer = None
         self.step_number = 1
-        while final_answer is None and self.step_number <= max_steps and not self.should_stop:
+        while final_answer is None and self.step_number <= max_steps and not self.stop_event.is_set():
             step_start_time = time.time()
             memory_step = self._create_memory_step(step_start_time, images)
             try:
                 final_answer = self._execute_step(task, memory_step)
 
             except AgentError as e:
-                except_parse_error_pattern = ("Make sure to include code with the correct pattern, for instance:\n"
-                                              "Thoughts: Your thoughts\n"
-                                              "Code:\n"
-                                              "```py\n"
-                                              "# Your python code here\n"
-                                              "```<end_code>\n")
+                except_parse_error_pattern = """Make sure to include code with the correct pattern, for instance"""
                 if except_parse_error_pattern in e.message:
                     # 当检测到模型没有输出code时，直接将大模型内容当成final_answer
                     final_answer = memory_step.model_output
@@ -225,9 +202,8 @@ You have been provided with these additional arguments, that you can access usin
                 yield memory_step
                 self.step_number += 1
 
-        if self.should_stop:
-            yield ActionStep(action_output="Agent运行被中断", observations="用户中断了Agent的运行")
-            return
+        if self.stop_event.is_set():
+            final_answer = "Agent运行被用户中断"
 
         if final_answer is None and self.step_number == max_steps + 1:
             final_answer = self._handle_max_steps_reached(task, images, step_start_time)

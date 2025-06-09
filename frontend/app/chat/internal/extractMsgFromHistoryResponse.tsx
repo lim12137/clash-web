@@ -9,18 +9,22 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
       url: item.url || "#",
       text: item.text || "无内容描述",
       published_date: item.published_date || "",
+      source_type: item.source_type || "",
+      filename: item.filename || "",
+      score: typeof item.score === 'number' ? item.score : undefined,
+      score_details: item.score_details || {},
       tool_sign: item.tool_sign || "",
       cite_index: typeof item.cite_index === 'number' ? item.cite_index : -1
     }));
   }
 
-  // 处理图片
+  // handle images
   let imagesContent: string[] = [];
   if (dialog_msg.picture && Array.isArray(dialog_msg.picture) && dialog_msg.picture.length > 0) {
     imagesContent = dialog_msg.picture;
   }
 
-  // 提取Message中的内容
+  // extract the content of the Message
   let finalAnswer = "";
   let steps: AgentStep[] = [];
   if (dialog_msg.message && Array.isArray(dialog_msg.message)) {
@@ -32,7 +36,7 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
         }
 
         case "step_count": {
-          // 创建新步骤
+          // create a new step
           steps.push({
             id: `step-${steps.length + 1}`,
             title: msg.content.trim(),
@@ -66,7 +70,7 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
         case "execution_logs": {
           const currentStep = steps[steps.length - 1];
           if (currentStep) {
-            // 创建新的执行输出
+            // create a new execution output
             const contentId = `execution-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
             currentStep.contents.push({
@@ -83,7 +87,7 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
         case "error": {
           const currentStep = steps[steps.length - 1];
           if (currentStep) {
-            // 创建错误内容
+            // create the error content
             const contentId = `error-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
             currentStep.contents.push({
               id: contentId,
@@ -98,24 +102,33 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
 
         case "search_content_placeholder": {
           const currentStep = steps[steps.length - 1];
-          if (currentStep && dialog_msg.search && dialog_msg.search.length > 0) {
-            // 将search_content_placeholder转换为search_content
-            const contentId = `search-content-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-            
-            // 创建搜索内容的JSON字符串
+          if (currentStep) {
             try {
-              const searchContent = JSON.stringify(dialog_msg.search);
+              // parse placeholder content to get unit_id
+              const placeholderData = JSON.parse(msg.content);
+              const unitId = placeholderData.unit_id;
               
-              // 添加为search_content类型消息
-              currentStep.contents.push({
-                id: contentId,
-                type: "search_content",
-                content: searchContent, // 使用实际的搜索结果
-                expanded: true,
-                timestamp: Date.now()
-              });
+              if (unitId && dialog_msg.search_unit_id && dialog_msg.search_unit_id[unitId.toString()]) {
+                // get the corresponding search results according to unit_id
+                const unitSearchResults = dialog_msg.search_unit_id[unitId.toString()];
+                
+                // create the JSON string of search content
+                const searchContent = JSON.stringify(unitSearchResults);
+                
+                // add the search content as a search_content type message
+                const contentId = `search-content-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+                currentStep.contents.push({
+                  id: contentId,
+                  type: "search_content",
+                  content: searchContent,
+                  expanded: true,
+                  timestamp: Date.now()
+                });
+              } else {
+                console.warn(`No search results found for unit_id: ${unitId}`);
+              }
             } catch (e) {
-              console.error("无法解析搜索结果:", e);
+              console.error("无法解析搜索占位符内容:", e);
             }
           }
           break;
@@ -132,7 +145,7 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
         case "card": {
           const currentStep = steps[steps.length - 1];
           if (currentStep) {
-            // 创建卡片内容
+            // create the card content
             const contentId = `card-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
             currentStep.contents.push({
               id: contentId,
@@ -148,11 +161,11 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
         case "tool": {
           const currentStep = steps[steps.length - 1];
           if (currentStep) {
-            // 创建工具调用内容
+            // create the tool call content
             const contentId = `tool-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
             currentStep.contents.push({
               id: contentId,
-              type: "executing", // 使用现有的executing类型来表示工具调用
+              type: "executing", // use the existing executing type to represent the tool call
               content: msg.content,
               expanded: true,
               timestamp: Date.now()
@@ -162,14 +175,14 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
         }
 
         default:
-          // 处理其他类型的消息
+          // handle other types of messages
           break;
       }
     });
 
   }
 
-  // 创建格式化的助手消息
+  // create the formatted assistant message
   const formattedAssistantMsg: ChatMessageType = {
     id: `assistant-${index}-${Date.now()}`,
     role: "assistant",
@@ -201,10 +214,10 @@ export function extractUserMsgFromResponse(dialog_msg: ApiMessage, index: number
     userContent = msgObj.content || "";
   }
 
-  // 处理用户消息的minio_files
+  // handle the minio_files of the user message
   let userAttachments: MinioFileItem[] = [];
   if (dialog_msg.minio_files && Array.isArray(dialog_msg.minio_files) && dialog_msg.minio_files.length > 0) {
-    // 处理minio_files
+    // handle the minio_files
     userAttachments = dialog_msg.minio_files.map(item => {
       return {
         type: item.type || '',
@@ -222,11 +235,11 @@ export function extractUserMsgFromResponse(dialog_msg: ApiMessage, index: number
     role: "user",
     message_id: dialog_msg.message_id,
     content: userContent,
-    opinion_flag: dialog_msg.opinion_flag, // 用户消息没有点赞/点踩状态
+    opinion_flag: dialog_msg.opinion_flag, // user message does not have the like/dislike status
     timestamp: new Date(create_time),
     showRawContent: true,
     isComplete: true,
-    // 添加attachments字段，不再使用minio_files
+    // add the attachments field, no longer use minio_files
     attachments: userAttachments.length > 0 ? userAttachments : undefined
   };
   return formattedUserMsg;

@@ -3,11 +3,16 @@
 [![English](https://img.shields.io/badge/English-README-blue)](README.md)
 [![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
 
-Nexent is an open-source agent SDK and platform that turns a single prompt into a complete multimodal service — no diagrams, no wiring. Built on MCP tool ecosystem, Nexent provides flexible model integration, scalable data processing, and robust knowledge-base management. Our goal is simple: to bring data, models, and tools together in one smart hub, so anyone can easily integrate Nexent into projects and make daily workflows smarter and more connected.
+Nexent is an open-source agent platform that turns process-level natural language into complete multimodal agents — no diagrams, no wiring. Built on the MCP tool ecosystem, Nexent provides model integration, data processing, knowledge-base management, and zero-code agent development. Our goal is simple: to bring data, models, and tools together in one smart hub, making daily workflows smarter and more connected.
 
 > One prompt. Endless reach.
 
-   https://github.com/user-attachments/assets/a72421fe-dfc0-4c49-b8c6-e3b44d19b049
+### 🌟 Try Nexent Now
+
+- 🌐 Visit our [official website](http://nexent.tech/) to learn more
+- 🚀 [Try it now](http://nexent.tech/try) to experience the power of Nexent
+
+https://github.com/user-attachments/assets/0758629c-3477-4cd4-a737-0aab330d53a7
 
 # 🤝 Join Our Community
 
@@ -15,8 +20,8 @@ Nexent is an open-source agent SDK and platform that turns a single prompt into 
 
 We're still in our very first open-source phase and aiming for **Nexent v1-stable in June 2025**. Until then we'll keep shipping core features rapidly — and we'd love your help:
 
-* **🗺️ Check our [Feature Map](https://github.com/orgs/nexent-hub/projects/2/views/1)** to explore current and upcoming features.
-* **🔍 Try the current build** and leave ideas or bugs in the [Issues](https://github.com/nexent-hub/nexent/issues) tab.
+* **🗺️ Check our [Feature Map](https://github.com/orgs/ModelEngine-Group/projects/6)** to explore current and upcoming features.
+* **🔍 Try the current build** and leave ideas or bugs in the [Issues](https://github.com/ModelEngine-Group/nexent/issues) tab.
 
 > *Rome wasn't built in a day.*
 
@@ -39,7 +44,7 @@ Most of all, we need visibility. Star ⭐ and watch the repo, share it with frie
 ### 2. 🛠️ Quick start with Docker Compose
 
 ```bash
-git clone https://github.com/nexent-hub/nexent.git
+git clone https://github.com/ModelEngine-Group/nexent.git
 cd nexent/docker
 cp .env.example .env # fill only nessasary configs
 bash deploy.sh
@@ -74,7 +79,7 @@ The following configurations need to be added to your `.env` file (we'll make th
 
 - Browse the [FAQ](FAQ.md) for common install issues.  
 - Drop questions in our [Discord community](https://discord.gg/tb5H3S3wyv).  
-- File bugs or feature ideas in [GitHub Issues](https://github.com/nexent-hub/nexent/issues).
+- File bugs or feature ideas in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues).
 
 ### 5. 🔧 Hack on Nexent
 
@@ -86,7 +91,7 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 
 ## ✨ Key Features
 
-`1` **Smart agent prompt generation (To Release)**  
+`1` **Smart agent prompt generation**  
    Turn plain language into runnable prompts. Nexent automatically chooses the right tools and plans the best action path for every request.
 
    ![Feature 1](./assets/Feature1.png)
@@ -124,23 +129,20 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 # 🐛 Known Issues
 
 1. 🔄 **Knowledge Base Refresh Delays**  
-   We are aware that the knowledge base refresh mechanism currently has some delays, occasional errors, or instances where refreshes don't take effect. We plan to refactor this part soon, but please note that this is only a task management logic issue - the actual data processing speed is not affected.
+   We are aware that the knowledge base refresh mechanism currently has some delays. We plan to refactor this part soon, but please note that this is only a task management logic issue - the actual data processing speed is not affected.
 
 2. 🤖 **Limited Model Provider Support**  
    We currently have limited support for different model providers, including voice and multimodal models. We will be rapidly updating this support in the coming weeks - stay tuned for updates!
 
-3. 🎨 **Missing Agent Creation & Configuration Interface**  
-   We acknowledge that we currently don't provide a visualization interface for agent creation, tool selection, and configuration. We plan to implement this feature in the coming weeks to make the agent creation process more intuitive and user-friendly.
-
-4. 📦 **Large Docker Image Size**  
-   We are aware that our current Docker image is quite large as it includes many development middleware components. We are actively working on optimizing and reducing the image size to make deployment faster and lighter.
+3. 📦 **Large Docker Image Size**  
+   We are aware that our current Docker image is quite large (around 10GB) as it includes a powerful, extensible data processing engine, algorithms, and models. We will soon release a Lite version to reduce the image size and make deployment faster and lighter.
 
 # 👥 Contributing
 
 We welcome all kinds of contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes Nexent better for everyone. 
 
 - 📖 Read our [Contribution Guide](CONTRIBUTING.md) to get started
-- 🐛 Report bugs or suggest features in [GitHub Issues](https://github.com/nexent-hub/nexent/issues)
+- 🐛 Report bugs or suggest features in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)
 - 💬 Join our [Discord community](https://discord.gg/tb5H3S3wyv) to discuss ideas
 
 # 💬 Community & contact
@@ -149,5 +151,5 @@ Join our [Discord community](https://discord.gg/tb5H3S3wyv) to chat with other d
 
 # 📄 License
 
-Nexent is licensed under the [Apache License 2.0](LICENSE) with additional conditions. Please read the [LICENSE](LICENSE) file for details.
+Nexent is licensed under the [MIT](LICENSE) with additional conditions. Please read the [LICENSE](LICENSE) file for details.
 
