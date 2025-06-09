@@ -183,7 +183,7 @@ function SubAgentPool({
               >
                 <div className="flex items-center h-full">
                   <div className="flex-1 overflow-hidden">
-                    <div className={`font-medium text-sm truncate ${!isAvailable ? 'text-gray-400' : ''}`} title={agent.name}>{agent.name}</div>
+                    <div className={`font-medium text-sm truncate ${!isAvailable ? 'text-gray-400' : ''}`} title={!isAvailable ? 'Agent不可用' : agent.name}>{agent.name}</div>
                     <div 
                       className={`text-xs line-clamp-2 ${!isAvailable ? 'text-gray-400' : 'text-gray-500'}`}
                       title={agent.description}
@@ -328,7 +328,7 @@ function ToolPool({
       >
         {/* Tool name left */}
         <div className="flex-1 overflow-hidden">
-          <div className={`font-medium text-sm truncate ${!isAvailable ? 'text-gray-400' : ''}`} title={tool.name}>
+          <div className={`font-medium text-sm truncate ${!isAvailable ? 'text-gray-400' : ''}`} title={!isAvailable ? '工具不可用' : tool.name}>
             {tool.name}
           </div>
         </div>
