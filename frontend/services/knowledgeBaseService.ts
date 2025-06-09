@@ -204,43 +204,6 @@ class KnowledgeBaseService {
     }
   }
 
-  // Get documents from a knowledge base
-  async getDocuments(kbId: string): Promise<Document[]> {
-    try {
-      // Use new interface /indices/{index_name}/info to get knowledge base details, including file list
-      const response = await fetch(
-        `${API_ENDPOINTS.knowledgeBase.indexInfo(kbId)}?include_files=true`
-      );
-      const result = await response.json() as IndexInfoResponse;
-
-      // Handle different response formats, some APIs return success field, some return data directly
-      if (result.success === false) {
-        throw new Error(result.message || "Failed to get document list");
-      }
-
-      // Standard API response format processing
-      if (result.base_info && result.files && Array.isArray(result.files)) {
-        return result.files.map((file) => ({
-          id: file.path_or_url, // Use path or URL as ID
-          kb_id: kbId,
-          name: file.file,
-          type: this.getFileTypeFromName(file.file || file.path_or_url),
-          size: file.file_size,
-          create_time: file.create_time,
-          chunk_num: file.chunk_count || 0,
-          token_num: 0,
-          status: file.status || "UNKNOWN"
-        }));
-      }
-
-      // If no document information is obtained, return empty array
-      return [];
-    } catch (error) {
-      console.error("Failed to get document list:", error);
-      throw error;
-    }
-  }
-
   // Get all files from a knowledge base, regardless of the existence of index
   async getAllFiles(kbId: string): Promise<Document[]> {
     try {

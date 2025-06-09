@@ -15,8 +15,17 @@ logger.info(f"Using import path: {import_path}")
 # Define Redis broker URL with fallback
 REDIS_URL = os.environ.get('REDIS_URL')
 REDIS_BACKEND_URL = os.environ.get('REDIS_BACKEND_URL')
-if not REDIS_URL or not REDIS_BACKEND_URL:
-    raise ValueError("REDIS_URL or REDIS_BACKEND_URL environment variable is not set")
+
+# If REDIS_BACKEND_URL is not set, use REDIS_URL as fallback
+if not REDIS_URL:
+    raise ValueError("REDIS_URL environment variable is not set")
+
+if not REDIS_BACKEND_URL:
+    logger.warning("REDIS_BACKEND_URL not set, using REDIS_URL as backend")
+    REDIS_BACKEND_URL = REDIS_URL
+
+logger.info(f"Broker URL: {REDIS_URL}")
+logger.info(f"Backend URL: {REDIS_BACKEND_URL}")
 
 # Create Celery app instance
 app = Celery(
@@ -31,6 +40,8 @@ app = Celery(
 
 # Configure Celery settings
 app.conf.update(
+    # Explicitly set result backend
+    result_backend=REDIS_BACKEND_URL,
     # Two task queues for processing and forward steps
     task_routes={
         f'{import_path}.process': {'queue': 'process_q'},
@@ -44,19 +55,28 @@ app.conf.update(
     # Result backend settings
     task_ignore_result=False,  # Task results must be stored for chains to work
     task_track_started=True,   # Track when tasks start
+    task_store_eager_result=True,  # Store results for eager tasks
+    result_backend_always_retry=True,  # Always retry backend operations
+    result_backend_max_retries=10,  # Max retries for backend operations
     task_time_limit=3600,      # 1 hour time limit per task
     worker_prefetch_multiplier=1,  # Don't prefetch tasks, process one at a time
     worker_max_tasks_per_child=100,  # Restart worker after 100 tasks
     # Important for task chains
     task_acks_late=True,       # Tasks are acknowledged after completion
     task_reject_on_worker_lost=True,  # Tasks are rejected if worker is lost
-    # Result won't expire for tasks
-    result_expires=None,
-    result_persistent=True,
+    # Result storage settings
+    result_expires=None,       # Results never expire
+    result_persistent=True,    # Persist results to backend
     # Monitoring and task events for Flower
     task_send_sent_event=True,  # Send task-sent events
     worker_send_task_events=True,  # Enable task events from workers
     worker_hijack_root_logger=False,  # Don't hijack logging
+    # Redis-specific settings for result backend
+    result_backend_transport_options={
+        'retry_policy': {
+            'timeout': 5.0
+        }
+    }
 )
 
 # Set simplified logging format to avoid timestamp duplication

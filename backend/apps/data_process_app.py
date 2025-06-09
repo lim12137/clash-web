@@ -8,13 +8,13 @@ from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTask
     SimpleTasksListResponse
 from data_process.utils import get_task_info
 from data_process.tasks import process_and_forward, process_sync
-from services.data_process_service import DataProcessService
+from services.data_process_service import get_data_process_service
 
 # Configure logging
 logger = logging.getLogger("data_process.app")
 
-# Initialize service
-service = DataProcessService()
+# Use shared service instance
+service = get_data_process_service()
 
 @asynccontextmanager
 async def lifespan(app: APIRouter):

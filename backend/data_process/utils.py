@@ -23,8 +23,12 @@ def get_all_task_ids_from_redis() -> List[str]:
     task_ids = []
     try:
         redis_url = os.environ.get('REDIS_BACKEND_URL')
+        logger.info(f"Connecting to Redis at: {redis_url}")
         if redis_url:
             redis_client = redis.from_url(redis_url)
+            logger.info("Redis client created, testing connection...")
+            redis_client.ping()
+            logger.info("Redis ping success")
             
             # Get all keys matching Celery result pattern
             result_keys = redis_client.keys('celery-task-meta-*')
@@ -74,45 +78,78 @@ def get_task_info(task_id: str) -> Dict[str, Any]:
             'updated_at': current_time,
             'error': None
         }
-        # Add metadata from task state
-        if result.info:
-            if isinstance(result.info, dict):
-                # For successful tasks, the result may contain metadata
-                metadata = result.info
-                
-                # Get task_name from metadata if available
-                if 'task_name' in metadata:
-                    status_info['task_name'] = metadata['task_name']
-                
-                # Add timestamps if available
-                if 'start_time' in metadata:
-                    status_info['created_at'] = metadata['start_time']
-                
-                # Extract index_name from metadata
-                if 'index_name' in metadata:
-                    status_info['index_name'] = metadata['index_name']
-
-                if 'source' in metadata:
-                    status_info['path_or_url'] = metadata['source']
-                
-                # Add any metadata to the status info
-                # for key, value in metadata.items():
-                #     if key not in status_info:
-                #         status_info[key] = value
-                        
-        # Add error information for failed tasks
-        if result.failed():
-            error_info = str(result.result) if result.result else "Unknown error"
-            status_info['error'] = error_info
-            logger.debug(f"Task {task_id} failed with error: {error_info}")
         
-        # Add result information for successful tasks
-        if result.successful() and result.result:
-            if isinstance(result.result, dict):
-                # Include specific result fields that are useful for API
-                for key in ['chunks_count', 'processing_time', 'storage_time', 'es_result']:
-                    if key in result.result:
-                        status_info[key] = result.result[key]
+        # Check if result backend is available
+        backend_available = True
+        try:
+            # Test if we can access the backend
+            status = result.status
+            if status:
+                status_info['status'] = status
+        except AttributeError as e:
+            if 'DisabledBackend' in str(e):
+                logger.warning(f"Result backend is disabled for task {task_id}: {str(e)}")
+                backend_available = False
+                status_info['error'] = "Result backend disabled - cannot retrieve task status"
+            else:
+                logger.warning(f"Backend error for task {task_id}: {str(e)}")
+                backend_available = False
+                status_info['error'] = f"Backend error: {str(e)}"
+        except Exception as e:
+            logger.warning(f"Error accessing task status for {task_id}: {str(e)}")
+            backend_available = False
+            status_info['error'] = f"Status access error: {str(e)}"
+        
+        # If backend is available, try to get metadata
+        if backend_available:
+            try:
+                # Add metadata from task state
+                if result.info:
+                    if isinstance(result.info, dict):
+                        # For successful tasks, the result may contain metadata
+                        metadata = result.info
+                        
+                        # Get task_name from metadata if available
+                        if 'task_name' in metadata:
+                            status_info['task_name'] = metadata['task_name']
+                        
+                        # Add timestamps if available
+                        if 'start_time' in metadata:
+                            status_info['created_at'] = metadata['start_time']
+                        
+                        # Extract index_name from metadata
+                        if 'index_name' in metadata:
+                            status_info['index_name'] = metadata['index_name']
+
+                        if 'source' in metadata:
+                            status_info['path_or_url'] = metadata['source']
+                        
+                        # Add any metadata to the status info
+                        # for key, value in metadata.items():
+                        #     if key not in status_info:
+                        #         status_info[key] = value
+                            
+                # Add error information for failed tasks
+                if result.failed():
+                    # Try to get custom_error from metadata first, then fallback to result
+                    if isinstance(result.info, dict) and 'custom_error' in result.info:
+                        error_info = result.info['custom_error']
+                    else:
+                        error_info = str(result.result) if result.result else "Unknown error"
+                    status_info['error'] = error_info
+                    logger.debug(f"Task {task_id} failed with error: {error_info}")
+                
+                # Add result information for successful tasks
+                if result.successful() and result.result:
+                    if isinstance(result.result, dict):
+                        # Include specific result fields that are useful for API
+                        for key in ['chunks_count', 'processing_time', 'storage_time', 'es_result']:
+                            if key in result.result:
+                                status_info[key] = result.result[key]
+                                
+            except Exception as e:
+                logger.warning(f"Error getting metadata for task {task_id}: {str(e)}")
+                status_info['error'] = f"Metadata access error: {str(e)}"
         
         logger.debug(f"Task {task_id} status: {status_info['status']}, index: {status_info['index_name']}, task_name: {status_info['task_name']}")
         return status_info
