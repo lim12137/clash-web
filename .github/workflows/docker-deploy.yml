@@ -14,35 +14,93 @@ on:
       runner_label_json:
         description: 'JSON 格式的 runner 标签数组'
         required: true
-        default: '["self-hosted", "MacOS", "ARM64"]'
+        default: '["self-hosted", "MacOS", "X64"]'
 
 jobs:
-  build-and-deploy:
+  checkout:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    outputs:
+      sha: ${{ steps.get-sha.outputs.sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Get commit SHA
+        id: get-sha
+        run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
-      # 构建基础镜像
+  build-base:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs: checkout
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Build base image
         run: docker build --progress=plain -t nexent/nexent-base-commercial -f make/base/Dockerfile .
 
-      # 构建主应用镜像
+  build-main:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs: build-base
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Build main application image
         run: docker build --progress=plain -t nexent/nexent-commercial -f make/main/Dockerfile .
 
-      # 构建数据处理镜像
+  build-data-process:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs: checkout
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Check if model is cached locally
+        id: check-model
+        run: |
+          if [ -f ./model-assets/clip-vit-base-patch32/config.json ]; then
+            echo "cache-hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cache-hit=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Clone model if not cached
+        if: steps.check-model.outputs.cache-hit == 'false'
+        run: |
+          mkdir -p ./model-assets
+          GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/openai/clip-vit-base-patch32 ./model-assets/clip-vit-base-patch32
+          cd ./model-assets/clip-vit-base-patch32
+          GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
+          rm -rf .git flax_model.msgpack tf_model.h5
       - name: Build data process image
         run: docker build --progress=plain -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile .
 
-      # 构建前端镜像
+  build-web:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs: checkout
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Build web frontend image
         run: docker build --progress=plain -t nexent/nexent-web-commercial -f make/web/Dockerfile .
 
+  deploy:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs: [build-base, build-main, build-data-process, build-web]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Copy project to /opt/nexent-commercial
+        run: |
+          sudo rm -rf /opt/nexent-commercial
+          sudo mkdir -p /opt/nexent-commercial
+          sudo cp -r $GITHUB_WORKSPACE/* /opt/nexent-commercial/
+          sudo chown -R $(whoami):$(whoami) /opt/nexent-commercial
       - name: Ensure deploy.sh is executable
-        run: chmod +x docker/deploy.sh
-
+        run: chmod +x /opt/nexent-commercial/docker/deploy.sh
       - name: Deploy with deploy.sh
         env:
           DEPLOYMENT_MODE: ${{ github.event.inputs.deployment_mode }}
-        run: ./docker/deploy.sh
+        run: |
+          cd /opt/nexent-commercial/docker
+          if [ "$DEPLOYMENT_MODE" = "production" ]; then
+            echo 2 | ./deploy.sh
+          else
+            echo 1 | ./deploy.sh
+          fi
