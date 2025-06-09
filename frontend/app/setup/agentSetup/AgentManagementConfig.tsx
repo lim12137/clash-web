@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, memo } from 'react'
-import { Input, message, Select, InputNumber, Tag } from 'antd'
-import { SettingOutlined, ThunderboltOutlined, LoadingOutlined } from '@ant-design/icons'
+import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber, Tag, Upload } from 'antd'
+import { SettingOutlined, UploadOutlined, ThunderboltOutlined, LoadingOutlined } from '@ant-design/icons'
 import ToolConfigModal from './components/ToolConfigModal'
 import AgentModalComponent from './components/AgentModal'
 import { Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
 import { ScrollArea } from '@/components/ui/scrollArea'
-import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent } from '@/services/agentConfigService'
+import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent, importAgent } from '@/services/agentConfigService'
 import { generatePrompt, savePrompt } from '@/services/promptService'
 
 const { TextArea } = Input
@@ -116,9 +116,11 @@ function SubAgentPool({
   onSelectAgent, 
   onEditAgent, 
   onCreateNewAgent, 
-  subAgentList = [], 
+  onImportAgent,
+  subAgentList = [],
   loadingAgents = false,
-  enabledAgentIds = []
+  enabledAgentIds = [],
+  isImporting = false
 }: SubAgentPoolProps) {
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
@@ -128,16 +130,32 @@ function SubAgentPool({
       </div>
       <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
         <div className="grid grid-cols-1 gap-3 pr-2">
-          <div 
-            className="border rounded-md p-3 flex flex-col justify-center items-center cursor-pointer transition-colors duration-200 h-[80px] hover:border-blue-300 hover:bg-blue-50"
-            onClick={onCreateNewAgent}
-          >
-            <div className="flex items-center justify-center h-full text-blue-500">
-              <span className="text-lg mr-2">+</span>
-              <span className="text-sm">新建Agent</span>
+          <div className="flex gap-2 mb-2">
+            <div 
+              className="flex-1 border rounded-md p-3 flex flex-col justify-center items-center cursor-pointer transition-colors duration-200 h-[80px] hover:border-blue-300 hover:bg-blue-50"
+              onClick={onCreateNewAgent}
+            >
+              <div className="flex items-center justify-center h-full text-blue-500">
+                <span className="text-lg mr-2">+</span>
+                <span className="text-sm">新建Agent</span>
+              </div>
+            </div>
+
+            <div
+              className={`flex-1 border rounded-md p-3 flex flex-col justify-center items-center transition-colors duration-200 h-[80px] ${
+                isImporting
+                  ? 'opacity-50 cursor-not-allowed border-gray-300'
+                  : 'cursor-pointer hover:border-green-300 hover:bg-green-50'
+              }`}
+              onClick={isImporting ? undefined : onImportAgent}
+            >
+              <div className={`flex items-center justify-center h-full ${isImporting ? 'text-gray-400' : 'text-green-500'}`}>
+                <UploadOutlined className="text-lg mr-2" />
+                <span className="text-sm">{isImporting ? '导入中...' : '导入Agent'}</span>
+              </div>
             </div>
           </div>
-          
+
           {subAgentList.map((agent) => {
             const isEnabled = enabledAgentIds.includes(Number(agent.id));
             return (
@@ -277,7 +295,7 @@ function ToolPool({
     
     return (
       <div 
-        className={`border rounded-md p-3 flex flex-col justify-center transition-colors duration-200 h-[80px] ${
+        className={`border rounded-md p-2 flex items-center transition-colors duration-200 min-h-[45px] ${
           isSelected ? 'bg-blue-100 border-blue-400' : 'hover:border-blue-300'
         } ${localIsGenerating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         onClick={(e) => {
@@ -285,11 +303,15 @@ function ToolPool({
           handleToolSelect(tool, !isSelected, e);
         }}
       >
-        <div className="flex items-center h-full">
-          <div className="flex-1 overflow-hidden">
-            <div className="font-medium text-sm truncate" title={tool.name}>{tool.name}</div>
-            <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} className="mt-3">
-              {tool?.source === 'mcp' ? 'MCP' : '本地工具'}
+        {/* Tool name left */}
+        <div className="flex-1 overflow-hidden">
+          <div className="font-medium text-sm truncate" title={tool.name}>{tool.name}</div>
+        </div>
+        {/* Tag and settings button right */}
+        <div className="flex items-center gap-2 ml-2">
+          <div className="flex items-center justify-start min-w-[90px] w-[90px]">
+            <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} className="w-full text-center">
+              {tool?.source === 'mcp' ? 'MCP工具' : '本地工具'}
             </Tag>
           </div>
           <button 
@@ -299,7 +321,7 @@ function ToolPool({
               handleConfigClick(tool, e);
             }}
             disabled={localIsGenerating}
-            className={`ml-2 flex-shrink-0 flex items-center justify-center bg-transparent ${
+            className={`flex-shrink-0 flex items-center justify-center bg-transparent ${
               localIsGenerating ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-blue-500'
             }`}
             style={{ border: "none", padding: "4px" }}
@@ -323,7 +345,7 @@ function ToolPool({
             <span className="text-gray-500">加载工具中...</span>
           </div>
         ) : (
-          <div className={`grid ${isCreatingNewAgent ? 'grid-cols-4' : 'grid-cols-2'} gap-3 pr-2`}>
+          <div className="flex flex-col gap-3 pr-2">
             {displayTools.map((tool) => (
               <ToolItem key={tool.id} tool={tool} />
             ))}
@@ -378,6 +400,8 @@ export default function BusinessLogicConfig({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
+  const [fileList, setFileList] = useState<any[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
   const [isPromptGenerating, setIsPromptGenerating] = useState(false);
   const [isPromptSaving, setIsPromptSaving] = useState(false);
   const [localIsGenerating, setLocalIsGenerating] = useState(false);
@@ -688,6 +712,62 @@ export default function BusinessLogicConfig({
     }
   };
 
+  // Handle importing agent
+  const handleImportAgent = () => {
+    if (!mainAgentId) {
+      message.error('主代理ID未设置，无法导入Agent');
+      return;
+    }
+
+    // Create a hidden file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+    fileInput.onchange = async (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      // Check file type
+      if (!file.name.endsWith('.json')) {
+        message.error('请选择JSON格式的文件');
+        return;
+      }
+
+      setIsImporting(true);
+      try {
+        // Read file content
+        const fileContent = await file.text();
+        let agentInfo;
+
+        try {
+          agentInfo = JSON.parse(fileContent);
+        } catch (parseError) {
+          message.error('文件格式错误，请检查JSON格式');
+          setIsImporting(false);
+          return;
+        }
+
+        // Call import API
+        const result = await importAgent(mainAgentId, agentInfo);
+
+        if (result.success) {
+          message.success('Agent导入成功');
+          // Refresh agent list
+          refreshAgentList();
+        } else {
+          message.error(result.message || 'Agent导入失败');
+        }
+      } catch (error) {
+        console.error('导入Agent失败:', error);
+        message.error('导入Agent失败，请检查文件内容');
+      } finally {
+        setIsImporting(false);
+      }
+    };
+
+    fileInput.click();
+  };
+
   // Generate system prompt
   const handleGenerateSystemPrompt = async () => {
     if (!businessLogic || businessLogic.trim() === '') {
@@ -748,9 +828,11 @@ export default function BusinessLogicConfig({
             onSelectAgent={handleAgentSelect}
             onEditAgent={handleEditAgent}
             onCreateNewAgent={handleCreateNewAgent}
+            onImportAgent={handleImportAgent}
             subAgentList={subAgentList}
             loadingAgents={loadingAgents}
             enabledAgentIds={enabledAgentIds}
+            isImporting={isImporting}
           />
         </div>
         <div className={`${isCreatingNewAgent ? 'w-full' : 'flex-1'} h-full`}>

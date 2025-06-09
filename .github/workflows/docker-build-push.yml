@@ -1,4 +1,4 @@
-name: Docker Build All Images
+name: Docker Build and Push All Images
 
 on:
   workflow_dispatch:
@@ -20,34 +20,41 @@ jobs:
       - name: Get commit SHA
         id: get-sha
         run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-
-  build-base:
+        
+  setup-builder:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
     needs: checkout
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        run: |
+          docker buildx create --name nexent_builder --use --append || docker buildx use nexent_builder
 
-      - name: Build base image
-        run: docker build --progress=plain -t nexent/nexent-base -f make/base/Dockerfile .
-
-  build-main:
+  build-and-push-base:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: build-base
+    needs: setup-builder
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Build and push base image (multi-arch)
+        run: |
+          docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-base -f make/base/Dockerfile . --push
 
-      - name: Build main application image
-        run: docker build --progress=plain -t nexent/nexent -f make/main/Dockerfile .
-
-  build-data-process:
+  build-and-push-main:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: checkout
+    needs: build-and-push-base
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Build and push main application image (multi-arch)
+        run: |
+          docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent -f make/main/Dockerfile . --push
 
+  build-and-push-data-process:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs: setup-builder
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Check if model is cached locally
         id: check-model
         run: |
@@ -56,7 +63,6 @@ jobs:
           else
             echo "cache-hit=false" >> "$GITHUB_OUTPUT"
           fi
-
       - name: Clone model if not cached
         if: steps.check-model.outputs.cache-hit == 'false'
         run: |
@@ -65,16 +71,16 @@ jobs:
           cd ./model-assets/clip-vit-base-patch32
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
           rm -rf .git flax_model.msgpack tf_model.h5
+      - name: Build and push data process image (multi-arch)
+        run: |
+          docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-data-process -f make/data_process/Dockerfile . --push
 
-      - name: Build data process image
-        run: docker build --progress=plain -t nexent/nexent-data-process -f make/data_process/Dockerfile .
-
-  build-web:
+  build-and-push-web:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: checkout
+    needs: setup-builder
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Build web frontend image
-        run: docker build --progress=plain -t nexent/nexent-web -f make/web/Dockerfile . 
+      - name: Build and push web frontend image (multi-arch)
+        run: |
+          docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-web -f make/web/Dockerfile . --push 
