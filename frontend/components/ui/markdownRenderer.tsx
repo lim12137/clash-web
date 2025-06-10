@@ -300,17 +300,30 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       ...oneLight['pre[class*="language-"]'],
       background: '#f5f5f5', // Light gray background
       borderRadius: '4px',
-      padding: '12px',
-      margin: '8px 0',
-      fontSize: '1rem', // Adjust code block font size
-      lineHeight: '1.6' // Increase code block line spacing
+      padding: '8px 12px',
+      margin: '4px 0',
+      fontSize: '0.875rem', // Slightly smaller font size for better fit
+      lineHeight: '1.5', // Adjusted line height
+      whiteSpace: 'pre-wrap', // Allow wrapping of long lines
+      wordWrap: 'break-word', // Break long words
+      wordBreak: 'break-word', // Break long words
+      overflowWrap: 'break-word', // Break long words
+      overflow: 'auto', // Add scroll for extremely long content
+      maxWidth: '100%', // Ensure it doesn't exceed container width
+      boxSizing: 'border-box' // Include padding in width calculation
     },
     'code[class*="language-"]': {
       ...oneLight['code[class*="language-"]'],
       background: '#f5f5f5', // Light gray background
       color: '#333333', // Dark gray text for better readability
-      fontSize: '1rem', // Adjust code block font size
-      lineHeight: '1.6' // Increase code block line spacing
+      fontSize: '0.875rem', // Slightly smaller font size for better fit
+      lineHeight: '1.5', // Adjusted line height
+      whiteSpace: 'pre-wrap', // Allow wrapping of long lines
+      wordWrap: 'break-word', // Break long words
+      wordBreak: 'break-word', // Break long words
+      overflowWrap: 'break-word', // Break long words
+      maxWidth: '100%', // Ensure it doesn't exceed container width
+      padding: '0' // 移除code元素的内部padding
     }
   };
 
@@ -388,6 +401,14 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         .markdown-body li {
           display: list-item !important;
         }
+        .markdown-body p {
+          margin-bottom: 0.5rem !important;
+          margin-top: 0.25rem !important;
+        }
+        .user-paragraph {
+          margin-bottom: 0.25rem !important;
+          margin-top: 0.25rem !important;
+        }
       `}</style>
       <div className={`markdown-body ${className || ''}`}>
         <ReactMarkdown
@@ -412,7 +433,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                   PreTag="div"
                   {...props}
                 >
-                  {String(children).replace(/\n$/, '')}
+                  {String(children).replace(/^\n+|\n+$/g, '')}
                 </SyntaxHighlighter>
               ) : (
                 <code {...props}>
