@@ -481,7 +481,8 @@ export function ChatInterface() {
         setConversationTitle,
         fetchConversationList,
         currentConversationId,
-        conversationService
+        conversationService,
+        false // isDebug: false for normal chat mode
       );
 
       // Reset all related states
