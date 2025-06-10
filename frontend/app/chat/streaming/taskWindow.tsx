@@ -911,7 +911,6 @@ export function TaskWindow({
         </div>
         
         {isExpanded && (
-          
           <div className="px-4" style={{ height: `${actualContentHeight}px` }}>
             {needsScroll ? (
               <ScrollArea className="h-full" ref={scrollAreaRef}>
@@ -939,6 +938,69 @@ export function TaskWindow({
           animation: blinkingDot 1.5s infinite ease-in-out;
           background-color: rgba(79, 70, 229, 1);
           box-shadow: 0 0 5px rgba(79, 70, 229, 0.5);
+        }
+        
+        /* For the code block style in task-message-content */
+        .task-message-content pre {
+          white-space: pre-wrap !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+          overflow: auto !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+          padding: 6px 10px !important;
+          margin: 2px 0 !important;
+        }
+        
+        .task-message-content code {
+          white-space: pre-wrap !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+          max-width: 100% !important;
+          padding: 0 !important;
+        }
+        
+        .task-message-content div[class*="language-"] {
+          white-space: pre-wrap !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+          overflow: auto !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+          padding: 6px 10px !important;
+          margin: 2px 0 !important;
+        }
+        
+        /* Ensure the content of the SyntaxHighlighter component wraps correctly */
+        .task-message-content .react-syntax-highlighter-line-number {
+          white-space: nowrap !important;
+        }
+        
+        /* Make sure the entire container is not stretched by the content */
+        .task-message-content {
+          overflow: hidden !important;
+          max-width: 100% !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+        }
+        
+        .task-message-content * {
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        
+        /* Paragraph spacing adjustment */
+        .task-message-content p {
+          margin-bottom: 0.5rem !important;
+          margin-top: 0.25rem !important;
+        }
+        
+        .task-message-content .markdown-body p {
+          margin-bottom: 0.5rem !important;
+          margin-top: 0.25rem !important;
         }
       `}</style>
     </>
