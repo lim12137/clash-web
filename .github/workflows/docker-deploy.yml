@@ -64,7 +64,7 @@ jobs:
         if: steps.check-model.outputs.cache-hit == 'false'
         run: |
           mkdir -p ./model-assets
-          GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/openai/clip-vit-base-patch32 ./model-assets/clip-vit-base-patch32
+          GIT_LFS_SKIP_SMUDGE=1 git clone https://www.modelscope.cn/openai-mirror/clip-vit-base-patch32.git
           cd ./model-assets/clip-vit-base-patch32
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
           rm -rf .git flax_model.msgpack tf_model.h5
