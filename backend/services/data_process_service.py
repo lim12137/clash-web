@@ -4,6 +4,7 @@ import io
 import base64
 import aiohttp
 import os
+import redis
 import warnings
 import tempfile
 from typing import Optional, List, Dict, Any
@@ -79,6 +80,7 @@ class DataProcessService:
         all_tasks = []
         
         try:
+            logger.info("Getting inspector to check for active tasks")
             # Get inspector to check for active tasks
             inspector = current_app.control.inspect()
             
@@ -94,6 +96,7 @@ class DataProcessService:
                         if task_id:
                             task_ids.add(task_id)
             
+            logger.info("Getting inspector to check for reserved tasks")
             # Get reserved (waiting) tasks  
             reserved_tasks_dict = inspector.reserved()
             if reserved_tasks_dict:
@@ -103,6 +106,7 @@ class DataProcessService:
                         if task_id:
                             task_ids.add(task_id)
             
+            logger.info("Getting inspector to check for scheduled tasks")
             # Get scheduled tasks
             scheduled_tasks_dict = inspector.scheduled()
             if scheduled_tasks_dict:
@@ -112,9 +116,17 @@ class DataProcessService:
                         if task_id:
                             task_ids.add(task_id)
             
+            logger.info("Getting task IDs from Redis backend")
+            redis_url = os.environ.get('REDIS_BACKEND_URL')
+            logger.info(f"Connecting to Redis at: {redis_url}")
+            if redis_url:
+                redis_client = redis.from_url(redis_url)
+                logger.info("Redis client created, testing connection...")
+                redis_client.ping()
+                logger.info("Redis ping success")
+
             # Also get task IDs from Redis backend (covers completed/failed tasks within expiry)
             try:
-                print("DEBUG REDIS_BACKEND_URL:", os.environ.get('REDIS_BACKEND_URL'))
                 redis_task_ids = get_all_task_ids_from_redis()
                 for task_id in redis_task_ids:
                     task_ids.add(task_id) # Add to the set, duplicates will be handled

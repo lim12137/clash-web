@@ -287,10 +287,7 @@ def start_worker():
         f'--hostname={worker_name}@%h',
         f'--concurrency={concurrency}',
         '--pool=threads',
-        '--task-events',
-        '--without-gossip',
-        '--without-mingle',
-        '--without-heartbeat'
+        '--task-events'
     ]
     
     try:

@@ -23,13 +23,8 @@ def get_all_task_ids_from_redis() -> List[str]:
     task_ids = []
     try:
         redis_url = os.environ.get('REDIS_BACKEND_URL')
-        logger.info(f"Connecting to Redis at: {redis_url}")
         if redis_url:
             redis_client = redis.from_url(redis_url)
-            logger.info("Redis client created, testing connection...")
-            redis_client.ping()
-            logger.info("Redis ping success")
-            
             # Get all keys matching Celery result pattern
             result_keys = redis_client.keys('celery-task-meta-*')
             

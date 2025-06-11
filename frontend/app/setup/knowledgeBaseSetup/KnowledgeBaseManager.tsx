@@ -159,9 +159,6 @@ function DataConfig() {
 
     // 设置活动知识库ID到轮询服务
     knowledgeBasePollingService.setActiveKnowledgeBase(kb.id);
-
-    // 获取文档
-    fetchDocuments(kb.id);
     
     // 调用知识库切换处理函数
     handleKnowledgeBaseChange(kb);
@@ -289,8 +286,11 @@ function DataConfig() {
     });
   }
 
+  // [deprecated]
   // 处理上传文件
+  // use handleUpload instead
   const handleFileUpload = async () => {
+    console.log("I'M REALLY IN HANDLE FILE UPLOAD FUNCTION");
     // 确保有文件要上传
     if (!uploadFiles.length) {
       message.warning("请先选择文件");
@@ -301,6 +301,7 @@ function DataConfig() {
 
     // 创建模式逻辑
     if (isCreatingMode) {
+      console.log("I'M REALLY IN CREATING MODE");
       if (!newKbName || newKbName.trim() === "") {
         message.warning("请输入知识库名称");
         return;
@@ -333,16 +334,16 @@ function DataConfig() {
         }
 
         // 立即设置为活动知识库并退出创建模式
+        setIsCreatingMode(false);
         setActiveKnowledgeBase(newKB);
         knowledgeBasePollingService.setActiveKnowledgeBase(newKB.id);
-        setIsCreatingMode(false);
         setHasClickedUpload(false);
         setNameExists(false);
         
         // 3. 上传文件到新知识库
         await uploadDocuments(newKB.id, filesToUpload);
         message.success("文件上传成功，正在处理文档...");
-        setUploadFiles([]);
+        // setUploadFiles([]);
         
         // 4. 使用简化的轮询服务处理新知识库创建流程
         knowledgeBasePollingService.handleNewKnowledgeBaseCreation(
@@ -378,10 +379,11 @@ function DataConfig() {
     
     try {
       // 1. 上传前获取当前知识库的 documentCount
-      const kbInfoList = await knowledgeBaseService.getKnowledgeBasesInfo(true);
-      const currentKbInfo = kbInfoList.find(kb => kb.id === kbId);
-      const originalDocumentCount = currentKbInfo?.documentCount || 0;
-      const expectedIncrement = filesToUpload.length;
+      // TODO: Maybe useful when handling 
+      // const kbInfoList = await knowledgeBaseService.getKnowledgeBasesInfo(true);
+      // const currentKbInfo = kbInfoList.find(kb => kb.id === kbId);
+      // const originalDocumentCount = currentKbInfo?.documentCount || 0;
+      // const expectedIncrement = filesToUpload.length;
 
       // 2. 上传文件
       await uploadDocuments(kbId, filesToUpload);
@@ -391,21 +393,7 @@ function DataConfig() {
       // 3. 使用新的轮询服务
       knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
 
-      // 4. 先获取最新文档状态
-      const latestDocs = await knowledgeBaseService.getAllFiles(kbId);
-
-      // 手动触发文档更新，确保UI立即更新
-      window.dispatchEvent(new CustomEvent('documentsUpdated', {
-        detail: {
-          kbId,
-          documents: latestDocs
-        }
-      }));
-
-      // 立即强制获取最新文档
-      fetchDocuments(kbId, true);
-
-      // 5. 立即启动文档状态轮询
+      // 4. 启动文档状态轮询（轮询会立即执行第一次获取，无需手动调用）
       knowledgeBasePollingService.startDocumentStatusPolling(
         kbId,
         (documents) => {
@@ -440,12 +428,32 @@ function DataConfig() {
   }
 
   // Get current viewing knowledge base documents
-  const viewingDocuments = kbState.activeKnowledgeBase 
-    ? docState.documentsMap[kbState.activeKnowledgeBase.id] || []
-    : [];
+  const viewingDocuments = (() => {
+    // 在创建模式下，直接从documentsMap中找到有文档的知识库
+    if (isCreatingMode) {
+      // 遍历所有documentsMap，找到有文档的知识库（通常是最新创建的）
+      for (const [kbId, documents] of Object.entries(docState.documentsMap)) {
+        if (documents && documents.length > 0) {
+          return documents;
+        }
+      }
+    }
+    
+    // 正常模式下，使用activeKnowledgeBase
+    return kbState.activeKnowledgeBase 
+      ? docState.documentsMap[kbState.activeKnowledgeBase.id] || []
+      : [];
+  })();
 
   // Get current knowledge base name
-  const viewingKbName = kbState.activeKnowledgeBase?.name || "";
+  const viewingKbName = kbState.activeKnowledgeBase?.name || (isCreatingMode ? newKbName : "");
+
+  // 只要有文档上传成功，立即自动切换创建模式为 false
+  useEffect(() => {
+    if (isCreatingMode && viewingDocuments.length > 0) {
+      setIsCreatingMode(false);
+    }
+  }, [isCreatingMode, viewingDocuments.length]);
 
   // Handle knowledge base selection
   const handleSelectKnowledgeBase = (id: string) => {
@@ -550,8 +558,7 @@ function DataConfig() {
                   onDelete={() => {}}
                   isCreatingMode={true}
                   knowledgeBaseName={newKbName}
-                  onNameChange={setNewKbName}
-                  // onNameChange={handleNameChange}    
+                  onNameChange={handleNameChange}    
                   containerHeight={MAIN_CONTENT_HEIGHT}
                   hasDocuments={hasClickedUpload || docState.isUploading}
                   // Upload related props

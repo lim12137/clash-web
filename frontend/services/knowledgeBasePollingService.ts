@@ -7,7 +7,7 @@ class KnowledgeBasePollingService {
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
   private docStatusPollingInterval: number = 5000; // 5 seconds
   private knowledgeBasePollingInterval: number = 1000; // 1 second
-  private maxKnowledgeBasePolls: number = 30; // Maximum 30 polling attempts
+  private maxKnowledgeBasePolls: number = 60; // Maximum 60 polling attempts
   private activeKnowledgeBaseId: string | null = null; // Record current active knowledge base ID
 
   // Set current active knowledge base ID
@@ -31,8 +31,8 @@ class KnowledgeBasePollingService {
     let pollCount = 0;
     const maxPollCount = 60; // Maximum 60 polling attempts (5 minutes)
     
-    // Create new polling
-    const interval = setInterval(async () => {
+    // Define the polling logic function
+    const pollDocuments = async () => {
       try {
         // Increment polling counter
         pollCount++;
@@ -83,7 +83,13 @@ class KnowledgeBasePollingService {
       } catch (error) {
         console.error(`Error polling knowledge base ${kbId} document status:`, error);
       }
-    }, this.docStatusPollingInterval);
+    };
+    
+    // Execute the first poll immediately to sync with knowledge base polling
+    pollDocuments();
+    
+    // Create recurring polling
+    const interval = setInterval(pollDocuments, this.docStatusPollingInterval);
     
     // Save polling identifier
     this.pollingIntervals.set(kbId, interval);
