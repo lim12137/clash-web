@@ -40,9 +40,6 @@ export const customUploadRequest = async (
     const response = await fetch(effectiveUploadUrl, {
       method: 'POST',
       body: formData,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-      },
     });
 
     // 再次确认是当前知识库

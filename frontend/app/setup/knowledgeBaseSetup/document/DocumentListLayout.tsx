@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
-import { Document, NON_TERMINAL_STATUSES } from '@/types/knowledgeBase'
+import { Document } from '@/types/knowledgeBase'
 import DocumentStatus from './DocumentStatus'
 import { InfoCircleFilled } from '@ant-design/icons'
 import UploadArea from '../components/UploadArea'
 import { formatFileSize, formatDateTime } from '@/lib/utils'
 import { Input, Button, Tooltip } from 'antd'
+import { useKnowledgeBaseContext } from '../knowledgeBase/KnowledgeBaseContext'
 import { message } from 'antd'
 import knowledgeBaseService from '@/services/knowledgeBaseService'
 
@@ -123,6 +124,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
   const [summary, setSummary] = useState('');
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const { } = useKnowledgeBaseContext();
 
   // Reset showDetail state when knowledge base name changes
   React.useEffect(() => {
@@ -392,7 +394,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                         <button
                           onClick={() => onDelete(doc.id)}
                           className={LAYOUT.ACTION_TEXT}
-                          disabled={NON_TERMINAL_STATUSES.includes(doc.status)}
+                          disabled={doc.status === "WAIT_FOR_PROCESSING" || doc.status === "PROCESSING" || doc.status === "WAIT_FOR_FORWARDING" || doc.status === "FORWARDING"}
                         >
                           删除
                         </button>
@@ -413,6 +415,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
       {/* Upload area */}
       {!showDetail && (
         <UploadArea
+          key={isCreatingMode ? `create-${knowledgeBaseName}` : `view-${knowledgeBaseName}`}
           ref={uploadAreaRef}
           onFileSelect={onFileSelect}
           onUpload={handleUpload}

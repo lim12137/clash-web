@@ -279,10 +279,12 @@ class KnowledgeBaseService {
         formData.append("chunking_strategy", chunkingStrategy);
       }
 
-      // Send request
+      // Send request - cannot use getAuthHeaders，cuz we actually need content-type: multipart/form-data here
       const response = await fetch(API_ENDPOINTS.knowledgeBase.upload, {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers: {
+          'User-Agent': 'AgentFrontEnd/1.0'
+        },
         body: formData,
       });
 

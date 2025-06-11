@@ -173,6 +173,12 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
 
     if (uploadWasInProgress && uploadIsNowFinished) {
       console.log('All files finished uploading. Starting polling...');
+      
+      // 调用外部的上传完成回调
+      if (onUpload) {
+        onUpload();
+      }
+      
       knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
       
       const kbName = isCreatingMode ? newKnowledgeBaseName : indexName;

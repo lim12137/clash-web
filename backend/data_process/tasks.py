@@ -294,7 +294,6 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                 "create_time": metadata.get("creation_date"),
                 "date": metadata.get("date"),
             }
-            print("formatted_chunk", formatted_chunk)
             formatted_chunks.append(formatted_chunk)
         
         if len(formatted_chunks) == 0:

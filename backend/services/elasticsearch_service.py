@@ -15,15 +15,14 @@ from typing import Optional, Generator, List, Dict, Any
 from openai import OpenAI
 from dotenv import load_dotenv
 import yaml
-import requests
 from nexent.core.models.embedding_model import JinaEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from nexent.core.nlp.tokenizer import calculate_term_weights
 from fastapi import HTTPException, Query, Body, Path, Depends
 from fastapi.responses import StreamingResponse
-from consts.const import ES_API_KEY, DATA_PROCESS_SERVICE, ES_HOST
-from consts.model import IndexingRequest, SearchRequest, HybridSearchRequest
-from utils.agent_utils import config_manager
+from consts.const import ES_API_KEY, ES_HOST
+from consts.model import SearchRequest, HybridSearchRequest
+from utils.config_utils import config_manager
 from utils.file_management_utils import get_all_files_status, get_file_size
 from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
 
@@ -96,18 +95,17 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core),
             user_id: Optional[str] = Body(None, description="ID of the user creating the knowledge base"),
     ):
-        """
-        Create a new vector index
-
-        Args:
-            index_name: Name of the index to create
-            embedding_dim: Vector dimension (optional)
-            es_core: ElasticSearchCore instance
-
-        Returns:
-            Returns index creation information on success, throws HTTP exception on failure
-        """
-        raise HTTPException(status_code=500, detail="Method not implemented")
+        try:
+            if es_core.client.indices.exists(index=index_name):
+                raise HTTPException(status_code=400, detail=f"Index {index_name} already exists")
+            success = es_core.create_vector_index(index_name, embedding_dim=embedding_dim or es_core.embedding_dim)
+            if not success:
+                raise HTTPException(status_code=500, detail=f"Failed to create index {index_name}")
+            knowledge_data = {'index_name': index_name, 'created_by': user_id}
+            create_knowledge_record(knowledge_data)
+            return {"status": "success", "message": f"Index {index_name} created successfully"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error creating index: {str(e)}")
 
     @staticmethod
     def delete_index(
@@ -248,34 +246,16 @@ class ElasticSearchService:
             IndexingResponse对象，包含索引结果信息
         """
         try:
-            print(f"Received request for index {index_name}")
-
             if not index_name:
                 raise HTTPException(status_code=400, detail="Index name is required")
 
             # Create index if needed (ElasticSearchCore will handle embedding_dim automatically)
             if not es_core.client.indices.exists(index=index_name):
-                print(f"Creating new index: {index_name}")
-                success = es_core.create_vector_index(index_name, embedding_dim=es_core.embedding_dim)
-                
-                if not success:
-                    raise HTTPException(status_code=500, detail=f"Failed to auto-create index {index_name}")
-
-                # Wait for index to be ready
-                print(f"Waiting for index {index_name} to be ready...")
-                time.sleep(1)
-
-                # After successfully creating the knowledge base,
-                # store the newly created knowledge base information in the knowledge base table
                 try:
-                    knowledge_data = {'index_name': index_name}
-                    print(f"Creating knowledge record for index {index_name}")
-                    _ = create_knowledge_record(knowledge_data)
-                except Exception as e:
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Error add index{index_name} to sql: {str(e)}"
-                    )
+                    ElasticSearchService.create_index(index_name, es_core=es_core)
+                    print(f"Created new index {index_name}")
+                except Exception as create_error:
+                    raise HTTPException(status_code=500, detail=f"Failed to create index {index_name}: {str(create_error)}")
 
             # Transform indexing request results to documents
             documents = []
@@ -335,16 +315,12 @@ class ElasticSearchService:
                     "total_submitted": 0
                 }
 
-            print(f"Submitting {total_submitted} documents to Elasticsearch")
-
             # Index documents (use default batch_size and content_field)
             try:
                 total_indexed = es_core.index_documents(
                     index_name=index_name,
                     documents=documents
                 )
-
-                print(f"Successfully indexed {total_indexed} documents")
 
                 return {
                     "success": True,
