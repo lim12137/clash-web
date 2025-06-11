@@ -8,7 +8,7 @@ from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ToolInstanc
 from database.agent_db import create_agent, query_all_enabled_tool_instances, \
     query_or_create_main_agent_id, query_sub_agents, search_sub_agent_by_main_agent_id, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
-    create_or_update_tool_by_tool_info
+    create_or_update_tool_by_tool_info, check_tool_is_available
 
 from utils.user_utils import get_user_info
 
@@ -49,6 +49,11 @@ def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str
         tool_info = search_tools_for_sub_agent(agent_id=sub_agent["agent_id"], tenant_id=tenant_id, user_id=user_id)
         sub_agent["tools"] = tool_info
 
+        tool_id_list = [tool["tool_id"] for tool in tool_info]
+        if all(check_tool_is_available(tool_id_list)):
+            sub_agent["is_available"] = True
+        else:
+            sub_agent["is_available"] = False
     return sub_agents
 
 
