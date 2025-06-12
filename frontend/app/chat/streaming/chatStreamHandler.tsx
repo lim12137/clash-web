@@ -120,22 +120,17 @@ export const handleStreamResponse = async (
                       // Update content directly without prefix check
                       let newContent = modelOutput.content + messageContent;
                       // Remove "<end" suffix if present
-                      if (newContent.endsWith("<end")) {
-                        newContent = newContent.slice(0, -4);
+                      if (newContent.startsWith("思考：")) {
+                        newContent = newContent.substring(3);
                       }
                       modelOutput.content = newContent;
                     } else {
                       // Otherwise, create new thinking content
-                      let content = currentContentText;
-                      // Remove "<end" suffix if present
-                      if (content.endsWith("<end")) {
-                        content = content.slice(0, -4);
-                      }
                       currentStep.contents.push({
                         id: `model-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                         type: "model_output",
                         subType: "thinking",
-                        content: content,
+                        content: currentContentText,
                         expanded: true,
                         timestamp: Date.now()
                       });
@@ -245,8 +240,6 @@ export const handleStreamResponse = async (
                           lastMsg.images,
                           imageUrls
                         );
-
-
                         return newMessages;
                       });
                     }
