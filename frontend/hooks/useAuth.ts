@@ -189,6 +189,11 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
           message.success("登录成功，欢迎回来！")
           // 主动触发 storage 事件
           window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: localStorage.getItem("session") }))
+          
+          // If on the chat page, trigger conversation list update
+          if (pathname === '/chat') {
+            window.dispatchEvent(new CustomEvent('conversationListUpdated'))
+          }
         }, 150)
       }
     } catch (error: any) {

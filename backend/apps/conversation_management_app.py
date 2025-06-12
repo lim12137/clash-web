@@ -61,8 +61,14 @@ async def list_conversations_endpoint(authorization: Optional[str] = Header(None
     """
     try:
         user_id = get_current_user_id(authorization)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="未授权访问，请先登录")
+            
         conversations = get_conversation_list_service(user_id)
         return ConversationResponse(code=0, message="success", data=conversations)
+    except HTTPException as he:
+        # Throw HTTP Exception Directly
+        raise he
     except Exception as e:
         logging.error(f"Failed to get conversation list: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
