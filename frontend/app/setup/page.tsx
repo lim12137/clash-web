@@ -50,6 +50,11 @@ export default function CreatePage() {
       if (user.role !== "admin" && selectedKey === "1") {
         setSelectedKey("2")
       }
+      
+      // 如果用户不是管理员且当前在第三页，强制跳转到第二页
+      if (user.role !== "admin" && selectedKey === "3") {
+        setSelectedKey("2")
+      }
     }
   }, [user, userLoading, selectedKey, confirm, openLoginModal, router])
 
@@ -100,6 +105,11 @@ export default function CreatePage() {
   const renderContent = () => {
     // 如果用户不是管理员且尝试访问第一页，强制显示第二页内容
     if (user?.role !== "admin" && selectedKey === "1") {
+      return <DataConfig />
+    }
+    
+    // 如果用户不是管理员且尝试访问第三页，强制显示第二页内容
+    if (user?.role !== "admin" && selectedKey === "3") {
       return <DataConfig />
     }
 
@@ -172,8 +182,33 @@ export default function CreatePage() {
         setIsSavingConfig(false)
       }
     } else if (selectedKey === "2") {
-      // Jump from the second page to the third page
-      setSelectedKey("3")
+      // 如果是管理员，跳转到第三页；如果是普通用户，直接完成配置跳转到chat页面
+      if (user?.role === "admin") {
+        setSelectedKey("3")
+      } else {
+        // 普通用户在第二页直接完成配置
+        try {
+          setIsSavingConfig(true)
+          // Get the current global configuration
+          const currentConfig = configStore.getConfig()
+          
+          // Call the backend save configuration API
+          const saveResult = await configService.saveConfigToBackend(currentConfig)
+          
+          if (saveResult) {
+            message.success("配置已保存")
+            // After saving successfully, redirect to the chat page
+            router.push("/chat")
+          } else {
+            message.error("保存配置失败，请重试")
+          }
+        } catch (error) {
+          console.error("保存配置异常:", error)
+          message.error("系统异常，请稍后重试")
+        } finally {
+          setIsSavingConfig(false)
+        }
+      }
     } else if (selectedKey === "1") {
       // Validate required fields when jumping from the first page to the second page
       try {
@@ -221,11 +256,11 @@ export default function CreatePage() {
     if (selectedKey === "3") {
       setSelectedKey("2")
     } else if (selectedKey === "2") {
-        // 只有管理员才能返回第一页
-        if (user?.role !== "admin") {
-          message.error("只有管理员可以访问模型配置页面")
-          return
-        }
+      // 只有管理员才能返回第一页
+      if (user?.role !== "admin") {
+        message.error("只有管理员可以访问模型配置页面")
+        return
+      }
       setSelectedKey("1")
       // Set the flag to indicate that the user is returning from the second page to the first page
       setIsFromSecondPage(true)
