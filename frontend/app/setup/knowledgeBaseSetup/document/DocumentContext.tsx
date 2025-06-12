@@ -229,6 +229,9 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     try {
       await knowledgeBaseService.uploadDocuments(kbId, files);
       
+      // Set loading state before fetching latest documents
+      dispatch({ type: 'SET_LOADING_DOCUMENTS', payload: true });
+      
       // Get latest status immediately after upload
       const latestDocuments = await knowledgeBaseService.getAllFiles(kbId);
       
@@ -253,6 +256,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
       dispatch({ type: 'ERROR', payload: 'Failed to upload documents' });
     } finally {
       dispatch({ type: 'SET_UPLOADING', payload: false });
+      dispatch({ type: 'SET_LOADING_DOCUMENTS', payload: false });
     }
   }, []);
 
