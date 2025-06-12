@@ -1,8 +1,6 @@
 import uvicorn
-from dotenv import load_dotenv
 import logging
 
-load_dotenv()
 
 from services.agent_service import import_default_agents_to_pg
 from services.tool_configuration_service import initialize_tool_configuration
