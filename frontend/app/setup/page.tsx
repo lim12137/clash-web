@@ -65,13 +65,27 @@ export default function CreatePage() {
       detail: { forceRefresh: true }
     }))
 
+    // Load config for normal user
+    const loadConfigForNormalUser = async () => {
+      if (user && user.role !== "admin") {
+        try {
+          await configService.loadConfigToFrontend()
+          await configStore.reloadFromStorage()
+        } catch (error) {
+          console.error("加载配置失败:", error)
+        }
+      }
+    }
+
+    loadConfigForNormalUser()
+
     // Check if the knowledge base configuration option card needs to be displayed
     const showPageConfig = localStorage.getItem('show_page')
     if (showPageConfig) {
       setSelectedKey(showPageConfig)
       localStorage.removeItem('show_page')
     }
-  }, [])
+  }, [user])
 
   // Listen for changes in selectedKey, refresh knowledge base data when entering the second page
   useEffect(() => {
@@ -189,8 +203,19 @@ export default function CreatePage() {
         // Normal users complete the configuration directly on the second page
         try {
           setIsSavingConfig(true)
+          
+          // Reload the config for normal user before saving, ensure the latest model config
+          await configService.loadConfigToFrontend()
+          await configStore.reloadFromStorage()
+          
           // Get the current global configuration
           const currentConfig = configStore.getConfig()
+          
+          // Check if the main model is configured
+          if (!currentConfig.models.llm.modelName) {
+            message.error("未找到模型配置，请联系管理员先完成模型配置")
+            return
+          }
           
           // Call the backend save configuration API
           const saveResult = await configService.saveConfigToBackend(currentConfig)
