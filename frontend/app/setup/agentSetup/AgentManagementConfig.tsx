@@ -475,7 +475,8 @@ export default function BusinessLogicConfig({
   setNewAgentDescription,
   setNewAgentProvideSummary,
   isNewAgentInfoValid,
-  setIsNewAgentInfoValid
+  setIsNewAgentInfoValid,
+  onEditingStateChange
 }: BusinessLogicConfigProps) {
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
@@ -641,6 +642,7 @@ export default function BusinessLogicConfig({
     setIsEditingAgent(false);
     setEditingAgent(null);
     setIsCreatingNewAgent(true);
+    onEditingStateChange?.(false, null);
   };
 
   // Reset the status when the user cancels the creation of an Agent
@@ -653,6 +655,8 @@ export default function BusinessLogicConfig({
     setNewAgentDescription('');
     setNewAgentProvideSummary(true);
     setIsNewAgentInfoValid(false);
+    // 通知外部编辑状态变化
+    onEditingStateChange?.(false, null);
   };
 
   // Handle the creation of a new Agent
@@ -693,12 +697,14 @@ export default function BusinessLogicConfig({
           const actionText = isEditingAgent ? '修改' : '创建';
           message.success(`Agent:"${name}"${actionText}成功`);
           
-          // Exit create/edit mode
+          // 退出创建/编辑模式
           setIsCreatingNewAgent(false);
           setIsEditingAgent(false);
           setEditingAgent(null);
+          // 通知外部编辑状态变化
+          onEditingStateChange?.(false, null);
           
-          // Reset status
+          // 重置状态
           setBusinessLogic('');
           setSelectedTools([]);
           setNewAgentName('');
@@ -706,7 +712,7 @@ export default function BusinessLogicConfig({
           setNewAgentProvideSummary(true);
           setSystemPrompt('');
           
-          // Refresh the list
+          // 刷新列表
           refreshAgentList();
         } else {
           message.error(result.message || 'Agent保存失败');
@@ -747,29 +753,36 @@ export default function BusinessLogicConfig({
 
   const handleEditAgent = async (agent: Agent) => {
     try {
-      // First set to edit mode to avoid useEffect clearing data
+      // 首先设置为编辑模式，避免useEffect清空数据
       setIsEditingAgent(true);
-      setEditingAgent(agent); // Use the incoming agent first, then replace with detailed data later
+      setEditingAgent(agent); // 先用传入的agent，稍后会用详细数据替换
       setIsCreatingNewAgent(true);
+      // 通知外部编辑状态变化
+      onEditingStateChange?.(true, agent);
       
-      // Call the query interface to get the complete Agent information
+      // 调用查询接口获取完整的Agent信息
       const result = await searchAgentInfo(Number(agent.id));
       
       if (!result.success || !result.data) {
         message.error(result.message || '获取Agent详情失败');
-        // If the query fails, reset the edit status
+        // 如果获取失败，重置编辑状态
         setIsEditingAgent(false);
         setEditingAgent(null);
         setIsCreatingNewAgent(false);
+        onEditingStateChange?.(false, null);
         return;
       }
       
       const agentDetail = result.data;
       
-      // Update to complete Agent data
-      setEditingAgent(agentDetail);
+      console.log('加载的Agent详情:', agentDetail); // 调试信息
       
-      // Load Agent data to the interface
+      // 更新为完整的Agent数据
+      setEditingAgent(agentDetail);
+      // 通知外部编辑状态变化（使用完整数据）
+      onEditingStateChange?.(true, agentDetail);
+      
+      // 加载Agent数据到界面
       setNewAgentName(agentDetail.name);
       setNewAgentDescription(agentDetail.description);
       setNewAgentProvideSummary(agentDetail.provide_run_summary);
@@ -778,12 +791,16 @@ export default function BusinessLogicConfig({
       setBusinessLogic(agentDetail.business_description || '');
       setSystemPrompt(agentDetail.prompt || '');
       
-      // Load the tools of the Agent
+      console.log('设置的业务描述:', agentDetail.business_description); // 调试信息
+      console.log('设置的系统提示词:', agentDetail.prompt); // 调试信息
+      
+      // 加载Agent的工具
       if (agentDetail.tools && agentDetail.tools.length > 0) {
         setSelectedTools(agentDetail.tools);
-        // Set the enabled tool IDs
+        // 设置已启用的工具ID
         const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
         setEnabledToolIds(toolIds);
+        console.log('加载的工具:', agentDetail.tools); // 调试信息
       } else {
         setSelectedTools([]);
         setEnabledToolIds([]);
@@ -793,10 +810,11 @@ export default function BusinessLogicConfig({
     } catch (error) {
       console.error('加载Agent详情失败:', error);
       message.error('加载Agent详情失败，请稍后重试');
-      // If an error occurs, reset the edit status
+      // 如果出错，重置编辑状态
       setIsEditingAgent(false);
       setEditingAgent(null);
       setIsCreatingNewAgent(false);
+      onEditingStateChange?.(false, null);
     }
   };
 
