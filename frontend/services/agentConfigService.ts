@@ -434,3 +434,70 @@ export const importAgent = async (agentId: string, agentInfo: any) => {
     };
   }
 };
+
+/**
+ * search agent info by agent id
+ * @param agentId agent id
+ * @returns agent detail info
+ */
+export const searchAgentInfo = async (agentId: number) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.agent.searchInfo, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ agent_id: agentId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // convert backend data to frontend format
+    const formattedAgent = {
+      id: data.agent_id,
+      name: data.name,
+      description: data.description,
+      model: data.model_name,
+      max_step: data.max_steps,
+      prompt: data.prompt,
+      business_description: data.business_description,
+      provide_run_summary: data.provide_run_summary,
+      enabled: data.enabled,
+      is_available: data.is_available,
+      tools: data.tools ? data.tools.map((tool: any) => {
+        const params = typeof tool.params === 'string' ? JSON.parse(tool.params) : tool.params;
+        return {
+          id: String(tool.tool_id),
+          name: tool.name,
+          description: tool.description,
+          source: tool.source,
+          is_available: tool.is_available,
+          initParams: Array.isArray(params) ? params.map((param: any) => ({
+            name: param.name,
+            type: convertParamType(param.type),
+            required: !param.optional,
+            value: param.default,
+            description: param.description
+          })) : []
+        };
+      }) : []
+    };
+
+    return {
+      success: true,
+      data: formattedAgent,
+      message: ''
+    };
+  } catch (error) {
+    console.error('获取Agent详情失败:', error);
+    return {
+      success: false,
+      data: null,
+      message: '获取Agent详情失败，请稍后重试'
+    };
+  }
+};

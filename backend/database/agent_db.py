@@ -90,7 +90,9 @@ def query_sub_agents(main_agent_id: int, tenant_id: str = None, user_id: str = N
                                                 AgentInfo.model_name.isnot(None))
         if tenant_id:
             query = query.filter(AgentInfo.tenant_id == tenant_id)
-        agents = query.all()
+        
+        # Order by create_time desc
+        agents = query.order_by(AgentInfo.create_time.desc()).all()
 
         if not user_id:
             return as_dict(agents)
