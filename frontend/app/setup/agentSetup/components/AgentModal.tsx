@@ -445,15 +445,24 @@ export default function AgentModal({
                 <div className="border rounded-md p-3 bg-gray-50 min-h-[80px] text-sm">
                   {currentTools.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
-                      {currentTools.map(tool => (
-                        <div 
-                          key={tool.id} 
-                          className="bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-xs flex items-center cursor-pointer hover:bg-blue-200"
-                          onClick={() => !readOnly && handleConfigClick(tool)}
-                        >
-                          {tool.name}
-                        </div>
-                      ))}
+                      {currentTools.map(tool => {
+                        const isAvailable = tool.is_available !== false; // 默认为true，只有明确为false时才不可用
+                        return (
+                          <div 
+                            key={tool.id} 
+                            className={`px-2 py-1 rounded-md text-xs flex items-center cursor-pointer transition-colors ${
+                              isAvailable 
+                                ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' 
+                                : 'bg-gray-200 text-gray-600 hover:bg-gray-300 border border-gray-300'
+                            }`}
+                            title={!isAvailable ? '工具不可用，但可以查看配置' : undefined}
+                            onClick={() => !readOnly && handleConfigClick(tool)}
+                          >
+                            {tool.name}
+                            {!isAvailable && <span className="ml-1 text-red-500">(不可用)</span>}
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <Text className="text-gray-400">未选择任何工具</Text>
