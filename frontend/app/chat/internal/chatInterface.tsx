@@ -956,6 +956,21 @@ export function ChatInterface() {
     }
   };
 
+  // Add event listener for conversation list updates
+  useEffect(() => {
+    const handleConversationListUpdate = () => {
+      fetchConversationList().catch(err => {
+        console.error("更新对话列表失败:", err);
+      });
+    };
+
+    window.addEventListener('conversationListUpdated', handleConversationListUpdate);
+
+    return () => {
+      window.removeEventListener('conversationListUpdated', handleConversationListUpdate);
+    };
+  }, []);
+
   return (
     <>
       <div className="flex h-screen">
