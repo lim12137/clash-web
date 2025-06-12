@@ -342,6 +342,7 @@ class ElasticSearchService:
     def list_files(
             index_name: str = Path(..., description="Name of the index"),
             include_chunks: bool = Query(False, description="Whether to include text chunks for each file"),
+            search_redis: bool = Query(True, description="Whether to search Redis to get incomplete files"),
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
@@ -350,6 +351,7 @@ class ElasticSearchService:
         Args:
             index_name: Name of the index
             include_chunks: Whether to include text chunks for each file
+            search_redis: Whether to search Redis to get incomplete files
             es_core: ElasticSearchCore instance
 
         Returns:
@@ -359,32 +361,45 @@ class ElasticSearchService:
             files = []
             # Get existing files from ES
             existing_files = es_core.get_file_list_with_details(index_name)
-            # Get unique celery files list and the status of each file
-            celery_task_files = get_all_files_status(index_name)
-            # Create a set of path_or_urls from existing files for quick lookup
-            existing_paths = {file_info.get('path_or_url') for file_info in existing_files}
 
-            # For files already stored in ES, add to files list
-            for file_info in existing_files:
-                file_data = {
-                    'path_or_url': file_info.get('path_or_url'),
-                    'file': file_info.get('filename', ''),
-                    'file_size': file_info.get('file_size', 0),
-                    'create_time': file_info.get('create_time', ''),
-                    'status': "COMPLETED"
-                }
-                files.append(file_data)
+            if search_redis:
+                # Get unique celery files list and the status of each file
+                celery_task_files = get_all_files_status(index_name)
+                # Create a set of path_or_urls from existing files for quick lookup
+                existing_paths = {file_info.get('path_or_url') for file_info in existing_files}
 
-            # For files not yet stored in ES (files currently being processed)
-            for path_or_url, status in celery_task_files.items():
-                # Skip files that are already in existing_files to avoid duplicates
-                if path_or_url not in existing_paths:
+                # For files already stored in ES, add to files list
+                for file_info in existing_files:
                     file_data = {
-                        'path_or_url': path_or_url,
-                        'file': os.path.basename(path_or_url) if path_or_url else '',
-                        'file_size': get_file_size('file', path_or_url),
-                        'create_time': time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
-                        'status': status
+                        'path_or_url': file_info.get('path_or_url'),
+                        'file': file_info.get('filename', ''),
+                        'file_size': file_info.get('file_size', 0),
+                        'create_time': file_info.get('create_time', ''),
+                        'status': "COMPLETED"
+                    }
+                    files.append(file_data)
+
+                # For files not yet stored in ES (files currently being processed)
+                for path_or_url, status in celery_task_files.items():
+                    # Skip files that are already in existing_files to avoid duplicates
+                    if path_or_url not in existing_paths:
+                        file_data = {
+                            'path_or_url': path_or_url,
+                            'file': os.path.basename(path_or_url) if path_or_url else '',
+                            'file_size': get_file_size('file', path_or_url),
+                            'create_time': time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
+                            'status': status
+                        }
+                        files.append(file_data)
+            else:
+                # Only process files already stored in ES (simplified flow)
+                for file_info in existing_files:
+                    file_data = {
+                        'path_or_url': file_info.get('path_or_url'),
+                        'file': file_info.get('filename', ''),
+                        'file_size': file_info.get('file_size', 0),
+                        'create_time': file_info.get('create_time', ''),
+                        'status': "COMPLETED"
                     }
                     files.append(file_data)
 

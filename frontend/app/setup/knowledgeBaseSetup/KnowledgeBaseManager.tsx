@@ -174,7 +174,7 @@ function DataConfig() {
     try {
       // Set loading state before fetching documents
       docDispatch({ type: 'SET_LOADING_DOCUMENTS', payload: true });
-      
+
       // 获取最新文档数据
       const documents = await knowledgeBaseService.getAllFiles(kb.id);
 
