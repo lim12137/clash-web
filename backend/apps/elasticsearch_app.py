@@ -117,11 +117,12 @@ def create_index_documents(
 @router.get("/{index_name}/files")
 def get_index_files(
         index_name: str = Path(..., description="Name of the index"),
+        search_redis: bool = Query(True, description="Whether to search Redis to get incomplete files"),
         es_core: ElasticSearchCore = Depends(get_es_core)
 ):
     """Get all files from an index, including those that are not yet stored in ES"""
     try:
-        result = ElasticSearchService.list_files(index_name, include_chunks=False, es_core=es_core)
+        result = ElasticSearchService.list_files(index_name, include_chunks=False, search_redis=search_redis, es_core=es_core)
         # Transform result to match frontend expectations
         return {
             "status": "success",
