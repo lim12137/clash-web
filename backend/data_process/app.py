@@ -41,6 +41,7 @@ app = Celery(
 # Configure Celery settings
 app.conf.update(
     # Explicitly set result backend
+    broker_url=REDIS_URL,
     result_backend=REDIS_BACKEND_URL,
     # Two task queues for processing and forward steps
     task_routes={
@@ -76,6 +77,23 @@ app.conf.update(
         'retry_policy': {
             'timeout': 5.0
         }
+    },
+
+    # 添加 broker 连接配置
+    broker_connection_retry=True,
+    broker_connection_retry_on_startup=True,
+    broker_connection_max_retries=10,
+    broker_heartbeat=30,  # 心跳检测
+    broker_pool_limit=10,  # 连接池大小
+    
+    # 添加传输选项
+    broker_transport_options={
+        'visibility_timeout': 3600,
+        'max_retries': 5,
+        'interval_start': 0,
+        'interval_step': 0.2,
+        'interval_max': 0.5,
+        'master_name': 'mymaster',  # 如果使用 Redis Sentinel
     }
 )
 
