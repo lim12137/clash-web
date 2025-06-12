@@ -101,6 +101,13 @@ def get_agent_info_impl(agent_id: int):
         logger.error(f"Failed to get agent info: {str(e)}")
         raise ValueError(f"Failed to get agent info: {str(e)}")
 
+    try:
+        tool_info = search_tools_for_sub_agent(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
+        agent_info["tools"] = tool_info
+    except Exception as e:
+        logger.error(f"Failed to get agent tools: {str(e)}")
+        agent_info["tools"] = []
+
     return agent_info
 
 def get_creating_sub_agent_info_impl(agent_id: int):
