@@ -23,6 +23,7 @@ export const API_ENDPOINTS = {
     stop: (conversationId: number) => `${API_BASE_URL}/agent/stop/${conversationId}`,
     export: `${API_BASE_URL}/agent/export`,
     import: `${API_BASE_URL}/agent/import`,
+    searchInfo: `${API_BASE_URL}/agent/search_info`,
   },
   tool: {
     list: `${API_BASE_URL}/tool/list`,
