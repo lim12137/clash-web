@@ -13,32 +13,34 @@ from celery import current_app
 logger = logging.getLogger("data_process.utils")
 
 
-def get_all_task_ids_from_redis() -> List[str]:
+def get_all_task_ids_from_redis(redis_client: redis.Redis) -> List[str]:
     """
     Get all task IDs from Redis backend
     
     Returns:
         List of task IDs found in Redis
     """
+    # Defensive check to prevent crashes if redis_client is None
+    if not redis_client:
+        logger.error("Redis client is not initialized, cannot get task IDs from Redis.")
+        return []
+        
     task_ids = []
     try:
-        redis_url = os.environ.get('REDIS_BACKEND_URL')
-        if redis_url:
-            redis_client = redis.from_url(redis_url)
-            # Get all keys matching Celery result pattern
-            result_keys = redis_client.keys('celery-task-meta-*')
+        # Get all keys matching Celery result pattern
+        result_keys = redis_client.keys('celery-task-meta-*')
+        
+        # Extract task IDs from keys
+        for key in result_keys:
+            if isinstance(key, bytes):
+                key = key.decode('utf-8')
             
-            # Extract task IDs from keys
-            for key in result_keys:
-                if isinstance(key, bytes):
-                    key = key.decode('utf-8')
-                
-                # Extract task ID from key format: celery-task-meta-<task_id>
-                if key.startswith('celery-task-meta-'):
-                    task_id = key.replace('celery-task-meta-', '')
-                    task_ids.append(task_id)
-            
-            logger.debug(f"Found {len(task_ids)} task IDs in Redis")
+            # Extract task ID from key format: celery-task-meta-<task_id>
+            if key.startswith('celery-task-meta-'):
+                task_id = key.replace('celery-task-meta-', '')
+                task_ids.append(task_id)
+        
+        logger.debug(f"Found {len(task_ids)} task IDs in Redis")
     except Exception as e:
         logger.warning(f"Failed to get task IDs from Redis: {str(e)}")
     

@@ -17,15 +17,16 @@ class Config:
     
     def _load_env(self) -> None:
         """加载环境变量文件"""
+        current_file_dir = Path(__file__).parent
         env_paths = [
-            Path("../../docker/.env"),
-            Path("../.env"),
-            Path(".env")
+            current_file_dir / "../../docker/.env",
+            current_file_dir / "../.env"
         ]
         
         env_loaded = False
         for env_path in env_paths:
             abs_path = env_path.resolve()
+            print("abs_path", abs_path)
             if abs_path.exists():
                 load_dotenv(abs_path)
                 logger.info(f"已加载环境文件: {abs_path}")

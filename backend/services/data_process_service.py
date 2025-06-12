@@ -1,5 +1,4 @@
 import logging
-import time
 import io
 import base64
 import aiohttp
@@ -26,22 +25,45 @@ class DataProcessService:
         Args:
             num_workers: Number of worker processes for data processing
         """
-        # Initialize CLIP model and processor with fallback
+        # Initialize components in a modular way
+        self._init_redis_client()
+        self._init_clip_model()
+
+        # Suppress PIL warning about palette images
+        warnings.filterwarnings('ignore', category=UserWarning, module='PIL.Image')
+
+    def _init_redis_client(self):
+        """Initializes the Redis client and connection pool."""
+        self.redis_pool = None
+        self.redis_client = None
+        try:
+            redis_url = os.environ.get('REDIS_BACKEND_URL')
+            if redis_url:
+                self.redis_pool = redis.ConnectionPool.from_url(
+                    redis_url,
+                    max_connections=50,
+                    decode_responses=True
+                )
+                self.redis_client = redis.Redis(connection_pool=self.redis_pool)
+                logger.info("Redis client initialized successfully.")
+            else:
+                logger.warning("REDIS_BACKEND_URL not set, Redis client not initialized.")
+        except Exception as e:
+            logger.error(f"Failed to initialize Redis client: {str(e)}")
+
+    def _init_clip_model(self):
+        """Initializes the CLIP model and processor."""
         self.model = None
         self.processor = None
         self.clip_available = False
-
         try:
             self.model = CLIPModel.from_pretrained(CLIP_MODEL_PATH)
             self.processor = CLIPProcessor.from_pretrained(CLIP_MODEL_PATH)
             self.clip_available = True
             logger.info("CLIP model loaded successfully")
         except Exception as e:
-            logger.warning(f"Failed to load CLIP model, degrading to size-only filtering: {str(e)}")
+            logger.warning(f"Failed to load CLIP model, size-only filtering will be used: {str(e)}")
             self.clip_available = False
-
-        # Suppress PIL warning about palette images
-        warnings.filterwarnings('ignore', category=UserWarning, module='PIL.Image')
 
     async def start(self):
         """Start the data processing service"""
@@ -50,6 +72,25 @@ class DataProcessService:
     async def stop(self):
         """Stop the data processing service"""
         logger.info("Data processing service stopped")
+
+    def _get_celery_inspector(self):
+        """获取 Celery inspector，确保连接配置正确"""
+        from celery import current_app
+        
+        # 确保当前应用配置正确
+        if not current_app.conf.broker_url or not current_app.conf.result_backend:
+            current_app.conf.broker_url = os.environ.get('REDIS_URL')
+            current_app.conf.result_backend = os.environ.get('REDIS_BACKEND_URL')
+            logger.warning(f"Celery broker URL is not configured properly, reconfiguring to {current_app.conf.broker_url}")
+        
+        try:
+            inspector = current_app.control.inspect()
+            # 测试连接
+            inspector.timeout = 3.0
+            inspector.ping()
+            return inspector
+        except Exception as e:
+            raise Exception(f"Failed to create inspector with current_app: {str(e)}")
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Get task by ID
@@ -82,7 +123,7 @@ class DataProcessService:
         try:
             logger.info("Getting inspector to check for active tasks")
             # Get inspector to check for active tasks
-            inspector = current_app.control.inspect()
+            inspector = self._get_celery_inspector()
             
             # Collect task IDs from different sources
             task_ids = set()
@@ -117,17 +158,9 @@ class DataProcessService:
                             task_ids.add(task_id)
             
             logger.info("Getting task IDs from Redis backend")
-            redis_url = os.environ.get('REDIS_BACKEND_URL')
-            logger.info(f"Connecting to Redis at: {redis_url}")
-            if redis_url:
-                redis_client = redis.from_url(redis_url)
-                logger.info("Redis client created, testing connection...")
-                redis_client.ping()
-                logger.info("Redis ping success")
-
             # Also get task IDs from Redis backend (covers completed/failed tasks within expiry)
             try:
-                redis_task_ids = get_all_task_ids_from_redis()
+                redis_task_ids = get_all_task_ids_from_redis(self.redis_client)
                 for task_id in redis_task_ids:
                     task_ids.add(task_id) # Add to the set, duplicates will be handled
                 
