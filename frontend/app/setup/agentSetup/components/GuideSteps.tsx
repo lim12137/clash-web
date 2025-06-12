@@ -33,6 +33,10 @@ const GUIDE_STEPS = {
   ],
   creating: [
     {
+      title: '填写基础信息',
+      description: '填写名称、描述等基础信息',
+    },
+    {
       title: '选择工具',
       description: '从工具池中选择需要的工具',
     },
@@ -63,6 +67,9 @@ interface GuideStepsProps {
   selectedAgents: any[];
   mainAgentId: string | null;
   currentStep?: number;
+  agentName?: string;
+  agentDescription?: string;
+  agentProvideSummary?: boolean;
 }
 
 export default function GuideSteps({
@@ -73,6 +80,9 @@ export default function GuideSteps({
   selectedAgents,
   mainAgentId,
   currentStep,
+  agentName = '',
+  agentDescription = '',
+  agentProvideSummary = false,
 }: GuideStepsProps) {
   // print mainAgentId in the console
   useEffect(() => {
@@ -82,10 +92,11 @@ export default function GuideSteps({
   // Get Current Step
   const getCurrentStep = () => {
     if (isCreatingNewAgent) {
-      // New Agent creation mode step sequence
-      if (systemPrompt) return 3;
-      if (businessLogic) return 2;
-      if (selectedTools.length > 0) return 1;
+      // Sub Agent configuration mode step sequence
+      if (systemPrompt) return 4;
+      if (businessLogic) return 3;
+      if (selectedTools.length > 0) return 2;
+      if (agentName.trim() && agentDescription.trim()) return 1;
       return 0;
     } else {
       // Main Agent configuration mode step sequence
@@ -103,7 +114,7 @@ export default function GuideSteps({
   return (
     <div className="h-[65vh]">
       <div className="flex-1 flex flex-col h-full overflow-y-auto overflow-x-hidden">
-        <h2 className="text-xl font-bold mb-4">{isCreatingNewAgent ? '新建Agent' : '主Agent配置'}</h2>
+        <h2 className="text-xl font-bold mb-4">{isCreatingNewAgent ? '子Agent配置' : '主Agent配置'}</h2>
         <Steps
           direction="vertical"
           current={step}

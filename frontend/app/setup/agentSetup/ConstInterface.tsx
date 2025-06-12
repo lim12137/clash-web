@@ -62,6 +62,8 @@ export interface SubAgentPoolProps {
   onEditAgent: (agent: Agent) => void;
   onCreateNewAgent: () => void;
   onImportAgent: () => void;
+  onExportAgent: (agent: Agent) => void;
+  onDeleteAgent: (agent: Agent) => void;
   subAgentList?: Agent[];
   loadingAgents?: boolean;
   enabledAgentIds?: number[];
@@ -101,4 +103,12 @@ export interface BusinessLogicConfigProps {
   setSubAgentList: (agents: Agent[]) => void;
   enabledAgentIds: number[];
   setEnabledAgentIds: (ids: number[]) => void;
+  newAgentName: string;
+  newAgentDescription: string;
+  newAgentProvideSummary: boolean;
+  setNewAgentName: (name: string) => void;
+  setNewAgentDescription: (description: string) => void;
+  setNewAgentProvideSummary: (provide: boolean) => void;
+  isNewAgentInfoValid: boolean;
+  setIsNewAgentInfoValid: (valid: boolean) => void;
 }

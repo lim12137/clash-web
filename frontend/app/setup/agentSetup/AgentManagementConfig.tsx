@@ -4,10 +4,11 @@ import { useState, useEffect, useMemo, useCallback, memo } from 'react'
 import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber, Tag, Upload } from 'antd'
 import { SettingOutlined, UploadOutlined, ThunderboltOutlined, LoadingOutlined } from '@ant-design/icons'
 import ToolConfigModal from './components/ToolConfigModal'
-import AgentModalComponent from './components/AgentModal'
+import AgentInfoInput from './components/AgentInfoInput'
+import AgentContextMenu from './components/AgentContextMenu'
 import { Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
 import { ScrollArea } from '@/components/ui/scrollArea'
-import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent, importAgent } from '@/services/agentConfigService'
+import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent, importAgent, exportAgent, deleteAgent, searchAgentInfo } from '@/services/agentConfigService'
 import {generatePromptStream, savePrompt} from '@/services/promptService'
 
 const { TextArea } = Input
@@ -123,11 +124,46 @@ function SubAgentPool({
   onEditAgent, 
   onCreateNewAgent, 
   onImportAgent,
+  onExportAgent,
+  onDeleteAgent,
   subAgentList = [],
   loadingAgents = false,
   enabledAgentIds = [],
   isImporting = false
 }: SubAgentPoolProps) {
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    agent: Agent | null;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    agent: null
+  });
+
+  const handleContextMenu = (e: React.MouseEvent, agent: Agent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      agent: agent
+    });
+  };
+
+  const handleCloseContextMenu = () => {
+    setContextMenu({
+      visible: false,
+      x: 0,
+      y: 0,
+      agent: null
+    });
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-2">
@@ -180,6 +216,7 @@ function SubAgentPool({
                   if (!isAvailable) return;
                   onSelectAgent(agent, !isEnabled);
                 }}
+                onContextMenu={(e) => handleContextMenu(e, agent)}
               >
                 <div className="flex items-center h-full">
                   <div className="flex-1 overflow-hidden">
@@ -210,6 +247,18 @@ function SubAgentPool({
           })}
         </div>
       </ScrollArea>
+
+      {/* Context Menu */}
+      <AgentContextMenu
+        visible={contextMenu.visible}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        agent={contextMenu.agent}
+        onEdit={onEditAgent}
+        onExport={onExportAgent}
+        onDelete={onDeleteAgent}
+        onClose={handleCloseContextMenu}
+      />
     </div>
   )
 }
@@ -418,11 +467,16 @@ export default function BusinessLogicConfig({
   setMainAgentId,
   setSubAgentList,
   enabledAgentIds,
-  setEnabledAgentIds
+  setEnabledAgentIds,
+  newAgentName,
+  newAgentDescription,
+  newAgentProvideSummary,
+  setNewAgentName,
+  setNewAgentDescription,
+  setNewAgentProvideSummary,
+  isNewAgentInfoValid,
+  setIsNewAgentInfoValid
 }: BusinessLogicConfigProps) {
-  const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
-  const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
   const [fileList, setFileList] = useState<any[]>([]);
@@ -430,169 +484,16 @@ export default function BusinessLogicConfig({
   const [isPromptGenerating, setIsPromptGenerating] = useState(false);
   const [isPromptSaving, setIsPromptSaving] = useState(false);
   const [localIsGenerating, setLocalIsGenerating] = useState(false);
+  
+  // Delete confirmation popup status
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
 
-  const fetchSubAgentIdAndEnableToolList = async () => {
-    setIsLoadingTools(true);
-    // Clear the tool selection status when loading starts
-    setSelectedTools([]);
-    setEnabledToolIds([]);
-    
-    try {
-      const result = await getCreatingSubAgentId(mainAgentId);
-      if (result.success && result.data) {
-        const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, prompt } = result.data;
-        
-        // Update the main agent ID
-        setMainAgentId(agentId);
-        // Update the enabled tool ID list
-        setEnabledToolIds(enabledToolIds);
-        // Update the model
-        if (modelName) {
-          setMainAgentModel(modelName as OpenAIModel);
-        }
-        // Update the maximum number of steps
-        if (maxSteps) {
-          setMainAgentMaxStep(maxSteps);
-        }
-        // Update the business description
-        if (businessDescription) {
-          setBusinessLogic(businessDescription);
-        }
-        // Update the system prompt
-        if (prompt) {
-          setSystemPrompt(prompt);
-        }
-      } else {
-        message.error(result.message || '获取新Agent ID失败');
-      }
-    } catch (error) {
-      console.error('创建新Agent失败:', error);
-      message.error('创建新Agent失败，请稍后重试');
-    } finally {
-      setIsLoadingTools(false);
-    }
-  };
+  // Edit agent related status
+  const [isEditingAgent, setIsEditingAgent] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
 
-  // Listen for changes in the creation of a new Agent
-  useEffect(() => {
-    if (isCreatingNewAgent) {
-      // When switching to the creation of a new Agent, clear the relevant status
-      setSelectedAgents([]);
-      setBusinessLogic('');
-      fetchSubAgentIdAndEnableToolList();
-    } else {
-      // When exiting the creation of a new Agent, reset the main Agent configuration and refresh the list
-      setBusinessLogic('');
-      setMainAgentModel(OpenAIModel.MainModel);
-      setMainAgentMaxStep(5);
-      refreshAgentList();
-    }
-  }, [isCreatingNewAgent]);
-
-  // Listen for changes in the tool status, update the selected tool
-  useEffect(() => {
-    if (!tools || !enabledToolIds || isLoadingTools) return;
-
-    const enabledTools = tools.filter(tool => 
-      enabledToolIds.includes(Number(tool.id))
-    );
-
-    setSelectedTools(prevTools => {
-      // Only update when the tool list is确实不同时
-      if (JSON.stringify(prevTools) !== JSON.stringify(enabledTools)) {
-        return enabledTools;
-      }
-      return prevTools;
-    });
-  }, [tools, enabledToolIds, isLoadingTools]);
-
-  // Handle the creation of a new Agent
-  const handleCreateNewAgent = async () => {
-    setIsCreatingNewAgent(true);
-  };
-
-  // Reset the status when the user cancels the creation of an Agent
-  const handleCancelCreating = async () => {
-    setIsCreatingNewAgent(false);
-  };
-
-  // Handle the creation of a new Agent
-  const handleSaveNewAgent = async (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string, business_description: string) => {
-    if (name.trim()) {
-      const newAgent: Agent = {
-        id: `custom_${Date.now()}`,
-        name: name,
-        description: description || businessLogic.substring(0, 50) + (businessLogic.length > 50 ? "..." : ""),
-        model: model,
-        max_step: max_step,
-        provide_run_summary: provide_run_summary,
-        tools: selectedTools.map(tool => ({
-          ...tool,
-          initParams: tool.initParams.map(param => ({
-            ...param,
-            value: param.value
-          }))
-        })),
-        prompt: prompt,
-        business_description: business_description
-      };
-
-      setIsAgentModalOpen(false);
-      message.success(`Agent:"${name}"创建成功`);
-      
-      // First exit the creation mode
-      setIsCreatingNewAgent(false);
-      // Reset the status
-      setBusinessLogic('');
-      setSelectedTools([]);
-      // Refresh the list
-      refreshAgentList();
-    }
-  };
-
-  const handleSaveAsAgent = () => {
-    if (systemPrompt.trim()) {
-      setIsAgentModalOpen(true);
-    }
-  };
-
-  const handleEditAgent = (agent: Agent) => {
-    setCurrentAgent(agent);
-    setIsEditModalOpen(true);
-  };
-
-  const handleUpdateAgent = (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string, business_description: string) => {
-    if (currentAgent && name.trim()) {
-      // Close pop-up window
-      setIsEditModalOpen(false);
-      
-      // Display success message
-      message.success(`子代理"${name}"更新成功`);
-      
-      // Refresh the agent list from backend
-      refreshAgentList();
-    }
-  };
-
-  // Processing mode box closed
-  const handleModalClose = () => {
-    setIsAgentModalOpen(false);
-  };
-
-  const canSaveAsAgent = selectedAgents.length === 0 && systemPrompt.trim().length > 0;
-
-  // Generate more intelligent prompt information according to conditions
-  const getButtonTitle = () => {
-    if (selectedAgents.length > 0) {
-      return "请确保未选择Agent";
-    }
-    if (systemPrompt.trim().length === 0) {
-      return "请先生成系统提示词";
-    }
-    return "";
-  };
-
-  // Remove the fetchAgentToolsState function and merge its functionality into refreshAgentList
+  // Common refresh agent list function, moved to the front to avoid hoisting issues
   const refreshAgentList = async () => {
     if (!mainAgentId) return;
     
@@ -642,9 +543,266 @@ export default function BusinessLogicConfig({
     }
   };
 
+  const fetchSubAgentIdAndEnableToolList = async () => {
+    setIsLoadingTools(true);
+    // Clear the tool selection status when loading starts
+    setSelectedTools([]);
+    setEnabledToolIds([]);
+    
+    try {
+      const result = await getCreatingSubAgentId(mainAgentId);
+      if (result.success && result.data) {
+        const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, prompt } = result.data;
+        
+        // Update the main agent ID
+        setMainAgentId(agentId);
+        // Update the enabled tool ID list
+        setEnabledToolIds(enabledToolIds);
+        // Update the model
+        if (modelName) {
+          setMainAgentModel(modelName as OpenAIModel);
+        }
+        // Update the maximum number of steps
+        if (maxSteps) {
+          setMainAgentMaxStep(maxSteps);
+        }
+        // Update the business description
+        if (businessDescription) {
+          setBusinessLogic(businessDescription);
+        }
+        // Update the system prompt
+        if (prompt) {
+          setSystemPrompt(prompt);
+        }
+      } else {
+        message.error(result.message || '获取新Agent ID失败');
+      }
+    } catch (error) {
+      console.error('创建新Agent失败:', error);
+      message.error('创建新Agent失败，请稍后重试');
+    } finally {
+      setIsLoadingTools(false);
+    }
+  };
+
+  // Listen for changes in the creation of a new Agent
+  useEffect(() => {
+    if (isCreatingNewAgent) {
+      // When switching to the creation of a new Agent, clear the relevant status
+      setSelectedAgents([]);
+      
+      if (!isEditingAgent) {
+        // Only clear and get new Agent configuration in creating mode
+        setBusinessLogic('');
+        setSystemPrompt(''); // Also clear the system prompt
+        fetchSubAgentIdAndEnableToolList();
+        // Reset new agent info states when entering creating mode
+        setNewAgentName('');
+        setNewAgentDescription('');
+        setNewAgentProvideSummary(true);
+        setIsNewAgentInfoValid(false);
+      } else {
+        // In edit mode, data is loaded in handleEditAgent, here validate the form
+        setIsNewAgentInfoValid(true); // Assume data is valid when editing
+        console.log('Edit mode useEffect - Do not clear data'); // Debug information
+      }
+    } else {
+      // When exiting the creation of a new Agent, reset the main Agent configuration and refresh the list
+      if (!isEditingAgent) {
+        setBusinessLogic('');
+        setSystemPrompt(''); // Also clear the system prompt
+        setMainAgentModel(OpenAIModel.MainModel);
+        setMainAgentMaxStep(5);
+        refreshAgentList();
+      }
+    }
+  }, [isCreatingNewAgent, isEditingAgent]);
+
+  // Listen for changes in the tool status, update the selected tool
+  useEffect(() => {
+    if (!tools || !enabledToolIds || isLoadingTools) return;
+
+    const enabledTools = tools.filter(tool => 
+      enabledToolIds.includes(Number(tool.id))
+    );
+
+    setSelectedTools(prevTools => {
+      // Only update when the tool list is确实不同时
+      if (JSON.stringify(prevTools) !== JSON.stringify(enabledTools)) {
+        return enabledTools;
+      }
+      return prevTools;
+    });
+  }, [tools, enabledToolIds, isLoadingTools]);
+
+  // Handle the creation of a new Agent
+  const handleCreateNewAgent = async () => {
+    // Set to create mode
+    setIsEditingAgent(false);
+    setEditingAgent(null);
+    setIsCreatingNewAgent(true);
+  };
+
+  // Reset the status when the user cancels the creation of an Agent
+  const handleCancelCreating = async () => {
+    setIsCreatingNewAgent(false);
+    setIsEditingAgent(false);
+    setEditingAgent(null);
+    // Reset agent info states
+    setNewAgentName('');
+    setNewAgentDescription('');
+    setNewAgentProvideSummary(true);
+    setIsNewAgentInfoValid(false);
+  };
+
+  // Handle the creation of a new Agent
+  const handleSaveNewAgent = async (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string, business_description: string) => {
+    if (name.trim() && mainAgentId) {
+      try {
+        let result;
+        
+        if (isEditingAgent && editingAgent) {
+          // 修改模式：更新现有Agent
+          result = await updateAgent(
+            Number(editingAgent.id),
+            name,
+            description,
+            model,
+            max_step,
+            provide_run_summary,
+            prompt,
+            undefined, // enabled - let the backend handle this
+            business_description
+          );
+        } else {
+          // 新建模式：创建新Agent
+          result = await updateAgent(
+            Number(mainAgentId),
+            name,
+            description,
+            model,
+            max_step,
+            provide_run_summary,
+            prompt,
+            undefined, // enabled - let the backend handle this
+            business_description
+          );
+        }
+
+        if (result.success) {
+          const actionText = isEditingAgent ? '修改' : '创建';
+          message.success(`Agent:"${name}"${actionText}成功`);
+          
+          // Exit create/edit mode
+          setIsCreatingNewAgent(false);
+          setIsEditingAgent(false);
+          setEditingAgent(null);
+          
+          // Reset status
+          setBusinessLogic('');
+          setSelectedTools([]);
+          setNewAgentName('');
+          setNewAgentDescription('');
+          setNewAgentProvideSummary(true);
+          setSystemPrompt('');
+          
+          // Refresh the list
+          refreshAgentList();
+        } else {
+          message.error(result.message || 'Agent保存失败');
+        }
+      } catch (error) {
+        console.error('Error saving agent:', error);
+        message.error('Agent保存失败，请稍后重试');
+      }
+    } else {
+      if (!name.trim()) {
+        message.error('Agent名称不能为空');
+      }
+      if (!mainAgentId) {
+        message.error('无法保存Agent：未找到Agent ID');
+      }
+    }
+  };
+
+  const handleSaveAsAgent = () => {
+    if (!isNewAgentInfoValid) {
+      message.warning('请完善Agent信息');
+      return;
+    }
+    if (systemPrompt.trim().length === 0) {
+      message.warning('请先生成系统提示词');
+      return;
+    }
+    handleSaveNewAgent(
+      newAgentName, 
+      newAgentDescription, 
+      mainAgentModel, 
+      mainAgentMaxStep, 
+      newAgentProvideSummary, 
+      systemPrompt, 
+      businessLogic
+    );
+  };
+
+  const handleEditAgent = async (agent: Agent) => {
+    try {
+      // First set to edit mode to avoid useEffect clearing data
+      setIsEditingAgent(true);
+      setEditingAgent(agent); // Use the incoming agent first, then replace with detailed data later
+      setIsCreatingNewAgent(true);
+      
+      // Call the query interface to get the complete Agent information
+      const result = await searchAgentInfo(Number(agent.id));
+      
+      if (!result.success || !result.data) {
+        message.error(result.message || '获取Agent详情失败');
+        // If the query fails, reset the edit status
+        setIsEditingAgent(false);
+        setEditingAgent(null);
+        setIsCreatingNewAgent(false);
+        return;
+      }
+      
+      const agentDetail = result.data;
+      
+      // Update to complete Agent data
+      setEditingAgent(agentDetail);
+      
+      // Load Agent data to the interface
+      setNewAgentName(agentDetail.name);
+      setNewAgentDescription(agentDetail.description);
+      setNewAgentProvideSummary(agentDetail.provide_run_summary);
+      setMainAgentModel(agentDetail.model as OpenAIModel);
+      setMainAgentMaxStep(agentDetail.max_step);
+      setBusinessLogic(agentDetail.business_description || '');
+      setSystemPrompt(agentDetail.prompt || '');
+      
+      // Load the tools of the Agent
+      if (agentDetail.tools && agentDetail.tools.length > 0) {
+        setSelectedTools(agentDetail.tools);
+        // Set the enabled tool IDs
+        const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
+        setEnabledToolIds(toolIds);
+      } else {
+        setSelectedTools([]);
+        setEnabledToolIds([]);
+      }
+      
+      message.success('Agent信息已加载');
+    } catch (error) {
+      console.error('加载Agent详情失败:', error);
+      message.error('加载Agent详情失败，请稍后重试');
+      // If an error occurs, reset the edit status
+      setIsEditingAgent(false);
+      setEditingAgent(null);
+      setIsCreatingNewAgent(false);
+    }
+  };
+
   // Handle the update of the Agent selection status
   const handleAgentSelect = async (agent: Agent, isSelected: boolean) => {
-    // 首先检查Agent是否可用
+    // First check if the Agent is available
     if (agent.is_available === false) {
       message.error('该Agent当前不可用，无法选择');
       return;
@@ -682,14 +840,17 @@ export default function BusinessLogicConfig({
 
   // Handle the update of the model
   const handleModelChange = async (value: OpenAIModel) => {
-    if (!mainAgentId) {
-      message.error('主代理ID未设置，无法更新模型');
+    // Select the correct Agent ID based on the current mode
+    const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
+    
+    if (!targetAgentId) {
+      message.error('Agent ID未设置，无法更新模型');
       return;
     }
 
     try {
       const result = await updateAgent(
-        Number(mainAgentId),
+        Number(targetAgentId),
         undefined, // name
         undefined, // description
         value, // modelName
@@ -713,15 +874,19 @@ export default function BusinessLogicConfig({
 
   // Handle the update of the maximum number of steps
   const handleMaxStepChange = async (value: number | null) => {
-    if (!mainAgentId) {
-      message.error('主代理ID未设置，无法更新最大步骤数');
+    // Select the correct Agent ID based on the current mode
+    const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
+    
+    if (!targetAgentId) {
+      message.error('Agent ID未设置，无法更新最大步骤数');
       return;
     }
 
     const newValue = value ?? 5;
+    
     try {
       const result = await updateAgent(
-        Number(mainAgentId),
+        Number(targetAgentId),
         undefined, // name
         undefined, // description
         undefined, // modelName
@@ -799,23 +964,87 @@ export default function BusinessLogicConfig({
     fileInput.click();
   };
 
+  // Handle exporting agent
+  const handleExportAgent = async (agent: Agent) => {
+    try {
+      const result = await exportAgent(Number(agent.id));
+      if (result.success) {
+        // Create a blob with the exported data
+        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+          type: 'application/json'
+        });
+        
+        // Create a download link
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${agent.name}_config.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        message.success('Agent配置导出成功');
+      } else {
+        message.error(result.message || 'Agent导出失败');
+      }
+    } catch (error) {
+      console.error('导出Agent失败:', error);
+      message.error('导出Agent失败，请稍后重试');
+    }
+  };
+
+  // Handle deleting agent
+  const handleDeleteAgent = async (agent: Agent) => {
+    // Show confirmation dialog
+    setAgentToDelete(agent);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  // Handle confirmed deletion
+  const handleConfirmDelete = async () => {
+    if (!agentToDelete) return;
+
+    try {
+      const result = await deleteAgent(Number(agentToDelete.id));
+      if (result.success) {
+        message.success(`Agent"${agentToDelete.name}"删除成功`);
+        // Refresh agent list
+        refreshAgentList();
+      } else {
+        message.error(result.message || 'Agent删除失败');
+      }
+    } catch (error) {
+      console.error('删除Agent失败:', error);
+      message.error('删除Agent失败，请稍后重试');
+    } finally {
+      setIsDeleteConfirmOpen(false);
+      setAgentToDelete(null);
+    }
+  };
+
   // Generate system prompt
   const handleGenerateSystemPrompt = async () => {
     if (!businessLogic || businessLogic.trim() === '') {
       message.warning('请先输入业务描述');
       return;
     }
-    if (!mainAgentId) {
+    
+    // Select the correct Agent ID based on the current mode
+    const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
+    
+    if (!targetAgentId) {
       message.warning('无法生成提示词：未指定Agent ID');
       return;
     }
+    
     try {
       setIsPromptGenerating(true);
       setLocalIsGenerating(true);
       setSystemPrompt('');
       await generatePromptStream(
         {
-          agent_id: Number(mainAgentId),
+          agent_id: Number(targetAgentId),
           task_description: businessLogic
         },
         (streamedText) => {
@@ -842,7 +1071,10 @@ export default function BusinessLogicConfig({
 
   // Save system prompt
   const handleSaveSystemPrompt = async () => {
-    if (!mainAgentId) {
+    // Select the correct Agent ID based on the current mode
+    const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
+    
+    if (!targetAgentId) {
       message.warning('无法保存提示词：未指定Agent ID');
       return;
     }
@@ -850,9 +1082,10 @@ export default function BusinessLogicConfig({
       message.warning('提示词为空，无法保存');
       return;
     }
+    
     try {
       setIsPromptSaving(true);
-      await savePrompt({ agent_id: Number(mainAgentId), prompt: systemPrompt });
+      await savePrompt({ agent_id: Number(targetAgentId), prompt: systemPrompt });
       message.success('提示词已保存');
     } catch (error) {
       console.error('保存提示词失败:', error);
@@ -862,24 +1095,59 @@ export default function BusinessLogicConfig({
     }
   };
 
+  const canSaveAsAgent = selectedAgents.length === 0 && systemPrompt.trim().length > 0 && isNewAgentInfoValid;
+
+  // Generate more intelligent prompt information according to conditions
+  const getButtonTitle = () => {
+    if (selectedAgents.length > 0) {
+      return "请确保未选择Agent";
+    }
+    if (systemPrompt.trim().length === 0) {
+      return "请先生成系统提示词";
+    }
+    if (!isNewAgentInfoValid) {
+      return "请完善Agent信息";
+    }
+    return "";
+  };
+
   return (
     <div className="flex flex-col h-full w-full gap-0 justify-between">
       {/* Upper part: Agent pool + Tool pool */}
       <div className="flex gap-4 flex-1 min-h-0 pb-4 pr-4 pl-4">
-        <div className={`w-[360px] h-full ${isCreatingNewAgent ? 'hidden' : ''}`}>
-          <SubAgentPool
-            selectedAgents={selectedAgents}
-            onSelectAgent={handleAgentSelect}
-            onEditAgent={handleEditAgent}
-            onCreateNewAgent={handleCreateNewAgent}
-            onImportAgent={handleImportAgent}
-            subAgentList={subAgentList}
-            loadingAgents={loadingAgents}
-            enabledAgentIds={enabledAgentIds}
-            isImporting={isImporting}
-          />
-        </div>
-        <div className={`${isCreatingNewAgent ? 'w-full' : 'flex-1'} h-full`}>
+        {!isCreatingNewAgent && (
+          <div className="w-[360px] h-full">
+            <SubAgentPool
+              selectedAgents={selectedAgents}
+              onSelectAgent={handleAgentSelect}
+              onEditAgent={handleEditAgent}
+              onCreateNewAgent={handleCreateNewAgent}
+              onImportAgent={handleImportAgent}
+              onExportAgent={handleExportAgent}
+              onDeleteAgent={handleDeleteAgent}
+              subAgentList={subAgentList}
+              loadingAgents={loadingAgents}
+              enabledAgentIds={enabledAgentIds}
+              isImporting={isImporting}
+            />
+          </div>
+        )}
+        
+        {isCreatingNewAgent && (
+          <div className="w-[360px] h-full">
+            <AgentInfoInput
+              name={newAgentName}
+              description={newAgentDescription}
+              provideSummary={newAgentProvideSummary}
+              onNameChange={setNewAgentName}
+              onDescriptionChange={setNewAgentDescription}
+              onProvideSummaryChange={setNewAgentProvideSummary}
+              onValidationChange={setIsNewAgentInfoValid}
+            />
+          </div>
+        )}
+        
+        <div className="flex-1 h-full">
           <MemoizedToolPool
             selectedTools={isLoadingTools ? [] : selectedTools}
             onSelectTool={(tool, isSelected) => {
@@ -895,7 +1163,7 @@ export default function BusinessLogicConfig({
             isCreatingNewAgent={isCreatingNewAgent}
             tools={tools}
             loadingTools={isLoadingTools}
-            mainAgentId={mainAgentId}
+            mainAgentId={isEditingAgent && editingAgent ? editingAgent.id : mainAgentId}
             localIsGenerating={localIsGenerating}
           />
         </div>
@@ -977,43 +1245,37 @@ export default function BusinessLogicConfig({
         </div>
       </div>
 
-      {/* Edit Agent pop-up window */}
-      <AgentModalComponent 
-        isOpen={isEditModalOpen}
-        onCancel={() => setIsEditModalOpen(false)}
-        onSave={handleUpdateAgent}
-        onRefresh={refreshAgentList}
-        title="修改Agent"
-        agent={currentAgent}
-        selectedTools={selectedTools}
-        readOnly={false}
-        agentId={currentAgent?.id || null}
-      />
-
-      {/* New Agent pop-up window */}
-      <AgentModalComponent 
-        isOpen={isAgentModalOpen}
-        onCancel={handleModalClose}
-        onSave={(name, description, model, max_step, provide_run_summary, prompt, business_description) => {
-          handleSaveNewAgent(name, description, model, max_step, provide_run_summary, prompt, business_description);
-        }}
-        onRefresh={refreshAgentList}
-        title="保存到Agent池"
-        selectedTools={selectedTools}
-        systemPrompt={systemPrompt}
-        agentId={mainAgentId}
-        agent={{
-          id: '',
-          name: '',
-          description: '',
-          model: mainAgentModel,
-          max_step: mainAgentMaxStep,
-          provide_run_summary: true,
-          tools: selectedTools,
-          prompt: systemPrompt,
-          business_description: businessLogic
-        }}
-      />
+      {/* Delete confirmation popup */}
+      <Modal
+        title="Confirm delete"
+        open={isDeleteConfirmOpen}
+        onCancel={() => setIsDeleteConfirmOpen(false)}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button 
+              onClick={() => setIsDeleteConfirmOpen(false)}
+              className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+              style={{ border: "none" }}
+            >
+              取消
+            </button>
+            <button 
+              onClick={handleConfirmDelete}
+              className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-red-500 text-white hover:bg-red-600"
+              style={{ border: "none" }}
+            >
+              确认删除
+            </button>
+          </div>
+        }
+        width={400}
+      >
+        <div className="py-4">
+          <Typography.Text>
+            确定要删除Agent"{agentToDelete?.name}"吗？此操作不可恢复。
+          </Typography.Text>
+        </div>
+      </Modal>
     </div>
   )
 }
