@@ -3,6 +3,7 @@ import { Document, NON_TERMINAL_STATUSES } from '@/types/knowledgeBase'
 import { sortByStatusAndDate } from '@/lib/utils'
 import knowledgeBasePollingService from '@/services/knowledgeBasePollingService'
 import DocumentListLayout, { UI_CONFIG } from './DocumentListLayout'
+import { useDocumentContext } from './DocumentContext'
 
 interface DocumentListProps {
   documents: Document[]
@@ -60,6 +61,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
   uploadUrl = '/api/upload'
 }, ref) => {
   const uploadAreaRef = useRef<any>(null);
+  const { state: docState } = useDocumentContext();
 
   // 使用固定高度而不是百分比
   const titleBarHeight = UI_CONFIG.TITLE_BAR_HEIGHT;
@@ -105,8 +107,8 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
     <DocumentListLayout
       sortedDocuments={sortedDocuments}
       knowledgeBaseName={knowledgeBaseName}
-      loading={loading}
-      isInitialLoad={false} // 这里不再区分首次加载
+      loading={docState.isLoadingDocuments}
+      isInitialLoad={false}
       modelMismatch={modelMismatch}
       isCreatingMode={isCreatingMode}
       isUploading={isUploading}

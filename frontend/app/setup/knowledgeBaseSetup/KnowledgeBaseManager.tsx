@@ -89,12 +89,14 @@ function DataConfig() {
     state: docState,
     fetchDocuments,
     uploadDocuments,
-    deleteDocument
+    deleteDocument,
+    dispatch: docDispatch
   } = useDocumentContext();
 
   const {
     state: uiState,
     setDragging,
+    dispatch: uiDispatch
   } = useUIContext();
 
   // Create mode state
@@ -170,6 +172,9 @@ function DataConfig() {
   // Handle knowledge base change event
   const handleKnowledgeBaseChange = async (kb: KnowledgeBase) => {
     try {
+      // Set loading state before fetching documents
+      docDispatch({ type: 'SET_LOADING_DOCUMENTS', payload: true });
+      
       // 直接获取最新文档数据，强制从服务器获取最新数据
       const documents = await knowledgeBaseService.getAllFiles(kb.id);
 
@@ -187,6 +192,7 @@ function DataConfig() {
     } catch (error) {
       console.error("获取文档列表失败:", error);
       message.error("获取文档列表失败");
+      docDispatch({ type: 'ERROR', payload: "获取文档列表失败" });
     }
   };
 
