@@ -208,8 +208,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     
     try {
       // Use getAllFiles() to get documents including those not yet in ES
-      const documents = await knowledgeBaseService.getAllFiles(kbId);
-      
+      const documents = await knowledgeBaseService.getAllFiles(kbId,true);
       dispatch({ 
         type: 'FETCH_SUCCESS', 
         payload: { kbId, documents } 
@@ -233,8 +232,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
       dispatch({ type: 'SET_LOADING_DOCUMENTS', payload: true });
       
       // Get latest status immediately after upload
-      const latestDocuments = await knowledgeBaseService.getAllFiles(kbId);
-      
+      const latestDocuments = await knowledgeBaseService.getAllFiles(kbId,true);
       // Update document status
       dispatch({ 
         type: 'FETCH_SUCCESS', 
