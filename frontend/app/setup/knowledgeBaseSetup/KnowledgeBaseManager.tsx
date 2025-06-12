@@ -175,16 +175,17 @@ function DataConfig() {
       // Set loading state before fetching documents
       docDispatch({ type: 'SET_LOADING_DOCUMENTS', payload: true });
       
-      // 直接获取最新文档数据，强制从服务器获取最新数据
+      // 获取最新文档数据
       const documents = await knowledgeBaseService.getAllFiles(kb.id);
 
       // 触发文档更新事件
       knowledgeBasePollingService.triggerDocumentsUpdate(kb.id, documents);
 
-      // 后台更新知识库统计信息
+      // 后台更新知识库统计信息，但不重复获取文档
       setTimeout(async () => {
         try {
-          await refreshKnowledgeBaseData(true);
+          // 直接调用 fetchKnowledgeBases 更新知识库列表数据
+          await fetchKnowledgeBases(false, true);
         } catch (error) {
           console.error("获取知识库最新数据失败:", error);
         }
