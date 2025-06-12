@@ -144,10 +144,13 @@ function DataConfig() {
   };
 
   // Handle knowledge base click logic, set current active knowledge base
-  const handleKnowledgeBaseClick = (kb: KnowledgeBase) => {
-    setIsCreatingMode(false); // Reset creating mode
-    setHasClickedUpload(false); // 重置上传按钮点击状态
-    setNameExists(false); // 重置名称存在状态
+  const handleKnowledgeBaseClick = (kb: KnowledgeBase, fromUserClick: boolean = true) => {
+    // 只有当是用户点击时才重置创建模式
+    if (fromUserClick) {
+      setIsCreatingMode(false); // Reset creating mode
+      setHasClickedUpload(false); // 重置上传按钮点击状态
+      setNameExists(false); // 重置名称存在状态
+    }
 
     // 无论是否切换知识库，都需要获取最新文档信息
     const isChangingKB = !kbState.activeKnowledgeBase || kb.id !== kbState.activeKnowledgeBase.id;
@@ -260,7 +263,6 @@ function DataConfig() {
     setIsCreatingMode(true);
     setHasClickedUpload(false); // 重置上传按钮点击状态
     setNameExists(false); // 重置名称存在状态
-    setActiveKnowledgeBase(null as unknown as KnowledgeBase);
     setUploadFiles([]); // 重置上传文件数组，清空所有待上传文件
   };
 
@@ -418,14 +420,9 @@ function DataConfig() {
 
   // Get current viewing knowledge base documents
   const viewingDocuments = (() => {
-    // 在创建模式下，直接从documentsMap中找到有文档的知识库
+    // 在创建模式下返回空数组，因为新知识库还没有文档
     if (isCreatingMode) {
-      // 遍历所有documentsMap，找到有文档的知识库（通常是最新创建的）
-      for (const [kbId, documents] of Object.entries(docState.documentsMap)) {
-        if (documents && documents.length > 0) {
-          return documents;
-        }
-      }
+      return [];
     }
     
     // 正常模式下，使用activeKnowledgeBase
