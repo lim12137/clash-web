@@ -313,7 +313,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
             </div>
           </div>
         ) : (
-          loading && isInitialLoad ? (
+          loading? (
             <div className="flex items-center justify-center h-full border border-gray-200 rounded-md">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
