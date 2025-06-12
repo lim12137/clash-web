@@ -46,8 +46,13 @@ export default function CreatePage() {
         return
       }
 
-      // 如果用户不是管理员且当前在第一页，自动跳转到第二页
+      // If the user is not an admin and currently on the first page, automatically jump to the second page
       if (user.role !== "admin" && selectedKey === "1") {
+        setSelectedKey("2")
+      }
+      
+      // If the user is not an admin and currently on the third page, force jump to the second page
+      if (user.role !== "admin" && selectedKey === "3") {
         setSelectedKey("2")
       }
     }
@@ -100,6 +105,11 @@ export default function CreatePage() {
   const renderContent = () => {
     // 如果用户不是管理员且尝试访问第一页，强制显示第二页内容
     if (user?.role !== "admin" && selectedKey === "1") {
+      return <DataConfig />
+    }
+    
+    // 如果用户不是管理员且尝试访问第三页，强制显示第二页内容
+    if (user?.role !== "admin" && selectedKey === "3") {
       return <DataConfig />
     }
 
@@ -172,8 +182,33 @@ export default function CreatePage() {
         setIsSavingConfig(false)
       }
     } else if (selectedKey === "2") {
-      // Jump from the second page to the third page
-      setSelectedKey("3")
+      // If the user is an admin, jump to the third page; if the user is a normal user, complete the configuration directly and jump to the chat page
+      if (user?.role === "admin") {
+        setSelectedKey("3")
+      } else {
+        // Normal users complete the configuration directly on the second page
+        try {
+          setIsSavingConfig(true)
+          // Get the current global configuration
+          const currentConfig = configStore.getConfig()
+          
+          // Call the backend save configuration API
+          const saveResult = await configService.saveConfigToBackend(currentConfig)
+          
+          if (saveResult) {
+            message.success("配置已保存")
+            // After saving successfully, redirect to the chat page
+            router.push("/chat")
+          } else {
+            message.error("保存配置失败，请重试")
+          }
+        } catch (error) {
+          console.error("保存配置异常:", error)
+          message.error("系统异常，请稍后重试")
+        } finally {
+          setIsSavingConfig(false)
+        }
+      }
     } else if (selectedKey === "1") {
       // Validate required fields when jumping from the first page to the second page
       try {
@@ -221,11 +256,11 @@ export default function CreatePage() {
     if (selectedKey === "3") {
       setSelectedKey("2")
     } else if (selectedKey === "2") {
-        // 只有管理员才能返回第一页
-        if (user?.role !== "admin") {
-          message.error("只有管理员可以访问模型配置页面")
-          return
-        }
+      // Only admins can return to the first page
+      if (user?.role !== "admin") {
+        message.error("只有管理员可以访问模型配置页面")
+        return
+      }
       setSelectedKey("1")
       // Set the flag to indicate that the user is returning from the second page to the first page
       setIsFromSecondPage(true)

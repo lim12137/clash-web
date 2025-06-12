@@ -39,6 +39,10 @@ export default function AgentConfig() {
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([])
   const [enabledAgentIds, setEnabledAgentIds] = useState<number[]>([])
   const [currentGuideStep, setCurrentGuideStep] = useState<number | undefined>(undefined)
+  const [newAgentName, setNewAgentName] = useState("")
+  const [newAgentDescription, setNewAgentDescription] = useState("")
+  const [newAgentProvideSummary, setNewAgentProvideSummary] = useState(true)
+  const [isNewAgentInfoValid, setIsNewAgentInfoValid] = useState(false)
 
   // load tools when page is loaded
   useEffect(() => {
@@ -151,6 +155,11 @@ export default function AgentConfig() {
     setTestQuestion('');
     setTestAnswer('');
     setCurrentGuideStep(undefined);
+    // Reset agent info states
+    setNewAgentName('');
+    setNewAgentDescription('');
+    setNewAgentProvideSummary(true);
+    setIsNewAgentInfoValid(false);
     // Reset the main agent configuration related status
     if (!isCreatingNewAgent) {
       setMainAgentModel(OpenAIModel.MainModel);
@@ -182,6 +191,9 @@ export default function AgentConfig() {
                   selectedAgents={selectedAgents}
                   mainAgentId={mainAgentId}
                   currentStep={currentGuideStep}
+                  agentName={newAgentName}
+                  agentDescription={newAgentDescription}
+                  agentProvideSummary={newAgentProvideSummary}
                 />
               </div>
             </div>
@@ -218,6 +230,14 @@ export default function AgentConfig() {
                   setSubAgentList={setSubAgentList}
                   enabledAgentIds={enabledAgentIds}
                   setEnabledAgentIds={setEnabledAgentIds}
+                  newAgentName={newAgentName}
+                  newAgentDescription={newAgentDescription}
+                  newAgentProvideSummary={newAgentProvideSummary}
+                  setNewAgentName={setNewAgentName}
+                  setNewAgentDescription={setNewAgentDescription}
+                  setNewAgentProvideSummary={setNewAgentProvideSummary}
+                  isNewAgentInfoValid={isNewAgentInfoValid}
+                  setIsNewAgentInfoValid={setIsNewAgentInfoValid}
                 />
               </div>
             </div>
@@ -236,7 +256,7 @@ export default function AgentConfig() {
                   onPromptChange={setSystemPrompt}
                   onDebug={() => {
                     setIsDebugDrawerOpen(true);
-                    setCurrentGuideStep(isCreatingNewAgent ? 4 : 5);
+                    setCurrentGuideStep(isCreatingNewAgent ? 5 : 5);
                   }}
                   agentId={mainAgentId ? parseInt(mainAgentId) : undefined}
                 />
