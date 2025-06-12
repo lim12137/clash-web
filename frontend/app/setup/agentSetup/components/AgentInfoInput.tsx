@@ -6,10 +6,10 @@ import { useState, useEffect } from 'react'
 const { Text } = Typography
 const { TextArea } = Input
 
-// 添加变量命名规范的正则表达式
+// add variable name specification regular expression
 const VARIABLE_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
-// 添加验证函数
+// add validation function
 const validateName = (name: string): { isValid: boolean; message: string } => {
   if (!name.trim()) {
     return { isValid: false, message: '名称不能为空' };
@@ -52,7 +52,7 @@ export default function AgentInfoInput({
   const [nameError, setNameError] = useState<string>('');
   const [descriptionError, setDescriptionError] = useState<string>('');
 
-  // 校验表单有效性
+  // validate the form
   useEffect(() => {
     const nameValidation = validateName(name);
     const descriptionValidation = validateDescription(description);
@@ -77,7 +77,7 @@ export default function AgentInfoInput({
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <h2 className="text-lg font-medium mb-4">Agent信息</h2>
-      <div className="flex-1 flex flex-col gap-8 overflow-y-auto pr-2">
+      <div className="flex-1 flex flex-col gap-7 overflow-y-auto pr-2">
         <div>
           <Text className="block mb-2 font-medium">名称 *</Text>
           <Input 
@@ -94,7 +94,7 @@ export default function AgentInfoInput({
           <TextArea
             value={description}
             onChange={handleDescriptionChange}
-            placeholder="请输入Agent描述"
+            placeholder="请输入Agent描述，此描述用于向主Agent介绍当前Agent的能力"
             rows={4}
             status={descriptionError ? 'error' : ''}
           />
