@@ -117,11 +117,6 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
     };
   }, [indexName, isCreatingMode, resetAllStates]);
   
-  // 使用本地开发服务器URL
-  const effectiveUploadUrl = uploadUrl === '/api/upload' 
-    ? API_ENDPOINTS.knowledgeBase.upload 
-    : uploadUrl;
-  
   // 暴露文件列表给父组件
   useImperativeHandle(ref, () => ({
     fileList
