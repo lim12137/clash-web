@@ -69,7 +69,7 @@ export const API_ENDPOINTS = {
     health: `${API_BASE_URL}/indices/health`,
     indices: `${API_BASE_URL}/indices`,
     indexInfo: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/info`,
-    listFiles: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/files`,
+    listFiles: (indexName: string, searchRedis: boolean = true) => `${API_BASE_URL}/indices/${indexName}/files?search_redis=${searchRedis}`,
     indexDetail: (indexName: string) => `${API_BASE_URL}/indices/${indexName}`,
     summary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/auto_summary`,
     changeSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
