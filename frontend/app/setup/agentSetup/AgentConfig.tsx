@@ -43,6 +43,8 @@ export default function AgentConfig() {
   const [newAgentDescription, setNewAgentDescription] = useState("")
   const [newAgentProvideSummary, setNewAgentProvideSummary] = useState(true)
   const [isNewAgentInfoValid, setIsNewAgentInfoValid] = useState(false)
+  const [isEditingAgent, setIsEditingAgent] = useState(false)
+  const [editingAgent, setEditingAgent] = useState<any>(null)
 
   // load tools when page is loaded
   useEffect(() => {
@@ -167,6 +169,17 @@ export default function AgentConfig() {
     }
   }, [isCreatingNewAgent]);
 
+  const handleEditingStateChange = (isEditing: boolean, agent: any) => {
+    setIsEditingAgent(isEditing)
+    setEditingAgent(agent)
+  }
+
+  const getCurrentAgentId = () => {
+    if (isEditingAgent && editingAgent) {
+      return parseInt(editingAgent.id)
+    }
+    return mainAgentId ? parseInt(mainAgentId) : undefined
+  }
 
   return (
     <div className="w-full h-full mx-auto px-4" style={{ maxWidth: "1920px"}}>
@@ -238,6 +251,7 @@ export default function AgentConfig() {
                   setNewAgentProvideSummary={setNewAgentProvideSummary}
                   isNewAgentInfoValid={isNewAgentInfoValid}
                   setIsNewAgentInfoValid={setIsNewAgentInfoValid}
+                  onEditingStateChange={handleEditingStateChange}
                 />
               </div>
             </div>
@@ -258,7 +272,7 @@ export default function AgentConfig() {
                     setIsDebugDrawerOpen(true);
                     setCurrentGuideStep(isCreatingNewAgent ? 5 : 5);
                   }}
-                  agentId={mainAgentId ? parseInt(mainAgentId) : undefined}
+                  agentId={getCurrentAgentId()}
                 />
               </div>
             </div>
@@ -287,7 +301,7 @@ export default function AgentConfig() {
             setTestQuestion={setTestQuestion}
             testAnswer={testAnswer}
             setTestAnswer={setTestAnswer}
-            agentId={mainAgentId ? Number(mainAgentId) : undefined}
+            agentId={getCurrentAgentId()}
           />
         </div>
       </Drawer>
