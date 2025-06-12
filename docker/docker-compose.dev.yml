@@ -12,9 +12,9 @@ services:
       - ./uploads:/opt/backend/uploads
     environment:
       ELASTIC_PASSWORD: nexent@2025
-      ELASTICSEARCH_API_KEY: RnJwREpwY0JXbHZlcHBjS0Y0RDg6azRZdWRxSHZSSkNmV3ZKREI2SjYydw==
-      MINIO_ACCESS_KEY: c3689797b538eacd3ae2bbf0
-      MINIO_SECRET_KEY: ZwdNXaSQ1pxWzWTnK2waXrakDAFplmKe2rY3mRB+q0k=
+      ELASTICSEARCH_API_KEY: OUEwOVhwY0I4bjBZeFR5N0dGaWI6M2VoNWJiWmpTOVdlNFFCU0YzQUFTUQ==
+      MINIO_ACCESS_KEY: 0a6917f6c66f2de7985a3978
+      MINIO_SECRET_KEY: YgCj9sZm+QKGEr+GkTrzkA7t+1gEL0BiHkhQdinYLKA=
       MINIO_REGION: cn-north-1
       MINIO_DEFAULT_BUCKET: nexent
       skip_proxy: "true"
@@ -53,7 +53,7 @@ services:
       - ../backend/assets/clip-vit-base-patch32:/opt/models/clip-vit-base-patch32:ro
     environment:
       ELASTIC_PASSWORD: nexent@2025
-      ELASTICSEARCH_API_KEY: RnJwREpwY0JXbHZlcHBjS0Y0RDg6azRZdWRxSHZSSkNmV3ZKREI2SjYydw==
+      ELASTICSEARCH_API_KEY: OUEwOVhwY0I4bjBZeFR5N0dGaWI6M2VoNWJiWmpTOVdlNFFCU0YzQUFTUQ==
       skip_proxy: "true"
     env_file:
       - .env

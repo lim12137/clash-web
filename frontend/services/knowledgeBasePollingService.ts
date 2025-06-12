@@ -10,7 +10,7 @@ class KnowledgeBasePollingService {
   private maxKnowledgeBasePolls: number = 60; // Maximum 60 polling attempts
   private activeKnowledgeBaseId: string | null = null; // Record current active knowledge base ID
 
-  // Set current active knowledge base ID
+  // Set current active knowledge base ID 
   setActiveKnowledgeBase(kbId: string | null): void {
     this.activeKnowledgeBaseId = kbId;
   }
