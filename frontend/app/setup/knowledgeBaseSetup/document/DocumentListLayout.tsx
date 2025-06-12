@@ -82,7 +82,7 @@ export interface DocumentListLayoutProps {
   onDragOver?: (e: React.DragEvent) => void
   onDragLeave?: (e: React.DragEvent) => void
   onDrop?: (e: React.DragEvent) => void
-  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onFileSelect: (files: File[]) => void
   selectedFiles: File[]
   handleUpload: () => void
   uploadUrl: string

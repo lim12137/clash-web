@@ -9,7 +9,6 @@ import {
   checkKnowledgeBaseNameExists,
   fetchKnowledgeBaseInfo,
   validateFileType,
-  createMockFileSelectEvent
 } from './UploadService';
 
 interface UploadAreaProps {
@@ -17,7 +16,7 @@ interface UploadAreaProps {
   onDragOver?: (e: React.DragEvent) => void;
   onDragLeave?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
-  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileSelect: (files: File[]) => void;
   selectedFiles?: File[];
   onUpload?: () => void;
   isUploading?: boolean;
@@ -215,31 +214,24 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
       }
     }
     
-    // 触发文件选择回调
-    if (newFileList.length > 0) {
-      const lastFile = newFileList[newFileList.length - 1];
-      if (lastFile.originFileObj) {
-        try {
-          const mockEvent = createMockFileSelectEvent(lastFile);
-          onFileSelect(mockEvent);
-        } catch (error) {
-          console.error('创建模拟事件失败:', error);
-        }
-      }
-    }
-  }, [indexName, onFileSelect, isCreatingMode, newKnowledgeBaseName]);
+    // 触发文件选择回调, 传递所有文件
+    const files = newFileList
+      .map(file => file.originFileObj)
+      .filter((file): file is File => !!file);
 
-  // 处理自定义上传请求
+    if (files.length > 0) {
+      onFileSelect(files);
+    }
+  }, [indexName, onFileSelect, isCreatingMode, newKnowledgeBaseName, onUpload]);
+
+  // 处理自定义上传请求 - 不执行实际上传，改由父组件统一处理
   const handleCustomRequest = useCallback((options: any) => {
-    return customUploadRequest(
-      options,
-      effectiveUploadUrl,
-      isCreatingMode,
-      newKnowledgeBaseName,
-      indexName,
-      currentKnowledgeBaseRef
-    );
-  }, [effectiveUploadUrl, isCreatingMode, newKnowledgeBaseName, indexName]);
+    // 实际上传由父组件的 handleFileUpload 处理
+    const { onSuccess, file } = options;
+    setTimeout(() => {
+      onSuccess({}, file);
+    }, 100);
+  }, []);
 
   // 上传组件属性
   const uploadProps: UploadProps = {

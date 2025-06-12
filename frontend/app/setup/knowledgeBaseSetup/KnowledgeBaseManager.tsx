@@ -286,11 +286,8 @@ function DataConfig() {
     });
   }
 
-  // [deprecated]
-  // 处理上传文件
-  // use handleUpload instead
-  const handleFileUpload = async () => {
-    console.log("I'M REALLY IN HANDLE FILE UPLOAD FUNCTION");
+  // 处理文件上传 - 在创建模式下先创建知识库再上传，在普通模式下直接上传
+  const handleFileUpload = async () => {    
     // 确保有文件要上传
     if (!uploadFiles.length) {
       message.warning("请先选择文件");
@@ -298,19 +295,21 @@ function DataConfig() {
     }
 
     const filesToUpload = uploadFiles;
-
-    // 创建模式逻辑
+    console.log("Uploading files:", filesToUpload);
+    
+    // 创建模式逻辑 - 先创建知识库，再上传文件
     if (isCreatingMode) {
-      console.log("I'M REALLY IN CREATING MODE");
+      console.log("Creating mode: create KB then upload files");
       if (!newKbName || newKbName.trim() === "") {
         message.warning("请输入知识库名称");
         return;
       }
 
-      setHasClickedUpload(true); // 已点击上传按钮，则立即锁定知识库名称输入
+      setHasClickedUpload(true);
+      // 已点击上传按钮，则立即锁定知识库名称输入
       
       try {
-        // 1. 先进行知识库名称重复校验
+        // 1. 检查知识库名称是否已存在
         const nameExistsResult = await knowledgeBaseService.checkKnowledgeBaseNameExists(newKbName.trim());
         setNameExists(nameExistsResult);
 
@@ -333,7 +332,7 @@ function DataConfig() {
           return;
         }
 
-        // 立即设置为活动知识库并退出创建模式
+        // 设置为活动知识库
         setIsCreatingMode(false);
         setActiveKnowledgeBase(newKB);
         knowledgeBasePollingService.setActiveKnowledgeBase(newKB.id);
@@ -342,8 +341,8 @@ function DataConfig() {
         
         // 3. 上传文件到新知识库
         await uploadDocuments(newKB.id, filesToUpload);
-        message.success("文件上传成功，正在处理文档...");
-        // setUploadFiles([]);
+        console.log("知识库创建成功，文件上传至服务器。下一步：准备触发Celery Task处理文档...");
+        setUploadFiles([]);
         
         // 4. 使用简化的轮询服务处理新知识库创建流程
         knowledgeBasePollingService.handleNewKnowledgeBaseCreation(
@@ -351,9 +350,7 @@ function DataConfig() {
           0,
           filesToUpload.length,
           (populatedKB) => {
-            // 更新为带有统计信息的知识库对象
             setActiveKnowledgeBase(populatedKB);
-            // 刷新知识库列表和文档
             fetchDocuments(populatedKB.id);
             knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
           }
@@ -363,14 +360,14 @@ function DataConfig() {
         });
         
       } catch (error) {
-        console.error("知识库创建或文件上传流程失败:", error);
-        message.error("知识库创建失败");
-        setHasClickedUpload(false); // 重置上传按钮点击状态，允许重试
+        console.error("知识库创建或上传失败:", error);
+        message.error("知识库创建或上传失败");
+        setHasClickedUpload(false);
       }
       return;
     }
     
-    // Non-creation mode upload
+    // 非创建模式 - 直接上传文件
     const kbId = kbState.activeKnowledgeBase?.id;
     if (!kbId) {
       message.warning("请先选择一个知识库");
@@ -378,6 +375,7 @@ function DataConfig() {
     }
     
     try {
+      console.log("Using Non Creation Mode")
       // 1. 上传前获取当前知识库的 documentCount
       // TODO: Maybe useful when handling 
       // const kbInfoList = await knowledgeBaseService.getKnowledgeBasesInfo(true);
@@ -387,7 +385,7 @@ function DataConfig() {
 
       // 2. 上传文件
       await uploadDocuments(kbId, filesToUpload);
-      message.success("文件上传成功");
+      console.log("文件上传至服务器。下一步：准备触发Celery Task处理文档...");
       setUploadFiles([]);
       
       // 3. 使用新的轮询服务
@@ -398,18 +396,9 @@ function DataConfig() {
         kbId,
         (documents) => {
           console.log(`轮询服务获取到 ${documents.length} 个文档`);
-          // 更新文档列表
-          knowledgeBasePollingService.triggerDocumentsUpdate(
-            kbId,
-            documents
-          );
-
-          // 同时更新文档上下文
+          knowledgeBasePollingService.triggerDocumentsUpdate(kbId, documents);
           window.dispatchEvent(new CustomEvent('documentsUpdated', {
-            detail: {
-              kbId,
-              documents
-            }
+            detail: { kbId, documents }
           }));
         }
       );
@@ -421,9 +410,9 @@ function DataConfig() {
   }
 
   // File selection handling
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setUploadFiles(Array.from(e.target.files));
+  const handleFileSelect = (files: File[]) => {
+    if (files && files.length > 0) {
+      setUploadFiles(files);
     }
   }
 

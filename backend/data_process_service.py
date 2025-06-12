@@ -456,13 +456,10 @@ Examples:
     )
     
     # Service control arguments
-    parser.add_argument('--no-local-redis', action='store_true',
-                       help='Do not start Redis server')
     parser.add_argument('--no-workers', action='store_true',
                        help='Do not start Celery workers')
     parser.add_argument('--no-flower', action='store_true',
                        help='Do not start Flower monitoring')
-    
     # Port configuration
     parser.add_argument('--redis-port', type=int, default=6379,
                        help='Redis server port (default: 6379)')
