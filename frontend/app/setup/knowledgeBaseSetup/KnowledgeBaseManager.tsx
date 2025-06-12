@@ -89,12 +89,14 @@ function DataConfig() {
     state: docState,
     fetchDocuments,
     uploadDocuments,
-    deleteDocument
+    deleteDocument,
+    dispatch: docDispatch
   } = useDocumentContext();
 
   const {
     state: uiState,
     setDragging,
+    dispatch: uiDispatch
   } = useUIContext();
 
   // Create mode state
@@ -170,16 +172,20 @@ function DataConfig() {
   // Handle knowledge base change event
   const handleKnowledgeBaseChange = async (kb: KnowledgeBase) => {
     try {
-      // 直接获取最新文档数据，强制从服务器获取最新数据
+      // Set loading state before fetching documents
+      docDispatch({ type: 'SET_LOADING_DOCUMENTS', payload: true });
+
+      // 获取最新文档数据
       const documents = await knowledgeBaseService.getAllFiles(kb.id);
 
       // 触发文档更新事件
       knowledgeBasePollingService.triggerDocumentsUpdate(kb.id, documents);
 
-      // 后台更新知识库统计信息
+      // 后台更新知识库统计信息，但不重复获取文档
       setTimeout(async () => {
         try {
-          await refreshKnowledgeBaseData(true);
+          // 直接调用 fetchKnowledgeBases 更新知识库列表数据
+          await fetchKnowledgeBases(false, true);
         } catch (error) {
           console.error("获取知识库最新数据失败:", error);
         }
@@ -187,6 +193,7 @@ function DataConfig() {
     } catch (error) {
       console.error("获取文档列表失败:", error);
       message.error("获取文档列表失败");
+      docDispatch({ type: 'ERROR', payload: "获取文档列表失败" });
     }
   };
 

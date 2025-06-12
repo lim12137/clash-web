@@ -11,6 +11,7 @@ interface DocumentState {
   uploadFiles: File[];
   isUploading: boolean;
   loadingKbIds: Set<string>;
+  isLoadingDocuments: boolean;
   error: string | null;
 }
 
@@ -22,6 +23,7 @@ type DocumentAction =
   | { type: 'SELECT_ALL', payload: { kbId: string, selected: boolean } }
   | { type: 'SET_UPLOAD_FILES', payload: File[] }
   | { type: 'SET_UPLOADING', payload: boolean }
+  | { type: 'SET_LOADING_DOCUMENTS', payload: boolean }
   | { type: 'DELETE_DOCUMENT', payload: { kbId: string, docId: string } }
   | { type: 'SET_LOADING_KB_ID', payload: { kbId: string, isLoading: boolean } }
   | { type: 'CLEAR_DOCUMENTS', payload?: undefined }
@@ -37,6 +39,7 @@ const documentReducer = (state: DocumentState, action: DocumentAction): Document
           ...state.documentsMap,
           [action.payload.kbId]: action.payload.documents
         },
+        isLoadingDocuments: false,
         error: null
       };
     case 'SELECT_DOCUMENT':
@@ -77,6 +80,11 @@ const documentReducer = (state: DocumentState, action: DocumentAction): Document
         ...state,
         isUploading: action.payload
       };
+    case 'SET_LOADING_DOCUMENTS':
+      return {
+        ...state,
+        isLoadingDocuments: action.payload
+      };
     case 'DELETE_DOCUMENT':
       const { kbId: deleteKbId, docId: deleteDocId } = action.payload;
       // Remove the document from the map and the selected IDs
@@ -106,12 +114,14 @@ const documentReducer = (state: DocumentState, action: DocumentAction): Document
       return {
         ...state,
         documentsMap: {},
-        selectedIds: []
+        selectedIds: [],
+        error: null
       };
     case 'ERROR':
       return {
         ...state,
-        error: action.payload
+        error: action.payload,
+        isLoadingDocuments: false
       };
     default:
       return state;
@@ -132,6 +142,7 @@ export const DocumentContext = createContext<{
     uploadFiles: [],
     isUploading: false,
     loadingKbIds: new Set<string>(),
+    isLoadingDocuments: false,
     error: null
   },
   dispatch: () => {},
@@ -155,6 +166,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     uploadFiles: [],
     isUploading: false,
     loadingKbIds: new Set<string>(),
+    isLoadingDocuments: false,
     error: null
   });
 
@@ -217,6 +229,9 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     try {
       await knowledgeBaseService.uploadDocuments(kbId, files);
       
+      // Set loading state before fetching latest documents
+      dispatch({ type: 'SET_LOADING_DOCUMENTS', payload: true });
+      
       // Get latest status immediately after upload
       const latestDocuments = await knowledgeBaseService.getAllFiles(kbId);
       
@@ -241,6 +256,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
       dispatch({ type: 'ERROR', payload: 'Failed to upload documents' });
     } finally {
       dispatch({ type: 'SET_UPLOADING', payload: false });
+      dispatch({ type: 'SET_LOADING_DOCUMENTS', payload: false });
     }
   }, []);
 
