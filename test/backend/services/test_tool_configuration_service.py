@@ -15,7 +15,9 @@ with patch('backend.database.client.MinioClient', return_value=minio_client_mock
         get_local_tools_classes,
         get_mcp_tools,
         scan_tools,
-        ToolConfigurationService
+        initialize_tool_configuration,
+        search_tool_info_impl,
+        update_tool_info_impl
     )
 from consts.model import ToolInfo, ToolSourceEnum, ToolInstanceInfoRequest
 
@@ -315,20 +317,24 @@ class TestScanTools:
         assert result == []
 
 
-class TestToolConfigurationService:
-    """ test the function of ToolConfigurationService"""
+class TestInitializeToolConfiguration:
+    """ test the function of initialize_tool_configuration"""
 
     @patch('backend.services.tool_configuration_service.scan_tools')
     @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
-    def test_tool_configuration_service_init(self, mock_update_table, mock_scan):
-        """ test the initialization of ToolConfigurationService"""
+    def test_initialize_tool_configuration_success(self, mock_update_table, mock_scan):
+        """ test the success of initialize_tool_configuration"""
         mock_tools = [Mock()]
         mock_scan.return_value = mock_tools
         
-        service = ToolConfigurationService()
+        initialize_tool_configuration()
         
         mock_scan.assert_called_once()
         mock_update_table.assert_called_once_with(mock_tools)
+
+
+class TestSearchToolInfoImpl:
+    """ test the function of search_tool_info_impl"""
 
     @patch('backend.services.tool_configuration_service.get_user_info')
     @patch('backend.services.tool_configuration_service.query_tool_instances_by_id')
@@ -340,7 +346,7 @@ class TestToolConfigurationService:
             "enabled": True
         }
         
-        result = ToolConfigurationService.search_tool_info_impl(1, 1)
+        result = search_tool_info_impl(1, 1)
         
         assert result["params"] == {"param1": "value1"}
         assert result["enabled"] is True
@@ -353,7 +359,7 @@ class TestToolConfigurationService:
         mock_get_user.return_value = (1, 1)
         mock_query.return_value = None
         
-        result = ToolConfigurationService.search_tool_info_impl(1, 1)
+        result = search_tool_info_impl(1, 1)
         
         assert result["params"] is None
         assert result["enabled"] is False
@@ -366,7 +372,33 @@ class TestToolConfigurationService:
         mock_query.side_effect = Exception("Database error")
         
         with pytest.raises(ValueError, match="search_tool_info_impl error"):
-            ToolConfigurationService.search_tool_info_impl(1, 1)
+            search_tool_info_impl(1, 1)
+
+    @patch('backend.services.tool_configuration_service.get_user_info')
+    def test_search_tool_info_impl_invalid_ids(self, mock_get_user):
+        """ test the invalid id of search_tool_info_impl"""
+        mock_get_user.return_value = (1, 1)
+        
+        # test the negative id
+        with patch('backend.services.tool_configuration_service.query_tool_instances_by_id') as mock_query:
+            mock_query.return_value = None
+            result = search_tool_info_impl(-1, -1)
+            assert result["enabled"] is False
+
+    def test_search_tool_info_impl_zero_ids(self):
+        """ test the zero id of search_tool_info_impl"""
+        with patch('backend.services.tool_configuration_service.get_user_info') as mock_get_user, \
+             patch('backend.services.tool_configuration_service.query_tool_instances_by_id') as mock_query:
+            
+            mock_get_user.return_value = (1, 1)
+            mock_query.return_value = None
+            
+            result = search_tool_info_impl(0, 0)
+            assert result["enabled"] is False
+
+
+class TestUpdateToolInfoImpl:
+    """ test the function of update_tool_info_impl"""
 
     @patch('backend.services.tool_configuration_service.get_user_info')
     @patch('backend.services.tool_configuration_service.create_or_update_tool_by_tool_info')
@@ -377,7 +409,7 @@ class TestToolConfigurationService:
         mock_tool_instance = {"id": 1, "name": "test_tool"}
         mock_create_update.return_value = mock_tool_instance
         
-        result = ToolConfigurationService.update_tool_info_impl(mock_request)
+        result = update_tool_info_impl(mock_request)
         
         assert result["tool_instance"] == mock_tool_instance
         mock_create_update.assert_called_once_with(mock_request, 1, 1)
@@ -391,29 +423,7 @@ class TestToolConfigurationService:
         mock_create_update.side_effect = Exception("Database error")
         
         with pytest.raises(ValueError, match="update_tool_info_impl error"):
-            ToolConfigurationService.update_tool_info_impl(mock_request)
-
-    @patch('backend.services.tool_configuration_service.get_user_info')
-    def test_search_tool_info_impl_invalid_ids(self, mock_get_user):
-        """ test the invalid id of search_tool_info_impl"""
-        mock_get_user.return_value = (1, 1)
-        
-        # test the negative id
-        with patch('backend.services.tool_configuration_service.query_tool_instances_by_id') as mock_query:
-            mock_query.return_value = None
-            result = ToolConfigurationService.search_tool_info_impl(-1, -1)
-            assert result["enabled"] is False
-
-    def test_search_tool_info_impl_zero_ids(self):
-        """ test the zero id of search_tool_info_impl"""
-        with patch('backend.services.tool_configuration_service.get_user_info') as mock_get_user, \
-             patch('backend.services.tool_configuration_service.query_tool_instances_by_id') as mock_query:
-            
-            mock_get_user.return_value = (1, 1)
-            mock_query.return_value = None
-            
-            result = ToolConfigurationService.search_tool_info_impl(0, 0)
-            assert result["enabled"] is False
+            update_tool_info_impl(mock_request)
 
 
 # test the fixture and helper function
@@ -448,8 +458,8 @@ def sample_tool_request():
 
 
 # 集成测试
-class TestToolConfigurationServiceIntegration:
-    """ test the integration of ToolConfigurationService"""
+class TestToolConfigurationIntegration:
+    """ test the integration of tool configuration functions"""
 
     @patch('backend.services.tool_configuration_service.scan_tools')
     @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
@@ -466,11 +476,11 @@ class TestToolConfigurationServiceIntegration:
             "enabled": True
         }
         
-        # initialize the service
-        service = ToolConfigurationService()
+        # initialize the tool configuration
+        initialize_tool_configuration()
         
         # search the tool info
-        result = service.search_tool_info_impl(1, 1)
+        result = search_tool_info_impl(1, 1)
         
         # verify the result
         assert result["params"]["param1"] == "test_value"
