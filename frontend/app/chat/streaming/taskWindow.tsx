@@ -645,7 +645,22 @@ export function TaskWindow({
   const [contentHeight, setContentHeight] = useState(0)
   const contentRef = useRef<HTMLDivElement>(null)
   
+  // Add new refs for dynamic threshold calculation
+  const prevContentHeightRef = useRef(0)
+  const lastScrollTimeRef = useRef(Date.now())
+  
   const { hasMessages, hasVisibleMessages, groupedMessages } = useChatTaskMessage(messages as ChatMessageType[]);
+
+  // The function of scrolling to the bottom - defined early to avoid hoisting issues
+  const scrollToBottom = () => {
+    const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (!scrollAreaElement) return;
+    
+    // Use requestAnimationFrame to optimize performance
+    requestAnimationFrame(() => {
+      (scrollAreaElement as HTMLElement).scrollTop = (scrollAreaElement as HTMLElement).scrollHeight;
+    });
+  };
 
   // calculate the content height
   useEffect(() => {
@@ -654,6 +669,28 @@ export function TaskWindow({
       setContentHeight(height)
     }
   }, [isExpanded, groupedMessages, messages])
+
+  // Dynamic threshold calculation based on content growth
+  const calculateDynamicThreshold = (baseThreshold: number) => {
+    const contentGrowth = contentHeight - prevContentHeightRef.current;
+    const currentTime = Date.now();
+    const timeDiff = currentTime - lastScrollTimeRef.current;
+    
+    // If content grew significantly (more than 200px) in a short time (less than 1 second)
+    if (contentGrowth > 200 && timeDiff < 1000) {
+      // Increase threshold proportionally to content growth, but cap it at reasonable limits
+      const dynamicThreshold = Math.min(baseThreshold + contentGrowth * 0.8, 400);
+      return dynamicThreshold;
+    }
+    
+    // If content grew moderately (50-200px)
+    if (contentGrowth > 50) {
+      const dynamicThreshold = Math.min(baseThreshold + contentGrowth * 0.5, 250);
+      return dynamicThreshold;
+    }
+    
+    return baseThreshold;
+  };
 
   // Listen for message changes and automatically scroll to the bottom (only when user allows it)
   useEffect(() => {
@@ -664,15 +701,22 @@ export function TaskWindow({
       const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
       
-      // Only auto-scroll if user is near the bottom (within 150px)
-      if (distanceToBottom < 150) {
+      // Use dynamic threshold for auto-scroll
+      const dynamicThreshold = calculateDynamicThreshold(150);
+      
+      // Only auto-scroll if user is near the bottom (within dynamic threshold)
+      if (distanceToBottom < dynamicThreshold) {
         // Use requestAnimationFrame to avoid too frequent updates
         requestAnimationFrame(() => {
           scrollToBottom();
         });
       }
+      
+      // Update tracking refs after scroll decision
+      prevContentHeightRef.current = contentHeight;
+      lastScrollTimeRef.current = Date.now();
     }
-  }, [messages.length, isExpanded, autoScroll]);
+  }, [messages.length, isExpanded, autoScroll, contentHeight]);
 
   // Auto-scroll during streaming when user allows it
   useEffect(() => {
@@ -683,12 +727,19 @@ export function TaskWindow({
       const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
       
-      // Only auto-scroll during streaming if user is near the bottom (within 150px)
-      if (distanceToBottom < 50) {
+      // Use dynamic threshold for streaming auto-scroll (more sensitive base threshold)
+      const dynamicThreshold = calculateDynamicThreshold(50);
+      
+      // Only auto-scroll during streaming if user is near the bottom (within dynamic threshold)
+      if (distanceToBottom < dynamicThreshold) {
         scrollToBottom();
       }
+      
+      // Update tracking refs after scroll decision
+      prevContentHeightRef.current = contentHeight;
+      lastScrollTimeRef.current = Date.now();
     }
-  }, [messages, autoScroll, isStreaming, isExpanded]);
+  }, [messages, autoScroll, isStreaming, isExpanded, contentHeight]);
 
   // Handle the scrolling event of the scroll area
   useEffect(() => {
@@ -729,17 +780,6 @@ export function TaskWindow({
       }
     }
   }, [messages, isStreaming]);
-
-  // The function of scrolling to the bottom
-  const scrollToBottom = () => {
-    const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-    if (!scrollAreaElement) return;
-    
-    // Use requestAnimationFrame to optimize performance
-    requestAnimationFrame(() => {
-      (scrollAreaElement as HTMLElement).scrollTop = (scrollAreaElement as HTMLElement).scrollHeight;
-    });
-  };
 
   // Use the processor to render the message content
   const renderMessageContent = (message: any) => {
@@ -898,6 +938,69 @@ export function TaskWindow({
           animation: blinkingDot 1.5s infinite ease-in-out;
           background-color: rgba(79, 70, 229, 1);
           box-shadow: 0 0 5px rgba(79, 70, 229, 0.5);
+        }
+        
+        /* For the code block style in task-message-content */
+        .task-message-content pre {
+          white-space: pre-wrap !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+          overflow: auto !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+          padding: 6px 10px !important;
+          margin: 2px 0 !important;
+        }
+        
+        .task-message-content code {
+          white-space: pre-wrap !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+          max-width: 100% !important;
+          padding: 0 !important;
+        }
+        
+        .task-message-content div[class*="language-"] {
+          white-space: pre-wrap !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+          overflow: auto !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+          padding: 6px 10px !important;
+          margin: 2px 0 !important;
+        }
+        
+        /* Ensure the content of the SyntaxHighlighter component wraps correctly */
+        .task-message-content .react-syntax-highlighter-line-number {
+          white-space: nowrap !important;
+        }
+        
+        /* Make sure the entire container is not stretched by the content */
+        .task-message-content {
+          overflow: hidden !important;
+          max-width: 100% !important;
+          word-wrap: break-word !important;
+          word-break: break-word !important;
+        }
+        
+        .task-message-content * {
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        
+        /* Paragraph spacing adjustment */
+        .task-message-content p {
+          margin-bottom: 0.5rem !important;
+          margin-top: 0.25rem !important;
+        }
+        
+        .task-message-content .markdown-body p {
+          margin-bottom: 0.5rem !important;
+          margin-top: 0.25rem !important;
         }
       `}</style>
     </>
