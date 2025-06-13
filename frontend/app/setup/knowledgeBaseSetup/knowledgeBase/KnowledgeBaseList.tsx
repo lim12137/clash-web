@@ -105,6 +105,32 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
             >
               创建知识库
             </Button>
+            <Button
+              style={{
+                padding: "4px 15px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                backgroundColor: "#1677ff",
+                color: "white",
+                border: "none"
+              }}
+              className="hover:!bg-blue-600"
+              type="primary"
+              onClick={onSync}
+            >
+              <span style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "14px",
+                height: "14px"
+              }}>
+                <SyncOutlined spin={isLoading} style={{ color: "white" }} />
+              </span>
+              <span>同步知识库</span>
+            </Button>
           </div>
         </div>
       </div>
@@ -270,7 +296,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
           </div>
         ) : (
           <div className={`${KB_LAYOUT.EMPTY_STATE_PADDING} text-center text-gray-500`}>
-            暂无知识库
+            暂无知识库，请先创建知识库
           </div>
         )}
       </div>
