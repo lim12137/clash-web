@@ -987,12 +987,19 @@ export default function BusinessLogicConfig({
     try {
       const result = await exportAgent(Number(agent.id));
       if (result.success) {
-        // Create a blob with the exported data
-        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+        // 处理后端返回的字符串或对象
+        let exportData = result.data;
+        if (typeof exportData === 'string') {
+          try {
+            exportData = JSON.parse(exportData);
+          } catch (e) {
+            // 如果解析失败，说明本身就是字符串，直接导出
+          }
+        }
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], {
           type: 'application/json'
         });
-        
-        // Create a download link
+
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -1001,7 +1008,7 @@ export default function BusinessLogicConfig({
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        
+
         message.success('Agent配置导出成功');
       } else {
         message.error(result.message || 'Agent导出失败');
