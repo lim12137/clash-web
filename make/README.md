@@ -1,36 +1,17 @@
-### 🏗️ Build and Push Images
-
-```bash
-# 🛠️ Create and use a new builder instance that supports multi-architecture builds
-docker buildx create --name nexent_builder --use
-
-# 🔨 build base image for multiple architectures
-docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t crpi-755ob3ovh8y8pqap.cn-shanghai.personal.cr.aliyuncs.com/phinease/nexent-base -f make/base/Dockerfile . --push
-
-# 🚀 build application for multiple architectures
-docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t crpi-755ob3ovh8y8pqap.cn-shanghai.personal.cr.aliyuncs.com/phinease/nexent -f make/main/Dockerfile . --push
-
-# 📊 build data_process for multiple architectures
-docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t crpi-755ob3ovh8y8pqap.cn-shanghai.personal.cr.aliyuncs.com/phinease/nexent-data-process -f make/data_process/Dockerfile . --push
-
-# 🌐 build web frontend for multiple architectures
-docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t crpi-755ob3ovh8y8pqap.cn-shanghai.personal.cr.aliyuncs.com/phinease/nexent-web -f make/web/Dockerfile . --push
-```
-
 ### 💻 Local Development Build
 
 ```bash
 # 🔨 Build base image (current architecture only)
-docker build --progress=plain -t nexent/nexent-base-commercial -f make/base/Dockerfile .
+docker build -t nexent/nexent-base-commercial -f make/base/Dockerfile .
 
 # 🚀 Build application image (current architecture only)
-docker build --progress=plain -t nexent/nexent-commercial -f make/main/Dockerfile .
+docker build -t nexent/nexent-commercial -f make/main/Dockerfile .
 
 # 📊 Build data process image (current architecture only)
-docker build --progress=plain -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile .
+docker build -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile .
 
 # 🌐 Build web frontend image (current architecture only)
-docker build --progress=plain -t nexent/nexent-web-commercial -f make/web/Dockerfile .
+docker build -t nexent/nexent-web-commercial -f make/web/Dockerfile .
 ```
 
 ### 🧹 Clean up Docker resources

@@ -69,6 +69,7 @@ def generate_knowledge_summary_stream(keywords: str) -> Generator:
         yield "END"
 
     except Exception as e:
+        # TODO: use logger
         print(f"发生错误: {str(e)}")
         yield f"错误: {str(e)}"
         

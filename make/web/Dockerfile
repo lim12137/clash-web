@@ -1,5 +1,5 @@
 # Build stage
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/node:20-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Copy frontend directory
 COPY frontend /opt/frontend
@@ -35,7 +35,7 @@ RUN npm install --verbose && \
     rm -rf .next/cache
 
 # Production stage
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/node:20-alpine
+FROM node:20-alpine
 LABEL authors="nexent"
 
 WORKDIR /opt/frontend-dist
