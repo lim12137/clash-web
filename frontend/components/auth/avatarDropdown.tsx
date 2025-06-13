@@ -93,14 +93,6 @@ export function AvatarDropdown() {
         cursor: 'default'
       }
     },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'account',
-      icon: <UserSwitchOutlined />,
-      label: '账号信息',
-    },
     ...(user.role === "admin"
       ? [
           {
