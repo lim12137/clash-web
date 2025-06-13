@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bot, Globe, Database, Zap, Mic, FileSearch, Shield, MessagesSquare, Microchip } from "lucide-react"
+import { Bot, Globe, Zap, FileSearch, Shield, MessagesSquare, Microchip, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
@@ -83,22 +83,33 @@ function FrontpageContent() {
           </h1>
         </div>
         <div className="hidden md:flex items-center gap-6">
+          {/* Github 按钮 */}
+          <Link
+            href="https://github.com/ModelEngine-Group/nexent"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors flex items-center gap-1"
+          >
+            <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path></svg>
+            Github
+          </Link>
+          {/* ModelEngine 链接始终显示 */}
+          <Link
+            href="http://modelengine-ai.net"
+            className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
+          >
+            ModelEngine
+          </Link>
+          {/* 登录状态切换显示 */}
           {userLoading ? (
             <span className="text-sm font-medium text-slate-600">
               加载中...
             </span>
           ) : user ? (
             <span className="text-sm font-medium text-slate-600">
-              欢迎，{user.email}
+              {user.email}
             </span>
-          ) : (
-            <Link
-              href="#"
-              className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
-            >
-              ModelEngine
-            </Link>
-          )}
+          ) : null}
           <AvatarDropdown />
         </div>
         {/* 重构：链接是否合理 */}
@@ -186,8 +197,8 @@ function FrontpageContent() {
           </div>
 
           <div className="mt-12 flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-            <Shield className="h-4 w-4" />
-            <span>安全可靠的企业级数据保护</span>
+            <AlertTriangle className="h-4 w-4" />
+            <span>免费试用环境不做数据留存，数据可能随更新丢失，请注意</span>
           </div>
         </section>
 
@@ -306,6 +317,22 @@ function FrontpageContent() {
             </ul>
           </div>
 
+          <div className="mt-4">
+            <p className="text-base font-medium">
+              ⭐️ Nexent还在成长中，帮帮我到
+              <a
+                href="https://github.com/ModelEngine-Group/nexent"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-700 font-bold"
+              >
+                GitHub
+              </a>
+              加星支持我吧，谢谢你。
+            </p>
+          </div>
+          <br />
+
           <p className="text-gray-500 text-xs">还没有账号？点击"注册"按钮创建您的专属账号~</p>
         </div>
       </Modal>
@@ -332,6 +359,45 @@ function FrontpageContent() {
       >
         <div className="py-2">
           <p className="text-gray-600">只有管理员可以调整配置，请先登录为管理员账号~</p>
+        </div>
+        <div className="py-2">
+          <h3 className="text-base font-medium mb-2">🌟 成为管理员，解锁更多能力！</h3>
+          <p className="text-gray-600 mb-3">成为管理员后，您可以：</p>
+          <div className="rounded-md mb-6 mt-3">
+            <h3 className="text-base font-medium mb-1">✨ 管理员专属权限：</h3>
+            <ul className="text-gray-600 pl-5 list-disc">
+              <li>配置和管理自己的模型</li>
+              <li>制作和发布专属智能Agent</li>
+              <li>集成和配置自有工具</li>
+            </ul>
+          </div>
+          <div className="mt-4">
+            <p className="text-base font-medium">
+              ⭐️ Nexent还在成长中，帮帮我到
+              <a
+                href="https://github.com/ModelEngine-Group/nexent"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-700 font-bold"
+              >
+                GitHub
+              </a>
+              加星支持我吧，谢谢你。
+              <br />
+              <br />
+              💡 想成为管理员？请访问
+              <a
+                href="http://nexent.tech/contact"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-700 font-bold"
+              >
+                官网联系页
+              </a>
+              ，申请管理员账号。
+            </p>
+          </div>
+          <br />
         </div>
       </Modal>
     </div>

@@ -1,7 +1,7 @@
 services:
   kong:
     container_name: supabase-kong-mini
-    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/kong:2.8.1
+    image: kong:2.8.1
     restart: unless-stopped
     volumes:
       - ./volumes/api/kong.yml:/home/kong/temp.yml
@@ -35,7 +35,7 @@ services:
 
   auth:
     container_name: supabase-auth-mini
-    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/supabase/gotrue:v2.170.0
+    image: supabase/gotrue:v2.170.0
     restart: unless-stopped
     healthcheck:
       test:
@@ -87,7 +87,7 @@ services:
 
   db:
     container_name: supabase-db-mini
-    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/supabase/postgres:15.8.1.060
+    image: supabase/postgres:15.8.1.060
     restart: unless-stopped
     volumes:
       - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql
