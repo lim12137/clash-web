@@ -50,7 +50,7 @@ class KnowledgeBasePollingService {
         }
         
         // Get latest document status
-        const documents = await knowledgeBaseService.getAllFiles(kbId);
+        const documents = await knowledgeBaseService.getAllFiles(kbId,true);
         
         // Call callback function with latest documents first to ensure UI updates immediately
         callback(documents);
