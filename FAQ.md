@@ -16,7 +16,7 @@ This FAQ addresses common questions and issues you might encounter while install
 
 ### ⚙️ MCP Server Configuration
 - **Q: How do I configure the MCP server? Is frontend configuration supported?**
-  - A: Currently, the MCP server does not support frontend configuration. We plan to add frontend configuration in version v1.1.0. To configure the MCP server, please follow the installation and deployment steps in @README.md. After running `cp .env.example .env`, manually edit the `MCP_SERVICE` field in your `.env` file to the desired MCP service address. Save the file, and you will be able to access the corresponding MCP tools.
+  - A: Currently, the MCP server does not support frontend configuration. We plan to add frontend configuration in version v1.1.0. To configure the MCP server, please follow the installation and deployment steps in @README.md. After running `cp .env.example .env`, manually edit the `MCP_SERVICE` field in your `.env` file to the desired MCP service address. Save the file, and you will be able to access the corresponding MCP tools. Note: After making changes, you need to rerun deploy.sh to redeploy.
 
 ## 🚫 Common Errors & Operations
 
