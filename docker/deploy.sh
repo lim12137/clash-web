@@ -24,14 +24,21 @@ select_deployment_mode() {
 }
 
 generate_minio_ak_sk() {
-  # Generate a random AK (12-character alphanumeric) and clean it
-  ACCESS_KEY=$(openssl rand -hex 12 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9]//g')
+    if [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "mingw" ] || [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "msys" ]; then
+        # Windows 环境
+        ACCESS_KEY=$(powershell -Command "[System.Convert]::ToBase64String([System.Guid]::NewGuid().ToByteArray()) -replace '[^a-zA-Z0-9]', '' -replace '=.+$', '' | Select-Object -First 12")
+        SECRET_KEY=$(powershell -Command '$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create(); $bytes = New-Object byte[] 32; $rng.GetBytes($bytes); [System.Convert]::ToBase64String($bytes)')
+    else
+        # 非 Windows 环境
+        # Generate a random AK (12-character alphanumeric) and clean it
+        ACCESS_KEY=$(openssl rand -hex 12 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9]//g')
 
-  # Generate a random SK (32-character high-strength random string) and clean it
-  SECRET_KEY=$(openssl rand -base64 32 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9+/=]//g')
+        # Generate a random SK (32-character high-strength random string) and clean it
+        SECRET_KEY=$(openssl rand -base64 32 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9+/=]//g')
+    fi
 
-  export MINIO_ACCESS_KEY=$ACCESS_KEY
-  export MINIO_SECRET_KEY=$SECRET_KEY
+    export MINIO_ACCESS_KEY=$ACCESS_KEY
+    export MINIO_SECRET_KEY=$SECRET_KEY
 }
 
 clean() {
@@ -88,11 +95,11 @@ install() {
 }
 
 # Main execution flow
-echo "🚀 Nexent Deployment Script 🚀"
-select_deployment_mode
-add_permission
+#echo "🚀 Nexent Deployment Script 🚀"
+#select_deployment_mode
+#add_permission
 generate_minio_ak_sk
-install
-clean
-echo "🚀 Deployment completed!"
-echo "🔗 You can access the application at http://localhost:3000"
+#install
+#clean
+#echo "🚀 Deployment completed!"
+#echo "🔗 You can access the application at http://localhost:3000"
