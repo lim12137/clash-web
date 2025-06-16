@@ -32,6 +32,11 @@ This FAQ addresses common questions and issues you might encounter while install
 - **Q: How do I check container logs?**
   - A: Use `docker logs <container_name>` to view logs for specific containers.
 
+### 🔢 Embedding Model Issues
+
+- **Q: Why can't my Embedding model connect?**
+  - A: When creating a custom model and filling in the model URL, make sure to add the `/v1/embeddings` suffix. For example: `https://model.provider.com/v1/embeddings`
+
 ### 📧 Email Tools Configuration
 - **Q: How can I enable and configure email tools?**
   - A: Our team has pre-implemented email tools based on IMAP and SMTP. To enable them:

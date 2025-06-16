@@ -73,11 +73,14 @@ class ElasticSearchCore:
         
         # Initialize embedding model
         self.embedding_model = embedding_model
-
-        # 🚀 Add bulk operation management
         self._bulk_operations: Dict[str, List[BulkOperation]] = {}
         self._settings_lock = threading.Lock()
         self._operation_counter = 0
+
+        # Embedding API limits
+        self.max_texts_per_batch = 2048
+        self.max_tokens_per_text = 8192
+        self.max_total_tokens = 100000
 
     @property
     def embedding_dim(self) -> int:
@@ -358,7 +361,7 @@ class ElasticSearchCore:
         self, 
         index_name: str, 
         documents: List[Dict[str, Any]], 
-        batch_size: int = 3000,
+        batch_size: int = 2048,
         content_field: str = "content"
     ) -> int:
         """
@@ -427,53 +430,72 @@ class ElasticSearchCore:
             return 0
 
     def _large_batch_insert(self, index_name: str, documents: List[Dict[str, Any]], batch_size: int, content_field: str) -> int:
-        """Large batch insertion: performance"""
+        """
+        Large batch insertion with sub-batching for embedding API.
+        Splits large document batches into smaller chunks to respect embedding API limits before bulk inserting into Elasticsearch.
+        """
         try:
-            # Preprocess all documents
             processed_docs = self._preprocess_documents(documents, content_field)
-
             total_indexed = 0
-            total_batches = (len(processed_docs) + batch_size - 1) // batch_size
+            total_docs = len(processed_docs)
+            es_total_batches = (total_docs + batch_size - 1) // batch_size
 
-            for i in range(0, len(processed_docs), batch_size):
-                batch = processed_docs[i:i + batch_size]
-                batch_num = i // batch_size + 1
+            for i in range(0, total_docs, batch_size):
+                es_batch = processed_docs[i:i + batch_size]
+                es_batch_num = i // batch_size + 1
 
-                # Prepare input and get embeddings
-                inputs = [{"text": doc[content_field]} for doc in batch]
-                embeddings = self.embedding_model.get_embeddings(inputs)
+                # Store documents and their embeddings for this Elasticsearch batch
+                doc_embedding_pairs = []
+
+                # Sub-batch for embedding API
+                embedding_batch_size = self.max_texts_per_batch
+                for j in range(0, len(es_batch), embedding_batch_size):
+                    embedding_sub_batch = es_batch[j:j + embedding_batch_size]
+                    
+                    try:
+                        inputs = [{"text": doc[content_field]} for doc in embedding_sub_batch]
+                        embeddings = self.embedding_model.get_embeddings(inputs)
+                        
+                        for doc, embedding in zip(embedding_sub_batch, embeddings):
+                            doc_embedding_pairs.append((doc, embedding))
+
+                    except Exception as e:
+                        logging.error(f"Embedding API error: {e}, ES batch num: {es_batch_num}, sub-batch start: {j}, size: {len(embedding_sub_batch)}")
+                        continue
                 
-                # Prepare bulk operations
+                # Perform a single bulk insert for the entire Elasticsearch batch
+                if not doc_embedding_pairs:
+                    logging.warning(f"No documents with embeddings to index for ES batch {es_batch_num}")
+                    continue
+
                 operations = []
-                for doc, embedding in zip(batch, embeddings):
+                for doc, embedding in doc_embedding_pairs:
                     operations.append({"index": {"_index": index_name}})
                     doc["embedding"] = embedding
                     if "embedding_model_name" not in doc:
-                        doc["embedding_model_name"] = self.embedding_model.embedding_model_name
+                        doc["embedding_model_name"] = getattr(self.embedding_model, 'embedding_model_name', 'unknown')
                     operations.append(doc)
 
-                # Execute bulk insertion (no immediate refresh)
-                response = self.client.bulk(
-                    index=index_name,
-                    operations=operations,
-                    refresh=False
-                )
-                
-                # Handle errors
-                self._handle_bulk_errors(response)
+                try:
+                    response = self.client.bulk(
+                        index=index_name,
+                        operations=operations,
+                        refresh=False
+                    )
+                    self._handle_bulk_errors(response)
+                    total_indexed += len(doc_embedding_pairs)
+                    logging.info(f"Processed ES batch {es_batch_num}/{es_total_batches}, indexed {len(doc_embedding_pairs)} documents.")
 
-                total_indexed += len(batch)
-                logging.info(f"Processed batch {batch_num}/{total_batches}, documents {i} to {min(i+batch_size, len(processed_docs))}")
+                except Exception as e:
+                    logging.error(f"Bulk insert error: {e}, ES batch num: {es_batch_num}")
+                    continue
                 
-                # Take a break after every few batches to avoid overwhelming ES
-                if batch_num % 10 == 0:
+                if es_batch_num % 10 == 0:
                     time.sleep(0.1)
 
-            # Finally, manually refresh once
             self._force_refresh_with_retry(index_name)
-            logging.info(f"Large batch insert completed: {len(documents)} docs in {total_batches} batches")
+            logging.info(f"Large batch insert completed: {total_indexed} docs indexed.")
             return total_indexed
-
         except Exception as e:
             logging.error(f"Large batch insert failed: {e}")
             return 0

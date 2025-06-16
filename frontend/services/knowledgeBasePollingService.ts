@@ -8,6 +8,7 @@ class KnowledgeBasePollingService {
   private docStatusPollingInterval: number = 5000; // 5 seconds
   private knowledgeBasePollingInterval: number = 1000; // 1 second
   private maxKnowledgeBasePolls: number = 60; // Maximum 60 polling attempts
+  private maxDocumentPolls: number = 20; // Maximum 20 polling attempts
   private activeKnowledgeBaseId: string | null = null; // Record current active knowledge base ID
 
   // Set current active knowledge base ID 
@@ -29,7 +30,6 @@ class KnowledgeBasePollingService {
     
     // Initialize polling counter
     let pollCount = 0;
-    const maxPollCount = 60; // Maximum 60 polling attempts (5 minutes)
     
     // Define the polling logic function
     const pollDocuments = async () => {
@@ -43,8 +43,17 @@ class KnowledgeBasePollingService {
           return;
         }
         
-        // If exceeded maximum polling count, stop polling
-        if (pollCount > maxPollCount) {
+        // If exceeded maximum polling count, handle timeout
+        if (pollCount > this.maxDocumentPolls) {
+          console.warn(`Document polling for knowledge base ${kbId} timed out after ${this.maxDocumentPolls} attempts`);
+          await this.handlePollingTimeout(kbId, 'document', callback);
+          // Push documents to UI
+          try {
+            const documents = await knowledgeBaseService.getAllFiles(kbId, true);
+            this.triggerDocumentsUpdate(kbId, documents);
+          } catch (e) {
+            // Ignore error
+          }
           this.stopPolling(kbId);
           return;
         }
@@ -69,13 +78,6 @@ class KnowledgeBasePollingService {
         
         // All documents processed, stopping polling
         console.log('All documents processed, stopping polling');
-        for (const doc of documents) {
-          console.log("================================================")
-          console.log(`Document Name: ${doc.name}`);
-          console.log(`Document Status: ${doc.status}`);
-          console.log(`Document Size: ${doc.size}`);
-          console.log("================================================")
-        }
         this.stopPolling(kbId);
         
         // Trigger knowledge base list update
@@ -94,6 +96,104 @@ class KnowledgeBasePollingService {
     // Save polling identifier
     this.pollingIntervals.set(kbId, interval);
   }
+
+  /**
+   * Handle polling timeout - mark all processing documents as failed
+   * @param kbId Knowledge base ID
+   * @param timeoutType Type of timeout (for logging purposes)
+   * @param callback Optional callback to update UI with modified documents
+   */
+  private async handlePollingTimeout(
+    kbId: string, 
+    timeoutType: 'document' | 'knowledgeBase',
+    callback?: (documents: Document[]) => void
+  ): Promise<void> {
+    try {
+      console.log(`Handling ${timeoutType} polling timeout for knowledge base ${kbId}`);
+      
+      // Get current documents
+      const documents = await knowledgeBaseService.getAllFiles(kbId, true);
+      
+      // Find all documents that are still in processing state
+      const processingDocs = documents.filter(doc => 
+        NON_TERMINAL_STATUSES.includes(doc.status)
+      );
+      
+      if (processingDocs.length > 0) {
+        const timeoutMessage = timeoutType === 'document' 
+          ? 'Document polling timeout - task marked as failed due to process timeout'
+          : 'KnowledgeBase polling timeout - task marked as failed due to forward timeout';
+          
+        console.warn(`${timeoutType} polling timed out with ${processingDocs.length} documents still processing:`, 
+          processingDocs.map(doc => ({ name: doc.name, status: doc.status })));
+        
+        // --- BEGIN: Mark tasks as failed in backend ---
+        const taskIdsToFail = processingDocs
+          .map(doc => doc.latest_task_id)
+          .filter((id): id is string => !!id);
+
+        if (taskIdsToFail.length > 0) {
+          knowledgeBaseService.markTasksAsFailed(taskIdsToFail, timeoutMessage)
+            .then((result) => {
+              console.log('Backend tasks marked as failed:', result);
+            })
+            .catch((error) => {
+              console.error('Failed to mark backend tasks as failed:', error);
+            });
+        }
+        // --- END: Mark tasks as failed in backend ---
+
+        // Update status of processing documents to appropriate failure state
+        const updatedDocuments = documents.map(doc => {
+          if (NON_TERMINAL_STATUSES.includes(doc.status)) {
+            // Determine failure state based on current document status
+            let failureStatus: 'PROCESS_FAILED' | 'FORWARD_FAILED';
+            
+            if (doc.status === 'WAIT_FOR_PROCESSING' || doc.status === 'PROCESSING') {
+              failureStatus = 'PROCESS_FAILED';
+            } else if (doc.status === 'WAIT_FOR_FORWARDING' || doc.status === 'FORWARDING') {
+              failureStatus = 'FORWARD_FAILED';
+            } else {
+              // Fallback: if we can't determine, assume it's in forward stage for knowledge base timeout
+              failureStatus = timeoutType === 'knowledgeBase' ? 'FORWARD_FAILED' : 'PROCESS_FAILED';
+            }
+            
+            return {
+              ...doc,
+              status: failureStatus,
+              error: timeoutMessage
+            };
+          }
+          return doc;
+        });
+        
+        // Update UI based on timeout type
+        if (callback) {
+          // For document polling timeout, use callback
+          callback(updatedDocuments);
+        }
+        // Confirm UI update
+        this.triggerDocumentsUpdate(kbId, updatedDocuments);
+        
+        // Log the timeout failure for each processing document
+        processingDocs.forEach(doc => {
+          const failureStatus = (doc.status === 'WAIT_FOR_PROCESSING' || doc.status === 'PROCESSING') 
+            ? 'PROCESS_FAILED' : 'FORWARD_FAILED';
+          console.error(`Document ${doc.name} marked as ${failureStatus} due to ${timeoutType} polling timeout`);
+        });
+      } else {
+        // 即使没有processing文档，也要推送一次当前文档状态，防止UI卡死
+        this.triggerDocumentsUpdate(kbId, documents);
+      }
+      
+    } catch (error) {
+      console.error(`Error handling ${timeoutType} polling timeout for knowledge base ${kbId}:`, error);
+      // Even if we can't get documents, we should still log the timeout
+      if (timeoutType === 'knowledgeBase') {
+        console.warn(`Knowledge base ${kbId} polling timed out, but could not retrieve documents to update their status`);
+      }
+    }
+  }
   
   /**
    * Poll to check if knowledge base is ready (exists and stats updated).
@@ -106,7 +206,7 @@ class KnowledgeBasePollingService {
     originalDocumentCount: number = 0,
     expectedIncrement: number = 0
   ): Promise<KnowledgeBase> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       let count = 0;
       const checkForStats = async () => {
         try {
@@ -141,7 +241,18 @@ class KnowledgeBasePollingService {
             console.log(`Knowledge base ${kbName} not ready yet, continue waiting...`);
             setTimeout(checkForStats, this.knowledgeBasePollingInterval);
           } else {
-            console.error(`Knowledge base ${kbName} readiness check timed out.`);
+            console.error(`Knowledge base ${kbName} readiness check timed out after ${this.maxKnowledgeBasePolls} attempts.`);
+            
+            // Handle knowledge base polling timeout - mark related tasks as failed
+            await this.handlePollingTimeout(kbName, 'knowledgeBase');
+            // Push documents to UI
+            try {
+              const documents = await knowledgeBaseService.getAllFiles(kbName, true);
+              this.triggerDocumentsUpdate(kbName, documents);
+            } catch (e) {
+              // Ignore error
+            }
+            
             reject(new Error(`Timed out waiting for stats for knowledge base ${kbName}.`));
           }
         } catch (error) {
@@ -150,6 +261,15 @@ class KnowledgeBasePollingService {
           if (count < this.maxKnowledgeBasePolls) {
             setTimeout(checkForStats, this.knowledgeBasePollingInterval);
           } else {
+            // Handle knowledge base polling timeout on error as well
+            await this.handlePollingTimeout(kbName, 'knowledgeBase');
+            // Push documents to UI
+            try {
+              const documents = await knowledgeBaseService.getAllFiles(kbName, true);
+              this.triggerDocumentsUpdate(kbName, documents);
+            } catch (e) {
+              // Ignore error
+            }
             reject(new Error(`Failed to get stats for knowledge base ${kbName} after multiple attempts.`));
           }
         }

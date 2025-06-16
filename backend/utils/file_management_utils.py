@@ -93,71 +93,62 @@ def get_all_files_status(index_name: str):
         index_name: Index name to filter tasks
         
     Returns:
-        Dictionary with path_or_url as keys and custom_state as values
+        Dictionary with path_or_url as keys and dict values: {state, latest_task_id}
     """
     try:
-        # Import here to avoid circular import
         from services.data_process_service import get_data_process_service
         
         # Use get_index_tasks to directly get tasks for the specified index
         # This avoids the need for manual filtering and is more efficient
         tasks_list = get_data_process_service().get_index_tasks(index_name)
-        
-        # Log the number of tasks found instead of printing all data
         logging.info(f"Found {len(tasks_list)} tasks for index '{index_name}'")
-        
-        # If no tasks found, return empty dict
         if not tasks_list:
-            logging.info(f"No tasks found for index '{index_name}'")
+            logging.warning(f"No tasks found for index '{index_name}'")
             return {}
         
         # Dictionary to store file statuses: {path_or_url: {process_state, forward_state, timestamps}}
         file_states = {}
-        
         for task_info in tasks_list:
             # No need to check index_name since get_index_tasks already filters by it
             task_path_or_url = task_info.get('path_or_url', '')
             task_name = task_info.get('task_name', '')
             task_status = task_info.get('status', '')
             task_created_at = task_info.get('created_at', 0)
-            
-            # Only process tasks with valid path_or_url
+            task_id = task_info.get('id', '')
             if task_path_or_url:
-                
                 # Initialize file state if not exists
                 if task_path_or_url not in file_states:
                     file_states[task_path_or_url] = {
                         'process_state': '',
                         'forward_state': '',
                         'latest_process_created_at': 0,
-                        'latest_forward_created_at': 0
+                        'latest_forward_created_at': 0,
+                        'latest_task_id': ''
                     }
-                
                 file_state = file_states[task_path_or_url]
-                
-                # Update latest task states
+                # process任务
                 if task_name == 'process' and task_created_at > file_state['latest_process_created_at']:
                     file_state['latest_process_created_at'] = task_created_at
                     file_state['process_state'] = task_status
+                    file_state['latest_task_id'] = task_id
+                # forward任务
                 elif task_name == 'forward' and task_created_at > file_state['latest_forward_created_at']:
                     file_state['latest_forward_created_at'] = task_created_at
                     file_state['forward_state'] = task_status
-        
-        # Convert states to custom states for each file
+                    file_state['latest_task_id'] = task_id
         result = {}
         for path_or_url, file_state in file_states.items():
             custom_state = _convert_to_custom_state(
                 process_celery_state=file_state['process_state'] or '',
                 forward_celery_state=file_state['forward_state'] or ''
             )
-            result[path_or_url] = custom_state
-            
-            logging.debug(f"File status for {path_or_url} in index {index_name}: "
-                         f"process={file_state['process_state']}, forward={file_state['forward_state']} -> {custom_state}")
-        
-        logging.info(f"Processed status for {len(result)} files in index '{index_name}'")
+            result[path_or_url] = {
+                'state': custom_state,
+                'latest_task_id': file_state['latest_task_id'] or ''
+            }
+            logging.debug(f"File status for {path_or_url} in index {index_name}: process={file_state['process_state']}, forward={file_state['forward_state']} -> {custom_state}, latest_task_id={file_state['latest_task_id']}")
+        logging.debug(f"Processed status for {len(result)} files in index '{index_name}'")
         return result
-        
     except Exception as e:
         logging.error(f"Error getting all files status for index {index_name}: {str(e)}")
         logging.error(f"Error details: {traceback.format_exc()}")

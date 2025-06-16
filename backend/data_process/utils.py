@@ -9,6 +9,13 @@ from typing import Dict, Any, Optional, List
 from celery.result import AsyncResult
 from celery import current_app
 
+# --- Celery backend ensure patch ---
+def ensure_celery_backend():
+    if not getattr(current_app.conf, 'result_backend', None):
+        current_app.conf.result_backend = os.environ.get('REDIS_BACKEND_URL')
+    if not getattr(current_app.conf, 'broker_url', None):
+        current_app.conf.broker_url = os.environ.get('REDIS_URL')
+
 # Configure logging
 logger = logging.getLogger("data_process.utils")
 
@@ -57,6 +64,7 @@ def get_task_info(task_id: str) -> Dict[str, Any]:
     Returns:
         Task status information
     """
+    ensure_celery_backend()
     try:
         # Get AsyncResult object for the task
         result = AsyncResult(task_id, app=current_app)

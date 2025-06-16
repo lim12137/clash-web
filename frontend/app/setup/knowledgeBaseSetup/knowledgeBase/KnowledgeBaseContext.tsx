@@ -58,6 +58,9 @@ const knowledgeBaseReducer = (state: KnowledgeBaseState, action: KnowledgeBaseAc
         activeKnowledgeBase: state.activeKnowledgeBase?.id === action.payload ? null : state.activeKnowledgeBase
       };
     case 'ADD_KNOWLEDGE_BASE':
+      if (state.knowledgeBases.some(kb => kb.id === action.payload.id)) {
+        return state; // If the knowledge base already exists, do not insert it
+      }
       return {
         ...state,
         knowledgeBases: [...state.knowledgeBases, action.payload]
@@ -233,8 +236,8 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
         embeddingModel: state.currentEmbeddingModel || "text-embedding-3-small"
       });
       
-      // Update knowledge base list
-      dispatch({ type: 'ADD_KNOWLEDGE_BASE', payload: newKB });
+      // No longer need to dispatch, because now the kb creation will finish in a blink of an eye.
+      // dispatch({ type: 'ADD_KNOWLEDGE_BASE', payload: newKB });
       return newKB;
     } catch (error) {
       console.error('Failed to create knowledge base:', error);

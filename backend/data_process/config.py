@@ -132,6 +132,22 @@ class Config:
     def log_level(self) -> str:
         """日志级别"""
         return os.getenv('LOG_LEVEL', 'INFO').upper()
+    
+    # Ray 配置相关属性
+    @property
+    def ray_plasma_directory(self) -> str:
+        """Ray plasma 对象存储目录配置"""
+        return os.getenv('RAY_PLASMA_DIRECTORY', '/tmp')
+    
+    @property
+    def ray_object_store_memory_gb(self) -> float:
+        """Ray 对象存储内存限制（GB）"""
+        return float(os.getenv('RAY_OBJECT_STORE_MEMORY_GB', '2.0'))
+    
+    @property
+    def ray_temp_dir(self) -> str:
+        """Ray 临时目录"""
+        return os.getenv('RAY_TEMP_DIR', '/tmp/ray')
 
 # 创建全局配置实例
 config = Config()
