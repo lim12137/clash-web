@@ -31,11 +31,11 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
                                                  minio_files=request.minio_files,
                                                  query=request.query,
                                                  history=request.history)
-    
-    # Save user message only if not in debug mode and register agent run info
+
+    agent_run_manager.register_agent_run(request.conversation_id, agent_run_info)
+    # Save user message only if not in debug mode
     if not request.is_debug:
         submit(save_conversation_user, request, authorization)
-        agent_run_manager.register_agent_run(request.conversation_id, agent_run_info)
 
     async def generate():
         messages = []
@@ -46,10 +46,11 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Agent run error: {str(e)}")
         finally:
-            # unregister agent run instance
+            # Save assistant message only if not in debug mode
             if not request.is_debug:
                 submit(save_conversation_assistant, request, messages, authorization)
-                agent_run_manager.unregister_agent_run(request.conversation_id)
+            # Unregister agent run instance for both debug and non-debug modes
+            agent_run_manager.unregister_agent_run(request.conversation_id)
 
     return StreamingResponse(
         generate(),
