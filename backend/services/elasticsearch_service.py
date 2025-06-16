@@ -375,12 +375,13 @@ class ElasticSearchService:
                         'file': file_info.get('filename', ''),
                         'file_size': file_info.get('file_size', 0),
                         'create_time': file_info.get('create_time', ''),
-                        'status': "COMPLETED"
+                        'status': "COMPLETED",
+                        'latest_task_id': ''
                     }
                     files.append(file_data)
 
                 # For files not yet stored in ES (files currently being processed)
-                for path_or_url, status in celery_task_files.items():
+                for path_or_url, status_info in celery_task_files.items():
                     # Skip files that are already in existing_files to avoid duplicates
                     if path_or_url not in existing_paths:
                         file_data = {
@@ -388,7 +389,8 @@ class ElasticSearchService:
                             'file': os.path.basename(path_or_url) if path_or_url else '',
                             'file_size': get_file_size('file', path_or_url),
                             'create_time': time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
-                            'status': status
+                            'status': status_info.get('state', status_info) if isinstance(status_info, dict) else status_info,
+                            'latest_task_id': status_info.get('latest_task_id', '') if isinstance(status_info, dict) else ''
                         }
                         files.append(file_data)
             else:

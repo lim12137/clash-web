@@ -22,6 +22,7 @@ import logging
 import sys
 import time
 import traceback
+import ray
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 from celery.signals import (
@@ -37,6 +38,7 @@ from celery.signals import (
 # Import app and config
 from .app import app
 from .config import config
+from .ray_config import init_ray_for_worker
 
 # Global worker state for monitoring and debugging
 worker_state = {
@@ -98,8 +100,36 @@ def setup_worker_environment(**kwargs):
     logger.info("="*60)
     
     try:
+        # Initialize Ray - connect to existing cluster
+        if not ray.is_initialized():
+            logger.info("🔮 Ray connecting to existing cluster...")
+            
+            # Get Ray address from environment
+            ray_address = os.environ.get('RAY_ADDRESS', 'auto')
+            
+            try:
+                # Use the new Ray configuration module if available
+                if init_ray_for_worker:
+                    if not init_ray_for_worker(ray_address):
+                        raise ConnectionError("Failed to initialize Ray connection")
+                else:
+                    # Fallback to direct ray.init
+                    ray.init(
+                        address=ray_address, 
+                        ignore_reinit_error=True,
+                        _plasma_directory=config.ray_plasma_directory
+                    )
+                
+                logger.info(f"✅ Ray connected to cluster at {ray_address} successfully.")
+                    
+            except Exception as e:
+                logger.error(f"❌ Failed to connect to Ray cluster: {str(e)}")
+                logger.error("💡 Please make sure Ray cluster is started before workers!")
+                logger.error("💡 You can start it via: python data_process_service.py")
+                raise ConnectionError(f"Cannot connect to Ray cluster: {str(e)}")
+
         # Check environment variables
-        logger.info("🔐 Check sensitive variables")
+        logger.info("🔍 Check sensitive variables")
         sensitive_vars = {
             'REDIS_URL': config.redis_url,
             'ELASTICSEARCH_SERVICE': config.elasticsearch_service,
@@ -111,9 +141,9 @@ def setup_worker_environment(**kwargs):
             if var_value:
                 if 'PASSWORD' in var_name or 'KEY' in var_name:
                     masked_value = f"{var_value[:4]}...{var_value[-4:]}" if len(var_value) > 8 else "***"
-                    logger.info(f"  ✅ {var_name}: {masked_value}")
+                    logger.debug(f"  ✅ {var_name}: {masked_value}")
                 else:
-                    logger.info(f"  ✅ {var_name}: {var_value}")
+                    logger.debug(f"  ✅ {var_name}: {var_value}")
             else:
                 logger.error(f"  ❌ {var_name}: NOT SET")
         
@@ -134,14 +164,14 @@ def setup_worker_process_resources(**kwargs):
     Suitable for initializing process-specific resources (e.g. database connection pool)
     """
     process_id = os.getpid()
-    logger.info(f"🔧 Initialize worker process {process_id}")
+    logger.info(f"⚙️ Initialize worker process {process_id}")
     
     try:
         # Initialize process-specific resources
         # e.g. database connection pool, cache client, etc.
         
         # Validate critical service connections
-        logger.debug("🔗 Validate service connections")
+        logger.debug("🔍 Validate service connections")
         validate_service_connections()
         worker_state['services_validated'] = True
         logger.debug("✅ Service connections validated")
@@ -168,11 +198,11 @@ def worker_ready_handler(**kwargs):
     
     worker_state['ready'] = True
     
-    logger.debug("🎉 " + "="*50)
-    logger.debug("🎉 Celery Worker is fully ready!")
-    logger.debug(f"🎉 Process ID: {process_id}")
-    logger.debug(f"🎉 Total startup time: {total_startup_time:.2f} s")
-    logger.debug("🎉 " + "="*50)
+    logger.debug("✅ " + "="*50)
+    logger.info("✅ Celery Worker is fully ready!")
+    logger.debug(f"Process ID: {process_id}")
+    logger.debug(f"Total startup time: {total_startup_time:.2f} s")
+    logger.debug("✅ " + "="*50)
     
     # Display worker status summary
     logger.debug("📊 Worker status summary:")
@@ -224,7 +254,7 @@ def validate_service_connections() -> bool:
     """Validate critical service connections"""
     try:
         # Validate Redis connection
-        logger.debug("🔗 Validate Redis connection")
+        logger.debug("🔍 Validate Redis connection")
         validate_redis_connection()
         logger.debug("✅ Redis connection is valid")
         
@@ -272,12 +302,12 @@ def start_worker():
     logger.info(f"Worker concurrency: {concurrency}")
     
     # Display Celery configuration information
-    logger.info("📋 Celery configuration information:")
-    logger.info(f"  Broker URL: {app.conf.broker_url}")
-    logger.info(f"  Backend URL: {app.conf.result_backend}")
-    logger.info(f"  Task routes: {app.conf.task_routes}")
-    logger.info(f"  Task time limit: {config.celery_task_time_limit} s")
-    logger.info(f"  Worker prefetch multiplier: {config.celery_worker_prefetch_multiplier}")
+    logger.debug("📋 Celery configuration information:")
+    logger.debug(f"  Broker URL: {app.conf.broker_url}")
+    logger.debug(f"  Backend URL: {app.conf.result_backend}")
+    logger.debug(f"  Task routes: {app.conf.task_routes}")
+    logger.debug(f"  Task time limit: {config.celery_task_time_limit} s")
+    logger.debug(f"  Worker prefetch multiplier: {config.celery_worker_prefetch_multiplier}")
     
     # Worker startup parameters
     worker_args = [
@@ -291,7 +321,7 @@ def start_worker():
     ]
     
     try:
-        logger.info(f"🚀 Start worker '{worker_name}'...")
+        logger.info(f"⚙️  Start worker '{worker_name}'...")
         
         # Flush stdout to ensure immediate output
         sys.stdout.flush()

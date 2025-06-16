@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import HTTPException, APIRouter, Form
 import base64
 import io
+from pydantic import BaseModel
+from typing import List
 
 from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTaskRequest, SimpleTaskStatusResponse, \
     SimpleTasksListResponse
@@ -30,6 +32,27 @@ router = APIRouter(
     prefix="/tasks",
     lifespan=lifespan
 )
+
+
+class MarkFailedRequest(BaseModel):
+    task_ids: List[str]
+    reason: str = "Task marked as failed due to frontend polling timeout"
+
+
+@router.post("/mark_failed", status_code=200)
+async def mark_tasks_failed(request: MarkFailedRequest):
+    """
+    Mark a list of tasks as FAILED.
+    
+    This is used by the frontend when polling times out to ensure backend
+    task statuses are synchronized.
+    """
+    try:
+        result = service.mark_tasks_as_failed(request.task_ids, request.reason)
+        return result
+    except Exception as e:
+        logger.error(f"Error marking tasks as failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to mark tasks as failed")
 
 
 @router.post("", response_model=TaskResponse, status_code=201)
@@ -248,7 +271,7 @@ async def list_tasks():
     return SimpleTasksListResponse(tasks=task_responses)
 
 
-@router.get("/indices/{index_name}/tasks")
+@router.get("/indices/{index_name}")
 async def get_index_tasks(index_name: str):
     """
     Get all active tasks for a specific index

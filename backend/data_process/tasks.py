@@ -8,10 +8,11 @@ import time
 import traceback
 import aiohttp
 import asyncio
+import ray
 from typing import Dict, List, Any, Optional
 from celery import chain, Task, states
 
-from nexent.data_process import DataProcessCore
+from .ray_actors import DataProcessorRayActor
 from .app import app
 from utils.file_management_utils import get_file_size
 
@@ -68,17 +69,22 @@ def run_async(coro):
 
 # Initialize the data processing core LAZILY
 # This will be initialized on first task run by a worker process
-data_processor: Optional[DataProcessCore] = None
-
-def get_data_processor() -> DataProcessCore:
-    global data_processor
-    if data_processor is None:
-        logger.info("Initializing DataProcessCore for this worker process...")
-        
-        data_processor = DataProcessCore()
-        
-        logger.info("DataProcessCore initialized and instance created.")
-    return data_processor
+def get_ray_actor() -> DataProcessorRayActor:
+    """
+    Creates or gets a handle to the named DataProcessorRayActor.
+    This is an idempotent operation, safe from race conditions.
+    """
+    # Use get_if_exists=True to make this operation idempotent.
+    # This will create the actor if it doesn't exist, or get a handle to it if it does.
+    # This is safe to be called from multiple workers concurrently.
+    actor = DataProcessorRayActor.options(
+        name="data_processor_actor",
+        lifetime="detached",
+        get_if_exists=True
+    ).remote()
+    
+    logger.debug("Successfully obtained handle for DataProcessorRayActor.")
+    return actor
 
 class LoggingTask(Task):
     """Base task class with enhanced logging"""
@@ -106,7 +112,7 @@ class LoggingTask(Task):
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process', queue='process_q')
 def process(self, source: str, source_type: str = "file", 
-            chunking_strategy: str = "basic", index_name: str = None, **params) -> str:
+            chunking_strategy: str = "basic", index_name: str = None, **params) -> Dict:
     """
     Process a file and extract text/chunks
     
@@ -143,7 +149,7 @@ def process(self, source: str, source_type: str = "file",
         }
     )
     # Get the data processor instance
-    current_data_processor = get_data_processor()
+    actor = get_ray_actor()
     
     try:
         # Process the file based on the source type
@@ -163,11 +169,13 @@ def process(self, source: str, source_type: str = "file",
             
             if file_ext in ['.xlsx', '.xls']:
                 # For Excel files, use specialized processor
-                chunks = current_data_processor.process_excel_file(source, chunking_strategy, **params)
+                chunks_ref = actor.process_excel_file.remote(source, chunking_strategy, **params)
             else:                
-                chunks = current_data_processor._process_file(source, chunking_strategy, 
+                chunks_ref = actor.process_file.remote(source, chunking_strategy, 
                                                     source_type=source_type, task_id=task_id, 
                                                     **params)
+
+            chunks = ray.get(chunks_ref)
                 
             end_time = time.time()
             elapsed_time = end_time - start_time
@@ -385,10 +393,11 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                 logger.debug(f"[{self.request.id}] FORWARD TASK: main_server reported {total_indexed}/{total_submitted} documents indexed successfully for '{original_source}'. Message: {es_result.get('message')}")
                 
                 if total_indexed < total_submitted:
-                    logger.warning(f"[{self.request.id}] FORWARD TASK: Partial success reported by main_server for '{original_source}'. Expected {total_submitted}, got {total_indexed}.")
-                    # Update task state for partial success
+                    error_message = f"Failure reported by main_server. Expected {total_submitted} chunks, indexed {total_indexed} chunks."
+                    logger.warning(f"[{self.request.id}] FORWARD TASK: {error_message} for '{original_source}'.")
+                    # Update task state for partial success to FAILURE
                     self.update_state(
-                        state=states.SUCCESS,
+                        state=states.FAILURE,
                         meta={
                             'chunks_stored': total_indexed,
                             'chunks_failed': total_submitted - total_indexed,
@@ -397,9 +406,11 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                             'index_name': original_index_name,
                             'task_name': 'forward',
                             'es_result': es_result,
-                            'stage': 'completed_with_partial_main_server_success'
+                            'custom_error': error_message,
+                            'stage': 'completed_with_partial_failure'
                         }
                     )
+                    raise Exception(error_message)
 
             elif isinstance(es_result, dict) and es_result.get("success") == False:
                 error_message = es_result.get("message", "Unknown error from main_server")
@@ -581,7 +592,7 @@ def process_sync(self, source: str, source_type: str = "file",
     logger.info(f"Synchronous processing file: {source} with strategy: {chunking_strategy}")
     
     # Get the data processor instance
-    current_data_processor = get_data_processor()
+    actor = get_ray_actor()
 
     try:
         # Process the file based on the source type
@@ -590,9 +601,11 @@ def process_sync(self, source: str, source_type: str = "file",
             file_ext = file_ext.lower()
             
             if file_ext in ['.xlsx', '.xls']:
-                chunks = current_data_processor.process_excel_file(source, chunking_strategy, **params)
+                chunks_ref = actor.process_excel_file.remote(source, chunking_strategy, **params)
             else:
-                chunks = current_data_processor._process_file(source, chunking_strategy, source_type=source_type, task_id=task_id, **params)
+                chunks_ref = actor.process_file.remote(source, chunking_strategy, source_type=source_type, task_id=task_id, **params)
+            
+            chunks = ray.get(chunks_ref)
         else:
             raise NotImplementedError(f"Source type '{source_type}' not yet implemented")
         

@@ -1,6 +1,6 @@
 // Unified encapsulation of knowledge base related API calls
 
-import { Document, KnowledgeBase, KnowledgeBaseCreateParams, IndexInfoResponse } from '@/types/knowledgeBase';
+import { Document, KnowledgeBase, KnowledgeBaseCreateParams } from '@/types/knowledgeBase';
 import { API_ENDPOINTS } from './api';
 import { getAuthHeaders } from './conversationService';
 
@@ -228,13 +228,13 @@ class KnowledgeBaseService {
         create_time: file.create_time,
         chunk_num: file.chunk_count || 0,
         token_num: 0,
-        status: file.status || "UNKNOWN"
+        status: file.status || "UNKNOWN",
+        latest_task_id: file.latest_task_id || ""
       }));
     } catch (error) {
       console.error("Failed to get all files:", error);
       throw error;
     }
-    
   }
   
   // Get file type from filename
@@ -463,6 +463,39 @@ class KnowledgeBaseService {
         throw error;
       }
       throw new Error('Failed to get summary');
+    }
+  }
+
+  /**
+   * Mark a list of tasks as FAILED in the backend
+   * @param taskIds List of task IDs to mark as failed
+   * @param reason The reason for the failure
+   * @returns The result from the backend
+   */
+  async markTasksAsFailed(taskIds: string[], reason: string): Promise<any> {
+    if (taskIds.length === 0) {
+      console.log("No tasks to mark as failed.");
+      return Promise.resolve();
+    }
+    
+    try {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.markTasksFailed, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_ids: taskIds, reason }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to mark tasks as failed');
+      }
+
+      const result = await response.json();
+      console.log(`Successfully marked tasks as failed:`, result);
+      return result;
+    } catch (error) {
+      console.error('Error marking tasks as failed:', error);
+      throw error;
     }
   }
 }

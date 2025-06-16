@@ -1,5 +1,6 @@
 import logging
 import io
+import time
 import base64
 import aiohttp
 import os
@@ -11,6 +12,9 @@ from typing import Optional, List, Dict, Any
 from PIL import Image
 import torch
 from transformers import CLIPProcessor, CLIPModel
+from celery import states
+from celery.result import AsyncResult
+from celery import current_app
 
 from consts.const import CLIP_MODEL_PATH, IMAGE_FILTER
 
@@ -27,10 +31,18 @@ class DataProcessService:
         """
         # Initialize components in a modular way
         self._init_redis_client()
-        self._init_clip_model()
+        # NEVER try to init clip model here, otherwise it will drastically slow down the first call from data process.
+        # self._init_clip_model()
 
         # Suppress PIL warning about palette images
         warnings.filterwarnings('ignore', category=UserWarning, module='PIL.Image')
+
+        self._inspector = None
+        self._inspector_last_time = 0
+        self._inspector_ttl = 60  # inspector缓存时间，秒
+        self._inspector_lock = None
+        import threading
+        self._inspector_lock = threading.Lock()
 
     def _init_redis_client(self):
         """Initializes the Redis client and connection pool."""
@@ -53,6 +65,8 @@ class DataProcessService:
 
     def _init_clip_model(self):
         """Initializes the CLIP model and processor."""
+        if getattr(self, 'clip_available', False):
+            return
         self.model = None
         self.processor = None
         self.clip_available = False
@@ -74,23 +88,26 @@ class DataProcessService:
         logger.info("Data processing service stopped")
 
     def _get_celery_inspector(self):
-        """获取 Celery inspector，确保连接配置正确"""
+        """获取 Celery inspector，确保连接配置正确，并做缓存"""
         from celery import current_app
-        
-        # 确保当前应用配置正确
-        if not current_app.conf.broker_url or not current_app.conf.result_backend:
-            current_app.conf.broker_url = os.environ.get('REDIS_URL')
-            current_app.conf.result_backend = os.environ.get('REDIS_BACKEND_URL')
-            logger.warning(f"Celery broker URL is not configured properly, reconfiguring to {current_app.conf.broker_url}")
-        
-        try:
-            inspector = current_app.control.inspect()
-            # 测试连接
-            inspector.timeout = 3.0
-            inspector.ping()
-            return inspector
-        except Exception as e:
-            raise Exception(f"Failed to create inspector with current_app: {str(e)}")
+        now = time.time()
+        with self._inspector_lock:
+            if self._inspector and now - self._inspector_last_time < self._inspector_ttl:
+                return self._inspector
+            # 确保当前应用配置正确
+            if not current_app.conf.broker_url or not current_app.conf.result_backend:
+                current_app.conf.broker_url = os.environ.get('REDIS_URL')
+                current_app.conf.result_backend = os.environ.get('REDIS_BACKEND_URL')
+                logger.warning(f"Celery broker URL is not configured properly, reconfiguring to {current_app.conf.broker_url}")
+            try:
+                inspector = current_app.control.inspect()
+                inspector.ping()
+                self._inspector = inspector
+                self._inspector_last_time = now
+                return inspector
+            except Exception as e:
+                self._inspector = None
+                raise Exception(f"Failed to create inspector with current_app: {str(e)}")
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Get task by ID
@@ -115,52 +132,50 @@ class DataProcessService:
             List[Dict[str, Any]]: List of all tasks
         """
         # Import here to avoid circular import
-        from celery import current_app
         from data_process.utils import get_task_info, get_all_task_ids_from_redis
+        import concurrent.futures
         
         all_tasks = []
         
         try:
-            logger.info("Getting inspector to check for active tasks")
-            # Get inspector to check for active tasks
+            start_time = time.time()
+            logger.info("Getting inspector to check for active and reserved tasks (concurrent)")
             inspector = self._get_celery_inspector()
+            logger.info(f"⏰ Inspector initialization took {time.time() - start_time}s")
             
             # Collect task IDs from different sources
             task_ids = set()
-            
-            # Get active tasks
-            active_tasks_dict = inspector.active()
+            def get_active():
+                return inspector.active()
+            def get_reserved():
+                return inspector.reserved()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                future_active = executor.submit(get_active)
+                future_reserved = executor.submit(get_reserved)
+                active_tasks_dict = future_active.result()
+                reserved_tasks_dict = future_reserved.result()
+            logger.info(f"⏰ Get active and reserved tasks (concurrent) took {time.time() - start_time}s")
             if active_tasks_dict:
                 for worker, tasks in active_tasks_dict.items():
                     for task in tasks:
                         task_id = task.get('id')
                         if task_id:
                             task_ids.add(task_id)
-            
-            logger.info("Getting inspector to check for reserved tasks")
-            # Get reserved (waiting) tasks  
-            reserved_tasks_dict = inspector.reserved()
             if reserved_tasks_dict:
                 for worker, tasks in reserved_tasks_dict.items():
                     for task in tasks:
                         task_id = task.get('id')
                         if task_id:
                             task_ids.add(task_id)
+
+            # Currently, we don't have scheduled tasks, so skip getting scheduled tasks here
             
-            logger.info("Getting inspector to check for scheduled tasks")
-            # Get scheduled tasks
-            scheduled_tasks_dict = inspector.scheduled()
-            if scheduled_tasks_dict:
-                for worker, tasks in scheduled_tasks_dict.items():
-                    for task in tasks:
-                        task_id = task.get('id')
-                        if task_id:
-                            task_ids.add(task_id)
-            
+            start_time = time.time()
             logger.info("Getting task IDs from Redis backend")
             # Also get task IDs from Redis backend (covers completed/failed tasks within expiry)
             try:
                 redis_task_ids = get_all_task_ids_from_redis(self.redis_client)
+                logger.info(f"⏰ Get Redis task IDs took {time.time() - start_time}s")
                 for task_id in redis_task_ids:
                     task_ids.add(task_id) # Add to the set, duplicates will be handled
                 
@@ -349,9 +364,25 @@ class DataProcessService:
                 }
 
             # If IMAGE_FILTER is False, or CLIP model is not available, skip CLIP calculation and return as important
-            if not IMAGE_FILTER or not self.clip_available:
+            if not IMAGE_FILTER:
                 logger.info(
                     f"IMAGE_FILTER is disabled, returning image as important: {image_url}")
+                return {
+                    "is_important": True,
+                    "confidence": 1.0,
+                    "probabilities": {
+                        "positive": 1.0,
+                        "negative": 0.0
+                    }
+                }
+
+            # 延迟加载CLIP模型
+            if not self.clip_available:
+                self._init_clip_model()
+
+            if not self.clip_available:
+                logger.warning(
+                    f"CLIP model not available, returning image as important: {image_url}")
                 return {
                     "is_important": True,
                     "confidence": 1.0,
@@ -416,6 +447,68 @@ class DataProcessService:
         except Exception as e:
             logger.error(f"Error processing image: {str(e)}")
             raise Exception(f"Error processing image: {str(e)}")
+
+    def mark_tasks_as_failed(self, task_ids: List[str], reason: str) -> Dict[str, Any]:
+        """
+        Mark a list of tasks as FAILED if they are in a non-terminal state.
+        
+        Args:
+            task_ids: List of task IDs to update.
+            reason: The reason for the failure.
+            
+        Returns:
+            A dictionary with counts of updated, skipped, and not_found tasks.
+        """
+        updated_tasks = []
+        skipped_tasks = []
+        not_found_tasks = []
+        
+        for task_id in task_ids:
+            try:
+                task_info = self.get_task(task_id)
+                
+                if not task_info or task_info.get('status') == 'unknown':
+                    logger.warning(f"Task {task_id} not found or in unknown state, skipping for forced failure.")
+                    not_found_tasks.append(task_id)
+                    continue
+
+                status = task_info.get('status')
+                if status in [states.SUCCESS, states.FAILURE]:
+                    logger.info(f"Task {task_id} is already in a terminal state '{status}', skipping for forced failure.")
+                    skipped_tasks.append(task_id)
+                    continue
+                
+                result = AsyncResult(task_id, app=current_app)
+                
+                current_info = {}
+                if result.info and isinstance(result.info, dict):
+                    current_info = result.info.copy()
+                
+                current_info['custom_error'] = reason
+                current_info['stage'] = 'marked_failed_by_api'
+
+                result.backend.store_result(
+                    task_id, 
+                    result=current_info,
+                    status=states.FAILURE, 
+                    traceback=reason
+                )
+                
+                logger.info(f"Successfully marked task {task_id} as FAILED. Reason: {reason}")
+                updated_tasks.append(task_id)
+
+            except Exception as e:
+                logger.error(f"Error marking task {task_id} as failed: {str(e)}")
+                not_found_tasks.append(task_id)
+        
+        return {
+            "updated": len(updated_tasks),
+            "skipped": len(skipped_tasks),
+            "not_found": len(not_found_tasks),
+            "updated_ids": updated_tasks,
+            "skipped_ids": skipped_tasks,
+            "not_found_ids": not_found_tasks
+        }
 
 
 # Global instance to be shared across modules

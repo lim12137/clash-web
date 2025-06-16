@@ -7,11 +7,13 @@ import logging
 import argparse
 import time
 import threading
+import ray
 from contextlib import asynccontextmanager
 from typing import Any
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
+from data_process.ray_config import init_ray_for_service
 
 # Load environment variables
 load_dotenv()
@@ -27,6 +29,7 @@ logger = logging.getLogger(__name__)
 # Global variables to track processes
 service_processes = {
     'redis': None,
+    'ray_cluster': None,
     'workers': [],
     'flower': None,
 }
@@ -38,7 +41,9 @@ class ServiceManager:
         self.config = config
         self.redis_port = config.get('redis_port', 6379)
         self.flower_port = config.get('flower_port', 5555)
+        self.ray_dashboard_port = config.get('ray_dashboard_port', 8265)
         self._shutdown_called = False  # Flag to prevent multiple shutdowns
+        self._ray_cluster_started = False  # Track if we started Ray cluster
         
     def start_redis(self):
         """Start Redis server if not already running"""
@@ -60,6 +65,68 @@ class ServiceManager:
             return False
         except Exception as e:
             logger.error(f"❌ Redis connection failed: {str(e)}")
+            return False
+    
+    def start_ray_cluster(self):
+        """Start Ray cluster if not already running"""
+        if not self.config.get('start_ray', True):
+            logger.info("Ray cluster startup disabled by configuration")
+            return True
+            
+        try:
+            # Check if Ray is already initialized
+            if ray.is_initialized():
+                logger.info("✅ Ray cluster already running")
+                return True
+            
+            # Get Ray configuration from environment
+            num_cpus = int(os.environ.get('RAY_NUM_CPUS', os.cpu_count()))
+            dashboard_host = os.environ.get('RAY_DASHBOARD_HOST', '0.0.0.0')
+            
+            logger.info("🔮 Starting Ray cluster...")
+            
+            # Use the centralized Ray initialization if available
+            if init_ray_for_service:
+                success = init_ray_for_service(
+                    num_cpus=num_cpus,
+                    dashboard_port=self.ray_dashboard_port,
+                    try_connect_first=True
+                )
+            else:
+                # Fallback to direct Ray initialization
+                try:
+                    ray.init(
+                        num_cpus=num_cpus,
+                        _plasma_directory="/tmp",
+                        include_dashboard=True,
+                        dashboard_host=dashboard_host,
+                        dashboard_port=self.ray_dashboard_port,
+                        ignore_reinit_error=True
+                    )
+                    success = True
+                except Exception:
+                    success = False
+            
+            if success:
+                self._ray_cluster_started = True
+                service_processes['ray_cluster'] = True  # Mark as managed by this service
+                
+                logger.info("✅ Ray cluster initialized successfully!")
+                logger.info(f"✅ Ray dashboard available at: http://{dashboard_host}:{self.ray_dashboard_port}")
+                
+                # Display cluster info
+                try:
+                    cluster_resources = ray.cluster_resources()
+                    logger.info(f"✅ Ray cluster resources: {cluster_resources}")
+                except Exception as e:
+                    logger.debug(f"Could not get cluster resources: {e}")
+                
+                return True
+                
+        except Exception as e:
+            logger.error(f"❌ Error starting Ray cluster: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return False
     
     def start_workers(self):
@@ -263,7 +330,10 @@ except Exception as e_exec:
                 'FLOWER_DB': 'flower_db.sqlite',
                 'FLOWER_AUTO_REFRESH': 'True',
                 'FLOWER_MAX_WORKERS': '5000',
-                'FLOWER_MAX_TASKS': '10000'
+                'FLOWER_MAX_TASKS': '10000',
+                # Add environment variables to help isolate Flower from Ray issues
+                'RAY_DISABLE_IMPORT_WARNING': '1',
+                'RAY_DEDUP_LOGS': '0'
             })
             
             # Get the backend directory path to ensure correct module import
@@ -275,7 +345,8 @@ except Exception as e_exec:
                 stderr=subprocess.STDOUT,
                 text=True,
                 cwd=backend_dir,  # Run from backend directory for module import
-                env=flower_env  # Pass environment variables for configuration
+                env=flower_env,  # Pass environment variables for configuration
+                preexec_fn=os.setsid if hasattr(os, 'setsid') else None  # Create new process group
             )
             
             service_processes['flower'] = process
@@ -294,7 +365,9 @@ except Exception as e_exec:
                                 parts = clean_line.split(' - ')
                                 if len(parts) > 1:
                                     clean_line = ' - '.join(parts[1:])
-                            logger.info(f"[Flower] {clean_line}")
+                            # Filter out Ray-related error messages from Flower logs
+                            if 'ray' not in clean_line.lower() or 'started' in clean_line.lower():
+                                logger.info(f"[Flower] {clean_line}")
                 except Exception as e:
                     logger.warning(f"Error in Flower log thread: {str(e)}")
                     # Thread will exit gracefully, Flower process continues
@@ -330,6 +403,7 @@ except Exception as e_exec:
         # Start services in specific order for proper dependencies
         services = [
             ("Redis", self.start_redis, 'start_redis'),
+            ("Ray Cluster", self.start_ray_cluster, 'start_ray'),
             ("Celery Workers", self.start_workers, 'start_workers'),
             ("Flower Monitoring", self.start_flower, 'start_flower')
         ]
@@ -369,6 +443,17 @@ except Exception as e_exec:
         
         logger.info(f"🔴 Redis: {os.environ.get('REDIS_URL')}")
         
+        if self.config.get('start_ray', True):
+            if ray.is_initialized():
+                try:
+                    gcs_address = ray.get_runtime_context().gcs_address
+                    logger.info(f"🔮 Ray Cluster: {gcs_address}")
+                    logger.info(f"🎯 Ray Dashboard: http://localhost:{self.ray_dashboard_port}")
+                except:
+                    logger.info(f"🔮 Ray Cluster: Running locally")
+            else:
+                logger.info(f" Ray Cluster: Not started")
+        
         if self.config.get('start_workers', True):
             logger.info(f"👷 Workers: {len(service_processes['workers'])} processes")
             for worker in service_processes['workers']:
@@ -388,19 +473,7 @@ except Exception as e_exec:
         
         logger.info("🛑 Stopping all services...")
         
-        # Stop Flower
-        if service_processes['flower']:
-            try:
-                logger.info("Stopping Flower monitoring...")
-                service_processes['flower'].terminate()
-                service_processes['flower'].wait(timeout=5)
-                logger.info("Flower stopped")
-            except:
-                service_processes['flower'].kill()
-                logger.info("Flower force killed")
-            service_processes['flower'] = None
-        
-        # Stop workers
+        # Stop workers first to ensure clean shutdown
         if service_processes['workers']:
             logger.info("Stopping Celery workers...")
             for worker_info in service_processes['workers']:
@@ -428,7 +501,67 @@ except Exception as e_exec:
             service_processes['workers'].clear()
             logger.info("All workers stopped")
         
-        # Stop Redis
+        # Stop Ray cluster BEFORE stopping Flower to avoid shutdown conflicts
+        if self._ray_cluster_started and ray.is_initialized():
+            try:
+                logger.info("🛑 Stopping Ray cluster...")
+                ray.shutdown()
+                self._ray_cluster_started = False
+                service_processes['ray_cluster'] = None
+                logger.info("🛑 Ray cluster stopped")
+                # Give some time for Ray to fully shutdown
+                time.sleep(1)
+            except Exception as e:
+                logger.error(f"❌ Error stopping Ray cluster: {str(e)}")
+        
+        # Stop Flower after Ray is shutdown to prevent conflicts
+        if service_processes['flower']:
+            try:
+                logger.info("Stopping Flower monitoring...")
+                
+                # Try to terminate the process group first (if using setsid)
+                try:
+                    if hasattr(os, 'killpg'):
+                        os.killpg(os.getpgid(service_processes['flower'].pid), signal.SIGTERM)
+                        logger.info("Sent SIGTERM to Flower process group")
+                    else:
+                        service_processes['flower'].terminate()
+                        logger.info("Sent SIGTERM to Flower process")
+                except (ProcessLookupError, OSError):
+                    # Process or process group might already be gone
+                    logger.info("Flower process/group already terminated")
+                
+                try:
+                    service_processes['flower'].wait(timeout=10)
+                    logger.info("Flower stopped gracefully")
+                except subprocess.TimeoutExpired:
+                    logger.warning("Flower didn't terminate gracefully, killing it")
+                    try:
+                        # Try to kill the process group first
+                        if hasattr(os, 'killpg'):
+                            os.killpg(os.getpgid(service_processes['flower'].pid), signal.SIGKILL)
+                            logger.info("Killed Flower process group")
+                        else:
+                            service_processes['flower'].kill()
+                            logger.info("Killed Flower process")
+                        service_processes['flower'].wait()
+                    except (ProcessLookupError, OSError):
+                        # Process already gone
+                        logger.info("Flower process already terminated")
+                    
+            except Exception as e:
+                logger.error(f"Error stopping Flower: {str(e)}")
+                # Best effort cleanup
+                try:
+                    if service_processes['flower'].poll() is None:
+                        service_processes['flower'].kill()
+                        logger.info("Flower force killed after error")
+                except:
+                    pass
+            finally:
+                service_processes['flower'] = None
+        
+        # Stop Redis last
         if service_processes['redis']:
             try:
                 logger.info("Stopping Redis server...")
@@ -449,9 +582,10 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python data_process_service.py                    # Start all services
-  python data_process_service.py --no-flower        # Skip Flower monitoring
-  python data_process_service.py --redis-port 6380  # Use custom Redis port
+  python data_process_service.py                           # Start all services (Redis, Ray, Workers, Flower)
+  python data_process_service.py --no-flower               # Skip Flower monitoring
+  python data_process_service.py --no-ray                  # Skip Ray cluster (use external Ray)
+  python data_process_service.py --ray-dashboard-port 8266 # Use custom Ray dashboard port
         """
     )
     
@@ -460,11 +594,15 @@ Examples:
                        help='Do not start Celery workers')
     parser.add_argument('--no-flower', action='store_true',
                        help='Do not start Flower monitoring')
+    parser.add_argument('--no-ray', action='store_true',
+                       help='Do not start Ray cluster')
     # Port configuration
     parser.add_argument('--redis-port', type=int, default=6379,
                        help='Redis server port (default: 6379)')
     parser.add_argument('--flower-port', type=int, default=5555,
                        help='Flower monitoring port (default: 5555)')
+    parser.add_argument('--ray-dashboard-port', type=int, default=8265,
+                       help='Ray dashboard port (default: 8265)')
     
     # API server configuration
     parser.add_argument('--api-host', default='0.0.0.0',
@@ -476,9 +614,19 @@ Examples:
 
 def signal_handler(signum, frame):
     """Handle shutdown signals"""
-    logger.info(f"Received signal {signum}, shutting down...")
-    if 'service_manager' in globals() and service_manager:
-        service_manager.stop_all_services()
+    logger.info(f"Received signal {signum}, initiating graceful shutdown...")
+    
+    # Prevent multiple signal handling
+    if 'service_manager' in globals() and service_manager and not service_manager._shutdown_called:
+        try:
+            service_manager.stop_all_services()
+            logger.info("Graceful shutdown completed")
+        except Exception as e:
+            logger.error(f"Error during shutdown: {str(e)}")
+            # Force exit if graceful shutdown fails
+            logger.info("Forcing exit due to shutdown error")
+            os._exit(1)
+    
     sys.exit(0)
 
 # Register signal handlers for graceful shutdown
@@ -527,8 +675,10 @@ def main():
     config = {
         'start_workers': not args.no_workers,
         'start_flower': not args.no_flower,
+        'start_ray': not args.no_ray,
         'redis_port': args.redis_port,
         'flower_port': args.flower_port,
+        'ray_dashboard_port': args.ray_dashboard_port,
     }
     
     # Create service manager
@@ -544,7 +694,7 @@ def main():
         # Create and start FastAPI app
         app = create_app()
         
-        logger.info(f"🌐 Starting API server on {args.api_host}:{args.api_port}")
+        logger.debug(f"🌐 Starting API server on {args.api_host}:{args.api_port}")
         uvicorn.run(
             app, 
             host=args.api_host,

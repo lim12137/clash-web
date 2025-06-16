@@ -77,6 +77,7 @@ export const API_ENDPOINTS = {
     
     // File upload service
     upload: `${UPLOAD_SERVICE_URL}/upload`,
+    markTasksFailed: `${API_BASE_URL}/tasks/mark_failed`,
   },
   config: {
     save: `${API_BASE_URL}/config/save_config`,

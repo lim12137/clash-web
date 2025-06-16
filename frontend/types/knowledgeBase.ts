@@ -43,6 +43,7 @@ export interface Document {
   token_num: number
   status: string
   selected?: boolean // 用于UI选择状态
+  latest_task_id: string //用于标记对应的最新celery任务
 }
 
 // 索引信息响应接口
