@@ -35,19 +35,7 @@ export interface ToolParam {
   value?: any;
   description?: string;
 }
-// add agent modal props interface
-export interface AgentModalProps {
-  isOpen: boolean;
-  onCancel: () => void;
-  onSave: (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string, business_description: string) => void;
-  onRefresh?: () => void;
-  title: string;
-  agent?: Agent | null;
-  selectedTools?: Tool[];
-  systemPrompt?: string;
-  readOnly?: boolean;
-  agentId: string | null;
-}
+
 // business logic input component props interface
 export interface BusinessLogicInputProps {
   value: string;
@@ -111,4 +99,5 @@ export interface BusinessLogicConfigProps {
   setNewAgentProvideSummary: (provide: boolean) => void;
   isNewAgentInfoValid: boolean;
   setIsNewAgentInfoValid: (valid: boolean) => void;
+  onEditingStateChange?: (isEditing: boolean, editingAgent: Agent | null) => void;
 }
