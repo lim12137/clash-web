@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from database.client import get_db_session, as_dict, filter_property
 from database.db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
-from database.utils import get_current_user_id
+from utils.auth_utils import get_current_user_id
 
 
 def search_agent_info_by_agent_id(agent_id: int, tenant_id: str, user_id: str = None):

@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import Header
 from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
-from database.utils import get_current_user_id
+from utils.auth_utils import get_current_user_id
 
 from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents, \
     query_or_create_main_agent_id

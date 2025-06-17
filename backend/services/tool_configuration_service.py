@@ -14,7 +14,7 @@ from database.agent_db import (
 )
 from consts.model import ToolInstanceInfoRequest, ToolInfo, ToolSourceEnum
 from utils.config_utils import config_manager
-from database.utils import get_current_user_id
+from utils.auth_utils import get_current_user_id
 from fastapi import Header
 
 logging.basicConfig(level=logging.INFO)

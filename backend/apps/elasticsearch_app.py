@@ -5,7 +5,7 @@ from consts.model import IndexingRequest, IndexingResponse, SearchRequest, Hybri
 
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core
-from database.utils import get_current_user_id
+from utils.auth_utils import get_current_user_id
 router = APIRouter(prefix="/indices")
 
 
