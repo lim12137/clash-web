@@ -25,9 +25,12 @@ def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = Non
         # Add creation timestamp
         cleaned_data["create_time"] = func.current_timestamp()
 
+        # Add tenant_id to cleaned_data
+        if tenant_id is not None:
+            cleaned_data["tenant_id"] = tenant_id
+
         # Build the insert statement
         stmt = insert(ModelRecord).values(cleaned_data)
-        stmt = stmt.values(tenant_id=tenant_id)
 
         # Execute the insert statement
         result = session.execute(stmt)
@@ -54,11 +57,14 @@ def update_model_record(model_id: int, update_data: Dict[str, Any], user_id: Opt
         # Add update timestamp
         cleaned_data["update_time"] = func.current_timestamp()
 
+        # Add tenant_id to cleaned_data if provided
+        if tenant_id is not None:
+            cleaned_data["tenant_id"] = tenant_id
+
         # Build the update statement
         stmt = update(ModelRecord).where(
             ModelRecord.model_id == model_id
         ).values(cleaned_data)
-        stmt = stmt.values(tenant_id=tenant_id)
 
         # Execute the update statement
         result = session.execute(stmt)
