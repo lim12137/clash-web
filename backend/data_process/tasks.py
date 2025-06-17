@@ -11,6 +11,7 @@ import asyncio
 import ray
 from typing import Dict, List, Any, Optional
 from celery import chain, Task, states
+import threading
 
 from .ray_actors import DataProcessorRayActor
 from .app import app
@@ -18,6 +19,32 @@ from utils.file_management_utils import get_file_size
 
 # Configure logging
 logger = logging.getLogger("data_process.tasks")
+
+# Thread lock for initializing Ray to prevent race conditions
+ray_init_lock = threading.Lock()
+
+def init_ray_in_worker():
+    """
+    Initializes Ray within a Celery worker, ensuring it is done only once.
+    This function is designed to be called from within a task.
+    """
+    if not ray.is_initialized():
+        logger.info("Ray not initialized. Initializing Ray for Celery worker...")
+        try:
+            # `configure_logging=False` prevents Ray from setting up its own loggers,
+            # which can interfere with Celery's logging.
+            # `faulthandler=False` is critical to prevent the `AttributeError: 'LoggingProxy' object has no attribute 'fileno'`
+            # error when running inside a Celery worker.
+            ray.init(
+                configure_logging=False,
+                faulthandler=False
+            )
+            logger.info("Ray initialized successfully for Celery worker.")
+        except Exception as e:
+            logger.error(f"Failed to initialize Ray for Celery worker: {e}")
+            raise
+    else:
+        logger.debug("Ray is already initialized.")
 
 
 def run_async(coro):
@@ -74,6 +101,9 @@ def get_ray_actor() -> DataProcessorRayActor:
     Creates or gets a handle to the named DataProcessorRayActor.
     This is an idempotent operation, safe from race conditions.
     """
+    with ray_init_lock:
+        init_ray_in_worker()
+        
     # Use get_if_exists=True to make this operation idempotent.
     # This will create the actor if it doesn't exist, or get a handle to it if it does.
     # This is safe to be called from multiple workers concurrently.
@@ -109,6 +139,10 @@ class LoggingTask(Task):
         """Log task retry"""
         logger.warning(f"Task {self.name}[{task_id}] retrying: {exc}")
         return super().on_retry(exc, task_id, args, kwargs, einfo)
+
+class ForwardTaskError(Exception):
+    """Custom exception for forward task errors."""
+    pass
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process', queue='process_q')
 def process(self, source: str, source_type: str = "file", 
@@ -410,7 +444,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                             'stage': 'completed_with_partial_failure'
                         }
                     )
-                    raise Exception(error_message)
+                    raise ForwardTaskError(error_message)
 
             elif isinstance(es_result, dict) and es_result.get("success") == False:
                 error_message = es_result.get("message", "Unknown error from main_server")
@@ -426,7 +460,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                         'stage': 'main_server_api_failed'
                     }
                 )
-                raise Exception(f"main_server API error: {error_message}")
+                raise ForwardTaskError(f"main_server API error: {error_message}")
             else:
                  logger.error(f"[{self.request.id}] FORWARD TASK: Unexpected API response format from main_server for source '{original_source}': {es_result}")
                  self.update_state(
@@ -440,7 +474,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                         'stage': 'api_response_format_error'
                     }
                 )
-                 raise Exception("Unexpected API response format from main_server")
+                 raise ForwardTaskError("Unexpected API response format from main_server")
 
         except Exception as e:
             # This will catch errors from run_async(index_documents()) call itself (e.g. network issues to main_server)

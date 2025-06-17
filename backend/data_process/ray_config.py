@@ -1,7 +1,5 @@
 """
-Ray 配置管理模块
-
-统一管理 Ray 初始化参数，避免 /dev/shm 空间不足警告
+Ray configuration management module
 """
 
 import os
@@ -14,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class RayConfig:
-    """Ray 配置管理器"""
+    """Ray configuration manager"""
     
     def __init__(self):
         self.plasma_directory = config.ray_plasma_directory
@@ -28,17 +26,17 @@ class RayConfig:
                        dashboard_host: str = "0.0.0.0",
                        dashboard_port: int = 8265) -> Dict[str, Any]:
         """
-        获取 Ray 初始化参数
+        Get Ray initialization parameters
         
         Args:
-            address: Ray 集群地址，None 表示启动本地集群
-            num_cpus: CPU 核心数
-            include_dashboard: 是否包含 dashboard
-            dashboard_host: Dashboard 主机地址
-            dashboard_port: Dashboard 端口
+            address: Ray cluster address, None means start local cluster
+            num_cpus: Number of CPU cores
+            include_dashboard: Whether to include dashboard
+            dashboard_host: Dashboard host address
+            dashboard_port: Dashboard port
             
         Returns:
-            Ray 初始化参数字典
+            Ray initialization parameters dictionary
         """
         params = {
             "ignore_reinit_error": True,
@@ -48,18 +46,18 @@ class RayConfig:
         if address:
             params["address"] = address
         else:
-            # 本地集群配置
+            # Local cluster configuration
             if num_cpus:
                 params["num_cpus"] = num_cpus
             
-            # 对象存储内存配置（转换为字节）
+            # Object store memory configuration (convert to bytes)
             object_store_memory = int(self.object_store_memory_gb * 1024 * 1024 * 1024)
             params["object_store_memory"] = object_store_memory
             
-            # 临时目录配置
+            # Temp directory configuration
             params["_temp_dir"] = self.temp_dir
             
-            # Dashboard 配置
+            # Dashboard configuration
             if include_dashboard:
                 params["include_dashboard"] = True
                 params["dashboard_host"] = dashboard_host
@@ -69,73 +67,73 @@ class RayConfig:
     
     def init_ray(self, **kwargs) -> bool:
         """
-        初始化 Ray
+        Initialize Ray
         
         Args:
-            **kwargs: 传递给 get_init_params 的参数
+            **kwargs: Parameters passed to get_init_params
             
         Returns:
-            是否初始化成功
+            Whether initialization is successful
         """
         try:
             if ray.is_initialized():
-                logger.info("Ray 已经初始化，跳过重复初始化")
+                logger.info("Ray already initialized, skipping...")
                 return True
             
             params = self.get_init_params(**kwargs)
             
-            logger.info("初始化 Ray 集群...")
-            logger.info(f"Ray 配置参数:")
+            logger.info("Initializing Ray cluster...")
+            logger.debug(f"Ray configuration parameters:")
             for key, value in params.items():
                 if key.startswith('_'):
-                    logger.info(f"  {key}: {value}")
+                    logger.debug(f"  {key}: {value}")
                 elif key == 'object_store_memory':
-                    logger.info(f"  {key}: {value / (1024**3):.1f} GB")
+                    logger.debug(f"  {key}: {value / (1024**3):.1f} GB")
                 else:
-                    logger.info(f"  {key}: {value}")
+                    logger.debug(f"  {key}: {value}")
             
             ray.init(**params)
-            logger.info("✅ Ray 初始化成功")
+            logger.info("✅ Ray initialization successful")
             
-            # 显示集群信息
+            # Display cluster information
             try:
                 if hasattr(ray, 'cluster_resources'):
                     resources = ray.cluster_resources()
-                    logger.info(f"Ray 集群资源: {resources}")
+                    logger.debug(f"Ray cluster resources: {resources}")
             except Exception as e:
-                logger.debug(f"无法获取集群资源信息: {e}")
+                logger.error(f"Failed to get cluster resources information: {e}")
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ Ray 初始化失败: {str(e)}")
+            logger.error(f"❌ Ray initialization failed: {str(e)}")
             return False
     
     def connect_to_cluster(self, address: str = "auto") -> bool:
         """
-        连接到现有 Ray 集群
+        Connect to existing Ray cluster
         
         Args:
-            address: 集群地址，'auto' 表示自动发现
+            address: Cluster address, 'auto' means auto-discovery
             
         Returns:
-            是否连接成功
+            Whether connection is successful
         """
         try:
             if ray.is_initialized():
-                logger.info("Ray 已经初始化，跳过连接")
+                logger.debug("Ray already initialized, skipping...")
                 return True
             
             params = self.get_init_params(address=address)
             
-            logger.info(f"连接到 Ray 集群: {address}")
+            logger.debug(f"Connecting to Ray cluster: {address}")
             ray.init(**params)
-            logger.info("✅ 成功连接到 Ray 集群")
+            logger.info("✅ Successfully connected to Ray cluster")
             
             return True
             
         except Exception as e:
-            logger.info(f"{str(e)}")
+            logger.info(f"Failed to connect to Ray cluster: {str(e)}")
             return False
     
     def start_local_cluster(self, 
@@ -143,15 +141,15 @@ class RayConfig:
                           include_dashboard: bool = True,
                           dashboard_port: int = 8265) -> bool:
         """
-        启动本地 Ray 集群
+        Start local Ray cluster
         
         Args:
-            num_cpus: CPU 核心数，None 表示使用所有可用核心
-            include_dashboard: 是否启动 dashboard
-            dashboard_port: Dashboard 端口
+            num_cpus: Number of CPU cores, None means using all available cores
+            include_dashboard: Whether to start dashboard
+            dashboard_port: Dashboard port
             
         Returns:
-            是否启动成功
+            Whether initialization is successful
         """
         if num_cpus is None:
             num_cpus = os.cpu_count()
@@ -163,28 +161,28 @@ class RayConfig:
         )
     
     def log_configuration(self):
-        """记录当前配置信息"""
-        logger.info("Ray 配置信息:")
-        logger.info(f"  Plasma 目录: {self.plasma_directory}")
-        logger.info(f"  对象存储内存: {self.object_store_memory_gb} GB")
-        logger.info(f"  临时目录: {self.temp_dir}")
+        """Log current configuration information"""
+        logger.debug("Ray Configuration:")
+        logger.debug(f"  Plasma directory: {self.plasma_directory}")
+        logger.debug(f"  ObjectStore memory: {self.object_store_memory_gb} GB")
+        logger.debug(f"  Temp directory: {self.temp_dir}")
 
 
-# 创建全局 Ray 配置实例
+# Create a global RayConfiguration instance
 ray_config = RayConfig()
 
 
 def init_ray_for_worker(address: str = "auto") -> bool:
     """
-    为 Celery Worker 初始化 Ray 连接
+    Initialize Ray connection for Celery Worker
     
     Args:
-        address: Ray 集群地址
+        address: Ray cluster address
         
     Returns:
-        是否初始化成功
+        Whether initialization is successful
     """
-    logger.info("为 Celery Worker 初始化 Ray 连接...")
+    logger.info("Initialize Ray connection for Celery Worker...")
     ray_config.log_configuration()
     
     return ray_config.connect_to_cluster(address)
@@ -194,28 +192,27 @@ def init_ray_for_service(num_cpus: Optional[int] = None,
                         dashboard_port: int = 8265,
                         try_connect_first: bool = True) -> bool:
     """
-    为数据处理服务初始化 Ray
+    Initialize Ray for data processing service
     
     Args:
-        num_cpus: CPU 核心数
-        dashboard_port: Dashboard 端口
-        try_connect_first: 是否先尝试连接现有集群
+        num_cpus: Number of CPU cores
+        dashboard_port: Dashboard port
+        try_connect_first: Whether to try connecting to existing cluster first
         
     Returns:
-        是否初始化成功
+        Whether initialization is successful
     """
-    logger.info("为数据处理服务初始化 Ray...")
     ray_config.log_configuration()
     
     if try_connect_first:
-        # 先尝试连接现有集群
-        logger.info("尝试连接现有 Ray 集群...")
+        # Try to connect to existing cluster first
+        logger.debug("Trying to connect to existing Ray cluster...")
         if ray_config.connect_to_cluster("auto"):
             return True
         
-        logger.info("未找到现有集群，启动本地集群...")
+        logger.info("Starting local cluster...")
     
-    # 启动本地集群
+    # Start local cluster
     return ray_config.start_local_cluster(
         num_cpus=num_cpus,
         dashboard_port=dashboard_port

@@ -479,9 +479,9 @@ class KnowledgeBaseService {
     }
     
     try {
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.markTasksFailed, {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.markFailure, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ task_ids: taskIds, reason }),
       });
 

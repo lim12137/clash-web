@@ -5,7 +5,7 @@ import knowledgeBaseService from './knowledgeBaseService';
 
 class KnowledgeBasePollingService {
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
-  private docStatusPollingInterval: number = 5000; // 5 seconds
+  private docStatusPollingInterval: number = 3000; // 3 seconds
   private knowledgeBasePollingInterval: number = 1000; // 1 second
   private maxKnowledgeBasePolls: number = 60; // Maximum 60 polling attempts
   private maxDocumentPolls: number = 20; // Maximum 20 polling attempts
@@ -129,8 +129,9 @@ class KnowledgeBasePollingService {
         
         // --- BEGIN: Mark tasks as failed in backend ---
         const taskIdsToFail = processingDocs
-          .map(doc => doc.latest_task_id)
-          .filter((id): id is string => !!id);
+          .filter(doc => NON_TERMINAL_STATUSES.includes(doc.status))
+          .filter(doc => !!doc.latest_task_id)
+          .map(doc => doc.latest_task_id);
 
         if (taskIdsToFail.length > 0) {
           knowledgeBaseService.markTasksAsFailed(taskIdsToFail, timeoutMessage)
@@ -281,17 +282,16 @@ class KnowledgeBasePollingService {
   // Simplified method for new knowledge base creation workflow
   async handleNewKnowledgeBaseCreation(kbName: string, originalDocumentCount: number = 0, expectedIncrement: number = 0, callback: (kb: KnowledgeBase) => void) {
     try {
-      // Start document polling immediately - no need to wait for KB existence
+      // 先等待知识库真正创建并可用
+      const populatedKB = await this.pollForKnowledgeBaseReady(kbName, originalDocumentCount, expectedIncrement);
+
+      // 知识库创建完成后再启动文档轮询
       this.startDocumentStatusPolling(kbName, (documents) => {
         this.triggerDocumentsUpdate(kbName, documents);
       });
-      
-      // Wait for the knowledge base to be ready (exist and have stats)
-      const populatedKB = await this.pollForKnowledgeBaseReady(kbName, originalDocumentCount, expectedIncrement);
-      
+
       // Call success callback with populated knowledge base
       callback(populatedKB);
-      
     } catch (error) {
       console.error(`Failed to handle new knowledge base creation for ${kbName}:`, error);
       throw error;
