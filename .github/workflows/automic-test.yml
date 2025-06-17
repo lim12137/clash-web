@@ -23,18 +23,37 @@ jobs:
           pip install -r backend/requirements.txt
           if [ -f backend/requirements-dev.txt ]; then pip install -r backend/requirements-dev.txt; fi
 
+      - name: Prepare test environment
+        run: |
+          # Create test-results directory if it doesn't exist
+          mkdir -p test/test-results
+          # Remove existing test.log if it exists
+          rm -f test/test-results/test.log
+          # Create new empty test.log file
+          touch test/test-results/test.log
+          echo "Created new empty test.log file"
+
       - name: Run tests
         run: |
           echo "Starting automated tests..."
           python test/workflow_test.py
         continue-on-error: true
 
+      - name: Display test results
+        if: always()
+        run: |
+          echo "=== Test Results ==="
+          if [ -f test/test-results/test.log ]; then
+            cat test/test-results/test.log
+          else
+            echo "No test log file found"
+          fi
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: |
-            test-results/
-            *.log
-          if-no-files-found: warn 
+          path: test/test-results/test.log
+          if-no-files-found: error
+          retention-days: 7 
