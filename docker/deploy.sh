@@ -13,21 +13,24 @@ select_deployment_mode() {
     echo "2) Production mode - Only expose port 3000 for security"
     read -p "Enter your choice [1/2] (default: 1): " mode_choice
 
+    local root_dir="# Root dir"
     case $mode_choice in
         2)
             export DEPLOYMENT_MODE="production"
             export COMPOSE_FILE_SUFFIX=".prod.yml"
             echo "Selected production mode deployment"
-            if ! grep -q "^ROOT_DIR=" .env; then
-              printf "%s\n" "ROOT_DIR=$HOME/nexent-production-data" >> .env
+            if ! grep -q "$root_dir" .env; then
+              echo "# Root dir" >> .env
+              echo "ROOT_DIR=\"$HOME/nexent-production-data\"" >> .env
             fi
             ;;
         *)
             export DEPLOYMENT_MODE="development"
             export COMPOSE_FILE_SUFFIX=".yml"
             echo "Selected development mode deployment"
-            if ! grep -q "^ROOT_DIR=" .env; then
-              printf "%s\n" "ROOT_DIR=$HOME/nexent-development-data" >> .env
+            if ! grep -q "$root_dir" .env; then
+              echo "# Root dir" >> .env
+              echo "ROOT_DIR=\"$HOME/nexent-development-data\"" >> .env
             fi
             ;;
     esac
