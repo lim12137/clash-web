@@ -7,7 +7,7 @@ from database.model_management_db import create_model_record, delete_model_recor
     get_model_records, get_model_by_display_name
 from services.model_health_service import check_model_connectivity
 from utils.model_name_utils import split_repo_name, add_repo_to_name
-from database.utils import get_current_user_id
+from utils.auth_utils import get_current_user_id
 
 router = APIRouter(prefix="/model")
 

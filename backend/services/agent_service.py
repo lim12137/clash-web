@@ -10,7 +10,7 @@ from database.agent_db import create_agent, query_all_enabled_tool_instances, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
     create_or_update_tool_by_tool_info, check_tool_is_available
 
-from database.utils import get_current_user_id
+from utils.auth_utils import get_current_user_id
 from typing import Optional
 
 
