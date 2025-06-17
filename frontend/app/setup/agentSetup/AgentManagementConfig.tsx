@@ -25,8 +25,8 @@ const handleToolSelectCommon = async (
   mainAgentId: string | null | undefined,
   onSuccess?: (tool: Tool, isSelected: boolean) => void
 ) => {
-  // 首先检查工具是否可用
-  if (tool.is_available === false) {
+  // Only block the action when attempting to select an unavailable tool.
+  if (tool.is_available === false && isSelected) {
     message.error('该工具当前不可用，无法选择');
     return { shouldProceed: false, params: {} };
   }
@@ -364,39 +364,64 @@ function ToolPool({
       <div 
         className={`border rounded-md p-2 flex items-center transition-colors duration-200 min-h-[45px] ${
           !isAvailable
-            ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
+            ? isSelected
+              ? 'bg-blue-100 border-blue-400 opacity-60'
+              : 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
             : isSelected 
               ? 'bg-blue-100 border-blue-400' 
               : 'hover:border-blue-300'
-        } ${localIsGenerating && isAvailable ? 'opacity-50 cursor-not-allowed' : isAvailable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-        title={!isAvailable ? '工具不可用' : undefined}
+        } ${localIsGenerating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        title={!isAvailable 
+          ? isSelected 
+            ? '该工具已禁用，请点击取消启用'
+            : '工具不可用' 
+          : tool.name}
         onClick={(e) => {
-          if (localIsGenerating || !isAvailable) return;
+          if (localIsGenerating) return;
+          if (!isAvailable && !isSelected) {
+            message.warning('该工具不可用');
+            return;
+          }
           handleToolSelect(tool, !isSelected, e);
         }}
       >
         {/* Tool name left */}
         <div className="flex-1 overflow-hidden">
-          <div className={`font-medium text-sm truncate ${!isAvailable ? 'text-gray-400' : ''}`} title={!isAvailable ? '工具不可用' : tool.name}>
+          <div className={`font-medium text-sm truncate ${!isAvailable && !isSelected ? 'text-gray-400' : ''}`} 
+               title={!isAvailable 
+                 ? isSelected 
+                   ? '该工具已禁用，请点击取消启用'
+                   : '工具不可用' 
+                 : tool.name}>
             {tool.name}
           </div>
         </div>
         {/* Tag and settings button right */}
         <div className="flex items-center gap-2 ml-2">
           <div className="flex items-center justify-start min-w-[90px] w-[90px]">
-            <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} className={`w-full text-center ${!isAvailable ? 'opacity-50' : ''}`}>
+            <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} 
+                 className={`w-full text-center ${!isAvailable && !isSelected ? 'opacity-50' : ''}`}>
               {tool?.source === 'mcp' ? 'MCP工具' : '本地工具'}
             </Tag>
           </div>
           <button 
             type="button"
             onClick={(e) => {
-              if (localIsGenerating || !isAvailable) return;
+              e.stopPropagation();  // 防止触发父元素的点击事件
+              if (localIsGenerating) return;
+              if (!isAvailable) {
+                if (isSelected) {
+                  handleToolSelect(tool, false, e);
+                } else {
+                  message.warning('该工具不可用');
+                }
+                return;
+              }
               handleConfigClick(tool, e);
             }}
-            disabled={localIsGenerating || !isAvailable}
+            disabled={localIsGenerating}
             className={`flex-shrink-0 flex items-center justify-center bg-transparent ${
-              localIsGenerating || !isAvailable ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-blue-500'
+              localIsGenerating ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-blue-500'
             }`}
             style={{ border: "none", padding: "4px" }}
           >
@@ -475,7 +500,8 @@ export default function BusinessLogicConfig({
   setNewAgentDescription,
   setNewAgentProvideSummary,
   isNewAgentInfoValid,
-  setIsNewAgentInfoValid
+  setIsNewAgentInfoValid,
+  onEditingStateChange
 }: BusinessLogicConfigProps) {
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
@@ -641,6 +667,7 @@ export default function BusinessLogicConfig({
     setIsEditingAgent(false);
     setEditingAgent(null);
     setIsCreatingNewAgent(true);
+    onEditingStateChange?.(false, null);
   };
 
   // Reset the status when the user cancels the creation of an Agent
@@ -653,6 +680,8 @@ export default function BusinessLogicConfig({
     setNewAgentDescription('');
     setNewAgentProvideSummary(true);
     setIsNewAgentInfoValid(false);
+    // 通知外部编辑状态变化
+    onEditingStateChange?.(false, null);
   };
 
   // Handle the creation of a new Agent
@@ -693,12 +722,14 @@ export default function BusinessLogicConfig({
           const actionText = isEditingAgent ? '修改' : '创建';
           message.success(`Agent:"${name}"${actionText}成功`);
           
-          // Exit create/edit mode
+          // 退出创建/编辑模式
           setIsCreatingNewAgent(false);
           setIsEditingAgent(false);
           setEditingAgent(null);
+          // 通知外部编辑状态变化
+          onEditingStateChange?.(false, null);
           
-          // Reset status
+          // 重置状态
           setBusinessLogic('');
           setSelectedTools([]);
           setNewAgentName('');
@@ -706,7 +737,7 @@ export default function BusinessLogicConfig({
           setNewAgentProvideSummary(true);
           setSystemPrompt('');
           
-          // Refresh the list
+          // 刷新列表
           refreshAgentList();
         } else {
           message.error(result.message || 'Agent保存失败');
@@ -747,29 +778,36 @@ export default function BusinessLogicConfig({
 
   const handleEditAgent = async (agent: Agent) => {
     try {
-      // First set to edit mode to avoid useEffect clearing data
+      // 首先设置为编辑模式，避免useEffect清空数据
       setIsEditingAgent(true);
-      setEditingAgent(agent); // Use the incoming agent first, then replace with detailed data later
+      setEditingAgent(agent); // 先用传入的agent，稍后会用详细数据替换
       setIsCreatingNewAgent(true);
+      // 通知外部编辑状态变化
+      onEditingStateChange?.(true, agent);
       
-      // Call the query interface to get the complete Agent information
+      // 调用查询接口获取完整的Agent信息
       const result = await searchAgentInfo(Number(agent.id));
       
       if (!result.success || !result.data) {
         message.error(result.message || '获取Agent详情失败');
-        // If the query fails, reset the edit status
+        // 如果获取失败，重置编辑状态
         setIsEditingAgent(false);
         setEditingAgent(null);
         setIsCreatingNewAgent(false);
+        onEditingStateChange?.(false, null);
         return;
       }
       
       const agentDetail = result.data;
       
-      // Update to complete Agent data
-      setEditingAgent(agentDetail);
+      console.log('加载的Agent详情:', agentDetail); // 调试信息
       
-      // Load Agent data to the interface
+      // 更新为完整的Agent数据
+      setEditingAgent(agentDetail);
+      // 通知外部编辑状态变化（使用完整数据）
+      onEditingStateChange?.(true, agentDetail);
+      
+      // 加载Agent数据到界面
       setNewAgentName(agentDetail.name);
       setNewAgentDescription(agentDetail.description);
       setNewAgentProvideSummary(agentDetail.provide_run_summary);
@@ -778,12 +816,16 @@ export default function BusinessLogicConfig({
       setBusinessLogic(agentDetail.business_description || '');
       setSystemPrompt(agentDetail.prompt || '');
       
-      // Load the tools of the Agent
+      console.log('设置的业务描述:', agentDetail.business_description); // 调试信息
+      console.log('设置的系统提示词:', agentDetail.prompt); // 调试信息
+      
+      // 加载Agent的工具
       if (agentDetail.tools && agentDetail.tools.length > 0) {
         setSelectedTools(agentDetail.tools);
-        // Set the enabled tool IDs
+        // 设置已启用的工具ID
         const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
         setEnabledToolIds(toolIds);
+        console.log('加载的工具:', agentDetail.tools); // 调试信息
       } else {
         setSelectedTools([]);
         setEnabledToolIds([]);
@@ -793,10 +835,11 @@ export default function BusinessLogicConfig({
     } catch (error) {
       console.error('加载Agent详情失败:', error);
       message.error('加载Agent详情失败，请稍后重试');
-      // If an error occurs, reset the edit status
+      // 如果出错，重置编辑状态
       setIsEditingAgent(false);
       setEditingAgent(null);
       setIsCreatingNewAgent(false);
+      onEditingStateChange?.(false, null);
     }
   };
 
@@ -969,12 +1012,19 @@ export default function BusinessLogicConfig({
     try {
       const result = await exportAgent(Number(agent.id));
       if (result.success) {
-        // Create a blob with the exported data
-        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+        // 处理后端返回的字符串或对象
+        let exportData = result.data;
+        if (typeof exportData === 'string') {
+          try {
+            exportData = JSON.parse(exportData);
+          } catch (e) {
+            // 如果解析失败，说明本身就是字符串，直接导出
+          }
+        }
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], {
           type: 'application/json'
         });
-        
-        // Create a download link
+
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -983,7 +1033,7 @@ export default function BusinessLogicConfig({
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        
+
         message.success('Agent配置导出成功');
       } else {
         message.error(result.message || 'Agent导出失败');
