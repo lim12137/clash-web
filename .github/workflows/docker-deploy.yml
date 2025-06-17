@@ -28,9 +28,30 @@ jobs:
         id: get-sha
         run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
-  build-base:
+  cleanup:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
     needs: checkout
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Copy project to $HOME/nexent-commercial
+        run: |
+          rm -rf $HOME/nexent-commercial
+          mkdir -p $HOME/nexent-commercial
+          cp -r $GITHUB_WORKSPACE/* $HOME/nexent-commercial/
+      - name: Clean up old files and images
+        run: |
+          docker rm -f nexent
+          docker rm -f nexent-data-process
+          docker rm -f nexent-web
+          docker rmi nexent/nexent-base
+          docker rmi nexent/nexent-commercial
+          docker rmi nexent/nexent-web-commercial
+          docker rmi nexent/nexent-data-process-commercial
+
+  build-base:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    needs: [checkout, cleanup]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -86,11 +107,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Copy project to $HOME/nexent-commercial
-        run: |
-          rm -rf $HOME/nexent-commercial
-          mkdir -p $HOME/nexent-commercial
-          cp -r $GITHUB_WORKSPACE/* $HOME/nexent-commercial/
       - name: Ensure deploy.sh is executable
         run: chmod +x $HOME/nexent-commercial/docker/deploy.sh
       - name: Deploy with deploy.sh
