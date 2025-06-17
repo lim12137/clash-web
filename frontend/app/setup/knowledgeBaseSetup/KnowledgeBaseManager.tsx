@@ -360,7 +360,6 @@ function DataConfig() {
           filesToUpload.length,
           (populatedKB) => {
             setActiveKnowledgeBase(populatedKB);
-            fetchDocuments(populatedKB.id);
             knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
           }
         ).catch((pollingError) => {
