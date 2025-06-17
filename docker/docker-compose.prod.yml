@@ -61,6 +61,8 @@ services:
     volumes:
       - ${ROOT_DIR}/postgresql/data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5434:5432"
     security_opt:
       - seccomp:unconfined
     restart: always
