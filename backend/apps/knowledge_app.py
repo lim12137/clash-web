@@ -28,7 +28,7 @@ async def auto_summary(
         )
     except Exception as e:
         return StreamingResponse(
-            f"data: {{\"status\": \"error\", \"message\": \"知识库摘要生成失败: {e}\"}}\n\n",
+            f"data: {'status': 'error', 'message': '知识库摘要生成失败: '}\n\n",
             media_type="text/event-stream",
             status_code=500
         )
