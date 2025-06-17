@@ -336,7 +336,8 @@ class ElasticSearchService:
                 # After successfully creating the knowledge base, 
                 # store the newly created knowledge base information in the knowledge base table
                 try:
-                    knowledge_data = {'index_name': index_name}
+                    knowledge_data = {'index_name': index_name,
+                                      'knowledge_embedding_model': embedding_model_name}
                     print(f"Creating knowledge record for index {index_name}")
                     _ = create_knowledge_record(knowledge_data)
                 except Exception as e:
