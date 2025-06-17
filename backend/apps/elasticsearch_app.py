@@ -5,7 +5,9 @@ from consts.model import IndexingRequest, IndexingResponse, SearchRequest, Hybri
 
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core
-from database.utils import get_current_user_id
+from services.tenant_config_service import delete_selected_knowledge_by_index_name
+from utils.user_utils import get_user_info
+
 router = APIRouter(prefix="/indices")
 
 
@@ -28,7 +30,10 @@ def delete_index(
 ):
     """Delete an index"""
     try:
-        user_id = get_current_user_id(authorization)
+        user_id, tenant_id = get_user_info()
+        # delete the selected knowledge by index name
+        delete_selected_knowledge_by_index_name(tenant_id=tenant_id, user_id=user_id, index_name=index_name)
+        # delete the index
         return ElasticSearchService.delete_index(index_name, es_core, user_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error delete index: {str(e)}")
