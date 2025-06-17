@@ -31,6 +31,7 @@ select_deployment_mode() {
             fi
             ;;
     esac
+    source .env
 }
 
 generate_minio_ak_sk() {
