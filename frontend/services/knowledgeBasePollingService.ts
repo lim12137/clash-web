@@ -23,10 +23,9 @@ class KnowledgeBasePollingService {
 
   // Start document status polling, only update documents for specified knowledge base
   startDocumentStatusPolling(kbId: string, callback: (documents: Document[]) => void): void {
-    console.log(`Start polling documents status for knowledge base ${kbId}`);
-    
-    // Clear existing polling first
+    // Stop existing polling to avoid duplication
     this.stopPolling(kbId);
+    console.log(`Start polling documents status for knowledge base ${kbId}`);
     
     // Initialize polling counter
     let pollCount = 0;
@@ -207,6 +206,8 @@ class KnowledgeBasePollingService {
     originalDocumentCount: number = 0,
     expectedIncrement: number = 0
   ): Promise<KnowledgeBase> {
+    // Stop existing polling to avoid duplication
+    this.stopPolling(kbName);
     return new Promise(async (resolve, reject) => {
       let count = 0;
       const checkForStats = async () => {
@@ -281,6 +282,8 @@ class KnowledgeBasePollingService {
 
   // Simplified method for new knowledge base creation workflow
   async handleNewKnowledgeBaseCreation(kbName: string, originalDocumentCount: number = 0, expectedIncrement: number = 0, callback: (kb: KnowledgeBase) => void) {
+    // Stop existing polling to avoid duplication
+    this.stopPolling(kbName);
     try {
       // 先等待知识库真正创建并可用
       const populatedKB = await this.pollForKnowledgeBaseReady(kbName, originalDocumentCount, expectedIncrement);
