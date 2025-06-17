@@ -21,20 +21,12 @@ def get_current_user_id_from_token(authorization: str) -> Optional[str]:
     Returns:
         Optional[str]: 用户ID，如果解析失败则返回None
     """
+    DEFAULT_USER_ID = "user_id"
     try:
-        # 格式化授权头部
-        token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
-
-        # 解码JWT令牌(不验证签名，只解析内容)
-        decoded = jwt.decode(token, options={"verify_signature": False})
-
-        # 从JWT声明中提取用户ID
-        user_id = decoded.get("sub")
-
-        return user_id
+        return DEFAULT_USER_ID
     except Exception as e:
         logging.error(f"从令牌提取用户ID失败: {str(e)}")
-        return None
+        return DEFAULT_USER_ID
     
 def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
     DEFAULT_USER_ID = "user_id"
@@ -45,8 +37,7 @@ def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
         
     try:
         user_id = get_current_user_id_from_token(str(authorization))
-        tenant_id = user_id
-        return user_id, tenant_id
+        return user_id, DEFAULT_TENANT_ID
     except Exception as e:
         logging.error(f"获取用户ID失败: {str(e)}")
         return DEFAULT_USER_ID, DEFAULT_TENANT_ID
