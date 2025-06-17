@@ -10,6 +10,9 @@ from services.agent_service import list_main_agent_info_impl, get_agent_info_imp
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 from utils.config_utils import config_manager
 from utils.thread_utils import submit
+from typing import Optional
+from fastapi import Header
+
 
 from nexent.core.agents.run_agent import agent_run
 
@@ -30,7 +33,8 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
     agent_run_info = await create_agent_run_info(agent_id=request.agent_id,
                                                  minio_files=request.minio_files,
                                                  query=request.query,
-                                                 history=request.history)
+                                                 history=request.history,
+                                                 authorization=authorization)
     
     # Save user message only if not in debug mode and register agent run info
     if not request.is_debug:
@@ -82,81 +86,81 @@ async def reload_config():
 
 
 @router.get("/list")
-async def list_main_agent_info_api():
+async def list_main_agent_info_api(authorization: str = Header(None)):
     """
     List all agents, create if the main Agent cannot be found.
     """
     try:
-        return list_main_agent_info_impl()
+        return list_main_agent_info_impl(authorization)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
 
 
 @router.post("/search_info")
-async def search_agent_info_api(request: AgentInfoRequest):
+async def search_agent_info_api(request: AgentInfoRequest, authorization: Optional[str] = Header(None)):
     """
     Search agent info by agent_id
     """
     try:
-        return get_agent_info_impl(request.agent_id)
+        return get_agent_info_impl(request.agent_id, authorization)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent search info error: {str(e)}")
 
 
 @router.post("/get_creating_sub_agent_id")
-async def get_creating_sub_agent_info_api(request: AgentIDRequest):
+async def get_creating_sub_agent_info_api(request: AgentIDRequest, authorization: Optional[str] = Header(None)):
     """
     Create a new sub agent, return agent_ID
     """
     try:
-        return get_creating_sub_agent_info_impl(request.agent_id)
+        return get_creating_sub_agent_info_impl(request.agent_id, authorization)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent create error: {str(e)}")
 
 
 @router.post("/update")
-async def update_agent_info_api(request: AgentInfoRequest):
+async def update_agent_info_api(request: AgentInfoRequest, authorization: Optional[str] = Header(None)):
     """
     Update an existing agent
     """
     try:
-        update_agent_info_impl(request)
+        update_agent_info_impl(request, authorization)
         return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent update error: {str(e)}")
 
 
 @router.delete("")
-async def delete_agent_api(request: AgentIDRequest):
+async def delete_agent_api(request: AgentIDRequest, authorization: Optional[str] = Header(None)):
     """
     Delete an agent
     """
     try:
-        delete_agent_impl(request.agent_id)
+        delete_agent_impl(request.agent_id, authorization)
         return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent delete error: {str(e)}")
 
 
 @router.post("/export")
-async def export_agent_api(request: AgentIDRequest):
+async def export_agent_api(request: AgentIDRequest, authorization: Optional[str] = Header(None)):
     """
     export an agent
     """
     try:
-        agent_info_str = await export_agent_impl(request.agent_id)
+        agent_info_str = await export_agent_impl(request.agent_id, authorization)
         return ConversationResponse(code=0, message="success", data=agent_info_str)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent export error: {str(e)}")
 
 
 @router.post("/import")
-async def import_agent_api(request: AgentImportRequest):
+async def import_agent_api(request: AgentImportRequest, authorization: Optional[str] = Header(None)):
     """
     import an agent
     """
     try:
-        import_agent_impl(request.agent_id, request.agent_info)
+        import_agent_impl(request.agent_id, request.agent_info, authorization)
         return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent import error: {str(e)}")

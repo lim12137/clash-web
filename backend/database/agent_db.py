@@ -4,9 +4,9 @@ from typing import List
 
 from fastapi import HTTPException
 
-from utils.user_utils import get_user_info
 from database.client import get_db_session, as_dict, filter_property
 from database.db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
+from database.utils import get_current_user_id
 
 
 def search_agent_info_by_agent_id(agent_id: int, tenant_id: str, user_id: str = None):
@@ -312,7 +312,7 @@ def update_tool_table_from_scan_tool_list(tool_list: List[ToolInfo]):
     scan all tools and update the tool table in PG database, remove the duplicate tools
     """
     try:
-        user_id, tenant_id = get_user_info()
+        user_id, tenant_id = get_current_user_id()
         with get_db_session() as session:
             # get all existing tools (including complete information)
             existing_tools = session.query(ToolInfo).filter(ToolInfo.delete_flag != 'Y').all()
