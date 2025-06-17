@@ -116,7 +116,7 @@ async def join_minio_file_description_to_query(minio_files, query):
 
 
 async def create_agent_run_info(agent_id, minio_files, query, history, authorization):
-    user_id, tenant_id = get_current_user_id()
+    user_id, tenant_id = get_current_user_id(authorization)
     if not agent_id:
         agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
     final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
