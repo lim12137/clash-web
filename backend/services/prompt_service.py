@@ -14,7 +14,9 @@ from database.agent_db import query_sub_agents, update_agent, \
     query_tools_by_ids
 from services.agent_service import get_enable_tool_id_by_agent_id
 from utils.config_utils import config_manager
-from utils.user_utils import get_user_info
+from database.utils import get_current_user_id
+from fastapi import Header
+
 
 # Configure logging
 logger = logging.getLogger("prompt service")
@@ -64,9 +66,8 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
         raise e
 
 
-def generate_and_save_system_prompt_impl(agent_id: int, task_description: str):
-    logger.info(f"Starting prompt generation for agent_id: {agent_id}")
-    user_id, tenant_id = get_user_info()
+def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, authorization: str = Header(None)):
+    user_id, tenant_id = get_current_user_id()
 
     # Get description of tool and agent
     tool_info_list = get_enabled_tool_description_for_generate_prompt(

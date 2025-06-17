@@ -17,7 +17,7 @@ async def auto_summary(
     ):
     """Summary Elasticsearch index_name by model"""
     try:
-        user_id = get_current_user_id(authorization)
+        user_id = get_current_user_id(authorization)[0]
         service = ElasticSearchService()
 
         return await service.summary_index_name(
@@ -42,7 +42,7 @@ def change_summary(
     ):
     """Summary Elasticsearch index_name by user"""
     try:
-        user_id = get_current_user_id(authorization)
+        user_id = get_current_user_id(authorization)[0]
         summary_result = change_summary_request.summary_result
         return ElasticSearchService().change_summary(index_name=index_name,summary_result=summary_result,user_id=user_id)
     except Exception as e:

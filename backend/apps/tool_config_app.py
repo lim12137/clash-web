@@ -3,6 +3,8 @@ import logging
 from database.agent_db import query_all_tools
 from consts.model import ToolInstanceInfoRequest, ToolInstanceSearchRequest
 from services.tool_configuration_service import search_tool_info_impl, update_tool_info_impl
+from fastapi import Header
+from typing import Optional
 
 
 router = APIRouter(prefix="/tool")
@@ -33,12 +35,12 @@ async def search_tool_info_api(request: ToolInstanceSearchRequest):
 
 
 @router.post("/update")
-async def update_tool_info_api(request: ToolInstanceInfoRequest):
+async def update_tool_info_api(request: ToolInstanceInfoRequest, authorization: Optional[str] = Header(None)):
     """
     Update an existing tool, create or update tool instance
     """
     try:
-        return update_tool_info_impl(request)
+        return update_tool_info_impl(request, authorization)
     except Exception as e:
         logging.error(f"Failed to update tool, error in: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to update tool, error in: {str(e)}")

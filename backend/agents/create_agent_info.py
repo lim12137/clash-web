@@ -3,14 +3,16 @@ import threading
 import json
 import yaml
 import logging
+from typing import Optional
+from fastapi import Header
 from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
+from database.utils import get_current_user_id
 
 from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents, \
     query_or_create_main_agent_id
 from services.elasticsearch_service import ElasticSearchService
 from utils.config_utils import config_manager
-from utils.user_utils import get_user_info
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("build agent")
@@ -113,8 +115,8 @@ async def join_minio_file_description_to_query(minio_files, query):
     return final_query
 
 
-async def create_agent_run_info(agent_id, minio_files, query, history):
-    user_id, tenant_id = get_user_info()
+async def create_agent_run_info(agent_id, minio_files, query, history, authorization):
+    user_id, tenant_id = get_current_user_id()
     if not agent_id:
         agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
     final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)

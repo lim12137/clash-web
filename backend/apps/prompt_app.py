@@ -3,8 +3,9 @@ import json
 import logging
 from functools import partial
 
-from fastapi import HTTPException, APIRouter
+from fastapi import HTTPException, APIRouter, Header
 from fastapi.responses import StreamingResponse
+from typing import Optional
 
 from consts.model import GeneratePromptRequest, FineTunePromptRequest
 from services.prompt_service import generate_and_save_system_prompt_impl, fine_tune_prompt
@@ -17,12 +18,13 @@ logger = logging.getLogger("prompt app")
 
 
 @router.post("/generate")
-async def generate_and_save_system_prompt_api(request: GeneratePromptRequest):
+async def generate_and_save_system_prompt_api(request: GeneratePromptRequest, authorization: Optional[str] = Header(None)):
     try:
         def gen_system_prompt():
             for system_prompt in generate_and_save_system_prompt_impl(
                     agent_id=request.agent_id,
-                    task_description=request.task_description
+                    task_description=request.task_description,
+                    authorization=authorization
             ):
                 # SSE format, each message ends with \n\n
                 yield f"data: {json.dumps({'success': True, 'data': system_prompt}, ensure_ascii=False)}\n\n"

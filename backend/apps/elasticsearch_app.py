@@ -28,7 +28,7 @@ def delete_index(
 ):
     """Delete an index"""
     try:
-        user_id = get_current_user_id(authorization)
+        user_id = get_current_user_id(authorization)[0]
         return ElasticSearchService.delete_index(index_name, es_core, user_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error delete index: {str(e)}")
