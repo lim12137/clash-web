@@ -166,46 +166,9 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
     const uploadIsNowFinished = newFileList.length > 0 && !newFileList.some(f => f.status === 'uploading');
 
     if (uploadWasInProgress && uploadIsNowFinished) {
-      console.log('All files finished uploading. Starting polling...');
-      
-      // 调用外部的上传完成回调
+      // 上传完成后仅调用外部的上传完成回调，由 KnowledgeBaseManager 统一管理轮询
       if (onUpload) {
         onUpload();
-      }
-      
-      knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
-      
-      const kbName = isCreatingMode ? newKnowledgeBaseName : indexName;
-
-      if (!kbName) {
-        message.error('知识库名称丢失，无法启动轮询。');
-        return;
-      }
-
-      if (isCreatingMode) {
-        knowledgeBasePollingService.handleNewKnowledgeBaseCreation(
-          kbName,
-          0,
-          newFileList.length,
-          (newKB) => {
-            window.dispatchEvent(new CustomEvent('selectNewKnowledgeBase', {
-              detail: { knowledgeBase: newKB }
-            }));
-          }
-        ).catch((error) => {
-          console.error(`Polling for new knowledge base ${kbName} failed:`, error);
-          message.error(`知识库 ${kbName} 处理超时，请稍后再试`);
-        });
-      } else {
-        knowledgeBasePollingService.startDocumentStatusPolling(
-          kbName,
-          (updatedDocs) => {
-            knowledgeBasePollingService.triggerDocumentsUpdate(
-              kbName, 
-              updatedDocs
-            );
-          }
-        );
       }
     }
     
