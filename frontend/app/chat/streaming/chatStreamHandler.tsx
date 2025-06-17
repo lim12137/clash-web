@@ -22,7 +22,8 @@ export const handleStreamResponse = async (
   setConversationTitle: (title: string) => void,
   fetchConversationList: () => Promise<any>,
   currentConversationId: number,
-  conversationService: any
+  conversationService: any,
+  isDebug: boolean = false
 ) => {
   const decoder = new TextDecoder();
   let buffer = "";
@@ -116,15 +117,13 @@ export const handleStreamResponse = async (
                     // If the last streaming output is thinking content, append
                     if (lastContentType === "model_output" && lastModelOutputIndex >= 0) {
                       const modelOutput = currentStep.contents[lastModelOutputIndex];
-                      // Update content
-                      const newContent = modelOutput.content + messageContent;
-                      
-                      // Check if the complete content starts with "Thinking:"
+                      // Update content directly without prefix check
+                      let newContent = modelOutput.content + messageContent;
+                      // Remove "<end" suffix if present
                       if (newContent.startsWith("思考：")) {
-                        modelOutput.content = newContent.substring(3);
-                      } else {
-                        modelOutput.content = newContent;
+                        newContent = newContent.substring(3);
                       }
+                      modelOutput.content = newContent;
                     } else {
                       // Otherwise, create new thinking content
                       currentStep.contents.push({
@@ -241,8 +240,6 @@ export const handleStreamResponse = async (
                           lastMsg.images,
                           imageUrls
                         );
-
-
                         return newMessages;
                       });
                     }
@@ -257,26 +254,66 @@ export const handleStreamResponse = async (
                   break;
                   
                 case "model_output_code":
-                  // Process code generation - add a stable loading prompt
-                  // Check if there is a code generation prompt
-                  if (lastContentType === "generating_code") {
-                    break;
+                  // Process code generation
+                  if (isDebug) {
+                    // In debug mode, use streaming output like model_output_thinking
+                    if (currentStep) {
+                      // Ensure contents exists
+                      currentContentText = messageContent;
+
+                      // If the last streaming output is code content, append
+                      if (lastContentType === "model_output" && lastModelOutputIndex >= 0) {
+                        const modelOutput = currentStep.contents[lastModelOutputIndex];
+                        // Update content directly without prefix check
+                        let newContent = modelOutput.content + messageContent;
+                        // Remove "<end" suffix if present
+                        if (newContent.endsWith("<end")) {
+                          newContent = newContent.slice(0, -4);
+                        }
+                        modelOutput.content = newContent;
+                      } else {
+                        // Otherwise, create new code content
+                        let content = currentContentText;
+                        // Remove "<end" suffix if present
+                        if (content.endsWith("<end")) {
+                          content = content.slice(0, -4);
+                        }
+                        currentStep.contents.push({
+                          id: `model-code-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                          type: "model_output",
+                          subType: "code",
+                          content: content,
+                          expanded: true,
+                          timestamp: Date.now()
+                        });
+                        lastModelOutputIndex = currentStep.contents.length - 1;
+                      }
+                      
+                      // Update the last processed content type
+                      lastContentType = "model_output";
+                    }
+                  } else {
+                    // In non-debug mode, use the original logic - add a stable loading prompt
+                    // Check if there is a code generation prompt
+                    if (lastContentType === "generating_code") {
+                      break;
+                    }
+                    
+                    // If it does not exist, add one
+                    const newGeneratingItem = {
+                      id: `generating-code-${stepIdCounter.current}`,
+                      type: "generating_code" as const,
+                      content: "工具调用中...",
+                      expanded: true,
+                      timestamp: Date.now(),
+                      isLoading: true,
+                    };
+                    
+                    currentStep.contents.push(newGeneratingItem);
+                    
+                    // Mark as code generation type
+                    lastContentType = "generating_code";
                   }
-                  
-                  // If it does not exist, add one
-                  const newGeneratingItem = {
-                    id: `generating-code-${stepIdCounter.current}`,
-                    type: "generating_code" as const,
-                    content: "工具调用中...",
-                    expanded: true,
-                    timestamp: Date.now(),
-                    isLoading: true,
-                  };
-                  
-                  currentStep.contents.push(newGeneratingItem);
-                  
-                  // Mark as code generation type
-                  lastContentType = "generating_code";
                   break;
                 
                 case "parse":
