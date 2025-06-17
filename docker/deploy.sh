@@ -18,11 +18,17 @@ select_deployment_mode() {
             export DEPLOYMENT_MODE="production"
             export COMPOSE_FILE_SUFFIX=".prod.yml"
             echo "Selected production mode deployment"
+            if ! grep -q "^ROOT_DIR=" .env; then
+              echo "ROOT_DIR=$HOME/nexent-production-data" >> .env
+            fi
             ;;
         *)
             export DEPLOYMENT_MODE="development"
             export COMPOSE_FILE_SUFFIX=".yml"
             echo "Selected development mode deployment"
+            if ! grep -q "^ROOT_DIR=" .env; then
+              echo "ROOT_DIR=$HOME/nexent-development-data" >> .env
+            fi
             ;;
     esac
 }
@@ -79,10 +85,10 @@ add_permission() {
   # Initialize the sql script permission
   chmod 644 "init.sql"
 
-  create_dir_with_permission "elasticsearch" 775
-  create_dir_with_permission "postgresql" 775
-  create_dir_with_permission "minio" 775
-  create_dir_with_permission "uploads" 777
+  create_dir_with_permission "$ROOT_DIR/elasticsearch" 775
+  create_dir_with_permission "$ROOT_DIR/postgresql" 775
+  create_dir_with_permission "$ROOT_DIR/minio" 775
+  create_dir_with_permission "$ROOT_DIR/uploads" 777
 }
 
 install() {
