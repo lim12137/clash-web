@@ -221,6 +221,9 @@ except Exception as e_exec:
                 else: # Default if not set. This should match your Celery app config.
                      worker_env['REDIS_URL'] = f'redis://localhost:{self.redis_port}/0'
 
+                # Allow running as root in containerized environments
+                worker_env['C_FORCE_ROOT'] = '1'
+
                 # PYTHONPATH should point to the project root to allow nexent.data_process
                 # and also backend to allow data_process.*
                 project_root_dir = os.path.dirname(backend_dir)

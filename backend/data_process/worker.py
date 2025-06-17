@@ -139,11 +139,7 @@ def setup_worker_environment(**kwargs):
         
         for var_name, var_value in sensitive_vars.items():
             if var_value:
-                if 'PASSWORD' in var_name or 'KEY' in var_name:
-                    masked_value = f"{var_value[:4]}...{var_value[-4:]}" if len(var_value) > 8 else "***"
-                    logger.debug(f"  ✅ {var_name}: {masked_value}")
-                else:
-                    logger.debug(f"  ✅ {var_name}: {var_value}")
+                logger.debug(f"  ✅ {var_name}: SET")
             else:
                 logger.error(f"  ❌ {var_name}: NOT SET")
         
