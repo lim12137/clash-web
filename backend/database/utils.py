@@ -9,8 +9,6 @@ from utils.auth_utils import get_current_user_id_from_token
 def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
     DEFAULT_USER_ID = "user_id"
     DEFAULT_TENANT_ID = "tenant_id"
-
-    print(f"authorization value: {str(authorization) if authorization else 'None'}")
     
     if authorization is None or authorization == Header(None):
         return DEFAULT_USER_ID, DEFAULT_TENANT_ID

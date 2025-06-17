@@ -6,13 +6,14 @@ from .client import db_client, get_db_session, as_dict
 from .db_models import ModelRecord
 
 
-def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = None) -> bool:
+def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = None, tenant_id: Optional[str] = None) -> bool:
     """
     Create a model record
 
     Args:
         model_data: Dictionary containing model data
         user_id: Reserved parameter for filling created_by and updated_by fields
+        tenant_id: Optional tenant ID, defaults to "tenant_id" if None or empty
 
     Returns:
         bool: Whether the operation was successful
@@ -26,6 +27,7 @@ def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = Non
 
         # Build the insert statement
         stmt = insert(ModelRecord).values(cleaned_data)
+        stmt = stmt.values(tenant_id=tenant_id)
 
         # Execute the insert statement
         result = session.execute(stmt)
@@ -33,7 +35,7 @@ def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = Non
         return result.rowcount > 0
 
 
-def update_model_record(model_id: int, update_data: Dict[str, Any], user_id: Optional[str] = None) -> bool:
+def update_model_record(model_id: int, update_data: Dict[str, Any], user_id: Optional[str] = None, tenant_id: Optional[str] = None) -> bool:
     """
     Update a model record
 
@@ -56,6 +58,7 @@ def update_model_record(model_id: int, update_data: Dict[str, Any], user_id: Opt
         stmt = update(ModelRecord).where(
             ModelRecord.model_id == model_id
         ).values(cleaned_data)
+        stmt = stmt.values(tenant_id=tenant_id)
 
         # Execute the update statement
         result = session.execute(stmt)
@@ -63,7 +66,7 @@ def update_model_record(model_id: int, update_data: Dict[str, Any], user_id: Opt
         return result.rowcount > 0
 
 
-def delete_model_record(model_id: int, user_id: Optional[str] = None) -> bool:
+def delete_model_record(model_id: int, user_id: Optional[str] = None, tenant_id: Optional[str] = None) -> bool:
     """
     Delete a model record (soft delete) and update the update timestamp
 
@@ -86,6 +89,8 @@ def delete_model_record(model_id: int, user_id: Optional[str] = None) -> bool:
             ModelRecord.model_id == model_id
         ).values(update_data)
 
+        stmt = stmt.values(tenant_id=tenant_id)
+
         # Execute the update statement
         result = session.execute(stmt)
 
@@ -93,7 +98,7 @@ def delete_model_record(model_id: int, user_id: Optional[str] = None) -> bool:
         return result.rowcount > 0
 
 
-def get_model_records(filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+def get_model_records(filters: Optional[Dict[str, Any]], tenant_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Get a list of model records
 
@@ -106,6 +111,9 @@ def get_model_records(filters: Optional[Dict[str, Any]] = None) -> List[Dict[str
     with get_db_session() as session:
         # Base query
         stmt = select(ModelRecord).where(ModelRecord.delete_flag == 'N')
+
+        if tenant_id:
+            stmt = stmt.where(ModelRecord.tenant_id == tenant_id)
 
         # Add filter conditions
         if filters:
@@ -124,7 +132,7 @@ def get_model_records(filters: Optional[Dict[str, Any]] = None) -> List[Dict[str
         return [as_dict(record) for record in records]
 
 
-def get_model_by_display_name(display_name: str) -> Optional[Dict[str, Any]]:
+def get_model_by_display_name(display_name: str, tenant_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Get a model record by display name
 
@@ -133,7 +141,7 @@ def get_model_by_display_name(display_name: str) -> Optional[Dict[str, Any]]:
     """
     filters = {'display_name': display_name}
 
-    records = get_model_records(filters)
+    records = get_model_records(filters, tenant_id)
     if not records:
         return None
 
