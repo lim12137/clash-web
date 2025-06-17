@@ -171,7 +171,7 @@ class DataProcessService:
             # Currently, we don't have scheduled tasks, so skip getting scheduled tasks here
             
             start_time = time.time()
-            logger.info("Getting task IDs from Redis backend")
+            logger.debug("Getting task IDs from Redis backend")
             # Also get task IDs from Redis backend (covers completed/failed tasks within expiry)
             try:
                 redis_task_ids = get_all_task_ids_from_redis(self.redis_client)
@@ -465,21 +465,7 @@ class DataProcessService:
         
         for task_id in task_ids:
             try:
-                task_info = self.get_task(task_id)
-                
-                if not task_info or task_info.get('status') == 'unknown':
-                    logger.warning(f"Task {task_id} not found or in unknown state, skipping for forced failure.")
-                    not_found_tasks.append(task_id)
-                    continue
-
-                status = task_info.get('status')
-                if status in [states.SUCCESS, states.FAILURE]:
-                    logger.info(f"Task {task_id} is already in a terminal state '{status}', skipping for forced failure.")
-                    skipped_tasks.append(task_id)
-                    continue
-                
                 result = AsyncResult(task_id, app=current_app)
-                
                 current_info = {}
                 if result.info and isinstance(result.info, dict):
                     current_info = result.info.copy()

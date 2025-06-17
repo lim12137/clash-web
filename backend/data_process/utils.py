@@ -158,15 +158,15 @@ def get_task_info(task_id: str) -> Dict[str, Any]:
         
         logger.debug(f"Task {task_id} status: {status_info['status']}, index: {status_info['index_name']}, task_name: {status_info['task_name']}")
         return status_info
-        
+    # Return minimal information if task status cannot be retrieved
     except Exception as e:
         logger.warning(f"Error getting status for task {task_id}: {str(e)}")
         # Return minimal information if task status cannot be retrieved
         return {
             'id': task_id,
-            'status': 'unknown',
-            'created_at': time.time(),
-            'updated_at': time.time(),
+            'status': 'FAILURE',
+            'created_at': "",
+            'updated_at': "",
             'error': f"Cannot retrieve task status: {str(e)}",
             'index_name': '',
             'task_name': '',
