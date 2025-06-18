@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from consts.model import ProcessParams
 from consts.const import MAX_CONCURRENT_UPLOADS, UPLOAD_FOLDER
 from utils.file_management_utils import save_upload_file, trigger_data_process
-from utils.image_utils import convert_image_to_text
+from utils.attachment_utils import convert_image_to_text, convert_long_text_to_text
 from database.attachment_db import (
     upload_fileobj, delete_file, get_file_url, list_files
 )
@@ -385,7 +385,7 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
                     if file_data["ext"] in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
                         description = await process_image_file(query, file_data["filename"], file_data["content"])
                     else:
-                        description = await process_text_file(file_data["filename"], file_data["content"])
+                        description = await process_text_file(query, file_data["filename"], file_data["content"])
                     file_descriptions.append(description)
 
                     # Send processing result for each file
@@ -437,14 +437,11 @@ async def process_image_file(query, filename, file_content) -> str:
     return f"Image file {filename} content: {text}"
 
 
-async def process_text_file(filename, file_content) -> str:
+async def process_text_file(query, filename, file_content) -> str:
     """
     Process text file, convert to text using external API
     """
-    # TODO: Call your text file processing external API here
-    # Example code, needs to be replaced with actual API call
-    # text = await text_file_to_text_api(file_content)
-    text = ""
+    text = convert_long_text_to_text(query, file_content)
     return f"File {filename} content: {text}"
 
 
