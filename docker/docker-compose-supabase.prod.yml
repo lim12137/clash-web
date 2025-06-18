@@ -4,7 +4,7 @@ services:
     image: kong:2.8.1
     restart: unless-stopped
     volumes:
-      - ./volumes/api/kong.yml:/home/kong/temp.yml
+      - $HOME/nexent-commercial/docker/volumes/api/kong.yml:/home/kong/temp.yml
     networks:
       - nexent
     depends_on:
@@ -90,13 +90,13 @@ services:
     image: supabase/postgres:15.8.1.060
     restart: unless-stopped
     volumes:
-      - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql
-      - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql
-      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql
-      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql
-      - ./volumes/db/data:/var/lib/postgresql/data
-      - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql
-      - ./logs:/var/log/postgresql
+      - $HOME/nexent-commercial/docker/volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql
+      - $HOME/nexent-commercial/docker/volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql
+      - $HOME/nexent-commercial/docker/volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql
+      - $HOME/nexent-commercial/docker/volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql
+      - $HOME/nexent-commercial/docker/volumes/db/data:/var/lib/postgresql/data
+      - $HOME/nexent-commercial/docker/volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql
+      - $HOME/nexent-commercial/docker/logs:/var/log/postgresql
       - db-config:/etc/postgresql-custom
     networks:
       - nexent
