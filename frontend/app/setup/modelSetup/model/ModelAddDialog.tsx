@@ -7,7 +7,7 @@ import { useConfig } from '@/hooks/useConfig'
 
 const { Option } = Select
 
-// 定义添加模型后的返回类型
+// Define the return type after adding a model
 export interface AddedModel {
   name: string;
   type: ModelType;
@@ -41,46 +41,46 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     message: ""
   })
 
-  // 解析模型名称，提取默认展示名称
+  // Parse the model name, extract the default display name
   const parseModelName = (name: string): string => {
     if (!name) return ""
     const parts = name.split('/')
     return parts.length > 1 ? parts[parts.length - 1] : name
   }
 
-  // 处理模型名称变更，自动更新展示名称
+  // Handle model name change, automatically update the display name
   const handleModelNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value
     setForm(prev => ({
       ...prev,
       name,
-      // 如果展示名称与模型名称的解析结果相同，说明用户没有手动修改过展示名称
-      // 此时应该自动更新展示名称
+      // If the display name is the same as the parsed result of the model name, it means the user has not manually modified the display name
+      // At this time, the display name should be automatically updated
       displayName: prev.displayName === parseModelName(prev.name) ? parseModelName(name) : prev.displayName
     }))
-    // 清除之前的验证状态
+    // Clear the previous verification status
     setConnectivityStatus({ status: null, message: "" })
   }
 
-  // 处理表单变更
+  // Handle form change
   const handleFormChange = (field: string, value: string | boolean) => {
     setForm(prev => ({
       ...prev,
       [field]: value
     }))
-    // 如果是关键配置项变更，清除验证状态
+    // If the key configuration item changes, clear the verification status
     if (['type', 'url', 'apiKey', 'maxTokens', 'vectorDimension'].includes(field)) {
       setConnectivityStatus({ status: null, message: "" })
     }
   }
 
-  // 验证向量维度是否有效
+  // Verify if the vector dimension is valid
   const isValidVectorDimension = (value: string): boolean => {
     const dimension = parseInt(value);
     return !isNaN(dimension) && dimension > 0;
   }
 
-  // 检查表单是否有效
+  // Check if the form is valid
   const isFormValid = () => {
     if (form.type === "embedding") {
       return form.name.trim() !== "" && 
@@ -92,7 +92,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
            form.maxTokens.trim() !== ""
   }
 
-  // 验证模型连通性
+  // Verify model connectivity
   const handleVerifyConnectivity = async () => {
     if (!isFormValid()) {
       message.warning('请先填写完整的模型配置信息')
@@ -139,7 +139,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     }
   }
 
-  // 获取连通性状态图标
+  // Get the connectivity status icon
   const getConnectivityIcon = () => {
     switch (connectivityStatus.status) {
       case "检测中":
@@ -153,7 +153,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     }
   }
 
-  // 获取连通性状态颜色
+  // Get the connectivity status color
   const getConnectivityColor = () => {
     switch (connectivityStatus.status) {
       case "检测中":
@@ -167,7 +167,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     }
   }
 
-  // 处理添加模型
+  // Handle adding a model
   const handleAddModel = async () => {
     setLoading(true)
     try {
@@ -175,14 +175,14 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         "multi_embedding" as ModelType : 
         form.type;
       
-      // 确定最大tokens值
+      // Determine the maximum tokens value
       let maxTokensValue = parseInt(form.maxTokens);
       if (form.type === "embedding") {
-        // 对于向量化模型，使用向量维度作为maxTokens
+        // For embedding models, use the vector dimension as maxTokens
         maxTokensValue = parseInt(form.vectorDimension);
       }
       
-      // 添加到后端服务
+      // Add to the backend service
       await modelService.addCustomModel({
         name: form.name,
         type: modelType,
@@ -192,7 +192,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         displayName: form.displayName || form.name
       })
       
-      // 创建模型配置对象
+      // Create the model configuration object
       const modelConfig: SingleModelConfig = {
         modelName: form.name,
         displayName: form.displayName || form.name,
@@ -202,12 +202,12 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         }
       }
       
-      // 为向量化模型添加dimension字段
+      // Add the dimension field for embedding models
       if (form.type === "embedding") {
         modelConfig.dimension = parseInt(form.vectorDimension);
       }
       
-      // 根据模型类型更新本地存储
+      // Update the local storage according to the model type
       let configUpdate: any = {}
       
       switch(modelType) {
@@ -234,16 +234,16 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           break;
       }
       
-      // 保存到localStorage
+      // Save to localStorage
       updateModelConfig(configUpdate)
       
-      // 创建返回的模型信息
+      // Create the returned model information
       const addedModel: AddedModel = {
         name: form.displayName,
         type: modelType
       }
       
-      // 重置表单
+      // Reset the form
       setForm({
         type: form.type,
         name: "",
@@ -255,13 +255,13 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         vectorDimension: "1024"
       })
       
-      // 重置连通性状态
+      // Reset the connectivity status
       setConnectivityStatus({ status: null, message: "" })
       
-      // 调用成功回调，传递新添加的模型信息
+      // Call the success callback, pass the new added model information
       await onSuccess(addedModel)
       
-      // 关闭对话框
+      // Close the dialog
       onClose()
     } catch (error) {
       message.error(`添加模型失败：${error}`)
@@ -301,7 +301,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           </Select>
         </div>
 
-        {/* 是否为多模态向量化模型（仅当选择了向量化模型时显示） */}
+        {/* Whether it is a multi-modal embedding model (only displayed when the embedding model is selected) */}
         {isEmbeddingModel && (
           <div>
             <div className="flex justify-between items-center">
@@ -371,7 +371,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           />
         </div>
 
-        {/* 向量维度（仅当选择了向量化模型时显示） */}
+        {/* Vector dimension (only displayed when the embedding model is selected) */}
         {isEmbeddingModel && (
           <div>
             <label htmlFor="vectorDimension" className="block mb-1 text-sm font-medium text-gray-700">
@@ -390,7 +390,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           </div>
         )}
 
-        {/* Max Tokens （仅当不是向量化模型时显示）*/}
+        {/* Max Tokens (only displayed when the embedding model is not selected)*/}
         {!isEmbeddingModel && (
           <div>
             <label htmlFor="maxTokens" className="block mb-1 text-sm font-medium text-gray-700">
@@ -405,7 +405,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           </div>
         )}
 
-        {/* 连通性验证区域 */}
+        {/* Connectivity verification area */}
         <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center">
