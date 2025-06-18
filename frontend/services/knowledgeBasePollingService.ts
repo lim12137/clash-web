@@ -5,11 +5,12 @@ import knowledgeBaseService from './knowledgeBaseService';
 
 class KnowledgeBasePollingService {
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
-  private docStatusPollingInterval: number = 3000; // 3 seconds
   private knowledgeBasePollingInterval: number = 1000; // 1 second
-  private maxKnowledgeBasePolls: number = 60; // Maximum 60 polling attempts
-  private maxDocumentPolls: number = 20; // Maximum 20 polling attempts
+  private documentPollingInterval: number = 3000; // 3 seconds
+  private maxKnowledgeBasePolls: number = 15; // Maximum 60 polling attempts
+  private maxDocumentPolls: number = 5; // Maximum 20 polling attempts
   private activeKnowledgeBaseId: string | null = null; // Record current active knowledge base ID
+  private timedOutKnowledgeBases: Set<string> = new Set(); // Record timed out knowledge bases
 
   // Set current active knowledge base ID 
   setActiveKnowledgeBase(kbId: string | null): void {
@@ -91,10 +92,18 @@ class KnowledgeBasePollingService {
     pollDocuments();
     
     // Create recurring polling
-    const interval = setInterval(pollDocuments, this.docStatusPollingInterval);
+    const interval = setInterval(pollDocuments, this.documentPollingInterval);
     
     // Save polling identifier
     this.pollingIntervals.set(kbId, interval);
+  }
+
+  private markKnowledgeBaseTimeout(kbId: string) {
+    this.timedOutKnowledgeBases.add(kbId);
+  }
+
+  public isKnowledgeBaseTimedOut(kbId: string): boolean {
+    return this.timedOutKnowledgeBases.has(kbId);
   }
 
   /**
@@ -110,83 +119,32 @@ class KnowledgeBasePollingService {
   ): Promise<void> {
     try {
       console.log(`Handling ${timeoutType} polling timeout for knowledge base ${kbId}`);
-      
       // Get current documents
       const documents = await knowledgeBaseService.getAllFiles(kbId, true);
-      
       // Find all documents that are still in processing state
       const processingDocs = documents.filter(doc => 
         NON_TERMINAL_STATUSES.includes(doc.status)
       );
-      
       if (processingDocs.length > 0) {
         const timeoutMessage = timeoutType === 'document' 
-          ? 'Document polling timeout - task marked as failed due to process timeout'
-          : 'KnowledgeBase polling timeout - task marked as failed due to forward timeout';
-          
+          ? 'Task marked as failed due to document polling timeout'
+          : 'Task marked as failed due to knowledgebase polling timeout';
         console.warn(`${timeoutType} polling timed out with ${processingDocs.length} documents still processing:`, 
           processingDocs.map(doc => ({ name: doc.name, status: doc.status })));
-        
-        // --- BEGIN: Mark tasks as failed in backend ---
-        const taskIdsToFail = processingDocs
-          .filter(doc => NON_TERMINAL_STATUSES.includes(doc.status))
-          .filter(doc => !!doc.latest_task_id)
-          .map(doc => doc.latest_task_id);
-
-        if (taskIdsToFail.length > 0) {
-          knowledgeBaseService.markTasksAsFailed(taskIdsToFail, timeoutMessage)
-            .then((result) => {
-              console.log('Backend tasks marked as failed:', result);
-            })
-            .catch((error) => {
-              console.error('Failed to mark backend tasks as failed:', error);
-            });
-        }
-        // --- END: Mark tasks as failed in backend ---
-
-        // Update status of processing documents to appropriate failure state
-        const updatedDocuments = documents.map(doc => {
-          if (NON_TERMINAL_STATUSES.includes(doc.status)) {
-            // Determine failure state based on current document status
-            let failureStatus: 'PROCESS_FAILED' | 'FORWARD_FAILED';
-            
-            if (doc.status === 'WAIT_FOR_PROCESSING' || doc.status === 'PROCESSING') {
-              failureStatus = 'PROCESS_FAILED';
-            } else if (doc.status === 'WAIT_FOR_FORWARDING' || doc.status === 'FORWARDING') {
-              failureStatus = 'FORWARD_FAILED';
-            } else {
-              // Fallback: if we can't determine, assume it's in forward stage for knowledge base timeout
-              failureStatus = timeoutType === 'knowledgeBase' ? 'FORWARD_FAILED' : 'PROCESS_FAILED';
-            }
-            
-            return {
-              ...doc,
-              status: failureStatus,
-              error: timeoutMessage
-            };
-          }
-          return doc;
-        });
-        
-        // Update UI based on timeout type
+        this.markKnowledgeBaseTimeout(kbId);
         if (callback) {
-          // For document polling timeout, use callback
-          callback(updatedDocuments);
+          callback(documents);
         }
-        // Confirm UI update
-        this.triggerDocumentsUpdate(kbId, updatedDocuments);
-        
-        // Log the timeout failure for each processing document
+        this.triggerDocumentsUpdate(kbId, documents);
         processingDocs.forEach(doc => {
           const failureStatus = (doc.status === 'WAIT_FOR_PROCESSING' || doc.status === 'PROCESSING') 
             ? 'PROCESS_FAILED' : 'FORWARD_FAILED';
           console.error(`Document ${doc.name} marked as ${failureStatus} due to ${timeoutType} polling timeout`);
         });
       } else {
-        // 即使没有processing文档，也要推送一次当前文档状态，防止UI卡死
+        // Should forward documents to UI even if there is no processing document, prevent UI stuck
         this.triggerDocumentsUpdate(kbId, documents);
       }
-      
     } catch (error) {
       console.error(`Error handling ${timeoutType} polling timeout for knowledge base ${kbId}:`, error);
       // Even if we can't get documents, we should still log the timeout
@@ -254,7 +212,7 @@ class KnowledgeBasePollingService {
               // Ignore error
             }
             
-            reject(new Error(`Timed out waiting for stats for knowledge base ${kbName}.`));
+            reject(new Error(`创建知识库 ${kbName} 超时失败。`));
           }
         } catch (error) {
           console.error(`Failed to get stats for knowledge base ${kbName}:`, error);
@@ -271,7 +229,7 @@ class KnowledgeBasePollingService {
             } catch (e) {
               // Ignore error
             }
-            reject(new Error(`Failed to get stats for knowledge base ${kbName} after multiple attempts.`));
+            reject(new Error(`获取知识库 ${kbName} 状态失败。`));
           }
         }
       };
@@ -329,11 +287,31 @@ class KnowledgeBasePollingService {
       return;
     }
     
-    // Use custom event to update documents, ensure knowledge base ID is included
+    let docsToUpdate = documents;
+    if (this.isKnowledgeBaseTimedOut(kbId)) {
+      docsToUpdate = documents.map(doc => {
+        if (NON_TERMINAL_STATUSES.includes(doc.status)) {
+          let failureStatus: 'PROCESS_FAILED' | 'FORWARD_FAILED';
+          if (doc.status === 'WAIT_FOR_PROCESSING' || doc.status === 'PROCESSING') {
+            failureStatus = 'PROCESS_FAILED';
+          } else if (doc.status === 'WAIT_FOR_FORWARDING' || doc.status === 'FORWARDING') {
+            failureStatus = 'FORWARD_FAILED';
+          } else {
+            failureStatus = 'PROCESS_FAILED';
+          }
+          return {
+            ...doc,
+            status: failureStatus,
+            error: '任务超时，已自动标记为失败'
+          };
+        }
+        return doc;
+      });
+    }
     window.dispatchEvent(new CustomEvent('documentsUpdated', {
       detail: { 
         kbId,
-        documents
+        documents: docsToUpdate
       }
     }));
   }

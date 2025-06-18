@@ -3,8 +3,6 @@ from contextlib import asynccontextmanager
 from fastapi import HTTPException, APIRouter, Form
 import base64
 import io
-from pydantic import BaseModel
-from typing import List
 
 from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTaskRequest, SimpleTaskStatusResponse, \
     SimpleTasksListResponse
@@ -32,11 +30,6 @@ router = APIRouter(
     prefix="/tasks",
     lifespan=lifespan
 )
-
-
-class MarkFailedRequest(BaseModel):
-    task_ids: List[str]
-    reason: str = "Task marked as failed due to frontend polling timeout"
 
 
 @router.post("", response_model=TaskResponse, status_code=201)

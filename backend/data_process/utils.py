@@ -158,7 +158,32 @@ def get_task_info(task_id: str) -> Dict[str, Any]:
         
         logger.debug(f"Task {task_id} status: {status_info['status']}, index: {status_info['index_name']}, task_name: {status_info['task_name']}")
         return status_info
-    # Return minimal information if task status cannot be retrieved
+    except ValueError as e:
+        # Compatible with legacy bad exception format
+        if "Exception information must include the exception type" in str(e):
+            logger.warning(f"Task {task_id} has legacy bad exception format, marking as FAILURE for forced update.")
+            return {
+                'id': task_id,
+                'status': 'FAILURE',
+                'created_at': '',
+                'updated_at': '',
+                'error': 'Legacy task error: exception type missing, forcibly marked as FAILURE.',
+                'index_name': '',
+                'task_name': '',
+                'path_or_url': '',
+            }
+        else:
+            logger.error(f"Error getting status for task {task_id}: {str(e)}")
+            return {
+                'id': task_id,
+                'status': 'FAILURE',
+                'created_at': '',
+                'updated_at': '',
+                'error': f"Cannot retrieve task status: {str(e)}",
+                'index_name': '',
+                'task_name': '',
+                'path_or_url': '',
+            }
     except Exception as e:
         logger.warning(f"Error getting status for task {task_id}: {str(e)}")
         # Return minimal information if task status cannot be retrieved

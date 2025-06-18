@@ -31,7 +31,7 @@ class DataProcessService:
         """
         # Initialize components in a modular way
         self._init_redis_client()
-        # NEVER try to init clip model here, otherwise it will drastically slow down the first call from data process.
+        # Don't init clip model here, otherwise it will drastically slow down the first call from data process.
         # self._init_clip_model()
 
         # Suppress PIL warning about palette images
@@ -447,54 +447,6 @@ class DataProcessService:
         except Exception as e:
             logger.error(f"Error processing image: {str(e)}")
             raise Exception(f"Error processing image: {str(e)}")
-
-    def mark_tasks_as_failed(self, task_ids: List[str], reason: str) -> Dict[str, Any]:
-        """
-        Mark a list of tasks as FAILED if they are in a non-terminal state.
-        
-        Args:
-            task_ids: List of task IDs to update.
-            reason: The reason for the failure.
-            
-        Returns:
-            A dictionary with counts of updated, skipped, and not_found tasks.
-        """
-        updated_tasks = []
-        skipped_tasks = []
-        not_found_tasks = []
-        
-        for task_id in task_ids:
-            try:
-                result = AsyncResult(task_id, app=current_app)
-                current_info = {}
-                if result.info and isinstance(result.info, dict):
-                    current_info = result.info.copy()
-                
-                current_info['custom_error'] = reason
-                current_info['stage'] = 'marked_failed_by_api'
-
-                result.backend.store_result(
-                    task_id, 
-                    result=current_info,
-                    status=states.FAILURE, 
-                    traceback=reason
-                )
-                
-                logger.info(f"Successfully marked task {task_id} as FAILED. Reason: {reason}")
-                updated_tasks.append(task_id)
-
-            except Exception as e:
-                logger.error(f"Error marking task {task_id} as failed: {str(e)}")
-                not_found_tasks.append(task_id)
-        
-        return {
-            "updated": len(updated_tasks),
-            "skipped": len(skipped_tasks),
-            "not_found": len(not_found_tasks),
-            "updated_ids": updated_tasks,
-            "skipped_ids": skipped_tasks,
-            "not_found_ids": not_found_tasks
-        }
 
 
 # Global instance to be shared across modules
