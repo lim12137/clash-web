@@ -33,9 +33,12 @@ def search_agent_info_by_agent_id(agent_id: int, tenant_id: str, user_id: str = 
             UserAgent.user_id == user_id,
             UserAgent.delete_flag != 'Y'
         ).first()
-        # update agent_dict with user_agent_info
-        agent_dict.update(as_dict(user_agent_info))
-        return agent_dict
+        if user_agent_info:
+            # update agent_dict with user_agent_info
+            agent_dict.update(as_dict(user_agent_info))
+            return agent_dict
+        else:
+            return agent_dict
 
 def search_sub_agent_by_main_agent_id(main_agent_id: int, tenant_id: str = None):
     """
