@@ -130,7 +130,7 @@ def get_mcp_tools() -> List[ToolInfo]:
                     description=getattr(tool_class, 'description'),
                     params=[],
                     source=ToolSourceEnum.MCP.value,
-                    inputs=json.dumps(getattr(tool_class, 'inputs'), ensure_ascii=False),
+                    inputs=str(getattr(tool_class, 'inputs')),
                     output_type=getattr(tool_class, 'output_type'),
                     class_name=getattr(tool_class, 'name')
                 )
@@ -153,43 +153,69 @@ def scan_tools() -> List[ToolInfo]:
     return local_tools + mcp_tools
 
 
-class ToolConfigurationService:
-    def __init__(self):
-        tool_list = scan_tools()
-        update_tool_table_from_scan_tool_list(tool_list)
+def initialize_tool_configuration():
+    """
+    Initialize tool configuration by scanning tools and updating the database
+    
+    This function replaces the ToolConfigurationService.__init__ functionality
+    """
+    tool_list = scan_tools()
+    update_tool_table_from_scan_tool_list(tool_list)
 
-    @staticmethod
-    def search_tool_info_impl(agent_id: int, tool_id: int):
-        user_id, tenant_id = get_user_info()
-        try:
-            tool_instance = query_tool_instances_by_id(agent_id, tool_id, tenant_id, user_id)
-        except Exception as e:
-            logger.error(f"search_tool_info_impl error in query_tool_instances_by_id, detail: {e}")
-            raise ValueError(f"search_tool_info_impl error in query_tool_instances_by_id, detail: {e}")
 
-        if tool_instance:
-            return {
-                "params": tool_instance["params"],
-                "enabled": tool_instance["enabled"]
-            }
-        else:
-            return {
-                "params": None,
-                "enabled": False
-            }
+def search_tool_info_impl(agent_id: int, tool_id: int):
+    """
+    Search for tool configuration information by agent ID and tool ID
+    
+    Args:
+        agent_id: Agent ID
+        tool_id: Tool ID
+        
+    Returns:
+        Dictionary containing tool parameters and enabled status
+        
+    Raises:
+        ValueError: If database query fails
+    """
+    user_id, tenant_id = get_user_info()
+    try:
+        tool_instance = query_tool_instances_by_id(agent_id, tool_id, tenant_id, user_id)
+    except Exception as e:
+        logger.error(f"search_tool_info_impl error in query_tool_instances_by_id, detail: {e}")
+        raise ValueError(f"search_tool_info_impl error in query_tool_instances_by_id, detail: {e}")
 
-    @staticmethod
-    def update_tool_info_impl(request: ToolInstanceInfoRequest):
-        user_id, tenant_id = get_user_info()
-        try:
-            tool_instance = create_or_update_tool_by_tool_info(request, tenant_id, user_id)
-        except Exception as e:
-            logger.error(f"update_tool_info_impl error in create_or_update_tool, detail: {e}")
-            raise ValueError(f"update_tool_info_impl error in create_or_update_tool, detail: {e}")
-
+    if tool_instance:
         return {
-            "tool_instance": tool_instance
+            "params": tool_instance["params"],
+            "enabled": tool_instance["enabled"]
+        }
+    else:
+        return {
+            "params": None,
+            "enabled": False
         }
 
 
-tool_configuration_service = ToolConfigurationService()
+def update_tool_info_impl(request: ToolInstanceInfoRequest):
+    """
+    Update tool configuration information
+    
+    Args:
+        request: ToolInstanceInfoRequest containing tool configuration data
+        
+    Returns:
+        Dictionary containing the updated tool instance
+        
+    Raises:
+        ValueError: If database update fails
+    """
+    user_id, tenant_id = get_user_info()
+    try:
+        tool_instance = create_or_update_tool_by_tool_info(request, tenant_id, user_id)
+    except Exception as e:
+        logger.error(f"update_tool_info_impl error in create_or_update_tool, detail: {e}")
+        raise ValueError(f"update_tool_info_impl error in create_or_update_tool, detail: {e}")
+
+    return {
+        "tool_instance": tool_instance
+    }

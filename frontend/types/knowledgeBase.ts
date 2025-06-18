@@ -1,5 +1,9 @@
 // 知识库相关类型定义
 
+// 文档状态常量
+export const TERMINAL_STATUSES = ["COMPLETED", "PROCESS_FAILED", "FORWARD_FAILED"];
+export const NON_TERMINAL_STATUSES = ["WAIT_FOR_PROCESSING", "PROCESSING", "WAIT_FOR_FORWARDING", "FORWARDING"];
+
 // 知识库基本类型
 export interface KnowledgeBase {
   id: string
@@ -37,8 +41,9 @@ export interface Document {
   create_time: string
   chunk_num: number
   token_num: number
-  status: string // 文档状态：解析中、解析完成、解析失败
+  status: string
   selected?: boolean // 用于UI选择状态
+  latest_task_id: string //用于标记对应的最新celery任务
 }
 
 // 索引信息响应接口
@@ -67,5 +72,11 @@ export interface IndexInfoResponse {
     id?: string;
     status?: string;
     chunk_count?: number;
+    chunks?: Array<{
+      id: string;
+      title: string;
+      content: string;
+      create_time: string;
+    }>;
   }>;
 } 
