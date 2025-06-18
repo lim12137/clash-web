@@ -132,7 +132,7 @@ class MessageObserver:
         self.current_mode = ProcessType.MODEL_OUTPUT_THINKING
 
         # 代码块标记模式
-        self.code_pattern = re.compile(r"```")
+        self.code_pattern = re.compile(r"(代码|Code)([：:])\s*```")
 
     def _init_message_transformers(self):
         """初始化消息类型到转换器的映射"""

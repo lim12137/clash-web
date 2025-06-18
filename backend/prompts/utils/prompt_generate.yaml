@@ -52,7 +52,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
   在思考结束后，当你认为可以回答用户问题，那么可以不生成代码，直接生成最终回答给到用户并停止循环。
   
   ### python代码规范 ###
-  1. 代码内容必须以'```py\n'开头，并以'```<end_code>'标识符结尾，否则你将失败；
+  1. 代码内容必须以以'代码：\n```py\n'开头，并以'```<end_code>'标识符结尾，否则你将失败；
   2. 只使用已定义的变量，变量将在多次调用之间持续保持。使用'print()'函数让下一次的模型调用看到对应变量信息；
   3. 正确使用工具的入参，使用关键字参数，不要用字典形式；
   4. 避免在一轮对话中进行过多的工具调用，这会导致输出格式难以预测；
@@ -66,6 +66,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     任务：任务模板1
 
     你的第一轮思考内容
+    代码:
     ```py
     # Your python code here
     ```<end_code>
@@ -73,6 +74,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     [代码执行结果]
 
     由于没有获取到足够的信息，我将继续执行。。。
+    代码:
     ```py
     # Your python code here
     ```<end_code>
@@ -83,9 +85,34 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     [生成最终回答]
   
   ### 符合规范的示例：
+    任务："介绍一下东方明珠"
+  
+    我先使用knowledge_base_search工具查找本地知识库是否有相关信息。
+    代码：
+    ```py
+    knowledge_info = knowledge_base_search(query="东方明珠 介绍")
+    print(knowledge_info)
+    ```<end_code>
+
+    未找到查询"东方明珠 介绍"的结果。检索结果难以支撑回答。
+    
+    从本地知识库中没有找到相关信息，我需要使用web_search工具查询网络信息。
+    代码：
+    ```py
+    web_info = web_search(query="东方明珠 介绍")
+    print(web_info)
+    ```<end_code>
+
+    [东方明珠相关信息]
+  
+    我已经获得了有关信息，现在我将生成最终回答。
+    东方明珠广播电视塔位于中国上海市浦东新区陆家嘴... [已截断]
+  
+    ---
     任务: "Generate an image of the oldest person in this document."
 
     I will proceed step by step and use the following tools: `document_qa` to find the oldest person in the document, then `image_generator` to generate an image according to the answer.
+    代码:
     ```py
     answer = document_qa(document=document, question="Who is the oldest person mentioned?")
     print(answer)
@@ -94,12 +121,14 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     "The oldest person in the document is John Doe, a 55 year old lumberjack living in Newfoundland."
   
     I will now generate an image showcasing the oldest person.
+    代码:
     ```py
     image = image_generator("A portrait of John Doe, a 55-year-old man living in Canada.")
     print(image)
     ```<end_code>
     
     I will display this picture.
+    代码:
     ```py
     display_image(image)
     ```<end_code>
@@ -111,6 +140,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     任务: "What is the result of the following operation: 5 + 3 + 1294.678?"
   
     I will use python code to compute the result of the operation
+    代码:
     ```py
     result = 5 + 3 + 1294.678
     print(result)
@@ -120,9 +150,10 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     the result of the following operation: 5 + 3 + 1294.678 is 1302.678
   
     ---
-    "What is the current age of the pope, raised to the power 0.36?"
+    任务: "What is the current age of the pope, raised to the power 0.36?"
 
-    I will use the agent `wiki` to get the age of the pope, and confirm that with a web search.
+    I will use the tool `wiki` to get the age of the pope, and confirm that with a web search.
+    代码:
     ```py
     pope_age_wiki = wiki(task="current pope age")
     print("Pope age as per wikipedia:", pope_age_wiki)
@@ -133,6 +164,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     Pope age: "The pope Francis is currently 88 years old."
   
     I know that the pope is 88 years old. Let's compute the result using python code.
+    代码:
     ```py
     pope_current_age = 88 ** 0.36
     print(pope_current_age)
@@ -140,30 +172,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     
     Let me answer the user's questions.
     The pope's age is 5.012031155582636 to the power of 0.36.
-  
-    ---
-    任务："介绍一下东方明珠"
-  
-    我先使用knowledge_base_search工具查找本地知识库是否有相关信息。
-    ```py
-    knowledge_info = knowledge_base_search(query="东方明珠 介绍")
-    print(knowledge_info)
-    ```<end_code>
 
-    未找到查询"东方明珠 介绍"的结果。检索结果难以支撑回答。
-    
-    从本地知识库中没有找到相关信息，我需要使用web_search工具查询网络信息。
-    ```py
-    web_info = web_search(query="东方明珠 介绍")
-    print(web_info)
-    ```<end_code>
-
-    [东方明珠相关信息]
-  
-    我已经获得了有关信息，现在我将生成最终回答。
-    东方明珠广播电视塔位于中国上海市浦东新区陆家嘴... [已截断]
-    
-    
   ### 要求：
   1.只展示你设计的提示词，仅涉及使用示例，不要显示无关内容或无关的格式。
   2.严格按照示例模板的格式给出例子。
