@@ -35,19 +35,7 @@ export interface ToolParam {
   value?: any;
   description?: string;
 }
-// add agent modal props interface
-export interface AgentModalProps {
-  isOpen: boolean;
-  onCancel: () => void;
-  onSave: (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string, business_description: string) => void;
-  onRefresh?: () => void;
-  title: string;
-  agent?: Agent | null;
-  selectedTools?: Tool[];
-  systemPrompt?: string;
-  readOnly?: boolean;
-  agentId: string | null;
-}
+
 // business logic input component props interface
 export interface BusinessLogicInputProps {
   value: string;
@@ -62,6 +50,8 @@ export interface SubAgentPoolProps {
   onEditAgent: (agent: Agent) => void;
   onCreateNewAgent: () => void;
   onImportAgent: () => void;
+  onExportAgent: (agent: Agent) => void;
+  onDeleteAgent: (agent: Agent) => void;
   subAgentList?: Agent[];
   loadingAgents?: boolean;
   enabledAgentIds?: number[];
@@ -101,4 +91,13 @@ export interface BusinessLogicConfigProps {
   setSubAgentList: (agents: Agent[]) => void;
   enabledAgentIds: number[];
   setEnabledAgentIds: (ids: number[]) => void;
+  newAgentName: string;
+  newAgentDescription: string;
+  newAgentProvideSummary: boolean;
+  setNewAgentName: (name: string) => void;
+  setNewAgentDescription: (description: string) => void;
+  setNewAgentProvideSummary: (provide: boolean) => void;
+  isNewAgentInfoValid: boolean;
+  setIsNewAgentInfoValid: (valid: boolean) => void;
+  onEditingStateChange?: (isEditing: boolean, editingAgent: Agent | null) => void;
 }

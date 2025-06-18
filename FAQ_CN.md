@@ -14,23 +14,23 @@
     3. 进入 Embedding 部分页面获取您的 API 密钥
     4. 将 API 密钥添加到页面中
 
-### 🐳 Docker 与 Docker Compose
-- **Q: TODO**
-  - A: TODO
+### ⚙️ MCP 服务器配置
+- **Q: 当前 MCP 服务器如何配置？支持前端配置吗？**
+  - A: 当前 MCP 服务器暂不支持前端配置。我们计划在 v1.1.0 版本上线前端配置功能。如需配置 MCP 服务器，请参考 @README.md 的安装部署流程，在执行 `cp .env.example .env` 后，手动编辑 `.env` 文件中的 `MCP_SERVICE` 字段，将其设置为需要使用的 MCP 服务地址，保存后即可访问对应的 MCP 工具。注意，修改后需重新运行 deploy.sh 进行部署。
+
+## 🚫 常见错误与运维方式
 
 ### 🌐 端口冲突
 - **Q: 端口 3000 已被占用，如何修改？**
   - A: 可以在 Docker Compose 配置文件中修改端口。
 
-## 🔍 故障排除
-
-### 🚫 常见错误
-- **Q: 设置向导无法在 http://localhost:3000 加载**
-  - A: TODO
-
 ### 📦 容器问题
 - **Q: 如何查看容器日志？**
   - A: 使用 `docker logs <容器名称>` 命令查看特定容器的日志。
+
+### 🔢 Embedding模型问题
+- **Q: 为什么我的Embedding模型无法连通？**
+  - A: 创建模型填写模型URL时，注意添加 `/v1/embeddings` 后缀。完整示例如 `https://model.provider.com/v1/embeddings`
 
 ### 📧 邮件工具配置
 - **Q: 如何启用和配置邮件工具？**
@@ -45,4 +45,4 @@
 如果这里没有找到您的问题答案：
 - 加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 获取实时支持
 - 查看我们的 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 寻找类似问题
-- 参考我们的[贡献指南](../CONTRIBUTING_CN.md)获取更详细的信息 
+- 参考我们的[贡献指南](CONTRIBUTING_CN.md)获取更详细的信息 

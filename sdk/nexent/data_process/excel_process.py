@@ -5,6 +5,40 @@ from copy import deepcopy
 import openpyxl
 
 
+def process_excel_file(file_path: str, chunking_strategy: str = "basic", **params) -> list:
+    """
+    Process an Excel file and return its contents in a structured format
+    
+    Args:
+        file_path: Path to the Excel file
+        chunking_strategy: Strategy for chunking (not used in Excel processing)
+        **params: Additional parameters
+        
+    Returns:
+        List of processed chunks with metadata
+    """
+    processor = ExcelProcessor(input_file=file_path)
+    raw_content = processor.process()
+    
+    # Convert raw content to proper chunk format
+    chunks = []
+    for i, content_text in enumerate(raw_content):
+        chunk = {
+            "text": content_text,  # For embedding (via content_field="text")
+            "content": content_text, # For ES mapped 'content' field
+            "path_or_url": file_path,
+            "filename": os.path.basename(file_path),
+            "metadata": { # Keep original metadata nested if needed, but ensure top-level fields are present
+                "chunk_index": i,
+                "source_type": "excel",
+                "file_type": "xlsx" if file_path.lower().endswith('.xlsx') else "xls"
+            }
+        }
+        chunks.append(chunk)
+    
+    return chunks
+
+
 class ExcelProcessor:
     def __init__(self, input_file=None, file_data=None):
         """

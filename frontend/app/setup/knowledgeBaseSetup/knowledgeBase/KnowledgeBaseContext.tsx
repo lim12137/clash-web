@@ -3,6 +3,7 @@
 import { createContext, useReducer, useEffect, useContext, ReactNode, useCallback, useMemo } from "react"
 import { configStore } from "@/lib/config"
 import knowledgeBaseService from "@/services/knowledgeBaseService"
+import { userConfigService } from "@/services/userConfigService"
 import { KnowledgeBase } from "@/types/knowledgeBase"
 
 // State type definition
@@ -58,6 +59,9 @@ const knowledgeBaseReducer = (state: KnowledgeBaseState, action: KnowledgeBaseAc
         activeKnowledgeBase: state.activeKnowledgeBase?.id === action.payload ? null : state.activeKnowledgeBase
       };
     case 'ADD_KNOWLEDGE_BASE':
+      if (state.knowledgeBases.some(kb => kb.id === action.payload.id)) {
+        return state; // If the knowledge base already exists, do not insert it
+      }
       return {
         ...state,
         knowledgeBases: [...state.knowledgeBases, action.payload]
@@ -89,6 +93,8 @@ export const KnowledgeBaseContext = createContext<{
   isKnowledgeBaseSelectable: (kb: KnowledgeBase) => boolean;
   refreshKnowledgeBaseData: (forceRefresh?: boolean) => Promise<void>;
   summaryIndex: (indexName: string, batchSize: number) => Promise<string>;
+  loadUserSelectedKnowledgeBases: () => Promise<void>;
+  saveUserSelectedKnowledgeBases: () => Promise<boolean>;
 }>({
   state: {
     knowledgeBases: [],
@@ -107,6 +113,8 @@ export const KnowledgeBaseContext = createContext<{
   isKnowledgeBaseSelectable: () => false,
   refreshKnowledgeBaseData: async () => {},
   summaryIndex: async () => '',
+  loadUserSelectedKnowledgeBases: async () => {},
+  saveUserSelectedKnowledgeBases: async () => false,
 });
 
 // Custom hook for using the context
@@ -137,7 +145,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     return kb.embeddingModel === state.currentEmbeddingModel;
   }, [state.currentEmbeddingModel]);
 
-  // Load knowledge base list - memoized with useCallback
+  // Load knowledge base data (supports force fetch from server and load selected status) - optimized with useCallback
   const fetchKnowledgeBases = useCallback(async (skipHealthCheck = true, shouldLoadSelected = false) => {
     // If already loading, return directly
     if (state.isLoading) {
@@ -146,26 +154,17 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
 
     dispatch({ type: 'LOADING', payload: true });
     try {
+      // 清除可能的缓存干扰
+      localStorage.removeItem('preloaded_kb_data');
+      localStorage.removeItem('kb_cache');
+
       // Get knowledge base list data directly from server
-      const kbs = await knowledgeBaseService.getKnowledgeBases(skipHealthCheck);
+      const kbs = await knowledgeBaseService.getKnowledgeBasesInfo(skipHealthCheck);
       
       dispatch({ type: 'FETCH_SUCCESS', payload: kbs });
       
-      // If need to load selected knowledge bases
-      if (shouldLoadSelected && kbs.length > 0) {
-        // Get selected knowledge base names from config
-        const config = configStore.getDataConfig();
-        if (config.selectedKbNames && config.selectedKbNames.length > 0) {
-          // Find corresponding knowledge base IDs by name
-          const selectedIds = kbs
-            .filter(kb => config.selectedKbNames.includes(kb.name))
-            .map(kb => kb.id);
-          
-          if (selectedIds.length > 0) {
-            dispatch({ type: 'SELECT_KNOWLEDGE_BASE', payload: selectedIds });
-          }
-        }
-      }
+      // Note: removed logic for loading selected knowledge bases from config
+      // This feature is no longer needed as we don't store data config
     } catch (error) {
       console.error('Failed to fetch knowledge bases:', error);
       dispatch({ type: 'ERROR', payload: 'Failed to load knowledge bases' });
@@ -190,32 +189,12 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     const newSelectedIds = isSelected
       ? state.selectedIds.filter(kbId => kbId !== id)
       : [...state.selectedIds, id];
-    
-    // Prepare arrays of names, models and sources
-    const selectedNames = newSelectedIds.map(id => {
-      const kb = state.knowledgeBases.find(kb => kb.id === id);
-      return kb ? kb.name : '';
-    }).filter(name => name !== '');
 
-    const selectedModels = newSelectedIds.map(id => {
-      const kb = state.knowledgeBases.find(kb => kb.id === id);
-      return kb ? kb.embeddingModel : '';
-    }).filter(model => model !== '');
-
-    const selectedSources = newSelectedIds.map(id => {
-      const kb = state.knowledgeBases.find(kb => kb.id === id);
-      return kb ? kb.source : '';
-    }).filter(source => source !== '');
-    
     // Update state
     dispatch({ type: 'SELECT_KNOWLEDGE_BASE', payload: newSelectedIds });
     
-    // Save selection status to config
-    configStore.updateDataConfig({
-      selectedKbNames: selectedNames,
-      selectedKbModels: selectedModels,
-      selectedKbSources: selectedSources
-    });
+    // Note: removed logic for saving selection status to config
+    // This feature is no longer needed as we don't store data config
   }, [state.knowledgeBases, state.selectedIds, isKnowledgeBaseSelectable]);
 
   // Set current active knowledge base - memoized with useCallback
@@ -233,8 +212,8 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
         embeddingModel: state.currentEmbeddingModel || "text-embedding-3-small"
       });
       
-      // Update knowledge base list
-      dispatch({ type: 'ADD_KNOWLEDGE_BASE', payload: newKB });
+      // No longer need to dispatch, because now the kb creation will finish in a blink of an eye.
+      // dispatch({ type: 'ADD_KNOWLEDGE_BASE', payload: newKB });
       return newKB;
     } catch (error) {
       console.error('Failed to create knowledge base:', error);
@@ -260,28 +239,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       const newSelectedIds = state.selectedIds.filter(kbId => kbId !== id);
       
       if (newSelectedIds.length !== state.selectedIds.length) {
-        // Prepare arrays of names, models and sources
-        const selectedNames = newSelectedIds.map(id => {
-          const kb = state.knowledgeBases.find(kb => kb.id === id);
-          return kb ? kb.name : '';
-        }).filter(name => name !== '');
-
-        const selectedModels = newSelectedIds.map(id => {
-          const kb = state.knowledgeBases.find(kb => kb.id === id);
-          return kb ? kb.embeddingModel : '';
-        }).filter(model => model !== '');
-
-        const selectedSources = newSelectedIds.map(id => {
-          const kb = state.knowledgeBases.find(kb => kb.id === id);
-          return kb ? kb.source : '';
-        }).filter(source => source !== '');
-        
-        // Update config
-        configStore.updateDataConfig({
-          selectedKbNames: selectedNames,
-          selectedKbModels: selectedModels,
-          selectedKbSources: selectedSources
-        });
+        // Update state
         dispatch({ type: 'SELECT_KNOWLEDGE_BASE', payload: newSelectedIds });
       }
       
@@ -304,8 +262,62 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     }
   }, []);
 
+  // Modify the summary of the knowledge base
+  const changekKnowledgeSummary = useCallback(async (indexName: string, summary: string) => {
+    try {
+      const result = await knowledgeBaseService.changeSummary(indexName, summary);
+      return result;
+    } catch (error) {
+      dispatch({ type: 'ERROR', payload: error as string });
+      throw error;
+    }
+  }, []);
+
+  // Load user selected knowledge bases from backend
+  const loadUserSelectedKnowledgeBases = useCallback(async () => {
+    console.log('🔄 loadUserSelectedKnowledgeBases 被调用');
+    try {
+      const userConfig = await userConfigService.loadKnowledgeList();
+      if (userConfig && userConfig.selectedKbNames.length > 0) {
+        // Find matching knowledge base IDs based on names
+        const selectedIds = state.knowledgeBases
+          .filter(kb => userConfig.selectedKbNames.includes(kb.name))
+          .map(kb => kb.id);
+
+        dispatch({ type: 'SELECT_KNOWLEDGE_BASE', payload: selectedIds });
+      }
+    } catch (error) {
+      console.error('Failed to load user selected knowledge bases:', error);
+      dispatch({ type: 'ERROR', payload: 'Failed to load user configuration' });
+    }
+  }, [state.knowledgeBases]);
+
+  // Save user selected knowledge bases to backend
+  const saveUserSelectedKnowledgeBases = useCallback(async () => {
+    console.log('💾 saveUserSelectedKnowledgeBases 被调用');
+    try {
+      // Get selected knowledge base names
+      const selectedKbNames = state.knowledgeBases
+        .filter(kb => state.selectedIds.includes(kb.id))
+        .map(kb => kb.name);
+
+      console.log('📋 当前选中的知识库:', state.selectedIds);
+      console.log('📋 选中的知识库名称:', selectedKbNames);
+
+      const success = await userConfigService.updateKnowledgeList(selectedKbNames);
+      if (!success) {
+        dispatch({ type: 'ERROR', payload: 'Failed to save user configuration' });
+      }
+      return success;
+    } catch (error) {
+      console.error('Failed to save user selected knowledge bases:', error);
+      dispatch({ type: 'ERROR', payload: 'Failed to save user configuration' });
+      return false;
+    }
+  }, [state.knowledgeBases, state.selectedIds]);
+
   // Add a function to refresh the knowledge base data
-  const refreshKnowledgeBaseData = useCallback(async (forceRefresh = false) => {
+  const refreshKnowledgeBaseData = useCallback(async () => {
     try {
       // Get latest knowledge base data directly from server
       await fetchKnowledgeBases(false, true);
@@ -314,7 +326,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       if (state.activeKnowledgeBase) {
         // Publish document update event to notify document list component to refresh document data
         try {
-          const documents = await knowledgeBaseService.getDocuments(state.activeKnowledgeBase.id, forceRefresh);
+          const documents = await knowledgeBaseService.getAllFiles(state.activeKnowledgeBase.id);
           window.dispatchEvent(new CustomEvent('documentsUpdated', {
             detail: {
               kbId: state.activeKnowledgeBase.id,
@@ -408,7 +420,9 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
     refreshKnowledgeBaseData,
-    summaryIndex
+    summaryIndex,
+    loadUserSelectedKnowledgeBases,
+    saveUserSelectedKnowledgeBases
   }), [
     state,
     fetchKnowledgeBases,
@@ -418,7 +432,9 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
     refreshKnowledgeBaseData,
-    summaryIndex
+    summaryIndex,
+    loadUserSelectedKnowledgeBases,
+    saveUserSelectedKnowledgeBases
   ]);
   
   return (
