@@ -199,6 +199,8 @@ CREATE TABLE IF NOT EXISTS "knowledge_record_t" (
   "index_name" varchar(100) COLLATE "pg_catalog"."default",
   "knowledge_describe" varchar(300) COLLATE "pg_catalog"."default",
   "tenant_id" varchar(100) COLLATE "pg_catalog"."default",
+  "knowledge_embedding_model" varchar(100) COLLATE "pg_catalog"."default",
+  "knowledge_sources" varchar(100) COLLATE "pg_catalog"."default",
   "create_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "update_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "delete_flag" varchar(1) COLLATE "pg_catalog"."default" DEFAULT 'N'::character varying,
@@ -211,6 +213,8 @@ COMMENT ON COLUMN "knowledge_record_t"."knowledge_id" IS 'Knowledge base ID, uni
 COMMENT ON COLUMN "knowledge_record_t"."index_name" IS 'Knowledge base name';
 COMMENT ON COLUMN "knowledge_record_t"."knowledge_describe" IS 'Knowledge base description';
 COMMENT ON COLUMN "knowledge_record_t"."tenant_id" IS 'Tenant ID';
+COMMENT ON COLUMN "knowledge_record_t"."knowledge_embedding_model" IS 'Knowledge base embedding model';
+COMMENT ON COLUMN "knowledge_record_t"."knowledge_sources" IS 'Knowledge base sources';
 COMMENT ON COLUMN "knowledge_record_t"."create_time" IS 'Creation time, audit field';
 COMMENT ON COLUMN "knowledge_record_t"."update_time" IS 'Update time, audit field';
 COMMENT ON COLUMN "knowledge_record_t"."delete_flag" IS 'When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N';
@@ -430,3 +434,49 @@ EXECUTE FUNCTION update_ag_tool_instance_update_time();
 
 -- Add comment to the trigger
 COMMENT ON TRIGGER update_ag_tool_instance_update_time_trigger ON nexent.ag_tool_instance_t IS 'Trigger to call update_ag_tool_instance_update_time function before each update on ag_tool_instance_t table';
+
+-- Create the tenant_config_t table in the nexent schema
+CREATE TABLE IF NOT EXISTS nexent.tenant_config_t (
+    tenant_config_id SERIAL PRIMARY KEY NOT NULL,
+    tenant_id VARCHAR(100),
+    user_id VARCHAR(100),
+    value_type VARCHAR(100),
+    config_key VARCHAR(100),
+    config_value VARCHAR(100),
+    create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100),
+    delete_flag VARCHAR(1) DEFAULT 'N'
+);
+
+-- Add comment to the table
+COMMENT ON TABLE nexent.tenant_config_t IS 'Tenant configuration information table';
+
+-- Add comments to the columns
+COMMENT ON COLUMN nexent.tenant_config_t.tenant_config_id IS 'ID';
+COMMENT ON COLUMN nexent.tenant_config_t.tenant_id IS 'Tenant ID';
+COMMENT ON COLUMN nexent.tenant_config_t.user_id IS 'User ID';
+COMMENT ON COLUMN nexent.tenant_config_t.value_type IS 'Value type';
+COMMENT ON COLUMN nexent.tenant_config_t.config_key IS 'Config key';
+COMMENT ON COLUMN nexent.tenant_config_t.config_value IS 'Config value';
+COMMENT ON COLUMN nexent.tenant_config_t.create_time IS 'Creation time';
+COMMENT ON COLUMN nexent.tenant_config_t.update_time IS 'Update time';
+COMMENT ON COLUMN nexent.tenant_config_t.created_by IS 'Creator';
+COMMENT ON COLUMN nexent.tenant_config_t.updated_by IS 'Updater';
+COMMENT ON COLUMN nexent.tenant_config_t.delete_flag IS 'Whether it is deleted. Optional values: Y/N';
+
+-- Create a function to update the update_time column
+CREATE OR REPLACE FUNCTION update_tenant_config_update_time()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.update_time = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create a trigger to call the function before each update
+CREATE TRIGGER update_tenant_config_update_time_trigger
+BEFORE UPDATE ON nexent.tenant_config_t
+FOR EACH ROW
+EXECUTE FUNCTION update_tenant_config_update_time();

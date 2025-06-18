@@ -120,16 +120,9 @@ class AppConfig(BaseModel):
     avatarUri: Optional[str] = None
 
 
-class KnowledgeBaseConfig(BaseModel):
-    selectedKbNames: List[str]
-    selectedKbModels: List[str]
-    selectedKbSources: List[str]
-
-
 class GlobalConfig(BaseModel):
     app: AppConfig
     models: ModelConfig
-    data: KnowledgeBaseConfig
 
 
 # Request models

@@ -82,6 +82,10 @@ export const API_ENDPOINTS = {
   config: {
     save: `${API_BASE_URL}/config/save_config`,
     load: `${API_BASE_URL}/config/load_config`,
+  },
+  tenantConfig: {
+    loadKnowledgeList: `${API_BASE_URL}/tenant_config/load_knowledge_list`,
+    updateKnowledgeList: `${API_BASE_URL}/tenant_config/update_knowledge_list`,
   }
 };
 

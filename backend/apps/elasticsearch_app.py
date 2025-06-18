@@ -7,6 +7,9 @@ from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core
 from services.redis_service import get_redis_service
 from database.utils import get_current_user_id
+from services.tenant_config_service import delete_selected_knowledge_by_index_name
+from utils.user_utils import get_user_info
+
 router = APIRouter(prefix="/indices")
 service = ElasticSearchService()
 
@@ -33,39 +36,40 @@ def delete_index(
 ):
     """Delete an index and clean up all related Redis records"""
     try:
-        user_id = get_current_user_id(authorization)
-        
+        user_id, tenant_id = get_user_info()
+        # delete the selected knowledge by index name
+        delete_selected_knowledge_by_index_name(tenant_id=tenant_id, user_id=user_id, index_name=index_name)
         # First delete the index using existing service
         result = ElasticSearchService.delete_index(index_name, es_core, user_id)
-        
+
         # Then clean up Redis records related to this knowledge base
         try:
             redis_service = get_redis_service()
             redis_cleanup_result = redis_service.delete_knowledgebase_records(index_name)
-            
+
             # Add Redis cleanup info to the result
             result["redis_cleanup"] = redis_cleanup_result
             result["message"] = (f"Index {index_name} deleted successfully. "
                                f"Cleaned up {redis_cleanup_result['total_deleted']} Redis records "
                                f"({redis_cleanup_result['celery_tasks_deleted']} tasks, "
                                f"{redis_cleanup_result['cache_keys_deleted']} cache keys).")
-            
+
             if redis_cleanup_result.get("errors"):
                 result["redis_warnings"] = redis_cleanup_result["errors"]
-                
+
         except Exception as redis_error:
             # Don't fail the whole operation if Redis cleanup fails
             # Just log the error and add a warning to the response
             import logging
             logger = logging.getLogger(__name__)
             logger.warning(f"Redis cleanup failed for index {index_name}: {str(redis_error)}")
-            
+
             result["redis_cleanup_error"] = str(redis_error)
             result["message"] = (f"Index {index_name} deleted successfully, "
                                f"but Redis cleanup encountered an error: {str(redis_error)}")
-        
+
         return result
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error delete index: {str(e)}")
 
@@ -142,39 +146,39 @@ def delete_documents(
     try:
         # First delete the documents using existing service
         result = ElasticSearchService.delete_documents(index_name, path_or_url, es_core)
-        
+
         # Then clean up Redis records related to this specific document
         try:
             redis_service = get_redis_service()
             redis_cleanup_result = redis_service.delete_document_records(index_name, path_or_url)
-            
+
             # Add Redis cleanup info to the result
             result["redis_cleanup"] = redis_cleanup_result
-            
+
             # Update the message to include Redis cleanup info
             original_message = result.get("message", f"Documents deleted successfully")
             result["message"] = (f"{original_message}. "
                                f"Cleaned up {redis_cleanup_result['total_deleted']} Redis records "
                                f"({redis_cleanup_result['celery_tasks_deleted']} tasks, "
                                f"{redis_cleanup_result['cache_keys_deleted']} cache keys).")
-            
+
             if redis_cleanup_result.get("errors"):
                 result["redis_warnings"] = redis_cleanup_result["errors"]
-                
+
         except Exception as redis_error:
             # Don't fail the whole operation if Redis cleanup fails
             # Just log the error and add a warning to the response
             import logging
             logger = logging.getLogger(__name__)
             logger.warning(f"Redis cleanup failed for document {path_or_url} in index {index_name}: {str(redis_error)}")
-            
+
             result["redis_cleanup_error"] = str(redis_error)
             original_message = result.get("message", f"Documents deleted successfully")
             result["message"] = (f"{original_message}, "
                                f"but Redis cleanup encountered an error: {str(redis_error)}")
-        
+
         return result
-        
+
     except HTTPException as e:
         raise HTTPException(status_code=500, detail=f"Error delete indexing documents: {e}")
 

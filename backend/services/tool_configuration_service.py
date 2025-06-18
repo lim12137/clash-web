@@ -130,7 +130,7 @@ def get_mcp_tools() -> List[ToolInfo]:
                     description=getattr(tool_class, 'description'),
                     params=[],
                     source=ToolSourceEnum.MCP.value,
-                    inputs=json.dumps(getattr(tool_class, 'inputs'), ensure_ascii=False),
+                    inputs=str(getattr(tool_class, 'inputs')),
                     output_type=getattr(tool_class, 'output_type'),
                     class_name=getattr(tool_class, 'name')
                 )
