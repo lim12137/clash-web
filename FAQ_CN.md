@@ -28,6 +28,18 @@
 - **Q: 如何查看容器日志？**
   - A: 使用 `docker logs <容器名称>` 命令查看特定容器的日志。
 
+### 🔢 Embedding模型问题
+- **Q: 为什么我的Embedding模型无法连通？**
+  - A: 创建模型填写模型URL时，注意添加 `/v1/embeddings` 后缀。完整示例如 `https://model.provider.com/v1/embeddings`
+
+### 📧 邮件工具配置
+- **Q: 如何启用和配置邮件工具？**
+  - A: 我们团队已经预制实现了基于 IMAP 和 SMTP 的邮件工具。要启用它们：
+    1. 在 `.env` 文件中配置邮件参数
+    2. 在 `agent_utils.py` 中取消邮件工具相关的注释
+    3. 切换到支持邮件的系统提示词 `code_agent_with_email.yaml`
+    4. 重启 MCP 服务使更改生效
+
 ## ❓ 需要更多帮助？
 
 如果这里没有找到您的问题答案：

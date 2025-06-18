@@ -187,4 +187,53 @@ export const modelService = {
       return false
     }
   },
+
+  // Verify model configuration connectivity before adding it
+  verifyModelConfigConnectivity: async (config: {
+    modelName: string
+    modelType: ModelType
+    baseUrl: string
+    apiKey: string
+    maxTokens?: number
+    embeddingDim?: number
+  }, signal?: AbortSignal): Promise<{connectivity: boolean; message: string; connect_status: string}> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.verifyModelConfig, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          model_name: config.modelName,
+          model_type: config.modelType,
+          base_url: config.baseUrl,
+          api_key: config.apiKey || "sk-no-api-key",
+          max_tokens: config.maxTokens || 4096,
+          embedding_dim: config.embeddingDim || 1024
+        }),
+        signal
+      })
+      
+      const result: ApiResponse<{connectivity: boolean; message: string; connect_status: string}> = await response.json()
+      
+      if (result.code === 200 && result.data) {
+        return result.data
+      }
+      
+      return {
+        connectivity: false,
+        message: result.message || '验证失败',
+        connect_status: "不可用"
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('验证模型配置连接被取消');
+        throw error;
+      }
+      console.error('验证模型配置连接失败:', error)
+      return {
+        connectivity: false,
+        message: `验证失败: ${error}`,
+        connect_status: "不可用"
+      }
+    }
+  },
 } 

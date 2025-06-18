@@ -40,6 +40,9 @@ export default function CreatePage() {
     if (selectedKey === "2") {
       // When entering the second page, reset the flag
       setIsFromSecondPage(false)
+      // 清除所有可能的缓存
+      localStorage.removeItem('preloaded_kb_data');
+      localStorage.removeItem('kb_cache');
       // When entering the second page, get the latest knowledge base data
       window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
         detail: { forceRefresh: true }
@@ -69,7 +72,7 @@ export default function CreatePage() {
       case "1":
         return <AppModelConfig skipModelVerification={isFromSecondPage} />
       case "2":
-        return <DataConfig />
+        return <DataConfig isActive={selectedKey === "2"} />
       case "3":
         return <AgentConfig />
       default:
@@ -135,7 +138,9 @@ export default function CreatePage() {
       }
     } else if (selectedKey === "2") {
       // Jump from the second page to the third page
+      console.log("🔄 Setup页面: 准备从第二页跳转到第三页");
       setSelectedKey("3")
+      console.log("🔄 Setup页面: selectedKey已更新为3");
     } else if (selectedKey === "1") {
       // Validate required fields when jumping from the first page to the second page
       try {
@@ -167,7 +172,9 @@ export default function CreatePage() {
         }
         
         // All required fields have been filled, allow the jump to the second page
+        console.log("🔄 Setup页面: 准备从第一页跳转到第二页");
         setSelectedKey("2")
+        console.log("🔄 Setup页面: selectedKey已更新为2");
 
         // Call the backend save configuration API
         await configService.saveConfigToBackend(currentConfig)
@@ -181,9 +188,13 @@ export default function CreatePage() {
   // Handle the logic of the user switching to the first page
   const handleBackToFirstPage = () => {
     if (selectedKey === "3") {
+      console.log("🔄 Setup页面: 准备从第三页返回第二页");
       setSelectedKey("2")
+      console.log("🔄 Setup页面: selectedKey已更新为2");
     } else if (selectedKey === "2") {
+      console.log("🔄 Setup页面: 准备从第二页返回第一页");
       setSelectedKey("1")
+      console.log("🔄 Setup页面: selectedKey已更新为1");
       // Set the flag to indicate that the user is returning from the second page to the first page
       setIsFromSecondPage(true)
     }
