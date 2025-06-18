@@ -1,7 +1,7 @@
-import { Modal, Select, Input, Button, message, Switch } from 'antd'
-import { InfoCircleFilled } from '@ant-design/icons'
+import { Modal, Select, Input, Button, message, Switch, Tooltip } from 'antd'
+import { InfoCircleFilled, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons'
 import { useState } from 'react'
-import { ModelType, SingleModelConfig } from '@/types/config'
+import { ModelType, SingleModelConfig, ModelConnectStatus } from '@/types/config'
 import { modelService } from '@/services/modelService'
 import { useConfig } from '@/hooks/useConfig'
 
@@ -32,6 +32,14 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     vectorDimension: "1024"
   })
   const [loading, setLoading] = useState(false)
+  const [verifyingConnectivity, setVerifyingConnectivity] = useState(false)
+  const [connectivityStatus, setConnectivityStatus] = useState<{
+    status: ModelConnectStatus | null
+    message: string
+  }>({
+    status: null,
+    message: ""
+  })
 
   // 解析模型名称，提取默认展示名称
   const parseModelName = (name: string): string => {
@@ -50,6 +58,8 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       // 此时应该自动更新展示名称
       displayName: prev.displayName === parseModelName(prev.name) ? parseModelName(name) : prev.displayName
     }))
+    // 清除之前的验证状态
+    setConnectivityStatus({ status: null, message: "" })
   }
 
   // 处理表单变更
@@ -58,6 +68,10 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       ...prev,
       [field]: value
     }))
+    // 如果是关键配置项变更，清除验证状态
+    if (['type', 'url', 'apiKey', 'maxTokens', 'vectorDimension'].includes(field)) {
+      setConnectivityStatus({ status: null, message: "" })
+    }
   }
 
   // 验证向量维度是否有效
@@ -76,6 +90,81 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     return form.name.trim() !== "" && 
            form.url.trim() !== "" && 
            form.maxTokens.trim() !== ""
+  }
+
+  // 验证模型连通性
+  const handleVerifyConnectivity = async () => {
+    if (!isFormValid()) {
+      message.warning('请先填写完整的模型配置信息')
+      return
+    }
+
+    setVerifyingConnectivity(true)
+    setConnectivityStatus({ status: "检测中", message: "正在验证模型连通性..." })
+
+    try {
+      const modelType = form.type === "embedding" && form.isMultimodal ? 
+        "multi_embedding" as ModelType : 
+        form.type;
+
+      const config = {
+        modelName: form.name,
+        modelType: modelType,
+        baseUrl: form.url,
+        apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey,
+        maxTokens: form.type === "embedding" ? parseInt(form.vectorDimension) : parseInt(form.maxTokens),
+        embeddingDim: form.type === "embedding" ? parseInt(form.vectorDimension) : undefined
+      }
+
+      const result = await modelService.verifyModelConfigConnectivity(config)
+      
+      setConnectivityStatus({
+        status: result.connectivity ? "可用" : "不可用",
+        message: result.message
+      })
+
+      if (result.connectivity) {
+        message.success('模型连通性验证成功！')
+      } else {
+        message.error(`模型连通性验证失败：${result.message}`)
+      }
+    } catch (error) {
+      setConnectivityStatus({
+        status: "不可用",
+        message: `验证失败: ${error}`
+      })
+      message.error(`验证连通性失败：${error}`)
+    } finally {
+      setVerifyingConnectivity(false)
+    }
+  }
+
+  // 获取连通性状态图标
+  const getConnectivityIcon = () => {
+    switch (connectivityStatus.status) {
+      case "检测中":
+        return <LoadingOutlined style={{ color: '#1890ff' }} />
+      case "可用":
+        return <CheckCircleOutlined style={{ color: '#52c41a' }} />
+      case "不可用":
+        return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+      default:
+        return null
+    }
+  }
+
+  // 获取连通性状态颜色
+  const getConnectivityColor = () => {
+    switch (connectivityStatus.status) {
+      case "检测中":
+        return '#1890ff'
+      case "可用":
+        return '#52c41a'
+      case "不可用":
+        return '#ff4d4f'
+      default:
+        return '#d9d9d9'
+    }
   }
 
   // 处理添加模型
@@ -165,6 +254,9 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         isMultimodal: false,
         vectorDimension: "1024"
       })
+      
+      // 重置连通性状态
+      setConnectivityStatus({ status: null, message: "" })
       
       // 调用成功回调，传递新添加的模型信息
       await onSuccess(addedModel)
@@ -313,6 +405,40 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           </div>
         )}
 
+        {/* 连通性验证区域 */}
+        <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center">
+              <span className="text-sm font-medium text-gray-700">连通性验证</span>
+              {connectivityStatus.status && (
+                <div className="ml-2 flex items-center">
+                  {getConnectivityIcon()}
+                  <span 
+                    className="ml-1 text-xs"
+                    style={{ color: getConnectivityColor() }}
+                  >
+                    {connectivityStatus.status}
+                  </span>
+                </div>
+              )}
+            </div>
+            <Button
+              size="small"
+              type="default"
+              onClick={handleVerifyConnectivity}
+              loading={verifyingConnectivity}
+              disabled={!isFormValid() || verifyingConnectivity}
+            >
+              {verifyingConnectivity ? '验证中...' : '点击验证'}
+            </Button>
+          </div>
+          {connectivityStatus.message && (
+            <div className="text-xs text-gray-600">
+              {connectivityStatus.message}
+            </div>
+          )}
+        </div>
+
         {/* Help Text */}
         <div className="p-3 bg-blue-50 border border-blue-100 rounded-md text-xs text-blue-700">
           <div>
@@ -321,7 +447,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               <p className="font-bold text-medium">模型配置说明</p>
             </div>
             <p className="mt-0.5 ml-6">
-              请填写模型的基本信息，API Key、展示名称为可选项，其他字段为必填项。添加后可在下拉列表中选择该模型。
+              请填写模型的基本信息，API Key、展示名称为可选项，其他字段为必填项。建议先验证连通性后再添加模型。
             </p>
           </div>
         </div>
