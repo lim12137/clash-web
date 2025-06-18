@@ -59,6 +59,9 @@ const knowledgeBaseReducer = (state: KnowledgeBaseState, action: KnowledgeBaseAc
         activeKnowledgeBase: state.activeKnowledgeBase?.id === action.payload ? null : state.activeKnowledgeBase
       };
     case 'ADD_KNOWLEDGE_BASE':
+      if (state.knowledgeBases.some(kb => kb.id === action.payload.id)) {
+        return state; // If the knowledge base already exists, do not insert it
+      }
       return {
         ...state,
         knowledgeBases: [...state.knowledgeBases, action.payload]
@@ -154,9 +157,9 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       // 清除可能的缓存干扰
       localStorage.removeItem('preloaded_kb_data');
       localStorage.removeItem('kb_cache');
-      
+
       // Get knowledge base list data directly from server
-      const kbs = await knowledgeBaseService.getKnowledgeBases(skipHealthCheck);
+      const kbs = await knowledgeBaseService.getKnowledgeBasesInfo(skipHealthCheck);
       
       dispatch({ type: 'FETCH_SUCCESS', payload: kbs });
       
@@ -186,7 +189,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     const newSelectedIds = isSelected
       ? state.selectedIds.filter(kbId => kbId !== id)
       : [...state.selectedIds, id];
-    
+
     // Update state
     dispatch({ type: 'SELECT_KNOWLEDGE_BASE', payload: newSelectedIds });
     
@@ -209,8 +212,8 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
         embeddingModel: state.currentEmbeddingModel || "text-embedding-3-small"
       });
       
-      // Update knowledge base list
-      dispatch({ type: 'ADD_KNOWLEDGE_BASE', payload: newKB });
+      // No longer need to dispatch, because now the kb creation will finish in a blink of an eye.
+      // dispatch({ type: 'ADD_KNOWLEDGE_BASE', payload: newKB });
       return newKB;
     } catch (error) {
       console.error('Failed to create knowledge base:', error);
@@ -259,6 +262,17 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     }
   }, []);
 
+  // Modify the summary of the knowledge base
+  const changekKnowledgeSummary = useCallback(async (indexName: string, summary: string) => {
+    try {
+      const result = await knowledgeBaseService.changeSummary(indexName, summary);
+      return result;
+    } catch (error) {
+      dispatch({ type: 'ERROR', payload: error as string });
+      throw error;
+    }
+  }, []);
+
   // Load user selected knowledge bases from backend
   const loadUserSelectedKnowledgeBases = useCallback(async () => {
     console.log('🔄 loadUserSelectedKnowledgeBases 被调用');
@@ -269,7 +283,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
         const selectedIds = state.knowledgeBases
           .filter(kb => userConfig.selectedKbNames.includes(kb.name))
           .map(kb => kb.id);
-        
+
         dispatch({ type: 'SELECT_KNOWLEDGE_BASE', payload: selectedIds });
       }
     } catch (error) {
@@ -286,10 +300,10 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       const selectedKbNames = state.knowledgeBases
         .filter(kb => state.selectedIds.includes(kb.id))
         .map(kb => kb.name);
-      
+
       console.log('📋 当前选中的知识库:', state.selectedIds);
       console.log('📋 选中的知识库名称:', selectedKbNames);
-      
+
       const success = await userConfigService.updateKnowledgeList(selectedKbNames);
       if (!success) {
         dispatch({ type: 'ERROR', payload: 'Failed to save user configuration' });
@@ -303,7 +317,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
   }, [state.knowledgeBases, state.selectedIds]);
 
   // Add a function to refresh the knowledge base data
-  const refreshKnowledgeBaseData = useCallback(async (forceRefresh = false) => {
+  const refreshKnowledgeBaseData = useCallback(async () => {
     try {
       // Get latest knowledge base data directly from server
       await fetchKnowledgeBases(false, true);
@@ -312,7 +326,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       if (state.activeKnowledgeBase) {
         // Publish document update event to notify document list component to refresh document data
         try {
-          const documents = await knowledgeBaseService.getDocuments(state.activeKnowledgeBase.id, forceRefresh);
+          const documents = await knowledgeBaseService.getAllFiles(state.activeKnowledgeBase.id);
           window.dispatchEvent(new CustomEvent('documentsUpdated', {
             detail: {
               kbId: state.activeKnowledgeBase.id,
