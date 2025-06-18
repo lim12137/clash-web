@@ -3,17 +3,20 @@ from contextlib import asynccontextmanager
 from fastapi import HTTPException, APIRouter, Form
 import base64
 import io
+from pydantic import BaseModel
+from typing import List
 
 from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTaskRequest, SimpleTaskStatusResponse, \
     SimpleTasksListResponse
-from utils.task_status_utils import format_status_for_api, get_status_display
-from services.data_process_service import DataProcessService
+from data_process.utils import get_task_info
+from data_process.tasks import process_and_forward, process_sync
+from services.data_process_service import get_data_process_service
 
 # Configure logging
 logger = logging.getLogger("data_process.app")
 
-# Initialize service
-service = DataProcessService(num_workers=3)
+# Use shared service instance
+service = get_data_process_service()
 
 @asynccontextmanager
 async def lifespan(app: APIRouter):
@@ -31,10 +34,15 @@ router = APIRouter(
 )
 
 
+class MarkFailedRequest(BaseModel):
+    task_ids: List[str]
+    reason: str = "Task marked as failed due to frontend polling timeout"
+
+
 @router.post("", response_model=TaskResponse, status_code=201)
 async def create_task(request: TaskRequest):
     """
-    Create a new data processing task
+    Create a new data processing task (Process → Forward chain)
     
     Returns task ID immediately. Processing happens in the background.
     Tasks are forwarded to Elasticsearch when complete.
@@ -44,8 +52,8 @@ async def create_task(request: TaskRequest):
     if request.additional_params:
         params.update(request.additional_params)
 
-    # Create task using service
-    task_id = await service.create_task(
+    # Create task using the new process_and_forward task
+    task_result = process_and_forward.delay(
         source=request.source,
         source_type=request.source_type,
         chunking_strategy=request.chunking_strategy,
@@ -53,20 +61,116 @@ async def create_task(request: TaskRequest):
         **params
     )
 
-    return TaskResponse(task_id=task_id)
+    return TaskResponse(task_id=task_result.id)
+
+
+@router.post("/process", response_model=dict, status_code=200)
+async def process_sync_endpoint(
+    source: str = Form(...),
+    source_type: str = Form("file"),
+    chunking_strategy: str = Form("basic"),
+    timeout: int = Form(30)
+):
+    """
+    Process a file synchronously and return extracted text immediately
+    
+    This endpoint provides real-time file processing for immediate text extraction.
+    Uses high-priority processing queue for fast response.
+    
+    Parameters:
+        source: File path, URL, or text content to process
+        source_type: Type of source ("file", "url", or "text")
+        chunking_strategy: Strategy for chunking the document
+        timeout: Maximum time to wait for processing (seconds)
+    
+    Returns:
+        JSON object containing extracted text and metadata
+    """
+    try:
+        # Use the synchronous process task with high priority
+        task_result = process_sync.apply_async(
+            kwargs={
+                'source': source,
+                'source_type': source_type,
+                'chunking_strategy': chunking_strategy,
+                'timeout': timeout
+            },
+            priority=0,  # High priority for real-time processing
+            queue='process_q'
+        )
+        
+        # Wait for the result with timeout
+        result = task_result.get(timeout=timeout)
+        
+        return {
+            "success": True,
+            "task_id": task_result.id,
+            "source": source,
+            "text": result.get("text", ""),
+            "chunks": result.get("chunks", []),
+            "chunks_count": result.get("chunks_count", 0),
+            "processing_time": result.get("processing_time", 0),
+            "text_length": result.get("text_length", 0)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in synchronous processing: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error processing file: {str(e)}"
+        )
 
 
 @router.post("/batch", response_model=BatchTaskResponse, status_code=201)
 async def create_batch_tasks(request: BatchTaskRequest):
     """
-    Create multiple data processing tasks at once
+    Create multiple data processing tasks at once (individual Process → Forward chains)
     
-    Returns list of task IDs immediately. Processing happens in the background.
+    Returns list of task IDs immediately. Each file gets its own task for better status tracking.
+    Processing happens in the background for each file independently.
     """
-    # Create batch tasks using service
-    task_ids = await service.create_batch_tasks(request.sources)
-    
-    return BatchTaskResponse(task_ids=task_ids)
+    try:
+        task_ids = []
+        
+        # Create individual tasks for each source
+        for source_config in request.sources:
+            # Extract parameters
+            source = source_config.get('source')
+            source_type = source_config.get('source_type', 'file')
+            chunking_strategy = source_config.get('chunking_strategy', 'basic')
+            index_name = source_config.get('index_name')
+            
+            # Extract additional parameters (excluding the standard ones)
+            additional_params = {k: v for k, v in source_config.items() 
+                               if k not in ['source', 'source_type', 'chunking_strategy', 'index_name']}
+            
+            # Validate required fields
+            if not source:
+                logger.error(f"Missing required field 'source' in source config: {source_config}")
+                continue
+                
+            if not index_name:
+                logger.error(f"Missing required field 'index_name' in source config: {source_config}")
+                continue
+            
+            # Create individual task for this source
+            task_result = process_and_forward.delay(
+                source=source,
+                source_type=source_type,
+                chunking_strategy=chunking_strategy,
+                index_name=index_name,
+                **additional_params
+            )
+            
+            task_ids.append(task_result.id)
+            logger.info(f"Created task {task_result.id} for source: {source}")
+        
+        logger.info(f"Created {len(task_ids)} individual tasks for batch processing")
+        return BatchTaskResponse(task_ids=task_ids)
+        
+    except Exception as e:
+        logger.error(f"Error creating batch tasks: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create batch tasks: {str(e)}")
 
 
 @router.get("/load_image")
@@ -110,19 +214,20 @@ async def load_image(url: str):
 @router.get("/{task_id}", response_model=SimpleTaskStatusResponse)
 async def get_task(task_id: str):
     """Get basic status information for a specific task"""
-    task = service.get_task(task_id)
+    task = get_task_info(task_id)
 
     if not task:
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
 
-    # Get status and convert to lowercase - using utility function
-    status = format_status_for_api(task["status"])
-
+    # Return task status in the expected format
     return SimpleTaskStatusResponse(
         id=task["id"],
-        status=status,
-        created_at=task["created_at"],
-        updated_at=task["updated_at"],
+        task_name=task["task_name"],
+        index_name=task["index_name"],
+        path_or_url=task["path_or_url"],
+        status=task["status"],
+        created_at=task.get("created_at"),
+        updated_at=task.get("updated_at"),
         error=task.get("error")
     )
 
@@ -134,15 +239,15 @@ async def list_tasks():
 
     task_responses = []
     for task in tasks:
-        # Use unified status conversion method
-        status = format_status_for_api(task["status"])
-
         task_responses.append(
             SimpleTaskStatusResponse(
                 id=task["id"],
-                status=status,
-                created_at=task["created_at"],
-                updated_at=task["updated_at"],
+                task_name=task["task_name"],
+                index_name=task["index_name"],
+                path_or_url=task["path_or_url"],
+                status=task["status"],
+                created_at=task.get("created_at"),
+                updated_at=task.get("updated_at"),
                 error=task.get("error")
             )
         )
@@ -150,7 +255,7 @@ async def list_tasks():
     return SimpleTasksListResponse(tasks=task_responses)
 
 
-@router.get("/indices/{index_name}/tasks")
+@router.get("/indices/{index_name}")
 async def get_index_tasks(index_name: str):
     """
     Get all active tasks for a specific index
@@ -166,13 +271,15 @@ async def get_index_tasks(index_name: str):
 @router.get("/{task_id}/details")
 async def get_task_details(task_id: str):
     """Get detailed information about a task, including results"""
-    task = service.get_task(task_id)
+    from data_process.utils import get_task_details as utils_get_task_details
+    
+    task = utils_get_task_details(task_id)
 
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    # Use utility method to get formatted task status information
-    return get_status_display(task)
+    # Return the task details directly
+    return task
 
 
 @router.post("/filter_important_image", response_model=dict)

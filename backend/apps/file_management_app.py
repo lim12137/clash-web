@@ -8,6 +8,8 @@ from io import BytesIO
 from fastapi import UploadFile, File, HTTPException, Form, APIRouter, Query, Path as PathParam, Body
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
+from services.data_process_service import get_data_process_service
+from .data_process_app import MarkFailedRequest
 from consts.model import ProcessParams
 from consts.const import MAX_CONCURRENT_UPLOADS, UPLOAD_FOLDER
 from utils.file_management_utils import save_upload_file, trigger_data_process
@@ -104,7 +106,7 @@ async def upload_files(
         return JSONResponse(
             status_code=201,
             content={
-                "message": "Files uploaded and processed successfully",
+                "message": "Files uploaded successfully",
                 "uploaded_files": uploaded_filenames,
                 "process_tasks": process_result
             }
@@ -425,6 +427,21 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File preprocessing error: {str(e)}")
+
+
+@router.post("/mark_failure", status_code=200)
+async def mark_tasks_failed(request: MarkFailedRequest):
+    """
+    Mark a list of tasks as FAILED.
+    
+    This is used by the frontend when polling times out to ensure backend
+    task statuses are synchronized.
+    """
+    try:
+        result = get_data_process_service().mark_tasks_as_failed(request.task_ids, request.reason)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to mark tasks as failed: {str(e)}")
 
 
 async def process_image_file(query, filename, file_content) -> str:
