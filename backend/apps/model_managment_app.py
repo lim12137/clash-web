@@ -157,11 +157,11 @@ async def check_model_healthcheck(
         display_name: str = Query(..., description="Display name to check")
 ):
     """
-    检查并更新模型连通性（健康检查），并返回最新状态。
+    Check and update model connectivity (health check), and return the latest status.
     Args:
-        display_name: 需要检查的模型 display_name
+        display_name: display_name of the model to check
     Returns:
-        ModelResponse: 包含连通性和最新状态
+        ModelResponse: contains connectivity and latest status
     """
     return await check_model_connectivity(display_name)
 
@@ -169,18 +169,18 @@ async def check_model_healthcheck(
 @router.post("/verify_config", response_model=ModelResponse)
 async def verify_model_config(request: ModelRequest):
     """
-    验证模型配置的连通性，不保存到数据库
+    Verify the connectivity of the model configuration, do not save to database
     Args:
-        request: 模型配置信息
+        request: model configuration information
     Returns:
-        ModelResponse: 包含连通性测试结果
+        ModelResponse: contains connectivity test result
     """
     try:
         from services.model_health_service import verify_model_config_connectivity
         
         model_data = request.model_dump()
         
-        # 直接调用验证服务，不进行 model_name 的拆分
+        # Call the verification service directly, do not split model_name
         result = await verify_model_config_connectivity(model_data)
         
         return result
