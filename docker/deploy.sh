@@ -89,9 +89,9 @@ add_permission() {
   # Initialize the sql script permission
   chmod 644 "init.sql"
 
-  create_dir_with_permission "$ROOT_DIR/elasticsearch" 775
-  create_dir_with_permission "$ROOT_DIR/postgresql" 775
-  create_dir_with_permission "$ROOT_DIR/minio" 775
+  create_dir_with_permission "$ROOT_DIR/elasticsearch" 777
+  create_dir_with_permission "$ROOT_DIR/postgresql" 777
+  create_dir_with_permission "$ROOT_DIR/minio" 777
   create_dir_with_permission "$ROOT_DIR/uploads" 777
 }
 
