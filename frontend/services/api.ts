@@ -63,6 +63,7 @@ export const API_ENDPOINTS = {
     customModelCreate: `${API_BASE_URL}/model/create`,
     customModelDelete: (displayName: string) => `${API_BASE_URL}/model/delete?display_name=${encodeURIComponent(displayName)}`,
     customModelHealthcheck: (displayName: string) => `${API_BASE_URL}/model/healthcheck?display_name=${encodeURIComponent(displayName)}`,
+    verifyModelConfig: `${API_BASE_URL}/model/verify_config`,
   },
   knowledgeBase: {
     // Elasticsearch service
@@ -81,6 +82,10 @@ export const API_ENDPOINTS = {
   config: {
     save: `${API_BASE_URL}/config/save_config`,
     load: `${API_BASE_URL}/config/load_config`,
+  },
+  tenantConfig: {
+    loadKnowledgeList: `${API_BASE_URL}/tenant_config/load_knowledge_list`,
+    updateKnowledgeList: `${API_BASE_URL}/tenant_config/update_knowledge_list`,
   }
 };
 
