@@ -184,8 +184,9 @@ async def export_agent_impl(agent_id: int, authorization: str = Header(None)):
 
 def import_agent_impl(parent_agent_id: int, agent_info: ExportAndImportAgentInfo, authorization: str = Header(None)):
     # check the validity and completeness of the tool parameters
+    user_id, tenant_id = get_current_user_id(authorization)
     tool_list = []
-    tool_info = query_all_tools()
+    tool_info = query_all_tools(tenant_id=tenant_id)
     db_all_tool_info_dict = {f"{tool['class_name']}&{tool['source']}": tool for tool in tool_info}
     for tool in agent_info.tools:
         db_tool_info: dict | None = db_all_tool_info_dict.get(f"{tool.class_name}&{tool.source}", None)

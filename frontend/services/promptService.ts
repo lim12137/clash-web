@@ -106,7 +106,7 @@ export const fineTunePrompt = async (params: FineTunePromptParams): Promise<stri
   try {
     const response = await fetch(API_ENDPOINTS.prompt.fineTune, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(params),
     });
 

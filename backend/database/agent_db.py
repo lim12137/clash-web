@@ -228,13 +228,21 @@ def create_or_update_tool_by_tool_info(tool_info, tenant_id: str, user_id: str =
         session.flush()
         return tool_instance
 
-def query_all_tools():
+def query_all_tools(tenant_id: str):
     """
     Query ToolInfo in the database based on tenant_id and agent_id, optional user_id.
+    Filter tools that belong to the specific tenant_id or have tenant_id as "tenant_id"
     :return: List of ToolInfo objects
     """
     with get_db_session() as session:
-        tools = session.query(ToolInfo).filter(ToolInfo.delete_flag != 'Y').all()
+        # Filter tools with two conditions:
+        # 1. Tools that belong to the specific tenant (ToolInfo.tenant_id == tenant_id)
+        # 2. Tools with default tenant_id value "tenant_id" which are shared across all tenants
+        tools = session.query(ToolInfo).filter(
+            ToolInfo.delete_flag != 'Y'
+        ).filter(
+            (ToolInfo.tenant_id == tenant_id) | (ToolInfo.tenant_id == "tenant_id")
+        ).all()
         return [as_dict(tool) for tool in tools]
 
 def query_tool_instances_by_id(agent_id: int, tool_id: int, tenant_id: str, user_id: str = None):

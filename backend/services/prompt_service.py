@@ -13,7 +13,7 @@ from consts.model import AgentInfoRequest
 from database.agent_db import query_sub_agents, update_agent, \
     query_tools_by_ids
 from services.agent_service import get_enable_tool_id_by_agent_id
-from utils.config_utils import config_manager
+from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 from utils.auth_utils import get_current_user_id
 from fastapi import Header
 
@@ -22,7 +22,7 @@ from fastapi import Header
 logger = logging.getLogger("prompt service")
 
 
-def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=None) -> str:
+def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=None, tenant_id:str = None) -> str:
     """
     Call LLM to generate system prompt
 
@@ -35,10 +35,12 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
     """
     logger.info("Calling LLM for system prompt generation")
 
+    llm_model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
+
     llm = OpenAIServerModel(
-        model_id=config_manager.get_config('LLM_MODEL_NAME'),
-        api_base=config_manager.get_config('LLM_MODEL_URL'),
-        api_key=config_manager.get_config('LLM_API_KEY'),
+        model_id=get_model_name_from_config(llm_model_config) if llm_model_config else "",
+        api_base=llm_model_config["base_url"] if llm_model_config else "",
+        api_key=llm_model_config["api_key"] if llm_model_config else "",
         temperature=0.3,
         top_p=0.95
     )
@@ -79,7 +81,7 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
 
     # 1. Real-time streaming push
     last_system_prompt = None
-    for system_prompt in generate_system_prompt(sub_agent_info_list, task_description, tool_info_list):
+    for system_prompt in generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id):
         yield system_prompt
         last_system_prompt = system_prompt
 
@@ -99,13 +101,13 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
     logger.info("Prompt generation and agent update completed successfully")
 
 
-def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list):
+def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id:str):
     with open('backend/prompts/utils/prompt_generate.yaml', "r", encoding="utf-8") as f:
         prompt_for_generate = yaml.safe_load(f)
 
     # Get app information from environment variables
-    app_name = config_manager.get_config('APP_NAME', 'Nexent')
-    app_description = config_manager.get_config('APP_DESCRIPTION', 'Nexent 是一个开源智能体SDK和平台')
+    app_name = tenant_config_manager.get_app_config('APP_NAME', tenant_id=tenant_id) or 'Nexent'
+    app_description = tenant_config_manager.get_app_config('APP_DESCRIPTION', tenant_id=tenant_id) or 'Nexent 是一个开源智能体SDK和平台'
 
     # Add app information to the template variables
     content = join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description,
@@ -126,7 +128,7 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
 
     def run_and_flag(tag, sys_prompt):
         try:
-            call_llm_for_system_prompt(content, sys_prompt, make_callback(tag))
+            call_llm_for_system_prompt(content, sys_prompt, make_callback(tag), tenant_id)
         except Exception as e:
             logger.error(f"Error in {tag} generation: {e}")
         finally:
@@ -214,7 +216,7 @@ def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_
     return sub_agent_info_list
 
 
-def fine_tune_prompt(system_prompt: str, command: str):
+def fine_tune_prompt(system_prompt: str, command: str, tenant_id:str):
     logger.info("Starting prompt fine-tuning")
 
     try:
@@ -230,7 +232,8 @@ def fine_tune_prompt(system_prompt: str, command: str):
         logger.info("Calling LLM for prompt fine-tuning")
         regenerate_prompt = call_llm_for_system_prompt(
             user_prompt=content,
-            system_prompt=prompt_for_fine_tune["FINE_TUNE_SYSTEM_PROMPT"]
+            system_prompt=prompt_for_fine_tune["FINE_TUNE_SYSTEM_PROMPT"],
+            tenant_id=tenant_id
         )
         logger.info("Successfully completed prompt fine-tuning")
         return regenerate_prompt

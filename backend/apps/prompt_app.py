@@ -9,6 +9,7 @@ from typing import Optional
 
 from consts.model import GeneratePromptRequest, FineTunePromptRequest
 from services.prompt_service import generate_and_save_system_prompt_impl, fine_tune_prompt
+from utils.auth_utils import get_current_user_id
 
 router = APIRouter(prefix="/prompt")
 
@@ -36,8 +37,9 @@ async def generate_and_save_system_prompt_api(request: GeneratePromptRequest, au
 
 
 @router.post("/fine_tune")
-async def fine_tune_system_prompt_api(request: FineTunePromptRequest):
+async def fine_tune_system_prompt_api(request: FineTunePromptRequest, authorization: Optional[str] = Header(None)):
     try:
+        user_id, tenant_id = get_current_user_id(authorization)
         # Using run_in_executor to convert synchronous functions for asynchronous execution
         loop = asyncio.get_event_loop()
         system_prompt = await loop.run_in_executor(
@@ -45,7 +47,8 @@ async def fine_tune_system_prompt_api(request: FineTunePromptRequest):
             partial(
                 fine_tune_prompt,
                 system_prompt=request.system_prompt,
-                command=request.command
+                command=request.command,
+                tenant_id=tenant_id
             )
         )
         return {"success": True, "data": system_prompt}
