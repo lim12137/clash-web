@@ -1,5 +1,4 @@
 const API_BASE_URL = '/api';
-const UPLOAD_SERVICE_URL = '/api/file';
 
 export const API_ENDPOINTS = {
   conversation: {
@@ -41,11 +40,11 @@ export const API_ENDPOINTS = {
     ws: `/api/voice/tts/ws`,
   },
   storage: {
-    upload: `${UPLOAD_SERVICE_URL}/storage`,
-    files: `${UPLOAD_SERVICE_URL}/storage`,
-    file: (objectName: string) => `${UPLOAD_SERVICE_URL}/storage/${objectName}`,
-    delete: (objectName: string) => `${UPLOAD_SERVICE_URL}/storage/${objectName}`,
-    preprocess: `${UPLOAD_SERVICE_URL}/preprocess`,
+    upload: `${API_BASE_URL}/file/storage`,
+    files: `${API_BASE_URL}/file/storage`,
+    file: (objectName: string) => `${API_BASE_URL}/file/storage/${objectName}`,
+    delete: (objectName: string) => `${API_BASE_URL}/file/storage/${objectName}`,
+    preprocess: `${API_BASE_URL}/file/preprocess`,
   },
   proxy: {
     image: (url: string) => `${API_BASE_URL}/image?url=${encodeURIComponent(url)}`,
@@ -70,17 +69,23 @@ export const API_ENDPOINTS = {
     health: `${API_BASE_URL}/indices/health`,
     indices: `${API_BASE_URL}/indices`,
     indexInfo: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/info`,
+    listFiles: (indexName: string, searchRedis: boolean = true) => `${API_BASE_URL}/indices/${indexName}/files?search_redis=${searchRedis}`,
     indexDetail: (indexName: string) => `${API_BASE_URL}/indices/${indexName}`,
     summary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/auto_summary`,
     changeSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
     getSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
     
     // File upload service
-    upload: `${UPLOAD_SERVICE_URL}/upload`,
+    upload: `${API_BASE_URL}/file/upload`,
+    markFailure: `${API_BASE_URL}/file/mark_failure`,
   },
   config: {
     save: `${API_BASE_URL}/config/save_config`,
     load: `${API_BASE_URL}/config/load_config`,
+  },
+  tenantConfig: {
+    loadKnowledgeList: `${API_BASE_URL}/tenant_config/load_knowledge_list`,
+    updateKnowledgeList: `${API_BASE_URL}/tenant_config/update_knowledge_list`,
   }
 };
 
