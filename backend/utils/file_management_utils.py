@@ -98,7 +98,7 @@ def get_all_files_status(index_name: str):
     try:
         try:
             with httpx.Client() as client:
-                response = client.get(f"{DATA_PROCESS_SERVICE}/indices/{index_name}", timeout=10.0)
+                response = client.get(f"{DATA_PROCESS_SERVICE}/tasks/indices/{index_name}", timeout=10.0)
             if response.status_code == 200:
                 tasks_list = response.json()
             else:

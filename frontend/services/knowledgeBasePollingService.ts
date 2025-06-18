@@ -98,14 +98,6 @@ class KnowledgeBasePollingService {
     this.pollingIntervals.set(kbId, interval);
   }
 
-  private markKnowledgeBaseTimeout(kbId: string) {
-    this.timedOutKnowledgeBases.add(kbId);
-  }
-
-  public isKnowledgeBaseTimedOut(kbId: string): boolean {
-    return this.timedOutKnowledgeBases.has(kbId);
-  }
-
   /**
    * Handle polling timeout - mark all processing documents as failed
    * @param kbId Knowledge base ID
@@ -126,21 +118,12 @@ class KnowledgeBasePollingService {
         NON_TERMINAL_STATUSES.includes(doc.status)
       );
       if (processingDocs.length > 0) {
-        const timeoutMessage = timeoutType === 'document' 
-          ? 'Task marked as failed due to document polling timeout'
-          : 'Task marked as failed due to knowledgebase polling timeout';
         console.warn(`${timeoutType} polling timed out with ${processingDocs.length} documents still processing:`, 
           processingDocs.map(doc => ({ name: doc.name, status: doc.status })));
-        this.markKnowledgeBaseTimeout(kbId);
         if (callback) {
           callback(documents);
         }
         this.triggerDocumentsUpdate(kbId, documents);
-        processingDocs.forEach(doc => {
-          const failureStatus = (doc.status === 'WAIT_FOR_PROCESSING' || doc.status === 'PROCESSING') 
-            ? 'PROCESS_FAILED' : 'FORWARD_FAILED';
-          console.error(`Document ${doc.name} marked as ${failureStatus} due to ${timeoutType} polling timeout`);
-        });
       } else {
         // Should forward documents to UI even if there is no processing document, prevent UI stuck
         this.triggerDocumentsUpdate(kbId, documents);
@@ -287,31 +270,10 @@ class KnowledgeBasePollingService {
       return;
     }
     
-    let docsToUpdate = documents;
-    if (this.isKnowledgeBaseTimedOut(kbId)) {
-      docsToUpdate = documents.map(doc => {
-        if (NON_TERMINAL_STATUSES.includes(doc.status)) {
-          let failureStatus: 'PROCESS_FAILED' | 'FORWARD_FAILED';
-          if (doc.status === 'WAIT_FOR_PROCESSING' || doc.status === 'PROCESSING') {
-            failureStatus = 'PROCESS_FAILED';
-          } else if (doc.status === 'WAIT_FOR_FORWARDING' || doc.status === 'FORWARDING') {
-            failureStatus = 'FORWARD_FAILED';
-          } else {
-            failureStatus = 'PROCESS_FAILED';
-          }
-          return {
-            ...doc,
-            status: failureStatus,
-            error: '任务超时，已自动标记为失败'
-          };
-        }
-        return doc;
-      });
-    }
     window.dispatchEvent(new CustomEvent('documentsUpdated', {
       detail: { 
         kbId,
-        documents: docsToUpdate
+        documents
       }
     }));
   }
