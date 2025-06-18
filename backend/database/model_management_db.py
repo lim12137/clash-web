@@ -153,3 +153,53 @@ def get_model_by_display_name(display_name: str, tenant_id: Optional[str] = None
 
     model = records[0]
     return model
+
+def get_model_id_by_display_name(display_name: str, tenant_id: Optional[str] = None) -> Optional[int]:
+    """
+    Get a model ID by display name
+
+    Args:
+        display_name: Model display name 
+        tenant_id: Optional tenant ID, defaults to "tenant_id" if None or empty
+
+    Returns:
+        Optional[int]: Model ID
+    """
+    model = get_model_by_display_name(display_name, tenant_id)
+    return model["model_id"] if model else None
+
+
+def get_model_by_model_id(model_id: int, tenant_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    使用原生 SQLAlchemy 查询获取模型记录
+
+    Args:
+        model_id (int): 模型ID
+        tenant_id (Optional[str]): 租户ID，可选
+
+    Returns:
+        Optional[Dict[str, Any]]: 模型记录字典，如果没找到则返回 None
+    """
+    with get_db_session() as session:
+        # 构建基础查询
+        stmt = select(ModelRecord).where(
+            ModelRecord.model_id == model_id,
+            ModelRecord.delete_flag == 'N'
+        )
+        
+        # 如果提供了租户ID，添加租户过滤条件
+        if tenant_id:
+            stmt = stmt.where(ModelRecord.tenant_id == tenant_id)
+            
+        # 执行查询
+        result = session.scalars(stmt).first()
+        
+        # 如果没有找到记录，返回 None
+        if result is None:
+            return None
+            
+        # 将 SQLAlchemy 模型对象转换为字典
+        result_dict = {key: value for key, value in result.__dict__.items() 
+                      if not key.startswith('_')}
+        
+        return result_dict

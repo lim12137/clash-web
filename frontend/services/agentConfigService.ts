@@ -19,7 +19,9 @@ const getAuthHeaders = () => {
  */
 export const fetchTools = async () => {
   try {
-    const response = await fetch(API_ENDPOINTS.tool.list);
+    const response = await fetch(API_ENDPOINTS.tool.list, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) {
       throw new Error(`请求失败: ${response.status}`);
     }
