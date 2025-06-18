@@ -465,39 +465,6 @@ class KnowledgeBaseService {
       throw new Error('Failed to get summary');
     }
   }
-
-  /**
-   * Mark a list of tasks as FAILED in the backend
-   * @param taskIds List of task IDs to mark as failed
-   * @param reason The reason for the failure
-   * @returns The result from the backend
-   */
-  async markTasksAsFailed(taskIds: string[], reason: string): Promise<any> {
-    if (taskIds.length === 0) {
-      console.log("No tasks to mark as failed.");
-      return Promise.resolve();
-    }
-    
-    try {
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.markFailure, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ task_ids: taskIds, reason }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to mark tasks as failed');
-      }
-
-      const result = await response.json();
-      console.log(`Successfully marked tasks as failed:`, result);
-      return result;
-    } catch (error) {
-      console.error('Error marking tasks as failed:', error);
-      throw error;
-    }
-  }
 }
 
 // Export a singleton instance

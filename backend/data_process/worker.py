@@ -132,9 +132,7 @@ def setup_worker_environment(**kwargs):
         logger.info("🔍 Check sensitive variables")
         sensitive_vars = {
             'REDIS_URL': config.redis_url,
-            'ELASTICSEARCH_SERVICE': config.elasticsearch_service,
-            'ELASTICSEARCH_API_KEY': config.elasticsearch_api_key,
-            'ELASTIC_PASSWORD': config.elastic_password
+            'ELASTICSEARCH_SERVICE': config.elasticsearch_service
         }
         
         for var_name, var_value in sensitive_vars.items():

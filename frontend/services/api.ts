@@ -76,8 +76,7 @@ export const API_ENDPOINTS = {
     getSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
     
     // File upload service
-    upload: `${API_BASE_URL}/file/upload`,
-    markFailure: `${API_BASE_URL}/file/mark_failure`,
+    upload: `${API_BASE_URL}/file/upload`
   },
   config: {
     save: `${API_BASE_URL}/config/save_config`,
