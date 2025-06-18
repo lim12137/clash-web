@@ -11,34 +11,24 @@ class KnowledgeBaseService {
   // 健康检查缓存有效期（毫秒）
   private healthCheckCacheDuration = 60000; // 60秒
 
-  // Check Elasticsearch health (with caching)
+  // Check Elasticsearch health (force refresh, no caching for setup page)
   async checkHealth(): Promise<boolean> {
     try {
-      // 检查缓存是否有效
-      const now = Date.now();
-      if (this.healthCheckCache && (now - this.healthCheckCache.timestamp < this.healthCheckCacheDuration)) {
-        console.log("使用健康检查缓存");
-        return this.healthCheckCache.isHealthy;
-      }
+      // 在 setup 页面中强制刷新，不使用缓存
+      console.log("强制刷新健康检查，不使用缓存");
+      this.healthCheckCache = null; // 清除缓存
 
       const response = await fetch(API_ENDPOINTS.knowledgeBase.health);
       const data = await response.json();
       
       const isHealthy = data.status === "healthy" && data.elasticsearch === "connected";
       
-      // 更新缓存
-      this.healthCheckCache = {
-        isHealthy,
-        timestamp: now
-      };
+      // 不再更新缓存，每次都获取最新状态
       
       return isHealthy;
     } catch (error) {
       console.error("Elasticsearch健康检查失败:", error);
-      this.healthCheckCache = {
-        isHealthy: false,
-        timestamp: Date.now()
-      };
+      // 不再缓存错误状态
       return false;
     }
   }

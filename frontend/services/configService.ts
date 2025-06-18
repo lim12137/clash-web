@@ -51,7 +51,6 @@ export class ConfigService {
         // Write to localStorage separately
         if (frontendConfig.app) localStorage.setItem('app', JSON.stringify(frontendConfig.app));
         if (frontendConfig.models) localStorage.setItem('model', JSON.stringify(frontendConfig.models));
-        if (frontendConfig.data) localStorage.setItem('data', JSON.stringify(frontendConfig.data));
         return true;
       }
       return false;

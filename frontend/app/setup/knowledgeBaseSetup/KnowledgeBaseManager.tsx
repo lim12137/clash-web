@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useLayoutEffect } from "react"
 
 import { message } from 'antd'
 import { InfoCircleFilled } from '@ant-design/icons'
@@ -14,6 +14,7 @@ import { useDocumentContext } from './document/DocumentContext'
 import { useUIContext } from './UIStateManager'
 import knowledgeBaseService from '@/services/knowledgeBaseService'
 import knowledgeBasePollingService from '@/services/knowledgeBasePollingService'
+import { API_ENDPOINTS } from '@/services/api'
 
 // Import new components
 import KnowledgeBaseList from './knowledgeBase/KnowledgeBaseList'
@@ -63,15 +64,29 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 }
 
 // Update the wrapper component
-export default function DataConfigWrapper() {
+interface DataConfigWrapperProps {
+  isActive?: boolean;
+}
+
+export default function DataConfigWrapper({ isActive = false }: DataConfigWrapperProps) {
   return (
     <AppProvider>
-      <DataConfig />
+      <DataConfig isActive={isActive} />
     </AppProvider>
   )
 }
 
-function DataConfig() {
+interface DataConfigProps {
+  isActive: boolean;
+}
+
+function DataConfig({ isActive }: DataConfigProps) {
+  // 组件初始化时清除缓存
+  useEffect(() => {
+    localStorage.removeItem('preloaded_kb_data');
+    localStorage.removeItem('kb_cache');
+  }, []);
+
   // Get context values
   const { 
     state: kbState, 
@@ -83,6 +98,8 @@ function DataConfig() {
     isKnowledgeBaseSelectable,
     refreshKnowledgeBaseData,
     summaryIndex,
+    loadUserSelectedKnowledgeBases,
+    saveUserSelectedKnowledgeBases,
   } = useKnowledgeBaseContext();
 
   const {
@@ -126,6 +143,107 @@ function DataConfig() {
     };
   }, [kbState.knowledgeBases, setActiveKnowledgeBase, fetchDocuments, setIsCreatingMode, setHasClickedUpload]);
 
+
+
+  // 基于 isActive 状态的用户配置加载和保存逻辑
+  const prevIsActiveRef = useRef<boolean | null>(null); // 初始化为 null 来区分首次渲染
+  const hasLoadedRef = useRef(false); // 跟踪是否已经加载过配置
+  const savedSelectedIdsRef = useRef<string[]>([]); // 保存当前选中的知识库ID
+  const savedKnowledgeBasesRef = useRef<any[]>([]); // 保存当前知识库列表
+  const hasUserInteractedRef = useRef(false); // 跟踪用户是否有过交互（防止初始加载时误保存空状态）
+
+  // 监听 isActive 状态变化
+  useLayoutEffect(() => {
+    // 清除可能影响状态的缓存
+    localStorage.removeItem('preloaded_kb_data');
+    localStorage.removeItem('kb_cache');
+
+    const prevIsActive = prevIsActiveRef.current;
+
+    // 进入第二页时标记准备加载
+    if ((prevIsActive === null || !prevIsActive) && isActive) {
+      hasLoadedRef.current = false; // 重置加载状态
+      hasUserInteractedRef.current = false; // 重置交互状态，防止误保存
+    }
+
+    // 离开第二页时保存用户配置
+    if (prevIsActive === true && !isActive) {
+      // 只有在用户有过交互后才保存，防止初始加载时误保存空状态
+      if (hasUserInteractedRef.current) {
+        const saveConfig = async () => {
+          localStorage.removeItem('preloaded_kb_data');
+          localStorage.removeItem('kb_cache');
+
+          try {
+            await saveUserSelectedKnowledgeBases();
+          } catch (error) {
+            console.error('保存用户配置失败:', error);
+          }
+        };
+
+        saveConfig();
+      }
+
+      hasLoadedRef.current = false; // 重置加载状态
+    }
+
+    // 更新 ref
+    prevIsActiveRef.current = isActive;
+  }, [isActive]);
+
+  // 实时保存当前状态到 ref，确保卸载时能访问到
+  useEffect(() => {
+    savedSelectedIdsRef.current = kbState.selectedIds;
+    savedKnowledgeBasesRef.current = kbState.knowledgeBases;
+  }, [kbState.selectedIds, kbState.knowledgeBases]);
+
+  // 组件卸载时的保存逻辑
+  useEffect(() => {
+    return () => {
+      // 组件卸载时，如果之前是活跃状态且用户有过交互，则执行保存
+      if (prevIsActiveRef.current === true && hasUserInteractedRef.current) {
+        // 使用保存的状态而不是当前可能已清空的状态
+        const selectedKbNames = savedKnowledgeBasesRef.current
+          .filter(kb => savedSelectedIdsRef.current.includes(kb.id))
+          .map(kb => kb.name);
+
+        try {
+          // 使用fetch with keepalive确保请求能在页面卸载时发送
+          fetch(API_ENDPOINTS.tenantConfig.updateKnowledgeList, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': localStorage.getItem('token') || '',
+            },
+            body: JSON.stringify(selectedKbNames),
+            keepalive: true
+          }).catch(error => {
+            console.error('卸载时保存失败:', error);
+          });
+        } catch (error) {
+          console.error('卸载时保存请求异常:', error);
+        }
+      }
+    };
+  }, []);
+
+  // 单独监听知识库加载状态，当知识库加载完成且处于活跃状态时加载用户配置
+  useEffect(() => {
+    // 只有在第二页活跃、知识库已加载、且尚未加载用户配置时才执行
+    if (isActive && kbState.knowledgeBases.length > 0 && !kbState.isLoading && !hasLoadedRef.current) {
+      const loadConfig = async () => {
+        try {
+          await loadUserSelectedKnowledgeBases();
+          hasLoadedRef.current = true;
+        } catch (error) {
+          console.error('加载用户配置失败:', error);
+        }
+      };
+
+      loadConfig();
+    }
+  }, [isActive, kbState.knowledgeBases.length, kbState.isLoading]);
+
   // Generate unique knowledge base name
   const generateUniqueKbName = (existingKbs: KnowledgeBase[]): string => {
     const baseNamePrefix = "新知识库";
@@ -149,6 +267,7 @@ function DataConfig() {
   const handleKnowledgeBaseClick = (kb: KnowledgeBase, fromUserClick: boolean = true) => {
     // 只有当是用户点击时才重置创建模式
     if (fromUserClick) {
+      hasUserInteractedRef.current = true; // 标记用户有交互
       setIsCreatingMode(false); // Reset creating mode
       setHasClickedUpload(false); // 重置上传按钮点击状态
       setNameExists(false); // 重置名称存在状态
@@ -225,6 +344,7 @@ function DataConfig() {
 
   // Handle knowledge base deletion
   const handleDelete = (id: string) => {
+    hasUserInteractedRef.current = true; // 标记用户有交互
     ConfirmModal.confirm({
       title: '确定要删除这个知识库吗？',
       content: '删除后无法恢复。',
@@ -264,6 +384,7 @@ function DataConfig() {
 
   // Handle new knowledge base creation
   const handleCreateNew = () => {
+    hasUserInteractedRef.current = true; // 标记用户有交互
     // Generate default knowledge base name
     const defaultName = generateUniqueKbName(kbState.knowledgeBases);
     setNewKbName(defaultName);
@@ -296,7 +417,7 @@ function DataConfig() {
   }
 
   // 处理文件上传 - 在创建模式下先创建知识库再上传，在普通模式下直接上传
-  const handleFileUpload = async () => {    
+  const handleFileUpload = async () => {
     // 确保有文件要上传
     if (!uploadFiles.length) {
       message.warning("请先选择文件");
@@ -305,7 +426,7 @@ function DataConfig() {
 
     const filesToUpload = uploadFiles;
     console.log("Uploading files:", filesToUpload);
-    
+
     // 创建模式逻辑 - 先创建知识库，再上传文件
     if (isCreatingMode) {
       console.log("Creating mode: create KB then upload files");
@@ -347,7 +468,7 @@ function DataConfig() {
         knowledgeBasePollingService.setActiveKnowledgeBase(newKB.id);
         setHasClickedUpload(false);
         setNameExists(false);
-        
+
         // 3. 上传文件到新知识库
         await uploadDocuments(newKB.id, filesToUpload);
         console.log("知识库创建成功，文件上传至服务器。下一步：准备触发Celery Task处理文档...");
@@ -383,15 +504,6 @@ function DataConfig() {
     }
     
     try {
-      console.log("Using Non Creation Mode")
-      // 1. 上传前获取当前知识库的 documentCount
-      // TODO: Maybe useful when handling 
-      // const kbInfoList = await knowledgeBaseService.getKnowledgeBasesInfo(true);
-      // const currentKbInfo = kbInfoList.find(kb => kb.id === kbId);
-      // const originalDocumentCount = currentKbInfo?.documentCount || 0;
-      // const expectedIncrement = filesToUpload.length;
-
-      // 2. 上传文件
       await uploadDocuments(kbId, filesToUpload);
       console.log("文件上传至服务器。下一步：准备触发Celery Task处理文档...");
       setUploadFiles([]);
@@ -430,9 +542,9 @@ function DataConfig() {
     if (isCreatingMode) {
       return [];
     }
-    
+
     // 正常模式下，使用activeKnowledgeBase
-    return kbState.activeKnowledgeBase 
+    return kbState.activeKnowledgeBase
       ? docState.documentsMap[kbState.activeKnowledgeBase.id] || []
       : [];
   })();
@@ -449,6 +561,7 @@ function DataConfig() {
 
   // Handle knowledge base selection
   const handleSelectKnowledgeBase = (id: string) => {
+    hasUserInteractedRef.current = true; // 标记用户有交互
     selectKnowledgeBase(id);
     
     // When selecting knowledge base also get latest data (low priority background operation)
@@ -550,7 +663,7 @@ function DataConfig() {
                   onDelete={() => {}}
                   isCreatingMode={true}
                   knowledgeBaseName={newKbName}
-                  onNameChange={handleNameChange}    
+                  onNameChange={handleNameChange}
                   containerHeight={MAIN_CONTENT_HEIGHT}
                   hasDocuments={hasClickedUpload || docState.isUploading}
                   // Upload related props
