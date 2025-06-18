@@ -1,6 +1,6 @@
 // Unified encapsulation of knowledge base related API calls
 
-import { Document, KnowledgeBase, KnowledgeBaseCreateParams, IndexInfoResponse } from '@/types/knowledgeBase';
+import { Document, KnowledgeBase, KnowledgeBaseCreateParams } from '@/types/knowledgeBase';
 import { API_ENDPOINTS } from './api';
 import { getAuthHeaders } from './conversationService';
 
@@ -11,40 +11,30 @@ class KnowledgeBaseService {
   // 健康检查缓存有效期（毫秒）
   private healthCheckCacheDuration = 60000; // 60秒
 
-  // Check Elasticsearch health (with caching)
+  // Check Elasticsearch health (force refresh, no caching for setup page)
   async checkHealth(): Promise<boolean> {
     try {
-      // 检查缓存是否有效
-      const now = Date.now();
-      if (this.healthCheckCache && (now - this.healthCheckCache.timestamp < this.healthCheckCacheDuration)) {
-        console.log("使用健康检查缓存");
-        return this.healthCheckCache.isHealthy;
-      }
+      // 在 setup 页面中强制刷新，不使用缓存
+      console.log("强制刷新健康检查，不使用缓存");
+      this.healthCheckCache = null; // 清除缓存
 
       const response = await fetch(API_ENDPOINTS.knowledgeBase.health);
       const data = await response.json();
       
       const isHealthy = data.status === "healthy" && data.elasticsearch === "connected";
       
-      // 更新缓存
-      this.healthCheckCache = {
-        isHealthy,
-        timestamp: now
-      };
+      // 不再更新缓存，每次都获取最新状态
       
       return isHealthy;
     } catch (error) {
       console.error("Elasticsearch健康检查失败:", error);
-      this.healthCheckCache = {
-        isHealthy: false,
-        timestamp: Date.now()
-      };
+      // 不再缓存错误状态
       return false;
     }
   }
 
-  // Get knowledge bases
-  async getKnowledgeBases(skipHealthCheck = false): Promise<KnowledgeBase[]> {
+  // Get knowledge bases with stats (very slow, don't use it)
+  async getKnowledgeBasesInfo(skipHealthCheck = false): Promise<KnowledgeBase[]> {
     try {
       // First check Elasticsearch health (unless skipped)
       if (!skipHealthCheck) {
@@ -97,27 +87,39 @@ class KnowledgeBaseService {
     }
   }
 
-  // 检查知识库是否存在（不获取详细统计信息，更轻量）
-  async checkKnowledgeBaseExists(name: string): Promise<boolean> {
+  async getKnowledgeBases(skipHealthCheck = false): Promise<string[]> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=false`);
-      const data = await response.json();
-      
-      if (data.indices && Array.isArray(data.indices)) {
-        return data.indices.includes(name);
+      // First check Elasticsearch health (unless skipped)
+      if (!skipHealthCheck) {
+        const isElasticsearchHealthy = await this.checkHealth();
+        if (!isElasticsearchHealthy) {
+          console.warn("Elasticsearch service unavailable");
+          return [];
+        }
       }
-      return false;
+
+      let knowledgeBases = [];
+
+      try{
+        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}`);
+        const data = await response.json();
+        knowledgeBases = data.indices;
+      } catch (error) {
+        console.error("Failed to get knowledge base list:", error);
+      }
+
+      return knowledgeBases;
     } catch (error) {
-      console.error("检查知识库存在性失败:", error);
-      return false;
+      console.error("Failed to get knowledge base list:", error);
+      throw error;
     }
   }
 
-  // 检查知识库名称是否已存在
+  // Check whether the knowledge base name already exists in Elasticsearch
   async checkKnowledgeBaseNameExists(name: string): Promise<boolean> {
     try {
       const knowledgeBases = await this.getKnowledgeBases(true);
-      return knowledgeBases.some(kb => kb.name === name);
+      return knowledgeBases.includes(name);
     } catch (error) {
       console.error("Failed to check knowledge base name existence:", error);
       throw error;
@@ -192,42 +194,35 @@ class KnowledgeBaseService {
     }
   }
 
-  // Get documents from a knowledge base
-  async getDocuments(kbId: string, forceRefresh: boolean = false): Promise<Document[]> {
+  // Get all files from a knowledge base, regardless of the existence of index
+  // searchRedis: true means search redis to get the file in Celery, false means only search in ES
+  async getAllFiles(kbId: string, searchRedis: boolean = false): Promise<Document[]> {
     try {
-      // Add random query parameter to bypass browser cache (only when force refresh)
-      const cacheParam = forceRefresh ? `&_t=${Date.now()}` : '';
-      
-      // Use new interface /indices/{index_name}/info to get knowledge base details, including file list
-      const response = await fetch(
-        `${API_ENDPOINTS.knowledgeBase.indexInfo(kbId)}?include_files=true${cacheParam}`
-      );
-      const result = await response.json() as IndexInfoResponse;
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.listFiles(kbId, searchRedis));
+      const result = await response.json();
 
-      // Handle different response formats, some APIs return success field, some return data directly
-      if (result.success === false) {
-        throw new Error(result.message || "Failed to get document list");
+      if (result.status !== "success") {
+        throw new Error("Failed to get file list");
       }
 
-      // Standard API response format processing
-      if (result.base_info && result.files && Array.isArray(result.files)) {
-        return result.files.map((file) => ({
-          id: file.path_or_url, // Use path or URL as ID
-          kb_id: kbId,
-          name: file.file || file.path_or_url.split('/').pop() || 'Unknown',
-          type: this.getFileTypeFromName(file.file || file.path_or_url),
-          size: file.file_size || 0,
-          create_time: file.create_time || new Date().toISOString(),
-          chunk_num: file.chunk_count || 0,
-          token_num: 0, // Not provided by API, use default value
-          status: file.status || "UNKNOWN" // Get status from API
-        }));
+      if (!result.files || !Array.isArray(result.files)) {
+        return [];
       }
 
-      // If no document information is obtained, return empty array
-      return [];
+      return result.files.map((file: any) => ({
+        id: file.path_or_url,
+        kb_id: kbId,
+        name: file.file,
+        type: this.getFileTypeFromName(file.file || file.path_or_url),
+        size: file.file_size,
+        create_time: file.create_time,
+        chunk_num: file.chunk_count || 0,
+        token_num: 0,
+        status: file.status || "UNKNOWN",
+        latest_task_id: file.latest_task_id || ""
+      }));
     } catch (error) {
-      console.error("Failed to get document list:", error);
+      console.error("Failed to get all files:", error);
       throw error;
     }
   }
@@ -275,10 +270,12 @@ class KnowledgeBaseService {
         formData.append("chunking_strategy", chunkingStrategy);
       }
 
-      // Send request
+      // Send request - cannot use getAuthHeaders，cuz we actually need content-type: multipart/form-data here
       const response = await fetch(API_ENDPOINTS.knowledgeBase.upload, {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers: {
+          'User-Agent': 'AgentFrontEnd/1.0'
+        },
         body: formData,
       });
 
@@ -456,6 +453,39 @@ class KnowledgeBaseService {
         throw error;
       }
       throw new Error('Failed to get summary');
+    }
+  }
+
+  /**
+   * Mark a list of tasks as FAILED in the backend
+   * @param taskIds List of task IDs to mark as failed
+   * @param reason The reason for the failure
+   * @returns The result from the backend
+   */
+  async markTasksAsFailed(taskIds: string[], reason: string): Promise<any> {
+    if (taskIds.length === 0) {
+      console.log("No tasks to mark as failed.");
+      return Promise.resolve();
+    }
+
+    try {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.markFailure, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ task_ids: taskIds, reason }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to mark tasks as failed');
+      }
+
+      const result = await response.json();
+      console.log(`Successfully marked tasks as failed:`, result);
+      return result;
+    } catch (error) {
+      console.error('Error marking tasks as failed:', error);
+      throw error;
     }
   }
 }
