@@ -33,8 +33,6 @@ app = Celery(
     broker=REDIS_URL,
     backend=REDIS_BACKEND_URL,
     elasticsearch_service=os.environ.get('ELASTICSEARCH_SERVICE'),
-    elasticsearch_api_key=os.environ.get('ELASTICSEARCH_API_KEY'),
-    elastic_password=os.environ.get('ELASTIC_PASSWORD'),
     include=[import_path]
 )
 
