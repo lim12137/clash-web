@@ -32,19 +32,13 @@ class TTSConfig:
         return f"wss://{self.host}/api/v1/tts/ws_binary"
 
     @classmethod
-    def from_env(cls, env_path: Optional[Union[str, Path]] = None) -> 'TTSConfig':
+    def from_env(cls) -> 'TTSConfig':
         """
         Create TTSConfig instance from environment variables.
-        
-        Args:
-            env_path: Optional path to the .env file. If not provided, will try to load from environment variables directly.
-            
+                    
         Returns:
             TTSConfig: Configuration instance loaded from environment variables
         """
-        if env_path:
-            load_dotenv(env_path)
-
         return cls(appid=os.getenv("APPID"), token=os.getenv("TOKEN"), cluster=os.getenv("CLUSTER"),
             voice_type=os.getenv("VOICE_TYPE"), speed_ratio=os.getenv("SPEED_RATIO"))
 
