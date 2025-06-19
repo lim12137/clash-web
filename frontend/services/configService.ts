@@ -21,6 +21,7 @@ export class ConfigService {
       const response = await fetch(API_ENDPOINTS.config.save, {
         method: 'POST',
         headers: {
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(config),
