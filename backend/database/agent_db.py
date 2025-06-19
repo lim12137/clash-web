@@ -3,10 +3,14 @@ import logging
 from typing import List
 
 from fastapi import HTTPException
+from sqlalchemy import or_
 
 from database.client import get_db_session, as_dict, filter_property
 from database.db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
 from utils.auth_utils import get_current_user_id
+
+from sqlalchemy import or_
+from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID
 
 
 def search_agent_info_by_agent_id(agent_id: int, tenant_id: str, user_id: str = None):
@@ -210,13 +214,14 @@ def create_or_update_tool_by_tool_info(tool_info, tenant_id: str, user_id: str =
 
     with get_db_session() as session:
         # Query if there is an existing ToolInstance
-        query = session.query(ToolInstance).filter(ToolInstance.tenant_id == tenant_id,
-                                                   ToolInstance.agent_id == tool_info_dict['agent_id'],
-                                                   ToolInstance.delete_flag != 'Y',
-                                                   ToolInstance.tool_id == tool_info_dict['tool_id'])
+        query = session.query(ToolInstance).filter(
+            or_(ToolInstance.tenant_id == tenant_id, ToolInstance.tenant_id == DEFAULT_TENANT_ID),
+            ToolInstance.agent_id == tool_info_dict['agent_id'],
+            ToolInstance.delete_flag != 'Y',
+            ToolInstance.tool_id == tool_info_dict['tool_id'])
 
         if user_id:
-            query = query.filter(ToolInstance.user_id == user_id)
+            query = query.filter(ToolInstance.user_id == user_id or ToolInstance.user_id == DEFAULT_USER_ID)
 
         tool_instance = query.first()
 
@@ -244,7 +249,7 @@ def query_all_tools(tenant_id: str):
         tools = session.query(ToolInfo).filter(
             ToolInfo.delete_flag != 'Y'
         ).filter(
-            (ToolInfo.author == tenant_id) | (ToolInfo.author == "tenant_id")
+            (ToolInfo.author == tenant_id) | (ToolInfo.author == DEFAULT_TENANT_ID)
         ).all()
         return [as_dict(tool) for tool in tools]
 
@@ -258,12 +263,13 @@ def query_tool_instances_by_id(agent_id: int, tool_id: int, tenant_id: str, user
     :return: List of ToolInstance objects
     """
     with get_db_session() as session:
-        query = session.query(ToolInstance).filter(ToolInstance.tenant_id == tenant_id,
-                                                   ToolInstance.agent_id == agent_id,
-                                                   ToolInstance.tool_id == tool_id,
-                                                   ToolInstance.delete_flag != 'Y')
+        query = session.query(ToolInstance).filter(
+            or_(ToolInstance.tenant_id == tenant_id, ToolInstance.tenant_id == DEFAULT_TENANT_ID),
+            ToolInstance.agent_id == agent_id,
+            ToolInstance.tool_id == tool_id,
+            ToolInstance.delete_flag != 'Y')
         if user_id:
-            query = query.filter(ToolInstance.user_id == user_id)
+            query = query.filter(ToolInstance.user_id == user_id or ToolInstance.user_id == DEFAULT_USER_ID)
         tool_instance = query.first()
         if tool_instance:
             return as_dict(tool_instance)
@@ -289,10 +295,10 @@ def query_all_enabled_tool_instances(tenant_id: str, user_id: str = None, agent_
     :return: List of ToolInstance objects
     """
     with get_db_session() as session:
-        query = session.query(ToolInstance).filter(ToolInstance.tenant_id == tenant_id).filter(
+        query = session.query(ToolInstance).filter(ToolInstance.tenant_id == tenant_id or ToolInstance.tenant_id == DEFAULT_TENANT_ID).filter(
             ToolInstance.delete_flag != 'Y').filter(ToolInstance.enabled)
         if user_id:
-            query = query.filter(ToolInstance.user_id == user_id)
+            query = query.filter(ToolInstance.user_id == user_id or ToolInstance.user_id == DEFAULT_USER_ID)
         if agent_id:
             query = query.filter(ToolInstance.agent_id == agent_id)
         tools = query.all()
