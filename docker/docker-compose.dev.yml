@@ -1,0 +1,94 @@
+name: nexent
+
+services:
+  nexent:
+    image: nexent/nexent
+    container_name: nexent
+    restart: always
+    ports:
+      - "5010:5010"
+    volumes:
+      - ../:/opt/
+      - ./uploads:/opt/backend/uploads
+    environment:
+      ELASTIC_PASSWORD: nexent@2025
+      ELASTICSEARCH_API_KEY: OUEwOVhwY0I4bjBZeFR5N0dGaWI6M2VoNWJiWmpTOVdlNFFCU0YzQUFTUQ==
+      MINIO_ACCESS_KEY: 0a6917f6c66f2de7985a3978
+      MINIO_SECRET_KEY: YgCj9sZm+QKGEr+GkTrzkA7t+1gEL0BiHkhQdinYLKA=
+      MINIO_REGION: cn-north-1
+      MINIO_DEFAULT_BUCKET: nexent
+      skip_proxy: "true"
+      UPLOAD_FOLDER: /opt/backend/uploads
+      UMASK: 0022
+    env_file:
+      - .env
+    user: root
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - nexent
+    entrypoint: "/bin/bash"
+    command: >
+      -c "
+      apt-get update &&
+      apt-get install -y iputils-ping netcat-openbsd net-tools dnsutils curl &&
+      rm -rf /var/lib/apt/lists/* &&
+      sleep infinity
+      "
+
+
+  nexent-data-process:
+    image: nexent/nexent-data-process:latest
+    container_name: nexent-data-process
+    restart: always
+    privileged: true
+    ports:
+      - "5012:5012"
+    volumes:
+      - ../:/opt/:cached
+      - ./uploads:/opt/backend/uploads
+      - ../backend/assets/clip-vit-base-patch32:/opt/models/clip-vit-base-patch32:ro
+    environment:
+      skip_proxy: "true"
+    env_file:
+      - .env
+    networks:
+      - nexent
+    user: root
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    entrypoint: "/bin/bash"
+    command: "-c 'sleep infinity'"
+
+  nexent-web:
+    image: docker.io/node:20-slim
+    container_name: nexent-web
+    restart: always
+    networks:
+      - nexent
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../frontend:/opt/frontend:cached
+      - ../frontend/node_modules:/opt/frontend/node_modules:cached
+    environment:
+      - HTTP_BACKEND=http://nexent:5010
+      - WS_BACKEND=ws://nexent:5010
+      - MINIO_ENDPOINT=http://nexent-minio:9000
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: ["/bin/sh", "-c", "echo 'Web Service needs to be started manually. Use\nnpm install -g pnpm\npnpm install\npnpm dev\n under /opt/frontend to start.' && tail -f /dev/null"]
+
+
+networks:
+  nexent:
+    driver: bridge

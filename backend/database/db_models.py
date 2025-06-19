@@ -216,14 +216,15 @@ class KnowledgeRecord(TableBase):
     knowledge_id = Column(Integer, Sequence("knowledge_record_t_knowledge_id_seq", schema="nexent"), primary_key=True, nullable=False, doc="Knowledge base ID, unique primary key")
     index_name = Column(String(100), doc="Knowledge base name")
     knowledge_describe = Column(String(300), doc="Knowledge base description")
-    tenant_id = Column(String(100), doc="Tenant ID")
     knowledge_embedding_model = Column(String(300), doc="Knowledge base embedding model")
     knowledge_sources = Column(String(300), doc="Knowledge base sources")
+    tenant_id = Column(String(100), doc="Tenant ID")
     delete_flag = Column(String(1), default="N", doc="Knowledge base status. Currently defaults to 1, if knowledge base status is 0, then this knowledge base is unavailable")
     create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time, audit field")
     update_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Update date, audit field")
     updated_by = Column(String(100), doc="ID of the last updater, audit field")
     created_by = Column(String(100), doc="ID of the creator, audit field")
+
 
 class TenantConfig(TableBase):
     """

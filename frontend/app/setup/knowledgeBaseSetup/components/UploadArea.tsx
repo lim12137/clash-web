@@ -1,13 +1,14 @@
 import React, { useState, forwardRef, useImperativeHandle, useEffect, useCallback, useRef } from 'react';
+import { message } from 'antd';
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
 import { API_ENDPOINTS } from '@/services/api';
+import knowledgeBasePollingService from '@/services/knowledgeBasePollingService';
 import UploadAreaUI from './UploadAreaUI';
 import { 
   customUploadRequest,
   checkKnowledgeBaseNameExists,
   fetchKnowledgeBaseInfo,
   validateFileType,
-  createMockFileSelectEvent
 } from './UploadService';
 
 interface UploadAreaProps {
@@ -15,7 +16,7 @@ interface UploadAreaProps {
   onDragOver?: (e: React.DragEvent) => void;
   onDragLeave?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
-  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileSelect: (files: File[]) => void;
   selectedFiles?: File[];
   onUpload?: () => void;
   isUploading?: boolean;
@@ -49,6 +50,11 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
   const [isKnowledgeBaseReady, setIsKnowledgeBaseReady] = useState(false);
   const currentKnowledgeBaseRef = useRef<string>('');
   const pendingRequestRef = useRef<AbortController | null>(null);
+  const prevFileListRef = useRef<UploadFile[]>([]);
+  
+  useEffect(() => {
+    prevFileListRef.current = fileList;
+  }, [fileList]);
   
   // 重置所有状态的函数
   const resetAllStates = useCallback(() => {
@@ -111,11 +117,6 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
     };
   }, [indexName, isCreatingMode, resetAllStates]);
   
-  // 使用本地开发服务器URL
-  const effectiveUploadUrl = uploadUrl === '/api/upload' 
-    ? API_ENDPOINTS.knowledgeBase.upload 
-    : uploadUrl;
-  
   // 暴露文件列表给父组件
   useImperativeHandle(ref, () => ({
     fileList
@@ -153,40 +154,42 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
   // 处理文件变更
   const handleChange = useCallback(({ fileList: newFileList }: { fileList: UploadFile[] }) => {
     // 确保只更新当前知识库的文件列表
-    if (indexName === currentKnowledgeBaseRef.current) {
-      const currentUploadFiles = newFileList.filter((file: UploadFile) => 
-        file.status === 'uploading' || 
-        file.status === 'done' || 
-        file.status === 'error'
-      );
-      setFileList(currentUploadFiles);
+    if (isCreatingMode || indexName === currentKnowledgeBaseRef.current) {
+      setFileList(newFileList);
+    } else {
+      return;
     }
     
-    // 触发文件选择回调
-    if (newFileList.length > 0) {
-      const lastFile = newFileList[newFileList.length - 1];
-      if (lastFile.originFileObj) {
-        try {
-          const mockEvent = createMockFileSelectEvent(lastFile);
-          onFileSelect(mockEvent);
-        } catch (error) {
-          console.error('创建模拟事件失败:', error);
-        }
+    // 检查上传是否刚刚完成
+    const prevFileList = prevFileListRef.current;
+    const uploadWasInProgress = prevFileList.some(f => f.status === 'uploading');
+    const uploadIsNowFinished = newFileList.length > 0 && !newFileList.some(f => f.status === 'uploading');
+
+    if (uploadWasInProgress && uploadIsNowFinished) {
+      // 上传完成后仅调用外部的上传完成回调，由 KnowledgeBaseManager 统一管理轮询
+      if (onUpload) {
+        onUpload();
       }
     }
-  }, [indexName, onFileSelect]);
+    
+    // 触发文件选择回调, 传递所有文件
+    const files = newFileList
+      .map(file => file.originFileObj)
+      .filter((file): file is File => !!file);
 
-  // 处理自定义上传请求
+    if (files.length > 0) {
+      onFileSelect(files);
+    }
+  }, [indexName, onFileSelect, isCreatingMode, newKnowledgeBaseName, onUpload]);
+
+  // 处理自定义上传请求 - 不执行实际上传，改由父组件统一处理
   const handleCustomRequest = useCallback((options: any) => {
-    return customUploadRequest(
-      options,
-      effectiveUploadUrl,
-      isCreatingMode,
-      newKnowledgeBaseName,
-      indexName,
-      currentKnowledgeBaseRef
-    );
-  }, [effectiveUploadUrl, isCreatingMode, newKnowledgeBaseName, indexName]);
+    // 实际上传由父组件的 handleFileUpload 处理
+    const { onSuccess, file } = options;
+    setTimeout(() => {
+      onSuccess({}, file);
+    }, 100);
+  }, []);
 
   // 上传组件属性
   const uploadProps: UploadProps = {

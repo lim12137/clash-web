@@ -5,6 +5,7 @@ import { InfoCircleFilled } from '@ant-design/icons'
 import UploadArea from '../components/UploadArea'
 import { formatFileSize, formatDateTime } from '@/lib/utils'
 import { Input, Button, Tooltip } from 'antd'
+import { useKnowledgeBaseContext } from '../knowledgeBase/KnowledgeBaseContext'
 import { message } from 'antd'
 import knowledgeBaseService from '@/services/knowledgeBaseService'
 
@@ -81,7 +82,7 @@ export interface DocumentListLayoutProps {
   onDragOver?: (e: React.DragEvent) => void
   onDragLeave?: (e: React.DragEvent) => void
   onDrop?: (e: React.DragEvent) => void
-  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onFileSelect: (files: File[]) => void
   selectedFiles: File[]
   handleUpload: () => void
   uploadUrl: string
@@ -123,6 +124,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
   const [summary, setSummary] = useState('');
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const { } = useKnowledgeBaseContext();
 
   // Reset showDetail state when knowledge base name changes
   React.useEffect(() => {
@@ -311,7 +313,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
             </div>
           </div>
         ) : (
-          loading && isInitialLoad ? (
+          loading? (
             <div className="flex items-center justify-center h-full border border-gray-200 rounded-md">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
@@ -392,7 +394,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                         <button
                           onClick={() => onDelete(doc.id)}
                           className={LAYOUT.ACTION_TEXT}
-                          disabled={doc.status === "PROCESSING" || doc.status === "FORWARDING"}
+                          disabled={doc.status === "WAIT_FOR_PROCESSING" || doc.status === "PROCESSING" || doc.status === "WAIT_FOR_FORWARDING" || doc.status === "FORWARDING"}
                         >
                           删除
                         </button>
@@ -413,6 +415,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
       {/* Upload area */}
       {!showDetail && (
         <UploadArea
+          key={isCreatingMode ? `create-${knowledgeBaseName}` : `view-${knowledgeBaseName}`}
           ref={uploadAreaRef}
           onFileSelect={onFileSelect}
           onUpload={handleUpload}
@@ -421,7 +424,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
           onDrop={onDrop}
-          disabled={loading || (!isCreatingMode && !knowledgeBaseName)}
+          disabled={(!isCreatingMode && !knowledgeBaseName)}
           componentHeight={uploadHeight}
           isCreatingMode={isCreatingMode}
           indexName={knowledgeBaseName}

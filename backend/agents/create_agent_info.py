@@ -12,7 +12,9 @@ from utils.auth_utils import get_current_user_id
 from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents, \
     query_or_create_main_agent_id
 from services.elasticsearch_service import ElasticSearchService
+from services.tenant_config_service import get_selected_knowledge_list
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
+from utils.user_utils import get_user_info
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("build agent")
@@ -50,13 +52,19 @@ async def create_agent_config(agent_id, tenant_id, user_id):
     system_prompt = agent_info.get("prompt")
 
     # special logic
-    for tool in tool_list:
-        if "KnowledgeBaseSearchTool" == tool.class_name:
-            knowledge_base_summary = "\n\n### 本地知识库信息 ###\n"
-            for knowledge_name in json.loads(config_manager.get_config("SELECTED_KB_NAMES", "[]")):
-                message = ElasticSearchService().get_summary(index_name=knowledge_name)
-                knowledge_base_summary += f"{knowledge_name}:{message['summary']}\n"
-            system_prompt += knowledge_base_summary
+    try:
+        for tool in tool_list:
+            if "KnowledgeBaseSearchTool" == tool.class_name:
+                knowledge_base_summary = "\n\n### 本地知识库信息 ###\n"
+
+                knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
+                for knowledge_info in knowledge_info_list:
+                    knowledge_name = knowledge_info.get("index_name")
+                    message = ElasticSearchService().get_summary(index_name=knowledge_name)
+                    knowledge_base_summary += f"{knowledge_name}:{message['summary']}\n"
+                system_prompt += knowledge_base_summary
+    except Exception as e:
+        logger.error(f"add knowledge base summary to system prompt failed, error: {e}")
 
     agent_config = AgentConfig(
         name="" if agent_info["name"] is None else agent_info["name"],
@@ -87,7 +95,9 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
 
         # special logic for knowledge base search tool
         if tool_config.class_name == "KnowledgeBaseSearchTool":
-            tool_config.metadata = {"index_names": json.loads(config_manager.get_config("SELECTED_KB_NAMES", "[]"))}
+            knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
+            index_names = [knowledge_info.get("index_name") for knowledge_info in knowledge_info_list]
+            tool_config.metadata = {"index_names": index_names}
         tool_config_list.append(tool_config)
     return tool_config_list
 

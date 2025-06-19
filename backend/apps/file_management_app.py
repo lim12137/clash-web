@@ -105,7 +105,7 @@ async def upload_files(
         return JSONResponse(
             status_code=201,
             content={
-                "message": "Files uploaded and processed successfully",
+                "message": "Files uploaded successfully",
                 "uploaded_files": uploaded_filenames,
                 "process_tasks": process_result
             }

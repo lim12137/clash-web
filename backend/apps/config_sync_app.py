@@ -90,14 +90,6 @@ async def save_config(config: GlobalConfig):
                 env_key = f"{model_prefix}_DIMENSION"
                 env_config[env_key] = safe_value(model_config.get("dimension"))
 
-        # Process knowledge base configuration - use key names directly without prefix, store lists in JSON format
-        for key, value in config_dict.get("data", {}).items():
-            env_key = get_env_key(key)
-            if isinstance(value, list):
-                env_config[env_key] = safe_list(value)
-            else:
-                env_config[env_key] = safe_value(value)
-
         # Batch update environment variables
         for key, value in env_config.items():
             config_manager.set_config(key, value)
@@ -213,11 +205,6 @@ async def load_config(authorization: Optional[str] = Header(None)):
                         "modelUrl": tts_model_name["base_url"] if tts_model_name else ""
                     }
                 }
-            },
-            "data": {
-                "selectedKbNames": json.loads(config_manager.get_config("SELECTED_KB_NAMES", "[]")),
-                "selectedKbModels": json.loads(config_manager.get_config("SELECTED_KB_MODELS", "[]")),
-                "selectedKbSources": json.loads(config_manager.get_config("SELECTED_KB_SOURCES", "[]"))
             }
         }
 
