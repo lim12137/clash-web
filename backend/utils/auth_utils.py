@@ -4,7 +4,6 @@ from typing import Optional
 
 from fastapi import Header
 from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID
-import jwt
 
 # 获取Supabase配置
 SUPABASE_URL = os.getenv('SUPABASE_URL', 'http://118.31.249.152:8010')
