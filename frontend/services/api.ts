@@ -1,7 +1,6 @@
 import { STATUS_CODES } from "@/types/auth";
 
 const API_BASE_URL = '/api';
-const UPLOAD_SERVICE_URL = '/api/file';
 
 export const API_ENDPOINTS = {
   user: {
@@ -52,11 +51,11 @@ export const API_ENDPOINTS = {
     ws: `/api/voice/tts/ws`,
   },
   storage: {
-    upload: `${UPLOAD_SERVICE_URL}/storage`,
-    files: `${UPLOAD_SERVICE_URL}/storage`,
-    file: (objectName: string) => `${UPLOAD_SERVICE_URL}/storage/${objectName}`,
-    delete: (objectName: string) => `${UPLOAD_SERVICE_URL}/storage/${objectName}`,
-    preprocess: `${UPLOAD_SERVICE_URL}/preprocess`,
+    upload: `${API_BASE_URL}/file/storage`,
+    files: `${API_BASE_URL}/file/storage`,
+    file: (objectName: string) => `${API_BASE_URL}/file/storage/${objectName}`,
+    delete: (objectName: string) => `${API_BASE_URL}/file/storage/${objectName}`,
+    preprocess: `${API_BASE_URL}/file/preprocess`,
   },
   proxy: {
     image: (url: string) => `${API_BASE_URL}/image?url=${encodeURIComponent(url)}`,
@@ -70,29 +69,35 @@ export const API_ENDPOINTS = {
     officialModelHealthcheck: (modelName: string, timeout: number = 2) => 
       `${API_BASE_URL}/me/model/healthcheck?model_name=${encodeURIComponent(modelName)}&timeout=${timeout}`,
       
-    // 自定义模型服务
+    // Custom model service
     customModelList: `${API_BASE_URL}/model/list`,
     customModelCreate: `${API_BASE_URL}/model/create`,
     customModelDelete: (displayName: string) => `${API_BASE_URL}/model/delete?display_name=${encodeURIComponent(displayName)}`,
     customModelHealthcheck: (displayName: string) => `${API_BASE_URL}/model/healthcheck?display_name=${encodeURIComponent(displayName)}`,
     updateConnectStatus: `${API_BASE_URL}/model/update_connect_status`,
+    verifyModelConfig: `${API_BASE_URL}/model/verify_config`,
   },
   knowledgeBase: {
     // Elasticsearch service
     health: `${API_BASE_URL}/indices/health`,
     indices: `${API_BASE_URL}/indices`,
     indexInfo: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/info`,
+    listFiles: (indexName: string, searchRedis: boolean = true) => `${API_BASE_URL}/indices/${indexName}/files?search_redis=${searchRedis}`,
     indexDetail: (indexName: string) => `${API_BASE_URL}/indices/${indexName}`,
     summary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/auto_summary`,
     changeSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
     getSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
     
     // File upload service
-    upload: `${UPLOAD_SERVICE_URL}/upload`,
+    upload: `${API_BASE_URL}/file/upload`
   },
   config: {
     save: `${API_BASE_URL}/config/save_config`,
     load: `${API_BASE_URL}/config/load_config`,
+  },
+  tenantConfig: {
+    loadKnowledgeList: `${API_BASE_URL}/tenant_config/load_knowledge_list`,
+    updateKnowledgeList: `${API_BASE_URL}/tenant_config/update_knowledge_list`,
   }
 };
 

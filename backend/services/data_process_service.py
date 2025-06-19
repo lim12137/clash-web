@@ -1,17 +1,20 @@
 import logging
-import time
 import io
+import time
 import base64
 import aiohttp
 import os
+import redis
 import warnings
 import tempfile
 from typing import Optional, List, Dict, Any
 
-from nexent.data_process.core import DataProcessCore
 from PIL import Image
 import torch
 from transformers import CLIPProcessor, CLIPModel
+from celery import states
+from celery.result import AsyncResult
+from celery import current_app
 
 from consts.const import CLIP_MODEL_PATH, IMAGE_FILTER
 
@@ -20,89 +23,91 @@ logger = logging.getLogger("data_process.service")
 
 
 class DataProcessService:
-    def __init__(self, num_workers: int = 3):
+    def __init__(self):
         """Initialize the DataProcessService
 
         Args:
             num_workers: Number of worker processes for data processing
         """
-        # Initialize core
-        self.core = DataProcessCore(num_workers=num_workers, use_ray=True)
+        # Initialize components in a modular way
+        self._init_redis_client()
+        # Don't init clip model here, otherwise it will drastically slow down the first call from data process.
+        # self._init_clip_model()
 
-        # Initialize CLIP model and processor with fallback
+        # Suppress PIL warning about palette images
+        warnings.filterwarnings('ignore', category=UserWarning, module='PIL.Image')
+
+        self._inspector = None
+        self._inspector_last_time = 0
+        self._inspector_ttl = 60  # inspector缓存时间，秒
+        self._inspector_lock = None
+        import threading
+        self._inspector_lock = threading.Lock()
+
+    def _init_redis_client(self):
+        """Initializes the Redis client and connection pool."""
+        self.redis_pool = None
+        self.redis_client = None
+        try:
+            redis_url = os.environ.get('REDIS_BACKEND_URL')
+            if redis_url:
+                self.redis_pool = redis.ConnectionPool.from_url(
+                    redis_url,
+                    max_connections=50,
+                    decode_responses=True
+                )
+                self.redis_client = redis.Redis(connection_pool=self.redis_pool)
+                logger.info("Redis client initialized successfully.")
+            else:
+                logger.warning("REDIS_BACKEND_URL not set, Redis client not initialized.")
+        except Exception as e:
+            logger.error(f"Failed to initialize Redis client: {str(e)}")
+
+    def _init_clip_model(self):
+        """Initializes the CLIP model and processor."""
+        if getattr(self, 'clip_available', False):
+            return
         self.model = None
         self.processor = None
         self.clip_available = False
-
         try:
             self.model = CLIPModel.from_pretrained(CLIP_MODEL_PATH)
             self.processor = CLIPProcessor.from_pretrained(CLIP_MODEL_PATH)
             self.clip_available = True
             logger.info("CLIP model loaded successfully")
         except Exception as e:
-            logger.warning(f"Failed to load CLIP model, degrading to size-only filtering: {str(e)}")
+            logger.warning(f"Failed to load CLIP model, size-only filtering will be used: {str(e)}")
             self.clip_available = False
 
-        # Suppress PIL warning about palette images
-        warnings.filterwarnings('ignore', category=UserWarning, module='PIL.Image')
-
     async def start(self):
-        """Start the data processing core"""
-        await self.core.start()
+        """Start the data processing service"""
+        logger.info("Data processing service started")
 
     async def stop(self):
-        """Stop the data processing core"""
-        await self.core.stop()
+        """Stop the data processing service"""
+        logger.info("Data processing service stopped")
 
-    async def create_task(self, source: str, source_type: str, chunking_strategy: str,
-                          index_name: str, **params) -> str:
-        """Create a new data processing task
-
-        Args:
-            source: Source data to process
-            source_type: Type of the source data
-            chunking_strategy: Strategy for chunking the data
-            index_name: Name of the index to store results
-            **params: Additional parameters for the task
-
-        Returns:
-            str: Task ID
-        """
-        start_time = time.time()
-        task_id = await self.core.create_task(
-            source=source,
-            source_type=source_type,
-            chunking_strategy=chunking_strategy,
-            index_name=index_name,
-            **params
-        )
-        logger.info(f"Task creation took {(time.time() - start_time) * 1000:.2f}ms",
-                    extra={'task_id': task_id, 'stage': 'API-CREATE', 'source': 'service'})
-
-        return task_id
-
-    async def create_batch_tasks(self, sources: List[Dict[str, Any]]) -> List[str]:
-        """Create multiple data processing tasks in batch
-
-        Args:
-            sources: List of task source configurations
-
-        Returns:
-            List[str]: List of task IDs
-        """
-        start_time = time.time()
-        batch_id = f"batch-{int(time.time())}"
-
-        logger.info(f"Processing batch request with {len(sources)} sources",
-                    extra={'task_id': batch_id, 'stage': 'API-BATCH', 'source': 'service'})
-
-        task_ids = await self.core.create_batch_tasks(sources)
-
-        elapsed_ms = (time.time() - start_time) * 1000
-        logger.info(f"Batch task creation took {elapsed_ms:.2f}ms for {len(task_ids)} tasks",
-                    extra={'task_id': batch_id, 'stage': 'API-BATCH', 'source': 'service'})
-
-        return task_ids
+    def _get_celery_inspector(self):
+        """获取 Celery inspector，确保连接配置正确，并做缓存"""
+        from celery import current_app
+        now = time.time()
+        with self._inspector_lock:
+            if self._inspector and now - self._inspector_last_time < self._inspector_ttl:
+                return self._inspector
+            # 确保当前应用配置正确
+            if not current_app.conf.broker_url or not current_app.conf.result_backend:
+                current_app.conf.broker_url = os.environ.get('REDIS_URL')
+                current_app.conf.result_backend = os.environ.get('REDIS_BACKEND_URL')
+                logger.warning(f"Celery broker URL is not configured properly, reconfiguring to {current_app.conf.broker_url}")
+            try:
+                inspector = current_app.control.inspect()
+                inspector.ping()
+                self._inspector = inspector
+                self._inspector_last_time = now
+                return inspector
+            except Exception as e:
+                self._inspector = None
+                raise Exception(f"Failed to create inspector with current_app: {str(e)}")
 
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Get task by ID
@@ -113,26 +118,105 @@ class DataProcessService:
         Returns:
             Optional[Dict[str, Any]]: Task data if found, None otherwise
         """
-        return self.core.get_task(task_id)
+        # Import here to avoid circular import
+        from data_process.utils import get_task_info
+        return get_task_info(task_id)
 
-    def get_all_tasks(self) -> List[Dict[str, Any]]:
+    def get_all_tasks(self, filter: bool=True) -> List[Dict[str, Any]]:
         """Get all tasks
+
+        Args:
+            filter: Whether to filter out useless task (i.e. process_and_forward) with no index_name and tast_name
 
         Returns:
             List[Dict[str, Any]]: List of all tasks
         """
-        return self.core.get_all_tasks()
+        # Import here to avoid circular import
+        from data_process.utils import get_task_info, get_all_task_ids_from_redis
+        import concurrent.futures
+        
+        all_tasks = []
+        
+        try:
+            start_time = time.time()
+            logger.info("Getting inspector to check for active and reserved tasks (concurrent)")
+            inspector = self._get_celery_inspector()
+            logger.info(f"⏰ Inspector initialization took {time.time() - start_time}s")
+            
+            # Collect task IDs from different sources
+            task_ids = set()
+            def get_active():
+                return inspector.active()
+            def get_reserved():
+                return inspector.reserved()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                future_active = executor.submit(get_active)
+                future_reserved = executor.submit(get_reserved)
+                active_tasks_dict = future_active.result()
+                reserved_tasks_dict = future_reserved.result()
+            logger.info(f"⏰ Get active and reserved tasks (concurrent) took {time.time() - start_time}s")
+            if active_tasks_dict:
+                for worker, tasks in active_tasks_dict.items():
+                    for task in tasks:
+                        task_id = task.get('id')
+                        if task_id:
+                            task_ids.add(task_id)
+            if reserved_tasks_dict:
+                for worker, tasks in reserved_tasks_dict.items():
+                    for task in tasks:
+                        task_id = task.get('id')
+                        if task_id:
+                            task_ids.add(task_id)
 
-    def get_index_tasks(self, index_name: str) -> Dict[str, Any]:
+            # Currently, we don't have scheduled tasks, so skip getting scheduled tasks here
+            
+            start_time = time.time()
+            logger.debug("Getting task IDs from Redis backend")
+            # Also get task IDs from Redis backend (covers completed/failed tasks within expiry)
+            try:
+                redis_task_ids = get_all_task_ids_from_redis(self.redis_client)
+                logger.info(f"⏰ Get Redis task IDs took {time.time() - start_time}s")
+                for task_id in redis_task_ids:
+                    task_ids.add(task_id) # Add to the set, duplicates will be handled
+                
+            except Exception as redis_error:
+                logger.warning(f"Failed to query Redis for stored task IDs: {str(redis_error)}")
+            
+            logger.info(f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
+            
+            # Get task details for each found task ID
+            for task_id in task_ids:
+                try:
+                    task_info = get_task_info(task_id)
+                    if task_info:
+                        if filter and not (task_info.get('index_name') and task_info.get('task_name')):
+                                continue
+                        all_tasks.append(task_info)
+                except Exception as e:
+                    logger.warning(f"Failed to get status for task {task_id}: {str(e)}")
+                    continue # Skip this task if status retrieval fails
+            
+            logger.info(f"Successfully retrieved details for {len(all_tasks)} tasks.")
+            
+        except Exception as e:
+            logger.error(f"Error retrieving all tasks: {str(e)}")
+            # Fall back to empty list to avoid breaking the API
+            all_tasks = []
+        
+        return all_tasks
+
+    def get_index_tasks(self, index_name: str, filter: bool=True) -> List[Dict[str, Any]]:
         """Get all active tasks for a specific index
 
         Args:
             index_name: Name of the index to filter tasks for
 
         Returns:
-            Dict[str, Any]: Tasks for the specified index
+            List[Dict[str, Any]]: Tasks for the specified index
         """
-        return self.core.get_index_tasks(index_name)
+        task_list = self.get_all_tasks(filter)
+        # May got multiple tasks for the same index
+        return [task for task in task_list if task.get('index_name') == index_name]
 
     def check_image_size(self, width: int, height: int, min_width: int = 200, min_height: int = 200) -> bool:
         """Check if the image dimensions meet the minimum requirements
@@ -280,9 +364,25 @@ class DataProcessService:
                 }
 
             # If IMAGE_FILTER is False, or CLIP model is not available, skip CLIP calculation and return as important
-            if not IMAGE_FILTER or not self.clip_available:
+            if not IMAGE_FILTER:
                 logger.info(
                     f"IMAGE_FILTER is disabled, returning image as important: {image_url}")
+                return {
+                    "is_important": True,
+                    "confidence": 1.0,
+                    "probabilities": {
+                        "positive": 1.0,
+                        "negative": 0.0
+                    }
+                }
+
+            # 延迟加载CLIP模型
+            if not self.clip_available:
+                self._init_clip_model()
+
+            if not self.clip_available:
+                logger.warning(
+                    f"CLIP model not available, returning image as important: {image_url}")
                 return {
                     "is_important": True,
                     "confidence": 1.0,
@@ -347,3 +447,15 @@ class DataProcessService:
         except Exception as e:
             logger.error(f"Error processing image: {str(e)}")
             raise Exception(f"Error processing image: {str(e)}")
+
+
+# Global instance to be shared across modules
+# This avoids creating multiple instances and loading CLIP model multiple times
+_data_process_service = None
+
+def get_data_process_service():
+    """Get or create the global DataProcessService instance (lazy initialization)"""
+    global _data_process_service
+    if _data_process_service is None:
+        _data_process_service = DataProcessService()
+    return _data_process_service

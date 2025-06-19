@@ -1,239 +1,194 @@
 import logging
 import os
 import time
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Tuple
 
-from .async_task_manager import AsyncTaskManager
-from .process_worker_pool import ProcessWorkerPool
-from .task_store import TaskStore, TaskStatus
+# Import for Excel processing
+from .excel_process import process_excel_file
 
+# Setup logging
 logger = logging.getLogger("data_process.core")
 
-
 class DataProcessCore:
-    def __init__(self, num_workers: int = 5, use_ray: bool = True):
+    """Core data processing functionality with distributed processing capabilities"""
+
+    def __init__(self):
         """
-        Initialize the Data Process Core
+        Initialize data processing core
         
         Args:
-            num_workers: Number of worker threads for parallel processing
-            use_ray: Whether to use Ray for distributed processing
+            No arguments
         """
-        # Initialize components
-        self.task_store = TaskStore()
-        self.worker_pool = ProcessWorkerPool(max_workers=num_workers, use_ray=use_ray)
-        self.task_manager = AsyncTaskManager(self.task_store, self.worker_pool)
 
-        # Set task manager in worker pool
-        self.worker_pool.set_task_manager(self.task_manager)
+
+    def process_excel_file(self, file_path: str, chunking_strategy: str = "basic", **params) -> List[Dict]:
+        """
+        Process an Excel file and return chunks in the expected format
         
-        # Store settings
-        self.use_ray = use_ray
-        self.num_workers = num_workers
-
-        if self.use_ray:
-            logger.info(f"Data Process Core initialized with Ray distributed processing and {num_workers} workers",
-                      extra={'task_id': ' ' * 36, 'stage': 'STARTUP', 'source': 'core'})
+        Args:
+            file_path: Path to the Excel file
+            chunking_strategy: Strategy for chunking (not used in Excel processing)
+            **params: Additional parameters
+            
+        Returns:
+            List of processed chunks in standard format
+        """
+        logger.info(f"Processing Excel file {file_path}")
+        
+        # Process Excel file using the excel_process module which now returns proper chunks
+        chunks = process_excel_file(file_path, chunking_strategy, **params)
+        
+        logger.info(f"Processed Excel file {file_path}: {len(chunks)} chunks")
+        return chunks
+    
+    async def process_file(self, file_path: str, chunking_strategy: str, **params) -> List[Dict]:
+        """
+        Process a file using specified chunking strategy
+        
+        Args:
+            file_path: Path to the file to process
+            chunking_strategy: Strategy for chunking the data
+            **params: Additional parameters for processing
+            
+        Returns:
+            List of processed chunks
+        """
+        logger.info(f"Processing file {file_path} with strategy {chunking_strategy}")
+        
+        # Process the file based on its type
+        _, file_ext = os.path.splitext(file_path)
+        file_ext = file_ext.lower()
+        
+        if file_ext in ['.xlsx', '.xls']:
+            return await self._process_excel(file_path, chunking_strategy, **params)
         else:
-            logger.info(f"Data Process Core initialized with {num_workers} workers (Ray disabled)",
-                      extra={'task_id': ' ' * 36, 'stage': 'STARTUP', 'source': 'core'})
-
-    async def start(self) -> None:
-        """Start the data process core"""
-        await self.task_manager.start()
-        logger.info("Data Process Core started", extra={'task_id': ' ' * 36, 'stage': 'STARTUP', 'source': 'core'})
-
-    async def stop(self) -> None:
-        """Stop the data process core"""
-        await self.task_manager.stop()
-        self.worker_pool.shutdown()
-        logger.info("Data Process Core stopped", extra={'task_id': ' ' * 36, 'stage': 'SHUTDOWN', 'source': 'core'})
-
-    async def create_task(self, source: str, source_type: str = "file", chunking_strategy: Optional[str] = None,
-                          index_name: Optional[str] = None, **kwargs) -> str:
-        """
-        Create a new data processing task
+            # For text and other files
+            return await self._process_generic_file(file_path, chunking_strategy, **params)
+    
+    async def _process_excel(self, file_path: str, chunking_strategy: str, **params) -> List[Dict]:
+        """Process Excel files using the excel_process module"""
+        logger.info(f"Processing Excel file {file_path}")
+        return process_excel_file(file_path, chunking_strategy, **params)
+    
+    async def _process_generic_file(self, file_path: str, chunking_strategy: str, **params) -> List[Dict]:
+        """Process generic files"""
+        chunks = self._process_file(file_path, chunking_strategy, **params)
         
+        return chunks
+
+
+    def _process_file(self, file_path: str, chunking_strategy: str, **params) -> List[Dict]:
+        """
         Args:
-            source: Source data (file path, URL, or text)
-            source_type: Type of source ("file", "url", or "text")
-            chunking_strategy: Strategy for chunking the document
-            index_name: Name of the index to store documents
-            **kwargs: Additional parameters
+            file_path: Path to the file to process
+            chunking_strategy: Strategy for chunking the data
+            **params: Additional parameters for processing
             
         Returns:
-            Task ID
+            List of processed chunks
         """
-        # Create task data
-        task_data = {"source": source, "source_type": source_type,
-            "chunking_strategy": "basic" if chunking_strategy == "" else chunking_strategy, "index_name": index_name}
-
-        # Add additional parameters
-        task_data.update(kwargs)
-
-        if self.use_ray and source_type == "file":
-            logger.info(f"Creating Ray distributed processing task: {source}",
-                      extra={'task_id': ' ' * 36, 'stage': 'CREATED', 'source': 'core'})
-
-        # Create task
-        task_id = await self.task_manager.create_task(task_data)
-        logger.info(f"Created new task for source: {source}",
-                    extra={'task_id': task_id, 'stage': 'CREATED', 'source': 'core'})
-        return task_id
-
-    async def create_batch_tasks(self, sources: List[Dict[str, Any]]) -> List[str]:
-        """
-        Create multiple data processing tasks in batch
+        # Extract parameters with defaults
+        max_characters = params.get("max_characters", 1500)
+        new_after_n_chars = params.get("new_after_n_chars", 500)
+        strategy = params.get("strategy", "fast")
+        infer_table_structure = params.get("infer_table_structure", True)
+        source_type = params.get("source_type", "file")
+        task_id = params.get("task_id", "unknown")
         
-        Args:
-            sources: List of source dictionaries
+        # Dynamic imports with error handling
+        try:
+            from unstructured.partition.auto import partition
+            from unstructured.chunking.basic import chunk_elements
+            from unstructured.file_utils.filetype import detect_filetype
+        except ImportError:
+            raise ImportError(
+                "Processing features require additional dependencies. "
+                "Please install them with: pip install nexent[process]"
+            )
+        
+        start_time = time.time()
+        
+        try:
+            # Log start of processing
+            logger.debug(f"Starting to process file: {file_path}", 
+                      extra={'task_id': task_id, 'stage': 'PROCESSING', 'source': 'local'})
             
-        Returns:
-            List of task IDs
-        """
-        task_ids = await self.task_manager.create_batch_tasks(sources)
-        logger.info(f"Created batch of {len(task_ids)} tasks",
-                    extra={'task_id': task_ids[0] if task_ids else ' ' * 36, 'stage': 'BATCH', 'source': 'core'})
-        return task_ids
-        
-    async def create_directory_task(self, directory_path: str, index_name: str, 
-                                  chunking_strategy: Optional[str] = None, **kwargs) -> str:
-        """
-        Create a task to process an entire directory using Ray
-        
-        Args:
-            directory_path: Path to the directory containing files to process
-            index_name: Name of the index to store documents
-            chunking_strategy: Strategy for chunking the documents
-            **kwargs: Additional parameters
-            
-        Returns:
-            Task ID for the directory processing
-        """
-        if not self.use_ray:
-            logger.warning("Ray is disabled, but directory processing was requested. Enabling Ray for this task.",
-                         extra={'task_id': ' ' * 36, 'stage': 'WARNING', 'source': 'core'})
-        
-        if not os.path.exists(directory_path):
-            raise ValueError(f"Directory does not exist: {directory_path}")
-        
-        if not os.path.isdir(directory_path):
-            raise ValueError(f"Path is not a directory: {directory_path}")
-        
-        # Count files in directory for logging
-        file_count = 0
-        for root, _, files in os.walk(directory_path):
-            file_count += len([f for f in files if not f.startswith('.') and not f.startswith('~')])
-            
-        logger.info(f"Creating Ray distributed processing task for directory with {file_count} files: {directory_path}",
-                  extra={'task_id': ' ' * 36, 'stage': 'CREATED', 'source': 'core'})
-        
-        # Create the task using the standard method
-        return await self.create_task(
-            source=directory_path,
-            source_type="file",
-            chunking_strategy=chunking_strategy,
-            index_name=index_name,
-            **kwargs
-        )
-
-    def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get task information
-        
-        Args:
-            task_id: Task ID
-            
-        Returns:
-            Task information or None if not found
-        """
-        return self.task_store.get_task(task_id)
-
-    def get_all_tasks(self) -> List[Dict[str, Any]]:
-        """
-        Get all tasks
-        
-        Returns:
-            List of all tasks
-        """
-        return self.task_store.get_all_tasks()
-
-    def get_index_tasks(self, index_name: str) -> Dict[str, Any]:
-        """
-        Get all active tasks for a specific index
-        
-        Args:
-            index_name: Name of the index
-            
-        Returns:
-            Dictionary containing index name and list of file information
-        """
-        # Filter for active statuses
-        active_statuses = [TaskStatus.WAITING, TaskStatus.PROCESSING, TaskStatus.FORWARDING, TaskStatus.FAILED]
-        active_tasks = []
-
-        # Get tasks for each active status
-        for status in active_statuses:
-            status_tasks = self.task_store.get_status_tasks(status)
-            # Filter tasks by index
-            index_status_tasks = [task for task in status_tasks if task["data"].get("index_name") == index_name]
-            active_tasks.extend(index_status_tasks)
-
-        # Format file information
-        files = []
-        for task in active_tasks:
-            task_data = task["data"]
-            source = task_data.get("source", "")
-            source_type = task_data.get("source_type", "file")
-
-            if self.use_ray and source_type == "file":
-                # For Ray request, add an entry for the directory
-                file_info = {
-                    "path_or_url": source, 
-                    "file": os.path.basename(source) + " (directory)", 
-                    "file_size": None, 
-                    "create_time": None, 
-                    "status": task["status"].value,
-                    "use_ray": True
-                }
+            # Debug info about the file
+            if os.path.exists(file_path):
+                file_size = os.path.getsize(file_path)
+                logger.debug(f"File exists, size: {file_size} bytes", 
+                          extra={'task_id': task_id, 'stage': 'DEBUG', 'source': 'local'})
                 
-                # Try to count files in the directory
+                # Check file type
                 try:
-                    file_count = 0
-                    total_size = 0
-                    for root, _, files in os.walk(source):
-                        for file in files:
-                            if not file.startswith('.') and not file.startswith('~'):
-                                file_path = os.path.join(root, file)
-                                file_count += 1
-                                total_size += os.path.getsize(file_path)
+                    filetype = detect_filetype(file_path=file_path)
+                    logger.debug(f"Detected file type: {filetype}", 
+                              extra={'task_id': task_id, 'stage': 'DEBUG', 'source': 'local'})
                     
-                    file_info["file_count"] = file_count
-                    file_info["file_size"] = total_size // 1024  # Convert to KB
+                    # Skip unsupported file types
+                    unsupported_types = ["image", "audio", "video", "unknown"]
+                    if filetype in unsupported_types:
+                        logger.warning(f"Skipping unsupported file type {filetype}: {file_path}", 
+                                     extra={'task_id': task_id, 'stage': 'WARNING', 'source': 'local'})
+                        return []  # Return empty list for unsupported files
                 except Exception as e:
-                    logger.warning(f"Could not get directory stats for {source}: {str(e)}")
-                
-                files.append(file_info)
+                    logger.warning(f"Could not detect file type: {str(e)}", 
+                                 extra={'task_id': task_id, 'stage': 'WARNING', 'source': 'local'})
             else:
-                # Standard file processing
-                file_info = {
-                    "path_or_url": source, 
-                    "file": os.path.basename(source) if source_type == "file" else source,
-                    "file_size": None, 
-                    "create_time": None, 
-                    "status": task["status"].value,
-                    "use_ray": False
+                logger.error(f"File does not exist: {file_path}", 
+                           extra={'task_id': task_id, 'stage': 'ERROR', 'source': 'local'})
+                raise FileNotFoundError(f"File does not exist: {file_path}")
+            
+            # Process file based on source type
+            if source_type == "file":
+                logger.debug(f"Starting partition with strategy={strategy}, max_chars={max_characters}", 
+                          extra={'task_id': task_id, 'stage': 'DEBUG', 'source': 'local'})
+                elements = partition(
+                    filename=file_path, 
+                    max_characters=max_characters, 
+                    new_after_n_chars=new_after_n_chars, 
+                    strategy=strategy,
+                    infer_table_structure=infer_table_structure, 
+                    **params
+                )
+                logger.debug(f"Partition complete, got {len(elements)} elements", 
+                          extra={'task_id': task_id, 'stage': 'DEBUG', 'source': 'local'})
+            else:
+                # Handle other source types
+                raise ValueError(f"Source type {source_type} not supported for local processing")
+            
+            # Apply chunking
+            elements = chunk_elements(elements, max_characters=max_characters, new_after_n_chars=new_after_n_chars)
+            
+            # Process elements
+            result = []
+            for element in elements:
+                metadata = element.metadata.to_dict()
+                doc = {
+                    "text": element.text,    # For embedding (via content_field="text")
+                    "content": element.text, # For ES mapped 'content' field (full text search)
+                    "path_or_url": file_path,
+                    "filename": metadata.get("filename", os.path.basename(file_path)),
                 }
-
-                # Try to get file size and creation time for file type
-                if source_type == "file" and os.path.exists(source):
-                    try:
-                        stats = os.stat(source)
-                        file_info["file_size"] = stats.st_size // 1024  # Convert to KB
-                        file_info["create_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(stats.st_ctime))
-                    except Exception as e:
-                        logger.warning(f"Could not get file stats for {source}: {str(e)}")
-
-                files.append(file_info)
-
-        return {"index_name": index_name, "files": files, "ray_enabled": self.use_ray}
+                
+                # Add language if available in metadata, as it's in the ES mapping
+                if metadata.get("languages"):
+                    doc["language"] = metadata.get("languages")[0]
+                
+                result.append(doc)
+            
+            processing_time = time.time() - start_time
+            file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+            size_mb = file_size / (1024 * 1024)
+            
+            logger.info(f"Completed processing file: {file_path} in {processing_time:.2f}s, " 
+                       f"elements: {len(elements)}, size: {size_mb:.2f}MB, " 
+                       f"speed: {size_mb/processing_time:.2f}MB/s",
+                       extra={'task_id': task_id, 'stage': 'COMPLETED', 'source': 'local'})
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error processing file {file_path}: {str(e)}", 
+                        extra={'task_id': task_id, 'stage': 'ERROR', 'source': 'local'})
+            raise  # Re-raise the exception to be handled by the caller
