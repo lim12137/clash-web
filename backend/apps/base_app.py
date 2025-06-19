@@ -17,6 +17,7 @@ from .tool_config_app import router as tool_config_router
 from .user_management_app import router as user_management_router
 from .prompt_app import router as prompt_router
 from .knowledge_summary_app import router as summary_router
+from .tenant_config_app import router as tenant_config_router
 
 app = FastAPI(root_path="/api")
 
@@ -42,6 +43,7 @@ app.include_router(tool_config_router)
 app.include_router(user_management_router)
 app.include_router(summary_router)
 app.include_router(prompt_router)
+app.include_router(tenant_config_router)
 
 
 # Global exception handler for HTTP exceptions

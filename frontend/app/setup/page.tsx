@@ -50,7 +50,7 @@ export default function CreatePage() {
       if (user.role !== "admin" && selectedKey === "1") {
         setSelectedKey("2")
       }
-      
+
       // If the user is not an admin and currently on the third page, force jump to the second page
       if (user.role !== "admin" && selectedKey === "3") {
         setSelectedKey("2")
@@ -92,6 +92,9 @@ export default function CreatePage() {
     if (selectedKey === "2") {
       // When entering the second page, reset the flag
       setIsFromSecondPage(false)
+      // 清除所有可能的缓存
+      localStorage.removeItem('preloaded_kb_data');
+      localStorage.removeItem('kb_cache');
       // When entering the second page, get the latest knowledge base data
       window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
         detail: { forceRefresh: true }
@@ -121,7 +124,7 @@ export default function CreatePage() {
     if (user?.role !== "admin" && selectedKey === "1") {
       return <DataConfig />
     }
-    
+
     // 如果用户不是管理员且尝试访问第三页，强制显示第二页内容
     if (user?.role !== "admin" && selectedKey === "3") {
       return <DataConfig />
@@ -131,7 +134,7 @@ export default function CreatePage() {
       case "1":
         return <AppModelConfig skipModelVerification={isFromSecondPage} />
       case "2":
-        return <DataConfig />
+        return <DataConfig isActive={selectedKey === "2"} />
       case "3":
         return <AgentConfig />
       default:
@@ -203,23 +206,23 @@ export default function CreatePage() {
         // Normal users complete the configuration directly on the second page
         try {
           setIsSavingConfig(true)
-          
+
           // Reload the config for normal user before saving, ensure the latest model config
           await configService.loadConfigToFrontend()
           await configStore.reloadFromStorage()
-          
+
           // Get the current global configuration
           const currentConfig = configStore.getConfig()
-          
+
           // Check if the main model is configured
           if (!currentConfig.models.llm.modelName) {
             message.error("未找到模型配置，请联系管理员先完成模型配置")
             return
           }
-          
+
           // Call the backend save configuration API
           const saveResult = await configService.saveConfigToBackend(currentConfig)
-          
+
           if (saveResult) {
             message.success("配置已保存")
             // After saving successfully, redirect to the chat page
