@@ -93,6 +93,7 @@ add_permission() {
   create_dir_with_permission "$ROOT_DIR/postgresql" 777
   create_dir_with_permission "$ROOT_DIR/minio" 777
   create_dir_with_permission "$ROOT_DIR/uploads" 777
+  cp -ra volumes $ROOT_DIR
 }
 
 install() {
