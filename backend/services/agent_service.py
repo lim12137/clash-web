@@ -2,7 +2,7 @@ import os
 import json
 import logging
 
-
+from fastapi import Header
 from agents.create_agent_info import create_tool_config_list
 from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ToolInstanceInfoRequest
 from database.agent_db import create_agent, query_all_enabled_tool_instances, \
@@ -10,7 +10,8 @@ from database.agent_db import create_agent, query_all_enabled_tool_instances, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
     create_or_update_tool_by_tool_info, check_tool_is_available
 
-from utils.user_utils import get_user_info
+from utils.auth_utils import get_current_user_id
+from typing import Optional
 
 
 logger = logging.getLogger("agent service")
@@ -57,8 +58,8 @@ def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str
     return sub_agents
 
 
-def list_main_agent_info_impl():
-    user_id, tenant_id = get_user_info()
+def list_main_agent_info_impl(authorization: Optional[str] = Header(None)):
+    user_id, tenant_id = get_current_user_id()
 
     try:
         main_agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
@@ -97,8 +98,8 @@ def list_main_agent_info_impl():
     }
 
 
-def get_agent_info_impl(agent_id: int):
-    user_id, tenant_id = get_user_info()
+def get_agent_info_impl(agent_id: int, authorization: str = Header(None)):
+    user_id, tenant_id = get_current_user_id()
     
     try:    
         agent_info = search_agent_info_by_agent_id(agent_id, tenant_id, user_id)
@@ -115,8 +116,8 @@ def get_agent_info_impl(agent_id: int):
 
     return agent_info
 
-def get_creating_sub_agent_info_impl(agent_id: int):
-    user_id, tenant_id = get_user_info()
+def get_creating_sub_agent_info_impl(agent_id: int, authorization: str = Header(None)):
+    user_id, tenant_id = get_current_user_id()
     
     try:
         sub_agent_id = get_creating_sub_agent_id_service(agent_id, tenant_id, user_id)
@@ -143,8 +144,8 @@ def get_creating_sub_agent_info_impl(agent_id: int):
             "business_description": agent_info["business_description"],
             "prompt": agent_info["prompt"]}
 
-def update_agent_info_impl(request: AgentInfoRequest):
-    user_id, tenant_id = get_user_info()
+def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Header(None)):
+    user_id, tenant_id = get_current_user_id()
     
     try:
         update_agent(request.agent_id, request, tenant_id, user_id)
@@ -152,8 +153,8 @@ def update_agent_info_impl(request: AgentInfoRequest):
         logger.error(f"Failed to update agent info: {str(e)}")
         raise ValueError(f"Failed to update agent info: {str(e)}")
 
-def delete_agent_impl(agent_id: int):
-    user_id, tenant_id = get_user_info()
+def delete_agent_impl(agent_id: int, authorization: str = Header(None)):
+    user_id, tenant_id = get_current_user_id()
 
     try:
         delete_agent_by_id(agent_id, tenant_id, user_id)
@@ -161,8 +162,8 @@ def delete_agent_impl(agent_id: int):
         logger.error(f"Failed to delete agent: {str(e)}")
         raise ValueError(f"Failed to delete agent: {str(e)}")
 
-async def export_agent_impl(agent_id: int):
-    user_id, tenant_id = get_user_info()
+async def export_agent_impl(agent_id: int, authorization: str = Header(None)):
+    user_id, tenant_id = get_current_user_id()
 
     tool_list = await create_tool_config_list(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
     agent_info_in_db = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
@@ -181,10 +182,11 @@ async def export_agent_impl(agent_id: int):
     agent_info_str = agent_info.model_dump_json()
     return agent_info_str
 
-def import_agent_impl(parent_agent_id: int, agent_info: ExportAndImportAgentInfo):
+def import_agent_impl(parent_agent_id: int, agent_info: ExportAndImportAgentInfo, authorization: str = Header(None)):
     # check the validity and completeness of the tool parameters
+    user_id, tenant_id = get_current_user_id(authorization)
     tool_list = []
-    tool_info = query_all_tools()
+    tool_info = query_all_tools(tenant_id=tenant_id)
     db_all_tool_info_dict = {f"{tool['class_name']}&{tool['source']}": tool for tool in tool_info}
     for tool in agent_info.tools:
         db_tool_info: dict | None = db_all_tool_info_dict.get(f"{tool.class_name}&{tool.source}", None)
@@ -211,7 +213,7 @@ def import_agent_impl(parent_agent_id: int, agent_info: ExportAndImportAgentInfo
     if agent_info.name == "main":
         raise ValueError(f"Invalid agent name: {agent_info.name}. agent name cannot be 'main'.")
     # create a new agent
-    user_id, tenant_id = get_user_info()
+    user_id, tenant_id = get_current_user_id()
     new_agent = create_agent(agent_info={"name": agent_info.name,
                             "description": agent_info.description,
                             "business_description": agent_info.business_description,
@@ -230,7 +232,8 @@ def import_agent_impl(parent_agent_id: int, agent_info: ExportAndImportAgentInfo
         create_or_update_tool_by_tool_info(tool_info=tool, tenant_id=tenant_id, user_id=user_id)
 
 def search_sub_agents():
-    user_id, tenant_id = get_user_info()
+    user_id, tenant_id = get_current_user_id()
+    print(f"user_id: {user_id}, tenant_id: {tenant_id}")
     try:
         main_agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
     except Exception as e:

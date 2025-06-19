@@ -1,5 +1,3 @@
-
-import logging
 from typing import Dict, Any, Optional, List, Tuple
 
 from fastapi import Header
@@ -39,22 +37,3 @@ def add_update_tracking(data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     data_copy = data.copy()
     data_copy["updated_by"] = user_id
     return data_copy
-
-
-# 统一获取当前用户ID的方法
-def get_current_user_id(authorization: Optional[str] = Header(None)) -> Optional[str]:
-    """
-    从授权头部提取当前用户ID
-    Args:
-        authorization: 授权头部
-    Returns:
-        Optional[str]: 用户ID，如果未登录则返回None
-    """
-    if not authorization:
-        logging.error(f"获取用户ID失败，鉴权信息为空")
-        return ""
-    try:
-        return get_current_user_id_from_token(str(authorization))
-    except Exception as e:
-        logging.error(f"获取用户ID失败: {str(e)}")
-        return ""

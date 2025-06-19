@@ -3,6 +3,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 
+from fastapi import Header
 import jwt
 from supabase import create_client
 
@@ -10,6 +11,8 @@ from supabase import create_client
 SUPABASE_URL = os.getenv('SUPABASE_URL', 'http://118.31.249.152:8010')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
 
+DEFAULT_USER_ID = "user_id"
+DEFAULT_TENANT_ID = "tenant_id"
 
 def get_supabase_client():
     """获取Supabase客户端实例"""
@@ -88,3 +91,17 @@ def get_current_user_id_from_token(authorization: str) -> Optional[str]:
     except Exception as e:
         logging.error(f"从令牌提取用户ID失败: {str(e)}")
         return None
+
+
+def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
+
+    if authorization is None or authorization == Header(None):
+        return DEFAULT_USER_ID, DEFAULT_TENANT_ID
+
+    try:
+        user_id = get_current_user_id_from_token(str(authorization))
+        tenant_id = user_id
+        return user_id, tenant_id
+    except Exception as e:
+        logging.error(f"获取用户ID失败: {str(e)}")
+        return DEFAULT_USER_ID, DEFAULT_TENANT_ID
