@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          repository: http://github.com/ModelEngine-Group/nexent-commercial.git
       - name: Get commit SHA
         id: get-sha
         run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
@@ -48,6 +50,7 @@ jobs:
           docker rmi nexent/nexent-commercial || true
           docker rmi nexent/nexent-web-commercial || true
           docker rmi nexent/nexent-data-process-commercial || true
+          docker builder prune -f
 
   build-base:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
