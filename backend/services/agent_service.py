@@ -59,7 +59,7 @@ def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str
 
 
 def list_main_agent_info_impl(authorization: Optional[str] = Header(None)):
-    user_id, tenant_id = get_current_user_id()
+    user_id, tenant_id = get_current_user_id(authorization)
 
     try:
         main_agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
@@ -99,7 +99,7 @@ def list_main_agent_info_impl(authorization: Optional[str] = Header(None)):
 
 
 def get_agent_info_impl(agent_id: int, authorization: str = Header(None)):
-    user_id, tenant_id = get_current_user_id()
+    user_id, tenant_id = get_current_user_id(authorization)
     
     try:    
         agent_info = search_agent_info_by_agent_id(agent_id, tenant_id, user_id)
@@ -117,7 +117,7 @@ def get_agent_info_impl(agent_id: int, authorization: str = Header(None)):
     return agent_info
 
 def get_creating_sub_agent_info_impl(agent_id: int, authorization: str = Header(None)):
-    user_id, tenant_id = get_current_user_id()
+    user_id, tenant_id = get_current_user_id(authorization)
     
     try:
         sub_agent_id = get_creating_sub_agent_id_service(agent_id, tenant_id, user_id)
@@ -145,7 +145,7 @@ def get_creating_sub_agent_info_impl(agent_id: int, authorization: str = Header(
             "prompt": agent_info["prompt"]}
 
 def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Header(None)):
-    user_id, tenant_id = get_current_user_id()
+    user_id, tenant_id = get_current_user_id(authorization)
     
     try:
         update_agent(request.agent_id, request, tenant_id, user_id)
@@ -163,7 +163,7 @@ def delete_agent_impl(agent_id: int, authorization: str = Header(None)):
         raise ValueError(f"Failed to delete agent: {str(e)}")
 
 async def export_agent_impl(agent_id: int, authorization: str = Header(None)):
-    user_id, tenant_id = get_current_user_id()
+    user_id, tenant_id = get_current_user_id(authorization)
 
     tool_list = await create_tool_config_list(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
     agent_info_in_db = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
