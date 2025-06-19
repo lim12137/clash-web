@@ -25,7 +25,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          repository: http://github.com/ModelEngine-Group/nexent-commercial.git
+          repository: git@github.com:ModelEngine-Group/nexent-commercial.git
       - name: Get commit SHA
         id: get-sha
         run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
