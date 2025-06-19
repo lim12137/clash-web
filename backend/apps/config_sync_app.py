@@ -21,6 +21,8 @@ async def save_config(config: GlobalConfig):
         config_dict = config.model_dump(exclude_none=False)
         env_config = {}
 
+        print(f"config_dict: {config_dict}")
+
         tenant_config_dict = tenant_config_manager.load_config(tenant_id)
         print(f"Tenant {tenant_id} config: {tenant_config_dict}")
 
@@ -116,6 +118,7 @@ async def load_config(authorization: Optional[str] = Header(None)):
         JSONResponse: JSON object containing configuration content
     """
     try:
+        print(f"authorization: {authorization}")
         # Build configuration object
         # TODO: Clean up the default values
         user_id, tenant_id = get_current_user_id(authorization)
@@ -127,7 +130,7 @@ async def load_config(authorization: Optional[str] = Header(None)):
         vlm_model_name = tenant_config_manager.get_model_config("VLM_ID", tenant_id=tenant_id)
         stt_model_name = tenant_config_manager.get_model_config("STT_ID", tenant_id=tenant_id)
         tts_model_name = tenant_config_manager.get_model_config("TTS_ID", tenant_id=tenant_id)
-        
+
         config = {
             "app": {
                 "name": tenant_config_manager.get_app_config("APP_NAME", tenant_id=tenant_id) or "Nexent 智能体",

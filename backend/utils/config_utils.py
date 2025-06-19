@@ -201,10 +201,17 @@ class TenantConfigManager:
             print(f"Warning: No tenant_id specified when getting config for key: {key}")
             return default
         tenant_config = self.load_config(tenant_id)
+        print(f"tenant_config: {tenant_config}")
         if key in tenant_config:
             model_id = tenant_config[key]
-            model_config = get_model_by_model_id(model_id=int(model_id), tenant_id=tenant_id)
-            return model_config
+            if not model_id:  # Check if model_id is empty
+                return default
+            try:
+                model_config = get_model_by_model_id(model_id=int(model_id), tenant_id=tenant_id)
+                return model_config
+            except (ValueError, TypeError):
+                print(f"Warning: Invalid model_id format: {model_id}")
+                return default
         return default
 
     def get_app_config(self, key: str, default="", tenant_id: str | None = None):
