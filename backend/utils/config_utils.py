@@ -31,6 +31,8 @@ def get_env_key(key: str) -> str:
 
 def get_model_name_from_config(model_config: Dict[str, Any]) -> str:
     """Get model name from model id"""
+    if model_config is None:
+        return ""
     model_repo = model_config["model_repo"]
     model_name = model_config["model_name"]
     if not model_repo:
@@ -109,6 +111,7 @@ if _env_file is None:
     _env_file = os.path.join(_current_dir, "docker", ".env")
 
 config_manager = ConfigManager(_env_file)
+
 
 class TenantConfigManager:
     """Tenant configuration manager for dynamic loading and caching configurations from database"""
@@ -191,15 +194,16 @@ class TenantConfigManager:
         # Example: return db.query("SELECT MAX(modified_at) FROM tenant_configs WHERE tenant_id = %s", tenant_id)
         return time.time()  # Temporary implementation
 
-
-    def get_model_config(self, key: str, default="", tenant_id: str | None = None):
+    def get_model_config(self, key: str, default={}, tenant_id: str | None = None):
+        if default is None:
+            default = {}
         if tenant_id is None:
             print(f"Warning: No tenant_id specified when getting config for key: {key}")
             return default
         tenant_config = self.load_config(tenant_id)
         if key in tenant_config:
-            model_id =  tenant_config[key]
-            model_config = get_model_by_model_id(model_id=int(model_id),tenant_id=tenant_id)
+            model_id = tenant_config[key]
+            model_config = get_model_by_model_id(model_id=int(model_id), tenant_id=tenant_id)
             return model_config
         return default
 
@@ -212,8 +216,8 @@ class TenantConfigManager:
             return tenant_config[key]
         return default
 
-
-    def set_single_config(self,  user_id: str | None = None, tenant_id: str | None = None, key: str | None = None, value: str | None = None,):
+    def set_single_config(self, user_id: str | None = None, tenant_id: str | None = None, key: str | None = None,
+                          value: str | None = None, ):
         """Set configuration value in database with caching"""
         if tenant_id is None:
             print(f"Warning: No tenant_id specified when setting config for key: {key}")
@@ -235,8 +239,7 @@ class TenantConfigManager:
         # Clear cache for this tenant after setting new config
         self.clear_cache(tenant_id)
 
-
-    def delete_single_config(self,  user_id: str | None = None, tenant_id: str | None = None, key: str | None = None,):
+    def delete_single_config(self, user_id: str | None = None, tenant_id: str | None = None, key: str | None = None, ):
         """Delete configuration value in database"""
         if tenant_id is None:
             print(f"Warning: No tenant_id specified when deleting config for key: {key}")
@@ -251,7 +254,8 @@ class TenantConfigManager:
             self.clear_cache(tenant_id)
             return
 
-    def update_single_config(self,  user_id: str | None = None, tenant_id: str | None = None, key: str | None = None, value: str | None = None,):
+    def update_single_config(self, user_id: str | None = None, tenant_id: str | None = None, key: str | None = None,
+                             value: str | None = None, ):
         """Update configuration value in database"""
         if tenant_id is None:
             print(f"Warning: No tenant_id specified when updating config for key: {key}")

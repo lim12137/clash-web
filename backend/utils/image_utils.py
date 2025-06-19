@@ -15,8 +15,8 @@ def convert_image_to_text(query: str, image_input: Union[str, BinaryIO], tenant_
     image_to_text_model = OpenAIVLModel(
         observer=MessageObserver(),
         model_id=get_model_name_from_config(vlm_model_config) if vlm_model_config else "",
-        api_base=vlm_model_config["base_url"] if vlm_model_config else "",
-        api_key=vlm_model_config["api_key"] if vlm_model_config else "",
+        api_base=vlm_model_config.get("base_url", ""),
+        api_key=vlm_model_config.get("api_key", ""),
         temperature=0.7,
         top_p=0.7,
         frequency_penalty=0.5,
