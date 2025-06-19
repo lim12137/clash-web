@@ -1,9 +1,12 @@
 import logging
 import httpx
 import requests
+from typing import Optional
+from fastapi import Header
 from nexent.core import MessageObserver
 from nexent.core.models import OpenAIModel, OpenAIVLModel
 from nexent.core.models.embedding_model import JinaEmbedding, OpenAICompatibleEmbedding
+from utils.auth_utils import get_current_user_id
 
 from apps.voice_app import VoiceService
 from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
