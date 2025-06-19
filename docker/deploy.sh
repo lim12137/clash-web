@@ -20,6 +20,7 @@ select_deployment_mode() {
             export COMPOSE_FILE_SUFFIX=".prod.yml"
             echo "Selected production mode deployment"
             if ! grep -q "$root_dir" .env; then
+              sed -i -e '$a\' .env
               echo "# Root dir" >> .env
               echo "ROOT_DIR=\"$HOME/nexent-production-data\"" >> .env
             fi
@@ -29,6 +30,7 @@ select_deployment_mode() {
             export COMPOSE_FILE_SUFFIX=".yml"
             echo "Selected development mode deployment"
             if ! grep -q "$root_dir" .env; then
+              sed -i -e '$a\' .env
               echo "# Root dir" >> .env
               echo "ROOT_DIR=\"$HOME/nexent-development-data\"" >> .env
             fi
