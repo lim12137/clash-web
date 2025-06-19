@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -27,6 +27,8 @@ def create_knowledge_record(query: Dict[str, Any]) -> int:
                 "knowledge_describe": query.get("knowledge_describe", ""),
                 "created_by": query.get("user_id"),
                 "updated_by": query.get("user_id"),
+                "knowledge_embedding_model": query.get("knowledge_embedding_model"),
+                "knowledge_sources": query.get("knowledge_sources", "elasticsearch")
             }
 
             # Create new record
@@ -132,3 +134,34 @@ def get_knowledge_record(query: Optional[Dict[str, Any]] = None) -> Dict[str, An
             return {}
     except SQLAlchemyError as e:
         raise e
+
+def get_knowledge_info_by_knowledge_ids(knowledge_ids: List[str]) -> List[Dict[str, Any]]:
+    try:
+        with get_db_session() as session:
+            result = session.query(KnowledgeRecord).filter(
+                KnowledgeRecord.knowledge_id.in_(knowledge_ids),
+                KnowledgeRecord.delete_flag != 'Y'
+            ).all()
+            knowledge_info = []
+            for item in result:
+                knowledge_info.append({
+                    "knowledge_id": item.knowledge_id,
+                    "index_name": item.index_name,
+                    "knowledge_embedding_model": item.knowledge_embedding_model,
+                    "knowledge_sources": item.knowledge_sources
+                })
+            return knowledge_info
+    except SQLAlchemyError as e:
+        raise e
+
+def get_knowledge_ids_by_index_names(index_names: List[str]) -> List[str]:
+    try:
+        with get_db_session() as session:
+            result = session.query(KnowledgeRecord.knowledge_id).filter(
+                KnowledgeRecord.index_name.in_(index_names),
+                KnowledgeRecord.delete_flag != 'Y'
+            ).all()
+            return [item.knowledge_id for item in result]
+    except SQLAlchemyError as e:
+        raise e
+    
