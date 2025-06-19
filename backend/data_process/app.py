@@ -4,6 +4,8 @@ Celery application configuration for data processing tasks
 import os
 import logging
 from celery import Celery
+from .config import config
+from celery.backends.base import DisabledBackend
 
 # Configure logging
 logger = logging.getLogger("data_process.app")
@@ -12,20 +14,14 @@ logger = logging.getLogger("data_process.app")
 import_path = 'data_process.tasks'
 logger.info(f"Using import path: {import_path}")
 
-# Define Redis broker URL with fallback
-REDIS_URL = os.environ.get('REDIS_URL')
-REDIS_BACKEND_URL = os.environ.get('REDIS_BACKEND_URL')
+REDIS_URL = config.redis_url
+REDIS_BACKEND_URL = config.redis_backend_url
 
-# If REDIS_BACKEND_URL is not set, use REDIS_URL as fallback
-if not REDIS_URL:
-    raise ValueError("REDIS_URL environment variable is not set")
+if not REDIS_URL or not REDIS_BACKEND_URL:
+    raise ValueError("FATAL: REDIS_URL or REDIS_BACKEND_URL is not configured. Check your .env file and config.py.")
 
-if not REDIS_BACKEND_URL:
-    logger.warning("REDIS_BACKEND_URL not set, using REDIS_URL as backend")
-    REDIS_BACKEND_URL = REDIS_URL
-
-logger.info(f"Broker URL: {REDIS_URL}")
-logger.info(f"Backend URL: {REDIS_BACKEND_URL}")
+logger.info(f"Broker URL from config: {REDIS_URL}")
+logger.info(f"Backend URL from config: {REDIS_BACKEND_URL}")
 
 # Create Celery app instance
 app = Celery(
@@ -35,6 +31,14 @@ app = Celery(
     elasticsearch_service=os.environ.get('ELASTICSEARCH_SERVICE'),
     include=[import_path]
 )
+
+# 关键检查：如果backend仍然是DisabledBackend，说明配置失败，立即崩溃
+if isinstance(app.backend, DisabledBackend):
+    raise RuntimeError(
+        "Celery result backend is disabled! "
+        "This likely means REDIS_URL or REDIS_BACKEND_URL was not available during Celery app instantiation. "
+        "Check your environment configuration."
+    )
 
 # Configure Celery settings
 app.conf.update(
