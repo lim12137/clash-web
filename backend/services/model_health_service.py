@@ -72,10 +72,11 @@ async def _perform_connectivity_check(
     return connectivity
 
 
-async def check_model_connectivity(display_name: str):
+async def check_model_connectivity(display_name: str, authorization: Optional[str] = Header(None)):
     try:
         # 用 display_name 查库
-        model = get_model_by_display_name(display_name)
+        user_id, tenant_id = get_current_user_id(authorization)
+        model = get_model_by_display_name(display_name, tenant_id=tenant_id)
         if not model:
             return ModelResponse(code=404, message=f"Model configuration not found for {display_name}",
                 data={"connectivity": False, "connect_status": "未找到"})

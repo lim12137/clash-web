@@ -203,7 +203,8 @@ async def get_model_list(authorization: Optional[str] = Header(None)):
 
 @router.post("/healthcheck", response_model=ModelResponse)
 async def check_model_healthcheck(
-        display_name: str = Query(..., description="Display name to check")
+        display_name: str = Query(..., description="Display name to check"),
+        authorization: Optional[str] = Header(None)
 ):
     """
     Check and update model connectivity (health check), and return the latest status.
@@ -212,7 +213,7 @@ async def check_model_healthcheck(
     Returns:
         ModelResponse: contains connectivity and latest status
     """
-    return await check_model_connectivity(display_name)
+    return await check_model_connectivity(display_name, authorization)
 
 
 
