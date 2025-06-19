@@ -96,11 +96,18 @@ def get_all_files_status(index_name: str):
         Dictionary with path_or_url as keys and dict values: {state, latest_task_id}
     """
     try:
-        from services.data_process_service import get_data_process_service
+        try:
+            with httpx.Client() as client:
+                response = client.get(f"{DATA_PROCESS_SERVICE}/tasks/indices/{index_name}", timeout=10.0)
+            if response.status_code == 200:
+                tasks_list = response.json()
+            else:
+                logging.error(f"Error from data process service: {response.status_code} - {response.text}")
+                return {}
+        except Exception as e:
+            logging.error(f"Failed to connect to data process service: {str(e)}")
+            return {}
         
-        # Use get_index_tasks to directly get tasks for the specified index
-        # This avoids the need for manual filtering and is more efficient
-        tasks_list = get_data_process_service().get_index_tasks(index_name)
         logging.info(f"Found {len(tasks_list)} tasks for index '{index_name}'")
         if not tasks_list:
             logging.warning(f"No tasks found for index '{index_name}'")

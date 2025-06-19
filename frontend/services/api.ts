@@ -63,6 +63,7 @@ export const API_ENDPOINTS = {
     customModelCreate: `${API_BASE_URL}/model/create`,
     customModelDelete: (displayName: string) => `${API_BASE_URL}/model/delete?display_name=${encodeURIComponent(displayName)}`,
     customModelHealthcheck: (displayName: string) => `${API_BASE_URL}/model/healthcheck?display_name=${encodeURIComponent(displayName)}`,
+    verifyModelConfig: `${API_BASE_URL}/model/verify_config`,
   },
   knowledgeBase: {
     // Elasticsearch service
@@ -76,8 +77,7 @@ export const API_ENDPOINTS = {
     getSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
     
     // File upload service
-    upload: `${API_BASE_URL}/file/upload`,
-    markFailure: `${API_BASE_URL}/file/mark_failure`,
+    upload: `${API_BASE_URL}/file/upload`
   },
   config: {
     save: `${API_BASE_URL}/config/save_config`,

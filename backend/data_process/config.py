@@ -40,8 +40,6 @@ class Config:
         """验证基础必需的环境变量"""
         required = [
             'REDIS_URL',
-            'ELASTICSEARCH_API_KEY',
-            'ELASTIC_PASSWORD',
             'ELASTICSEARCH_SERVICE'
         ]
         
@@ -56,9 +54,7 @@ class Config:
         """验证Celery任务执行所需的环境变量"""
         task_vars = {
             'REDIS_URL': self.redis_url,
-            'ELASTICSEARCH_SERVICE': self.elasticsearch_service,
-            'ELASTICSEARCH_API_KEY': self.elasticsearch_api_key,
-            'ELASTIC_PASSWORD': os.getenv('ELASTIC_PASSWORD'),
+            'ELASTICSEARCH_SERVICE': self.elasticsearch_service
         }
         
         missing = []
@@ -104,14 +100,6 @@ class Config:
     @property
     def elasticsearch_service(self) -> Optional[str]:
         return os.getenv('ELASTICSEARCH_SERVICE')
-    
-    @property
-    def elasticsearch_api_key(self) -> Optional[str]:
-        return os.getenv('ELASTICSEARCH_API_KEY')
-    
-    @property
-    def elastic_password(self) -> Optional[str]:
-        return os.getenv('ELASTIC_PASSWORD')
     
     @property
     def celery_worker_prefetch_multiplier(self) -> int:

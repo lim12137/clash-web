@@ -929,6 +929,34 @@
 }
 ```
 
+#### POST /api/model/verify_config
+验证模型配置的连通性，不保存到数据库。
+
+**请求体：**
+```json
+{
+    "model_name": "string",
+    "model_type": "string",
+    "base_url": "string",
+    "api_key": "string",
+    "max_tokens": "number",
+    "embedding_dim": "number"
+}
+```
+
+**响应：**
+```json
+{
+    "code": 200,
+    "message": "模型配置连通性验证成功/失败",
+    "data": {
+        "connectivity": "boolean",
+        "message": "string",
+        "connect_status": "string"
+    }
+}
+```
+
 ## 代理应用
 
 ### 端点
