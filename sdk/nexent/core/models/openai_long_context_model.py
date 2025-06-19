@@ -1,12 +1,10 @@
-import os
-import re
-from typing import List, Dict, Any, Union, BinaryIO, Optional
+from typing import List, Dict, Any, Union, BinaryIO
 from pathlib import Path
 
 from smolagents.models import ChatMessage
 
-from sdk.nexent.core.models.openai_llm import OpenAIModel
-from sdk.nexent.core.utils.observer import MessageObserver
+from ..models import OpenAIModel
+from ..utils.observer import MessageObserver
 
 
 class OpenAILongContextModel(OpenAIModel):
@@ -294,12 +292,3 @@ def example_analyze_text_file():
     except Exception as e:
         print(f"分析过程中出现错误: {e}")
 
-
-if __name__ == "__main__":
-    print("长上下文模型使用示例")
-    print("=" * 50)
-
-    # 运行示例
-    example_analyze_text_file()
-
-    print("\n示例运行完成！")
