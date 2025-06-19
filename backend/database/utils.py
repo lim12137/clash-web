@@ -51,9 +51,10 @@ def get_current_user_id(authorization: Optional[str] = Header(None)) -> Optional
         Optional[str]: 用户ID，如果未登录则返回None
     """
     if not authorization:
-        return None
+        logging.error(f"获取用户ID失败，鉴权信息为空")
+        return ""
     try:
         return get_current_user_id_from_token(str(authorization))
     except Exception as e:
         logging.error(f"获取用户ID失败: {str(e)}")
-        return None
+        return ""

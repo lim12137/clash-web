@@ -134,24 +134,46 @@ services:
     volumes:
       - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
-      <<: *proxy-vars
+      <<: [*proxy-vars, *es-vars, *minio-vars]
+      DOCKER_ENVIRONMENT: "true"
+      PYTHONPATH: "/opt/backend"
       skip_proxy: "true"
     env_file:
       - .env
     depends_on:
+      redis:
+        condition: service_healthy
       nexent-elasticsearch:
         condition: service_healthy
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"  # Maximum size of a single log file
-        max-file: "3"    # Maximum number of log files to keep
     networks:
       - nexent
     entrypoint: >
       /bin/sh -c "
         python /opt/backend/data_process_service.py || (cd /opt/backend && OPENBLAS_NUM_THREADS=1 UVICORN_LOOP=asyncio uvicorn data_process_service:app --host 0.0.0.0 --port 5012)
       "
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:alpine
+    container_name: nexent-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --appendfsync everysec --save "900 1" --save "300 10" --save "60 10000" --dir /data --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - nexent
 
   nexent-minio:
     image: quay.io/minio/minio:RELEASE.2023-12-20T01-00-02Z
@@ -191,3 +213,6 @@ services:
 networks:
   nexent:
     driver: bridge
+
+volumes:
+  redis_data:

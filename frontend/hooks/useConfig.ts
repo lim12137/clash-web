@@ -1,62 +1,60 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { configStore } from '@/lib/config';
-import type { GlobalConfig, AppConfig, ModelConfig, KnowledgeBaseConfig } from '@/types/config';
+import { useState, useCallback, useEffect } from 'react';
+import { GlobalConfig, AppConfig, ModelConfig } from '@/types/config';
+import { ConfigStore } from '@/lib/config';
 import { getAvatarUrl } from '@/lib/avatar';
 
+const configStore = ConfigStore.getInstance();
+
 export function useConfig() {
-  const [config, setConfig] = useState<GlobalConfig>(() => configStore.getConfig());
+  const [config, setConfig] = useState<GlobalConfig>(configStore.getConfig);
 
-  // 监听配置变更
-  useEffect(() => {
-    const handleConfigChange = (event: CustomEvent<{ config: GlobalConfig }>) => {
-      setConfig(event.detail.config);
-    };
-
-    window.addEventListener('configChanged', handleConfigChange as EventListener);
-    return () => {
-      window.removeEventListener('configChanged', handleConfigChange as EventListener);
-    };
-  }, []);
-
-  // 更新完整配置
-  const updateConfig = useCallback((partial: Partial<GlobalConfig>) => {
-    configStore.updateConfig(partial);
-  }, []);
-
-  // 更新应用配置
+  // Update app configuration
   const updateAppConfig = useCallback((partial: Partial<AppConfig>) => {
     configStore.updateAppConfig(partial);
+    setConfig(configStore.getConfig());
   }, []);
 
-  // 更新模型配置
+  // Update model configuration
   const updateModelConfig = useCallback((partial: Partial<ModelConfig>) => {
     configStore.updateModelConfig(partial);
+    setConfig(configStore.getConfig());
   }, []);
 
-  // 更新知识库配置
-  const updateDataConfig = useCallback((partial: Partial<KnowledgeBaseConfig>) => {
-    configStore.updateDataConfig(partial);
+  // Get complete configuration
+  const getConfig = useCallback(() => {
+    return configStore.getConfig();
   }, []);
 
+  // Update complete configuration
+  const updateConfig = useCallback((newConfig: GlobalConfig) => {
+    configStore.updateConfig(newConfig);
+    setConfig(configStore.getConfig());
+  }, []);
 
-  // 获取头像URL
-  const getAppAvatarUrl = useCallback((size: number = 30) => {
+  // Clear configuration
+  const clearConfig = useCallback(() => {
+    configStore.clearConfig();
+    setConfig(configStore.getConfig());
+  }, []);
+
+  // Get avatar URL
+  const getAppAvatarUrl = useCallback((size?: number) => {
     return getAvatarUrl(config.app, size);
   }, [config.app]);
 
   return {
     config,
-    updateConfig,
     updateAppConfig,
     updateModelConfig,
-    updateDataConfig,
-    // 便捷访问
+    getConfig,
+    updateConfig,
+    clearConfig,
+    // Convenient access
     appConfig: config.app,
     modelConfig: config.models,
-    dataConfig: config.data,
-    // 头像相关功能
+    // Avatar related functionality
     getAppAvatarUrl
   };
 } 

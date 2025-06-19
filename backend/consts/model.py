@@ -115,16 +115,9 @@ class AppConfig(BaseModel):
     avatarUri: Optional[str] = None
 
 
-class KnowledgeBaseConfig(BaseModel):
-    selectedKbNames: List[str]
-    selectedKbModels: List[str]
-    selectedKbSources: List[str]
-
-
 class GlobalConfig(BaseModel):
     app: AppConfig
     models: ModelConfig
-    data: KnowledgeBaseConfig
 
 
 # Request models
@@ -194,6 +187,9 @@ class BatchTaskResponse(BaseModel):
 
 class SimpleTaskStatusResponse(BaseModel):
     id: str
+    task_name: str
+    index_name: str
+    path_or_url: str
     status: str
     created_at: float
     updated_at: float
@@ -220,13 +216,6 @@ class IndexInfo(BaseModel):
     process_source: str
     embedding_model: Optional[str] = Field(None, description="Embedding model used")
     files: Optional[List[FileInfo]] = Field(None, description="List of files in the index")
-
-
-class IndexingRequest(BaseModel):
-    task_id: str
-    index_name: str
-    results: List[Dict[str, Any]]
-    embedding_dim: Optional[int] = None
 
 
 class IndexingResponse(BaseModel):
