@@ -69,7 +69,7 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
 
 
 def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, authorization: str = Header(None)):
-    user_id, tenant_id = get_current_user_id()
+    user_id, tenant_id = get_current_user_id(authorization)
 
     # Get description of tool and agent
     tool_info_list = get_enabled_tool_description_for_generate_prompt(

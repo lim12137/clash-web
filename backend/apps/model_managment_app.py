@@ -15,7 +15,7 @@ router = APIRouter(prefix="/model")
 @router.post("/create", response_model=ModelResponse)
 async def create_model(request: ModelRequest, authorization: Optional[str] = Header(None)):
     try:
-        user_id, tenant_id = get_current_user_id()
+        user_id, tenant_id = get_current_user_id(authorization)
         model_data = request.model_dump()
         # Split model_name
         model_repo, model_name = split_repo_name(model_data["model_name"])
@@ -91,7 +91,7 @@ async def delete_model(display_name: str = Query(..., embed=True), authorization
         authorization: Authorization header
     """
     try:
-        user_id, tenant_id = get_current_user_id()
+        user_id, tenant_id = get_current_user_id(authorization)
         # Find model by display_name
         model = get_model_by_display_name(display_name, tenant_id)
         if not model:
@@ -131,7 +131,7 @@ async def get_model_list(authorization: Optional[str] = Header(None)):
     Get detailed information for all models
     """
     try:
-        user_id, tenant_id = get_current_user_id()
+        user_id, tenant_id = get_current_user_id(authorization)
         records = get_model_records(None, tenant_id)
 
         result = []
@@ -160,7 +160,8 @@ async def get_model_list(authorization: Optional[str] = Header(None)):
 
 @router.post("/healthcheck", response_model=ModelResponse)
 async def check_model_healthcheck(
-        display_name: str = Query(..., description="Display name to check")
+        display_name: str = Query(..., description="Display name to check"),
+        authorization: Optional[str] = Header(None)
 ):
     """
     Check and update model connectivity (health check), and return the latest status.
@@ -169,7 +170,7 @@ async def check_model_healthcheck(
     Returns:
         ModelResponse: contains connectivity and latest status
     """
-    return await check_model_connectivity(display_name)
+    return await check_model_connectivity(display_name, authorization)
 
 
 @router.post("/verify_config", response_model=ModelResponse)
