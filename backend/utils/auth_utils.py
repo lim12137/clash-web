@@ -4,15 +4,13 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import Header
+from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID
 import jwt
 from supabase import create_client
 
 # 获取Supabase配置
 SUPABASE_URL = os.getenv('SUPABASE_URL', 'http://118.31.249.152:8010')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
-
-DEFAULT_USER_ID = "user_id"
-DEFAULT_TENANT_ID = "tenant_id"
 
 def get_supabase_client():
     """获取Supabase客户端实例"""
