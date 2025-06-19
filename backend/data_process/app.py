@@ -18,7 +18,7 @@ REDIS_URL = config.redis_url
 REDIS_BACKEND_URL = config.redis_backend_url
 
 if not REDIS_URL or not REDIS_BACKEND_URL:
-    raise ValueError("FATAL: REDIS_URL or REDIS_BACKEND_URL is not configured. Check your .env file and config.py.")
+    raise ValueError("FATAL: REDIS_URL or REDIS_BACKEND_URL is not configured. Please check the environment variables in this container.")
 
 logger.info(f"Broker URL from config: {REDIS_URL}")
 logger.info(f"Backend URL from config: {REDIS_BACKEND_URL}")
@@ -37,7 +37,7 @@ if isinstance(app.backend, DisabledBackend):
     raise RuntimeError(
         "Celery result backend is disabled! "
         "This likely means REDIS_URL or REDIS_BACKEND_URL was not available during Celery app instantiation. "
-        "Check your environment configuration."
+        "Check your environment variables in this container."
     )
 
 # Configure Celery settings
