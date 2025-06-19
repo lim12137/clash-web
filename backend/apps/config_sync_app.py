@@ -141,68 +141,68 @@ async def load_config(authorization: Optional[str] = Header(None)):
             "models": {
                 "llm": {
                     "name": get_model_name_from_config(llm_model_name) if llm_model_name else "",
-                    "displayName": llm_model_name["display_name"] if llm_model_name else "",
+                    "displayName": llm_model_name.get("display_name", ""),
                     "apiConfig": {
-                        "apiKey": llm_model_name["api_key"] if llm_model_name else "",
-                        "modelUrl": llm_model_name["base_url"] if llm_model_name else ""
+                        "apiKey": llm_model_name.get("api_key", ""),
+                        "modelUrl": llm_model_name.get("base_url", "")
                     }
                 },
                 "llmSecondary": {
                     "name": get_model_name_from_config(llm_secondary_model_name) if llm_secondary_model_name else "",
-                    "displayName": llm_secondary_model_name["display_name"] if llm_secondary_model_name else "",
+                    "displayName": llm_secondary_model_name.get("display_name", ""),
                     "apiConfig": {
-                        "apiKey": llm_secondary_model_name["api_key"] if llm_secondary_model_name else "",
-                        "modelUrl": llm_secondary_model_name["base_url"] if llm_secondary_model_name else ""
+                        "apiKey": llm_secondary_model_name.get("api_key", ""),
+                        "modelUrl": llm_secondary_model_name.get("base_url", "")
                     }
                 },
                 "embedding": {
                     "name": get_model_name_from_config(embedding_model_name) if embedding_model_name else "",
-                    "displayName": embedding_model_name["display_name"] if embedding_model_name else "",
+                    "displayName": embedding_model_name.get("display_name", ""),
                     "apiConfig": {
-                        "apiKey": embedding_model_name["api_key"] if embedding_model_name else "",
-                        "modelUrl": embedding_model_name["base_url"] if embedding_model_name else ""
+                        "apiKey": embedding_model_name.get("api_key", ""),
+                        "modelUrl": embedding_model_name.get("base_url", "")
                     },
                     "dimension": int(config_manager.get_config("EMBEDDING_DIMENSION", "0")) or None
                 },
                 "multiEmbedding": {
                     "name": get_model_name_from_config(multi_embedding_model_name) if multi_embedding_model_name else "",
-                    "displayName": multi_embedding_model_name["display_name"] if multi_embedding_model_name else "",
+                    "displayName": multi_embedding_model_name.get("display_name", ""),
                     "apiConfig": {
-                        "apiKey": multi_embedding_model_name["api_key"] if multi_embedding_model_name else "",
-                        "modelUrl": multi_embedding_model_name["base_url"] if multi_embedding_model_name else ""
+                        "apiKey": multi_embedding_model_name.get("api_key", ""),
+                        "modelUrl": multi_embedding_model_name.get("base_url", "")
                     },
                     "dimension": int(config_manager.get_config("MULTI_EMBEDDING_DIMENSION", "0")) or None
                 },
                 "rerank": {
                     "name": get_model_name_from_config(rerank_model_name) if rerank_model_name else "",
-                    "displayName": rerank_model_name["display_name"] if rerank_model_name else "",
+                    "displayName": rerank_model_name.get("display_name", ""),
                     "apiConfig": {
-                        "apiKey": rerank_model_name["api_key"] if rerank_model_name else "",
-                        "modelUrl": rerank_model_name["base_url"] if rerank_model_name else ""
+                        "apiKey": rerank_model_name.get("api_key", ""),
+                        "modelUrl": rerank_model_name.get("base_url", "")
                     }
                 },
                 "vlm": {
                     "name": get_model_name_from_config(vlm_model_name) if vlm_model_name else "",
-                    "displayName": vlm_model_name["display_name"] if vlm_model_name else "",
+                    "displayName": vlm_model_name.get("display_name", ""),
                     "apiConfig": {
-                        "apiKey": vlm_model_name["api_key"] if vlm_model_name else "",
-                        "modelUrl": vlm_model_name["base_url"] if vlm_model_name else ""
+                        "apiKey": vlm_model_name.get("api_key", ""),
+                        "modelUrl": vlm_model_name.get("base_url", "")
                     }
                 },
                 "stt": {
                     "name": get_model_name_from_config(stt_model_name) if stt_model_name else "",
-                    "displayName": stt_model_name["display_name"] if stt_model_name else "",
+                    "displayName": stt_model_name.get("display_name", ""),
                     "apiConfig": {
-                        "apiKey": stt_model_name["api_key"] if stt_model_name else "",
-                        "modelUrl": stt_model_name["base_url"] if stt_model_name else ""
+                        "apiKey": stt_model_name.get("api_key", ""),
+                        "modelUrl": stt_model_name.get("base_url", "")
                     }
                 },
                 "tts": {
                     "name": get_model_name_from_config(tts_model_name) if tts_model_name else "",
-                    "displayName": tts_model_name["display_name"] if tts_model_name else "",
+                    "displayName": tts_model_name.get("display_name", ""),
                     "apiConfig": {
-                        "apiKey": tts_model_name["api_key"] if tts_model_name else "",
-                        "modelUrl": tts_model_name["base_url"] if tts_model_name else ""
+                        "apiKey": tts_model_name.get("api_key", ""),
+                        "modelUrl": tts_model_name.get("base_url", "")
                     }
                 }
             }

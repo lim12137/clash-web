@@ -244,7 +244,7 @@ def query_all_tools(tenant_id: str):
         tools = session.query(ToolInfo).filter(
             ToolInfo.delete_flag != 'Y'
         ).filter(
-            (ToolInfo.tenant_id == tenant_id) | (ToolInfo.tenant_id == "tenant_id")
+            (ToolInfo.author == tenant_id) | (ToolInfo.author == "tenant_id")
         ).all()
         return [as_dict(tool) for tool in tools]
 

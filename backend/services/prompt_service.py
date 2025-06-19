@@ -39,8 +39,8 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
 
     llm = OpenAIServerModel(
         model_id=get_model_name_from_config(llm_model_config) if llm_model_config else "",
-        api_base=llm_model_config["base_url"] if llm_model_config else "",
-        api_key=llm_model_config["api_key"] if llm_model_config else "",
+        api_base=llm_model_config.get("base_url", ""),
+        api_key=llm_model_config.get("api_key", ""),
         temperature=0.3,
         top_p=0.95
     )
