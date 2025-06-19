@@ -19,8 +19,7 @@ class Config:
         """加载环境变量文件"""
         current_file_dir = Path(__file__).parent
         env_paths = [
-            current_file_dir / "../../docker/.env",
-            current_file_dir / "../.env"
+            current_file_dir / "../../.env"
         ]
         
         env_loaded = False
@@ -54,6 +53,7 @@ class Config:
         """验证Celery任务执行所需的环境变量"""
         task_vars = {
             'REDIS_URL': self.redis_url,
+            'REDIS_BACKEND_URL': self.redis_backend_url,
             'ELASTICSEARCH_SERVICE': self.elasticsearch_service
         }
         
@@ -96,6 +96,10 @@ class Config:
     @property
     def redis_url(self) -> Optional[str]:
         return os.getenv('REDIS_URL')
+    
+    @property
+    def redis_backend_url(self) -> Optional[str]:
+        return os.getenv('REDIS_BACKEND_URL')
     
     @property
     def elasticsearch_service(self) -> Optional[str]:

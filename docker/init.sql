@@ -199,7 +199,6 @@ CREATE TABLE IF NOT EXISTS "knowledge_record_t" (
   "index_name" varchar(100) COLLATE "pg_catalog"."default",
   "knowledge_describe" varchar(300) COLLATE "pg_catalog"."default",
   "tenant_id" varchar(100) COLLATE "pg_catalog"."default",
-  "knowledge_embedding_model" varchar(100) COLLATE "pg_catalog"."default",
   "knowledge_sources" varchar(100) COLLATE "pg_catalog"."default",
   "create_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "update_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
@@ -213,7 +212,6 @@ COMMENT ON COLUMN "knowledge_record_t"."knowledge_id" IS 'Knowledge base ID, uni
 COMMENT ON COLUMN "knowledge_record_t"."index_name" IS 'Knowledge base name';
 COMMENT ON COLUMN "knowledge_record_t"."knowledge_describe" IS 'Knowledge base description';
 COMMENT ON COLUMN "knowledge_record_t"."tenant_id" IS 'Tenant ID';
-COMMENT ON COLUMN "knowledge_record_t"."knowledge_embedding_model" IS 'Knowledge base embedding model';
 COMMENT ON COLUMN "knowledge_record_t"."knowledge_sources" IS 'Knowledge base sources';
 COMMENT ON COLUMN "knowledge_record_t"."create_time" IS 'Creation time, audit field';
 COMMENT ON COLUMN "knowledge_record_t"."update_time" IS 'Update time, audit field';

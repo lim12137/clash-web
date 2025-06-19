@@ -27,7 +27,6 @@ def create_knowledge_record(query: Dict[str, Any]) -> int:
                 "knowledge_describe": query.get("knowledge_describe", ""),
                 "created_by": query.get("user_id"),
                 "updated_by": query.get("user_id"),
-                "knowledge_embedding_model": query.get("knowledge_embedding_model"),
                 "knowledge_sources": query.get("knowledge_sources", "elasticsearch")
             }
 
@@ -147,7 +146,6 @@ def get_knowledge_info_by_knowledge_ids(knowledge_ids: List[str]) -> List[Dict[s
                 knowledge_info.append({
                     "knowledge_id": item.knowledge_id,
                     "index_name": item.index_name,
-                    "knowledge_embedding_model": item.knowledge_embedding_model,
                     "knowledge_sources": item.knowledge_sources
                 })
             return knowledge_info
