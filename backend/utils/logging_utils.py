@@ -4,7 +4,7 @@ def configure_elasticsearch_logging():
     """Configure logging for Elasticsearch client to reduce verbosity"""
     
     # Configure logging for elasticsearch
-    logging.getLogger('elastic_transport').setLevel(logging.WARNING)
+    logging.getLogger('elastic_transport.transport').setLevel(logging.WARNING)
     
     # Configure logging for urllib3 (used by elasticsearch)
     logging.getLogger('urllib3').setLevel(logging.WARNING)

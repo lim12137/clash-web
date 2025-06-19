@@ -5,7 +5,7 @@ from fastapi import Query, Body, APIRouter, Header
 from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest
 from database.model_management_db import create_model_record, delete_model_record, \
     get_model_records, get_model_by_display_name
-from services.model_health_service import check_model_connectivity
+from services.model_health_service import check_model_connectivity, verify_model_config_connectivity
 from utils.model_name_utils import split_repo_name, add_repo_to_name
 from utils.auth_utils import get_current_user_id
 
@@ -163,11 +163,41 @@ async def check_model_healthcheck(
         display_name: str = Query(..., description="Display name to check")
 ):
     """
-    检查并更新模型连通性（健康检查），并返回最新状态。
+    Check and update model connectivity (health check), and return the latest status.
     Args:
-        display_name: 需要检查的模型 display_name
+        display_name: display_name of the model to check
     Returns:
-        ModelResponse: 包含连通性和最新状态
+        ModelResponse: contains connectivity and latest status
     """
     return await check_model_connectivity(display_name)
+
+
+@router.post("/verify_config", response_model=ModelResponse)
+async def verify_model_config(request: ModelRequest):
+    """
+    Verify the connectivity of the model configuration, do not save to database
+    Args:
+        request: model configuration information
+    Returns:
+        ModelResponse: contains connectivity test result
+    """
+    try:
+        from services.model_health_service import verify_model_config_connectivity
+        
+        model_data = request.model_dump()
+        
+        # Call the verification service directly, do not split model_name
+        result = await verify_model_config_connectivity(model_data)
+        
+        return result
+    except Exception as e:
+        return ModelResponse(
+            code=500,
+            message=f"验证模型配置失败: {str(e)}",
+            data={
+                "connectivity": False,
+                "message": f"验证失败: {str(e)}",
+                "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
+            }
+        )
 

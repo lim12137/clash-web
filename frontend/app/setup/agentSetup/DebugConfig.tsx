@@ -15,6 +15,7 @@ interface AgentDebuggingProps {
   question: string;
   answer: string;
   onAskQuestion: (question: string) => void;
+  onStop: () => void;
   isStreaming: boolean;
   messages: ChatMessageType[];
   taskMessages: TaskMessageType[];
@@ -40,19 +41,16 @@ function AgentDebugging({
   question, 
   answer, 
   onAskQuestion,
+  onStop,
   isStreaming,
   messages,
   taskMessages,
   conversationGroups
 }: AgentDebuggingProps) {
   const [inputQuestion, setInputQuestion] = useState("")
-  const abortControllerRef = useRef<AbortController | null>(null);
   
   const handleSend = async () => {
     if (!inputQuestion.trim()) return;
-    
-    // Create a new AbortController
-    abortControllerRef.current = new AbortController();
     
     try {
       // Call the parent component's processing function
@@ -60,8 +58,6 @@ function AgentDebugging({
       setInputQuestion("");
     } catch (error) {
       console.error("发送问题失败:", error);
-    } finally {
-      abortControllerRef.current = null;
     }
   }
   
@@ -181,18 +177,23 @@ function AgentDebugging({
           onPressEnter={handleSend}
           disabled={isStreaming}
         />
-        <button
-          onClick={handleSend}
-          disabled={isStreaming}
-          className={`min-w-[56px] px-4 py-1.5 rounded-md flex items-center justify-center text-sm ${
-            isStreaming 
-              ? 'bg-gray-300 cursor-not-allowed' 
-              : 'bg-blue-500 hover:bg-blue-600 text-white'
-          } whitespace-nowrap`}
-          style={{ border: "none" }}
-        >
-          {isStreaming ? '调试中...' : '发送'}
-        </button>
+        {isStreaming ? (
+          <button
+            onClick={onStop}
+            className="min-w-[56px] px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-red-500 hover:bg-red-600 text-white whitespace-nowrap"
+            style={{ border: "none" }}
+          >
+            停止
+          </button>
+        ) : (
+          <button
+            onClick={handleSend}
+            className="min-w-[56px] px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 hover:bg-blue-600 text-white whitespace-nowrap"
+            style={{ border: "none" }}
+          >
+            发送
+          </button>
+        )}
       </div>
     </div>
   )
@@ -213,6 +214,7 @@ export default function DebugConfig({
   const [taskMessages, setTaskMessages] = useState<TaskMessageType[]>([]);
   const [conversationGroups] = useState<Map<string, TaskMessageType[]>>(new Map());
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Reset timeout timer
   const resetTimeout = () => {
@@ -224,10 +226,55 @@ export default function DebugConfig({
     }, 30000); // 30 seconds timeout
   };
 
+  // Handle stop function
+  const handleStop = async () => {
+    // Stop agent_run immediately
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort('用户手动停止调试');
+      } catch (error) {
+        console.error('取消请求时出错', error);
+      }
+      abortControllerRef.current = null;
+    }
+
+    // Clear timeout timer
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    // Immediately update frontend state
+    setIsStreaming(false);
+
+    // Try to stop backend agent run for debug mode
+    try {
+      await conversationService.stop(-1); // Use -1 for debug mode
+    } catch (error) {
+      console.error('停止调试模式agent运行失败，但前端已停止:', error);
+      // This is expected if no agent is running for debug mode
+    }
+
+    // Manually update messages, clear thinking state
+    setMessages(prev => {
+      const newMessages = [...prev];
+      const lastMsg = newMessages[newMessages.length - 1];
+      if (lastMsg && lastMsg.role === "assistant") {
+        lastMsg.isComplete = true;
+        lastMsg.thinking = undefined; // Explicitly clear thinking state
+        lastMsg.content = "调试已停止";
+      }
+      return newMessages;
+    });
+  };
+
   // Process test question
   const handleTestQuestion = async (question: string) => {
     setTestQuestion(question);
     setIsStreaming(true);
+    
+    // Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
     
     // Add user message
     const userMessage: ChatMessageType = {
@@ -249,8 +296,6 @@ export default function DebugConfig({
     setMessages([userMessage, assistantMessage]);
     
     try {
-      console.log("Debug - Agent ID before API call:", agentId);
-      
       // Ensure agent_id is a number
       let agentIdValue = undefined;
       if (agentId !== undefined && agentId !== null) {
@@ -260,17 +305,15 @@ export default function DebugConfig({
         }
       }
       
-      console.log("Debug - Parsed agent_id:", agentIdValue);
-      
-      // Call agent_run
+      // Call agent_run with AbortSignal
       const reader = await conversationService.runAgent({
         query: question,
-        conversation_id: -1, // Debug mode does not need to save conversation
+        conversation_id: -1, // Debug mode uses -1 as conversation ID
         is_set: true,
         history: [],
         is_debug: true,  // Add debug mode flag
         agent_id: agentIdValue  // Use the properly parsed agent_id
-      });
+      }, abortControllerRef.current.signal); // Pass AbortSignal
 
       if (!reader) throw new Error("Response body is null");
 
@@ -284,7 +327,7 @@ export default function DebugConfig({
         false, // isNewConversation - Debug mode does not need
         () => {}, // setConversationTitle - Debug mode does not need
         async () => {}, // fetchConversationList - Debug mode does not need
-        -1, // currentConversationId - Debug mode does not need
+        -1, // currentConversationId - Debug mode uses -1
         conversationService,
         true // isDebug: true for debug mode
       );
@@ -295,26 +338,44 @@ export default function DebugConfig({
         setTestAnswer(lastMessage.finalAnswer || lastMessage.content || "");
       }
     } catch (error) {
-      console.error("处理流式响应时出错:", error);
-      const errorMessage = error instanceof Error ? error.message : "处理请求时发生错误";
-      
-      setMessages(prev => {
-        const newMessages = [...prev];
-        const lastMsg = newMessages[newMessages.length - 1];
-        if (lastMsg && lastMsg.role === "assistant") {
-          lastMsg.content = errorMessage;
-          lastMsg.isComplete = true;
-          lastMsg.error = errorMessage;
-        }
-        return newMessages;
-      });
-      
-      setTestAnswer(errorMessage);
+      // If user actively canceled, don't show error message
+      const err = error as Error;
+      if (err.name === 'AbortError') {
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMsg = newMessages[newMessages.length - 1];
+          if (lastMsg && lastMsg.role === "assistant") {
+            lastMsg.content = "调试已停止";
+            lastMsg.isComplete = true;
+            lastMsg.thinking = undefined; // Explicitly clear thinking state
+          }
+          return newMessages;
+        });
+      } else {
+        console.error("处理流式响应时出错:", error);
+        const errorMessage = error instanceof Error ? error.message : "处理请求时发生错误";
+        
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMsg = newMessages[newMessages.length - 1];
+          if (lastMsg && lastMsg.role === "assistant") {
+            lastMsg.content = errorMessage;
+            lastMsg.isComplete = true;
+            lastMsg.error = errorMessage;
+          }
+          return newMessages;
+        });
+        
+        setTestAnswer(errorMessage);
+      }
     } finally {
       setIsStreaming(false);
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current = null;
       }
     }
   };
@@ -325,6 +386,7 @@ export default function DebugConfig({
         question={testQuestion} 
         answer={testAnswer} 
         onAskQuestion={handleTestQuestion}
+        onStop={handleStop}
         isStreaming={isStreaming}
         messages={messages}
         taskMessages={taskMessages}

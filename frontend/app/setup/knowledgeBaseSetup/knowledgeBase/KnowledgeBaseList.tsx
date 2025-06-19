@@ -79,14 +79,14 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
   };
 
   return (
-    <div className="w-full bg-white border border-gray-200 rounded-md flex flex-col h-full">
+    <div className="w-full bg-white border border-gray-200 rounded-md flex flex-col" style={{ height: containerHeight }}>
+      {/* 固定的头部区域 */}
       <div className={`${KB_LAYOUT.HEADER_PADDING} border-b border-gray-200 shrink-0`}>
         <div className="flex items-center justify-between">
           <div>
             <h3 className={`${KB_LAYOUT.TITLE_MARGIN} ${KB_LAYOUT.TITLE_TEXT} text-gray-800`}>知识库列表</h3>
           </div>
           <div className="flex items-center" style={{ gap: '6px' }}>
-            {/* Add knowledge base button */}
             <Button
               style={{
                 padding: "4px 15px",
@@ -135,7 +135,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
         </div>
       </div>
 
-      {/* 选中的知识库信息区域 - 移到内部 */}
+      {/* 固定的选择状态区域 */}
       <div className="border-b border-gray-200 shrink-0 relative z-10 shadow-md">
         <div className="px-3 py-2 bg-blue-50">
           <div className="flex items-center">
@@ -144,7 +144,6 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
             <span className="font-medium text-blue-700">个知识库用于知识检索</span>
           </div>
 
-          {/* 选中的知识库名称标签 */}
           {selectedIds.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2 mb-1">
               {selectedIds.map((id) => {
@@ -180,10 +179,8 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
         </div>
       </div>
 
-      {/* Knowledge base list content */}
-      {/* 重构：UI风格被嵌入在组件内 */}
-      <div className="overflow-y-auto flex-1 relative z-0">
-
+      {/* 可滚动的知识库列表区域 */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {knowledgeBases.length > 0 ? (
           <div className="divide-y-0">
             {knowledgeBases.map((kb, index) => {
@@ -203,7 +200,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                   }}
                   onClick={() => {
                     onClick(kb);
-                    if (onKnowledgeBaseChange) onKnowledgeBaseChange(); // 调用知识库切换回调函数
+                    if (onKnowledgeBaseChange) onKnowledgeBaseChange();
                   }}
                 >
                   <div className="flex items-start">
@@ -298,11 +295,13 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
             })}
           </div>
         ) : (
-          <div className={`text-center ${KB_LAYOUT.EMPTY_STATE_PADDING} text-gray-500 text-sm`}>暂无知识库，请先创建知识库</div>
+          <div className={`${KB_LAYOUT.EMPTY_STATE_PADDING} text-center text-gray-500`}>
+            暂无知识库，请先创建知识库
+          </div>
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default KnowledgeBaseList
+export default KnowledgeBaseList;

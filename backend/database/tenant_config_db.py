@@ -16,7 +16,7 @@ def get_all_configs_by_tenant_id(tenant_id: str):
                 "tenant_config_id": item.tenant_config_id,
                 "update_time": item.update_time
             })
-        
+
         return record_info
 
 
@@ -33,7 +33,7 @@ def get_tenant_config_info(tenant_id: str, user_id: str, select_key: str):
                 "tenant_config_id": item.tenant_config_id
             })
         return record_info
-    
+
 
 def get_single_config_info(tenant_id: str, user_id: str, select_key: str):
     with get_db_session() as session:
@@ -82,7 +82,7 @@ def update_config_by_tenant_config_id(tenant_config_id: int, update_value: str):
         except Exception as e:
             session.rollback()
             return False
-        
+
 
 def update_config_by_tenant_config_id_and_data(tenant_config_id: int, insert_data: Dict[str, Any]):
     with get_db_session() as session:
@@ -90,7 +90,7 @@ def update_config_by_tenant_config_id_and_data(tenant_config_id: int, insert_dat
             session.query(TenantConfig).filter(TenantConfig.tenant_config_id == tenant_config_id,
                                                TenantConfig.delete_flag == "N").update(insert_data)
             session.commit()
-            return True 
+            return True
         except Exception as e:
             session.rollback()
             return False
