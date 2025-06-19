@@ -6,9 +6,8 @@ from consts.model import IndexingResponse, SearchRequest, HybridSearchRequest, C
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core
 from services.redis_service import get_redis_service
-from database.utils import get_current_user_id
+from utils.auth_utils import get_current_user_id
 from services.tenant_config_service import delete_selected_knowledge_by_index_name
-from utils.user_utils import get_user_info
 
 router = APIRouter(prefix="/indices")
 service = ElasticSearchService()
@@ -36,7 +35,7 @@ def delete_index(
 ):
     """Delete an index and clean up all related Redis records"""
     try:
-        user_id, tenant_id = get_user_info()
+        user_id, tenant_id = get_current_user_id(authorization)
         # delete the selected knowledge by index name
         delete_selected_knowledge_by_index_name(tenant_id=tenant_id, user_id=user_id, index_name=index_name)
         # First delete the index using existing service

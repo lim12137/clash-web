@@ -14,7 +14,8 @@ from database.agent_db import (
 )
 from consts.model import ToolInstanceInfoRequest, ToolInfo, ToolSourceEnum
 from utils.config_utils import config_manager
-from utils.user_utils import get_user_info
+from utils.auth_utils import get_current_user_id
+from fastapi import Header
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("tool config")
@@ -177,7 +178,7 @@ def search_tool_info_impl(agent_id: int, tool_id: int):
     Raises:
         ValueError: If database query fails
     """
-    user_id, tenant_id = get_user_info()
+    user_id, tenant_id = get_current_user_id()
     try:
         tool_instance = query_tool_instances_by_id(agent_id, tool_id, tenant_id, user_id)
     except Exception as e:
@@ -196,7 +197,7 @@ def search_tool_info_impl(agent_id: int, tool_id: int):
         }
 
 
-def update_tool_info_impl(request: ToolInstanceInfoRequest):
+def update_tool_info_impl(request: ToolInstanceInfoRequest, authorization: str = Header(None)):
     """
     Update tool configuration information
     
@@ -209,7 +210,7 @@ def update_tool_info_impl(request: ToolInstanceInfoRequest):
     Raises:
         ValueError: If database update fails
     """
-    user_id, tenant_id = get_user_info()
+    user_id, tenant_id = get_current_user_id()
     try:
         tool_instance = create_or_update_tool_by_tool_info(request, tenant_id, user_id)
     except Exception as e:

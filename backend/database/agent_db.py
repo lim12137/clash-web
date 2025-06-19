@@ -4,9 +4,9 @@ from typing import List
 
 from fastapi import HTTPException
 
-from utils.user_utils import get_user_info
 from database.client import get_db_session, as_dict, filter_property
 from database.db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
+from utils.auth_utils import get_current_user_id
 
 
 def search_agent_info_by_agent_id(agent_id: int, tenant_id: str, user_id: str = None):
@@ -231,13 +231,21 @@ def create_or_update_tool_by_tool_info(tool_info, tenant_id: str, user_id: str =
         session.flush()
         return tool_instance
 
-def query_all_tools():
+def query_all_tools(tenant_id: str):
     """
     Query ToolInfo in the database based on tenant_id and agent_id, optional user_id.
+    Filter tools that belong to the specific tenant_id or have tenant_id as "tenant_id"
     :return: List of ToolInfo objects
     """
     with get_db_session() as session:
-        tools = session.query(ToolInfo).filter(ToolInfo.delete_flag != 'Y').all()
+        # Filter tools with two conditions:
+        # 1. Tools that belong to the specific tenant (ToolInfo.tenant_id == tenant_id)
+        # 2. Tools with default tenant_id value "tenant_id" which are shared across all tenants
+        tools = session.query(ToolInfo).filter(
+            ToolInfo.delete_flag != 'Y'
+        ).filter(
+            (ToolInfo.author == tenant_id) | (ToolInfo.author == "tenant_id")
+        ).all()
         return [as_dict(tool) for tool in tools]
 
 def query_tool_instances_by_id(agent_id: int, tool_id: int, tenant_id: str, user_id: str = None):
@@ -315,7 +323,7 @@ def update_tool_table_from_scan_tool_list(tool_list: List[ToolInfo]):
     scan all tools and update the tool table in PG database, remove the duplicate tools
     """
     try:
-        user_id, tenant_id = get_user_info()
+        user_id, tenant_id = get_current_user_id()
         with get_db_session() as session:
             # get all existing tools (including complete information)
             existing_tools = session.query(ToolInfo).filter(ToolInfo.delete_flag != 'Y').all()
