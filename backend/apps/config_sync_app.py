@@ -15,9 +15,9 @@ router = APIRouter(prefix="/config")
 logger = logging.getLogger("app config")
 
 @router.post("/save_config")
-async def save_config(config: GlobalConfig):
+async def save_config(config: GlobalConfig, authorization: Optional[str] = Header(None)):
     try:
-        user_id, tenant_id = get_current_user_id()
+        user_id, tenant_id = get_current_user_id(authorization)
         config_dict = config.model_dump(exclude_none=False)
         env_config = {}
 
@@ -118,7 +118,6 @@ async def load_config(authorization: Optional[str] = Header(None)):
         JSONResponse: JSON object containing configuration content
     """
     try:
-        print(f"authorization: {authorization}")
         # Build configuration object
         # TODO: Clean up the default values
         user_id, tenant_id = get_current_user_id(authorization)
