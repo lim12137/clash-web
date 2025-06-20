@@ -78,7 +78,7 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
 @router.post("/update", response_model=ModelResponse)
 def update_model(request: ModelRequest, authorization: Optional[str] = Header(None)):
     try:
-        user_id = get_current_user_id(authorization)
+        user_id, tenant_id = get_current_user_id(authorization)
         model_data = request.model_dump()
         # Split model_name
         model_repo, model_name = split_repo_name(model_data["model_name"])
@@ -90,7 +90,7 @@ def update_model(request: ModelRequest, authorization: Optional[str] = Header(No
         model_data["connect_status"] = model_data.get("connect_status") or ModelConnectStatusEnum.NOT_DETECTED.value
 
         # Check if model exists
-        existing_model = get_model_by_name(model_name, model_repo)
+        existing_model = get_model_by_name(model_name, model_repo,tenant_id)
         if not existing_model:
             return ModelResponse(
                 code=404,
@@ -233,7 +233,7 @@ async def update_model_connect_status(
         authorization: Authorization header
     """
     try:
-        user_id = get_current_user_id(authorization)
+        user_id, tenant_id = get_current_user_id(authorization)
         # Split model_name
         repo, name = split_repo_name(model_name)
         # Ensure repo is empty string instead of null

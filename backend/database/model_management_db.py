@@ -7,6 +7,8 @@ from .db_models import ModelRecord
 from .utils import add_creation_tracking, add_update_tracking
 from consts.const import DEFAULT_TENANT_ID
 
+from consts.const import DEFAULT_TENANT_ID
+
 def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = None, tenant_id: Optional[str] = None) -> bool:
     """
     Create a model record
@@ -145,7 +147,7 @@ def get_model_records(filters: Optional[Dict[str, Any]], tenant_id: Optional[str
         return [as_dict(record) for record in records]
 
 
-def get_model_by_name(model_name: str, model_repo: str) -> Optional[Dict[str, Any]]:
+def get_model_by_name(model_name: str, model_repo: str, tenant_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Get a model record by model name and repository
 
@@ -158,7 +160,7 @@ def get_model_by_name(model_name: str, model_repo: str) -> Optional[Dict[str, An
     """
     filters = {'model_name': model_name, 'model_repo': model_repo}
 
-    records = get_model_records(filters)
+    records = get_model_records(filters,tenant_id)
     if not records:
         return None
 
