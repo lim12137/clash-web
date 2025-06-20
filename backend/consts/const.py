@@ -38,3 +38,6 @@ MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
 EXA_SEARCH_API_KEY = os.getenv('EXA_SEARCH_API_KEY')
 # Image Filter Configuration
 IMAGE_FILTER = os.getenv("IMAGE_FILTER", "false").lower() == "true"
+
+DEFAULT_USER_ID = "user_id"
+DEFAULT_TENANT_ID = "tenant_id"

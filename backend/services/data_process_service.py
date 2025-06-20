@@ -12,9 +12,7 @@ from typing import Optional, List, Dict, Any
 from PIL import Image
 import torch
 from transformers import CLIPProcessor, CLIPModel
-from celery import states
-from celery.result import AsyncResult
-from celery import current_app
+from data_process.app import app as celery_app
 
 from consts.const import CLIP_MODEL_PATH, IMAGE_FILTER
 
@@ -88,41 +86,32 @@ class DataProcessService:
         logger.info("Data processing service stopped")
 
     def _get_celery_inspector(self):
-        """获取 Celery inspector，确保连接配置正确，并做缓存"""
-        from celery import current_app
-        now = time.time()
+        """Get Celery inspector"""
         with self._inspector_lock:
+            now = time.time()
             if self._inspector and now - self._inspector_last_time < self._inspector_ttl:
                 return self._inspector
             # 确保当前应用配置正确
-            if not current_app.conf.broker_url or not current_app.conf.result_backend:
-                current_app.conf.broker_url = os.environ.get('REDIS_URL')
-                current_app.conf.result_backend = os.environ.get('REDIS_BACKEND_URL')
-                logger.warning(f"Celery broker URL is not configured properly, reconfiguring to {current_app.conf.broker_url}")
+            if not celery_app.conf.broker_url or not celery_app.conf.result_backend:
+                celery_app.conf.broker_url = os.environ.get('REDIS_URL')
+                celery_app.conf.result_backend = os.environ.get('REDIS_BACKEND_URL')
+                logger.warning(f"Celery broker URL is not configured properly, reconfiguring to {celery_app.conf.broker_url}")
             try:
-                inspector = current_app.control.inspect()
+                inspector = celery_app.control.inspect()
                 inspector.ping()
                 self._inspector = inspector
                 self._inspector_last_time = now
                 return inspector
             except Exception as e:
                 self._inspector = None
-                raise Exception(f"Failed to create inspector with current_app: {str(e)}")
+                raise Exception(f"Failed to create inspector with celery_app: {str(e)}")
 
-    def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
-        """Get task by ID
-
-        Args:
-            task_id: ID of the task to retrieve
-
-        Returns:
-            Optional[Dict[str, Any]]: Task data if found, None otherwise
-        """
-        # Import here to avoid circular import
+    async def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """Get task by ID (async)"""
         from data_process.utils import get_task_info
-        return get_task_info(task_id)
+        return await get_task_info(task_id)
 
-    def get_all_tasks(self, filter: bool=True) -> List[Dict[str, Any]]:
+    async def get_all_tasks(self, filter: bool=True) -> List[Dict[str, Any]]:
         """Get all tasks
 
         Args:
@@ -131,17 +120,15 @@ class DataProcessService:
         Returns:
             List[Dict[str, Any]]: List of all tasks
         """
-        # Import here to avoid circular import
         from data_process.utils import get_task_info, get_all_task_ids_from_redis
         import concurrent.futures
-        
+        import asyncio
         all_tasks = []
-        
         try:
             start_time = time.time()
-            logger.info("Getting inspector to check for active and reserved tasks (concurrent)")
+            logger.debug("Getting inspector to check for active and reserved tasks (concurrent)")
             inspector = self._get_celery_inspector()
-            logger.info(f"⏰ Inspector initialization took {time.time() - start_time}s")
+            logger.debug(f"⏰ Inspector initialization took {time.time() - start_time}s")
             
             # Collect task IDs from different sources
             task_ids = set()
@@ -154,7 +141,7 @@ class DataProcessService:
                 future_reserved = executor.submit(get_reserved)
                 active_tasks_dict = future_active.result()
                 reserved_tasks_dict = future_reserved.result()
-            logger.info(f"⏰ Get active and reserved tasks (concurrent) took {time.time() - start_time}s")
+            logger.debug(f"⏰ Get active and reserved tasks (concurrent) took {time.time() - start_time}s")
             if active_tasks_dict:
                 for worker, tasks in active_tasks_dict.items():
                     for task in tasks:
@@ -169,43 +156,37 @@ class DataProcessService:
                             task_ids.add(task_id)
 
             # Currently, we don't have scheduled tasks, so skip getting scheduled tasks here
-            
             start_time = time.time()
             logger.debug("Getting task IDs from Redis backend")
             # Also get task IDs from Redis backend (covers completed/failed tasks within expiry)
             try:
                 redis_task_ids = get_all_task_ids_from_redis(self.redis_client)
-                logger.info(f"⏰ Get Redis task IDs took {time.time() - start_time}s")
+                logger.debug(f"⏰ Get Redis task IDs took {time.time() - start_time}s")
                 for task_id in redis_task_ids:
-                    task_ids.add(task_id) # Add to the set, duplicates will be handled
+                    # Add to the set, duplicates will be handled
+                    task_ids.add(task_id)
                 
             except Exception as redis_error:
                 logger.warning(f"Failed to query Redis for stored task IDs: {str(redis_error)}")
-            
-            logger.info(f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
-            
-            # Get task details for each found task ID
-            for task_id in task_ids:
-                try:
-                    task_info = get_task_info(task_id)
-                    if task_info:
-                        if filter and not (task_info.get('index_name') and task_info.get('task_name')):
-                                continue
-                        all_tasks.append(task_info)
-                except Exception as e:
-                    logger.warning(f"Failed to get status for task {task_id}: {str(e)}")
-                    continue # Skip this task if status retrieval fails
-            
-            logger.info(f"Successfully retrieved details for {len(all_tasks)} tasks.")
-            
+            logger.debug(f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
+            # 并发异步获取所有任务详情
+            tasks = [get_task_info(task_id) for task_id in task_ids]
+            all_task_infos = await asyncio.gather(*tasks, return_exceptions=True)
+            for task_info in all_task_infos:
+                if isinstance(task_info, Exception):
+                    logger.warning(f"Failed to get status for a task: {task_info}")
+                    continue
+                if filter and not (task_info.get('index_name') and task_info.get('task_name')):
+                    continue
+                all_tasks.append(task_info)
+            logger.info(f"Retrieved {len(all_tasks)} tasks.")
         except Exception as e:
             logger.error(f"Error retrieving all tasks: {str(e)}")
-            # Fall back to empty list to avoid breaking the API
             all_tasks = []
         
         return all_tasks
 
-    def get_index_tasks(self, index_name: str, filter: bool=True) -> List[Dict[str, Any]]:
+    async def get_index_tasks(self, index_name: str, filter: bool=True) -> List[Dict[str, Any]]:
         """Get all active tasks for a specific index
 
         Args:
@@ -214,7 +195,7 @@ class DataProcessService:
         Returns:
             List[Dict[str, Any]]: Tasks for the specified index
         """
-        task_list = self.get_all_tasks(filter)
+        task_list = await self.get_all_tasks(filter)
         # May got multiple tasks for the same index
         return [task for task in task_list if task.get('index_name') == index_name]
 
