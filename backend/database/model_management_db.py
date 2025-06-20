@@ -1,11 +1,11 @@
 from typing import Optional, Dict, List, Any
 
-from sqlalchemy import func, insert, update, select, and_
+from sqlalchemy import func, insert, update, select, and_, or_
 
 from .client import db_client, get_db_session, as_dict
 from .db_models import ModelRecord
 from .utils import add_creation_tracking, add_update_tracking
-
+from consts.const import DEFAULT_TENANT_ID
 
 def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = None, tenant_id: Optional[str] = None) -> bool:
     """
@@ -102,7 +102,7 @@ def delete_model_record(model_id: int, user_id: Optional[str] = None, tenant_id:
             ModelRecord.model_id == model_id
         ).values(update_data)
 
-        stmt = stmt.values(tenant_id=tenant_id)
+        stmt = stmt.values(tenant_id=tenant_id or DEFAULT_TENANT_ID)
 
         # Execute the update statement
         result = session.execute(stmt)
@@ -126,7 +126,7 @@ def get_model_records(filters: Optional[Dict[str, Any]], tenant_id: Optional[str
         stmt = select(ModelRecord).where(ModelRecord.delete_flag == 'N')
 
         if tenant_id:
-            stmt = stmt.where(ModelRecord.tenant_id == tenant_id)
+            stmt = stmt.where(or_(ModelRecord.tenant_id == tenant_id, ModelRecord.tenant_id == DEFAULT_TENANT_ID))
 
         # Add filter conditions
         if filters:

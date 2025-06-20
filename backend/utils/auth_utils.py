@@ -88,9 +88,8 @@ def get_current_user_id_from_token(authorization: str) -> Optional[str]:
         return user_id
     except Exception as e:
         logging.error(f"从令牌提取用户ID失败: {str(e)}")
-        return None
-
-
+        return DEFAULT_USER_ID
+    
 def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
 
     if authorization is None or authorization == Header(None):

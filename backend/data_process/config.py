@@ -11,35 +11,15 @@ class Config:
     """统一的配置管理类，支持环境变量验证和加载"""
     
     def __init__(self):
-        self._load_env()
         self._validate_required_vars()
         logger.info("配置系统初始化完成")
-    
-    def _load_env(self) -> None:
-        """加载环境变量文件"""
-        current_file_dir = Path(__file__).parent
-        env_paths = [
-            current_file_dir / "../../docker/.env",
-            current_file_dir / "../.env"
-        ]
-        
-        env_loaded = False
-        for env_path in env_paths:
-            abs_path = env_path.resolve()
-            print("abs_path", abs_path)
-            if abs_path.exists():
-                load_dotenv(abs_path)
-                logger.info(f"已加载环境文件: {abs_path}")
-                env_loaded = True
-                break
-        
-        if not env_loaded:
-            logger.warning("⚠️ 未找到环境文件，将使用系统环境变量")
+
     
     def _validate_required_vars(self) -> None:
         """验证基础必需的环境变量"""
         required = [
             'REDIS_URL',
+            'REDIS_BACKEND_URL',
             'ELASTICSEARCH_SERVICE'
         ]
         
@@ -54,6 +34,7 @@ class Config:
         """验证Celery任务执行所需的环境变量"""
         task_vars = {
             'REDIS_URL': self.redis_url,
+            'REDIS_BACKEND_URL': self.redis_backend_url,
             'ELASTICSEARCH_SERVICE': self.elasticsearch_service
         }
         
@@ -64,6 +45,8 @@ class Config:
             if not var_value:
                 missing.append(var_name)
             elif var_name == 'REDIS_URL' and not self._validate_redis_url(var_value):
+                invalid.append(f"{var_name}: {var_value}")
+            elif var_name == 'REDIS_BACKEND_URL' and not self._validate_redis_url(var_value):
                 invalid.append(f"{var_name}: {var_value}")
             elif var_name == 'ELASTICSEARCH_SERVICE' and not self._validate_es_service(var_value):
                 invalid.append(f"{var_name}: {var_value}")
@@ -91,11 +74,15 @@ class Config:
     
     def _validate_es_service(self, es_service: str) -> bool:
         """验证Elasticsearch服务URL格式"""
-        return es_service.startswith(('http://', 'https://'))
+        return es_service.startswith(('http://', 'https://')) and es_service.endswith('/api')
     
     @property
     def redis_url(self) -> Optional[str]:
         return os.getenv('REDIS_URL')
+    
+    @property
+    def redis_backend_url(self) -> Optional[str]:
+        return os.getenv('REDIS_BACKEND_URL')
     
     @property
     def elasticsearch_service(self) -> Optional[str]:
