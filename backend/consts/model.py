@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional, Any, List, Dict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 
 from nexent.core.agents.agent_model import ToolConfig
 
@@ -25,6 +25,35 @@ class ModelConnectStatusEnum(Enum):
             return cls.NOT_DETECTED.value
         return status
 
+# Request models for user authentication
+STATUS_CODES = {
+    "SUCCESS": 200,
+    # 客户端错误状态码
+    "USER_EXISTS": 1001,
+    "INVALID_CREDENTIALS": 1002,
+    "TOKEN_EXPIRED": 1003,
+    "UNAUTHORIZED": 1004,
+    "SERVER_ERROR": 1005,
+    "INVALID_INPUT": 1006,
+    "AUTH_SERVICE_UNAVAILABLE": 1007,
+}
+
+# 用户认证相关请求模型
+class UserSignUpRequest(BaseModel):
+    """User registration request model"""
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+
+class UserSignInRequest(BaseModel):
+    """User login request model"""
+    email: EmailStr
+    password: str
+
+class UserUpdateRequest(BaseModel):
+    """User information update request model"""
+    email: Optional[EmailStr] = None
+    password: Optional[str] = Field(None, min_length=6)
+    role: Optional[str] = None
 
 # Response models for user management
 class ServiceResponse(BaseModel):
