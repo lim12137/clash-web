@@ -1,5 +1,17 @@
 import { API_ENDPOINTS } from './api';
 
+// 获取授权头的辅助函数
+const getAuthHeaders = () => {
+  const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
+  const sessionObj = session ? JSON.parse(session) : null;
+
+  return {
+    'Content-Type': 'application/json',
+    'User-Agent': 'AgentFrontEnd/1.0',
+    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
+  };
+};
+
 /**
  * Prompt Generation Request Parameters
  */
@@ -45,6 +57,7 @@ export const generatePromptStream = async (
     const response = await fetch(API_ENDPOINTS.prompt.generate, {
       method: 'POST',
       headers: {
+        ...getAuthHeaders(),
         'Content-Type': 'application/json',
         'User-Agent': 'AgentFrontEnd/1.0',
       },
@@ -93,7 +106,7 @@ export const fineTunePrompt = async (params: FineTunePromptParams): Promise<stri
   try {
     const response = await fetch(API_ENDPOINTS.prompt.fineTune, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(params),
     });
 

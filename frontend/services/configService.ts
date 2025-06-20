@@ -2,6 +2,18 @@ import { GlobalConfig } from '@/types/config';
 import { API_ENDPOINTS } from './api';
 import { ConfigStore } from '@/lib/config';
 
+// 获取授权头的辅助函数
+const getAuthHeaders = () => {
+  const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
+  const sessionObj = session ? JSON.parse(session) : null;
+
+  return {
+    'Content-Type': 'application/json',
+    'User-Agent': 'AgentFrontEnd/1.0',
+    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
+  };
+};
+
 export class ConfigService {
   // Save global configuration to backend
   async saveConfigToBackend(config: GlobalConfig): Promise<boolean> {
@@ -9,6 +21,7 @@ export class ConfigService {
       const response = await fetch(API_ENDPOINTS.config.save, {
         method: 'POST',
         headers: {
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(config),
@@ -34,6 +47,7 @@ export class ConfigService {
       const response = await fetch(API_ENDPOINTS.config.load, {
         method: 'GET',
         headers: {
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });

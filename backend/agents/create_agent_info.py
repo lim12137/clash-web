@@ -3,28 +3,34 @@ import threading
 import json
 import yaml
 import logging
+from typing import Optional
+from fastapi import Header
 from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
+from utils.auth_utils import get_current_user_id
 
 from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents, \
     query_or_create_main_agent_id
 from services.elasticsearch_service import ElasticSearchService
 from services.tenant_config_service import get_selected_knowledge_list
-from utils.config_utils import config_manager
+from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 from utils.user_utils import get_user_info
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("build agent")
 
-async def create_model_config_list():
+async def create_model_config_list(tenant_id):
+     main_model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
+     sub_model_config = tenant_config_manager.get_model_config(key="LLM_SECONDARY_ID", tenant_id=tenant_id)
+
      return [ModelConfig(cite_name="main_model",
-                         api_key=config_manager.get_config("LLM_API_KEY"),
-                         model_name=config_manager.get_config("LLM_MODEL_NAME"),
-                         url=config_manager.get_config("LLM_MODEL_URL")),
+                         api_key=main_model_config.get("api_key", ""),
+                         model_name=get_model_name_from_config(main_model_config) if main_model_config.get("model_name") else "",
+                         url=main_model_config.get("base_url", "")),
             ModelConfig(cite_name="sub_model",
-                         api_key=config_manager.get_config("LLM_SECONDARY_API_KEY"),
-                         model_name=config_manager.get_config("LLM_SECONDARY_MODEL_NAME"),
-                         url=config_manager.get_config("LLM_SECONDARY_MODEL_URL"))]
+                        api_key=sub_model_config.get("api_key", ""),
+                        model_name=get_model_name_from_config(sub_model_config) if sub_model_config.get("model_name") else "",
+                        url=sub_model_config.get("base_url", ""))]
 
 
 async def create_agent_config(agent_id, tenant_id, user_id):
@@ -122,13 +128,13 @@ async def join_minio_file_description_to_query(minio_files, query):
     return final_query
 
 
-async def create_agent_run_info(agent_id, minio_files, query, history):
-    user_id, tenant_id = get_user_info()
+async def create_agent_run_info(agent_id, minio_files, query, history, authorization):
+    user_id, tenant_id = get_current_user_id(authorization)
     if not agent_id:
         agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
     final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
 
-    model_list = await create_model_config_list()
+    model_list = await create_model_config_list(tenant_id)
     agent_run_info = AgentRunInfo(
         query=final_query,
         model_config_list= model_list,
