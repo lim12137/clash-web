@@ -70,11 +70,8 @@ class STTConfig(BaseModel):
     compression: bool = True
 
     @classmethod
-    def from_env(cls, env_file: Union[str, Path] = None):
-        """Load configuration from environment variables or .env file"""
-        if env_file:
-            load_dotenv(env_file)
-
+    def from_env(cls):
+        """Load configuration from environment variables"""
         return cls(
             appid=os.getenv("APPID", ""), token=os.getenv("TOKEN", ""),
             ws_url=os.getenv("WS_URL", "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel"),

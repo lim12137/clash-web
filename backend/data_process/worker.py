@@ -24,7 +24,6 @@ import time
 import traceback
 import ray
 from typing import Dict, Any, Optional
-from dotenv import load_dotenv
 from celery.signals import (
     worker_init,
     worker_ready, 
@@ -35,7 +34,6 @@ from celery.signals import (
     task_failure
 )
 
-# Import app and config
 from .app import app
 from .config import config
 from .ray_config import init_ray_for_worker
@@ -132,9 +130,7 @@ def setup_worker_environment(**kwargs):
         logger.info("🔍 Check sensitive variables")
         sensitive_vars = {
             'REDIS_URL': config.redis_url,
-            'ELASTICSEARCH_SERVICE': config.elasticsearch_service,
-            'ELASTICSEARCH_API_KEY': config.elasticsearch_api_key,
-            'ELASTIC_PASSWORD': config.elastic_password
+            'ELASTICSEARCH_SERVICE': config.elasticsearch_service
         }
         
         for var_name, var_value in sensitive_vars.items():

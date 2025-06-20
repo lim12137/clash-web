@@ -5,11 +5,10 @@ from pathlib import Path
 from typing import List, Optional
 from io import BytesIO
 
-from fastapi import UploadFile, File, HTTPException, Form, APIRouter, Query, Path as PathParam, Body
+from utils.auth_utils import get_current_user_id
+from fastapi import UploadFile, File, HTTPException, Form, APIRouter, Query, Path as PathParam, Body, Header
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
-from services.data_process_service import get_data_process_service
-from .data_process_app import MarkFailedRequest
 from consts.model import ProcessParams
 from consts.const import MAX_CONCURRENT_UPLOADS, UPLOAD_FOLDER
 from utils.file_management_utils import save_upload_file, trigger_data_process
@@ -342,12 +341,13 @@ async def get_storage_file_batch_urls(
 
 
 @router.post("/preprocess")
-async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] = File(...)):
+async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] = File(...), authorization: Optional[str] = Header(None)):
     """
     Preprocess uploaded files and return streaming response
     """
     try:
         # Pre-read and cache all file contents
+        user_id, tenant_id = get_current_user_id(authorization)
         file_cache = []
         for file in files:
             import time
@@ -385,7 +385,7 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
                         raise Exception(file_data["error"])
 
                     if file_data["ext"] in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
-                        description = await process_image_file(query, file_data["filename"], file_data["content"])
+                        description = await process_image_file(query, file_data["filename"], file_data["content"], tenant_id)
                     else:
                         description = await process_text_file(query, file_data["filename"], file_data["content"])
                     file_descriptions.append(description)
@@ -429,27 +429,12 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
         raise HTTPException(status_code=500, detail=f"File preprocessing error: {str(e)}")
 
 
-@router.post("/mark_failure", status_code=200)
-async def mark_tasks_failed(request: MarkFailedRequest):
-    """
-    Mark a list of tasks as FAILED.
-    
-    This is used by the frontend when polling times out to ensure backend
-    task statuses are synchronized.
-    """
-    try:
-        result = get_data_process_service().mark_tasks_as_failed(request.task_ids, request.reason)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to mark tasks as failed: {str(e)}")
-
-
-async def process_image_file(query, filename, file_content) -> str:
+async def process_image_file(query, filename, file_content, tenant_id:str) -> str:
     """
     Process image file, convert to text using external API
     """
     image_stream = BytesIO(file_content)
-    text = convert_image_to_text(query, image_stream)
+    text = convert_image_to_text(query, image_stream, tenant_id)
 
     return f"Image file {filename} content: {text}"
 
