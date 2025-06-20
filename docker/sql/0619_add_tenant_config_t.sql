@@ -58,3 +58,7 @@ EXECUTE FUNCTION update_tenant_config_update_time();
 -- 添加触发器注释
 COMMENT ON TRIGGER update_tenant_config_update_time_trigger ON nexent.tenant_config_t
 IS 'Trigger to call update_tenant_config_update_time function before each update on tenant_config_t table';
+
+ALTER TABLE model_record_t
+ADD COLUMN tenant_id varchar(100) COLLATE pg_catalog.default DEFAULT 'tenant_id';
+COMMENT ON COLUMN "model_record_t"."tenant_id" IS 'Tenant ID for filtering';
