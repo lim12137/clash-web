@@ -16,7 +16,7 @@ from services.conversation_management_service import (
     generate_conversation_title_service,
     update_message_opinion_service
 )
-from database.utils import get_current_user_id
+from utils.auth_utils import get_current_user_id
 from database.conversation_db import get_message_id_by_index
 
 router = APIRouter(prefix="/conversation")
@@ -40,7 +40,7 @@ async def create_new_conversation_endpoint(request: ConversationRequest, authori
             - update_time: Update timestamp (milliseconds)
     """
     try:
-        user_id = get_current_user_id(authorization)
+        user_id, tenant_id = get_current_user_id(authorization)
         conversation_data = create_new_conversation(request.title, user_id)
         return ConversationResponse(code=0, message="success", data=conversation_data)
     except Exception as e:
@@ -60,7 +60,7 @@ async def list_conversations_endpoint(authorization: Optional[str] = Header(None
         ConversationResponse object containing conversation list
     """
     try:
-        user_id = get_current_user_id(authorization)
+        user_id, tenant_id = get_current_user_id(authorization)
         if not user_id:
             raise HTTPException(status_code=401, detail="未授权访问，请先登录")
             
@@ -89,7 +89,7 @@ async def rename_conversation_endpoint(request: RenameRequest, authorization: Op
         ConversationResponse object
     """
     try:
-        user_id = get_current_user_id(authorization)
+        user_id, tenant_id = get_current_user_id(authorization)
         success = rename_conversation_service(request.conversation_id, request.name, user_id)
         return ConversationResponse(code=0, message="success", data=True)
     except Exception as e:
@@ -112,7 +112,7 @@ async def delete_conversation_endpoint(conversation_id: int, authorization: Opti
         ConversationResponse object
     """
     try:
-        user_id = get_current_user_id(authorization)
+        user_id, tenant_id = get_current_user_id(authorization)
         success = delete_conversation_service(conversation_id, user_id)
         return ConversationResponse(code=0, message="success", data=True)
     except Exception as e:
@@ -135,7 +135,7 @@ async def get_conversation_history_endpoint(conversation_id: int, authorization:
         ConversationResponse object containing conversation history
     """
     try:
-        user_id = get_current_user_id(authorization)
+        user_id, tenant_id = get_current_user_id(authorization)
         history_data = get_conversation_history_service(conversation_id, user_id)
         return ConversationResponse(code=0, message="success", data=history_data)
     except Exception as e:
@@ -161,7 +161,7 @@ async def get_sources_endpoint(request: Dict[str, Any], authorization: Optional[
         Dict containing source information
     """
     try:
-        user_id = get_current_user_id(authorization)
+        user_id, tenant_id = get_current_user_id(authorization)
         conversation_id = request.get("conversation_id")
         message_id = request.get("message_id")
         source_type = request.get("type", "all")
@@ -190,7 +190,7 @@ async def generate_conversation_title_endpoint(request: GenerateTitleRequest, au
         ConversationResponse object containing generated title
     """
     try:
-        user_id = get_current_user_id(authorization)
+        user_id, tenant_id = get_current_user_id(authorization)
         title = generate_conversation_title_service(request.conversation_id, request.history, user_id)
         return ConversationResponse(code=0, message="success", data=title)
     except Exception as e:

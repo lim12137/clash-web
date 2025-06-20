@@ -4,8 +4,10 @@ from sqlalchemy import func, insert, update, select, and_, or_
 
 from .client import db_client, get_db_session, as_dict
 from .db_models import ModelRecord
+from .utils import add_creation_tracking, add_update_tracking
 from consts.const import DEFAULT_TENANT_ID
 
+from consts.const import DEFAULT_TENANT_ID
 
 def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = None, tenant_id: Optional[str] = None) -> bool:
     """
@@ -25,6 +27,8 @@ def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = Non
 
         # Add creation timestamp
         cleaned_data["create_time"] = func.current_timestamp()
+        if user_id:
+            cleaned_data = add_creation_tracking(cleaned_data, user_id)
 
         # Add tenant_id to cleaned_data
         if tenant_id is not None:
@@ -57,6 +61,8 @@ def update_model_record(model_id: int, update_data: Dict[str, Any], user_id: Opt
 
         # Add update timestamp
         cleaned_data["update_time"] = func.current_timestamp()
+        if user_id:
+            cleaned_data = add_update_tracking(cleaned_data, user_id)
 
         # Add tenant_id to cleaned_data if provided
         if tenant_id is not None:
@@ -90,6 +96,8 @@ def delete_model_record(model_id: int, user_id: Optional[str] = None, tenant_id:
             "delete_flag": 'Y',
             "update_time": func.current_timestamp()
         }
+        if user_id:
+            update_data = add_update_tracking(update_data, user_id)
 
         # Build the update statement
         stmt = update(ModelRecord).where(
@@ -137,6 +145,27 @@ def get_model_records(filters: Optional[Dict[str, Any]], tenant_id: Optional[str
 
         # Convert SQLAlchemy model instances to dictionaries
         return [as_dict(record) for record in records]
+
+
+def get_model_by_name(model_name: str, model_repo: str, tenant_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    Get a model record by model name and repository
+
+    Args:
+        model_name: Model name
+        model_repo: Model repository
+
+    Returns:
+        Optional[Dict[str, Any]]: Model record
+    """
+    filters = {'model_name': model_name, 'model_repo': model_repo}
+
+    records = get_model_records(filters,tenant_id)
+    if not records:
+        return None
+
+    model = records[0]
+    return model
 
 
 def get_model_by_display_name(display_name: str, tenant_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
