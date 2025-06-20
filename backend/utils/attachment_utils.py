@@ -1,4 +1,3 @@
-import logging
 from typing import Union, BinaryIO
 
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
@@ -7,14 +6,9 @@ from nexent.core.models.openai_vlm import OpenAIVLModel
 from nexent.core.models.openai_long_context_model import OpenAILongContextModel
 from nexent.core import MessageObserver
 
-def convert_image_to_text(query: str, image_input: Union[str, BinaryIO], tenant_id:str):
 
-def convert_image_to_text(query: str, image_input: Union[str, BinaryIO]):
-
+def convert_image_to_text(query: str, image_input: Union[str, BinaryIO], tenant_id: str):
     vlm_model_config = tenant_config_manager.get_model_config(key="VLM_ID", tenant_id=tenant_id)
-
-    logging.info("%s %s", vlm_model_config.get("model_name"), vlm_model_config.get("base_url"))
-
     image_to_text_model = OpenAIVLModel(
         observer=MessageObserver(),
         model_id=get_model_name_from_config(vlm_model_config) if vlm_model_config else "",
@@ -30,15 +24,13 @@ def convert_image_to_text(query: str, image_input: Union[str, BinaryIO]):
     return image_to_text_model.analyze_image(image_input=image_input, system_prompt=prompt).content
 
 
-def convert_long_text_to_text(query: str, file_context: str):
-    logging.info("%s %s", config_manager.get_config("LLM_SECONDARY_MODEL_NAME"),
-                 config_manager.get_config("LLM_SECONDARY_MODEL_URL"))
-
+def convert_long_text_to_text(query: str, file_context: str, tenant_id: str):
+    secondary_model_config = tenant_config_manager.get_model_config("LLM_SECONDARY_ID", tenant_id=tenant_id)
     long_text_to_text_model = OpenAILongContextModel(
         observer=MessageObserver(),
-        model_id=config_manager.get_config("LLM_SECONDARY_MODEL_NAME"),
-        api_base=config_manager.get_config("LLM_SECONDARY_MODEL_URL"),
-        api_key=config_manager.get_config("LLM_SECONDARY_API_KEY")
+        model_id=get_model_name_from_config(secondary_model_config),
+        api_base=secondary_model_config.get_config("LLM_SECONDARY_MODEL_URL"),
+        api_key=secondary_model_config.get_config("LLM_SECONDARY_API_KEY")
     )
     system_prompt = f"用户提出了一个问题：{query}，请从回答这个问题的角度精简、仔细描述一下这段文本，200字以内。"
     user_prompt = "请仔细阅读并分析这段文本："

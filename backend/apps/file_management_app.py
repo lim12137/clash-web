@@ -16,6 +16,7 @@ from utils.attachment_utils import convert_image_to_text, convert_long_text_to_t
 from database.attachment_db import (
     upload_fileobj, delete_file, get_file_url, list_files
 )
+from services.file_management_service import file_management_service
 
 # Create upload directory
 upload_dir = Path(UPLOAD_FOLDER)
@@ -387,7 +388,7 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
                     if file_data["ext"] in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
                         description = await process_image_file(query, file_data["filename"], file_data["content"], tenant_id)
                     else:
-                        description = await process_text_file(query, file_data["filename"], file_data["content"])
+                        description = await process_text_file(query, file_data["filename"], file_data["content"], tenant_id)
                     file_descriptions.append(description)
 
                     # Send processing result for each file
@@ -429,7 +430,7 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
         raise HTTPException(status_code=500, detail=f"File preprocessing error: {str(e)}")
 
 
-async def process_image_file(query, filename, file_content, tenant_id:str) -> str:
+async def process_image_file(query, filename, file_content, tenant_id: str) -> str:
     """
     Process image file, convert to text using external API
     """
@@ -439,11 +440,12 @@ async def process_image_file(query, filename, file_content, tenant_id:str) -> st
     return f"Image file {filename} content: {text}"
 
 
-async def process_text_file(query, filename, file_content) -> str:
+async def process_text_file(query, filename, file_content, tenant_id: str) -> str:
     """
     Process text file, convert to text using external API
     """
-    text = convert_long_text_to_text(query, file_content)
+    raw_text = file_management_service.get_text_from_file(file_content)
+    text = convert_long_text_to_text(query, raw_text, tenant_id)
     return f"File {filename} content: {text}"
 
 
