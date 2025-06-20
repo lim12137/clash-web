@@ -1,22 +1,25 @@
 import logging
 from typing import Union, BinaryIO
 
-from utils.config_utils import config_manager
+from utils.config_utils import tenant_config_manager, get_model_name_from_config
 
 from nexent.core.models.openai_vlm import OpenAIVLModel
 from nexent.core.models.openai_long_context_model import OpenAILongContextModel
 from nexent.core import MessageObserver
 
+def convert_image_to_text(query: str, image_input: Union[str, BinaryIO], tenant_id:str):
 
 def convert_image_to_text(query: str, image_input: Union[str, BinaryIO]):
-    
-    logging.info("%s %s", config_manager.get_config("VLM_MODEL_NAME"), config_manager.get_config("VLM_MODEL_URL"))
-    
+
+    vlm_model_config = tenant_config_manager.get_model_config(key="VLM_ID", tenant_id=tenant_id)
+
+    logging.info("%s %s", vlm_model_config.get("model_name"), vlm_model_config.get("base_url"))
+
     image_to_text_model = OpenAIVLModel(
         observer=MessageObserver(),
-        model_id=config_manager.get_config("VLM_MODEL_NAME"),
-        api_base=config_manager.get_config("VLM_MODEL_URL"),
-        api_key=config_manager.get_config("VLM_API_KEY"),
+        model_id=get_model_name_from_config(vlm_model_config) if vlm_model_config else "",
+        api_base=vlm_model_config.get("base_url", ""),
+        api_key=vlm_model_config.get("api_key", ""),
         temperature=0.7,
         top_p=0.7,
         frequency_penalty=0.5,

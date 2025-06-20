@@ -7,14 +7,8 @@ import os
 import redis
 from typing import Dict, Any, Optional, List
 from celery.result import AsyncResult
-from celery import current_app
-
-# --- Celery backend ensure patch ---
-def ensure_celery_backend():
-    if not getattr(current_app.conf, 'result_backend', None):
-        current_app.conf.result_backend = os.environ.get('REDIS_BACKEND_URL')
-    if not getattr(current_app.conf, 'broker_url', None):
-        current_app.conf.broker_url = os.environ.get('REDIS_URL')
+from .app import app as celery_app
+import asyncio
 
 # Configure logging
 logger = logging.getLogger("data_process.utils")
@@ -54,7 +48,7 @@ def get_all_task_ids_from_redis(redis_client: redis.Redis) -> List[str]:
     return task_ids
 
 
-def get_task_info(task_id: str) -> Dict[str, Any]:
+async def get_task_info(task_id: str) -> Dict[str, Any]:
     """
     Get task status and metadata
     
@@ -64,10 +58,9 @@ def get_task_info(task_id: str) -> Dict[str, Any]:
     Returns:
         Task status information
     """
-    ensure_celery_backend()
-    try:
-        # Get AsyncResult object for the task
-        result = AsyncResult(task_id, app=current_app)
+    loop = asyncio.get_running_loop()
+    def sync_get():
+        result = AsyncResult(task_id, app=celery_app)
         
         # Get current time for updated_at if not available
         current_time = time.time()
@@ -87,7 +80,6 @@ def get_task_info(task_id: str) -> Dict[str, Any]:
         # Check if result backend is available
         backend_available = True
         try:
-            # Test if we can access the backend
             status = result.status
             if status:
                 status_info['status'] = status
@@ -151,14 +143,38 @@ def get_task_info(task_id: str) -> Dict[str, Any]:
                         for key in ['chunks_count', 'processing_time', 'storage_time', 'es_result']:
                             if key in result.result:
                                 status_info[key] = result.result[key]
-                                
             except Exception as e:
                 logger.warning(f"Error getting metadata for task {task_id}: {str(e)}")
                 status_info['error'] = f"Metadata access error: {str(e)}"
-        
         logger.debug(f"Task {task_id} status: {status_info['status']}, index: {status_info['index_name']}, task_name: {status_info['task_name']}")
         return status_info
-    # Return minimal information if task status cannot be retrieved
+    try:
+        return await loop.run_in_executor(None, sync_get)
+    except ValueError as e:
+        if "Exception information must include the exception type" in str(e):
+            logger.warning(f"Task {task_id} has legacy bad exception format, marking as FAILURE for forced update.")
+            return {
+                'id': task_id,
+                'status': 'FAILURE',
+                'created_at': '',
+                'updated_at': '',
+                'error': 'Legacy task error: exception type missing, forcibly marked as FAILURE.',
+                'index_name': '',
+                'task_name': '',
+                'path_or_url': '',
+            }
+        else:
+            logger.error(f"Error getting status for task {task_id}: {str(e)}")
+            return {
+                'id': task_id,
+                'status': 'FAILURE',
+                'created_at': '',
+                'updated_at': '',
+                'error': f"Cannot retrieve task status: {str(e)}",
+                'index_name': '',
+                'task_name': '',
+                'path_or_url': '',
+            }
     except Exception as e:
         logger.warning(f"Error getting status for task {task_id}: {str(e)}")
         # Return minimal information if task status cannot be retrieved
@@ -172,9 +188,8 @@ def get_task_info(task_id: str) -> Dict[str, Any]:
             'task_name': '',
             'path_or_url': '',
         }
-    
 
-def get_task_details(task_id: str) -> Optional[Dict[str, Any]]:
+async def get_task_details(task_id: str) -> Optional[Dict[str, Any]]:
     """
     Get detailed task information
     
@@ -184,17 +199,12 @@ def get_task_details(task_id: str) -> Optional[Dict[str, Any]]:
     Returns:
         Detailed task information or None if not found
     """
-    # Get basic status information
-    task_info = get_task_info(task_id)
-    
-    # Add additional details for completed tasks
-    result = AsyncResult(task_id)
-    
-    if result.successful():
-        if result.result:
-            # For successful tasks, include the result if available
+    task_info = await get_task_info(task_id)
+    loop = asyncio.get_running_loop()
+    def sync_result():
+        result = AsyncResult(task_id, app=celery_app)
+        if result.successful() and result.result:
             if isinstance(result.result, dict):
-                # Include result details
                 if 'chunks_count' in result.result:
                     task_info['chunks_count'] = result.result['chunks_count']
                 if 'processing_time' in result.result:
@@ -203,8 +213,6 @@ def get_task_details(task_id: str) -> Optional[Dict[str, Any]]:
                     task_info['storage_time'] = result.result['storage_time']
                 if 'es_result' in result.result:
                     task_info['es_result'] = result.result['es_result']
-                
-                # Add result field
                 task_info['result'] = result.result
-
-    return task_info
+        return task_info
+    return await loop.run_in_executor(None, sync_result)

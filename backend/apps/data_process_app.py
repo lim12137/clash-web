@@ -3,8 +3,6 @@ from contextlib import asynccontextmanager
 from fastapi import HTTPException, APIRouter, Form
 import base64
 import io
-from pydantic import BaseModel
-from typing import List
 
 from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTaskRequest, SimpleTaskStatusResponse, \
     SimpleTasksListResponse
@@ -32,11 +30,6 @@ router = APIRouter(
     prefix="/tasks",
     lifespan=lifespan
 )
-
-
-class MarkFailedRequest(BaseModel):
-    task_ids: List[str]
-    reason: str = "Task marked as failed due to frontend polling timeout"
 
 
 @router.post("", response_model=TaskResponse, status_code=201)
@@ -214,12 +207,10 @@ async def load_image(url: str):
 @router.get("/{task_id}", response_model=SimpleTaskStatusResponse)
 async def get_task(task_id: str):
     """Get basic status information for a specific task"""
-    task = get_task_info(task_id)
+    task = await get_task_info(task_id)
 
     if not task:
         raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
-
-    # Return task status in the expected format
     return SimpleTaskStatusResponse(
         id=task["id"],
         task_name=task["task_name"],
@@ -235,7 +226,7 @@ async def get_task(task_id: str):
 @router.get("", response_model=SimpleTasksListResponse)
 async def list_tasks():
     """Get a list of all tasks with their basic status information"""
-    tasks = service.get_all_tasks()
+    tasks = await service.get_all_tasks()
 
     task_responses = []
     for task in tasks:
@@ -263,7 +254,7 @@ async def get_index_tasks(index_name: str):
     Returns tasks that are being processed or waiting to be processed
     """
     try:
-        return service.get_index_tasks(index_name)
+        return await service.get_index_tasks(index_name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -272,13 +263,9 @@ async def get_index_tasks(index_name: str):
 async def get_task_details(task_id: str):
     """Get detailed information about a task, including results"""
     from data_process.utils import get_task_details as utils_get_task_details
-    
-    task = utils_get_task_details(task_id)
-
+    task = await utils_get_task_details(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-
-    # Return the task details directly
     return task
 
 

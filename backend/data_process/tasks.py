@@ -140,9 +140,6 @@ class LoggingTask(Task):
         logger.warning(f"Task {self.name}[{task_id}] retrying: {exc}")
         return super().on_retry(exc, task_id, args, kwargs, einfo)
 
-class ForwardTaskError(Exception):
-    """Custom exception for forward task errors."""
-    pass
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process', queue='process_q')
 def process(self, source: str, source_type: str = "file", 
@@ -444,7 +441,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                             'stage': 'completed_with_partial_failure'
                         }
                     )
-                    raise ForwardTaskError(error_message)
+                    raise Exception(error_message)
 
             elif isinstance(es_result, dict) and es_result.get("success") == False:
                 error_message = es_result.get("message", "Unknown error from main_server")
@@ -460,10 +457,10 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                         'stage': 'main_server_api_failed'
                     }
                 )
-                raise ForwardTaskError(f"main_server API error: {error_message}")
+                raise Exception(f"main_server API error: {error_message}")
             else:
-                 logger.error(f"[{self.request.id}] FORWARD TASK: Unexpected API response format from main_server for source '{original_source}': {es_result}")
-                 self.update_state(
+                logger.error(f"[{self.request.id}] FORWARD TASK: Unexpected API response format from main_server for source '{original_source}': {es_result}")
+                self.update_state(
                     state=states.FAILURE,
                     meta={
                         'source': original_source,
@@ -474,7 +471,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                         'stage': 'api_response_format_error'
                     }
                 )
-                 raise ForwardTaskError("Unexpected API response format from main_server")
+                raise Exception("Unexpected API response format from main_server")
 
         except Exception as e:
             # This will catch errors from run_async(index_documents()) call itself (e.g. network issues to main_server)
@@ -548,7 +545,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
     finally:
         if chunks is not None:
             del chunks  # Delete local reference
-            logger.info(f"Cleaned up local references for task {task_id}")
+            logger.debug(f"Cleaned up local references for task {task_id}")
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process_and_forward')
 def process_and_forward(self, source: str, source_type: str = "file", 

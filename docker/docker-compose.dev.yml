@@ -52,8 +52,6 @@ services:
       - ./uploads:/opt/backend/uploads
       - ../backend/assets/clip-vit-base-patch32:/opt/models/clip-vit-base-patch32:ro
     environment:
-      ELASTIC_PASSWORD: nexent@2025
-      ELASTICSEARCH_API_KEY: OUEwOVhwY0I4bjBZeFR5N0dGaWI6M2VoNWJiWmpTOVdlNFFCU0YzQUFTUQ==
       skip_proxy: "true"
     env_file:
       - .env
