@@ -14,7 +14,7 @@ from database.conversation_db import create_conversation_message, create_source_
     create_source_image, rename_conversation, get_conversation_list, get_conversation_history, get_source_images_by_message, \
     get_source_images_by_conversation, get_source_searches_by_message, get_source_searches_by_conversation, \
     delete_conversation, get_conversation, create_conversation, update_message_opinion
-from database.utils import get_current_user_id
+from utils.auth_utils import get_current_user_id
 from nexent.core.utils.observer import ProcessType
 
 logger = logging.getLogger("conversation_management_service")
