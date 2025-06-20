@@ -1,13 +1,12 @@
--- 添加新字段
-ALTER TABLE "knowledge_record_t"
-  ADD COLUMN IF NOT EXISTS "knowledge_embedding_model" varchar(100) COLLATE "pg_catalog"."default",
-  ADD COLUMN IF NOT EXISTS "knowledge_sources" varchar(100) COLLATE "pg_catalog"."default";
+-- 1. 为knowledge_record_t表添加knowledge_sources列
+ALTER TABLE nexent.knowledge_record_t
+ADD COLUMN IF NOT EXISTS "knowledge_sources" varchar(100) COLLATE "pg_catalog"."default";
 
--- 添加字段注释
-COMMENT ON COLUMN "knowledge_record_t"."knowledge_embedding_model" IS 'Knowledge base embedding model';
-COMMENT ON COLUMN "knowledge_record_t"."knowledge_sources" IS 'Knowledge base sources';
+-- 添加列注释
+COMMENT ON COLUMN nexent.knowledge_record_t."knowledge_sources" IS 'Knowledge base sources';
 
--- Create the tenant_config_t table in the nexent schema
+
+-- 2. 创建tenant_config_t表
 CREATE TABLE IF NOT EXISTS nexent.tenant_config_t (
     tenant_config_id SERIAL PRIMARY KEY NOT NULL,
     tenant_id VARCHAR(100),
@@ -22,10 +21,10 @@ CREATE TABLE IF NOT EXISTS nexent.tenant_config_t (
     delete_flag VARCHAR(1) DEFAULT 'N'
 );
 
--- Add comment to the table
+-- 添加表注释
 COMMENT ON TABLE nexent.tenant_config_t IS 'Tenant configuration information table';
 
--- Add comments to the columns
+-- 添加列注释
 COMMENT ON COLUMN nexent.tenant_config_t.tenant_config_id IS 'ID';
 COMMENT ON COLUMN nexent.tenant_config_t.tenant_id IS 'Tenant ID';
 COMMENT ON COLUMN nexent.tenant_config_t.user_id IS 'User ID';
@@ -38,7 +37,7 @@ COMMENT ON COLUMN nexent.tenant_config_t.created_by IS 'Creator';
 COMMENT ON COLUMN nexent.tenant_config_t.updated_by IS 'Updater';
 COMMENT ON COLUMN nexent.tenant_config_t.delete_flag IS 'Whether it is deleted. Optional values: Y/N';
 
--- Create a function to update the update_time column
+-- 创建更新update_time的函数
 CREATE OR REPLACE FUNCTION update_tenant_config_update_time()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -47,8 +46,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create a trigger to call the function before each update
+-- 添加函数注释
+COMMENT ON FUNCTION update_tenant_config_update_time() IS 'Function to update the update_time column when a record in tenant_config_t is updated';
+
+-- 创建触发器
 CREATE TRIGGER update_tenant_config_update_time_trigger
 BEFORE UPDATE ON nexent.tenant_config_t
 FOR EACH ROW
 EXECUTE FUNCTION update_tenant_config_update_time();
+
+-- 添加触发器注释
+COMMENT ON TRIGGER update_tenant_config_update_time_trigger ON nexent.tenant_config_t
+IS 'Trigger to call update_tenant_config_update_time function before each update on tenant_config_t table';
