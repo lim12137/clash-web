@@ -29,17 +29,6 @@ export class ModelError extends Error {
   }
 }
 
-// Helper function to get authorization headers
-const getAuthHeaders = () => {
-  const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
-  const sessionObj = session ? JSON.parse(session) : null;
-
-  return {
-    'Content-Type': 'application/json',
-    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
-  };
-};
-
 // 获取授权头的辅助函数
 const getAuthHeaders = () => {
   const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
