@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import List, Optional
 from io import BytesIO
 
-from fastapi import UploadFile, File, HTTPException, Form, APIRouter, Query, Path as PathParam, Body
+from utils.auth_utils import get_current_user_id
+from fastapi import UploadFile, File, HTTPException, Form, APIRouter, Query, Path as PathParam, Body, Header
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from consts.model import ProcessParams
@@ -340,12 +341,13 @@ async def get_storage_file_batch_urls(
 
 
 @router.post("/preprocess")
-async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] = File(...)):
+async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] = File(...), authorization: Optional[str] = Header(None)):
     """
     Preprocess uploaded files and return streaming response
     """
     try:
         # Pre-read and cache all file contents
+        user_id, tenant_id = get_current_user_id(authorization)
         file_cache = []
         for file in files:
             import time
@@ -383,7 +385,7 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
                         raise Exception(file_data["error"])
 
                     if file_data["ext"] in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
-                        description = await process_image_file(query, file_data["filename"], file_data["content"])
+                        description = await process_image_file(query, file_data["filename"], file_data["content"], tenant_id)
                     else:
                         description = await process_text_file(file_data["filename"], file_data["content"])
                     file_descriptions.append(description)
@@ -427,12 +429,12 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
         raise HTTPException(status_code=500, detail=f"File preprocessing error: {str(e)}")
 
 
-async def process_image_file(query, filename, file_content) -> str:
+async def process_image_file(query, filename, file_content, tenant_id:str) -> str:
     """
     Process image file, convert to text using external API
     """
     image_stream = BytesIO(file_content)
-    text = convert_image_to_text(query, image_stream)
+    text = convert_image_to_text(query, image_stream, tenant_id)
 
     return f"Image file {filename} content: {text}"
 
