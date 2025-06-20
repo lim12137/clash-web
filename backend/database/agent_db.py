@@ -165,7 +165,7 @@ def update_agent(agent_id, agent_info, tenant_id, user_id=None):
         if user_id:
             user_agent = session.query(UserAgent).filter(UserAgent.agent_id == agent_id,
                                                          UserAgent.tenant_id == tenant_id,
-                                                         UserAgent.user_id == user_id
+                                                         UserAgent.user_id == user_id or UserAgent.user_id == DEFAULT_USER_ID
                                                         ).first()
             if not user_agent:
                 raise ValueError("ag_user_agent_t Agent not found")

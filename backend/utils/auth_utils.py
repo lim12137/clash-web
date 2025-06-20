@@ -98,7 +98,7 @@ def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
     try:
         user_id = get_current_user_id_from_token(str(authorization))
         tenant_id = user_id
-        return user_id, tenant_id
+        return user_id, DEFAULT_TENANT_ID
     except Exception as e:
         logging.error(f"获取用户ID失败: {str(e)}")
         return DEFAULT_USER_ID, DEFAULT_TENANT_ID
