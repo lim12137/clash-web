@@ -92,24 +92,8 @@ class ConfigManager:
         return {"status": "success", "message": "Configuration reloaded"}
 
 # Create global configuration manager instance
-# Try to find .env file in common locations
-_current_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # /opt
-_env_paths = [
-    os.path.join(_current_dir, ".env"),  # /opt/.env
-    os.path.join(_current_dir, "docker", ".env"),  # /opt/docker/.env
-]
-
-# Find the first existing .env file
-_env_file = None
-for path in _env_paths:
-    if os.path.exists(path):
-        _env_file = path
-        break
-
-# Fallback to docker/.env path if no file found
-if _env_file is None:
-    _env_file = os.path.join(_current_dir, "docker", ".env")
-
+_current_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+_env_file = os.path.join(_current_dir, ".env")
 config_manager = ConfigManager(_env_file)
 
 

@@ -84,7 +84,7 @@ async def trigger_data_process(file_paths: List[str], process_params: ProcessPar
         return {"status": "error", "code": "INTERNAL_ERROR", "message": f"Internal error: {str(e)}"}
 
 
-def get_all_files_status(index_name: str):
+async def get_all_files_status(index_name: str):
     """
     Get status for all files according to index_name, matching corresponding tasks, 
     and then convert to custom state
@@ -97,8 +97,8 @@ def get_all_files_status(index_name: str):
     """
     try:
         try:
-            with httpx.Client() as client:
-                response = client.get(f"{DATA_PROCESS_SERVICE}/tasks/indices/{index_name}", timeout=10.0)
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{DATA_PROCESS_SERVICE}/tasks/indices/{index_name}", timeout=10.0)
             if response.status_code == 200:
                 tasks_list = response.json()
             else:
