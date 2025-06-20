@@ -1,14 +1,15 @@
 x-es-vars: &es-vars
   ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+  ELASTICSEARCH_API_KEY: ${ELASTICSEARCH_API_KEY:-}
 x-minio-vars: &minio-vars
   MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
   MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
   MINIO_REGION: ${MINIO_REGION}
   MINIO_DEFAULT_BUCKET: ${MINIO_DEFAULT_BUCKET}
 x-proxy-vars: &proxy-vars
-  HTTP_PROXY: ${HTTP_PROXY}
-  HTTPS_PROXY: ${HTTPS_PROXY}
-  NO_PROXY: ${NO_PROXY}
+  HTTP_PROXY: ${HTTP_PROXY:-}
+  HTTPS_PROXY: ${HTTPS_PROXY:-}
+  NO_PROXY: ${NO_PROXY:-}
 
 services:
   nexent-elasticsearch:
@@ -75,7 +76,6 @@ services:
   nexent:
     image: nexent/nexent
     container_name: nexent
-    command: bash
     restart: always
     volumes:
       - ${ROOT_DIR}/uploads:/opt/backend/uploads
@@ -97,6 +97,12 @@ services:
         max-file: "3"    # Maximum number of log files to keep
     networks:
       - nexent
+    entrypoint: >
+      /bin/sh -c "
+        umask 0022
+        python /opt/backend/mcp_service.py &
+        python /opt/backend/main_service.py
+      "
 
   nexent-web:
     image: nexent/nexent-web
