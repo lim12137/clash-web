@@ -1,4 +1,5 @@
 import os
+import io
 import uuid
 from datetime import datetime
 from typing import Optional, List, Dict, Any, BinaryIO
@@ -202,6 +203,30 @@ def delete_file(object_name: str, bucket: Optional[str] = None) -> Dict[str, Any
         response["error"] = result
 
     return response
+
+
+def get_file_stream(object_name: str, bucket: Optional[str] = None) -> Optional[BinaryIO]:
+    """
+    Get file binary stream from MinIO storage
+
+    Args:
+        object_name: Object name in MinIO
+        bucket: Bucket name, if not specified use default bucket
+
+    Returns:
+        Optional[BinaryIO]: Standard BinaryIO stream object, or None if failed
+    """
+    success, result = minio_client.get_file_stream(object_name, bucket)
+    if not success:
+        return None
+    
+    # Read all data from StreamingBody and wrap it in BytesIO for BinaryIO compatibility
+    try:
+        binary_data = result.read()
+        result.close()  # Close the original stream
+        return io.BytesIO(binary_data)
+    except Exception:
+        return None
 
 
 def _get_content_type(file_path: str) -> str:
