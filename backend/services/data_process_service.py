@@ -168,7 +168,7 @@ class DataProcessService:
                 
             except Exception as redis_error:
                 logger.warning(f"Failed to query Redis for stored task IDs: {str(redis_error)}")
-            logger.info(f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
+            logger.debug(f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
             # 并发异步获取所有任务详情
             tasks = [get_task_info(task_id) for task_id in task_ids]
             all_task_infos = await asyncio.gather(*tasks, return_exceptions=True)
@@ -179,7 +179,7 @@ class DataProcessService:
                 if filter and not (task_info.get('index_name') and task_info.get('task_name')):
                     continue
                 all_tasks.append(task_info)
-            logger.info(f"Successfully retrieved details for {len(all_tasks)} tasks.")
+            logger.info(f"Retrieved {len(all_tasks)} tasks.")
         except Exception as e:
             logger.error(f"Error retrieving all tasks: {str(e)}")
             all_tasks = []

@@ -545,7 +545,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
     finally:
         if chunks is not None:
             del chunks  # Delete local reference
-            logger.info(f"Cleaned up local references for task {task_id}")
+            logger.debug(f"Cleaned up local references for task {task_id}")
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process_and_forward')
 def process_and_forward(self, source: str, source_type: str = "file", 
