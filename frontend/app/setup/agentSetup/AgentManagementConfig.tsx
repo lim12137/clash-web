@@ -206,23 +206,47 @@ function SubAgentPool({
                 key={agent.id} 
                 className={`border rounded-md p-3 flex flex-col justify-center transition-colors duration-200 h-[80px] ${
                   !isAvailable
-                    ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
+                    ? isEnabled
+                      ? 'bg-blue-100 border-blue-400 opacity-60'
+                      : 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
                     : isEnabled 
-                      ? 'bg-blue-100 border-blue-400 cursor-pointer' 
-                      : 'hover:border-blue-300 cursor-pointer'
+                      ? 'bg-blue-100 border-blue-400' 
+                      : 'hover:border-blue-300'
                 }`}
-                title={!isAvailable ? 'Agent不可用' : undefined}
+                title={!isAvailable 
+                  ? isEnabled 
+                    ? '该Agent已禁用，请点击取消启用'
+                    : 'Agent不可用' 
+                  : undefined}
                 onClick={() => {
-                  if (!isAvailable) return;
+                  console.log('agent', agent);
+                  console.log('isAvailable', isAvailable);
+                  console.log('isEnabled', isEnabled);
+                  if (!isAvailable && !isEnabled) {
+                    message.warning('该Agent不可用');
+                    return;
+                  }
+                  // 如果Agent不可用但已启用，允许禁用它
+                  if (!isAvailable && isEnabled) {
+                    onSelectAgent(agent, false);
+                    return;
+                  }
                   onSelectAgent(agent, !isEnabled);
                 }}
                 onContextMenu={(e) => handleContextMenu(e, agent)}
               >
                 <div className="flex items-center h-full">
                   <div className="flex-1 overflow-hidden">
-                    <div className={`font-medium text-sm truncate ${!isAvailable ? 'text-gray-400' : ''}`} title={!isAvailable ? 'Agent不可用' : agent.name}>{agent.name}</div>
+                    <div className={`font-medium text-sm truncate ${!isAvailable && !isEnabled ? 'text-gray-400' : ''}`} 
+                         title={!isAvailable 
+                           ? isEnabled 
+                             ? '该Agent已禁用，请点击取消启用'
+                             : 'Agent不可用' 
+                           : agent.name}>
+                      {agent.name}
+                    </div>
                     <div 
-                      className={`text-xs line-clamp-2 ${!isAvailable ? 'text-gray-400' : 'text-gray-500'}`}
+                      className={`text-xs line-clamp-2 ${!isAvailable && !isEnabled ? 'text-gray-400' : 'text-gray-500'}`}
                       title={agent.description}
                     >
                       {agent.description}
@@ -845,9 +869,9 @@ export default function BusinessLogicConfig({
 
   // Handle the update of the Agent selection status
   const handleAgentSelect = async (agent: Agent, isSelected: boolean) => {
-    // First check if the Agent is available
-    if (agent.is_available === false) {
-      message.error('该Agent当前不可用，无法选择');
+    // 只有当尝试启用不可用的Agent时才阻止操作
+    if (agent.is_available === false && isSelected) {
+      message.error('该Agent当前不可用，无法启用');
       return;
     }
 
