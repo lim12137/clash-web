@@ -1,4 +1,6 @@
 import logging
+import os
+import requests
 from fastapi import APIRouter, Depends, Header, Query, Path, Body
 from typing import Optional, List
 from services.tenant_config_service import get_selected_knowledge_list, update_selected_knowledge
@@ -10,6 +12,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("tenant config app")
 router = APIRouter(prefix="/tenant_config")
 
+ELASTICSEARCH_SERVICE = os.environ.get("ELASTICSEARCH_SERVICE")
+
 @router.get("/load_knowledge_list")
 def load_knowledge_list(
     authorization: Optional[str] = Header(None)
@@ -17,8 +21,32 @@ def load_knowledge_list(
     try:
         user_id, tenant_id = get_user_info()
         selected_knowledge_info = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
-        content = {"selectedKbNames": [item["index_name"] for item in selected_knowledge_info],
-                   "selectedKbModels": [item["knowledge_embedding_model"] for item in selected_knowledge_info],
+        
+        kb_name_list = [item["index_name"] for item in selected_knowledge_info]
+        
+        # Query embedding models from Elasticsearch service
+        embedding_models = []
+        if kb_name_list:
+            try:
+                api_url = f"{ELASTICSEARCH_SERVICE}/indices?include_stats=true"
+                response = requests.get(api_url, timeout=10)
+                response.raise_for_status()
+                
+                index_to_model = {}
+                for index_info in response.json().get("indices_info", []):
+                    index_name = index_info.get("name")
+                    embedding_model = index_info.get("stats", {}).get("base_info", {}).get("embedding_model", "")
+                    if index_name:
+                        index_to_model[index_name] = embedding_model
+                
+                embedding_models = [index_to_model.get(kb_name, "") for kb_name in kb_name_list]
+                
+            except Exception as e:
+                logger.error(f"API调用失败: {e}")
+                embedding_models = []
+
+        content = {"selectedKbNames": kb_name_list,
+                   "selectedKbModels": embedding_models,
                    "selectedKbSources": [item["knowledge_sources"] for item in selected_knowledge_info]}
 
         return JSONResponse(

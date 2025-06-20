@@ -485,7 +485,7 @@ function DataConfig({ isActive }: DataConfigProps) {
           }
         ).catch((pollingError) => {
           console.error("Knowledge base creation polling failed:", pollingError);
-          message.error(pollingError instanceof Error ? pollingError.message : "等待知识库就绪时发生未知错误");
+          // message.warning(pollingError instanceof Error ? pollingError.message : "等待知识库就绪时发生未知错误");
         });
         
       } catch (error) {

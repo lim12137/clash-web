@@ -7,10 +7,9 @@ class KnowledgeBasePollingService {
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
   private knowledgeBasePollingInterval: number = 1000; // 1 second
   private documentPollingInterval: number = 3000; // 3 seconds
-  private maxKnowledgeBasePolls: number = 15; // Maximum 60 polling attempts
-  private maxDocumentPolls: number = 5; // Maximum 20 polling attempts
+  private maxKnowledgeBasePolls: number = 60; // Maximum 60 polling attempts
+  private maxDocumentPolls: number = 20; // Maximum 20 polling attempts
   private activeKnowledgeBaseId: string | null = null; // Record current active knowledge base ID
-  private timedOutKnowledgeBases: Set<string> = new Set(); // Record timed out knowledge bases
 
   // Set current active knowledge base ID 
   setActiveKnowledgeBase(kbId: string | null): void {
