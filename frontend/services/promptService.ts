@@ -37,16 +37,6 @@ export interface SavePromptParams {
   prompt: string;
 }
 
-/**
- * Get Request Headers
- */
-const getHeaders = () => {
-  return {
-    'Content-Type': 'application/json',
-    'User-Agent': 'AgentFrontEnd/1.0',
-  };
-};
-
 export const generatePromptStream = async (
   params: GeneratePromptParams,
   onData: (data: string) => void,
@@ -132,7 +122,7 @@ export const savePrompt = async (params: SavePromptParams): Promise<any> => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.update, {
       method: 'POST',
-      headers: getHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         agent_id: params.agent_id,
         prompt: params.prompt
