@@ -205,7 +205,7 @@ export const modelService = {
     try {
       const response = await fetch(API_ENDPOINTS.model.verifyModelConfig, {
         method: "POST",
-        headers: getHeaders(),
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           model_name: config.modelName,
           model_type: config.modelType,
