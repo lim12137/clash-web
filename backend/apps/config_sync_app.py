@@ -19,14 +19,14 @@ logger = logging.getLogger("app config")
 
 def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id: int, tenant_config_dict: dict) -> None:
     """
-    处理模型配置的更新、删除和设置操作
+    Handle model configuration updates, deletions, and settings operations
 
     Args:
-        tenant_id: 租户ID
-        user_id: 用户ID
-        config_key: 配置键名
-        model_id: 模型ID
-        tenant_config_dict: 租户配置字典
+        tenant_id: Tenant ID
+        user_id: User ID
+        config_key: Configuration key name
+        model_id: Model ID
+        tenant_config_dict: Tenant configuration dictionary
     """
     if not model_id and config_key in tenant_config_dict:
         tenant_config_manager.delete_single_config(tenant_id, config_key)
