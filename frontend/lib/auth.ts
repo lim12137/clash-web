@@ -3,7 +3,7 @@
  */
 
 /**
- * 获取API请求的授权头信息
+ * Get the authorization header information for API requests
  * @returns HTTP headers object containing authentication and content type information
  */
 export const getAuthHeaders = () => {
