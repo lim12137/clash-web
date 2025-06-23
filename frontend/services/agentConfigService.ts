@@ -203,9 +203,7 @@ export const updateToolConfig = async (
 
     const response = await fetch(API_ENDPOINTS.tool.update, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         tool_id: toolId,
         agent_id: agentId,
@@ -244,9 +242,7 @@ export const searchToolConfig = async (toolId: number, agentId: number) => {
   try {
     const response = await fetch(API_ENDPOINTS.tool.search, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         tool_id: toolId,
         agent_id: agentId
@@ -426,9 +422,7 @@ export const importAgent = async (agentId: string, agentInfo: any) => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.import, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ 
         agent_id: agentId, 
         agent_info: agentInfo 
