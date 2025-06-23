@@ -12,7 +12,7 @@ if (!i18n.isInitialized) {
         en: { common: en },
         zh: { common: zh },
       },
-      lng: 'zh', // 默认语言
+      lng: 'zh', // default language
       fallbackLng: 'en',
       ns: ['common'],
       defaultNS: 'common',
