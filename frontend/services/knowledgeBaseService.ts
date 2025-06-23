@@ -2,7 +2,7 @@
 
 import { Document, KnowledgeBase, KnowledgeBaseCreateParams } from '@/types/knowledgeBase';
 import { API_ENDPOINTS } from './api';
-import { getAuthHeaders } from './conversationService';
+import { getAuthHeaders } from '@/lib/auth';
 
 // Knowledge base service class
 class KnowledgeBaseService {
