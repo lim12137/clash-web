@@ -25,10 +25,7 @@ export class UserConfigService {
     try {
       const response = await fetch(API_ENDPOINTS.tenantConfig.loadKnowledgeList, {
         method: 'GET',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -55,14 +52,9 @@ export class UserConfigService {
     try {
       const response = await fetch(API_ENDPOINTS.tenantConfig.updateKnowledgeList, {
         method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ knowledge_list: knowledgeList }),
       });
-
-      console.log('💾 updateKnowledgeList 响应:', ...getAuthHeaders());
 
       if (!response.ok) {
         const errorData = await response.json();
