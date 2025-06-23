@@ -14,6 +14,36 @@ router = APIRouter(prefix="/config")
 # Get logger instance
 logger = logging.getLogger("app config")
 
+def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id: int, tenant_config_dict: dict) -> None:
+    """
+    处理模型配置的更新、删除和设置操作
+    
+    Args:
+        tenant_id: 租户ID
+        user_id: 用户ID
+        config_key: 配置键名
+        model_id: 模型ID
+        tenant_config_dict: 租户配置字典
+    """
+    if not model_id and config_key in tenant_config_dict:
+        tenant_config_manager.delete_single_config(tenant_id, config_key)
+    elif config_key in tenant_config_dict:
+        try:
+            existing_model_id = int(tenant_config_dict[config_key]) if tenant_config_dict[config_key] else None
+            if existing_model_id == model_id:
+                tenant_config_manager.update_single_config(tenant_id, config_key)
+            else:
+                tenant_config_manager.delete_single_config(tenant_id, config_key)
+                if model_id:
+                    tenant_config_manager.set_single_config(user_id, tenant_id, config_key, model_id)
+        except (ValueError, TypeError):
+            tenant_config_manager.delete_single_config(tenant_id, config_key)
+            if model_id:
+                tenant_config_manager.set_single_config(user_id, tenant_id, config_key, model_id)
+    else:
+        if model_id:
+            tenant_config_manager.set_single_config(user_id, tenant_id, config_key, model_id)
+
 @router.post("/save_config")
 async def save_config(config: GlobalConfig, authorization: Optional[str] = Header(None)):
     try:
@@ -33,11 +63,11 @@ async def save_config(config: GlobalConfig, authorization: Optional[str] = Heade
             
             # Check if the key exists and has the same value in tenant_config_dict
             if env_key in tenant_config_dict and tenant_config_dict[env_key] == safe_value(value):
-                tenant_config_manager.update_single_config(user_id, tenant_id, env_key, safe_value(value))
+                tenant_config_manager.update_single_config(tenant_id, env_key)
             elif env_key in tenant_config_dict and env_config[env_key] == '':
-                tenant_config_manager.delete_single_config(user_id, tenant_id, env_key)
+                tenant_config_manager.delete_single_config(tenant_id, env_key)
             elif env_key in tenant_config_dict:
-                tenant_config_manager.delete_single_config(user_id, tenant_id, env_key)
+                tenant_config_manager.delete_single_config(tenant_id, env_key)
                 tenant_config_manager.set_single_config(user_id, tenant_id, env_key, safe_value(value))
             else:
                 tenant_config_manager.set_single_config(user_id, tenant_id, env_key, safe_value(value))
@@ -57,16 +87,7 @@ async def save_config(config: GlobalConfig, authorization: Optional[str] = Heade
             if not model_name:
                 continue
 
-            # Check if the key exists and has the same value in tenant_config_dict
-            if not model_id and config_key in tenant_config_dict:
-                tenant_config_manager.delete_single_config(user_id, tenant_id, config_key)
-            elif config_key in tenant_config_dict and int(tenant_config_dict[config_key]) == model_id:
-                tenant_config_manager.update_single_config(user_id, tenant_id, config_key, model_id)
-            elif config_key in tenant_config_dict:
-                tenant_config_manager.delete_single_config(user_id, tenant_id, config_key)
-                tenant_config_manager.set_single_config(user_id, tenant_id, config_key, model_id)
-            else:
-                tenant_config_manager.set_single_config(user_id, tenant_id, config_key, model_id)
+            handle_model_config(tenant_id, user_id, config_key, model_id, tenant_config_dict)
 
             model_prefix = get_env_key(model_type)
 
