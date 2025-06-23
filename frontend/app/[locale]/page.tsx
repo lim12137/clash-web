@@ -27,7 +27,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-start">
             <img src="/modelengine-logo2.png" alt="ModelEngine" className="h-6" />
-            <span className="text-blue-600 dark:text-blue-500 ml-2">Nexent 智能体</span>
+            <span className="text-blue-600 dark:text-blue-500 ml-2">{t("assistant.name")}</span>
           </h1>
         </div>
         <div className="hidden md:flex items-center gap-6">
