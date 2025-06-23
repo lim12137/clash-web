@@ -24,7 +24,6 @@ import time
 import traceback
 import ray
 from typing import Dict, Any, Optional
-from dotenv import load_dotenv
 from celery.signals import (
     worker_init,
     worker_ready, 
@@ -35,7 +34,6 @@ from celery.signals import (
     task_failure
 )
 
-# Import app and config
 from .app import app
 from .config import config
 from .ray_config import init_ray_for_worker

@@ -339,7 +339,7 @@ class ElasticSearchService:
             raise HTTPException(status_code=500, detail=f"Error indexing documents: {error_msg}")
 
     @staticmethod
-    def list_files(
+    async def list_files(
             index_name: str = Path(..., description="Name of the index"),
             include_chunks: bool = Query(False, description="Whether to include text chunks for each file"),
             search_redis: bool = Query(True, description="Whether to search Redis to get incomplete files"),
@@ -364,7 +364,7 @@ class ElasticSearchService:
 
             if search_redis:
                 # Get unique celery files list and the status of each file
-                celery_task_files = get_all_files_status(index_name)
+                celery_task_files = await get_all_files_status(index_name)
                 # Create a set of path_or_urls from existing files for quick lookup
                 existing_paths = {file_info.get('path_or_url') for file_info in existing_files}
 

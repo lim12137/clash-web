@@ -36,13 +36,24 @@ const getHeaders = () => {
   };
 };
 
+// 获取授权头的辅助函数
+const getAuthHeaders = () => {
+  const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
+  const sessionObj = session ? JSON.parse(session) : null;
+
+  return {
+    'Content-Type': 'application/json',
+    'User-Agent': 'AgentFrontEnd/1.0',
+    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
+  };
+};
 // Model service
 export const modelService = {
   // Get official model list
   getOfficialModels: async (): Promise<ModelOption[]> => {
     try {
       const response = await fetch(API_ENDPOINTS.model.officialModelList, {
-        headers: getHeaders()
+        headers: getAuthHeaders()
       })
       const result: ApiResponse<any[]> = await response.json()
       

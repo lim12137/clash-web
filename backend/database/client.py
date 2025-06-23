@@ -221,6 +221,24 @@ class MinioClient:
         except Exception as e:
             return False, str(e)
 
+    def get_file_stream(self, object_name: str, bucket: Optional[str] = None) -> Tuple[bool, Any]:
+        """
+        Get file binary stream from MinIO
+        
+        Args:
+            object_name: Object name
+            bucket: Bucket name, if not specified use default bucket
+            
+        Returns:
+            Tuple[bool, Any]: (Success status, File stream object or error message)
+        """
+        bucket = bucket or self.default_bucket
+        try:
+            response = self.client.get_object(Bucket=bucket, Key=object_name)
+            return True, response['Body']
+        except Exception as e:
+            return False, str(e)
+
 
 # Create a global database client instance
 db_client = PostgresClient()

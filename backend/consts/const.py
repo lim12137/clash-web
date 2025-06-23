@@ -24,3 +24,6 @@ UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
 
 # Image Filter Configuration
 IMAGE_FILTER = os.getenv("IMAGE_FILTER", "false").lower() == "true"
+
+DEFAULT_USER_ID = "user_id"
+DEFAULT_TENANT_ID = "tenant_id"
