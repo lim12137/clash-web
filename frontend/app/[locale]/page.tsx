@@ -9,17 +9,17 @@ import Link from "next/link"
 import { useRouter, usePathname } from 'next/navigation';
 import { Select } from "antd"
 
+const languageOptions = [
+  { label: '简体中文', value: 'zh' },
+  { label: 'English', value: 'en' },
+];
+
 export default function Home() {
   const [mounted, setMounted] = useState(false)
   const { t, i18n } = useTranslation('common');
   const [lang, setLang] = useState(i18n.language || 'zh');
   const router = useRouter();
   const pathname = usePathname();
-
-  const languageOptions = [
-    { label: '简体中文', value: 'zh' },
-    { label: 'English', value: 'en' },
-  ];
 
   // Prevent hydration errors
   useEffect(() => {
