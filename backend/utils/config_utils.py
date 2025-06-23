@@ -192,7 +192,7 @@ class TenantConfigManager:
                 return default
             try:
                 model_config = get_model_by_model_id(model_id=int(model_id), tenant_id=tenant_id)
-                return model_config
+                return model_config if model_config else default
             except (ValueError, TypeError):
                 print(f"Warning: Invalid model_id format: {model_id}")
                 return default
