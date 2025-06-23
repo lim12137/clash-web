@@ -197,7 +197,7 @@ function DataConfig({ isActive }: DataConfigProps) {
     savedKnowledgeBasesRef.current = kbState.knowledgeBases;
   }, [kbState.selectedIds, kbState.knowledgeBases]);
 
-  // 获取授权头的辅助函数
+    // 获取授权头的辅助函数
 const getAuthHeaders = () => {
   const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
   const sessionObj = session ? JSON.parse(session) : null;

@@ -2,6 +2,7 @@
 
 import { ModelOption, ModelType, ModelConnectStatus } from '../types/config'
 import { API_ENDPOINTS } from './api'
+import { getAuthHeaders } from '@/lib/auth'
 
 // API响应类型
 interface ApiResponse<T = any> {
@@ -29,18 +30,6 @@ export class ModelError extends Error {
   }
 }
 
-
-// 获取授权头的辅助函数
-const getAuthHeaders = () => {
-  const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
-  const sessionObj = session ? JSON.parse(session) : null;
-
-  return {
-    'Content-Type': 'application/json',
-    'User-Agent': 'AgentFrontEnd/1.0',
-    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
-  };
-};
 // Model service
 export const modelService = {
   // Get official model list
@@ -157,7 +146,7 @@ export const modelService = {
     try {
       const response = await fetch(API_ENDPOINTS.model.customModelDelete(displayName), {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders()
       })
       const result: ApiResponse = await response.json()
       if (result.code !== 200) {

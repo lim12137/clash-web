@@ -6,9 +6,11 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 
 from consts.model import GlobalConfig
-from utils.config_utils import config_manager, get_env_key, safe_value, safe_list, tenant_config_manager, get_model_name_from_config
+from utils.config_utils import config_manager, get_env_key, safe_value, safe_list, tenant_config_manager, \
+    get_model_name_from_config
 from utils.auth_utils import get_current_user_id
 from database.model_management_db import get_model_id_by_display_name
+
 router = APIRouter(prefix="/config")
 
 # Get logger instance
@@ -17,7 +19,7 @@ logger = logging.getLogger("app config")
 def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id: int, tenant_config_dict: dict) -> None:
     """
     Handle model configuration updates, deletions, and settings operations
-    
+
     Args:
         tenant_id: Tenant ID
         user_id: User ID
@@ -44,6 +46,7 @@ def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id:
         if model_id:
             tenant_config_manager.set_single_config(user_id, tenant_id, config_key, model_id)
 
+
 @router.post("/save_config")
 async def save_config(config: GlobalConfig, authorization: Optional[str] = Header(None)):
     try:
@@ -60,7 +63,7 @@ async def save_config(config: GlobalConfig, authorization: Optional[str] = Heade
         for key, value in config_dict.get("app", {}).items():
             env_key = get_env_key(key)
             env_config[env_key] = safe_value(value)
-            
+
             # Check if the key exists and has the same value in tenant_config_dict
             if env_key in tenant_config_dict and tenant_config_dict[env_key] == safe_value(value):
                 tenant_config_manager.update_single_config(tenant_id, env_key)
@@ -71,7 +74,6 @@ async def save_config(config: GlobalConfig, authorization: Optional[str] = Heade
                 tenant_config_manager.set_single_config(user_id, tenant_id, env_key, safe_value(value))
             else:
                 tenant_config_manager.set_single_config(user_id, tenant_id, env_key, safe_value(value))
-
 
         # Process model configuration
         for model_type, model_config in config_dict.get("models", {}).items():
