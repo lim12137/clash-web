@@ -7,7 +7,7 @@ const defaultLocale = 'zh';
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // 忽略静态资源和 API 路由
+  // Ignore static resources and API routes
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
@@ -16,20 +16,20 @@ export function middleware(req: NextRequest) {
     return;
   }
 
-  // 检查路径是否已经有 locale 前缀
+  // Check if the path already has a locale prefix
   const hasLocale = locales.some(
     (locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`)
   );
 
   if (!hasLocale) {
-    // 1. 优先读取 cookie
+    // 1. Prefer reading language from cookie
     let detectedLocale = defaultLocale;
     const cookieLocale = req.cookies.get('NEXT_LOCALE')?.value;
 
     if (cookieLocale && locales.includes(cookieLocale)) {
       detectedLocale = cookieLocale;
     } else {
-      // 2. 读取 Accept-Language 请求头
+      // 2. Read language from Accept-Language request header
       const acceptLang = req.headers.get('accept-language');
       if (acceptLang) {
         const preferred = acceptLang.split(',')[0].toLowerCase();
