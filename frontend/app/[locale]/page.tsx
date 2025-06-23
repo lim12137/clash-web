@@ -6,15 +6,50 @@ import { Bot, Globe, Database, Zap, Mic, FileSearch, Shield, MessagesSquare, Mic
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
+import { useRouter, usePathname } from 'next/navigation';
+import { Select } from "antd"
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
+  const [lang, setLang] = useState(i18n.language || 'zh');
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const languageOptions = [
+    { label: '简体中文', value: 'zh' },
+    { label: 'English', value: 'en' },
+  ];
 
   // Prevent hydration errors
   useEffect(() => {
     setMounted(true)
+    setLang(i18n.language || 'zh')
   }, [])
+
+  useEffect(() => {
+    const segments = pathname.split('/').filter(Boolean);
+    const urlLocale = segments[0];
+    if ((urlLocale === 'en' || urlLocale === 'zh') && i18n.language !== urlLocale) {
+      i18n.changeLanguage(urlLocale);
+    }
+  }, [pathname, i18n]);
+
+  // Language switch handler for dropdown
+  const handleLangChange = (newLang: string) => {
+    i18n.changeLanguage(newLang);
+    setLang(newLang);
+    document.cookie = `NEXT_LOCALE=${newLang}; path=/; max-age=31536000`;
+    // Compute new path: replace the first segment (locale) with newLang
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length > 0 && (segments[0] === 'zh' || segments[0] === 'en')) {
+      segments[0] = newLang;
+    } else {
+      segments.unshift(newLang);
+    }
+    const newPath = '/' + segments.join('/');
+    router.push(newPath);
+  };
 
   if (!mounted) {
     return null
@@ -171,6 +206,13 @@ export default function Home() {
               <span className="text-sm font-medium text-slate-900 dark:text-white">
                 Nexent 智能体 © {new Date().getFullYear()}
               </span>
+              <Select
+                value={lang}
+                onChange={handleLangChange}
+                options={languageOptions}
+                style={{ width: 98, border: 'none', boxShadow: 'none' }}
+                variant={'borderless'}
+              />
             </div>
             <div className="flex items-center gap-6">
               <Link
