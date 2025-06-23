@@ -12,6 +12,11 @@ import { configService } from "@/services/configService"
 import modelEngineService, { ConnectionStatus } from "@/services/modelEngineService"
 import { useAuth } from "@/hooks/useAuth"
 import Layout from "./layout"
+import { userConfigService } from "@/services/userConfigService"
+import { useKnowledgeBaseContext } from "./knowledgeBaseSetup/knowledgeBase/KnowledgeBaseContext"
+import { KnowledgeBase } from "@/types/knowledgeBase"
+import { API_ENDPOINTS } from "@/services/api"
+import { getAuthHeaders } from '@/lib/auth'
 
 export default function CreatePage() {
   const [selectedKey, setSelectedKey] = useState("1")
@@ -23,6 +28,9 @@ export default function CreatePage() {
   const [isFromSecondPage, setIsFromSecondPage] = useState(false)
   const { user, isLoading: userLoading, openLoginModal } = useAuth()
   const { confirm } = Modal
+  const { state: { knowledgeBases, selectedIds }, saveUserSelectedKnowledgeBases } = useKnowledgeBaseContext()
+
+
 
   // 检查登录状态和权限
   useEffect(() => {
@@ -118,6 +126,13 @@ export default function CreatePage() {
       setIsCheckingConnection(false)
     }
   }
+
+  // 添加一个用于显示选中知识库数量的函数
+  const getSelectedKnowledgeBasesInfo = () => {
+    const selectedKbs = knowledgeBases.filter(kb => selectedIds.includes(kb.id));
+    console.log('💾 selectedKbs:', selectedKbs);
+    return `已选择 ${selectedKbs.length} 个知识库`;
+  };
 
   const renderContent = () => {
     // 如果用户不是管理员且尝试访问第一页，强制显示第二页内容
@@ -220,15 +235,37 @@ export default function CreatePage() {
             return
           }
 
-          // Call the backend save configuration API
-          const saveResult = await configService.saveConfigToBackend(currentConfig)
+          const selectedKnowledgeBasesInfo = getSelectedKnowledgeBasesInfo()
+          // Save the selected knowledge bases using direct API call
+          const selectedKbNames = knowledgeBases
+            .filter(kb => selectedIds.includes(kb.id))
+            .map(kb => kb.name);
 
-          if (saveResult) {
-            message.success("配置已保存")
-            // After saving successfully, redirect to the chat page
-            router.push("/chat")
-          } else {
-            message.error("保存配置失败，请重试")
+          try {
+            const saveResult = await fetch(API_ENDPOINTS.tenantConfig.updateKnowledgeList, {
+              method: 'POST',
+              headers: getAuthHeaders(),
+              body: JSON.stringify(selectedKbNames)
+            });
+
+            if (!saveResult.ok) {
+              throw new Error('Failed to save knowledge bases');
+            }
+
+            const success = await saveResult.json();
+
+            if (success) {
+              message.success("配置已保存")
+              // After saving successfully, redirect to the chat page
+              router.push("/chat")
+            } else {
+              message.error("保存配置失败，请重试")
+            }
+          } catch (error) {
+            console.error("保存配置异常:", error)
+            message.error("系统异常，请稍后重试")
+          } finally {
+            setIsSavingConfig(false)
           }
         } catch (error) {
           console.error("保存配置异常:", error)
