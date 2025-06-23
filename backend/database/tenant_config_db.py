@@ -40,18 +40,21 @@ def get_tenant_config_info(tenant_id: str, user_id: str, select_key: str):
         return record_info
 
 
-def get_single_config_info(tenant_id: str, user_id: str, select_key: str):
+def get_single_config_info(tenant_id: str, select_key: str):
     with get_db_session() as session:
         result = session.query(TenantConfig).filter(TenantConfig.tenant_id == tenant_id,
-                                                    TenantConfig.user_id == user_id,
                                                     TenantConfig.config_key == select_key,
                                                     TenantConfig.delete_flag == "N").first()
-        record_info = {
+
+        if result:
+            record_info = {
                 "config_value": result.config_value,
                 "tenant_config_id": result.tenant_config_id
             }
 
-        return record_info
+            return record_info
+        else:
+            return {}
 
 
 def insert_config(insert_data: Dict[str, Any]):

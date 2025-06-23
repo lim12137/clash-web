@@ -1,5 +1,5 @@
 /**
- * 认证相关工具函数
+ * Authentication utilities
  */
 
 import { createAvatar } from '@dicebear/core';
@@ -36,7 +36,7 @@ export function generateAvatarUrl(email: string): string {
       seed: email,
       backgroundType: ['gradientLinear']
     });
-    
+
     // 返回SVG数据URI
     return avatar.toDataUri();
   }
@@ -52,7 +52,7 @@ function md5(input: string): string {
     hash = hash & hash // 转换为32位整数
   }
   return Math.abs(hash).toString(16).padStart(32, '0')
-} 
+}
 
 
 /**
@@ -61,13 +61,13 @@ function md5(input: string): string {
 export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const session = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.SESSION) : null;
   const sessionObj = session ? JSON.parse(session) : null;
-  
+
   const headers = {
     "Content-Type": "application/json",
     ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
     ...options.headers,
   };
-  
+
   // 使用带错误处理的请求拦截器
   return fetchWithErrorHandling(url, {
     ...options,
@@ -100,10 +100,25 @@ export const getSessionFromStorage = (): Session | null => {
   try {
     const storedSession = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.SESSION) : null;
     if (!storedSession) return null;
-    
+
     return JSON.parse(storedSession);
   } catch (error) {
     console.error("解析会话信息失败:", error);
     return null;
   }
-}; 
+};
+
+/**
+ * Get the authorization header information for API requests
+ * @returns HTTP headers object containing authentication and content type information
+ */
+export const getAuthHeaders = () => {
+  const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
+  const sessionObj = session ? JSON.parse(session) : null;
+
+  return {
+    'Content-Type': 'application/json',
+    'User-Agent': 'AgentFrontEnd/1.0',
+    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
+  };
+};
