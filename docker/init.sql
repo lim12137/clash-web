@@ -4,7 +4,7 @@ CREATE SCHEMA IF NOT EXISTS nexent;
 -- 2. Switch to the Schema (subsequent operations default to this Schema)
 SET search_path TO nexent;
 
-CREATE TABLE "conversation_message_t" (
+CREATE TABLE IF NOT EXISTS "conversation_message_t" (
   "message_id" SERIAL,
   "conversation_id" int4,
   "message_index" int4,
@@ -33,7 +33,7 @@ COMMENT ON COLUMN "conversation_message_t"."created_by" IS 'Creator ID, audit fi
 COMMENT ON COLUMN "conversation_message_t"."updated_by" IS 'Last updater ID, audit field';
 COMMENT ON TABLE "conversation_message_t" IS 'Carries specific response message content in conversations';
 
-CREATE TABLE "conversation_message_unit_t" (
+CREATE TABLE IF NOT EXISTS "conversation_message_unit_t" (
   "unit_id" SERIAL,
   "message_id" int4,
   "conversation_id" int4,
@@ -60,7 +60,7 @@ COMMENT ON COLUMN "conversation_message_unit_t"."updated_by" IS 'Last updater ID
 COMMENT ON COLUMN "conversation_message_unit_t"."created_by" IS 'Creator ID, audit field';
 COMMENT ON TABLE "conversation_message_unit_t" IS 'Carries agent output content in each message';
 
-CREATE TABLE "conversation_record_t" (
+CREATE TABLE IF NOT EXISTS "conversation_record_t" (
   "conversation_id" SERIAL,
   "conversation_title" varchar(100) COLLATE "pg_catalog"."default",
   "delete_flag" varchar(1) COLLATE "pg_catalog"."default" DEFAULT 'N'::character varying,
@@ -79,7 +79,7 @@ COMMENT ON COLUMN "conversation_record_t"."updated_by" IS 'Last updater ID, audi
 COMMENT ON COLUMN "conversation_record_t"."created_by" IS 'Creator ID, audit field';
 COMMENT ON TABLE "conversation_record_t" IS 'Overall information of Q&A conversations';
 
-CREATE TABLE "conversation_source_image_t" (
+CREATE TABLE IF NOT EXISTS "conversation_source_image_t" (
   "image_id" SERIAL,
   "conversation_id" int4,
   "message_id" int4,
@@ -108,7 +108,7 @@ COMMENT ON COLUMN "conversation_source_image_t"."created_by" IS 'Creator ID, aud
 COMMENT ON COLUMN "conversation_source_image_t"."updated_by" IS 'Last updater ID, audit field';
 COMMENT ON TABLE "conversation_source_image_t" IS 'Carries search image source information for conversation messages';
 
-CREATE TABLE "conversation_source_search_t" (
+CREATE TABLE IF NOT EXISTS "conversation_source_search_t" (
   "search_id" SERIAL,
   "unit_id" int4,
   "message_id" int4,
@@ -153,7 +153,7 @@ COMMENT ON COLUMN "conversation_source_search_t"."updated_by" IS 'Last updater I
 COMMENT ON COLUMN "conversation_source_search_t"."created_by" IS 'Creator ID, audit field';
 COMMENT ON TABLE "conversation_source_search_t" IS 'Carries search text source information referenced in conversation response messages';
 
-CREATE TABLE "model_record_t" (
+CREATE TABLE IF NOT EXISTS "model_record_t" (
   "model_id" SERIAL,
   "model_repo" varchar(100) COLLATE "pg_catalog"."default",
   "model_name" varchar(100) COLLATE "pg_catalog"."default" NOT NULL,
@@ -170,6 +170,7 @@ CREATE TABLE "model_record_t" (
   "update_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "updated_by" varchar(100) COLLATE "pg_catalog"."default",
   "created_by" varchar(100) COLLATE "pg_catalog"."default",
+  "tenant_id" varchar(100) COLLATE "pg_catalog"."default" DEFAULT 'tenant_id',
   CONSTRAINT "nexent_models_t_pk" PRIMARY KEY ("model_id")
 );
 ALTER TABLE "model_record_t" OWNER TO "root";
@@ -189,16 +190,18 @@ COMMENT ON COLUMN "model_record_t"."delete_flag" IS 'When deleted by user fronte
 COMMENT ON COLUMN "model_record_t"."update_time" IS 'Update time, audit field';
 COMMENT ON COLUMN "model_record_t"."updated_by" IS 'Last updater ID, audit field';
 COMMENT ON COLUMN "model_record_t"."created_by" IS 'Creator ID, audit field';
+COMMENT ON COLUMN "model_record_t"."tenant_id" IS 'Tenant ID for filtering';
 COMMENT ON TABLE "model_record_t" IS 'List of models defined by users in the configuration page';
 
 INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'volcano_tts', 'OpenAI-API-Compatible', 'tts', '', '', 0, 0, 'volcano_tts', 'unavailable');
 INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'volcano_stt', 'OpenAI-API-Compatible', 'stt', '', '', 0, 0, 'volcano_stt', 'unavailable');
 
-CREATE TABLE "knowledge_record_t" (
+CREATE TABLE IF NOT EXISTS "knowledge_record_t" (
   "knowledge_id" SERIAL,
   "index_name" varchar(100) COLLATE "pg_catalog"."default",
   "knowledge_describe" varchar(300) COLLATE "pg_catalog"."default",
   "tenant_id" varchar(100) COLLATE "pg_catalog"."default",
+  "knowledge_sources" varchar(100) COLLATE "pg_catalog"."default",
   "create_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "update_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "delete_flag" varchar(1) COLLATE "pg_catalog"."default" DEFAULT 'N'::character varying,
@@ -211,6 +214,7 @@ COMMENT ON COLUMN "knowledge_record_t"."knowledge_id" IS 'Knowledge base ID, uni
 COMMENT ON COLUMN "knowledge_record_t"."index_name" IS 'Knowledge base name';
 COMMENT ON COLUMN "knowledge_record_t"."knowledge_describe" IS 'Knowledge base description';
 COMMENT ON COLUMN "knowledge_record_t"."tenant_id" IS 'Tenant ID';
+COMMENT ON COLUMN "knowledge_record_t"."knowledge_sources" IS 'Knowledge base sources';
 COMMENT ON COLUMN "knowledge_record_t"."create_time" IS 'Creation time, audit field';
 COMMENT ON COLUMN "knowledge_record_t"."update_time" IS 'Update time, audit field';
 COMMENT ON COLUMN "knowledge_record_t"."delete_flag" IS 'When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N';
@@ -430,3 +434,49 @@ EXECUTE FUNCTION update_ag_tool_instance_update_time();
 
 -- Add comment to the trigger
 COMMENT ON TRIGGER update_ag_tool_instance_update_time_trigger ON nexent.ag_tool_instance_t IS 'Trigger to call update_ag_tool_instance_update_time function before each update on ag_tool_instance_t table';
+
+-- Create the tenant_config_t table in the nexent schema
+CREATE TABLE IF NOT EXISTS nexent.tenant_config_t (
+    tenant_config_id SERIAL PRIMARY KEY NOT NULL,
+    tenant_id VARCHAR(100),
+    user_id VARCHAR(100),
+    value_type VARCHAR(100),
+    config_key VARCHAR(100),
+    config_value VARCHAR(100),
+    create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100),
+    delete_flag VARCHAR(1) DEFAULT 'N'
+);
+
+-- Add comment to the table
+COMMENT ON TABLE nexent.tenant_config_t IS 'Tenant configuration information table';
+
+-- Add comments to the columns
+COMMENT ON COLUMN nexent.tenant_config_t.tenant_config_id IS 'ID';
+COMMENT ON COLUMN nexent.tenant_config_t.tenant_id IS 'Tenant ID';
+COMMENT ON COLUMN nexent.tenant_config_t.user_id IS 'User ID';
+COMMENT ON COLUMN nexent.tenant_config_t.value_type IS 'Value type';
+COMMENT ON COLUMN nexent.tenant_config_t.config_key IS 'Config key';
+COMMENT ON COLUMN nexent.tenant_config_t.config_value IS 'Config value';
+COMMENT ON COLUMN nexent.tenant_config_t.create_time IS 'Creation time';
+COMMENT ON COLUMN nexent.tenant_config_t.update_time IS 'Update time';
+COMMENT ON COLUMN nexent.tenant_config_t.created_by IS 'Creator';
+COMMENT ON COLUMN nexent.tenant_config_t.updated_by IS 'Updater';
+COMMENT ON COLUMN nexent.tenant_config_t.delete_flag IS 'Whether it is deleted. Optional values: Y/N';
+
+-- Create a function to update the update_time column
+CREATE OR REPLACE FUNCTION update_tenant_config_update_time()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.update_time = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create a trigger to call the function before each update
+CREATE TRIGGER update_tenant_config_update_time_trigger
+BEFORE UPDATE ON nexent.tenant_config_t
+FOR EACH ROW
+EXECUTE FUNCTION update_tenant_config_update_time();
