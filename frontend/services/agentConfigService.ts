@@ -1,17 +1,6 @@
 import { Tool, convertParamType } from '@/types/agentAndToolConst';
 import { API_ENDPOINTS } from './api';
-
-// 获取授权头的辅助函数
-const getAuthHeaders = () => {
-  const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
-  const sessionObj = session ? JSON.parse(session) : null;
-
-  return {
-    'Content-Type': 'application/json',
-    'User-Agent': 'AgentFrontEnd/1.0',
-    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
-  };
-};
+import { getAuthHeaders } from '@/lib/auth';
 
 /**
  * get tool list from backend
@@ -150,10 +139,7 @@ export const getCreatingSubAgentId = async (mainAgentId: string | null) => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.getCreatingSubAgentId, {
       method: 'POST',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ agent_id: mainAgentId }),
     });
 
@@ -297,10 +283,7 @@ export const updateAgent = async (
   try {
     const response = await fetch(API_ENDPOINTS.agent.update, {
       method: 'POST',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         agent_id: agentId,
         name: name,
@@ -343,10 +326,7 @@ export const deleteAgent = async (agentId: number) => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.delete, {
       method: 'DELETE',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ agent_id: agentId }),
     });
 
@@ -376,10 +356,7 @@ export const exportAgent = async (agentId: number) => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.export, {
       method: 'POST',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ agent_id: agentId }),
     });
 
@@ -458,10 +435,7 @@ export const searchAgentInfo = async (agentId: number) => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.searchInfo, {
       method: 'POST',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ agent_id: agentId }),
     });
 

@@ -7,6 +7,19 @@ export interface UserKnowledgeConfig {
   selectedKbSources: string[];
 }
 
+// 获取授权头的辅助函数
+const getAuthHeaders = () => {
+  const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
+  const sessionObj = session ? JSON.parse(session) : null;
+
+  return {
+    'Content-Type': 'application/json',
+    'User-Agent': 'AgentFrontEnd/1.0',
+    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
+  };
+};
+
+
 export class UserConfigService {
   // 获取用户选中的知识库列表
   async loadKnowledgeList(): Promise<UserKnowledgeConfig | null> {
@@ -14,10 +27,7 @@ export class UserConfigService {
     try {
       const response = await fetch(API_ENDPOINTS.tenantConfig.loadKnowledgeList, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': localStorage.getItem('token') || '',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -44,11 +54,8 @@ export class UserConfigService {
     try {
       const response = await fetch(API_ENDPOINTS.tenantConfig.updateKnowledgeList, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': localStorage.getItem('token') || '',
-        },
-        body: JSON.stringify(knowledgeList),
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ knowledge_list: knowledgeList }),
       });
 
       if (!response.ok) {
