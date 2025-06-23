@@ -16,7 +16,7 @@ import { userConfigService } from "@/services/userConfigService"
 import { useKnowledgeBaseContext } from "./knowledgeBaseSetup/knowledgeBase/KnowledgeBaseContext"
 import { KnowledgeBase } from "@/types/knowledgeBase"
 import { API_ENDPOINTS } from "@/services/api"
-import { getAuthHeaders } from "@/services/conversationService"
+import { getAuthHeaders } from '@/lib/auth'
 
 export default function CreatePage() {
   const [selectedKey, setSelectedKey] = useState("1")
@@ -29,6 +29,8 @@ export default function CreatePage() {
   const { user, isLoading: userLoading, openLoginModal } = useAuth()
   const { confirm } = Modal
   const { state: { knowledgeBases, selectedIds }, saveUserSelectedKnowledgeBases } = useKnowledgeBaseContext()
+
+
 
   // 检查登录状态和权限
   useEffect(() => {
@@ -242,10 +244,7 @@ export default function CreatePage() {
           try {
             const saveResult = await fetch(API_ENDPOINTS.tenantConfig.updateKnowledgeList, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...getAuthHeaders()
-              },
+              headers: getAuthHeaders(),
               body: JSON.stringify(selectedKbNames)
             });
 
