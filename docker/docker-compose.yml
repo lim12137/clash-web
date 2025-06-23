@@ -165,7 +165,7 @@ services:
       - "6379:6379"
     command: redis-server --appendonly yes --appendfsync everysec --save "900 1" --save "300 10" --save "60 10000" --dir /data --maxmemory-policy allkeys-lru
     volumes:
-      - redis_data:/data
+      - ${ROOT_DIR}/redis_data:/data
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
