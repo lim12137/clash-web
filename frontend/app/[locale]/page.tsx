@@ -1,6 +1,7 @@
 "use client"
-
+import "./i18n"
 import { useState, useEffect } from "react"
+import { useTranslation } from 'react-i18next'
 import { Bot, Globe, Database, Zap, Mic, FileSearch, Shield, MessagesSquare, Microchip } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -8,6 +9,7 @@ import Link from "next/link"
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
+  const { t } = useTranslation('common');
 
   // Prevent hydration errors
   useEffect(() => {
