@@ -16,14 +16,14 @@ logger = logging.getLogger("app config")
 
 def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id: int, tenant_config_dict: dict) -> None:
     """
-    处理模型配置的更新、删除和设置操作
+    Handle model configuration updates, deletions, and settings operations
     
     Args:
-        tenant_id: 租户ID
-        user_id: 用户ID
-        config_key: 配置键名
-        model_id: 模型ID
-        tenant_config_dict: 租户配置字典
+        tenant_id: Tenant ID
+        user_id: User ID
+        config_key: Configuration key name
+        model_id: Model ID
+        tenant_config_dict: Tenant configuration dictionary
     """
     if not model_id and config_key in tenant_config_dict:
         tenant_config_manager.delete_single_config(tenant_id, config_key)
@@ -153,8 +153,8 @@ async def load_config(authorization: Optional[str] = Header(None)):
 
         config = {
             "app": {
-                "name": tenant_config_manager.get_app_config("APP_NAME", tenant_id=tenant_id) or "Nexent 智能体",
-                "description": tenant_config_manager.get_app_config("APP_DESCRIPTION", tenant_id=tenant_id) or "Nexent 是一个开源智能体SDK和平台，能够将单一提示词转化为完整的多模态服务 —— 无需编排，无需复杂拖拉拽。基于 MCP 工具生态系统构建，Nexent 提供灵活的模型集成、可扩展的数据处理和强大的知识库管理。我们的目标很简单：将数据、模型和工具整合到一个智能中心中，让任何人都能轻松地将 Nexent 集成到项目中，使日常工作流程更智能、更互联。",
+                "name": tenant_config_manager.get_app_config("APP_NAME", tenant_id=tenant_id) or "Nexent AI Agent",
+                "description": tenant_config_manager.get_app_config("APP_DESCRIPTION", tenant_id=tenant_id) or "Nexent is an open-source AI agent SDK and platform that transforms single prompts into complete multimodal services - no orchestration or complex drag-and-drop required. Built on the MCP tool ecosystem, Nexent provides flexible model integration, scalable data processing, and powerful knowledge base management. Our goal is simple: integrate data, models, and tools into an intelligent hub, making it easy for anyone to integrate Nexent into their projects and make daily workflows smarter and more connected.",
                 "icon": {
                     "type": tenant_config_manager.get_app_config("ICON_TYPE", tenant_id=tenant_id) or "preset",
                     "avatarUri": tenant_config_manager.get_app_config("AVATAR_URI", tenant_id=tenant_id) or "",
