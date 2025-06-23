@@ -55,7 +55,7 @@ export class UserConfigService {
       const response = await fetch(API_ENDPOINTS.tenantConfig.updateKnowledgeList, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify(knowledgeList),
+        body: JSON.stringify({ knowledge_list: knowledgeList }),
       });
 
       if (!response.ok) {
