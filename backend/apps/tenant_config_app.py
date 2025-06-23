@@ -7,7 +7,7 @@ from services.tenant_config_service import get_selected_knowledge_list, update_s
 from utils.auth_utils import get_current_user_id
 from fastapi.responses import JSONResponse
 
-from utils.user_utils import get_user_info
+from utils.auth_utils import get_current_user_id
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("tenant config app")

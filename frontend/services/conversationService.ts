@@ -4,6 +4,7 @@ import type {
   ConversationListItem,
   ApiConversationResponse
 } from '@/types/conversation';
+import { getAuthHeaders } from '@/lib/auth';
 
 export interface STTResponse {
   result?: {
@@ -11,18 +12,6 @@ export interface STTResponse {
   };
   text?: string;
 }
-
-// 获取授权头的辅助函数
-export const getAuthHeaders = () => {
-  const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
-  const sessionObj = session ? JSON.parse(session) : null;
-
-  return {
-    'Content-Type': 'application/json',
-    'User-Agent': 'AgentFrontEnd/1.0',
-    ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
-  };
-};
 
 export const conversationService = {
   // Get conversation list
@@ -842,9 +831,7 @@ export const conversationService = {
   }) {
     const response = await fetch(API_ENDPOINTS.conversation.save, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(params),
     });
 
@@ -875,10 +862,7 @@ export const conversationService = {
   async getMessageId(conversationId: number, messageIndex: number) {
     const response = await fetch(API_ENDPOINTS.conversation.messageId, {
       method: 'POST',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         conversation_id: conversationId,
         message_index: messageIndex
