@@ -170,6 +170,7 @@ CREATE TABLE IF NOT EXISTS "model_record_t" (
   "update_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "updated_by" varchar(100) COLLATE "pg_catalog"."default",
   "created_by" varchar(100) COLLATE "pg_catalog"."default",
+  "tenant_id" varchar(100) COLLATE "pg_catalog"."default" DEFAULT 'tenant_id',
   CONSTRAINT "nexent_models_t_pk" PRIMARY KEY ("model_id")
 );
 ALTER TABLE "model_record_t" OWNER TO "root";
@@ -189,6 +190,7 @@ COMMENT ON COLUMN "model_record_t"."delete_flag" IS 'When deleted by user fronte
 COMMENT ON COLUMN "model_record_t"."update_time" IS 'Update time, audit field';
 COMMENT ON COLUMN "model_record_t"."updated_by" IS 'Last updater ID, audit field';
 COMMENT ON COLUMN "model_record_t"."created_by" IS 'Creator ID, audit field';
+COMMENT ON COLUMN "model_record_t"."tenant_id" IS 'Tenant ID for filtering';
 COMMENT ON TABLE "model_record_t" IS 'List of models defined by users in the configuration page';
 
 INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factory", "model_type", "api_key", "base_url", "max_tokens", "used_token", "display_name", "connect_status") VALUES ('', 'volcano_tts', 'OpenAI-API-Compatible', 'tts', '', '', 0, 0, 'volcano_tts', 'unavailable');
@@ -199,7 +201,6 @@ CREATE TABLE IF NOT EXISTS "knowledge_record_t" (
   "index_name" varchar(100) COLLATE "pg_catalog"."default",
   "knowledge_describe" varchar(300) COLLATE "pg_catalog"."default",
   "tenant_id" varchar(100) COLLATE "pg_catalog"."default",
-  "knowledge_embedding_model" varchar(100) COLLATE "pg_catalog"."default",
   "knowledge_sources" varchar(100) COLLATE "pg_catalog"."default",
   "create_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "update_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
@@ -213,7 +214,6 @@ COMMENT ON COLUMN "knowledge_record_t"."knowledge_id" IS 'Knowledge base ID, uni
 COMMENT ON COLUMN "knowledge_record_t"."index_name" IS 'Knowledge base name';
 COMMENT ON COLUMN "knowledge_record_t"."knowledge_describe" IS 'Knowledge base description';
 COMMENT ON COLUMN "knowledge_record_t"."tenant_id" IS 'Tenant ID';
-COMMENT ON COLUMN "knowledge_record_t"."knowledge_embedding_model" IS 'Knowledge base embedding model';
 COMMENT ON COLUMN "knowledge_record_t"."knowledge_sources" IS 'Knowledge base sources';
 COMMENT ON COLUMN "knowledge_record_t"."create_time" IS 'Creation time, audit field';
 COMMENT ON COLUMN "knowledge_record_t"."update_time" IS 'Update time, audit field';
