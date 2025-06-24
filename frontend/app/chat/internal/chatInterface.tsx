@@ -983,7 +983,7 @@ export function ChatInterface() {
           onRename={handleConversationRename}
           onDelete={handleConversationDeleteClick}
           onSettingsClick={() => {
-            localStorage.setItem('show_page', '1');
+            localStorage.setItem('show_page', user?.role === 'admin' ? '1' : '2');
             router.push("/setup");
           }}
           onDropdownOpenChange={(open, id) => setOpenDropdownId(open ? id : null)}
