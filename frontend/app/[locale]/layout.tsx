@@ -2,8 +2,8 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/providers/themeProvider"
-import "./globals.css"
-
+import "../globals.css"
+import { ReactNode } from 'react';
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
@@ -21,11 +21,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
+  params: { locale },
 }: {
-  children: React.ReactNode
+  children: ReactNode;
+  params: { locale: string };
 }) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <link rel="icon" href="/modelengine-logo.png" sizes="any"/>
       </head>
