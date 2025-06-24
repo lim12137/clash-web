@@ -32,11 +32,11 @@ export default function CreatePage() {
 
 
 
-  // 检查登录状态和权限
+  // Check login status and permission
   useEffect(() => {
     if (!userLoading) {
       if (!user) {
-        // 用户未登录，显示登录提示框
+        // user not logged in, show login prompt
         confirm({
           title: '登录已过期',
           icon: <ExclamationCircleOutlined />,
@@ -127,20 +127,34 @@ export default function CreatePage() {
     }
   }
 
-  // 添加一个用于显示选中知识库数量的函数
+  // Add a function to display the number of selected knowledge bases
   const getSelectedKnowledgeBasesInfo = () => {
     const selectedKbs = knowledgeBases.filter(kb => selectedIds.includes(kb.id));
     console.log('💾 selectedKbs:', selectedKbs);
     return `已选择 ${selectedKbs.length} 个知识库`;
   };
 
+  // Calculate the effective selectedKey, ensure that non-admin users get the correct page status
+  const getEffectiveSelectedKey = () => {
+    if (!user) return selectedKey;
+    
+    if (user.role !== "admin") {
+      // If the current page is the first or third page, return the second page
+      if (selectedKey === "1" || selectedKey === "3") {
+        return "2";
+      }
+    }
+    
+    return selectedKey;
+  };
+
   const renderContent = () => {
-    // 如果用户不是管理员且尝试访问第一页，强制显示第二页内容
+    // If the user is not an admin and attempts to access the first page, force display the second page content
     if (user?.role !== "admin" && selectedKey === "1") {
       return <DataConfig />
     }
 
-    // 如果用户不是管理员且尝试访问第三页，强制显示第二页内容
+    // If the user is not an admin and attempts to access the third page, force display the second page content
     if (user?.role !== "admin" && selectedKey === "3") {
       return <DataConfig />
     }
@@ -339,7 +353,7 @@ export default function CreatePage() {
         lastChecked={lastChecked}
         isCheckingConnection={isCheckingConnection}
         onCheckConnection={checkModelEngineConnection}
-        selectedKey={selectedKey}
+        selectedKey={getEffectiveSelectedKey()}
         onBackToFirstPage={handleBackToFirstPage}
         onCompleteConfig={handleCompleteConfig}
         isSavingConfig={isSavingConfig}
