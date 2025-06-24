@@ -47,7 +47,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Build base image
-        run: docker build --progress=plain -t nexent/nexent-base-commercial -f make/base/Dockerfile .
+        run: docker build --progress=plain -t nexent/nexent-base-commercial -f make/base/Dockerfile . --no-cache
 
   build-main:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -56,7 +56,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Build main application image
-        run: docker build --progress=plain -t nexent/nexent-commercial -f make/main/Dockerfile .
+        run: docker build --progress=plain -t nexent/nexent-commercial -f make/main/Dockerfile . --no-cache
 
   build-data-process:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -81,7 +81,7 @@ jobs:
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
           rm -rf .git flax_model.msgpack tf_model.h5
       - name: Build data process image
-        run: docker build --progress=plain -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile .
+        run: docker build --progress=plain -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile . --no-cache
 
   build-web:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -90,7 +90,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Build web frontend image
-        run: docker build --progress=plain -t nexent/nexent-web-commercial -f make/web/Dockerfile .
+        run: docker build --progress=plain -t nexent/nexent-web-commercial -f make/web/Dockerfile . --no-cache
 
   deploy:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
