@@ -39,16 +39,6 @@ jobs:
           rm -rf $HOME/nexent-commercial
           mkdir -p $HOME/nexent-commercial
           cp -r $GITHUB_WORKSPACE/* $HOME/nexent-commercial/
-      - name: Clean up old files and images
-        run: |
-          docker rm -f nexent || true
-          docker rm -f nexent-data-process || true
-          docker rm -f nexent-web || true
-          docker rmi nexent/nexent-base-commercial || true
-          docker rmi nexent/nexent-commercial || true
-          docker rmi nexent/nexent-web-commercial || true
-          docker rmi nexent/nexent-data-process-commercial || true
-          docker builder prune -f
 
   build-base:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
