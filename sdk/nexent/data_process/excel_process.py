@@ -24,8 +24,7 @@ def process_excel_file(file_path: str, chunking_strategy: str = "basic", **param
     chunks = []
     for i, content_text in enumerate(raw_content):
         chunk = {
-            "text": content_text,  # For embedding (via content_field="text")
-            "content": content_text, # For ES mapped 'content' field
+            "content": content_text,
             "path_or_url": file_path,
             "filename": os.path.basename(file_path),
             "metadata": { # Keep original metadata nested if needed, but ensure top-level fields are present
