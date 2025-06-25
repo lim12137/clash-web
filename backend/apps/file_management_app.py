@@ -63,17 +63,17 @@ async def upload_files(
             if not f:
                 continue
 
-            safe_filename = os.path.basename(f.filename);
-            upload_path = upload_dir / safe_filename;
-            absolute_path = upload_path.absolute();
+            safe_filename = os.path.basename(f.filename or "")
+            upload_path = upload_dir / safe_filename
+            absolute_path = upload_path.absolute()
 
             # Save file
             if await save_upload_file(f, upload_path):
-                uploaded_filenames.append(safe_filename);
-                uploaded_file_paths.append(str(absolute_path));
-                print(f"Successfully saved file: {safe_filename}");
+                uploaded_filenames.append(safe_filename)
+                uploaded_file_paths.append(str(absolute_path))
+                print(f"Successfully saved file: {safe_filename}")
             else:
-                errors.append(f"Failed to save file: {f.filename}");
+                errors.append(f"Failed to save file: {f.filename}")
 
     # Trigger data processing
     if uploaded_file_paths:
@@ -147,12 +147,12 @@ async def storage_upload_files(
             # Upload file
             result = upload_fileobj(
                 file_obj=file_obj,
-                file_name=file.filename,
+                file_name=file.filename or "",
                 prefix=folder,
                 metadata={
-                    "original-filename": file.filename,
-                    "content-type": file.content_type or "application/octet-stream",
-                    "folder": folder
+                    "original-filename": str(file.filename or ""),
+                    "content-type": str(file.content_type or "application/octet-stream"),
+                    "folder": str(folder)
                 }
             )
 
@@ -354,13 +354,13 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
             try:
                 content = await file.read()
                 file_cache.append({
-                    "filename": file.filename,
+                    "filename": file.filename or "",
                     "content": content,
-                    "ext": os.path.splitext(file.filename)[1].lower()
+                    "ext": os.path.splitext(file.filename or "")[1].lower()
                 })
             except Exception as e:
                 file_cache.append({
-                    "filename": file.filename,
+                    "filename": file.filename or "",
                     "error": str(e)
                 })
 
@@ -456,9 +456,9 @@ def get_file_description(files: List[UploadFile]) -> str:
     """
     description = "User provided some reference files:\n"
     for file in files:
-        ext = os.path.splitext(file.filename)[1].lower()
+        ext = os.path.splitext(file.filename or "")[1].lower()
         if ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
-            description += f"- Image file {file.filename}\n"
+            description += f"- Image file {file.filename or ''}\n"
         else:
-            description += f"- File {file.filename}\n"
+            description += f"- File {file.filename or ''}\n"
     return description

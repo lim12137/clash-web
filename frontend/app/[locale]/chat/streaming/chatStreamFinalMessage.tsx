@@ -8,6 +8,7 @@ import { FaRegThumbsDown, FaRegThumbsUp } from "react-icons/fa"
 import { useConfig } from "@/hooks/useConfig"
 import { ChatAttachment, AttachmentItem } from '@/app/chat/internal/chatAttachment'
 import { conversationService } from '@/services/conversationService'
+import { useTranslation } from "react-i18next"
 
 interface FinalMessageProps {
   message: ChatMessageType
@@ -37,6 +38,7 @@ export function ChatStreamFinalMessage({
   index,
   currentConversationId,
 }: FinalMessageProps) {
+  const { t } = useTranslation('common');
   const { getAppAvatarUrl } = useConfig();
   const avatarUrl = getAppAvatarUrl(20); // Message avatar size is 20px
   
@@ -85,7 +87,7 @@ export function ChatStreamFinalMessage({
           setTimeout(() => setCopied(false), 2000);
         })
         .catch(err => {
-          console.error("复制失败:", err);
+          console.error(t('chatStreamFinalMessage.copyFailed'), err);
         });
     }
   };
@@ -102,7 +104,7 @@ export function ChatStreamFinalMessage({
       try {
         messageId = await conversationService.getMessageId(currentConversationId, index);
       } catch (error) {
-        console.error('获取消息ID失败:', error);
+        console.error(t('chatStreamFinalMessage.getMessageIdFailed'), error);
         return;
       }
     }
@@ -154,25 +156,25 @@ export function ChatStreamFinalMessage({
       case 'generating':
         return {
           icon: <Loader2 className="h-4 w-4 animate-spin" />,
-          tooltip: '正在生成语音...',
+          tooltip: t('chatStreamFinalMessage.generatingAudio'),
           className: 'bg-blue-100 text-blue-600 border-blue-200'
         };
       case 'playing':
         return {
           icon: <Square className="h-4 w-4" />,
-          tooltip: '停止播放',
+          tooltip: t('chatStreamFinalMessage.stopPlaying'),
           className: 'bg-red-100 text-red-600 border-red-200'
         };
       case 'error':
         return {
           icon: <Volume2 className="h-4 w-4" />,
-          tooltip: '语音生成失败',
+          tooltip: t('chatStreamFinalMessage.audioGenerationFailed'),
           className: 'bg-red-100 text-red-600 border-red-200'
         };
       default:
         return {
           icon: <Volume2 className="h-4 w-4" />,
-          tooltip: '语音播报',
+          tooltip: t('chatStreamMessage.tts'),
           className: 'bg-white hover:bg-gray-100'
         };
     }
@@ -255,7 +257,9 @@ export function ChatStreamFinalMessage({
                           onClick={handleMessageSelect}
                         >
                           <span>
-                            {`${searchResultsCount ? `${searchResultsCount}条来源` : ""}${searchResultsCount && imagesCount ? "，" : ""}${imagesCount ? `${imagesCount}张图片` : ""}`}
+                            {searchResultsCount > 0 && t('chatStreamMessage.sources', { count: searchResultsCount })}
+                            {searchResultsCount > 0 && imagesCount > 0 && ", "}
+                            {imagesCount > 0 && t('chatStreamMessage.images', { count: imagesCount })}
                           </span>
                           <ChevronRight className="h-4 w-4" />
                         </Button>
@@ -282,7 +286,7 @@ export function ChatStreamFinalMessage({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{copied ? "已复制" : "复制内容"}</p>
+                        <p>{copied ? t('chatStreamMessage.copied') : t('chatStreamMessage.copyContent')}</p>
                       </TooltipContent>
                     </Tooltip>
 
@@ -299,7 +303,7 @@ export function ChatStreamFinalMessage({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{localOpinion === 'Y' ? "取消点赞" : "点赞"}</p>
+                        <p>{localOpinion === 'Y' ? t('chatStreamMessage.cancelLike') : t('chatStreamMessage.like')}</p>
                       </TooltipContent>
                     </Tooltip>
 
@@ -316,7 +320,7 @@ export function ChatStreamFinalMessage({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{localOpinion === 'N' ? "取消点踩" : "点踩"}</p>
+                        <p>{localOpinion === 'N' ? t('chatStreamMessage.cancelDislike') : t('chatStreamMessage.dislike')}</p>
                       </TooltipContent>
                     </Tooltip>
 
