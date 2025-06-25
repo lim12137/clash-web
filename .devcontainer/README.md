@@ -25,24 +25,19 @@
 
 1. 克隆项目到本地
 2. 在 Cursor 中打开项目文件夹
-3. 按下 `F1` 或 `Ctrl+Shift+P`，输入 `Dev Containers: Reopen in Container ...`
-4. Cursor 将根据 `.devcontainer` 目录中的配置启动开发容器
+3. 运行 `docker/deploy.sh` 脚本，在`infrastructure` 模式下启动容器
+4. 进入 `nexent-minio` 与 `nexent-elasticsearch` 容器, 将 `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `ELASTICSEARCH_API_KEY` 环境变量复制到 `docker/docker-compose.dev.yml` 中的相应环境变量位置
+5. 按下 `F1` 或 `Ctrl+Shift+P`，输入 `Dev Containers: Reopen in Container ...`
+6. Cursor 将根据 `.devcontainer` 目录中的配置启动开发容器
 
 ### 2.3 开发工作流
 
 1. 容器启动后，Cursor 会自动连接到开发容器
 2. 所有文件编辑都在容器内完成
 3. 进行开发、测试，修改完成后可以直接在容器内构建和运行
+4. 可以直接在容器内进行 git 的变更管理，如使用 `git commit` 或 `git push`；但不建议在容器内拉取远程代码，容易导致路径问题
 
-## 3. 容器内可用命令
-
-开发容器中已配置以下便捷命令：
-
-- `logs-nexent` - 查看 Nexent 后端日志
-- `logs-web` - 查看 Nexent 前端日志
-- `logs-data` - 查看数据处理服务日志
-
-## 4. 端口映射
+## 3. 端口映射
 
 以下端口已在 devcontainer.json 中配置了映射：
 
@@ -54,13 +49,12 @@
 - 9210: Elasticsearch API
 - 5434: PostgreSQL
 
-## 5. 自定义开发环境
+## 4. 自定义开发环境
 
 您可以通过修改以下文件来自定义开发环境：
 
 - `.devcontainer/devcontainer.json` - 插件配置项
-- `.devcontainer/Dockerfile` - 开发容器构筑逻辑，安装开发工具和依赖
-- `.devcontainer/.bashrc` - 添加别名
+- `docker/docker-compose.dev.yml` - 开发容器的具体构筑项，需要修改环境变量值才能正常启动
 
 ## 6. 常见问题解决
 

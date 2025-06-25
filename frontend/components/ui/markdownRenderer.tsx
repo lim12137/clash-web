@@ -1,6 +1,8 @@
 import React from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
 // @ts-ignore
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 // @ts-ignore
@@ -8,6 +10,7 @@ import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { SearchResult } from '@/types/chat'
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+import 'katex/dist/katex.min.css'
 import 'github-markdown-css/github-markdown.css'
 
 interface MarkdownRendererProps {
@@ -391,6 +394,63 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           padding-top: 0.5em;
           padding-bottom: 0.5em;
         }
+        
+        .markdown-body .katex,
+        .markdown-body .katex * {
+          font-family: KaTeX_Main, "Times New Roman", serif !important;
+        }
+        .markdown-body .katex {
+          font-size: 1.1em;
+          display: inline;
+          white-space: nowrap;
+          vertical-align: baseline;
+        }
+        
+        .markdown-body .katex-display {
+          margin: 1.2em 0;
+          text-align: center;
+          display: block;
+          white-space: normal;
+        }
+        
+        .markdown-body .katex .katex-html {
+          white-space: nowrap;
+          display: inline;
+        }
+        
+        .markdown-body .katex .base {
+          display: inline;
+          white-space: nowrap;
+        }
+        
+        .markdown-body p .katex,
+        .markdown-body li .katex,
+        .markdown-body td .katex,
+        .markdown-body th .katex {
+          display: inline;
+          white-space: nowrap;
+          vertical-align: baseline;
+        }
+        
+        .markdown-body .katex .mord,
+        .markdown-body .katex .mop,
+        .markdown-body .katex .mbin,
+        .markdown-body .katex .mrel,
+        .markdown-body .katex .mopen,
+        .markdown-body .katex .mclose,
+        .markdown-body .katex .mpunct {
+          white-space: nowrap;
+        }
+        
+        /* 全局滚动条样式 */
+        .tooltip-content-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgb(209 213 219) transparent;
+        }
+        
+        .tooltip-content-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
         .markdown-body ul,
         .markdown-body ol {
           list-style-type: revert !important;
@@ -412,7 +472,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       `}</style>
       <div className={`markdown-body ${className || ''}`}>
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeKatex as any]}
           components={{
             p: ({children}: any) => (
               <p className={`user-paragraph`}>
