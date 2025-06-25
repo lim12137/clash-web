@@ -11,10 +11,9 @@ const handle = app.getRequestHandler();
 const wsHandle = app.getUpgradeHandler();
 
 // 后端地址
-const HTTP_BACKEND = process.env.HTTP_BACKEND || 'http://121.40.130.154:3000';
-const WS_BACKEND = process.env.WS_BACKEND || 'ws://121.40.130.154:3000';
-// const MINIO_BACKEND = process.env.MINIO_ENDPOINT || 'http://localhost:9000';
-const MINIO_BACKEND = 'http://121.40.130.154:9000';
+const HTTP_BACKEND = process.env.HTTP_BACKEND || 'http://localhost:5010';
+const WS_BACKEND = process.env.WS_BACKEND || 'ws://localhost:5010';
+const MINIO_BACKEND = process.env.MINIO_ENDPOINT || 'http://localhost:9000';
 const PORT = 3000
 
 const proxy = createProxyServer();
