@@ -70,21 +70,21 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
 
 def get_prompt_template_path(is_manager: bool, language: str = 'zh') -> str:
     """
-    根据Agent类型和语言获取对应的prompt模板路径
+    Get the prompt template path based on the agent type and language
     
     Args:
-        is_manager: 是否为管理者模式
-        language: 语言代码 ('zh' 或 'en')
+        is_manager: Whether it is a manager mode
+        language: Language code ('zh' or 'en')
         
     Returns:
-        str: prompt模板文件路径
+        str: Prompt template file path
     """
     if language == 'en':
         if is_manager:
             return "backend/prompts/manager_system_prompt_template_en.yaml"
         else:
             return "backend/prompts/managed_system_prompt_template_en.yaml"
-    else:  # 默认中文
+    else:  # Default to Chinese
         if is_manager:
             return "backend/prompts/manager_system_prompt_template.yaml"
         else:
@@ -92,17 +92,17 @@ def get_prompt_template_path(is_manager: bool, language: str = 'zh') -> str:
 
 def get_prompt_generate_config_path(language: str = 'zh') -> str:
     """
-    根据语言获取prompt生成配置文件路径
+    Get the prompt generation configuration file path based on the language
     
     Args:
-        language: 语言代码 ('zh' 或 'en')
+        language: Language code ('zh' or 'en')
         
     Returns:
-        str: prompt生成配置文件路径
+        str: Prompt generation configuration file path
     """
     if language == 'en':
         return 'backend/prompts/utils/prompt_generate_en.yaml'
-    else:  # 默认中文
+    else:  # Default to Chinese
         return 'backend/prompts/utils/prompt_generate.yaml'
 
 
@@ -259,7 +259,6 @@ def fine_tune_prompt(system_prompt: str, command: str, tenant_id: str, language:
     logger.info("Starting prompt fine-tuning")
 
     try:
-        # 根据语言选择不同的微调配置
         fine_tune_config_path = 'backend/prompts/utils/prompt_fine_tune_en.yaml' if language == 'en' else 'backend/prompts/utils/prompt_fine_tune.yaml'
         
         with open(fine_tune_config_path, "r", encoding="utf-8") as f:
