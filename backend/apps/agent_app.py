@@ -1,8 +1,11 @@
 import logging
+from typing import Optional
 
 from fastapi import HTTPException, APIRouter, Header, Request
 from fastapi.responses import StreamingResponse
+from nexent.core.agents.run_agent import agent_run
 
+from utils.auth_utils import get_current_user_info
 from agents.create_agent_info import create_agent_run_info
 from consts.model import AgentRequest, AgentInfoRequest, AgentIDRequest, ConversationResponse, AgentImportRequest
 from services.agent_service import list_main_agent_info_impl, get_agent_info_impl, \
@@ -10,12 +13,6 @@ from services.agent_service import list_main_agent_info_impl, get_agent_info_imp
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 from utils.config_utils import config_manager
 from utils.thread_utils import submit
-from typing import Optional
-from fastapi import Header
-
-
-from nexent.core.agents.run_agent import agent_run
-
 from agents.agent_run_manager import agent_run_manager
 
 
@@ -26,20 +23,24 @@ logger = logging.getLogger("agent app")
 
 # Define API route
 @router.post("/run")
-async def agent_run_api(request: AgentRequest, authorization: str = Header(None)):
+async def agent_run_api(agent_request: AgentRequest, http_request: Request, authorization: str = Header(None)):
     """
     Agent execution API endpoint
     """
-    agent_run_info = await create_agent_run_info(agent_id=request.agent_id,
-                                                 minio_files=request.minio_files,
-                                                 query=request.query,
-                                                 history=request.history,
-                                                 authorization=authorization)
+    # 获取语言信息
+    _, _, language = get_current_user_info(authorization, http_request)
+    
+    agent_run_info = await create_agent_run_info(agent_id=agent_request.agent_id,
+                                                 minio_files=agent_request.minio_files,
+                                                 query=agent_request.query,
+                                                 history=agent_request.history,
+                                                 authorization=authorization,
+                                                 language=language)
 
-    agent_run_manager.register_agent_run(request.conversation_id, agent_run_info)
+    agent_run_manager.register_agent_run(agent_request.conversation_id, agent_run_info)
     # Save user message only if not in debug mode
-    if not request.is_debug:
-        submit(save_conversation_user, request, authorization)
+    if not agent_request.is_debug:
+        submit(save_conversation_user, agent_request, authorization)
 
     async def generate():
         messages = []
@@ -51,10 +52,10 @@ async def agent_run_api(request: AgentRequest, authorization: str = Header(None)
             raise HTTPException(status_code=500, detail=f"Agent run error: {str(e)}")
         finally:
             # Save assistant message only if not in debug mode
-            if not request.is_debug:
-                submit(save_conversation_assistant, request, messages, authorization)
+            if not agent_request.is_debug:
+                submit(save_conversation_assistant, agent_request, messages, authorization)
             # Unregister agent run instance for both debug and non-debug modes
-            agent_run_manager.unregister_agent_run(request.conversation_id)
+            agent_run_manager.unregister_agent_run(agent_request.conversation_id)
 
     return StreamingResponse(
         generate(),

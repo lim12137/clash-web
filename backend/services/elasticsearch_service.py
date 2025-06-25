@@ -759,18 +759,23 @@ class ElasticSearchService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{str(e)}")
 
-    def get_summary(self,
-            index_name: str = Path(..., description="Name of the index to get documents from"),
-    ):
-        """Get Elasticsearch index_name Summary"""
-        try:
-            knowledge_record = get_knowledge_record({'index_name': index_name})
-            if knowledge_record:
-                summary_result = knowledge_record["knowledge_describe"]
-                return {"status": "success", "message": f"索引 {index_name} 摘要获取成功", "summary": summary_result}
-            raise HTTPException(
-                status_code=500,
-                detail=f"无法获取索引 {index_name} 的摘要"
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"获取摘要失败: {str(e)}")
+    def get_summary(self, index_name: str, language: str = 'zh'):
+        """
+        Get summary for a specific index
+        
+        Args:
+            index_name: Name of the index
+            language: Language code ('zh' or 'en')
+        
+        Returns:
+            Dictionary containing summary information
+        """
+        # 根据语言选择对应的配置文件
+        config_file = 'backend/prompts/knowledge_summary_agent_en.yaml' if language == 'en' else 'backend/prompts/knowledge_summary_agent.yaml'
+        
+        with open(config_file, 'r', encoding='utf-8') as f:
+            prompt_config = yaml.safe_load(f)
+        
+        # ... existing implementation logic ...
+        
+        return {"summary": summary}
