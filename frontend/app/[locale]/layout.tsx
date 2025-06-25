@@ -4,6 +4,8 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/providers/themeProvider"
 import "../globals.css"
 import { ReactNode } from 'react';
+import path from 'path';
+import fs from 'fs';
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -13,9 +15,9 @@ export async function generateMetadata({
 }: {
   params: { locale: string };
 }): Promise<Metadata> {
-  // Import locale-specific translations
-  const messages = await import(`../../../public/locales/${locale}/common.json`);
-  
+  const filePath = path.join(process.cwd(), 'public', 'locales', locale, 'common.json');
+  const messages = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
   return {
     title: {
       default: messages.layout.title,
