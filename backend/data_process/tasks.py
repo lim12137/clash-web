@@ -313,11 +313,11 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
         formatted_chunks = []
         for i, chunk in enumerate(chunks):
             # Extract text and metadata
-            text = chunk.get("text", "")
+            content = chunk.get("content", "")
             metadata = chunk.get("metadata", {})
             
             # Validate chunk content
-            if not text or len(text.strip()) == 0:
+            if not content or len(content.strip()) == 0:
                 logger.warning(f"[{self.request.id}] FORWARD TASK: Chunk {i+1} has empty text content, skipping")
                 continue
             
@@ -326,7 +326,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                 "metadata": metadata,
                 "filename": os.path.basename(original_source) if original_source else "",
                 "path_or_url": original_source,
-                "content": text,
+                "content": content,
                 "process_source": "Unstructured",  # permanently use default source
                 "source_type": source_type,
                 "file_size": get_file_size(source_type, original_source),

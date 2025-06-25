@@ -1,14 +1,15 @@
 x-es-vars: &es-vars
   ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+  ELASTICSEARCH_API_KEY: ${ELASTICSEARCH_API_KEY:-}
 x-minio-vars: &minio-vars
   MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
   MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
   MINIO_REGION: ${MINIO_REGION}
   MINIO_DEFAULT_BUCKET: ${MINIO_DEFAULT_BUCKET}
 x-proxy-vars: &proxy-vars
-  HTTP_PROXY: ${HTTP_PROXY}
-  HTTPS_PROXY: ${HTTPS_PROXY}
-  NO_PROXY: ${NO_PROXY}
+  HTTP_PROXY: ${HTTP_PROXY:-}
+  HTTPS_PROXY: ${HTTPS_PROXY:-}
+  NO_PROXY: ${NO_PROXY:-}
 
 services:
   nexent-elasticsearch:
@@ -75,7 +76,6 @@ services:
   nexent:
     image: nexent/nexent
     container_name: nexent
-    command: bash
     restart: always
     volumes:
       - ${ROOT_DIR}/uploads:/opt/backend/uploads
@@ -97,6 +97,12 @@ services:
         max-file: "3"    # Maximum number of log files to keep
     networks:
       - nexent
+    entrypoint: >
+      /bin/sh -c "
+        umask 0022
+        python /opt/backend/mcp_service.py &
+        python /opt/backend/main_service.py
+      "
 
   nexent-web:
     image: nexent/nexent-web
@@ -125,11 +131,15 @@ services:
     volumes:
       - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
-      <<: *proxy-vars
+      <<: [*proxy-vars, *es-vars, *minio-vars]
+      DOCKER_ENVIRONMENT: "true"
+      PYTHONPATH: "/opt/backend"
       skip_proxy: "true"
     env_file:
       - .env
     depends_on:
+      redis:
+        condition: service_healthy
       nexent-elasticsearch:
         condition: service_healthy
     logging:
@@ -143,6 +153,21 @@ services:
       /bin/sh -c "
         python /opt/backend/data_process_service.py || (cd /opt/backend && OPENBLAS_NUM_THREADS=1 UVICORN_LOOP=asyncio uvicorn data_process_service:app --host 0.0.0.0 --port 5012)
       "
+
+  redis:
+    image: redis:alpine
+    container_name: nexent-redis
+    command: redis-server --appendonly yes --appendfsync everysec --save "900 1" --save "300 10" --save "60 10000" --dir /data --maxmemory-policy allkeys-lru
+    volumes:
+      - ${ROOT_DIR}/redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - nexent
 
   nexent-minio:
     image: quay.io/minio/minio:RELEASE.2023-12-20T01-00-02Z
@@ -178,4 +203,7 @@ services:
 
 networks:
   nexent:
-    driver: bridge 
+    driver: bridge
+
+volumes:
+  redis_data:

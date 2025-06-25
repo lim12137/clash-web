@@ -4,6 +4,7 @@ import type {
   ConversationListItem,
   ApiConversationResponse
 } from '@/types/conversation';
+import { getAuthHeaders } from '@/lib/auth';
 
 export interface STTResponse {
   result?: {
@@ -11,15 +12,6 @@ export interface STTResponse {
   };
   text?: string;
 }
-
-// Obtain the auxiliary functions and abnormal function functions of the authorization header for adaptation
-export const getAuthHeaders = () => {
-  return {
-    'Content-Type': 'application/json',
-    'User-Agent': 'AgentFrontEnd/1.0'
-  };
-};
-
 
 export const conversationService = {
   // Get conversation list
@@ -839,9 +831,7 @@ export const conversationService = {
   }) {
     const response = await fetch(API_ENDPOINTS.conversation.save, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(params),
     });
 
@@ -872,10 +862,7 @@ export const conversationService = {
   async getMessageId(conversationId: number, messageIndex: number) {
     const response = await fetch(API_ENDPOINTS.conversation.messageId, {
       method: 'POST',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         conversation_id: conversationId,
         message_index: messageIndex
