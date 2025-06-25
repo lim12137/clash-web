@@ -23,7 +23,8 @@ export const handleStreamResponse = async (
   fetchConversationList: () => Promise<any>,
   currentConversationId: number,
   conversationService: any,
-  isDebug: boolean = false
+  isDebug: boolean = false,
+  t: (key: string) => string
 ) => {
   const decoder = new TextDecoder();
   let buffer = "";
@@ -120,8 +121,9 @@ export const handleStreamResponse = async (
                       // Update content directly without prefix check
                       let newContent = modelOutput.content + messageContent;
                       // Remove "思考：" prefix if present
-                      if (newContent.startsWith("思考：")) {
-                        newContent = newContent.substring(3);
+                      const thinkingPrefix = t('chatStreamHandler.thinkingPrefix');
+                      if (newContent.startsWith(thinkingPrefix)) {
+                        newContent = newContent.substring(thinkingPrefix.length);
                       }
                       modelOutput.content = newContent;
                     } else {
@@ -158,11 +160,12 @@ export const handleStreamResponse = async (
                       
                       if (shouldAppend) {
                         const modelOutput = currentStep.contents[lastModelOutputIndex];
+                        const codePrefix = t('chatStreamHandler.codePrefix');
                         
                         // In append mode, also check for prefix in case it wasn't removed before
-                        if (modelOutput.content.includes("代码：") && processedContent.trim()) {
+                        if (modelOutput.content.includes(codePrefix) && processedContent.trim()) {
                           // Clean existing content
-                          modelOutput.content = modelOutput.content.replace(/代码：\s*/, "");
+                          modelOutput.content = modelOutput.content.replace(new RegExp(codePrefix + `\\s*`), "");
                         }
                         
                         // Directly append without prefix processing (prefix should have been removed when first created)
@@ -175,8 +178,9 @@ export const handleStreamResponse = async (
                       } else {
                         // Otherwise, create new code content
                         // Remove "代码：" prefix if present at the start of first content
-                        if (processedContent.startsWith("代码：")) {
-                          processedContent = processedContent.substring(3);
+                        const codePrefix = t('chatStreamHandler.codePrefix');
+                        if (processedContent.startsWith(codePrefix)) {
+                          processedContent = processedContent.substring(codePrefix.length);
                         }
                         // Remove "<end" suffix if present
                         if (processedContent.endsWith("<end")) {
@@ -207,7 +211,7 @@ export const handleStreamResponse = async (
                     const newGeneratingItem = {
                       id: `generating-code-${stepIdCounter.current}`,
                       type: "generating_code" as const,
-                      content: "工具调用中...",
+                      content: t('chatStreamHandler.callingTool'),
                       expanded: true,
                       timestamp: Date.now(),
                       isLoading: true,
@@ -241,9 +245,9 @@ export const handleStreamResponse = async (
                     if (Array.isArray(searchResults)) {
                       // Modify mapping to match the SearchResult type at the component level
                       const newSearchResults = searchResults.map(item => ({
-                        title: item.title || "未知标题",
+                        title: item.title || t('chatRightPanel.unknownTitle'),
                         url: item.url || "#",
-                        text: item.text || "无内容描述",
+                        text: item.text || t('chatRightPanel.noContentDescription'),
                         published_date: item.published_date || "",
                         source_type: item.source_type || "",
                         filename: item.filename || "",
@@ -293,7 +297,7 @@ export const handleStreamResponse = async (
                       return recordMessages;
                     });
                   } catch(e) {
-                    console.error("解析搜索内容失败:", e);
+                    console.error(t('chatStreamHandler.parseSearchContentFailed'), e);
                   }
                   break;
                   
@@ -322,7 +326,7 @@ export const handleStreamResponse = async (
                       });
                     }
                   } catch (error) {
-                    console.error("处理图片数据失败:", error);
+                    console.error(t('chatStreamHandler.processImageDataFailed'), error);
                   }
                   break;
                   
@@ -368,7 +372,7 @@ export const handleStreamResponse = async (
                   currentStep.contents.push({
                     id: `agent-run-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                     type: "agent_new_run",
-                    content: "正在思考中...",
+                    content: t('chatStreamHandler.thinking'),
                     expanded: true,
                     timestamp: Date.now()
                   });
@@ -420,7 +424,7 @@ export const handleStreamResponse = async (
               });
             }
           } catch (parseError) {
-            console.warn("SSE 数据解析失败:", parseError);
+            console.warn(t('chatStreamHandler.parseSSEFailed'), parseError);
           }
         }
       }
@@ -444,7 +448,7 @@ export const handleStreamResponse = async (
           }
         }
       } catch (error) {
-        console.error("处理剩余数据失败:", error);
+        console.error(t('chatStreamHandler.processRemainingDataFailed'), error);
       }
     }
 
@@ -502,7 +506,7 @@ export const handleStreamResponse = async (
               // Update the list
               await fetchConversationList();
             } catch (error) {
-              console.error("生成标题失败:", error);
+              console.error(t('chatStreamHandler.generateTitleFailed'), error);
             }
           }, 100); // Add a delay to ensure the state has been updated
         }
@@ -515,7 +519,7 @@ export const handleStreamResponse = async (
     setIsSwitchedConversation(false);
     
   } catch (error) {
-    console.error("处理流式响应时出错:", error);
+    console.error(t('chatStreamHandler.streamResponseError'), error);
     throw error; // Pass the error back to the original function for processing
   }
   

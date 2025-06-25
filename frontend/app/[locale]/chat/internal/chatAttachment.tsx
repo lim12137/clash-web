@@ -15,6 +15,7 @@ import {
 } from "react-icons/ai";
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useTranslation } from 'react-i18next';
 
 // 附件类型接口
 export interface AttachmentItem {
@@ -35,12 +36,13 @@ interface ChatAttachmentProps {
 // 图片查看器组件
 const ImageViewer = ({ url, isOpen, onClose }: { url: string, isOpen: boolean, onClose: () => void }) => {
   if (!isOpen) return null;
+  const { t } = useTranslation('common');
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90">
         <DialogHeader>
-          <DialogTitle className="sr-only">图片预览</DialogTitle>
+          <DialogTitle className="sr-only">{t("chatAttachment.imagePreview")}</DialogTitle>
         </DialogHeader>
         <div className="flex items-center justify-center h-full">
           <img src={url} alt="Full size" className="max-h-[80vh] max-w-full" />
@@ -59,6 +61,7 @@ const FileViewer = ({ url, name, contentType, isOpen, onClose }: {
   onClose: () => void 
 }) => {
   if (!isOpen) return null;
+  const { t } = useTranslation('common');
   
   const extension = getFileExtension(name);
   const isPdf = contentType === 'application/pdf' || extension === 'pdf';
@@ -80,10 +83,10 @@ const FileViewer = ({ url, name, contentType, isOpen, onClose }: {
             <div className="flex justify-center mb-4">
               {getFileIcon(name, contentType)}
             </div>
-            <p className="text-gray-600 mb-4">此文件类型暂不支持在线预览</p>
+            <p className="text-gray-600 mb-4">{t("chatAttachment.previewNotSupported")}</p>
             <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
               <ExternalLink size={16} />
-              请下载文件后查看
+              {t("chatAttachment.downloadToView")}
             </a>
           </div>
         </div>
@@ -175,6 +178,7 @@ const formatFileSize = (size: number): string => {
 export function ChatAttachment({ attachments, onImageClick, className = "" }: ChatAttachmentProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<{url: string, name: string, contentType?: string} | null>(null);
+  const { t } = useTranslation('common');
 
   if (!attachments || attachments.length === 0) return null;
 
@@ -244,7 +248,7 @@ export function ChatAttachment({ attachments, onImageClick, className = "" }: Ch
                   </div>
                   <div className="flex-1 overflow-hidden">
                     <span className="text-sm truncate block max-w-[110px] font-medium" title={attachment.name}>
-                      {attachment.name || "图片"}
+                      {attachment.name || t("chatAttachment.image")}
                     </span>
                     <span className="text-xs text-gray-500">
                       {formatFileSize(attachment.size)}

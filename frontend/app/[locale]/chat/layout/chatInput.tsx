@@ -28,9 +28,11 @@ import {
   AiOutlineUpload
 } from "react-icons/ai"
 import { extractColorsFromUri } from "@/lib/avatar"
+import { useTranslation } from "react-i18next"
 
 // Image viewer component
 function ImageViewer({ src, alt, onClose }: { src: string, alt: string, onClose: () => void }) {
+  const { t } = useTranslation('common');
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
@@ -45,6 +47,7 @@ function ImageViewer({ src, alt, onClose }: { src: string, alt: string, onClose:
         <button
           onClick={onClose}
           className="absolute -top-4 -right-4 bg-white p-1 rounded-full shadow-md hover:bg-white transition-colors"
+          title={t("chatInput.close")}
         >
           <X size={16} className="text-gray-600 hover:text-red-500 transition-colors" />
         </button>
@@ -60,6 +63,7 @@ function FileViewer({ file, onClose }: { file: File, onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const fileType = file.type;
   const extension = getFileExtension(file.name);
+  const { t } = useTranslation('common');
 
   // Read file content
   useEffect(() => {
@@ -77,7 +81,7 @@ function FileViewer({ file, onClose }: { file: File, onClose: () => void }) {
       };
 
       reader.onerror = () => {
-        setError("无法读取文件内容");
+        setError(t("chatInput.cannotReadFileContent"));
         setLoading(false);
       };
 
@@ -100,7 +104,7 @@ function FileViewer({ file, onClose }: { file: File, onClose: () => void }) {
     } else {
       return readBinaryFile();
     }
-  }, [file, fileType, extension]);
+  }, [file, fileType, extension, t]);
 
   // Determine if it is a text file
   const isTextFile = (type: string, ext: string) => {
@@ -120,7 +124,7 @@ function FileViewer({ file, onClose }: { file: File, onClose: () => void }) {
   // Render file content
   const renderFileContent = () => {
     if (loading) {
-      return <div className="text-center py-8">正在加载文件内容...</div>;
+      return <div className="text-center py-8">{t("chatInput.loadingFileContent")}</div>;
     }
 
     if (error) {
@@ -128,7 +132,7 @@ function FileViewer({ file, onClose }: { file: File, onClose: () => void }) {
     }
 
     if (content === null) {
-      return <div className="text-center py-8">无法预览此文件类型</div>;
+      return <div className="text-center py-8">{t("chatInput.cannotPreviewFileType")}</div>;
     }
 
     if (fileType.startsWith('image/')) {
@@ -164,7 +168,7 @@ function FileViewer({ file, onClose }: { file: File, onClose: () => void }) {
         <div className="flex justify-center mb-4">
           {getFileIcon(file)}
         </div>
-        <p className="text-gray-600">此文件类型无法预览</p>
+        <p className="text-gray-600">{t("chatInput.thisFileTypeCannotBePreviewed")}</p>
       </div>
     );
   };
@@ -186,6 +190,7 @@ function FileViewer({ file, onClose }: { file: File, onClose: () => void }) {
           <button
             onClick={onClose}
             className="bg-white p-1 rounded-full hover:bg-gray-100"
+            title={t("chatInput.close")}
           >
             <X size={16} className="text-gray-600 hover:text-red-500" />
           </button>
@@ -329,6 +334,7 @@ export function ChatInput({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showStopTooltip, setShowStopTooltip] = useState(false);
   const [hasNonImageAttachment, setHasNonImageAttachment] = useState(false);
+  const { t } = useTranslation('common');
 
   // Use the configuration hook to get the application avatar
   const { appConfig, getAppAvatarUrl } = useConfig();
@@ -532,7 +538,7 @@ export function ChatInput({
         socketRef.current = ws
 
         ws.onopen = () => {
-          console.log("WebSocket 连接已建立")
+          console.log(t("chatInput.wsConnectionEstablished"))
           setIsRecording(true)
           setRecordingStatus("recording")
           mediaRecorder.start(250)
@@ -548,19 +554,19 @@ export function ChatInput({
               onInputChange(response.text)
             }
           } catch (error) {
-            console.error("解析WebSocket消息出错:", error)
+            console.error(t("chatInput.wsParseError"), error)
           }
         }
 
         ws.onerror = (error) => {
-          console.error("WebSocket错误:", error)
+          console.error(t("chatInput.wsError"), error)
           setRecordingStatus("error")
           setIsRecording(false)
           cleanup()
         }
 
         ws.onclose = () => {
-          console.log("WebSocket连接已关闭")
+          console.log(t("chatInput.wsConnectionClosed"))
           setIsRecording(false)
           setRecordingStatus("idle")
           cleanup()
@@ -576,12 +582,6 @@ export function ChatInput({
             }
           }
         }
-
-        // mediaRecorder.ondataavailable = (event) => {
-        //   if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-        //     console.log("MediaRecorder捕获到数据:", event.data.size, "bytes")
-        //   }
-        // }
 
         mediaRecorder.onstop = () => {
           cleanup()
@@ -600,7 +600,7 @@ export function ChatInput({
         }
 
       } catch (error) {
-        console.error("获取麦克风权限失败:", error)
+        console.error(t("chatInput.micPermissionFailed"), error)
         setRecordingStatus("error")
       }
     }
@@ -622,7 +622,7 @@ export function ChatInput({
   const handleFilesUpload = (files: File[]) => {
     // Check file number limit
     if (attachments.length + files.length > MAX_FILE_COUNT) {
-      setErrorMessage(`文件数量超过限制，最多只能上传${MAX_FILE_COUNT}个文件`);
+      setErrorMessage(t("chatInput.fileCountExceedsLimit", { count: MAX_FILE_COUNT }));
       setTimeout(() => setErrorMessage(null), 3000);
       return;
     }
@@ -634,7 +634,7 @@ export function ChatInput({
     for (const file of files) {
       // Check the single file size limit
       if (file.size > MAX_FILE_SIZE) {
-        setErrorMessage(`文件"${file.name}"超过大小限制，单个文件最大100MB`);
+        setErrorMessage(t("chatInput.fileSizeExceedsLimit", { name: file.name }));
         setTimeout(() => setErrorMessage(null), 3000);
         return;
       }
@@ -657,7 +657,7 @@ export function ChatInput({
         onImageUpload?.(file);
       } else {
         // Show error information
-        setErrorMessage(`文件"${file.name}"不是支持的文件类型，目前只支持图片文件`);
+        setErrorMessage(t("chatInput.unsupportedFileType", { name: file.name }));
         setTimeout(() => setErrorMessage(null), 3000);
         return;
       }
@@ -717,7 +717,7 @@ export function ChatInput({
           const dataUrl = e.target.result.toString();
           setViewingImage({
             src: dataUrl,
-            alt: attachment.file.name || "图片"
+            alt: attachment.file.name || t("chatInput.image")
           });
         }
       };
@@ -766,7 +766,7 @@ export function ChatInput({
                       </div>
                       <div className="flex-1 overflow-hidden">
                         <span className="text-sm truncate block max-w-[110px] font-medium" title={attachment.file.name}>
-                          {attachment.file.name || "图片"}
+                          {attachment.file.name || t("chatInput.image")}
                         </span>
                         <span className="text-xs text-gray-500">
                           {(attachment.file.size / 1024).toFixed(1)} KB
@@ -797,6 +797,7 @@ export function ChatInput({
                   <button
                     onClick={() => handleRemoveAttachment(attachment.id)}
                     className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 transform hover:scale-110 transition-transform z-10"
+                    title={t("chatInput.remove")}
                   >
                     <X className="h-2.5 w-2.5" />
                   </button>
@@ -821,9 +822,9 @@ export function ChatInput({
               <AiOutlineUpload className="h-5 w-5 text-blue-500" />
             </div>
           </div>
-          <h3 className="text-base font-medium mb-1 text-blue-700">图片拖动到此处即可上传</h3>
+          <h3 className="text-base font-medium mb-1 text-blue-700">{t("chatInput.dragAndDropImageHere")}</h3>
           <p className="text-xs text-blue-600">
-            目前仅支持图片格式
+            {t("chatInput.onlyImageFormatSupported")}
           </p>
         </div>
       </div>
@@ -851,7 +852,7 @@ export function ChatInput({
         value={input}
         onChange={(e) => onInputChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={`给 ${appConfig.appName} 发送消息`}
+        placeholder={t("chatInput.sendMessageTo", { appName: appConfig.appName })}
         className="px-5 pb-3 pt-0 text-xl resize-none bg-slate-100 border-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 w-full"
         rows={1}
         style={{
@@ -878,7 +879,7 @@ export function ChatInput({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {isRecording ? "停止录音" : "开始录音"}
+              {isRecording ? t("chatInput.stopRecording") : t("chatInput.startRecording")}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -905,7 +906,7 @@ export function ChatInput({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              上传图片
+              {t("chatInput.uploadImage")}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -923,7 +924,7 @@ export function ChatInput({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                停止生成
+                {t("chatInput.stopGenerating")}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -933,7 +934,7 @@ export function ChatInput({
             disabled={!input.trim() || isLoading || hasNonImageAttachment}
             size="icon"
             className={`h-10 w-10 ${hasNonImageAttachment ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-full flex items-center justify-center`}
-            title={hasNonImageAttachment ? "不支持的文件类型，只能发送图片" : ""}
+            title={hasNonImageAttachment ? t("chatInput.unsupportedFileTypeOnlyImages") : t("chatInput.send")}
           >
             <svg width="14" height="16" viewBox="0 0 14 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" clipRule="evenodd" d="M7 16c-.595 0-1.077-.462-1.077-1.032V1.032C5.923.462 6.405 0 7 0s1.077.462 1.077 1.032v13.936C8.077 15.538 7.595 16 7 16z" fill="currentColor"></path><path fillRule="evenodd" clipRule="evenodd" d="M.315 7.44a1.002 1.002 0 0 1 0-1.46L6.238.302a1.11 1.11 0 0 1 1.523 0c.421.403.421 1.057 0 1.46L1.838 7.44a1.11 1.11 0 0 1-1.523 0z" fill="currentColor"></path><path fillRule="evenodd" clipRule="evenodd" d="M13.685 7.44a1.11 1.11 0 0 1-1.523 0L6.238 1.762a1.002 1.002 0 0 1 0-1.46 1.11 1.11 0 0 1 1.523 0l5.924 5.678c.42.403.42 1.056 0 1.46z" fill="currentColor"></path></svg>
           </Button>
@@ -943,9 +944,9 @@ export function ChatInput({
     <div className="mt-1 flex items-center justify-center text-xs text-muted-foreground">
       <div>
         {recordingStatus === 'recording' ? (
-          <span className="text-red-500">正在录音...</span>
+          <span className="text-red-500">{t("chatInput.recording")}</span>
         ) : recordingStatus === 'error' ? (
-          <span className="text-red-500">录音出错，请重试</span>
+          <span className="text-red-500">{t("chatInput.recordingError")}</span>
         ) : (
           ""
         )}
@@ -1008,10 +1009,10 @@ export function ChatInput({
                   })()
                 }}
               >
-                你好，我是{appConfig.appName}
+                {t("chatInput.helloIm", { appName: appConfig.appName })}
               </h1>
             </div>
-            <p className="h-6 text-center text-muted-foreground">我可以帮你写代码、读文件、查资料各种创意内容，请把你的任务交给我吧~</p>
+            <p className="h-6 text-center text-muted-foreground">{t("chatInput.introMessage")}</p>
           </div>
           <div ref={dropAreaRef} className="relative w-full max-w-4xl rounded-3xl shadow-sm border border-slate-200 bg-slate-100 overflow-hidden">
             {renderInputArea()}

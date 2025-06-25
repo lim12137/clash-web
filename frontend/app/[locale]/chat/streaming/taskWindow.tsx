@@ -5,6 +5,7 @@ import { MarkdownRenderer } from '@/components/ui/markdownRenderer'
 import { Globe, Search, Zap, Bot, Code, FileText, HelpCircle, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useChatTaskMessage } from "@/hooks/useChatTaskMessage"
+import { useTranslation } from "react-i18next"
 
 // Icon mapping dictionary - map strings to corresponding icon components
 const iconMap: Record<string, React.ReactNode> = {
@@ -28,7 +29,7 @@ interface CardItem {
 // Define the interface for message handlers to improve extensibility
 interface MessageHandler {
   canHandle: (message: any) => boolean;
-  render: (message: any) => React.ReactNode;
+  render: (message: any, t: (key: string, options?: any) => string) => React.ReactNode;
 }
 
 // Define the handlers for different types of messages to improve extensibility
@@ -39,7 +40,7 @@ const messageHandlers: MessageHandler[] = [
       message.type === "agent_new_run" || 
       message.type === "generating_code" ||
       message.type === "executing",
-    render: (message) => (
+    render: (message, _t) => (
         <div style={{
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
           fontSize: "0.875rem",
@@ -57,7 +58,7 @@ const messageHandlers: MessageHandler[] = [
   // Add search_content_placeholder type processor - for history records
   {
     canHandle: (message) => message.type === "search_content_placeholder",
-    render: (message) => {
+    render: (message, t) => {
       // Find search results in the message context
       const messageContainer = message._messageContainer;
       if (!messageContainer || !messageContainer.search || messageContainer.search.length === 0) {
@@ -81,8 +82,8 @@ const messageHandlers: MessageHandler[] = [
         const pageUrl = result.url || "";
         const filename = result.filename || "";
         const sourceType = result.source_type || "";
-        let domain = "未知来源";
-        let displayName = "未知来源";
+        let domain = t('taskWindow.unknownSource');
+        let displayName = t('taskWindow.unknownSource');
         let baseUrl = "";
         let faviconUrl = "";
         let useDefaultIcon = false;
@@ -92,7 +93,7 @@ const messageHandlers: MessageHandler[] = [
         // first judge based on source_type
         if (sourceType === "file") {
           isKnowledgeBase = true;
-          displayName = filename || result.title || "知识库文件";
+          displayName = filename || result.title || t('taskWindow.knowledgeFile');
           useDefaultIcon = true;
           canClick = false; // file type does not allow jump
         }
@@ -123,7 +124,7 @@ const messageHandlers: MessageHandler[] = [
             faviconUrl = `${baseUrl}/favicon.ico`;
             canClick = true;
           } catch (e) {
-            console.error("URL解析错误:", e);
+            console.error(t('taskWindow.urlParseError'), e);
             useDefaultIcon = true;
             canClick = false;
           }
@@ -158,14 +159,14 @@ const messageHandlers: MessageHandler[] = [
             gap: "0.5rem",
             marginBottom: "0.25rem"
           }}>
-            {/* "正在阅读" label - a single line */}
+            {/* "Reading" label - a single line */}
             <div style={{
               fontSize: "0.875rem",
               color: "#6b7280",
               fontWeight: 500,
               paddingTop: "0.5rem"
             }}>
-              阅读检索结果
+              {t('taskWindow.readingSearchResults')}
             </div>
             
             {/* Website icon and domain list - a new line */}
@@ -204,7 +205,7 @@ const messageHandlers: MessageHandler[] = [
                       e.currentTarget.style.backgroundColor = "#f9fafb";
                     }
                   }}
-                  title={site.canClick ? `访问 ${site.domain}` : site.filename || site.displayName}
+                  title={site.canClick ? t('taskWindow.visit', { domain: site.domain }) : site.filename || site.displayName}
                 >
                   {site.isKnowledgeBase ? (
                     <FileText 
@@ -265,7 +266,7 @@ const messageHandlers: MessageHandler[] = [
   // card type processor - display cards with icons
   {
     canHandle: (message) => message.type === "card",
-    render: (message) => {
+    render: (message, t) => {
       let cardItems: CardItem[] = [];
       
       try {
@@ -276,10 +277,10 @@ const messageHandlers: MessageHandler[] = [
           cardItems = message.content;
         }
       } catch (error) {
-        console.error("解析卡片内容失败:", error);
+        console.error(t('taskWindow.parseCardError'), error);
         return (
           <div style={{color: "red", padding: "8px"}}>
-            无法解析卡片内容
+            {t('taskWindow.cannotParseCard')}
           </div>
         );
       }
@@ -326,7 +327,7 @@ const messageHandlers: MessageHandler[] = [
       const isSearchContent = message.type === "search_content";
       return isSearchContent;
     },
-    render: (message) => {
+    render: (message, t) => {
       
       // Extract search results from the content
       let searchResults = [];
@@ -350,10 +351,10 @@ const messageHandlers: MessageHandler[] = [
           searchResults = content;
         }
       } catch (error: any) {
-        console.error("解析搜索结果失败:", error);
+        console.error(t('taskWindow.parseSearchError'), error);
         return (
           <div style={{color: "red", padding: "8px"}}>
-            无法解析搜索结果: {error.message}
+            {t('taskWindow.cannotParseSearch', { message: error.message })}
           </div>
         );
       }
@@ -362,7 +363,7 @@ const messageHandlers: MessageHandler[] = [
       if (!searchResults || searchResults.length === 0) {
         return (
           <div style={{padding: "8px", color: "#6b7280"}}>
-            未找到搜索结果
+            {t('taskWindow.noSearchResults')}
           </div>
         );
       }
@@ -381,8 +382,8 @@ const messageHandlers: MessageHandler[] = [
         const pageUrl = result.url || "";
         const filename = result.filename || "";
         const sourceType = result.source_type || "";
-        let domain = "未知来源";
-        let displayName = "未知来源";
+        let domain = t('taskWindow.unknownSource');
+        let displayName = t('taskWindow.unknownSource');
         let baseUrl = "";
         let faviconUrl = "";
         let useDefaultIcon = false;
@@ -392,7 +393,7 @@ const messageHandlers: MessageHandler[] = [
         // first judge based on source_type
         if (sourceType === "file") {
           isKnowledgeBase = true;
-          displayName = filename || result.title || "知识库文件";
+          displayName = filename || result.title || t('taskWindow.knowledgeFile');
           useDefaultIcon = true;
           canClick = false; // file type does not allow jump
         }
@@ -423,7 +424,7 @@ const messageHandlers: MessageHandler[] = [
             faviconUrl = `${baseUrl}/favicon.ico`;
             canClick = true;
           } catch (e) {
-            console.error("URL解析错误:", e);
+            console.error(t('taskWindow.urlParseError'), e);
             useDefaultIcon = true;
             canClick = false;
           }
@@ -465,7 +466,7 @@ const messageHandlers: MessageHandler[] = [
               fontWeight: 500,
               paddingTop: "0.5rem"
             }}>
-              阅读检索结果
+              {t('taskWindow.readingSearchResults')}
             </div>
             
             {/* Website icon and domain list - a new line */}
@@ -504,7 +505,7 @@ const messageHandlers: MessageHandler[] = [
                       e.currentTarget.style.backgroundColor = "#f9fafb";
                     }
                   }}
-                  title={site.canClick ? `访问 ${site.domain}` : site.filename || site.displayName}
+                  title={site.canClick ? t('taskWindow.visit', { domain: site.domain }) : site.filename || site.displayName}
                 >
                   {site.isKnowledgeBase ? (
                     <FileText 
@@ -565,7 +566,7 @@ const messageHandlers: MessageHandler[] = [
   // model_output type processor - model output
   {
     canHandle: (message) => message.type === "model_output",
-    render: (message) => (
+    render: (message, _t) => (
       <div style={{
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
         fontSize: "0.875rem",
@@ -581,13 +582,13 @@ const messageHandlers: MessageHandler[] = [
   // execution type processor - execution result (not displayed)
   {
     canHandle: (message) => message.type === "execution",
-    render: (message) => null // Return null, do not render this type of message
+    render: (_message, _t) => null // Return null, do not render this type of message
   },
   
   // error type processor - error information
   {
     canHandle: (message) => message.type === "error",
-    render: (message) => (
+    render: (message, _t) => (
       <div style={{
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
         fontSize: "0.875rem",
@@ -605,13 +606,13 @@ const messageHandlers: MessageHandler[] = [
   // virtual type processor - virtual message (do not display content, only as a card container)
   {
     canHandle: (message) => message.type === "virtual",
-    render: () => null
+    render: (_message, _t) => null
   },
 
   // default processor - should be placed at the end
   {
     canHandle: () => true,
-    render: (message) => {
+    render: (message, t) => {
       const content = message.content;
       if (typeof content === 'string') {
         return <MarkdownRenderer content={content} className="task-message-content" />;
@@ -639,6 +640,7 @@ export function TaskWindow({
   messages,
   isStreaming = false
 }: TaskWindowProps) {
+  const { t } = useTranslation('common');
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
   const [isExpanded, setIsExpanded] = useState(isStreaming)
@@ -787,14 +789,14 @@ export function TaskWindow({
     
     const handler = messageHandlers.find(h => h.canHandle(message));
     if (handler) {
-      return handler.render(message);
+      return handler.render(message, t);
     }
     
     // Fallback processing, normally not executed here
     console.warn("No processor found:", { 
       messageType: message.type 
     });
-    return <div className="text-sm text-gray-500">未知消息类型: {message.type}</div>;
+    return <div className="text-sm text-gray-500">{t('taskWindow.unknownMessageType', { type: message.type })}</div>;
   };
 
   // Check if it is the last message
@@ -813,7 +815,7 @@ export function TaskWindow({
     if (!hasMessages) {
       return (
         <div className="text-center text-sm text-gray-400 mt-8">
-          暂无任务消息
+          {t('taskWindow.noTaskMessages')}
         </div>
       );
     }
@@ -821,7 +823,7 @@ export function TaskWindow({
     if (!hasVisibleMessages) {
       return (
         <div className="text-center text-sm text-gray-400 mt-8">
-          暂无任务消息
+          {t('taskWindow.noTaskMessages')}
         </div>
       );
     }
@@ -905,7 +907,7 @@ export function TaskWindow({
             >
               <ChevronRight className={`h-4 w-4 ${isExpanded ? 'rotate-90' : '-rotate-90'}`} />
             </Button>
-            <span className="text-xs font-medium text-gray-500">任务详情</span>
+            <span className="text-xs font-medium text-gray-500">{t('taskWindow.taskDetails')}</span>
           </div>
           {isExpanded && <div className="h-px bg-gray-200 mt-2" />}
         </div>

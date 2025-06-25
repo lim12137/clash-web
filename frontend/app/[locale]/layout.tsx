@@ -4,18 +4,29 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/providers/themeProvider"
 import "../globals.css"
 import { ReactNode } from 'react';
+
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata: Metadata = {
-  title: {
-    default: "Nexent | 智能问答",
-    template: "%s | Nexent 智能问答",
-  },
-  description: "创建和配置您自己的AI Agent智能体",
-  icons: {
-    icon: '/modelengine-logo.png',
-    shortcut: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+// Dynamic metadata based on locale
+export async function generateMetadata({
+  params: { locale },
+}: {
+  params: { locale: string };
+}): Promise<Metadata> {
+  // Import locale-specific translations
+  const messages = await import(`../../../public/locales/${locale}/common.json`);
+  
+  return {
+    title: {
+      default: messages.layout.title,
+      template: messages.layout.titleTemplate,
+    },
+    description: messages.layout.description,
+    icons: {
+      icon: '/modelengine-logo.png',
+      shortcut: '/favicon.ico',
+      apple: '/apple-touch-icon.png',
+    }
   }
 }
 
