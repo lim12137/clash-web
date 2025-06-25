@@ -1,15 +1,21 @@
 from typing import Optional
+import logging
 
-from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter, Header
-from consts.model import ChangeSummaryRequest
+from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter, Header, Request
 from fastapi.responses import StreamingResponse
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
+
+from consts.model import ChangeSummaryRequest
 from services.elasticsearch_service import ElasticSearchService, get_es_core
-from utils.auth_utils import get_current_user_id
+from utils.auth_utils import get_current_user_info, get_current_user_id
 router = APIRouter(prefix="/summary")
+
+# Configure logging
+logger = logging.getLogger("knowledge_summary_app")
 
 @router.post("/{index_name}/auto_summary")
 async def auto_summary(
+            http_request: Request,
             index_name: str = Path(..., description="Name of the index to get documents from"),
             batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
             es_core: ElasticSearchCore = Depends(get_es_core),
@@ -17,14 +23,16 @@ async def auto_summary(
     ):
     """Summary Elasticsearch index_name by model"""
     try:
-        user_id = get_current_user_id(authorization)[0]
+        user_id, _, language = get_current_user_info(authorization, http_request)
+        logger.info(f"Start summary for {index_name}, language: {language}")
         service = ElasticSearchService()
 
         return await service.summary_index_name(
             index_name=index_name,
             batch_size=batch_size,
             es_core=es_core,
-            user_id=user_id
+            user_id=user_id,
+            language=language
         )
     except Exception as e:
         return StreamingResponse(
