@@ -156,21 +156,11 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
   
   // 处理文件变更
   const handleChange = useCallback(({ fileList: newFileList }: { fileList: UploadFile[] }) => {
-    console.log('[UploadArea] handleChange called with files:', newFileList.map(f => ({ 
-      name: f.name, 
-      status: f.status,
-      size: f.size 
-    })));
 
     // 确保只更新当前知识库的文件列表
     if (isCreatingMode || indexName === currentKnowledgeBaseRef.current) {
       setFileList(newFileList);
     } else {
-      console.log('[UploadArea] File update skipped - knowledge base mismatch', {
-        isCreatingMode,
-        indexName,
-        currentKB: currentKnowledgeBaseRef.current
-      });
       return;
     }
     
@@ -179,13 +169,6 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
     const uploadWasInProgress = prevFileList.some(f => f.status === 'uploading');
     const uploadIsNowFinished = newFileList.length > 0 && !newFileList.some(f => f.status === 'uploading');
 
-    console.log('[UploadArea] Upload status:', {
-      uploadWasInProgress,
-      uploadIsNowFinished,
-      prevFileCount: prevFileList.length,
-      newFileCount: newFileList.length,
-      fileStatuses: newFileList.map(f => f.status)
-    });
 
     if (uploadWasInProgress && uploadIsNowFinished) {
       console.log('[UploadArea] Upload completed, calling onUpload callback');
@@ -201,27 +184,16 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
       .filter((file): file is File => !!file);
 
     if (files.length > 0) {
-      console.log('[UploadArea] Calling onFileSelect with files:', files.map(f => ({ 
-        name: f.name, 
-        size: f.size,
-        type: f.type 
-      })));
       onFileSelect(files);
     }
   }, [indexName, onFileSelect, isCreatingMode, newKnowledgeBaseName, onUpload]);
 
   // 处理自定义上传请求
   const handleCustomRequest = useCallback((options: any) => {
-    console.log('[UploadArea] handleCustomRequest called with options:', {
-      filename: options.file.name,
-      size: options.file.size,
-      type: options.file.type
-    });
     
     // 实际上传由父组件的 handleFileUpload 处理
     const { onSuccess, file } = options;
     setTimeout(() => {
-      console.log('[UploadArea] Simulating upload success for file:', file.name);
       onSuccess({}, file);
     }, 100);
   }, []);
