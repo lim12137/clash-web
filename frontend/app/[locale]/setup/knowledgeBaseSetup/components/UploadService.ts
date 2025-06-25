@@ -2,6 +2,9 @@ import { message } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
 import knowledgeBaseService from '@/services/knowledgeBaseService';
 import knowledgeBasePollingService from '@/services/knowledgeBasePollingService';
+import { useTranslation } from 'react-i18next';
+import '../../../i18n';
+import { TFunction } from 'i18next';
 
 // 添加类型定义
 export interface AbortableError extends Error {
@@ -22,13 +25,14 @@ export const customUploadRequest = async (
   indexName: string,
   currentKnowledgeBaseRef: React.MutableRefObject<string>
 ) => {
+  const { t } = useTranslation('common');
   const { onSuccess, onError, file } = options;
   const effectiveIndexName = isCreatingMode ? newKnowledgeBaseName : indexName;
   
   // 确保是当前知识库
   if (effectiveIndexName !== currentKnowledgeBaseRef.current && !isCreatingMode) {
-    onError(new Error('知识库已切换，请重新上传'));
-    message.error(`文件 ${file.name} 上传失败：知识库已切换`);
+    onError(new Error(t('knowledgeBase.upload.switchError')));
+    message.error(t('knowledgeBase.upload.fileUploadSwitchError', { fileName: file.name }));
     return;
   }
 
@@ -44,8 +48,8 @@ export const customUploadRequest = async (
 
     // 再次确认是当前知识库
     if (effectiveIndexName !== currentKnowledgeBaseRef.current && !isCreatingMode) {
-      onError(new Error('知识库已切换，请重新上传'));
-      message.error(`文件 ${file.name} 上传失败：知识库已切换`);
+      onError(new Error(t('knowledgeBase.upload.switchError')));
+      message.error(t('knowledgeBase.upload.fileUploadSwitchError', { fileName: file.name }));
       return;
     }
 
@@ -54,56 +58,56 @@ export const customUploadRequest = async (
       onSuccess(result, file);
 
     } else {
-      onError(new Error('上传失败'));
-      message.error(`文件 ${file.name} 上传失败`);
+      onError(new Error(t('knowledgeBase.upload.error')));
+      message.error(t('knowledgeBase.upload.fileUploadError', { fileName: file.name }));
     }
   } catch (err) {
     // 确保是当前知识库的错误处理
     if (effectiveIndexName === currentKnowledgeBaseRef.current || isCreatingMode) {
-      onError(new Error('上传失败'));
-      message.error(`文件 ${file.name} 上传失败`);
+      onError(new Error(t('knowledgeBase.upload.error')));
+      message.error(t('knowledgeBase.upload.fileUploadError', { fileName: file.name }));
     }
   }
 };
 
 // 检查知识库名称是否存在
 export const checkKnowledgeBaseNameExists = async (
-  knowledgeBaseName: string
+  knowledgeBaseName: string,
+  t: TFunction
 ): Promise<boolean> => {
   try {
     return await knowledgeBaseService.checkKnowledgeBaseNameExists(knowledgeBaseName);
   } catch (error) {
-    console.error('检查知识库名称失败:', error);
+    console.error(t('knowledgeBase.check.nameError'), error);
     return false;
   }
 };
 
-// 获取知识库文档信息 - 简化版本，因为文档轮询不再需要知识库存在的前提
+// 获取知识库文档信息
 export const fetchKnowledgeBaseInfo = async (
   indexName: string, 
   abortController: AbortController, 
   currentKnowledgeBaseRef: React.MutableRefObject<string>,
   onSuccess: () => void,
-  onError: (error: unknown) => void
+  onError: (error: unknown) => void,
+  t: TFunction
 ) => {
   try {
-    // 直接调用成功回调，因为不再需要预先检查知识库存在性
     if (!abortController.signal.aborted && indexName === currentKnowledgeBaseRef.current) {
       onSuccess();
     }
   } catch (error: unknown) {
-    // 只处理非取消的错误
     const err = error as AbortableError;
     if (err.name !== 'AbortError' && indexName === currentKnowledgeBaseRef.current) {
-      console.error('获取知识库信息失败:', error);
-      message.error('获取知识库信息失败，请稍后重试');
+      console.error(t('knowledgeBase.fetch.error'), error);
+      message.error(t('knowledgeBase.fetch.retryError'));
       onError(error);
     }
   }
 };
 
 // 文件类型验证
-export const validateFileType = (file: File): boolean => {
+export const validateFileType = (file: File, t: TFunction): boolean => {
   const validTypes = [
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -131,7 +135,7 @@ export const validateFileType = (file: File): boolean => {
   }
 
   if (!isValidType) {
-    message.error('只支持 PDF、Word、PPT、Excel、MD、TXT、CSV 文件格式！');
+    message.error(t('knowledgeBase.upload.invalidFileType'));
     return false;
   }
 
@@ -142,8 +146,9 @@ export const validateFileType = (file: File): boolean => {
 export const createMockFileSelectEvent = (
   file: UploadFile<any>
 ): React.ChangeEvent<HTMLInputElement> => {
+  const { t } = useTranslation('common');
   if (!file.originFileObj) {
-    throw new Error('文件对象不存在');
+    throw new Error(t('knowledgeBase.upload.noFileObject'));
   }
   
   return {

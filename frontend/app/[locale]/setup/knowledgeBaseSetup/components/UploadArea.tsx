@@ -1,6 +1,7 @@
 import React, { useState, forwardRef, useImperativeHandle, useEffect, useCallback, useRef } from 'react';
 import { message } from 'antd';
-import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
+import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
+import { useTranslation } from 'react-i18next';
 import { API_ENDPOINTS } from '@/services/api';
 import knowledgeBasePollingService from '@/services/knowledgeBasePollingService';
 import UploadAreaUI from './UploadAreaUI';
@@ -44,6 +45,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
   newKnowledgeBaseName = '',
   selectedFiles = []
 }, ref) => {
+  const { t } = useTranslation('common');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [nameExists, setNameExists] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -105,7 +107,8 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
       () => {
         setIsKnowledgeBaseReady(false);
         setIsLoading(false);
-      }
+      },
+      t
     );
 
     // 清理函数
@@ -115,7 +118,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
         pendingRequestRef.current = null;
       }
     };
-  }, [indexName, isCreatingMode, resetAllStates]);
+  }, [indexName, isCreatingMode, resetAllStates, t]);
   
   // 暴露文件列表给父组件
   useImperativeHandle(ref, () => ({
@@ -133,13 +136,13 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
 
     const checkName = async () => {
       try {
-        const exists = await checkKnowledgeBaseNameExists(newKnowledgeBaseName);
+        const exists = await checkKnowledgeBaseNameExists(newKnowledgeBaseName, t);
         if (isActive) {
           setNameExists(exists);
         }
       } catch (error) {
         if (isActive) {
-          console.error('检查知识库名称失败:', error);
+          console.error(t('knowledgeBase.error.checkName'), error);
         }
       }
     };
@@ -149,14 +152,25 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
     return () => {
       isActive = false;
     };
-  }, [isCreatingMode, newKnowledgeBaseName]);
+  }, [isCreatingMode, newKnowledgeBaseName, t]);
   
   // 处理文件变更
   const handleChange = useCallback(({ fileList: newFileList }: { fileList: UploadFile[] }) => {
+    console.log('[UploadArea] handleChange called with files:', newFileList.map(f => ({ 
+      name: f.name, 
+      status: f.status,
+      size: f.size 
+    })));
+
     // 确保只更新当前知识库的文件列表
     if (isCreatingMode || indexName === currentKnowledgeBaseRef.current) {
       setFileList(newFileList);
     } else {
+      console.log('[UploadArea] File update skipped - knowledge base mismatch', {
+        isCreatingMode,
+        indexName,
+        currentKB: currentKnowledgeBaseRef.current
+      });
       return;
     }
     
@@ -165,7 +179,16 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
     const uploadWasInProgress = prevFileList.some(f => f.status === 'uploading');
     const uploadIsNowFinished = newFileList.length > 0 && !newFileList.some(f => f.status === 'uploading');
 
+    console.log('[UploadArea] Upload status:', {
+      uploadWasInProgress,
+      uploadIsNowFinished,
+      prevFileCount: prevFileList.length,
+      newFileCount: newFileList.length,
+      fileStatuses: newFileList.map(f => f.status)
+    });
+
     if (uploadWasInProgress && uploadIsNowFinished) {
+      console.log('[UploadArea] Upload completed, calling onUpload callback');
       // 上传完成后仅调用外部的上传完成回调，由 KnowledgeBaseManager 统一管理轮询
       if (onUpload) {
         onUpload();
@@ -178,15 +201,27 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
       .filter((file): file is File => !!file);
 
     if (files.length > 0) {
+      console.log('[UploadArea] Calling onFileSelect with files:', files.map(f => ({ 
+        name: f.name, 
+        size: f.size,
+        type: f.type 
+      })));
       onFileSelect(files);
     }
   }, [indexName, onFileSelect, isCreatingMode, newKnowledgeBaseName, onUpload]);
 
-  // 处理自定义上传请求 - 不执行实际上传，改由父组件统一处理
+  // 处理自定义上传请求
   const handleCustomRequest = useCallback((options: any) => {
+    console.log('[UploadArea] handleCustomRequest called with options:', {
+      filename: options.file.name,
+      size: options.file.size,
+      type: options.file.type
+    });
+    
     // 实际上传由父组件的 handleFileUpload 处理
     const { onSuccess, file } = options;
     setTimeout(() => {
+      console.log('[UploadArea] Simulating upload success for file:', file.name);
       onSuccess({}, file);
     }, 100);
   }, []);
@@ -209,7 +244,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
       size: 3,
       format: (percent?: number) => percent ? `${parseFloat(percent.toFixed(2))}%` : '0%'
     },
-    beforeUpload: validateFileType
+    beforeUpload: (file) => validateFileType(file, t)
   };
   
   return (

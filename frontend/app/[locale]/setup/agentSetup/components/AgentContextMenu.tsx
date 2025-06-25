@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { EditOutlined, ExportOutlined, DeleteOutlined } from '@ant-design/icons'
 import { Agent } from '../ConstInterface'
+import { useTranslation } from 'react-i18next'
 
 interface AgentContextMenuProps {
   visible: boolean;
@@ -26,6 +27,7 @@ export default function AgentContextMenu({
   onClose
 }: AgentContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation('common');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -84,14 +86,14 @@ export default function AgentContextMenu({
         onClick={handleEdit}
       >
         <EditOutlined className="mr-2" />
-        修改
+        {t('agent.contextMenu.edit')}
       </div>
       <div
         className="px-3 py-2 hover:bg-gray-100 cursor-pointer flex items-center text-sm text-gray-700"
         onClick={handleExport}
       >
         <ExportOutlined className="mr-2" />
-        导出
+        {t('agent.contextMenu.export')}
       </div>
       <div className="border-t border-gray-200 my-1"></div>
       <div
@@ -99,7 +101,7 @@ export default function AgentContextMenu({
         onClick={handleDelete}
       >
         <DeleteOutlined className="mr-2" />
-        删除
+        {t('agent.contextMenu.delete')}
       </div>
     </div>
   );

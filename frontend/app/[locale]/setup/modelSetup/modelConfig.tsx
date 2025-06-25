@@ -6,7 +6,7 @@ import {
   SyncOutlined
 } from '@ant-design/icons'
 import {forwardRef, useEffect, useImperativeHandle, useState, useRef, ReactNode} from 'react'
-import {ModelConnectStatus, ModelOption, ModelType} from '@/types/config'
+import {ModelOption, ModelType} from '@/types/config'
 import {useConfig} from '@/hooks/useConfig'
 import {modelService} from '@/services/modelService'
 import {configService} from '@/services/configService'
@@ -14,6 +14,7 @@ import {configStore} from '@/lib/config'
 import {ModelListCard} from './model/ModelListCard'
 import {ModelAddDialog} from './model/ModelAddDialog'
 import {ModelDeleteDialog} from './model/ModelDeleteDialog'
+import { useTranslation } from 'react-i18next'
 
 // 布局高度常量配置
 const LAYOUT_CONFIG = {
@@ -49,42 +50,52 @@ const cardThemes = {
   },
 }
 
+// 添加ModelConnectStatus的类型定义
+const MODEL_STATUS = {
+  AVAILABLE: "可用",
+  UNAVAILABLE: "不可用",
+  CHECKING: "检测中",
+  UNCHECKED: "未检测"
+} as const;
+
+type ModelConnectStatus = typeof MODEL_STATUS[keyof typeof MODEL_STATUS];
+
 // 模型数据结构
-const modelData = {
+const getModelData = (t: any) => ({
   llm: {
-    title: "大语言模型",
+    title: t('modelConfig.category.llm'),
     options: [
-      { id: "main", name: "主模型" },
-      { id: "secondary", name: "副模型" },
+      { id: "main", name: t('modelConfig.option.mainModel') },
+      { id: "secondary", name: t('modelConfig.option.secondaryModel') },
     ],
   },
   embedding: {
-    title: "向量化模型",
+    title: t('modelConfig.category.embedding'),
     options: [
-      { id: "embedding", name: "向量模型" },
-      { id: "multi_embedding", name: "多模态向量模型" },
+      { id: "embedding", name: t('modelConfig.option.embeddingModel') },
+      { id: "multi_embedding", name: t('modelConfig.option.multiEmbeddingModel') },
     ],
   },
   reranker: {
-    title: "重排模型",
+    title: t('modelConfig.category.reranker'),
     options: [
-      { id: "reranker", name: "重排模型" },
+      { id: "reranker", name: t('modelConfig.option.rerankerModel') },
     ],
   },
   multimodal: {
-    title: "多模态模型",
+    title: t('modelConfig.category.multimodal'),
     options: [
-      { id: "vlm", name: "视觉语言模型" },
+      { id: "vlm", name: t('modelConfig.option.vlmModel') },
     ],
   },
   voice: {
-    title: "语音模型",
+    title: t('modelConfig.category.voice'),
     options: [
-      { id: "tts", name: "语音合成模型" },
-      { id: "stt", name: "语音识别模型" },
+      { id: "tts", name: t('modelConfig.option.ttsModel') },
+      { id: "stt", name: t('modelConfig.option.sttModel') },
     ],
   },
-}
+})
 
 // 定义组件对外暴露的方法类型
 export interface ModelConfigSectionRef {
@@ -96,8 +107,10 @@ interface ModelConfigSectionProps {
 }
 
 export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigSectionProps>((props, ref): ReactNode => {
+  const { t } = useTranslation()
   const { skipVerification = false } = props;
   const { modelConfig, updateModelConfig } = useConfig()
+  const modelData = getModelData(t)
 
   // 状态管理
   const [officialModels, setOfficialModels] = useState<ModelOption[]>([])
@@ -193,7 +206,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       // 确保所有官方模型状态为"可用"
       const officialWithStatus = official.map(model => ({
         ...model,
-        connect_status: "可用" as ModelConnectStatus
+        connect_status: MODEL_STATUS.AVAILABLE
       }));
 
       // 更新状态
@@ -313,8 +326,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         }
       }
     } catch (error) {
-      console.error('加载模型列表失败:', error)
-      message.error('加载模型列表失败')
+      console.error(t('modelConfig.error.loadList'), error)
+      message.error(t('modelConfig.error.loadListFailed'))
     }
   }
 
@@ -426,7 +439,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
 
           // 只更新自定义模型状态为"检测中"，官方模型始终为"可用"
           if (!isOfficialModel) {
-            updateCustomModelStatus(modelName, modelType, "检测中");
+            updateCustomModelStatus(modelName, modelType, MODEL_STATUS.CHECKING);
           }
         }
       }
@@ -454,7 +467,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
               isConnected = await modelService.verifyCustomModel(modelName, signal);
 
               // 更新模型状态
-              updateCustomModelStatus(modelName, modelType, isConnected ? "可用" : "不可用");
+              updateCustomModelStatus(modelName, modelType, isConnected ? MODEL_STATUS.AVAILABLE : MODEL_STATUS.UNAVAILABLE);
             } catch (error: any) {
               // 检查是否是因为请求被取消
               if (error.name === 'AbortError') {
@@ -462,7 +475,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
               }
 
               console.error(`校验自定义模型 ${modelName} 失败:`, error);
-              updateCustomModelStatus(modelName, modelType, "不可用");
+              updateCustomModelStatus(modelName, modelType, MODEL_STATUS.UNAVAILABLE);
             }
           }
         })
@@ -506,10 +519,10 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     setIsSyncing(true)
     try {
       await loadModelLists(true)
-      message.success('模型同步成功')
+      message.success(t('modelConfig.message.syncSuccess'))
     } catch (error) {
-      console.error('同步模型失败:', error)
-      message.error('同步模型失败')
+      console.error(t('modelConfig.error.syncFailed'), error)
+      message.error(t('modelConfig.error.syncFailed'))
     } finally {
       setIsSyncing(false)
     }
@@ -534,17 +547,21 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     // 使用节流，延迟1s再执行验证，避免频繁切换模型时重复验证
     throttleTimerRef.current = setTimeout(async () => {
       // 更新自定义模型状态为"检测中"
-      updateCustomModelStatus(displayName, modelType, "检测中");
+      updateCustomModelStatus(displayName, modelType, MODEL_STATUS.CHECKING);
 
       try {
         // 使用modelService验证自定义模型
         const isConnected = await modelService.verifyCustomModel(displayName);
 
         // 更新模型状态
-        updateCustomModelStatus(displayName, modelType, isConnected ? "可用" : "不可用");
+        updateCustomModelStatus(
+          displayName, 
+          modelType, 
+          isConnected ? MODEL_STATUS.AVAILABLE : MODEL_STATUS.UNAVAILABLE
+        );
       } catch (error: any) {
-        console.error(`校验自定义模型 ${displayName} 失败:`, error);
-        updateCustomModelStatus(displayName, modelType, "不可用");
+        console.error(t('modelConfig.error.verifyCustomModel', { model: displayName }), error);
+        updateCustomModelStatus(displayName, modelType, MODEL_STATUS.UNAVAILABLE);
       } finally {
         throttleTimerRef.current = null;
       }
@@ -590,7 +607,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
 
     // 新选择的模型如果是自定义模型，且之前没有设置状态，则设置为"未检测"
     if (modelInfo && modelInfo.source === "custom" && !modelInfo.connect_status) {
-      updateCustomModelStatus(displayName, modelType, "未检测");
+      updateCustomModelStatus(displayName, modelType, MODEL_STATUS.UNCHECKED);
     }
 
     // 更新配置
@@ -661,16 +678,16 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         <div style={{ display: "flex", justifyContent: "flex-start", paddingRight: 12, marginLeft: "4px", height: LAYOUT_CONFIG.BUTTON_AREA_HEIGHT }}>
           <Space size={8}>
             <Button type="primary" size="middle" onClick={handleSyncModels}>
-              <SyncOutlined spin={isSyncing} /> 同步ModelEngine模型
+              <SyncOutlined spin={isSyncing} /> {t('modelConfig.button.syncModelEngine')}
             </Button>
             <Button type="primary" size="middle" icon={<PlusOutlined />} onClick={() => setIsAddModalOpen(true)}>
-              添加自定义模型
+              {t('modelConfig.button.addCustomModel')}
             </Button>
             <Button type="primary" size="middle" icon={<DeleteOutlined />} onClick={() => setIsDeleteModalOpen(true)}>
-              删除自定义模型
+              {t('modelConfig.button.deleteCustomModel')}
             </Button>
             <Button type="primary" size="middle" icon={<SafetyCertificateOutlined />} onClick={verifyModels} loading={isVerifying}>
-              检查模型连通性
+              {t('modelConfig.button.checkConnectivity')}
             </Button>
           </Space>
         </div>
@@ -758,11 +775,9 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           onClose={() => setIsAddModalOpen(false)}
           onSuccess={async (newModel) => {
             await loadModelLists(true);
-            message.success('添加模型成功');
+            message.success(t('modelConfig.message.addSuccess'));
             
-            // 如果有新添加的模型信息，对该模型进行静默连通性校验
             if (newModel && newModel.name && newModel.type) {
-              // 使用setTimeout确保不阻塞UI
               setTimeout(() => {
                 verifyOneModel(newModel.name, newModel.type);
               }, 100);

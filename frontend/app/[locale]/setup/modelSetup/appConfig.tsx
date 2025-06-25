@@ -4,6 +4,7 @@ import { useConfig } from '@/hooks/useConfig';
 import { PlusOutlined } from '@ant-design/icons';
 import { Pencil } from 'lucide-react';
 import 'bootstrap-icons/font/bootstrap-icons.css';
+import { useTranslation } from 'react-i18next';
 
 import { generateAvatarUri } from '@/lib/avatar';
 import { presetIcons, colorOptions } from "@/types/avatar"
@@ -28,6 +29,7 @@ const cardTheme = {
 };
 
 export const AppConfigSection: React.FC = () => {
+  const { t } = useTranslation();
   const { appConfig, updateAppConfig, getAppAvatarUrl } = useConfig();
   
   // 添加本地状态管理输入值
@@ -119,12 +121,12 @@ export const AppConfigSection: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith("image/")) {
-        message.error("请上传图片文件");
+        message.error(t('appConfig.upload.imageOnly'));
         return;
       }
 
       if (file.size > 2 * 1024 * 1024) {
-        message.error("图片大小不能超过2MB");
+        message.error(t('appConfig.upload.sizeLimit'));
         return;
       }
 
@@ -169,10 +171,10 @@ export const AppConfigSection: React.FC = () => {
         });
       }
 
-      message.success("图标已保存");
+      message.success(t('appConfig.icon.saveSuccess'));
     } catch (error) {
-      message.error("图标保存失败，请重试");
-      console.error("保存图标设置失败:", error);
+      message.error(t('appConfig.icon.saveError'));
+      console.error(t('appConfig.icon.saveErrorLog'), error);
     }
   };
 
@@ -235,11 +237,11 @@ export const AppConfigSection: React.FC = () => {
               <div className="flex-1">
                 <div className="mb-4">
                   <div className="block mb-2">
-                    <Text className="text-base text-gray-700 font-bold">应用名称</Text>
+                    <Text className="text-base text-gray-700 font-bold">{t('appConfig.appName.label')}</Text>
                     <Text className="text-lg text-red-500 font-bold ml-1">*</Text>
                   </div>
                   <Input
-                    placeholder="请输入您的应用名称"
+                    placeholder={t('appConfig.appName.placeholder')}
                     value={localAppName}
                     onChange={handleAppNameChange}
                     onBlur={handleAppNameBlur}
@@ -251,10 +253,10 @@ export const AppConfigSection: React.FC = () => {
                 </div>
                 <div className="mb-1">
                   <div className="block mb-2">
-                    <Text className="text-base text-gray-700 font-bold">详情描述</Text>
+                    <Text className="text-base text-gray-700 font-bold">{t('appConfig.description.label')}</Text>
                   </div>
                   <TextArea
-                    placeholder="请输入应用详情描述"
+                    placeholder={t('appConfig.description.placeholder')}
                     value={localAppDescription}
                     onChange={handleDescriptionChange}
                     onBlur={handleDescriptionBlur}
@@ -271,12 +273,12 @@ export const AppConfigSection: React.FC = () => {
 
       {isAvatarModalOpen && (
         <DynamicModal
-          title="定制图标"
+          title={t('appConfig.icon.modalTitle')}
           open={isAvatarModalOpen}
           onCancel={cancelAvatarSelection}
           footer={[
             <Button key="submit" type="primary" onClick={confirmAvatarSelection}>
-              确认
+              {t('common.confirm')}
             </Button>,
           ]}
           destroyOnClose={true}
@@ -289,8 +291,8 @@ export const AppConfigSection: React.FC = () => {
               onChange={(e) => setTempAvatarType(e.target.value)}
               className="mb-4"
             >
-              <Radio.Button value="preset">预设图标</Radio.Button>
-              <Radio.Button value="custom">自定义图片</Radio.Button>
+              <Radio.Button value="preset">{t('appConfig.icon.preset')}</Radio.Button>
+              <Radio.Button value="custom">{t('appConfig.icon.custom')}</Radio.Button>
             </Radio.Group>
           </div>
 
@@ -298,7 +300,7 @@ export const AppConfigSection: React.FC = () => {
             <div>
               <div className="mb-3">
                 <div className="text-sm font-medium text-gray-500 mb-2">
-                  <Text>选择图标</Text>
+                  <Text>{t('appConfig.icon.selectIcon')}</Text>
                 </div>
                 <div className="grid grid-cols-5 gap-3">
                   {presetIcons.map((iconOption) => (
@@ -319,7 +321,7 @@ export const AppConfigSection: React.FC = () => {
 
               <div>
                 <div className="text-sm font-medium text-gray-500 mb-2">
-                  <Text>选择颜色</Text>
+                  <Text>{t('appConfig.icon.selectColor')}</Text>
                 </div>
                 <div className="flex items-center w-full">
                   <ColorPicker
@@ -329,7 +331,7 @@ export const AppConfigSection: React.FC = () => {
                     disabledAlpha={true}
                     presets={[
                       {
-                        label: '预设颜色',
+                        label: t('appConfig.icon.presetColors'),
                         colors: colorOptions as any,
                       }
                     ]}
@@ -350,7 +352,7 @@ export const AppConfigSection: React.FC = () => {
 
               <div>
                 <div className="text-sm font-medium text-gray-500 mb-2 mt-4">
-                  <Text>图标预览</Text>
+                  <Text>{t('appConfig.icon.preview')}</Text>
                 </div>
                 <div className="mt-4 flex justify-center">
                   <div 
@@ -360,13 +362,13 @@ export const AppConfigSection: React.FC = () => {
                     {tempAvatarType === "preset" ? (
                       <img 
                         src={generateAvatarUri(tempIconKey, tempColor)} 
-                        alt="预览"
+                        alt={t('appConfig.icon.previewAlt')}
                         className="h-full w-full object-cover"
                       />
                     ) : tempCustomAvatarUrl && (
                       <img 
                         src={tempCustomAvatarUrl} 
-                        alt="预览"
+                        alt={t('appConfig.icon.previewAlt')}
                         className="h-full w-full object-cover"
                       />
                     )}
@@ -386,7 +388,7 @@ export const AppConfigSection: React.FC = () => {
                   >
                     <img 
                       src={tempCustomAvatarUrl}
-                      alt="自定义头像"
+                      alt={t('appConfig.icon.customAlt')}
                       className="h-full w-full object-cover"
                     />
                   </div>
@@ -396,7 +398,7 @@ export const AppConfigSection: React.FC = () => {
                     className="mt-4"
                     onClick={() => setTempCustomAvatarUrl(null)}
                   >
-                    移除图片
+                    {t('appConfig.icon.removeImage')}
                   </Button>
                 </div>
               ) : (
@@ -406,7 +408,7 @@ export const AppConfigSection: React.FC = () => {
                 >
                   <div className="text-center">
                     <PlusOutlined style={{ fontSize: '24px', color: '#8c8c8c' }} />
-                    <p className="mt-2 text-gray-500">点击上传图片</p>
+                    <p className="mt-2 text-gray-500">{t('appConfig.icon.uploadHint')}</p>
                   </div>
                 </div>
               )}
@@ -420,7 +422,7 @@ export const AppConfigSection: React.FC = () => {
               />
               
               <div className="text-xs text-gray-500 mt-2">
-                <Text>支持 JPG, PNG 格式，大小不超过 2MB</Text>
+                <Text>{t('appConfig.icon.uploadTip')}</Text>
               </div>
             </div>
           )}
