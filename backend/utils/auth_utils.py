@@ -5,20 +5,20 @@ from typing import Optional
 from fastapi import Header, Request
 from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID
 
-# 获取Supabase配置
+# Get Supabase configuration
 SUPABASE_URL = os.getenv('SUPABASE_URL', 'http://118.31.249.152:8010')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
 
 
 def get_current_user_id_from_token(authorization: str) -> Optional[str]:
     """
-    从JWT令牌中提取用户ID
+    Extract user ID from JWT token
 
     Args:
-        authorization: 授权头部值
+        authorization: Authorization header value
 
     Returns:
-        Optional[str]: 用户ID，如果解析失败则返回None
+        Optional[str]: User ID, return None if parsing fails
     """
     try:
         return DEFAULT_USER_ID
@@ -40,17 +40,17 @@ def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
 
 def get_user_language(request: Request = None) -> str:
     """
-    从请求中获取用户语言偏好
+    Get user language preference from request
     
     Args:
-        request: FastAPI请求对象，用于获取cookie
+        request: FastAPI request object, used to get cookie
         
     Returns:
-        str: 语言代码 ('zh' 或 'en')，默认为 'zh'
+        str: Language code ('zh' or 'en'), default to 'zh'
     """
     default_language = 'zh'
     
-    # 从cookie中读取语言设置
+    # Read language setting from cookie
     if request:
         try:
             if hasattr(request, 'cookies') and request.cookies:
@@ -64,14 +64,14 @@ def get_user_language(request: Request = None) -> str:
 
 def get_current_user_info(authorization: Optional[str] = None, request: Request = None) -> tuple[str, str, str]:
     """
-    获取当前用户信息，包括用户ID、租户ID和语言偏好
+    Get current user information, including user ID, tenant ID, and language preference
     
     Args:
-        authorization: 授权头部值
-        request: FastAPI请求对象
+        authorization: Authorization header value
+        request: FastAPI request object
         
     Returns:
-        tuple[str, str, str]: (用户ID, 租户ID, 语言代码)
+        tuple[str, str, str]: (User ID, Tenant ID, Language code)
     """
     user_id, tenant_id = get_current_user_id(authorization)
     language = get_user_language(request)

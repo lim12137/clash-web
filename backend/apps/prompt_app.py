@@ -42,8 +42,7 @@ async def generate_and_save_system_prompt_api(prompt_request: GeneratePromptRequ
 async def fine_tune_prompt_api(prompt_request: FineTunePromptRequest, http_request: Request,
                               authorization: Optional[str] = Header(None)):
     try:
-        # 获取语言信息
-        user_id, tenant_id, language = get_current_user_info(authorization, http_request)
+        _, tenant_id, language = get_current_user_info(authorization, http_request)
         
         result = fine_tune_prompt(
             system_prompt=prompt_request.system_prompt,

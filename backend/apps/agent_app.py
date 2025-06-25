@@ -27,9 +27,7 @@ async def agent_run_api(agent_request: AgentRequest, http_request: Request, auth
     """
     Agent execution API endpoint
     """
-    # 获取语言信息
     _, _, language = get_current_user_info(authorization, http_request)
-    
     agent_run_info = await create_agent_run_info(agent_id=agent_request.agent_id,
                                                  minio_files=agent_request.minio_files,
                                                  query=agent_request.query,

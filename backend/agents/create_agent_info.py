@@ -105,20 +105,20 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
 
 async def prepare_prompt_templates(is_manager: bool, system_prompt: str, language: str = 'zh'):
     """
-    准备prompt模板，支持多语言
+    Prepare prompt templates, support multiple languages
     
     Args:
-        is_manager: 是否为管理者模式
-        system_prompt: 系统prompt内容
-        language: 语言代码 ('zh' 或 'en')
+        is_manager: Whether it is a manager mode
+        system_prompt: System prompt content
+        language: Language code ('zh' or 'en')
         
     Returns:
-        dict: prompt模板配置
+        dict: Prompt template configuration
     """
     def get_template_path(is_manager: bool, language: str) -> str:
         if language == 'en':
             return "backend/prompts/manager_system_prompt_template_en.yaml" if is_manager else "backend/prompts/managed_system_prompt_template_en.yaml"
-        else:  # 默认中文
+        else:  # Default to Chinese
             return "backend/prompts/manager_system_prompt_template.yaml" if is_manager else "backend/prompts/managed_system_prompt_template.yaml"
 
     prompt_template_path = get_template_path(is_manager, language)
