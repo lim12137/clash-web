@@ -102,7 +102,7 @@ def query_sub_agents(main_agent_id: int, tenant_id: str = None, user_id: str = N
         agents = query.order_by(AgentInfo.create_time.desc()).all()
 
         if not user_id:
-            return as_dict(agents)
+            return [as_dict(agent) for agent in agents]
 
         user_agents = session.query(UserAgent).filter(
             UserAgent.tenant_id == tenant_id,
