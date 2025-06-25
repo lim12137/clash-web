@@ -1,13 +1,14 @@
 import logging
 import os
 import time
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List
 
 # Import for Excel processing
 from .excel_process import process_excel_file
 
 # Setup logging
 logger = logging.getLogger("data_process.core")
+logger.setLevel(logging.DEBUG)
 
 class DataProcessCore:
     """Core data processing functionality with distributed processing capabilities"""
@@ -47,7 +48,7 @@ class DataProcessCore:
         
         Args:
             file_path: Path to the file to process
-            chunking_strategy: Strategy for chunking the data
+            chunking_strategy: Strategy for chunking the data, could be chosen from basic/by_title/none
             **params: Additional parameters for processing
             
         Returns:
@@ -81,24 +82,23 @@ class DataProcessCore:
         """
         Args:
             file_path: Path to the file to process
-            chunking_strategy: Strategy for chunking the data
+            chunking_strategy: Strategy for chunking the data, could be chosen from basic/by_title/none
             **params: Additional parameters for processing
             
         Returns:
             List of processed chunks
         """
         # Extract parameters with defaults
-        max_characters = params.get("max_characters", 1500)
-        new_after_n_chars = params.get("new_after_n_chars", 500)
+        max_characters = params.get("max_characters", 1500)  # Only useful under basic chunking_strategy
+        new_after_n_chars = params.get("new_after_n_chars", 1200)  # Only useful under basic chunking_strategy
         strategy = params.get("strategy", "fast")
-        infer_table_structure = params.get("infer_table_structure", True)
+        skip_infer_table_types = params.get("skip_infer_table_types", [])  # Only useful under hi-res strategy
         source_type = params.get("source_type", "file")
         task_id = params.get("task_id", "unknown")
         
         # Dynamic imports with error handling
         try:
             from unstructured.partition.auto import partition
-            from unstructured.chunking.basic import chunk_elements
             from unstructured.file_utils.filetype import detect_filetype
         except ImportError:
             raise ImportError(
@@ -148,8 +148,8 @@ class DataProcessCore:
                     max_characters=max_characters, 
                     new_after_n_chars=new_after_n_chars, 
                     strategy=strategy,
-                    infer_table_structure=infer_table_structure, 
-                    **params
+                    skip_infer_table_types=skip_infer_table_types,
+                    chunking_strategy=chunking_strategy if chunking_strategy != "none" else None
                 )
                 logger.debug(f"Partition complete, got {len(elements)} elements", 
                           extra={'task_id': task_id, 'stage': 'DEBUG', 'source': 'local'})
@@ -157,23 +157,35 @@ class DataProcessCore:
                 # Handle other source types
                 raise ValueError(f"Source type {source_type} not supported for local processing")
             
-            # Apply chunking
-            elements = chunk_elements(elements, max_characters=max_characters, new_after_n_chars=new_after_n_chars)
+            # If "none" strategy, combine all elements into a single chunk
+            if chunking_strategy == "none":
+                full_text = "\n\n".join([el.text for el in elements])
+                doc = {
+                    "content": full_text,
+                    "path_or_url": file_path,
+                    "filename": os.path.basename(file_path),
+                }
+                # Try to get language from the first element's metadata
+                if elements and hasattr(elements[0], 'metadata'):
+                    languages = elements[0].metadata.to_dict().get("languages")
+                    if languages:
+                        doc["language"] = languages[0]
+                return [doc]
             
             # Process elements
             result = []
             for element in elements:
                 metadata = element.metadata.to_dict()
                 doc = {
-                    "text": element.text,    # For embedding (via content_field="text")
-                    "content": element.text, # For ES mapped 'content' field (full text search)
+                    "content": element.text,
                     "path_or_url": file_path,
                     "filename": metadata.get("filename", os.path.basename(file_path)),
                 }
                 
                 # Add language if available in metadata, as it's in the ES mapping
-                if metadata.get("languages"):
-                    doc["language"] = metadata.get("languages")[0]
+                languages = metadata.get("languages")
+                if languages:
+                    doc["language"] = languages[0]
                 
                 result.append(doc)
             

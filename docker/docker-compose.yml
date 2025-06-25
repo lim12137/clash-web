@@ -1,21 +1,22 @@
 x-es-vars: &es-vars
   ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+  ELASTICSEARCH_API_KEY: ${ELASTICSEARCH_API_KEY:-}
 x-minio-vars: &minio-vars
   MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
   MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
   MINIO_REGION: ${MINIO_REGION}
   MINIO_DEFAULT_BUCKET: ${MINIO_DEFAULT_BUCKET}
 x-proxy-vars: &proxy-vars
-  HTTP_PROXY: ${HTTP_PROXY}
-  HTTPS_PROXY: ${HTTPS_PROXY}
-  NO_PROXY: ${NO_PROXY}
+  HTTP_PROXY: ${HTTP_PROXY:-}
+  HTTPS_PROXY: ${HTTPS_PROXY:-}
+  NO_PROXY: ${NO_PROXY:-}
 
 services:
   nexent-elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.17.4
     container_name: nexent-elasticsearch
     environment:
-      <<: *es-vars
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
       # Single node mode
       discovery.type: single-node
       # Security settings
@@ -80,7 +81,6 @@ services:
   nexent:
     image: nexent/nexent
     container_name: nexent
-    command: bash
     restart: always
     ports:
       - "5010:5010"  # Backend service port
@@ -104,6 +104,12 @@ services:
         max-file: "3"    # Maximum number of log files to keep
     networks:
       - nexent
+    entrypoint: >
+      /bin/sh -c "
+        umask 0022
+        python /opt/backend/mcp_service.py &
+        python /opt/backend/main_service.py
+      "
 
   nexent-web:
     image: nexent/nexent-web
@@ -131,6 +137,8 @@ services:
     privileged: true
     ports:
       - "5012:5012"
+      - "5555:5555"  # Celery Flower port
+      - "8265:8265"  # Ray Dashboardport
     volumes:
       - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
