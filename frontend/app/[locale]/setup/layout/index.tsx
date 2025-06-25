@@ -5,6 +5,8 @@ import { FiRefreshCw, FiArrowLeft } from "react-icons/fi"
 import { Badge, Button, Tooltip } from "antd"
 import { useRouter } from "next/navigation"
 import { BugOutlined } from '@ant-design/icons'
+import { useTranslation } from "react-i18next"
+
 
 // ================ Header 组件 ================
 interface HeaderProps {
@@ -21,18 +23,19 @@ function Header({
   onCheckConnection
 }: HeaderProps) {
   const router = useRouter()
+  const { t } = useTranslation()
 
   // 获取状态文本
   const getStatusText = () => {
     switch (connectionStatus) {
       case "success":
-        return "ModelEngine 已连接"
+        return t("setup.header.status.connected")
       case "error":
-        return "ModelEngine 未连接"
+        return t("setup.header.status.disconnected")
       case "processing":
-        return "检查中"
+        return t("setup.header.status.checking")
       default:
-        return "未知状态"
+        return t("setup.header.status.unknown")
     }
   }
 
@@ -45,13 +48,13 @@ function Header({
             <button
               onClick={() => router.push("/")}
               className="mr-3 p-2 rounded-full hover:bg-gray-100 transition-colors"
-              aria-label="返回首页"
+              aria-label={t("setup.header.button.back")}
             >
               <FiArrowLeft className="text-gray-600 text-xl" />
             </button>
-            <h1 className="text-xl font-bold text-blue-600">快速配置</h1>
+            <h1 className="text-xl font-bold text-blue-600">{t("setup.header.title")}</h1>
             <div className="mx-2 h-6 border-l border-gray-300"></div>
-            <span className="text-gray-500 text-sm">精准解答每一个问题，高效支撑每一次决策</span>
+            <span className="text-gray-500 text-sm">{t("setup.header.description")}</span>
           </div>
           <div className="flex items-center">
             {/* ModelEngine连通性状态 */}
@@ -61,7 +64,7 @@ function Header({
                 text={getStatusText()} 
                 className="[&>.ant-badge-status-dot]:w-[8px] [&>.ant-badge-status-dot]:h-[8px] [&>.ant-badge-status-text]:text-base [&>.ant-badge-status-text]:ml-2 [&>.ant-badge-status-text]:font-medium"
               />
-              <Tooltip title={lastChecked ? `上次检查: ${lastChecked}` : "点击检查连接状态"}>
+              <Tooltip title={lastChecked ? t("setup.header.tooltip.lastChecked", { time: lastChecked }) : t("setup.header.tooltip.checkStatus")}>
                 <Button
                   icon={<FiRefreshCw className={isCheckingConnection ? "animate-spin" : ""} />}
                   size="small"
@@ -95,6 +98,8 @@ function Navigation({
   isSavingConfig,
   showDebugButton = false,
 }: NavigationProps) {
+  const { t } = useTranslation()
+
   return (
     <div className="mt-3 flex justify-between px-6">
       <div className="flex gap-2">
@@ -103,7 +108,7 @@ function Navigation({
             onClick={onBackToFirstPage}
             className={"px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"}
           >
-            上一步
+            {t("setup.navigation.button.previous")}
           </button>
         )}
       </div>
@@ -115,7 +120,7 @@ function Navigation({
           className={"px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-blue-500 text-white hover:bg-blue-600"}
           style={{ border: "none" }}
         >
-          {selectedKey === "3" ? (isSavingConfig ? "保存中..." : "完成配置") : "下一步"}
+          {selectedKey === "3" ? (isSavingConfig ? t("setup.navigation.button.saving") : t("setup.navigation.button.complete")) : t("setup.navigation.button.next")}
         </button>
       </div>
     </div>
