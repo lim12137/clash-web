@@ -10,6 +10,7 @@ import { configStore } from "@/lib/config"
 import { configService } from "@/services/configService"
 import modelEngineService, { ConnectionStatus } from "@/services/modelEngineService"
 import Layout from "./layout"
+import { useTranslation } from 'react-i18next'
 
 export default function CreatePage() {
   const [selectedKey, setSelectedKey] = useState("1")
@@ -19,6 +20,7 @@ export default function CreatePage() {
   const [lastChecked, setLastChecked] = useState<string | null>(null)
   const [isSavingConfig, setIsSavingConfig] = useState(false)
   const [isFromSecondPage, setIsFromSecondPage] = useState(false)
+  const { t } = useTranslation()
 
   // Check the connection status when the page is initialized
   useEffect(() => {
@@ -40,7 +42,7 @@ export default function CreatePage() {
     if (selectedKey === "2") {
       // When entering the second page, reset the flag
       setIsFromSecondPage(false)
-      // 清除所有可能的缓存
+      // Clear all possible caches
       localStorage.removeItem('preloaded_kb_data');
       localStorage.removeItem('kb_cache');
       // When entering the second page, get the latest knowledge base data
@@ -60,7 +62,7 @@ export default function CreatePage() {
       setConnectionStatus(result.status)
       setLastChecked(result.lastChecked)
     } catch (error) {
-      console.error("检查连接状态失败:", error)
+      console.error(t('setup.page.error.checkConnection'), error)
       setConnectionStatus("error")
     } finally {
       setIsCheckingConnection(false)
@@ -105,13 +107,13 @@ export default function CreatePage() {
 
         // check if the business description is filled
         if (!agentConfigData.businessLogic || agentConfigData.businessLogic.trim() === '') {
-          message.error("请先完成业务描述");
+          message.error(t('agent.message.businessDescriptionRequired'));
           return; // prevent continue
         }
 
         // check if the system prompt is generated
         if (!agentConfigData.systemPrompt || agentConfigData.systemPrompt.trim() === '') {
-          message.error("请先生成系统提示词");
+          message.error(t('systemPrompt.message.empty'));
           return; // prevent continue
         }
 
@@ -124,23 +126,23 @@ export default function CreatePage() {
         const saveResult = await configService.saveConfigToBackend(currentConfig)
         
         if (saveResult) {
-          message.success("配置已保存")
+          message.success(t('setup.page.success.configSaved'))
           // After saving successfully, redirect to the chat page
           router.push("/chat")
         } else {
-          message.error("保存配置失败，请重试")
+          message.error(t('setup.page.error.saveConfig'))
         }
       } catch (error) {
-        console.error("保存配置异常:", error)
-        message.error("系统异常，请稍后重试")
+        console.error(t('setup.page.error.systemError'), error)
+        message.error(t('setup.page.error.systemError'))
       } finally {
         setIsSavingConfig(false)
       }
     } else if (selectedKey === "2") {
       // Jump from the second page to the third page
-      console.log("🔄 Setup页面: 准备从第二页跳转到第三页");
+      console.log(t('setup.page.log.readyToJump', { from: '2', to: '3' }));
       setSelectedKey("3")
-      console.log("🔄 Setup页面: selectedKey已更新为3");
+      console.log(t('setup.page.log.selectedKeyUpdated', { key: '3' }));
     } else if (selectedKey === "1") {
       // Validate required fields when jumping from the first page to the second page
       try {
@@ -149,11 +151,11 @@ export default function CreatePage() {
         
         // Check the application name
         if (!currentConfig.app.appName.trim()) {
-          message.error("请填写应用名称")
+          message.error(t('setup.page.error.fillAppName'))
           
           // Trigger a custom event to notify the AppConfigSection to mark the application name input box as an error
           window.dispatchEvent(new CustomEvent('highlightMissingField', {
-            detail: { field: 'appName' }
+            detail: { field: t('setup.page.error.highlightField.appName') }
           }))
           
           return // Interrupt the jump
@@ -161,26 +163,26 @@ export default function CreatePage() {
         
         // Check the main model
         if (!currentConfig.models.llm.modelName) {
-          message.error("请选择主模型")
+          message.error(t('setup.page.error.selectMainModel'))
           
           // Trigger a custom event to notify the ModelConfigSection to mark the main model dropdown as an error
           window.dispatchEvent(new CustomEvent('highlightMissingField', {
-            detail: { field: 'llm.main' }
+            detail: { field: t('setup.page.error.highlightField.llmMain') }
           }))
           
           return
         }
         
         // All required fields have been filled, allow the jump to the second page
-        console.log("🔄 Setup页面: 准备从第一页跳转到第二页");
+        console.log(t('setup.page.log.readyToJump', { from: '1', to: '2' }));
         setSelectedKey("2")
-        console.log("🔄 Setup页面: selectedKey已更新为2");
+        console.log(t('setup.page.log.selectedKeyUpdated', { key: '2' }));
 
         // Call the backend save configuration API
         await configService.saveConfigToBackend(currentConfig)
       } catch (error) {
-        console.error("验证配置异常:", error)
-        message.error("系统异常，请稍后重试")
+        console.error(t('setup.page.error.systemError'), error)
+        message.error(t('setup.page.error.systemError'))
       }
     }
   }
@@ -188,13 +190,13 @@ export default function CreatePage() {
   // Handle the logic of the user switching to the first page
   const handleBackToFirstPage = () => {
     if (selectedKey === "3") {
-      console.log("🔄 Setup页面: 准备从第三页返回第二页");
+      console.log(t('setup.page.log.readyToJump', { from: '3', to: '2' }));
       setSelectedKey("2")
-      console.log("🔄 Setup页面: selectedKey已更新为2");
+      console.log(t('setup.page.log.selectedKeyUpdated', { key: '2' }));
     } else if (selectedKey === "2") {
-      console.log("🔄 Setup页面: 准备从第二页返回第一页");
+      console.log(t('setup.page.log.readyToJump', { from: '2', to: '1' }));
       setSelectedKey("1")
-      console.log("🔄 Setup页面: selectedKey已更新为1");
+      console.log(t('setup.page.log.selectedKeyUpdated', { key: '1' }));
       // Set the flag to indicate that the user is returning from the second page to the first page
       setIsFromSecondPage(true)
     }

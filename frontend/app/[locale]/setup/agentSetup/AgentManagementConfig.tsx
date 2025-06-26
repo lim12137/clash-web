@@ -10,29 +10,35 @@ import { Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, Busine
 import { ScrollArea } from '@/components/ui/scrollArea'
 import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent, importAgent, exportAgent, deleteAgent, searchAgentInfo } from '@/services/agentConfigService'
 import {generatePromptStream, savePrompt} from '@/services/promptService'
-
+import { useTranslation } from 'react-i18next' 
+import { TFunction } from 'i18next'
 const { TextArea } = Input
 
-const modelOptions = [
-  { label: '主模型', value: OpenAIModel.MainModel },
-  { label: '副模型', value: OpenAIModel.SubModel },
-];
+const ModelOptions = () => {
+  const { t } = useTranslation('common');
+  return [
+    { label: t('model.option.main'), value: OpenAIModel.MainModel },
+    { label: t('model.option.sub'), value: OpenAIModel.SubModel },
+  ]
+}
 
 // 提取公共的 handleToolSelect 逻辑
 const handleToolSelectCommon = async (
   tool: Tool,
   isSelected: boolean,
   mainAgentId: string | null | undefined,
+  t: TFunction,
   onSuccess?: (tool: Tool, isSelected: boolean) => void
 ) => {
+
   // Only block the action when attempting to select an unavailable tool.
   if (tool.is_available === false && isSelected) {
-    message.error('该工具当前不可用，无法选择');
+    message.error(t('tool.message.unavailable'));
     return { shouldProceed: false, params: {} };
   }
 
   if (!mainAgentId) {
-    message.error('主代理ID未设置，无法更新工具状态');
+    message.error(t('tool.error.noMainAgentId'));
     return { shouldProceed: false, params: {} };
   }
 
@@ -40,7 +46,7 @@ const handleToolSelectCommon = async (
     // step 1: get tool config from database
     const searchResult = await searchToolConfig(parseInt(tool.id), parseInt(mainAgentId));
     if (!searchResult.success) {
-      message.error('获取工具配置失败');
+      message.error(t('tool.error.configFetchFailed'));
       return { shouldProceed: false, params: {} };
     }
 
@@ -82,14 +88,14 @@ const handleToolSelectCommon = async (
       if (onSuccess) {
         onSuccess(tool, isSelected);
       }
-      message.success(`工具"${tool.name}"${isSelected ? '已启用' : '已禁用'}`);
+      message.success(t('tool.message.statusUpdated', { name: tool.name, status: isSelected ? t('common.enabled') : t('common.disabled') }));
       return { shouldProceed: true, params };
     } else {
-      message.error(updateResult.message || '更新工具状态失败');
+      message.error(updateResult.message || t('tool.error.updateFailed'));
       return { shouldProceed: false, params };
     }
   } catch (error) {
-    message.error('更新工具状态失败，请稍后重试');
+    message.error(t('tool.error.updateRetry'));
     return { shouldProceed: false, params: {} };
   }
 };
@@ -98,14 +104,16 @@ const handleToolSelectCommon = async (
  * Business Logic Input Component
  */
 function BusinessLogicInput({ value, onChange, selectedAgents, systemPrompt }: BusinessLogicInputProps) {
+  const { t } = useTranslation('common');
+  
   return (
     <div className="flex flex-col h-full">
-      <h2 className="text-lg font-medium mb-2">业务描述</h2>
+      <h2 className="text-lg font-medium mb-2">{t('businessLogic.title')}</h2>
       <div className="flex-1 flex flex-col">
         <TextArea
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="请描述您的业务场景和需求..."
+          placeholder={t('businessLogic.placeholder')}
           className="w-full h-full resize-none p-3 text-base"
           style={{ height: '100%' }}
           autoSize={false}
@@ -131,6 +139,8 @@ function SubAgentPool({
   enabledAgentIds = [],
   isImporting = false
 }: SubAgentPoolProps) {
+  const { t } = useTranslation('common');
+  
   const [contextMenu, setContextMenu] = useState<{
     visible: boolean;
     x: number;
@@ -167,8 +177,8 @@ function SubAgentPool({
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-2">
-        <h2 className="text-lg font-medium">Agent</h2>
-        {loadingAgents && <span className="text-sm text-gray-500">加载中...</span>}
+        <h2 className="text-lg font-medium">{t('subAgentPool.title')}</h2>
+        {loadingAgents && <span className="text-sm text-gray-500">{t('subAgentPool.loading')}</span>}
       </div>
       <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
         <div className="grid grid-cols-1 gap-3 pr-2">
@@ -179,7 +189,7 @@ function SubAgentPool({
             >
               <div className="flex items-center justify-center h-full text-blue-500">
                 <span className="text-lg mr-2">+</span>
-                <span className="text-sm">新建Agent</span>
+                <span className="text-sm">{t('subAgentPool.button.create')}</span>
               </div>
             </div>
 
@@ -193,7 +203,7 @@ function SubAgentPool({
             >
               <div className={`flex items-center justify-center h-full ${isImporting ? 'text-gray-400' : 'text-green-500'}`}>
                 <UploadOutlined className="text-lg mr-2" />
-                <span className="text-sm">{isImporting ? '导入中...' : '导入Agent'}</span>
+                <span className="text-sm">{isImporting ? t('subAgentPool.button.importing') : t('subAgentPool.button.import')}</span>
               </div>
             </div>
           </div>
@@ -215,15 +225,12 @@ function SubAgentPool({
                 }`}
                 title={!isAvailable 
                   ? isEnabled 
-                    ? '该Agent已禁用，请点击取消启用'
-                    : 'Agent不可用' 
+                    ? t('subAgentPool.tooltip.disabledAgent')
+                    : t('subAgentPool.tooltip.unavailableAgent')
                   : undefined}
                 onClick={() => {
-                  console.log('agent', agent);
-                  console.log('isAvailable', isAvailable);
-                  console.log('isEnabled', isEnabled);
                   if (!isAvailable && !isEnabled) {
-                    message.warning('该Agent不可用');
+                    message.warning(t('subAgentPool.message.unavailable'));
                     return;
                   }
                   // 如果Agent不可用但已启用，允许禁用它
@@ -240,8 +247,8 @@ function SubAgentPool({
                     <div className={`font-medium text-sm truncate ${!isAvailable && !isEnabled ? 'text-gray-400' : ''}`} 
                          title={!isAvailable 
                            ? isEnabled 
-                             ? '该Agent已禁用，请点击取消启用'
-                             : 'Agent不可用' 
+                             ? t('subAgentPool.tooltip.disabledAgent')
+                             : t('subAgentPool.tooltip.unavailableAgent')
                            : agent.name}>
                       {agent.name}
                     </div>
@@ -299,6 +306,8 @@ function ToolPool({
   mainAgentId,
   localIsGenerating
 }: ToolPoolProps) {
+  const { t } = useTranslation('common');
+  
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [currentTool, setCurrentTool] = useState<Tool | null>(null);
   const [pendingToolSelection, setPendingToolSelection] = useState<{tool: Tool, isSelected: boolean} | null>(null);
@@ -321,6 +330,7 @@ function ToolPool({
       tool,
       isSelected,
       mainAgentId,
+      t,
       (tool, isSelected) => onSelectTool(tool, isSelected)
     );
 
@@ -335,7 +345,7 @@ function ToolPool({
       setPendingToolSelection({ tool, isSelected });
       setIsToolModalOpen(true);
     }
-  }, [mainAgentId, onSelectTool]);
+  }, [mainAgentId, onSelectTool, t]);
 
   // Use useCallback to cache the tool configuration click processing function
   const handleConfigClick = useCallback((tool: Tool, e: React.MouseEvent) => {
@@ -353,7 +363,7 @@ function ToolPool({
         .map(param => param.name);
 
       if (missingRequiredFields.length > 0) {
-        message.error(`以下必填字段未填写: ${missingRequiredFields.join(', ')}`);
+        message.error(t('toolPool.error.requiredFields', { fields: missingRequiredFields.join(', ') }));
         return;
       }
 
@@ -371,7 +381,7 @@ function ToolPool({
     
     setIsToolModalOpen(false);
     setPendingToolSelection(null);
-  }, [pendingToolSelection, handleToolSelect]);
+  }, [pendingToolSelection, handleToolSelect, t]);
 
   // Use useCallback to cache the modal close processing function
   const handleModalClose = useCallback(() => {
@@ -397,13 +407,13 @@ function ToolPool({
         } ${localIsGenerating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         title={!isAvailable 
           ? isSelected 
-            ? '该工具已禁用，请点击取消启用'
-            : '工具不可用' 
+            ? t('toolPool.tooltip.disabledTool')
+            : t('toolPool.tooltip.unavailableTool')
           : tool.name}
         onClick={(e) => {
           if (localIsGenerating) return;
           if (!isAvailable && !isSelected) {
-            message.warning('该工具不可用');
+            message.warning(t('toolPool.message.unavailable'));
             return;
           }
           handleToolSelect(tool, !isSelected, e);
@@ -414,8 +424,8 @@ function ToolPool({
           <div className={`font-medium text-sm truncate ${!isAvailable && !isSelected ? 'text-gray-400' : ''}`} 
                title={!isAvailable 
                  ? isSelected 
-                   ? '该工具已禁用，请点击取消启用'
-                   : '工具不可用' 
+                   ? t('toolPool.tooltip.disabledTool')
+                   : t('toolPool.tooltip.unavailableTool')
                  : tool.name}>
             {tool.name}
           </div>
@@ -425,7 +435,7 @@ function ToolPool({
           <div className="flex items-center justify-start min-w-[90px] w-[90px]">
             <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} 
                  className={`w-full text-center ${!isAvailable && !isSelected ? 'opacity-50' : ''}`}>
-              {tool?.source === 'mcp' ? 'MCP工具' : '本地工具'}
+              {tool?.source === 'mcp' ? t('toolPool.tag.mcp') : t('toolPool.tag.local')}
             </Tag>
           </div>
           <button 
@@ -437,7 +447,7 @@ function ToolPool({
                 if (isSelected) {
                   handleToolSelect(tool, false, e);
                 } else {
-                  message.warning('该工具不可用');
+                  message.warning(t('toolPool.message.unavailable'));
                 }
                 return;
               }
@@ -459,13 +469,13 @@ function ToolPool({
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-2">
-        <h2 className="text-lg font-medium">工具</h2>
-        {loadingTools && <span className="text-sm text-gray-500">加载中...</span>}
+        <h2 className="text-lg font-medium">{t('toolPool.title')}</h2>
+        {loadingTools && <span className="text-sm text-gray-500">{t('toolPool.loading')}</span>}
       </div>
       <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
         {loadingTools ? (
           <div className="flex items-center justify-center h-full">
-            <span className="text-gray-500">加载工具中...</span>
+            <span className="text-gray-500">{t('toolPool.loadingTools')}</span>
           </div>
         ) : (
           <div className="flex flex-col gap-3 pr-2">
@@ -543,8 +553,10 @@ export default function BusinessLogicConfig({
   const [isEditingAgent, setIsEditingAgent] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
 
+  const { t } = useTranslation('common');
+
   // Common refresh agent list function, moved to the front to avoid hoisting issues
-  const refreshAgentList = async () => {
+  const refreshAgentList = async (t: TFunction) => {
     if (!mainAgentId) return;
     
     setIsLoadingTools(true);
@@ -583,17 +595,17 @@ export default function BusinessLogicConfig({
           setSelectedTools(enabledTools);
         }
       } else {
-        message.error(result.message || '获取 Agent 列表失败');
+        message.error(result.message || t('businessLogic.config.error.agentListFailed'));
       }
     } catch (error) {
       console.error('获取 Agent 列表失败:', error);
-      message.error('获取 Agent 列表失败，请稍后重试');
+      message.error(t('businessLogic.config.error.agentListFailed'));
     } finally {
       setIsLoadingTools(false);
     }
   };
 
-  const fetchSubAgentIdAndEnableToolList = async () => {
+  const fetchSubAgentIdAndEnableToolList = async (t: TFunction) => {
     setIsLoadingTools(true);
     // Clear the tool selection status when loading starts
     setSelectedTools([]);
@@ -625,11 +637,11 @@ export default function BusinessLogicConfig({
           setSystemPrompt(prompt);
         }
       } else {
-        message.error(result.message || '获取新Agent ID失败');
+        message.error(result.message || t('businessLogic.config.error.agentIdFailed'));
       }
     } catch (error) {
       console.error('创建新Agent失败:', error);
-      message.error('创建新Agent失败，请稍后重试');
+      message.error(t('businessLogic.config.error.agentIdFailed'));
     } finally {
       setIsLoadingTools(false);
     }
@@ -645,7 +657,7 @@ export default function BusinessLogicConfig({
         // Only clear and get new Agent configuration in creating mode
         setBusinessLogic('');
         setSystemPrompt(''); // Also clear the system prompt
-        fetchSubAgentIdAndEnableToolList();
+        fetchSubAgentIdAndEnableToolList(t);
         // Reset new agent info states when entering creating mode
         setNewAgentName('');
         setNewAgentDescription('');
@@ -663,7 +675,7 @@ export default function BusinessLogicConfig({
         setSystemPrompt(''); // Also clear the system prompt
         setMainAgentModel(OpenAIModel.MainModel);
         setMainAgentMaxStep(5);
-        refreshAgentList();
+        refreshAgentList(t);
       }
     }
   }, [isCreatingNewAgent, isEditingAgent]);
@@ -715,7 +727,6 @@ export default function BusinessLogicConfig({
         let result;
         
         if (isEditingAgent && editingAgent) {
-          // 修改模式：更新现有Agent
           result = await updateAgent(
             Number(editingAgent.id),
             name,
@@ -724,11 +735,10 @@ export default function BusinessLogicConfig({
             max_step,
             provide_run_summary,
             prompt,
-            undefined, // enabled - let the backend handle this
+            undefined,
             business_description
           );
         } else {
-          // 新建模式：创建新Agent
           result = await updateAgent(
             Number(mainAgentId),
             name,
@@ -737,23 +747,20 @@ export default function BusinessLogicConfig({
             max_step,
             provide_run_summary,
             prompt,
-            undefined, // enabled - let the backend handle this
+            undefined,
             business_description
           );
         }
 
         if (result.success) {
-          const actionText = isEditingAgent ? '修改' : '创建';
-          message.success(`Agent:"${name}"${actionText}成功`);
+          const actionText = isEditingAgent ? t('agent.action.modify') : t('agent.action.create');
+          message.success(t('businessLogic.config.message.agentCreated', { name, action: actionText }));
           
-          // 退出创建/编辑模式
           setIsCreatingNewAgent(false);
           setIsEditingAgent(false);
           setEditingAgent(null);
-          // 通知外部编辑状态变化
           onEditingStateChange?.(false, null);
           
-          // 重置状态
           setBusinessLogic('');
           setSelectedTools([]);
           setNewAgentName('');
@@ -761,32 +768,31 @@ export default function BusinessLogicConfig({
           setNewAgentProvideSummary(true);
           setSystemPrompt('');
           
-          // 刷新列表
-          refreshAgentList();
+          refreshAgentList(t);
         } else {
-          message.error(result.message || 'Agent保存失败');
+          message.error(result.message || t('businessLogic.config.error.saveFailed'));
         }
       } catch (error) {
         console.error('Error saving agent:', error);
-        message.error('Agent保存失败，请稍后重试');
+        message.error(t('businessLogic.config.error.saveRetry'));
       }
     } else {
       if (!name.trim()) {
-        message.error('Agent名称不能为空');
+        message.error(t('businessLogic.config.error.nameEmpty'));
       }
       if (!mainAgentId) {
-        message.error('无法保存Agent：未找到Agent ID');
+        message.error(t('businessLogic.config.error.noAgentId'));
       }
     }
   };
 
   const handleSaveAsAgent = () => {
     if (!isNewAgentInfoValid) {
-      message.warning('请完善Agent信息');
+      message.warning(t('businessLogic.config.message.completeAgentInfo'));
       return;
     }
     if (systemPrompt.trim().length === 0) {
-      message.warning('请先生成系统提示词');
+      message.warning(t('businessLogic.config.message.generatePromptFirst'));
       return;
     }
     handleSaveNewAgent(
@@ -800,7 +806,7 @@ export default function BusinessLogicConfig({
     );
   };
 
-  const handleEditAgent = async (agent: Agent) => {
+  const handleEditAgent = async (agent: Agent, t: TFunction) => {
     try {
       // 首先设置为编辑模式，避免useEffect清空数据
       setIsEditingAgent(true);
@@ -813,7 +819,7 @@ export default function BusinessLogicConfig({
       const result = await searchAgentInfo(Number(agent.id));
       
       if (!result.success || !result.data) {
-        message.error(result.message || '获取Agent详情失败');
+        message.error(result.message || t('businessLogic.config.error.agentDetailFailed'));
         // 如果获取失败，重置编辑状态
         setIsEditingAgent(false);
         setEditingAgent(null);
@@ -855,10 +861,10 @@ export default function BusinessLogicConfig({
         setEnabledToolIds([]);
       }
       
-      message.success('Agent信息已加载');
+      message.success(t('businessLogic.config.message.agentInfoLoaded'));
     } catch (error) {
       console.error('加载Agent详情失败:', error);
-      message.error('加载Agent详情失败，请稍后重试');
+      message.error(t('businessLogic.config.error.agentDetailFailed'));
       // 如果出错，重置编辑状态
       setIsEditingAgent(false);
       setEditingAgent(null);
@@ -869,22 +875,21 @@ export default function BusinessLogicConfig({
 
   // Handle the update of the Agent selection status
   const handleAgentSelect = async (agent: Agent, isSelected: boolean) => {
-    // 只有当尝试启用不可用的Agent时才阻止操作
     if (agent.is_available === false && isSelected) {
-      message.error('该Agent当前不可用，无法启用');
+      message.error(t('agent.error.disabledAgent'));
       return;
     }
 
     try {
       const result = await updateAgent(
         Number(agent.id),
-        undefined, // name
-        undefined, // description
-        undefined, // modelName
-        undefined, // maxSteps
-        undefined, // provideRunSummary
-        undefined, // prompt
-        isSelected // enabled
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        isSelected
       );
 
       if (result.success) {
@@ -895,57 +900,58 @@ export default function BusinessLogicConfig({
           setSelectedAgents(selectedAgents.filter((a) => a.id !== agent.id));
           setEnabledAgentIds(enabledAgentIds.filter(id => id !== Number(agent.id)));
         }
-        message.success(`Agent"${agent.name}"${isSelected ? '已启用' : '已禁用'}`);
+        message.success(t('businessLogic.config.message.agentStatusUpdated', { 
+          name: agent.name, 
+          status: isSelected ? t('common.enabled') : t('common.disabled') 
+        }));
       } else {
-        message.error(result.message || '更新 Agent 状态失败');
+        message.error(result.message || t('agent.error.statusUpdateFailed'));
       }
     } catch (error) {
       console.error('更新 Agent 状态失败:', error);
-      message.error('更新 Agent 状态失败，请稍后重试');
+      message.error(t('agent.error.statusUpdateRetry'));
     }
   };
 
   // Handle the update of the model
   const handleModelChange = async (value: OpenAIModel) => {
-    // Select the correct Agent ID based on the current mode
     const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
     
     if (!targetAgentId) {
-      message.error('Agent ID未设置，无法更新模型');
+      message.error(t('businessLogic.config.error.noAgentId'));
       return;
     }
 
     try {
       const result = await updateAgent(
         Number(targetAgentId),
-        undefined, // name
-        undefined, // description
-        value, // modelName
-        undefined, // maxSteps
-        undefined, // provideRunSummary
-        undefined, // prompt
-        undefined // enabled
+        undefined,
+        undefined,
+        value,
+        undefined,
+        undefined,
+        undefined,
+        undefined
       );
 
       if (result.success) {
         setMainAgentModel(value);
-        message.success('模型更新成功');
+        message.success(t('businessLogic.config.message.modelUpdateSuccess'));
       } else {
-        message.error(result.message || '更新模型失败');
+        message.error(result.message || t('businessLogic.config.error.modelUpdateFailed'));
       }
     } catch (error) {
       console.error('更新模型失败:', error);
-      message.error('更新模型失败，请稍后重试');
+      message.error(t('businessLogic.config.error.modelUpdateRetry'));
     }
   };
 
   // Handle the update of the maximum number of steps
   const handleMaxStepChange = async (value: number | null) => {
-    // Select the correct Agent ID based on the current mode
     const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
     
     if (!targetAgentId) {
-      message.error('Agent ID未设置，无法更新最大步骤数');
+      message.error(t('businessLogic.config.error.noAgentId'));
       return;
     }
 
@@ -954,31 +960,31 @@ export default function BusinessLogicConfig({
     try {
       const result = await updateAgent(
         Number(targetAgentId),
-        undefined, // name
-        undefined, // description
-        undefined, // modelName
-        newValue, // maxSteps
-        undefined, // provideRunSummary
-        undefined, // prompt
-        undefined // enabled
+        undefined,
+        undefined,
+        undefined,
+        newValue,
+        undefined,
+        undefined,
+        undefined
       );
 
       if (result.success) {
         setMainAgentMaxStep(newValue);
-        message.success('最大步骤数更新成功', 0.5);
+        message.success(t('businessLogic.config.message.maxStepsUpdateSuccess'));
       } else {
-        message.error(result.message || '更新最大步骤数失败');
+        message.error(result.message || t('businessLogic.config.error.maxStepsUpdateFailed'));
       }
     } catch (error) {
       console.error('更新最大步骤数失败:', error);
-      message.error('更新最大步骤数失败，请稍后重试');
+      message.error(t('businessLogic.config.error.maxStepsUpdateRetry'));
     }
   };
 
   // Handle importing agent
-  const handleImportAgent = () => {
+  const handleImportAgent = (t: TFunction) => {
     if (!mainAgentId) {
-      message.error('主代理ID未设置，无法导入Agent');
+      message.error(t('businessLogic.config.error.noAgentId'));
       return;
     }
 
@@ -992,7 +998,7 @@ export default function BusinessLogicConfig({
 
       // Check file type
       if (!file.name.endsWith('.json')) {
-        message.error('请选择JSON格式的文件');
+        message.error(t('businessLogic.config.error.invalidFileType'));
         return;
       }
 
@@ -1005,7 +1011,7 @@ export default function BusinessLogicConfig({
         try {
           agentInfo = JSON.parse(fileContent);
         } catch (parseError) {
-          message.error('文件格式错误，请检查JSON格式');
+          message.error(t('businessLogic.config.error.invalidFileType'));
           setIsImporting(false);
           return;
         }
@@ -1014,15 +1020,15 @@ export default function BusinessLogicConfig({
         const result = await importAgent(mainAgentId, agentInfo);
 
         if (result.success) {
-          message.success('Agent导入成功');
+          message.success(t('businessLogic.config.error.agentImportSuccess'));
           // Refresh agent list
-          refreshAgentList();
+          refreshAgentList(t);
         } else {
-          message.error(result.message || 'Agent导入失败');
+          message.error(result.message || t('businessLogic.config.error.agentImportFailed'));
         }
       } catch (error) {
         console.error('导入Agent失败:', error);
-        message.error('导入Agent失败，请检查文件内容');
+        message.error(t('businessLogic.config.error.agentImportFailed'));
       } finally {
         setIsImporting(false);
       }
@@ -1032,7 +1038,7 @@ export default function BusinessLogicConfig({
   };
 
   // Handle exporting agent
-  const handleExportAgent = async (agent: Agent) => {
+  const handleExportAgent = async (agent: Agent, t: TFunction) => {
     try {
       const result = await exportAgent(Number(agent.id));
       if (result.success) {
@@ -1058,13 +1064,13 @@ export default function BusinessLogicConfig({
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
 
-        message.success('Agent配置导出成功');
+        message.success(t('businessLogic.config.message.agentExportSuccess'));
       } else {
-        message.error(result.message || 'Agent导出失败');
+        message.error(result.message || t('businessLogic.config.error.agentExportFailed'));
       }
     } catch (error) {
       console.error('导出Agent失败:', error);
-      message.error('导出Agent失败，请稍后重试');
+      message.error(t('businessLogic.config.error.agentExportFailed'));
     }
   };
 
@@ -1076,21 +1082,21 @@ export default function BusinessLogicConfig({
   };
 
   // Handle confirmed deletion
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (t: TFunction) => {
     if (!agentToDelete) return;
 
     try {
       const result = await deleteAgent(Number(agentToDelete.id));
       if (result.success) {
-        message.success(`Agent"${agentToDelete.name}"删除成功`);
+        message.success(t('businessLogic.config.error.agentDeleteSuccess', { name: agentToDelete.name }));
         // Refresh agent list
-        refreshAgentList();
+        refreshAgentList(t);
       } else {
-        message.error(result.message || 'Agent删除失败');
+        message.error(result.message || t('businessLogic.config.error.agentDeleteFailed'));
       }
     } catch (error) {
       console.error('删除Agent失败:', error);
-      message.error('删除Agent失败，请稍后重试');
+      message.error(t('businessLogic.config.error.agentDeleteFailed'));
     } finally {
       setIsDeleteConfirmOpen(false);
       setAgentToDelete(null);
@@ -1098,17 +1104,16 @@ export default function BusinessLogicConfig({
   };
 
   // Generate system prompt
-  const handleGenerateSystemPrompt = async () => {
+  const handleGenerateSystemPrompt = async (t: TFunction) => {
     if (!businessLogic || businessLogic.trim() === '') {
-      message.warning('请先输入业务描述');
+      message.warning(t('businessLogic.config.error.businessDescriptionRequired'));
       return;
     }
     
-    // Select the correct Agent ID based on the current mode
     const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
     
     if (!targetAgentId) {
-      message.warning('无法生成提示词：未指定Agent ID');
+      message.warning(t('businessLogic.config.error.noAgentIdForPrompt'));
       return;
     }
     
@@ -1125,19 +1130,23 @@ export default function BusinessLogicConfig({
           setSystemPrompt(streamedText);
         },
         (err) => {
-          message.error(`生成提示词失败: ${err instanceof Error ? err.message : '未知错误'}`);
+          message.error(t('businessLogic.config.error.promptGenerateFailed', { 
+            error: err instanceof Error ? err.message : t('common.unknownError')
+          }));
           setIsPromptGenerating(false);
           setLocalIsGenerating(false);
         },
         () => {
           setIsPromptGenerating(false);
           setLocalIsGenerating(false);
-          message.success('提示词生成成功');
+          message.success(t('businessLogic.config.message.promptGenerateSuccess'));
         }
       );
     } catch (error) {
       console.error('生成提示词失败:', error);
-      message.error(`生成提示词失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      message.error(t('businessLogic.config.error.promptGenerateFailed', { 
+        error: error instanceof Error ? error.message : t('common.unknownError')
+      }));
       setIsPromptGenerating(false);
       setLocalIsGenerating(false);
     }
@@ -1145,25 +1154,24 @@ export default function BusinessLogicConfig({
 
   // Save system prompt
   const handleSaveSystemPrompt = async () => {
-    // Select the correct Agent ID based on the current mode
     const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
     
     if (!targetAgentId) {
-      message.warning('无法保存提示词：未指定Agent ID');
+      message.warning(t('businessLogic.config.error.noAgentIdForPrompt'));
       return;
     }
     if (!systemPrompt || systemPrompt.trim() === '') {
-      message.warning('提示词为空，无法保存');
+      message.warning(t('businessLogic.config.message.promptEmpty'));
       return;
     }
     
     try {
       setIsPromptSaving(true);
       await savePrompt({ agent_id: Number(targetAgentId), prompt: systemPrompt });
-      message.success('提示词已保存');
+      message.success(t('businessLogic.config.message.promptSaved'));
     } catch (error) {
       console.error('保存提示词失败:', error);
-      message.error('保存提示词失败，请重试');
+      message.error(t('businessLogic.config.error.promptSaveFailed'));
     } finally {
       setIsPromptSaving(false);
     }
@@ -1174,13 +1182,13 @@ export default function BusinessLogicConfig({
   // Generate more intelligent prompt information according to conditions
   const getButtonTitle = () => {
     if (selectedAgents.length > 0) {
-      return "请确保未选择Agent";
+      return t('businessLogic.config.message.noAgentSelected');
     }
     if (systemPrompt.trim().length === 0) {
-      return "请先生成系统提示词";
+      return t('businessLogic.config.message.generatePromptFirst');
     }
     if (!isNewAgentInfoValid) {
-      return "请完善Agent信息";
+      return t('businessLogic.config.message.completeAgentInfo');
     }
     return "";
   };
@@ -1194,10 +1202,10 @@ export default function BusinessLogicConfig({
             <SubAgentPool
               selectedAgents={selectedAgents}
               onSelectAgent={handleAgentSelect}
-              onEditAgent={handleEditAgent}
+              onEditAgent={(agent) => handleEditAgent(agent, t)}
               onCreateNewAgent={handleCreateNewAgent}
-              onImportAgent={handleImportAgent}
-              onExportAgent={handleExportAgent}
+              onImportAgent={() => handleImportAgent(t)}
+              onExportAgent={(agent) => handleExportAgent(agent, t)}
               onDeleteAgent={handleDeleteAgent}
               subAgentList={subAgentList}
               loadingAgents={loadingAgents}
@@ -1256,16 +1264,16 @@ export default function BusinessLogicConfig({
         <div className="w-[280px] h-[200px] flex flex-col self-start">
           <div className="flex flex-col gap-5 flex-1">
             <div>
-              <span className="block text-lg font-medium mb-2">模型</span>
+              <span className="block text-lg font-medium mb-2">{t('businessLogic.config.model')}</span>
               <Select
                 value={mainAgentModel}
                 onChange={handleModelChange}
                 className="w-full"
-                options={modelOptions}
+                options={ModelOptions()}
               />
             </div>
             <div>
-              <span className="block text-lg font-medium mb-2">最大步骤数</span>
+              <span className="block text-lg font-medium mb-2">{t('businessLogic.config.maxSteps')}</span>
               <InputNumber
                 min={1}
                 max={20}
@@ -1276,7 +1284,7 @@ export default function BusinessLogicConfig({
             </div>
             <div className="flex justify-start gap-2 w-full mt-4">
               <button
-                onClick={handleGenerateSystemPrompt}
+                onClick={() => handleGenerateSystemPrompt(t)}
                 disabled={isPromptGenerating || isPromptSaving}
                 className="px-3.5 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ border: 'none' }}
@@ -1284,12 +1292,12 @@ export default function BusinessLogicConfig({
                 {isPromptGenerating ? (
                   <>
                     <LoadingOutlined spin className="mr-1" />
-                    智能生成提示词
+                    {t('businessLogic.config.button.generating')}
                   </>
                 ) : (
                   <>
                     <ThunderboltOutlined className="mr-1" />
-                    智能生成提示词
+                    {t('businessLogic.config.button.generatePrompt')}
                   </>
                 )}
               </button>
@@ -1302,7 +1310,7 @@ export default function BusinessLogicConfig({
                     className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ border: "none" }}
                   >
-                    {isPromptSaving ? '保存中...' : '保存'}
+                    {isPromptSaving ? t('businessLogic.config.button.saving') : t('businessLogic.config.button.save')}
                   </button>
                   <button
                     onClick={handleCancelCreating}
@@ -1310,7 +1318,7 @@ export default function BusinessLogicConfig({
                     className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ border: 'none' }}
                   >
-                    取消
+                    {t('businessLogic.config.button.cancel')}
                   </button>
                 </>
               )}
@@ -1321,7 +1329,7 @@ export default function BusinessLogicConfig({
 
       {/* Delete confirmation popup */}
       <Modal
-        title="Confirm delete"
+        title={t('businessLogic.config.modal.deleteTitle')}
         open={isDeleteConfirmOpen}
         onCancel={() => setIsDeleteConfirmOpen(false)}
         footer={
@@ -1331,14 +1339,14 @@ export default function BusinessLogicConfig({
               className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
               style={{ border: "none" }}
             >
-              取消
+              {t('businessLogic.config.modal.button.cancel')}
             </button>
             <button 
-              onClick={handleConfirmDelete}
+              onClick={() => handleConfirmDelete(t)}
               className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-red-500 text-white hover:bg-red-600"
               style={{ border: "none" }}
             >
-              确认删除
+              {t('businessLogic.config.modal.button.confirm')}
             </button>
           </div>
         }
@@ -1346,7 +1354,7 @@ export default function BusinessLogicConfig({
       >
         <div className="py-4">
           <Typography.Text>
-            确定要删除Agent"{agentToDelete?.name}"吗？此操作不可恢复。
+            {t('businessLogic.config.modal.deleteContent', { name: agentToDelete?.name })}
           </Typography.Text>
         </div>
       </Modal>

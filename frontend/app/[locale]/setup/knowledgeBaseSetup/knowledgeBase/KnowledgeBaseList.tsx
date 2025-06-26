@@ -2,6 +2,7 @@ import React from 'react'
 import { Button, Checkbox } from 'antd'
 import { SyncOutlined, PlusOutlined } from '@ant-design/icons'
 import { KnowledgeBase } from '@/types/knowledgeBase'
+import { useTranslation } from 'react-i18next'
 
 // 知识库布局常量配置
 const KB_LAYOUT = {
@@ -68,6 +69,8 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
   containerHeight = '70vh', // 默认与DocumentList一致的容器高度
   onKnowledgeBaseChange // 新增：知识库切换时的回调函数
 }) => {
+  const { t } = useTranslation();
+
   // 格式化日期函数，只保留日期部分
   const formatDate = (dateString: string) => {
     try {
@@ -84,7 +87,9 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
       <div className={`${KB_LAYOUT.HEADER_PADDING} border-b border-gray-200 shrink-0`}>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className={`${KB_LAYOUT.TITLE_MARGIN} ${KB_LAYOUT.TITLE_TEXT} text-gray-800`}>知识库列表</h3>
+            <h3 className={`${KB_LAYOUT.TITLE_MARGIN} ${KB_LAYOUT.TITLE_TEXT} text-gray-800`}>
+              {t('knowledgeBase.list.title')}
+            </h3>
           </div>
           <div className="flex items-center" style={{ gap: '6px' }}>
             <Button
@@ -103,7 +108,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
               onClick={onCreateNew}
               icon={<PlusOutlined />}
             >
-              创建知识库
+              {t('knowledgeBase.button.create')}
             </Button>
             <Button
               style={{
@@ -129,7 +134,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
               }}>
                 <SyncOutlined spin={isLoading} style={{ color: "white" }} />
               </span>
-              <span>同步知识库</span>
+              <span>{t('knowledgeBase.button.sync')}</span>
             </Button>
           </div>
         </div>
@@ -139,9 +144,9 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
       <div className="border-b border-gray-200 shrink-0 relative z-10 shadow-md">
         <div className="px-3 py-2 bg-blue-50">
           <div className="flex items-center">
-            <span className="font-medium text-blue-700">已选择 </span>
+            <span className="font-medium text-blue-700">{t('knowledgeBase.selected.prefix')} </span>
             <span className="mx-1 text-blue-600 font-bold text-lg">{selectedIds.length}</span>
-            <span className="font-medium text-blue-700">个知识库用于知识检索</span>
+            <span className="font-medium text-blue-700">{t('knowledgeBase.selected.suffix')}</span>
           </div>
 
           {selectedIds.length > 0 && (
@@ -167,7 +172,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                     <button
                       className="ml-1.5 text-blue-600 hover:text-blue-800 flex-shrink-0"
                       onClick={() => onSelect(id)}
-                      aria-label={`移除知识库 ${kb.name}`}
+                      aria-label={t('knowledgeBase.button.removeKb', { name: kb.name })}
                     >
                       ×
                     </button>
@@ -251,28 +256,28 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                             onDelete(kb.id)
                           }}
                         >
-                          删除
+                          {t('common.delete')}
                         </button>
                       </div>
                       <div className={`flex flex-wrap items-center ${KB_LAYOUT.TAG_MARGIN} ${KB_LAYOUT.TAG_SPACING}`}>
                         {/* 文档数量标签 */}
                         <span className={`inline-flex items-center ${KB_LAYOUT.TAG_PADDING} ${KB_LAYOUT.TAG_ROUNDED} ${KB_LAYOUT.TAG_TEXT} bg-gray-200 text-gray-800 border border-gray-200 mr-1`}>
-                          {kb.documentCount || 0} 文档
+                          {t('knowledgeBase.tag.documents', { count: kb.documentCount || 0 })}
                         </span>
 
                         {/* 分块数量标签 */}
                         <span className={`inline-flex items-center ${KB_LAYOUT.TAG_PADDING} ${KB_LAYOUT.TAG_ROUNDED} ${KB_LAYOUT.TAG_TEXT} bg-gray-200 text-gray-800 border border-gray-200 mr-1`}>
-                          {kb.chunkCount || 0} 分块
+                          {t('knowledgeBase.tag.chunks', { count: kb.chunkCount || 0 })}
                         </span>
 
                         {/* 知识库来源标签 */}
                         <span className={`inline-flex items-center ${KB_LAYOUT.TAG_PADDING} ${KB_LAYOUT.TAG_ROUNDED} ${KB_LAYOUT.TAG_TEXT} bg-gray-200 text-gray-800 border border-gray-200 mr-1`}>
-                          来自{kb.source}
+                          {t('knowledgeBase.tag.source', { source: kb.source })}
                         </span>
 
                         {/* 创建日期标签 - 只显示日期 */}
                         <span className={`inline-flex items-center ${KB_LAYOUT.TAG_PADDING} ${KB_LAYOUT.TAG_ROUNDED} ${KB_LAYOUT.TAG_TEXT} bg-gray-200 text-gray-800 border border-gray-200 mr-1`}>
-                          创建于{formatDate(kb.createdAt)}
+                          {t('knowledgeBase.tag.createdAt', { date: formatDate(kb.createdAt) })}
                         </span>
 
                         {/* 强制换行 */}
@@ -280,11 +285,11 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
 
                         {/* 模型标签 - 显示正常或不匹配 */}
                         <span className={`inline-flex items-center ${KB_LAYOUT.TAG_PADDING} ${KB_LAYOUT.TAG_ROUNDED} ${KB_LAYOUT.TAG_TEXT} ${KB_LAYOUT.SECOND_ROW_TAG_MARGIN} bg-green-100 text-green-800 border border-green-200 mr-1`}>
-                          {getModelDisplayName(kb.embeddingModel)}模型
+                          {t('knowledgeBase.tag.model', { model: getModelDisplayName(kb.embeddingModel) })}
                         </span>
                         {kb.embeddingModel !== currentEmbeddingModel && (
                           <span className={`inline-flex items-center ${KB_LAYOUT.TAG_PADDING} ${KB_LAYOUT.TAG_ROUNDED} ${KB_LAYOUT.TAG_TEXT} ${KB_LAYOUT.SECOND_ROW_TAG_MARGIN} bg-yellow-100 text-yellow-800 border border-yellow-200 mr-1`}>
-                            模型不匹配
+                            {t('knowledgeBase.tag.modelMismatch')}
                           </span>
                         )}
                       </div>
@@ -296,7 +301,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
           </div>
         ) : (
           <div className={`${KB_LAYOUT.EMPTY_STATE_PADDING} text-center text-gray-500`}>
-            暂无知识库，请先创建知识库
+            {t('knowledgeBase.list.empty')}
           </div>
         )}
       </div>

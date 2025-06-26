@@ -4,6 +4,7 @@ import { sortByStatusAndDate } from '@/lib/utils'
 import knowledgeBasePollingService from '@/services/knowledgeBasePollingService'
 import DocumentListLayout, { UI_CONFIG } from './DocumentListLayout'
 import { useDocumentContext } from './DocumentContext'
+import { useTranslation } from 'react-i18next'
 
 interface DocumentListProps {
   documents: Document[]
@@ -62,6 +63,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
 }, ref) => {
   const uploadAreaRef = useRef<any>(null);
   const { state: docState } = useDocumentContext();
+  const { t } = useTranslation();
 
   // 使用固定高度而不是百分比
   const titleBarHeight = UI_CONFIG.TITLE_BAR_HEIGHT;
@@ -93,9 +95,12 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
   const getMismatchInfo = (): string => {
     if (embeddingModelInfo) return embeddingModelInfo;
     if (currentModel && knowledgeBaseModel) {
-      return `当前模型${currentModel}与知识库模型${knowledgeBaseModel}不匹配，无法使用`;
+      return t('document.modelMismatch.withModels', {
+        currentModel,
+        knowledgeBaseModel
+      });
     }
-    return "当前模型不匹配，无法使用";
+    return t('document.modelMismatch.general');
   }
 
   // 暴露 uppy 实例给父组件
