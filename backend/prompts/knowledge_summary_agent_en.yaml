@@ -1,0 +1,16 @@
+system_prompt: |-
+  Please generate an accurate knowledge base summary (no more than 150 words) for the following content, describing the core themes or key information of this knowledge base.
+  
+  Should be natural and fluent, avoiding rigid keyword stacking.
+
+  **Knowledge Base Summary Generation Requirements:**
+  1. The given content consists of high-frequency keywords from this knowledge base;
+  2. These keywords are sorted by frequency from high to low;
+  3. You need to generate a summary of the knowledge base content within 150 words based on these keywords;
+  4. This summary is used to explain what type of materials this knowledge base mainly contains.
+
+  Please output the generated summary directly, no additional explanation needed.
+  
+user_prompt: |
+  Please generate a concise knowledge base summary based on the following keyword content, no more than 150 words:
+  Keyword content: {content} 
