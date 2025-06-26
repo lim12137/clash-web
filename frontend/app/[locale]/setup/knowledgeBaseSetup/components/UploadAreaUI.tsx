@@ -2,6 +2,7 @@ import React from 'react';
 import { Upload, Progress } from 'antd';
 import { InboxOutlined, WarningFilled } from '@ant-design/icons';
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
+import { useTranslation } from 'react-i18next';
 const { Dragger } = Upload;
 
 interface UploadAreaUIProps {
@@ -30,6 +31,9 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
   componentHeight,
   newKnowledgeBaseName
 }) => {
+  const { t } = useTranslation('common');
+
+  console.log('fileList', fileList);
   
   // 加载中状态UI
   if (isLoading) {
@@ -37,12 +41,12 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
       <div className="p-3 bg-gray-50 border-t border-gray-200 h-[30%]">
         <div className="flex justify-center items-center h-full">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-sm text-blue-600 font-medium ml-2">加载中...</p>
+          <p className="text-sm text-blue-600 font-medium ml-2">{t('common.loading')}</p>
         </div>
         {isCreatingMode && isUploading && (
           <div className="mt-2 text-center">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
-            <p className="text-sm text-blue-600 font-medium">正在上传并创建知识库...</p>
+            <p className="text-sm text-blue-600 font-medium">{t('knowledgeBase.status.uploadingAndCreating')}</p>
           </div>
         )}
       </div>
@@ -55,8 +59,8 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
       <div className="p-3 bg-gray-50 border-t border-gray-200 h-[30%]">
         <div className="h-full border-2 border-dashed border-gray-200 rounded-md flex flex-col items-center justify-center bg-white">
           <WarningFilled style={{ fontSize: '32px', color: '#faad14', marginBottom: '16px' }} />
-          <p className="text-gray-600 text-base mb-2">知识库未就绪</p>
-          <p className="text-gray-400 text-sm">请稍后重试</p>
+          <p className="text-gray-600 text-base mb-2">{t('knowledgeBase.status.notReady')}</p>
+          <p className="text-gray-400 text-sm">{t('common.retryLater')}</p>
         </div>
       </div>
     );
@@ -69,7 +73,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
         <div className="border-2 border-dashed border-gray-300 bg-white rounded-md p-4 text-center flex flex-col items-center justify-center h-full">
           <div className="mb-0.5 text-blue-500 text-lg">📄</div>
           <p className="mb-0.5 text-gray-700 text-xs font-medium">
-            请先选择一个知识库以上传文件
+            {t('knowledgeBase.hint.selectFirst')}
           </p>
         </div>
       </div>
@@ -85,10 +89,10 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
             <WarningFilled style={{ fontSize: 36, color: '#ff4d4f' }} />
           </div>
           <p className="mb-2 text-red-600 text-lg font-medium">
-            知识库 "{newKnowledgeBaseName}" 已存在
+            {t('knowledgeBase.error.nameExists', { name: newKnowledgeBaseName })}
           </p>
           <p className="text-gray-500 text-sm max-w-md">
-            请修改知识库名称后继续
+            {t('knowledgeBase.hint.changeName')}
           </p>
         </div>
       </div>
@@ -114,10 +118,10 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
                     <InboxOutlined style={{ fontSize: '48px', color: '#1677ff' }} />
                   </p>
                   <p className="ant-upload-text !mb-2 text-base">
-                    点击或拖拽文件到此区域上传，为知识库添加知识
+                    {t('knowledgeBase.upload.dragHint')}
                   </p>
                   <p className="ant-upload-hint text-gray-500">
-                    支持 PDF、Word、PPT、Excel、MD、TXT 文件格式
+                    {t('knowledgeBase.upload.supportedFormats')}
                   </p>
                 </div>
               </Dragger>
@@ -135,8 +139,8 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
             <div className="h-full">
               <div className="h-full border border-gray-200 rounded-lg">
                 <div className="flex items-center justify-between p-3 border-b border-gray-100 bg-gray-50">
-                  <h4 className="text-sm font-medium text-gray-700 m-0">已完成上传</h4>
-                  <span className="text-xs text-gray-500">{fileList.length} 个文件</span>
+                  <h4 className="text-sm font-medium text-gray-700 m-0">{t('knowledgeBase.upload.completed')}</h4>
+                  <span className="text-xs text-gray-500">{t('knowledgeBase.upload.fileCount', { count: fileList.length })}</span>
                 </div>
                 <div className="overflow-auto" style={{ height: 'calc(100% - 41px)' }}>
                   {fileList.map(file => (
@@ -164,13 +168,13 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
                         </div>
                         <div className="ml-3 flex items-center text-xs">
                           {file.status === 'uploading' && (
-                            <span className="text-blue-500">上传中</span>
+                            <span className="text-blue-500">{t('knowledgeBase.upload.status.uploading')}</span>
                           )}
                           {file.status === 'done' && (
-                            <span className="text-green-500">已完成</span>
+                            <span className="text-green-500">{t('knowledgeBase.upload.status.completed')}</span>
                           )}
                           {file.status === 'error' && (
-                            <span className="text-red-500">上传失败</span>
+                            <span className="text-red-500">{t('knowledgeBase.upload.status.failed')}</span>
                           )}
                         </div>
                       </div>
@@ -186,7 +190,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
       {isCreatingMode && isUploading && (
         <div className="mt-2 text-center">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-sm text-blue-600 font-medium">正在上传并创建知识库...</p>
+          <p className="text-sm text-blue-600 font-medium">{t('knowledgeBase.status.uploadingAndCreating')}</p>
         </div>
       )}
     </div>

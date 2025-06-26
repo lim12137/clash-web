@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ModelOption, ModelType } from '@/types/config'
 import { modelService } from '@/services/modelService'
 import { useConfig } from '@/hooks/useConfig'
+import { useTranslation } from 'react-i18next'
 
 interface ModelDeleteDialogProps {
   isOpen: boolean
@@ -18,6 +19,7 @@ export const ModelDeleteDialog = ({
   onSuccess,
   customModels 
 }: ModelDeleteDialogProps) => {
+  const { t } = useTranslation()
   const { modelConfig, updateModelConfig } = useConfig()
   const [deletingModelType, setDeletingModelType] = useState<ModelType | null>(null)
   const [deletingModels, setDeletingModels] = useState<Set<string>>(new Set())
@@ -70,21 +72,21 @@ export const ModelDeleteDialog = ({
   const getModelTypeName = (type: ModelType): string => {
     switch (type) {
       case "llm":
-        return "大语言模型"
+        return t('model.type.llm')
       case "embedding":
-        return "文本向量模型"
+        return t('model.type.embedding')
       case "multi_embedding":
-        return "多模态向量模型"
+        return t('model.type.multiEmbedding')
       case "rerank":
-        return "重排模型"
+        return t('model.type.rerank')
       case "stt":
-        return "语音识别模型"
+        return t('model.type.stt')
       case "tts":
-        return "语音合成模型"
+        return t('model.type.tts')
       case "vlm":
-        return "视觉语言模型"
+        return t('model.type.vlm')
       default:
-        return "未知模型"
+        return t('model.type.unknown')
     }
   }
 
@@ -134,7 +136,7 @@ export const ModelDeleteDialog = ({
       }
 
       // 显示成功消息
-      message.success(`删除模型成功: ${displayName}`)
+      message.success(t('model.message.deleteSuccess', { name: displayName }))
       
       // 直接调用父组件的onSuccess回调刷新模型列表
       // 这会触发一次modelService.getCustomModels()调用，避免重复请求
@@ -150,8 +152,8 @@ export const ModelDeleteDialog = ({
         setDeletingModelType(null)
       }
     } catch (error) {
-      console.error('删除模型失败:', error)
-      message.error(`删除模型失败: ${displayName}`)
+      console.error(t('model.error.deleteError'), error)
+      message.error(t('model.message.deleteFailed', { name: displayName }))
     } finally {
       setDeletingModels(prev => {
         const next = new Set(prev)
@@ -170,12 +172,12 @@ export const ModelDeleteDialog = ({
   return (
     // 重构：风格被嵌入在组件内
     <Modal
-      title="删除自定义模型"
+      title={t('model.dialog.delete.title')}
       open={isOpen}
       onCancel={handleClose}
       footer={[
         <Button key="close" onClick={handleClose}>
-          关闭
+          {t('common.button.close')}
         </Button>,
       ]}
       width={520}
@@ -183,7 +185,7 @@ export const ModelDeleteDialog = ({
     >
       {!deletingModelType ? (
         <div className="space-y-4">
-          <p className="text-sm text-gray-600 mb-4">请选择要删除的模型类型：</p>
+          <p className="text-sm text-gray-600 mb-4">{t('model.dialog.delete.selectType')}</p>
 
           <div className="grid grid-cols-1 gap-2">
             {(["llm", "embedding", "multi_embedding", "rerank", "vlm", "stt", "tts"] as ModelType[]).map((type) => {
@@ -210,8 +212,8 @@ export const ModelDeleteDialog = ({
                     <div className="flex flex-col text-left">
                       <div className="font-medium">{getModelTypeName(type)}</div>
                       <div className="text-xs text-gray-500">
-                        {customModelsByType.length} 个自定义模型
-                        {(type === "stt" || type === "tts") && " (暂不支持删除)"}
+                        {t('model.dialog.delete.customModelCount', { count: customModelsByType.length })}
+                        {(type === "stt" || type === "tts") && t('model.dialog.delete.unsupportedType')}
                       </div>
                     </div>
                   </div>
@@ -222,7 +224,7 @@ export const ModelDeleteDialog = ({
           </div>
 
           {customModels.length === 0 && (
-            <div className="text-center py-8 text-gray-500">没有可删除的自定义模型</div>
+            <div className="text-center py-8 text-gray-500">{t('model.dialog.delete.noModels')}</div>
           )}
         </div>
       ) : (
@@ -244,7 +246,7 @@ export const ModelDeleteDialog = ({
                   clipRule="evenodd"
                 />
               </svg>
-              返回
+              {t('common.button.back')}
             </button>
           </div>
 
@@ -266,7 +268,7 @@ export const ModelDeleteDialog = ({
                         ? "text-gray-400 cursor-not-allowed" 
                         : "text-red-500 hover:text-red-700"
                     }`}
-                    title={model.type === "stt" || model.type === "tts" ? "暂不支持删除此类型模型" : "删除模型"}
+                    title={model.type === "stt" || model.type === "tts" ? t('model.dialog.delete.unsupportedTypeHint') : t('model.dialog.delete.deleteHint')}
                   >
                     {deletingModels.has(model.displayName || model.name) ? (
                       <svg
@@ -298,7 +300,7 @@ export const ModelDeleteDialog = ({
 
             {customModels.filter((model) => model.type === deletingModelType).length === 0 && (
               <div className="p-4 text-center text-gray-500">
-                没有可删除的{getModelTypeName(deletingModelType)}
+                {t('model.dialog.delete.noModelsOfType', { type: getModelTypeName(deletingModelType) })}
               </div>
             )}
           </div>
@@ -307,10 +309,10 @@ export const ModelDeleteDialog = ({
             <div>
               <div className="flex items-center mb-1">
                 <ExclamationCircleFilled className="text-md text-yellow-500 mr-3" />
-                <p className="font-bold text-medium">注意</p>
+                <p className="font-bold text-medium">{t('common.notice')}</p>
               </div>
               <p className="mt-0.5 ml-6">
-                删除模型操作不可恢复。如果删除当前正在使用的模型，相关配置将被重置。
+                {t('model.dialog.delete.warning')}
               </p>
             </div>
           </div>

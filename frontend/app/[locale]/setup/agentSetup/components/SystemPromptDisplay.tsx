@@ -4,6 +4,7 @@ import { Modal, message } from 'antd'
 import { useState, useRef, useEffect } from 'react'
 import AdditionalRequestInput from './AdditionalRequestInput'
 import { fineTunePrompt, savePrompt } from '@/services/promptService'
+import { useTranslation } from 'react-i18next'
 
 // Milkdown imports
 import { MilkdownProvider, Milkdown, useEditor } from '@milkdown/react'
@@ -67,7 +68,8 @@ export default function SystemPromptDisplay({
   const [tunedPrompt, setTunedPrompt] = useState("")
   const [isTuning, setIsTuning] = useState(false)
   const originalPromptRef = useRef(prompt)
-  const [localPrompt, setLocalPrompt] = useState(prompt);
+  const [localPrompt, setLocalPrompt] = useState(prompt)
+  const { t } = useTranslation('common')
 
   useEffect(() => { 
     setLocalPrompt(prompt); 
@@ -79,12 +81,12 @@ export default function SystemPromptDisplay({
   // Handle fine-tuning request
   const handleSendAdditionalRequest = async (request: string) => {
     if (!prompt) {
-      message.warning("请先生成系统提示词");
+      message.warning(t('systemPrompt.message.empty'));
       return;
     }
     
     if (!request || request.trim() === '') {
-      message.warning("请输入微调指令");
+      message.warning(t('systemPrompt.message.emptyTuning'));
       return;
     }
 
@@ -99,10 +101,10 @@ export default function SystemPromptDisplay({
       });
       
       setTunedPrompt(result);
-      message.success("提示词微调成功");
+      message.success(t('systemPrompt.message.tune.success'));
     } catch (error) {
-      console.error("微调提示词失败:", error);
-      message.error(`微调提示词失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      console.error(t('systemPrompt.message.tune.error'), error);
+      message.error(`${t('systemPrompt.message.tune.error')} ${error instanceof Error ? error.message : t('error.unknown')}`);
     } finally {
       setIsTuning(false);
     }
@@ -111,7 +113,7 @@ export default function SystemPromptDisplay({
   const handleSaveTunedPrompt = async () => {
     try {
       if (!agentId) {
-        message.warning("无法保存提示词：未指定Agent ID");
+        message.warning(t('systemPrompt.message.noAgentId'));
         return;
       }
       // Call save interface
@@ -122,10 +124,10 @@ export default function SystemPromptDisplay({
       onPromptChange(tunedPrompt);
       setIsModalOpen(false);
       setTunedPrompt("");
-      message.success("已保存微调后的提示词");
+      message.success(t('systemPrompt.message.save.success'));
     } catch (error) {
-      console.error("保存提示词失败:", error);
-      message.error("保存提示词失败，请重试");
+      console.error(t('systemPrompt.message.save.error'), error);
+      message.error(t('systemPrompt.message.save.error'));
     }
   };
 
@@ -136,10 +138,10 @@ export default function SystemPromptDisplay({
         await savePrompt({ agent_id: agentId, prompt: localPrompt });
         originalPromptRef.current = localPrompt;
         onPromptChange(localPrompt);
-        message.success("提示词已保存");
+        message.success(t('systemPrompt.message.save.success'));
       } catch (error) {
-        console.error("保存提示词失败:", error);
-        message.error("保存提示词失败，请重试");
+        console.error(t('systemPrompt.message.save.error'), error);
+        message.error(t('systemPrompt.message.save.error'));
       }
     }
   };
@@ -147,7 +149,7 @@ export default function SystemPromptDisplay({
   return (
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-center mb-2">
-        <h2 className="text-lg font-medium">系统提示词</h2>
+        <h2 className="text-lg font-medium">{t('systemPrompt.title')}</h2>
         <div className="flex gap-2">
           <button
             onClick={handleSavePrompt}
@@ -155,21 +157,21 @@ export default function SystemPromptDisplay({
             className="px-4 py-1.5 rounded-md flex items-center text-sm bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ border: "none" }}
           >
-            保存
+            {t('systemPrompt.button.save')}
           </button>
           <button
             onClick={() => setIsModalOpen(true)}
             className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
             style={{ border: "none" }}
           >
-            微调
+            {t('systemPrompt.button.tune')}
           </button>
           <button
             onClick={onDebug}
             className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
             style={{ border: "none" }}
           >
-            调试
+            {t('systemPrompt.button.debug')}
           </button>
         </div>
       </div>
@@ -185,7 +187,7 @@ export default function SystemPromptDisplay({
         </MilkdownProvider>
       </div>
       <Modal
-        title="提示词微调"
+        title={t('systemPrompt.modal.title')}
         open={isModalOpen}
         onCancel={() => {
           setIsModalOpen(false)
@@ -203,7 +205,7 @@ export default function SystemPromptDisplay({
 
           {tunedPrompt && !isTuning && (
             <div className="mt-4">
-              <div className="font-medium text-gray-700 mb-2">微调后的提示词:</div>
+              <div className="font-medium text-gray-700 mb-2">{t('systemPrompt.modal.result')}</div>
               <div className="border border-gray-200 rounded-md" style={{ height: '400px', overflowY: 'auto' }}>
                 <MilkdownProvider>
                   <PromptEditor
@@ -218,7 +220,7 @@ export default function SystemPromptDisplay({
                   className="px-4 py-1.5 rounded-md flex items-center text-sm bg-blue-500 text-white hover:bg-blue-600"
                   style={{ border: "none" }}
                 >
-                  保存到配置
+                  {t('systemPrompt.modal.button.save')}
                 </button>
               </div>
             </div>

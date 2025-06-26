@@ -17,7 +17,7 @@ from typing import Optional
 logger = logging.getLogger("agent service")
 
 def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str = None, user_id: str = None):
-    all_tool_instance = query_all_enabled_tool_instances(tenant_id=tenant_id, user_id=user_id, agent_id=agent_id)
+    all_tool_instance = query_all_enabled_tool_instances(tenant_id=tenant_id, agent_id=agent_id)
     enable_tool_id_set = set()
     for tool_instance in all_tool_instance:
         if tool_instance["enabled"]:

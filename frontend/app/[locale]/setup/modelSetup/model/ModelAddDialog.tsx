@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ModelType, SingleModelConfig, ModelConnectStatus } from '@/types/config'
 import { modelService } from '@/services/modelService'
 import { useConfig } from '@/hooks/useConfig'
+import { useTranslation } from 'react-i18next'
 
 const { Option } = Select
 
@@ -19,7 +20,11 @@ interface ModelAddDialogProps {
   onSuccess: (model?: AddedModel) => Promise<void>
 }
 
+// Add type definition for connectivity status
+type ConnectivityStatusType = "checking" | "available" | "unavailable" | null;
+
 export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogProps) => {
+  const { t } = useTranslation()
   const { updateModelConfig } = useConfig()
   const [form, setForm] = useState({
     type: "llm" as ModelType,
@@ -34,7 +39,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
   const [loading, setLoading] = useState(false)
   const [verifyingConnectivity, setVerifyingConnectivity] = useState(false)
   const [connectivityStatus, setConnectivityStatus] = useState<{
-    status: ModelConnectStatus | null
+    status: ConnectivityStatusType
     message: string
   }>({
     status: null,
@@ -95,12 +100,12 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
   // Verify model connectivity
   const handleVerifyConnectivity = async () => {
     if (!isFormValid()) {
-      message.warning('请先填写完整的模型配置信息')
+      message.warning(t('model.dialog.warning.incompleteForm'))
       return
     }
 
     setVerifyingConnectivity(true)
-    setConnectivityStatus({ status: "检测中", message: "正在验证模型连通性..." })
+    setConnectivityStatus({ status: "checking", message: t('model.dialog.status.verifying') })
 
     try {
       const modelType = form.type === "embedding" && form.isMultimodal ? 
@@ -119,21 +124,21 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       const result = await modelService.verifyModelConfigConnectivity(config)
       
       setConnectivityStatus({
-        status: result.connectivity ? "可用" : "不可用",
+        status: result.connectivity ? "available" : "unavailable",
         message: result.message
       })
 
       if (result.connectivity) {
-        message.success('模型连通性验证成功！')
+        message.success(t('model.dialog.success.connectivityVerified'))
       } else {
-        message.error(`模型连通性验证失败：${result.message}`)
+        message.error(t('model.dialog.error.connectivityFailed', { message: result.message }))
       }
     } catch (error) {
       setConnectivityStatus({
-        status: "不可用",
-        message: `验证失败: ${error}`
+        status: "unavailable",
+        message: t('model.dialog.error.verificationFailed', { error })
       })
-      message.error(`验证连通性失败：${error}`)
+      message.error(t('model.dialog.error.verificationError', { error }))
     } finally {
       setVerifyingConnectivity(false)
     }
@@ -142,11 +147,11 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
   // Get the connectivity status icon
   const getConnectivityIcon = () => {
     switch (connectivityStatus.status) {
-      case "检测中":
+      case "checking":
         return <LoadingOutlined style={{ color: '#1890ff' }} />
-      case "可用":
+      case "available":
         return <CheckCircleOutlined style={{ color: '#52c41a' }} />
-      case "不可用":
+      case "unavailable":
         return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
       default:
         return null
@@ -156,11 +161,11 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
   // Get the connectivity status color
   const getConnectivityColor = () => {
     switch (connectivityStatus.status) {
-      case "检测中":
+      case "checking":
         return '#1890ff'
-      case "可用":
+      case "available":
         return '#52c41a'
-      case "不可用":
+      case "unavailable":
         return '#ff4d4f'
       default:
         return '#d9d9d9'
@@ -264,8 +269,8 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       // Close the dialog
       onClose()
     } catch (error) {
-      message.error(`添加模型失败：${error}`)
-      console.error('添加模型失败:', error)
+      message.error(t('model.dialog.error.addFailed', { error }))
+      console.error(t('model.dialog.error.addFailedLog'), error)
     } finally {
       setLoading(false)
     }
@@ -275,7 +280,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
 
   return (
     <Modal
-      title="添加模型"
+      title={t('model.dialog.title')}
       open={isOpen}
       onCancel={onClose}
       footer={null}
@@ -285,28 +290,28 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         {/* Model Type */}
         <div>
           <label className="block mb-1 text-sm font-medium text-gray-700">
-            模型类型 <span className="text-red-500">*</span>
+            {t('model.dialog.label.type')} <span className="text-red-500">*</span>
           </label>
           <Select
             style={{ width: "100%" }}
             value={form.type}
             onChange={(value) => handleFormChange("type", value)}
           >
-            <Option value="llm">大语言模型</Option>
-            <Option value="embedding">向量化模型</Option>
-            <Option value="vlm">视觉语言模型</Option>
-            <Option value="rerank" disabled>重排模型</Option>
-            <Option value="stt" disabled>语音识别模型</Option>
-            <Option value="tts" disabled>语音合成模型</Option>
+            <Option value="llm">{t('model.type.llm')}</Option>
+            <Option value="embedding">{t('model.type.embedding')}</Option>
+            <Option value="vlm">{t('model.type.vlm')}</Option>
+            <Option value="rerank" disabled>{t('model.type.rerank')}</Option>
+            <Option value="stt" disabled>{t('model.type.stt')}</Option>
+            <Option value="tts" disabled>{t('model.type.tts')}</Option>
           </Select>
         </div>
 
-        {/* Whether it is a multi-modal embedding model (only displayed when the embedding model is selected) */}
+        {/* Multimodal Switch */}
         {isEmbeddingModel && (
           <div>
             <div className="flex justify-between items-center">
               <label className="block text-sm font-medium text-gray-700">
-                多模态
+                {t('model.dialog.label.multimodal')}
               </label>
               <Switch 
                 checked={form.isMultimodal}
@@ -314,7 +319,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               />
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              {form.isMultimodal ? "多模态向量模型可处理图像和文本" : "文本向量模型仅处理文本"}
+              {form.isMultimodal ? t('model.dialog.hint.multimodalEnabled') : t('model.dialog.hint.multimodalDisabled')}
             </div>
           </div>
         )}
@@ -322,11 +327,11 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         {/* Model Name */}
         <div>
           <label htmlFor="name" className="block mb-1 text-sm font-medium text-gray-700">
-            模型名称 <span className="text-red-500">*</span>
+            {t('model.dialog.label.name')} <span className="text-red-500">*</span>
           </label>
           <Input
             id="name"
-            placeholder="请输入请求体中的模型名称"
+            placeholder={t('model.dialog.placeholder.name')}
             value={form.name}
             onChange={handleModelNameChange}
           />
@@ -335,11 +340,11 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         {/* Display Name */}
         <div>
           <label htmlFor="displayName" className="block mb-1 text-sm font-medium text-gray-700">
-            展示名称
+            {t('model.dialog.label.displayName')}
           </label>
           <Input
             id="displayName"
-            placeholder="请输入模型的展示名称"
+            placeholder={t('model.dialog.placeholder.displayName')}
             value={form.displayName}
             onChange={(e) => handleFormChange("displayName", e.target.value)}
           />
@@ -348,11 +353,11 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         {/* Model URL */}
         <div>
           <label htmlFor="url" className="block mb-1 text-sm font-medium text-gray-700">
-            模型URL <span className="text-red-500">*</span>
+            {t('model.dialog.label.url')} <span className="text-red-500">*</span>
           </label>
           <Input
             id="url"
-            placeholder="请输入模型URL, 例如: https://api.openai.com/v1"
+            placeholder={t('model.dialog.placeholder.url')}
             value={form.url}
             onChange={(e) => handleFormChange("url", e.target.value)}
           />
@@ -361,44 +366,44 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         {/* API Key */}
         <div>
           <label htmlFor="apiKey" className="block mb-1 text-sm font-medium text-gray-700">
-            API Key
+            {t('model.dialog.label.apiKey')}
           </label>
           <Input.Password
             id="apiKey"
-            placeholder="请输入API Key（可选）"
+            placeholder={t('model.dialog.placeholder.apiKey')}
             value={form.apiKey}
             onChange={(e) => handleFormChange("apiKey", e.target.value)}
           />
         </div>
 
-        {/* Vector dimension (only displayed when the embedding model is selected) */}
+        {/* Vector dimension */}
         {isEmbeddingModel && (
           <div>
             <label htmlFor="vectorDimension" className="block mb-1 text-sm font-medium text-gray-700">
-              向量维度 <span className="text-red-500">*</span>
+              {t('model.dialog.label.vectorDimension')} <span className="text-red-500">*</span>
             </label>
             <Input
               id="vectorDimension"
-              placeholder="请输入向量维度"
+              placeholder={t('model.dialog.placeholder.vectorDimension')}
               value={form.vectorDimension}
               onChange={(e) => handleFormChange("vectorDimension", e.target.value)}
               status={!isValidVectorDimension(form.vectorDimension) ? "error" : ""}
             />
             {!isValidVectorDimension(form.vectorDimension) && (
-              <div className="text-red-500 text-xs mt-1">请输入大于0的整数</div>
+              <div className="text-red-500 text-xs mt-1">{t('model.dialog.error.invalidVectorDimension')}</div>
             )}
           </div>
         )}
 
-        {/* Max Tokens (only displayed when the embedding model is not selected)*/}
+        {/* Max Tokens */}
         {!isEmbeddingModel && (
           <div>
             <label htmlFor="maxTokens" className="block mb-1 text-sm font-medium text-gray-700">
-              最大Token数
+              {t('model.dialog.label.maxTokens')}
             </label>
             <Input
               id="maxTokens"
-              placeholder="请输入最大Token数"
+              placeholder={t('model.dialog.placeholder.maxTokens')}
               value={form.maxTokens}
               onChange={(e) => handleFormChange("maxTokens", e.target.value)}
             />
@@ -409,7 +414,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center">
-              <span className="text-sm font-medium text-gray-700">连通性验证</span>
+              <span className="text-sm font-medium text-gray-700">{t('model.dialog.connectivity.title')}</span>
               {connectivityStatus.status && (
                 <div className="ml-2 flex items-center">
                   {getConnectivityIcon()}
@@ -417,7 +422,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
                     className="ml-1 text-xs"
                     style={{ color: getConnectivityColor() }}
                   >
-                    {connectivityStatus.status}
+                    {t(`model.dialog.connectivity.status.${connectivityStatus.status}`)}
                   </span>
                 </div>
               )}
@@ -429,7 +434,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               loading={verifyingConnectivity}
               disabled={!isFormValid() || verifyingConnectivity}
             >
-              {verifyingConnectivity ? '验证中...' : '点击验证'}
+              {verifyingConnectivity ? t('model.dialog.button.verifying') : t('model.dialog.button.verify')}
             </Button>
           </div>
           {connectivityStatus.message && (
@@ -444,10 +449,10 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           <div>
             <div className="flex items-center mb-1">
               <InfoCircleFilled className="text-md text-blue-500 mr-3" />
-              <p className="font-bold text-medium">模型配置说明</p>
+              <p className="font-bold text-medium">{t('model.dialog.help.title')}</p>
             </div>
             <p className="mt-0.5 ml-6">
-              请填写模型的基本信息，API Key、展示名称为可选项，其他字段为必填项。建议先验证连通性后再添加模型。
+              {t('model.dialog.help.content')}
             </p>
           </div>
         </div>
@@ -455,7 +460,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         {/* Footer Buttons */}
         <div className="flex justify-end space-x-3">
           <Button onClick={onClose}>
-            取消
+            {t('common.button.cancel')}
           </Button>
           <Button
             type="primary"
@@ -463,7 +468,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
             disabled={!isFormValid()}
             loading={loading}
           >
-            添加
+            {t('model.dialog.button.add')}
           </Button>
         </div>
       </div>

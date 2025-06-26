@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import BusinessLogicConfig from './AgentManagementConfig'
 import SystemPromptDisplay from './components/SystemPromptDisplay'
 import DebugConfig from './DebugConfig'
@@ -8,6 +9,7 @@ import GuideSteps from './components/GuideSteps'
 import { Row, Col, Drawer, message } from 'antd'
 import { fetchTools, fetchAgentList } from '@/services/agentConfigService'
 import { OpenAIModel } from '@/app/setup/agentSetup/ConstInterface'
+import '../../i18n'
 
 // Layout Height Constant Configuration
 const LAYOUT_CONFIG = {
@@ -22,6 +24,7 @@ const LAYOUT_CONFIG = {
  * Agent configuration main component
  */
 export default function AgentConfig() {
+  const { t } = useTranslation('common')
   const [businessLogic, setBusinessLogic] = useState("")
   const [systemPrompt, setSystemPrompt] = useState("")
   const [selectedAgents, setSelectedAgents] = useState<any[]>([])
@@ -57,13 +60,13 @@ export default function AgentConfig() {
           message.error(result.message)
         }
       } catch (error) {
-        console.error('加载工具列表失败:', error)
-        message.error('获取工具列表失败，请刷新页面重试')
+        console.error(t('agent.error.loadTools'), error)
+        message.error(t('agent.error.loadToolsRetry'))
       }
     }
     
     loadTools()
-  }, [])
+  }, [t])
 
   // get agent list
   const fetchAgents = async () => {
@@ -90,11 +93,11 @@ export default function AgentConfig() {
           setSystemPrompt(result.data.prompt);
         }
       } else {
-        message.error(result.message || '获取Agent列表失败');
+        message.error(result.message || t('agent.error.fetchAgentList'));
       }
     } catch (error) {
-      console.error('获取Agent列表失败:', error);
-      message.error('获取Agent列表失败，请稍后重试');
+      console.error(t('agent.error.fetchAgentList'), error);
+      message.error(t('agent.error.fetchAgentListRetry'));
     } finally {
       setLoadingAgents(false);
     }
@@ -282,7 +285,7 @@ export default function AgentConfig() {
 
       {/* Commissioning drawer */}
       <Drawer
-        title="Agent调试"
+        title={t('agent.debug.title')}
         placement="right"
         onClose={() => setIsDebugDrawerOpen(false)}
         open={isDebugDrawerOpen}
