@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { Typography, Row, Col } from "antd"
 import { AppConfigSection } from './appConfig'
 import { ModelConfigSection, ModelConfigSectionRef } from './modelConfig'
+import { useTranslation } from 'react-i18next'
 
 const { Title } = Typography
 
@@ -18,6 +19,7 @@ interface AppModelConfigProps {
 }
 
 export default function AppModelConfig({ skipModelVerification = false }: AppModelConfigProps) {
+  const { t } = useTranslation()
   const [isClientSide, setIsClientSide] = useState(false)
   const modelConfigRef = useRef<ModelConfigSectionRef | null>(null)
 
@@ -38,7 +40,7 @@ export default function AppModelConfig({ skipModelVerification = false }: AppMod
             <Col xs={24} md={24} lg={10} xl={9} xxl={8}>
               <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
                 <div className="mb-4 px-2">
-                  <Title level={4}>应用设置</Title>
+                  <Title level={4}>{t('setup.config.appSettings')}</Title>
                   <div className="h-[1px] bg-gray-200 mt-2"></div>
                 </div>
                 <div style={{ 
@@ -54,7 +56,7 @@ export default function AppModelConfig({ skipModelVerification = false }: AppMod
             <Col xs={24} md={24} lg={14} xl={15} xxl={16}>
               <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
                 <div className="mb-4 px-2">
-                  <Title level={4}>模型设置</Title>
+                  <Title level={4}>{t('setup.config.modelSettings')}</Title>
                   <div className="h-[1px] bg-gray-200 mt-2"></div>
                 </div>
                 <div style={{ 
@@ -72,7 +74,7 @@ export default function AppModelConfig({ skipModelVerification = false }: AppMod
       ) : (
         <div className="max-w-4xl mx-auto">
           <div className="h-[300px] flex items-center justify-center">
-            <span>加载中...</span>
+            <span>{t('common.loading')}</span>
           </div>
         </div>
       )}

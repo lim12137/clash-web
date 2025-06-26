@@ -2,62 +2,63 @@
 
 import { Steps } from 'antd'
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
 // Timeline Step Configuration
-const GUIDE_STEPS = {
+const getGuideSteps = (t: any) => ({
   normal: [
     {
-      title: '选择Agent',
-      description: '从Agent池中选择需要的Agent',
+      title: t('guide.steps.normal.selectAgent.title'),
+      description: t('guide.steps.normal.selectAgent.description'),
     },
     {
-      title: '选择工具',
-      description: '从工具池中选择需要的工具',
+      title: t('guide.steps.normal.selectTools.title'),
+      description: t('guide.steps.normal.selectTools.description'),
     },
     {
-      title: '描述业务',
-      description: '输入业务场景和需求描述',
+      title: t('guide.steps.normal.describeBusiness.title'),
+      description: t('guide.steps.normal.describeBusiness.description'),
     },
     {
-      title: '生成提示词',
-      description: '生成系统提示词并微调',
+      title: t('guide.steps.normal.generatePrompt.title'),
+      description: t('guide.steps.normal.generatePrompt.description'),
     },
     {
-      title: '调试Agent（可选）',
-      description: '输入问题调试主Agent',
+      title: t('guide.steps.normal.debugAgent.title'),
+      description: t('guide.steps.normal.debugAgent.description'),
     },
     {
-      title: '完成配置',
-      description: '点击完成配置开始问答',
+      title: t('guide.steps.normal.complete.title'),
+      description: t('guide.steps.normal.complete.description'),
     }
   ],
   creating: [
     {
-      title: '填写基础信息',
-      description: '填写名称、描述等基础信息',
+      title: t('guide.steps.creating.basicInfo.title'),
+      description: t('guide.steps.creating.basicInfo.description'),
     },
     {
-      title: '选择工具',
-      description: '从工具池中选择需要的工具',
+      title: t('guide.steps.creating.selectTools.title'),
+      description: t('guide.steps.creating.selectTools.description'),
     },
     {
-      title: '描述业务',
-      description: '输入业务场景和需求描述',
+      title: t('guide.steps.creating.describeBusiness.title'),
+      description: t('guide.steps.creating.describeBusiness.description'),
     },
     {
-      title: '生成提示词',
-      description: '生成系统提示词并微调',
+      title: t('guide.steps.creating.generatePrompt.title'),
+      description: t('guide.steps.creating.generatePrompt.description'),
     },
     {
-      title: '调试Agent（可选）',
-      description: '输入问题调试当前Agent',
+      title: t('guide.steps.creating.debugAgent.title'),
+      description: t('guide.steps.creating.debugAgent.description'),
     },
     {
-      title: '保存Agent',
-      description: '配置并保存到Agent池',
+      title: t('guide.steps.creating.saveAgent.title'),
+      description: t('guide.steps.creating.saveAgent.description'),
     },
   ]
-};
+});
 
 interface GuideStepsProps {
   isCreatingNewAgent: boolean;
@@ -84,6 +85,9 @@ export default function GuideSteps({
   agentDescription = '',
   agentProvideSummary = false,
 }: GuideStepsProps) {
+  const { t } = useTranslation('common');
+  const GUIDE_STEPS = getGuideSteps(t);
+
   // print mainAgentId in the console
   useEffect(() => {
     console.log('当前 mainAgentId:', mainAgentId);
@@ -114,7 +118,9 @@ export default function GuideSteps({
   return (
     <div className="h-[65vh]">
       <div className="flex-1 flex flex-col h-full overflow-y-auto overflow-x-hidden">
-        <h2 className="text-xl font-bold mb-4">{isCreatingNewAgent ? '子Agent配置' : '主Agent配置'}</h2>
+        <h2 className="text-xl font-bold mb-4">
+          {isCreatingNewAgent ? t('guide.title.subAgent') : t('guide.title.mainAgent')}
+        </h2>
         <Steps
           direction="vertical"
           current={step}

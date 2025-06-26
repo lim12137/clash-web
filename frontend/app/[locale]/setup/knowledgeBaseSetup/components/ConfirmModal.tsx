@@ -1,5 +1,7 @@
 import React from 'react'
 import { Modal } from 'antd'
+import { useTranslation } from 'react-i18next'
+import i18next from 'i18next'
 
 interface ConfirmModalProps {
   title: string
@@ -31,21 +33,23 @@ interface ConfirmModalComponent extends React.FC<ConfirmModalProps> {
 const ConfirmModal: ConfirmModalComponent = ({ 
   title,
   content,
-  okText = '确定',
-  cancelText = '取消',
+  okText,
+  cancelText,
   danger = false,
   visible,
   onConfirm,
   onCancel
 }) => {
+  const { t } = useTranslation()
+
   return (
     <Modal
       title={title}
       open={visible}
       onOk={onConfirm}
       onCancel={onCancel}
-      okText={okText}
-      cancelText={cancelText}
+      okText={okText || t('common.confirm')}
+      cancelText={cancelText || t('common.cancel')}
       okButtonProps={{ danger }}
     >
       {content}
@@ -57,8 +61,8 @@ const ConfirmModal: ConfirmModalComponent = ({
 ConfirmModal.confirm = ({
   title,
   content,
-  okText = '确定',
-  cancelText = '取消',
+  okText,
+  cancelText,
   danger = false,
   onConfirm,
   onCancel
@@ -66,8 +70,8 @@ ConfirmModal.confirm = ({
   return Modal.confirm({
     title,
     content,
-    okText,
-    cancelText,
+    okText: okText || i18next.t('common.confirm'),
+    cancelText: cancelText || i18next.t('common.cancel'),
     okButtonProps: { danger },
     onOk: onConfirm,
     onCancel

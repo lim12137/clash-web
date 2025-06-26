@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { Typography, Input, Button } from 'antd'
+import { useTranslation } from 'react-i18next'
 import { conversationService } from '@/services/conversationService'
 import { handleStreamResponse } from '@/app/chat/streaming/chatStreamHandler'
 import { ChatMessageType, TaskMessageType } from '@/types/chat'
@@ -47,17 +48,17 @@ function AgentDebugging({
   taskMessages,
   conversationGroups
 }: AgentDebuggingProps) {
+  const { t } = useTranslation()
   const [inputQuestion, setInputQuestion] = useState("")
   
   const handleSend = async () => {
     if (!inputQuestion.trim()) return;
     
     try {
-      // Call the parent component's processing function
       await onAskQuestion(inputQuestion);
       setInputQuestion("");
     } catch (error) {
-      console.error("发送问题失败:", error);
+      console.error(t('agent.error.loadTools'), error);
     }
   }
   
@@ -173,7 +174,7 @@ function AgentDebugging({
         <Input
           value={inputQuestion}
           onChange={(e) => setInputQuestion(e.target.value)}
-          placeholder="输入测试问题..."
+          placeholder={t('agent.debug.placeholder')}
           onPressEnter={handleSend}
           disabled={isStreaming}
         />
@@ -183,7 +184,7 @@ function AgentDebugging({
             className="min-w-[56px] px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-red-500 hover:bg-red-600 text-white whitespace-nowrap"
             style={{ border: "none" }}
           >
-            停止
+            {t('agent.debug.stop')}
           </button>
         ) : (
           <button
@@ -191,7 +192,7 @@ function AgentDebugging({
             className="min-w-[56px] px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 hover:bg-blue-600 text-white whitespace-nowrap"
             style={{ border: "none" }}
           >
-            发送
+            {t('agent.debug.send')}
           </button>
         )}
       </div>
@@ -209,6 +210,7 @@ export default function DebugConfig({
   setTestAnswer,
   agentId
 }: DebugConfigProps) {
+  const { t } = useTranslation()
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [taskMessages, setTaskMessages] = useState<TaskMessageType[]>([]);
@@ -231,9 +233,9 @@ export default function DebugConfig({
     // Stop agent_run immediately
     if (abortControllerRef.current) {
       try {
-        abortControllerRef.current.abort('用户手动停止调试');
+        abortControllerRef.current.abort(t('agent.debug.userStop'));
       } catch (error) {
-        console.error('取消请求时出错', error);
+        console.error(t('agent.debug.cancelError'), error);
       }
       abortControllerRef.current = null;
     }
@@ -251,7 +253,7 @@ export default function DebugConfig({
     try {
       await conversationService.stop(-1); // Use -1 for debug mode
     } catch (error) {
-      console.error('停止调试模式agent运行失败，但前端已停止:', error);
+      console.error(t('agent.debug.stopError'), error);
       // This is expected if no agent is running for debug mode
     }
 
@@ -262,7 +264,7 @@ export default function DebugConfig({
       if (lastMsg && lastMsg.role === "assistant") {
         lastMsg.isComplete = true;
         lastMsg.thinking = undefined; // Explicitly clear thinking state
-        lastMsg.content = "调试已停止";
+        lastMsg.content = t('agent.debug.stopped');
       }
       return newMessages;
     });
@@ -315,7 +317,7 @@ export default function DebugConfig({
         agent_id: agentIdValue  // Use the properly parsed agent_id
       }, abortControllerRef.current.signal); // Pass AbortSignal
 
-      if (!reader) throw new Error("Response body is null");
+      if (!reader) throw new Error(t('agent.debug.nullResponse'));
 
       // Process stream response
       await handleStreamResponse(
@@ -345,15 +347,15 @@ export default function DebugConfig({
           const newMessages = [...prev];
           const lastMsg = newMessages[newMessages.length - 1];
           if (lastMsg && lastMsg.role === "assistant") {
-            lastMsg.content = "调试已停止";
+            lastMsg.content = t('agent.debug.stopped');
             lastMsg.isComplete = true;
             lastMsg.thinking = undefined; // Explicitly clear thinking state
           }
           return newMessages;
         });
       } else {
-        console.error("处理流式响应时出错:", error);
-        const errorMessage = error instanceof Error ? error.message : "处理请求时发生错误";
+        console.error(t('agent.debug.streamError'), error);
+        const errorMessage = error instanceof Error ? error.message : t('agent.debug.processError');
         
         setMessages(prev => {
           const newMessages = [...prev];
