@@ -122,9 +122,9 @@ function Navigation({
           className={"px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-blue-500 text-white hover:bg-blue-600"}
           style={{ border: "none", marginLeft: selectedKey === "1" || userRole !== "admin" ? "auto" : undefined }}
         >
-          {selectedKey === "3" ? (isSavingConfig ? "保存中..." : "完成配置") :
-           selectedKey === "2" && userRole !== "admin" ? (isSavingConfig ? "保存中..." : "完成配置") :
-           "下一步"}
+          {selectedKey === "3" ? (isSavingConfig ? t("setup.navigation.button.saving") : t("setup.navigation.button.complete")) :
+           selectedKey === "2" && userRole !== "admin" ? (isSavingConfig ? t("setup.navigation.button.saving") : t("setup.navigation.button.complete")) :
+           t("setup.navigation.button.next")}
         </button>
       </div>
     </div>
