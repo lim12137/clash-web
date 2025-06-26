@@ -3,7 +3,6 @@ import "./i18n"
 import { useState, useEffect } from "react"
 import { Bot, Globe, Zap, FileSearch, Shield, MessagesSquare, Microchip, AlertTriangle } from "lucide-react"
 import { useTranslation } from 'react-i18next'
-import { Bot, Globe, Database, Zap, Mic, FileSearch, Shield, MessagesSquare, Microchip } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
