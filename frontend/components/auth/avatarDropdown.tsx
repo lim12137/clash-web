@@ -6,10 +6,13 @@ import { UserOutlined, SettingOutlined, LogoutOutlined, UserSwitchOutlined, Logi
 import { getRoleColor, getRoleText } from "@/lib/auth"
 import type { ItemType, MenuItemType } from "antd/es/menu/interface"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
+import React from "react"
 
 export function AvatarDropdown() {
   const { user, isLoading, logout, openLoginModal, openRegisterModal } = useAuth()
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const { t } = useTranslation('common');
 
   if (isLoading) {
     return <Spin size="small" />
@@ -21,7 +24,7 @@ export function AvatarDropdown() {
         key: 'not-logged-in',
         label: (
           <div className="py-1">
-            <div className="font-medium text-gray-500">您尚未登录</div>
+            <div className="font-medium text-gray-500">{t('auth.notLoggedIn')}</div>
           </div>
         ),
         className: 'cursor-default hover:bg-transparent',
@@ -36,7 +39,7 @@ export function AvatarDropdown() {
       {
         key: 'login',
         icon: <LoginOutlined />,
-        label: '登录',
+        label: t('auth.login'),
         onClick: () => {
           setDropdownOpen(false);
           openLoginModal();
@@ -45,7 +48,7 @@ export function AvatarDropdown() {
       {
         key: 'register',
         icon: <UserAddOutlined />,
-        label: '注册',
+        label: t('auth.register'),
         onClick: () => {
           setDropdownOpen(false);
           openRegisterModal();
@@ -62,7 +65,7 @@ export function AvatarDropdown() {
           trigger={['click']}
           open={dropdownOpen}
           onOpenChange={setDropdownOpen}
-          dropdownRender={(menu) => (
+          dropdownRender={(menu: React.ReactNode) => (
             <div style={{ minWidth: '120px' }}>
               {menu}
             </div>
@@ -98,7 +101,7 @@ export function AvatarDropdown() {
           {
             key: 'admin',
             icon: <SettingOutlined />,
-            label: '管理设置',
+            label: t('auth.adminSettings'),
           } as MenuItemType
         ]
       : []),
@@ -108,13 +111,13 @@ export function AvatarDropdown() {
     {
       key: 'logout',
       icon: <LogoutOutlined />,
-      label: '退出登录',
+      label: t('auth.logout'),
       onClick: () => {
         Modal.confirm({
-          title: '确认退出',
-          content: '您确定要退出登录吗？',
-          okText: '确认',
-          cancelText: '取消',
+          title: t('auth.confirmLogout'),
+          content: t('auth.confirmLogoutPrompt'),
+          okText: t('auth.confirm'),
+          cancelText: t('auth.cancel'),
           onOk: () => {
             logout();
           }
@@ -131,7 +134,7 @@ export function AvatarDropdown() {
         arrow 
         trigger={['click']}
         getPopupContainer={() => document.body}
-        dropdownRender={(menu) => (
+        dropdownRender={(menu: React.ReactNode) => (
           <div style={{ minWidth: '180px' }}>
             {menu}
           </div>

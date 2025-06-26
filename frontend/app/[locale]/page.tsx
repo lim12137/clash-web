@@ -2,7 +2,7 @@
 import "./i18n"
 import { useState, useEffect } from "react"
 import { Bot, Globe, Zap, FileSearch, Shield, MessagesSquare, Microchip, AlertTriangle } from "lucide-react"
-import { useTranslation } from 'react-i18next'
+import { useTranslation, Trans } from 'react-i18next'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
@@ -21,16 +21,31 @@ const languageOptions = [
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
+  
+  // Prevent hydration errors
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return null
+  }
+
+  return (
+    <ConfigProvider getPopupContainer={() => document.body}>
+      <FrontpageContent />
+    </ConfigProvider>
+  )
+}
+
+function FrontpageContent() {
   const { t, i18n } = useTranslation('common');
   const [lang, setLang] = useState(i18n.language || 'zh');
   const router = useRouter();
   const pathname = usePathname();
-
-  // Prevent hydration errors
-  useEffect(() => {
-    setMounted(true)
-    setLang(i18n.language || 'zh')
-  }, [])
+  const { user, isLoading: userLoading, openLoginModal, openRegisterModal } = useAuth()
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false)
+  const [adminRequiredPromptOpen, setAdminRequiredPromptOpen] = useState(false)
 
   useEffect(() => {
     const segments = pathname.split('/').filter(Boolean);
@@ -55,22 +70,6 @@ export default function Home() {
     const newPath = '/' + segments.join('/');
     router.push(newPath);
   };
-
-  if (!mounted) {
-    return null
-  }
-
-  return (
-    <ConfigProvider getPopupContainer={() => document.body}>
-      <FrontpageContent />
-    </ConfigProvider>
-  )
-}
-
-function FrontpageContent() {
-  const { user, isLoading: userLoading, openLoginModal, openRegisterModal } = useAuth()
-  const [loginPromptOpen, setLoginPromptOpen] = useState(false)
-  const [adminRequiredPromptOpen, setAdminRequiredPromptOpen] = useState(false)
 
   // 处理需要登录的操作
   const handleAuthRequired = (e: React.MouseEvent) => {
@@ -99,8 +98,10 @@ function FrontpageContent() {
 
   // 处理需要管理员权限的操作
   const handleAdminRequired = (e: React.MouseEvent) => {
-    e.preventDefault()
-    setAdminRequiredPromptOpen(true)
+    if (user?.role !== 'admin') {
+      e.preventDefault()
+      setAdminRequiredPromptOpen(true)
+    }
   }
 
   // 关闭管理员提示框
@@ -140,7 +141,7 @@ function FrontpageContent() {
           {/* 登录状态切换显示 */}
           {userLoading ? (
             <span className="text-sm font-medium text-slate-600">
-              加载中...
+              {t("common.loading")}...
             </span>
           ) : user ? (
             <span className="text-sm font-medium text-slate-600">
@@ -185,57 +186,28 @@ function FrontpageContent() {
 
           {/* Two parallel buttons */}
           <div className="flex flex-col sm:flex-row gap-4">
-            {user ? (
-              <Link href="/chat">
-                <Button
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
-                >
-                  <Bot className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-                  {t('page.startChat')}
-                </Button>
-              </Link>
-            ) : (
+            <Link href={user ? "/chat" : "#"} onClick={handleAuthRequired}>
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
-                onClick={handleAuthRequired}
               >
                 <Bot className="mr-2 h-5 w-5 group-hover:animate-pulse" />
                 {t('page.startChat')}
               </Button>
-            )}
+            </Link>
 
-            {!user ? (
-              // 未登录用户
+            <Link href={user?.role === 'admin' ? "/setup" : "#"} onClick={handleAdminRequired}>
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
-                onClick={handleAuthRequired}
               >
                 <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
                 {t('page.quickConfig')}
               </Button>
-            ) : user.role === "admin" ? (
-              // 管理员用户
-              <Link href="/setup">
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
-                  <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-                  {t('page.quickConfig')}
-                </Button>
-              </Link>
-            ) : (
-              // 普通用户
-              <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
-                onClick={handleAdminRequired}
-              >
-                <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-                {t('page.quickConfig')}
-              </Button>
-            )}
+            </Link>
           </div>
 
           <div className="mt-12 flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
             <AlertTriangle className="h-4 w-4" />
-            <span>免费试用环境不做数据留存，数据可能随更新丢失，请注意</span>
+            <span>{t('page.dataProtection')}</span>
           </div>
         </section>
 
@@ -302,7 +274,7 @@ function FrontpageContent() {
 
       {/* 登录提示对话框 */}
       <Modal
-        title="登录账号"
+        title={t("page.loginPrompt.title")}
         open={loginPromptOpen}
         onCancel={handleCloseLoginPrompt}
         footer={[
@@ -312,49 +284,48 @@ function FrontpageContent() {
             onClick={handleRegisterClick}
             className="bg-white mr-2"
           >
-            注册
+            {t("page.loginPrompt.register")}
           </Button>,
           <Button
             key="login"
             onClick={handleLoginClick}
             className="bg-blue-600 text-white hover:bg-blue-700"
           >
-            立即登录
+            {t("page.loginPrompt.login")}
           </Button>,
         ]}
         centered
       >
         <div className="py-2">
-          <h3 className="text-base font-medium mb-2">🚀 准备启航！</h3>
-          <p className="text-gray-600 mb-3">登录您的账户，开启智能问答之旅~</p>
+          <h3 className="text-base font-medium mb-2">{t("page.loginPrompt.header")}</h3>
+          <p className="text-gray-600 mb-3">{t("page.loginPrompt.intro")}</p>
 
           <div className="rounded-md mb-6 mt-3">
-            <h3 className="text-base font-medium mb-1">✨ 登录后您将获得：</h3>
+            <h3 className="text-base font-medium mb-1">{t("page.loginPrompt.benefitsTitle")}</h3>
             <ul className="text-gray-600 pl-5 list-disc">
-              <li>专属的对话历史记录</li>
-              <li>个性化的智能推荐</li>
-              <li>企业知识库完整访问权限</li>
-              <li>更精准的问答体验</li>
+              {(t('page.loginPrompt.benefits', { returnObjects: true }) as string[]).map((benefit, i) => (
+                <li key={i}>{benefit}</li>
+              ))}
             </ul>
           </div>
 
           <div className="mt-4">
             <p className="text-base font-medium">
-              ⭐️ Nexent还在成长中，帮帮我到
-              <a
-                href="https://github.com/ModelEngine-Group/nexent"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-700 font-bold"
-              >
-                GitHub
-              </a>
-              加星支持我吧，谢谢你。
+              <Trans i18nKey="page.loginPrompt.githubSupport">
+                ⭐️ Nexent is still growing, please help me by starring on <a
+                  href="https://github.com/ModelEngine-Group/nexent"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700 font-bold"
+                >
+                  GitHub
+                </a>, thank you.
+              </Trans>
             </p>
           </div>
           <br />
 
-          <p className="text-gray-500 text-xs">还没有账号？点击"注册"按钮创建您的专属账号~</p>
+          <p className="text-gray-500 text-xs">{t("page.loginPrompt.noAccount")}</p>
         </div>
       </Modal>
 
@@ -364,7 +335,7 @@ function FrontpageContent() {
 
       {/* 管理员提示对话框 */}
       <Modal
-        title="啊哦，您不是管理员"
+        title={t("page.adminPrompt.title")}
         open={adminRequiredPromptOpen}
         onCancel={handleCloseAdminPrompt}
         footer={[
@@ -373,49 +344,49 @@ function FrontpageContent() {
             onClick={handleCloseAdminPrompt}
             className="bg-blue-600 text-white hover:bg-blue-700"
           >
-            好的
+            {t("page.adminPrompt.close")}
           </Button>,
         ]}
         centered
       >
         <div className="py-2">
-          <p className="text-gray-600">只有管理员可以调整配置，请先登录为管理员账号~</p>
+          <p className="text-gray-600">{t("page.adminPrompt.intro")}</p>
         </div>
         <div className="py-2">
-          <h3 className="text-base font-medium mb-2">🌟 成为管理员，解锁更多能力！</h3>
-          <p className="text-gray-600 mb-3">成为管理员后，您可以：</p>
+          <h3 className="text-base font-medium mb-2">{t("page.adminPrompt.unlockHeader")}</h3>
+          <p className="text-gray-600 mb-3">{t("page.adminPrompt.unlockIntro")}</p>
           <div className="rounded-md mb-6 mt-3">
-            <h3 className="text-base font-medium mb-1">✨ 管理员专属权限：</h3>
+            <h3 className="text-base font-medium mb-1">{t("page.adminPrompt.permissionsTitle")}</h3>
             <ul className="text-gray-600 pl-5 list-disc">
-              <li>配置和管理自己的模型</li>
-              <li>制作和发布专属智能Agent</li>
-              <li>集成和配置自有工具</li>
+              {(t('page.adminPrompt.permissions', { returnObjects: true }) as string[]).map((permission, i) => (
+                <li key={i}>{permission}</li>
+              ))}
             </ul>
           </div>
           <div className="mt-4">
             <p className="text-base font-medium">
-              ⭐️ Nexent还在成长中，帮帮我到
-              <a
-                href="https://github.com/ModelEngine-Group/nexent"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-700 font-bold"
-              >
-                GitHub
-              </a>
-              加星支持我吧，谢谢你。
+              <Trans i18nKey="page.adminPrompt.githubSupport">
+                ⭐️ Nexent is still growing, please help me by starring on <a
+                  href="https://github.com/ModelEngine-Group/nexent"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700 font-bold"
+                >
+                  GitHub
+                </a>, thank you.
+              </Trans>
               <br />
               <br />
-              💡 想成为管理员？请访问
-              <a
-                href="http://nexent.tech/contact"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-700 font-bold"
-              >
-                官网联系页
-              </a>
-              ，申请管理员账号。
+              <Trans i18nKey="page.adminPrompt.becomeAdmin">
+                💡 Want to become an administrator? Please visit the <a
+                  href="http://nexent.tech/contact"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700 font-bold"
+                >
+                  official contact page
+                </a> to apply for an administrator account.
+              </Trans>
             </p>
           </div>
           <br />
