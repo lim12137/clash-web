@@ -107,7 +107,7 @@ jobs:
           cd $HOME/nexent-commercial/docker
           cp .env.example .env
           if [ "$DEPLOYMENT_MODE" = "production" ]; then
-            echo 3 | ./deploy.sh
+            echo 2 | ./deploy.sh
           else
             echo 1 | ./deploy.sh
           fi
