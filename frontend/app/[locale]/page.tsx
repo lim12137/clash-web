@@ -82,13 +82,13 @@ export default function Home() {
             href="http://nexent.tech/contact"
             className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
           >
-            联系我们
+            {t('page.contactUs')}
           </Link>
           <Link
             href="http://nexent.tech/about"
             className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
           >
-            关于我们
+            {t('page.aboutUs')}
           </Link>
         </div>
         <Button variant="ghost" size="icon" className="md:hidden">
@@ -118,10 +118,10 @@ export default function Home() {
           <div className="absolute inset-0 bg-grid-slate-200 dark:bg-grid-slate-800 [mask-image:radial-gradient(ellipse_at_center,white_20%,transparent_75%)] -z-10"></div>
 
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-white mb-4 tracking-tight">
-          Nexent 智能体<span className="text-blue-600 dark:text-blue-500"> 一个提示词，无限种可能</span>
+          {t('page.title')}<span className="text-blue-600 dark:text-blue-500"> {t('page.subtitle')}</span>
           </h2>
           <p className="max-w-2xl text-slate-600 dark:text-slate-300 text-lg md:text-xl mb-8">
-          无需编排，无需复杂拖拉拽，将数据、模型和工具整合到一个智能中心中。
+          {t('page.description')}
           </p>
 
           {/* Two parallel buttons */}
@@ -131,71 +131,48 @@ export default function Home() {
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
               >
                 <Bot className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-                开始问答
+                {t('page.startChat')}
               </Button>
             </Link>
             <Link href="/setup">
               <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group">
                 <Zap className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-                快速配置
+                {t('page.quickConfig')}
               </Button>
             </Link>
           </div>
 
           <div className="mt-12 flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
             <Shield className="h-4 w-4" />
-            <span>安全可靠的企业级数据保护</span>
+            <span>{t('page.dataProtection')}</span>
           </div>
         </section>
 
         {/* Feature cards */}
         <section className="max-w-7xl mx-auto px-4 mb-6">
-          <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">核心功能</h3>
+          <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">{t('page.coreFeatures')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <FeatureCard
-              icon={<Bot className="h-8 w-8 text-blue-500" />}
-              title="多智能体自主业务决策"
-              description="利用ReAct框架实现多智能体间的自主思考、任务规划、决策和执行，自动化MCP生态下的模型、数据与工具集"
-            />
-             <FeatureCard
-              icon={<Zap className="h-8 w-8 text-blue-500" />}
-              title="高效数据准备"
-              description="企业级别的 Scalable 处理、切片、向量化数据框架，支撑构建基于不同文件格式、数据来源的高质量多模态知识库。"
-            />
-            <FeatureCard
-              icon={<Globe className="h-8 w-8 text-emerald-500" />}
-              title="多源知识获取与溯源"
-              description="多种知识库、互联网等数据来源连接的MCP工具，基于业务决策数据获取方式，同时具备完整的多模态知识溯源与解释能力。"
-            />
-            <FeatureCard
-              icon={<Microchip className="h-8 w-8 text-amber-500" />}
-              title="MCP工具支持"
-              description="支持MCP工具接入与调用，帮助实现更复杂的业务逻辑"
-            />
-            <FeatureCard
-              icon={<FileSearch className="h-8 w-8 text-rose-500" />}
-              title="知识溯源"
-              description="提供完整的信息来源追溯，确保回答的可靠性和可验证性"
-            />
-            <FeatureCard
-              icon={<MessagesSquare className="h-8 w-8 text-purple-500" />}
-              title="多模态对话"
-              description="基于多模态知识库、数据处理能力，提供多模态的智能体服务，支持文本、图像、音频等多种数据类型的输入输出。"
-            />
+            {(t('page.features', { returnObjects: true }) as Array<{title: string, description: string}>).map((feature, index: number) => {
+              const icons = [
+                <Bot key={0} className="h-8 w-8 text-blue-500" />,
+                <Zap key={1} className="h-8 w-8 text-blue-500" />,
+                <Globe key={2} className="h-8 w-8 text-emerald-500" />,
+                <Microchip key={3} className="h-8 w-8 text-amber-500" />,
+                <FileSearch key={4} className="h-8 w-8 text-rose-500" />,
+                <MessagesSquare key={5} className="h-8 w-8 text-purple-500" />
+              ];
+              
+              return (
+                <FeatureCard
+                  key={index}
+                  icon={icons[index] || <Bot className="h-8 w-8 text-blue-500" />}
+                  title={feature.title}
+                  description={feature.description}
+                />
+              );
+            })}
           </div>
         </section>
-
-        {/* Statistics data */}
-        {/* <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">极致体验</h3>
-        <section className="bg-slate-50 dark:bg-slate-800/50 py-16">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-8 text-center">
-              <StatCard number="98.5%" label="问答准确率" />
-              <StatCard number="100MB / 秒" label="数据处理速度" />
-              <StatCard number="3秒内" label="平均响应时间" />
-            </div>
-          </div>
-        </section> */}
       </main>
 
       {/* Footer */}
@@ -204,7 +181,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
               <span className="text-sm font-medium text-slate-900 dark:text-white">
-                Nexent 智能体 © {new Date().getFullYear()}
+                {t('page.copyright', { year: new Date().getFullYear() })}
               </span>
               <Select
                 value={lang}
@@ -219,13 +196,13 @@ export default function Home() {
                 href="https://github.com/nexent-hub/nexent?tab=License-1-ov-file#readme"
                 className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               >
-                使用条款
+                {t('page.termsOfUse')}
               </Link>
               <Link
                 href="http://nexent.tech/contact"
                 className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               >
-                联系我们
+                {t('page.contactUs')}
               </Link>
             </div>
           </div>
