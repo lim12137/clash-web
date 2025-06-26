@@ -81,7 +81,7 @@ jobs:
       - name: Clone model if not cached
         if: steps.check-model.outputs.cache-hit == 'false'
         run: |
-          mkdir -p ./model-assets
+          mkdir -p ./model-assets 
           GIT_LFS_SKIP_SMUDGE=1 git clone https://www.modelscope.cn/openai-mirror/clip-vit-base-patch32.git ./model-assets/clip-vit-base-patch32
           cd ./model-assets/clip-vit-base-patch32
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
