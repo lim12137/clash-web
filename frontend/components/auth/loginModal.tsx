@@ -5,6 +5,7 @@ import { useAuthForm } from "@/hooks/useAuthForm"
 import { Modal, Form, Input, Button, Typography, Space } from "antd"
 import { UserOutlined, LockOutlined } from "@ant-design/icons"
 import { EVENTS, STATUS_CODES } from "@/types/auth"
+import { useTranslation } from "react-i18next"
 
 const { Text } = Typography
 
@@ -22,6 +23,7 @@ export function LoginModal() {
     handlePasswordChange,
     resetForm
   } = useAuthForm()
+  const { t } = useTranslation('common');
 
   const handleSubmit = async (values: { email: string; password: string }) => {
     setEmailError("")
@@ -45,7 +47,7 @@ export function LoginModal() {
         form.setFields([
           {
             name: "password",
-            errors: ["认证服务当前不可用，请稍后重试"],
+            errors: [t('auth.authServiceUnavailable')],
             value: values.password
           }
         ]);
@@ -58,7 +60,7 @@ export function LoginModal() {
           },
           {
             name: "password",
-            errors: ["账号或密码错误，请重新输入"],
+            errors: [t('auth.invalidCredentials')],
             value: values.password
           }
         ]);
@@ -82,7 +84,7 @@ export function LoginModal() {
     if (isFromSessionExpired) {
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
-          detail: { message: "登录已过期，请重新登录" }
+          detail: { message: t('auth.sessionExpired') }
         }));
       }, 100);
     }
@@ -90,7 +92,7 @@ export function LoginModal() {
 
   return (
     <Modal
-      title={<div className="text-center text-xl font-bold">登录</div>}
+      title={<div className="text-center text-xl font-bold">{t('auth.loginTitle')}</div>}
       open={isLoginModalOpen}
       onCancel={handleCancel}
       footer={null}
@@ -109,16 +111,16 @@ export function LoginModal() {
       >
         <Form.Item
           name="email"
-          label="邮箱地址"
+          label={t('auth.emailLabel')}
           validateStatus={emailError ? "error" : ""}
           help={emailError}
           rules={[
-            { required: true, message: "请输入邮箱地址" }
+            { required: true, message: t('auth.emailRequired') }
           ]}
         >
           <Input
             prefix={<UserOutlined className="text-gray-400" />}
-            placeholder="your@email.com"
+            placeholder={t('auth.emailPlaceholder')}
             onChange={handleEmailChange}
             size="large"
           />
@@ -126,14 +128,14 @@ export function LoginModal() {
 
         <Form.Item
           name="password"
-          label="密码"
+          label={t('auth.passwordLabel')}
           validateStatus={passwordError ? "error" : ""}
-          help={passwordError || authServiceUnavailable ? (authServiceUnavailable ? "认证服务当前不可用，请稍后重试" : "账号或密码错误，请重新输入") : ""}
-          rules={[{ required: true, message: "请输入密码" }]}
+          help={passwordError || authServiceUnavailable ? (authServiceUnavailable ? t('auth.authServiceUnavailable') : t('auth.invalidCredentials')) : ""}
+          rules={[{ required: true, message: t('auth.passwordRequired') }]}
         >
           <Input.Password
             prefix={<LockOutlined className="text-gray-400" />}
-            placeholder="请输入密码"
+            placeholder={t('auth.passwordRequired')}
             onChange={handlePasswordChange}
             size="large"
             status={passwordError ? "error" : ""}
@@ -150,15 +152,15 @@ export function LoginModal() {
             className="mt-2"
             disabled={authServiceUnavailable}
           >
-            {isLoading ? "登录中..." : "登录"}
+            {isLoading ? t('auth.loggingIn') : t('auth.login')}
           </Button>
         </Form.Item>
 
         <div className="text-center">
           <Space>
-            <Text type="secondary">还没有账号？</Text>
+            <Text type="secondary">{t('auth.noAccount')}</Text>
             <Button type="link" onClick={handleRegisterClick} className="p-0">
-              立即注册
+              {t('auth.registerNow')}
             </Button>
           </Space>
         </div>
