@@ -56,7 +56,8 @@
         "stopGenerating": "Stop Generating",
         "imagePreview": "Image Preview",
         "close": "Close",
-        "errorLabel": "Error:"
+        "errorLabel": "Error:",
+        "failedToUpdateConversationList": "Failed to update conversation list:"
     },
     "chatPreprocess": {
         "step": "Step",
@@ -67,7 +68,8 @@
         "uploadingFile": "Uploading file: {{name}}, type: {{type}}, size: {{size}}",
         "uploadingImage": "Uploading image: {{name}}, type: {{type}}, size: {{size}}",
         "fileUploadFailed": "File upload failed:",
-        "parsingFile": "Parsing file..."
+        "parsingFile": "Parsing file...",
+        "termsOfUse": "Terms of Use"
     },
     "extractMsg": {
         "unknownTitle": "Unknown Title",
@@ -124,7 +126,8 @@
         "confirmDeletionTitle": "Delete Conversation",
         "confirmDeletionDescription": "Are you sure you want to delete this conversation? This action cannot be undone.",
         "cancel": "Cancel",
-        "collapseSidebar": "Collapse Sidebar"
+        "collapseSidebar": "Collapse Sidebar",
+        "user": "User"
     },
     "page": {
         "contactUs": "Contact Us",
@@ -134,7 +137,7 @@
         "description": "No orchestration, no complex drag-and-drop required. Integrate data, models, and tools into one intelligent hub.",
         "startChat": "Start Chatting",
         "quickConfig": "Quick Setup",
-        "dataProtection": "Secure and reliable enterprise-grade data protection",
+        "dataProtection": "Free trial environment does not retain data. Data may be lost during updates - please take note.",
         "coreFeatures": "Core Features",
         "features": [
             {
@@ -163,7 +166,38 @@
             }
         ],
         "copyright": "Nexent © {{year}}",
-        "termsOfUse": "Terms of Use"
+        "termsOfUse": "Terms of Use",
+        "loginPrompt": {
+            "title": "Login",
+            "register": "Register",
+            "login": "Login Now",
+            "header": "🚀 Ready to Go!",
+            "intro": "Log in to your account and start your intelligent Q&A journey~",
+            "benefitsTitle": "✨ After logging in, you will get:",
+            "benefits": [
+                "Exclusive conversation history",
+                "Personalized smart recommendations",
+                "Full access to enterprise knowledge base",
+                "More accurate Q&A experience"
+            ],
+            "githubSupport": "⭐️ Nexent is still growing, please help me by starring on <1>GitHub</1>, thank you.",
+            "noAccount": "Don't have an account yet? Click the \"Register\" button to create your exclusive account~"
+        },
+        "adminPrompt": {
+            "title": "Oh, you are not an administrator",
+            "close": "OK",
+            "intro": "Only administrators can adjust the configuration, please log in as an administrator first~",
+            "unlockHeader": "🌟 Become an administrator and unlock more capabilities!",
+            "unlockIntro": "After becoming an administrator, you can:",
+            "permissionsTitle": "✨ Administrator exclusive permissions:",
+            "permissions": [
+                "Configure and manage your own models",
+                "Create and publish exclusive smart Agents",
+                "Integrate and configure your own tools"
+            ],
+            "githubSupport": "⭐️ Nexent is still growing, please help me by starring on <1>GitHub</1>, thank you.",
+            "becomeAdmin": "💡 Want to become an administrator? Please visit the <1>official contact page</1> to apply for an administrator account."
+        }
     },
     "chatStreamMessage": {
         "appIconAlt": "App Icon",
@@ -227,13 +261,13 @@
         "parseCardError": "Failed to parse card content:",
         "cannotParseCard": "Cannot parse card content",
         "parseSearchError": "Failed to parse search results:",
-        "cannotParseSearch": "Cannot parse search results: {{message}}",
+        "cannotParseSearch": "Cannot parse search result: {{message}}",
         "noSearchResults": "No search results found",
         "unknownMessageType": "Unknown message type: {{type}}",
-        "noTaskMessages": "No task messages",
+        "noTaskMessages": "No task messages yet",
         "taskDetails": "Task Details"
     },
-  "setup.promptTuning.placeholder": "Enter prompt tuning instructions...",
+    "setup.promptTuning.placeholder": "Enter prompt tuning instruction...",
     "setup.promptTuning.button.tuning": "Tuning...",
     "setup.promptTuning.button.send": "Send",
     "setup.promptTuning.error.send": "Failed to send tuning instruction:",
@@ -738,5 +772,37 @@
     "login.expired.content": "Your login session has expired. Please log in again to continue.",
     "login.expired.okText": "Login Now",
     "login.expired.cancelText": "Back to Home",
-    "setup.page.error.adminOnly": "Only administrators can access the model configuration page"
+    "setup.page.error.adminOnly": "Only administrators can access the model configuration page",
+    "auth": {
+          "notLoggedIn": "You are not logged in",
+          "login": "Login",
+          "register": "Register",
+          "adminSettings": "Admin Settings",
+          "logout": "Logout",
+          "confirmLogout": "Confirm Logout",
+          "confirmLogoutPrompt": "Are you sure you want to log out?",
+          "confirm": "Confirm",
+          "cancel": "Cancel",
+          "loginTitle": "Login",
+          "emailLabel": "Email Address",
+          "emailRequired": "Please enter your email address",
+          "passwordLabel": "Password",
+          "passwordRequired": "Please enter your password",
+          "authServiceUnavailable": "Authentication service is currently unavailable, please try again later",
+          "invalidCredentials": "Incorrect account or password, please try again",
+          "loggingIn": "Logging in...",
+          "noAccount": "Don't have an account?",
+          "registerNow": "Register now",
+          "sessionExpired": "Your session has expired, please log in again",
+          "registerTitle": "Create Account",
+          "passwordMinLength": "Password must be at least 6 characters long",
+          "passwordsDoNotMatch": "Passwords do not match",
+          "emailExists": "This email is already registered",
+          "registrationFailed": "Registration failed, please try again later",
+          "confirmPasswordLabel": "Confirm Password",
+          "confirmPasswordRequired": "Please confirm your password",
+          "registering": "Registering...",
+          "hasAccount": "Already have an account?",
+          "loginNow": "Login now"
+      }
 }

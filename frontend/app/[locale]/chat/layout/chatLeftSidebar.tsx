@@ -333,7 +333,7 @@ export function ChatSidebar({
                 <div className="py-2 flex justify-center cursor-pointer">
                   <div className="h-8 w-8 rounded-full overflow-hidden" style={{ backgroundColor: "#f0f2f5" }}>
                     {userAvatarUrl ? (
-                      <img src={userAvatarUrl} alt={userEmail || "用户"} className="h-full w-full object-cover" />
+                      <img src={userAvatarUrl} alt={userEmail || t('chatLeftSidebar.user')} className="h-full w-full object-cover" />
                     ) : (
                       <div className="h-full w-full bg-gray-200 flex items-center justify-center">
                         <User className="h-5 w-5" />
@@ -461,7 +461,7 @@ export function ChatSidebar({
                 <div className="flex items-center py-1 px-2">
                   <div className="h-8 w-8 rounded-full overflow-hidden mr-2">
                     {userAvatarUrl ? (
-                      <img src={userAvatarUrl} alt={userEmail || "用户"} className="h-full w-full object-cover" />
+                      <img src={userAvatarUrl} alt={userEmail || t('chatLeftSidebar.user')} className="h-full w-full object-cover" />
                     ) : (
                       <div className="h-full w-full bg-gray-200 flex items-center justify-center">
                         <User className="h-5 w-5" />

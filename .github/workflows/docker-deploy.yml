@@ -64,18 +64,24 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Check if model is cached locally
-        id: check-model
+      - name: Check if model is cached locally (cross-platform)
         run: |
-          if [ -f ./model-assets/clip-vit-base-patch32/config.json ]; then
-            echo "cache-hit=true" >> "$GITHUB_OUTPUT"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            pwsh -Command "if (Test-Path './model-assets/clip-vit-base-patch32/config.json') { 'cache-hit=true' | Out-File -FilePath $env:GITHUB_OUTPUT -Append } else { 'cache-hit=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Append }"
           else
-            echo "cache-hit=false" >> "$GITHUB_OUTPUT"
+            if [ -f ./model-assets/clip-vit-base-patch32/config.json ]; then
+              echo "cache-hit=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "cache-hit=false" >> "$GITHUB_OUTPUT"
+            fi
           fi
+        env:
+          RUNNER_OS: ${{ runner.os }}
+        shell: bash
       - name: Clone model if not cached
         if: steps.check-model.outputs.cache-hit == 'false'
         run: |
-          mkdir -p ./model-assets
+          mkdir -p ./model-assets 
           GIT_LFS_SKIP_SMUDGE=1 git clone https://www.modelscope.cn/openai-mirror/clip-vit-base-patch32.git ./model-assets/clip-vit-base-patch32
           cd ./model-assets/clip-vit-base-patch32
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull

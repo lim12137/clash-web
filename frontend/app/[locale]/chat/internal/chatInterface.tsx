@@ -963,7 +963,7 @@ export function ChatInterface() {
   useEffect(() => {
     const handleConversationListUpdate = () => {
       fetchConversationList().catch(err => {
-        console.error("更新对话列表失败:", err);
+        console.error(t("chatInterface.failedToUpdateConversationList"), err);
       });
     };
 
