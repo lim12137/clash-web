@@ -8,6 +8,7 @@ import { Input, Button, Tooltip } from 'antd'
 import { useKnowledgeBaseContext } from '../knowledgeBase/KnowledgeBaseContext'
 import { message } from 'antd'
 import knowledgeBaseService from '@/services/knowledgeBaseService'
+import { useTranslation } from 'react-i18next'
 
 // UI layout configuration, internally manages height ratios of each section
 export const UI_CONFIG = {
@@ -125,6 +126,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { } = useKnowledgeBaseContext();
+  const { t } = useTranslation();
 
   // Reset showDetail state when knowledge base name changes
   React.useEffect(() => {
@@ -139,8 +141,8 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
           const result = await knowledgeBaseService.getSummary(knowledgeBaseName);
           setSummary(result);
         } catch (error) {
-          console.error('获取知识库总结失败:', error);
-          message.error('获取知识库总结失败');
+          console.error(t('knowledgeBase.error.getSummary'), error);
+          message.error(t('document.summary.error'));
         }
       }
     };
@@ -150,16 +152,14 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
   // Handle auto summary
   const handleAutoSummary = async () => {
     if (!knowledgeBaseName) {
-      message.warning('请先选择一个知识库');
+      message.warning(t('document.summary.selectKnowledgeBase'));
       return;
     }
 
     setIsSummarizing(true);
-    // 清空现有的摘要，准备流式更新
     setSummary('');
     
     try {
-      // 使用带有进度回调的summaryIndex方法
       await knowledgeBaseService.summaryIndex(
         knowledgeBaseName, 
         1000,
@@ -167,10 +167,10 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
           setSummary(prev => prev + newText);
         }
       );
-      message.success('知识库总结完成');
+      message.success(t('document.summary.completed'));
     } catch (error) {
-      message.error('获取知识库总结失败');
-      console.error('获取知识库总结失败:', error);
+      message.error(t('document.summary.error'));
+      console.error(t('document.summary.error'), error);
     } finally {
       setIsSummarizing(false);
     }
@@ -179,28 +179,22 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
   // Handle save summary
   const handleSaveSummary = async () => {
     if (!knowledgeBaseName) {
-      message.warning('Please select a knowledge base first');
+      message.warning(t('document.summary.selectKnowledgeBase'));
       return;
     }
 
     if (!summary.trim()) {
-      message.warning('Summary content cannot be empty');
+      message.warning(t('document.summary.emptyContent'));
       return;
     }
 
     setIsSaving(true);
     try {
-      console.log('Starting to save summary:', {
-        knowledgeBaseName,
-        summary,
-        summaryLength: summary.length,
-        summaryContent: summary.substring(0, 100) + '...' // Only show first 100 characters
-      });
       await knowledgeBaseService.changeSummary(knowledgeBaseName, summary);
-      message.success('保存成功');
+      message.success(t('document.summary.saveSuccess'));
     } catch (error: any) {
-      console.error('Failed to save summary:', error);
-      const errorMessage = error?.message || error?.detail || 'Save failed';
+      console.error(t('document.summary.saveError'), error);
+      const errorMessage = error?.message || error?.detail || t('document.summary.saveFailed');
       message.error(errorMessage);
     } finally {
       setIsSaving(false);
@@ -223,7 +217,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                   </h3>
                   {isUploading && (
                     <div className="ml-3 px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-md border border-blue-100">
-                      创建中...
+                      {t('document.status.creating')}
                     </div>
                   )}
                 </div>
@@ -231,7 +225,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                 <Input
                   value={knowledgeBaseName}
                   onChange={(e) => onNameChange && onNameChange(e.target.value)}
-                  placeholder="请输入知识库名称"
+                  placeholder={t('document.input.knowledgeBaseName')}
                   className={`${LAYOUT.KB_TITLE_MARGIN}`}
                   size="large"
                   style={{ 
@@ -261,11 +255,11 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
           {/* 右侧：详细内容 */}
           {!isCreatingMode && (
             <Tooltip 
-              title={summary || "暂无知识库总结"} 
+              title={summary || t('document.summary.empty')} 
               placement="left"
               mouseEnterDelay={0.5}
             >
-              <Button type="primary" onClick={() => setShowDetail(true)}>详细内容</Button>
+              <Button type="primary" onClick={() => setShowDetail(true)}>{t('document.button.details')}</Button>
             </Tooltip>
           )}
         </div>
@@ -276,14 +270,14 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
         {showDetail ? (
           <div style={{ padding: '16px 32px', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <span style={{ fontWeight: 700, fontSize: 18 }}>知识库总结</span>
+              <span style={{ fontWeight: 700, fontSize: 18 }}>{t('document.summary.title')}</span>
               <Button
                 type="default"
                 onClick={handleAutoSummary}
                 loading={isSummarizing}
                 disabled={!knowledgeBaseName || isSummarizing}
               >
-                自动总结
+                {t('document.button.autoSummary')}
               </Button>
             </div>
             <Input.TextArea
@@ -307,9 +301,9 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                 loading={isSaving}
                 disabled={!summary || isSaving}
               >
-                保存
+                {t('common.save')}
               </Button>
-              <Button size="large" onClick={() => setShowDetail(false)}>返回</Button>
+              <Button size="large" onClick={() => setShowDetail(false)}>{t('common.back')}</Button>
             </div>
           </div>
         ) : (
@@ -317,7 +311,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
             <div className="flex items-center justify-center h-full border border-gray-200 rounded-md">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                <p className="text-sm text-gray-600">正在加载文档列表...</p>
+                <p className="text-sm text-gray-600">{t('document.status.loadingList')}</p>
               </div>
             </div>
           ) : isCreatingMode ? (
@@ -326,9 +320,9 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                 <div className="mb-4">
                   <InfoCircleFilled style={{ fontSize: 36, color: '#1677ff' }} />
                 </div>
-                <h3 className="text-lg font-medium text-gray-800 mb-2">创建新知识库</h3>
+                <h3 className="text-lg font-medium text-gray-800 mb-2">{t('document.title.createNew')}</h3>
                 <p className="text-gray-500 text-sm max-w-md">
-                  请选择文件上传以完成知识库创建
+                  {t('document.hint.uploadToCreate')}
                 </p>
               </div>
             </div>
@@ -338,19 +332,19 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                 <thead className={`${LAYOUT.TABLE_HEADER_BG} sticky top-0 z-10`}>
                   <tr>
                     <th className={`${LAYOUT.CELL_PADDING} text-left ${LAYOUT.HEADER_TEXT}`} style={{ width: COLUMN_WIDTHS.NAME }}>
-                      文档名称
+                      {t('document.table.header.name')}
                     </th>
                     <th className={`${LAYOUT.CELL_PADDING} text-left ${LAYOUT.HEADER_TEXT}`} style={{ width: COLUMN_WIDTHS.STATUS }}>
-                      状态
+                      {t('document.table.header.status')}
                     </th>
                     <th className={`${LAYOUT.CELL_PADDING} text-left ${LAYOUT.HEADER_TEXT}`} style={{ width: COLUMN_WIDTHS.SIZE }}>
-                      大小
+                      {t('document.table.header.size')}
                     </th>
                     <th className={`${LAYOUT.CELL_PADDING} text-left ${LAYOUT.HEADER_TEXT}`} style={{ width: COLUMN_WIDTHS.DATE }}>
-                      上传日期
+                      {t('document.table.header.date')}
                     </th>
                     <th className={`${LAYOUT.CELL_PADDING} text-left ${LAYOUT.HEADER_TEXT}`} style={{ width: COLUMN_WIDTHS.ACTION }}>
-                      操作
+                      {t('document.table.header.action')}
                     </th>
                   </tr>
                 </thead>
@@ -396,7 +390,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                           className={LAYOUT.ACTION_TEXT}
                           disabled={doc.status === "WAIT_FOR_PROCESSING" || doc.status === "PROCESSING" || doc.status === "WAIT_FOR_FORWARDING" || doc.status === "FORWARDING"}
                         >
-                          删除
+                          {t('common.delete')}
                         </button>
                       </td>
                     </tr>
@@ -406,7 +400,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
             </div>
           ) : (
             <div className="text-center py-2 text-gray-500 text-xs border border-gray-200 rounded-md h-full">
-              该知识库中暂无文档，请上传文档
+              {t('document.hint.noDocuments')}
             </div>
           )
         )}

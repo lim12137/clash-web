@@ -3,6 +3,7 @@ import { Select, Tooltip, Tag } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
 import { ModelConnectStatus, ModelOption, ModelSource, ModelType } from '@/types/config'
 import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 
 // 统一管理模型连接状态颜色
 const CONNECT_STATUS_COLORS: Record<ModelConnectStatus | 'default', string> = {
@@ -121,6 +122,8 @@ export const ModelListCard = ({
   onVerifyModel,
   errorFields
 }: ModelListCardProps) => {
+  const { t } = useTranslation()
+
   // 添加模型列表状态，用于更新
   const [modelsData, setModelsData] = useState({
     official: [...officialModels],
@@ -154,14 +157,14 @@ export const ModelListCard = ({
   const getModelSource = (displayName: string): string => {
     if (type === 'tts' || type === 'stt' || type === 'vlm') {
       const modelOfType = modelsData.custom.find((m) => m.type === type && m.displayName === displayName)
-      if (modelOfType) return "自定义"
+      if (modelOfType) return t('model.source.custom')
     }
 
     const officialModel = modelsData.official.find((m) => m.type === type && m.name === displayName)
-    if (officialModel) return "ModelEngine"
+    if (officialModel) return t('model.source.modelEngine')
 
     const customModel = modelsData.custom.find((m) => m.type === type && m.displayName === displayName)
-    return customModel ? "自定义" : "未知来源"
+    return customModel ? t('model.source.custom') : t('model.source.unknown')
   }
 
   const modelsBySource = getModelsBySource()
@@ -173,7 +176,7 @@ export const ModelListCard = ({
       const modelToUpdate = prevData.custom.find(m => m.displayName === displayName && m.type === type);
       
       if (!modelToUpdate) {
-        console.warn(`未找到要更新的模型: ${displayName}, 类型: ${type}`);
+        console.warn(t('model.warning.updateNotFound', { displayName, type }));
         return prevData;
       }
       
@@ -249,7 +252,7 @@ export const ModelListCard = ({
       <div className="font-medium mb-1.5 flex items-center justify-between">
         <div className="flex items-center">
           {modelTypeName}
-          {(modelTypeName === "主模型") && (
+          {(modelTypeName === t('model.type.main')) && (
             <span className="text-red-500 ml-1">*</span>
           )}
         </div>
@@ -265,7 +268,7 @@ export const ModelListCard = ({
         style={{ 
           width: "100%",
         }}
-        placeholder="选择模型"
+        placeholder={t('model.select.placeholder')}
         value={selectedModel || undefined}
         onChange={onModelChange}
         allowClear={{ 
@@ -279,7 +282,7 @@ export const ModelListCard = ({
         className={errorFields && errorFields[`${type}.${modelId}`] ? "error-select" : ""}
       >
         {modelsBySource.official.length > 0 && (
-          <Select.OptGroup label="ModelEngine模型">
+          <Select.OptGroup label={t('model.group.modelEngine')}>
             {modelsBySource.official.map((model) => (
               <Option key={`${type}-${model.name}-official`} value={model.displayName}>
                 <div className="flex items-center justify-between">
@@ -292,7 +295,7 @@ export const ModelListCard = ({
           </Select.OptGroup>
         )}
         {modelsBySource.custom.length > 0 && (
-          <Select.OptGroup label="自定义模型">
+          <Select.OptGroup label={t('model.group.custom')}>
             {modelsBySource.custom.map((model) => (
               <Option key={`${type}-${model.displayName}-custom`} value={model.displayName}>
                 <div className="flex items-center justify-between" style={{ minWidth: 0 }}>
@@ -300,7 +303,7 @@ export const ModelListCard = ({
                     {model.displayName}
                   </div>
                   <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', marginLeft: '8px' }}>
-                    <Tooltip title="点击可验证连通性">
+                    <Tooltip title={t('model.status.tooltip')}>
                       <span 
                         onClick={(e) => handleStatusClick(e, model.displayName)}
                         onMouseDown={(e: React.MouseEvent) => {

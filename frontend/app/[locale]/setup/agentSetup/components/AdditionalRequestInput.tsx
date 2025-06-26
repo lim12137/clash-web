@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Input, Button } from 'antd'
+import { useTranslation } from 'react-i18next'
+
 
 // Additional request input component Props interface
 export interface AdditionalRequestInputProps {
@@ -14,13 +16,14 @@ export interface AdditionalRequestInputProps {
  */
 export default function AdditionalRequestInput({ onSend, isTuning = false }: AdditionalRequestInputProps) {
   const [request, setRequest] = useState("")
-  
+  const { t } = useTranslation('common');
+
   const handleSend = async () => {
     if (request.trim()) {
       try {
         await onSend(request)
       } catch (error) {
-        console.error("微调指令发送失败:", error)
+        console.error(t("setup.promptTuning.error.send"), error)
       }
     }
   }
@@ -30,7 +33,7 @@ export default function AdditionalRequestInput({ onSend, isTuning = false }: Add
       <Input.TextArea
         value={request}
         onChange={(e) => setRequest(e.target.value)}
-        placeholder="输入提示词微调指令..."
+        placeholder={t('setup.promptTuning.placeholder')}
         onPressEnter={(e) => {
           if (!e.shiftKey) {
             e.preventDefault()
@@ -48,7 +51,7 @@ export default function AdditionalRequestInput({ onSend, isTuning = false }: Add
         disabled={isTuning || !request.trim()}
         loading={isTuning}
       >
-        {isTuning ? "微调中..." : "发送"}
+        {isTuning ? t('setup.promptTuning.button.tuning') : t('setup.promptTuning.button.send')}
       </Button>
     </div>
   )

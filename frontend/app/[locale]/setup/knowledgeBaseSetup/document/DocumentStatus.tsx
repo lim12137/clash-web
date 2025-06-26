@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface DocumentStatusProps {
   status: string
@@ -11,23 +12,25 @@ export const DocumentStatus: React.FC<DocumentStatusProps> = ({
   showIcon = false, 
   size = 'small' 
 }) => {
+  const { t } = useTranslation();
+
   // Map API status to display status
   const getDisplayStatus = (apiStatus: string): string => {
     switch (apiStatus) {
       case 'WAIT_FOR_PROCESSING':
-        return '等待解析'
+        return t('document.status.waitForProcessing')
       case 'WAIT_FOR_FORWARDING':
-        return '等待入库'
+        return t('document.status.waitForForwarding')
       case 'PROCESSING':
-        return '解析中'
+        return t('document.status.processing')
       case 'FORWARDING': 
-        return '入库中'
+        return t('document.status.forwarding')
       case 'COMPLETED':
-        return '已就绪'
+        return t('document.status.completed')
       case 'PROCESS_FAILED':
-        return '解析失败'
+        return t('document.status.processFailed')
       case 'FORWARD_FAILED':
-        return '入库失败'
+        return t('document.status.forwardFailed')
       default:
         return apiStatus
     }

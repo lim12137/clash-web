@@ -3,6 +3,7 @@
 import { createContext, useReducer, useContext, ReactNode, useCallback, useEffect } from "react"
 import { Document } from "@/types/knowledgeBase"
 import knowledgeBaseService from "@/services/knowledgeBaseService"
+import { useTranslation } from 'react-i18next';
 
 // Document state interface
 interface DocumentState {
@@ -160,6 +161,7 @@ interface DocumentProviderProps {
 }
 
 export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) => {
+  const { t } = useTranslation();
   const [state, dispatch] = useReducer(documentReducer, {
     documentsMap: {},
     selectedIds: [],
@@ -214,12 +216,12 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
         payload: { kbId, documents } 
       });
     } catch (error) {
-      console.error('Failed to fetch documents:', error);
-      dispatch({ type: 'ERROR', payload: 'Failed to load documents' });
+      console.error(t('document.error.fetch'), error);
+      dispatch({ type: 'ERROR', payload: t('document.error.load') });
     } finally {
       dispatch({ type: 'SET_LOADING_KB_ID', payload: { kbId, isLoading: false } });
     }
-  }, [state.loadingKbIds, state.documentsMap]);
+  }, [state.loadingKbIds, state.documentsMap, t]);
 
   // Upload documents to a knowledge base
   const uploadDocuments = useCallback(async (kbId: string, files: File[]) => {
@@ -250,13 +252,13 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
       // Clear upload files
       dispatch({ type: 'SET_UPLOAD_FILES', payload: [] });
     } catch (error) {
-      console.error('Failed to upload documents:', error);
-      dispatch({ type: 'ERROR', payload: 'Failed to upload documents' });
+      console.error(t('document.error.upload'), error);
+      dispatch({ type: 'ERROR', payload: `${t('document.error.upload')}. ${t('document.error.retry')}` });
     } finally {
       dispatch({ type: 'SET_UPLOADING', payload: false });
       dispatch({ type: 'SET_LOADING_DOCUMENTS', payload: false });
     }
-  }, []);
+  }, [t]);
 
   // Delete a document
   const deleteDocument = useCallback(async (kbId: string, docId: string) => {
@@ -267,10 +269,10 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
         payload: { kbId, docId } 
       });
     } catch (error) {
-      console.error('Failed to delete document:', error);
-      dispatch({ type: 'ERROR', payload: 'Failed to delete document' });
+      console.error(t('document.error.delete'), error);
+      dispatch({ type: 'ERROR', payload: `${t('document.error.delete')}. ${t('document.error.retry')}` });
     }
-  }, []);
+  }, [t]);
 
   return (
     <DocumentContext.Provider 
