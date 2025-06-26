@@ -1,6 +1,7 @@
 import { message } from 'antd';
 import { Tool } from '../ConstInterface';
 import { searchToolConfig, updateToolConfig } from '@/services/agentConfigService';
+import { useTranslation } from 'react-i18next'
 
 export const handleToolSelectCommon = async (
   tool: Tool,
@@ -8,8 +9,10 @@ export const handleToolSelectCommon = async (
   mainAgentId: string | null | undefined,
   onSuccess?: (tool: Tool, isSelected: boolean) => void
 ) => {
+
+  const { t } = useTranslation('common');
   if (!mainAgentId) {
-    message.error('主代理ID未设置，无法更新工具状态');
+    message.error(t('toolUtils.error.noMainAgentId'));
     return { shouldProceed: false, params: {} };
   }
 
@@ -17,7 +20,7 @@ export const handleToolSelectCommon = async (
     // step 1: get tool config from database
     const searchResult = await searchToolConfig(parseInt(tool.id), parseInt(mainAgentId));
     if (!searchResult.success) {
-      message.error('获取工具配置失败');
+      message.error(t('toolUtils.error.loadConfig'));
       return { shouldProceed: false, params: {} };
     }
 
@@ -61,12 +64,12 @@ export const handleToolSelectCommon = async (
       }
       return { shouldProceed: true, params };
     } else {
-      message.error(updateResult.message || '更新工具状态失败');
+      message.error(updateResult.message || t('toolUtils.error.updateStatus'));
       return { shouldProceed: false, params };
     }
   } catch (error) {
-    console.error('更新工具状态失败:', error);
-    message.error('更新工具状态失败，请稍后重试');
+    console.error(t('toolUtils.error.updateStatus'), error);
+    message.error(t('toolUtils.error.updateStatusRetry'));
     return { shouldProceed: false, params: {} };
   }
 }; 

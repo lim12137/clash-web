@@ -6,6 +6,7 @@ import { ExternalLink, Database, X } from "lucide-react"
 import { ChatMessageType } from "@/types/chat"
 import { API_ENDPOINTS } from "@/services/api"
 import { formatDate, formatUrl } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 interface ImageItem {
   base64Data: string;
@@ -44,6 +45,7 @@ export function ChatRightPanel({
   toggleRightPanel,
   selectedMessageId
 }: ChatRightPanelProps) {
+  const { t } = useTranslation('common');
   // Local state
   const [expandedImages, setExpandedImages] = useState(false)
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
@@ -64,7 +66,7 @@ export function ChatRightPanel({
       ...prev,
       [imageUrl]: {
         ...(prev[imageUrl] || {}),
-        error: '图片加载失败',
+        error: t('chatRightPanel.imageLoadFailed'),
         isLoading: false
       }
     }));
@@ -132,7 +134,7 @@ export function ChatRightPanel({
         handleImageLoadFail(imageUrl);
       }
     } catch (error) {
-      console.error('请求图片代理服务失败:', error);
+      console.error(t('chatRightPanel.imageProxyError'), error);
       // If loading fails, remove it directly from the list
       handleImageLoadFail(imageUrl);
     } finally {
@@ -150,9 +152,9 @@ export function ChatRightPanel({
       try {
         const results = currentMessage.searchResults.map((result, index) => {
           const processed = {
-            title: result.title || "未知标题",
+            title: result.title || t('chatRightPanel.unknownTitle'),
             url: result.url || "#",
-            text: result.text || "无内容描述",
+            text: result.text || t('chatRightPanel.noContentDescription'),
             published_date: result.published_date || "",
             source_type: result.source_type || "url",
             filename: result.filename || "",
@@ -166,7 +168,7 @@ export function ChatRightPanel({
         
         setSearchResults(results);
       } catch (error) {
-        console.error("处理搜索结果时出错:", error);
+        console.error(t('chatRightPanel.processSearchResultsError'), error);
         setSearchResults([]);
       }
     } else {
@@ -195,7 +197,7 @@ export function ChatRightPanel({
       
       // Load all images in parallel
       Promise.all(loadPromises).catch(error => {
-        console.error('并行加载图片时出错:', error);
+        console.error(t('chatRightPanel.parallelLoadImagesError'), error);
       });
     } else {
       setProcessedImages([]);
@@ -210,9 +212,9 @@ export function ChatRightPanel({
   // Search result item component
   const SearchResultItem = ({ result, index }: { result: SearchResult, index: number }) => {
     const [isExpanded, setIsExpanded] = useState(false)
-    const title = result.title || "未知标题";
+    const title = result.title || t('chatRightPanel.unknownTitle');
     const url = result.url || "#";
-    const text = result.text || "无内容描述";
+    const text = result.text || t('chatRightPanel.noContentDescription');
     const published_date = result.published_date || "";
     const source_type = result.source_type || "url";
 
@@ -292,7 +294,7 @@ export function ChatRightPanel({
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="text-sm text-gray-500 hover:text-gray-700 flex-shrink-0 ml-2 transition-colors"
               >
-                {isExpanded ? "收起" : "展开"}
+                {isExpanded ? t('chatRightPanel.collapse') : t('chatRightPanel.expand')}
               </button>
             )}
           </div>
@@ -323,7 +325,7 @@ export function ChatRightPanel({
     return (
       <img
         src={`data:${item.contentType};base64,${item.base64Data}`}
-        alt={`图片 ${index + 1}`}
+        alt={t('chatRightPanel.imageAlt', { index: index + 1 })}
         className="w-full h-32 object-cover"
         onError={(e) => {
           // Mark the image as failed to load and remove it from the list
@@ -355,7 +357,7 @@ export function ChatRightPanel({
             {viewingImage && imageData[viewingImage] && !imageData[viewingImage].isLoading && imageData[viewingImage].base64Data ? (
               <img 
                 src={`data:${imageData[viewingImage].contentType};base64,${imageData[viewingImage].base64Data}`}
-                alt="查看大图" 
+                alt={t('chatRightPanel.viewLargerImageAlt')}
                 className="max-w-full max-h-[90vh] object-contain"
                 onClick={(e: React.MouseEvent) => e.stopPropagation()}
               />
@@ -371,7 +373,7 @@ export function ChatRightPanel({
       <div className="flex-none sticky top-0 z-20 flex items-center justify-between border-b p-2 bg-gray-50" style={{maxWidth: '400px', overflow: 'hidden'}}>
         <div className="flex items-center space-x-1">
           <h3 className="text-sm font-semibold text-gray-800 pl-2">
-            网页 · 知识库搜索 
+            {t('chatRightPanel.searchTitle')}
           </h3>
         </div>
         
@@ -381,7 +383,7 @@ export function ChatRightPanel({
             size="sm"
             className="p-1 h-7 w-7 rounded hover:bg-gray-200"
             onClick={toggleRightPanel}
-            title="关闭侧边栏"
+            title={t('chatRightPanel.closeSidebarTitle')}
           >
             <X className="h-4 w-4" />
           </Button>
@@ -425,7 +427,7 @@ export function ChatRightPanel({
               </>
             ) : (
               <div className="text-center text-gray-500 py-4 text-base">
-                暂无搜索结果
+                {t('chatRightPanel.noSearchResults')}
               </div>
             )}
           </div>
@@ -457,8 +459,8 @@ export function ChatRightPanel({
                     className="w-full"
                   >
                     {expandedImages 
-                      ? "收起图片" 
-                      : `查看全部 ${processedImages.length} 张图片`}
+                      ? t('chatRightPanel.collapseImages')
+                      : t('chatRightPanel.expandImages', { count: processedImages.length })}
                   </Button>
                 </div>
               )}
@@ -466,9 +468,9 @@ export function ChatRightPanel({
           ) : (
             <div className="flex flex-col items-center justify-center p-6 text-center min-h-[200px]">
               <Database className="h-12 w-12 text-muted-foreground/40 mb-4" />
-              <p className="text-lg font-medium mb-2">暂无图片</p>
+              <p className="text-lg font-medium mb-2">{t('chatRightPanel.noImages')}</p>
               <p className="text-sm text-muted-foreground">
-                这条消息没有关联的图片内容
+                {t('chatRightPanel.noAssociatedImages')}
               </p>
             </div>
           )}

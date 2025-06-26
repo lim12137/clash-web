@@ -19,6 +19,7 @@ import { StaticScrollArea } from "@/components/ui/scrollArea"
 import { useConfig } from "@/hooks/useConfig"
 import { useResponsiveTextSize } from "@/hooks/useResponsiveTextSize"
 import { extractColorsFromUri } from "@/lib/avatar"
+import { useTranslation } from "react-i18next"
 
 interface ChatSidebarProps {
   conversationList: ConversationListItem[]
@@ -76,6 +77,7 @@ export function ChatSidebar({
   onToggleSidebar,
   expanded,
 }: ChatSidebarProps) {
+  const { t } = useTranslation();
   const { today, week, older } = categorizeDialogs(conversationList)
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -229,14 +231,14 @@ export function ChatSidebar({
                   <DropdownMenuContent align="end" side="bottom">
                     <DropdownMenuItem onClick={() => handleStartEdit(dialog.conversation_id, dialog.conversation_title)}>
                       <Pencil className="mr-2 h-5 w-5" />
-                      重命名
+                      {t('chatLeftSidebar.rename')}
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       className="text-red-500 hover:text-red-600 hover:bg-red-50"
                       onClick={() => handleDeleteClick(dialog.conversation_id)}
                     >
                       <Trash2 className="mr-2 h-5 w-5" />
-                      删除
+                      {t('chatLeftSidebar.delete')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -282,7 +284,7 @@ export function ChatSidebar({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">
-                展开边栏
+                {t('chatLeftSidebar.expandSidebar')}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -300,7 +302,7 @@ export function ChatSidebar({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">
-                新对话
+                {t('chatLeftSidebar.newConversation')}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -323,7 +325,7 @@ export function ChatSidebar({
               </div>
             </TooltipTrigger>
             <TooltipContent side="right">
-              设置
+              {t('chatLeftSidebar.settings')}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -355,21 +357,30 @@ export function ChatSidebar({
                     {appConfig.appName}
                   </h1>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 flex-shrink-0 hover:bg-slate-100"
-                  onClick={onToggleSidebar}
-                >
-                  <ChevronLeft className="h-7 w-7" style={{height:'28px',width:'28px'}}/>
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 flex-shrink-0 hover:bg-slate-100"
+                        onClick={onToggleSidebar}
+                      >
+                        <ChevronLeft className="h-7 w-7" style={{height:'28px',width:'28px'}}/>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{t('chatLeftSidebar.collapseSidebar')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
 
             <div className="p-2">
               <Button variant="outline" className="w-full justify-start text-base overflow-hidden" onClick={onNewConversation}>
                 <Plus className="mr-2 flex-shrink-0" style={{height:'20px', width:'20px'}}/>
-                <span className="truncate">新对话</span>
+                <span className="truncate">{t('chatLeftSidebar.newConversation')}</span>
               </Button>
             </div>
 
@@ -377,16 +388,16 @@ export function ChatSidebar({
               <div className="space-y-4 pr-2">
                 {conversationList.length > 0 ? (
                   <>
-                    {renderDialogList(today, "今天")}
-                    {renderDialogList(week, "7天内")}
-                    {renderDialogList(older, "更早")}
+                    {renderDialogList(today, t('chatLeftSidebar.today'))}
+                    {renderDialogList(week, t('chatLeftSidebar.last7Days'))}
+                    {renderDialogList(older, t('chatLeftSidebar.older'))}
                   </>
                 ) : (
                   <div className="space-y-1">
-                    <p className="px-2 text-sm font-medium text-muted-foreground">最近对话</p>
+                    <p className="px-2 text-sm font-medium text-muted-foreground">{t('chatLeftSidebar.recentConversations')}</p>
                     <Button variant="ghost" className="w-full justify-start">
                       <Clock className="mr-2 h-5 w-5" />
-                      无历史对话
+                      {t('chatLeftSidebar.noHistory')}
                     </Button>
                   </div>
                 )}
@@ -413,14 +424,14 @@ export function ChatSidebar({
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>删除对话</DialogTitle>
+            <DialogTitle>{t('chatLeftSidebar.confirmDeletionTitle')}</DialogTitle>
             <DialogDescription>
-              确定要删除这个对话吗？此操作无法撤销。
+              {t('chatLeftSidebar.confirmDeletionDescription')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>取消</Button>
-            <Button variant="destructive" onClick={confirmDelete}>删除</Button>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>{t('chatLeftSidebar.cancel')}</Button>
+            <Button variant="destructive" onClick={confirmDelete}>{t('chatLeftSidebar.delete')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

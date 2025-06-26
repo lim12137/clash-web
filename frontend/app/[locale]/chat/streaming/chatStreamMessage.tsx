@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FaRegThumbsDown, FaRegThumbsUp } from "react-icons/fa"
 import { useConfig } from "@/hooks/useConfig"
 import { ChatAttachment, AttachmentItem } from '@/app/chat/internal/chatAttachment'
+import { useTranslation } from "react-i18next"
 
 interface StreamMessageProps {
   message: ChatMessageType
@@ -27,6 +28,7 @@ export function ChatStreamMessage({
   onImageClick,
   onOpinionChange,
 }: StreamMessageProps) {
+  const { t } = useTranslation('common');
   const { getAppAvatarUrl } = useConfig();
   const avatarUrl = getAppAvatarUrl(20); // Message avatar size is 20px
   
@@ -64,7 +66,7 @@ export function ChatStreamMessage({
           setTimeout(() => setCopied(false), 2000);
         })
         .catch(err => {
-          console.error("复制失败:", err);
+          console.error(t('chatStreamMessage.copyFailed'), err);
         });
     }
   };
@@ -105,7 +107,7 @@ export function ChatStreamMessage({
       {message.role === "assistant" && (
         <div className="flex-shrink-0">
           <div className="h-8 w-8 rounded-full overflow-hidden bg-primary/10">
-            <img src={avatarUrl} alt="应用图标" className="h-full w-full object-cover" />
+            <img src={avatarUrl} alt={t('chatStreamMessage.appIconAlt')} className="h-full w-full object-cover" />
           </div>
         </div>
       )}
@@ -180,7 +182,7 @@ export function ChatStreamMessage({
               <div className="mt-4 rounded-lg border border-gray-200 shadow-sm transition-all duration-500">
                 <div className="flex items-center w-full py-2 px-3 font-medium bg-gradient-to-r from-purple-50 to-transparent border-b border-gray-200">
                   <SquareCheckBig className="h-4 w-4 mr-2 text-purple-500" />
-                  <span className="font-medium">最终回答</span>
+                  <span className="font-medium">{t('chatStreamMessage.finalAnswer')}</span>
                 </div>
                 <div className="px-3 pb-3">
                   <MarkdownRenderer 
@@ -202,7 +204,9 @@ export function ChatStreamMessage({
                           onClick={handleMessageSelect}
                         >
                           <span>
-                            {`${searchResultsCount ? `${searchResultsCount}条来源` : ""}${searchResultsCount && imagesCount ? "，" : ""}${imagesCount ? `${imagesCount}张图片` : ""}`}
+                            {searchResultsCount > 0 && t('chatStreamMessage.sources', { count: searchResultsCount })}
+                            {searchResultsCount > 0 && imagesCount > 0 && ", "}
+                            {imagesCount > 0 && t('chatStreamMessage.images', { count: imagesCount })}
                           </span>
                           <ChevronRight className="h-4 w-4" />
                         </Button>
@@ -228,7 +232,7 @@ export function ChatStreamMessage({
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{copied ? "已复制" : "复制内容"}</p>
+                            <p>{copied ? t('chatStreamMessage.copied') : t('chatStreamMessage.copyContent')}</p>
                           </TooltipContent>
                         </Tooltip>
 
@@ -245,7 +249,7 @@ export function ChatStreamMessage({
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{localOpinion === 'Y' ? "取消点赞" : "点赞"}</p>
+                            <p>{localOpinion === 'Y' ? t('chatStreamMessage.cancelLike') : t('chatStreamMessage.like')}</p>
                           </TooltipContent>
                         </Tooltip>
 
@@ -262,7 +266,7 @@ export function ChatStreamMessage({
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{localOpinion === 'N' ? "取消点踩" : "点踩"}</p>
+                            <p>{localOpinion === 'N' ? t('chatStreamMessage.cancelDislike') : t('chatStreamMessage.dislike')}</p>
                           </TooltipContent>
                         </Tooltip>
 
@@ -278,7 +282,7 @@ export function ChatStreamMessage({
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>语音播报</p>
+                            <p>{t('chatStreamMessage.tts')}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>

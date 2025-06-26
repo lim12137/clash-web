@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Modal, Input, Switch, Select, InputNumber, Tag, message } from 'antd'
 import { Tool, ToolParam, OpenAIModel } from '../ConstInterface'
 import { updateToolConfig, searchToolConfig } from '@/services/agentConfigService'
+import { useTranslation } from 'react-i18next'
 
 interface ToolConfigModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface ToolConfigModalProps {
 export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAgentId, selectedTools = [] }: ToolConfigModalProps) {
   const [currentParams, setCurrentParams] = useState<ToolParam[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { t } = useTranslation('common');
 
   // load tool config
   useEffect(() => {
@@ -46,7 +48,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
               })));
             }
           } else {
-            message.error(result.message || '加载工具配置失败');
+            message.error(result.message || t('toolConfig.message.loadError'));
             // when load failed, use default config
             setCurrentParams(tool.initParams.map(param => ({
               ...param,
@@ -54,8 +56,8 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
             })));
           }
         } catch (error) {
-          console.error('加载工具配置失败:', error);
-          message.error('加载工具配置失败，使用默认配置');
+          console.error(t('toolConfig.message.loadError'), error);
+          message.error(t('toolConfig.message.loadErrorUseDefault'));
           // when error occurs, use default config
           setCurrentParams(tool.initParams.map(param => ({
             ...param,
@@ -76,7 +78,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
       // when modal is closed, clear params
       setCurrentParams([]);
     }
-  }, [isOpen, tool, mainAgentId]);
+  }, [isOpen, tool, mainAgentId, t]);
 
   // check required fields
   const checkRequiredFields = () => {
@@ -87,7 +89,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
       .map(param => param.name);
 
     if (missingRequiredFields.length > 0) {
-      message.error(`以下必填字段未填写: ${missingRequiredFields.join(', ')}`);
+      message.error(`${t('toolConfig.message.requiredFields')}${missingRequiredFields.join(', ')}`);
       return false;
     }
     return true;
@@ -120,17 +122,17 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
       );
 
       if (result.success) {
-        message.success('工具配置保存成功');
+        message.success(t('toolConfig.message.saveSuccess'));
         onSave({
           ...tool,
           initParams: currentParams
         });
       } else {
-        message.error(result.message || '保存失败');
+        message.error(result.message || t('toolConfig.message.saveError'));
       }
     } catch (error) {
-      console.error('保存工具配置失败:', error);
-      message.error('保存失败，请稍后重试');
+      console.error(t('toolConfig.message.saveFailed'), error);
+      message.error(t('toolConfig.message.saveFailed'));
     }
   };
 
@@ -141,11 +143,11 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
           <Select
             value={param.value as string}
             onChange={(value) => handleParamChange(index, value)}
-            placeholder="请选择模型"
+            placeholder={t('toolConfig.input.model.placeholder')}
             style={{ width: '100%' }}
             options={[
-              { label: '主模型', value: OpenAIModel.MainModel },
-              { label: '副模型', value: OpenAIModel.SubModel }
+              { label: t('toolConfig.model.main'), value: OpenAIModel.MainModel },
+              { label: t('toolConfig.model.sub'), value: OpenAIModel.SubModel }
             ]}
           />
         );
@@ -157,7 +159,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
             <Input.TextArea
               value={stringValue}
               onChange={(e) => handleParamChange(index, e.target.value)}
-              placeholder={`请输入${param.name}`}
+              placeholder={t('toolConfig.input.string.placeholder', { name: param.name })}
               autoSize={{ minRows: 1, maxRows: 8 }}
               style={{ resize: 'vertical' }}
             />
@@ -167,7 +169,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
           <Input
             value={stringValue}
             onChange={(e) => handleParamChange(index, e.target.value)}
-            placeholder={`请输入${param.name}`}
+            placeholder={t('toolConfig.input.string.placeholder', { name: param.name })}
           />
         );
       case 'number':
@@ -198,7 +200,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
                 handleParamChange(index, e.target.value);
               }
             }}
-            placeholder="请输入JSON数组"
+            placeholder={t('toolConfig.input.array.placeholder')}
             autoSize={{ minRows: 1, maxRows: 8 }}
             style={{ resize: 'vertical' }}
           />
@@ -216,7 +218,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
                 handleParamChange(index, e.target.value);
               }
             }}
-            placeholder="请输入JSON对象"
+            placeholder={t('toolConfig.input.object.placeholder')}
             autoSize={{ minRows: 1, maxRows: 8 }}
             style={{ resize: 'vertical' }}
           />
@@ -234,7 +236,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
         <div className="flex justify-between items-center w-full pr-8">
           <span>{`${tool?.name}`}</span>
           <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'}>
-            {tool?.source === 'mcp' ? 'MCP' : '本地工具'}
+            {tool?.source === 'mcp' ? t('toolConfig.source.mcp') : t('toolConfig.source.local')}
           </Tag>
         </div>
       }
@@ -246,7 +248,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
     >
       <div className="mb-4">
         <p className="text-sm text-gray-500 mb-4">{tool?.description}</p>
-        <div className="text-sm font-medium mb-2">参数配置</div>
+        <div className="text-sm font-medium mb-2">{t('toolConfig.title.paramConfig')}</div>
         <div style={{ maxHeight: '500px', overflow: 'auto' }}>
           <div className="space-y-4 pr-2">
             {currentParams.map((param, index) => (

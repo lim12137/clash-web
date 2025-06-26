@@ -1,13 +1,15 @@
 "use client";
 import { ApiMessage, SearchResult, AgentStep, ApiMessageItem, ChatMessageType, MinioFileItem } from "@/types/chat";
+import { useTranslation } from "react-i18next";
 
 export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: number, create_time: number) {
+  const { t } = useTranslation('common');
   let searchResultsContent: SearchResult[] = [];
   if (dialog_msg.search && Array.isArray(dialog_msg.search) && dialog_msg.search.length > 0) {
     searchResultsContent = dialog_msg.search.map(item => ({
-      title: item.title || "未知标题",
+      title: item.title || t("extractMsg.unknownTitle"),
       url: item.url || "#",
-      text: item.text || "无内容描述",
+      text: item.text || t("extractMsg.noContentDescription"),
       published_date: item.published_date || "",
       source_type: item.source_type || "",
       filename: item.filename || "",
@@ -125,10 +127,10 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
                   timestamp: Date.now()
                 });
               } else {
-                console.warn(`No search results found for unit_id: ${unitId}`);
+                console.warn(t("extractMsg.noSearchResultsForUnitId", { unitId }));
               }
             } catch (e) {
-              console.error("无法解析搜索占位符内容:", e);
+              console.error(t("extractMsg.cannotParseSearchPlaceholder"), e);
             }
           }
           break;

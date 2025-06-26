@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { useTranslation } from 'react-i18next' 
 import { useState, useEffect, useRef, useLayoutEffect } from "react"
 
 import { message } from 'antd'
@@ -81,6 +82,8 @@ interface DataConfigProps {
 }
 
 function DataConfig({ isActive }: DataConfigProps) {
+  const { t } = useTranslation();
+
   // 组件初始化时清除缓存
   useEffect(() => {
     localStorage.removeItem('preloaded_kb_data');
@@ -257,7 +260,7 @@ const getAuthHeaders = () => {
 
   // Generate unique knowledge base name
   const generateUniqueKbName = (existingKbs: KnowledgeBase[]): string => {
-    const baseNamePrefix = "新知识库";
+    const baseNamePrefix = t('knowledgeBase.name.new');
     const existingNames = new Set(existingKbs.map(kb => kb.name));
     
     // 如果基础名称未被使用，直接返回
@@ -322,8 +325,8 @@ const getAuthHeaders = () => {
       }, 100);
     } catch (error) {
       console.error("获取文档列表失败:", error);
-      message.error("获取文档列表失败");
-      docDispatch({ type: 'ERROR', payload: "获取文档列表失败" });
+      message.error(t('knowledgeBase.message.getDocumentsFailed'));
+      docDispatch({ type: 'ERROR', payload: t('knowledgeBase.message.getDocumentsFailed') });
     }
   };
 
@@ -349,7 +352,7 @@ const getAuthHeaders = () => {
         handleFileUpload();
       }
     } else {
-      message.warning("请先选择一个知识库或创建新知识库");
+      message.warning(t('knowledgeBase.message.selectFirst'));
     }
   }
 
@@ -357,10 +360,10 @@ const getAuthHeaders = () => {
   const handleDelete = (id: string) => {
     hasUserInteractedRef.current = true; // 标记用户有交互
     ConfirmModal.confirm({
-      title: '确定要删除这个知识库吗？',
-      content: '删除后无法恢复。',
-      okText: '确定',
-      cancelText: '取消',
+      title: t('knowledgeBase.modal.deleteConfirm.title'),
+      content: t('knowledgeBase.modal.deleteConfirm.content'),
+      okText: t('common.confirm'),
+      cancelText: t('common.cancel'),
       danger: true,
       onConfirm: async () => {
         try {
@@ -372,10 +375,10 @@ const getAuthHeaders = () => {
           // Delay 1 second before refreshing knowledge base list to ensure backend processing is complete
           setTimeout(async () => {
             await fetchKnowledgeBases(false, false);
-            message.success("删除知识库成功");
+            message.success(t('knowledgeBase.message.deleteSuccess'));
           }, 1000);
         } catch (error) {
-          message.error("删除知识库失败");
+          message.error(t('knowledgeBase.message.deleteError'));
         }
       }
     });
@@ -386,10 +389,10 @@ const getAuthHeaders = () => {
     // When manually syncing, force fetch latest data from server
     refreshKnowledgeBaseData(true)
       .then(() => {
-        message.success("同步知识库成功");
+        message.success(t('knowledgeBase.message.syncSuccess'));
       })
       .catch((error) => {
-        message.error("同步知识库失败: " + (error.message || '未知错误'));
+        message.error(t('knowledgeBase.message.syncError', { error: error.message || t('common.unknownError') }));
       });
   }
 
@@ -411,17 +414,17 @@ const getAuthHeaders = () => {
     if (!kbId) return;
 
     ConfirmModal.confirm({
-      title: '确定要删除这个文档吗？',
-      content: '删除后无法恢复。',
-      okText: '确定',
-      cancelText: '取消',
+      title: t('document.modal.deleteConfirm.title'),
+      content: t('document.modal.deleteConfirm.content'),
+      okText: t('common.confirm'),
+      cancelText: t('common.cancel'),
       danger: true,
       onConfirm: async () => {
         try {
           await deleteDocument(kbId, docId);
-          message.success("删除文档成功");
+          message.success(t('document.message.deleteSuccess'));
         } catch (error) {
-          message.error("删除文档失败");
+          message.error(t('document.message.deleteError'));
         }
       }
     });
@@ -429,63 +432,53 @@ const getAuthHeaders = () => {
 
   // 处理文件上传 - 在创建模式下先创建知识库再上传，在普通模式下直接上传
   const handleFileUpload = async () => {
-    // 确保有文件要上传
     if (!uploadFiles.length) {
-      message.warning("请先选择文件");
+      message.warning(t('document.message.noFiles'));
       return;
     }
 
     const filesToUpload = uploadFiles;
     console.log("Uploading files:", filesToUpload);
 
-    // 创建模式逻辑 - 先创建知识库，再上传文件
     if (isCreatingMode) {
-      console.log("Creating mode: create KB then upload files");
       if (!newKbName || newKbName.trim() === "") {
-        message.warning("请输入知识库名称");
+        message.warning(t('knowledgeBase.message.nameRequired'));
         return;
       }
 
       setHasClickedUpload(true);
-      // 已点击上传按钮，则立即锁定知识库名称输入
       
       try {
-        // 1. 检查知识库名称是否已存在
         const nameExistsResult = await knowledgeBaseService.checkKnowledgeBaseNameExists(newKbName.trim());
         setNameExists(nameExistsResult);
 
         if (nameExistsResult) {
-          message.error(`知识库名称"${newKbName.trim()}"已存在，请更换名称`);
-          setHasClickedUpload(false); // 重置上传按钮点击状态，允许用户修改名称
-          return; // 如果名称重复，直接返回，不继续执行后续逻辑
+          message.error(t('knowledgeBase.message.nameExists', { name: newKbName.trim() }));
+          setHasClickedUpload(false);
+          return;
         }
 
-        // 2. 创建知识库
         const newKB = await createKnowledgeBase(
           newKbName.trim(),
-          "通过文档上传创建的知识库",
+          t('knowledgeBase.description.default'),
           "elasticsearch"
         );
         
         if (!newKB) {
-          message.error("知识库创建失败");
-          setHasClickedUpload(false); // 重置上传按钮点击状态，允许重试
+          message.error(t('knowledgeBase.message.createError'));
+          setHasClickedUpload(false);
           return;
         }
 
-        // 设置为活动知识库
         setIsCreatingMode(false);
         setActiveKnowledgeBase(newKB);
         knowledgeBasePollingService.setActiveKnowledgeBase(newKB.id);
         setHasClickedUpload(false);
         setNameExists(false);
 
-        // 3. 上传文件到新知识库
         await uploadDocuments(newKB.id, filesToUpload);
-        console.log("知识库创建成功，文件上传至服务器。下一步：准备触发Celery Task处理文档...");
         setUploadFiles([]);
         
-        // 4. 使用简化的轮询服务处理新知识库创建流程
         knowledgeBasePollingService.handleNewKnowledgeBaseCreation(
           newKB.name,
           0,
@@ -496,37 +489,32 @@ const getAuthHeaders = () => {
           }
         ).catch((pollingError) => {
           console.error("Knowledge base creation polling failed:", pollingError);
-          // message.warning(pollingError instanceof Error ? pollingError.message : "等待知识库就绪时发生未知错误");
         });
         
       } catch (error) {
-        console.error("知识库创建或上传失败:", error);
-        message.error("知识库创建或上传失败");
+        console.error(t('knowledgeBase.error.createUpload'), error);
+        message.error(t('knowledgeBase.message.createUploadError'));
         setHasClickedUpload(false);
       }
       return;
     }
     
-    // 非创建模式 - 直接上传文件
     const kbId = kbState.activeKnowledgeBase?.id;
     if (!kbId) {
-      message.warning("请先选择一个知识库");
+      message.warning(t('knowledgeBase.message.selectFirst'));
       return;
     }
     
     try {
       await uploadDocuments(kbId, filesToUpload);
-      console.log("文件上传至服务器。下一步：准备触发Celery Task处理文档...");
       setUploadFiles([]);
       
-      // 3. 使用新的轮询服务
       knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(true);
 
-      // 4. 启动文档状态轮询（轮询会立即执行第一次获取，无需手动调用）
       knowledgeBasePollingService.startDocumentStatusPolling(
         kbId,
         (documents) => {
-          console.log(`轮询服务获取到 ${documents.length} 个文档`);
+          console.log(t('knowledgeBase.log.documentsPolled', { count: documents.length }));
           knowledgeBasePollingService.triggerDocumentsUpdate(kbId, documents);
           window.dispatchEvent(new CustomEvent('documentsUpdated', {
             detail: { kbId, documents }
@@ -535,8 +523,8 @@ const getAuthHeaders = () => {
       );
       
     } catch (error) {
-      console.error('文件上传失败:', error);
-      message.error("文件上传失败");
+      console.error(t('document.error.upload'), error);
+      message.error(t('document.message.uploadError'));
     }
   }
 
@@ -590,20 +578,16 @@ const getAuthHeaders = () => {
   // Handle auto summary
   const handleAutoSummary = async () => {
     if (!kbState.activeKnowledgeBase) {
-      message.warning('请先选择一个知识库');
+      message.warning(t('knowledgeBase.message.selectFirst'));
       return;
     }
 
     try {
       const summary = await summaryIndex(viewingKbName, 10);
-      // Here you can process the returned summary content based on actual needs
-      // For example display in dialog or update to some state
-      message.success('知识库总结完成');
-      // TODO: Handle summary content
+      message.success(t('knowledgeBase.message.summarySuccess'));
     } catch (error) {
-      message.error('获取知识库总结失败');
-      console.error('获取知识库总结失败:', error);
-    } finally {
+      message.error(t('knowledgeBase.message.summaryError'));
+      console.error(t('knowledgeBase.error.getSummary'), error);
     }
   };
 
@@ -716,8 +700,8 @@ const getAuthHeaders = () => {
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <EmptyState
-                    title="未选择知识库"
-                    description="请在左侧列表选择一个知识库，或创建新的知识库"
+                    title={t('knowledgeBase.empty.title')}
+                    description={t('knowledgeBase.empty.description')}
                     icon={<InfoCircleFilled style={{ fontSize: 36, color: '#1677ff' }} />}
                     containerHeight={MAIN_CONTENT_HEIGHT}
                   />
