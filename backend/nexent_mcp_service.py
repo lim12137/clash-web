@@ -51,41 +51,6 @@ async def healthcheck(request: Request):
         }, status_code=500)
 
 
-@nexent_mcp.custom_route("/remote-service-info", methods=["GET"])
-async def get_remote_service_info(request: Request):
-    """get remote mcp service info endpoint"""
-    # validate params
-    is_valid, result = validate_url_params(request, required_query_params=["mcp_url"])
-    if not is_valid:
-        return result
-    
-    mcp_url = result["mcp_url"]
-    
-    try:
-        # get remote mcp service info
-        client = Client(mcp_url)
-        async with client:
-            # get tool list
-            tools = await client.list_tools()
-            tools_info = [single_tool.__dict__ for single_tool in tools]
-
-            return JSONResponse({
-                "status": "success",
-                "url": mcp_url,
-                "service_info": {
-                    "tools_count": len(tools),
-                    "tools": tools_info,
-                }
-            })
-            
-    except Exception as e:
-        return JSONResponse({
-            "status": "error", 
-            "message": f"Failed to get service info: {e}",
-            "url": mcp_url
-        }, status_code=500)
-
-
 @nexent_mcp.custom_route("/list-remote-proxies", methods=["GET"])
 async def list_remote_proxies(request: Request):
     """list all remote proxy configs"""
@@ -114,9 +79,9 @@ async def add_remote_proxy(request: Request):
                 "status": "error",
                 "message": f"Invalid request: {e}"
             }, status_code=400)
-        
+
         success = await proxy_manager.add_remote_proxy(config)
-        
+
         if success:
             return JSONResponse({
                 "status": "success",
@@ -127,7 +92,16 @@ async def add_remote_proxy(request: Request):
                 "status": "error",
                 "message": f"Failed to add remote proxy '{req_data.service_name}'"
             }, status_code=500)
-            
+    except ValueError:
+        return JSONResponse({
+            "status": "error",
+            "message": "Service name already exists"
+        }, status_code=409)
+    except ConnectionError:
+        return JSONResponse({
+            "status": "error",
+            "message": "Cannot connect to remote MCP server"
+        }, status_code=503)
     except Exception as e:
         return JSONResponse({
             "status": "error",
