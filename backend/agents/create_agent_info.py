@@ -34,10 +34,10 @@ async def create_model_config_list(tenant_id):
 
 
 async def create_agent_config(agent_id, tenant_id, user_id):
-    agent_info = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
+    agent_info = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id)
 
     # create sub agent
-    sub_agents_info = query_sub_agents(agent_id, tenant_id, user_id)
+    sub_agents_info = query_sub_agents(agent_id, tenant_id)
     managed_agents = []
     for sub_agent_info in sub_agents_info:
         if not sub_agent_info.get("enabled"):
@@ -82,7 +82,7 @@ async def create_agent_config(agent_id, tenant_id, user_id):
 async def create_tool_config_list(agent_id, tenant_id, user_id):
     # create tool
     tool_config_list = []
-    tools_list = search_tools_for_sub_agent(agent_id, tenant_id, user_id)
+    tools_list = search_tools_for_sub_agent(agent_id, tenant_id)
     for tool in tools_list:
         param_dict = {}
         for param in tool.get("params", []):

@@ -102,7 +102,7 @@ def query_sub_agents(main_agent_id: int, tenant_id: str = None, user_id: str = N
         agents = query.order_by(AgentInfo.create_time.desc()).all()
 
         if not user_id:
-            return as_dict(agents)
+            return [as_dict(agent) for agent in agents]
 
         user_agents = session.query(UserAgent).filter(
             UserAgent.tenant_id == tenant_id,
@@ -221,7 +221,7 @@ def create_or_update_tool_by_tool_info(tool_info, tenant_id: str, user_id: str =
             ToolInstance.tool_id == tool_info_dict['tool_id'])
 
         if user_id:
-            query = query.filter(ToolInstance.user_id == user_id or ToolInstance.user_id == DEFAULT_USER_ID)
+            query = query.filter(or_(ToolInstance.user_id == user_id, ToolInstance.user_id == DEFAULT_USER_ID))
 
         tool_instance = query.first()
 
@@ -269,7 +269,7 @@ def query_tool_instances_by_id(agent_id: int, tool_id: int, tenant_id: str, user
             ToolInstance.tool_id == tool_id,
             ToolInstance.delete_flag != 'Y')
         if user_id:
-            query = query.filter(ToolInstance.user_id == user_id or ToolInstance.user_id == DEFAULT_USER_ID)
+            query = query.filter(or_(ToolInstance.user_id == user_id, ToolInstance.user_id == DEFAULT_USER_ID))
         tool_instance = query.first()
         if tool_instance:
             return as_dict(tool_instance)
@@ -295,10 +295,10 @@ def query_all_enabled_tool_instances(tenant_id: str, user_id: str = None, agent_
     :return: List of ToolInstance objects
     """
     with get_db_session() as session:
-        query = session.query(ToolInstance).filter(ToolInstance.tenant_id == tenant_id or ToolInstance.tenant_id == DEFAULT_TENANT_ID).filter(
+        query = session.query(ToolInstance).filter(or_(ToolInstance.tenant_id == tenant_id, ToolInstance.tenant_id == DEFAULT_TENANT_ID)).filter(
             ToolInstance.delete_flag != 'Y').filter(ToolInstance.enabled)
         if user_id:
-            query = query.filter(ToolInstance.user_id == user_id or ToolInstance.user_id == DEFAULT_USER_ID)
+            query = query.filter(or_(ToolInstance.user_id == user_id, ToolInstance.user_id == DEFAULT_USER_ID))
         if agent_id:
             query = query.filter(ToolInstance.agent_id == agent_id)
         tools = query.all()
