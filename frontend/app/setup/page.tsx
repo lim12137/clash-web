@@ -249,38 +249,8 @@ export default function CreatePage() {
             return
           }
 
-          const selectedKnowledgeBasesInfo = getSelectedKnowledgeBasesInfo()
-          // Save the selected knowledge bases using direct API call
-          const selectedKbNames = knowledgeBases
-            .filter(kb => selectedIds.includes(kb.id))
-            .map(kb => kb.name);
+          router.push("/chat")
 
-          try {
-            const saveResult = await fetch(API_ENDPOINTS.tenantConfig.updateKnowledgeList, {
-              method: 'POST',
-              headers: getAuthHeaders(),
-              body: JSON.stringify(selectedKbNames)
-            });
-
-            if (!saveResult.ok) {
-              throw new Error('Failed to save knowledge bases');
-            }
-
-            const success = await saveResult.json();
-
-            if (success) {
-              message.success("配置已保存")
-              // After saving successfully, redirect to the chat page
-              router.push("/chat")
-            } else {
-              message.error("保存配置失败，请重试")
-            }
-          } catch (error) {
-            console.error("保存配置异常:", error)
-            message.error("系统异常，请稍后重试")
-          } finally {
-            setIsSavingConfig(false)
-          }
         } catch (error) {
           console.error("保存配置异常:", error)
           message.error("系统异常，请稍后重试")
