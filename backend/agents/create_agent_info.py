@@ -33,7 +33,7 @@ async def create_model_config_list(tenant_id):
                         url=sub_model_config.get("base_url", ""))]
 
 
-async def create_agent_config(agent_id, tenant_id, user_id):
+async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'):
     agent_info = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
 
     # create sub agent
@@ -45,7 +45,8 @@ async def create_agent_config(agent_id, tenant_id, user_id):
         sub_agent_config = await create_agent_config(
             agent_id=sub_agent_info["agent_id"],
             tenant_id=tenant_id,
-            user_id=user_id)
+            user_id=user_id,
+            language=language)
         managed_agents.append(sub_agent_config)
 
     tool_list = await create_tool_config_list(agent_id, tenant_id, user_id)
@@ -55,7 +56,7 @@ async def create_agent_config(agent_id, tenant_id, user_id):
     try:
         for tool in tool_list:
             if "KnowledgeBaseSearchTool" == tool.class_name:
-                knowledge_base_summary = "\n\n### 本地知识库信息 ###\n"
+                knowledge_base_summary = "\n\n### 本地知识库信息 ###\n" if language == 'zh' else "\n\n### Local Knowledge Base Information ###\n"
 
                 knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
                 for knowledge_info in knowledge_info_list:
@@ -69,7 +70,7 @@ async def create_agent_config(agent_id, tenant_id, user_id):
     agent_config = AgentConfig(
         name="" if agent_info["name"] is None else agent_info["name"],
         description="" if agent_info["description"] is None else agent_info["description"],
-        prompt_templates=await prepare_prompt_templates(is_manager=len(managed_agents)>0, system_prompt=system_prompt),
+        prompt_templates=await prepare_prompt_templates(is_manager=len(managed_agents)>0, system_prompt=system_prompt, language=language),
         tools=tool_list,
         max_steps=agent_info.get("max_steps", 10),
         model_name=agent_info.get("model_name"),
@@ -102,11 +103,25 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
     return tool_config_list
 
 
-async def prepare_prompt_templates(is_manager: bool, system_prompt: str):
-    manager_prompt_templates = "backend/prompts/manager_system_prompt_template.yaml"
-    managed_prompt_templates = "backend/prompts/managed_system_prompt_template.yaml"
+async def prepare_prompt_templates(is_manager: bool, system_prompt: str, language: str = 'zh'):
+    """
+    Prepare prompt templates, support multiple languages
+    
+    Args:
+        is_manager: Whether it is a manager mode
+        system_prompt: System prompt content
+        language: Language code ('zh' or 'en')
+        
+    Returns:
+        dict: Prompt template configuration
+    """
+    def get_template_path(is_manager: bool, language: str) -> str:
+        if language == 'en':
+            return "backend/prompts/manager_system_prompt_template_en.yaml" if is_manager else "backend/prompts/managed_system_prompt_template_en.yaml"
+        else:  # Default to Chinese
+            return "backend/prompts/manager_system_prompt_template.yaml" if is_manager else "backend/prompts/managed_system_prompt_template.yaml"
 
-    prompt_template_path = manager_prompt_templates if is_manager else managed_prompt_templates
+    prompt_template_path = get_template_path(is_manager, language)
     with open(prompt_template_path, "r", encoding="utf-8") as f:
         prompt_templates = yaml.safe_load(f)
     prompt_templates["system_prompt"] = system_prompt
@@ -128,7 +143,7 @@ async def join_minio_file_description_to_query(minio_files, query):
     return final_query
 
 
-async def create_agent_run_info(agent_id, minio_files, query, history, authorization):
+async def create_agent_run_info(agent_id, minio_files, query, history, authorization, language: str = 'zh'):
     user_id, tenant_id = get_current_user_id(authorization)
     if not agent_id:
         agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
@@ -139,7 +154,7 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
         query=final_query,
         model_config_list= model_list,
         observer=MessageObserver(),
-        agent_config=await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id),
+        agent_config=await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id, language=language),
         mcp_host=config_manager.get_config("MCP_SERVICE"),
         history=history,
         stop_event=threading.Event()

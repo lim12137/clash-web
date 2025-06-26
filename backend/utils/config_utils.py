@@ -192,7 +192,7 @@ class TenantConfigManager:
                 return default
             try:
                 model_config = get_model_by_model_id(model_id=int(model_id), tenant_id=tenant_id)
-                return model_config
+                return model_config if model_config else default
             except (ValueError, TypeError):
                 print(f"Warning: Invalid model_id format: {model_id}")
                 return default
@@ -230,13 +230,13 @@ class TenantConfigManager:
         # Clear cache for this tenant after setting new config
         self.clear_cache(tenant_id)
 
-    def delete_single_config(self, user_id: str | None = None, tenant_id: str | None = None, key: str | None = None, ):
+    def delete_single_config(self, tenant_id: str | None = None, key: str | None = None, ):
         """Delete configuration value in database"""
         if tenant_id is None:
             print(f"Warning: No tenant_id specified when deleting config for key: {key}")
             return
 
-        existing_config = get_single_config_info(tenant_id, user_id, key)
+        existing_config = get_single_config_info(tenant_id, key)
         print(existing_config)
         if existing_config:
             print(f"Deleting config for key: {key}")
@@ -245,14 +245,13 @@ class TenantConfigManager:
             self.clear_cache(tenant_id)
             return
 
-    def update_single_config(self, user_id: str | None = None, tenant_id: str | None = None, key: str | None = None,
-                             value: str | None = None, ):
+    def update_single_config(self, tenant_id: str | None = None, key: str | None = None):
         """Update configuration value in database"""
         if tenant_id is None:
             print(f"Warning: No tenant_id specified when updating config for key: {key}")
             return
 
-        existing_config = get_single_config_info(tenant_id, user_id, key)
+        existing_config = get_single_config_info(tenant_id, key)
         if existing_config:
             update_data = {
                 "updated_by": tenant_id,
