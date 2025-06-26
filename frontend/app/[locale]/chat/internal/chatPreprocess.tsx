@@ -2,6 +2,7 @@ import { AgentStep } from '@/types/chat'
 import { conversationService } from '@/services/conversationService';
 import { storageService } from '@/services/storageService';
 import { FilePreview } from "@/app/chat/layout/chatInput"
+import { useTranslation } from 'react-i18next';
 
 // 步骤ID计数器
 const stepIdCounter = {current: 0};
@@ -13,6 +14,7 @@ export const parseAgentSteps = (content: string, defaultExpanded: boolean = fals
   const steps: AgentStep[] = [];
   const stepRegex = /<step[^>]*>([\s\S]*?)<\/step>/g;
   let match;
+  const { t } = useTranslation('common');
 
   while ((match = stepRegex.exec(content)) !== null) {
     const stepContent = match[1];
@@ -21,7 +23,7 @@ export const parseAgentSteps = (content: string, defaultExpanded: boolean = fals
 
     const step: AgentStep = {
       id: `step-${stepIdCounter.current++}`,
-      title: titleMatch ? titleMatch[1].trim() : "步骤",
+      title: titleMatch ? titleMatch[1].trim() : t("chatPreprocess.step"),
       content: "",
       expanded: defaultExpanded,
       thinking: { content: "", expanded: false },
@@ -70,6 +72,8 @@ export const preprocessAttachments = async (
     return { finalQuery: content, success: true };
   }
 
+  const { t } = useTranslation('common');
+
   try {
     // 调用文件预处理接口
     const preProcessReader = await conversationService.preprocessFiles(
@@ -78,7 +82,7 @@ export const preprocessAttachments = async (
       signal
     );
 
-    if (!preProcessReader) throw new Error("预处理响应为空");
+    if (!preProcessReader) throw new Error(t("chatPreprocess.preprocessResponseEmpty"));
 
     const preProcessDecoder = new TextDecoder();
     let preProcessBuffer = "";
@@ -115,7 +119,7 @@ export const preprocessAttachments = async (
               finalQuery = jsonData.final_query;
             }
           } catch (e) {
-            console.error("解析预处理数据失败:", e, jsonStr);
+            console.error(t("chatPreprocess.parsingPreprocessDataFailed"), e, jsonStr);
           }
         }
       }
@@ -123,7 +127,7 @@ export const preprocessAttachments = async (
 
     return { finalQuery, success: true, fileDescriptions };
   } catch (error) {
-    console.error("文件预处理失败:", error);
+    console.error(t("chatPreprocess.filePreprocessingFailed"), error);
     return { 
       finalQuery: content, 
       success: false, 
@@ -137,13 +141,15 @@ export const preprocessAttachments = async (
  * @param message 用于显示的消息
  * @returns 思考中的步骤对象
  */
-export const createThinkingStep = (message: string = "正在解析文件..."): AgentStep => {
+export const createThinkingStep = (message?: string): AgentStep => {
+  const { t } = useTranslation('common');
+  const displayMessage = message || t("chatPreprocess.parsingFile");
   return {
     id: `thinking-${Date.now()}`,
-    title: "思考中",
-    content: message,
+    title: t("chatPreprocess.thinking"),
+    content: displayMessage,
     expanded: true,
-    thinking: { content: message, expanded: true },
+    thinking: { content: displayMessage, expanded: true },
     code: { content: "", expanded: false },
     output: { content: "", expanded: false },
     metrics: "",
@@ -162,6 +168,7 @@ export const handleFileUpload = (
   setFileUrls: React.Dispatch<React.SetStateAction<Record<string, string>>>
 ): string => {
   const fileId = `file-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const { t } = useTranslation('common');
   
   // 如果不是图片类型，创建一个文件预览URL
   if (!file.type.startsWith('image/')) {
@@ -169,7 +176,7 @@ export const handleFileUpload = (
     setFileUrls(prev => ({...prev, [fileId]: fileUrl}));
   }
   
-  console.log(`上传文件: ${file.name}, 类型: ${file.type}, 大小: ${file.size}`);
+  console.log(t("chatPreprocess.uploadingFile", { name: file.name, type: file.type, size: file.size }));
   return fileId;
 };
 
@@ -178,7 +185,8 @@ export const handleFileUpload = (
  * @param file 上传的图片文件
  */
 export const handleImageUpload = (file: File): void => {
-  console.log(`上传图片: ${file.name}, 类型: ${file.type}, 大小: ${file.size}`);
+  const { t } = useTranslation('common');
+  console.log(t("chatPreprocess.uploadingImage", { name: file.name, type: file.type, size: file.size }));
 };
 
 /**
@@ -196,6 +204,8 @@ export const uploadAttachments = async (
   if (attachments.length === 0) {
     return { uploadedFileUrls: {}, objectNames: {} };
   }
+  
+  const { t } = useTranslation('common');
   
   try {
     // 上传所有文件到存储服务
@@ -218,7 +228,7 @@ export const uploadAttachments = async (
 
     return { uploadedFileUrls, objectNames };
   } catch (error) {
-    console.error("文件上传失败:", error);
+    console.error(t("chatPreprocess.fileUploadFailed"), error);
     return { 
       uploadedFileUrls: {},
       objectNames: {},
