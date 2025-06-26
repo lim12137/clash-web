@@ -2,8 +2,8 @@
 import { ApiMessage, SearchResult, AgentStep, ApiMessageItem, ChatMessageType, MinioFileItem } from "@/types/chat";
 import { useTranslation } from "react-i18next";
 
-export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: number, create_time: number) {
-  const { t } = useTranslation('common');
+export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: number, create_time: number, t: any) {
+  
   let searchResultsContent: SearchResult[] = [];
   if (dialog_msg.search && Array.isArray(dialog_msg.search) && dialog_msg.search.length > 0) {
     searchResultsContent = dialog_msg.search.map(item => ({
