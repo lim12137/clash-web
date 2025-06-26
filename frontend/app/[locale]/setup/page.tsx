@@ -39,11 +39,11 @@ export default function CreatePage() {
       if (!user) {
         // user not logged in, show login prompt
         confirm({
-          title: '登录已过期',
+          title: t('login.expired.title'),
           icon: <ExclamationCircleOutlined />,
-          content: '您的登录信息已过期，请重新登录以继续使用。',
-          okText: '立即登录',
-          cancelText: '返回首页',
+          content: t('login.expired.content'),
+          okText: t('login.expired.okText'),
+          cancelText: t('login.expired.cancelText'),
           closable: false,
           onOk() {
             openLoginModal();
@@ -308,7 +308,7 @@ export default function CreatePage() {
     } else if (selectedKey === "2") {
       // Only admins can return to the first page
       if (user?.role !== "admin") {
-        message.error("只有管理员可以访问模型配置页面")
+        message.error(t('setup.page.error.adminOnly'))
         return
       }
       setSelectedKey("1")

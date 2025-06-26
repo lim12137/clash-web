@@ -732,5 +732,10 @@
     "businessLogic.config.message.agentDeleteSuccess": "Agent删除成功",
     "businessLogic.config.message.agentDeleteFailed": "Agent删除失败",
     "businessLogic.config.message.agentDeleteRetry": "Agent删除失败，请稍后重试",
-    "businessLogic.config.message.agentDeleteConfirm": "确定要删除这个Agent吗？此操作不可恢复。"
+    "businessLogic.config.message.agentDeleteConfirm": "确定要删除这个Agent吗？此操作不可恢复。",
+    "login.expired.title": "登录已过期",
+    "login.expired.content": "您的登录信息已过期，请重新登录以继续使用。",
+    "login.expired.okText": "立即登录",
+    "login.expired.cancelText": "返回首页",
+    "setup.page.error.adminOnly": "只有管理员可以访问模型配置页面"
 }
