@@ -2,33 +2,13 @@
 
 import { Input, Switch, Typography } from 'antd'
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
 const { Text } = Typography
 const { TextArea } = Input
 
 // add variable name specification regular expression
 const VARIABLE_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-
-// add validation function
-const validateName = (name: string): { isValid: boolean; message: string } => {
-  if (!name.trim()) {
-    return { isValid: false, message: '名称不能为空' };
-  }
-  if (!VARIABLE_NAME_REGEX.test(name)) {
-    return { 
-      isValid: false, 
-      message: '名称只能包含字母、数字和下划线，且必须以字母或下划线开头' 
-    };
-  }
-  return { isValid: true, message: '' };
-};
-
-const validateDescription = (description: string): { isValid: boolean; message: string } => {
-  if (!description.trim()) {
-    return { isValid: false, message: '描述不能为空' };
-  }
-  return { isValid: true, message: '' };
-};
 
 interface AgentInfoInputProps {
   name: string;
@@ -51,6 +31,28 @@ export default function AgentInfoInput({
 }: AgentInfoInputProps) {
   const [nameError, setNameError] = useState<string>('');
   const [descriptionError, setDescriptionError] = useState<string>('');
+  const { t } = useTranslation('common');
+
+  // validation functions
+  const validateName = (name: string): { isValid: boolean; message: string } => {
+    if (!name.trim()) {
+      return { isValid: false, message: t('agent.info.name.error.empty') };
+    }
+    if (!VARIABLE_NAME_REGEX.test(name)) {
+      return { 
+        isValid: false, 
+        message: t('agent.info.name.error.format')
+      };
+    }
+    return { isValid: true, message: '' };
+  };
+
+  const validateDescription = (description: string): { isValid: boolean; message: string } => {
+    if (!description.trim()) {
+      return { isValid: false, message: t('agent.info.description.error.empty') };
+    }
+    return { isValid: true, message: '' };
+  };
 
   // validate the form
   useEffect(() => {
@@ -76,44 +78,44 @@ export default function AgentInfoInput({
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      <h2 className="text-lg font-medium mb-4">Agent信息</h2>
+      <h2 className="text-lg font-medium mb-4">{t('agent.info.title')}</h2>
       <div className="flex-1 flex flex-col gap-7 overflow-y-auto pr-2">
         <div>
-          <Text className="block mb-2 font-medium">名称 *</Text>
+          <Text className="block mb-2 font-medium">{t('agent.info.name')} *</Text>
           <Input 
             value={name} 
             onChange={handleNameChange}
-            placeholder="请输入Agent名称"
+            placeholder={t('agent.info.name.placeholder')}
             status={nameError ? 'error' : ''}
           />
-          {nameError && <Text type="danger" className="text-xs mt-1 block">{nameError}</Text>}
+          {nameError && <Text type="danger" className="text-xs mt-1 block">{t(nameError)}</Text>}
         </div>
         
         <div>
-          <Text className="block mb-2 font-medium">描述 *</Text>
+          <Text className="block mb-2 font-medium">{t('agent.info.description')} *</Text>
           <TextArea
             value={description}
             onChange={handleDescriptionChange}
-            placeholder="请输入Agent描述，此描述用于向主Agent介绍当前Agent的能力"
+            placeholder={t('agent.info.description.placeholder')}
             rows={4}
             status={descriptionError ? 'error' : ''}
           />
-          {descriptionError && <Text type="danger" className="text-xs mt-1 block">{descriptionError}</Text>}
+          {descriptionError && <Text type="danger" className="text-xs mt-1 block">{t(descriptionError)}</Text>}
         </div>
         
         <div>
-          <Text className="block mb-2 font-medium">提供运行摘要</Text>
+          <Text className="block mb-2 font-medium">{t('agent.info.provideSummary')}</Text>
           <div className="flex items-center gap-2">
             <Switch 
               checked={provideSummary} 
               onChange={onProvideSummaryChange}
             />
             <Text className="text-sm text-gray-600">
-              {provideSummary ? '是' : '否'}
+              {provideSummary ? t('agent.info.provideSummary.yes') : t('agent.info.provideSummary.no')}
             </Text>
           </div>
           <Text className="text-xs text-gray-500 mt-1 block">
-            开启后Agent执行完成时会提供运行摘要
+            {t('agent.info.provideSummary.hint')}
           </Text>
         </div>
       </div>

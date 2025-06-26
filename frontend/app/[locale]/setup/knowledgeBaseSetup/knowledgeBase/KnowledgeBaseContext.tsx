@@ -5,6 +5,7 @@ import { configStore } from "@/lib/config"
 import knowledgeBaseService from "@/services/knowledgeBaseService"
 import { userConfigService } from "@/services/userConfigService"
 import { KnowledgeBase } from "@/types/knowledgeBase"
+import { useTranslation } from 'react-i18next'
 
 // State type definition
 interface KnowledgeBaseState {
@@ -126,6 +127,7 @@ interface KnowledgeBaseProviderProps {
 }
 
 export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ children }) => {
+  const { t } = useTranslation();
   const [state, dispatch] = useReducer(knowledgeBaseReducer, {
     knowledgeBases: [],
     selectedIds: [],
@@ -154,7 +156,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
 
     dispatch({ type: 'LOADING', payload: true });
     try {
-      // 清除可能的缓存干扰
+      // Clear possible cache interference
       localStorage.removeItem('preloaded_kb_data');
       localStorage.removeItem('kb_cache');
 
@@ -163,15 +165,13 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       
       dispatch({ type: 'FETCH_SUCCESS', payload: kbs });
       
-      // Note: removed logic for loading selected knowledge bases from config
-      // This feature is no longer needed as we don't store data config
     } catch (error) {
-      console.error('Failed to fetch knowledge bases:', error);
-      dispatch({ type: 'ERROR', payload: 'Failed to load knowledge bases' });
+      console.error(t('knowledgeBase.error.fetchList'), error);
+      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.fetchListRetry') });
     } finally {
       dispatch({ type: 'LOADING', payload: false });
     }
-  }, [state.isLoading]);
+  }, [state.isLoading, t]);
 
   // Select knowledge base - memoized with useCallback
   const selectKnowledgeBase = useCallback((id: string) => {
@@ -211,16 +211,13 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
         source,
         embeddingModel: state.currentEmbeddingModel || "text-embedding-3-small"
       });
-      
-      // No longer need to dispatch, because now the kb creation will finish in a blink of an eye.
-      // dispatch({ type: 'ADD_KNOWLEDGE_BASE', payload: newKB });
       return newKB;
     } catch (error) {
-      console.error('Failed to create knowledge base:', error);
-      dispatch({ type: 'ERROR', payload: 'Failed to create knowledge base' });
+      console.error(t('knowledgeBase.error.create'), error);
+      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.createRetry') });
       return null;
     }
-  }, [state.currentEmbeddingModel]);
+  }, [state.currentEmbeddingModel, t]);
 
   // Delete knowledge base - memoized with useCallback
   const deleteKnowledgeBase = useCallback(async (id: string) => {
@@ -245,8 +242,8 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       
       return true;
     } catch (error) {
-      console.error('Failed to delete knowledge base:', error);
-      dispatch({ type: 'ERROR', payload: 'Failed to delete knowledge base' });
+      console.error(t('knowledgeBase.error.delete'), error);
+      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.deleteRetry') });
       return false;
     }
   }, [state.knowledgeBases, state.selectedIds, state.activeKnowledgeBase]);
@@ -257,10 +254,10 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       const result = await knowledgeBaseService.summaryIndex(indexName, batchSize);
       return result;
     } catch (error) {
-      dispatch({ type: 'ERROR', payload: error as string });
+      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.summary') });
       throw error;
     }
-  }, []);
+  }, [t]);
 
   // Modify the summary of the knowledge base
   const changekKnowledgeSummary = useCallback(async (indexName: string, summary: string) => {
@@ -275,7 +272,6 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
 
   // Load user selected knowledge bases from backend
   const loadUserSelectedKnowledgeBases = useCallback(async () => {
-    console.log('🔄 loadUserSelectedKnowledgeBases 被调用');
     try {
       const userConfig = await userConfigService.loadKnowledgeList();
       if (userConfig && userConfig.selectedKbNames.length > 0) {
@@ -287,34 +283,30 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
         dispatch({ type: 'SELECT_KNOWLEDGE_BASE', payload: selectedIds });
       }
     } catch (error) {
-      console.error('Failed to load user selected knowledge bases:', error);
-      dispatch({ type: 'ERROR', payload: 'Failed to load user configuration' });
+      console.error(t('knowledgeBase.error.loadSelected'), error);
+      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.loadSelectedRetry') });
     }
   }, [state.knowledgeBases]);
 
   // Save user selected knowledge bases to backend
   const saveUserSelectedKnowledgeBases = useCallback(async () => {
-    console.log('💾 saveUserSelectedKnowledgeBases 被调用');
     try {
       // Get selected knowledge base names
       const selectedKbNames = state.knowledgeBases
         .filter(kb => state.selectedIds.includes(kb.id))
         .map(kb => kb.name);
 
-      console.log('📋 当前选中的知识库:', state.selectedIds);
-      console.log('📋 选中的知识库名称:', selectedKbNames);
-
       const success = await userConfigService.updateKnowledgeList(selectedKbNames);
       if (!success) {
-        dispatch({ type: 'ERROR', payload: 'Failed to save user configuration' });
+        dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.saveSelected') });
       }
       return success;
     } catch (error) {
-      console.error('Failed to save user selected knowledge bases:', error);
-      dispatch({ type: 'ERROR', payload: 'Failed to save user configuration' });
+      console.error(t('knowledgeBase.error.saveSelected'), error);
+      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.saveSelectedRetry') });
       return false;
     }
-  }, [state.knowledgeBases, state.selectedIds]);
+  }, [state.knowledgeBases, state.selectedIds, t]);
 
   // Add a function to refresh the knowledge base data
   const refreshKnowledgeBaseData = useCallback(async () => {

@@ -7,6 +7,7 @@ import {
   MoreHorizontal
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdownMenu"
+import { useTranslation } from "react-i18next"
 
 interface ChatHeaderProps {
   title: string
@@ -22,6 +23,7 @@ export function ChatHeader({
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation('common');
 
   // Update editTitle when the title attribute changes
   useEffect(() => {
@@ -85,7 +87,7 @@ export function ChatHeader({
                 <h1 
                   className="text-xl font-bold cursor-pointer px-2 py-1 rounded border border-transparent hover:border-slate-200"
                   onDoubleClick={handleDoubleClick}
-                  title="双击修改标题"
+                  title={t("chatHeader.doubleClickToEdit")}
                 >
                   {title}
                 </h1>
@@ -93,7 +95,7 @@ export function ChatHeader({
             </div>
           </div>
           
-          {/* <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
+          <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-6 w-6 rounded">
@@ -103,15 +105,15 @@ export function ChatHeader({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem className="cursor-pointer">
                   <Bookmark className="mr-2 h-4 w-4" />
-                  <span>收藏</span>
+                  <span>{t("chatHeader.bookmark")}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem className="cursor-pointer" onClick={onShare}>
                   <Share className="mr-2 h-4 w-4" />
-                  <span>分享</span>
+                  <span>{t("chatHeader.share")}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div> */}
+          </div>
         </div>
       </div>
     </header>

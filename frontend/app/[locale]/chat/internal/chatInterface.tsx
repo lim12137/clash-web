@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from "uuid"
 import { useConfig } from "@/hooks/useConfig"
 import { conversationService } from '@/services/conversationService';
 import { storageService } from '@/services/storageService';
+import { useTranslation } from 'react-i18next';
 
 import { ChatSidebar } from "@/app/chat/layout/chatLeftSidebar"
 import { FilePreview } from "@/app/chat/layout/chatInput"
@@ -41,8 +42,9 @@ export function ChatInterface() {
   const [isSwitchedConversation, setIsSwitchedConversation] = useState(false) // Add conversation switching tracking state
   const [isLoading, setIsLoading] = useState(false)
   const initialized = useRef(false)
-  const [appName, setAppName] = useState("新应用")
-  const [conversationTitle, setConversationTitle] = useState("新对话")
+  const { t } = useTranslation('common');
+  const [appName, setAppName] = useState(t("chatInterface.newApp"))
+  const [conversationTitle, setConversationTitle] = useState(t("chatInterface.newConversation"))
   const [conversationId, setConversationId] = useState<number>(0)
   const [conversationList, setConversationList] = useState<ConversationListItem[]>([])
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null)
@@ -133,7 +135,7 @@ export function ChatInterface() {
           handleNewConversation()
         })
         .catch((err) => {
-          console.error("初始化时获取对话列表失败:", err)
+          console.error(t("chatInterface.errorFetchingConversationList"), err)
           // Create new conversation even if getting conversation list fails
           handleNewConversation()
         })
@@ -152,9 +154,9 @@ export function ChatInterface() {
     return () => {
       if (abortControllerRef.current) {
         try {
-          abortControllerRef.current.abort('组件卸载');
+          abortControllerRef.current.abort(t("chatInterface.componentUnmount"));
         } catch (error) {
-          console.log('取消请求时出错', error);
+          console.log(t("chatInterface.errorCancelingRequest"), error);
         }
         abortControllerRef.current = null;
       }
@@ -254,8 +256,8 @@ export function ChatInterface() {
         if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
           try {
             // Stop agent_run immediately
-            abortControllerRef.current.abort('请求超时');
-            console.log('请求超过120秒已自动取消');
+            abortControllerRef.current.abort(t("chatInterface.requestTimeout"));
+            console.log(t('chatInterface.requestTimeoutMessage'));
             
             // Update frontend state immediately
             setIsLoading(false);
@@ -264,7 +266,7 @@ export function ChatInterface() {
               const newMessages = [...prev];
               const lastMsg = newMessages[newMessages.length - 1];
               if (lastMsg && lastMsg.role === "assistant") {
-                lastMsg.error = "Request timeout, please retry";
+                lastMsg.error = t("chatInterface.requestTimeoutRetry");
                 lastMsg.isComplete = true;
                 lastMsg.thinking = undefined; // Explicitly clear thinking state
               }
@@ -276,11 +278,11 @@ export function ChatInterface() {
               try {
                 await conversationService.stop(conversationId);
               } catch (error) {
-                console.error('停止超时请求失败:', error);
+                console.error(t("chatInterface.stopTimeoutRequestFailed"), error);
               }
             }
           } catch (error) {
-            console.log('取消请求时出错', error);
+            console.log(t("chatInterface.errorCancelingRequest"), error);
           }
         }
         timeoutRef.current = null;
@@ -301,7 +303,7 @@ export function ChatInterface() {
           // Update current session state
           setConversationId(currentConversationId);
           setSelectedConversationId(currentConversationId);
-          setConversationTitle(createData.conversation_title || "新对话");
+          setConversationTitle(createData.conversation_title || t("chatInterface.newConversation"));
 
           // Refresh conversation list
           try {
@@ -311,10 +313,10 @@ export function ChatInterface() {
               setSelectedConversationId(currentConversationId);
             }
           } catch (error) {
-            console.error("刷新对话列表失败，但继续发送消息:", error);
+            console.error(t("chatInterface.refreshDialogListFailedButContinue"), error);
           }
         } catch (error) {
-          console.error("创建新对话失败，但仍会尝试发送消息:", error);
+          console.error(t("chatInterface.createDialogFailedButContinue"), error);
         }
       }
 
@@ -331,11 +333,11 @@ export function ChatInterface() {
           const lastMsg = newMessages[newMessages.length - 1];
           if (lastMsg && lastMsg.role === "assistant") {
             if (!lastMsg.steps) lastMsg.steps = [];
-            let step = lastMsg.steps.find(s => s.title === '文件预处理');
+            let step = lastMsg.steps.find(s => s.title === t("chatInterface.filePreprocessing"));
             if (!step) {
               step = {
                 id: `preprocess-${Date.now()}`,
-                title: '文件预处理',
+                title: t("chatInterface.filePreprocessing"),
                 content: '',
                 expanded: true,
                 metrics: '',
@@ -345,7 +347,7 @@ export function ChatInterface() {
                 contents: [{
                   id: `preprocess-content-${Date.now()}`,
                   type: 'agent_new_run',
-                  content: '正在解析文件…',
+                  content: t("chatInterface.parsingFile"),
                   expanded: false,
                   timestamp: Date.now()
                 }]
@@ -353,7 +355,7 @@ export function ChatInterface() {
               lastMsg.steps.push(step);
             } else if (step.contents && step.contents.length > 0) {
               // If already exists, reset content to initial prompt
-              step.contents[0].content = '正在解析文件…';
+              step.contents[0].content = t("chatInterface.parsingFile");
               step.contents[0].timestamp = Date.now();
             }
           }
@@ -372,11 +374,11 @@ export function ChatInterface() {
               if (lastMsg && lastMsg.role === "assistant") {
                 if (!lastMsg.steps) lastMsg.steps = [];
                 // Find the latest preprocessing step
-                let step = lastMsg.steps.find(s => s.title === '文件预处理');
+                let step = lastMsg.steps.find(s => s.title === t("chatInterface.filePreprocessing"));
                 if (!step) {
                   step = {
                     id: `preprocess-${Date.now()}`,
-                    title: '文件预处理',
+                    title: t("chatInterface.filePreprocessing"),
                     content: '',
                     expanded: true,
                     metrics: '',
@@ -386,7 +388,7 @@ export function ChatInterface() {
                     contents: [{
                       id: `preprocess-content-${Date.now()}`,
                       type: 'agent_new_run',
-                      content: '正在解析文件…',
+                      content: t("chatInterface.parsingFile"),
                       expanded: false,
                       timestamp: Date.now()
                     }]
@@ -399,13 +401,13 @@ export function ChatInterface() {
                     stepContent = jsonData.message;
                     break;
                   case "error":
-                    stepContent = `解析文件 ${jsonData.filename} 失败: ${jsonData.message}`;
+                    stepContent = t("chatInterface.parseFileFailed", { filename: jsonData.filename, message: jsonData.message });
                     break;
                   case "file_processed":
-                    stepContent = `文件 ${jsonData.filename} 已解析完成`;
+                    stepContent = t("chatInterface.fileParsed", { filename: jsonData.filename });
                     break;
                   case "complete":
-                    stepContent = "文件解析完成";
+                    stepContent = t("chatInterface.fileParsingComplete");
                     break;
                   default:
                     stepContent = jsonData.message || '';
@@ -427,7 +429,7 @@ export function ChatInterface() {
             const newMessages = [...prev];
             const lastMsg = newMessages[newMessages.length - 1];
             if (lastMsg && lastMsg.role === "assistant") {
-              lastMsg.error = `文件处理失败: ${result.error}`;
+              lastMsg.error = t("chatInterface.fileProcessingFailed", { error: result.error });
               lastMsg.isComplete = true;
             }
             return newMessages;
@@ -482,7 +484,8 @@ export function ChatInterface() {
         fetchConversationList,
         currentConversationId,
         conversationService,
-        false // isDebug: false for normal chat mode
+        false, // isDebug: false for normal chat mode
+        t
       );
 
       // Reset all related states
@@ -501,20 +504,20 @@ export function ChatInterface() {
       // If user actively canceled, don't show error message
       const err = error as Error;
       if (err.name === 'AbortError') {
-        console.log('用户取消了请求');
+        console.log(t("chatInterface.userCancelledRequest"));
         setMessages(prev => {
           const newMessages = [...prev];
           const lastMsg = newMessages[newMessages.length - 1];
           if (lastMsg && lastMsg.role === "assistant") {
-            lastMsg.content = "对话已停止";
+            lastMsg.content = t("chatInterface.conversationStopped");
             lastMsg.isComplete = true;
             lastMsg.thinking = undefined; // Explicitly clear thinking state
           }
           return newMessages;
         });
       } else {
-        console.error("Error:", error)
-        const errorMessage = error instanceof Error ? error.message : "处理请求时发生错误"
+        console.error(t("chatInterface.errorLabel"), error)
+        const errorMessage = error instanceof Error ? error.message : t("chatInterface.errorProcessingRequest")
         setMessages(prev => {
           const newMessages = [...prev];
           const lastMsg = newMessages[newMessages.length - 1];
@@ -551,9 +554,9 @@ export function ChatInterface() {
     // Cancel current ongoing request first
     if (abortControllerRef.current) {
       try {
-        abortControllerRef.current.abort('切换到新对话');
+        abortControllerRef.current.abort(t("chatInterface.switchToNewConversation"));
       } catch (error) {
-        console.log('取消请求时出错', error);
+        console.log(t("chatInterface.errorCancelingRequest"), error);
       }
       abortControllerRef.current = null;
     }
@@ -567,10 +570,10 @@ export function ChatInterface() {
     // If currently in conversation, stop current conversation
     if (isStreaming && conversationId && conversationId !== -1) {
       try {
-        console.log('创建新对话前停止当前对话:', conversationId);
+        console.log(t("chatInterface.stoppingCurrentConversationBeforeCreatingNew"), conversationId);
         await conversationService.stop(conversationId);
       } catch (error) {
-        console.error('停止当前对话失败:', error);
+        console.error(t("chatInterface.stoppingCurrentConversationFailed"), error);
         // Continue creating new conversation even if stopping fails
       }
     }
@@ -580,7 +583,7 @@ export function ChatInterface() {
     setIsLoading(false);
     setConversationId(-1);
     setIsSwitchedConversation(false);
-    setConversationTitle("新对话");
+    setConversationTitle(t("chatInterface.newConversation"));
     setSelectedConversationId(null);
     setIsNewConversation(true); // Ensure set to new conversation state
 
@@ -620,7 +623,7 @@ export function ChatInterface() {
       setConversationList(dialogHistory);
       return dialogHistory;
     } catch (error) {
-      console.error("获取对话列表出错:", error);
+      console.error(t("chatInterface.errorFetchingConversationList"), error);
       throw error;
     }
   };
@@ -630,9 +633,9 @@ export function ChatInterface() {
     // Cancel current ongoing request first
     if (abortControllerRef.current) {
       try {
-        abortControllerRef.current.abort('切换对话');
+        abortControllerRef.current.abort(t("chatInterface.switchConversation"));
       } catch (error) {
-        console.log('取消请求时出错', error);
+        console.log(t("chatInterface.errorCancelingRequest"), error);
       }
       abortControllerRef.current = null;
     }
@@ -646,12 +649,12 @@ export function ChatInterface() {
     // If currently in conversation, stop current conversation first
     if (isStreaming && conversationId && conversationId !== -1) {
       try {
-        console.log('切换对话前停止当前对话:', conversationId);
+        console.log(t("chatInterface.stoppingCurrentConversationBeforeSwitching"), conversationId);
         await conversationService.stop(conversationId);
         setIsStreaming(false);
         setIsLoading(false);
       } catch (error) {
-        console.error('停止当前对话失败:', error);
+        console.error(t("chatInterface.stoppingCurrentConversationFailed"), error);
         // Continue switching conversation even if stopping fails
         setIsStreaming(false);
         setIsLoading(false);
@@ -677,10 +680,10 @@ export function ChatInterface() {
       timeoutRef.current = setTimeout(() => {
         if (controller && !controller.signal.aborted) {
           try {
-            controller.abort('请求超时');
-            console.log('请求超过120秒已自动取消');
+            controller.abort(t("chatInterface.requestTimeout"));
+            console.log(t('chatInterface.requestTimeoutMessage'));
           } catch (error) {
-            console.error('取消请求时出错', error);
+            console.error(t("chatInterface.errorCancelingRequest"), error);
           }
         }
         timeoutRef.current = null;
@@ -732,14 +735,14 @@ export function ChatInterface() {
 
           // Refresh history list
           fetchConversationList().catch(err => {
-            console.error("刷新对话列表失败:", err);
+            console.error(t("chatInterface.refreshDialogListFailedButContinue"), err);
           });
         }, 0);
       } else {
-        console.error("获取对话详情失败:", data.message)
+        console.error(t("chatInterface.errorFetchingConversationDetails"), data.message)
       }
     } catch (error) {
-      console.error("获取对话详情错误:", error)
+      console.error(t("chatInterface.errorFetchingConversationDetailsError"), error)
     }
   }
 
@@ -762,7 +765,7 @@ export function ChatInterface() {
               attachment.url = url;
               hasUpdates = true;
             } catch (error) {
-              console.error(`获取附件URL失败: ${attachment.object_name}`, error);
+              console.error(t("chatInterface.errorFetchingAttachmentUrl", { object_name: attachment.object_name }), error);
             }
           }
         }
@@ -785,7 +788,7 @@ export function ChatInterface() {
         setConversationTitle(title);
       }
     } catch (error) {
-      console.error("重命名失败:", error);
+      console.error(t("chatInterface.renameFailed"), error);
     }
   };
 
@@ -797,9 +800,9 @@ export function ChatInterface() {
         // Cancel current ongoing request first
         if (abortControllerRef.current) {
           try {
-            abortControllerRef.current.abort('删除对话');
+            abortControllerRef.current.abort(t("chatInterface.deleteConversation"));
           } catch (error) {
-            console.log('取消请求时出错', error);
+            console.log(t("chatInterface.errorCancelingRequest"), error);
           }
           abortControllerRef.current = null;
         }
@@ -814,10 +817,10 @@ export function ChatInterface() {
         setIsLoading(false);
 
         try {
-          console.log('删除对话前停止当前对话:', dialogId);
+          console.log(t("chatInterface.stoppingCurrentConversationBeforeDeleting"), dialogId);
           await conversationService.stop(dialogId);
         } catch (error) {
-          console.error('停止要删除的对话失败:', error);
+          console.error(t("chatInterface.stopConversationToDeleteFailed"), error);
           // Continue deleting even if stopping fails
         }
       }
@@ -827,17 +830,17 @@ export function ChatInterface() {
 
       if (selectedConversationId === dialogId) {
         setSelectedConversationId(null);
-        setConversationTitle("新对话");
+        setConversationTitle(t("chatInterface.newConversation"));
         handleNewConversation();
       }
     } catch (error) {
-      console.error("删除失败:", error);
+      console.error(t("chatInterface.deleteFailed"), error);
     }
   };
 
   // Add image error handling function
   const handleImageError = (imageUrl: string) => {
-    console.error("图片加载失败:", imageUrl);
+    console.error(t("chatInterface.imageLoadFailed"), imageUrl);
 
     // Remove failed images from messages
     setMessages((prev) => {
@@ -863,9 +866,9 @@ export function ChatInterface() {
     // stop agent_run immediately
     if (abortControllerRef.current) {
       try {
-        abortControllerRef.current.abort('用户手动停止');
+        abortControllerRef.current.abort(t("chatInterface.userManuallyStopped"));
       } catch (error) {
-        console.log('取消请求时出错', error);
+        console.log(t("chatInterface.errorCancelingRequest"), error);
       }
       abortControllerRef.current = null;
     }
@@ -900,7 +903,7 @@ export function ChatInterface() {
         return newMessages;
       });
     } catch (error) {
-      console.error('停止对话失败:', error);
+      console.error(t("chatInterface.stopConversationFailed"), error);
       
       // Optionally show error message
       setMessages(prev => {
@@ -909,7 +912,7 @@ export function ChatInterface() {
         if (lastMsg && lastMsg.role === "assistant") {
           lastMsg.isComplete = true;
           lastMsg.thinking = undefined; // Explicitly clear thinking state
-          lastMsg.error = "停止对话失败，但前端已停止显示";
+          lastMsg.error = t("chatInterface.stopConversationFailedButFrontendStopped");
         }
         return newMessages;
       });
@@ -924,7 +927,7 @@ export function ChatInterface() {
         await fetchConversationList();
         setConversationTitle(newTitle);
       } catch (error) {
-        console.error("重命名失败:", error);
+        console.error(t("chatInterface.renameFailed"), error);
       }
     }
   };
@@ -950,7 +953,7 @@ export function ChatInterface() {
         msg.message_id === messageId ? { ...msg, opinion_flag: opinion as string | undefined } : msg
       ));
     } catch (error) {
-      console.error('更新点赞/点踩失败:', error);
+      console.error(t("chatInterface.updateOpinionFailed"), error);
     }
   };
 
@@ -1009,7 +1012,7 @@ export function ChatInterface() {
               {/* Footer */}
               <div className="flex-shrink-0 mt-auto">
                 <div className="text-center text-sm py-1" style={{ color: 'rgb(163, 163, 163)', position: 'sticky', bottom: 0, backgroundColor: 'white', width: '100%' }}>
-                  内容由 AI 生成，请仔细甄别
+                  {t("chatInterface.aiGeneratedContentWarning")}
                 </div>
               </div>
             </div>
@@ -1031,7 +1034,7 @@ export function ChatInterface() {
             <div className="fixed inset-0 pointer-events-none" />
           </TooltipTrigger>
           <TooltipContent side="top" align="center" className="absolute bottom-24 left-1/2 transform -translate-x-1/2">
-            停止生成
+            {t("chatInterface.stopGenerating")}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -1045,7 +1048,7 @@ export function ChatInterface() {
           <div className="relative max-w-[90%] max-h-[90%]" onClick={e => e.stopPropagation()}>
             <img
               src={viewingImage}
-              alt="图片预览"
+              alt={t("chatInterface.imagePreview")}
               className="max-w-full max-h-[90vh] object-contain"
               onError={() => {
                 handleImageError(viewingImage);
@@ -1054,6 +1057,7 @@ export function ChatInterface() {
             <button
               onClick={() => setViewingImage(null)}
               className="absolute -top-4 -right-4 bg-white p-1 rounded-full shadow-md hover:bg-white transition-colors"
+              title={t("chatInterface.close")}
             >
               <X size={16} className="text-gray-600 hover:text-red-500 transition-colors" />
             </button>
