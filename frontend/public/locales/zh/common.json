@@ -1,0 +1,235 @@
+{
+    "assistant": {
+        "name": "Nexent 智能体"
+    },
+    "layout": {
+        "title": "Nexent | 智能问答",
+        "titleTemplate": "%s | Nexent 智能问答",
+        "description": "创建和配置您自己的AI Agent智能体"
+    },
+    "chatAttachment": {
+        "imagePreview": "图片预览",
+        "previewNotSupported": "此文件类型暂不支持在线预览",
+        "downloadToView": "请下载文件后查看",
+        "image": "图片"
+    },
+    "chatInterface": {
+        "newApp": "新应用",
+        "newConversation": "新对话",
+        "componentUnmount": "组件卸载",
+        "errorCancelingRequest": "取消请求时出错",
+        "requestTimeout": "请求超时",
+        "requestTimeoutMessage": "请求超过120秒已自动取消",
+        "requestTimeoutRetry": "请求超时，请重试",
+        "stopTimeoutRequestFailed": "停止超时请求失败:",
+        "refreshDialogListFailedButContinue": "刷新对话列表失败，但继续发送消息:",
+        "createDialogFailedButContinue": "创建新对话失败，但仍会尝试发送消息:",
+        "filePreprocessing": "文件预处理",
+        "parsingFile": "正在解析文件…",
+        "parseFileFailed": "解析文件 {{filename}} 失败: {{message}}",
+        "fileParsed": "文件 {{filename}} 已解析完成",
+        "fileParsingComplete": "文件解析完成",
+        "fileProcessingFailed": "文件处理失败: {{error}}",
+        "userCancelledRequest": "用户取消了请求",
+        "conversationStopped": "对话已停止",
+        "errorProcessingRequest": "处理请求时发生错误",
+        "switchToNewConversation": "切换到新对话",
+        "stoppingCurrentConversationBeforeCreatingNew": "创建新对话前停止当前对话:",
+        "stoppingCurrentConversationFailed": "停止当前对话失败:",
+        "errorFetchingConversationList": "初始化时获取对话列表失败:",
+        "switchConversation": "切换对话",
+        "stoppingCurrentConversationBeforeSwitching": "切换对话前停止当前对话:",
+        "errorFetchingConversationDetails": "获取对话详情失败:",
+        "errorFetchingConversationDetailsError": "获取对话详情错误:",
+        "errorFetchingAttachmentUrl": "获取附件URL失败: {{object_name}}",
+        "renameFailed": "重命名失败:",
+        "deleteConversation": "删除对话",
+        "stoppingCurrentConversationBeforeDeleting": "删除对话前停止当前对话:",
+        "stopConversationToDeleteFailed": "停止要删除的对话失败:",
+        "deleteFailed": "删除失败:",
+        "imageLoadFailed": "图片加载失败:",
+        "userManuallyStopped": "用户手动停止",
+        "stopConversationFailed": "停止对话失败:",
+        "stopConversationFailedButFrontendStopped": "停止对话失败，但前端已停止显示",
+        "updateOpinionFailed": "更新点赞/点踩失败:",
+        "aiGeneratedContentWarning": "内容由 AI 生成，请仔细甄别",
+        "stopGenerating": "停止生成",
+        "imagePreview": "图片预览",
+        "close": "关闭",
+        "errorLabel": "错误:"
+    },
+    "chatPreprocess": {
+        "step": "步骤",
+        "thinking": "思考中",
+        "preprocessResponseEmpty": "预处理响应为空",
+        "parsingPreprocessDataFailed": "解析预处理数据失败:",
+        "filePreprocessingFailed": "文件预处理失败:",
+        "uploadingFile": "上传文件: {{name}}, 类型: {{type}}, 大小: {{size}}",
+        "uploadingImage": "上传图片: {{name}}, 类型: {{type}}, 大小: {{size}}",
+        "fileUploadFailed": "文件上传失败:",
+        "parsingFile": "正在解析文件..."
+    },
+    "extractMsg": {
+        "unknownTitle": "未知标题",
+        "noContentDescription": "无内容描述",
+        "noSearchResultsForUnitId": "对应 unit ID 为 {{unitId}} 的搜索结果不存在",
+        "cannotParseSearchPlaceholder": "无法解析搜索占位符内容:"
+    },
+    "chatHeader": {
+        "doubleClickToEdit": "双击修改标题",
+        "bookmark": "收藏",
+        "share": "分享"
+    },
+    "chatInput": {
+        "image": "图片",
+        "cannotReadFileContent": "无法读取文件内容",
+        "loadingFileContent": "正在加载文件内容...",
+        "cannotPreviewFileType": "无法预览此文件类型",
+        "thisFileTypeCannotBePreviewed": "此文件类型无法预览",
+        "fileCountExceedsLimit": "文件数量超过限制，最多只能上传{{count}}个文件",
+        "fileSizeExceedsLimit": "文件\"{{name}}\"超过大小限制，单个文件最大100MB",
+        "unsupportedFileType": "文件\"{{name}}\"不是支持的文件类型，目前只支持图片文件",
+        "dragAndDropImageHere": "图片拖动到此处即可上传",
+        "onlyImageFormatSupported": "目前仅支持图片格式",
+        "sendMessageTo": "给 {{appName}} 发送消息",
+        "stopRecording": "停止录音",
+        "startRecording": "开始录音",
+        "uploadImage": "上传图片",
+        "stopGenerating": "停止生成",
+        "unsupportedFileTypeOnlyImages": "不支持的文件类型，只能发送图片",
+        "recording": "正在录音...",
+        "recordingError": "录音出错，请重试",
+        "helloIm": "你好，我是{{appName}}",
+        "introMessage": "我可以帮你写代码、读文件、查资料各种创意内容，请把你的任务交给我吧~",
+        "send": "发送",
+        "remove": "移除",
+        "wsConnectionEstablished": "WebSocket 连接已建立",
+        "wsParseError": "解析WebSocket消息出错:",
+        "wsError": "WebSocket错误:",
+        "wsConnectionClosed": "WebSocket连接已关闭",
+        "micPermissionFailed": "获取麦克风权限失败:"
+    },
+    "chatLeftSidebar": {
+        "rename": "重命名",
+        "delete": "删除",
+        "newConversation": "新对话",
+        "today": "今天",
+        "last7Days": "最近7天",
+        "older": "更早",
+        "recentConversations": "最近对话",
+        "noHistory": "无历史对话",
+        "expandSidebar": "展开边栏",
+        "settings": "设置",
+        "confirmDeletionTitle": "删除对话",
+        "confirmDeletionDescription": "确定要删除这个对话吗？此操作无法撤销。",
+        "cancel": "取消",
+        "collapseSidebar": "收起侧边栏"
+    },
+    "page": {
+        "contactUs": "联系我们",
+        "aboutUs": "关于我们",
+        "title": "Nexent 智能体",
+        "subtitle": "一个提示词，无限种可能",
+        "description": "无需编排，无需复杂拖拉拽，将数据、模型和工具整合到一个智能中心中。",
+        "startChat": "开始问答",
+        "quickConfig": "快速配置",
+        "dataProtection": "安全可靠的企业级数据保护",
+        "coreFeatures": "核心功能",
+        "features": [
+            {
+                "title": "多智能体自主业务决策",
+                "description": "利用ReAct框架实现多智能体间的自主思考、任务规划、决策和执行，自动化MCP生态下的模型、数据与工具集"
+            },
+            {
+                "title": "高效数据准备",
+                "description": "企业级别的 Scalable 处理、切片、向量化数据框架，支撑构建基于不同文件格式、数据来源的高质量多模态知识库。"
+            },
+            {
+                "title": "多源知识获取与溯源",
+                "description": "多种知识库、互联网等数据来源连接的MCP工具，基于业务决策数据获取方式，同时具备完整的多模态知识溯源与解释能力。"
+            },
+            {
+                "title": "MCP工具支持",
+                "description": "支持MCP工具接入与调用，帮助实现更复杂的业务逻辑"
+            },
+            {
+                "title": "知识溯源",
+                "description": "提供完整的信息来源追溯，确保回答的可靠性和可验证性"
+            },
+            {
+                "title": "多模态对话",
+                "description": "基于多模态知识库、数据处理能力，提供多模态的智能体服务，支持文本、图像、音频等多种数据类型的输入输出。"
+            }
+        ],
+        "copyright": "Nexent 智能体 © {{year}}",
+        "termsOfUse": "使用条款"
+    },
+    "chatStreamMessage": {
+        "appIconAlt": "应用图标",
+        "finalAnswer": "最终回答",
+        "sources": "{{count}}条来源",
+        "images": "{{count}}张图片",
+        "copied": "已复制",
+        "copyContent": "复制内容",
+        "cancelLike": "取消点赞",
+        "like": "点赞",
+        "cancelDislike": "取消点踩",
+        "dislike": "点踩",
+        "tts": "语音播报"
+    },
+    "chatRightPanel": {
+        "imageLoadFailed": "图片加载失败",
+        "imageProxyError": "请求图片代理服务失败:",
+        "unknownTitle": "未知标题",
+        "noContentDescription": "无内容描述",
+        "processSearchResultsError": "处理搜索结果时出错:",
+        "parallelLoadImagesError": "并行加载图片时出错:",
+        "collapse": "收起",
+        "expand": "展开",
+        "imageAlt": "图片 {{index}}",
+        "viewLargerImageAlt": "查看大图",
+        "searchTitle": "网页 · 知识库搜索",
+        "closeSidebarTitle": "关闭侧边栏",
+        "sourcesTab": "来源",
+        "imagesTab": "图片",
+        "noSearchResults": "暂无搜索结果",
+        "collapseImages": "收起图片",
+        "expandImages": "查看全部 {{count}} 张图片",
+        "noImages": "暂无图片",
+        "noAssociatedImages": "这条消息没有关联的图片内容"
+    },
+    "chatStreamFinalMessage": {
+        "copyFailed": "复制失败:",
+        "getMessageIdFailed": "获取消息ID失败:",
+        "generatingAudio": "正在生成语音...",
+        "stopPlaying": "停止播放",
+        "audioGenerationFailed": "语音生成失败"
+    },
+    "chatStreamHandler": {
+        "thinkingPrefix": "思考：",
+        "codePrefix": "代码：",
+        "callingTool": "工具调用中...",
+        "parseSearchContentFailed": "解析搜索内容失败:",
+        "processImageDataFailed": "处理图片数据失败:",
+        "parseSSEFailed": "SSE 数据解析失败:",
+        "processRemainingDataFailed": "处理剩余数据失败:",
+        "thinking": "正在思考中...",
+        "generateTitleFailed": "生成标题失败:",
+        "streamResponseError": "处理流式响应时出错:"
+    },
+    "taskWindow": {
+        "unknownSource": "未知来源",
+        "knowledgeFile": "知识库文件",
+        "urlParseError": "URL解析错误:",
+        "visit": "访问 {{domain}}",
+        "readingSearchResults": "阅读检索结果",
+        "parseCardError": "解析卡片内容失败:",
+        "cannotParseCard": "无法解析卡片内容",
+        "parseSearchError": "解析搜索结果失败:",
+        "cannotParseSearch": "无法解析搜索结果: {{message}}",
+        "noSearchResults": "未找到搜索结果",
+        "unknownMessageType": "未知消息类型: {{type}}",
+        "noTaskMessages": "暂无任务消息",
+        "taskDetails": "任务详情"
+    }
+}
