@@ -28,7 +28,7 @@ jobs:
         id: get-sha
         run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
-  cleanup:
+  prepare:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
     needs: checkout
     steps:
@@ -42,7 +42,7 @@ jobs:
 
   build-base:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [checkout, cleanup]
+    needs: [checkout, prepare]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -60,15 +60,16 @@ jobs:
 
   build-data-process:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [ checkout, cleanup ]
+    needs: [ checkout, prepare ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Check if model is cached locally
         id: check-model
         run: |
-          if [ -f ./model-assets/clip-vit-base-patch32/config.json ]; then
+          if [ -f ~/model-assets/clip-vit-base-patch32/config.json ]; then
             echo "cache-hit=true" >> "$GITHUB_OUTPUT"
+            cp -r ~/model-assets ./
           else
             echo "cache-hit=false" >> "$GITHUB_OUTPUT"
           fi
@@ -85,7 +86,7 @@ jobs:
 
   build-web:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [checkout, cleanup]
+    needs: [checkout, prepare]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -94,7 +95,7 @@ jobs:
 
   deploy:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [cleanup, build-base, build-main, build-data-process, build-web]
+    needs: [prepare, build-base, build-main, build-data-process, build-web]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
