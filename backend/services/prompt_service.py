@@ -14,8 +14,8 @@ from database.agent_db import query_sub_agents, update_agent, \
     query_tools_by_ids
 from services.agent_service import get_enable_tool_id_by_agent_id
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
-from utils.auth_utils import get_current_user_id
-from fastapi import Header
+from utils.auth_utils import get_current_user_id, get_current_user_info
+from fastapi import Header, Request
 
 
 # Configure logging
@@ -68,8 +68,47 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
         raise e
 
 
-def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, authorization: str = Header(None)):
-    user_id, tenant_id = get_current_user_id(authorization)
+def get_prompt_template_path(is_manager: bool, language: str = 'zh') -> str:
+    """
+    Get the prompt template path based on the agent type and language
+    
+    Args:
+        is_manager: Whether it is a manager mode
+        language: Language code ('zh' or 'en')
+        
+    Returns:
+        str: Prompt template file path
+    """
+    if language == 'en':
+        if is_manager:
+            return "backend/prompts/manager_system_prompt_template_en.yaml"
+        else:
+            return "backend/prompts/managed_system_prompt_template_en.yaml"
+    else:  # Default to Chinese
+        if is_manager:
+            return "backend/prompts/manager_system_prompt_template.yaml"
+        else:
+            return "backend/prompts/managed_system_prompt_template.yaml"
+
+def get_prompt_generate_config_path(language: str = 'zh') -> str:
+    """
+    Get the prompt generation configuration file path based on the language
+    
+    Args:
+        language: Language code ('zh' or 'en')
+        
+    Returns:
+        str: Prompt generation configuration file path
+    """
+    if language == 'en':
+        return 'backend/prompts/utils/prompt_generate_en.yaml'
+    else:  # Default to Chinese
+        return 'backend/prompts/utils/prompt_generate.yaml'
+
+
+def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, authorization: str = Header(None), 
+                                       request: Request = None):
+    user_id, tenant_id, language = get_current_user_info(authorization, request)
 
     # Get description of tool and agent
     tool_info_list = get_enabled_tool_description_for_generate_prompt(
@@ -81,7 +120,7 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
 
     # 1. Real-time streaming push
     last_system_prompt = None
-    for system_prompt in generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id):
+    for system_prompt in generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id, language):
         yield system_prompt
         last_system_prompt = system_prompt
 
@@ -101,8 +140,9 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
     logger.info("Prompt generation and agent update completed successfully")
 
 
-def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id:str):
-    with open('backend/prompts/utils/prompt_generate.yaml', "r", encoding="utf-8") as f:
+def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id: str, language: str = 'zh'):
+    prompt_config_path = get_prompt_generate_config_path(language)
+    with open(prompt_config_path, "r", encoding="utf-8") as f:
         prompt_for_generate = yaml.safe_load(f)
 
     # Get app information from environment variables
@@ -114,8 +154,7 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
                                                    tool_info_list)
 
     def get_prompt_template():
-        template_path = "backend/prompts/manager_system_prompt_template.yaml" if len(sub_agent_info_list) > 0 else \
-            "backend/prompts/managed_system_prompt_template.yaml"
+        template_path = get_prompt_template_path(is_manager=len(sub_agent_info_list) > 0, language=language)
         with open(template_path, "r", encoding="utf-8") as file:
             return yaml.safe_load(file)
 
@@ -216,11 +255,13 @@ def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_
     return sub_agent_info_list
 
 
-def fine_tune_prompt(system_prompt: str, command: str, tenant_id:str):
+def fine_tune_prompt(system_prompt: str, command: str, tenant_id: str, language: str = 'zh'):
     logger.info("Starting prompt fine-tuning")
 
     try:
-        with open('backend/prompts/utils/prompt_fine_tune.yaml', "r", encoding="utf-8") as f:
+        fine_tune_config_path = 'backend/prompts/utils/prompt_fine_tune_en.yaml' if language == 'en' else 'backend/prompts/utils/prompt_fine_tune.yaml'
+        
+        with open(fine_tune_config_path, "r", encoding="utf-8") as f:
             prompt_for_fine_tune = yaml.safe_load(f)
 
         compiled_template = Template(prompt_for_fine_tune["FINE_TUNE_USER_PROMPT"], undefined=StrictUndefined)

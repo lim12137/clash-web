@@ -3,45 +3,45 @@
 [![English](https://img.shields.io/badge/English-README-blue)](README.md)
 [![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
 
-Nexent 是一个开源智能体平台，能够将流程的自然语言转化为完整的多模态智能体 —— 无需编排，无需复杂拖拉拽。基于 MCP 工具生态，Nexent 提供强大的模型集成、数据处理、知识库管理、零代码智能体开发能力。我们的目标很简单：将数据、模型和工具整合到一个智能中心中，使日常工作流程更智能、更互联。
+Nexent is an open-source agent platform that turns process-level natural language into complete multimodal agents — no diagrams, no wiring. Built on the MCP tool ecosystem, Nexent provides model integration, data processing, knowledge-base management, and zero-code agent development. Our goal is simple: to bring data, models, and tools together in one smart hub, making daily workflows smarter and more connected.
 
-> 一个提示词，无限种可能。
+> One prompt. Endless reach.
 
-### 🌟 立即体验 Nexent
+### 🌟 Try Nexent Now
 
-- 🌐 访问我们的[官方网站](http://nexent.tech/)了解更多信息
-- 🚀 [一键试用](http://nexent.tech/try)体验 Nexent 的强大功能
+- 🌐 Visit our [official website](http://nexent.tech/) to learn more
+- 🚀 [Try it now](http://nexent.tech/try) to experience the power of Nexent
 
 https://github.com/user-attachments/assets/0758629c-3477-4cd4-a737-0aab330d53a7
 
-# 🤝 加入我们的社区
+# 🤝 Join Our Community
 
 > *If you want to go fast, go alone; if you want to go far, go together.*
 
-我们仍处于首个开源阶段，目标是在 **2025 年 6 月发布 Nexent v1 稳定版**。在此之前，我们将持续快速发布核心功能 —— 我们期待您的参与：
+We're still in our very first open-source phase and aiming for **Nexent v1-stable in June 2025**. Until then we'll keep shipping core features rapidly — and we'd love your help:
 
-* **🗺️ 查看我们的 [功能地图](https://github.com/orgs/ModelEngine-Group/projects/6)** 探索当前和即将推出的功能。
-* **🔍 试用当前版本** 并在 [问题反馈](https://github.com/ModelEngine-Group/nexent/issues) 中留下想法或报告错误。
+* **🗺️ Check our [Feature Map](https://github.com/orgs/ModelEngine-Group/projects/6)** to explore current and upcoming features.
+* **🔍 Try the current build** and leave ideas or bugs in the [Issues](https://github.com/ModelEngine-Group/nexent/issues) tab.
 
 > *Rome wasn't built in a day.*
 
-虽然许多关键功能仍在积极开发中，但如果我们的愿景与您产生共鸣，请通过 **[贡献指南](CONTRIBUTING_CN.md)** 加入我们，共同塑造 Nexent。
+Many of our key capabilities are still under active development, but if our vision speaks to you, jump in via the **[Contribution Guide](CONTRIBUTING.md)** and shape Nexent with us.
 
-早期贡献者不会被忽视：从特殊徽章和纪念品到其他实质性奖励，我们致力于感谢那些帮助 Nexent 诞生的先驱者。
+Early contributors won't go unnoticed: from special badges and swag to other tangible rewards, we're committed to thanking the pioneers who help bring Nexent to life.
 
-最重要的是，我们需要关注度。请为仓库点星 ⭐ 并关注，与朋友分享，帮助更多开发者发现 Nexent —— 您的每一次点击都能为项目带来新的参与者，保持发展势头。
+Most of all, we need visibility. Star ⭐ and watch the repo, share it with friends, and help more developers discover Nexent — your click brings new hands to the project and keeps the momentum growing.
 
-# ⚡ 先来试试看
+# ⚡ Have a try first
 
-### 1. 📋 系统要求  
+### 1. 📋 Prerequisites  
 
-| 资源 | 最低要求 |
+| Resource | Minimum |
 |----------|---------|
-| **CPU**  | 2 核 |
-| **内存**  | 6 GiB   |
-| **软件** | 已安装 Docker 和 Docker Compose |
+| **CPU**  | 2 cores |
+| **RAM**  | 6 GiB   |
+| **Software** | Docker & Docker Compose installed |
 
-### 2. 🛠️ 使用 Docker Compose 快速开始
+### 2. 🛠️ Quick start with Docker Compose
 
 ```bash
 git clone https://github.com/ModelEngine-Group/nexent.git
@@ -53,105 +53,106 @@ bash deploy.sh
 docker exec -ti nexent bash -c 'curl -X POST http://kong:8000/auth/v1/admin/users -H "apikey: ${SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" -H "Content-Type: application/json" -d "{\"email\":\"admin@example.com\",\"password\": \"123123\",\"role\": \"admin\",\"email_confirm\":true}"'
 ```
 
-当容器运行后，在浏览器中打开 **http://localhost:3000** 并按照设置向导操作。
+When the containers are running, open **http://localhost:3000** in your browser and follow the setup wizard.
 
-### 3. 🤖 模型配置与模型提供商推荐
+### 3. 🤖 Model Configuration & Provider Recommendations
 
-我们建议使用以下模型提供商：
+We recommend the following model providers:
 
-| 模型类型 | 提供商 | 说明 |
+| Model Type | Provider | Notes |
 |------------|----------|-------|
-| LLM 与 VLLM | [硅基流动](https://siliconflow.cn/) | 提供免费额度 |
-| LLM 与 VLLM | [阿里云百炼](https://bailian.console.aliyun.com/) | 提供免费额度 |
-| Embedding | [Jina](https://jina.ai/) | 提供免费额度 |
-| TTS 与 STT | [火山引擎语音](https://www.volcengine.com/product/voice-tech) | 个人用户免费 |
-| 搜索 | [EXA](https://exa.ai/) | 提供免费额度 |
+| LLM & VLLM | [Silicon Flow](https://siliconflow.cn/) | Free tier available |
+| LLM & VLLM | [Alibaba Bailian](https://bailian.console.aliyun.com/) | Free tier available |
+| Embedding | [Jina](https://jina.ai/) | Free tier available |
+| TTS & STT | [Volcengine Voice](https://www.volcengine.com/product/voice-tech) | Free for personal use |
+| Search | [EXA](https://exa.ai/) | Free tier available |
 
-您需要在模型配置页面输入以下信息：
+You'll need to input the following information in the model configuration page:
 - Base URL
 - API Key
 - Model Name
 
-以下配置需要添加到您的 `.env` 文件中（我们将尽快把这些配置前端化）：
-- TTS 与 STT 相关配置
-- EXA 搜索 API Key
+The following configurations need to be added to your `.env` file (we'll make these configurable through the frontend soon):
+- TTS and STT related configurations
+- EXA search API Key
 
-> ℹ️ 由于开发紧张，目前我们仅支持 Jina Embedding 模型。其他模型的支持将在未来版本中添加。有关 Jina API 密钥获取，请参阅我们的[常见问题](FAQ_CN.md)。
+> ℹ️ Due to core features development, currently, we only support Jina Embedding model. Support for other models will be added in future releases. For Jina API key setup, please refer to our [FAQ](FAQ.md).
 
-### 4. ❓ 需要帮助？
+### 4. ❓ Need help?
 
-- 浏览 [常见问题](FAQ_CN.md) 了解常见安装问题。  
-- 在我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 中提问。  
-- 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 中提交错误报告或功能建议。
+- Browse the [FAQ](FAQ.md) for common install issues.  
+- Drop questions in our [Discord community](https://discord.gg/tb5H3S3wyv).  
+- File bugs or feature ideas in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues).
 
-### 5. 🔧 开发 Nexent
+### 5. 🔧 Hack on Nexent
 
-想要从源代码构建或添加新功能？查看 [贡献指南](CONTRIBUTING_CN.md) 获取分步说明。
+Want to build from source or add new features? Check the [Contribution Guide](CONTRIBUTING.md) for step-by-step instructions.
 
-### 6. 🛠️ 从源码构建
+### 6. 🛠️ Build from Source
 
-想要从源码运行 Nexent？查看我们的[开发者指南](DEVELOPPER_NOTE_CN.md)获取详细的设置说明和自定义选项。
+Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_NOTE.md) for detailed setup instructions and customization options.
 
-## ✨ 主要特性
+## ✨ Key Features
 
-`1` **智能体提示词自动生成**  
-   将自然语言转化为可被Agent执行的提示词。Nexent可以根据你的需要自动选择正确的工具并为每个请求规划最佳执行路径。
+`1` **Smart agent prompt generation**  
+   Turn plain language into runnable prompts. Nexent automatically chooses the right tools and plans the best action path for every request.
 
    ![Feature 1](./assets/Feature1.png)
 
-`2` **可扩展数据处理引擎**  
-   支持 20+ 数据格式的快速 OCR 和表格结构提取，从单进程到大规模批处理管道都能平滑扩展。
+`2` **Scalable data process engine**  
+   Process 20+ data formats with fast OCR and table structure extraction, scaling smoothly from a single process to large-batch pipelines.
 
    ![Feature 2](./assets/Feature2.png)
 
-`3` **个人级知识库**  
-   实时导入文件，自动总结，让智能体能够即时访问个人和全局知识，并了解每个知识库能提供什么。
+`3` **Personal-grade knowledge base**  
+   Import files in real time, auto-summarise them, and let agents access both personal and global knowledge instantly, also knowing what it can get from each knowledge base.
 
    ![Feature 3](./assets/Feature3.png)
 
-`4` **互联网知识搜索**  
-   连接 5+ 个网络搜索提供商，让智能体能够将最新的互联网信息与您的私有数据结合。
+`4` **Internet knowledge search**  
+   Connect to 5+ web search providers so agents can mix fresh internet facts with your private data.
 
    ![Feature 4](./assets/Feature4.png)
 
-`5` **知识级可追溯性**  
-   提供来自网络和知识库来源的精确引用，使每个事实都可验证。
+`5` **Knowledge-level traceability**  
+   Serve answers with precise citations from web and knowledge-base sources, making every fact verifiable.
 
    ![Feature 5](./assets/Feature5.png)
 
-`6` **多模态理解与对话**  
-   说话、打字、文件或展示图片。Nexent 理解语音、文本和图片，甚至可以根据需求生成新图像。
+`6` **Multimodal understanding & dialogue**  
+   Speak, type, files, or show images. Nexent understands voice, text, and pictures, and can even generate new images on demand.
 
    ![Feature 6](./assets/Feature6.png)
 
-`7` **MCP 工具生态系统**  
-   插入或构建符合 MCP 规范的 Python 插件；无需修改核心代码即可更换模型、工具和链。
+`7` **MCP tool ecosystem**  
+   Drop in or build Python plug-ins that follow the MCP spec; swap models, tools, and chains without touching core code.
 
    ![Feature 7](./assets/Feature7.png)
 
-# 🐛 已知问题
+# 🐛 Known Issues
 
-1. 🔄 **知识库刷新延迟**  
-   我们已知知识库刷新机制目前存在一些延迟的情况。我们计划尽快重构这一部分，但请注意这仅是任务管理的逻辑问题，实际的数据处理速度不受影响。
+1. 🔄 **Knowledge Base Refresh Delays**  
+   We are aware that the knowledge base refresh mechanism currently has some delays. We plan to refactor this part soon, but please note that this is only a task management logic issue - the actual data processing speed is not affected.
 
-2. 🤖 **模型供应商支持有限**  
-   我们目前对不同的模型供应商支持有限，包括语音和多模态模型。我们将在未来几周内快速更新这些支持，请保持关注！
+2. 🤖 **Limited Model Provider Support**  
+   We currently have limited support for different model providers, including voice and multimodal models. We will be rapidly updating this support in the coming weeks - stay tuned for updates!
 
-3. 📦 **Docker镜像体积较大**  
-   我们注意到当前的Docker镜像体积较大（10GB左右），这是因为包含了强大的可扩展的数据处理引擎和数据处理算法与模型，我们会尽快推出Lite版的镜像以减少镜像体积，以便让部署更快更轻量。
+3. 📦 **Large Docker Image Size**  
+   We are aware that our current Docker image is quite large (around 10GB) as it includes a powerful, extensible data processing engine, algorithms, and models. We will soon release a Lite version to reduce the image size and make deployment faster and lighter.
 
-# 👥 贡献指南
+# 👥 Contributing
 
-我们欢迎各种形式的贡献！无论是修复错误、添加功能还是改进文档，您的帮助都能让 Nexent 变得更好。
+We welcome all kinds of contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes Nexent better for everyone. 
 
-- 📖 阅读我们的[贡献指南](CONTRIBUTING_CN.md)开始贡献
-- 🐛 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 中报告错误或提出功能建议
-- 💬 加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 讨论想法
+- 📖 Read our [Contribution Guide](CONTRIBUTING.md) to get started
+- 🐛 Report bugs or suggest features in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)
+- 💬 Join our [Discord community](https://discord.gg/tb5H3S3wyv) to discuss ideas
 
-# 💬 社区与联系方式
+# 💬 Community & contact
 
-加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 与其他开发者交流并获取帮助！
+Join our [Discord community](https://discord.gg/tb5H3S3wyv) to chat with other developers and get help!
 
-# 📄 许可证
+# 📄 License
 
-Nexent 采用 [MIT](LICENSE) 许可证，并附有额外条件。请阅读 [LICENSE](LICENSE) 文件了解详情。
+Nexent is licensed under the [MIT](LICENSE) with additional conditions. Please read the [LICENSE](LICENSE) file for details.
+

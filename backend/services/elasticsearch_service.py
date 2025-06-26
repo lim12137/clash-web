@@ -11,6 +11,8 @@ Main features include:
 import asyncio
 import os
 import time
+import logging
+
 from typing import Optional, Generator, List, Dict, Any
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -26,12 +28,17 @@ from utils.config_utils import config_manager
 from utils.file_management_utils import get_all_files_status, get_file_size
 from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
 
-def generate_knowledge_summary_stream(keywords: str) -> Generator:
+# Configure logging
+logger = logging.getLogger("elasticsearch_service")
+
+
+def generate_knowledge_summary_stream(keywords: str, language: str) -> Generator:
     """
     Generate a knowledge base summary based on keywords
 
     Args:
         keywords: Keywords that frequently appear in the knowledge base content
+        language: Language of the knowledge base content
 
     Returns:
         str:  Generate a knowledge base summary
@@ -39,10 +46,11 @@ def generate_knowledge_summary_stream(keywords: str) -> Generator:
     # Load environment variables
     load_dotenv()
 
-    # Load prompt words
-    with open('backend/prompts/knowledge_summary_agent.yaml', 'r', encoding='utf-8') as f:
+    # Load prompt words based on language
+    template_file = 'backend/prompts/knowledge_summary_agent.yaml' if language == 'zh' else 'backend/prompts/knowledge_summary_agent_en.yaml'
+    with open(template_file, 'r', encoding='utf-8') as f:
         prompts = yaml.safe_load(f)
-
+    logger.info(f"Generating knowledge with template: {template_file}")
     # Build messages
     messages = [{"role": "system", "content": prompts['system_prompt']},
         {"role": "user", "content": prompts['user_prompt'].format(content=keywords)}]
@@ -640,7 +648,8 @@ class ElasticSearchService:
             index_name: str = Path(..., description="Name of the index to get documents from"),
             batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
             es_core: ElasticSearchCore = Depends(get_es_core),
-            user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base")
+            user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base"),
+            language: str = 'zh'
     ):
         try:
             # get all document
@@ -654,7 +663,7 @@ class ElasticSearchService:
             async def generate_summary():
                 token_join = []
                 try:
-                    for new_token in generate_knowledge_summary_stream(keywords_for_summary):
+                    for new_token in generate_knowledge_summary_stream(keywords_for_summary, language):
                         if new_token == "END":
                             break
                         else:
@@ -762,16 +771,20 @@ class ElasticSearchService:
 
     def get_summary(self,
             index_name: str = Path(..., description="Name of the index to get documents from"),
+            language: str = 'zh'
     ):
         """Get Elasticsearch index_name Summary"""
         try:
             knowledge_record = get_knowledge_record({'index_name': index_name})
             if knowledge_record:
                 summary_result = knowledge_record["knowledge_describe"]
-                return {"status": "success", "message": f"索引 {index_name} 摘要获取成功", "summary": summary_result}
+                success_msg = f"索引 {index_name} 摘要获取成功" if language == 'zh' else f"Index {index_name} summary retrieved successfully"
+                return {"status": "success", "message": success_msg, "summary": summary_result}
+            error_detail = f"无法获取索引 {index_name} 的摘要" if language == 'zh' else f"Unable to get summary for index {index_name}"
             raise HTTPException(
                 status_code=500,
-                detail=f"无法获取索引 {index_name} 的摘要"
+                detail=error_detail
             )
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"获取摘要失败: {str(e)}")
+            error_msg = f"获取摘要失败: {str(e)}" if language == 'zh' else f"Failed to get summary: {str(e)}"
+            raise HTTPException(status_code=500, detail=error_msg)

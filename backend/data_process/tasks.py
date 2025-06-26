@@ -96,7 +96,7 @@ def run_async(coro):
 
 # Initialize the data processing core LAZILY
 # This will be initialized on first task run by a worker process
-def get_ray_actor() -> DataProcessorRayActor:
+def get_ray_actor() -> Any:
     """
     Creates or gets a handle to the named DataProcessorRayActor.
     This is an idempotent operation, safe from race conditions.
@@ -143,7 +143,7 @@ class LoggingTask(Task):
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process', queue='process_q')
 def process(self, source: str, source_type: str = "file", 
-            chunking_strategy: str = "basic", index_name: str = None, **params) -> Dict:
+            chunking_strategy: str = "basic", index_name: Optional[str] = None, **params) -> Dict:
     """
     Process a file and extract text/chunks
     
@@ -264,7 +264,7 @@ def process(self, source: str, source_type: str = "file",
         raise
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.forward', queue='forward_q')
-def forward(self, processed_data: Dict, index_name: str = None, source: str = None) -> Dict: # Parameter changed from obj_ref_hex to processed_data
+def forward(self, processed_data: Dict, index_name: Optional[str] = None, source: Optional[str] = None) -> Dict:
     """
     Vectorize and store processed chunks in Elasticsearch
     
@@ -313,11 +313,11 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
         formatted_chunks = []
         for i, chunk in enumerate(chunks):
             # Extract text and metadata
-            text = chunk.get("text", "")
+            content = chunk.get("content", "")
             metadata = chunk.get("metadata", {})
             
             # Validate chunk content
-            if not text or len(text.strip()) == 0:
+            if not content or len(content.strip()) == 0:
                 logger.warning(f"[{self.request.id}] FORWARD TASK: Chunk {i+1} has empty text content, skipping")
                 continue
             
@@ -326,7 +326,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
                 "metadata": metadata,
                 "filename": os.path.basename(original_source) if original_source else "",
                 "path_or_url": original_source,
-                "content": text,
+                "content": content,
                 "process_source": "Unstructured",  # permanently use default source
                 "source_type": source_type,
                 "file_size": get_file_size(source_type, original_source),
@@ -342,6 +342,8 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
         # Call the Elasticsearch API to index the documents
         async def index_documents():
             elasticsearch_url = os.environ.get("ELASTICSEARCH_SERVICE") 
+            if not elasticsearch_url:
+                raise ValueError("ELASTICSEARCH_SERVICE 环境变量未设置")
             route_url = f"/indices/{original_index_name}/documents"
             full_url = elasticsearch_url + route_url
             headers = {"Content-Type": "application/json"}
@@ -549,7 +551,7 @@ def forward(self, processed_data: Dict, index_name: str = None, source: str = No
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process_and_forward')
 def process_and_forward(self, source: str, source_type: str = "file", 
-                        chunking_strategy: str = "basic", index_name: str = None, **params) -> str:
+                        chunking_strategy: str = "basic", index_name: Optional[str] = None, **params) -> str:
     """
     Combined task that chains processing and forwarding
     
@@ -584,6 +586,9 @@ def process_and_forward(self, source: str, source_type: str = "file",
     
     # Execute the chain
     result = task_chain.apply_async()
+    if result is None or not hasattr(result, 'id') or result.id is None:
+        logger.error("Celery chain apply_async() did not return a valid result or result.id")
+        return ""
     logger.info(f"Created task chain ID: {result.id}")
     
     return result.id

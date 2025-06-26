@@ -165,7 +165,7 @@ def update_agent(agent_id, agent_info, tenant_id, user_id=None):
         if user_id:
             user_agent = session.query(UserAgent).filter(UserAgent.agent_id == agent_id,
                                                          UserAgent.tenant_id == tenant_id,
-                                                         UserAgent.user_id == user_id or UserAgent.user_id == DEFAULT_USER_ID
+                                                         UserAgent.user_id == user_id
                                                         ).first()
             if not user_agent:
                 raise ValueError("ag_user_agent_t Agent not found")
@@ -295,7 +295,8 @@ def query_all_enabled_tool_instances(tenant_id: str, user_id: str = None, agent_
     :return: List of ToolInstance objects
     """
     with get_db_session() as session:
-        query = session.query(ToolInstance).filter(or_(ToolInstance.tenant_id == tenant_id, ToolInstance.tenant_id == DEFAULT_TENANT_ID)).filter(
+        query = session.query(ToolInstance).filter(
+            or_(ToolInstance.tenant_id == tenant_id, ToolInstance.tenant_id == DEFAULT_TENANT_ID)).filter(
             ToolInstance.delete_flag != 'Y').filter(ToolInstance.enabled)
         if user_id:
             query = query.filter(or_(ToolInstance.user_id == user_id, ToolInstance.user_id == DEFAULT_USER_ID))
