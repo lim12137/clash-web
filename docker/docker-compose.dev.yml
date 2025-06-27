@@ -1,4 +1,4 @@
-name: nexent
+name: nexent-commercial
 
 services:
   nexent:
@@ -9,14 +9,8 @@ services:
       - "5010:5010"
     volumes:
       - ../:/opt/
-      - ./uploads:/opt/backend/uploads
+      - $ROOT_DIR/uploads:/opt/backend/uploads
     environment:
-      ELASTIC_PASSWORD: nexent@2025
-      ELASTICSEARCH_API_KEY: OUEwOVhwY0I4bjBZeFR5N0dGaWI6M2VoNWJiWmpTOVdlNFFCU0YzQUFTUQ==
-      MINIO_ACCESS_KEY: 0a6917f6c66f2de7985a3978
-      MINIO_SECRET_KEY: YgCj9sZm+QKGEr+GkTrzkA7t+1gEL0BiHkhQdinYLKA=
-      MINIO_REGION: cn-north-1
-      MINIO_DEFAULT_BUCKET: nexent
       skip_proxy: "true"
       UPLOAD_FOLDER: /opt/backend/uploads
       UMASK: 0022
@@ -49,7 +43,7 @@ services:
       - "5012:5012"
     volumes:
       - ../:/opt/:cached
-      - ./uploads:/opt/backend/uploads
+      - $ROOT_DIR/uploads:/opt/backend/uploads
       - ../backend/assets/clip-vit-base-patch32:/opt/models/clip-vit-base-patch32:ro
     environment:
       skip_proxy: "true"
@@ -80,7 +74,7 @@ services:
     environment:
       - HTTP_BACKEND=http://nexent:5010
       - WS_BACKEND=ws://nexent:5010
-      - MINIO_ENDPOINT=http://nexent-minio:9000
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
     logging:
       driver: "json-file"
       options:
