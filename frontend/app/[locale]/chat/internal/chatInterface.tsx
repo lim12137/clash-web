@@ -99,12 +99,12 @@ export function ChatInterface() {
 
   // Handle file upload
   const handleFileUpload = (file: File) => {
-    return preProcessHandleFileUpload(file, setFileUrls);
+    return preProcessHandleFileUpload(file, setFileUrls, t);
   };
 
   // Handle image upload
   const handleImageUpload = (file: File) => {
-    preProcessHandleImageUpload(file);
+    preProcessHandleImageUpload(file, t);
   };
   
   // Add attachment management function
@@ -197,7 +197,7 @@ export function ChatInterface() {
       setIsLoading(true);
       
       // Use preprocessing function to upload attachments
-      const uploadResult = await uploadAttachments(attachments);
+      const uploadResult = await uploadAttachments(attachments, t);
       uploadedFileUrls = uploadResult.uploadedFileUrls;
       objectNames = uploadResult.objectNames; // Get object name mapping
       uploadError = uploadResult.error;
@@ -422,7 +422,8 @@ export function ChatInterface() {
               }
               return newMessages;
             });
-          }
+          },
+          t
         );
 
         // Handle preprocessing result
