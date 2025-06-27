@@ -59,8 +59,14 @@ export function ChatStreamMessage({
 
   // Copy content to clipboard
   const handleCopyContent = () => {
-    if (message.finalAnswer) {
-      navigator.clipboard.writeText(message.finalAnswer)
+    const contentToCopy = message.finalAnswer || message.content;
+    if (contentToCopy) {
+      // Handle newlines: trim leading/trailing newlines and normalize multiple consecutive newlines
+      const trimmedContent = contentToCopy
+        .replace(/^\n+|\n+$/g, '') // Remove leading and trailing newlines
+        .replace(/\n{3,}/g, '\n\n'); // Replace 3+ consecutive newlines with double newlines
+
+      navigator.clipboard.writeText(trimmedContent)
         .then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
