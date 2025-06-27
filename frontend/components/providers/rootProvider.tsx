@@ -1,7 +1,9 @@
 "use client"
 
 import { ReactNode } from "react"
-import { AuthProvider } from "./authProvider"
+import { AuthProvider as AuthContextProvider, AuthContext } from "@/hooks/useAuth"
+import { ConfigProvider } from "antd"
+import { LoginModal, RegisterModal, SessionListeners } from "@/components/auth"
 
 /**
  * 应用根Provider
@@ -9,8 +11,17 @@ import { AuthProvider } from "./authProvider"
  */
 export function RootProvider({ children }: { children: ReactNode }) {
   return (
-    <AuthProvider>
-      {children}
-    </AuthProvider>
+    <ConfigProvider getPopupContainer={() => document.body}>
+      <AuthContextProvider>
+        {(authContextValue) => (
+          <AuthContext.Provider value={authContextValue}>
+            {children}
+            <LoginModal />
+            <RegisterModal />
+            <SessionListeners />
+          </AuthContext.Provider>
+        )}
+      </AuthContextProvider>
+    </ConfigProvider>
   )
 } 
