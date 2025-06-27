@@ -14,7 +14,7 @@ uploads/
 docker/elasticsearch
 docker/minio
 docker/postgresql
-docker/redis
+docker/redis_data
 docker/uploads
 docker/.env
 

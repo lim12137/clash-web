@@ -2,11 +2,11 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/providers/themeProvider"
-import { RootProvider } from "@/components/providers/rootProvider"
 import "../globals.css"
 import { ReactNode } from 'react';
 import path from 'path';
 import fs from 'fs';
+import I18nProviderWrapper from "@/components/providers/I18nProviderWrapper"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -16,15 +16,18 @@ export async function generateMetadata({
 }: {
   params: { locale: string };
 }): Promise<Metadata> {
-  const filePath = path.join(process.cwd(), 'public', 'locales', locale, 'common.json');
-  const messages = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  let messages: any = {}
+  if (['zh', 'en'].includes(locale)) {
+    const filePath = path.join(process.cwd(), 'public', 'locales', locale, 'common.json');
+    messages = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  }
 
   return {
     title: {
-      default: messages.layout.title,
-      template: messages.layout.titleTemplate,
+      default: messages.layout?.title,
+      template: messages.layout?.titleTemplate,
     },
-    description: messages.layout.description,
+    description: messages.layout?.description,
     icons: {
       icon: '/modelengine-logo.png',
       shortcut: '/favicon.ico',
@@ -47,7 +50,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <RootProvider>{children}</RootProvider>
+          <I18nProviderWrapper>{children}</I18nProviderWrapper>
         </ThemeProvider>
       </body>
     </html>

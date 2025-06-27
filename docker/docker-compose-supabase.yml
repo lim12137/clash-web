@@ -7,7 +7,7 @@ services:
       - "8000:8000/tcp"
       - "8443:8443/tcp"
     volumes:
-      - ./volumes/api/kong.yml:/home/kong/temp.yml
+      - $ROOT_DIR/volumes/api/kong.yml:/home/kong/temp.yml
     networks:
       - nexent
     depends_on:
@@ -95,13 +95,13 @@ services:
     ports:
       - ${SUPABASE_POSTGRES_PORT}:${SUPABASE_POSTGRES_PORT}
     volumes:
-      - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql
-      - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql
-      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql
-      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql
-      - ./volumes/db/data:/var/lib/postgresql/data
-      - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql
-      - ./logs:/var/log/postgresql
+      - $ROOT_DIR/volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql
+      - $ROOT_DIR/volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql
+      - $ROOT_DIR/volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql
+      - $ROOT_DIR/volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql
+      - $ROOT_DIR/volumes/db/data:/var/lib/postgresql/data
+      - $ROOT_DIR/volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql
+      - $ROOT_DIR/volumes/logs:/var/log/postgresql
       - db-config:/etc/postgresql-custom
     networks:
       - nexent
