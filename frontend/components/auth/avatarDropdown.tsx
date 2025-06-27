@@ -3,7 +3,7 @@
 import { useAuth } from "@/hooks/useAuth"
 import { Dropdown, Avatar, Spin, Button, Tag, ConfigProvider, Modal } from "antd"
 import { UserOutlined, SettingOutlined, LogoutOutlined, UserSwitchOutlined, LoginOutlined, UserAddOutlined } from "@ant-design/icons"
-import { getRoleColor, getRoleText } from "@/lib/auth"
+import { getRoleColor } from "@/lib/auth"
 import type { ItemType, MenuItemType } from "antd/es/menu/interface"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -86,7 +86,7 @@ export function AvatarDropdown() {
         <div className="py-1">
           <div className="font-medium">{user.email}</div>
           <div className="mt-1">
-            <Tag color={getRoleColor(user.role)}>{getRoleText(user.role)}</Tag>
+            <Tag color={getRoleColor(user.role)}>{t(user.role === 'admin' ? 'role_admin' : 'role_user')}</Tag>
           </div>
         </div>
       ),
