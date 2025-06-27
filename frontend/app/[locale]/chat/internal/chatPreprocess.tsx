@@ -10,11 +10,10 @@ const stepIdCounter = {current: 0};
 /**
  * 解析代理步骤，将文本内容转换为结构化步骤
  */
-export const parseAgentSteps = (content: string, defaultExpanded: boolean = false): AgentStep[] => {
+export const parseAgentSteps = (content: string, defaultExpanded: boolean = false, t: any): AgentStep[] => {
   const steps: AgentStep[] = [];
   const stepRegex = /<step[^>]*>([\s\S]*?)<\/step>/g;
   let match;
-  const { t } = useTranslation('common');
 
   while ((match = stepRegex.exec(content)) !== null) {
     const stepContent = match[1];
@@ -61,7 +60,8 @@ export const preprocessAttachments = async (
   content: string, 
   attachments: FilePreview[], 
   signal: AbortSignal,
-  onProgress: (data: any) => void
+  onProgress: (data: any) => void,
+  t: any
 ): Promise<{ 
   finalQuery: string, 
   success: boolean, 
@@ -71,8 +71,6 @@ export const preprocessAttachments = async (
   if (attachments.length === 0) {
     return { finalQuery: content, success: true };
   }
-
-  const { t } = useTranslation('common');
 
   try {
     // 调用文件预处理接口
@@ -141,8 +139,7 @@ export const preprocessAttachments = async (
  * @param message 用于显示的消息
  * @returns 思考中的步骤对象
  */
-export const createThinkingStep = (message?: string): AgentStep => {
-  const { t } = useTranslation('common');
+export const createThinkingStep = (t: any, message?: string): AgentStep => {
   const displayMessage = message || t("chatPreprocess.parsingFile");
   return {
     id: `thinking-${Date.now()}`,
@@ -165,10 +162,10 @@ export const createThinkingStep = (message?: string): AgentStep => {
  */
 export const handleFileUpload = (
   file: File, 
-  setFileUrls: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  setFileUrls: React.Dispatch<React.SetStateAction<Record<string, string>>>,
+  t: any
 ): string => {
   const fileId = `file-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-  const { t } = useTranslation('common');
   
   // 如果不是图片类型，创建一个文件预览URL
   if (!file.type.startsWith('image/')) {
@@ -184,8 +181,7 @@ export const handleFileUpload = (
  * 处理图片上传
  * @param file 上传的图片文件
  */
-export const handleImageUpload = (file: File): void => {
-  const { t } = useTranslation('common');
+export const handleImageUpload = (file: File, t: any): void => {
   console.log(t("chatPreprocess.uploadingImage", { name: file.name, type: file.type, size: file.size }));
 };
 
@@ -195,7 +191,8 @@ export const handleImageUpload = (file: File): void => {
  * @returns 上传的文件URLs和对象名称
  */
 export const uploadAttachments = async (
-  attachments: FilePreview[]
+  attachments: FilePreview[],
+  t: any
 ): Promise<{
   uploadedFileUrls: Record<string, string>;
   objectNames: Record<string, string>;
@@ -204,8 +201,6 @@ export const uploadAttachments = async (
   if (attachments.length === 0) {
     return { uploadedFileUrls: {}, objectNames: {} };
   }
-  
-  const { t } = useTranslation('common');
   
   try {
     // 上传所有文件到存储服务
