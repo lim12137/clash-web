@@ -218,31 +218,34 @@ async def verify_model_config_connectivity(model_config: dict):
                 data={
                     "connectivity": False, 
                     "message": str(e),
+                    "error_code": "MODEL_VALIDATION_ERROR",
                     "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
                 }
             )
         
         connect_status = ModelConnectStatusEnum.AVAILABLE.value if connectivity else ModelConnectStatusEnum.UNAVAILABLE.value
-        success_message = f"模型配置 {model_name} 连通性验证{'成功' if connectivity else '失败'}"
+        status_code = "MODEL_VALIDATION_SUCCESS" if connectivity else "MODEL_VALIDATION_FAILED"
         
         return ModelResponse(
             code=200, 
-            message=success_message,
+            message="",
             data={
-                "connectivity": connectivity, 
-                "message": success_message,
+                "connectivity": connectivity,
+                "error_code": status_code,
+                "model_name": model_name,
                 "connect_status": connect_status
             }
         )
     except Exception as e:
-        error_message = f"连通性测试出错: {str(e)}"
-        logging.error(f"Verify model config connectivity error: {str(e)}")
+        error_message = str(e)
+        logging.error(f"Verify model config connectivity error: {error_message}")
         return ModelResponse(
             code=500, 
-            message=error_message,
+            message="",
             data={
-                "connectivity": False, 
-                "message": error_message,
+                "connectivity": False,
+                "error_code": "MODEL_VALIDATION_ERROR_UNKNOWN", 
+                "error_details": error_message,
                 "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
             }
         )
