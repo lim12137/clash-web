@@ -6,6 +6,7 @@ import "../globals.css"
 import { ReactNode } from 'react';
 import path from 'path';
 import fs from 'fs';
+import I18nProviderWrapper from "@/components/providers/I18nProviderWrapper"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -49,7 +50,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          {children}
+          <I18nProviderWrapper>{children}</I18nProviderWrapper>
         </ThemeProvider>
       </body>
     </html>
