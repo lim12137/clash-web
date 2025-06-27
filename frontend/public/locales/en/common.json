@@ -733,5 +733,9 @@
     "businessLogic.config.message.agentDeleteSuccess": "Agent delete success",
     "businessLogic.config.message.agentDeleteFailed": "Agent delete failed",
     "businessLogic.config.message.agentDeleteRetry": "Agent delete failed, please try again later",
-    "businessLogic.config.message.agentDeleteConfirm": "Are you sure you want to delete this agent? This action cannot be undone."
+    "businessLogic.config.message.agentDeleteConfirm": "Are you sure you want to delete this agent? This action cannot be undone.",
+    "model.validation.MODEL_VALIDATION_SUCCESS": "Model connectivity validation successful",
+    "model.validation.MODEL_VALIDATION_FAILED": "Model connectivity validation failed",
+    "model.validation.MODEL_VALIDATION_ERROR": "Model validation error",
+    "model.validation.MODEL_VALIDATION_ERROR_UNKNOWN": "Unknown error during model validation"
 }
