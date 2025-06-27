@@ -24,7 +24,7 @@ export const handleStreamResponse = async (
   currentConversationId: number,
   conversationService: any,
   isDebug: boolean = false,
-  t: (key: string) => string
+  t: any
 ) => {
   const decoder = new TextDecoder();
   let buffer = "";

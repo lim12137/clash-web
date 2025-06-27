@@ -196,7 +196,9 @@
         "collapseImages": "收起图片",
         "expandImages": "查看全部 {{count}} 张图片",
         "noImages": "暂无图片",
-        "noAssociatedImages": "这条消息没有关联的图片内容"
+        "noAssociatedImages": "这条消息没有关联的图片内容",
+        "sources": "来源",
+        "images": "图片"
     },
     "chatStreamFinalMessage": {
         "copyFailed": "复制失败:",
