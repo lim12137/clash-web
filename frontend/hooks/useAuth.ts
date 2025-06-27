@@ -7,12 +7,14 @@ import { configService } from "@/services/configService"
 import { User, AuthContextType } from "@/types/auth"
 import { EVENTS, STATUS_CODES } from "@/types/auth"
 import { usePathname } from "next/navigation"
+import { useTranslation } from "react-i18next"
 
 // 创建认证上下文
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // 认证提供者组件
 export function AuthProvider({ children }: { children: (value: AuthContextType) => ReactNode }) {
+  const { t } = useTranslation('common');
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
@@ -86,12 +88,12 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
       // 只在非首页路径触发，且仅在之前有会话的情况下触发
       if (pathname && pathname !== '/' && !pathname.startsWith('/?') && shouldCheckSession) {
         window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
-          detail: { message: "登录已过期，请重新登录" }
+          detail: { message: t('auth.sessionExpired') }
         }));
         setShouldCheckSession(false); // 触发过期事件后禁用会话检查
       }
     }
-  }, [user, isLoading, pathname, shouldCheckSession]);
+  }, [user, isLoading, pathname, shouldCheckSession, t]);
 
   // 会话有效性检查，确保本地存储的会话不是过期的
   useEffect(() => {
@@ -112,7 +114,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
           if (!session) {
             // 触发会话过期事件
             window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
-              detail: { message: "登录已过期，请重新登录" }
+              detail: { message: t('auth.sessionExpired') }
             }));
             setShouldCheckSession(false); // 会话失效时禁用会话检查
           }
@@ -132,7 +134,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
 
       return () => clearTimeout(timeoutId);
     }
-  }, [user, isLoading, isCheckingSession, shouldCheckSession]);
+  }, [user, isLoading, isCheckingSession, shouldCheckSession, t]);
 
   const openLoginModal = () => {
     setIsRegisterModalOpen(false)
@@ -159,7 +161,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
       // 首先检查认证服务可用性
       const isAuthServiceAvailable = await authService.checkAuthServiceAvailable()
       if (!isAuthServiceAvailable) {
-        const error = new Error("认证服务当前不可用，请稍后重试")
+        const error = new Error(t('auth.authServiceUnavailable'))
         ;(error as any).code = STATUS_CODES.AUTH_SERVICE_UNAVAILABLE
         throw error
       }
@@ -186,7 +188,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
         setTimeout(() => {
           configService.loadConfigToFrontend()
           closeLoginModal()
-          message.success("登录成功，欢迎回来！")
+          message.success(t('auth.loginSuccess'))
           // 主动触发 storage 事件
           window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: localStorage.getItem("session") }))
           
@@ -211,7 +213,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
       // 首先检查认证服务可用性
       const isAuthServiceAvailable = await authService.checkAuthServiceAvailable()
       if (!isAuthServiceAvailable) {
-        const error = new Error("认证服务当前不可用，请稍后重试")
+        const error = new Error(t('auth.authServiceUnavailable'))
         ;(error as any).code = STATUS_CODES.AUTH_SERVICE_UNAVAILABLE
         throw error
       }
@@ -236,14 +238,14 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
           setUser(safeUser)
           configService.loadConfigToFrontend()
           closeRegisterModal()
-          message.success("注册成功，已为您自动登录")
+          message.success(t('auth.registerSuccessAutoLogin'))
           // 主动触发 storage 事件
           window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: localStorage.getItem("session") }))
         } else {
           // 注册成功但需要手动登录
           closeRegisterModal()
           openLoginModal()
-          message.success("注册成功，请登录")
+          message.success(t('auth.registerSuccessManualLogin'))
         }
       }
     } catch (error: any) {
@@ -259,12 +261,12 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
       await authService.signOut()
       setUser(null)
       setShouldCheckSession(false) // 登出时禁用会话检查
-      message.success("您已成功退出登录")
+      message.success(t('auth.logoutSuccess'))
       // 主动触发 storage 事件
       window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: null }))
     } catch (error: any) {
       console.error("退出登录失败:", error.message)
-      message.error("退出失败，请重试")
+      message.error(t('auth.logoutFailed'))
     } finally {
       setIsLoading(false)
     }

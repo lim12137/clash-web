@@ -282,6 +282,7 @@
     "agent.info.description": "Description",
     "agent.info.description.placeholder": "Please enter agent description, this description is used to introduce the current agent's capabilities to the main agent",
     "agent.info.description.error.empty": "Description cannot be empty",
+    "agent.info.description.error.format": "Description cannot exceed 200 characters",
     "agent.info.provideSummary": "Provide Execution Summary",
     "agent.info.provideSummary.yes": "Yes",
     "agent.info.provideSummary.no": "No",
@@ -786,6 +787,7 @@
           "loginTitle": "Login",
           "emailLabel": "Email Address",
           "emailRequired": "Please enter your email address",
+          "emailPlaceholder": "your@email.com",
           "passwordLabel": "Password",
           "passwordRequired": "Please enter your password",
           "authServiceUnavailable": "Authentication service is currently unavailable, please try again later",
@@ -803,6 +805,13 @@
           "confirmPasswordRequired": "Please confirm your password",
           "registering": "Registering...",
           "hasAccount": "Already have an account?",
-          "loginNow": "Login now"
-      }
+          "loginNow": "Login now",
+          "loginSuccess": "Login successful, welcome back!",
+          "registerSuccessAutoLogin": "Registration successful, you have been automatically logged in",
+          "registerSuccessManualLogin": "Registration successful, please log in",
+          "logoutSuccess": "You have successfully logged out",
+          "logoutFailed": "Logout failed, please try again"
+      },
+    "role_admin": "Admin",
+    "role_user": "User"
 }
