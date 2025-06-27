@@ -21,7 +21,7 @@ import { StaticScrollArea } from "@/components/ui/scrollArea"
 import { useConfig } from "@/hooks/useConfig"
 import { useResponsiveTextSize } from "@/hooks/useResponsiveTextSize"
 import { Spin, Tag, ConfigProvider } from "antd"
-import { getRoleColor, getRoleText } from "@/lib/auth"
+import { getRoleColor } from "@/lib/auth"
 import { useAuth } from "@/hooks/useAuth"
 import { extractColorsFromUri } from "@/lib/avatar"
 import { useTranslation } from "react-i18next"
@@ -38,6 +38,9 @@ interface ChatSidebarProps {
   onDropdownOpenChange: (open: boolean, id: string | null) => void
   onToggleSidebar: () => void
   expanded: boolean
+  userEmail: string;
+  userAvatarUrl: string;
+  userRole: string;
 }
 
 // Helper function - dialog classification
@@ -453,7 +456,7 @@ export function ChatSidebar({
                   <Spin size="default" />
                 </div>
                 <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                  加载中...
+                  {t('common.loading')}
                 </span>
               </div>
             ) : (
@@ -485,7 +488,7 @@ export function ChatSidebar({
                     </TooltipProvider>
                     {userRole && (
                       <Tag color={getRoleColor(userRole)} className="mt-1 cursor-auto w-fit">
-                        {getRoleText(userRole)}
+                        {t(userRole === 'admin' ? 'role_admin' : 'role_user')}
                       </Tag>
                     )}
                   </div>

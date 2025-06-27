@@ -18,17 +18,6 @@ export function getRoleColor(role: string): string {
   }
 }
 
-// 获取用户角色对应的文本
-export function getRoleText(role: string): string {
-  switch (role) {
-    case "admin":
-      return "管理员"
-    case "user":
-    default:
-      return "普通用户"
-  }
-}
-
 // 根据邮箱生成头像
 export function generateAvatarUrl(email: string): string {
     // 使用本地dicebear包生成头像

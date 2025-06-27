@@ -250,6 +250,7 @@
     "agent.info.description": "描述",
     "agent.info.description.placeholder": "请输入Agent描述，此描述用于向主Agent介绍当前Agent的能力",
     "agent.info.description.error.empty": "描述不能为空",
+    "agent.info.description.error.format": "描述不能超过200个字符",
     "agent.info.provideSummary": "提供运行摘要",
     "agent.info.provideSummary.yes": "是",
     "agent.info.provideSummary.no": "否",
@@ -320,7 +321,7 @@
     "agent.debug.title": "Agent调试",
     "common.model": "模型",
     "common.maxSteps": "最大步骤数",
-    "common.loading": "加载中",
+    "common.loading": "加载中...",
     "common.saving": "保存中...",
     "common.save": "保存",
     "common.cancel": "取消",
@@ -787,6 +788,7 @@
           "emailRequired": "请输入邮箱地址",
           "passwordLabel": "密码",
           "passwordRequired": "请输入密码",
+          "emailPlaceholder": "your@email.com",
           "authServiceUnavailable": "认证服务当前不可用，请稍后重试",
           "invalidCredentials": "账号或密码错误，请重新输入",
           "loggingIn": "登录中...",
@@ -802,6 +804,13 @@
           "confirmPasswordRequired": "请确认密码",
           "registering": "注册中...",
           "hasAccount": "已有账号？",
-          "loginNow": "立即登录"
-      }
+          "loginNow": "立即登录",
+          "loginSuccess": "登录成功，欢迎回来！",
+          "registerSuccessAutoLogin": "注册成功，已为您自动登录",
+          "registerSuccessManualLogin": "注册成功，请登录",
+          "logoutSuccess": "您已成功退出登录",
+          "logoutFailed": "退出失败，请重试"
+      },
+    "role_admin": "管理员",
+    "role_user": "普通用户"
 }

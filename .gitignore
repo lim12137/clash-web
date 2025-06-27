@@ -16,12 +16,12 @@ docker/minio
 docker/postgresql
 docker/redis_data
 docker/uploads
+docker/volumes/db/data
 docker/.env
 
 frontend_standalone/
 
 backend/assets/clip-vit-base-patch32
-docker/volumes/db/data
 model-assets
 
 # Test coverage reports
