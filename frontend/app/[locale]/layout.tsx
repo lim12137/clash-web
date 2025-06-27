@@ -15,15 +15,18 @@ export async function generateMetadata({
 }: {
   params: { locale: string };
 }): Promise<Metadata> {
-  const filePath = path.join(process.cwd(), 'public', 'locales', locale, 'common.json');
-  const messages = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  let messages: any = {}
+  if (['zh', 'en'].includes(locale)) {
+    const filePath = path.join(process.cwd(), 'public', 'locales', locale, 'common.json');
+    messages = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  }
 
   return {
     title: {
-      default: messages.layout.title,
-      template: messages.layout.titleTemplate,
+      default: messages.layout?.title,
+      template: messages.layout?.titleTemplate,
     },
-    description: messages.layout.description,
+    description: messages.layout?.description,
     icons: {
       icon: '/modelengine-logo.png',
       shortcut: '/favicon.ico',
