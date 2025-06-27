@@ -145,8 +145,10 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   useEffect(() => {
     // 在组件加载时先从后端加载配置，然后再加载模型列表
     const fetchData = async () => {
-      await configService.loadConfigToFrontend();
+      const loadConfigResult = await configService.loadConfigToFrontend();
+      
       await configStore.reloadFromStorage();
+      
       await loadModelLists(true);
     };
 
