@@ -456,7 +456,7 @@ export function ChatSidebar({
                   <Spin size="default" />
                 </div>
                 <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                  加载中...
+                  {t('common.loading')}
                 </span>
               </div>
             ) : (

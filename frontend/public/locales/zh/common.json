@@ -321,7 +321,7 @@
     "agent.debug.title": "Agent调试",
     "common.model": "模型",
     "common.maxSteps": "最大步骤数",
-    "common.loading": "加载中",
+    "common.loading": "加载中...",
     "common.saving": "保存中...",
     "common.save": "保存",
     "common.cancel": "取消",
