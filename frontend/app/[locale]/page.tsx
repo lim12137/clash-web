@@ -1,5 +1,5 @@
 "use client"
-import "./i18n"
+
 import { useState, useEffect } from "react"
 import { useTranslation } from 'react-i18next'
 import { Bot, Globe, Database, Zap, Mic, FileSearch, Shield, MessagesSquare, Microchip } from "lucide-react"
