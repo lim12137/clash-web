@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ERROR_OCCURRED=0
 
 source .env
@@ -112,7 +114,7 @@ add_permission() {
 
 install() {
   cd "$root_path"
-  echo "👀  Starting infrastructure services..."
+#  echo "👀  Starting infrastructure services..."
   # Start infrastructure services
   docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d --remove-orphans nexent-elasticsearch nexent-postgresql nexent-minio redis
   docker-compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d
@@ -226,7 +228,7 @@ install
 clean
 
 echo "Creating admin user..."
-docker exec -d nexent bash -c 'curl -X POST http://kong:8000/auth/v1/admin/users -H "apikey: ${SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" -H "Content-Type: application/json" -d "{\"email\":\"admin@example.com\",\"password\": \"123123\",\"role\": \"admin\",\"email_confirm\":true}"'
+docker exec -d nexent bash -c "curl -X POST http://kong:8000/auth/v1/admin/users -H \"apikey: ${SERVICE_ROLE_KEY}\" -H \"Authorization: Bearer ${SERVICE_ROLE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"admin@example.com\",\"password\": \"123123\",\"role\": \"admin\",\"email_confirm\":true}'"
 
 if [ "$ERROR_OCCURRED" -eq 1 ]; then
   echo "❌ Deployment did not complete successfully. Please review the logs and have a try again."

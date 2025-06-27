@@ -1,4 +1,4 @@
-FROM nexent/nexent-base
+FROM nexent/nexent-base-commercial
 LABEL authors="nexent"
 
 # Set correct permissions as root
