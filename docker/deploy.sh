@@ -109,12 +109,12 @@ add_permission() {
   create_dir_with_permission "$ROOT_DIR/postgresql" 777
   create_dir_with_permission "$ROOT_DIR/minio" 777
   create_dir_with_permission "$ROOT_DIR/uploads" 777
-  cp -ra volumes $ROOT_DIR
+  cp -ran volumes $ROOT_DIR
 }
 
 install() {
   cd "$root_path"
-#  echo "👀  Starting infrastructure services..."
+  #  echo "👀  Starting infrastructure services..."
   # Start infrastructure services
   docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d --remove-orphans nexent-elasticsearch nexent-postgresql nexent-minio redis
   docker-compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d
