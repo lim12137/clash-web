@@ -732,5 +732,9 @@
     "businessLogic.config.message.agentDeleteSuccess": "Agent删除成功",
     "businessLogic.config.message.agentDeleteFailed": "Agent删除失败",
     "businessLogic.config.message.agentDeleteRetry": "Agent删除失败，请稍后重试",
-    "businessLogic.config.message.agentDeleteConfirm": "确定要删除这个Agent吗？此操作不可恢复。"
+    "businessLogic.config.message.agentDeleteConfirm": "确定要删除这个Agent吗？此操作不可恢复。",
+    "model.validation.MODEL_VALIDATION_SUCCESS": "模型连通性验证成功",
+    "model.validation.MODEL_VALIDATION_FAILED": "模型连通性验证失败",
+    "model.validation.MODEL_VALIDATION_ERROR": "模型验证错误",
+    "model.validation.MODEL_VALIDATION_ERROR_UNKNOWN": "模型验证过程中出现未知错误"
 }
