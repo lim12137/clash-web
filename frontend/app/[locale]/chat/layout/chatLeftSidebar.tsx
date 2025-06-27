@@ -221,13 +221,22 @@ export function ChatSidebar({
             ) : (
               // Display mode
               <>
-                <Button
-                  variant="ghost"
-                  className="flex-1 justify-start text-left hover:bg-transparent min-w-0"
-                  onClick={() => onDialogClick(dialog)}
-                >
-                  <span className="truncate block text-base font-normal text-gray-800 tracking-wide font-sans">{dialog.conversation_title}</span>
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="flex-1 justify-start text-left hover:bg-transparent min-w-0 max-w-[250px]"
+                        onClick={() => onDialogClick(dialog)}
+                      >
+                        <span className="truncate block text-base font-normal text-gray-800 tracking-wide font-sans">{dialog.conversation_title}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <p className="break-words">{dialog.conversation_title}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 
                 <DropdownMenu 
                   open={openDropdownId === dialog.conversation_id.toString()} 
@@ -237,7 +246,7 @@ export function ChatSidebar({
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-slate-100 hover:border hover:border-slate-200 mr-1"
+                      className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-slate-100 hover:border hover:border-slate-200 mr-1 focus:outline-none focus:ring-0"
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
