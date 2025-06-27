@@ -17,7 +17,7 @@ export default function I18nProviderWrapper({
     setMounted(true)
   }, [])
 
-  // 根据 URL 同步 i18n 语言
+  // Synchronize i18n language according to the URL
   useEffect(() => {
     if (!mounted) return;
     
