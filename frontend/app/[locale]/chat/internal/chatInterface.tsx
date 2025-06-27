@@ -719,7 +719,7 @@ export function ChatInterface() {
               const formattedUserMsg: ChatMessageType = extractUserMsgFromResponse(dialog_msg, index, conversationData.create_time)
               formattedMessages.push(formattedUserMsg);
             } else if (dialog_msg.role === "assistant") {
-              const formattedAssistantMsg: ChatMessageType = extractAssistantMsgFromResponse(dialog_msg, index, conversationData.create_time)
+              const formattedAssistantMsg: ChatMessageType = extractAssistantMsgFromResponse(dialog_msg, index, conversationData.create_time, t)
               formattedMessages.push(formattedAssistantMsg);
             }
           });
