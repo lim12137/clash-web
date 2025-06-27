@@ -269,7 +269,7 @@ def query_tool_instances_by_id(agent_id: int, tool_id: int, tenant_id: str, user
             ToolInstance.tool_id == tool_id,
             ToolInstance.delete_flag != 'Y')
         if user_id:
-            query = query = query.filter(or_(ToolInstance.user_id == user_id, ToolInstance.user_id == DEFAULT_USER_ID))
+            query = query.filter(or_(ToolInstance.user_id == user_id, ToolInstance.user_id == DEFAULT_USER_ID))
         tool_instance = query.first()
         if tool_instance:
             return as_dict(tool_instance)

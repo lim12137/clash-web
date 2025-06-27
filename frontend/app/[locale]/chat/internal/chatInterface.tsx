@@ -297,7 +297,7 @@ export function ChatInterface() {
       if (!currentConversationId || currentConversationId === -1) {
         // If no session ID or ID is -1, create new conversation first
         try {
-          const createData = await conversationService.create();
+          const createData = await conversationService.create(t("chatInterface.newConversation"));
           currentConversationId = createData.conversation_id;
 
           // Update current session state
