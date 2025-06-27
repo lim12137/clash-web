@@ -207,13 +207,22 @@ export function ChatSidebar({
             ) : (
               // Display mode
               <>
-                <Button
-                  variant="ghost"
-                  className="flex-1 justify-start text-left hover:bg-transparent min-w-0"
-                  onClick={() => onDialogClick(dialog)}
-                >
-                  <span className="truncate block text-base font-normal text-gray-800 tracking-wide font-sans">{dialog.conversation_title}</span>
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="flex-1 justify-start text-left hover:bg-transparent min-w-0 max-w-[250px]"
+                        onClick={() => onDialogClick(dialog)}
+                      >
+                        <span className="truncate block text-base font-normal text-gray-800 tracking-wide font-sans">{dialog.conversation_title}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <p className="break-words">{dialog.conversation_title}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 
                 <DropdownMenu 
                   open={openDropdownId === dialog.conversation_id.toString()} 
