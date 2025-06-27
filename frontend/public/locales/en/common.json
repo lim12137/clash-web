@@ -197,7 +197,9 @@
         "collapseImages": "Collapse Images",
         "expandImages": "View all {{count}} images",
         "noImages": "No images",
-        "noAssociatedImages": "This message has no associated images"
+        "noAssociatedImages": "This message has no associated images",
+        "sources": "Sources",
+        "images": "Images"
     },
     "chatStreamFinalMessage": {
         "copyFailed": "Copy failed:",
