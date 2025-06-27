@@ -40,7 +40,6 @@ select_deployment_mode() {
             fi
             ;;
     esac
-    source .env
 }
 
 generate_minio_ak_sk() {
@@ -109,14 +108,14 @@ add_permission() {
   create_dir_with_permission "$ROOT_DIR/postgresql" 777
   create_dir_with_permission "$ROOT_DIR/minio" 777
   create_dir_with_permission "$ROOT_DIR/uploads" 777
+
   cp -ran volumes $ROOT_DIR
 }
 
 install() {
-  cd "$root_path"
   #  echo "👀  Starting infrastructure services..."
   # Start infrastructure services
-  docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d --remove-orphans nexent-elasticsearch nexent-postgresql nexent-minio redis
+  docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent-elasticsearch nexent-postgresql nexent-minio redis
   docker-compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d
 
   # Always generate a new ELASTICSEARCH_API_KEY for each deployment.
@@ -149,7 +148,7 @@ install() {
   fi
   # Start core services
   if [ "$DEPLOYMENT_MODE" != "infrastructure" ]; then
-    echo "👀  Starting core services..."
+    echo "Starting core services..."
     docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent nexent-web nexent-data-process
   fi
   echo "Deploying services in ${DEPLOYMENT_MODE} mode..."
