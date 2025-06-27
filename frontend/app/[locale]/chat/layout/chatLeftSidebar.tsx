@@ -232,7 +232,7 @@ export function ChatSidebar({
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-slate-100 hover:border hover:border-slate-200 mr-1"
+                      className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-slate-100 hover:border hover:border-slate-200 mr-1 focus:outline-none focus:ring-0"
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
