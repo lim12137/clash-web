@@ -1,8 +1,7 @@
 import os
 import logging
-from pathlib import Path
 from dotenv import load_dotenv
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 
 # Configure logging
 logger = logging.getLogger("data_process.config")
@@ -11,6 +10,7 @@ class Config:
     """统一的配置管理类，支持环境变量验证和加载"""
     
     def __init__(self):
+        load_dotenv()
         self._validate_required_vars()
         logger.info("配置系统初始化完成")
 
