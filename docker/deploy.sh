@@ -40,6 +40,7 @@ select_deployment_mode() {
             fi
             ;;
     esac
+    source .env
 }
 
 generate_minio_ak_sk() {
@@ -109,11 +110,10 @@ add_permission() {
   create_dir_with_permission "$ROOT_DIR/minio" 777
   create_dir_with_permission "$ROOT_DIR/uploads" 777
 
-  cp -ran volumes $ROOT_DIR
+  cp -rn volumes $ROOT_DIR
 }
 
 install() {
-  #  echo "👀  Starting infrastructure services..."
   # Start infrastructure services
   docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent-elasticsearch nexent-postgresql nexent-minio redis
   docker-compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d
