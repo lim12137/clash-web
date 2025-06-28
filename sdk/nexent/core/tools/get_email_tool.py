@@ -38,36 +38,62 @@ class GetEmailTool(Tool):
         self.timeout = timeout
 
     def _decode_subject(self, subject):
-        """解码邮件主题"""
+        """解码邮件主题，遇到未知编码兜底为utf-8或latin1"""
         if subject is None:
             return ""
         decoded_chunks = []
         for chunk, encoding in decode_header(subject):
             if isinstance(chunk, bytes):
-                decoded_chunks.append(chunk.decode(encoding or 'utf-8', errors='replace'))
+                try:
+                    if encoding:
+                        decoded_chunks.append(chunk.decode(encoding, errors='replace'))
+                    else:
+                        decoded_chunks.append(chunk.decode('utf-8', errors='replace'))
+                except Exception:
+                    try:
+                        decoded_chunks.append(chunk.decode('utf-8', errors='replace'))
+                    except Exception:
+                        decoded_chunks.append(chunk.decode('latin1', errors='replace'))
             else:
                 decoded_chunks.append(str(chunk))
         return ''.join(decoded_chunks)
 
     def _parse_email(self, msg):
-        """解析邮件内容"""
+        """解析邮件内容，正文解码兜底为utf-8或latin1"""
         email_data = {"subject": self._decode_subject(msg["subject"]), "from": msg["from"], "date": msg["date"],
             "body": "", "attachments": []}
+
+        def safe_decode(payload, encoding=None):
+            if payload is None:
+                return ""
+            if encoding is None:
+                encoding = 'utf-8'
+            try:
+                return payload.decode(encoding, errors='replace')
+            except Exception:
+                try:
+                    return payload.decode('utf-8', errors='replace')
+                except Exception:
+                    return payload.decode('latin1', errors='replace')
 
         if msg.is_multipart():
             for part in msg.walk():
                 content_type = part.get_content_type()
                 if content_type == "text/plain":
                     try:
-                        email_data["body"] = part.get_payload(decode=True).decode()
-                    except:
+                        payload = part.get_payload(decode=True)
+                        encoding = part.get_content_charset()
+                        email_data["body"] = safe_decode(payload, encoding)
+                    except Exception:
                         email_data["body"] = part.get_payload()
                 elif part.get_filename():
                     email_data["attachments"].append(part.get_filename())
         else:
             try:
-                email_data["body"] = msg.get_payload(decode=True).decode()
-            except:
+                payload = msg.get_payload(decode=True)
+                encoding = msg.get_content_charset()
+                email_data["body"] = safe_decode(payload, encoding)
+            except Exception:
                 email_data["body"] = msg.get_payload()
 
         return email_data
@@ -108,7 +134,6 @@ class GetEmailTool(Tool):
                 # 创建JSON格式的邮件内容
                 email_json = {"subject": parsed_email['subject'], "date": parsed_email['date'],
                     "from": parsed_email['from'], "body": parsed_email['body']}
-                print(email_json)
 
                 formatted_emails.append(json.dumps(email_json, ensure_ascii=False))
 
