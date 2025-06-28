@@ -393,7 +393,7 @@ export function ChatRightPanel({
         <Tabs defaultValue="sources" style={{maxWidth: '400px', overflow: 'hidden'}}>
           <TabsList className="w-full" style={{maxWidth: '400px'}}>
             <TabsTrigger value="sources" className="flex-1">
-            来源 
+             {t('chatRightPanel.sources')}
             {searchResults.length > 0 && (
               <span className="ml-1 bg-gray-200 inline-flex items-center justify-center rounded px-1 text-xs font-medium min-w-[20px] h-[18px]">
                 {searchResults.length}
@@ -401,7 +401,7 @@ export function ChatRightPanel({
             )}
           </TabsTrigger>
           <TabsTrigger value="images" className="flex-1">
-            图片
+            {t('chatRightPanel.images')}
             {processedImages.length > 0 && (
               <span className="ml-1 bg-gray-200 inline-flex items-center justify-center rounded px-1 text-xs font-medium min-w-[20px] h-[18px]">
                 {processedImages.length}

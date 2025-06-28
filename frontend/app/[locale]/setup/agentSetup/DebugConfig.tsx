@@ -331,7 +331,8 @@ export default function DebugConfig({
         async () => {}, // fetchConversationList - Debug mode does not need
         -1, // currentConversationId - Debug mode uses -1
         conversationService,
-        true // isDebug: true for debug mode
+        true, // isDebug: true for debug mode
+        t
       );
 
       // Update final answer
