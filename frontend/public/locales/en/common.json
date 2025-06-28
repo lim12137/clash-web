@@ -197,7 +197,9 @@
         "collapseImages": "Collapse Images",
         "expandImages": "View all {{count}} images",
         "noImages": "No images",
-        "noAssociatedImages": "This message has no associated images"
+        "noAssociatedImages": "This message has no associated images",
+        "sources": "Sources",
+        "images": "Images"
     },
     "chatStreamFinalMessage": {
         "copyFailed": "Copy failed:",
@@ -478,8 +480,8 @@
     "knowledgeBase.error.saveSelected": "Failed to save selected knowledge bases",
     "knowledgeBase.error.saveSelectedRetry": "Failed to save selected knowledge bases, please try again later",
     "knowledgeBase.list.title": "Knowledge Base List",
-    "knowledgeBase.button.create": "Create Knowledge Base",
-    "knowledgeBase.button.sync": "Sync Knowledge Base",
+    "knowledgeBase.button.create": "Create",
+    "knowledgeBase.button.sync": "Sync",
     "knowledgeBase.selected.prefix": "Selected",
     "knowledgeBase.selected.suffix": "knowledge bases for retrieval",
     "knowledgeBase.button.removeKb": "Remove knowledge base {{name}}",
@@ -733,5 +735,9 @@
     "businessLogic.config.message.agentDeleteSuccess": "Agent delete success",
     "businessLogic.config.message.agentDeleteFailed": "Agent delete failed",
     "businessLogic.config.message.agentDeleteRetry": "Agent delete failed, please try again later",
-    "businessLogic.config.message.agentDeleteConfirm": "Are you sure you want to delete this agent? This action cannot be undone."
+    "businessLogic.config.message.agentDeleteConfirm": "Are you sure you want to delete this agent? This action cannot be undone.",
+    "model.validation.MODEL_VALIDATION_SUCCESS": "Model connectivity validation successful",
+    "model.validation.MODEL_VALIDATION_FAILED": "Model connectivity validation failed",
+    "model.validation.MODEL_VALIDATION_ERROR": "Model validation error",
+    "model.validation.MODEL_VALIDATION_ERROR_UNKNOWN": "Unknown error during model validation"
 }

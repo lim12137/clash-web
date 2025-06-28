@@ -128,14 +128,14 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 
 # 🐛 Known Issues
 
-1. 🔄 **Knowledge Base Refresh Delays**  
-   We are aware that the knowledge base refresh mechanism currently has some delays. We plan to refactor this part soon, but please note that this is only a task management logic issue - the actual data processing speed is not affected.
-
-2. 🤖 **Limited Model Provider Support**  
-   We currently have limited support for different model providers, including voice and multimodal models. We will be rapidly updating this support in the coming weeks - stay tuned for updates!
-
-3. 📦 **Large Docker Image Size**  
+1. 📦 **Large Docker Image Size**  
    We are aware that our current Docker image is quite large (around 10GB) as it includes a powerful, extensible data processing engine, algorithms, and models. We will soon release a Lite version to reduce the image size and make deployment faster and lighter.
+
+2. ⚙️ **MCP Service Configuration Not Yet in UI**  
+   We know that currently, MCP service configuration cannot be completed through the UI. We are working to add this capability soon.
+
+3. 📝 **Code Output May Be Misinterpreted as Executable**  
+   In Nexent conversations, if the model outputs code-like text, it may sometimes be misinterpreted as something that should be executed. We will fix this as soon as possible.
 
 # 👥 Contributing
 

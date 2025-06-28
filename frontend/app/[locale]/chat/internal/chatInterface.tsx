@@ -97,12 +97,12 @@ export function ChatInterface() {
 
   // Handle file upload
   const handleFileUpload = (file: File) => {
-    return preProcessHandleFileUpload(file, setFileUrls);
+    return preProcessHandleFileUpload(file, setFileUrls, t);
   };
 
   // Handle image upload
   const handleImageUpload = (file: File) => {
-    preProcessHandleImageUpload(file);
+    preProcessHandleImageUpload(file, t);
   };
   
   // Add attachment management function
@@ -195,7 +195,7 @@ export function ChatInterface() {
       setIsLoading(true);
       
       // Use preprocessing function to upload attachments
-      const uploadResult = await uploadAttachments(attachments);
+      const uploadResult = await uploadAttachments(attachments, t);
       uploadedFileUrls = uploadResult.uploadedFileUrls;
       objectNames = uploadResult.objectNames; // Get object name mapping
       uploadError = uploadResult.error;
@@ -297,7 +297,7 @@ export function ChatInterface() {
       if (!currentConversationId || currentConversationId === -1) {
         // If no session ID or ID is -1, create new conversation first
         try {
-          const createData = await conversationService.create();
+          const createData = await conversationService.create(t("chatInterface.newConversation"));
           currentConversationId = createData.conversation_id;
 
           // Update current session state
@@ -420,7 +420,8 @@ export function ChatInterface() {
               }
               return newMessages;
             });
-          }
+          },
+          t
         );
 
         // Handle preprocessing result
@@ -719,7 +720,7 @@ export function ChatInterface() {
               const formattedUserMsg: ChatMessageType = extractUserMsgFromResponse(dialog_msg, index, conversationData.create_time)
               formattedMessages.push(formattedUserMsg);
             } else if (dialog_msg.role === "assistant") {
-              const formattedAssistantMsg: ChatMessageType = extractAssistantMsgFromResponse(dialog_msg, index, conversationData.create_time)
+              const formattedAssistantMsg: ChatMessageType = extractAssistantMsgFromResponse(dialog_msg, index, conversationData.create_time, t)
               formattedMessages.push(formattedAssistantMsg);
             }
           });

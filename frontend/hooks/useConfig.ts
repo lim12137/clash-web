@@ -10,6 +10,19 @@ const configStore = ConfigStore.getInstance();
 export function useConfig() {
   const [config, setConfig] = useState<GlobalConfig>(configStore.getConfig);
 
+  // 监听配置变化事件
+  useEffect(() => {
+    const handleConfigChanged = () => {
+      const newConfig = configStore.getConfig();
+      setConfig(newConfig);
+    };
+
+    window.addEventListener('configChanged', handleConfigChanged);
+    return () => {
+      window.removeEventListener('configChanged', handleConfigChanged);
+    };
+  }, []);
+
   // Update app configuration
   const updateAppConfig = useCallback((partial: Partial<AppConfig>) => {
     configStore.updateAppConfig(partial);
