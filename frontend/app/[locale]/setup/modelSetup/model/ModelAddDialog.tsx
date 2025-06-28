@@ -123,15 +123,22 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
 
       const result = await modelService.verifyModelConfigConnectivity(config)
       
+      // Set connectivity status
       setConnectivityStatus({
         status: result.connectivity ? "available" : "unavailable",
-        message: result.message
+        // Use translated error code if available
+        message: result.error_code ? t(`model.validation.${result.error_code}`) : result.message
       })
 
+      // Display appropriate message based on result
       if (result.connectivity) {
         message.success(t('model.dialog.success.connectivityVerified'))
       } else {
-        message.error(t('model.dialog.error.connectivityFailed', { message: result.message }))
+        message.error(
+          result.error_code 
+            ? t(`model.validation.${result.error_code}`)
+            : t('model.dialog.error.connectivityFailed', { message: result.message })
+        )
       }
     } catch (error) {
       setConnectivityStatus({
