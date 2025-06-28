@@ -47,17 +47,8 @@ function FrontpageContent() {
   const [loginPromptOpen, setLoginPromptOpen] = useState(false)
   const [adminRequiredPromptOpen, setAdminRequiredPromptOpen] = useState(false)
 
-  useEffect(() => {
-    const segments = pathname.split('/').filter(Boolean);
-    const urlLocale = segments[0];
-    if ((urlLocale === 'en' || urlLocale === 'zh') && i18n.language !== urlLocale) {
-      i18n.changeLanguage(urlLocale);
-    }
-  }, [pathname, i18n]);
-
   // Language switch handler for dropdown
   const handleLangChange = (newLang: string) => {
-    i18n.changeLanguage(newLang);
     setLang(newLang);
     document.cookie = `NEXT_LOCALE=${newLang}; path=/; max-age=31536000`;
     // Compute new path: replace the first segment (locale) with newLang
@@ -69,6 +60,9 @@ function FrontpageContent() {
     }
     const newPath = '/' + segments.join('/');
     router.push(newPath);
+
+    // Force a full page reload to ensure the middleware can obtain the latest language setting.
+    window.location.href = '/'; 
   };
 
   // 处理需要登录的操作

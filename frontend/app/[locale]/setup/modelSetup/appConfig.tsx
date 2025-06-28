@@ -54,6 +54,37 @@ export const AppConfigSection: React.FC = () => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // 添加配置变化监听，当配置从后端加载后同步更新本地状态
+  useEffect(() => {
+    const handleConfigChanged = (event: any) => {
+      const { config } = event.detail;
+      if (config?.app) {
+        setLocalAppName(config.app.appName || "");
+        setLocalAppDescription(config.app.appDescription || "");
+        setAvatarType(config.app.iconType || "preset");
+        setCustomAvatarUrl(config.app.customIconUrl || null);
+        
+        // 重置错误状态
+        if (config.app.appName && config.app.appName.trim()) {
+          setAppNameError(false);
+        }
+      }
+    };
+
+    window.addEventListener('configChanged', handleConfigChanged);
+    return () => {
+      window.removeEventListener('configChanged', handleConfigChanged);
+    };
+  }, []);
+
+  // 监听appConfig变化，同步更新本地状态
+  useEffect(() => {
+    setLocalAppName(appConfig.appName);
+    setLocalAppDescription(appConfig.appDescription);
+    setAvatarType(appConfig.iconType);
+    setCustomAvatarUrl(appConfig.customIconUrl);
+  }, [appConfig.appName, appConfig.appDescription, appConfig.iconType, appConfig.customIconUrl]);
+  
   // 监听高亮缺失字段事件
   useEffect(() => {
     const handleHighlightMissingField = (event: any) => {
