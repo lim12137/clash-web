@@ -843,9 +843,9 @@ export function ChatInput({
               <AiOutlineUpload className="h-5 w-5 text-blue-500" />
             </div>
           </div>
-          <h3 className="text-base font-medium mb-1 text-blue-700">{t("chatInput.dragAndDropImageHere")}</h3>
+          <h3 className="text-base font-medium mb-1 text-blue-700">{t("chatInput.dragAndDropFilesHere")}</h3>
           <p className="text-xs text-blue-600">
-            {t("chatInput.onlyImageFormatSupported")}
+            {t("chatInput.supportedFileFormats")}
           </p>
         </div>
       </div>
@@ -927,7 +927,7 @@ export function ChatInput({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {t("chatInput.uploadImage")}
+              {t("chatInput.uploadFiles")}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -954,8 +954,8 @@ export function ChatInput({
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             size="icon"
-            className={`h-10 w-10 ${hasNonImageAttachment ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-full flex items-center justify-center`}
-            title={hasNonImageAttachment ? t("chatInput.unsupportedFileTypeOnlyImages") : t("chatInput.send")}
+            className={`h-10 w-10 ${hasUnsupportedFiles ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-full flex items-center justify-center`}
+            title={hasUnsupportedFiles ? t("chatInput.unsupportedFileTypeSimple") : t("chatInput.send")}
           >
             <svg width="14" height="16" viewBox="0 0 14 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" clipRule="evenodd" d="M7 16c-.595 0-1.077-.462-1.077-1.032V1.032C5.923.462 6.405 0 7 0s1.077.462 1.077 1.032v13.936C8.077 15.538 7.595 16 7 16z" fill="currentColor"></path><path fillRule="evenodd" clipRule="evenodd" d="M.315 7.44a1.002 1.002 0 0 1 0-1.46L6.238.302a1.11 1.11 0 0 1 1.523 0c.421.403.421 1.057 0 1.46L1.838 7.44a1.11 1.11 0 0 1-1.523 0z" fill="currentColor"></path><path fillRule="evenodd" clipRule="evenodd" d="M13.685 7.44a1.11 1.11 0 0 1-1.523 0L6.238 1.762a1.002 1.002 0 0 1 0-1.46 1.11 1.11 0 0 1 1.523 0l5.924 5.678c.42.403.42 1.056 0 1.46z" fill="currentColor"></path></svg>
           </Button>
@@ -987,6 +987,23 @@ export function ChatInput({
     }
     onSend();
   };
+
+  // Check if there are any unsupported file types
+  const hasUnsupportedFiles = attachments.some(attachment => {
+    const extension = getFileExtension(attachment.file.name);
+    const fileType = attachment.file.type;
+    
+    const isImage = fileType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension);
+    const isDocument = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension) ||
+                      fileType === 'application/pdf' ||
+                      fileType.includes('officedocument');
+    const isTextFile = ['txt', 'md', 'csv', 'json', 'html', 'htm', 'css', 'js', 'ts', 'jsx', 'tsx', 'php', 'py', 'java', 'c', 'cpp', 'cs'].includes(extension) ||
+                      fileType.startsWith('text/') ||
+                      fileType === 'application/json';
+    const isArchive = ['zip', 'rar', '7z', 'tar', 'gz'].includes(extension);
+    
+    return !(isImage || isDocument || isTextFile || isArchive);
+  });
 
   // Regular mode, keep the original rendering logic
   return (
