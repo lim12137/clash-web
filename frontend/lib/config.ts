@@ -183,13 +183,19 @@ class ConfigStoreClass {
     // 适配 app 字段
     const app = backendConfig.app
       ? {
-          appName: backendConfig.app.name,
-          appDescription: backendConfig.app.description,
-          iconType: backendConfig.app.icon?.type,
-          customIconUrl: backendConfig.app.icon?.customUrl,
+          appName: backendConfig.app.name || "",
+          appDescription: backendConfig.app.description || "",
+          iconType: (backendConfig.app.icon?.type as "preset" | "custom") || "preset",
+          customIconUrl: backendConfig.app.icon?.customUrl || null,
           avatarUri: backendConfig.app.icon?.avatarUri || null
         }
-      : undefined;
+      : {
+          appName: "",
+          appDescription: "",
+          iconType: "preset" as "preset" | "custom",
+          customIconUrl: null,
+          avatarUri: null
+        };
 
     // 适配 models 字段
     const models = backendConfig.models ? {
