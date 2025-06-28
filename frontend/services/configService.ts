@@ -46,8 +46,19 @@ export class ConfigService {
         const frontendConfig = ConfigStore.transformBackend2Frontend(config);
 
         // Write to localStorage separately
-        if (frontendConfig.app) localStorage.setItem('app', JSON.stringify(frontendConfig.app));
-        if (frontendConfig.models) localStorage.setItem('model', JSON.stringify(frontendConfig.models));
+        if (frontendConfig.app) {
+          localStorage.setItem('app', JSON.stringify(frontendConfig.app));
+        }
+        if (frontendConfig.models) {
+          localStorage.setItem('model', JSON.stringify(frontendConfig.models));
+        }
+        
+        // 触发配置重新加载并派发事件
+        if (typeof window !== 'undefined') {
+          const configStore = ConfigStore.getInstance();
+          configStore.reloadFromStorage();
+        }
+        
         return true;
       }
       return false;
