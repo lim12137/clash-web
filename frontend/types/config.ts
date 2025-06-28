@@ -146,4 +146,14 @@ export interface ModelConfig {
 export interface GlobalConfig {
   app: AppConfig
   models: ModelConfig
+}
+
+// Add the type for model validation response with error_code
+export interface ModelValidationResponse {
+  connectivity: boolean;
+  message?: string;
+  error_code?: string;
+  error_details?: string;
+  model_name?: string;
+  connect_status: string;
 } 

@@ -1,6 +1,6 @@
 {
     "assistant": {
-        "name": "Nexent 智能体"
+        "name": "Nexent"
     },
     "layout": {
         "title": "Nexent | 智能问答",
@@ -199,7 +199,9 @@
         "collapseImages": "收起图片",
         "expandImages": "查看全部 {{count}} 张图片",
         "noImages": "暂无图片",
-        "noAssociatedImages": "这条消息没有关联的图片内容"
+        "noAssociatedImages": "这条消息没有关联的图片内容",
+        "sources": "来源",
+        "images": "图片"
     },
     "chatStreamFinalMessage": {
         "copyFailed": "复制失败:",
@@ -737,6 +739,10 @@
     "businessLogic.config.message.agentDeleteFailed": "Agent删除失败",
     "businessLogic.config.message.agentDeleteRetry": "Agent删除失败，请稍后重试",
     "businessLogic.config.message.agentDeleteConfirm": "确定要删除这个Agent吗？此操作不可恢复。",
+    "model.validation.MODEL_VALIDATION_SUCCESS": "模型连通性验证成功",
+    "model.validation.MODEL_VALIDATION_FAILED": "模型连通性验证失败",
+    "model.validation.MODEL_VALIDATION_ERROR": "模型验证错误",
+    "model.validation.MODEL_VALIDATION_ERROR_UNKNOWN": "模型验证过程中出现未知错误",
     "login.expired.title": "登录已过期",
     "login.expired.content": "您的登录信息已过期，请重新登录以继续使用。",
     "login.expired.okText": "立即登录",

@@ -1,14 +1,14 @@
 import json
 import logging
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Request
 from fastapi.responses import JSONResponse
 from typing import Optional
 
 from consts.model import GlobalConfig
 from utils.config_utils import config_manager, get_env_key, safe_value, safe_list, tenant_config_manager, \
     get_model_name_from_config
-from utils.auth_utils import get_current_user_id
+from utils.auth_utils import get_current_user_id, get_current_user_info
 from database.model_management_db import get_model_id_by_display_name
 
 router = APIRouter(prefix="/config")
@@ -133,7 +133,7 @@ async def save_config(config: GlobalConfig, authorization: Optional[str] = Heade
 
 
 @router.get("/load_config")
-async def load_config(authorization: Optional[str] = Header(None)):
+async def load_config(authorization: Optional[str] = Header(None), request: Request = None):
     """
     Load configuration from environment variables
     
@@ -143,7 +143,8 @@ async def load_config(authorization: Optional[str] = Header(None)):
     try:
         # Build configuration object
         # TODO: Clean up the default values
-        user_id, tenant_id = get_current_user_id(authorization)
+        user_id, tenant_id, language = get_current_user_info(authorization, request)
+
         llm_model_name = tenant_config_manager.get_model_config("LLM_ID", tenant_id=tenant_id)
         llm_secondary_model_name = tenant_config_manager.get_model_config("LLM_SECONDARY_ID", tenant_id=tenant_id)
         embedding_model_name = tenant_config_manager.get_model_config("EMBEDDING_ID", tenant_id=tenant_id)
@@ -153,10 +154,12 @@ async def load_config(authorization: Optional[str] = Header(None)):
         stt_model_name = tenant_config_manager.get_model_config("STT_ID", tenant_id=tenant_id)
         tts_model_name = tenant_config_manager.get_model_config("TTS_ID", tenant_id=tenant_id)
 
+        default_app_name = "Nexent 智能体" if language == "zh" else "Nexent Agent"
+        default_app_description = "Nexent 是一个开源智能体SDK和平台，能够将单一提示词转化为完整的多模态服务 —— 无需编排，无需复杂拖拉拽。基于 MCP 工具生态系统构建，Nexent 提供灵活的模型集成、可扩展的数据处理和强大的知识库管理。我们的目标很简单：将数据、模型和工具整合到一个智能中心中，让任何人都能轻松地将 Nexent 集成到项目中，使日常工作流程更智能、更互联。" if language == "zh" else "Nexent is an open-source agent SDK and platform, which can convert a single prompt into a complete multi-modal service - without orchestration, without complex drag-and-drop. Built on the MCP tool ecosystem, Nexent provides flexible model integration, scalable data processing, and powerful knowledge base management. Our goal is simple: to integrate data, models, and tools into a central intelligence hub, allowing anyone to easily integrate Nexent into their projects, making daily workflows smarter and more interconnected."
         config = {
             "app": {
-                "name": tenant_config_manager.get_app_config("APP_NAME", tenant_id=tenant_id) or "Nexent AI Agent",
-                "description": tenant_config_manager.get_app_config("APP_DESCRIPTION", tenant_id=tenant_id) or "Nexent is an open-source AI agent SDK and platform that transforms single prompts into complete multimodal services - no orchestration or complex drag-and-drop required. Built on the MCP tool ecosystem, Nexent provides flexible model integration, scalable data processing, and powerful knowledge base management. Our goal is simple: integrate data, models, and tools into an intelligent hub, making it easy for anyone to integrate Nexent into their projects and make daily workflows smarter and more connected.",
+                "name": tenant_config_manager.get_app_config("APP_NAME", tenant_id=tenant_id) or default_app_name,
+                "description": tenant_config_manager.get_app_config("APP_DESCRIPTION", tenant_id=tenant_id) or default_app_description,
                 "icon": {
                     "type": tenant_config_manager.get_app_config("ICON_TYPE", tenant_id=tenant_id) or "preset",
                     "avatarUri": tenant_config_manager.get_app_config("AVATAR_URI", tenant_id=tenant_id) or "",

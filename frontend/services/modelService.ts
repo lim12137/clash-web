@@ -1,6 +1,6 @@
 "use client"
 
-import { ModelOption, ModelType, ModelConnectStatus } from '../types/config'
+import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse } from '../types/config'
 import { API_ENDPOINTS } from './api'
 import { getAuthHeaders } from '@/lib/auth'
 
@@ -190,7 +190,7 @@ export const modelService = {
     apiKey: string
     maxTokens?: number
     embeddingDim?: number
-  }, signal?: AbortSignal): Promise<{connectivity: boolean; message: string; connect_status: string}> => {
+  }, signal?: AbortSignal): Promise<ModelValidationResponse> => {
     try {
       const response = await fetch(API_ENDPOINTS.model.verifyModelConfig, {
         method: "POST",
@@ -206,15 +206,21 @@ export const modelService = {
         signal
       })
       
-      const result: ApiResponse<{connectivity: boolean; message: string; connect_status: string}> = await response.json()
+      const result: ApiResponse<ModelValidationResponse> = await response.json()
       
       if (result.code === 200 && result.data) {
-        return result.data
+        return {
+          connectivity: result.data.connectivity,
+          message: result.data.message || "",
+          error_code: result.data.error_code,
+          connect_status: result.data.connect_status
+        }
       }
       
       return {
         connectivity: false,
         message: result.message || '验证失败',
+        error_code: "MODEL_VALIDATION_FAILED",
         connect_status: "不可用"
       }
     } catch (error) {
@@ -226,6 +232,7 @@ export const modelService = {
       return {
         connectivity: false,
         message: `验证失败: ${error}`,
+        error_code: "MODEL_VALIDATION_ERROR_UNKNOWN",
         connect_status: "不可用"
       }
     }

@@ -146,8 +146,9 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
         prompt_for_generate = yaml.safe_load(f)
 
     # Get app information from environment variables
-    app_name = tenant_config_manager.get_app_config('APP_NAME', tenant_id=tenant_id) or 'Nexent'
-    app_description = tenant_config_manager.get_app_config('APP_DESCRIPTION', tenant_id=tenant_id) or 'Nexent 是一个开源智能体SDK和平台'
+    default_app_description = 'Nexent 是一个开源智能体SDK和平台' if language == 'zh' else 'Nexent is an open-source agent SDK and platform'
+    app_name = tenant_config_manager.get_app_config('APP_NAME', tenant_id=tenant_id) or "Nexent"
+    app_description = tenant_config_manager.get_app_config('APP_DESCRIPTION', tenant_id=tenant_id) or default_app_description
 
     # Add app information to the template variables
     content = join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description,
