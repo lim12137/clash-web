@@ -442,7 +442,7 @@ CREATE TABLE IF NOT EXISTS nexent.tenant_config_t (
     user_id VARCHAR(100),
     value_type VARCHAR(100),
     config_key VARCHAR(100),
-    config_value VARCHAR(100),
+    config_value VARCHAR(10000),
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
