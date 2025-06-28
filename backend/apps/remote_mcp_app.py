@@ -61,7 +61,7 @@ async def add_remote_proxies(
         logger.error(f"Failed to add remote MCP proxy: {e}")
         return JSONResponse(
             status_code=400,
-            content={"message": f"Failed to add remote MCP proxy: {str(e)}", "status": "error"}
+            content={"message": "Failed to add remote MCP proxy", "status": "error"}
         )
 
 @router.delete("/")
@@ -90,7 +90,7 @@ async def delete_remote_proxies(
         logger.error(f"Failed to delete remote MCP proxy: {e}")
         return JSONResponse(
             status_code=400,
-            content={"message": f"Failed to delete remote MCP proxy: {str(e)}", "status": "error"}
+            content={"message": "Failed to delete remote MCP proxy", "status": "error"}
         )
 
 @router.get("/list")
@@ -134,7 +134,7 @@ async def recover_remote_proxies(
         logger.error(f"Failed to recover remote MCP proxy: {e}")
         return JSONResponse(
             status_code=400,
-            content={"message": f"Failed to recover remote MCP proxy: {str(e)}", "status": "error"}
+            content={"message": "Failed to recover remote MCP proxy", "status": "error"}
         )
 
 @router.get("/update_tool")
