@@ -14,16 +14,14 @@ RUN chown -R notebook-user:notebook-user /opt/sdk
 RUN chown -R notebook-user:notebook-user /opt/models
 RUN chmod +x /opt/backend/data_process_service.py
 
-WORKDIR /opt
-
 USER notebook-user
-RUN pip config --user set global.progress_bar off
-RUN pip install --user --no-cache-dir -r backend/requirements.txt -i https://mirrors.aliyun.com/pypi/simple
-RUN cd /opt/sdk && pip install . -i https://mirrors.aliyun.com/pypi/simple
-RUN pip install --user --no-cache-dir "unstructured[all-docs]" -i https://mirrors.aliyun.com/pypi/simple
+WORKDIR /opt/backend
+RUN uv sync --extra data-process && rm -rf /home/notebook-user/.cache/uv /home/notebook-user/.cache/pip
+
+ENV VIRTUAL_ENV=/opt/backend/.venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+WORKDIR /opt
 
 # Expose the service port
 EXPOSE 5012
-
-# Set the entrypoint
-ENTRYPOINT ["python", "/opt/backend/data_process_service.py"]
