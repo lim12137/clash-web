@@ -4,8 +4,9 @@ from typing import Optional
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Header
 
-from services.tenant_config_service import add_remote_mcp_server_list, delete_remote_mcp_server_list, get_remote_mcp_server_list, recover_remote_mcp_server
-from services.tool_configuration_service import get_tool_from_remote_mcp_server, update_tool_list
+from services.remote_mcp_service import add_remote_mcp_server_list, delete_remote_mcp_server_list, \
+    get_remote_mcp_server_list, recover_remote_mcp_server
+from services.tool_configuration_service import get_tool_from_remote_mcp_server
 from utils.auth_utils import get_current_user_id
 
 router = APIRouter(prefix="/mcp")
@@ -100,8 +101,7 @@ async def get_remote_proxies(
     """ 用于获取远程MCP服务器列表 """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        remote_mcp_server_list = await get_remote_mcp_server_list(tenant_id=tenant_id,
-                                                                  user_id=user_id)
+        remote_mcp_server_list = await get_remote_mcp_server_list(tenant_id=tenant_id)
         return JSONResponse(
             status_code=200,
             content={"remote_mcp_server_list": remote_mcp_server_list, "status": "success"}
@@ -119,8 +119,8 @@ async def recover_remote_proxies(
 ):
     """ 用于恢复远程MCP服务器 """
     try:
-        user_id, tenant_id = get_current_user_id(authorization)
-        result = await recover_remote_mcp_server(tenant_id=tenant_id, user_id=user_id)
+        _, tenant_id = get_current_user_id(authorization)
+        result = await recover_remote_mcp_server(tenant_id=tenant_id)
         # 如果result已经是JSONResponse，直接返回
         if isinstance(result, JSONResponse):
             return result
@@ -135,24 +135,4 @@ async def recover_remote_proxies(
         return JSONResponse(
             status_code=400,
             content={"message": "Failed to recover remote MCP proxy", "status": "error"}
-        )
-
-@router.get("/update_tool")
-async def scan_and_update_tool(
-    authorization: Optional[str] = Header(None)
-):
-    """ 用于更新工具列表及状态 """
-    try:
-        user_id, tenant_id = get_current_user_id(authorization)
-        await update_tool_list(tenant_id=tenant_id,
-                         user_id=user_id)
-        return JSONResponse(
-            status_code=200,
-            content={"message": "Successfully update tool", "status": "success"}
-        )
-    except Exception as e:
-        logger.error(f"Failed to update tool: {e}")
-        return JSONResponse(
-            status_code=400,
-            content={"message": "Failed to update tool", "status": "error"}
         )

@@ -331,7 +331,8 @@ def update_tool_table_from_scan_tool_list(tenant_id: str, user_id: str, tool_lis
     try:
         with get_db_session() as session:
             # get all existing tools (including complete information)
-            existing_tools = session.query(ToolInfo).filter(ToolInfo.delete_flag != 'Y').all()
+            existing_tools = session.query(ToolInfo).filter(ToolInfo.delete_flag != 'Y',
+                                                            ToolInfo.author == tenant_id).all()
             existing_tool_dict = {f"{tool.name}&{tool.source}": tool for tool in existing_tools}
             # set all tools to unavailable
             for tool in existing_tools:
