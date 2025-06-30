@@ -2,40 +2,29 @@
 name = "backend"
 version = "0.1.0"
 requires-python = "==3.10.*"
-dependencies = []
-
-[project.optional-dependencies]
-all = [
-    "websocket-client>=1.8.0",
+dependencies = [
+    "uvicorn>=0.34.0",
+    "fastapi>=0.115.12",
+    "aiohttp>=3.8.0",
     "psycopg2-binary==2.9.10",
     "sqlalchemy~=2.0.37",
-    "uvicorn>=0.34.0",
-    "fastapi>=0.115.12",
-    "ray[default]>=2.9.3",
-    "celery>=5.3.6",
-    "redis>=5.0.0",
-    "flower>=2.0.1",
-    "nest_asyncio>=1.5.6",
-    "aiohttp>=3.8.0"
-]
-backend = [
     "websocket-client>=1.8.0",
-    "sqlalchemy~=2.0.37",
-    "uvicorn>=0.34.0",
-    "fastapi>=0.115.12",
-    "aiohttp>=3.8.0"
+    "pyyaml>=6.0.2",
+    "redis>=5.0.0",
+    "celery>=5.3.6",
+    "nexent"
 ]
+
+[project.optional-dependencies]
 data-process = [
-    "websocket-client>=1.8.0",
-    "uvicorn>=0.34.0",
-    "fastapi>=0.115.12",
     "ray[default]>=2.9.3",
-    "celery>=5.3.6",
-    "redis>=5.0.0",
     "flower>=2.0.1",
     "nest_asyncio>=1.5.6",
-    "aiohttp>=3.8.0"
+    "unstructured[all-docs]"
 ]
+
+[tool.uv.sources]
+nexent = { path = "../sdk", package = true }
 
 [tool.setuptools]
 packages = []
