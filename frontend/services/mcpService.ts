@@ -1,4 +1,10 @@
 import { API_ENDPOINTS } from './api';
+import i18n from 'i18next';
+
+// 翻译函数
+const t = (key: string, options?: any): string => {
+  return i18n.t(key, options) as string;
+};
 
 // 获取授权头的辅助函数
 const getAuthHeaders = () => {
@@ -40,18 +46,18 @@ export const getMcpServerList = async () => {
     const data = await response.json();
     
     if (response.ok && data.status === 'success') {
-      console.log('MCP服务器列表原始数据:', data);
+      console.log(t('mcpService.debug.serverListRawData'), data);
       
       // 转换后端字段名称为前端期望的格式
       const formattedData = (data.remote_mcp_server_list || []).map((server: any) => {
-        console.log('处理服务器数据:', server);
+        console.log(t('mcpService.debug.processingServerData'), server);
         return {
           service_name: server.remote_mcp_server_name,
           mcp_url: server.remote_mcp_server
         };
       });
       
-      console.log('格式化后的数据:', formattedData);
+      console.log(t('mcpService.debug.formattedData'), formattedData);
       
       return {
         success: true,
@@ -60,10 +66,10 @@ export const getMcpServerList = async () => {
       };
     } else {
       // 处理具体的错误信息
-      let errorMessage = data.message || '获取MCP服务器列表失败';
+      let errorMessage = data.message || t('mcpService.message.getServerListFailed');
       
       if (data.message === 'Failed to get remote MCP proxy') {
-        errorMessage = '获取远程MCP代理列表失败，请稍后重试';
+        errorMessage = t('mcpService.message.getRemoteProxyFailed');
       } else if (data.message) {
         errorMessage = data.message;
       }
@@ -75,11 +81,11 @@ export const getMcpServerList = async () => {
       };
     }
   } catch (error) {
-    console.error('获取MCP服务器列表失败:', error);
+    console.error(t('mcpService.debug.getServerListFailed'), error);
     return {
       success: false,
       data: [],
-      message: '网络请求失败，请检查网络连接并重试'
+      message: t('mcpService.message.networkError')
     };
   }
 };
@@ -103,18 +109,18 @@ export const addMcpServer = async (mcpUrl: string, serviceName: string) => {
       return {
         success: true,
         data: data,
-        message: data.message || '添加MCP服务器成功'
+        message: data.message || t('mcpService.message.addServerSuccess')
       };
     } else {
       // 处理具体的错误状态码和错误信息
-      let errorMessage = data.message || '添加MCP服务器失败';
+      let errorMessage = data.message || t('mcpService.message.addServerFailed');
       
       if (response.status === 409) {
-        errorMessage = '名称已被他人使用，请更换mcp服务名称';
+        errorMessage = t('mcpService.message.nameAlreadyUsed');
       } else if (response.status === 503) {
-        errorMessage = '无法连接到远程MCP服务器，请检查URL是否正确且服务器正在运行';
+        errorMessage = t('mcpService.message.cannotConnectToServer');
       } else {
-          errorMessage = '添加MCP代理失败，请检查服务器配置';
+          errorMessage = t('mcpService.message.addProxyFailed');
       }
       
       return {
@@ -124,11 +130,11 @@ export const addMcpServer = async (mcpUrl: string, serviceName: string) => {
       };
     }
   } catch (error) {
-    console.error('添加MCP服务器失败:', error);
+    console.error(t('mcpService.debug.addServerFailed'), error);
     return {
       success: false,
       data: null,
-      message: '网络请求失败，请检查网络连接并重试'
+      message: t('mcpService.message.networkError')
     };
   }
 };
@@ -152,11 +158,11 @@ export const deleteMcpServer = async (mcpUrl: string, serviceName: string) => {
       return {
         success: true,
         data: data,
-        message: data.message || '删除MCP服务器成功'
+        message: data.message || t('mcpService.message.deleteServerSuccess')
       };
     } else {
       // 处理具体的错误状态码和错误信息
-      let errorMessage = data.message || '删除MCP服务器失败';
+      let errorMessage = data.message || t('mcpService.message.deleteServerFailed');
       
       return {
         success: false,
@@ -165,11 +171,11 @@ export const deleteMcpServer = async (mcpUrl: string, serviceName: string) => {
       };
     }
   } catch (error) {
-    console.error('删除MCP服务器失败:', error);
+    console.error(t('mcpService.debug.deleteServerFailed'), error);
     return {
       success: false,
       data: null,
-      message: '网络请求失败，请检查网络连接并重试'
+      message: t('mcpService.message.networkError')
     };
   }
 };
@@ -196,7 +202,7 @@ export const getMcpTools = async (serviceName: string, mcpUrl: string) => {
       };
     } else {
       // 处理具体的错误信息
-      let errorMessage = data.message || '获取MCP工具列表失败';
+      let errorMessage = data.message || t('mcpService.message.getToolsFailed');
       
       return {
         success: false,
@@ -205,11 +211,11 @@ export const getMcpTools = async (serviceName: string, mcpUrl: string) => {
       };
     }
   } catch (error) {
-    console.error('获取MCP工具列表失败:', error);
+    console.error(t('mcpService.debug.getToolsFailed'), error);
     return {
       success: false,
       data: [],
-      message: '网络请求失败，请检查网络连接并重试'
+      message: t('mcpService.message.networkError')
     };
   }
 };
@@ -229,11 +235,11 @@ export const updateToolList = async () => {
       return {
         success: true,
         data: data,
-        message: data.message || '更新工具列表成功'
+        message: data.message || t('mcpService.message.updateToolListSuccess')
       };
     } else {
       // 处理具体的错误信息
-      let errorMessage = data.message || '更新工具列表失败';
+      let errorMessage = data.message || t('mcpService.message.updateToolListFailed');
       
       return {
         success: false,
@@ -242,11 +248,11 @@ export const updateToolList = async () => {
       };
     }
   } catch (error) {
-    console.error('更新工具列表失败:', error);
+    console.error(t('mcpService.debug.updateToolListFailed'), error);
     return {
       success: false,
       data: null,
-      message: '网络请求失败，请检查网络连接并重试'
+      message: t('mcpService.message.networkError')
     };
   }
 };
@@ -266,11 +272,11 @@ export const recoverMcpServers = async () => {
       return {
         success: true,
         data: data,
-        message: data.message || '重新挂载MCP服务器成功'
+        message: data.message || t('mcpService.message.recoverServersSuccess')
       };
     } else {
       // 处理具体的错误信息
-      let errorMessage = data.message || '重新挂载MCP服务器失败';
+      let errorMessage = data.message || t('mcpService.message.recoverServersFailed');
       
       return {
         success: false,
@@ -279,11 +285,11 @@ export const recoverMcpServers = async () => {
       };
     }
   } catch (error) {
-    console.error('重新挂载MCP服务器失败:', error);
+    console.error(t('mcpService.debug.recoverServersFailed'), error);
     return {
       success: false,
       data: null,
-      message: '网络请求失败，请检查网络连接并重试'
+      message: t('mcpService.message.networkError')
     };
   }
 };
