@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Modal, Button, Input, Table, message, Space, Typography, Card, Divider, Tag } from 'antd'
 import { DeleteOutlined, EyeOutlined, PlusOutlined, LoadingOutlined, ExpandAltOutlined, CompressOutlined, RedoOutlined } from '@ant-design/icons'
 import { getMcpServerList, addMcpServer, deleteMcpServer, getMcpTools, updateToolList, recoverMcpServers, McpServer, McpTool } from '@/services/mcpService'
+import { useTranslation } from 'react-i18next'
 
 const { Text, Title } = Typography
 
@@ -13,6 +14,7 @@ interface McpConfigModalProps {
 }
 
 export default function McpConfigModal({ visible, onCancel }: McpConfigModalProps) {
+  const { t } = useTranslation('common')
   const [serverList, setServerList] = useState<McpServer[]>([])
   const [loading, setLoading] = useState(false)
   const [addingServer, setAddingServer] = useState(false)
@@ -37,7 +39,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
         message.error(result.message)
       }
     } catch (error) {
-      message.error('加载服务器列表失败')
+      message.error(t('mcpConfig.message.loadServerListFailed'))
     } finally {
       setLoading(false)
     }
@@ -46,7 +48,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
   // 添加MCP服务器
   const handleAddServer = async () => {
     if (!newServerName.trim() || !newServerUrl.trim()) {
-      message.error('请填写完整的服务器名称和URL')
+      message.error(t('mcpConfig.message.completeServerInfo'))
       return
     }
 
@@ -55,12 +57,12 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
     const nameRegex = /^[a-zA-Z0-9]+$/
     
     if (!nameRegex.test(serverName)) {
-      message.error('服务器名称只能包含英文字母和数字')
+      message.error(t('mcpConfig.message.invalidServerName'))
       return
     }
     
     if (serverName.length > 20) {
-      message.error('服务器名称长度不能超过20个字符')
+      message.error(t('mcpConfig.message.serverNameTooLong'))
       return
     }
 
@@ -69,7 +71,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
       server => server.service_name === serverName || server.mcp_url === newServerUrl.trim()
     )
     if (exists) {
-      message.error('服务器名称或URL已存在')
+      message.error(t('mcpConfig.message.serverExists'))
       return
     }
 
@@ -77,7 +79,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
     try {
       const result = await addMcpServer(newServerUrl.trim(), serverName)
       if (result.success) {
-        message.success('添加MCP服务器成功，正在自动更新工具列表...')
+        message.success(t('mcpConfig.message.addServerSuccess'))
         setNewServerName('')
         setNewServerUrl('')
         await loadServerList() // 重新加载列表
@@ -87,15 +89,15 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
         try {
           const updateResult = await updateToolList()
           if (updateResult.success) {
-            message.success('MCP服务器添加成功，工具列表已更新')
+            message.success(t('mcpConfig.message.addServerSuccessToolsUpdated'))
             // 通知父组件更新工具列表
             window.dispatchEvent(new CustomEvent('toolsUpdated'))
           } else {
-            message.warning('MCP服务器添加成功，但工具列表更新失败')
+            message.warning(t('mcpConfig.message.addServerSuccessToolsFailed'))
           }
         } catch (updateError) {
-          console.log('自动更新工具列表失败:', updateError)
-          message.warning('MCP服务器添加成功，但工具列表更新失败')
+          console.log(t('mcpConfig.debug.autoUpdateToolsFailed'), updateError)
+          message.warning(t('mcpConfig.message.addServerSuccessToolsFailed'))
         } finally {
           setUpdatingTools(false)
         }
@@ -103,7 +105,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
         message.error(result.message)
       }
     } catch (error) {
-      message.error('添加服务器失败')
+      message.error(t('mcpConfig.message.addServerFailed'))
     } finally {
       setAddingServer(false)
     }
@@ -112,8 +114,8 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
   // 删除MCP服务器
   const handleDeleteServer = async (server: McpServer) => {
     Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除MCP服务器 "${server.service_name}" 吗？`,
+      title: t('mcpConfig.delete.confirmTitle'),
+      content: t('mcpConfig.delete.confirmContent', { name: server.service_name }),
       okType: 'danger',
       cancelButtonProps: { disabled: updatingTools },
       okButtonProps: { disabled: updatingTools, loading: updatingTools },
@@ -121,25 +123,25 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
         try {
           const result = await deleteMcpServer(server.mcp_url, server.service_name)
           if (result.success) {
-            message.success('删除MCP服务器成功')
+            message.success(t('mcpConfig.message.deleteServerSuccess'))
             await loadServerList() // 重新加载列表
             
             // 删除成功后立即关闭确认弹窗，然后异步更新工具列表
             setTimeout(async () => {
-              message.info('正在自动更新工具列表...')
+              message.info(t('mcpConfig.message.updatingToolsList'))
               setUpdatingTools(true)
               try {
                 const updateResult = await updateToolList()
                 if (updateResult.success) {
-                  message.success('工具列表已更新')
+                  message.success(t('mcpConfig.message.toolsListUpdated'))
                   // 通知父组件更新工具列表
                   window.dispatchEvent(new CustomEvent('toolsUpdated'))
                 } else {
-                  message.warning('工具列表更新失败')
+                  message.warning(t('mcpConfig.message.toolsListUpdateFailed'))
                 }
               } catch (updateError) {
-                console.log('自动更新工具列表失败:', updateError)
-                message.warning('工具列表更新失败')
+                console.log(t('mcpConfig.debug.autoUpdateToolsFailed'), updateError)
+                message.warning(t('mcpConfig.message.toolsListUpdateFailed'))
               } finally {
                 setUpdatingTools(false)
               }
@@ -148,7 +150,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
             message.error(result.message)
           }
         } catch (error) {
-          message.error('删除服务器失败')
+          message.error(t('mcpConfig.message.deleteServerFailed'))
         }
       }
     })
@@ -170,7 +172,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
         setCurrentServerTools([])
       }
     } catch (error) {
-      message.error('获取工具列表失败')
+      message.error(t('mcpConfig.message.getToolsFailed'))
       setCurrentServerTools([])
     } finally {
       setLoadingTools(false)
@@ -194,12 +196,12 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
     try {
       const result = await recoverMcpServers()
       if (result.success) {
-        message.success('重新挂载MCP服务器成功')
+        message.success(t('mcpConfig.message.remountSuccess'))
       } else {
         message.error(result.message)
       }
     } catch (error) {
-      message.error('重新挂载MCP服务器失败')
+      message.error(t('mcpConfig.message.remountFailed'))
     } finally {
       setRecovering(false)
     }
@@ -208,21 +210,21 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
   // 服务器列表表格列定义
   const columns = [
     {
-      title: '服务器名称',
+      title: t('mcpConfig.serverList.column.name'),
       dataIndex: 'service_name',
       key: 'service_name',
       width: '25%',
       ellipsis: true,
     },
     {
-      title: 'URL',
+      title: t('mcpConfig.serverList.column.url'),
       dataIndex: 'mcp_url',
       key: 'mcp_url',
       width: '45%',
       ellipsis: true,
     },
     {
-      title: '操作',
+      title: t('mcpConfig.serverList.column.action'),
       key: 'action',
       width: '30%',
       render: (_: any, record: McpServer) => (
@@ -234,7 +236,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
             size="small"
             disabled={updatingTools}
           >
-            查看工具
+            {t('mcpConfig.serverList.button.viewTools')}
           </Button>
           <Button
             type="link"
@@ -244,7 +246,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
             size="small"
             disabled={updatingTools}
           >
-            删除
+            {t('mcpConfig.serverList.button.delete')}
           </Button>
         </Space>
       ),
@@ -254,13 +256,13 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
   // 工具列表表格列定义
   const toolColumns = [
     {
-      title: '工具名称',
+      title: t('mcpConfig.toolsList.column.name'),
       dataIndex: 'name',
       key: 'name',
       width: '30%',
     },
     {
-      title: '描述',
+      title: t('mcpConfig.toolsList.column.description'),
       dataIndex: 'description',
       key: 'description',
       width: '70%',
@@ -284,7 +286,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
                 onClick={() => toggleDescription(record.name)}
                 style={{ padding: 0, height: 'auto' }}
               >
-                {isExpanded ? '收起' : '展开'}
+                {isExpanded ? t('mcpConfig.toolsList.button.collapse') : t('mcpConfig.toolsList.button.expand')}
               </Button>
             )}
           </div>
@@ -303,7 +305,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
   return (
     <>
       <Modal
-        title="MCP服务器配置"
+        title={t('mcpConfig.modal.title')}
         open={visible}
         onCancel={updatingTools ? undefined : onCancel}
         width={800}
@@ -311,7 +313,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
         maskClosable={!updatingTools}
         footer={[
           <Button key="cancel" onClick={onCancel} disabled={updatingTools}>
-            {updatingTools ? '正在更新工具列表...' : '关闭'}
+            {updatingTools ? t('mcpConfig.modal.updatingTools') : t('mcpConfig.modal.close')}
           </Button>
         ]}
       >
@@ -328,19 +330,19 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
               alignItems: 'center'
             }}>
               <LoadingOutlined style={{ marginRight: 8, color: '#52c41a' }} />
-              <Text style={{ color: '#52c41a' }}>正在自动更新工具列表，请勿关闭页面或取消操作...</Text>
+              <Text style={{ color: '#52c41a' }}>{t('mcpConfig.status.updatingToolsHint')}</Text>
             </div>
           )}
           {/* 添加服务器区域 */}
           <Card size="small" style={{ marginBottom: 16 }}>
             <Title level={5} style={{ margin: '0 0 12px 0' }}>
               <PlusOutlined style={{ marginRight: 8 }} />
-              添加MCP服务器
+              {t('mcpConfig.addServer.title')}
             </Title>
             <Space direction="vertical" style={{ width: '100%' }}>
               <div style={{ display: 'flex', gap: 8 }}>
                 <Input
-                  placeholder="服务器名称（仅支持英文、数字，最多20字符）"
+                  placeholder={t('mcpConfig.addServer.namePlaceholder')}
                   value={newServerName}
                   onChange={(e) => setNewServerName(e.target.value)}
                   style={{ flex: 1 }}
@@ -348,7 +350,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
                   disabled={updatingTools || addingServer}
                 />
                 <Input
-                  placeholder="服务器URL (如: http://localhost:3001/sse)，目前仅支持sse协议"
+                  placeholder={t('mcpConfig.addServer.urlPlaceholder')}
                   value={newServerUrl}
                   onChange={(e) => setNewServerUrl(e.target.value)}
                   style={{ flex: 2 }}
@@ -361,7 +363,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
                   icon={(addingServer || updatingTools) ? <LoadingOutlined /> : <PlusOutlined />}
                   disabled={updatingTools}
                 >
-                  {updatingTools ? '更新中...' : '添加'}
+                  {updatingTools ? t('mcpConfig.addServer.button.updating') : t('mcpConfig.addServer.button.add')}
                 </Button>
               </div>
             </Space>
@@ -373,7 +375,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <Title level={5} style={{ margin: 0 }}>
-                已配置的MCP服务器
+                {t('mcpConfig.serverList.title')}
               </Title>
               <Button
                 type="text"
@@ -383,9 +385,9 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
                 loading={recovering}
                 disabled={recovering || loading || updatingTools}
                 className="text-orange-500 hover:text-orange-600 hover:bg-orange-50"
-                title="重新挂载所有MCP服务器"
+                title={t('mcpConfig.serverList.remountTitle')}
               >
-                重新挂载
+                {t('mcpConfig.serverList.button.remount')}
               </Button>
             </div>
             <Table
@@ -395,7 +397,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
               loading={loading}
               size="small"
               pagination={false}
-              locale={{ emptyText: '暂无MCP服务器' }}
+              locale={{ emptyText: t('mcpConfig.serverList.empty') }}
               scroll={{ y: 300 }}
               style={{ width: '100%' }}
             />
@@ -405,13 +407,13 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
 
       {/* 工具列表弹窗 */}
       <Modal
-        title={`${currentServerName} - 可用工具`}
+        title={`${currentServerName} - ${t('mcpConfig.toolsList.title')}`}
         open={toolsModalVisible}
         onCancel={() => setToolsModalVisible(false)}
         width={1000}
         footer={[
           <Button key="close" onClick={() => setToolsModalVisible(false)}>
-            关闭
+            {t('mcpConfig.modal.close')}
           </Button>
         ]}
       >
@@ -419,7 +421,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
           {loadingTools ? (
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <LoadingOutlined style={{ fontSize: 24, marginRight: 8 }} />
-              <Text>正在加载工具列表...</Text>
+              <Text>{t('mcpConfig.toolsList.loading')}</Text>
             </div>
           ) : (
             <Table
@@ -428,7 +430,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
               rowKey="name"
               size="small"
               pagination={false}
-              locale={{ emptyText: '该服务器暂无可用工具' }}
+              locale={{ emptyText: t('mcpConfig.toolsList.empty') }}
               scroll={{ y: 500 }}
               style={{ width: '100%' }}
             />

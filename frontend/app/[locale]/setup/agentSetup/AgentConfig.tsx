@@ -190,13 +190,13 @@ export default function AgentConfig() {
       const result = await fetchTools()
       if (result.success) {
         setTools(result.data)
-        message.success('工具列表已刷新')
+        message.success(t('agentConfig.tools.refreshSuccess'))
       } else {
-        message.error('刷新工具列表失败')
+        message.error(t('agentConfig.tools.refreshFailed'))
       }
     } catch (error) {
-      console.error('刷新工具列表失败:', error)
-      message.error('刷新工具列表失败')
+      console.error(t('agentConfig.debug.refreshToolsFailed'), error)
+      message.error(t('agentConfig.tools.refreshFailed'))
     }
   }
 

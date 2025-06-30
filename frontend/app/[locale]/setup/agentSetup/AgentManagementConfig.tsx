@@ -402,27 +402,27 @@ function ToolPool({
       // 第一步：更新后端工具状态，重新扫描MCP和本地工具
       const updateResult = await updateToolList();
       if (!updateResult.success) {
-        message.warning('更新工具状态失败，但仍会尝试获取工具列表');
+        message.warning(t('toolManagement.message.updateStatusFailed'));
       }
 
       // 第二步：获取最新的工具列表
       const fetchResult = await fetchTools();
       if (fetchResult.success) {
-        message.success('工具列表已刷新');
+        message.success(t('toolManagement.message.refreshSuccess'));
         // 调用父组件的刷新回调，更新工具列表状态
         if (onToolsRefresh) {
           onToolsRefresh();
         }
       } else {
-        message.error(fetchResult.message || '刷新工具列表失败');
+        message.error(fetchResult.message || t('toolManagement.message.refreshFailed'));
       }
     } catch (error) {
-      console.error('刷新工具列表失败:', error);
-      message.error('刷新工具列表失败，请稍后重试');
+      console.error(t('debug.console.refreshToolsFailed'), error);
+      message.error(t('toolManagement.message.refreshFailedRetry'));
     } finally {
       setIsRefreshing(false);
     }
-  }, [isRefreshing, localIsGenerating, onToolsRefresh]);
+  }, [isRefreshing, localIsGenerating, onToolsRefresh, t]);
 
 
 
@@ -529,9 +529,9 @@ function ToolPool({
             onClick={handleRefreshTools}
             disabled={localIsGenerating || isRefreshing}
             className="text-green-500 hover:text-green-600 hover:bg-green-50"
-            title="刷新工具列表"
+            title={t('toolManagement.refresh.title')}
           >
-            {isRefreshing ? '刷新中' : '刷新工具'}
+            {isRefreshing ? t('toolManagement.refresh.button.refreshing') : t('toolManagement.refresh.button.refresh')}
           </Button>
           <Button
             type="text"
@@ -540,9 +540,9 @@ function ToolPool({
             onClick={() => setIsMcpModalOpen(true)}
             disabled={localIsGenerating}
             className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
-            title="配置MCP服务器"
+            title={t('toolManagement.mcp.title')}
           >
-            MCP配置
+            {t('toolManagement.mcp.button')}
           </Button>
           {loadingTools && <span className="text-sm text-gray-500">{t('toolPool.loading')}</span>}
         </div>
@@ -679,7 +679,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('businessLogic.config.error.agentListFailed'));
       }
     } catch (error) {
-      console.error('获取 Agent 列表失败:', error);
+      console.error(t('debug.console.fetchAgentListFailed'), error);
       message.error(t('businessLogic.config.error.agentListFailed'));
     } finally {
       setIsLoadingTools(false);
@@ -911,7 +911,7 @@ export default function BusinessLogicConfig({
       
       const agentDetail = result.data;
       
-      console.log('加载的Agent详情:', agentDetail); // 调试信息
+      console.log(t('debug.console.loadAgentDetails'), agentDetail); // 调试信息
       
       // 更新为完整的Agent数据
       setEditingAgent(agentDetail);
@@ -927,8 +927,8 @@ export default function BusinessLogicConfig({
       setBusinessLogic(agentDetail.business_description || '');
       setSystemPrompt(agentDetail.prompt || '');
       
-      console.log('设置的业务描述:', agentDetail.business_description); // 调试信息
-      console.log('设置的系统提示词:', agentDetail.prompt); // 调试信息
+      console.log(t('debug.console.setBusinessDescription'), agentDetail.business_description); // 调试信息
+      console.log(t('debug.console.setSystemPrompt'), agentDetail.prompt); // 调试信息
       
       // 加载Agent的工具
       if (agentDetail.tools && agentDetail.tools.length > 0) {
@@ -936,7 +936,7 @@ export default function BusinessLogicConfig({
         // 设置已启用的工具ID
         const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
         setEnabledToolIds(toolIds);
-        console.log('加载的工具:', agentDetail.tools); // 调试信息
+        console.log(t('debug.console.loadedTools'), agentDetail.tools); // 调试信息
       } else {
         setSelectedTools([]);
         setEnabledToolIds([]);
@@ -944,7 +944,7 @@ export default function BusinessLogicConfig({
       
       message.success(t('businessLogic.config.message.agentInfoLoaded'));
     } catch (error) {
-      console.error('加载Agent详情失败:', error);
+      console.error(t('debug.console.loadAgentDetailsFailed'), error);
       message.error(t('businessLogic.config.error.agentDetailFailed'));
       // 如果出错，重置编辑状态
       setIsEditingAgent(false);
@@ -989,7 +989,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('agent.error.statusUpdateFailed'));
       }
     } catch (error) {
-      console.error('更新 Agent 状态失败:', error);
+      console.error(t('debug.console.updateAgentStatusFailed'), error);
       message.error(t('agent.error.statusUpdateRetry'));
     }
   };
@@ -1022,7 +1022,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('businessLogic.config.error.modelUpdateFailed'));
       }
     } catch (error) {
-      console.error('更新模型失败:', error);
+      console.error(t('debug.console.updateModelFailed'), error);
       message.error(t('businessLogic.config.error.modelUpdateRetry'));
     }
   };
@@ -1057,7 +1057,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('businessLogic.config.error.maxStepsUpdateFailed'));
       }
     } catch (error) {
-      console.error('更新最大步骤数失败:', error);
+      console.error(t('debug.console.updateMaxStepsFailed'), error);
       message.error(t('businessLogic.config.error.maxStepsUpdateRetry'));
     }
   };
@@ -1108,7 +1108,7 @@ export default function BusinessLogicConfig({
           message.error(result.message || t('businessLogic.config.error.agentImportFailed'));
         }
       } catch (error) {
-        console.error('导入Agent失败:', error);
+        console.error(t('debug.console.importAgentFailed'), error);
         message.error(t('businessLogic.config.error.agentImportFailed'));
       } finally {
         setIsImporting(false);
@@ -1150,7 +1150,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('businessLogic.config.error.agentExportFailed'));
       }
     } catch (error) {
-      console.error('导出Agent失败:', error);
+      console.error(t('debug.console.exportAgentFailed'), error);
       message.error(t('businessLogic.config.error.agentExportFailed'));
     }
   };
@@ -1176,7 +1176,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('businessLogic.config.error.agentDeleteFailed'));
       }
     } catch (error) {
-      console.error('删除Agent失败:', error);
+      console.error(t('debug.console.deleteAgentFailed'), error);
       message.error(t('businessLogic.config.error.agentDeleteFailed'));
     } finally {
       setIsDeleteConfirmOpen(false);
@@ -1224,7 +1224,7 @@ export default function BusinessLogicConfig({
         }
       );
     } catch (error) {
-      console.error('生成提示词失败:', error);
+      console.error(t('debug.console.generatePromptFailed'), error);
       message.error(t('businessLogic.config.error.promptGenerateFailed', {
         error: error instanceof Error ? error.message : t('common.unknownError')
       }));
@@ -1251,7 +1251,7 @@ export default function BusinessLogicConfig({
       await savePrompt({ agent_id: Number(targetAgentId), prompt: systemPrompt });
       message.success(t('businessLogic.config.message.promptSaved'));
     } catch (error) {
-      console.error('保存提示词失败:', error);
+      console.error(t('debug.console.savePromptFailed'), error);
       message.error(t('businessLogic.config.error.promptSaveFailed'));
     } finally {
       setIsPromptSaving(false);
