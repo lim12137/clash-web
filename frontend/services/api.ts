@@ -28,6 +28,7 @@ export const API_ENDPOINTS = {
     list: `${API_BASE_URL}/tool/list`,
     update: `${API_BASE_URL}/tool/update`,
     search: `${API_BASE_URL}/tool/search`,
+    updateTool: `${API_BASE_URL}/tool/scan_tool`,
   },
   prompt: {
     generate: `${API_BASE_URL}/prompt/generate`,
@@ -92,7 +93,6 @@ export const API_ENDPOINTS = {
     add: `${API_BASE_URL}/mcp/add`,
     delete: `${API_BASE_URL}/mcp/`,
     list: `${API_BASE_URL}/mcp/list`,
-    updateTool: `${API_BASE_URL}/mcp/update_tool`,
     recover: `${API_BASE_URL}/mcp/recover`,
   }
 };

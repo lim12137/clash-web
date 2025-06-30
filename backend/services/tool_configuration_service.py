@@ -5,9 +5,6 @@ import json
 import logging
 from typing import Any, List
 from urllib.parse import urljoin
-
-from fastapi import Header
-
 from pydantic_core import PydanticUndefined
 from smolagents import ToolCollection
 
@@ -17,7 +14,7 @@ from database.agent_db import (
     update_tool_table_from_scan_tool_list
 )
 from consts.model import ToolInstanceInfoRequest, ToolInfo, ToolSourceEnum
-from services.tenant_config_service import get_remote_mcp_server_list
+from services.remote_mcp_service import get_remote_mcp_server_list
 from utils.auth_utils import get_current_user_id
 from fastapi import Header
 
@@ -118,21 +115,18 @@ def get_local_tools_classes() -> List[type]:
             tools_classes.append(obj)
     return tools_classes
 
-async def get_all_mcp_tools(tenant_id: str, user_id: str) -> List[ToolInfo]:
+async def get_all_mcp_tools(tenant_id: str) -> List[ToolInfo]:
     """
     Get metadata for all tools available from the MCP service
 
     Returns:
         List of ToolInfo objects for MCP tools, or empty list if connection fails
     """
-    remote_mcp_server_info = await get_remote_mcp_server_list(tenant_id, user_id)
-
+    remote_mcp_server_info = await get_remote_mcp_server_list(tenant_id)
 
     mcp_server_name_list = [item["remote_mcp_server_name"] for item in remote_mcp_server_info]
     tools_info = await scan_all_mcp_tools(mcp_server_list=mcp_server_name_list)
     return tools_info
-
-
 
 def search_tool_info_impl(agent_id: int, tool_id: int, authorization: str = Header(None)):
     """
@@ -141,6 +135,7 @@ def search_tool_info_impl(agent_id: int, tool_id: int, authorization: str = Head
     Args:
         agent_id: Agent ID
         tool_id: Tool ID
+        authorization:
         
     Returns:
         Dictionary containing tool parameters and enabled status
@@ -193,9 +188,9 @@ def update_tool_info_impl(request: ToolInstanceInfoRequest, authorization: str =
 
 
 async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_server: str):
-    """异步获取远程MCP服务器的工具信息，避免阻塞事件循环"""
+    """get the tool information from the remote MCP server, avoid blocking the event loop"""
     def _get_tools_from_mcp_sync(mcp_url):
-        """同步获取MCP工具的辅助函数，在线程池中执行"""
+        """get the tool information from the remote MCP server, avoid blocking the event loop"""
         try:
             tools_info = []
             with ToolCollection.from_mcp({"url": mcp_url}) as tool_collection:
@@ -223,9 +218,9 @@ async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_serve
 
 
 async def scan_all_mcp_tools(mcp_server_list: List[str]):
-    """异步获取远程MCP服务器的工具信息，避免阻塞事件循环"""
+    """get the tool information from the remote MCP server, avoid blocking the event loop"""
     def _get_tools_from_nexent_mcp_sync(server_name_list: List[str]):
-        """同步获取MCP工具的辅助函数，在线程池中执行"""
+        """get the tool information from the remote MCP server, avoid blocking the event loop"""
         try:
             tools_info = []
             mcp_url = urljoin(config_manager.get_config("NEXENT_MCP_SERVER"), "sse")
@@ -273,7 +268,7 @@ async def update_tool_list(tenant_id: str, user_id: str):
         """
     local_tools = get_local_tools()
     try:
-        mcp_tools = await get_all_mcp_tools(tenant_id, user_id)
+        mcp_tools = await get_all_mcp_tools(tenant_id)
     except Exception as e:
         logger.error(f"failed to get all mcp tools, detail: {e}")
         raise Exception(f"failed to get all mcp tools, detail: {e}")

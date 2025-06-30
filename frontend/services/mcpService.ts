@@ -110,7 +110,7 @@ export const addMcpServer = async (mcpUrl: string, serviceName: string) => {
       let errorMessage = data.message || '添加MCP服务器失败';
       
       if (response.status === 409) {
-        errorMessage = '服务名称已存在，请使用其他名称';
+        errorMessage = '名称已被他人使用，请更换mcp服务名称';
       } else if (response.status === 503) {
         errorMessage = '无法连接到远程MCP服务器，请检查URL是否正确且服务器正在运行';
       } else {
@@ -219,7 +219,7 @@ export const getMcpTools = async (serviceName: string, mcpUrl: string) => {
  */
 export const updateToolList = async () => {
   try {
-    const response = await fetch(API_ENDPOINTS.mcp.updateTool, {
+    const response = await fetch(API_ENDPOINTS.tool.updateTool, {
       headers: getAuthHeaders(),
     });
 
