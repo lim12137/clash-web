@@ -104,12 +104,7 @@ services:
         max-file: "3"    # Maximum number of log files to keep
     networks:
       - nexent
-    entrypoint: >
-      /bin/sh -c "
-        umask 0022
-        python /opt/backend/mcp_service.py &
-        python /opt/backend/main_service.py
-      "
+    entrypoint: ["/bin/bash", "-c", "python backend/mcp_service.py & python backend/main_service.py"]
 
   nexent-web:
     image: nexent/nexent-web-commercial
