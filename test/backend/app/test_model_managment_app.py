@@ -130,9 +130,11 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
                 "data": None
             }
     except Exception as e:
+        import logging
+        logging.error(f"Error occurred while creating model: {str(e)}")
         return {
             "code": 500,
-            "message": f"Failed to create model: {str(e)}",
+            "message": "An internal error occurred while creating the model.",
             "data": None
         }
 
