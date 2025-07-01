@@ -130,9 +130,11 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
                 "data": None
             }
     except Exception as e:
+        import logging
+        logging.error(f"Error occurred while creating model: {str(e)}")
         return {
             "code": 500,
-            "message": f"Failed to create model: {str(e)}",
+             "message": "An internal error occurred while creating the model.",
             "data": None
         }
 
@@ -180,7 +182,7 @@ async def delete_model(display_name: str = Query(...), authorization: Optional[s
     except Exception as e:
         return {
             "code": 500,
-            "message": f"Failed to delete model: {str(e)}",
+            "message": "An internal error occurred while deleting the model.",
             "data": None
         }
 
@@ -207,7 +209,7 @@ async def get_model_list(authorization: Optional[str] = Header(None)):
     except Exception as e:
         return {
             "code": 500,
-            "message": f"Failed to retrieve model list: {str(e)}",
+            "message": "An internal error occurred while retrieving the model list.",
             "data": []
         }
 
@@ -226,10 +228,10 @@ async def verify_model_config(request: ModelRequest):
     except Exception as e:
         return {
             "code": 500,
-            "message": f"验证模型配置失败: {str(e)}",
+            "message": "验证模型配置失败",
             "data": {
                 "connectivity": False,
-                "message": f"验证失败: {str(e)}",
+                "message": "验证失败",
                 "connect_status": ModelConnectStatusEnum.UNAVAILABLE
             }
         }
