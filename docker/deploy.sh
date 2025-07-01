@@ -123,6 +123,7 @@ install() {
     if grep -q "^ELASTICSEARCH_API_KEY=" .env; then
       # Use ~ as a separator in sed to avoid conflicts with special characters in the API key.
       sed -i.bak "s~^ELASTICSEARCH_API_KEY=.*~ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY~" .env
+      rm .env.bak
     else
       echo "" >> .env
       echo "ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY" >> .env
