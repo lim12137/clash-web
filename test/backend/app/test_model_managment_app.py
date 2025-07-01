@@ -134,7 +134,7 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
         logging.error(f"Error occurred while creating model: {str(e)}")
         return {
             "code": 500,
-             "message": "An internal error occurred while creating the model.",
+            "message": "An internal error occurred while creating the model.",
             "data": None
         }
 
