@@ -26,10 +26,10 @@ with patch('backend.database.client.MinioClient', return_value=minio_client_mock
 
 
 class TestMCPServiceIntegration(unittest.TestCase):
-    """测试 MCP 服务间的集成功能"""
+    """test mcp service integration"""
 
     def setUp(self):
-        """每个测试前的设置"""
+        """set up"""
         config_manager_mock.reset_mock()
         config_manager_mock.get_config.return_value = "http://localhost:5011"
 
@@ -37,12 +37,12 @@ class TestMCPServiceIntegration(unittest.TestCase):
     @patch('backend.services.remote_mcp_service.check_mcp_name_exists')
     @patch('backend.services.remote_mcp_service.httpx.AsyncClient')
     async def test_complete_mcp_server_lifecycle(self, mock_client, mock_check_name, mock_create_record):
-        """测试完整的 MCP 服务器生命周期：添加、查询、删除"""
-        # 设置 mock
+        """test complete mcp server lifecycle"""
+        # set mock
         mock_check_name.return_value = False
         mock_create_record.return_value = True
         
-        # Mock HTTP 响应
+        # mock http response
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_client_instance = AsyncMock()
@@ -50,7 +50,7 @@ class TestMCPServiceIntegration(unittest.TestCase):
         mock_client_instance.delete.return_value = mock_response
         mock_client.return_value.__aenter__.return_value = mock_client_instance
 
-        # 1. 添加远程 MCP 服务器
+        # 1. add remote mcp server
         add_result = await add_remote_mcp_server_list(
             tenant_id="test_tenant",
             user_id="test_user",
@@ -58,13 +58,13 @@ class TestMCPServiceIntegration(unittest.TestCase):
             remote_mcp_server_name="test_server"
         )
         
-        # 验证添加成功
+        # verify add success
         self.assertIsInstance(add_result, JSONResponse)
         self.assertEqual(add_result.status_code, 200)
         mock_check_name.assert_called_with(mcp_name="test_server")
         mock_create_record.assert_called_once()
 
-        # 2. 删除远程 MCP 服务器
+        # 2. delete remote mcp server
         with patch('backend.services.remote_mcp_service.delete_mcp_record_by_name_and_url') as mock_delete_record:
             mock_delete_record.return_value = True
             
@@ -75,15 +75,15 @@ class TestMCPServiceIntegration(unittest.TestCase):
                 remote_mcp_server_name="test_server"
             )
             
-            # 验证删除成功
+            # verify delete success
             self.assertIsInstance(delete_result, JSONResponse)
             self.assertEqual(delete_result.status_code, 200)
             mock_delete_record.assert_called_once()
 
     @patch('backend.services.remote_mcp_service.get_mcp_records_by_tenant')
     async def test_get_remote_mcp_server_list_integration(self, mock_get_records):
-        """测试获取远程 MCP 服务器列表的集成功能"""
-        # 设置测试数据
+        """test get remote mcp server list integration"""
+        # set test data
         mock_records = [
             {"mcp_name": "server1", "mcp_server": "http://server1.com"},
             {"mcp_name": "server2", "mcp_server": "http://server2.com"},
@@ -91,13 +91,13 @@ class TestMCPServiceIntegration(unittest.TestCase):
         ]
         mock_get_records.return_value = mock_records
 
-        # 执行测试
+        # execute test
         result = await get_remote_mcp_server_list(tenant_id="test_tenant")
 
-        # 验证结果
+        # verify result
         self.assertEqual(len(result), 3)
         
-        # 验证数据格式转换
+        # verify data format conversion
         for i, record in enumerate(result):
             self.assertIn("remote_mcp_server_name", record)
             self.assertIn("remote_mcp_server", record)
@@ -108,15 +108,15 @@ class TestMCPServiceIntegration(unittest.TestCase):
     @patch('backend.services.remote_mcp_service.httpx.AsyncClient')
     @patch('backend.services.remote_mcp_service.get_remote_mcp_server_list')
     async def test_recover_remote_mcp_server_integration(self, mock_get_list, mock_client, mock_add_proxy):
-        """测试远程 MCP 服务器恢复功能的集成"""
-        # 设置数据库中的记录
+        """test recover remote mcp server integration"""
+        # set test data
         mock_get_list.return_value = [
             {"remote_mcp_server_name": "server1", "remote_mcp_server": "http://server1.com"},
             {"remote_mcp_server_name": "server2", "remote_mcp_server": "http://server2.com"},
             {"remote_mcp_server_name": "server3", "remote_mcp_server": "http://server3.com"}
         ]
         
-        # 设置远程服务中的代理（只有 server1 和 server3）
+        # set remote service proxy (only server1 and server3)
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -129,17 +129,17 @@ class TestMCPServiceIntegration(unittest.TestCase):
         mock_client_instance.get.return_value = mock_response
         mock_client.return_value.__aenter__.return_value = mock_client_instance
         
-        # 设置添加代理的响应
+        # set add proxy response
         mock_add_proxy.return_value = JSONResponse(status_code=200, content={"message": "Success"})
 
-        # 执行恢复
+        # execute recover
         result = await recover_remote_mcp_server(tenant_id="test_tenant")
 
-        # 验证结果
+        # verify result
         self.assertIsInstance(result, JSONResponse)
         self.assertEqual(result.status_code, 200)
         
-        # 验证只有 server2 被恢复（因为它在数据库中但不在远程代理列表中）
+        # verify only server2 is recovered (because it is in the database but not in the remote proxy list)
         mock_add_proxy.assert_called_once_with(
             remote_mcp_server="http://server2.com",
             remote_mcp_server_name="server2"
@@ -149,8 +149,8 @@ class TestMCPServiceIntegration(unittest.TestCase):
     @patch('backend.services.remote_mcp_service.check_mcp_name_exists')
     @patch('backend.services.remote_mcp_service.httpx.AsyncClient')
     async def test_concurrent_mcp_operations(self, mock_client, mock_check_name, mock_create_record):
-        """测试并发 MCP 操作"""
-        # 设置 mock
+        """test concurrent mcp operations"""
+        # set mock
         mock_check_name.return_value = False
         mock_create_record.return_value = True
         
@@ -160,7 +160,7 @@ class TestMCPServiceIntegration(unittest.TestCase):
         mock_client_instance.post.return_value = mock_response
         mock_client.return_value.__aenter__.return_value = mock_client_instance
 
-        # 创建多个并发任务
+        # create multiple concurrent tasks
         tasks = []
         for i in range(3):
             task = add_remote_mcp_server_list(
@@ -171,10 +171,10 @@ class TestMCPServiceIntegration(unittest.TestCase):
             )
             tasks.append(task)
 
-        # 并发执行
+        # concurrent execution
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # 验证所有任务都成功完成
+        # verify all tasks are completed successfully
         for result in results:
             self.assertNotIsInstance(result, Exception)
             self.assertIsInstance(result, JSONResponse)
@@ -182,8 +182,8 @@ class TestMCPServiceIntegration(unittest.TestCase):
 
     @patch('backend.services.remote_mcp_service.check_mcp_name_exists')
     async def test_error_handling_integration(self, mock_check_name):
-        """测试错误处理的集成功能"""
-        # 测试服务名已存在的情况
+        """test error handling integration"""
+        # test service name already exists
         mock_check_name.return_value = True
 
         result = await add_remote_mcp_server_list(
@@ -193,7 +193,7 @@ class TestMCPServiceIntegration(unittest.TestCase):
             remote_mcp_server_name="existing_server"
         )
 
-        # 验证返回正确的错误响应
+        # verify
         self.assertIsInstance(result, JSONResponse)
         self.assertEqual(result.status_code, 409)
         response_data = json.loads(result.body.decode())
@@ -203,13 +203,13 @@ class TestMCPServiceIntegration(unittest.TestCase):
     @patch('backend.services.remote_mcp_service.httpx.AsyncClient')
     @patch('backend.services.remote_mcp_service.get_remote_mcp_server_list')
     async def test_network_failure_recovery(self, mock_get_list, mock_client):
-        """测试网络故障恢复"""
-        # 设置数据库记录
+        """test network failure recovery"""
+        # set test data
         mock_get_list.return_value = [
             {"remote_mcp_server_name": "server1", "remote_mcp_server": "http://server1.com"}
         ]
         
-        # 模拟网络错误
+        # mock network error
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_response.text = "Internal Server Error"
@@ -217,26 +217,26 @@ class TestMCPServiceIntegration(unittest.TestCase):
         mock_client_instance.get.return_value = mock_response
         mock_client.return_value.__aenter__.return_value = mock_client_instance
 
-        # 执行恢复
+        # execute recover
         result = await recover_remote_mcp_server(tenant_id="test_tenant")
 
-        # 验证错误处理
+        # verify error handling
         self.assertIsInstance(result, JSONResponse)
         self.assertEqual(result.status_code, 400)
         response_data = json.loads(result.body.decode())
         self.assertEqual(response_data["status"], "error")
 
     async def test_data_consistency_validation(self):
-        """测试数据一致性验证"""
-        # 这个测试验证在各种操作后数据的一致性
+        """test data consistency validation"""
+        # this test verifies data consistency after various operations
         
-        # 模拟一个复杂的场景：添加、查询、部分删除、恢复
+        # mock a complex scenario: add, query, partial delete, recover
         with patch('backend.services.remote_mcp_service.get_mcp_records_by_tenant') as mock_get_records, \
              patch('backend.services.remote_mcp_service.create_mcp_record') as mock_create, \
              patch('backend.services.remote_mcp_service.check_mcp_name_exists') as mock_check_name, \
              patch('backend.services.remote_mcp_service.httpx.AsyncClient') as mock_client:
             
-            # 设置初始状态
+            # set initial state
             mock_check_name.return_value = False
             mock_create.return_value = True
             
@@ -246,16 +246,16 @@ class TestMCPServiceIntegration(unittest.TestCase):
             mock_client_instance.post.return_value = mock_response
             mock_client.return_value.__aenter__.return_value = mock_client_instance
             
-            # 模拟添加服务器后的数据状态
+            # mock data state after adding server
             mock_get_records.return_value = [
                 {"mcp_name": "server1", "mcp_server": "http://server1.com"},
                 {"mcp_name": "server2", "mcp_server": "http://server2.com"}
             ]
 
-            # 获取服务器列表
+            # get server list
             result = await get_remote_mcp_server_list(tenant_id="test_tenant")
 
-            # 验证数据结构和内容
+            # verify data structure and content
             self.assertEqual(len(result), 2)
             server_names = [item["remote_mcp_server_name"] for item in result]
             server_urls = [item["remote_mcp_server"] for item in result]
@@ -267,15 +267,15 @@ class TestMCPServiceIntegration(unittest.TestCase):
 
 
 class TestMCPConfigurationIntegration(unittest.TestCase):
-    """测试 MCP 配置集成"""
+    """test mcp configuration integration"""
 
     def setUp(self):
-        """每个测试前的设置"""
+        """set up"""
         config_manager_mock.reset_mock()
 
     def test_config_manager_integration(self):
-        """测试配置管理器集成"""
-        # 设置不同的配置值
+        """test config manager integration"""
+        # set different config values
         test_configs = [
             "http://localhost:5011",
             "http://production-server:8080",
@@ -285,14 +285,14 @@ class TestMCPConfigurationIntegration(unittest.TestCase):
         for config_url in test_configs:
             config_manager_mock.get_config.return_value = config_url
             
-            # 验证配置被正确获取
+            # verify config is correctly retrieved
             result = config_manager_mock.get_config("NEXENT_MCP_SERVER")
             self.assertEqual(result, config_url)
 
     @patch('backend.services.remote_mcp_service.httpx.AsyncClient')
     async def test_dynamic_config_update(self, mock_client):
-        """测试动态配置更新"""
-        # 模拟配置变更
+        """test dynamic config update"""
+        # mock config change
         initial_config = "http://localhost:5011"
         updated_config = "http://updated-server:6012"
         
@@ -304,9 +304,9 @@ class TestMCPConfigurationIntegration(unittest.TestCase):
         mock_client_instance.post.return_value = mock_response
         mock_client.return_value.__aenter__.return_value = mock_client_instance
 
-        # 第一次调用使用初始配置
+        # first call uses initial config
         with patch('backend.services.remote_mcp_service.add_remote_proxy') as mock_add_proxy:
             mock_add_proxy.return_value = JSONResponse(status_code=200, content={"message": "Success"})
             
-            # 这里我们主要测试配置管理器被正确调用
+            # here we mainly test that the config manager is correctly called
             config_manager_mock.get_config.assert_called()
