@@ -27,7 +27,7 @@ class PostgresClient:
     def __init__(self):
         self.host = os.getenv('POSTGRES_HOST', 'localhost')
         self.user = os.getenv('POSTGRES_USER')
-        self.password = os.getenv('POSTGRES_PASSWORD')
+        self.password = os.getenv('NEXENT_POSTGRES_PASSWORD')
         self.database = os.getenv('POSTGRES_DB', 'nexent')
         self.port = os.getenv('POSTGRES_PORT', 5432)
         self.engine = create_engine("postgresql://",
