@@ -20,7 +20,7 @@ data-process = [
     "ray[default]>=2.9.3",
     "flower>=2.0.1",
     "nest_asyncio>=1.5.6",
-    "unstructured[all-docs]"
+    "unstructured[csv,docx,pdf,pptx,xlsx,md]"
 ]
 
 [tool.uv.sources]
