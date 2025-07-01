@@ -21,8 +21,8 @@ def create_new_index(
 ):
     """Create a new vector index and store it in the knowledge table"""
     try:
-        user_id = get_current_user_id(authorization)
-        return ElasticSearchService.create_index(index_name, embedding_dim, es_core, user_id)
+        user_id, tenant_id = get_current_user_id(authorization)
+        return ElasticSearchService.create_index(index_name, embedding_dim, es_core, user_id, tenant_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating index: {str(e)}")
 
@@ -77,11 +77,13 @@ def delete_index(
 def get_list_indices(
         pattern: str = Query("*", description="Pattern to match index names"),
         include_stats: bool = Query(False, description="Whether to include index stats"),
-        es_core: ElasticSearchCore = Depends(get_es_core)
+        es_core: ElasticSearchCore = Depends(get_es_core),
+        authorization: Optional[str] = Header(None),
 ):
     """List all user indices with optional stats"""
     try:
-        return ElasticSearchService.list_indices(pattern, include_stats, es_core)
+        user_id, tenant_id = get_current_user_id(authorization)
+        return ElasticSearchService.list_indices(pattern, include_stats, user_id, tenant_id, es_core)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error get index: {str(e)}")
 
