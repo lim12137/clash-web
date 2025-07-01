@@ -1,20 +1,26 @@
-FROM quay.io/unstructured-io/base-images:wolfi-base-latest
+FROM python:3.10-slim
 LABEL authors="nexent"
 
 # Set correct permissions as root
 USER root
+
+ARG PYTHON=python3.10
+ARG PIP="${PYTHON} -m pip"
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libmagic1 \
+        libmagic-dev \
+        libreoffice \
+        libgl1 \
+        && rm -rf /var/lib/apt/lists/*
+
 COPY backend /opt/backend
 COPY sdk /opt/sdk
 COPY model-assets/clip-vit-base-patch32 /opt/models/clip-vit-base-patch32
 
 RUN pip install --no-cache-dir uv
 
-RUN chown -R notebook-user:notebook-user /opt/backend
-RUN chown -R notebook-user:notebook-user /opt/sdk
-RUN chown -R notebook-user:notebook-user /opt/models
-RUN chmod +x /opt/backend/data_process_service.py
-
-USER notebook-user
 WORKDIR /opt/backend
 
 ARG PYTHON=python3.10
