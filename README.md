@@ -128,10 +128,7 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 
 # 🐛 Known Issues
 
-1. 📦 **Large Docker Image Size**  
-   We are aware that our current Docker image is quite large (around 10GB) as it includes a powerful, extensible data processing engine, algorithms, and models. We will soon release a Lite version to reduce the image size and make deployment faster and lighter.
-
-2. 📝 **Code Output May Be Misinterpreted as Executable**  
+1📝 **Code Output May Be Misinterpreted as Executable**  
    In Nexent conversations, if the model outputs code-like text, it may sometimes be misinterpreted as something that should be executed. We will fix this as soon as possible.
 
 # 👥 Contributing
