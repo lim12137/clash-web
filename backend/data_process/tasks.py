@@ -612,7 +612,7 @@ def process_sync(self, source: str, source_type: str = "file",
         Dict containing the extracted text and metadata
     """
     start_time = time.time()
-    task_id = self.request.id or str(uuid.uuid4())
+    task_id = self.request.id
     
     # Check if we're in a valid Celery context before updating state
     is_celery_context = hasattr(self, 'request') and self.request.id is not None
