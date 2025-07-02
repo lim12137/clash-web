@@ -64,28 +64,6 @@ class OpenAILongContextModel(OpenAIModel):
             # Simple character count estimation (approximately 4 characters = 1 token)
             return len(text) // 4
     
-    def count_messages_tokens(self, messages: List[Dict[str, Any]]) -> int:
-        """
-        Calculate the total token number of the message list
-        
-        Args:
-            messages: Message list
-            
-        Returns:
-            int: Total token number
-        """
-        total_tokens = 0
-        for message in messages:
-            content = message.get("content", "")
-            if isinstance(content, list):
-                # Process multi-modal content
-                for item in content:
-                    if isinstance(item, dict) and item.get("type") == "text":
-                        total_tokens += self.count_tokens(item.get("text", ""))
-            else:
-                total_tokens += self.count_tokens(str(content))
-        return total_tokens
-    
     def truncate_text(self, text: str, max_tokens: int) -> str:
         """
         Truncate the text to the specified token number
@@ -141,40 +119,6 @@ class OpenAILongContextModel(OpenAIModel):
                 # Only keep the end part
                 return text[-estimated_chars:]
     
-    def read_text_file(self, file_input: Union[str, BinaryIO]) -> str:
-        """
-        Read the text file content
-        
-        Args:
-            file_input: File path or file stream object
-            
-        Returns:
-            str: File content
-        """
-        if isinstance(file_input, str):
-            file_path = Path(file_input)
-            if not file_path.exists():
-                raise FileNotFoundError(f"文件不存在: {file_input}")
-            
-            # Check file size to avoid reading too large files
-            file_size = file_path.stat().st_size
-            if file_size > 100 * 1024 * 1024:  # 100MB limit
-                raise ValueError(f"File too large: {file_size / 1024 / 1024:.2f}MB, maximum support 100MB")
-            
-            # Try different encoding formats
-            encodings = ['utf-8', 'gbk', 'gb2312', 'latin-1']
-            for encoding in encodings:
-                try:
-                    with open(file_path, 'r', encoding=encoding) as f:
-                        return f.read()
-                except UnicodeDecodeError:
-                    continue
-            
-            raise UnicodeDecodeError(f"Cannot decode file: {file_input}")
-        else:
-            # For file stream objects, read directly
-            return file_input.read().decode('utf-8')
-    
     def prepare_long_text_message(self, text_content: str, system_prompt: str, user_prompt: str):
         """
         Prepare the message format containing long text, automatically handle truncation
@@ -204,57 +148,18 @@ class OpenAILongContextModel(OpenAIModel):
         ]
         
         return messages
-    
-    def analyze_text_file(self, query: str, file_input: Union[str, BinaryIO]) -> ChatMessage:
-        """
-        Analyze the text file content
-        
-        Args:
-            query: User question
-            file_input: Text file path or file stream object
-            
-        Returns:
-            ChatMessage: Model returned message
-        """
-        # Read the file content
-        text_content = self.read_text_file(file_input)
-        system_prompt = f"用户提出了一个问题：{query}，请从回答这个问题的角度精简、仔细描述一下这段文本，200字以内。"
-        user_prompt = "请仔细阅读并分析这段文本："
-        messages = self.analyze_long_text(text_content, system_prompt, user_prompt)
-        return messages
-    
+
     def analyze_long_text(self, text_content: str, system_prompt: str, user_prompt: str) -> ChatMessage:
         """
         Analyze the long text content
-        
+
         Args:
             text_content: Text content
             system_prompt: System prompt
             user_prompt: User prompt
-            
+
         Returns:
             ChatMessage: Model returned message
         """
         messages = self.prepare_long_text_message(text_content, system_prompt, user_prompt)
         return self(messages=messages)
-    
-    def get_context_usage_info(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Get the context usage information
-        
-        Args:
-            messages: Message list
-            
-        Returns:
-            Dict[str, Any]: Information containing token usage
-        """
-        total_tokens = self.count_messages_tokens(messages)
-        usage_percentage = (total_tokens / self.max_context_tokens) * 100
-        
-        return {
-            "total_tokens": total_tokens,
-            "max_context_tokens": self.max_context_tokens,
-            "usage_percentage": usage_percentage,
-            "remaining_tokens": self.max_context_tokens - total_tokens,
-            "is_truncated": total_tokens > self.max_context_tokens
-        }
