@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import List, Optional
 from io import BytesIO
+import requests
+import logging
 
 from utils.auth_utils import get_current_user_id
 from fastapi import UploadFile, File, HTTPException, Form, APIRouter, Query, Path as PathParam, Body, Header
@@ -16,7 +18,7 @@ from utils.attachment_utils import convert_image_to_text, convert_long_text_to_t
 from database.attachment_db import (
     upload_fileobj, delete_file, get_file_url, list_files
 )
-from services.file_management_service import file_management_service
+logger = logging.getLogger("file_management_app")
 
 # Create upload directory
 upload_dir = Path(UPLOAD_FOLDER)
@@ -444,7 +446,45 @@ async def process_text_file(query, filename, file_content, tenant_id: str) -> st
     """
     Process text file, convert to text using external API
     """
-    raw_text = file_management_service.get_text_from_file(file_content)
+    # file_content is byte data, need to send to API through file upload
+    data_process_service_url = os.environ.get('DATA_PROCESS_SERVICE')
+    api_url = f"{data_process_service_url}/tasks/process_text_file"
+    logger.info(f"Processing text file {filename} with API: {api_url}")
+
+    try:
+        # Upload byte data as a file
+        files = {
+            'file': (filename, file_content, 'application/octet-stream')
+        }
+        data = {
+            'chunking_strategy': 'basic',
+            'timeout': 60
+        }
+        
+        response = requests.post(
+            api_url,
+            files=files,
+            data=data,
+            timeout=60
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            logger.info(f"File processed successfully: {result}...")
+            raw_text = result.get("text", "")
+            logger.info(f"File processed successfully: {raw_text[:100]}...")
+        else:
+            error_detail = response.json().get('detail', '未知错误') if response.headers.get('content-type', '').startswith('application/json') else response.text
+            logger.error(f"File processing failed (status code: {response.status_code}): {error_detail}")
+            raise Exception(f"File processing failed (status code: {response.status_code}): {error_detail}")
+
+    except requests.exceptions.Timeout:
+        raise Exception("API call timeout")
+    except requests.exceptions.ConnectionError:
+        raise Exception(f"Cannot connect to data processing service: {api_url}")
+    except Exception as e:
+        raise Exception(f"Error processing file: {str(e)}")
+
     text = convert_long_text_to_text(query, raw_text, tenant_id)
     return f"File {filename} content: {text}"
 
