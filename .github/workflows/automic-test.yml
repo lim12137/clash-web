@@ -2,10 +2,15 @@ name: Run Automated Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      runner_label_json:
+        description: 'JSON 格式的 runner 标签数组'
+        required: true
+        default: '["self-hosted", "X64", "Linux", "aliyun-154"]'
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
