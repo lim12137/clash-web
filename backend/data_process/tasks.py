@@ -649,7 +649,7 @@ def process_sync(self, source: str, source_type: str = "file",
         elapsed_time = end_time - start_time
         
         # Extract text from chunks
-        text_content = "\n\n".join([chunk.get("text", "") for chunk in chunks])
+        text_content = "\n\n".join([chunk.get("content", "") for chunk in chunks])
         
         # Update task state to COMPLETE
         self.update_state(
