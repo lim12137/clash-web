@@ -1,8 +1,10 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import HTTPException, APIRouter, Form
+from fastapi import HTTPException, APIRouter, Form, File, UploadFile
 import base64
 import io
+import tempfile
+import os
 
 from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTaskRequest, SimpleTaskStatusResponse, \
     SimpleTasksListResponse
@@ -292,3 +294,66 @@ async def filter_important_image(
         logger.error(f"Error processing image: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Error processing image: {str(e)}")
+
+
+@router.post("/process_text_file", response_model=dict, status_code=200)
+async def process_text_file(
+    file: UploadFile = File(...),
+    chunking_strategy: str = Form("basic"),
+    timeout: int = Form(60)
+):
+    """
+    Transfer the uploaded file to text content
+    
+    This interface is specifically used for file-to-text conversion, supporting multiple file formats including PDF, Word, Excel, etc.
+    Use high-priority processing queue for fast response.
+    
+    Parameters:
+        file: Uploaded file object
+        chunking_strategy: Chunking strategy, default is "basic"
+        timeout: Processing timeout (seconds), default is 60 seconds
+    
+    Returns:
+        JSON object, containing the extracted full text content and processing metadata
+    """
+    temp_file_path = None
+    try:
+        logger.info(f"Processing uploaded file: {file.filename}")
+        
+        # Save the uploaded file to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename or "")[1]) as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        logger.info(f"Saved uploaded file to temporary path: {temp_file_path}")
+
+        result = process_sync(source=temp_file_path, source_type='file', chunking_strategy=chunking_strategy, timeout=timeout)
+        logger.info(f"************************{str(result)}")
+        logger.info(f"Successfully processed uploaded file: {file.filename}, extracted {result.get('text_length', 0)} characters")
+        
+        return {
+            "success": True,
+            "task_id": result.get("task_id"),
+            "filename": file.filename,
+            "text": result.get("text", ""),
+            "chunks_count": result.get("chunks_count", 0),
+            "text_length": result.get("text_length", 0),
+            "processing_time": result.get("processing_time", 0),
+            "chunking_strategy": chunking_strategy
+        }
+        
+    except Exception as e:
+        logger.exception(f"Error processing uploaded file {file.filename}: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"处理文件时发生错误: {str(e)}"
+        )
+    finally:
+        # Clean up temporary files
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+                logger.debug(f"Cleaned up temporary file: {temp_file_path}")
+            except Exception as e:
+                logger.warning(f"Failed to clean up temporary file {temp_file_path}: {str(e)}")

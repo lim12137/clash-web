@@ -19,7 +19,6 @@ import {
   AiFillFileWord,
   AiFillFileExcel,
   AiFillFilePpt,
-  AiFillFileZip,
   AiFillFileText,
   AiFillFileMarkdown,
   AiFillHtml5,
@@ -219,6 +218,17 @@ const getFileExtension = (filename: string): string => {
   return filename.slice(((filename.lastIndexOf(".") - 1) >>> 0) + 2).toLowerCase();
 };
 
+// Format file size
+const formatFileSize = (sizeInBytes: number): string => {
+  if (sizeInBytes < 1024) {
+    return `${sizeInBytes} B`;
+  } else if (sizeInBytes < 1024 * 1024) {
+    return `${(sizeInBytes / 1024).toFixed(1)} KB`;
+  } else {
+    return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+};
+
 // Get file icon
 const getFileIcon = (file: File) => {
   const extension = getFileExtension(file.name);
@@ -272,14 +282,6 @@ const getFileIcon = (file: File) => {
       return <AiFillCode size={iconSize} color="#f39c12" />;
     case 'json':
       return <AiFillCode size={iconSize} color="#f1c40f" />;
-
-    // Compressed files
-    case 'zip':
-    case 'rar':
-    case '7z':
-    case 'tar':
-    case 'gz':
-      return <AiFillFileZip size={iconSize} color="#f39c12" />;
 
     // Default file icon
     default:
@@ -641,23 +643,20 @@ export function ChatInput({
       const fileId = Math.random().toString(36).substring(7);
       const extension = getFileExtension(file.name);
 
-      // 支持的图片文件类型
+      // Supported image file types
       const isImage = file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension);
 
-      // 支持的文档文件类型
-      const isDocument = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension) ||
+      // Supported document file types
+      const isDocument = ['pdf', 'doc', 'docx', 'odt', 'rtf', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension) ||
                         file.type === 'application/pdf' ||
                         file.type.includes('officedocument');
 
-      // 支持的文本文件类型
-      const isTextFile = ['txt', 'md', 'csv', 'json', 'html', 'htm', 'css', 'js', 'ts', 'jsx', 'tsx', 'php', 'py', 'java', 'c', 'cpp', 'cs'].includes(extension) ||
-                        file.type.startsWith('text/') ||
-                        file.type === 'application/json';
+      // Supported text file types
+      const isSupportedTextFile = ['csv', 'tsv', 'md', 'markdown', 'txt'].includes(extension) ||
+                                 file.type === 'text/csv' ||
+                                 file.type === 'text/plain';
 
-      // 支持的压缩文件类型
-      const isArchive = ['zip', 'rar', '7z', 'tar', 'gz'].includes(extension);
-
-      if (isImage || isDocument || isTextFile || isArchive) {
+      if (isImage || isDocument || isSupportedTextFile) {
         // Create a preview URL for images
         const previewUrl = isImage ? URL.createObjectURL(file) : undefined;
 
@@ -790,7 +789,7 @@ export function ChatInput({
                           {attachment.file.name || t("chatInput.image")}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {(attachment.file.size / 1024).toFixed(1)} KB
+                          {formatFileSize(attachment.file.size)}
                         </span>
                       </div>
                     </div>
@@ -810,7 +809,7 @@ export function ChatInput({
                           {attachment.file.name}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {(attachment.file.size / 1024).toFixed(1)} KB
+                          {formatFileSize(attachment.file.size)}
                         </span>
                       </div>
                     </div>
@@ -921,7 +920,7 @@ export function ChatInput({
                   id="file-upload-regular"
                   className="hidden"
                   onChange={handleFileUpload}
-                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv,.json,.html,.htm,.css,.js,.ts,.jsx,.tsx,.php,.py,.java,.c,.cpp,.cs,.zip,.rar,.7z,.tar,.gz"
+                  accept="image/*,.pdf,.doc,.docx,.odt,.rtf,.xls,.xlsx,.ppt,.pptx,.csv,.tsv,.md,.markdown,.txt"
                   multiple
                 />
               </Button>
@@ -994,15 +993,14 @@ export function ChatInput({
     const fileType = attachment.file.type;
     
     const isImage = fileType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension);
-    const isDocument = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension) ||
+    const isDocument = ['pdf', 'doc', 'docx', 'odt', 'rtf', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension) ||
                       fileType === 'application/pdf' ||
                       fileType.includes('officedocument');
-    const isTextFile = ['txt', 'md', 'csv', 'json', 'html', 'htm', 'css', 'js', 'ts', 'jsx', 'tsx', 'php', 'py', 'java', 'c', 'cpp', 'cs'].includes(extension) ||
-                      fileType.startsWith('text/') ||
-                      fileType === 'application/json';
-    const isArchive = ['zip', 'rar', '7z', 'tar', 'gz'].includes(extension);
+    const isSupportedTextFile = ['csv', 'tsv', 'md', 'markdown', 'txt'].includes(extension) ||
+                               fileType === 'text/csv' ||
+                               fileType === 'text/plain';
     
-    return !(isImage || isDocument || isTextFile || isArchive);
+    return !(isImage || isDocument || isSupportedTextFile);
   });
 
   // Regular mode, keep the original rendering logic
