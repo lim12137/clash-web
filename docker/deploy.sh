@@ -59,11 +59,25 @@ generate_minio_ak_sk() {
 
   export MINIO_ACCESS_KEY=$ACCESS_KEY
   export MINIO_SECRET_KEY=$SECRET_KEY
+
+  if grep -q "^MINIO_ACCESS_KEY=" .env; then
+    sed -i.bak "s~^MINIO_ACCESS_KEY=.*~MINIO_ACCESS_KEY=$ACCESS_KEY~" .env
+    rm .env.bak
+  else
+    echo "MINIO_ACCESS_KEY=$ACCESS_KEY" >> .env
+  fi
+
+  if grep -q "^MINIO_SECRET_KEY=" .env; then
+    sed -i.bak "s~^MINIO_SECRET_KEY=.*~MINIO_SECRET_KEY=$SECRET_KEY~" .env
+    rm .env.bak
+  else
+    echo "MINIO_SECRET_KEY=$SECRET_KEY" >> .env
+  fi
 }
 
 clean() {
-  export MINIO_ACCESS_KEY=
-  export MINIO_SECRET_KEY=
+  # export MINIO_ACCESS_KEY=
+  # export MINIO_SECRET_KEY=
   export DEPLOYMENT_MODE=
   export COMPOSE_FILE_SUFFIX=
 }
