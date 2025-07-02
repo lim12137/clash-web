@@ -41,7 +41,7 @@ class DataProcessorRayActor:
         # If it's an object, convert to dict for serialization.
         logger.debug("[RayActor] Chunks are objects, converting to dicts for serialization.")
         return [
-            {"text": chunk.text, "metadata": chunk.metadata.to_dict()}
+            {"content": chunk.text, "metadata": chunk.metadata.to_dict()}
             for chunk in raw_chunks if hasattr(chunk, 'text') and hasattr(chunk, 'metadata')
         ]
 
@@ -67,6 +67,6 @@ class DataProcessorRayActor:
         # If it's an object, convert to dict for serialization.
         logger.debug("[RayActor] Chunks are objects, converting to dicts for serialization.")
         return [
-            {"text": chunk.text, "metadata": chunk.metadata.to_dict()}
+            {"content": chunk.text, "metadata": chunk.metadata.to_dict()}
             for chunk in raw_chunks if hasattr(chunk, 'text') and hasattr(chunk, 'metadata')
         ] 
