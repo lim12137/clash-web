@@ -329,7 +329,6 @@ async def process_text_file(
         logger.info(f"Saved uploaded file to temporary path: {temp_file_path}")
 
         result = process_sync(source=temp_file_path, source_type='file', chunking_strategy=chunking_strategy, timeout=timeout)
-        logger.info(f"************************{str(result)}")
         logger.info(f"Successfully processed uploaded file: {file.filename}, extracted {result.get('text_length', 0)} characters")
         
         return {
