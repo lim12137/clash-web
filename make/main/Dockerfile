@@ -1,4 +1,4 @@
-FROM python:3.10.16
+FROM python:3.10-slim
 LABEL authors="nexent"
 
 # Set correct permissions as root
@@ -15,7 +15,9 @@ COPY backend /opt/backend
 # 创建 venv、安装 sdk（开发模式）、安装 backend 依赖（基础），合并为一层
 WORKDIR /opt/backend
 RUN uv sync && \
-    rm -rf /root/.cache/uv /root/.cache/pip
+    rm -rf /root/.cache/uv /root/.cache/pip && \
+    find .venv -type d -name '__pycache__' -exec rm -rf {} + && \
+    find .venv -type f -name '*.pyc' -delete
 
 ENV VIRTUAL_ENV=/opt/backend/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
