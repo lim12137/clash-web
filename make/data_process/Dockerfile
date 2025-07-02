@@ -5,7 +5,7 @@ LABEL authors="nexent"
 USER root
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y --no-install-recommends --fix-missing \
         libmagic1 \
         libmagic-dev \
         libreoffice \

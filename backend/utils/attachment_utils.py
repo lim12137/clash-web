@@ -29,8 +29,8 @@ def convert_long_text_to_text(query: str, file_context: str, tenant_id: str):
     long_text_to_text_model = OpenAILongContextModel(
         observer=MessageObserver(),
         model_id=get_model_name_from_config(secondary_model_config),
-        api_base=secondary_model_config.get_config("LLM_SECONDARY_MODEL_URL"),
-        api_key=secondary_model_config.get_config("LLM_SECONDARY_API_KEY")
+        api_base=secondary_model_config.get("base_url"),
+        api_key=secondary_model_config.get("api_key")
     )
     system_prompt = f"用户提出了一个问题：{query}，请从回答这个问题的角度精简、仔细描述一下这段文本，200字以内。"
     user_prompt = "请仔细阅读并分析这段文本："
