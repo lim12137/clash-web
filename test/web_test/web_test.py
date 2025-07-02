@@ -4,12 +4,15 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.firefox.options import Options
 
 
 class TestNexent():
     @classmethod
     def setup_class(cls):
-        cls.driver = webdriver.Firefox()
+        options = Options()
+        options.add_argument('--headless')
+        cls.driver = webdriver.Firefox(options=options)
         cls.wait = WebDriverWait(cls.driver, 20)
         cls.vars = {}
 
@@ -63,7 +66,6 @@ class TestNexent():
 
         # 等待输出内容流式生成完成
         time.sleep(40)
-        # output_xpath = "/html/body/div/div[1]/div[2]/div/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div/div/div[1]"
         output_xpath = "/html/body/div[2]/div[1]/div[2]/div/div[1]/div[1]/div[1]/div/div"
         elem = self.driver.find_element(By.XPATH, output_xpath)
         output_text = elem.text
