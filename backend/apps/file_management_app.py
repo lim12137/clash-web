@@ -6,9 +6,10 @@ from typing import List, Optional
 from io import BytesIO
 import requests
 import logging
+import httpx
 
-from utils.auth_utils import get_current_user_id
-from fastapi import UploadFile, File, HTTPException, Form, APIRouter, Query, Path as PathParam, Body, Header
+from utils.auth_utils import get_current_user_info
+from fastapi import UploadFile, File, HTTPException, Form, APIRouter, Query, Path as PathParam, Body, Header, Request
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from consts.model import ProcessParams
@@ -344,13 +345,13 @@ async def get_storage_file_batch_urls(
 
 
 @router.post("/preprocess")
-async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] = File(...), authorization: Optional[str] = Header(None)):
+async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] = File(...), authorization: Optional[str] = Header(None), request: Request = None):
     """
     Preprocess uploaded files and return streaming response
     """
     try:
         # Pre-read and cache all file contents
-        user_id, tenant_id = get_current_user_id(authorization)
+        user_id, tenant_id, language = get_current_user_info(authorization, request)
         file_cache = []
         for file in files:
             import time
@@ -388,9 +389,9 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
                         raise Exception(file_data["error"])
 
                     if file_data["ext"] in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
-                        description = await process_image_file(query, file_data["filename"], file_data["content"], tenant_id)
+                        description = await process_image_file(query, file_data["filename"], file_data["content"], tenant_id, language)
                     else:
-                        description = await process_text_file(query, file_data["filename"], file_data["content"], tenant_id)
+                        description = await process_text_file(query, file_data["filename"], file_data["content"], tenant_id, language)
                     file_descriptions.append(description)
 
                     # Send processing result for each file
@@ -432,17 +433,17 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
         raise HTTPException(status_code=500, detail=f"File preprocessing error: {str(e)}")
 
 
-async def process_image_file(query, filename, file_content, tenant_id: str) -> str:
+async def process_image_file(query, filename, file_content, tenant_id: str, language: str = 'zh') -> str:
     """
     Process image file, convert to text using external API
     """
     image_stream = BytesIO(file_content)
-    text = convert_image_to_text(query, image_stream, tenant_id)
+    text = convert_image_to_text(query, image_stream, tenant_id, language)
 
     return f"Image file {filename} content: {text}"
 
 
-async def process_text_file(query, filename, file_content, tenant_id: str) -> str:
+async def process_text_file(query, filename, file_content, tenant_id: str, language: str = 'zh') -> str:
     """
     Process text file, convert to text using external API
     """
@@ -460,13 +461,8 @@ async def process_text_file(query, filename, file_content, tenant_id: str) -> st
             'chunking_strategy': 'basic',
             'timeout': 60
         }
-        
-        response = requests.post(
-            api_url,
-            files=files,
-            data=data,
-            timeout=60
-        )
+        async with httpx.AsyncClient() as client:
+            response = await client.post(api_url, files=files, data=data, timeout=60)
 
         if response.status_code == 200:
             result = response.json()
@@ -485,7 +481,7 @@ async def process_text_file(query, filename, file_content, tenant_id: str) -> st
     except Exception as e:
         raise Exception(f"Error processing file: {str(e)}")
 
-    text = convert_long_text_to_text(query, raw_text, tenant_id)
+    text = convert_long_text_to_text(query, raw_text, tenant_id, language)
     return f"File {filename} content: {text}"
 
 
