@@ -100,7 +100,7 @@ export const DocumentStatus: React.FC<DocumentStatusProps> = ({
   const displayStatus = getDisplayStatus(status);
 
   return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${bgColor} ${textColor} border ${borderColor}`}>
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${bgColor} ${textColor} border ${borderColor} whitespace-nowrap`}>
       {showIcon && <span className="mr-1">{getStatusIcon()}</span>}
       {displayStatus}
     </span>

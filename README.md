@@ -131,10 +131,7 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 
 # 🐛 Known Issues
 
-1. ⚙️ **MCP Service Configuration Not Yet in UI**  
-   We know that currently, MCP service configuration cannot be completed through the UI. We are working to add this capability soon.
-
-2. 📝 **Code Output May Be Misinterpreted as Executable**  
+1📝 **Code Output May Be Misinterpreted as Executable**  
    In Nexent conversations, if the model outputs code-like text, it may sometimes be misinterpreted as something that should be executed. We will fix this as soon as possible.
 
 # 👥 Contributing

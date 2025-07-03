@@ -27,7 +27,7 @@ python backend/data_process_service.py
 python backend/main_service.py
 
 # 启动 MCP 服务
-python backend/mcp_service.py
+python backend/nexent_mcp_service.py
 ```
 
 ### 3. 启动前端服务
@@ -46,7 +46,7 @@ npm run dev
 
 Nexent 基于 [Model Context Protocol (MCP)](https://github.com/modelcontextprotocol/python-sdk) 实现工具系统。开发新工具需要：
 
-1. 在 `mcp_service.py` 中实现工具逻辑
+1. 在 `backend/mcp_service/local_mcp_service.py` 中实现工具逻辑
 2. 使用 `@mcp.tool()` 装饰器注册工具
 3. 重启 MCP 服务使新工具生效
 
