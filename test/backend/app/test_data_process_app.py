@@ -5,9 +5,15 @@ import base64
 import io
 import os
 import sys
-from fastapi import FastAPI, APIRouter, HTTPException, Form
+from fastapi import FastAPI, APIRouter, HTTPException, Form, Query, Body
+from typing import Dict, Any, Optional, List
 from fastapi.testclient import TestClient
 from PIL import Image
+
+# Dynamically determine the backend path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
+sys.path.append(backend_dir)
 
 # 在导入应用模块前设置必要的环境变量
 os.environ['REDIS_URL'] = 'redis://localhost:6379/0'
@@ -18,11 +24,34 @@ os.environ['ELASTICSEARCH_URL'] = 'http://localhost:9200'
 os.environ['DATA_PATH'] = '/tmp/data'
 os.environ['DATA_PROCESS_LOG_LEVEL'] = 'INFO'
 
+# 模拟 BatchTaskRequest 类
+class MockBatchTaskRequest:
+    def __init__(self, sources=None):
+        self.sources = sources or []
+
+# 创建模拟的model模块
+class MockTaskResponse:
+    def __init__(self, task_id):
+        self.task_id = task_id
+
+class MockBatchTaskResponse:
+    def __init__(self, task_ids):
+        self.task_ids = task_ids
+
+# 创建模拟的model模块
+mock_model = MagicMock()
+mock_model.BatchTaskRequest = MockBatchTaskRequest
+mock_model.TaskResponse = MockTaskResponse
+mock_model.BatchTaskResponse = MockBatchTaskResponse
+mock_model.SimpleTaskStatusResponse = MagicMock()
+mock_model.SimpleTasksListResponse = MagicMock()
+
 # 模拟celery和其他服务
 mock_celery = MagicMock()
 mock_service = MagicMock()
 sys.modules['celery'] = mock_celery
 sys.modules['services.data_process_service'] = mock_service
+sys.modules['consts.model'] = mock_model
 
 # 模拟所有导入，而不是实际导入模块
 class MockRouter:
@@ -73,7 +102,7 @@ class TestDataProcessApp(unittest.TestCase):
     def setup_mock_routes(self):
         # 添加一些测试路由
         @self.app.post("/tasks")
-        async def create_task(request: dict):
+        async def create_task(request: Dict[str, Any] = Body(None)):
             # 模拟创建任务
             task_result = self.process_and_forward.delay.return_value
             return {"task_id": task_result.id}
@@ -108,11 +137,17 @@ class TestDataProcessApp(unittest.TestCase):
                 raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
         
         @self.app.post("/tasks/batch")
-        async def create_batch_tasks(request: dict):
+        async def create_batch_tasks(request: Dict[str, Any] = Body(None)):
             # 模拟批量创建任务
             task_ids = []
             
-            for i in range(len(request.get("sources", []))):
+            # Handle both Dict and MockBatchTaskRequest
+            if hasattr(request, 'sources'):
+                sources = request.sources
+            else:
+                sources = request.get("sources", [])
+            
+            for i in range(len(sources)):
                 if isinstance(self.process_and_forward.delay.return_value, list):
                     task_result = self.process_and_forward.delay.return_value[i]
                 else:
@@ -122,7 +157,7 @@ class TestDataProcessApp(unittest.TestCase):
             return {"task_ids": task_ids}
         
         @self.app.get("/tasks/load_image")
-        async def load_image(url: str):
+        async def load_image():
             # 模拟图像加载
             if not getattr(self.service, 'load_image', None) or self.service.load_image.return_value is None:
                 raise HTTPException(status_code=404, detail="Failed to load image or image format not supported")
