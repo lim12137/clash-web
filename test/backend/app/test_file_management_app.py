@@ -5,6 +5,13 @@ import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 from io import BytesIO
 from pathlib import Path
+import sys  
+
+
+# Dynamically determine the backend path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
+sys.path.append(backend_dir)
 
 # Mock the MinioClient and database connections before importing the module
 import sys
