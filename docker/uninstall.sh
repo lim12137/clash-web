@@ -6,4 +6,5 @@ docker rm -f nexent-minio
 docker rm -f nexent-elasticsearch
 docker rm -f nexent-data-process
 docker rm -f nexent-web
+docker rm -f nexent-redis
 docker network rm nexent_nexent

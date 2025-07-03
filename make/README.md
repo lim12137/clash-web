@@ -4,9 +4,6 @@
 # 🛠️ Create and use a new builder instance that supports multi-architecture builds
 docker buildx create --name nexent_builder --use
 
-# 🔨 build base image for multiple architectures
-docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-base -f make/base/Dockerfile . --push
-
 # 🚀 build application for multiple architectures
 docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent -f make/main/Dockerfile . --push
 
@@ -20,9 +17,6 @@ docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexen
 ### 💻 Local Development Build
 
 ```bash
-# 🔨 Build base image (current architecture only)
-docker build --progress=plain -t nexent/nexent-base -f make/base/Dockerfile .
-
 # 🚀 Build application image (current architecture only)
 docker build --progress=plain -t nexent/nexent -f make/main/Dockerfile .
 

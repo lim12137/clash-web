@@ -237,9 +237,28 @@ class TenantConfig(TableBase):
     user_id = Column(String(100), doc="User ID")
     value_type = Column(String(100), doc=" the data type of config_value, optional values: single/multi", default="single")
     config_key = Column(String(100), doc="the key of the config")
-    config_value = Column(String(100), doc="the value of the config")
+    config_value = Column(String(10000), doc="the value of the config")
     create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time")
     update_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Update time")
     created_by = Column(String(100), doc="Creator")
     updated_by = Column(String(100), doc="Updater")
     delete_flag = Column(String(1), default="N", doc="Whether it is deleted. Optional values: Y/N")
+
+
+class McpRecord(TableBase):
+    """
+    MCP (Model Context Protocol) records table
+    """
+    __tablename__ = "mcp_record_t"
+    __table_args__ = {"schema": SCHEMA}
+
+    mcp_id = Column(Integer, Sequence("mcp_record_t_mcp_id_seq", schema=SCHEMA), primary_key=True, nullable=False, doc="MCP record ID, unique primary key")
+    tenant_id = Column(String(100), doc="Tenant ID")
+    user_id = Column(String(100), doc="User ID")
+    mcp_name = Column(String(100), doc="MCP name")
+    mcp_server = Column(String(500), doc="MCP server address")
+    create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time, audit field")
+    update_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Update time, audit field")
+    created_by = Column(String(100), doc="Creator ID, audit field")
+    updated_by = Column(String(100), doc="Last updater ID, audit field")
+    delete_flag = Column(String(1), default="N", doc="When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N")

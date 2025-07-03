@@ -18,14 +18,14 @@ https://github.com/user-attachments/assets/0758629c-3477-4cd4-a737-0aab330d53a7
 
 > *If you want to go fast, go alone; if you want to go far, go together.*
 
-我们仍处于首个开源阶段，目标是在 **2025 年 6 月发布 Nexent v1 稳定版**。在此之前，我们将持续快速发布核心功能 —— 我们期待您的参与：
+我们已经发布了 **Nexent v1**，目前功能已经相对稳定，但仍可能存在一些 bug，我们会持续改进并不断增加新功能。敬请期待，我们很快也会公布 **v2.0** 版本！
 
 * **🗺️ 查看我们的 [功能地图](https://github.com/orgs/ModelEngine-Group/projects/6)** 探索当前和即将推出的功能。
 * **🔍 试用当前版本** 并在 [问题反馈](https://github.com/ModelEngine-Group/nexent/issues) 中留下想法或报告错误。
 
 > *Rome wasn't built in a day.*
 
-虽然许多关键功能仍在积极开发中，但如果我们的愿景与您产生共鸣，请通过 **[贡献指南](CONTRIBUTING_CN.md)** 加入我们，共同塑造 Nexent。
+如果我们的愿景与您产生共鸣，请通过 **[贡献指南](CONTRIBUTING_CN.md)** 加入我们，共同塑造 Nexent。
 
 早期贡献者不会被忽视：从特殊徽章和纪念品到其他实质性奖励，我们致力于感谢那些帮助 Nexent 诞生的先驱者。
 
@@ -128,13 +128,7 @@ bash deploy.sh
 
 # 🐛 已知问题
 
-1. 📦 **Docker镜像体积较大**  
-   我们注意到当前的Docker镜像体积较大（10GB左右），这是因为包含了强大的可扩展的数据处理引擎和数据处理算法与模型，我们会尽快推出Lite版的镜像以减少镜像体积，以便让部署更快更轻量。
-
-2. ⚙️ **MCP服务配置暂不支持UI界面**  
-   我们知道目前MCP服务的配置还无法在UI界面完成，我们会尽快支持该能力。
-
-3. 📝 **代码类输出可能被误认为可执行**  
+1📝 **代码类输出可能被误认为可执行**  
    Nexent对话时如果模型输出代码类的文本，可能会被错误理解为需要被执行，我们会尽快修复。
 
 # 👥 贡献指南

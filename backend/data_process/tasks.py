@@ -246,22 +246,32 @@ def process(self, source: str, source_type: str = "file",
         
     except Exception as e:
         logger.error(f"Error processing file {source}: {str(e)}")
-        
-        # Update task state with custom metadata, but don't put exception info in meta
-        # Let Celery handle the exception serialization automatically
-        self.update_state(
-            state=states.FAILURE,
-            meta={
-                'source': source,
-                'index_name': index_name,
-                'task_name': 'process',
-                'custom_error': str(e),  # Use custom_error to avoid Celery confusion
-                'stage': 'processing_failed'
+        try:
+            error_info = {
+                "message": str(e),
+                "index_name": index_name,
+                "task_name": "process",
+                "source": source
             }
-        )
-        
-        # Re-raise the exception to let Celery handle exception serialization
-        raise
+            self.update_state(
+                meta={
+                    'source': error_info.get('source', ''),
+                    'index_name': error_info.get('index_name', ''),
+                    'task_name': error_info.get('task_name', ''),
+                    'custom_error': error_info.get('message', str(e)),
+                    'stage': 'text_extraction_failed'
+                }
+            )
+            raise Exception(json.dumps(error_info, ensure_ascii=False))
+        except Exception as ex:
+            logger.error(f"Error serializing process exception: {str(ex)}")
+            self.update_state(
+                meta={
+                    'custom_error': str(e),
+                    'stage': 'text_extraction_failed'
+                }
+            )
+            raise
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.forward', queue='forward_q')
 def forward(self, processed_data: Dict, index_name: Optional[str] = None, source: Optional[str] = None) -> Dict:
@@ -278,38 +288,39 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
     """
     start_time = time.time()
     task_id = self.request.id
-    source_type = 'file'  # Default to file type
-    
-    # Extract data from processed_data
-    chunks = processed_data.get('chunks')
-    original_source = processed_data.get('source', source)
-    original_index_name = processed_data.get('index_name', index_name)
-        
-    logger.info(f"[{self.request.id}] FORWARD TASK: Received data for source '{original_source}' with {len(chunks) if chunks else 'None'} chunks")
-    
-    # Update task state to FORWARDING
-    self.update_state(
-        state=states.STARTED,
-        meta={
-            'source': original_source,
-            'index_name': original_index_name,
-            'task_name': 'forward',
-            'start_time': start_time,
-            'stage': 'vectorizing_and_storing'
-        }
-    )
+    source_type = 'file'
+    original_source = source
+    original_index_name = index_name
     
     try:
+        chunks = processed_data.get('chunks')
+        if processed_data.get('source'):
+            original_source = processed_data.get('source')
+        if processed_data.get('index_name'):
+            original_index_name = processed_data.get('index_name')
+        logger.info(f"[{self.request.id}] FORWARD TASK: Received data for source '{original_source}' with {len(chunks) if chunks else 'None'} chunks")
+        
+        # Update task state to FORWARDING
+        self.update_state(
+            state=states.STARTED,
+            meta={
+                'source': original_source,
+                'index_name': original_index_name,
+                'task_name': 'forward',
+                'start_time': start_time,
+                'stage': 'vectorizing_and_storing'
+            }
+        )
         
         if chunks is None:
-            logger.error(f"[{self.request.id}] FORWARD TASK: No chunks received in forward task for source {original_source}")
-            raise Exception("No chunks received for forwarding")
-        
+            raise Exception(json.dumps({
+                "message": "No chunks received for forwarding",
+                "index_name": original_index_name,
+                "task_name": "forward",
+                "source": original_source
+            }, ensure_ascii=False))
         if len(chunks) == 0:
             logger.warning(f"[{self.request.id}] FORWARD TASK: Empty chunks list received for source {original_source}")
-            # Still proceed but log the warning
-        
-        # Format the chunks for Elasticsearch
         formatted_chunks = []
         for i, chunk in enumerate(chunks):
             # Extract text and metadata
@@ -327,7 +338,7 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                 "filename": os.path.basename(original_source) if original_source else "",
                 "path_or_url": original_source,
                 "content": content,
-                "process_source": "Unstructured",  # permanently use default source
+                "process_source": "Unstructured",
                 "source_type": source_type,
                 "file_size": get_file_size(source_type, original_source),
                 "create_time": metadata.get("creation_date"),
@@ -336,25 +347,27 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
             formatted_chunks.append(formatted_chunk)
         
         if len(formatted_chunks) == 0:
-            logger.error(f"[{self.request.id}] FORWARD TASK: No valid chunks to forward after formatting for source {original_source}")
-            raise Exception("No valid chunks to forward after formatting")
-        
-        # Call the Elasticsearch API to index the documents
+            raise Exception(json.dumps({
+                "message": "No valid chunks to forward after formatting",
+                "index_name": original_index_name,
+                "task_name": "forward",
+                "source": original_source
+            }, ensure_ascii=False))
         async def index_documents():
-            elasticsearch_url = os.environ.get("ELASTICSEARCH_SERVICE") 
+            elasticsearch_url = os.environ.get("ELASTICSEARCH_SERVICE")
             if not elasticsearch_url:
-                raise ValueError("ELASTICSEARCH_SERVICE 环境变量未设置")
+                raise Exception(json.dumps({
+                    "message": "ELASTICSEARCH_SERVICE env is not set",
+                    "index_name": original_index_name,
+                    "task_name": "forward",
+                    "source": original_source
+                }, ensure_ascii=False))
             route_url = f"/indices/{original_index_name}/documents"
             full_url = elasticsearch_url + route_url
             headers = {"Content-Type": "application/json"}
             
-            logger.info(f"[{self.request.id}] FORWARD TASK: About to send request to {full_url}")
-            logger.debug(f"[{self.request.id}] FORWARD TASK: First chunk: {formatted_chunks[0] if formatted_chunks else 'No chunks'}")
-            
-            # Add retry logic for network errors and ES service issues
-            max_retries = 5  # Increased retries for ES service issues
-            retry_delay = 5  # Increased delay for ES service recovery
-            
+            max_retries = 5
+            retry_delay = 5
             for retry in range(max_retries):
                 try:
                     connector = aiohttp.TCPConnector(verify_ssl=False)
@@ -362,29 +375,25 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                     
                     async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
                         async with session.post(
-                            full_url, 
+                            full_url,
                             headers=headers,
                             json=formatted_chunks,
                             raise_for_status=True
                         ) as response:
                             result = await response.json()
-
                             return result
                             
                 except aiohttp.ClientResponseError as e:
-                    if e.status == 503:
-                        logger.warning(f"[{self.request.id}] FORWARD TASK: ElasticSearch service unavailable (503) for {full_url}. Retry {retry + 1}/{max_retries}")
-                        if retry < max_retries - 1:
-                            wait_time = retry_delay * (retry + 1)
-                            logger.warning(f"[{self.request.id}] FORWARD TASK: Waiting {wait_time}s before retry due to ES service unavailable...")
-                            await asyncio.sleep(wait_time)
-                        else:
-                            logger.error(f"[{self.request.id}] FORWARD TASK: ElasticSearch service remained unavailable after {max_retries} attempts")
-                            raise Exception(f"ElasticSearch service unavailable after {max_retries} attempts: {str(e)}")
+                    if e.status == 503 and retry < max_retries - 1:
+                        wait_time = retry_delay * (retry + 1)
+                        await asyncio.sleep(wait_time)
                     else:
-                        logger.error(f"[{self.request.id}] FORWARD TASK: HTTP error {e.status} to {full_url}: {str(e)}")
-                        raise Exception(f"HTTP error {e.status}: {str(e)}")
-                        
+                        raise Exception(json.dumps({
+                            "message": f"ElasticSearch service unavailable: {str(e)}",
+                            "index_name": original_index_name,
+                            "task_name": "forward",
+                            "source": original_source
+                        }, ensure_ascii=False))
                 except aiohttp.ClientConnectorError as e:
                     logger.error(f"[{self.request.id}] FORWARD TASK: Connection error to {full_url}: {str(e)}")
                     if retry < max_retries - 1:
@@ -392,126 +401,86 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                         logger.warning(f"[{self.request.id}] FORWARD TASK: Connection error when indexing documents: {str(e)}. Retrying in {wait_time}s...")
                         await asyncio.sleep(wait_time)
                     else:
-                        logger.error(f"[{self.request.id}] FORWARD TASK: Failed to connect to API after {max_retries} attempts: {str(e)}")
-                        raise Exception(f"Failed to connect to API after {max_retries} attempts: {str(e)}")
-                        
+                        raise Exception(json.dumps({
+                            "message": f"Failed to connect to API: {str(e)}",
+                            "index_name": original_index_name,
+                            "task_name": "forward",
+                            "source": original_source
+                        }, ensure_ascii=False))
                 except asyncio.TimeoutError as e:
-                    logger.error(f"[{self.request.id}] FORWARD TASK: Timeout error to {full_url}: {str(e)}")
                     if retry < max_retries - 1:
                         wait_time = retry_delay * (retry + 1)
                         logger.warning(f"[{self.request.id}] FORWARD TASK: Timeout when indexing documents: {str(e)}. Retrying in {wait_time}s...")
                         await asyncio.sleep(wait_time)
                     else:
-                        logger.error(f"[{self.request.id}] FORWARD TASK: Timeout after {max_retries} attempts: {str(e)}")
-                        raise Exception(f"Timeout after {max_retries} attempts: {str(e)}")
-                        
+                        raise Exception(json.dumps({
+                            "message": f"Timeout after {max_retries} attempts: {str(e)}",
+                            "index_name": original_index_name,
+                            "task_name": "forward",
+                            "source": original_source
+                        }, ensure_ascii=False))
                 except Exception as e:
-                    logger.error(f"[{self.request.id}] FORWARD TASK: Unexpected error when indexing documents: {str(e)}")
                     if retry < max_retries - 1:
                         wait_time = retry_delay * (retry + 1)
                         logger.warning(f"[{self.request.id}] FORWARD TASK: Unexpected error when indexing documents: {str(e)}. Retrying in {wait_time}s...")
                         await asyncio.sleep(wait_time)
                     else:
-                        raise
-        
-        # Run the async function
-        try:
-            es_result = run_async(index_documents())
-            logger.debug(f"[{self.request.id}] FORWARD TASK: API response from main_server for source '{original_source}': {es_result}")
+                        raise Exception(json.dumps({
+                            "message": f"Unexpected error when indexing documents: {str(e)}",
+                            "index_name": original_index_name,
+                            "task_name": "forward",
+                            "source": original_source
+                        }, ensure_ascii=False))
+        es_result = run_async(index_documents())
+        logger.debug(f"[{self.request.id}] FORWARD TASK: API response from main_server for source '{original_source}': {es_result}")
 
-            # Check the custom response from main_server
-            if isinstance(es_result, dict) and es_result.get("success") == True:
-                total_indexed = es_result.get("total_indexed", 0)
-                total_submitted = es_result.get("total_submitted", len(formatted_chunks)) # Fallback to submitted count
-                logger.debug(f"[{self.request.id}] FORWARD TASK: main_server reported {total_indexed}/{total_submitted} documents indexed successfully for '{original_source}'. Message: {es_result.get('message')}")
-                
-                if total_indexed < total_submitted:
-                    error_message = f"Failure reported by main_server. Expected {total_submitted} chunks, indexed {total_indexed} chunks."
-                    logger.warning(f"[{self.request.id}] FORWARD TASK: {error_message} for '{original_source}'.")
-                    # Update task state for partial success to FAILURE
-                    self.update_state(
-                        state=states.FAILURE,
-                        meta={
-                            'chunks_stored': total_indexed,
-                            'chunks_failed': total_submitted - total_indexed,
-                            'storage_time': time.time() - start_time,
-                            'source': original_source,
-                            'index_name': original_index_name,
-                            'task_name': 'forward',
-                            'es_result': es_result,
-                            'custom_error': error_message,
-                            'stage': 'completed_with_partial_failure'
-                        }
-                    )
-                    raise Exception(error_message)
-
-            elif isinstance(es_result, dict) and es_result.get("success") == False:
-                error_message = es_result.get("message", "Unknown error from main_server")
-                logger.error(f"[{self.request.id}] FORWARD TASK: main_server reported failure for source '{original_source}': {error_message}")
-                self.update_state(
-                    state=states.FAILURE,
-                    meta={
-                        'source': original_source,
-                        'index_name': original_index_name,
-                        'task_name': 'forward',
-                        'custom_error': f"main_server API error: {error_message}",
-                        'es_result': es_result,
-                        'stage': 'main_server_api_failed'
-                    }
-                )
-                raise Exception(f"main_server API error: {error_message}")
-            else:
-                logger.error(f"[{self.request.id}] FORWARD TASK: Unexpected API response format from main_server for source '{original_source}': {es_result}")
-                self.update_state(
-                    state=states.FAILURE,
-                    meta={
-                        'source': original_source,
-                        'index_name': original_index_name,
-                        'task_name': 'forward',
-                        'custom_error': "Unexpected API response format from main_server",
-                        'es_result': es_result,
-                        'stage': 'api_response_format_error'
-                    }
-                )
-                raise Exception("Unexpected API response format from main_server")
-
-        except Exception as e:
-            # This will catch errors from run_async(index_documents()) call itself (e.g. network issues to main_server)
-            # or errors raised by the logic above (e.g. if main_server reports success:false)
-            logger.error(f"Error during indexing call to main_server or processing its response: {str(e)}")
-            # Ensure state is updated; if it was already updated by the logic above, this might overwrite it,
-            # but it is important to capture this level of error too.
-            current_meta = self.AsyncResult(self.request.id).info or {}
-            current_meta.update({
+        if isinstance(es_result, dict) and es_result.get("success") == True:
+            total_indexed = es_result.get("total_indexed", 0)
+            total_submitted = es_result.get("total_submitted", len(formatted_chunks))
+            logger.debug(f"[{self.request.id}] FORWARD TASK: main_server reported {total_indexed}/{total_submitted} documents indexed successfully for '{original_source}'. Message: {es_result.get('message')}")
+            
+            if total_indexed < total_submitted:
+                logger.info("Value when raise Exception:")
+                logger.info(f"original_source: {original_source}")
+                logger.info(f"original_index_name: {original_index_name}")
+                logger.info(f"task_name: forward")
+                logger.info(f"source: {original_source}")
+                raise Exception(json.dumps({
+                    "message": f"Failure reported by main_server. Expected {total_submitted} chunks, indexed {total_indexed} chunks.",
+                    "index_name": original_index_name,
+                    "task_name": "forward",
+                    "source": original_source
+                }, ensure_ascii=False))
+        elif isinstance(es_result, dict) and es_result.get("success") == False:
+            error_message = es_result.get("message", "Unknown error from main_server")
+            raise Exception(json.dumps({
+                "message": f"main_server API error: {error_message}",
+                "index_name": original_index_name,
+                "task_name": "forward",
+                "source": original_source
+            }, ensure_ascii=False))
+        else:
+            raise Exception(json.dumps({
+                "message": f"Unexpected API response format from main_server: {es_result}",
+                "index_name": original_index_name,
+                "task_name": "forward",
+                "source": original_source
+            }, ensure_ascii=False))
+        end_time = time.time()
+        self.update_state(
+            state=states.SUCCESS,
+            meta={
+                'chunks_stored': len(chunks),
+                'storage_time': end_time - start_time,
                 'source': original_source,
                 'index_name': original_index_name,
                 'task_name': 'forward',
-                'custom_error': f"Forwarding to main_server failed: {str(e)}",
-                'stage': 'forwarding_failed'
-            })
-            self.update_state(state=states.FAILURE, meta=current_meta)
-            raise # Re-raise the exception to mark Celery task as FAILED
-        
-        end_time = time.time()
-        # Default success state update, will be overridden if specific error/partial success states were set above
-        # Only update to fully COMPLETED if no errors were caught and handled above that set a different state.
-        current_task_state_result = self.AsyncResult(self.request.id)
-        if current_task_state_result.state == states.STARTED:
-            self.update_state(
-                state=states.SUCCESS,
-                meta={
-                    'chunks_stored': len(chunks), # This assumes all chunks sent to main_server were stored if success=true
-                    'storage_time': end_time - start_time,
-                    'source': original_source,
-                    'index_name': original_index_name,
-                    'task_name': 'forward',
-                    'es_result': es_result,
-                    'stage': 'completed'
-                }
-            )
+                'es_result': es_result,
+                'stage': 'completed'
+            }
+        )
         
         logger.info(f"Stored {len(chunks)} chunks to index {original_index_name} in {end_time - start_time:.2f}s")
-        
         return {
             'task_id': task_id,
             'source': original_source,
@@ -520,34 +489,29 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
             'storage_time': end_time - start_time,
             'es_result': es_result
         }
-        
     except Exception as e:
-        logger.error(f"Error forwarding chunks to index {original_index_name}: {str(e)}")
-        
-        # Update task state to FAILURE with custom metadata
-        self.update_state(
-            state=states.FAILURE,
-            meta={
-                'source': original_source,
-                'index_name': original_index_name,
-                'task_name': 'forward',
-                'custom_error': str(e),
-                'stage': 'forward_task_failed'
-            }
-        )
-        
-        # Retry logic as per requirements document
-        if self.request.retries < 3:
-            logger.warning(f"Retrying forward task {self.request.id} (attempt {self.request.retries + 1}/3)")
-            raise self.retry(countdown=60, max_retries=3)
-        else:
-            logger.error(f"Max retries exceeded for forward task {self.request.id}")
-            # Re-raise the original exception after max retries, let Celery handle serialization
-            raise
-    finally:
-        if chunks is not None:
-            del chunks  # Delete local reference
-            logger.debug(f"Cleaned up local references for task {task_id}")
+        # 只要是 Exception，全部走这里（包括我们自定义的 JSON message）
+        try:
+            error_info = json.loads(str(e))
+            logger.error(f"Error forwarding chunks for index '{error_info.get('index_name', '')}': {error_info.get('message', str(e))}")
+            self.update_state(
+                meta={
+                    'source': error_info.get('source', ''),
+                    'index_name': error_info.get('index_name', ''),
+                    'task_name': error_info.get('task_name', ''),
+                    'custom_error': error_info.get('message', str(e)),
+                    'stage': 'forward_task_failed'
+                }
+            )
+        except Exception:
+            logger.error(f"Error forwarding chunks: {str(e)}")
+            self.update_state(
+                meta={
+                    'custom_error': str(e),
+                    'stage': 'forward_task_failed'
+                }
+            )
+        raise
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process_and_forward')
 def process_and_forward(self, source: str, source_type: str = "file", 
@@ -649,7 +613,7 @@ def process_sync(self, source: str, source_type: str = "file",
         elapsed_time = end_time - start_time
         
         # Extract text from chunks
-        text_content = "\n\n".join([chunk.get("text", "") for chunk in chunks])
+        text_content = "\n\n".join([chunk.get("content", "") for chunk in chunks])
         
         # Update task state to COMPLETE
         self.update_state(
@@ -681,7 +645,6 @@ def process_sync(self, source: str, source_type: str = "file",
         
         # Update task state to FAILURE with custom metadata
         self.update_state(
-            state=states.FAILURE,
             meta={
                 'source': source,
                 'task_name': 'process_sync',

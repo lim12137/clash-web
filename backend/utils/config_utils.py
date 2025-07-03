@@ -178,14 +178,14 @@ class TenantConfigManager:
         # Example: return db.query("SELECT MAX(modified_at) FROM tenant_configs WHERE tenant_id = %s", tenant_id)
         return time.time()  # Temporary implementation
 
-    def get_model_config(self, key: str, default={}, tenant_id: str | None = None):
+    def get_model_config(self, key: str, default=None, tenant_id: str | None = None):
         if default is None:
             default = {}
         if tenant_id is None:
             print(f"Warning: No tenant_id specified when getting config for key: {key}")
             return default
         tenant_config = self.load_config(tenant_id)
-        print(f"tenant_config: {tenant_config}")
+        # print(f"tenant_config: {tenant_config}")
         if key in tenant_config:
             model_id = tenant_config[key]
             if not model_id:  # Check if model_id is empty

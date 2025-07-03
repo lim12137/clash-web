@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional, List
 from celery.result import AsyncResult
 from .app import app as celery_app
 import asyncio
+import json
 
 # Configure logging
 logger = logging.getLogger("data_process.utils")
@@ -120,21 +121,36 @@ async def get_task_info(task_id: str) -> Dict[str, Any]:
 
                         if 'source' in metadata:
                             status_info['path_or_url'] = metadata['source']
-                        
-                        # Add any metadata to the status info
-                        # for key, value in metadata.items():
-                        #     if key not in status_info:
-                        #         status_info[key] = value
-                            
                 # Add error information for failed tasks
                 if result.failed():
-                    # Try to get custom_error from metadata first, then fallback to result
-                    if isinstance(result.info, dict) and 'custom_error' in result.info:
-                        error_info = result.info['custom_error']
-                    else:
-                        error_info = str(result.result) if result.result else "Unknown error"
-                    status_info['error'] = error_info
-                    logger.debug(f"Task {task_id} failed with error: {error_info}")
+                    try:
+                        info = str(result.info)
+                        error_json = None
+                        if isinstance(info, str):
+                            try:
+                                error_json = json.loads(info)
+                            except Exception as e:
+                                logger.error(f"Failed to load result.info as a json: {str(e)}")
+                                error_json = None
+                        else:
+                            logger.warning(f"Cannot parse result.info into a string: {type(result.info)}")
+
+                        if error_json:
+                            if error_json.get('message') is not None:
+                                status_info['error'] = error_json.get('message')
+                            if error_json.get('index_name') is not None:
+                                status_info['index_name'] = error_json.get('index_name')
+                            if error_json.get('task_name') is not None:
+                                status_info['task_name'] = error_json.get('task_name')
+                            if error_json.get('source') is not None:
+                                status_info['path_or_url'] = error_json.get('source')
+                        else:
+                            # fallback: compatible with previous format
+                            status_info['error'] = str(result.result) if result.result else "Unknown error"
+                    except Exception as e:
+                        logger.warning(f"Could not parse error info for task {task_id}, falling back. Error: {e}")
+                        status_info['error'] = str(result.result) if result.result else "Unknown error"
+                    logger.debug(f"Task {task_id} failed with error: {status_info['error']}")
                 
                 # Add result information for successful tasks
                 if result.successful() and result.result:
