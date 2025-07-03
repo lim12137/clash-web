@@ -141,4 +141,4 @@ async def remove_remote_proxy(request: Request):
 
 
 if __name__ == "__main__":
-    nexent_mcp.run(transport="sse", port=5011)
+    nexent_mcp.run(transport="sse", host="0.0.0.0", port=5011)
