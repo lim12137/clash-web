@@ -1,11 +1,11 @@
 import logging
 from typing import List
 
-from database.tenant_config_db import get_tenant_config_info, insert_config, update_config_by_tenant_config_id, delete_config_by_tenant_config_id
+from database.tenant_config_db import get_tenant_config_info, insert_config, delete_config_by_tenant_config_id
 from database.knowledge_db import get_knowledge_info_by_knowledge_ids, get_knowledge_ids_by_index_names
 
-logger = logging.getLogger("tenant config service")
 
+logger = logging.getLogger("tenant config service")
 
 def get_selected_knowledge_list(tenant_id: str, user_id: str):
     record_list = get_tenant_config_info(tenant_id=tenant_id, user_id=user_id, select_key="selected_knowledge_id")
@@ -14,7 +14,6 @@ def get_selected_knowledge_list(tenant_id: str, user_id: str):
     knowledge_id_list = [record["config_value"] for record in record_list]
     knowledge_info = get_knowledge_info_by_knowledge_ids(knowledge_id_list)
     return knowledge_info
-
 
 def update_selected_knowledge(tenant_id: str, user_id: str, index_name_list: List[str]):
     knowledge_ids = get_knowledge_ids_by_index_names(index_name_list)

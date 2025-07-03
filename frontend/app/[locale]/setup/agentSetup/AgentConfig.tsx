@@ -184,6 +184,22 @@ export default function AgentConfig() {
     return mainAgentId ? parseInt(mainAgentId) : undefined
   }
 
+  // 刷新工具列表
+  const handleToolsRefresh = async () => {
+    try {
+      const result = await fetchTools()
+      if (result.success) {
+        setTools(result.data)
+        message.success(t('agentConfig.tools.refreshSuccess'))
+      } else {
+        message.error(t('agentConfig.tools.refreshFailed'))
+      }
+    } catch (error) {
+      console.error(t('agentConfig.debug.refreshToolsFailed'), error)
+      message.error(t('agentConfig.tools.refreshFailed'))
+    }
+  }
+
   return (
     <div className="w-full h-full mx-auto px-4" style={{ maxWidth: "1920px"}}>
       <div className="w-full h-full">
@@ -255,6 +271,7 @@ export default function AgentConfig() {
                   isNewAgentInfoValid={isNewAgentInfoValid}
                   setIsNewAgentInfoValid={setIsNewAgentInfoValid}
                   onEditingStateChange={handleEditingStateChange}
+                  onToolsRefresh={handleToolsRefresh}
                 />
               </div>
             </div>
