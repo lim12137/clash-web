@@ -454,7 +454,7 @@ class TestModelManagementApp(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["code"], 500)
-        self.assertIn("Failed to retrieve model list", data["message"])
+        self.assertIn("An internal error occurred while retrieving the model list.", data["message"])
         self.assertEqual(data["data"], [])
 
     @patch("test_model_managment_app.check_model_connectivity")

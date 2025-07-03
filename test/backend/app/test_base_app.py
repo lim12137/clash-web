@@ -15,9 +15,9 @@ patches = [
     # Mock minio client constructor
     patch('minio.Minio', return_value=Mock()),
     # Mock database initialization
-    patch('database.client.MinioClient', return_value=Mock()),
+    patch('backend.database.client.MinioClient', return_value=Mock()),
     # Mock database sessions
-    patch('database.client.get_db_session', return_value=Mock())
+    patch('backend.database.client.get_db_session', return_value=Mock())
 ]
 
 for p in patches:

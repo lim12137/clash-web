@@ -2,7 +2,16 @@ import unittest
 import json
 from unittest.mock import patch, MagicMock, AsyncMock
 import sys
+import os
 from io import BytesIO
+
+# Add the project root directory to sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+
+# Mock the consts.const module before importing the image_app module
+mock_const = MagicMock()
+mock_const.DATA_PROCESS_SERVICE = "http://mock-data-process-service"
+sys.modules['consts.const'] = mock_const
 
 # Mock external dependencies before importing the module
 with patch('aiohttp.ClientSession') as mock_session:
