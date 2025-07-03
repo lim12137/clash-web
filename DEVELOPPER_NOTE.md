@@ -27,7 +27,7 @@ python backend/data_process_service.py
 python backend/main_service.py
 
 # Start MCP service
-python backend/mcp_service.py
+python backend/nexent_mcp_service.py
 ```
 
 ### 3. Start Frontend Service
@@ -46,7 +46,7 @@ npm run dev
 
 Nexent implements its tool system based on [Model Context Protocol (MCP)](https://github.com/modelcontextprotocol/python-sdk). To develop a new tool:
 
-1. Implement the tool logic in `mcp_service.py`
+1. Implement the tool logic in `backend/mcp_service/local_mcp_service.py`
 2. Register the tool using the `@mcp.tool()` decorator
 3. Restart the MCP service to activate the new tool
 
