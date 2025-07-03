@@ -14,23 +14,11 @@ on:
       runner_label_json:
         description: 'JSON 格式的 runner 标签数组'
         required: true
-        default: '["self-hosted", "MacOS", "X64"]'
+        default: '[]'
 
 jobs:
-  checkout:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    outputs:
-      sha: ${{ steps.get-sha.outputs.sha }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Get commit SHA
-        id: get-sha
-        run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-
   prepare:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: checkout
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,27 +28,18 @@ jobs:
           mkdir -p $HOME/nexent-commercial
           cp -r $GITHUB_WORKSPACE/* $HOME/nexent-commercial/
 
-  build-base:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [checkout, prepare]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Build base image
-        run: docker build --progress=plain -t nexent/nexent-base-commercial -f make/base/Dockerfile . --no-cache
-
   build-main:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: build-base
+    needs: [ prepare ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Build main application image
-        run: docker build --progress=plain -t nexent/nexent-commercial -f make/main/Dockerfile . --no-cache
+        run: docker build -t nexent/nexent-commercial -f make/main/Dockerfile . --no-cache
 
   build-data-process:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [ checkout, prepare ]
+    needs: [ prepare ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -82,20 +61,20 @@ jobs:
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
           rm -rf .git flax_model.msgpack tf_model.h5
       - name: Build data process image
-        run: docker build --progress=plain -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile . --no-cache
+        run: docker build -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile . --no-cache
 
   build-web:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [checkout, prepare]
+    needs: [ prepare ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Build web frontend image
-        run: docker build --progress=plain -t nexent/nexent-web-commercial -f make/web/Dockerfile . --no-cache
+        run: docker build -t nexent/nexent-web-commercial -f make/web/Dockerfile . --no-cache
 
   deploy:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [prepare, build-base, build-main, build-data-process, build-web]
+    needs: [ prepare, build-main, build-data-process, build-web ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
