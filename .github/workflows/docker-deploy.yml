@@ -14,7 +14,7 @@ on:
       runner_label_json:
         description: 'JSON 格式的 runner 标签数组'
         required: true
-        default: '["self-hosted", "X64", "Linux", "aliyun-154"]'
+        default: '[]'
 
 jobs:
   prepare:
@@ -30,7 +30,7 @@ jobs:
 
   build-main:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [prepare]
+    needs: [ prepare ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -65,7 +65,7 @@ jobs:
 
   build-web:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [prepare]
+    needs: [ prepare ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -74,7 +74,7 @@ jobs:
 
   deploy:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [prepare, build-main, build-data-process, build-web]
+    needs: [ prepare, build-main, build-data-process, build-web ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
