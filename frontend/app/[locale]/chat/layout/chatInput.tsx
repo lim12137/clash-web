@@ -920,7 +920,7 @@ export function ChatInput({
                   id="file-upload-regular"
                   className="hidden"
                   onChange={handleFileUpload}
-                  accept="image/*,.pdf,.doc,.docx,.odt,.rtf,.xls,.xlsx,.ppt,.pptx,.csv,.tsv,.md,.markdown,.txt"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.tsv,.md,.markdown,.txt"
                   multiple
                 />
               </Button>
