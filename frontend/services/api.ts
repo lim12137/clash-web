@@ -28,6 +28,7 @@ export const API_ENDPOINTS = {
     list: `${API_BASE_URL}/tool/list`,
     update: `${API_BASE_URL}/tool/update`,
     search: `${API_BASE_URL}/tool/search`,
+    updateTool: `${API_BASE_URL}/tool/scan_tool`,
   },
   prompt: {
     generate: `${API_BASE_URL}/prompt/generate`,
@@ -86,6 +87,13 @@ export const API_ENDPOINTS = {
   tenantConfig: {
     loadKnowledgeList: `${API_BASE_URL}/tenant_config/load_knowledge_list`,
     updateKnowledgeList: `${API_BASE_URL}/tenant_config/update_knowledge_list`,
+  },
+  mcp: {
+    tools: `${API_BASE_URL}/mcp/tools/`,
+    add: `${API_BASE_URL}/mcp/add`,
+    delete: `${API_BASE_URL}/mcp/`,
+    list: `${API_BASE_URL}/mcp/list`,
+    recover: `${API_BASE_URL}/mcp/recover`,
   }
 };
 

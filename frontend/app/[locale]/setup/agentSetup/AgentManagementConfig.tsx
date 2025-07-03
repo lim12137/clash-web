@@ -2,15 +2,17 @@
 
 import { useState, useEffect, useMemo, useCallback, memo } from 'react'
 import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber, Tag, Upload } from 'antd'
-import { SettingOutlined, UploadOutlined, ThunderboltOutlined, LoadingOutlined } from '@ant-design/icons'
+import { SettingOutlined, UploadOutlined, ThunderboltOutlined, LoadingOutlined, ApiOutlined, ReloadOutlined } from '@ant-design/icons'
 import ToolConfigModal from './components/ToolConfigModal'
+import McpConfigModal from './components/McpConfigModal'
 import AgentInfoInput from './components/AgentInfoInput'
 import AgentContextMenu from './components/AgentContextMenu'
 import { Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
 import { ScrollArea } from '@/components/ui/scrollArea'
-import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent, importAgent, exportAgent, deleteAgent, searchAgentInfo } from '@/services/agentConfigService'
+import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent, importAgent, exportAgent, deleteAgent, searchAgentInfo, fetchTools } from '@/services/agentConfigService'
+import { updateToolList } from '@/services/mcpService'
 import {generatePromptStream, savePrompt} from '@/services/promptService'
-import { useTranslation } from 'react-i18next' 
+import { useTranslation } from 'react-i18next'
 import { TFunction } from 'i18next'
 const { TextArea } = Input
 
@@ -105,7 +107,7 @@ const handleToolSelectCommon = async (
  */
 function BusinessLogicInput({ value, onChange, selectedAgents, systemPrompt }: BusinessLogicInputProps) {
   const { t } = useTranslation('common');
-  
+
   return (
     <div className="flex flex-col h-full">
       <h2 className="text-lg font-medium mb-2">{t('businessLogic.title')}</h2>
@@ -140,7 +142,7 @@ function SubAgentPool({
   isImporting = false
 }: SubAgentPoolProps) {
   const { t } = useTranslation('common');
-  
+
   const [contextMenu, setContextMenu] = useState<{
     visible: boolean;
     x: number;
@@ -304,14 +306,16 @@ function ToolPool({
   tools = [], 
   loadingTools = false,
   mainAgentId,
-  localIsGenerating
+  localIsGenerating,
+  onToolsRefresh
 }: ToolPoolProps) {
   const { t } = useTranslation('common');
-  
+
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [currentTool, setCurrentTool] = useState<Tool | null>(null);
   const [pendingToolSelection, setPendingToolSelection] = useState<{tool: Tool, isSelected: boolean} | null>(null);
-
+  const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   // Use useMemo to cache the tool list to avoid unnecessary recalculations
   const displayTools = useMemo(() => {
     return tools || [];
@@ -388,6 +392,53 @@ function ToolPool({
     setIsToolModalOpen(false);
     setPendingToolSelection(null);
   }, []);
+
+  // 刷新工具列表的处理函数
+  const handleRefreshTools = useCallback(async () => {
+    if (isRefreshing || localIsGenerating) return;
+
+    setIsRefreshing(true);
+    try {
+      // 第一步：更新后端工具状态，重新扫描MCP和本地工具
+      const updateResult = await updateToolList();
+      if (!updateResult.success) {
+        message.warning(t('toolManagement.message.updateStatusFailed'));
+      }
+
+      // 第二步：获取最新的工具列表
+      const fetchResult = await fetchTools();
+      if (fetchResult.success) {
+        message.success(t('toolManagement.message.refreshSuccess'));
+        // 调用父组件的刷新回调，更新工具列表状态
+        if (onToolsRefresh) {
+          onToolsRefresh();
+        }
+      } else {
+        message.error(fetchResult.message || t('toolManagement.message.refreshFailed'));
+      }
+    } catch (error) {
+      console.error(t('debug.console.refreshToolsFailed'), error);
+      message.error(t('toolManagement.message.refreshFailedRetry'));
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing, localIsGenerating, onToolsRefresh, t]);
+
+
+
+  // 监听工具更新事件
+  useEffect(() => {
+    const handleToolsUpdate = () => {
+      if (onToolsRefresh) {
+        onToolsRefresh();
+      }
+    };
+
+    window.addEventListener('toolsUpdated', handleToolsUpdate);
+    return () => {
+      window.removeEventListener('toolsUpdated', handleToolsUpdate);
+    };
+  }, [onToolsRefresh]);
 
   // Use memo to optimize the rendering of tool items
   const ToolItem = memo(({ tool }: { tool: Tool }) => {
@@ -470,7 +521,31 @@ function ToolPool({
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">{t('toolPool.title')}</h2>
-        {loadingTools && <span className="text-sm text-gray-500">{t('toolPool.loading')}</span>}
+        <div className="flex items-center gap-2">
+          <Button
+            type="text"
+            size="small"
+            icon={isRefreshing ? <LoadingOutlined /> : <ReloadOutlined />}
+            onClick={handleRefreshTools}
+            disabled={localIsGenerating || isRefreshing}
+            className="text-green-500 hover:text-green-600 hover:bg-green-50"
+            title={t('toolManagement.refresh.title')}
+          >
+            {isRefreshing ? t('toolManagement.refresh.button.refreshing') : t('toolManagement.refresh.button.refresh')}
+          </Button>
+          <Button
+            type="text"
+            size="small"
+            icon={<ApiOutlined />}
+            onClick={() => setIsMcpModalOpen(true)}
+            disabled={localIsGenerating}
+            className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+            title={t('toolManagement.mcp.title')}
+          >
+            {t('toolManagement.mcp.button')}
+          </Button>
+          {loadingTools && <span className="text-sm text-gray-500">{t('toolPool.loading')}</span>}
+        </div>
       </div>
       <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
         {loadingTools ? (
@@ -493,6 +568,11 @@ function ToolPool({
         tool={currentTool}
         mainAgentId={parseInt(mainAgentId || '0')}
         selectedTools={selectedTools}
+      />
+
+      <McpConfigModal
+        visible={isMcpModalOpen}
+        onCancel={() => setIsMcpModalOpen(false)}
       />
     </div>
   );
@@ -535,7 +615,8 @@ export default function BusinessLogicConfig({
   setNewAgentProvideSummary,
   isNewAgentInfoValid,
   setIsNewAgentInfoValid,
-  onEditingStateChange
+  onEditingStateChange,
+  onToolsRefresh
 }: BusinessLogicConfigProps) {
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
@@ -598,7 +679,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('businessLogic.config.error.agentListFailed'));
       }
     } catch (error) {
-      console.error('获取 Agent 列表失败:', error);
+      console.error(t('debug.console.fetchAgentListFailed'), error);
       message.error(t('businessLogic.config.error.agentListFailed'));
     } finally {
       setIsLoadingTools(false);
@@ -755,12 +836,12 @@ export default function BusinessLogicConfig({
         if (result.success) {
           const actionText = isEditingAgent ? t('agent.action.modify') : t('agent.action.create');
           message.success(t('businessLogic.config.message.agentCreated', { name, action: actionText }));
-          
+
           setIsCreatingNewAgent(false);
           setIsEditingAgent(false);
           setEditingAgent(null);
           onEditingStateChange?.(false, null);
-          
+
           setBusinessLogic('');
           setSelectedTools([]);
           setNewAgentName('');
@@ -830,7 +911,7 @@ export default function BusinessLogicConfig({
       
       const agentDetail = result.data;
       
-      console.log('加载的Agent详情:', agentDetail); // 调试信息
+      console.log(t('debug.console.loadAgentDetails'), agentDetail); // 调试信息
       
       // 更新为完整的Agent数据
       setEditingAgent(agentDetail);
@@ -846,8 +927,8 @@ export default function BusinessLogicConfig({
       setBusinessLogic(agentDetail.business_description || '');
       setSystemPrompt(agentDetail.prompt || '');
       
-      console.log('设置的业务描述:', agentDetail.business_description); // 调试信息
-      console.log('设置的系统提示词:', agentDetail.prompt); // 调试信息
+      console.log(t('debug.console.setBusinessDescription'), agentDetail.business_description); // 调试信息
+      console.log(t('debug.console.setSystemPrompt'), agentDetail.prompt); // 调试信息
       
       // 加载Agent的工具
       if (agentDetail.tools && agentDetail.tools.length > 0) {
@@ -855,7 +936,7 @@ export default function BusinessLogicConfig({
         // 设置已启用的工具ID
         const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
         setEnabledToolIds(toolIds);
-        console.log('加载的工具:', agentDetail.tools); // 调试信息
+        console.log(t('debug.console.loadedTools'), agentDetail.tools); // 调试信息
       } else {
         setSelectedTools([]);
         setEnabledToolIds([]);
@@ -863,7 +944,7 @@ export default function BusinessLogicConfig({
       
       message.success(t('businessLogic.config.message.agentInfoLoaded'));
     } catch (error) {
-      console.error('加载Agent详情失败:', error);
+      console.error(t('debug.console.loadAgentDetailsFailed'), error);
       message.error(t('businessLogic.config.error.agentDetailFailed'));
       // 如果出错，重置编辑状态
       setIsEditingAgent(false);
@@ -900,15 +981,15 @@ export default function BusinessLogicConfig({
           setSelectedAgents(selectedAgents.filter((a) => a.id !== agent.id));
           setEnabledAgentIds(enabledAgentIds.filter(id => id !== Number(agent.id)));
         }
-        message.success(t('businessLogic.config.message.agentStatusUpdated', { 
-          name: agent.name, 
-          status: isSelected ? t('common.enabled') : t('common.disabled') 
+        message.success(t('businessLogic.config.message.agentStatusUpdated', {
+          name: agent.name,
+          status: isSelected ? t('common.enabled') : t('common.disabled')
         }));
       } else {
         message.error(result.message || t('agent.error.statusUpdateFailed'));
       }
     } catch (error) {
-      console.error('更新 Agent 状态失败:', error);
+      console.error(t('debug.console.updateAgentStatusFailed'), error);
       message.error(t('agent.error.statusUpdateRetry'));
     }
   };
@@ -941,7 +1022,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('businessLogic.config.error.modelUpdateFailed'));
       }
     } catch (error) {
-      console.error('更新模型失败:', error);
+      console.error(t('debug.console.updateModelFailed'), error);
       message.error(t('businessLogic.config.error.modelUpdateRetry'));
     }
   };
@@ -976,7 +1057,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('businessLogic.config.error.maxStepsUpdateFailed'));
       }
     } catch (error) {
-      console.error('更新最大步骤数失败:', error);
+      console.error(t('debug.console.updateMaxStepsFailed'), error);
       message.error(t('businessLogic.config.error.maxStepsUpdateRetry'));
     }
   };
@@ -1027,7 +1108,7 @@ export default function BusinessLogicConfig({
           message.error(result.message || t('businessLogic.config.error.agentImportFailed'));
         }
       } catch (error) {
-        console.error('导入Agent失败:', error);
+        console.error(t('debug.console.importAgentFailed'), error);
         message.error(t('businessLogic.config.error.agentImportFailed'));
       } finally {
         setIsImporting(false);
@@ -1069,7 +1150,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('businessLogic.config.error.agentExportFailed'));
       }
     } catch (error) {
-      console.error('导出Agent失败:', error);
+      console.error(t('debug.console.exportAgentFailed'), error);
       message.error(t('businessLogic.config.error.agentExportFailed'));
     }
   };
@@ -1095,7 +1176,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('businessLogic.config.error.agentDeleteFailed'));
       }
     } catch (error) {
-      console.error('删除Agent失败:', error);
+      console.error(t('debug.console.deleteAgentFailed'), error);
       message.error(t('businessLogic.config.error.agentDeleteFailed'));
     } finally {
       setIsDeleteConfirmOpen(false);
@@ -1109,7 +1190,7 @@ export default function BusinessLogicConfig({
       message.warning(t('businessLogic.config.error.businessDescriptionRequired'));
       return;
     }
-    
+
     const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
     
     if (!targetAgentId) {
@@ -1130,7 +1211,7 @@ export default function BusinessLogicConfig({
           setSystemPrompt(streamedText);
         },
         (err) => {
-          message.error(t('businessLogic.config.error.promptGenerateFailed', { 
+          message.error(t('businessLogic.config.error.promptGenerateFailed', {
             error: err instanceof Error ? err.message : t('common.unknownError')
           }));
           setIsPromptGenerating(false);
@@ -1143,8 +1224,8 @@ export default function BusinessLogicConfig({
         }
       );
     } catch (error) {
-      console.error('生成提示词失败:', error);
-      message.error(t('businessLogic.config.error.promptGenerateFailed', { 
+      console.error(t('debug.console.generatePromptFailed'), error);
+      message.error(t('businessLogic.config.error.promptGenerateFailed', {
         error: error instanceof Error ? error.message : t('common.unknownError')
       }));
       setIsPromptGenerating(false);
@@ -1170,12 +1251,19 @@ export default function BusinessLogicConfig({
       await savePrompt({ agent_id: Number(targetAgentId), prompt: systemPrompt });
       message.success(t('businessLogic.config.message.promptSaved'));
     } catch (error) {
-      console.error('保存提示词失败:', error);
+      console.error(t('debug.console.savePromptFailed'), error);
       message.error(t('businessLogic.config.error.promptSaveFailed'));
     } finally {
       setIsPromptSaving(false);
     }
   };
+
+  // 刷新工具列表
+  const handleToolsRefresh = useCallback(async () => {
+    if (onToolsRefresh) {
+      await onToolsRefresh();
+    }
+  }, [onToolsRefresh]);
 
   const canSaveAsAgent = selectedAgents.length === 0 && systemPrompt.trim().length > 0 && isNewAgentInfoValid;
 
@@ -1247,6 +1335,7 @@ export default function BusinessLogicConfig({
             loadingTools={isLoadingTools}
             mainAgentId={isEditingAgent && editingAgent ? editingAgent.id : mainAgentId}
             localIsGenerating={localIsGenerating}
+            onToolsRefresh={handleToolsRefresh}
           />
         </div>
       </div>
