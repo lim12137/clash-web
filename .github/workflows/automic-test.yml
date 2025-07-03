@@ -2,11 +2,6 @@ name: Run Automated Selenium Tests
 
 on:
   workflow_dispatch:
-    inputs:
-      runner_label_json:
-        description: 'JSON 格式的 runner 标签数组'
-        required: true
-        default: '["self-hosted", "X64", "Linux", "aliyun-154"]'
 
 jobs:
   test:
@@ -52,17 +47,17 @@ jobs:
 
       - name: Run Selenium tests with pytest
         run: |
-          python -m pytest test/web_test/web_test.py --maxfail=1 --disable-warnings -v --junitxml=test-results/pytest-report.xml
+          python -m pytest test/web_test/web_test.py --maxfail=1 --disable-warnings -v --html=test-results/pytest-report.html
 
       - name: Upload pytest results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pytest-report
-          path: test-results/pytest-report.xml
+          path: test-results/pytest-report.html
 
       - name: Publish Test Report
         if: always()
         uses: mikepenz/action-junit-report@v4
         with:
-          report_paths: 'test-results/pytest-report.xml'
+          report_paths: 'test-results/pytest-report.html'
