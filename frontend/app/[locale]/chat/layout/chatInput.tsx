@@ -647,12 +647,12 @@ export function ChatInput({
       const isImage = file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension);
 
       // Supported document file types
-      const isDocument = ['pdf', 'doc', 'docx', 'odt', 'rtf', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension) ||
+      const isDocument = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension) ||
                         file.type === 'application/pdf' ||
                         file.type.includes('officedocument');
 
       // Supported text file types
-      const isSupportedTextFile = ['csv', 'tsv', 'md', 'markdown', 'txt'].includes(extension) ||
+      const isSupportedTextFile = ['md', 'markdown', 'txt'].includes(extension) ||
                                  file.type === 'text/csv' ||
                                  file.type === 'text/plain';
 
@@ -993,10 +993,10 @@ export function ChatInput({
     const fileType = attachment.file.type;
     
     const isImage = fileType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension);
-    const isDocument = ['pdf', 'doc', 'docx', 'odt', 'rtf', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension) ||
+    const isDocument = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension) ||
                       fileType === 'application/pdf' ||
                       fileType.includes('officedocument');
-    const isSupportedTextFile = ['csv', 'tsv', 'md', 'markdown', 'txt'].includes(extension) ||
+    const isSupportedTextFile = ['md', 'markdown', 'txt'].includes(extension) ||
                                fileType === 'text/csv' ||
                                fileType === 'text/plain';
     
