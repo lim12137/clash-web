@@ -44,4 +44,10 @@ jobs:
 
       - name: Run Selenium tests with pytest
         run: |
-          python -m pytest test/web_test/web_test.py
+          python -m pytest test/web_test/web_test.py --disable-warnings -v --junitxml=test-results/pytest-report.xml
+
+      - name: Publish Test Report
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: 'test-results/pytest-report.xml'
