@@ -12,7 +12,6 @@ class TestNexent():
     def setup_class(cls):
         options = Options()
         options.add_argument('--headless')
-        options.binary_location = '/snap/bin/firefox'
         cls.driver = webdriver.Firefox(options=options)
         cls.wait = WebDriverWait(cls.driver, 20)
         cls.vars = {}
