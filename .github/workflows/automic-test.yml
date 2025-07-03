@@ -42,9 +42,6 @@ jobs:
           sudo mv geckodriver /usr/local/bin/
           geckodriver --version
 
-      - name: Create test results directory
-        run: mkdir -p test-results
-
       - name: Run Selenium tests with pytest
         run: |
-          python -m pytest test/web_test/web_test.py --maxfail=1 --disable-warnings -v --html=test-results/pytest-report.html
+          python -m pytest test/web_test/web_test.py
