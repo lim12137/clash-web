@@ -3,6 +3,11 @@ from unittest.mock import patch, MagicMock, AsyncMock
 import sys
 import os
 
+# Dynamically determine the backend path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
+sys.path.append(backend_dir)
+
 # Mock external dependencies before importing the modules that use them
 sys.modules['database.client'] = MagicMock()
 sys.modules['database.agent_db'] = MagicMock()
