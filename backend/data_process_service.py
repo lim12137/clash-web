@@ -80,7 +80,8 @@ class ServiceManager:
                 return True
             
             # Get Ray configuration from environment
-            num_cpus = int(os.environ.get('RAY_NUM_CPUS', os.cpu_count()))
+            ray_num_cpus = os.environ.get('RAY_NUM_CPUS')
+            num_cpus = int(ray_num_cpus) if ray_num_cpus else os.cpu_count()
             dashboard_host = os.environ.get('RAY_DASHBOARD_HOST', '0.0.0.0')
             
             logger.info("🔮 Starting Ray cluster...")
@@ -145,12 +146,12 @@ class ServiceManager:
                 {
                     'name': 'process-worker',
                     'queue': 'process_q',
-                    'concurrency': 8  # High concurrency for file processing
+                    'concurrency': 8
                 },
                 {
                     'name': 'forward-worker', 
                     'queue': 'forward_q',
-                    'concurrency': 2  # Lower concurrency for vectorization/storage
+                    'concurrency': 8
                 }
             ]
             
@@ -316,12 +317,8 @@ except Exception as e_exec:
             # Get Redis URL from environment to ensure consistency
             redis_url = os.environ.get('REDIS_URL')
             
-            # Flower 2.0+ uses environment variables for configuration
-            flower_cmd = [
-                'python', '-m', 'flower',
-                '-A', 'data_process.app',
-                'flower'  # Use the flower subcommand
-            ]
+            # Get the backend directory path to ensure correct module import
+            backend_dir = os.path.dirname(os.path.abspath(__file__))
             
             # Set up environment variables for Flower configuration
             flower_env = os.environ.copy()
@@ -336,11 +333,45 @@ except Exception as e_exec:
                 'FLOWER_MAX_TASKS': '10000',
                 # Add environment variables to help isolate Flower from Ray issues
                 'RAY_DISABLE_IMPORT_WARNING': '1',
-                'RAY_DEDUP_LOGS': '0'
+                'RAY_DEDUP_LOGS': '0',
+                'CELERY_CONFIG_MODULE': 'data_process.app'
             })
             
-            # Get the backend directory path to ensure correct module import
-            backend_dir = os.path.dirname(os.path.abspath(__file__))
+            # Ensure PYTHONPATH includes the project root for proper module imports
+            project_root_dir = os.path.dirname(backend_dir)
+            python_path_entries = [project_root_dir, backend_dir]
+            existing_python_path = flower_env.get('PYTHONPATH')
+            if existing_python_path:
+                python_path_entries.extend(existing_python_path.split(os.pathsep))
+            flower_env['PYTHONPATH'] = os.pathsep.join(list(dict.fromkeys(python_path_entries)))
+            
+            # Use Flower command with proper app specification
+            # Try different command formats for compatibility
+            flower_cmd = [
+                sys.executable, '-m', 'celery',
+                '-A', 'data_process.app:app', 'flower',
+                '--port=' + str(self.flower_port),
+                '--broker-api=' + redis_url,
+                '--basic-auth=admin:admin',
+                '--auto-refresh=True',
+                '--max-workers=5000',
+                '--max-tasks=10000'
+            ]
+            
+            logger.info(f"Flower command: {' '.join(flower_cmd)}")
+            logger.info(f"Flower CWD: {backend_dir}")
+            logger.info(f"Flower PYTHONPATH: {flower_env['PYTHONPATH']}")
+            logger.info(f"Flower REDIS_URL: {redis_url}")
+            
+            # Test if the Celery app can be imported
+            try:
+                sys.path.insert(0, project_root_dir)
+                sys.path.insert(0, backend_dir)
+                from data_process.app import app as celery_app
+                logger.info(f"✅ Celery app import test successful: {celery_app}")
+            except Exception as import_error:
+                logger.warning(f"⚠️ Celery app import test failed: {import_error}")
+                logger.warning("This might cause Flower startup issues")
             
             process = subprocess.Popen(
                 flower_cmd,
@@ -359,18 +390,19 @@ except Exception as e_exec:
             # Start thread to log Flower output
             def log_flower_output():
                 try:
-                    for line in iter(process.stdout.readline, ''):
-                        if line.strip():
-                            # Clean up redundant timestamps and logging info from Flower output
-                            clean_line = line.strip()
-                            if ' - ' in clean_line:
-                                # Remove timestamp and level if present in Flower log line
-                                parts = clean_line.split(' - ')
-                                if len(parts) > 1:
-                                    clean_line = ' - '.join(parts[1:])
-                            # Filter out Ray-related error messages from Flower logs
-                            if 'ray' not in clean_line.lower() or 'started' in clean_line.lower():
-                                logger.info(f"[Flower] {clean_line}")
+                    if process.stdout:
+                        for line in iter(process.stdout.readline, ''):
+                            if line.strip():
+                                # Clean up redundant timestamps and logging info from Flower output
+                                clean_line = line.strip()
+                                if ' - ' in clean_line:
+                                    # Remove timestamp and level if present in Flower log line
+                                    parts = clean_line.split(' - ')
+                                    if len(parts) > 1:
+                                        clean_line = ' - '.join(parts[1:])
+                                # Filter out Ray-related error messages from Flower logs
+                                if 'ray' not in clean_line.lower() or 'started' in clean_line.lower():
+                                    logger.info(f"[Flower] {clean_line}")
                 except Exception as e:
                     logger.warning(f"Error in Flower log thread: {str(e)}")
                     # Thread will exit gracefully, Flower process continues
@@ -381,11 +413,18 @@ except Exception as e_exec:
             output_thread.start()
             
             # Wait a moment to check if Flower actually started
-            time.sleep(2)
+            time.sleep(3)
             
             # Check if process is still running
             if process.poll() is not None:
                 logger.error(f"❌ Flower process exited with return code {process.returncode}")
+                try:
+                    if process.stdout:
+                        output = process.stdout.read()
+                        if output:
+                            logger.error(f"Flower error output: {output}")
+                except:
+                    pass
                 return False
             
             return True
@@ -396,6 +435,8 @@ except Exception as e_exec:
             return False
         except Exception as e:
             logger.error(f"❌ Error starting Flower: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return False
     
     def start_all_services(self):

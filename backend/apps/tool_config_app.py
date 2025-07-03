@@ -1,8 +1,9 @@
 from fastapi import HTTPException, APIRouter
+from fastapi.responses import JSONResponse
 import logging
 from database.agent_db import query_all_tools
 from consts.model import ToolInstanceInfoRequest, ToolInstanceSearchRequest
-from services.tool_configuration_service import search_tool_info_impl, update_tool_info_impl
+from services.tool_configuration_service import search_tool_info_impl, update_tool_info_impl, update_tool_list
 from fastapi import Header
 from typing import Optional
 from utils.auth_utils import get_current_user_id
@@ -45,3 +46,23 @@ async def update_tool_info_api(request: ToolInstanceInfoRequest, authorization: 
     except Exception as e:
         logging.error(f"Failed to update tool, error in: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to update tool, error in: {str(e)}")
+
+@router.get("/scan_tool")
+async def scan_and_update_tool(
+    authorization: Optional[str] = Header(None)
+):
+    """ 用于更新工具列表及状态 """
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        await update_tool_list(tenant_id=tenant_id,
+                         user_id=user_id)
+        return JSONResponse(
+            status_code=200,
+            content={"message": "Successfully update tool", "status": "success"}
+        )
+    except Exception as e:
+        logger.error(f"Failed to update tool: {e}")
+        return JSONResponse(
+            status_code=400,
+            content={"message": "Failed to update tool", "status": "error"}
+        )

@@ -310,7 +310,7 @@ const getAuthHeaders = () => {
       docDispatch({ type: 'SET_LOADING_DOCUMENTS', payload: true });
 
       // 获取最新文档数据
-      const documents = await knowledgeBaseService.getAllFiles(kb.id);
+      const documents = await knowledgeBaseService.getAllFiles(kb.id, true);
 
       // 触发文档更新事件
       knowledgeBasePollingService.triggerDocumentsUpdate(kb.id, documents);
