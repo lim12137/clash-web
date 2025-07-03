@@ -1,4 +1,4 @@
-name: Run Automated Tests
+name: Run Automated Selenium Tests
 
 on:
   workflow_dispatch:
@@ -10,21 +10,36 @@ on:
 
 jobs:
   test:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
       - name: Install dependencies
         run: |
-          python3 -m pip install pytest selenium -i https://pypi.mirrors.ustc.edu.cn/simple/
+          pip install pytest selenium -i https://pypi.mirrors.ustc.edu.cn/simple/
+
+      - name: Install Firefox and GeckoDriver
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y firefox
+
+          GECKODRIVER_VERSION=$(curl -s https://api.github.com/repos/mozilla/geckodriver/releases/latest | jq -r .tag_name)
+          wget https://github.com/mozilla/geckodriver/releases/download/$GECKODRIVER_VERSION/geckodriver-$GECKODRIVER_VERSION-linux64.tar.gz
+          tar -xvzf geckodriver-$GECKODRIVER_VERSION-linux64.tar.gz
+          sudo mv geckodriver /usr/local/bin/
 
       - name: Create test results directory
         run: mkdir -p test-results
 
       - name: Run Selenium tests with pytest
         run: |
-          python3 -m pytest test/web_test/web_test.py --maxfail=1 --disable-warnings -v --junitxml=test-results/pytest-report.xml
+          python -m pytest test/web_test/web_test.py --maxfail=1 --disable-warnings -v --junitxml=test-results/pytest-report.xml
 
       - name: Upload pytest results
         if: always()
