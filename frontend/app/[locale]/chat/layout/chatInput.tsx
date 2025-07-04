@@ -19,7 +19,6 @@ import {
   AiFillFileWord,
   AiFillFileExcel,
   AiFillFilePpt,
-  AiFillFileZip,
   AiFillFileText,
   AiFillFileMarkdown,
   AiFillHtml5,
@@ -219,6 +218,17 @@ const getFileExtension = (filename: string): string => {
   return filename.slice(((filename.lastIndexOf(".") - 1) >>> 0) + 2).toLowerCase();
 };
 
+// Format file size
+const formatFileSize = (sizeInBytes: number): string => {
+  if (sizeInBytes < 1024) {
+    return `${sizeInBytes} B`;
+  } else if (sizeInBytes < 1024 * 1024) {
+    return `${(sizeInBytes / 1024).toFixed(1)} KB`;
+  } else {
+    return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+};
+
 // Get file icon
 const getFileIcon = (file: File) => {
   const extension = getFileExtension(file.name);
@@ -273,14 +283,6 @@ const getFileIcon = (file: File) => {
     case 'json':
       return <AiFillCode size={iconSize} color="#f1c40f" />;
 
-    // Compressed files
-    case 'zip':
-    case 'rar':
-    case '7z':
-    case 'tar':
-    case 'gz':
-      return <AiFillFileZip size={iconSize} color="#f39c12" />;
-
     // Default file icon
     default:
       return <AiFillFileUnknown size={iconSize} color="#95a5a6" />;
@@ -333,7 +335,6 @@ export function ChatInput({
   const dropAreaRef = useRef<HTMLDivElement>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showStopTooltip, setShowStopTooltip] = useState(false);
-  const [hasNonImageAttachment, setHasNonImageAttachment] = useState(false);
   const { t } = useTranslation('common');
 
   // Use the configuration hook to get the application avatar
@@ -344,12 +345,6 @@ export function ChatInput({
   useEffect(() => {
     onRecordingStatusChange?.(recordingStatus);
   }, [recordingStatus, onRecordingStatusChange]);
-
-  // Check if there are non-image attachments
-  useEffect(() => {
-    const nonImageFiles = attachments.filter(attachment => attachment.type !== 'image');
-    setHasNonImageAttachment(nonImageFiles.length > 0);
-  }, [attachments]);
 
   // Add file drag and drop event listener
   useEffect(() => {
@@ -462,6 +457,12 @@ export function ChatInput({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+
+      // Check if there is input content, if there is no content, do not send
+      if (!input.trim()) {
+        return;
+      }
+
       // If recording, stop recording first and then send the message
       if (isRecording && mediaRecorderRef.current) {
         mediaRecorderRef.current.stop();
@@ -642,19 +643,38 @@ export function ChatInput({
       const fileId = Math.random().toString(36).substring(7);
       const extension = getFileExtension(file.name);
 
-      // Only accept image types
-      if (file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension)) {
-        // Create a preview URL for the image
-        const previewUrl = URL.createObjectURL(file);
+      // Supported image file types
+      const isImage = file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension);
+
+      // Supported document file types
+      const isDocument = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension) ||
+                        file.type === 'application/pdf' ||
+                        file.type.includes('officedocument');
+
+      // Supported text file types
+      const isSupportedTextFile = ['md', 'markdown', 'txt'].includes(extension) ||
+                                 file.type === 'text/csv' ||
+                                 file.type === 'text/plain';
+
+      if (isImage || isDocument || isSupportedTextFile) {
+        // Create a preview URL for images
+        const previewUrl = isImage ? URL.createObjectURL(file) : undefined;
+
         newAttachments.push({
           id: fileId,
           file,
-          type: 'image',
+          type: isImage ? 'image' : 'file',
           fileType: file.type,
           extension,
           previewUrl
         });
-        onImageUpload?.(file);
+
+        // Call specific upload callback based on file type
+        if (isImage) {
+          onImageUpload?.(file);
+        } else {
+          onFileUpload?.(file);
+        }
       } else {
         // Show error information
         setErrorMessage(t("chatInput.unsupportedFileType", { name: file.name }));
@@ -769,7 +789,7 @@ export function ChatInput({
                           {attachment.file.name || t("chatInput.image")}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {(attachment.file.size / 1024).toFixed(1)} KB
+                          {formatFileSize(attachment.file.size)}
                         </span>
                       </div>
                     </div>
@@ -789,7 +809,7 @@ export function ChatInput({
                           {attachment.file.name}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {(attachment.file.size / 1024).toFixed(1)} KB
+                          {formatFileSize(attachment.file.size)}
                         </span>
                       </div>
                     </div>
@@ -822,9 +842,9 @@ export function ChatInput({
               <AiOutlineUpload className="h-5 w-5 text-blue-500" />
             </div>
           </div>
-          <h3 className="text-base font-medium mb-1 text-blue-700">{t("chatInput.dragAndDropImageHere")}</h3>
+          <h3 className="text-base font-medium mb-1 text-blue-700">{t("chatInput.dragAndDropFilesHere")}</h3>
           <p className="text-xs text-blue-600">
-            {t("chatInput.onlyImageFormatSupported")}
+            {t("chatInput.supportedFileFormats")}
           </p>
         </div>
       </div>
@@ -900,13 +920,13 @@ export function ChatInput({
                   id="file-upload-regular"
                   className="hidden"
                   onChange={handleFileUpload}
-                  accept="image/*"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.tsv,.md,.markdown,.txt"
                   multiple
                 />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {t("chatInput.uploadImage")}
+              {t("chatInput.uploadFiles")}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -931,10 +951,10 @@ export function ChatInput({
         ) : (
           <Button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading || hasNonImageAttachment}
+            disabled={!input.trim() || isLoading}
             size="icon"
-            className={`h-10 w-10 ${hasNonImageAttachment ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-full flex items-center justify-center`}
-            title={hasNonImageAttachment ? t("chatInput.unsupportedFileTypeOnlyImages") : t("chatInput.send")}
+            className={`h-10 w-10 ${hasUnsupportedFiles ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-full flex items-center justify-center`}
+            title={hasUnsupportedFiles ? t("chatInput.unsupportedFileTypeSimple") : t("chatInput.send")}
           >
             <svg width="14" height="16" viewBox="0 0 14 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" clipRule="evenodd" d="M7 16c-.595 0-1.077-.462-1.077-1.032V1.032C5.923.462 6.405 0 7 0s1.077.462 1.077 1.032v13.936C8.077 15.538 7.595 16 7 16z" fill="currentColor"></path><path fillRule="evenodd" clipRule="evenodd" d="M.315 7.44a1.002 1.002 0 0 1 0-1.46L6.238.302a1.11 1.11 0 0 1 1.523 0c.421.403.421 1.057 0 1.46L1.838 7.44a1.11 1.11 0 0 1-1.523 0z" fill="currentColor"></path><path fillRule="evenodd" clipRule="evenodd" d="M13.685 7.44a1.11 1.11 0 0 1-1.523 0L6.238 1.762a1.002 1.002 0 0 1 0-1.46 1.11 1.11 0 0 1 1.523 0l5.924 5.678c.42.403.42 1.056 0 1.46z" fill="currentColor"></path></svg>
           </Button>
@@ -966,6 +986,22 @@ export function ChatInput({
     }
     onSend();
   };
+
+  // Check if there are any unsupported file types
+  const hasUnsupportedFiles = attachments.some(attachment => {
+    const extension = getFileExtension(attachment.file.name);
+    const fileType = attachment.file.type;
+    
+    const isImage = fileType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension);
+    const isDocument = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension) ||
+                      fileType === 'application/pdf' ||
+                      fileType.includes('officedocument');
+    const isSupportedTextFile = ['md', 'markdown', 'txt'].includes(extension) ||
+                               fileType === 'text/csv' ||
+                               fileType === 'text/plain';
+    
+    return !(isImage || isDocument || isSupportedTextFile);
+  });
 
   // Regular mode, keep the original rendering logic
   return (
