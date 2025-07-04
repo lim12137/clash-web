@@ -2,6 +2,7 @@
 Celery tasks for data processing and vector storage
 """
 import logging
+import uuid
 import os
 import json
 import time
@@ -299,7 +300,7 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
         if processed_data.get('index_name'):
             original_index_name = processed_data.get('index_name')
         logger.info(f"[{self.request.id}] FORWARD TASK: Received data for source '{original_source}' with {len(chunks) if chunks else 'None'} chunks")
-        
+
         # Update task state to FORWARDING
         self.update_state(
             state=states.STARTED,
@@ -438,7 +439,7 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
             total_indexed = es_result.get("total_indexed", 0)
             total_submitted = es_result.get("total_submitted", len(formatted_chunks))
             logger.debug(f"[{self.request.id}] FORWARD TASK: main_server reported {total_indexed}/{total_submitted} documents indexed successfully for '{original_source}'. Message: {es_result.get('message')}")
-            
+
             if total_indexed < total_submitted:
                 logger.info("Value when raise Exception:")
                 logger.info(f"original_source: {original_source}")
@@ -577,17 +578,21 @@ def process_sync(self, source: str, source_type: str = "file",
     start_time = time.time()
     task_id = self.request.id
     
-    # Update task state to PROCESSING
-    self.update_state(
-        state=states.STARTED,
-        meta={
-            'source': source,
-            'source_type': source_type,
-            'task_name': '',
-            'start_time': start_time,
-            'sync_mode': True
-        }
-    )
+    # Check if we're in a valid Celery context before updating state
+    is_celery_context = hasattr(self, 'request') and self.request.id is not None
+
+    # Update task state to PROCESSING only if in Celery context
+    if is_celery_context:
+        self.update_state(
+            state=states.STARTED,
+            meta={
+                'source': source,
+                'source_type': source_type,
+                'task_name': 'process_sync',
+                'start_time': start_time,
+                'sync_mode': True
+            }
+        )
     
     logger.info(f"Synchronous processing file: {source} with strategy: {chunking_strategy}")
     
@@ -615,18 +620,19 @@ def process_sync(self, source: str, source_type: str = "file",
         # Extract text from chunks
         text_content = "\n\n".join([chunk.get("content", "") for chunk in chunks])
         
-        # Update task state to COMPLETE
-        self.update_state(
-            state=states.SUCCESS,
-            meta={
-                'chunks_count': len(chunks),
-                'processing_time': elapsed_time,
-                'source': source,
-                'task_name': '',
-                'text_length': len(text_content),
-                'sync_mode': True
-            }
-        )
+        # Update task state to COMPLETE only if in Celery context
+        if is_celery_context:
+            self.update_state(
+                state=states.SUCCESS,
+                meta={
+                    'chunks_count': len(chunks),
+                    'processing_time': elapsed_time,
+                    'source': source,
+                    'task_name': 'process_sync',
+                    'text_length': len(text_content),
+                    'sync_mode': True
+                }
+            )
         
         logger.info(f"Synchronously processed {len(chunks)} chunks from {source} in {elapsed_time:.2f}s")
         
@@ -643,16 +649,17 @@ def process_sync(self, source: str, source_type: str = "file",
     except Exception as e:
         logger.error(f"Error synchronously processing file {source}: {str(e)}")
         
-        # Update task state to FAILURE with custom metadata
-        self.update_state(
-            meta={
-                'source': source,
-                'task_name': 'process_sync',
-                'custom_error': str(e),
-                'sync_mode': True,
-                'stage': 'sync_processing_failed'
-            }
-        )
-        
+        # Update task state to FAILURE with custom metadata only if in Celery context
+        if is_celery_context:
+            self.update_state(
+                meta={
+                    'source': source,
+                    'task_name': 'process_sync',
+                    'custom_error': str(e),
+                    'sync_mode': True,
+                    'stage': 'sync_processing_failed'
+                }
+            )
+
         # Re-raise to let Celery handle exception serialization
         raise
