@@ -24,7 +24,7 @@ COPY model-assets/clip-vit-base-patch32 /opt/models/clip-vit-base-patch32
 
 WORKDIR /opt/backend
 
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ uv
 RUN uv sync --extra data-process && \
     rm -rf /home/notebook-user/.cache/uv /home/notebook-user/.cache/pip && \
     find .venv -type d -name '__pycache__' -exec rm -rf {} + && \
