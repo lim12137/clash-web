@@ -4,18 +4,22 @@ import json
 from pathlib import Path
 from typing import List, Optional
 from io import BytesIO
+import requests
+import logging
+import httpx
 
-from utils.auth_utils import get_current_user_id
-from fastapi import UploadFile, File, HTTPException, Form, APIRouter, Query, Path as PathParam, Body, Header
+from utils.auth_utils import get_current_user_info
+from fastapi import UploadFile, File, HTTPException, Form, APIRouter, Query, Path as PathParam, Body, Header, Request
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from consts.model import ProcessParams
 from consts.const import MAX_CONCURRENT_UPLOADS, UPLOAD_FOLDER
 from utils.file_management_utils import save_upload_file, trigger_data_process
-from utils.image_utils import convert_image_to_text
+from utils.attachment_utils import convert_image_to_text, convert_long_text_to_text
 from database.attachment_db import (
     upload_fileobj, delete_file, get_file_url, list_files
 )
+logger = logging.getLogger("file_management_app")
 
 # Create upload directory
 upload_dir = Path(UPLOAD_FOLDER)
@@ -341,13 +345,13 @@ async def get_storage_file_batch_urls(
 
 
 @router.post("/preprocess")
-async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] = File(...), authorization: Optional[str] = Header(None)):
+async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] = File(...), authorization: Optional[str] = Header(None), request: Request = None):
     """
     Preprocess uploaded files and return streaming response
     """
     try:
         # Pre-read and cache all file contents
-        user_id, tenant_id = get_current_user_id(authorization)
+        user_id, tenant_id, language = get_current_user_info(authorization, request)
         file_cache = []
         for file in files:
             import time
@@ -385,9 +389,9 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
                         raise Exception(file_data["error"])
 
                     if file_data["ext"] in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
-                        description = await process_image_file(query, file_data["filename"], file_data["content"], tenant_id)
+                        description = await process_image_file(query, file_data["filename"], file_data["content"], tenant_id, language)
                     else:
-                        description = await process_text_file(file_data["filename"], file_data["content"])
+                        description = await process_text_file(query, file_data["filename"], file_data["content"], tenant_id, language)
                     file_descriptions.append(description)
 
                     # Send processing result for each file
@@ -429,24 +433,54 @@ async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] =
         raise HTTPException(status_code=500, detail=f"File preprocessing error: {str(e)}")
 
 
-async def process_image_file(query, filename, file_content, tenant_id:str) -> str:
+async def process_image_file(query, filename, file_content, tenant_id: str, language: str = 'zh') -> str:
     """
     Process image file, convert to text using external API
     """
     image_stream = BytesIO(file_content)
-    text = convert_image_to_text(query, image_stream, tenant_id)
+    text = convert_image_to_text(query, image_stream, tenant_id, language)
 
     return f"Image file {filename} content: {text}"
 
 
-async def process_text_file(filename, file_content) -> str:
+async def process_text_file(query, filename, file_content, tenant_id: str, language: str = 'zh') -> str:
     """
     Process text file, convert to text using external API
     """
-    # TODO: Call your text file processing external API here
-    # Example code, needs to be replaced with actual API call
-    # text = await text_file_to_text_api(file_content)
-    text = ""
+    # file_content is byte data, need to send to API through file upload
+    data_process_service_url = os.environ.get('DATA_PROCESS_SERVICE')
+    api_url = f"{data_process_service_url}/tasks/process_text_file"
+    logger.info(f"Processing text file {filename} with API: {api_url}")
+
+    try:
+        # Upload byte data as a file
+        files = {
+            'file': (filename, file_content, 'application/octet-stream')
+        }
+        data = {
+            'chunking_strategy': 'basic',
+            'timeout': 60
+        }
+        async with httpx.AsyncClient() as client:
+            response = await client.post(api_url, files=files, data=data, timeout=60)
+
+        if response.status_code == 200:
+            result = response.json()
+            raw_text = result.get("text", "")
+            logger.info(f"File processed successfully: {raw_text[:100]}...")
+        else:
+            error_detail = response.json().get('detail', '未知错误') if response.headers.get('content-type', '').startswith('application/json') else response.text
+            logger.error(f"File processing failed (status code: {response.status_code}): {error_detail}")
+            raise Exception(f"File processing failed (status code: {response.status_code}): {error_detail}")
+
+    except requests.exceptions.Timeout:
+        raise Exception("API call timeout")
+    except requests.exceptions.ConnectionError:
+        raise Exception(f"Cannot connect to data processing service: {api_url}")
+    except Exception as e:
+        raise Exception(f"Error processing file: {str(e)}")
+
+    text = convert_long_text_to_text(query, raw_text, tenant_id, language)
     return f"File {filename} content: {text}"
 
 

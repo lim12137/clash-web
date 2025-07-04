@@ -9,7 +9,7 @@ RUN cp /etc/apt/sources.list /etc/apt/sources.list.backup && \
     sed -i 's|http://security.debian.org|https://mirrors.aliyun.com|g' /etc/apt/sources.list && \
     sed -i 's|http://ftp.debian.org|https://mirrors.aliyun.com|g' /etc/apt/sources.list && \
     apt-get update && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y --no-install-recommends --fix-missing \
         libmagic1 \
         libmagic-dev \
         libreoffice \
