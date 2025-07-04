@@ -6,7 +6,7 @@ USER root
 RUN umask 0022
 
 # 安装 uv
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ uv
 
 # 复制 sdk 和 backend 代码到镜像
 COPY sdk /opt/sdk
