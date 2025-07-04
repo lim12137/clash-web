@@ -17,6 +17,7 @@ from services.conversation_management_service import (
     update_message_opinion_service
 )
 from database.conversation_db import get_message_id_by_index
+from utils.auth_utils import get_current_user_info
 
 router = APIRouter(prefix="/conversation")
 
@@ -177,7 +178,8 @@ async def generate_conversation_title_endpoint(request: GenerateTitleRequest, au
         ConversationResponse object containing generated title
     """
     try:
-        title = generate_conversation_title_service(request.conversation_id, request.history)
+        user_id, tenant_id, language = get_current_user_info(authorization=authorization)
+        title = generate_conversation_title_service(request.conversation_id, request.history,tenant_id=tenant_id)
         return ConversationResponse(code=0, message="success", data=title)
     except Exception as e:
         logging.error(f"Failed to generate conversation title: {str(e)}")
