@@ -5,7 +5,7 @@ from consts.model import ChangeSummaryRequest
 from fastapi.responses import StreamingResponse
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core
-from utils.auth_utils import get_current_user_id
+from utils.auth_utils import get_current_user_info, get_current_user_id
 router = APIRouter(prefix="/summary")
 
 @router.post("/{index_name}/auto_summary")
@@ -17,14 +17,15 @@ async def auto_summary(
     ):
     """Summary Elasticsearch index_name by model"""
     try:
-        user_id = get_current_user_id(authorization)
+        user_id, tenant_id, language = get_current_user_info(authorization=authorization)
         service = ElasticSearchService()
 
         return await service.summary_index_name(
             index_name=index_name,
             batch_size=batch_size,
             es_core=es_core,
-            user_id=user_id
+            user_id=user_id,
+            tenant_id=tenant_id
         )
     except Exception as e:
         return StreamingResponse(

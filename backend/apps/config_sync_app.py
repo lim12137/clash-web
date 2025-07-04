@@ -63,7 +63,6 @@ async def save_config(config: GlobalConfig, authorization: Optional[str] = Heade
         # Process app configuration - use key names directly without prefix
         for key, value in config_dict.get("app", {}).items():
             env_key = get_env_key(key)
-            env_config[env_key] = safe_value(value)
 
             # Check if the key exists and has the same value in tenant_config_dict
             if env_key in tenant_config_dict and tenant_config_dict[env_key] == safe_value(value):
@@ -94,27 +93,11 @@ async def save_config(config: GlobalConfig, authorization: Optional[str] = Heade
 
             model_prefix = get_env_key(model_type)
 
-            # Process basic model attributes
-            for key, value in model_config.items():
-                if key == "apiConfig":
-                    # Process API configuration - use model name as prefix directly, without API_
-                    api_config = value or {}
-                    if api_config:
-                        for api_key, api_value in api_config.items():
-                            env_key = f"{model_prefix}_{get_env_key(api_key)}"
-                            env_config[env_key] = safe_value(api_value)
-                    else:
-                        # Set default empty values
-                        env_config[f"{model_prefix}_API_KEY"] = ""
-                        env_config[f"{model_prefix}_MODEL_URL"] = ""
-                else:
-                    env_key = f"{model_prefix}_{get_env_key(key)}"
-                    env_config[env_key] = safe_value(value)
-            
-            # Only store dimension for embedding or multiEmbedding models
-            if model_type in ["embedding", "multiEmbedding"] and model_config.get("dimension") is not None:
-                env_key = f"{model_prefix}_DIMENSION"
-                env_config[env_key] = safe_value(model_config.get("dimension"))
+            # Still keep EMBEDDING_API_KEY in env
+            if model_type == "embedding":
+                if model_config and "apiConfig" in model_config:
+                    embedding_apiCongig = model_config.get("apiConfig",{})
+                    env_config[f"{model_prefix}_API_KEY"] = safe_value(embedding_apiCongig.get("apiKey"))
 
         # Batch update environment variables
         for key, value in env_config.items():
@@ -191,7 +174,7 @@ async def load_config(authorization: Optional[str] = Header(None), request: Requ
                         "apiKey": embedding_model_name.get("api_key", ""),
                         "modelUrl": embedding_model_name.get("base_url", "")
                     },
-                    "dimension": int(config_manager.get_config("EMBEDDING_DIMENSION", "0")) or None
+                    "dimension": embedding_model_name.get("max_tokens", 0)
                 },
                 "multiEmbedding": {
                     "name": get_model_name_from_config(multi_embedding_model_name) if multi_embedding_model_name else "",
@@ -200,7 +183,7 @@ async def load_config(authorization: Optional[str] = Header(None), request: Requ
                         "apiKey": multi_embedding_model_name.get("api_key", ""),
                         "modelUrl": multi_embedding_model_name.get("base_url", "")
                     },
-                    "dimension": int(config_manager.get_config("MULTI_EMBEDDING_DIMENSION", "0")) or None
+                    "dimension": multi_embedding_model_name.get("max_tokens", 0)
                 },
                 "rerank": {
                     "name": get_model_name_from_config(rerank_model_name) if rerank_model_name else "",
