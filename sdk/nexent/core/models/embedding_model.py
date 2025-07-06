@@ -148,7 +148,7 @@ class JinaEmbedding(MultimodalEmbedding):
             multimodal_inputs = [{"text": inputs}]
         else:
             multimodal_inputs = [{"text": item} for item in inputs]
-        
+
         return self.get_multimodal_embeddings(multimodal_inputs, with_metadata=with_metadata, timeout=timeout)
 
     def get_multimodal_embeddings(self, inputs: List[Dict[str, str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[
