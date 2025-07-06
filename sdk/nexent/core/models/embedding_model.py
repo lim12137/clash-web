@@ -24,7 +24,7 @@ class BaseEmbedding(ABC):
         pass
 
     @abstractmethod
-    def get_embeddings(self, inputs, with_metadata: bool = False, timeout: Optional[float] = None) -> Union[List[List[float]], Dict[str, Any]]:
+    def get_embeddings(self, inputs: Union[str, List[str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[List[List[float]], Dict[str, Any]]:
         """
         获取输入的嵌入向量。
         
@@ -89,7 +89,7 @@ class MultimodalEmbedding(BaseEmbedding):
         super().__init__(model_name, base_url, api_key, embedding_dim)
     
     @abstractmethod
-    def get_embeddings(self, inputs: List[Dict[str, str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[List[List[float]], Dict[str, Any]]:
+    def get_multimodal_embeddings(self, inputs: List[Dict[str, str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[List[List[float]], Dict[str, Any]]:
         """
         获取多模态输入的嵌入向量。
         
@@ -114,7 +114,7 @@ class JinaEmbedding(MultimodalEmbedding):
 
         self.headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
 
-    def _prepare_input(self, inputs: List[Dict[str, str]]) -> Dict[str, Any]:
+    def _prepare_multimodal_input(self, inputs: List[Dict[str, str]]) -> Dict[str, Any]:
         """Prepare the input data for the API request."""
         return {"model": self.model, "input": inputs}
 
@@ -133,7 +133,25 @@ class JinaEmbedding(MultimodalEmbedding):
         response.raise_for_status()
         return response.json()
 
-    def get_embeddings(self, inputs: List[Dict[str, str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[
+    def get_embeddings(self, inputs: Union[str, List[str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[
+        List[List[float]], Dict[str, Any]]:
+        """
+        Get embeddings for text inputs.
+        Args:
+            inputs: A single text string or a list of text strings.
+            with_metadata: Whether to return the full response with metadata.
+            timeout: Request timeout in seconds.
+        Returns:
+            A list of embedding vectors, or a dictionary with metadata if with_metadata is True.
+        """
+        if isinstance(inputs, str):
+            multimodal_inputs = [{"text": inputs}]
+        else:
+            multimodal_inputs = [{"text": item} for item in inputs]
+        
+        return self.get_multimodal_embeddings(multimodal_inputs, with_metadata=with_metadata, timeout=timeout)
+
+    def get_multimodal_embeddings(self, inputs: List[Dict[str, str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[
         List[List[float]], Dict[str, Any]]:
         """
         Get embeddings for a list of inputs (text or image URLs).
@@ -152,9 +170,9 @@ class JinaEmbedding(MultimodalEmbedding):
             ...     {"text": "A beautiful sunset over the beach"},
             ...     {"image": "https://example.com/image.jpg"}
             ... ]
-            >>> embeddings = jina.get_embeddings(inputs)
+            >>> embeddings = jina.get_multimodal_embeddings(inputs)
         """
-        data = self._prepare_input(inputs)
+        data = self._prepare_multimodal_input(inputs)
         response = self._make_request(data, timeout=timeout)
 
         if with_metadata:
@@ -176,7 +194,7 @@ class JinaEmbedding(MultimodalEmbedding):
         """
         try:
             # 创建一个简单的测试输入
-            test_input = [{"text": "Hello, nexent!"}]
+            test_input = "Hello, nexent!"
 
             # 尝试获取嵌入向量，设置超时时间
             embeddings = self.get_embeddings(test_input, timeout=timeout)
@@ -207,7 +225,6 @@ class OpenAICompatibleEmbedding(TextEmbedding):
 
     def _prepare_input(self, inputs: Union[str, List[str]]) -> Dict[str, Any]:
         """Prepare the input data for the API request."""
-        # 确保输入总是列表格式
         if isinstance(inputs, str):
             inputs = [inputs]
         return {"model": self.model_name, "input": inputs}
