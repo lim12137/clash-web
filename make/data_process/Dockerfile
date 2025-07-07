@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.10
 LABEL authors="nexent"
 
 # Set correct permissions as root
