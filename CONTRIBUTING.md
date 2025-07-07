@@ -28,6 +28,31 @@ Great documentation is key to a great project. Help us make Nexent easier to use
 
 ---
 
+## 🌳 Branching Strategy: GitFlow
+
+![GitFlow Workflow](assets/git-flow.png)
+
+Gitflow is a branching model for Git that provides a structured approach to software development. It defines specific branches for different purposes, like features, releases, and hotfixes, and outlines how they should interact. This helps streamline the development process, manage releases effectively, and facilitate collaboration.
+
+### Main Branches
+- **main**: Represents the official release history and should always be deployable.
+- **develop**: The main branch for ongoing development. It integrates new features and bug fixes from feature branches.
+
+### Supporting Branches
+- **feature branches**: Used for developing new features. They branch off from develop and are merged back into it once the feature is complete.
+- **release branches**: Created when a new release is about to be prepared. They allow for final testing and minor adjustments before merging into main and develop.
+- **hotfix branches**: Used for fixing critical bugs in production. They branch off from main and are merged back into both main and develop.
+
+### Benefits of Gitflow
+- **Structured workflow**: Provides a clear and consistent process for managing different types of changes.
+- **Improved collaboration**: Facilitates teamwork by defining clear roles for branches and how they should interact.
+- **Efficient releases**: Streamlines the release process by isolating changes in dedicated branches and allowing for final testing.
+- **Reduced conflicts**: By using feature branches and release branches, it helps minimize merge conflicts and makes it easier to resolve them.
+
+For a visual overview, see the diagram above.
+
+---
+
 ## 🐞 Submitting a Bug Report or Feature Request
 
 ### Bug Reports
