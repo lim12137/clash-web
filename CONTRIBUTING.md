@@ -27,7 +27,7 @@ Great documentation is key to a great project. Help us make Nexent easier to use
 
 ## 🌳 Branching Strategy GitFlow
 
-![GitFlow Workflow](assets/git-flow.png)
+![GitFlow 工作流](assets/git-flow.svg)
 
 Gitflow is a branching model for Git that provides a structured approach to software development. It defines specific branches for different purposes, like features, releases, and hotfixes, and outlines how they should interact. This helps streamline the development process, manage releases effectively, and facilitate collaboration.
 
