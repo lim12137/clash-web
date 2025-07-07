@@ -48,7 +48,8 @@ dependencies = [
     "botocore>=1.37.34",
     "python-multipart>=0.0.20",
     "mcpadapt==0.1.9",
-    "mcp==1.10.1"
+    "mcp==1.10.1",
+    "tiktoken>=0.5.0"
 ]
 
 [project.optional-dependencies]
