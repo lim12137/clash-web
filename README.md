@@ -144,7 +144,7 @@ If you are an external developer and want to contribute to this project, please 
 3. **Commit and push your changes**
    - Make your changes, then use `git add .`, `git commit -m "Your message"`, and `git push origin` to push to your fork.
 4. **Open a Pull Request**
-   - Go to your forked repository on GitHub and click "New Pull Request" to propose merging your changes into the main repository.
+   - Go to your forked repository on GitHub, click the "Contribute" button, and then select "Open Pull Request" to propose merging your changes into the main repository.
 
 Please make sure your PR follows the project's contribution guidelines and passes all required checks.
 
