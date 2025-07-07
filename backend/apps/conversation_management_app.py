@@ -16,7 +16,7 @@ from services.conversation_management_service import (
     generate_conversation_title_service,
     update_message_opinion_service
 )
-from utils.auth_utils import get_current_user_id
+from utils.auth_utils import get_current_user_id, get_current_user_info
 from database.conversation_db import get_message_id_by_index
 
 router = APIRouter(prefix="/conversation")
@@ -63,7 +63,7 @@ async def list_conversations_endpoint(authorization: Optional[str] = Header(None
         user_id, tenant_id = get_current_user_id(authorization)
         if not user_id:
             raise HTTPException(status_code=401, detail="未授权访问，请先登录")
-            
+
         conversations = get_conversation_list_service(user_id)
         return ConversationResponse(code=0, message="success", data=conversations)
     except HTTPException as he:
@@ -190,8 +190,8 @@ async def generate_conversation_title_endpoint(request: GenerateTitleRequest, au
         ConversationResponse object containing generated title
     """
     try:
-        user_id, tenant_id = get_current_user_id(authorization)
-        title = generate_conversation_title_service(request.conversation_id, request.history, user_id)
+        user_id, tenant_id, language = get_current_user_info(authorization=authorization)
+        title = generate_conversation_title_service(request.conversation_id, request.history, user_id,tenant_id=tenant_id)
         return ConversationResponse(code=0, message="success", data=title)
     except Exception as e:
         logging.error(f"Failed to generate conversation title: {str(e)}")
