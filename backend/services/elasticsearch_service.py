@@ -24,7 +24,7 @@ from fastapi import HTTPException, Query, Body, Path, Depends
 from fastapi.responses import StreamingResponse
 from consts.const import ES_API_KEY, ES_HOST
 from consts.model import SearchRequest, HybridSearchRequest
-from utils.config_utils import config_manager
+from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
 from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
 
@@ -32,13 +32,14 @@ from database.knowledge_db import create_knowledge_record, get_knowledge_record,
 logger = logging.getLogger("elasticsearch_service")
 
 
-def generate_knowledge_summary_stream(keywords: str, language: str) -> Generator:
+def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: str) -> Generator:
     """
     Generate a knowledge base summary based on keywords
 
     Args:
         keywords: Keywords that frequently appear in the knowledge base content
         language: Language of the knowledge base content
+        tenant_id: The tenant ID for configuration
 
     Returns:
         str:  Generate a knowledge base summary
@@ -55,14 +56,17 @@ def generate_knowledge_summary_stream(keywords: str, language: str) -> Generator
     messages = [{"role": "system", "content": prompts['system_prompt']},
         {"role": "user", "content": prompts['user_prompt'].format(content=keywords)}]
 
+    # Get model configuration from tenant config manager
+    model_config = tenant_config_manager.get_model_config(key="LLM_SECONDARY_ID", tenant_id=tenant_id)
+    
     # initialize OpenAI client
-    client = OpenAI(api_key=os.getenv('LLM_SECONDARY_API_KEY'),
-                    base_url=os.getenv('LLM_SECONDARY_MODEL_URL'))
+    client = OpenAI(api_key=model_config.get('api_key', ""),
+                    base_url=model_config.get('base_url', ""))
 
     try:
         # Create stream chat completion request
         stream = client.chat.completions.create(
-            model=os.getenv('LLM_SECONDARY_MODEL_NAME'),  # can change model as needed
+            model=get_model_name_from_config(model_config) if model_config.get("model_name") else "",  # use model name from config
             messages=messages,
             stream=True  # enable stream output
         )
@@ -677,6 +681,7 @@ class ElasticSearchService:
             batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
             es_core: ElasticSearchCore = Depends(get_es_core),
             user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base"),
+            tenant_id: Optional[str] = Body(None, description="ID of the tenant"),
             language: str = 'zh'
     ):
         try:
@@ -691,7 +696,7 @@ class ElasticSearchService:
             async def generate_summary():
                 token_join = []
                 try:
-                    for new_token in generate_knowledge_summary_stream(keywords_for_summary, language):
+                    for new_token in generate_knowledge_summary_stream(keywords_for_summary, language,tenant_id):
                         if new_token == "END":
                             break
                         else:
