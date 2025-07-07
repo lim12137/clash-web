@@ -131,9 +131,22 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 1📝 **Code Output May Be Misinterpreted as Executable**  
    In Nexent conversations, if the model outputs code-like text, it may sometimes be misinterpreted as something that should be executed. We will fix this as soon as possible.
 
-# 👥 Contributing
+# 👥 External Developer Contribution Guide
 
 We welcome all kinds of contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes Nexent better for everyone. 
+
+If you are an external developer and want to contribute to this project, please follow these steps:
+
+1. **Fork the repository**
+   - Click the "Fork" button at the top right of the repository page to create your own copy.
+2. **Clone your fork**
+   - Use `git clone https://github.com/your-username/your-forked-repo.git` to clone your fork to your local machine.
+3. **Commit and push your changes**
+   - Make your changes, then use `git add .`, `git commit -m "Your message"`, and `git push origin` to push to your fork.
+4. **Open a Pull Request**
+   - Go to your forked repository on GitHub, click the "Contribute" button, and then select "Open Pull Request" to propose merging your changes into the main repository.
+
+Please make sure your PR follows the project's contribution guidelines and passes all required checks.
 
 - 📖 Read our [Contribution Guide](CONTRIBUTING.md) to get started
 - 🐛 Report bugs or suggest features in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)
