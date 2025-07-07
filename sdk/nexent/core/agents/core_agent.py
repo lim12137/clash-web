@@ -203,7 +203,7 @@ You have been provided with these additional arguments, that you can access usin
                 self.step_number += 1
 
         if self.stop_event.is_set():
-            final_answer = "Agent stopped by user"
+            final_answer = "<user_break>"
 
         if final_answer is None and self.step_number == max_steps + 1:
             final_answer = self._handle_max_steps_reached(task, images, step_start_time)

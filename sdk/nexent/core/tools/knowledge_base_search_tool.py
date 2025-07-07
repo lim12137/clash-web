@@ -24,8 +24,8 @@ class KnowledgeBaseSearchTool(Tool):
     base_url = "http://localhost:5010/api"
     index_names = []
 
-    def __init__(self, top_k: int = Field(description="返回结果数量", default=5),
-                 observer: MessageObserver = Field(description="消息观察者", default=None, exclude=True)):
+    def __init__(self, top_k: int = Field(description="Maximum number of search results", default=5),
+                 observer: MessageObserver = Field(description="Message observer", default=None, exclude=True)):
         """Initialize the KBSearchTool.
         
         Args:
@@ -39,7 +39,8 @@ class KnowledgeBaseSearchTool(Tool):
         self.top_k = top_k
         self.observer = observer
         self.record_ops = 0  # To record serial number
-        self.running_prompt = "知识库检索中..."
+        self.running_prompt_zh = "知识库检索中..."
+        self.running_prompt_en = "Searching the knowledge base..."
 
     def update_search_index_names(self, index_names: List[str]):
         self.index_names = index_names
@@ -49,7 +50,8 @@ class KnowledgeBaseSearchTool(Tool):
 
     def forward(self, query: str) -> str:
         # Send tool run message
-        self.observer.add_message("", ProcessType.TOOL, self.running_prompt)
+        running_prompt = self.running_prompt_zh if self.observer.lang == "zh" else self.running_prompt_en
+        self.observer.add_message("", ProcessType.TOOL, running_prompt)
         card_content = [{"icon": "search", "text": query}]
         self.observer.add_message("", ProcessType.CARD, json.dumps(card_content, ensure_ascii=False))
 
