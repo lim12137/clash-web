@@ -62,27 +62,60 @@ VOICE_TYPE=your_voice_type
 
 ## 嵌入模型
 
-嵌入模型提供了文本和图像的向量表示能力，支持多种后端服务。
+嵌入模型提供了将文本、图像等多种数据类型转换为向量表示的能力，支持多种后端服务。
 
 ### 功能特点
 
-- **多后端支持**: 支持Jina和OpenAI等嵌入服务
-- **统一接口**: 通过`BaseEmbedding`抽象基类提供一致的API
-- **配置灵活**: 支持环境变量和直接配置
-- **错误处理**: 完善的错误处理和连接测试机制
+-   **多后端支持**: 支持Jina和OpenAI等多种嵌入服务。
+-   **统一文本接口**: 所有模型均提供统一的 `get_embeddings` 方法，接受字符串或字符串列表作为输入，方便处理纯文本数据。
+-   **多模态能力**: 像 `JinaEmbedding` 这样的多模态模型，额外提供了 `get_multimodal_embeddings` 方法，可以处理包含文本和图像URL的复杂输入。
+-   **配置灵活**: 支持通过参数或环境变量进行配置。
+-   **连接测试**: 内置 `check_connectivity()` 方法，用于验证与API服务的连接状态。
 
 ### 使用示例
 
+#### 获取文本嵌入 (所有模型通用)
+
+所有嵌入模型都使用 `get_embeddings` 方法来获取文本的嵌入向量。此方法接受单个字符串或字符串列表。
+
 ```python
-from Nexent.core.models.embedding_model import JinaEmbedding
+from nexent.core.models.embedding_model import JinaEmbedding, OpenAICompatibleEmbedding
 
-# 初始化嵌入模型
-embedding = JinaEmbedding(api_key="your_api_key")
+# 初始化Jina模型 (同样适用于OpenAICompatibleEmbedding)
+embedding = JinaEmbedding(api_key="your_jina_api_key")
 
-# 获取文本嵌入
-inputs = [{"text": "Hello world"}]
-embeddings = embedding.get_embeddings(inputs)
+# 获取单个文本的嵌入
+text_input = "Hello, Nexent!"
+embeddings = embedding.get_embeddings(text_input)
+print(f"单文本嵌入向量数量: {len(embeddings)}")
+
+# 获取多个文本的嵌入
+text_list_input = ["这是第一段文本。", "这是第二段文本。"]
+embeddings_list = embedding.get_embeddings(text_list_input)
+print(f"多文本嵌入向量数量: {len(embeddings_list)}")
 ```
+
+#### 获取多模态嵌入 (JinaEmbedding)
+
+对于支持多模态输入的模型（如 `JinaEmbedding`），可以使用 `get_multimodal_embeddings` 方法来处理包含文本和图像的混合输入。
+
+```python
+from nexent.core.models.embedding_model import JinaEmbedding
+
+# 初始化Jina模型
+embedding = JinaEmbedding(api_key="your_jina_api_key")
+
+# 定义包含文本和图像的多模态输入
+multimodal_input = [
+    {"text": "A beautiful sunset over the beach"},
+    {"image": "https://example.com/sunset.jpg"}
+]
+
+# 获取多模态嵌入
+multimodal_embeddings = embedding.get_multimodal_embeddings(multimodal_input)
+print(f"多模态嵌入向量数量: {len(multimodal_embeddings)}")
+```
+
 
 ## 大语言模型
 
