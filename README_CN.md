@@ -135,6 +135,21 @@ bash deploy.sh
 
 我们欢迎各种形式的贡献！无论是修复错误、添加功能还是改进文档，您的帮助都能让 Nexent 变得更好。
 
+## 外部开发者如何提交 PR
+
+如果你是外部开发者，想为本项目贡献代码，请按照以下步骤操作：
+
+1. **Fork 本仓库**
+   - 点击仓库页面右上角的"Fork"按钮，创建属于你自己的仓库副本。
+2. **克隆你的 fork**
+   - 使用 `git clone https://github.com/你的用户名/你的fork仓库.git` 将 fork 下来的仓库克隆到本地。
+3. **提交并推送更改**
+   - 完成修改后，使用 `git add .`、`git commit -m "你的提交说明"`、`git push origin` 推送到你的 fork。
+4. **向主项目发起 Pull Request**
+   - 在 GitHub 上进入你的 fork 仓库，切换到你的功能分支，点击"New Pull Request"发起合并请求。
+
+请确保你的 PR 遵循项目的贡献指南，并通过所有必要的检查。
+
 - 📖 阅读我们的[贡献指南](CONTRIBUTING_CN.md)开始贡献
 - 🐛 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 中报告错误或提出功能建议
 - 💬 加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 讨论想法
