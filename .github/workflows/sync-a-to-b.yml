@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ModelEngine-Group/nexent-commercial
-          ref: main  # 明确指定分支
+          ref: develop  # 明确指定分支
           ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}  # 必须配置SSH Key
           fetch-depth: 0  # 获取完整历史
 
@@ -26,9 +26,9 @@ jobs:
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions-bot@github.com"
           # 检查是否有实际变更
-          if ! git diff --quiet repo-community/main main; then
+          if ! git diff --quiet repo-community/develop develop; then
             git merge repo-community/main --allow-unrelated-histories -m "🔀 Sync from A-repo $(date +'%Y-%m-%d %H:%M')"
-            git push origin main
+            git push origin develop
           else
             echo "⏩ No changes to sync."
           fi
