@@ -29,7 +29,8 @@
 
 ## 🌳 分支策略 GitFlow
 
-![GitFlow 工作流](assets/git-flow.png)
+![GitFlow 工作流](assets/git-flow.svg)
+
 
 Gitflow 是一种结构化的 Git 分支管理模型，为软件开发提供了清晰的流程。它为不同目的（如功能、发布、热修复）定义了专用分支，并规定了它们的交互方式，有助于规范开发流程、高效管理发布并促进协作。
 
