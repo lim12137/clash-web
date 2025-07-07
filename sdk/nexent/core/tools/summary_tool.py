@@ -29,17 +29,19 @@ class SummaryTool(Tool):
     }
     output_type = "string"
 
-    def __init__(self, model: OpenAIModel=Field(description="模型"),
-                 system_prompt: str = Field(description="系统提示", default=default_system_prompt)):
+    def __init__(self, model: OpenAIModel=Field(description="Model"),
+                 system_prompt: str = Field(description="System prompt", default=default_system_prompt)):
         super().__init__()
         self.model = model
         self.observer = MessageObserver()
         self.system_prompt = system_prompt
-        self.running_prompt = "总结生成中..."
+        self.running_prompt_zh = "总结生成中..."
+        self.running_prompt_en = "Generating summary..."
 
     def forward(self, query: str, content: List[str]) -> str:
         # 发送工具运行消息
-        self.observer.add_message("", ProcessType.TOOL, self.running_prompt)
+        running_prompt = self.running_prompt_zh if self.observer.lang == "zh" else self.running_prompt_en
+        self.observer.add_message("", ProcessType.TOOL, running_prompt)
 
         result_concat = ""
         for content_str in content:
