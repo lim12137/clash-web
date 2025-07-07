@@ -1,10 +1,10 @@
 // Tool function for processing chat streaming response
 
 import { ChatMessageType, AgentStep } from '@/types/chat';
- import {
-   deduplicateImages,
-   deduplicateSearchResults
- } from '../internal/chatHelpers';
+import {
+  deduplicateImages,
+  deduplicateSearchResults
+} from '../internal/chatHelpers';
 
 interface JsonData {
   type: string;
