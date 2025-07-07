@@ -4,6 +4,12 @@ LABEL authors="nexent"
 # Set correct permissions as root
 USER root
 
+# 配置清华大学镜像源
+RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
         libmagic1 \
@@ -21,6 +27,7 @@ COPY model-assets/clip-vit-base-patch32 /opt/models/clip-vit-base-patch32
 WORKDIR /opt/backend
 
 RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ uv
+ENV UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
 RUN uv sync --extra data-process && \
     rm -rf /home/notebook-user/.cache/uv /home/notebook-user/.cache/pip && \
     find .venv -type d -name '__pycache__' -exec rm -rf {} + && \
