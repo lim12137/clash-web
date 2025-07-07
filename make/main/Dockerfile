@@ -8,6 +8,9 @@ RUN umask 0022
 # 安装 uv
 RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ uv
 
+# 配置 uv 使用阿里云镜像源
+ENV UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+
 # 复制 sdk 和 backend 代码到镜像
 COPY sdk /opt/sdk
 COPY backend /opt/backend
