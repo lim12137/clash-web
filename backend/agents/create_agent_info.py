@@ -153,7 +153,7 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
     agent_run_info = AgentRunInfo(
         query=final_query,
         model_config_list= model_list,
-        observer=MessageObserver(),
+        observer=MessageObserver(lang=language),
         agent_config=await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id, language=language),
         mcp_host=urljoin(config_manager.get_config("NEXENT_MCP_SERVER"), "sse"),
         history=history,
