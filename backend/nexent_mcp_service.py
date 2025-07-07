@@ -86,7 +86,7 @@ async def add_remote_proxy(request: Request):
             return JSONResponse({
                 "status": "success",
                 "message": f"Remote proxy '{req_data.service_name}' added successfully"
-            })
+            }, status_code=200)
         else:
             return JSONResponse({
                 "status": "error",
@@ -126,7 +126,7 @@ async def remove_remote_proxy(request: Request):
             return JSONResponse({
                 "status": "success",
                 "message": f"Remote proxy '{service_name}' removed successfully"
-            })
+            }, status_code=200)
         else:
             return JSONResponse({
                 "status": "error",

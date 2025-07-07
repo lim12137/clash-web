@@ -247,11 +247,19 @@ class ConfigStoreClass {
       },
       stt: {
         modelName: backendConfig.models.stt?.name || "",
-        displayName: backendConfig.models.stt?.displayName || ""
+        displayName: backendConfig.models.stt?.displayName || "",
+        apiConfig: {
+          apiKey: backendConfig.models.stt?.apiConfig?.apiKey || "",
+          modelUrl: backendConfig.models.stt?.apiConfig?.modelUrl || ""
+        }
       },
       tts: {
         modelName: backendConfig.models.tts?.name || "",
-        displayName: backendConfig.models.tts?.displayName || ""
+        displayName: backendConfig.models.tts?.displayName || "",
+        apiConfig: {
+          apiKey: backendConfig.models.tts?.apiConfig?.apiKey || "",
+          modelUrl: backendConfig.models.tts?.apiConfig?.modelUrl || ""
+        }
       }
     } : undefined;
 

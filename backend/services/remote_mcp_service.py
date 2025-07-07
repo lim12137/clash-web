@@ -89,20 +89,14 @@ async def add_remote_mcp_server_list(tenant_id: str,
     )
 
 async def delete_remote_mcp_server_list(tenant_id: str, user_id: str, remote_mcp_server: str, remote_mcp_server_name: str):
-    # first delete the record in the PG database
-    result = delete_mcp_record_by_name_and_url(mcp_name=remote_mcp_server_name,
-                                               mcp_server=remote_mcp_server,
-                                               tenant_id=tenant_id,
-                                               user_id=user_id)
-
-    if not result:
-        logger.error(f"delete_remote_mcp_server_list failed, tenant_id: {tenant_id}, user_id: {user_id}, remote_mcp_server: {remote_mcp_server}, remote_mcp_server_name: {remote_mcp_server_name}")
+    # first check if the name and url is already in use
+    if not check_mcp_name_exists(mcp_name=remote_mcp_server_name):
         return JSONResponse(
-            status_code=400,
-            content={"message": "Failed to delete remote MCP server, server not record", "status": "error"}
+            status_code=409,
+            content={"message": "Service name not exists", "status": "error"}
         )
 
-    # call the delete remote proxy endpoint of nexent_mcp_service
+    # second call the delete remote proxy endpoint of nexent_mcp_service, to avoid network problem causing delete failure
     try:
         async with httpx.AsyncClient() as client:
             nexent_mcp_server = config_manager.get_config("NEXENT_MCP_SERVER")
@@ -116,10 +110,6 @@ async def delete_remote_mcp_server_list(tenant_id: str, user_id: str, remote_mcp
                 logger.info(f"Successfully removed remote MCP proxy: {remote_mcp_server_name}")
             elif response.status_code == 404:
                 logger.warning(f"Remote MCP proxy '{remote_mcp_server_name}' not found, may already be removed")
-                return JSONResponse(
-                    status_code=400,
-                    content={"message": "Failed to delete remote MCP proxy, may already be removed", "status": "error"}
-                )
             else:
                 logger.error(f"Failed to call remote-proxies DELETE endpoint: {response.status_code} - {response.text}")
                 return JSONResponse(
@@ -132,6 +122,20 @@ async def delete_remote_mcp_server_list(tenant_id: str, user_id: str, remote_mcp
             status_code=400,
             content={"message": "Failed to delete remote MCP proxy", "status": "error"}
         )
+
+    # third delete the record in the PG database
+    result = delete_mcp_record_by_name_and_url(mcp_name=remote_mcp_server_name,
+                                               mcp_server=remote_mcp_server,
+                                               tenant_id=tenant_id,
+                                               user_id=user_id)
+    if not result:
+        logger.error(
+            f"delete_remote_mcp_server_list failed, tenant_id: {tenant_id}, user_id: {user_id}, remote_mcp_server: {remote_mcp_server}, remote_mcp_server_name: {remote_mcp_server_name}")
+        return JSONResponse(
+            status_code=400,
+            content={"message": "Failed to delete remote MCP server, server not record", "status": "error"}
+        )
+
     return JSONResponse(
         status_code=200,
         content={"message": "Successfully added remote MCP proxy", "status": "success"}

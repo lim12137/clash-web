@@ -23,7 +23,7 @@ async def auto_summary(
     ):
     """Summary Elasticsearch index_name by model"""
     try:
-        user_id, _, language = get_current_user_info(authorization, http_request)
+        user_id, tenant_id, language = get_current_user_info(authorization, http_request)
         logger.info(f"Start summary for {index_name}, language: {language}")
         service = ElasticSearchService()
 
@@ -32,6 +32,7 @@ async def auto_summary(
             batch_size=batch_size,
             es_core=es_core,
             user_id=user_id,
+            tenant_id=tenant_id,
             language=language
         )
     except Exception as e:
