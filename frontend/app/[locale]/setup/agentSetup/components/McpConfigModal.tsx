@@ -197,6 +197,8 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
       const result = await recoverMcpServers()
       if (result.success) {
         message.success(t('mcpConfig.message.remountSuccess'))
+        // 重新挂载成功后，重新加载服务器列表以获取最新状态
+        await loadServerList()
       } else {
         message.error(result.message)
       }
@@ -215,6 +217,20 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
       key: 'service_name',
       width: '25%',
       ellipsis: true,
+      render: (text: string, record: McpServer) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              backgroundColor: record.status ? '#52c41a' : '#ff4d4f',
+              flexShrink: 0
+            }}
+          />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</span>
+        </div>
+      ),
     },
     {
       title: t('mcpConfig.serverList.column.url'),
