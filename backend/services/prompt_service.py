@@ -13,8 +13,8 @@ from consts.model import AgentInfoRequest
 from database.agent_db import query_sub_agents, update_agent, \
     query_tools_by_ids
 from services.agent_service import get_enable_tool_id_by_agent_id
-from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
-from utils.auth_utils import get_current_user_id, get_current_user_info
+from utils.config_utils import tenant_config_manager, get_model_name_from_config
+from utils.auth_utils import get_current_user_info
 from fastapi import Header, Request
 
 
