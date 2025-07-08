@@ -240,10 +240,8 @@ class MinioClient:
             return False, str(e)
 
 
-# Create a global database client instance
+# Create a global database and MinIO client instance
 db_client = PostgresClient()
-
-# Create global MinIO client instance
 minio_client = MinioClient()
 
 @contextmanager
