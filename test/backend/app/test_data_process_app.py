@@ -1,12 +1,15 @@
+"""
+Unit tests for the data processing application endpoints.
+These tests verify the behavior of the data processing API without actual database or service dependencies.
+All external services and dependencies are mocked to isolate the tests.
+"""
+
 import unittest
 from unittest.mock import patch, MagicMock, AsyncMock
-import json
-import base64
-import io
 import os
 import sys
-from fastapi import FastAPI, APIRouter, HTTPException, Form, Query, Body
-from typing import Dict, Any, Optional, List
+from fastapi import FastAPI, HTTPException, Form, Body
+from typing import Dict, Any
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -15,21 +18,21 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
 sys.path.append(backend_dir)
 
-# 在导入应用模块前设置必要的环境变量
+# Set necessary environment variables before importing application modules
 os.environ['REDIS_URL'] = 'redis://localhost:6379/0'
 os.environ['REDIS_BACKEND_URL'] = 'redis://localhost:6379/0'
 
-# 其他可能需要的环境变量
+# Other potentially needed environment variables
 os.environ['ELASTICSEARCH_URL'] = 'http://localhost:9200'
 os.environ['DATA_PATH'] = '/tmp/data'
 os.environ['DATA_PROCESS_LOG_LEVEL'] = 'INFO'
 
-# 模拟 BatchTaskRequest 类
+# Mock BatchTaskRequest class for testing
 class MockBatchTaskRequest:
     def __init__(self, sources=None):
         self.sources = sources or []
 
-# 创建模拟的model模块
+# Create mock model module classes
 class MockTaskResponse:
     def __init__(self, task_id):
         self.task_id = task_id
@@ -38,7 +41,7 @@ class MockBatchTaskResponse:
     def __init__(self, task_ids):
         self.task_ids = task_ids
 
-# 创建模拟的model模块
+# Create mock model module
 mock_model = MagicMock()
 mock_model.BatchTaskRequest = MockBatchTaskRequest
 mock_model.TaskResponse = MockTaskResponse
@@ -46,14 +49,14 @@ mock_model.BatchTaskResponse = MockBatchTaskResponse
 mock_model.SimpleTaskStatusResponse = MagicMock()
 mock_model.SimpleTasksListResponse = MagicMock()
 
-# 模拟celery和其他服务
+# Mock celery and other services to prevent actual service calls
 mock_celery = MagicMock()
 mock_service = MagicMock()
 sys.modules['celery'] = mock_celery
 sys.modules['services.data_process_service'] = mock_service
 sys.modules['consts.model'] = mock_model
 
-# 模拟所有导入，而不是实际导入模块
+# Mock router implementation for testing
 class MockRouter:
     def __init__(self):
         self.routes = []
@@ -71,10 +74,18 @@ class MockRouter:
         return decorator
 
 
-# 创建测试应用和路由器
 class TestDataProcessApp(unittest.TestCase):
+    """
+    Test suite for the data processing application endpoints.
+    Tests the API behavior with mocked service dependencies.
+    """
+    
     def setUp(self):
-        # 创建模拟的路由器和服务
+        """
+        Set up the test environment before each test.
+        Creates mocks for services, router, and common test data.
+        """
+        # Create mocked router and services
         self.router = MockRouter()
         self.service = MagicMock()
         self.process_and_forward = MagicMock()
@@ -82,28 +93,31 @@ class TestDataProcessApp(unittest.TestCase):
         self.get_task_info = AsyncMock()
         self.utils_get_task_details = AsyncMock()
         
-        # 模拟异步上下文管理器
+        # Mock async context manager
         self.lifespan = MagicMock()
         
-        # 常用测试数据
+        # Common test data
         self.task_id = "test-task-id-123"
         self.index_name = "test-index"
         self.source = "test-file.pdf"
         
-        # 创建实际的FastAPI应用
+        # Create actual FastAPI application
         self.app = FastAPI()
         
-        # 定义模拟路由函数
+        # Define mock routes
         self.setup_mock_routes()
         
-        # 创建测试客户端
+        # Create test client
         self.client = TestClient(self.app)
     
     def setup_mock_routes(self):
-        # 添加一些测试路由
+        """
+        Set up mock API routes for testing.
+        Each route simulates the behavior of a real API endpoint with mocked service calls.
+        """
         @self.app.post("/tasks")
         async def create_task(request: Dict[str, Any] = Body(None)):
-            # 模拟创建任务
+            # Simulate task creation
             task_result = self.process_and_forward.delay.return_value
             return {"task_id": task_result.id}
         
@@ -114,7 +128,7 @@ class TestDataProcessApp(unittest.TestCase):
             chunking_strategy: str = Form("basic"),
             timeout: int = Form(30)
         ):
-            # 模拟同步处理
+            # Simulate synchronous processing
             try:
                 if getattr(self.process_sync, 'apply_async', None) and getattr(self.process_sync.apply_async, 'side_effect', None):
                     raise self.process_sync.apply_async.side_effect
@@ -133,15 +147,15 @@ class TestDataProcessApp(unittest.TestCase):
                     "text_length": result.get("text_length", 0)
                 }
             except Exception as e:
-                # 捕获异常并返回适当的HTTP错误响应
+                # Catch exceptions and return appropriate HTTP error responses
                 raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
         
         @self.app.post("/tasks/batch")
         async def create_batch_tasks(request: Dict[str, Any] = Body(None)):
-            # 模拟批量创建任务
+            # Simulate batch task creation
             task_ids = []
             
-            # Handle both Dict and MockBatchTaskRequest
+            # Handle both Dict and MockBatchTaskRequest types
             if hasattr(request, 'sources'):
                 sources = request.sources
             else:
@@ -158,7 +172,7 @@ class TestDataProcessApp(unittest.TestCase):
         
         @self.app.get("/tasks/load_image")
         async def load_image():
-            # 模拟图像加载
+            # Simulate image loading
             if not getattr(self.service, 'load_image', None) or self.service.load_image.return_value is None:
                 raise HTTPException(status_code=404, detail="Failed to load image or image format not supported")
             
@@ -167,7 +181,7 @@ class TestDataProcessApp(unittest.TestCase):
         
         @self.app.get("/tasks/{task_id}")
         async def get_task(task_id: str):
-            # 模拟获取任务信息
+            # Simulate getting task information
             task = self.get_task_info.return_value
             
             if not task:
@@ -177,18 +191,18 @@ class TestDataProcessApp(unittest.TestCase):
         
         @self.app.get("/tasks")
         async def list_tasks():
-            # 模拟列出所有任务
+            # Simulate listing all tasks
             tasks = self.service.get_all_tasks.return_value
             return {"tasks": tasks}
         
         @self.app.get("/tasks/indices/{index_name}")
         async def get_index_tasks(index_name: str):
-            # 模拟获取索引任务
+            # Simulate getting index tasks
             return self.service.get_index_tasks.return_value
         
         @self.app.get("/tasks/{task_id}/details")
         async def get_task_details(task_id: str):
-            # 模拟获取任务详情
+            # Simulate getting task details
             task = self.utils_get_task_details.return_value
             if not task:
                 raise HTTPException(status_code=404, detail="Task not found")
@@ -200,24 +214,28 @@ class TestDataProcessApp(unittest.TestCase):
             positive_prompt: str = Form("an important image"),
             negative_prompt: str = Form("an unimportant image")
         ):
-            # 模拟图像过滤
+            # Simulate image filtering
             try:
                 if getattr(self.service, 'filter_important_image', None) and getattr(self.service.filter_important_image, 'side_effect', None):
                     raise self.service.filter_important_image.side_effect
                 
-                # 移除await，直接返回值
+                # Remove await, return value directly
                 return self.service.filter_important_image.return_value
             except Exception as e:
-                # 捕获异常并返回适当的HTTP错误响应
+                # Catch exceptions and return appropriate HTTP error responses
                 raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
     
     def test_create_task(self):
-        # 设置模拟
+        """
+        Test creating a new task.
+        Verifies that the endpoint returns the expected task ID.
+        """
+        # Set up mock
         mock_task = MagicMock()
         mock_task.id = self.task_id
         self.process_and_forward.delay.return_value = mock_task
 
-        # 测试数据
+        # Test data
         request_data = {
             "source": self.source,
             "source_type": "file",
@@ -226,15 +244,19 @@ class TestDataProcessApp(unittest.TestCase):
             "additional_params": {"param1": "value1"}
         }
         
-        # 执行请求
+        # Execute request
         response = self.client.post("/tasks", json=request_data)
         
-        # 断言
-        self.assertEqual(response.status_code, 200)  # FastAPI测试客户端默认返回200
+        # Assert expectations
+        self.assertEqual(response.status_code, 200)  # FastAPI test client defaults to 200
         self.assertEqual(response.json(), {"task_id": self.task_id})
 
     def test_process_sync_endpoint_success(self):
-        # 设置模拟
+        """
+        Test synchronous processing endpoint success case.
+        Verifies that the endpoint returns the expected processing result.
+        """
+        # Set up mock
         mock_task = MagicMock()
         mock_task.id = self.task_id
         mock_task.get.return_value = {
@@ -246,7 +268,7 @@ class TestDataProcessApp(unittest.TestCase):
         }
         self.process_sync.apply_async.return_value = mock_task
         
-        # 执行请求
+        # Execute request
         response = self.client.post(
             "/tasks/process",
             data={
@@ -257,7 +279,7 @@ class TestDataProcessApp(unittest.TestCase):
             }
         )
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertTrue(result["success"])
@@ -267,10 +289,14 @@ class TestDataProcessApp(unittest.TestCase):
         self.assertEqual(result["chunks_count"], 2)
 
     def test_process_sync_endpoint_failure(self):
-        # 设置模拟抛出异常
+        """
+        Test synchronous processing endpoint failure case.
+        Verifies that the endpoint returns an appropriate error response.
+        """
+        # Set up mock to throw exception
         self.process_sync.apply_async.side_effect = Exception("Processing error")
         
-        # 执行请求
+        # Execute request
         response = self.client.post(
             "/tasks/process",
             data={
@@ -281,20 +307,24 @@ class TestDataProcessApp(unittest.TestCase):
             }
         )
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 500)
         self.assertIn("Error processing file", response.json()["detail"])
         self.assertIn("Processing error", response.json()["detail"])
 
     def test_create_batch_tasks(self):
-        # 设置模拟
+        """
+        Test creating multiple tasks in batch.
+        Verifies that the endpoint returns the expected task IDs.
+        """
+        # Set up mock
         mock_task1 = MagicMock()
         mock_task1.id = "batch-task-1"
         mock_task2 = MagicMock()
         mock_task2.id = "batch-task-2"
         self.process_and_forward.delay.return_value = [mock_task1, mock_task2]
 
-        # 测试数据
+        # Test data
         request_data = {
             "sources": [
                 {
@@ -314,25 +344,29 @@ class TestDataProcessApp(unittest.TestCase):
             ]
         }
         
-        # 执行请求
+        # Execute request
         response = self.client.post("/tasks/batch", json=request_data)
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"task_ids": ["batch-task-1", "batch-task-2"]})
 
     def test_load_image_success(self):
-        # 创建测试图像
+        """
+        Test loading an image successfully.
+        Verifies that the endpoint returns the expected image data.
+        """
+        # Create test image
         test_image = Image.new('RGB', (100, 100), color='red')
         test_image.format = 'JPEG'
         
-        # 设置模拟
+        # Set up mock
         self.service.load_image = AsyncMock(return_value=test_image)
         
-        # 执行请求
+        # Execute request
         response = self.client.get("/tasks/load_image?url=http://example.com/image.jpg")
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertTrue(result["success"])
@@ -340,18 +374,26 @@ class TestDataProcessApp(unittest.TestCase):
         self.assertEqual(result["content_type"], "image/jpeg")
 
     def test_load_image_failure(self):
-        # 设置模拟返回None（加载图像失败）
+        """
+        Test loading an image failure case.
+        Verifies that the endpoint returns an appropriate error response.
+        """
+        # Set up mock to return None (image loading failure)
         self.service.load_image = AsyncMock(return_value=None)
         
-        # 执行请求
+        # Execute request
         response = self.client.get("/tasks/load_image?url=http://example.com/bad_image.jpg")
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 404)
         self.assertIn("Failed to load image", response.json()["detail"])
 
     def test_get_task_success(self):
-        # 设置模拟
+        """
+        Test getting task information successfully.
+        Verifies that the endpoint returns the expected task data.
+        """
+        # Set up mock
         task_data = {
             "id": self.task_id,
             "task_name": "process_and_forward",
@@ -364,10 +406,10 @@ class TestDataProcessApp(unittest.TestCase):
         }
         self.get_task_info.return_value = task_data
         
-        # 执行请求
+        # Execute request
         response = self.client.get(f"/tasks/{self.task_id}")
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result["id"], self.task_id)
@@ -375,18 +417,26 @@ class TestDataProcessApp(unittest.TestCase):
         self.assertEqual(result["index_name"], self.index_name)
 
     def test_get_task_not_found(self):
-        # 设置模拟返回None（任务未找到）
+        """
+        Test getting non-existent task.
+        Verifies that the endpoint returns an appropriate error response.
+        """
+        # Set up mock to return None (task not found)
         self.get_task_info.return_value = None
         
-        # 执行请求
+        # Execute request
         response = self.client.get("/tasks/nonexistent-id")
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 404)
         self.assertIn("not found", response.json()["detail"])
 
     def test_list_tasks(self):
-        # 设置模拟
+        """
+        Test listing all tasks.
+        Verifies that the endpoint returns the expected list of tasks.
+        """
+        # Set up mock
         tasks_data = [
             {
                 "id": "task-1",
@@ -411,10 +461,10 @@ class TestDataProcessApp(unittest.TestCase):
         ]
         self.service.get_all_tasks = AsyncMock(return_value=tasks_data)
         
-        # 执行请求
+        # Execute request
         response = self.client.get("/tasks")
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result["tasks"]), 2)
@@ -422,7 +472,11 @@ class TestDataProcessApp(unittest.TestCase):
         self.assertEqual(result["tasks"][1]["id"], "task-2")
 
     def test_get_index_tasks(self):
-        # 设置模拟
+        """
+        Test getting tasks for a specific index.
+        Verifies that the endpoint returns the expected tasks.
+        """
+        # Set up mock
         tasks_data = [
             {
                 "id": "task-1",
@@ -437,16 +491,20 @@ class TestDataProcessApp(unittest.TestCase):
         ]
         self.service.get_index_tasks = AsyncMock(return_value=tasks_data)
         
-        # 执行请求
+        # Execute request
         response = self.client.get(f"/tasks/indices/{self.index_name}")
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result), 2)
 
     def test_get_task_details(self):
-        # 设置模拟
+        """
+        Test getting detailed task information.
+        Verifies that the endpoint returns the expected task details.
+        """
+        # Set up mock
         task_detail_data = {
             "id": self.task_id,
             "task_name": "process_and_forward",
@@ -458,10 +516,10 @@ class TestDataProcessApp(unittest.TestCase):
         }
         self.utils_get_task_details.return_value = task_detail_data
         
-        # 执行请求
+        # Execute request
         response = self.client.get(f"/tasks/{self.task_id}/details")
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result["id"], self.task_id)
@@ -469,18 +527,26 @@ class TestDataProcessApp(unittest.TestCase):
         self.assertEqual(result["result"]["text"], "Extracted text")
 
     def test_get_task_details_not_found(self):
-        # 设置模拟返回None（任务未找到）
+        """
+        Test getting details for a non-existent task.
+        Verifies that the endpoint returns an appropriate error response.
+        """
+        # Set up mock to return None (task not found)
         self.utils_get_task_details.return_value = None
         
-        # 执行请求
+        # Execute request
         response = self.client.get(f"/tasks/nonexistent-id/details")
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 404)
         self.assertIn("not found", response.json()["detail"])
 
     def test_filter_important_image(self):
-        # 设置模拟
+        """
+        Test filtering an image for importance.
+        Verifies that the endpoint returns the expected filtering result.
+        """
+        # Set up mock
         filter_result = {
             "is_important": True,
             "confidence": 0.85,
@@ -488,7 +554,7 @@ class TestDataProcessApp(unittest.TestCase):
         }
         self.service.filter_important_image = AsyncMock(return_value=filter_result)
         
-        # 执行请求
+        # Execute request
         response = self.client.post(
             "/tasks/filter_important_image",
             data={
@@ -498,18 +564,22 @@ class TestDataProcessApp(unittest.TestCase):
             }
         )
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertTrue(result["is_important"])
         self.assertEqual(result["confidence"], 0.85)
 
     def test_filter_important_image_error(self):
-        # 设置模拟抛出异常
+        """
+        Test filtering an image error case.
+        Verifies that the endpoint returns an appropriate error response.
+        """
+        # Set up mock to throw exception
         self.service.filter_important_image = AsyncMock()
         self.service.filter_important_image.side_effect = Exception("Image processing error")
         
-        # 执行请求
+        # Execute request
         response = self.client.post(
             "/tasks/filter_important_image",
             data={
@@ -519,7 +589,7 @@ class TestDataProcessApp(unittest.TestCase):
             }
         )
         
-        # 断言
+        # Assert expectations
         self.assertEqual(response.status_code, 500)
         self.assertIn("Error processing image", response.json()["detail"])
 

@@ -7,27 +7,33 @@ from io import BytesIO
 from pathlib import Path
 import sys  
 
-
 # Dynamically determine the backend path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
 sys.path.append(backend_dir)
 
-# Mock the MinioClient and database connections before importing the module
-import sys
-from unittest.mock import patch
+# Setup patches for dependencies before importing modules
+patches = [
+    patch('botocore.client.BaseClient._make_api_call', return_value={}),
+    patch('backend.database.client.MinioClient', MagicMock()),
+    patch('backend.database.client.db_client', MagicMock()),
+    patch('backend.utils.auth_utils.get_current_user_id', MagicMock(return_value=('test_user', 'test_tenant'))),
+    patch('backend.utils.attachment_utils.convert_image_to_text', 
+          MagicMock(side_effect=lambda query, image_input, tenant_id, language='zh': 'mocked image text')),
+    patch('backend.utils.attachment_utils.convert_long_text_to_text', 
+          MagicMock(side_effect=lambda query, file_context, tenant_id, language='zh': 'mocked text content')),
+    patch('httpx.AsyncClient', MagicMock())
+]
 
-# Apply patches before importing modules that use these services
-with patch('botocore.client.BaseClient._make_api_call', return_value={}):
-    with patch('backend.database.client.MinioClient', MagicMock()):
-        with patch('backend.database.client.db_client', MagicMock()):
-            with patch('backend.utils.auth_utils.get_current_user_id', MagicMock(return_value=('test_user', 'test_tenant'))):
-                with patch('backend.utils.image_utils.convert_image_to_text', MagicMock(return_value='mocked image text')):
-                    # Now import the module after mocking dependencies
-                    from fastapi.testclient import TestClient
-                    from fastapi import UploadFile, HTTPException
-                    from fastapi import FastAPI
-                    from backend.apps.file_management_app import router
+# Start all patches
+for p in patches:
+    p.start()
+
+# Now import the modules after applying all patches
+from fastapi.testclient import TestClient
+from fastapi import UploadFile, HTTPException
+from fastapi import FastAPI
+from backend.apps.file_management_app import router
 
 # Create a FastAPI app and include the router for testing
 app = FastAPI()
@@ -35,6 +41,17 @@ app.include_router(router)
 client = TestClient(app)
 
 class TestFileManagementApp(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Keep track of patches to stop them in tearDownClass
+        cls.patches = patches
+
+    @classmethod
+    def tearDownClass(cls):
+        # Stop all patches
+        for p in cls.patches:
+            p.stop()
+
     def setUp(self):
         # Create mock files for testing
         self.mock_file_content = b"test file content"
@@ -389,14 +406,28 @@ class TestFileManagementApp(unittest.TestCase):
         self.assertIn("Image file test.jpg content", result)
         self.assertIn("Extracted text from image", result)
 
-    async def test_process_text_file(self):
+    @patch('httpx.AsyncClient')
+    async def test_process_text_file(self, mock_client):
         # Import directly in the test to use the already established mocks
         from backend.apps.file_management_app import process_text_file
         
+        # Setup mock response for httpx client
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"text": "Extracted raw text from file"}
+        
+        mock_client_instance = MagicMock()
+        mock_client_instance.post.return_value = asyncio.Future()
+        mock_client_instance.post.return_value.set_result(mock_response)
+        mock_client.return_value.__aenter__.return_value = mock_client_instance
+        
         # Test the function
         result = await process_text_file(
+            query="Test query",
             filename="test.txt",
-            file_content=self.mock_file_content
+            file_content=self.mock_file_content,
+            tenant_id="tenant123",
+            language="en"
         )
         
         # Assertions

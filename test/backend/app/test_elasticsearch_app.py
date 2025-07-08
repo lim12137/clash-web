@@ -1,3 +1,9 @@
+"""
+Unit tests for the Elasticsearch application endpoints.
+These tests verify the behavior of the Elasticsearch API without actual database connections.
+All external services and dependencies are mocked to isolate the tests.
+"""
+
 import unittest
 from unittest.mock import patch, MagicMock, AsyncMock, ANY
 import os
@@ -8,11 +14,11 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
 sys.path.append(backend_dir)
 
-# 首先导入和定义所有必要的Pydantic模型
+# Define necessary Pydantic models before importing any backend code
 from pydantic import BaseModel, Field
 from typing import List, Optional, Union, Dict, Any
 
-# 定义自己的Pydantic模型，确保它们在导入后端代码前存在
+# Define custom Pydantic models to ensure they exist before backend code imports
 class SearchRequest(BaseModel):
     index_names: List[str]
     query: str
@@ -28,45 +34,45 @@ class IndexingResponse(BaseModel):
     total_indexed: int
     total_submitted: int
 
-# 模块级别的模拟对AWS的连接
-# 这些必须在导入其他模块前应用，以防止实际连接到AWS
+# Module-level mocks for AWS connections
+# Apply these patches before importing any modules to prevent actual AWS connections
 patch('botocore.client.BaseClient._make_api_call', return_value={}).start()
 patch('backend.database.client.MinioClient').start()
 patch('backend.database.client.get_db_session').start()
 patch('backend.database.client.db_client').start()
 
-# 重要：在导入任何使用这些类的模块前，确保模拟函数不会创建MagicMock对象
-# 我们需要修改unittest.mock的行为，使其不会自动创建MagicMock对象来替代Pydantic模型
+# Important: Modify unittest.mock behavior to prevent automatic MagicMock creation for Pydantic models
+# This ensures our custom Pydantic models are used instead of auto-generated mocks
 original_patch = unittest.mock.patch
 def patched_patch(*args, **kwargs):
     if args and isinstance(args[0], str):
         target = args[0]
         if 'model.IndexingResponse' in target or 'model.SearchRequest' in target or 'model.HybridSearchRequest' in target:
-            # 不要模拟Pydantic模型类
+            # Don't mock Pydantic model classes
             return MagicMock()
-    # 对其他情况使用原始patch
+    # Use original patch for other cases
     return original_patch(*args, **kwargs)
 
-# 应用修改后的patch函数
+# Apply the modified patch function
 unittest.mock.patch = patched_patch
 
-# 先导入consts.model模块并替换所有必要的Pydantic模型
+# Import consts.model module and replace necessary Pydantic models
 import sys
 import consts.model
 
-# 备份原始类并替换为我们的Pydantic模型版本
+# Backup original classes and replace with our Pydantic model versions
 original_models = {
     "SearchRequest": getattr(consts.model, "SearchRequest", None),
     "HybridSearchRequest": getattr(consts.model, "HybridSearchRequest", None),
     "IndexingResponse": getattr(consts.model, "IndexingResponse", None),
 }
 
-# 替换所有模型
+# Replace all models
 consts.model.SearchRequest = SearchRequest
 consts.model.HybridSearchRequest = HybridSearchRequest
 consts.model.IndexingResponse = IndexingResponse
 
-# 确保模块级别也有这些替换
+# Ensure module level also has these replacements
 sys.modules['consts.model'].SearchRequest = SearchRequest
 sys.modules['consts.model'].HybridSearchRequest = HybridSearchRequest
 sys.modules['consts.model'].IndexingResponse = IndexingResponse
@@ -74,18 +80,18 @@ sys.modules['consts.model'].IndexingResponse = IndexingResponse
 from fastapi.testclient import TestClient
 from fastapi import HTTPException
 
-# 现在安全地导入路由和服务
+# Now safely import routes and services
 from backend.apps.elasticsearch_app import router
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService
 from services.redis_service import RedisService
 
-# 创建测试客户端
+# Create test client
 from fastapi import FastAPI
 app = FastAPI()
 
-# 临时修改router以禁用响应模型验证
-# 这是一个额外的保险措施，防止FastAPI路由验证失败
+# Temporarily modify router to disable response model validation
+# This is an extra precaution to prevent FastAPI route validation failures
 for route in router.routes:
     route.response_model = None
 
@@ -94,12 +100,21 @@ client = TestClient(app)
 
 
 class TestElasticsearchApp(unittest.TestCase):
+    """
+    Test suite for the Elasticsearch application endpoints.
+    Tests the API behavior with mocked service dependencies.
+    """
+    
     def setUp(self):
+        """
+        Set up the test environment before each test.
+        Creates mock objects for ElasticSearchCore and ElasticSearchService.
+        """
         # Mock dependencies
         self.es_core_mock = MagicMock(spec=ElasticSearchCore)
         self.es_service_mock = MagicMock(spec=ElasticSearchService)
         
-        # 创建 Redis 服务模拟对象，并添加我们需要的方法
+        # Create Redis service mock with required methods
         self.redis_service_mock = MagicMock()
         self.redis_service_mock.delete_knowledgebase_records = MagicMock()
         self.redis_service_mock.delete_document_records = MagicMock()
@@ -112,18 +127,26 @@ class TestElasticsearchApp(unittest.TestCase):
     
     @classmethod
     def tearDownClass(cls):
-        # 恢复原始类
+        """
+        Clean up after all tests have run.
+        Restores original classes and patch function.
+        """
+        # Restore original classes
         for model_name, original_model in original_models.items():
             if original_model is not None:
                 setattr(consts.model, model_name, original_model)
                 setattr(sys.modules['consts.model'], model_name, original_model)
         
-        # 恢复原始patch函数
+        # Restore original patch function
         unittest.mock.patch = original_patch
 
     @patch("backend.apps.elasticsearch_app.get_es_core")
     @patch("backend.apps.elasticsearch_app.get_current_user_id")
     def test_create_new_index_success(self, mock_get_user_id, mock_get_es_core):
+        """
+        Test creating a new index successfully.
+        Verifies that the endpoint returns the expected response when index creation succeeds.
+        """
         # Setup mocks
         mock_get_user_id.return_value = (self.user_id, self.tenant_id)
         mock_get_es_core.return_value = self.es_core_mock
@@ -142,6 +165,10 @@ class TestElasticsearchApp(unittest.TestCase):
     @patch("backend.apps.elasticsearch_app.get_es_core")
     @patch("backend.apps.elasticsearch_app.get_current_user_id")
     def test_create_new_index_error(self, mock_get_user_id, mock_get_es_core):
+        """
+        Test creating a new index with error.
+        Verifies that the endpoint returns an appropriate error response when index creation fails.
+        """
         # Setup mocks
         mock_get_user_id.return_value = (self.user_id, self.tenant_id)
         mock_get_es_core.return_value = self.es_core_mock
@@ -159,6 +186,10 @@ class TestElasticsearchApp(unittest.TestCase):
     @patch("backend.apps.elasticsearch_app.delete_selected_knowledge_by_index_name")
     @patch("backend.apps.elasticsearch_app.get_redis_service")
     def test_delete_index_success(self, mock_get_redis, mock_delete_knowledge, mock_get_user_id, mock_get_es_core):
+        """
+        Test deleting an index successfully.
+        Verifies that the endpoint returns the expected response and performs Redis cleanup.
+        """
         # Setup mocks
         mock_get_user_id.return_value = (self.user_id, self.tenant_id)
         mock_get_es_core.return_value = self.es_core_mock
@@ -185,7 +216,7 @@ class TestElasticsearchApp(unittest.TestCase):
                 "redis_cleanup": redis_result
             }
             self.assertEqual(response.json(), expected_result)
-            # 使用ANY替换具体的mock对象
+            # Use ANY to replace specific mock object
             mock_delete.assert_called_once_with(self.index_name, ANY, self.user_id)
             mock_delete_knowledge.assert_called_once_with(tenant_id=self.tenant_id, user_id=self.user_id, index_name=self.index_name)
 
@@ -194,6 +225,10 @@ class TestElasticsearchApp(unittest.TestCase):
     @patch("backend.apps.elasticsearch_app.delete_selected_knowledge_by_index_name")
     @patch("backend.apps.elasticsearch_app.get_redis_service")
     def test_delete_index_redis_error(self, mock_get_redis, mock_delete_knowledge, mock_get_user_id, mock_get_es_core):
+        """
+        Test deleting an index with Redis error.
+        Verifies that the endpoint still succeeds with ES but reports Redis cleanup error.
+        """
         # Setup mocks
         mock_get_user_id.return_value = (self.user_id, self.tenant_id)
         mock_get_es_core.return_value = self.es_core_mock
@@ -215,6 +250,10 @@ class TestElasticsearchApp(unittest.TestCase):
 
     @patch("backend.apps.elasticsearch_app.get_es_core")
     def test_get_list_indices_success(self, mock_get_es_core):
+        """
+        Test listing indices successfully.
+        Verifies that the endpoint returns the expected list of indices.
+        """
         # Setup mocks
         mock_get_es_core.return_value = self.es_core_mock
         expected_response = {"indices": ["index1", "index2"]}
@@ -231,6 +270,10 @@ class TestElasticsearchApp(unittest.TestCase):
 
     @patch("backend.apps.elasticsearch_app.get_es_core")
     def test_get_list_indices_error(self, mock_get_es_core):
+        """
+        Test listing indices with error.
+        Verifies that the endpoint returns an appropriate error response when listing fails.
+        """
         # Setup mocks
         mock_get_es_core.return_value = self.es_core_mock
         
@@ -244,11 +287,15 @@ class TestElasticsearchApp(unittest.TestCase):
 
     @patch("backend.apps.elasticsearch_app.get_es_core")
     def test_create_index_documents_success(self, mock_get_es_core):
+        """
+        Test indexing documents successfully.
+        Verifies that the endpoint returns the expected response after documents are indexed.
+        """
         # Setup mocks
         mock_get_es_core.return_value = self.es_core_mock
         documents = [{"id": 1, "text": "test doc"}]
         
-        # 使用Pydantic模型实例而不是字典作为返回值
+        # Use Pydantic model instance instead of dictionary as return value
         expected_response = IndexingResponse(
             success=True,
             message="Documents indexed successfully",
@@ -266,6 +313,10 @@ class TestElasticsearchApp(unittest.TestCase):
 
     @patch("backend.apps.elasticsearch_app.get_es_core")
     def test_create_index_documents_error(self, mock_get_es_core):
+        """
+        Test indexing documents with error.
+        Verifies that the endpoint returns an appropriate error response when indexing fails.
+        """
         # Setup mocks
         mock_get_es_core.return_value = self.es_core_mock
         documents = [{"id": 1, "text": "test doc"}]
@@ -280,22 +331,30 @@ class TestElasticsearchApp(unittest.TestCase):
 
     @patch("backend.apps.elasticsearch_app.get_es_core")
     def test_get_index_files_success(self, mock_get_es_core):
-        # 将异步测试转换为同步测试
+        """
+        Test listing index files successfully.
+        This is a synchronous version of what would be an async test in the actual application.
+        """
+        # Convert async test to synchronous test
         # Setup mocks
         mock_get_es_core.return_value = self.es_core_mock
         expected_files = {"files": [{"path": "file1.txt", "status": "complete"}]}
         
         with patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files", return_value=expected_files):
-            # 使用字典作为返回值而不是MagicMock对象
+            # Use dictionary as return value instead of MagicMock object
             response_data = {"status": "success", "files": expected_files["files"]}
             
-            # 断言预期结果
+            # Assert expected results
             expected_result = {"status": "success", "files": expected_files["files"]}
             self.assertEqual(expected_result, response_data)
 
     @patch("backend.apps.elasticsearch_app.get_es_core")
     @patch("backend.apps.elasticsearch_app.get_redis_service")
     def test_delete_documents_success(self, mock_get_redis, mock_get_es_core):
+        """
+        Test deleting documents successfully.
+        Verifies that the endpoint returns the expected response and performs Redis cleanup.
+        """
         # Setup mocks
         mock_get_es_core.return_value = self.es_core_mock
         mock_get_redis.return_value = self.redis_service_mock
@@ -323,14 +382,18 @@ class TestElasticsearchApp(unittest.TestCase):
                 "redis_cleanup": redis_result
             }
             self.assertEqual(response.json(), expected_result)
-            # 使用ANY替换具体的mock对象
+            # Use ANY to replace specific mock object
             mock_delete.assert_called_once_with(self.index_name, path_or_url, ANY)
 
     @patch("backend.apps.elasticsearch_app.get_es_core")
     def test_accurate_search_success(self, mock_get_es_core):
+        """
+        Test accurate search successfully.
+        Verifies that the endpoint returns the expected search results.
+        """
         # Setup mocks
         mock_get_es_core.return_value = self.es_core_mock
-        # 修正: 使用正确的字段名 index_names 而不是 indices
+        # Use correct field name index_names instead of indices
         search_request = SearchRequest(
             index_names=[self.index_name],
             query="test query",
@@ -345,14 +408,18 @@ class TestElasticsearchApp(unittest.TestCase):
             # Verify
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json(), expected_response)
-            # 只检查调用次数，不检查参数
+            # Only check call count, not parameters
             mock_search.assert_called_once()
 
     @patch("backend.apps.elasticsearch_app.get_es_core")
     def test_semantic_search_success(self, mock_get_es_core):
+        """
+        Test semantic search successfully.
+        Verifies that the endpoint returns the expected search results.
+        """
         # Setup mocks
         mock_get_es_core.return_value = self.es_core_mock
-        # 修正: 使用正确的字段名 index_names 而不是 indices
+        # Use correct field name index_names instead of indices
         search_request = SearchRequest(
             index_names=[self.index_name],
             query="test query",
@@ -367,14 +434,18 @@ class TestElasticsearchApp(unittest.TestCase):
             # Verify
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json(), expected_response)
-            # 只检查调用次数，不检查参数
+            # Only check call count, not parameters
             mock_search.assert_called_once()
 
     @patch("backend.apps.elasticsearch_app.get_es_core")
     def test_hybrid_search_success(self, mock_get_es_core):
+        """
+        Test hybrid search successfully.
+        Verifies that the endpoint returns the expected search results with weighted combinations.
+        """
         # Setup mocks
         mock_get_es_core.return_value = self.es_core_mock
-        # 修正: 使用正确的字段名 index_names 而不是 indices，并添加必要的权重字段
+        # Use correct field name index_names and include necessary weight fields
         search_request = HybridSearchRequest(
             index_names=[self.index_name],
             query="test query",
@@ -391,11 +462,15 @@ class TestElasticsearchApp(unittest.TestCase):
             # Verify
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json(), expected_response)
-            # 只检查调用次数，不检查参数
+            # Only check call count, not parameters
             mock_search.assert_called_once()
 
     @patch("backend.apps.elasticsearch_app.get_es_core")
     def test_health_check_success(self, mock_get_es_core):
+        """
+        Test health check endpoint successfully.
+        Verifies that the endpoint returns the expected status when ES is healthy.
+        """
         # Setup mocks
         mock_get_es_core.return_value = self.es_core_mock
         expected_response = {"status": "ok", "elasticsearch": "connected"}
@@ -407,11 +482,15 @@ class TestElasticsearchApp(unittest.TestCase):
             # Verify
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json(), expected_response)
-            # 使用ANY替换具体的mock对象
+            # Use ANY to replace specific mock object
             mock_health.assert_called_once_with(ANY)
 
     @patch("backend.apps.elasticsearch_app.get_es_core")
     def test_health_check_error(self, mock_get_es_core):
+        """
+        Test health check endpoint with error.
+        Verifies that the endpoint returns an appropriate error response when ES is unhealthy.
+        """
         # Setup mocks
         mock_get_es_core.return_value = self.es_core_mock
         

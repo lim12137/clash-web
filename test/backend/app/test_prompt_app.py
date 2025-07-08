@@ -219,7 +219,7 @@ class TestPromptApp(unittest.TestCase):
         
         # Assertions
         self.assertEqual(response.status_code, 422)  # Validation error
-    
+
     def test_generate_prompt_without_authorization(self):
         """Test prompt generation without authorization header"""
         # Mock route handler function

@@ -35,11 +35,11 @@ sys.modules['backend.database.knowledge_db'] = mock_knowledge_db
 def get_selected_knowledge_list(tenant_id, user_id):
     """
     Retrieves the selected knowledge list for a specific tenant and user.
-    
+
     Args:
         tenant_id: The ID of the tenant
         user_id: The ID of the user
-        
+
     Returns:
         A list of knowledge information dictionaries or an empty list if none found
     """
@@ -54,16 +54,16 @@ def get_selected_knowledge_list(tenant_id, user_id):
 def update_selected_knowledge(tenant_id, user_id, index_name_list):
     """
     Updates the selected knowledge list for a tenant and user.
-    
+
     This function performs two operations:
     1. Adds new knowledge items that aren't already selected
     2. Removes knowledge items that are no longer in the provided list
-    
+
     Args:
         tenant_id: The ID of the tenant
         user_id: The ID of the user
         index_name_list: List of knowledge index names to select
-        
+
     Returns:
         Boolean indicating success or failure of the update operation
     """
@@ -97,12 +97,12 @@ def update_selected_knowledge(tenant_id, user_id, index_name_list):
 def delete_selected_knowledge_by_index_name(tenant_id, user_id, index_name):
     """
     Deletes a specific knowledge item from the selected list by its index name.
-    
+
     Args:
         tenant_id: The ID of the tenant
         user_id: The ID of the user
         index_name: The index name of the knowledge item to remove
-        
+
     Returns:
         Boolean indicating success or failure of the deletion operation
     """
@@ -123,7 +123,7 @@ class TestTenantConfigService(unittest.TestCase):
     Unit tests for the tenant configuration service functions.
     Tests the behavior of getting, updating, and deleting selected knowledge items.
     """
-    
+
     def setUp(self):
         """
         Set up test data and reset all mocks before each test.

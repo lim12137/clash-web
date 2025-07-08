@@ -157,31 +157,31 @@ class TestToolConfigApp(unittest.TestCase):
         
         self.assertEqual(context.exception.status_code, 500)
         self.assertTrue("Failed to update tool" in context.exception.detail)
-        
+
     @patch("utils.auth_utils.get_current_user_id")
     @patch("services.tool_configuration_service.update_tool_list")
     async def test_scan_and_update_tool_success(self, mock_update_tool_list, mock_get_current_user_id):
         # Setup
         mock_get_current_user_id.return_value = ("user123", "tenant456")
-        
+
         # Execute
         result = await scan_and_update_tool(authorization="Bearer fake_token")
-        
+
         # Assert
         mock_get_current_user_id.assert_called_once_with("Bearer fake_token")
         mock_update_tool_list.assert_called_once_with(tenant_id="tenant456", user_id="user123")
         self.assertEqual(result.status_code, 200)
-        
+
     @patch("utils.auth_utils.get_current_user_id")
     @patch("services.tool_configuration_service.update_tool_list")
     async def test_scan_and_update_tool_error(self, mock_update_tool_list, mock_get_current_user_id):
         # Setup
         mock_get_current_user_id.return_value = ("user123", "tenant456")
         mock_update_tool_list.side_effect = Exception("Update error")
-        
+
         # Execute
         result = await scan_and_update_tool(authorization="Bearer fake_token")
-        
+
         # Assert
         self.assertEqual(result.status_code, 400)
 
