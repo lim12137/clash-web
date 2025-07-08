@@ -1,16 +1,16 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-# 完全模拟整个导入链
-# 创建模拟模块并添加到sys.modules
+# Completely mock the entire import chain
+# Create mock modules and add them to sys.modules
 import sys
 
-# 创建模拟数据库模块
+# Create mock database modules
 mock_db = MagicMock()
 mock_tenant_config_db = MagicMock()
 mock_knowledge_db = MagicMock()
 
-# 设置模拟函数
+# Set up mock functions
 mock_get_tenant_config_info = MagicMock()
 mock_insert_config = MagicMock()
 mock_update_config_by_tenant_config_id = MagicMock()
@@ -18,7 +18,7 @@ mock_delete_config_by_tenant_config_id = MagicMock()
 mock_get_knowledge_info_by_knowledge_ids = MagicMock()
 mock_get_knowledge_ids_by_index_names = MagicMock()
 
-# 连接模拟函数到模拟模块
+# Connect mock functions to mock modules
 mock_tenant_config_db.get_tenant_config_info = mock_get_tenant_config_info
 mock_tenant_config_db.insert_config = mock_insert_config
 mock_tenant_config_db.update_config_by_tenant_config_id = mock_update_config_by_tenant_config_id
@@ -26,13 +26,23 @@ mock_tenant_config_db.delete_config_by_tenant_config_id = mock_delete_config_by_
 mock_knowledge_db.get_knowledge_info_by_knowledge_ids = mock_get_knowledge_info_by_knowledge_ids
 mock_knowledge_db.get_knowledge_ids_by_index_names = mock_get_knowledge_ids_by_index_names
 
-# 把模拟模块放入sys.modules
+# Add mock modules to sys.modules to intercept imports
 sys.modules['backend.database.tenant_config_db'] = mock_tenant_config_db
 sys.modules['backend.database.knowledge_db'] = mock_knowledge_db
 
-# 直接复制被测试代码，而不是导入
-# 这样我们完全控制依赖，不会触发真实导入
+# Direct copy of code under test, rather than importing
+# This gives us complete control over dependencies without triggering real imports
 def get_selected_knowledge_list(tenant_id, user_id):
+    """
+    Retrieves the selected knowledge list for a specific tenant and user.
+    
+    Args:
+        tenant_id: The ID of the tenant
+        user_id: The ID of the user
+        
+    Returns:
+        A list of knowledge information dictionaries or an empty list if none found
+    """
     record_list = mock_get_tenant_config_info(tenant_id=tenant_id, user_id=user_id, select_key="selected_knowledge_id")
     if len(record_list) == 0:
         return []
@@ -42,11 +52,26 @@ def get_selected_knowledge_list(tenant_id, user_id):
 
 
 def update_selected_knowledge(tenant_id, user_id, index_name_list):
+    """
+    Updates the selected knowledge list for a tenant and user.
+    
+    This function performs two operations:
+    1. Adds new knowledge items that aren't already selected
+    2. Removes knowledge items that are no longer in the provided list
+    
+    Args:
+        tenant_id: The ID of the tenant
+        user_id: The ID of the user
+        index_name_list: List of knowledge index names to select
+        
+    Returns:
+        Boolean indicating success or failure of the update operation
+    """
     knowledge_ids = mock_get_knowledge_ids_by_index_names(index_name_list)
     record_list = mock_get_tenant_config_info(tenant_id=tenant_id, user_id=user_id, select_key="selected_knowledge_id")
     record_values = [record["config_value"] for record in record_list]
 
-    # if knowledge_ids is not in record_list, insert the record of knowledge_ids
+    # If knowledge_ids is not in record_list, insert the record of knowledge_ids
     for knowledge_id in knowledge_ids:
         if knowledge_id not in record_values:
             result = mock_insert_config({
@@ -59,7 +84,7 @@ def update_selected_knowledge(tenant_id, user_id, index_name_list):
             if not result:
                 return False
 
-    # if record_list is not in knowledge_ids, delete the record of record_list
+    # If record_list is not in knowledge_ids, delete the record of record_list
     for record in record_list:
         if record["config_value"] not in knowledge_ids:
             result = mock_delete_config_by_tenant_config_id(record["tenant_config_id"])
@@ -70,6 +95,17 @@ def update_selected_knowledge(tenant_id, user_id, index_name_list):
 
 
 def delete_selected_knowledge_by_index_name(tenant_id, user_id, index_name):
+    """
+    Deletes a specific knowledge item from the selected list by its index name.
+    
+    Args:
+        tenant_id: The ID of the tenant
+        user_id: The ID of the user
+        index_name: The index name of the knowledge item to remove
+        
+    Returns:
+        Boolean indicating success or failure of the deletion operation
+    """
     knowledge_ids = mock_get_knowledge_ids_by_index_names([index_name])
     record_list = mock_get_tenant_config_info(tenant_id=tenant_id, user_id=user_id, select_key="selected_knowledge_id")
 
@@ -83,7 +119,15 @@ def delete_selected_knowledge_by_index_name(tenant_id, user_id, index_name):
 
 
 class TestTenantConfigService(unittest.TestCase):
+    """
+    Unit tests for the tenant configuration service functions.
+    Tests the behavior of getting, updating, and deleting selected knowledge items.
+    """
+    
     def setUp(self):
+        """
+        Set up test data and reset all mocks before each test.
+        """
         self.tenant_id = "test_tenant_id"
         self.user_id = "test_user_id"
         self.index_name = "test_index_name"
@@ -92,7 +136,7 @@ class TestTenantConfigService(unittest.TestCase):
         self.knowledge_ids = ["knowledge_id_1", "knowledge_id_2"]
         self.tenant_config_id = "tenant_config_id_1"
         
-        # 重置所有模拟对象
+        # Reset all mock objects
         mock_get_tenant_config_info.reset_mock()
         mock_insert_config.reset_mock()
         mock_update_config_by_tenant_config_id.reset_mock()
@@ -101,6 +145,10 @@ class TestTenantConfigService(unittest.TestCase):
         mock_get_knowledge_ids_by_index_names.reset_mock()
 
     def test_get_selected_knowledge_list_empty(self):
+        """
+        Test get_selected_knowledge_list when there are no selected knowledge items.
+        Should return an empty list and not call get_knowledge_info_by_knowledge_ids.
+        """
         # Setup
         mock_get_tenant_config_info.return_value = []
         
@@ -117,6 +165,10 @@ class TestTenantConfigService(unittest.TestCase):
         mock_get_knowledge_info_by_knowledge_ids.assert_not_called()
 
     def test_get_selected_knowledge_list_with_records(self):
+        """
+        Test get_selected_knowledge_list when there are selected knowledge items.
+        Should return knowledge info and call the appropriate database functions.
+        """
         # Setup
         mock_get_tenant_config_info.return_value = [
             {"config_value": self.knowledge_id, "tenant_config_id": self.tenant_config_id}
@@ -137,6 +189,10 @@ class TestTenantConfigService(unittest.TestCase):
         mock_get_knowledge_info_by_knowledge_ids.assert_called_once_with([self.knowledge_id])
 
     def test_update_selected_knowledge_add_only(self):
+        """
+        Test update_selected_knowledge when only adding new knowledge items.
+        Should insert new records and return True.
+        """
         # Setup
         mock_get_knowledge_ids_by_index_names.return_value = self.knowledge_ids
         mock_get_tenant_config_info.return_value = []
@@ -157,6 +213,10 @@ class TestTenantConfigService(unittest.TestCase):
         mock_delete_config_by_tenant_config_id.assert_not_called()
 
     def test_update_selected_knowledge_remove_only(self):
+        """
+        Test update_selected_knowledge when only removing knowledge items.
+        Should delete records and return True.
+        """
         # Setup
         mock_get_knowledge_ids_by_index_names.return_value = []
         mock_get_tenant_config_info.return_value = [
@@ -179,6 +239,10 @@ class TestTenantConfigService(unittest.TestCase):
         mock_delete_config_by_tenant_config_id.assert_called_once_with(self.tenant_config_id)
 
     def test_update_selected_knowledge_add_and_remove(self):
+        """
+        Test update_selected_knowledge when both adding and removing knowledge items.
+        Should perform both operations and return True if successful.
+        """
         # Setup
         mock_get_knowledge_ids_by_index_names.return_value = ["knowledge_id_2"]
         mock_get_tenant_config_info.return_value = [
@@ -202,6 +266,10 @@ class TestTenantConfigService(unittest.TestCase):
         mock_delete_config_by_tenant_config_id.assert_called_once_with("tenant_config_id_1")
 
     def test_update_selected_knowledge_insert_failure(self):
+        """
+        Test update_selected_knowledge when insertion fails.
+        Should return False when insert_config returns False.
+        """
         # Setup
         mock_get_knowledge_ids_by_index_names.return_value = self.knowledge_ids
         mock_get_tenant_config_info.return_value = []
@@ -217,6 +285,10 @@ class TestTenantConfigService(unittest.TestCase):
         mock_insert_config.assert_called_once()
 
     def test_update_selected_knowledge_delete_failure(self):
+        """
+        Test update_selected_knowledge when deletion fails.
+        Should return False when delete_config_by_tenant_config_id returns False.
+        """
         # Setup
         mock_get_knowledge_ids_by_index_names.return_value = []
         mock_get_tenant_config_info.return_value = [
@@ -233,6 +305,10 @@ class TestTenantConfigService(unittest.TestCase):
         mock_delete_config_by_tenant_config_id.assert_called_once_with(self.tenant_config_id)
 
     def test_delete_selected_knowledge_by_index_name_success(self):
+        """
+        Test delete_selected_knowledge_by_index_name for successful deletion.
+        Should delete the matching record and return True.
+        """
         # Setup
         mock_get_knowledge_ids_by_index_names.return_value = [self.knowledge_id]
         mock_get_tenant_config_info.return_value = [
@@ -254,6 +330,10 @@ class TestTenantConfigService(unittest.TestCase):
         mock_delete_config_by_tenant_config_id.assert_called_once_with(self.tenant_config_id)
 
     def test_delete_selected_knowledge_by_index_name_no_match(self):
+        """
+        Test delete_selected_knowledge_by_index_name when no matching record is found.
+        Should return True without attempting deletion.
+        """
         # Setup
         mock_get_knowledge_ids_by_index_names.return_value = ["different_knowledge_id"]
         mock_get_tenant_config_info.return_value = [
@@ -270,6 +350,10 @@ class TestTenantConfigService(unittest.TestCase):
         mock_delete_config_by_tenant_config_id.assert_not_called()
 
     def test_delete_selected_knowledge_by_index_name_failure(self):
+        """
+        Test delete_selected_knowledge_by_index_name when deletion fails.
+        Should return False when delete_config_by_tenant_config_id returns False.
+        """
         # Setup
         mock_get_knowledge_ids_by_index_names.return_value = [self.knowledge_id]
         mock_get_tenant_config_info.return_value = [

@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import sys
+import types
 
 # Mock modules before importing anything else
 sys.modules['database.agent_db'] = MagicMock()
@@ -8,8 +9,13 @@ sys.modules['database.client'] = MagicMock()
 sys.modules['consts.model'] = MagicMock()
 sys.modules['services.tool_configuration_service'] = MagicMock()
 sys.modules['utils.auth_utils'] = MagicMock()
-sys.modules['fastapi'] = MagicMock()
+
+# Mock fastapi and its submodules
+fastapi_mock = MagicMock()
+sys.modules['fastapi'] = fastapi_mock
 sys.modules['fastapi.Header'] = MagicMock()
+sys.modules['fastapi.responses'] = MagicMock()
+sys.modules['fastapi.responses'].JSONResponse = MagicMock()
 
 # Import the actual functions to test from source
 import importlib.util
@@ -22,13 +28,17 @@ target_file = os.path.join(backend_dir, 'apps', 'tool_config_app.py')
 
 # Load the module
 spec = importlib.util.spec_from_file_location("tool_config_app", target_file)
-tool_config_app = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(tool_config_app)
+if spec is not None and spec.loader is not None:
+    tool_config_app = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tool_config_app)
+else:
+    raise ImportError(f"Could not load module from {target_file}")
 
 # Get the functions directly from the module
 list_tools_api = tool_config_app.list_tools_api
 search_tool_info_api = tool_config_app.search_tool_info_api
 update_tool_info_api = tool_config_app.update_tool_info_api
+scan_and_update_tool = tool_config_app.scan_and_update_tool
 
 # Mock request classes
 class MockToolInstanceSearchRequest:
@@ -49,8 +59,10 @@ class MockHTTPException(Exception):
         self.detail = detail
         super().__init__(f"{status_code}: {detail}")
 
-# Replace FastAPI's HTTPException with our mock
-tool_config_app.HTTPException = MockHTTPException
+# Replace FastAPI's HTTPException with our mock using setattr
+setattr(tool_config_app, 'HTTPException', MockHTTPException)
+# Replace JSONResponse with our mock
+setattr(tool_config_app, 'JSONResponse', sys.modules['fastapi.responses'].JSONResponse)
 
 class TestToolConfigApp(unittest.TestCase):
     def setUp(self):
@@ -145,6 +157,33 @@ class TestToolConfigApp(unittest.TestCase):
         
         self.assertEqual(context.exception.status_code, 500)
         self.assertTrue("Failed to update tool" in context.exception.detail)
+        
+    @patch("utils.auth_utils.get_current_user_id")
+    @patch("services.tool_configuration_service.update_tool_list")
+    async def test_scan_and_update_tool_success(self, mock_update_tool_list, mock_get_current_user_id):
+        # Setup
+        mock_get_current_user_id.return_value = ("user123", "tenant456")
+        
+        # Execute
+        result = await scan_and_update_tool(authorization="Bearer fake_token")
+        
+        # Assert
+        mock_get_current_user_id.assert_called_once_with("Bearer fake_token")
+        mock_update_tool_list.assert_called_once_with(tenant_id="tenant456", user_id="user123")
+        self.assertEqual(result.status_code, 200)
+        
+    @patch("utils.auth_utils.get_current_user_id")
+    @patch("services.tool_configuration_service.update_tool_list")
+    async def test_scan_and_update_tool_error(self, mock_update_tool_list, mock_get_current_user_id):
+        # Setup
+        mock_get_current_user_id.return_value = ("user123", "tenant456")
+        mock_update_tool_list.side_effect = Exception("Update error")
+        
+        # Execute
+        result = await scan_and_update_tool(authorization="Bearer fake_token")
+        
+        # Assert
+        self.assertEqual(result.status_code, 400)
 
 
 if __name__ == "__main__":
