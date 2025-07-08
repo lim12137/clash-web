@@ -9,7 +9,7 @@ from ..utils.tools_common_message import SearchResultTextMessage
 from pydantic import Field
 
 class KnowledgeBaseSearchTool(Tool):
-    """Knowledge base search tool supporting Chinese and English"""
+    """Knowledge base search tool"""
     name = "knowledge_base_search"
     description = "Performs a local knowledge base search based on your query then returns the top search results. " \
                   "A tool for retrieving internal company documents, policies, processes and proprietary information. Use this tool when users ask questions related to internal company matters, product details, organizational structure, internal processes, or confidential information. " \
@@ -20,7 +20,6 @@ class KnowledgeBaseSearchTool(Tool):
     output_type = "string"
 
     tool_sign = "a"  # Used to distinguish different index sources for summaries
-
     base_url = "http://localhost:5010/api"
     index_names = []
 

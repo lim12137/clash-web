@@ -23,12 +23,12 @@ class GetEmailTool(Tool):
                        "default": 10, "nullable": True}}
     output_type = "string"
 
-    def __init__(self, imap_server: str=Field(description="IMAP服务器地址"),
-                 imap_port: int=Field(description="IMAP服务器端口"), 
-                 username: str=Field(description="IMAP服务器用户名"), 
-                 password: str=Field(description="IMAP服务器密码"), 
-                 use_ssl: bool=Field(description="是否使用SSL", default=True),
-                 timeout: int = Field(description="超时时间", default=30)):
+    def __init__(self, imap_server: str=Field(description="IMAP Server Address"),
+                 imap_port: int=Field(description="IMAP Server Port"), 
+                 username: str=Field(description="IMAP Server Username"), 
+                 password: str=Field(description="IMAP Server Password"), 
+                 use_ssl: bool=Field(description="Use SSL", default=True),
+                 timeout: int = Field(description="Timeout", default=30)):
         super().__init__()
         self.imap_server = imap_server
         self.imap_port = imap_port
@@ -38,7 +38,7 @@ class GetEmailTool(Tool):
         self.timeout = timeout
 
     def _decode_subject(self, subject):
-        """解码邮件主题，遇到未知编码兜底为utf-8或latin1"""
+        """Decode email subject, fallback to utf-8 or latin1 for unknown encodings"""
         if subject is None:
             return ""
         decoded_chunks = []
@@ -59,7 +59,7 @@ class GetEmailTool(Tool):
         return ''.join(decoded_chunks)
 
     def _parse_email(self, msg):
-        """解析邮件内容，正文解码兜底为utf-8或latin1"""
+        """Parse email content, decode body with fallback to utf-8 or latin1"""
         email_data = {"subject": self._decode_subject(msg["subject"]), "from": msg["from"], "date": msg["date"],
             "body": "", "attachments": []}
 
@@ -100,30 +100,30 @@ class GetEmailTool(Tool):
 
     def forward(self, days: int = 7, sender: str = None, max_emails: int = 10) -> List[str]:
         try:
-            # 连接IMAP服务器
+            # Connect to IMAP server
             mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port) if self.use_ssl else imaplib.IMAP4(
                 self.imap_server, self.imap_port)
             mail.login(self.username, self.password)
             mail.select('INBOX')
 
-            # 构建搜索条件
+            # Build search criteria
             search_criteria = []
 
-            # 添加时间条件
+            # Add time condition
             if days:
                 date = (datetime.now() - timedelta(days=days)).strftime("%d-%b-%Y")
                 search_criteria.append(f'(SINCE "{date}")')
 
-            # 添加发件人条件
+            # Add sender condition
             if sender:
                 search_criteria.append(f'(FROM "{sender}")')
 
-            # 执行搜索
+            # Execute search
             search_query = ' '.join(search_criteria)
             print(f"Searching emails with criteria: {search_query}")
             _, message_numbers = mail.search(None, search_query)
 
-            # 获取邮件
+            # Fetch emails
             formatted_emails = []
             for num in message_numbers[0].split()[:max_emails]:
                 _, msg_data = mail.fetch(num, '(RFC822)')
@@ -131,13 +131,13 @@ class GetEmailTool(Tool):
                 msg = email.message_from_bytes(email_body)
                 parsed_email = self._parse_email(msg)
 
-                # 创建JSON格式的邮件内容
+                # Create JSON formatted email content
                 email_json = {"subject": parsed_email['subject'], "date": parsed_email['date'],
                     "from": parsed_email['from'], "body": parsed_email['body']}
 
                 formatted_emails.append(json.dumps(email_json, ensure_ascii=False))
 
-            # 关闭连接
+            # Close connection
             mail.close()
             mail.logout()
 

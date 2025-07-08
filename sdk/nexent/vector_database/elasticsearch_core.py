@@ -2,15 +2,13 @@ import time
 import json
 import logging
 import threading
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from ..core.models.embedding_model import JinaEmbedding
 from .utils import format_size, format_timestamp, build_weighted_query
 from elasticsearch import Elasticsearch, exceptions
-
-from urllib.request import urlopen
 
 from ..core.nlp.tokenizer import calculate_term_weights
 
@@ -898,106 +896,3 @@ class ElasticSearchCore:
 
         return all_stats
         
-    def print_all_indices_info(self, index_pattern: str = "*") -> None:
-        """Print information for all user indices"""
-        user_indices = self.get_user_indices(index_pattern)
-        
-        if not user_indices:
-            logging.info("No user indices found")
-            return
-        
-        logging.info("=== User Index List ===")
-        for index_name in user_indices:
-            logging.info(f"Index Name: {index_name}")
-        
-        logging.info("\n=== Knowledge Base Core Statistics ===")
-        try:
-            stats = self.get_index_stats(user_indices)
-            logging.info(stats)
-        except Exception as e:
-            logging.error(f"Error getting index statistics: {str(e)}")
-
-    def get_all_indices_stats(self, index_pattern: str = "*") -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """
-        Get statistics for all user indices.
-        
-        Args:
-            index_pattern: Pattern to match index names
-            
-        Returns:
-            Dictionary of index names to statistics
-        """
-        user_indices = self.get_user_indices(index_pattern)
-        
-        if not user_indices:
-            return {}
-        
-        try:
-            return self.get_index_stats(user_indices)
-        except Exception as e:
-            logging.error(f"Error getting all indices statistics: {str(e)}")
-            return {}
-
-    def get_index_count(self, index_name: str):
-        # use count API to get total document count
-        count_query = {"query": {"match_all": {}}}
-
-        try:
-            # Execute count query
-            count_response = self.client.count(index=index_name, body=count_query)
-            total_docs = count_response['count']
-            logging.info(f"Index {index_name} contains {total_docs} documents")
-            return total_docs
-        except Exception as e:
-            logging.error(f"Error getting document count: {e}")
-            return 0
-
-    def diagnose_yellow_status(self, index_name):
-        print(f"=== Diagnosing Yellow status for index {index_name} ===\n")
-
-        try:
-            # 1. Basic information
-            health = self.client.cluster.health(index=index_name)
-            print(f"Index health status: {health['status']}")
-            print(f"Unassigned shards: {health['unassigned_shards']}")
-            print(f"Active shards: {health['active_shards']}")
-            print(f"Replica shards: {health['active_shards'] - health['active_primary_shards']}")
-
-            # 2. Node information
-            nodes = self.client.cat.nodes(format='json')
-            print(f"Number of nodes: {len(nodes)}")
-
-            # 3. Index settings
-            settings = self.client.indices.get_settings(index=index_name)
-            replicas = int(settings[index_name]['settings']['index']['number_of_replicas'])
-            print(f"Configured replicas: {replicas}")
-
-            # 4. Shard status
-            shards = self.client.cat.shards(index=index_name, format='json')
-            unassigned_shards = [s for s in shards if s['state'] == 'UNASSIGNED']
-
-            print(f"Unassigned shards:")
-            for shard in unassigned_shards:
-                print(f"  - Shard {shard['shard']}, type: {shard['prirep']}")
-
-            # 5. Given advice
-            if len(nodes) == 1 and replicas > 0:
-                print("\n📋 Advice: For single-node cluster, set replicas to 0")
-                print("   Execute: PUT /{}/_settings".format(index_name))
-                print('   {"settings": {"number_of_replicas": 0}}')
-
-            # 6. Allocation explanation (for the first unassigned shard)
-            if unassigned_shards:
-                first_unassigned = unassigned_shards[0]
-                explain = self.client.cluster.allocation_explain(
-                    body={
-                        "index": index_name,
-                        "shard": int(first_unassigned['shard']),
-                        "primary": first_unassigned['prirep'] == 'p'
-                    }
-                )
-                print(f"\nShard allocation failure reason:")
-                print(f"  {explain.get('allocate_explanation', 'Unknown reason')}")
-
-        except Exception as e:
-            print(f"Error during diagnosis: {e}")

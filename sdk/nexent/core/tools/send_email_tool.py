@@ -22,13 +22,13 @@ class SendEmailTool(Tool):
                 "nullable": True}}
     output_type = "string"
 
-    def __init__(self, smtp_server: str=Field(description="SMTP服务器地址"),
-                 smtp_port: int=Field(description="SMTP服务器端口"), 
-                 username: str=Field(description="SMTP服务器用户名"), 
-                 password: str=Field(description="SMTP服务器密码"), 
-                 use_ssl: bool=Field(description="是否使用SSL", default=True),
-                 sender_name: Optional[str] = Field(description="发件人名称", default=None),
-                 timeout: int = Field(description="超时时间", default=30)):
+    def __init__(self, smtp_server: str=Field(description="SMTP Server Address"),
+                 smtp_port: int=Field(description="SMTP Server Port"), 
+                 username: str=Field(description="SMTP Server Username"), 
+                 password: str=Field(description="SMTP Server Password"), 
+                 use_ssl: bool=Field(description="Use SSL", default=True),
+                 sender_name: Optional[str] = Field(description="Sender name", default=None),
+                 timeout: int = Field(description="Timeout", default=30)):
         super().__init__()
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
@@ -41,7 +41,7 @@ class SendEmailTool(Tool):
     def forward(self, to: str, subject: str, content: str, cc: str = "", bcc: str = "") -> str:
         try:
             print("Creating email message...")
-            # 创建邮件对象
+            # Create email object
             msg = MIMEMultipart()
             msg['From'] = f"{self.sender_name} <{self.username}>" if self.sender_name else self.username
             msg['To'] = to
@@ -52,25 +52,25 @@ class SendEmailTool(Tool):
             if bcc:
                 msg['Bcc'] = bcc
 
-            # 添加邮件内容
+            # Add email content
             msg.attach(MIMEText(content, 'html'))
 
             print(f"Connecting to SMTP server {self.smtp_server}:{self.smtp_port}...")
 
-            # 创建SSL上下文
+            # Create SSL context
             context = ssl.create_default_context()
             context.check_hostname = True
             context.verify_mode = ssl.CERT_REQUIRED
 
-            # 使用SSL连接SMTP服务器
+            # Connect to SMTP server using SSL
             print("Using SSL connection...")
             server = smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context, timeout=self.timeout)
 
             print("Logging in...")
-            # 登录
+            # Login
             server.login(self.username, self.password)
 
-            # 发送邮件
+            # Send email
             recipients = [to]
             if cc:
                 recipients.extend(cc.split(','))
