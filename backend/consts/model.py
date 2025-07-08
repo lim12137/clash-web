@@ -121,6 +121,11 @@ class RenameRequest(BaseModel):
     name: str
 
 
+class GenerateTitleRequest(BaseModel):
+    conversation_id: int
+    history: List[Dict[str, str]]
+
+
 # Pydantic models for API
 class TaskRequest(BaseModel):
     source: str
@@ -128,6 +133,7 @@ class TaskRequest(BaseModel):
     chunking_strategy: Optional[str] = None
     index_name: Optional[str] = None
     additional_params: Dict[str, Any] = Field(default_factory=dict)
+
 
 
 class BatchTaskRequest(BaseModel):
