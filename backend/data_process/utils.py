@@ -3,7 +3,6 @@ Utility functions for Celery tasks
 """
 import logging
 import time
-import os
 import redis
 from typing import Dict, Any, Optional, List
 from celery.result import AsyncResult

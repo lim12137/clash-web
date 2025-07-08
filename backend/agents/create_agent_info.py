@@ -1,10 +1,6 @@
 import threading
-
-import json
 import yaml
 import logging
-from typing import Optional
-from fastapi import Header
 from urllib.parse import urljoin
 from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
@@ -56,6 +52,7 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     try:
         for tool in tool_list:
             if "KnowledgeBaseSearchTool" == tool.class_name:
+                # TODO: use prompt template
                 knowledge_base_summary = "\n\n### 本地知识库信息 ###\n" if language == 'zh' else "\n\n### Local Knowledge Base Information ###\n"
 
                 knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
