@@ -6,7 +6,7 @@ from database.remote_mcp_db import create_mcp_record, delete_mcp_record_by_name_
     check_mcp_name_exists
 from utils.config_utils import config_manager
 
-logger = logging.getLogger("remote mcp service")
+logger = logging.getLogger("remote_mcp_service")
 
 async def add_remote_proxy(remote_mcp_server: str,
                            remote_mcp_server_name: str) -> JSONResponse:
@@ -118,7 +118,7 @@ async def delete_remote_mcp_server_list(tenant_id: str, user_id: str, remote_mcp
             if response.status_code == 200:
                 logger.info(f"Successfully removed remote MCP proxy: {remote_mcp_server_name}")
             elif response.status_code == 404:
-                logger.warning(f"Remote MCP proxy '{remote_mcp_server_name}' not found, may already be removed")
+                logger.error(f"Remote MCP proxy '{remote_mcp_server_name}' not found, may already be removed")
             else:
                 logger.error(f"Failed to call remote-proxies DELETE endpoint: {response.status_code} - {response.text}")
                 return JSONResponse(
@@ -177,7 +177,7 @@ async def get_all_mount_mcp_service():
         logger.error("Timeout when calling list-remote-proxies endpoint")
         return []
     except Exception as e:
-        logger.info(f"Failed get all mount MCP proxy: {e}")
+        logger.error(f"Failed get all mount MCP proxy: {e}")
         return []
 
 async def get_remote_mcp_server_list(tenant_id: str):
