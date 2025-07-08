@@ -213,8 +213,16 @@ USER_PROMPT: "Generate a title for: {{content}}"
 """)
     @patch('backend.services.conversation_management_service.yaml.safe_load')
     @patch('backend.services.conversation_management_service.os.getenv')
-    def test_call_llm_for_title(self, mock_getenv, mock_yaml_load, mock_open_file, mock_openai):
+    @patch('backend.services.conversation_management_service.tenant_config_manager.get_model_config')
+    def test_call_llm_for_title(self, mock_get_model_config, mock_getenv, mock_yaml_load, mock_open_file, mock_openai):
         # Setup
+        mock_get_model_config.return_value = {
+            "model_name": "gpt-4",
+            "model_repo": "openai",
+            "base_url": "http://example.com",
+            "api_key": "fake-key"
+        }
+        
         mock_getenv.side_effect = lambda key: {
             'LLM_MODEL_NAME': 'gpt-4',
             'LLM_MODEL_URL': 'http://example.com',
@@ -233,7 +241,7 @@ USER_PROMPT: "Generate a title for: {{content}}"
         mock_llm_instance.return_value = mock_response
         
         # Execute
-        result = call_llm_for_title("What is AI? AI stands for Artificial Intelligence.")
+        result = call_llm_for_title("What is AI? AI stands for Artificial Intelligence.", tenant_id="default")
         
         # Assert
         self.assertEqual(result, "AI Discussion")
@@ -403,8 +411,16 @@ USER_PROMPT: "Generate a title for: {{content}}"
     @patch('backend.services.conversation_management_service.extract_user_messages')
     @patch('backend.services.conversation_management_service.call_llm_for_title')
     @patch('backend.services.conversation_management_service.update_conversation_title')
-    def test_generate_conversation_title_service(self, mock_update_title, mock_call_llm, mock_extract_messages):
+    @patch('backend.services.conversation_management_service.tenant_config_manager.get_model_config')
+    def test_generate_conversation_title_service(self, mock_get_model_config, mock_update_title, mock_call_llm, mock_extract_messages):
         # Setup
+        mock_get_model_config.return_value = {
+            "model_name": "gpt-4",
+            "model_repo": "openai",
+            "base_url": "http://example.com",
+            "api_key": "fake-key"
+        }
+        
         mock_extract_messages.return_value = "What is AI? AI stands for Artificial Intelligence."
         mock_call_llm.return_value = "AI Discussion"
         mock_update_title.return_value = True
@@ -415,7 +431,7 @@ USER_PROMPT: "Generate a title for: {{content}}"
         ]
         
         # Execute
-        result = generate_conversation_title_service(123, history)
+        result = generate_conversation_title_service(123, history, tenant_id="default")
         
         # Assert
         self.assertEqual(result, "AI Discussion")
