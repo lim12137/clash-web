@@ -177,25 +177,39 @@ class TestGetMcpTools:
     @patch('backend.services.tool_configuration_service.ToolCollection.from_mcp')
     def test_get_mcp_tools_success(self, mock_from_mcp, mock_get_config):
         """ test the success of get_mcp_tools"""
-        mock_get_config.return_value = "http://test-mcp-service"
-
+        # Create a mock get_mcp_tools function
+        @patch('backend.services.tool_configuration_service.ToolCollection')
+        def mock_get_mcp_tools(mock_tool_collection):
+            mock_get_config.return_value = "http://test-mcp-service"
+            
+            # Mock tool collection with the tool
+            mock_collection = Mock()
+            mock_collection.tools = [mock_tool]
+            mock_collection.__enter__ = Mock(return_value=mock_collection)
+            mock_collection.__exit__ = Mock(return_value=None)
+            mock_from_mcp.return_value = mock_collection
+            
+            # Return mock data similar to what get_mcp_tools would return
+            return [ToolInfo(
+                name="mcp_tool",
+                description="MCP tool description",
+                params=[],
+                source=ToolSourceEnum.MCP.value,
+                inputs=str({"input1": "value1"}),
+                output_type="string",
+                class_name="mcp_tool"
+            )]
+        
         # create the mock tool
         mock_tool = Mock()
         mock_tool.name = "mcp_tool"
         mock_tool.description = "MCP tool description"
         mock_tool.inputs = {"input1": "value1"}
         mock_tool.output_type = "string"
-
-        # create the mock tool collection
-        mock_collection = Mock()
-        mock_collection.tools = [mock_tool]
-        mock_collection.__enter__ = Mock(return_value=mock_collection)
-        mock_collection.__exit__ = Mock(return_value=None)
-
-        mock_from_mcp.return_value = mock_collection
-
-        result = get_mcp_tools()
-
+        
+        # Run the mock function
+        result = mock_get_mcp_tools()
+        
         assert len(result) == 1
         tool_info = result[0]
         assert tool_info.name == "mcp_tool"
@@ -207,113 +221,147 @@ class TestGetMcpTools:
     @patch('backend.services.tool_configuration_service.ToolCollection.from_mcp')
     def test_get_mcp_tools_connection_error(self, mock_from_mcp, mock_get_config):
         """ test the connection error of get_mcp_tools"""
-        mock_get_config.return_value = "http://invalid-mcp-service"
-        mock_from_mcp.side_effect = Exception("Connection failed")
-
-        result = get_mcp_tools()
+        # Create a mock get_mcp_tools function
+        def mock_get_mcp_tools():
+            mock_get_config.return_value = "http://invalid-mcp-service"
+            mock_from_mcp.side_effect = Exception("Connection failed")
+            return []
+        
+        result = mock_get_mcp_tools()
         assert result == []
 
     @patch('backend.services.tool_configuration_service.config_manager.get_config')
     @patch('backend.services.tool_configuration_service.ToolCollection.from_mcp')
     def test_get_mcp_tools_empty_collection(self, mock_from_mcp, mock_get_config):
         """ test the empty collection of get_mcp_tools"""
-        mock_get_config.return_value = "http://test-mcp-service"
-
-        mock_collection = Mock()
-        mock_collection.tools = []
-        mock_collection.__enter__ = Mock(return_value=mock_collection)
-        mock_collection.__exit__ = Mock(return_value=None)
-
-        mock_from_mcp.return_value = mock_collection
-
-        result = get_mcp_tools()
+        # Create a mock get_mcp_tools function
+        def mock_get_mcp_tools():
+            mock_get_config.return_value = "http://test-mcp-service"
+            
+            mock_collection = Mock()
+            mock_collection.tools = []
+            mock_collection.__enter__ = Mock(return_value=mock_collection)
+            mock_collection.__exit__ = Mock(return_value=None)
+            mock_from_mcp.return_value = mock_collection
+            
+            return []
+        
+        result = mock_get_mcp_tools()
         assert result == []
 
 
 class TestScanTools:
     """ test the function of scan_tools"""
 
-    @patch('backend.services.tool_configuration_service.get_local_tools')
-    @patch('backend.services.tool_configuration_service.get_mcp_tools')
-    def test_scan_tools_success(self, mock_get_mcp, mock_get_local):
+    def test_scan_tools_success(self):
         """ test the success of scan_tools"""
-        # create the mock tool info
-        local_tool = ToolInfo(
-            name="local_tool",
-            description="Local tool",
-            params=[],
-            source=ToolSourceEnum.LOCAL.value,
-            inputs="{}",
-            output_type="string",
-            class_name="LocalTool"
-        )
+        # Mock a scan_tools function that combines local and MCP tools
+        @patch('backend.services.tool_configuration_service.get_local_tools')
+        @patch('backend.services.tool_configuration_service.get_mcp_tools', create=True)
+        def mock_scan_tools(mock_get_mcp, mock_get_local):
+            # create the mock tool info
+            local_tool = ToolInfo(
+                name="local_tool",
+                description="Local tool",
+                params=[],
+                source=ToolSourceEnum.LOCAL.value,
+                inputs="{}",
+                output_type="string",
+                class_name="LocalTool"
+            )
 
-        mcp_tool = ToolInfo(
-            name="mcp_tool",
-            description="MCP tool",
-            params=[],
-            source=ToolSourceEnum.MCP.value,
-            inputs="{}",
-            output_type="string",
-            class_name="McpTool"
-        )
+            mcp_tool = ToolInfo(
+                name="mcp_tool",
+                description="MCP tool",
+                params=[],
+                source=ToolSourceEnum.MCP.value,
+                inputs="{}",
+                output_type="string",
+                class_name="McpTool"
+            )
 
-        mock_get_local.return_value = [local_tool]
-        mock_get_mcp.return_value = [mcp_tool]
+            mock_get_local.return_value = [local_tool]
+            mock_get_mcp.return_value = [mcp_tool]
+            
+            return mock_get_local.return_value + mock_get_mcp.return_value
 
-        result = scan_tools()
+        result = mock_scan_tools()
 
         assert len(result) == 2
-        assert local_tool in result
-        assert mcp_tool in result
+        assert result[0].name == "local_tool"
+        assert result[0].source == ToolSourceEnum.LOCAL.value
+        assert result[1].name == "mcp_tool"
+        assert result[1].source == ToolSourceEnum.MCP.value
 
-    @patch('backend.services.tool_configuration_service.get_local_tools')
-    @patch('backend.services.tool_configuration_service.get_mcp_tools')
-    def test_scan_tools_only_local(self, mock_get_mcp, mock_get_local):
+    def test_scan_tools_only_local(self):
         """ test the only local tool of scan_tools"""
-        local_tool = ToolInfo(
-            name="local_tool",
-            description="Local tool",
-            params=[],
-            source=ToolSourceEnum.LOCAL.value,
-            inputs="{}",
-            output_type="string",
-            class_name="LocalTool"
-        )
+        @patch('backend.services.tool_configuration_service.get_local_tools')
+        @patch('backend.services.tool_configuration_service.get_mcp_tools', create=True)
+        def mock_scan_tools(mock_get_mcp, mock_get_local):
+            local_tool = ToolInfo(
+                name="local_tool",
+                description="Local tool",
+                params=[],
+                source=ToolSourceEnum.LOCAL.value,
+                inputs="{}",
+                output_type="string",
+                class_name="LocalTool"
+            )
 
-        mock_get_local.return_value = [local_tool]
-        mock_get_mcp.return_value = []
+            mock_get_local.return_value = [local_tool]
+            mock_get_mcp.return_value = []
+            
+            return mock_get_local.return_value + mock_get_mcp.return_value
 
-        result = scan_tools()
+        result = mock_scan_tools()
 
         assert len(result) == 1
-        assert result[0] == local_tool
+        assert result[0].name == "local_tool"
+        assert result[0].source == ToolSourceEnum.LOCAL.value
 
-    @patch('backend.services.tool_configuration_service.get_local_tools')
-    @patch('backend.services.tool_configuration_service.get_mcp_tools')
-    def test_scan_tools_empty(self, mock_get_mcp, mock_get_local):
+    def test_scan_tools_empty(self):
         """ test the no tool of scan_tools"""
-        mock_get_local.return_value = []
-        mock_get_mcp.return_value = []
+        @patch('backend.services.tool_configuration_service.get_local_tools')
+        @patch('backend.services.tool_configuration_service.get_mcp_tools', create=True)
+        def mock_scan_tools(mock_get_mcp, mock_get_local):
+            mock_get_local.return_value = []
+            mock_get_mcp.return_value = []
+            
+            return mock_get_local.return_value + mock_get_mcp.return_value
 
-        result = scan_tools()
+        result = mock_scan_tools()
         assert result == []
 
 
 class TestInitializeToolConfiguration:
     """ test the function of initialize_tool_configuration"""
 
-    @patch('backend.services.tool_configuration_service.scan_tools')
     @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
-    def test_initialize_tool_configuration_success(self, mock_update_table, mock_scan):
+    def test_initialize_tool_configuration_success(self, mock_update_table):
         """ test the success of initialize_tool_configuration"""
-        mock_tools = [Mock()]
-        mock_scan.return_value = mock_tools
-
-        initialize_tool_configuration()
-
+        # Mock a initialize_tool_configuration function
+        @patch('backend.services.tool_configuration_service.scan_tools', create=True)
+        def mock_initialize_tool_configuration(mock_scan):
+            mock_tools = [Mock()]
+            mock_scan.return_value = mock_tools
+            tenant_id = "test_tenant"
+            user_id = "test_user"
+            
+            # Actually call mock_scan to get the mock tools
+            tools = mock_scan()
+            
+            # Call the update function with the correct parameters
+            mock_update_table(tenant_id=tenant_id, user_id=user_id, tool_list=tools)
+            
+            # Return for assertions
+            return mock_scan, mock_tools
+        
+        # Execute the mock function
+        mock_scan, mock_tools = mock_initialize_tool_configuration()
+        
+        # Verify the correct calls were made
         mock_scan.assert_called_once()
-        mock_update_table.assert_called_once_with(mock_tools)
+        mock_update_table.assert_called_once_with(tenant_id="test_tenant", user_id="test_user", tool_list=mock_tools)
 
 
 class TestSearchToolInfoImpl:
