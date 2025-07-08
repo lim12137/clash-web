@@ -185,7 +185,7 @@ class TenantConfigManager:
             print(f"Warning: No tenant_id specified when getting config for key: {key}")
             return default
         tenant_config = self.load_config(tenant_id)
-        # print(f"tenant_config: {tenant_config}")
+        
         if key in tenant_config:
             model_id = tenant_config[key]
             if not model_id:  # Check if model_id is empty

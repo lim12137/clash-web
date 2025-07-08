@@ -133,12 +133,12 @@ async def get_all_files_status(index_name: str):
                         'latest_task_id': ''
                     }
                 file_state = file_states[task_path_or_url]
-                # process任务
+                # Process task
                 if task_name == 'process' and task_created_at > file_state['latest_process_created_at']:
                     file_state['latest_process_created_at'] = task_created_at
                     file_state['process_state'] = task_status
                     file_state['latest_task_id'] = task_id
-                # forward任务
+                # Forward task
                 elif task_name == 'forward' and task_created_at > file_state['latest_forward_created_at']:
                     file_state['latest_forward_created_at'] = task_created_at
                     file_state['forward_state'] = task_status
