@@ -2,10 +2,15 @@ name: Run Automated Selenium Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      runner_label_json:
+        description: 'JSON格式的runner标签数组（如["ubuntu-latest"]或["self-hosted"]）'
+        required: true
+        default: '["ubuntu-latest"]'
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
