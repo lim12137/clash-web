@@ -218,7 +218,8 @@
         "processRemainingDataFailed": "Failed to process remaining data:",
         "thinking": "Thinking...",
         "generateTitleFailed": "Failed to generate title:",
-        "streamResponseError": "Error processing streaming response:"
+        "streamResponseError": "Error processing streaming response:",
+        "userInterrupted": "Chat ended by user."
     },
     "taskWindow": {
         "unknownSource": "Unknown Source",
