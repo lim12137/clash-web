@@ -6,7 +6,7 @@ from database.remote_mcp_db import create_mcp_record, delete_mcp_record_by_name_
     check_mcp_name_exists
 from utils.config_utils import config_manager
 
-logger = logging.getLogger("tenant config service")
+logger = logging.getLogger("remote mcp service")
 
 async def add_remote_proxy(remote_mcp_server: str,
                            remote_mcp_server_name: str) -> JSONResponse:
@@ -22,7 +22,7 @@ async def add_remote_proxy(remote_mcp_server: str,
             response = await client.post(
                 f"{nexent_mcp_server}/add-remote-proxies",
                 json=payload,
-                timeout=10.0
+                timeout=15.0
             )
 
             if response.status_code == 200:
@@ -49,6 +49,13 @@ async def add_remote_proxy(remote_mcp_server: str,
                     status_code=400,
                     content={"message": "Failed to add remote MCP proxy", "status": "error"}
                 )
+    except httpx.TimeoutException:
+        logger.error(f"Timeout when calling add-remote-proxies endpoint: {remote_mcp_server_name}")
+        return JSONResponse(
+            status_code=400,
+            content={"message": "Timeout when calling add-remote-proxies endpoint", "status": "error"}
+        )
+
     except Exception as e:
         logger.error(f"Error calling nexent_mcp_service add-remote-proxies: {e}")
         return JSONResponse(
@@ -103,7 +110,7 @@ async def delete_remote_mcp_server_list(tenant_id: str, user_id: str, remote_mcp
             url = f"{nexent_mcp_server}/remote-proxies?service_name={remote_mcp_server_name}"
             response = await client.delete(
                 url,
-                timeout=10.0
+                timeout=15.0
             )
 
             if response.status_code == 200:
@@ -116,6 +123,12 @@ async def delete_remote_mcp_server_list(tenant_id: str, user_id: str, remote_mcp
                     status_code=400,
                     content={"message": "Failed to delete remote MCP proxy", "status": "error"}
                 )
+    except httpx.TimeoutException:
+        logger.error(f"Timeout when calling remove remote-proxies endpoint: {remote_mcp_server_name}")
+        return JSONResponse(
+            status_code=400,
+            content={"message": "Timeout when calling remove remote-proxies endpoint", "status": "error"}
+        )
     except Exception as e:
         logger.error(f"Error calling nexent_mcp_service remove remote-proxies: {e}")
         return JSONResponse(
@@ -148,7 +161,7 @@ async def get_all_mount_mcp_service():
             url = f"{nexent_mcp_server}/list-remote-proxies"
             response = await client.get(
                 url,
-                timeout=10.0
+                timeout=15.0
             )
 
             if response.status_code == 200:
@@ -158,6 +171,9 @@ async def get_all_mount_mcp_service():
             else:
                 logger.error(f"list-remote-proxies error: {response.status_code} - {response.text}")
                 return []
+    except httpx.TimeoutException:
+        logger.error("Timeout when calling list-remote-proxies endpoint")
+        return []
     except Exception as e:
         logger.info(f"Failed get all mount MCP proxy: {e}")
         return []
@@ -178,37 +194,20 @@ async def get_remote_mcp_server_list(tenant_id: str):
 
 async def recover_remote_mcp_server(tenant_id: str):
     record_mcp_server_info = await get_remote_mcp_server_list(tenant_id=tenant_id)
-    record_mcp_server_set = set([(record["remote_mcp_server_name"], record["remote_mcp_server"])
-                                 for record in record_mcp_server_info])
 
-    async with httpx.AsyncClient() as client:
-        nexent_mcp_server = config_manager.get_config("NEXENT_MCP_SERVER")
-        url = f"{nexent_mcp_server}/list-remote-proxies"
-        response = await client.get(
-            url,
-            timeout=10.0
-        )
-    if response.status_code == 200:
-        remote_mcp_server_info = response.json()
-        remote_mcp_server_set = set([(mcp_name, info["mcp_url"])
-                                     for mcp_name, info in remote_mcp_server_info["proxies"].items()])
-
-        for mcp_name, mcp_url in list(record_mcp_server_set - remote_mcp_server_set):
-            response = await add_remote_proxy(remote_mcp_server=mcp_url,
+    result = JSONResponse(
+        status_code=200,
+        content={"message": "Successfully recovered remote MCP proxy", "status": "success"}
+    )
+    for record in record_mcp_server_info:
+        mcp_name = record["remote_mcp_server_name"]
+        if not record["status"]:
+            response = await add_remote_proxy(remote_mcp_server=record["remote_mcp_server"],
                                               remote_mcp_server_name=mcp_name)
             if response.status_code == 200:
                 logger.info(f"Successfully added remote MCP proxy: {mcp_name}")
             else:
                 logger.error(f"Failed to recover remote MCP proxy: {mcp_name}")
-                return response
-    else:
-        logger.error(f"Failed to load remote MCP proxy list: {response.status_code} - {response.text}")
-        return JSONResponse(
-            status_code=400,
-            content={"message": "Failed to load remote MCP proxy list", "status": "error"}
-        )
+                result = response
 
-    return JSONResponse(
-        status_code=200,
-        content={"message": "Successfully recovered remote MCP proxy", "status": "success"}
-    )
+    return result
