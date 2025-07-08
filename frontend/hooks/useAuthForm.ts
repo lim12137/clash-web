@@ -7,6 +7,7 @@ export interface AuthFormValues {
   email: string;
   password: string;
   confirmPassword: string;  // 移除可选标记，因为注册表单需要这个字段
+  inviteCode?: string;
 }
 
 export function useAuthForm() {

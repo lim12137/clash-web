@@ -262,3 +262,20 @@ class McpRecord(TableBase):
     created_by = Column(String(100), doc="Creator ID, audit field")
     updated_by = Column(String(100), doc="Last updater ID, audit field")
     delete_flag = Column(String(1), default="N", doc="When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N")
+
+
+class UserTenant(TableBase):
+    """
+    User and tenant relationship table
+    """
+    __tablename__ = "user_tenant_t"
+    __table_args__ = {"schema": SCHEMA}
+
+    user_tenant_id = Column(Integer, Sequence("user_tenant_t_user_tenant_id_seq", schema=SCHEMA), primary_key=True, nullable=False, doc="User tenant relationship ID, unique primary key")
+    user_id = Column(String(100), nullable=False, doc="User ID")
+    tenant_id = Column(String(100), nullable=False, doc="Tenant ID")
+    create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time, audit field")
+    update_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Update time, audit field")
+    created_by = Column(String(100), doc="Creator ID, audit field")
+    updated_by = Column(String(100), doc="Last updater ID, audit field")
+    delete_flag = Column(String(1), default="N", doc="When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N")
