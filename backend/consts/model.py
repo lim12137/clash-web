@@ -43,6 +43,8 @@ class UserSignUpRequest(BaseModel):
     """User registration request model"""
     email: EmailStr
     password: str = Field(..., min_length=6)
+    is_admin: Optional[bool] = False
+    invite_code: Optional[str] = None
 
 class UserSignInRequest(BaseModel):
     """User login request model"""
