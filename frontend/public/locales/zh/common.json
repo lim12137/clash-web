@@ -768,7 +768,7 @@
     "mcpConfig.modal.close": "关闭",
     "mcpConfig.modal.updatingTools": "正在更新工具列表...",
     "mcpConfig.addServer.title": "添加MCP服务器",
-    "mcpConfig.addServer.namePlaceholder": "服务器名称（仅支持英文、数字，最多20字符）",
+    "mcpConfig.addServer.namePlaceholder": "服务器名称",
     "mcpConfig.addServer.urlPlaceholder": "服务器URL (如: http://localhost:3001/sse)，目前仅支持sse协议",
     "mcpConfig.addServer.button.add": "添加",
     "mcpConfig.addServer.button.updating": "更新中...",
