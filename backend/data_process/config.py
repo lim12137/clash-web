@@ -1,7 +1,7 @@
 import os
 import logging
 from dotenv import load_dotenv
-from typing import Optional, Dict, Any
+from typing import Optional
 
 # Configure logging
 logger = logging.getLogger("data_process.config")
@@ -11,12 +11,8 @@ class Config:
     
     def __init__(self):
         load_dotenv()
-        self._validate_required_vars()
-        logger.info("Configuration system initialized")
-
-    
-    def _validate_required_vars(self) -> None:
-        """Validate basic required environment variables"""
+        
+        # Validate basic required environment variables
         required = [
             'REDIS_URL',
             'REDIS_BACKEND_URL',
@@ -24,57 +20,9 @@ class Config:
         ]
         
         missing = [var for var in required if not os.getenv(var)]
-        
         if missing:
             raise ValueError(f"Missing basic required environment variables: {missing}")
-        
-        logger.info("✅ Basic environment variable validation passed")
-    
-    def validate_task_environment(self) -> Dict[str, Any]:
-        """Validate environment variables required for Celery task execution"""
-        task_vars = {
-            'REDIS_URL': self.redis_url,
-            'REDIS_BACKEND_URL': self.redis_backend_url,
-            'ELASTICSEARCH_SERVICE': self.elasticsearch_service
-        }
-        
-        missing = []
-        invalid = []
-        
-        for var_name, var_value in task_vars.items():
-            if not var_value:
-                missing.append(var_name)
-            elif var_name == 'REDIS_URL' and not self._validate_redis_url(var_value):
-                invalid.append(f"{var_name}: {var_value}")
-            elif var_name == 'REDIS_BACKEND_URL' and not self._validate_redis_url(var_value):
-                invalid.append(f"{var_name}: {var_value}")
-            elif var_name == 'ELASTICSEARCH_SERVICE' and not self._validate_es_service(var_value):
-                invalid.append(f"{var_name}: {var_value}")
-        
-        validation_result = {
-            'valid': len(missing) == 0 and len(invalid) == 0,
-            'missing': missing,
-            'invalid': invalid,
-            'variables': task_vars
-        }
-        
-        if not validation_result['valid']:
-            error_msg = []
-            if missing:
-                error_msg.append(f"Missing environment variables: {missing}")
-            if invalid:
-                error_msg.append(f"Invalid environment variables: {invalid}")
-            raise ValueError("; ".join(error_msg))
-        
-        return validation_result
-    
-    def _validate_redis_url(self, redis_url: str) -> bool:
-        """Validate Redis URL format"""
-        return redis_url.startswith(('redis://', 'rediss://'))
-    
-    def _validate_es_service(self, es_service: str) -> bool:
-        """Validate Elasticsearch service URL format"""
-        return es_service.startswith(('http://', 'https://')) and es_service.endswith('/api')
+        logger.info("✅ Configuration system initialized")
     
     @property
     def redis_url(self) -> Optional[str]:
