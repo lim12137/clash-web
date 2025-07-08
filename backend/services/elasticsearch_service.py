@@ -166,7 +166,6 @@ class ElasticSearchService:
             Dict[str, Any]: A dictionary containing the list of indices and the count.
         """
         all_indices_list = es_core.get_user_indices(pattern)
-        logger.info(f"all_indices_list: {all_indices_list}")
 
         filtered_indices_list = []
         if tenant_id:
@@ -179,7 +178,6 @@ class ElasticSearchService:
             filtered_indices_list = all_indices_list
 
         indices = [info.get("index") if isinstance(info, dict) else info for info in filtered_indices_list]
-        logger.info(f"indices: {indices}")
 
         response = {
             "indices": indices,
@@ -190,7 +188,6 @@ class ElasticSearchService:
             stats_info = []
             if filtered_indices_list:
                 indice_stats = es_core.get_index_stats(filtered_indices_list)
-                logger.info(f"indice_stats: {indice_stats}")
                 for index_name in filtered_indices_list:
                     index_stats = indice_stats.get(index_name, {})
                     stats_info.append({
