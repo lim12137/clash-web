@@ -73,7 +73,7 @@ def calculate_term_weights(text, use_idf=False, doc_freqs=None, total_docs=1):
     # Length enhancement: longer words usually contain more information
     enhanced_weights = {}
     for term, weight in weights.items():
-        # For each additional character, increase weight by 10% ("人工智能" is more important than "智能")
+        # For each additional character, increase weight by 10% ("Artificial Intelligence" is more important than "Intelligence")
         length_factor = 1 + 0.1 * (len(term) - 1)
         enhanced_weights[term] = weight * length_factor
 
