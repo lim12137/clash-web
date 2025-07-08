@@ -8,12 +8,10 @@ import uuid
 import wave
 from enum import Enum
 from io import BytesIO
-from pathlib import Path
-from typing import Dict, Any, Union
+from typing import Dict, Any
 
 import aiofiles
 import websockets
-from dotenv import load_dotenv
 from pydantic import BaseModel
 
 from consts.const import TEST_VOICE_PATH
@@ -49,8 +47,8 @@ CUSTOM_COMPRESSION = 0b1111
 
 
 class AudioType(Enum):
-    LOCAL = 1  # 使用本地音频文件
-    STREAM = 2  # 使用流式音频
+    LOCAL = 1  # Use local audio file
+    STREAM = 2  # Use streaming audio
 
 
 class STTConfig(BaseModel):
@@ -110,7 +108,7 @@ class STTModel:
         Returns:
             Header bytes
         """
-        # 使用配置中的压缩设置
+        # Use compression setting from config
         if compression_type is None:
             compression_type = GZIP if self.config.compression else NO_COMPRESSION
 
@@ -162,13 +160,13 @@ class STTModel:
         payload_size = 0
 
         if message_type_specific_flags & 0x01:
-            # receive frame with sequence
+            # Receive frame with sequence
             seq = int.from_bytes(payload[:4], "big", signed=True)
             result['payload_sequence'] = seq
             payload = payload[4:]
 
         if message_type_specific_flags & 0x02:
-            # receive last package
+            # Receive last package
             result['is_last_package'] = True
 
         if message_type == SERVER_FULL_RESPONSE:
@@ -275,13 +273,13 @@ class STTModel:
         request_params = self.construct_request(reqid)
         payload_bytes = str.encode(json.dumps(request_params))
 
-        # 根据配置决定是否压缩
+        # According to config, decide whether to compress
         if self.config.compression:
             payload_bytes = gzip.compress(payload_bytes)
 
         full_client_request = bytearray(self.generate_header(message_type_specific_flags=POS_SEQUENCE))
         full_client_request.extend(self.generate_before_payload(sequence=seq))
-        full_client_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # payload size(4 bytes)
+        full_client_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # Payload size (4 bytes)
         full_client_request.extend(payload_bytes)  # payload
 
         # Prepare headers
@@ -313,7 +311,7 @@ class STTModel:
 
                     start = time.time()
 
-                    # 根据配置决定是否压缩
+                    # According to config, decide whether to compress
                     if self.config.compression:
                         payload_bytes = gzip.compress(chunk)
                     else:
@@ -327,7 +325,7 @@ class STTModel:
                             message_type_specific_flags=POS_SEQUENCE))
 
                     audio_only_request.extend(self.generate_before_payload(sequence=seq))
-                    audio_only_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # payload size(4 bytes)
+                    audio_only_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # Payload size (4 bytes)
                     audio_only_request.extend(payload_bytes)  # payload
 
                     # Send audio-only client request
@@ -408,20 +406,20 @@ class STTModel:
         print("Starting audio processing loop...")
         reqid = str(uuid.uuid4())
         seq = 1
-        client_connected = True  # 跟踪客户端连接状态
+        client_connected = True  # Track client connection status
 
         # Construct full client request
         request_params = self.construct_request(reqid)
         payload_bytes = str.encode(json.dumps(request_params))
 
-        # 根据配置决定是否压缩
+        # According to config, decide whether to compress
         if self.config.compression:
             payload_bytes = gzip.compress(payload_bytes)
 
-        # 生成请求头，传递None让函数根据配置决定compression_type
+        # Generate request header, pass None to let the function decide compression_type based on config
         full_client_request = bytearray(self.generate_header(message_type_specific_flags=POS_SEQUENCE))
         full_client_request.extend(self.generate_before_payload(sequence=seq))
-        full_client_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # payload size(4 bytes)
+        full_client_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # Payload size (4 bytes)
         full_client_request.extend(payload_bytes)  # payload
 
         # Prepare headers
@@ -495,14 +493,14 @@ class STTModel:
                         audio_only_request = bytearray(self.generate_header(message_type=CLIENT_AUDIO_ONLY_REQUEST,
                             message_type_specific_flags=POS_SEQUENCE))
 
-                    # 根据配置决定是否压缩
+                    # According to config, decide whether to compress
                     if self.config.compression:
                         payload_bytes = gzip.compress(client_data)
                     else:
                         payload_bytes = client_data
 
                     audio_only_request.extend(self.generate_before_payload(sequence=seq))
-                    audio_only_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # payload size(4 bytes)
+                    audio_only_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # Payload size (4 bytes)
                     audio_only_request.extend(payload_bytes)  # payload
 
                     # Send to STT service
@@ -513,7 +511,7 @@ class STTModel:
                         print(f"Error sending to STT service: {e}")
                         if client_connected:
                             try:
-                                await ws_client.send_json({"error": f"STT服务错误: {str(e)}"})
+                                await ws_client.send_json({"error": f"STT service error: {str(e)}"})
                                 client_connected = False
                             except:
                                 pass
@@ -585,7 +583,7 @@ class STTModel:
                 try:
                     await ws_client.send_json({"error": error_msg})
                 except:
-                    print("无法发送错误信息：客户端已断开连接")
+                    print("Cannot send error message: client disconnected")
 
         except websockets.exceptions.WebSocketException as e:
             error_msg = f"WebSocket error: {str(e)}"
@@ -594,7 +592,7 @@ class STTModel:
                 try:
                     await ws_client.send_json({"error": error_msg})
                 except:
-                    print("无法发送错误信息：客户端已断开连接")
+                    print("Cannot send error message: client disconnected")
 
         except Exception as e:
             error_msg = f"Error in streaming session: {str(e)}"
@@ -605,7 +603,7 @@ class STTModel:
                 try:
                     await ws_client.send_json({"error": error_msg})
                 except:
-                    print("无法发送错误信息：客户端已断开连接")
+                    print("Cannot send error message: client disconnected")
 
         finally:
             print("Audio processing loop ended")
@@ -650,14 +648,14 @@ class STTModel:
 
     async def check_connectivity(self) -> bool:
         """
-        测试与远程STT服务的连接是否正常
+        Test if the connection to the remote STT service is normal
             
         Returns:
-            bool: 连接成功返回True，失败返回False
+            bool: True if connection successful, False otherwise
         """
         try:
             result = await self.process_audio_file(TEST_VOICE_PATH)
-            # 检查返回结果是否为字典类型且非空
+            # Check if the return result is a dictionary type and non-empty
             return isinstance(result, dict) and bool(result)
         except Exception:
             return False
