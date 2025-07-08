@@ -1,7 +1,7 @@
 import logging
 import os
 import requests
-from fastapi import APIRouter, Depends, Header, Query, Path, Body
+from fastapi import APIRouter, Header, Body
 from typing import Optional, List
 from services.tenant_config_service import get_selected_knowledge_list, update_selected_knowledge
 from fastapi.responses import JSONResponse
@@ -42,7 +42,7 @@ def load_knowledge_list(
                 embedding_models = [index_to_model.get(kb_name, "") for kb_name in kb_name_list]
                 
             except Exception as e:
-                logger.error(f"API调用失败: {e}")
+                logger.error(f"API call failed: {e}")
                 embedding_models = []
 
         content = {"selectedKbNames": kb_name_list,
