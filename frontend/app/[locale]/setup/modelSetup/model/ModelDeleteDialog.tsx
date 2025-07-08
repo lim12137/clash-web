@@ -246,7 +246,7 @@ export const ModelDeleteDialog = ({
                   clipRule="evenodd"
                 />
               </svg>
-              {t('common.button.back')}
+              {t('common.back')}
             </button>
           </div>
 
