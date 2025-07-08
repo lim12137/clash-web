@@ -27,7 +27,7 @@ jobs:
           git config --global user.email "actions-bot@github.com"
           # 检查是否有实际变更
           if ! git diff --quiet repo-community/develop develop; then
-            git merge repo-community/main --allow-unrelated-histories -m "🔀 Sync from A-repo $(date +'%Y-%m-%d %H:%M')"
+            git merge repo-community/develop --allow-unrelated-histories -m "🔀 Sync from A-repo $(date +'%Y-%m-%d %H:%M')"
             git push origin develop
           else
             echo "⏩ No changes to sync."
