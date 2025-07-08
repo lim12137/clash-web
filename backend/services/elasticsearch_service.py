@@ -275,15 +275,15 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        索引文档并创建向量嵌入，如果索引不存在则创建
+        Index documents and create vector embeddings, create index if it doesn't exist
 
         Args:
-            index_name: 索引名称
-            data: 包含要索引的文档数据的列表
-            es_core: ElasticSearchCore实例
+            index_name: Index name
+            data: List containing document data to be indexed
+            es_core: ElasticSearchCore instance
 
         Returns:
-            IndexingResponse对象，包含索引结果信息
+            IndexingResponse object containing indexing result information
         """
         try:
             if not index_name:
@@ -532,24 +532,24 @@ class ElasticSearchService:
             Response containing search results, total count, and query time
         """
         try:
-            # 验证查询不为空
+            # Validate that query is not empty
             if not request.query.strip():
                 raise HTTPException(status_code=400, detail="Search query cannot be empty")
 
-            # 验证索引名称
+            # Validate index names
             if not request.index_names:
                 raise HTTPException(status_code=400, detail="At least one index name is required")
 
             start_time = time.time()
             results = es_core.accurate_search(request.index_names, request.query, request.top_k)
-            query_time = (time.time() - start_time) * 1000  # 转换为毫秒
+            query_time = (time.time() - start_time) * 1000  # Convert to milliseconds
 
-            # 格式化结果
+            # Format results
             formatted_results = []
             for result in results:
                 doc = result["document"]
                 doc["score"] = result["score"]
-                doc["index"] = result["index"]  # 在结果中包含源索引
+                doc["index"] = result["index"]  # Include source index in results
                 formatted_results.append(doc)
 
             return {
@@ -576,24 +576,24 @@ class ElasticSearchService:
             Response containing search results, total count, and query time
         """
         try:
-            # 验证查询不为空
+            # Validate that query is not empty
             if not request.query.strip():
                 raise HTTPException(status_code=400, detail="Search query cannot be empty")
 
-            # 验证索引名称
+            # Validate index names
             if not request.index_names:
                 raise HTTPException(status_code=400, detail="At least one index name is required")
 
             start_time = time.time()
             results = es_core.semantic_search(request.index_names, request.query, request.top_k)
-            query_time = (time.time() - start_time) * 1000  # 转换为毫秒
+            query_time = (time.time() - start_time) * 1000  # Convert to milliseconds
 
-            # 格式化结果
+            # Format results
             formatted_results = []
             for result in results:
                 doc = result["document"]
                 doc["score"] = result["score"]
-                doc["index"] = result["index"]  # 在结果中包含源索引
+                doc["index"] = result["index"]  # Include source index in results
                 formatted_results.append(doc)
 
             return {
@@ -620,25 +620,25 @@ class ElasticSearchService:
             Response containing search results, total count, query time, and detailed score information
         """
         try:
-            # 验证查询不为空
+            # Validate that query is not empty
             if not request.query.strip():
                 raise HTTPException(status_code=400, detail="Search query cannot be empty")
 
-            # 验证索引名称
+            # Validate index names
             if not request.index_names:
                 raise HTTPException(status_code=400, detail="At least one index name is required")
 
             start_time = time.time()
             results = es_core.hybrid_search(request.index_names, request.query, request.top_k, request.weight_accurate)
-            query_time = (time.time() - start_time) * 1000  # 转换为毫秒
+            query_time = (time.time() - start_time) * 1000  # Convert to milliseconds
 
-            # 格式化结果
+            # Format results
             formatted_results = []
             for result in results:
                 doc = result["document"]
                 doc["score"] = result["score"]
-                doc["index"] = result["index"]  # 在结果中包含源索引
-                # 添加详细的分数信息
+                doc["index"] = result["index"]  # Include source index in results
+                # Add detailed score information
                 doc["score_details"] = {
                     "accurate": result["scores"]["accurate"],
                     "semantic": result["scores"]["semantic"]
@@ -665,7 +665,7 @@ class ElasticSearchService:
             Response containing health status information
         """
         try:
-            # 尝试列出索引作为健康检查
+            # Try to list indices as a health check
             indices = es_core.get_user_indices()
             return {
                 "status": "healthy",
@@ -683,19 +683,33 @@ class ElasticSearchService:
             tenant_id: Optional[str] = Body(None, description="ID of the tenant"),
             language: str = 'zh'
     ):
+        """
+        Generate a summary for the specified index based on its content
+
+        Args:
+            index_name: Name of the index to summarize
+            batch_size: Number of documents to process per batch
+            es_core: ElasticSearchCore instance
+            user_id: ID of the user requesting the summary
+            tenant_id: ID of the tenant
+            language: Language of the summary (default: 'zh')
+
+        Returns:
+            StreamingResponse containing the generated summary
+        """
         try:
-            # get all document
+            # Get all documents
             all_documents = ElasticSearchService.get_random_documents(index_name, batch_size, es_core)
             all_chunks = self._clean_chunks_for_summary(all_documents)
             keywords_dict = calculate_term_weights(all_chunks)
             keywords_for_summary = ""
             for _, key in enumerate(keywords_dict):
-                keywords_for_summary = keywords_for_summary + "、" + key
+                keywords_for_summary = keywords_for_summary + ", " + key
 
             async def generate_summary():
                 token_join = []
                 try:
-                    for new_token in generate_knowledge_summary_stream(keywords_for_summary, language,tenant_id):
+                    for new_token in generate_knowledge_summary_stream(keywords_for_summary, language, tenant_id):
                         if new_token == "END":
                             break
                         else:
@@ -717,10 +731,8 @@ class ElasticSearchService:
     @staticmethod
     def _clean_chunks_for_summary(all_documents):
         # Only use these three fields for summarization
-        # all_contents = []
         all_chunks = ""
         for _, chunk in enumerate(all_documents['documents']):
-            # all_contents.append({"title":chunk["title"], "file_name": chunk["filename"], "content": chunk["content"]})
             all_chunks = all_chunks + "\n" + chunk["title"] + "\n" + chunk["filename"] + "\n" + chunk["content"]
         return all_chunks
 
@@ -789,15 +801,25 @@ class ElasticSearchService:
             summary_result: Optional[str] = Body(description="knowledge base summary"),
             user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base")
     ):
-        """Summary Elasticsearch index_name by user"""
+        """
+        Update the summary for the specified Elasticsearch index
+
+        Args:
+            index_name: Name of the index to update
+            summary_result: New summary content
+            user_id: ID of the user making the update
+
+        Returns:
+            Dictionary containing status and updated summary information
+        """
         try:
             update_data = {
-                "knowledge_describe": summary_result,  # Set status to unavailable
+                "knowledge_describe": summary_result,  # Set the new summary
                 "updated_by": user_id,
                 "index_name": index_name
             }
             update_knowledge_record(update_data)
-            return {"status": "success", "message": f"Index {index_name} summary successfully", "summary": summary_result}
+            return {"status": "success", "message": f"Index {index_name} summary updated successfully", "summary": summary_result}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{str(e)}")
 
@@ -805,18 +827,27 @@ class ElasticSearchService:
             index_name: str = Path(..., description="Name of the index to get documents from"),
             language: str = 'zh'
     ):
-        """Get Elasticsearch index_name Summary"""
+        """
+        Get the summary for the specified Elasticsearch index
+
+        Args:
+            index_name: Name of the index to get summary from
+            language: Language of the summary (default: 'zh')
+
+        Returns:
+            Dictionary containing status and summary information
+        """
         try:
             knowledge_record = get_knowledge_record({'index_name': index_name})
             if knowledge_record:
                 summary_result = knowledge_record["knowledge_describe"]
-                success_msg = f"索引 {index_name} 摘要获取成功" if language == 'zh' else f"Index {index_name} summary retrieved successfully"
+                success_msg = f"Index {index_name} summary retrieved successfully"
                 return {"status": "success", "message": success_msg, "summary": summary_result}
-            error_detail = f"无法获取索引 {index_name} 的摘要" if language == 'zh' else f"Unable to get summary for index {index_name}"
+            error_detail = f"Unable to get summary for index {index_name}"
             raise HTTPException(
                 status_code=500,
                 detail=error_detail
             )
         except Exception as e:
-            error_msg = f"获取摘要失败: {str(e)}" if language == 'zh' else f"Failed to get summary: {str(e)}"
+            error_msg = f"Failed to get summary: {str(e)}"
             raise HTTPException(status_code=500, detail=error_msg)
