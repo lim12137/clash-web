@@ -218,7 +218,8 @@
         "processRemainingDataFailed": "处理剩余数据失败:",
         "thinking": "正在思考中...",
         "generateTitleFailed": "生成标题失败:",
-        "streamResponseError": "处理流式响应时出错:"
+        "streamResponseError": "处理流式响应时出错:",
+        "userInterrupted": "对话主动中止。"
     },
     "taskWindow": {
         "unknownSource": "未知来源",
