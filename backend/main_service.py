@@ -1,5 +1,8 @@
 import uvicorn
 import logging
+import warnings
+
+warnings.filterwarnings("ignore", category=UserWarning)
 
 from services.agent_service import import_default_agents_to_pg
 from apps.base_app import app
