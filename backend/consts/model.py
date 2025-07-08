@@ -26,13 +26,6 @@ class ModelConnectStatusEnum(Enum):
         return status
 
 
-# Response models for user management
-class ServiceResponse(BaseModel):
-    code: int
-    message: str
-    data: Optional[Any] = None
-
-
 # Response models for model management
 class ModelResponse(BaseModel):
     code: int = 200
@@ -126,11 +119,6 @@ class ConversationResponse(BaseModel):
 class RenameRequest(BaseModel):
     conversation_id: int
     name: str
-
-
-class GenerateTitleRequest(BaseModel):
-    conversation_id: int
-    history: List[Dict[str, str]]
 
 
 # Pydantic models for API

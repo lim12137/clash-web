@@ -172,34 +172,34 @@ def get_model_id_by_display_name(display_name: str, tenant_id: Optional[str] = N
 
 def get_model_by_model_id(model_id: int, tenant_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
-    使用原生 SQLAlchemy 查询获取模型记录
+    Get a model record using native SQLAlchemy query
 
     Args:
-        model_id (int): 模型ID
-        tenant_id (Optional[str]): 租户ID，可选
+        model_id (int): Model ID
+        tenant_id (Optional[str]): Tenant ID, optional
 
     Returns:
-        Optional[Dict[str, Any]]: 模型记录字典，如果没找到则返回 None
+        Optional[Dict[str, Any]]: Model record as a dictionary, or None if not found
     """
     with get_db_session() as session:
-        # 构建基础查询
+        # Build base query
         stmt = select(ModelRecord).where(
             ModelRecord.model_id == model_id,
             ModelRecord.delete_flag == 'N'
         )
         
-        # 如果提供了租户ID，添加租户过滤条件
+        # If tenant ID is provided, add tenant filter
         if tenant_id:
             stmt = stmt.where(ModelRecord.tenant_id == tenant_id)
             
-        # 执行查询
+        # Execute query
         result = session.scalars(stmt).first()
         
-        # 如果没有找到记录，返回 None
+        # If no record is found, return None
         if result is None:
             return None
             
-        # 将 SQLAlchemy 模型对象转换为字典
+        # Convert SQLAlchemy model object to dictionary
         result_dict = {key: value for key, value in result.__dict__.items() 
                       if not key.startswith('_')}
         

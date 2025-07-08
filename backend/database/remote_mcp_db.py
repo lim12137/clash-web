@@ -1,5 +1,4 @@
-from typing import Dict, Any, Optional, List
-from sqlalchemy import func
+from typing import Dict, Any, List
 from sqlalchemy.exc import SQLAlchemyError
 
 from .client import get_db_session, as_dict, filter_property

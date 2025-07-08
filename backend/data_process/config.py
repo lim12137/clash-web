@@ -7,16 +7,16 @@ from typing import Optional, Dict, Any
 logger = logging.getLogger("data_process.config")
 
 class Config:
-    """统一的配置管理类，支持环境变量验证和加载"""
+    """Unified configuration management class, supports environment variable validation and loading"""
     
     def __init__(self):
         load_dotenv()
         self._validate_required_vars()
-        logger.info("配置系统初始化完成")
+        logger.info("Configuration system initialized")
 
     
     def _validate_required_vars(self) -> None:
-        """验证基础必需的环境变量"""
+        """Validate basic required environment variables"""
         required = [
             'REDIS_URL',
             'REDIS_BACKEND_URL',
@@ -26,12 +26,12 @@ class Config:
         missing = [var for var in required if not os.getenv(var)]
         
         if missing:
-            raise ValueError(f"缺少基础必需的环境变量: {missing}")
+            raise ValueError(f"Missing basic required environment variables: {missing}")
         
-        logger.info("✅ 基础环境变量验证通过")
+        logger.info("✅ Basic environment variable validation passed")
     
     def validate_task_environment(self) -> Dict[str, Any]:
-        """验证Celery任务执行所需的环境变量"""
+        """Validate environment variables required for Celery task execution"""
         task_vars = {
             'REDIS_URL': self.redis_url,
             'REDIS_BACKEND_URL': self.redis_backend_url,
@@ -61,19 +61,19 @@ class Config:
         if not validation_result['valid']:
             error_msg = []
             if missing:
-                error_msg.append(f"缺少环境变量: {missing}")
+                error_msg.append(f"Missing environment variables: {missing}")
             if invalid:
-                error_msg.append(f"无效环境变量: {invalid}")
+                error_msg.append(f"Invalid environment variables: {invalid}")
             raise ValueError("; ".join(error_msg))
         
         return validation_result
     
     def _validate_redis_url(self, redis_url: str) -> bool:
-        """验证Redis URL格式"""
+        """Validate Redis URL format"""
         return redis_url.startswith(('redis://', 'rediss://'))
     
     def _validate_es_service(self, es_service: str) -> bool:
-        """验证Elasticsearch服务URL格式"""
+        """Validate Elasticsearch service URL format"""
         return es_service.startswith(('http://', 'https://')) and es_service.endswith('/api')
     
     @property
@@ -90,39 +90,39 @@ class Config:
     
     @property
     def celery_worker_prefetch_multiplier(self) -> int:
-        """Celery worker预取倍数配置"""
+        """Celery worker prefetch multiplier configuration"""
         return int(os.getenv('CELERY_WORKER_PREFETCH_MULTIPLIER', '1'))
     
     @property
     def celery_task_time_limit(self) -> int:
-        """Celery任务时间限制（秒）"""
+        """Celery task time limit (seconds)"""
         return int(os.getenv('CELERY_TASK_TIME_LIMIT', '3600'))
     
     @property
     def elasticsearch_request_timeout(self) -> int:
-        """Elasticsearch请求超时时间（秒）"""
+        """Elasticsearch request timeout (seconds)"""
         return int(os.getenv('ELASTICSEARCH_REQUEST_TIMEOUT', '30'))
     
     @property
     def log_level(self) -> str:
-        """日志级别"""
+        """Log level"""
         return os.getenv('LOG_LEVEL', 'INFO').upper()
     
-    # Ray 配置相关属性
+    # Ray related configuration properties
     @property
     def ray_plasma_directory(self) -> str:
-        """Ray plasma 对象存储目录配置"""
+        """Ray plasma object store directory configuration"""
         return os.getenv('RAY_PLASMA_DIRECTORY', '/tmp')
     
     @property
     def ray_object_store_memory_gb(self) -> float:
-        """Ray 对象存储内存限制（GB）"""
+        """Ray object store memory limit (GB)"""
         return float(os.getenv('RAY_OBJECT_STORE_MEMORY_GB', '2.0'))
     
     @property
     def ray_temp_dir(self) -> str:
-        """Ray 临时目录"""
+        """Ray temporary directory"""
         return os.getenv('RAY_TEMP_DIR', '/tmp/ray')
 
-# 创建全局配置实例
+# Create global config instance
 config = Config()

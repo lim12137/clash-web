@@ -6,7 +6,6 @@ from fastapi import HTTPException
 
 from database.client import get_db_session, as_dict, filter_property
 from database.db_models import ToolInfo, AgentInfo, UserAgent, ToolInstance
-from utils.auth_utils import get_current_user_id
 
 from sqlalchemy import or_
 from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID

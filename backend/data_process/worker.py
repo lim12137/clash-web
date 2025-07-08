@@ -23,7 +23,6 @@ import sys
 import time
 import traceback
 import ray
-from typing import Dict, Any, Optional
 from celery.signals import (
     worker_init,
     worker_ready, 
@@ -206,7 +205,7 @@ def worker_ready_handler(**kwargs):
 
 @worker_shutting_down.connect
 def worker_shutdown_handler(**kwargs):
-    """Worker关闭时的清理操作"""
+    """Cleanup operations when the worker shuts down"""
     process_id = worker_state.get('process_id', os.getpid())
     uptime = time.time() - worker_state.get('start_time', time.time())
     
@@ -220,23 +219,23 @@ def worker_shutdown_handler(**kwargs):
 
 @task_prerun.connect
 def task_prerun_handler(sender=None, task_id=None, task=None, args=None, kwargs=None, **kwds):
-    """任务执行前的处理"""
-    logger.debug(f"📋 任务开始: {task.name}[{task_id}]")
+    """Handler before task execution"""
+    logger.debug(f"📋 Task started: {task.name}[{task_id}]")
 
 @task_postrun.connect
 def task_postrun_handler(sender=None, task_id=None, task=None, args=None, kwargs=None, retval=None, state=None, **kwds):
-    """任务执行后的处理"""
+    """Handler after task execution"""
     if state == 'SUCCESS':
         worker_state['tasks_completed'] += 1
-        logger.debug(f"✅ 任务完成: {task.name}[{task_id}]")
+        logger.debug(f"✅ Task completed: {task.name}[{task_id}]")
     else:
-        logger.debug(f"⚠️ 任务结束: {task.name}[{task_id}] - 状态: {state}")
+        logger.debug(f"⚠️ Task ended: {task.name}[{task_id}] - State: {state}")
 
 @task_failure.connect
 def task_failure_handler(sender=None, task_id=None, exception=None, einfo=None, **kwds):
-    """任务失败时的处理"""
+    """Handler when task fails"""
     worker_state['tasks_failed'] += 1
-    logger.error(f"❌ 任务失败: {sender.name}[{task_id}] - 异常: {str(exception)}")
+    logger.error(f"❌ Task failed: {sender.name}[{task_id}] - Exception: {str(exception)}")
 
 # ============================================================================
 # Service validation functions
@@ -254,8 +253,8 @@ def validate_service_connections() -> bool:
         
     except Exception as e:
         logger.error(f"❌ Service connection validation failed: {str(e)}")
-        # 根据业务需求决定是否抛出异常
-        # 这里选择记录错误但不阻止worker启动
+        # Decide whether to raise an exception based on business requirements
+        # Here we choose to log the error but not prevent the worker from starting
         return False
 
 def validate_redis_connection() -> bool:
