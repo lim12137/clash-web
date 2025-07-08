@@ -120,25 +120,43 @@ def run_tests():
         test_results.append(test_info)
         
         # Parse pytest output to get test counts
-        file_total = file_passed = 0
+        file_total = file_passed = file_failed = 0
+        
+        # First, get the collected count
         for line in result.stdout.split('\n'):
-            if line.strip().startswith('collected '):
+            if line.strip().startswith('collecting ... collected '):
                 try:
-                    file_total = int(line.strip().split()[1])
-                except (IndexError, ValueError):
-                    pass
-            if ' passed' in line and ' failed' in line and ' error' in line:
-                try:
-                    parts = line.strip().split()
-                    for part in parts:
-                        if part.endswith(' passed'):
-                            file_passed = int(part.split(' ')[0])
+                    file_total = int(line.strip().split('collecting ... collected ')[1].split()[0])
                 except (IndexError, ValueError):
                     pass
         
+        # Look for the summary line at the end of the test run
+        for line in result.stdout.split('\n'):
+            # Match patterns like "10 passed in 0.05s" or "17 passed, 13 warnings in 2.49s"
+            if " passed" in line and " in " in line:
+                parts = line.strip().split()
+                try:
+                    # Find the position of "passed" word
+                    for i, part in enumerate(parts):
+                        if "passed" in part:
+                            file_passed = int(parts[i-1])
+                            break
+                    # Find the position of "failed" word if it exists
+                    for i, part in enumerate(parts):
+                        if "failed" in part:
+                            file_failed = int(parts[i-1])
+                            break
+                except (IndexError, ValueError):
+                    pass
+        
+        # If we couldn't determine the number of collected tests from the output,
+        # use the sum of passed and failed as the total
+        if file_total == 0 and (file_passed > 0 or file_failed > 0):
+            file_total = file_passed + file_failed
+        
         total_tests += file_total
         passed_tests += file_passed
-        failed_tests += file_total - file_passed
+        failed_tests += file_failed
     
     # Generate test summary report
     print("\n" + "=" * 60)
@@ -184,11 +202,15 @@ def run_tests():
                 xml_file = os.path.join(current_dir, 'coverage.xml')
                 cov.xml_report(outfile=xml_file)
                 print(f"XML coverage report generated: {xml_file}")
-            except coverage.exceptions.NoDataError:
-                print("No coverage data collected. This might be because:")
-                print("1. No backend modules were imported during tests")
-                print("2. All tested modules are mocked")
-                print("3. Tests are not actually calling the backend code")
+            except Exception as e:
+                # Fix: Correctly handle NoDataError (without using coverage.exceptions)
+                if "No data to report" in str(e) or "No data was collected" in str(e):
+                    print("No coverage data collected. This might be because:")
+                    print("1. No backend modules were imported during tests")
+                    print("2. All tested modules are mocked")
+                    print("3. Tests are not actually calling the backend code")
+                else:
+                    raise
         except Exception as e:
             print(f"Error generating coverage report: {e}")
     
