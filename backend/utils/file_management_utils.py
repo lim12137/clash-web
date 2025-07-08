@@ -13,6 +13,8 @@ from consts.const import DATA_PROCESS_SERVICE
 from consts.model import ProcessParams
 from database.attachment_db import get_file_size_from_minio
 
+logger = logging.getLogger("file_management_utils")
+
 
 async def save_upload_file(file: UploadFile, upload_path: Path) -> bool:
     try:
@@ -21,7 +23,7 @@ async def save_upload_file(file: UploadFile, upload_path: Path) -> bool:
             await out_file.write(content)
         return True
     except Exception as e:
-        logging.info(f"Error saving file {file.filename}: {str(e)}")
+        logger.error(f"Error saving file {file.filename}: {str(e)}")
         return False
 
 
@@ -50,13 +52,13 @@ async def trigger_data_process(files: List[dict], process_params: ProcessParams)
                 if response.status_code == 201:
                     return response.json()
                 else:
-                    logging.info(
+                    logger.error(
                         "Error from data process service: %s - %s", response,
                         response.text if hasattr(response, 'text') else 'No response text')
                     return {"status": "error", "code": response.status_code,
                         "message": f"Data process service error: {response.status_code}"}
             except httpx.RequestError as e:
-                logging.info("Failed to connect to data process service: %s", str(e))
+                logger.error("Failed to connect to data process service: %s", str(e))
                 return {"status": "error", "code": "CONNECTION_ERROR",
                     "message": f"Failed to connect to data process service: {str(e)}"}
 
@@ -82,17 +84,17 @@ async def trigger_data_process(files: List[dict], process_params: ProcessParams)
                 if response.status_code == 201:
                     return response.json()
                 else:
-                    logging.info(
+                    logger.error(
                         "Error from data process service: %s - %s", response,
                         response.text if hasattr(response, 'text') else 'No response text')
                     return {"status": "error", "code": response.status_code,
                         "message": f"Data process service error: {response.status_code}"}
             except httpx.RequestError as e:
-                logging.info("Failed to connect to data process service: %s", str(e))
+                logger.error("Failed to connect to data process service: %s", str(e))
                 return {"status": "error", "code": "CONNECTION_ERROR",
                     "message": f"Failed to connect to data process service: {str(e)}"}
     except Exception as e:
-        logging.info("Error triggering data process: %s", str(e))
+        logger.error("Error triggering data process: %s", str(e))
         return {"status": "error", "code": "INTERNAL_ERROR", "message": f"Internal error: {str(e)}"}
 
 
@@ -114,15 +116,15 @@ async def get_all_files_status(index_name: str):
             if response.status_code == 200:
                 tasks_list = response.json()
             else:
-                logging.error(f"Error from data process service: {response.status_code} - {response.text}")
+                logger.error(f"Error from data process service: {response.status_code} - {response.text}")
                 return {}
         except Exception as e:
-            logging.error(f"Failed to connect to data process service: {str(e)}")
+            logger.error(f"Failed to connect to data process service: {str(e)}")
             return {}
         
         logging.debug(f"Found {len(tasks_list)} tasks for index '{index_name}'")
         if not tasks_list:
-            logging.warning(f"No tasks found for index '{index_name}'")
+            logger.warning(f"No tasks found for index '{index_name}'")
             return {}
         
         # Dictionary to store file statuses: {path_or_url: {process_state, forward_state, timestamps}}
@@ -174,12 +176,9 @@ async def get_all_files_status(index_name: str):
                 'original_filename': file_state['original_filename'] or '',
                 'source_type': file_state['source_type']
             }
-            logging.info(f"File status for {original_filename} in index {index_name}: process={file_state['process_state']}, forward={file_state['forward_state']} -> {custom_state}, latest_task_id={file_state['latest_task_id']}")
-        logging.debug(f"Processed status for {len(result)} files in index '{index_name}'")
         return result
     except Exception as e:
-        logging.error(f"Error getting all files status for index {index_name}: {str(e)}")
-        logging.error(f"Error details: {traceback.format_exc()}")
+        logger.error(f"Error getting all files status for index {index_name}, details: {str(e)} {traceback.format_exc()}")
         return {}  # Return empty dict on error
 
 
@@ -256,7 +255,6 @@ def get_file_size(source_type: str, path_or_url: str) -> int:
             else:
                 logging.warning(f"File not found at local path: {path_or_url}")
                 return 0
-
         else:
             raise NotImplementedError(f"Unexpected source type: {source_type}")
 
@@ -266,3 +264,4 @@ def get_file_size(source_type: str, path_or_url: str) -> int:
     except Exception as e:
         logging.error(f"Error getting file size for {path_or_url}: {str(e)}")
         return 0
+
