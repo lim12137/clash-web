@@ -8,6 +8,7 @@ from smolagents.models import OpenAIServerModel, ChatMessage
 
 from ..utils.observer import MessageObserver, ProcessType
 
+logger = logging.getLogger("openai_llm")
 
 class OpenAIModel(OpenAIServerModel):
     def __init__(self, observer: MessageObserver, temperature=0.2, top_p=0.95, *args, **kwargs):
@@ -36,7 +37,7 @@ class OpenAIModel(OpenAIServerModel):
             for chunk in current_request:
                 new_token = chunk.choices[0].delta.content
                 if new_token is not None:
-                    print(new_token, end="")
+                    logger.info(new_token, end="")
                     self.observer.add_model_new_token(new_token)
                     token_join.append(new_token)
                     role = chunk.choices[0].delta.role

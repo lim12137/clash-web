@@ -12,8 +12,7 @@ from utils.auth_utils import get_current_user_id
 router = APIRouter(prefix="/mcp")
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("mcp app")
+logger = logging.getLogger("remote_mcp_app")
 
 
 @router.get("/tools/")

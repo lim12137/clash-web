@@ -11,8 +11,7 @@ from utils.auth_utils import get_current_user_id
 router = APIRouter(prefix="/tool")
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("tool config")
+logger = logging.getLogger("tool_config_app")
 
 
 @router.get("/list")

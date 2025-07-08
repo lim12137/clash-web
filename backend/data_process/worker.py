@@ -49,33 +49,7 @@ worker_state = {
     'services_validated': False
 }
 
-def setup_logging():
-    """Setup comprehensive logging configuration"""
-    # Configure root logger
-    logging.basicConfig(
-        level=getattr(logging, config.log_level),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(sys.stdout),  # Console output
-        ]
-    )
-    
-    # Configure Celery loggers
-    celery_logger = logging.getLogger('celery')
-    celery_logger.setLevel(logging.INFO)
-    
-    # Configure worker logger
-    worker_logger = logging.getLogger('celery.worker')
-    worker_logger.setLevel(logging.INFO)
-    
-    # Configure task logger
-    task_logger = logging.getLogger('celery.task')
-    task_logger.setLevel(logging.INFO)
-    
-    return logging.getLogger(__name__)
-
-# Initialize logger after config is available
-logger = setup_logging()
+logger = logging.getLogger("data_process.worker")
 
 # ============================================================================
 # WORKER INITIALIZATION SIGNALS

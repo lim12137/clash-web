@@ -12,8 +12,7 @@ from services.elasticsearch_service import ElasticSearchService
 from services.tenant_config_service import get_selected_knowledge_list
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("build agent")
+logger = logging.getLogger("create_agent_info")
 
 async def create_model_config_list(tenant_id):
      main_model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)

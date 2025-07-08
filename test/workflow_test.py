@@ -14,16 +14,7 @@ os.makedirs(TEST_RESULTS_DIR, exist_ok=True)
 LOG_FILE = os.path.join(TEST_RESULTS_DIR, 'test.log')
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(LOG_FILE, mode='w', encoding='utf-8'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("workflow_test")
 
 
 class TestEnvironment(unittest.TestCase):
