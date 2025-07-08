@@ -166,7 +166,6 @@ class ElasticSearchService:
             Dict[str, Any]: A dictionary containing the list of indices and the count.
         """
         all_indices_list = es_core.get_user_indices(pattern)
-        print(f"all_indices_list: {all_indices_list}")
 
         filtered_indices_list = []
         if tenant_id:
@@ -179,7 +178,6 @@ class ElasticSearchService:
             filtered_indices_list = all_indices_list
 
         indices = [info.get("index") if isinstance(info, dict) else info for info in filtered_indices_list]
-        print(f"indices: {indices}")
 
         response = {
             "indices": indices,
@@ -190,7 +188,6 @@ class ElasticSearchService:
             stats_info = []
             if filtered_indices_list:
                 indice_stats = es_core.get_index_stats(filtered_indices_list)
-                print(f"indice_stats: {indice_stats}")
                 for index_name in filtered_indices_list:
                     index_stats = indice_stats.get(index_name, {})
                     stats_info.append({
@@ -310,7 +307,7 @@ class ElasticSearchService:
                 metadata = item.get("metadata")
                 source = item.get("path_or_url")
                 text = item.get("content", "")
-                source_type = item.get("source_type", "file")
+                source_type = item.get("source_type", "url")
                 file_size = item.get("file_size")
                 file_name = item.get("filename", os.path.basename(source) if source and source_type == "file" else "")
 
@@ -325,7 +322,9 @@ class ElasticSearchService:
                     create_time = datetime.datetime.fromtimestamp(create_time).isoformat()
 
                 # Set embedding model name from the embedding model
-                embedding_model_name = es_core.embedding_model.model
+                embedding_model_name = ""
+                if es_core.embedding_model:
+                    embedding_model_name = es_core.embedding_model.model
 
                 # Create document
                 document = {
@@ -424,13 +423,27 @@ class ElasticSearchService:
                 for path_or_url, status_info in celery_task_files.items():
                     # Skip files that are already in existing_files to avoid duplicates
                     if path_or_url not in existing_paths:
+                        # Ensure status_info is a dictionary
+                        status_dict = status_info if isinstance(status_info, dict) else {}
+
+                        # Get source_type and original_filename, with defaults
+                        source_type = status_dict.get('source_type', 'url')
+                        original_filename = status_dict.get('original_filename')
+
+                        # Determine the filename
+                        filename = original_filename or (os.path.basename(path_or_url) if path_or_url else '')
+
+                        # Get file size, handling URLs specifically
+                        file_size = 0
+                        file_size = get_file_size(source_type, path_or_url)
+
                         file_data = {
                             'path_or_url': path_or_url,
-                            'file': os.path.basename(path_or_url) if path_or_url else '',
-                            'file_size': get_file_size('file', path_or_url),
+                            'file': filename,
+                            'file_size': file_size,
                             'create_time': time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
-                            'status': status_info.get('state', status_info) if isinstance(status_info, dict) else status_info,
-                            'latest_task_id': status_info.get('latest_task_id', '') if isinstance(status_info, dict) else ''
+                            'status': status_dict.get('state', 'UNKNOWN'),
+                            'latest_task_id': status_dict.get('latest_task_id', '')
                         }
                         files.append(file_data)
             else:
@@ -468,8 +481,7 @@ class ElasticSearchService:
                     try:
                         msearch_responses = es_core.client.msearch(
                             body=msearch_body,
-                            index=index_name,
-                            request_timeout=30
+                            index=index_name
                         )
 
                         for i, file_path in enumerate(completed_files_map.keys()):
@@ -512,8 +524,12 @@ class ElasticSearchService:
             path_or_url: str = Query(..., description="Path or URL of documents to delete"),
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
+        # 1. Delete ES documents
         deleted_count = es_core.delete_documents_by_path_or_url(index_name, path_or_url)
-        return {"status": "success", "deleted_count": deleted_count}
+        # 2. Delete MinIO file
+        from database import attachment_db
+        minio_result = attachment_db.delete_file(path_or_url)
+        return {"status": "success", "deleted_es_count": deleted_count, "deleted_minio": minio_result.get("success")}
 
     @staticmethod
     # Search Operations
@@ -684,6 +700,8 @@ class ElasticSearchService:
             language: str = 'zh'
     ):
         try:
+            if not tenant_id:
+                raise HTTPException(status_code=400, detail="Tenant ID is required for summary generation.")
             # get all document
             all_documents = ElasticSearchService.get_random_documents(index_name, batch_size, es_core)
             all_chunks = self._clean_chunks_for_summary(all_documents)

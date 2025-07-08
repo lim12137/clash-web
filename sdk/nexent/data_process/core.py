@@ -1,206 +1,281 @@
 import logging
 import os
-import time
-from typing import Dict, List
+from typing import Dict, List, Optional, Union
+from .generic_file_process import GenericFileProcess
+from .excel_file_process import ExcelFileProcess
 
-# Import for Excel processing
-from .excel_process import process_excel_file
-
-# Setup logging
 logger = logging.getLogger("data_process.core")
 logger.setLevel(logging.DEBUG)
 
+
 class DataProcessCore:
-    """Core data processing functionality with distributed processing capabilities"""
+    """
+    Core data processing functionality class with distributed processing capabilities
+    
+    Supported file types:
+    - Excel files: .xlsx, .xls
+    - Generic files: .txt, .pdf, .docx, .doc, .html, .htm, .md, .rtf, .odt, .pptx, .ppt
+    
+    Supported input methods:
+    - Local file path
+    - Remote URL (requires database dependencies)
+    - In-memory byte data
+    """
+
+    # Supported Excel file extensions
+    EXCEL_EXTENSIONS = {".xlsx", ".xls"}
+    
+    # Supported chunking strategies
+    CHUNKING_STRATEGIES = {"basic", "by_title", "none"}
+    
+    # Supported destination types
+    DESTINATIONS = {"local", "minio", "url"}
 
     def __init__(self):
         """
-        Initialize data processing core
+        Initialize the core data processing component
+        """
+        self._generic = GenericFileProcess()
+        self._excel = ExcelFileProcess()
+        logger.debug("DataProcessCore initialization completed")
+
+    def file_process(self, 
+                    file_path_or_url: Optional[str] = None, 
+                    file_data: Optional[bytes] = None, 
+                    chunking_strategy: str = "basic", 
+                    destination: str = "local", 
+                    filename: Optional[str] = None, 
+                    **params) -> List[Dict]:
+        """
+        Facade pattern that automatically detects file type and processes files
         
         Args:
-            No arguments
-        """
-
-
-    def process_excel_file(self, file_path: str, chunking_strategy: str = "basic", **params) -> List[Dict]:
-        """
-        Process an Excel file and return chunks in the expected format
-        
-        Args:
-            file_path: Path to the Excel file
-            chunking_strategy: Strategy for chunking (not used in Excel processing)
-            **params: Additional parameters
+            file_path_or_url: Local file path or file URL in MinIO
+            file_data: File content byte data (for in-memory processing)
+            chunking_strategy: Chunking strategy, options: "basic", "by_title", "none"
+            destination: Destination type, options: "local", "minio", "url"
+            filename: Optional filename, required when providing file_data
+            **params: Additional processing parameters
             
         Returns:
-            List of processed chunks in standard format
-        """
-        logger.info(f"Processing Excel file {file_path}")
-        
-        # Process Excel file using the excel_process module which now returns proper chunks
-        chunks = process_excel_file(file_path, chunking_strategy, **params)
-        
-        logger.info(f"Processed Excel file {file_path}: {len(chunks)} chunks")
-        return chunks
-    
-    async def process_file(self, file_path: str, chunking_strategy: str, **params) -> List[Dict]:
-        """
-        Process a file using specified chunking strategy
-        
-        Args:
-            file_path: Path to the file to process
-            chunking_strategy: Strategy for chunking the data, could be chosen from basic/by_title/none
-            **params: Additional parameters for processing
+            List of processed chunks, each dictionary contains the following fields:
+            - content: Text content
+            - path_or_url: File path or URL
+            - filename: Filename
+            - metadata: Metadata (optional, includes chunk_index, source_type, etc.)
+            - language: Language identifier (optional)
             
-        Returns:
-            List of processed chunks
+        Raises:
+            ValueError: Invalid parameters
+            FileNotFoundError: File not found
+            ImportError: Missing required dependencies
         """
-        logger.info(f"Processing file {file_path} with strategy {chunking_strategy}")
+        # Parameter validation
+        self._validate_parameters(file_path_or_url, file_data, chunking_strategy, destination, filename)
         
-        # Process the file based on its type
-        _, file_ext = os.path.splitext(file_path)
-        file_ext = file_ext.lower()
+        # Determine filename and extension
+        resolved_filename, file_extension = self._resolve_filename_and_extension(
+            file_path_or_url, filename
+        )
         
-        if file_ext in ['.xlsx', '.xls']:
-            return await self._process_excel(file_path, chunking_strategy, **params)
-        else:
-            # For text and other files
-            return await self._process_generic_file(file_path, chunking_strategy, **params)
+        # Select appropriate processor
+        processor = self._select_processor(file_extension)
+        
+        # Route to correct processing method
+        return self._route_processing(
+            processor, file_path_or_url, file_data, destination, 
+            chunking_strategy, resolved_filename, **params
+        )
     
-    async def _process_excel(self, file_path: str, chunking_strategy: str, **params) -> List[Dict]:
-        """Process Excel files using the excel_process module"""
-        logger.info(f"Processing Excel file {file_path}")
-        return process_excel_file(file_path, chunking_strategy, **params)
+    def _validate_parameters(self, 
+                           file_path_or_url: Optional[str], 
+                           file_data: Optional[bytes], 
+                           chunking_strategy: str, 
+                           destination: str, 
+                           filename: Optional[str]) -> None:
+        """Validate input parameters"""
+        # Check input source
+        if not file_path_or_url and not file_data:
+            raise ValueError("Must provide either 'file_path_or_url' or 'file_data'")
+        
+        if file_path_or_url and file_data:
+            raise ValueError("'file_path_or_url' and 'file_data' cannot be provided simultaneously")
+        
+        # Check chunking strategy
+        if chunking_strategy not in self.CHUNKING_STRATEGIES:
+            raise ValueError(f"Unsupported chunking strategy: {chunking_strategy}. "
+                           f"Supported strategies: {', '.join(self.CHUNKING_STRATEGIES)}")
+        
+        # Check destination type
+        if destination not in self.DESTINATIONS:
+            raise ValueError(f"Unsupported destination type: {destination}. "
+                           f"Supported types: {', '.join(self.DESTINATIONS)}")
+        
+        # Check filename (when using file_data)
+        if file_data and not filename:
+            raise ValueError("filename must be provided when using file_data")
+        
+        logger.debug(f"Parameter validation passed: chunking_strategy={chunking_strategy}, destination={destination}")
     
-    async def _process_generic_file(self, file_path: str, chunking_strategy: str, **params) -> List[Dict]:
-        """Process generic files"""
-        chunks = self._process_file(file_path, chunking_strategy, **params)
+    def _resolve_filename_and_extension(self, 
+                                      file_path_or_url: Optional[str], 
+                                      filename: Optional[str]) -> tuple[str, str]:
+        """Resolve filename and extension"""
+        resolved_filename = None
+        file_extension = ""
         
-        return chunks
-
-
-    def _process_file(self, file_path: str, chunking_strategy: str, **params) -> List[Dict]:
-        """
-        Args:
-            file_path: Path to the file to process
-            chunking_strategy: Strategy for chunking the data, could be chosen from basic/by_title/none
-            **params: Additional parameters for processing
-            
-        Returns:
-            List of processed chunks
-        """
-        # Extract parameters with defaults
-        max_characters = params.get("max_characters", 1500)  # Only useful under basic chunking_strategy
-        new_after_n_chars = params.get("new_after_n_chars", 1200)  # Only useful under basic chunking_strategy
-        strategy = params.get("strategy", "fast")
-        skip_infer_table_types = params.get("skip_infer_table_types", [])  # Only useful under hi-res strategy
-        source_type = params.get("source_type", "file")
-        task_id = params.get("task_id", "unknown")
+        if file_path_or_url:
+            _, file_extension = os.path.splitext(file_path_or_url)
+            if not resolved_filename:
+                resolved_filename = os.path.basename(file_path_or_url)
         
-        # Dynamic imports with error handling
+        if filename:
+            _, ext_from_filename = os.path.splitext(filename)
+            if ext_from_filename:  # If filename contains extension, use it with priority
+                file_extension = ext_from_filename
+            resolved_filename = filename
+        
+        file_extension = file_extension.lower()
+        
+        logger.debug(f"Resolution result: filename={resolved_filename}, extension={file_extension}")
+        return resolved_filename, file_extension
+    
+    def _select_processor(self, file_extension: str) -> Union[ExcelFileProcess, GenericFileProcess]:
+        """Select processor based on file extension"""
+        is_excel = file_extension in self.EXCEL_EXTENSIONS
+        processor = self._excel if is_excel else self._generic
+        
+        return processor
+    
+    def _route_processing(self, 
+                         processor: Union[ExcelFileProcess, GenericFileProcess],
+                         file_path_or_url: Optional[str],
+                         file_data: Optional[bytes],
+                         destination: str,
+                         chunking_strategy: str,
+                         filename: str,
+                         **params) -> List[Dict]:
+        """Route to correct processing method based on input type"""
         try:
-            from unstructured.partition.auto import partition
-            from unstructured.file_utils.filetype import detect_filetype
+            if destination == 'local' and file_path_or_url:
+                # Process local file
+                logger.info(f"Processing local file: {file_path_or_url}")
+                return processor.process_local_file(file_path_or_url, chunking_strategy, **params)
+            
+            elif destination == 'minio' and file_data:
+                # Process file in memory
+                logger.info(f"Processing in-memory file: {filename}")
+                return processor.process_minio_file(
+                    file_data, chunking_strategy, 
+                    filename=filename, path_or_url=file_path_or_url, **params
+                )
+            
+            elif destination != 'local' and file_path_or_url:
+                # Fetch file from URL and process
+                logger.info(f"Fetching and processing file from URL: {file_path_or_url}")
+                file_bytes = self._fetch_file_from_url(file_path_or_url)
+                return processor.process_minio_file(
+                    file_bytes, chunking_strategy, 
+                    filename=filename, path_or_url=file_path_or_url, **params
+                )
+            
+            else:
+                raise ValueError(f"Invalid parameter combination: destination={destination}, file_path_or_url={file_path_or_url}, file_data given? {file_data is not None}")
+                
+        except Exception as e:
+            logger.error(f"File processing failed: {str(e)}")
+            raise
+    
+    def _fetch_file_from_url(self, url: str) -> bytes:
+        """Fetch file content from URL"""
+        try:
+            from database.attachment_db import get_file_stream
         except ImportError:
             raise ImportError(
-                "Processing features require additional dependencies. "
-                "Please install them with: pip install nexent[process]"
+                "Processing files from URL requires database dependencies. "
+                "Please install related dependencies or use local file/in-memory data processing."
             )
+
+        file_stream = get_file_stream(url)
+        if file_stream is None:
+            raise FileNotFoundError(f"Unable to fetch file from URL: {url}")
         
-        start_time = time.time()
+        return file_stream.read()
+    
+    def get_supported_file_types(self) -> Dict[str, List[str]]:
+        """
+        Get supported file types
         
-        try:
-            # Log start of processing
-            logger.debug(f"Starting to process file: {file_path}", 
-                      extra={'task_id': task_id, 'stage': 'PROCESSING', 'source': 'local'})
+        Returns:
+            Dictionary containing supported file types:
+            - excel: List of Excel file extensions
+            - generic: List of generic file extensions
+        """
+        return {
+            "excel": list(self.EXCEL_EXTENSIONS),
+            "generic": self._generic.get_supported_formats() if hasattr(self._generic, 'get_supported_formats') else [
+                '.txt', '.pdf', '.docx', '.doc', '.html', '.htm', 
+                '.md', '.rtf', '.odt', '.pptx', '.ppt'
+            ]
+        }
+    
+    def get_supported_strategies(self) -> List[str]:
+        """
+        Get supported chunking strategies
+        
+        Returns:
+            List of supported chunking strategies
+        """
+        return list(self.CHUNKING_STRATEGIES)
+    
+    def get_supported_destinations(self) -> List[str]:
+        """
+        Get supported destination types
+        
+        Returns:
+            List of supported destination types
+        """
+        return list(self.DESTINATIONS)
+    
+    def validate_file_type(self, filename: str) -> bool:
+        """
+        Validate if file type is supported
+        
+        Args:
+            filename: Filename
             
-            # Debug info about the file
-            if os.path.exists(file_path):
-                file_size = os.path.getsize(file_path)
-                logger.debug(f"File exists, size: {file_size} bytes", 
-                          extra={'task_id': task_id, 'stage': 'DEBUG', 'source': 'local'})
-                
-                # Check file type
-                try:
-                    filetype = detect_filetype(file_path=file_path)
-                    logger.debug(f"Detected file type: {filetype}", 
-                              extra={'task_id': task_id, 'stage': 'DEBUG', 'source': 'local'})
-                    
-                    # Skip unsupported file types
-                    unsupported_types = ["image", "audio", "video", "unknown"]
-                    if filetype in unsupported_types:
-                        logger.warning(f"Skipping unsupported file type {filetype}: {file_path}", 
-                                     extra={'task_id': task_id, 'stage': 'WARNING', 'source': 'local'})
-                        return []  # Return empty list for unsupported files
-                except Exception as e:
-                    logger.warning(f"Could not detect file type: {str(e)}", 
-                                 extra={'task_id': task_id, 'stage': 'WARNING', 'source': 'local'})
-            else:
-                logger.error(f"File does not exist: {file_path}", 
-                           extra={'task_id': task_id, 'stage': 'ERROR', 'source': 'local'})
-                raise FileNotFoundError(f"File does not exist: {file_path}")
+        Returns:
+            Whether the file type is supported
+        """
+        if not filename:
+            return False
+        
+        _, ext = os.path.splitext(filename.lower())
+        supported_types = self.get_supported_file_types()
+        
+        return (ext in supported_types["excel"] or 
+                ext in supported_types["generic"])
+    
+    def get_processor_info(self, filename: str) -> Dict[str, str]:
+        """
+        Get processor information for the file
+        
+        Args:
+            filename: Filename
             
-            # Process file based on source type
-            if source_type == "file":
-                logger.debug(f"Starting partition with strategy={strategy}, max_chars={max_characters}", 
-                          extra={'task_id': task_id, 'stage': 'DEBUG', 'source': 'local'})
-                elements = partition(
-                    filename=file_path, 
-                    max_characters=max_characters, 
-                    new_after_n_chars=new_after_n_chars, 
-                    strategy=strategy,
-                    skip_infer_table_types=skip_infer_table_types,
-                    chunking_strategy=chunking_strategy if chunking_strategy != "none" else None
-                )
-                logger.debug(f"Partition complete, got {len(elements)} elements", 
-                          extra={'task_id': task_id, 'stage': 'DEBUG', 'source': 'local'})
-            else:
-                # Handle other source types
-                raise ValueError(f"Source type {source_type} not supported for local processing")
-            
-            # If "none" strategy, combine all elements into a single chunk
-            if chunking_strategy == "none":
-                full_text = "\n\n".join([el.text for el in elements])
-                doc = {
-                    "content": full_text,
-                    "path_or_url": file_path,
-                    "filename": os.path.basename(file_path),
-                }
-                # Try to get language from the first element's metadata
-                if elements and hasattr(elements[0], 'metadata'):
-                    languages = elements[0].metadata.to_dict().get("languages")
-                    if languages:
-                        doc["language"] = languages[0]
-                return [doc]
-            
-            # Process elements
-            result = []
-            for element in elements:
-                metadata = element.metadata.to_dict()
-                doc = {
-                    "content": element.text,
-                    "path_or_url": file_path,
-                    "filename": metadata.get("filename", os.path.basename(file_path)),
-                }
-                
-                # Add language if available in metadata, as it's in the ES mapping
-                languages = metadata.get("languages")
-                if languages:
-                    doc["language"] = languages[0]
-                
-                result.append(doc)
-            
-            processing_time = time.time() - start_time
-            file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
-            size_mb = file_size / (1024 * 1024)
-            
-            logger.info(f"Completed processing file: {file_path} in {processing_time:.2f}s, " 
-                       f"elements: {len(elements)}, size: {size_mb:.2f}MB, " 
-                       f"speed: {size_mb/processing_time:.2f}MB/s",
-                       extra={'task_id': task_id, 'stage': 'COMPLETED', 'source': 'local'})
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error processing file {file_path}: {str(e)}", 
-                        extra={'task_id': task_id, 'stage': 'ERROR', 'source': 'local'})
-            raise  # Re-raise the exception to be handled by the caller
+        Returns:
+            Processor information dictionary containing:
+            - processor_type: Processor type ("excel" or "generic")
+            - file_extension: File extension
+            - is_supported: Whether it's supported
+        """
+        _, ext = os.path.splitext(filename.lower()) if filename else ("", "")
+        
+        processor_type = "excel" if ext in self.EXCEL_EXTENSIONS else "generic"
+        is_supported = self.validate_file_type(filename)
+        
+        return {
+            "processor_type": processor_type,
+            "file_extension": ext,
+            "is_supported": is_supported
+        }
