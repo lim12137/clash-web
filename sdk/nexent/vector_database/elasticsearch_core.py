@@ -398,7 +398,7 @@ class ElasticSearchCore:
             processed_docs = self._preprocess_documents(documents, content_field)
             
             # Get embeddings
-            inputs = [{"text": doc[content_field]} for doc in processed_docs]
+            inputs = [doc[content_field] for doc in processed_docs]
             embeddings = self.embedding_model.get_embeddings(inputs)
 
             # Prepare bulk operations
@@ -451,7 +451,7 @@ class ElasticSearchCore:
                     embedding_sub_batch = es_batch[j:j + embedding_batch_size]
                     
                     try:
-                        inputs = [{"text": doc[content_field]} for doc in embedding_sub_batch]
+                        inputs = [doc[content_field] for doc in embedding_sub_batch]
                         embeddings = self.embedding_model.get_embeddings(inputs)
                         
                         for doc, embedding in zip(embedding_sub_batch, embeddings):
@@ -644,7 +644,7 @@ class ElasticSearchCore:
         index_pattern = ",".join(index_names)
 
         # Get query embedding
-        query_embedding = self.embedding_model.get_embeddings([{"text": query_text}])[0]
+        query_embedding = self.embedding_model.get_embeddings(query_text)
         
         # Prepare the search query
         search_query = {

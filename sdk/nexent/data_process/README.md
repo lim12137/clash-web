@@ -1,176 +1,237 @@
-# 数据清洗模块
+# DataProcessCore 使用指南
 
-这是一个基于Unstructured IO功能构建的数据清洗模块。该模块允许您处理和清洗各种类型的文档，包括PDF、docx、HTML、电子邮件等，提取干净的文本和元数据。
+## 概述
 
-## 功能特点
+`DataProcessCore` 是一个统一的文件处理核心类，支持多种文件格式的自动检测和处理，提供灵活的分块策略和多种输入源支持。
 
-- 处理文件、URL和原始文本内容
-- 支持多源的批量处理
-- 维护任务队列以实现并行处理
-- 多线程并行清洗能力
-- 任务状态跟踪和检索
-- 任务信息持久化
-- 标准化日志格式和状态管理
+## 主要功能
 
-## 核心组件
+### 1. 核心处理方法：`file_process()`
 
-### 1. DataProcessCore
-核心组件，负责协调整个数据清洗流程：
-- 管理任务创建和批量处理
-- 维护任务状态
-- 提供任务查询接口
-
-### 2. AsyncTaskManager
-异步任务管理器，负责：
-- 创建和管理异步任务
-- 处理任务状态更新
-- 定期清理已完成任务
-
-### 3. ProcessWorkerPool
-工作池组件，负责：
-- 多线程并行处理任务
-- 数据清洗和转换
-- 结果转发
-
-### 4. TaskStore
-任务存储组件，负责：
-- 存储任务信息和状态
-- 按索引和状态组织任务
-- 提供任务查询接口
-
-### 5. ExcelProcessor
-Excel处理组件，负责：
-- 处理Excel文件
-- 提取表格内容
-- 转换为结构化数据
-
-## 支持的文档格式
-
-| 文档类型 | 表格支持 | 策略选项 | 其他选项 |
-|---------|---------|---------|---------|
-| CSV文件 (.csv) | 是 | 无 | 无 |
-| 电子邮件 (.eml) | 否 | 无 | 编码; 包含头信息; 最大分区; 处理附件 |
-| 电子邮件 (.msg) | 否 | 无 | 编码; 最大分区; 处理附件 |
-| 电子书 (.epub) | 是 | 无 | 包含分页符 |
-| Excel文档 (.xlsx/.xls) | 是 | 无 | 无 |
-| HTML页面 (.html/.htm) | 否 | 无 | 编码; 包含分页符 |
-| 图像 (.png/.jpg/.jpeg/.tiff/.bmp/.heic) | 是 | "auto", "hi_res", "ocr_only" | 编码; 包含分页符; 推断表格结构; OCR语言, 策略 |
-| Markdown (.md) | 是 | 无 | 包含分页符 |
-| Org Mode (.org) | 是 | 无 | 包含分页符 |
-| OpenOffice文档 (.odt) | 是 | 无 | 无 |
-| PDF文档 (.pdf) | 是 | "auto", "fast", "hi_res", "ocr_only" | 编码; 包含分页符; 推断表格结构; 最大分区; OCR语言, 策略 |
-| 纯文本 (.txt/.text/.log) | 否 | 无 | 编码; 最大分区; 段落分组 |
-| PowerPoint (.ppt) | 是 | 无 | 包含分页符 |
-| PowerPoint (.pptx) | 是 | 无 | 包含分页符 |
-| ReStructured Text (.rst) | 是 | 无 | 包含分页符 |
-| 富文本 (.rtf) | 是 | 无 | 包含分页符 |
-| TSV文件 (.tsv) | 是 | 无 | 无 |
-| Word文档 (.doc) | 是 | 无 | 包含分页符 |
-| Word文档 (.docx) | 是 | 无 | 包含分页符 |
-| XML文档 (.xml) | 否 | 无 | 编码; 最大分区; XML保留标签 |
-| 代码文件 (.js/.py/.java/.cpp/.cc/.cxx/.c/.cs/.php/.rb/.swift/.ts/.go) | 否 | 无 | 编码; 最大分区; 段落分组 |
-
-## 安装
-
-```bash
-# 安装依赖
-pip install -r requirements.txt
-
-# 或单独安装包
-pip install unstructured fastapi uvicorn pydantic httpx python-dotenv
+**函数签名：**
+```python
+def file_process(self, 
+                file_path_or_url: Optional[str] = None, 
+                file_data: Optional[bytes] = None, 
+                chunking_strategy: str = "basic", 
+                destination: str = "local", 
+                filename: Optional[str] = None, 
+                **params) -> List[Dict]
 ```
 
-## 使用方法
+**参数说明：**
 
-### 程序化使用
+| 参数名 | 类型 | 必需 | 描述 | 可选值 |
+|--------|------|------|------|--------|
+| `file_path_or_url` | `str` | 否* | 本地文件路径或远程URL | 任何有效的文件路径或URL |
+| `file_data` | `bytes` | 否* | 文件的字节数据（用于内存处理） | 任何有效的字节数据 |
+| `chunking_strategy` | `str` | 否 | 分块策略 | `"basic"`, `"by_title"`, `"none"` |
+| `destination` | `str` | 否 | 目标类型，指示文件来源 | `"local"`, `"minio"`, `"url"` |
+| `filename` | `str` | 否** | 文件名 | 任何有效的文件名 |
+| `**params` | `dict` | 否 | 额外的处理参数 | 见下方参数详情 |
 
+*注：`file_path_or_url` 和 `file_data` 必须提供其中一个
+**注：使用 `file_data` 时，`filename` 为必需参数
+
+**分块策略 (`chunking_strategy`) 详解：**
+
+| 策略值 | 描述 | 适用场景 | 输出特点 |
+|--------|------|----------|----------|
+| `"basic"` | 基础分块策略 | 大多数文档处理场景 | 根据内容长度自动分块 |
+| `"by_title"` | 按标题分块 | 结构化文档（如技术文档、报告） | 以标题为界限进行分块 |
+| `"none"` | 不分块 | 短文档或需要完整内容的场景 | 返回单个包含全部内容的块 |
+
+**目标类型 (`destination`) 详解：**
+
+| 目标值 | 描述 | 使用场景 | 要求 |
+|--------|------|----------|------|
+| `"local"` | 本地文件 | 处理本地存储的文件 | 提供有效的本地文件路径 |
+| `"minio"` | MinIO存储 | 处理云存储中的文件 | 需要数据库依赖 |
+| `"url"` | 远程URL | 处理网络资源 | 需要数据库依赖 |
+
+**额外参数 (`**params`) 详解：**
+
+| 参数名 | 类型 | 默认值 | 描述 | 适用处理器 |
+|--------|------|--------|------|-----------|
+| `max_characters` | `int` | `1500` | 每个块的最大字符数 | Generic |
+| `new_after_n_chars` | `int` | `1200` | 达到此字符数后开始新块 | Generic |
+| `strategy` | `str` | `"fast"` | 处理策略 | Generic |
+| `skip_infer_table_types` | `list` | `[]` | 跳过推断的表格类型 | Generic |
+| `task_id` | `str` | `""` | 任务标识符 | Generic |
+
+**返回值格式：**
+
+返回 `List[Dict]`，每个字典包含以下字段：
+
+**通用字段：**
+| 字段名 | 类型 | 描述 | 示例 |
+|--------|------|------|------|
+| `content` | `str` | 文本内容 | `"这是文档的第一段..."` |
+| `path_or_url` | `str` | 文件路径或URL | `"/path/to/file.pdf"` |
+| `filename` | `str` | 文件名 | `"document.pdf"` |
+
+**Excel文件额外字段：**
+| 字段名 | 类型 | 描述 | 示例 |
+|--------|------|------|------|
+| `metadata` | `dict` | 元数据信息 | `{"chunk_index": 0, "file_type": "xlsx"}` |
+
+**Generic文件额外字段：**
+| 字段名 | 类型 | 描述 | 示例 |
+|--------|------|------|------|
+| `language` | `str` | 语言标识（可选） | `"en"` |
+| `metadata` | `dict` | 元数据信息（可选） | `{"chunk_index": 0}` |
+
+## 支持的文件类型
+
+### Excel文件
+- `.xlsx` - Excel 2007及更高版本
+- `.xls` - Excel 97-2003版本
+
+### 通用文件
+- `.txt` - 纯文本文件
+- `.pdf` - PDF文档
+- `.docx` - Word 2007及更高版本
+- `.doc` - Word 97-2003版本
+- `.html`, `.htm` - HTML文档
+- `.md` - Markdown文件
+- `.rtf` - 富文本格式
+- `.odt` - OpenDocument文本
+- `.pptx` - PowerPoint 2007及更高版本
+- `.ppt` - PowerPoint 97-2003版本
+
+## 使用示例
+
+### 示例1：处理本地文本文件
 ```python
-from nexent.data_process.core import DataProceeCore
+from nexent.data_process import DataProcessCore
 
-# 初始化核心组件
-core = DataProceeCore(num_workers=3)
+core = DataProcessCore()
 
-# 启动核心组件
-await core.start()
-
-# 创建单个任务
-task_id = await core.create_task(
-    source="path/to/file.pdf",
-    source_type="file",
+# 基础处理
+result = core.file_process(
+    file_path_or_url="/path/to/document.txt",
+    destination="local",
     chunking_strategy="basic"
 )
 
-# 创建批量任务
-sources = [
-    {"source": "path/to/doc1.pdf", "source_type": "file"},
-    {"source": "path/to/doc2.docx", "source_type": "file"}
-]
-task_ids = await core.create_batch_tasks(sources)
-
-# 获取任务状态
-task = core.get_task(task_id)
-print(f"任务状态: {task['status']}")
-
-# 获取所有任务
-all_tasks = core.get_all_tasks()
-
-# 获取特定索引的任务
-index_tasks = core.get_index_tasks("my_index")
-
-# 完成后停止服务
-await core.stop()
+print(f"处理得到 {len(result)} 个块")
+for i, chunk in enumerate(result):
+    print(f"块 {i}: {chunk['content'][:100]}...")
 ```
 
-## 任务状态
+### 示例2：处理Excel文件
+```python
+# 处理Excel文件
+result = core.file_process(
+    file_path_or_url="/path/to/spreadsheet.xlsx",
+    destination="local",
+    chunking_strategy="none"  # Excel通常不需要分块
+)
 
-数据清洗任务的完整工作流包括以下状态:
-
-- `WAITING`: 任务已创建但尚未处理
-- `PROCESSING`: 任务正在进行数据清洗
-- `FORWARDING`: 数据清洗完成，正在将结果转发
-- `COMPLETED`: 任务已完成
-- `FAILED`: 任务失败，检查error字段了解失败原因
-
-## 日志系统
-
-模块使用自定义的日志格式化输出：
-
-```
-LEVEL    - SOURCE  - TASK ID                         - STAGE      - MESSAGE
+for chunk in result:
+    print(f"文件: {chunk['filename']}")
+    print(f"内容: {chunk['content']}")
+    print(f"元数据: {chunk['metadata']}")
 ```
 
-例如:
-```
-INFO    - core    - TASK f47ac10b-58cc-4372-a567-0e02b2c3d479 - PROCESSING - Processing source: example.pdf (file)
+### 示例3：处理内存中的文件
+```python
+# 读取文件到内存
+with open("/path/to/document.pdf", "rb") as f:
+    file_bytes = f.read()
+
+# 处理内存中的文件
+result = core.file_process(
+    file_data=file_bytes,
+    filename="document.pdf",
+    chunking_strategy="by_title",
+    max_characters=2000  # 自定义参数
+)
 ```
 
-## unstructured依赖安装
-``` shell
-pip install "unstructured[all-docs]"
+### 示例4：处理远程文件（需要数据库依赖）
+```python
+# 处理MinIO中的文件
+result = core.file_process(
+    file_path_or_url="minio://bucket/path/to/file.docx",
+    destination="minio",
+    filename="file.docx",
+    chunking_strategy="basic"
+)
 ```
-安装完成之后，还需要安装以下系统依赖libmagic, poppler, libreoffice, pandoc, tesseract.
-### poppler安装
-```shell
-conda install -c conda-forge poppler
-pip install pdftotext
-```
-### tesseract windows安装
-1. 下载并安装tesseract-ocr-*.exe
-```
-https://tesseract-ocr.github.io/tessdoc/Installation.html
-```
-2. 配置系统环境变量
-```
-C:\Program Files\Tesseract-OCR
-```
-3. 新建系统变量
 
-变量名：
+## 辅助方法
+
+### 1. 获取支持的文件类型
+```python
+core = DataProcessCore()
+supported_types = core.get_supported_file_types()
+print("Excel文件:", supported_types["excel"])
+print("通用文件:", supported_types["generic"])
 ```
-TESSDATA_PREFIX
+
+### 2. 验证文件类型
+```python
+is_supported = core.validate_file_type("document.pdf")
+print(f"PDF文件是否支持: {is_supported}")
 ```
-变量值：
+
+### 3. 获取处理器信息
+```python
+info = core.get_processor_info("spreadsheet.xlsx")
+print(f"处理器类型: {info['processor_type']}")
+print(f"文件扩展名: {info['file_extension']}")
+print(f"是否支持: {info['is_supported']}")
 ```
-C:\Program Files\Tesseract-OCR\tessdata
+
+### 4. 获取支持的策略和目标类型
+```python
+strategies = core.get_supported_strategies()
+destinations = core.get_supported_destinations()
+print(f"支持的分块策略: {strategies}")
+print(f"支持的目标类型: {destinations}")
 ```
-4. 重启电脑
+
+## 错误处理
+
+### 常见异常
+
+| 异常类型 | 触发条件 | 解决方案 |
+|----------|----------|----------|
+| `ValueError` | 参数无效（如同时提供file_path_or_url和file_data） | 检查参数组合 |
+| `FileNotFoundError` | 本地文件不存在或远程文件无法获取 | 验证文件路径 |
+| `ImportError` | 处理远程文件时缺少数据库依赖 | 安装相关依赖 |
+
+### 错误处理示例
+```python
+try:
+    result = core.file_process(
+        file_path_or_url="/nonexistent/file.txt",
+        destination="local"
+    )
+except FileNotFoundError as e:
+    print(f"文件未找到: {e}")
+except ValueError as e:
+    print(f"参数错误: {e}")
+except Exception as e:
+    print(f"处理失败: {e}")
+```
+
+## 性能优化建议
+
+1. **选择合适的分块策略**：
+   - 小文件使用 `"none"`
+   - 大文件使用 `"basic"`
+   - 结构化文档使用 `"by_title"`
+
+2. **调整分块参数**：
+   - 根据下游处理需求调整 `max_characters`
+   - 平衡处理速度和内存使用
+
+3. **文件类型优化**：
+   - Excel文件通常不需要分块
+   - PDF文件建议使用较大的 `max_characters`
+
+4. **批量处理**：
+   - 复用 `DataProcessCore` 实例
+   - 避免重复初始化
