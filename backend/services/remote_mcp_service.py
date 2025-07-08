@@ -141,13 +141,37 @@ async def delete_remote_mcp_server_list(tenant_id: str, user_id: str, remote_mcp
         content={"message": "Successfully added remote MCP proxy", "status": "success"}
     )
 
+async def get_all_mount_mcp_service():
+    try:
+        async with httpx.AsyncClient() as client:
+            nexent_mcp_server = config_manager.get_config("NEXENT_MCP_SERVER")
+            url = f"{nexent_mcp_server}/list-remote-proxies"
+            response = await client.get(
+                url,
+                timeout=10.0
+            )
+
+            if response.status_code == 200:
+                logger.info("Successfully get all mount MCP proxy")
+                mount_info = response.json()
+                return mount_info.get("proxies", {}).keys()
+            else:
+                logger.error(f"list-remote-proxies error: {response.status_code} - {response.text}")
+                return []
+    except Exception as e:
+        logger.info(f"Failed get all mount MCP proxy: {e}")
+        return []
+
 async def get_remote_mcp_server_list(tenant_id: str):
     mcp_records = get_mcp_records_by_tenant(tenant_id=tenant_id)
     mcp_records_list = []
+
+    mount_mcp_server = await get_all_mount_mcp_service()
     for record in mcp_records:
         mcp_records_list.append({
             "remote_mcp_server_name": record["mcp_name"],
-            "remote_mcp_server": record["mcp_server"]
+            "remote_mcp_server": record["mcp_server"],
+            "status": True if record["mcp_name"] in mount_mcp_server else False
         })
     return mcp_records_list
 
