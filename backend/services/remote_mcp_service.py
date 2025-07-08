@@ -80,7 +80,9 @@ async def add_remote_mcp_server_list(tenant_id: str,
                                       remote_mcp_server_name=remote_mcp_server_name)
 
     if response.status_code != 200:
-        return response
+        if remote_mcp_server_name not in get_all_mount_mcp_service():
+            # check out mount status
+            return response
 
     # update the PG database record
     insert_mcp_data = {"mcp_name": remote_mcp_server_name,
