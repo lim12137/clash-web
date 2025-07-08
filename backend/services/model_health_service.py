@@ -1,6 +1,5 @@
 import logging
 import httpx
-import requests
 from typing import Optional
 from fastapi import Header
 from nexent.core import MessageObserver
@@ -22,15 +21,15 @@ async def _perform_connectivity_check(
     embedding_dim: int = 1024
 ) -> bool:
     """
-    执行具体的模型连通性检查
+    Perform specific model connectivity check
     Args:
-        model_name: 模型名称
-        model_type: 模型类型
-        model_base_url: 模型基础URL
-        model_api_key: API密钥
-        embedding_dim: 嵌入维度（仅用于嵌入模型）
+        model_name: Model name
+        model_type: Model type
+        model_base_url: Model base URL
+        model_api_key: API key
+        embedding_dim: Embedding dimension (only for embedding models)
     Returns:
-        bool: 连通性检查结果
+        bool: Connectivity check result
     """
     connectivity: bool
     
@@ -77,14 +76,14 @@ async def _perform_connectivity_check(
 
 async def check_model_connectivity(display_name: str, authorization: Optional[str] = Header(None)):
     try:
-        # 用 display_name 查库
+        # Query the database using display_name
         user_id, tenant_id = get_current_user_id(authorization)
         model = get_model_by_display_name(display_name, tenant_id=tenant_id)
         if not model:
             return ModelResponse(code=404, message=f"Model configuration not found for {display_name}",
-                data={"connectivity": False, "connect_status": "未找到"})
+                data={"connectivity": False, "connect_status": "Not Found"})
             
-        # 仍然用 repo/name 拼接用于模型实例化
+        # Still use repo/name concatenation for model instantiation
         repo, name = model.get("model_repo", ""), model.get("model_name", "")
         model_name = f"{repo}/{name}" if repo else name
         log_str = f"Checking model connectivity: {model_name}; "
@@ -103,7 +102,7 @@ async def check_model_connectivity(display_name: str, authorization: Optional[st
         model_api_key = model["api_key"]
         
         try:
-            # 使用公共的连通性检查函数
+            # Use the common connectivity check function
             connectivity = await _perform_connectivity_check(
                 model_name, model_type, model_base_url, model_api_key
             )
@@ -185,11 +184,11 @@ async def check_me_model_connectivity(model_name: str):
 
 async def verify_model_config_connectivity(model_config: dict):
     """
-    验证模型配置的连通性，不保存到数据库
+    Verify the connectivity of the model configuration, do not save to the database
     Args:
-        model_config: 模型配置字典，包含必要的连接参数
+        model_config: Model configuration dictionary, containing necessary connection parameters
     Returns:
-        ModelResponse: 包含连通性测试结果
+        ModelResponse: Contains the result of the connectivity test
     """
     try:
         model_name = model_config.get("model_name", "")
@@ -206,7 +205,7 @@ async def verify_model_config_connectivity(model_config: dict):
         logging.info(log_str)
         
         try:
-            # 使用公共的连通性检查函数
+            # Use the common connectivity check function
             connectivity = await _perform_connectivity_check(
                 model_name, model_type, model_base_url, model_api_key, embedding_dim
             )

@@ -1,7 +1,7 @@
 from typing import Dict, List, Any, Optional
 
 from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter, Header
-from consts.model import IndexingResponse, SearchRequest, HybridSearchRequest, ChangeSummaryRequest
+from consts.model import IndexingResponse, SearchRequest, HybridSearchRequest
 
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core

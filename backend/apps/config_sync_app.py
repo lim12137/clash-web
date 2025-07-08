@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 
 from consts.model import GlobalConfig
-from utils.config_utils import config_manager, get_env_key, safe_value, safe_list, tenant_config_manager, \
+from utils.config_utils import config_manager, get_env_key, safe_value, tenant_config_manager, \
     get_model_name_from_config
 from utils.auth_utils import get_current_user_id, get_current_user_info
 from database.model_management_db import get_model_id_by_display_name

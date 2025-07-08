@@ -51,7 +51,7 @@ async def update_tool_info_api(request: ToolInstanceInfoRequest, authorization: 
 async def scan_and_update_tool(
     authorization: Optional[str] = Header(None)
 ):
-    """ 用于更新工具列表及状态 """
+    """ Used to update the tool list and status """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
         await update_tool_list(tenant_id=tenant_id,
