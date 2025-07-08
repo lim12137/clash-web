@@ -40,8 +40,12 @@ def configure_elasticsearch_logging():
     # Configure logging for elasticsearch.trace
     # This logger logs the body of requests and responses which can be very verbose
     logging.getLogger('elasticsearch.trace').setLevel(logging.WARNING)
+    logging.getLogger('elastic_transport.transport').setLevel(logging.WARNING)
     
     # Configure logging for FastAPI/uvicorn access logs
-    logging.getLogger('uvicorn.access').setLevel(logging.INFO)
-    logging.getLogger('fastapi').setLevel(logging.INFO) 
+    logging.getLogger('uvicorn.access').setLevel(logging.WARNING)
+    logging.getLogger('fastapi').setLevel(logging.WARNING) 
+    
+    # Disable httpx INFO logs
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     
