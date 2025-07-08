@@ -1,4 +1,5 @@
 import json
+import logging
 import smtplib
 import ssl
 from email.mime.multipart import MIMEMultipart
@@ -7,7 +8,7 @@ from typing import Optional
 from pydantic import Field
 from smolagents.tools import Tool
 
-
+logger = logging.getLogger("send_email_tool")
 class SendEmailTool(Tool):
     name = "send_email"
     description = "Send email to specified recipients. Supports only HTML formatted email content, and can add multiple recipients, CC, and BCC."
@@ -23,9 +24,9 @@ class SendEmailTool(Tool):
     output_type = "string"
 
     def __init__(self, smtp_server: str=Field(description="SMTP Server Address"),
-                 smtp_port: int=Field(description="SMTP Server Port"), 
-                 username: str=Field(description="SMTP Server Username"), 
-                 password: str=Field(description="SMTP Server Password"), 
+                 smtp_port: int=Field(description="SMTP server port"), 
+                 username: str=Field(description="SMTP server username"), 
+                 password: str=Field(description="SMTP server password"), 
                  use_ssl: bool=Field(description="Use SSL", default=True),
                  sender_name: Optional[str] = Field(description="Sender name", default=None),
                  timeout: int = Field(description="Timeout", default=30)):
@@ -40,7 +41,7 @@ class SendEmailTool(Tool):
 
     def forward(self, to: str, subject: str, content: str, cc: str = "", bcc: str = "") -> str:
         try:
-            print("Creating email message...")
+            logger.info("Creating email message...")
             # Create email object
             msg = MIMEMultipart()
             msg['From'] = f"{self.sender_name} <{self.username}>" if self.sender_name else self.username
@@ -55,7 +56,7 @@ class SendEmailTool(Tool):
             # Add email content
             msg.attach(MIMEText(content, 'html'))
 
-            print(f"Connecting to SMTP server {self.smtp_server}:{self.smtp_port}...")
+            logger.info(f"Connecting to SMTP server {self.smtp_server}:{self.smtp_port}...")
 
             # Create SSL context
             context = ssl.create_default_context()
@@ -63,10 +64,10 @@ class SendEmailTool(Tool):
             context.verify_mode = ssl.CERT_REQUIRED
 
             # Connect to SMTP server using SSL
-            print("Using SSL connection...")
+            logger.info("Using SSL connection...")
             server = smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context, timeout=self.timeout)
 
-            print("Logging in...")
+            logger.info("Logging in...")
             # Login
             server.login(self.username, self.password)
 
@@ -77,19 +78,18 @@ class SendEmailTool(Tool):
             if bcc:
                 recipients.extend(bcc.split(','))
 
-            print("Sending email...")
+            logger.info("Sending email...")
             server.send_message(msg)
-            print("Email sent successfully!")
-
+            logger.info("Email sent successfully!")
             server.quit()
 
             return json.dumps({"status": "success", "message": "Email sent successfully", "to": to, "subject": subject},
                 ensure_ascii=False)
 
         except smtplib.SMTPException as e:
-            print(f"SMTP Error: {str(e)}")
+            logger.error(f"SMTP Error: {str(e)}")
             return json.dumps({"status": "error", "message": f"Failed to send email: {str(e)}"}, ensure_ascii=False)
         except Exception as e:
-            print(f"Unexpected Error: {str(e)}")
+            logger.error(f"Unexpected Error: {str(e)}")
             return json.dumps({"status": "error", "message": f"An unexpected error occurred: {str(e)}"},
                 ensure_ascii=False)

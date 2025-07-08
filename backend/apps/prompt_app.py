@@ -12,8 +12,7 @@ from utils.auth_utils import get_current_user_info
 router = APIRouter(prefix="/prompt")
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("prompt app")
+logger = logging.getLogger("prompt_app")
 
 
 @router.post("/generate")

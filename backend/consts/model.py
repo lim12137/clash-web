@@ -224,6 +224,12 @@ class GeneratePromptRequest(BaseModel):
     task_description: str
     agent_id: int
 
+
+class GenerateTitleRequest(BaseModel):
+    conversation_id: int
+    history: List[Dict[str, str]]
+
+
 # used in prompt/finetune request
 class FineTunePromptRequest(BaseModel):
     agent_id: int

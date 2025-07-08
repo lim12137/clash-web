@@ -8,8 +8,7 @@ from fastapi.responses import JSONResponse
 
 from utils.auth_utils import get_current_user_id
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("tenant config app")
+logger = logging.getLogger("tenant_config_app")
 router = APIRouter(prefix="/tenant_config")
 
 ELASTICSEARCH_SERVICE = os.environ.get("ELASTICSEARCH_SERVICE")

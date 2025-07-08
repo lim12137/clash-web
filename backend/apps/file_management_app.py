@@ -19,6 +19,7 @@ from utils.attachment_utils import convert_image_to_text, convert_long_text_to_t
 from database.attachment_db import (
     upload_fileobj, delete_file, get_file_url, list_files
 )
+
 logger = logging.getLogger("file_management_app")
 
 # Create upload directory
@@ -47,7 +48,7 @@ async def upload_files(
         chunking_strategy: Optional[str] = Form(None),
         index_name: str = Form(...)
 ):
-    print(f"Received upload request with {len(file)} files")
+    logger.info(f"Received upload request with {len(file)} files")
 
     if not file:
         raise HTTPException(status_code=400, detail="No files in the request")
@@ -75,13 +76,13 @@ async def upload_files(
             if await save_upload_file(f, upload_path):
                 uploaded_filenames.append(safe_filename)
                 uploaded_file_paths.append(str(absolute_path))
-                print(f"Successfully saved file: {safe_filename}")
+                logger.info(f"Successfully saved file: {safe_filename}")
             else:
                 errors.append(f"Failed to save file: {f.filename}")
 
     # Trigger data processing
     if uploaded_file_paths:
-        print(f"Triggering data process for {len(uploaded_file_paths)} files")
+        logger.info(f"Triggering data process for {len(uploaded_file_paths)} files")
         process_result = await trigger_data_process(uploaded_file_paths, process_params)
 
         # If data processing service fails, the entire upload fails
@@ -95,7 +96,7 @@ async def upload_files(
                 try:
                     os.remove(path)
                 except Exception as e:
-                    print(f"Failed to remove file {path}: {str(e)}")
+                    logger.error(f"Failed to remove file {path}: {str(e)}")
 
             return JSONResponse(
                 status_code=500,
@@ -115,7 +116,7 @@ async def upload_files(
             }
         )
     else:
-        print(f"Errors: {errors}")
+        logger.error(f"Errors: {errors}")
         return JSONResponse(
             status_code=400,
             content={

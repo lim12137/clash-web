@@ -95,7 +95,7 @@ class MinioClient:
         except ClientError:
             # Bucket doesn't exist, create it
             self.client.create_bucket(Bucket=bucket_name)
-            print(f"Created bucket: {bucket_name}")
+            logger.info(f"Created bucket: {bucket_name}")
 
     def upload_file(self, file_path: str, object_name: Optional[str] = None, bucket: Optional[str] = None) -> Tuple[
         bool, str]:
@@ -200,7 +200,7 @@ class MinioClient:
                     files.append({'key': obj['Key'], 'size': obj['Size'], 'last_modified': obj['LastModified']})
             return files
         except Exception as e:
-            print(f"Error listing files: {str(e)}")
+            logger.error(f"Error listing files: {str(e)}")
             return []
 
     def delete_file(self, object_name: str, bucket: Optional[str] = None) -> Tuple[bool, str]:
@@ -240,7 +240,7 @@ class MinioClient:
             return False, str(e)
 
 
-# Create a global database and MinIO client instance
+# Create global database and MinIO client instances
 db_client = PostgresClient()
 minio_client = MinioClient()
 

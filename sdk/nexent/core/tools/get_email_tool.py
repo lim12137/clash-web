@@ -1,4 +1,5 @@
 import email
+import logging
 import imaplib
 import json
 from datetime import datetime, timedelta
@@ -8,6 +9,7 @@ from typing import List
 from smolagents.tools import Tool
 from pydantic import Field
 
+logger = logging.getLogger("get_email_tool")
 
 class GetEmailTool(Tool):
     name = "get_email"
@@ -120,7 +122,7 @@ class GetEmailTool(Tool):
 
             # Execute search
             search_query = ' '.join(search_criteria)
-            print(f"Searching emails with criteria: {search_query}")
+            logger.info(f"Searching emails with criteria: {search_query}")
             _, message_numbers = mail.search(None, search_query)
 
             # Fetch emails
@@ -144,9 +146,9 @@ class GetEmailTool(Tool):
             return formatted_emails
 
         except imaplib.IMAP4.error as e:
-            print(f"IMAP Error: {str(e)}")
+            logger.error(f"IMAP Error: {str(e)}")
             return [json.dumps({"error": f"Failed to retrieve emails: {str(e)}"}, ensure_ascii=False)]
         except Exception as e:
-            print(f"Unexpected Error: {str(e)}")
+            logger.error(f"Unexpected Error: {str(e)}")
             return [json.dumps({"error": f"An unexpected error occurred: {str(e)}"}, ensure_ascii=False)]
         

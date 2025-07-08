@@ -1,4 +1,5 @@
 from typing import Dict, List, Any, Optional
+import logging
 
 from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter, Header
 from consts.model import IndexingResponse, SearchRequest, HybridSearchRequest
@@ -11,6 +12,8 @@ from services.tenant_config_service import delete_selected_knowledge_by_index_na
 
 router = APIRouter(prefix="/indices")
 service = ElasticSearchService()
+
+logger = logging.getLogger("elasticsearch_app")
 
 @router.post("/{index_name}")
 def create_new_index(
@@ -115,7 +118,7 @@ def create_index_documents(
         return ElasticSearchService.index_documents(index_name, data, es_core)
     except Exception as e:
         error_msg = str(e)
-        print(f"Error indexing documents: {error_msg}")
+        logger.error(f"Error indexing documents: {error_msg}")
         raise HTTPException(status_code=500, detail=f"Error indexing documents: {error_msg}")
 
 
@@ -135,7 +138,7 @@ async def get_index_files(
         }
     except Exception as e:
         error_msg = str(e)
-        print(f"Error indexing documents: {error_msg}")
+        logger.error(f"Error indexing documents: {error_msg}")
         raise HTTPException(status_code=500, detail=f"Error indexing documents: {error_msg}")
 
 

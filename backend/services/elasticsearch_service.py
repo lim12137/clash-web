@@ -79,8 +79,8 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
         yield "END"
 
     except Exception as e:
-        print(f"发生错误: {str(e)}")
-        yield f"错误: {str(e)}"
+        logger.error(f"Error occurred: {str(e)}")
+        yield f"Error: {str(e)}"
         
 
 # Initialize ElasticSearchCore instance with HTTPS support
@@ -166,7 +166,7 @@ class ElasticSearchService:
             Dict[str, Any]: A dictionary containing the list of indices and the count.
         """
         all_indices_list = es_core.get_user_indices(pattern)
-        print(f"all_indices_list: {all_indices_list}")
+        logger.info(f"all_indices_list: {all_indices_list}")
 
         filtered_indices_list = []
         if tenant_id:
@@ -179,7 +179,7 @@ class ElasticSearchService:
             filtered_indices_list = all_indices_list
 
         indices = [info.get("index") if isinstance(info, dict) else info for info in filtered_indices_list]
-        print(f"indices: {indices}")
+        logger.info(f"indices: {indices}")
 
         response = {
             "indices": indices,
@@ -190,7 +190,7 @@ class ElasticSearchService:
             stats_info = []
             if filtered_indices_list:
                 indice_stats = es_core.get_index_stats(filtered_indices_list)
-                print(f"indice_stats: {indice_stats}")
+                logger.info(f"indice_stats: {indice_stats}")
                 for index_name in filtered_indices_list:
                     index_stats = indice_stats.get(index_name, {})
                     stats_info.append({
@@ -226,15 +226,14 @@ class ElasticSearchService:
             if stats and index_name in stats:
                 index_stats = stats[index_name]
             else:
-                print(f"404: Index {index_name} not found in stats")
+                logger.error(f"404: Index {index_name} not found in stats")
                 index_stats = {}
 
             fields = None
             if mappings and index_name in mappings:
                 fields = mappings[index_name]
             else:
-                print(f"mappings: {mappings}")
-                print(f"404: Index {index_name} not found in mappings")
+                logger.error(f"404: Index {index_name} not found in mappings:")
                 fields = []
 
             # Check if base_info exists in stats
@@ -244,7 +243,7 @@ class ElasticSearchService:
                 base_info = index_stats["base_info"]
                 search_performance = index_stats.get("search_performance", {})
             else:
-                print(f"404: Index {index_name} may not be created yet")
+                logger.error(f"404: Index {index_name} may not be created yet")
                 base_info = {
                     "doc_count": 0,
                     "unique_sources_count": 0,
@@ -293,7 +292,7 @@ class ElasticSearchService:
             if not es_core.client.indices.exists(index=index_name):
                 try:
                     ElasticSearchService.create_index(index_name, es_core=es_core)
-                    print(f"Created new index {index_name}")
+                    logger.info(f"Created new index {index_name}")
                 except Exception as create_error:
                     raise HTTPException(status_code=500, detail=f"Failed to create index {index_name}: {str(create_error)}")
 
@@ -303,7 +302,7 @@ class ElasticSearchService:
             for idx, item in enumerate(data):
                 # All items should be dictionaries
                 if not isinstance(item, dict):
-                    print(f"Skipping item {idx} - not a dictionary")
+                    logger.warning(f"Skipping item {idx} - not a dictionary")
                     continue
 
                 # Extract metadata
@@ -370,12 +369,12 @@ class ElasticSearchService:
                 }
             except Exception as e:
                 error_msg = str(e)
-                print(f"Error during indexing: {error_msg}")
+                logger.error(f"Error during indexing: {error_msg}")
                 raise HTTPException(status_code=500, detail=f"Error during indexing: {error_msg}")
 
         except Exception as e:
             error_msg = str(e)
-            print(f"Error indexing documents: {error_msg}")
+            logger.error(f"Error indexing documents: {error_msg}")
             raise HTTPException(status_code=500, detail=f"Error indexing documents: {error_msg}")
 
     @staticmethod
@@ -477,7 +476,7 @@ class ElasticSearchService:
                             file_data = completed_files_map[file_path]
 
                             if 'error' in response:
-                                print(f"Error getting chunks for {file_data.get('path_or_url')}: {response['error']}")
+                                logger.error(f"Error getting chunks for {file_data.get('path_or_url')}: {response['error']}")
                                 continue
 
                             chunks = []
@@ -494,7 +493,7 @@ class ElasticSearchService:
                             file_data['chunk_count'] = len(chunks)
 
                     except Exception as e:
-                        print(f"Error during msearch for chunks: {str(e)}")
+                        logger.error(f"Error during msearch for chunks: {str(e)}")
             else:
                 for file_data in files:
                     file_data['chunks'] = []
