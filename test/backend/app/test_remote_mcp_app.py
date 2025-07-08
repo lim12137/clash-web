@@ -80,8 +80,9 @@ class TestMCPServiceIntegration(unittest.TestCase):
             self.assertEqual(delete_result.status_code, 200)
             mock_delete_record.assert_called_once()
 
+    @patch('backend.services.remote_mcp_service.get_all_mount_mcp_service')
     @patch('backend.services.remote_mcp_service.get_mcp_records_by_tenant')
-    async def test_get_remote_mcp_server_list_integration(self, mock_get_records):
+    async def test_get_remote_mcp_server_list_integration(self, mock_get_records, mock_get_mount_services):
         """test get remote mcp server list integration"""
         # set test data
         mock_records = [
@@ -90,6 +91,8 @@ class TestMCPServiceIntegration(unittest.TestCase):
             {"mcp_name": "server3", "mcp_server": "http://server3.com"}
         ]
         mock_get_records.return_value = mock_records
+        # mock mount services - only server1 and server2 are online
+        mock_get_mount_services.return_value = ["server1", "server2"]
 
         # execute test
         result = await get_remote_mcp_server_list(tenant_id="test_tenant")
@@ -97,12 +100,20 @@ class TestMCPServiceIntegration(unittest.TestCase):
         # verify result
         self.assertEqual(len(result), 3)
         
-        # verify data format conversion
+        # verify data format conversion and status
         for i, record in enumerate(result):
             self.assertIn("remote_mcp_server_name", record)
             self.assertIn("remote_mcp_server", record)
+            self.assertIn("status", record)
             self.assertEqual(record["remote_mcp_server_name"], f"server{i+1}")
             self.assertEqual(record["remote_mcp_server"], f"http://server{i+1}.com")
+            
+            # verify status: server1 and server2 are online, server3 is offline
+            expected_status = i < 2  # server1 (i=0) and server2 (i=1) are online
+            self.assertEqual(record["status"], expected_status, f"server{i+1} status should be {expected_status}")
+        
+        mock_get_records.assert_called_once_with(tenant_id="test_tenant")
+        mock_get_mount_services.assert_called_once()
 
     @patch('backend.services.remote_mcp_service.add_remote_proxy')
     @patch('backend.services.remote_mcp_service.httpx.AsyncClient')
