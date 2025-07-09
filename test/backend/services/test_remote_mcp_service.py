@@ -250,36 +250,59 @@ class TestDeleteRemoteMcpServerList(unittest.TestCase):
 class TestGetRemoteMcpServerList(unittest.TestCase):
     """test get_remote_mcp_server_list function"""
 
+    @patch('backend.services.remote_mcp_service.get_all_mount_mcp_service')
     @patch('backend.services.remote_mcp_service.get_mcp_records_by_tenant')
-    async def test_get_remote_mcp_server_list_success(self, mock_get_records):
+    async def test_get_remote_mcp_server_list_success(self, mock_get_records, mock_get_mount_services):
         """test get remote mcp server list success"""
         # set mock
         mock_records = [
             {"mcp_name": "server1", "mcp_server": "http://server1.com"},
-            {"mcp_name": "server2", "mcp_server": "http://server2.com"}
+            {"mcp_name": "server2", "mcp_server": "http://server2.com"},
+            {"mcp_name": "server3", "mcp_server": "http://server3.com"}
         ]
         mock_get_records.return_value = mock_records
+        # mock mount services - only server1 and server3 are mounted (online)
+        mock_get_mount_services.return_value = ["server1", "server3"]
 
         # execute test
         result = await get_remote_mcp_server_list(tenant_id="tenant_1")
 
         # assert
-        self.assertEqual(len(result), 2)
+        self.assertEqual(len(result), 3)
+        
+        # verify server1 (online)
         self.assertEqual(result[0]["remote_mcp_server_name"], "server1")
         self.assertEqual(result[0]["remote_mcp_server"], "http://server1.com")
+        self.assertTrue(result[0]["status"])
+        
+        # verify server2 (offline)
+        self.assertEqual(result[1]["remote_mcp_server_name"], "server2")
+        self.assertEqual(result[1]["remote_mcp_server"], "http://server2.com")
+        self.assertFalse(result[1]["status"])
+        
+        # verify server3 (online)
+        self.assertEqual(result[2]["remote_mcp_server_name"], "server3")
+        self.assertEqual(result[2]["remote_mcp_server"], "http://server3.com")
+        self.assertTrue(result[2]["status"])
+        
         mock_get_records.assert_called_once_with(tenant_id="tenant_1")
+        mock_get_mount_services.assert_called_once()
 
+    @patch('backend.services.remote_mcp_service.get_all_mount_mcp_service')
     @patch('backend.services.remote_mcp_service.get_mcp_records_by_tenant')
-    async def test_get_remote_mcp_server_list_empty(self, mock_get_records):
+    async def test_get_remote_mcp_server_list_empty(self, mock_get_records, mock_get_mount_services):
         """test get remote mcp server list empty"""
         # set mock
         mock_get_records.return_value = []
+        mock_get_mount_services.return_value = []
 
         # execute test
         result = await get_remote_mcp_server_list(tenant_id="tenant_1")
 
         # assert
         self.assertEqual(len(result), 0)
+        mock_get_records.assert_called_once_with(tenant_id="tenant_1")
+        mock_get_mount_services.assert_called_once()
 
 
 class TestRecoverRemoteMcpServer(unittest.TestCase):

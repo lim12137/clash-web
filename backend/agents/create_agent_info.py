@@ -1,10 +1,6 @@
 import threading
-
-import json
 import yaml
 import logging
-from typing import Optional
-from fastapi import Header
 from urllib.parse import urljoin
 from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
@@ -16,8 +12,7 @@ from services.elasticsearch_service import ElasticSearchService
 from services.tenant_config_service import get_selected_knowledge_list
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("build agent")
+logger = logging.getLogger("create_agent_info")
 
 async def create_model_config_list(tenant_id):
      main_model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
@@ -56,6 +51,7 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     try:
         for tool in tool_list:
             if "KnowledgeBaseSearchTool" == tool.class_name:
+                # TODO: use prompt template
                 knowledge_base_summary = "\n\n### 本地知识库信息 ###\n" if language == 'zh' else "\n\n### Local Knowledge Base Information ###\n"
 
                 knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
@@ -153,7 +149,7 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
     agent_run_info = AgentRunInfo(
         query=final_query,
         model_config_list= model_list,
-        observer=MessageObserver(),
+        observer=MessageObserver(lang=language),
         agent_config=await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id, language=language),
         mcp_host=urljoin(config_manager.get_config("NEXENT_MCP_SERVER"), "sse"),
         history=history,

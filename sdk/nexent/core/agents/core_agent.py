@@ -51,7 +51,7 @@ class CoreAgent(CodeAgent):
         # Parse
         try:
             code_action = fix_final_answer_code(parse_code_blobs(model_output))
-            # 记录解析结果
+            # Record parsing results
             self.observer.add_message(self.agent_name, ProcessType.PARSE, code_action)
 
         except Exception as e:
@@ -69,7 +69,7 @@ class CoreAgent(CodeAgent):
 
             execution_outputs_console = []
             if len(execution_logs) > 0:
-                # 记录运行结果
+                # Record execution results
                 self.observer.add_message(self.agent_name, ProcessType.EXECUTION_LOGS, f"{execution_logs}")
 
                 execution_outputs_console += [Text("Execution logs:", style="bold"), Text(execution_logs), ]
@@ -78,7 +78,7 @@ class CoreAgent(CodeAgent):
             if hasattr(self.python_executor, "state") and "_print_outputs" in self.python_executor.state:
                 execution_logs = str(self.python_executor.state["_print_outputs"])
                 if len(execution_logs) > 0:
-                    # 记录运行结果
+                    # Record execution results
                     self.observer.add_message(self.agent_name, ProcessType.EXECUTION_LOGS, f"{execution_logs}\n")
 
                     execution_outputs_console = [Text("Execution logs:", style="bold"), Text(execution_logs), ]
@@ -140,7 +140,7 @@ You have been provided with these additional arguments, that you can access usin
             subtitle=f"{type(self.model).__name__} - {(self.model.model_id if hasattr(self.model, 'model_id') else '')}",
             level=LogLevel.INFO, title=self.name if hasattr(self, "name") else None, )
 
-        # 记录当前agent任务
+        # Record current agent task
         self.observer.add_message(self.name, ProcessType.AGENT_NEW_RUN, self.task.strip())
 
         self.memory.steps.append(TaskStep(task=self.task, task_images=images))
@@ -163,7 +163,7 @@ You have been provided with these additional arguments, that you can access usin
             variables=dict(name=self.name, task=task), )
         report = self.run(full_task, **kwargs)
 
-        # 当子Agent运行结束，返回标记
+        # When a sub-agent finishes running, return a marker
         try:
             self.observer.add_message(self.name, ProcessType.AGENT_FINISH, str(report))
         except:
@@ -192,7 +192,7 @@ You have been provided with these additional arguments, that you can access usin
             except AgentError as e:
                 except_parse_error_pattern = """Make sure to include code with the correct pattern, for instance"""
                 if except_parse_error_pattern in e.message:
-                    # 当检测到模型没有输出code时，直接将大模型内容当成final_answer
+                    # When the model does not output code, directly treat the large model content as the final answer
                     final_answer = memory_step.model_output
                 else:
                     memory_step.error = e
@@ -203,7 +203,7 @@ You have been provided with these additional arguments, that you can access usin
                 self.step_number += 1
 
         if self.stop_event.is_set():
-            final_answer = "Agent运行被用户中断"
+            final_answer = "<user_break>"
 
         if final_answer is None and self.step_number == max_steps + 1:
             final_answer = self._handle_max_steps_reached(task, images, step_start_time)

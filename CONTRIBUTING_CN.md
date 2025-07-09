@@ -7,8 +7,6 @@
 
 关于许可证，请花一分钟阅读我们简短的[许可和贡献者协议](https://github.com/ModelEngine-Group/nexent/blob/main/LICENSE)。同时也请遵循[社区行为准则](https://github.com/ModelEngine-Group/nexent/blob/main/CODE_OF_CONDUCT.md)。
 
----
-
 ## 🤔 如何贡献
 
 ### 🐛 发现了一个 Bug？
@@ -29,9 +27,10 @@
 
 ---
 
-## 🌳 分支策略：GitFlow
+## 🌳 分支策略 GitFlow
 
-![GitFlow 工作流](assets/git-flow.png)
+![GitFlow 工作流](assets/git-flow.svg)
+
 
 Gitflow 是一种结构化的 Git 分支管理模型，为软件开发提供了清晰的流程。它为不同目的（如功能、发布、热修复）定义了专用分支，并规定了它们的交互方式，有助于规范开发流程、高效管理发布并促进协作。
 
@@ -52,8 +51,6 @@ Gitflow 是一种结构化的 Git 分支管理模型，为软件开发提供了�
 
 如上图所示，GitFlow 工作流一目了然。
 
----
-
 ## 🐞 提交 Bug 报告或功能请求
 
 ### Bug 报告
@@ -73,8 +70,6 @@ Gitflow 是一种结构化的 Git 分支管理模型，为软件开发提供了�
 
 **提交到哪里？**  
 在我们的 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 中新建一个 Issue，并选择合适的模板（Bug 报告或功能请求）。
-
----
 
 ## 💻 提交代码更改
 
@@ -155,8 +150,6 @@ git merge upstream/main
    - 不允许直接推送到保护分支
    - 自我批准无效
 
----
-
 ## 📖 改进文档
 
 优秀的文档是团队共同努力的结果！您可以通过以下方式帮助：
@@ -169,16 +162,12 @@ git merge upstream/main
 2. 编辑相关文档文件（例如 `README.md`、`docs/`）。
 3. 提交包含您改进的 PR。
 
----
-
 ## ❓ 需要帮助？
 
 遇到困难或有疑问？我们随时为您提供帮助！通过以下方式联系我们：
 - **GitHub Issues**：新建一个 Issue 进行讨论。
 - **Discord**：加入我们的 [Nexent 社区](https://discord.gg/YXH5C8SQ) 进行实时聊天。
 - **电子邮件**：给我们发邮件至 [chenshuangrui@huawei.com](mailto:chenshuangrui@huawei.com)。
-
----
 
 ## 🎉 庆祝您的贡献！
 

@@ -20,8 +20,7 @@ from fastapi import Header
 
 from utils.config_utils import config_manager
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("tool config")
+logger = logging.getLogger("tool_configuration_service")
 
 def python_type_to_json_schema(annotation: Any) -> str:
     """

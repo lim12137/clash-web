@@ -218,7 +218,8 @@
         "processRemainingDataFailed": "Failed to process remaining data:",
         "thinking": "Thinking...",
         "generateTitleFailed": "Failed to generate title:",
-        "streamResponseError": "Error processing streaming response:"
+        "streamResponseError": "Error processing streaming response:",
+        "userInterrupted": "Chat ended by user."
     },
     "taskWindow": {
         "unknownSource": "Unknown Source",
@@ -767,7 +768,7 @@
     "mcpConfig.modal.close": "Close",
     "mcpConfig.modal.updatingTools": "Updating tools list...",
     "mcpConfig.addServer.title": "Add MCP Server",
-    "mcpConfig.addServer.namePlaceholder": "Server name (letters and numbers only, max 20 characters)",
+    "mcpConfig.addServer.namePlaceholder": "Server name",
     "mcpConfig.addServer.urlPlaceholder": "Server URL (e.g.: http://localhost:3001/sse), currently only SSE protocol supported",
     "mcpConfig.addServer.button.add": "Add",
     "mcpConfig.addServer.button.updating": "Updating...",

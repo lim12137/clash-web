@@ -12,8 +12,7 @@ from utils.auth_utils import get_current_user_id
 router = APIRouter(prefix="/mcp")
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("mcp app")
+logger = logging.getLogger("remote_mcp_app")
 
 
 @router.get("/tools/")
@@ -22,7 +21,7 @@ async def get_tools_from_remote_mcp(
     mcp_url: str,
     authorization: Optional[str] = Header(None)
 ):
-    """ 用于列出远程MCP服务器的工具信息 """
+    """ Used to list tool information from the remote MCP server """
     try:
         tools_info = await get_tool_from_remote_mcp_server(mcp_server_name=service_name, remote_mcp_server=mcp_url)
         return JSONResponse(
@@ -42,18 +41,18 @@ async def add_remote_proxies(
     service_name: str,
     authorization: Optional[str] = Header(None)
 ):
-    """ 用于添加远程MCP服务器 """
+    """ Used to add a remote MCP server """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
         result = await add_remote_mcp_server_list(tenant_id=tenant_id,
                                                   user_id=user_id,
                                                   remote_mcp_server=mcp_url,
                                                   remote_mcp_server_name=service_name)
-        # 如果result已经是JSONResponse，直接返回
+        # If result is already a JSONResponse, return it directly
         if isinstance(result, JSONResponse):
             return result
         
-        # 否则返回成功结果
+        # Otherwise, return a success result
         return JSONResponse(
             status_code=200,
             content={"message": "Successfully added remote MCP proxy", "status": "success"}
@@ -71,18 +70,18 @@ async def delete_remote_proxies(
     mcp_url: str,
     authorization: Optional[str] = Header(None)
 ):
-    """ 用于删除远程MCP服务器 """
+    """ Used to delete a remote MCP server """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
         result = await delete_remote_mcp_server_list(tenant_id=tenant_id,
                                                      user_id=user_id,
                                                      remote_mcp_server=mcp_url,
                                                      remote_mcp_server_name=service_name)
-        # 如果result已经是JSONResponse，直接返回
+        # If result is already a JSONResponse, return it directly
         if isinstance(result, JSONResponse):
             return result
         
-        # 否则返回成功结果
+        # Otherwise, return a success result
         return JSONResponse(
             status_code=200,
             content={"message": "Successfully deleted remote MCP proxy", "status": "success"}
@@ -98,7 +97,7 @@ async def delete_remote_proxies(
 async def get_remote_proxies(
     authorization: Optional[str] = Header(None)
 ):
-    """ 用于获取远程MCP服务器列表 """
+    """ Used to get the list of remote MCP servers """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
         remote_mcp_server_list = await get_remote_mcp_server_list(tenant_id=tenant_id)
@@ -117,15 +116,15 @@ async def get_remote_proxies(
 async def recover_remote_proxies(
     authorization: Optional[str] = Header(None)
 ):
-    """ 用于恢复远程MCP服务器 """
+    """ Used to recover remote MCP servers """
     try:
         _, tenant_id = get_current_user_id(authorization)
         result = await recover_remote_mcp_server(tenant_id=tenant_id)
-        # 如果result已经是JSONResponse，直接返回
+        # If result is already a JSONResponse, return it directly
         if isinstance(result, JSONResponse):
             return result
         
-        # 否则返回成功结果
+        # Otherwise, return a success result
         return JSONResponse(
             status_code=200,
             content={"message": "Successfully recovered remote MCP proxy", "status": "success"}
