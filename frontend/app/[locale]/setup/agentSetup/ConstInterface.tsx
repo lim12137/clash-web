@@ -26,6 +26,7 @@ export interface Tool {
   source: 'local' | 'mcp';
   initParams: ToolParam[];
   is_available?: boolean;
+  create_time?: string;
 }
 
 export interface ToolParam {
