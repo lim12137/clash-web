@@ -2,7 +2,16 @@ import os
 import subprocess
 import glob
 import sys
+import logging
 
+# 配置日志记录
+logger = logging.getLogger("run_all_test")
+logger.setLevel(logging.INFO)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(message)s')
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 def install_required_packages():
     """Install required packages if not available"""
@@ -21,12 +30,12 @@ def install_required_packages():
         packages_to_install.append("coverage")
     
     if packages_to_install:
-        print(f"Installing required packages: {', '.join(packages_to_install)}")
+        logger.info(f"Installing required packages: {', '.join(packages_to_install)}")
         try:
             subprocess.check_call([sys.executable, "-m", "pip", "install"] + packages_to_install)
             return True
         except subprocess.CalledProcessError:
-            print(f"Failed to install packages: {', '.join(packages_to_install)}")
+            logger.error(f"Failed to install packages: {', '.join(packages_to_install)}")
             return False
     return True
 
@@ -50,28 +59,28 @@ def run_tests():
         app_test_files = glob.glob(os.path.join(app_test_dir, "test_*.py"))
         test_files.extend(app_test_files)
     else:
-        print(f"Directory not found: {app_test_dir}")
+        logger.warning(f"Directory not found: {app_test_dir}")
     
     # Check and collect test files from services directory
     if os.path.exists(services_test_dir):
         services_test_files = glob.glob(os.path.join(services_test_dir, "test_*.py"))
         test_files.extend(services_test_files)
     else:
-        print(f"Directory not found: {services_test_dir}")
+        logger.warning(f"Directory not found: {services_test_dir}")
     
     if not test_files:
-        print(f"No test files found in {app_test_dir} or {services_test_dir}")
+        logger.warning(f"No test files found in {app_test_dir} or {services_test_dir}")
         return False
     
-    print(f"Found {len(test_files)} test files to run")
-    print(f"Running tests from project root: {project_root}")
+    logger.info(f"Found {len(test_files)} test files to run")
+    logger.info(f"Running tests from project root: {project_root}")
     
     # Change to project root directory
     os.chdir(project_root)
     
     # Install required packages
     if not install_required_packages():
-        print("Failed to install required packages. Exiting.")
+        logger.error("Failed to install required packages. Exiting.")
         return False
     
     # Results tracking
@@ -107,8 +116,8 @@ def run_tests():
         # Replace backslashes with forward slashes for pytest
         rel_path = rel_path.replace("\\", "/")
         
-        print(f"\nRunning tests in {rel_path}")
-        print("-" * 50)
+        logger.info(f"\nRunning tests in {rel_path}")
+        logger.info("-" * 50)
         
         # Run the test using pytest with coverage from project root
         # Use --cov to specify backend directory
@@ -134,10 +143,10 @@ def run_tests():
         result = subprocess.run(cmd, capture_output=True, text=True, env=env)
         
         # Print the output
-        print(result.stdout)
+        logger.info(result.stdout)
         if result.stderr:
-            print("Errors:")
-            print(result.stderr)
+            logger.error("Errors:")
+            logger.error(result.stderr)
         
         # Count tests and results
         test_info = {
@@ -187,27 +196,27 @@ def run_tests():
         failed_tests += file_failed
 
     # Generate test summary report
-    print("\n" + "=" * 60)
-    print("Test Summary")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("Test Summary")
+    logger.info("=" * 60)
     
     # Print per-file results
     for test_result in test_results:
         status = "✅ PASSED" if test_result['success'] else "❌ FAILED"
-        print(f"{status} - {test_result['file']}")
+        logger.info(f"{status} - {test_result['file']}")
     
     # Calculate pass rate
     pass_rate = (passed_tests / total_tests * 100) if total_tests > 0 else 0
-    print("\nTest Results:")
-    print(f"  Total Tests: {total_tests}")
-    print(f"  Passed: {passed_tests}")
-    print(f"  Failed: {failed_tests}")
-    print(f"  Pass Rate: {pass_rate:.1f}%")
+    logger.info("\nTest Results:")
+    logger.info(f"  Total Tests: {total_tests}")
+    logger.info(f"  Passed: {passed_tests}")
+    logger.info(f"  Failed: {failed_tests}")
+    logger.info(f"  Pass Rate: {pass_rate:.1f}%")
     
     # Generate coverage reports
-    print("\n" + "=" * 60)
-    print("Code Coverage Report")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("Code Coverage Report")
+    logger.info("=" * 60)
     
     try:
         # Use coverage API to generate reports from the collected data
@@ -217,23 +226,23 @@ def run_tests():
         
         # Console report
         total_coverage = cov.report(show_missing=True)
-        print(f"\nTotal Coverage: {total_coverage:.1f}%")
+        logger.info(f"\nTotal Coverage: {total_coverage:.1f}%")
         
         # Generate HTML report
         html_dir = os.path.join(current_dir, 'coverage_html')
         cov.html_report(directory=html_dir)
-        print(f"\nHTML coverage report generated in: {html_dir}")
+        logger.info(f"\nHTML coverage report generated in: {html_dir}")
         
         # Generate XML report
         xml_file = os.path.join(current_dir, 'coverage.xml')
         cov.xml_report(outfile=xml_file)
-        print(f"XML coverage report generated: {xml_file}")
+        logger.info(f"XML coverage report generated: {xml_file}")
     except Exception as e:
         if "No data to report" in str(e) or "No data was collected" in str(e):
-            print("No coverage data collected. This might be because:")
-            print("1. No backend modules were imported during tests")
-            print("2. All tested modules are mocked")
-            print("3. Tests are not actually calling the backend code")
+            logger.info("No coverage data collected. This might be because:")
+            logger.info("1. No backend modules were imported during tests")
+            logger.info("2. All tested modules are mocked")
+            logger.info("3. Tests are not actually calling the backend code")
         else:
             print(f"Error generating coverage report: {e}")
     
