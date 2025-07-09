@@ -1,9 +1,5 @@
 import unittest
 
-
-def add(a, b):
-    return a + b
-
 import importlib
 
 class TestConversationManagementAppAdd(unittest.TestCase):

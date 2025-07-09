@@ -19,17 +19,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-#      - name: Set up Python
-#        uses: actions/setup-python@v4
-#        with:
-#          python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
       - name: Install coverage
         run: pip install coverage -i https://pypi.mirrors.ustc.edu.cn/simple/
 
       - name: Run all tests and collect coverage
         run: |
-          coverage run --branch -m unittest test/backend/test_sample.py
+          set -e
+          coverage run --branch -m pytest test/backend/test_sample.py
           coverage xml -o test/backend/coverage.xml
           cat test/backend/coverage.xml
 
@@ -37,7 +38,4 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           files: test/backend/coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
