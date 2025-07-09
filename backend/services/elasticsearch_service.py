@@ -122,17 +122,34 @@ class ElasticSearchService:
             raise HTTPException(status_code=500, detail=f"Error creating index: {str(e)}")
 
     @staticmethod
-    def delete_index(
+    async def delete_index(
             index_name: str = Path(..., description="Name of the index to delete"),
             es_core: ElasticSearchCore = Depends(get_es_core),
             user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base"),
     ):
         try:
-            # First delete the index in Elasticsearch
+            # 1. Get list of files from the index
+            try:
+                files_to_delete = await ElasticSearchService.list_files(index_name, search_redis=False, es_core=es_core)
+                if files_to_delete and files_to_delete.get("files"):
+                    # 2. Delete files from MinIO storage
+                    for file_info in files_to_delete["files"]:
+                        object_name = file_info.get("path_or_url")
+                        source_type = file_info.get("source_type")
+                        if object_name and source_type == "minio":
+                            logger.info(f"Deleting file {object_name} from MinIO for index {index_name}")
+                            attachment_db.delete_file(object_name)
+            except Exception as e:
+                # Log the error but don't block the index deletion
+                logger.error(f"Error deleting associated files from MinIO for index {index_name}: {str(e)}")
+
+            # 3. Delete the index in Elasticsearch
             success = es_core.delete_index(index_name)
             if not success:
-                raise HTTPException(status_code=500, detail=f"Index {index_name} not found or could not be deleted")
+                # Even if deletion fails, we proceed to database record cleanup
+                logger.warning(f"Index {index_name} not found in Elasticsearch or could not be deleted, but proceeding with DB cleanup.")
 
+            # 4. Delete the knowledge base record from the database
             update_data = {
                 "updated_by": user_id,
                 "index_name": index_name
@@ -141,7 +158,7 @@ class ElasticSearchService:
             if not success:
                 raise HTTPException(status_code=500, detail=f"Error deleting knowledge record for index {index_name}")
 
-            return {"status": "success", "message": f"Index {index_name} deleted successfully"}
+            return {"status": "success", "message": f"Index {index_name} and associated files deleted successfully"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error deleting index: {str(e)}")
 
@@ -304,12 +321,12 @@ class ElasticSearchService:
                     continue
 
                 # Extract metadata
-                metadata = item.get("metadata")
+                metadata = item.get("metadata", {})
                 source = item.get("path_or_url")
                 text = item.get("content", "")
-                source_type = item.get("source_type", "url")
+                source_type = item.get("source_type")
                 file_size = item.get("file_size")
-                file_name = item.get("filename", os.path.basename(source) if source and source_type == "file" else "")
+                file_name = item.get("filename", os.path.basename(source) if source and source_type == "local" else "")
 
                 # Get from metadata
                 title = metadata.get("title", "")
@@ -427,13 +444,12 @@ class ElasticSearchService:
                         status_dict = status_info if isinstance(status_info, dict) else {}
 
                         # Get source_type and original_filename, with defaults
-                        source_type = status_dict.get('source_type', 'url')
+                        source_type = status_dict.get('source_type') if status_dict.get('source_type') else 'minio'
                         original_filename = status_dict.get('original_filename')
 
                         # Determine the filename
                         filename = original_filename or (os.path.basename(path_or_url) if path_or_url else '')
 
-                        # Get file size, handling URLs specifically
                         file_size = 0
                         file_size = get_file_size(source_type, path_or_url)
 

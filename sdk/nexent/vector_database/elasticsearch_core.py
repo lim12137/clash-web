@@ -372,7 +372,7 @@ class ElasticSearchCore:
         Returns:
             int: Number of documents successfully indexed
         """
-        logger.info(f"Indexing {len(documents)} documents to {index_name}")
+        logger.info(f"Indexing {len(documents)} chunks to {index_name}")
 
         # Handle empty documents list
         if not documents:
@@ -418,7 +418,7 @@ class ElasticSearchCore:
             # Handle errors
             self._handle_bulk_errors(response)
 
-            logger.info(f"Small batch insert completed: {len(documents)} docs")
+            logger.info(f"Small batch insert completed: {len(documents)} chunks indexed.")
             return len(documents)
             
         except Exception as e:
@@ -490,7 +490,7 @@ class ElasticSearchCore:
                     time.sleep(0.1)
 
             self._force_refresh_with_retry(index_name)
-            logger.info(f"Large batch insert completed: {total_indexed} docs indexed.")
+            logger.info(f"Large batch insert completed: {total_indexed} chunks indexed.")
             return total_indexed
         except Exception as e:
             logger.error(f"Large batch insert failed: {e}")

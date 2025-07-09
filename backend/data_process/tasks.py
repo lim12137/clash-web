@@ -141,7 +141,7 @@ class LoggingTask(Task):
 
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process', queue='process_q')
-def process(self, source: str, source_type: str = "url", 
+def process(self, source: str, source_type: str, 
             chunking_strategy: str = "basic", index_name: Optional[str] = None, 
             original_filename: Optional[str] = None, **params) -> Dict:
     """
@@ -149,7 +149,7 @@ def process(self, source: str, source_type: str = "url",
     
     Args:
         source: Source file path, URL, or text content
-        source_type: Type of source ("file", "url", or "text")
+        source_type: Type of source ("local", "minio")
         chunking_strategy: Strategy for chunking the document
         index_name: Name of the index (for metadata)
         original_filename: The original name of the file
@@ -157,6 +157,8 @@ def process(self, source: str, source_type: str = "url",
     """
     start_time = time.time()
     task_id = self.request.id
+
+    logger.info(f"[{self.request.id}] PROCESS TASK: source_type: {source_type}")
     
     self.update_state(
         state=states.PENDING,
@@ -188,7 +190,7 @@ def process(self, source: str, source_type: str = "url",
     try:
         # Process the file based on the source type
         file_size_mb = 0
-        if source_type == "file":
+        if source_type == "local":
             # Check file existence and size for optimization
             if not os.path.exists(source):
                 raise FileNotFoundError(f"File does not exist: {source}")
@@ -202,7 +204,7 @@ def process(self, source: str, source_type: str = "url",
             chunks_ref = actor.process_file.remote(
                 source,
                 chunking_strategy,
-                destination="local",
+                destination=source_type,
                 task_id=task_id,
                 **params
             )
@@ -214,14 +216,14 @@ def process(self, source: str, source_type: str = "url",
             processing_speed = file_size_mb / elapsed_time if file_size_mb > 0 and elapsed_time > 0 else 0
             logger.info(f"[{self.request.id}] PROCESS TASK: File processing completed. Processing speed {processing_speed:.2f} MB/s")
 
-        elif source_type == "url":
+        elif source_type == "minio":
             logger.info(f"[{self.request.id}] PROCESS TASK: Processing from URL: {source}")
 
             # For URL source, core.py expects a non-local destination to trigger URL fetching
             chunks_ref = actor.process_file.remote(
                 source,
                 chunking_strategy,
-                destination="minio",
+                destination=source_type,
                 task_id=task_id,
                 **params
             )
@@ -296,7 +298,7 @@ def process(self, source: str, source_type: str = "url",
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.forward', queue='forward_q')
 def forward(self, processed_data: Dict, index_name: str, 
-            source: str, source_type: str = "url", 
+            source: str, source_type: str = 'minio', 
             original_filename: Optional[str] = None) -> Dict:
     """
     Vectorize and store processed chunks in Elasticsearch
@@ -305,7 +307,7 @@ def forward(self, processed_data: Dict, index_name: str,
         processed_data: Dict containing chunks and metadata
         index_name: Name of the index to store documents
         source: Original source path (for metadata)
-        source_type: The type of the source, defaults to "url".
+        source_type: The type of the source("local", "minio")
         original_filename: The original name of the file
         
     Returns:
@@ -361,15 +363,17 @@ def forward(self, processed_data: Dict, index_name: str,
                 logger.warning(f"[{self.request.id}] FORWARD TASK: Chunk {i+1} has empty text content, skipping")
                 continue
 
+            file_size = get_file_size(source_type, original_source) if isinstance(original_source, str) else 0
+
             # Format as expected by the Elasticsearch API
             formatted_chunk = {
                 "metadata": metadata,
-                "filename": filename or (os.path.basename(original_source) if original_source else ""),
+                "filename": filename or (os.path.basename(original_source) if original_source and isinstance(original_source, str) else ""),
                 "path_or_url": original_source,
                 "content": content,
                 "process_source": "Unstructured",
                 "source_type": source_type,
-                "file_size": get_file_size(source_type, original_source),
+                "file_size": file_size,
                 "create_time": metadata.get("creation_date"),
                 "date": metadata.get("date"),
             }
@@ -564,7 +568,7 @@ def process_and_forward(self, source: str, source_type: str,
     
     Args:
         source: Source file path, URL, or text content
-        source_type: Type of source ("file", "url", or "text")
+        source_type: source of the file("local", "minio")
         chunking_strategy: Strategy for chunking the document
         index_name: Name of the index to store documents
         original_filename: The original name of the file
@@ -603,14 +607,14 @@ def process_and_forward(self, source: str, source_type: str,
 
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process_sync')
-def process_sync(self, source: str, source_type: str = "url", 
+def process_sync(self, source: str, source_type: str, 
                  chunking_strategy: str = "basic", timeout: int = 30, **params) -> Dict:
     """
     Synchronous process task that returns text directly (for real-time API)
     
     Args:
         source: Source file path, URL, or text content
-        source_type: Type of source ("file", "url", or "text")
+        source_type: source of the file("local", "minio")
         chunking_strategy: Strategy for chunking the document
         timeout: Timeout for the operation
         **params: Additional parameters
@@ -644,12 +648,12 @@ def process_sync(self, source: str, source_type: str = "url",
 
     try:
         # Process the file based on the source type
-        if source_type == "file":
+        if source_type == "local":
             # The unified actor call, mapping 'file' source_type to 'local' destination
             chunks_ref = actor.process_file.remote(
                 source,
                 chunking_strategy,
-                destination="local",
+                destination=source_type,
                 task_id=task_id,
                 **params
             )

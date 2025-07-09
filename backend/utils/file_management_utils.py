@@ -137,7 +137,7 @@ async def get_all_files_status(index_name: str):
             task_created_at = task_info.get('created_at', 0)
             task_id = task_info.get('id', '')
             original_filename = task_info.get('original_filename', '')
-            source_type = task_info.get('source_type', 'url')
+            source_type = task_info.get('source_type', '')
             if task_path_or_url:
                 # Initialize file state if not exists
                 if task_path_or_url not in file_states:
@@ -148,7 +148,7 @@ async def get_all_files_status(index_name: str):
                         'latest_forward_created_at': 0,
                         'latest_task_id': '',
                         'original_filename': '',
-                        'source_type': 'url'
+                        'source_type': ''
                     }
                 file_state = file_states[task_path_or_url]
                 # Process task
@@ -164,6 +164,7 @@ async def get_all_files_status(index_name: str):
                     file_state['forward_state'] = task_status
                     file_state['latest_task_id'] = task_id
                     file_state['original_filename'] = original_filename
+                    file_state['source_type'] = source_type
         result = {}
         for path_or_url, file_state in file_states.items():
             custom_state = _convert_to_custom_state(
@@ -174,7 +175,7 @@ async def get_all_files_status(index_name: str):
                 'state': custom_state,
                 'latest_task_id': file_state['latest_task_id'] or '',
                 'original_filename': file_state['original_filename'] or '',
-                'source_type': file_state['source_type']
+                'source_type': file_state['source_type'] or ''
             }
         return result
     except Exception as e:
@@ -245,10 +246,10 @@ def _convert_to_custom_state(process_celery_state: str, forward_celery_state: st
 def get_file_size(source_type: str, path_or_url: str) -> int:
     """Query the actual size(bytes) of the file."""
     try:
-        if source_type == "url":
+        if source_type == "minio":
             return get_file_size_from_minio(path_or_url)
 
-        elif source_type == "file":
+        elif source_type == "local":
             # For local files, use os.path.getsize to get file size
             if os.path.exists(path_or_url):
                 return os.path.getsize(path_or_url)

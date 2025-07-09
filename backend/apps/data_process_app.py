@@ -43,6 +43,8 @@ async def create_task(request: TaskRequest):
     Tasks are forwarded to Elasticsearch when complete.
     """
     # Create task using the new process_and_forward task
+
+    logger.info(f"Creating task with source_type: {request.source_type}")
     task_result = process_and_forward.delay(
         source=request.source,
         source_type=request.source_type,
@@ -57,7 +59,7 @@ async def create_task(request: TaskRequest):
 @router.post("/process", response_model=dict, status_code=200)
 async def process_sync_endpoint(
     source: str = Form(...),
-    source_type: str = Form("url"),
+    source_type: str = Form(...),
     chunking_strategy: str = Form("basic"),
     timeout: int = Form(30)
 ):
@@ -69,7 +71,7 @@ async def process_sync_endpoint(
     
     Parameters:
         source: File path, URL, or text content to process
-        source_type: Type of source ("file", "url", or "text")
+        source_type: Type of source ("local", "minio")
         chunking_strategy: Strategy for chunking the document
         timeout: Maximum time to wait for processing (seconds)
     
@@ -126,7 +128,7 @@ async def create_batch_tasks(request: BatchTaskRequest):
         for source_config in request.sources:
             # Extract parameters
             source = source_config.get('source')
-            source_type = source_config.get('source_type', 'url')
+            source_type = source_config.get('source_type')
             chunking_strategy = source_config.get('chunking_strategy')
             index_name = source_config.get('index_name')
             original_filename = source_config.get('original_filename')
@@ -321,7 +323,7 @@ async def process_text_file(
         
         logger.info(f"Saved uploaded file to temporary path: {temp_file_path}")
 
-        result = process_sync(source=temp_file_path, source_type='file', chunking_strategy=chunking_strategy, timeout=timeout)
+        result = process_sync(source=temp_file_path, source_type='local', chunking_strategy=chunking_strategy, timeout=timeout)
         logger.info(f"Successfully processed uploaded file: {file.filename}, extracted {result.get('text_length', 0)} characters")
         
         return {

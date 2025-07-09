@@ -1,12 +1,12 @@
-from .base import FileProcess
+from .base import FileProcessor
 import io
 from typing import List, Dict, Optional
 import os
 
 
-class GenericFileProcess(FileProcess):
+class UnstructuredProcessor(FileProcessor):
     """
-    Unified generic file processing class that supports both local file and in-memory file processing.
+    Unified generic file processing class that supports in-memory file processing.
     Uses unified internal methods to reduce code duplication.
     """
     
@@ -20,40 +20,15 @@ class GenericFileProcess(FileProcess):
             "task_id": ""
         }
     
-    def process_local_file(self, file_path: str, chunking_strategy: str = "basic", **params) -> List[Dict]:
-        """
-        Process local file and return structured chunks.
-        
-        Args:
-            file_path: Local file path
-            chunking_strategy: Chunking strategy ("basic", "by_title", "none")
-            **params: Additional processing parameters
-            
-        Returns:
-            List of dictionaries containing processing results
-        """
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"File does not exist: {file_path}")
-        
-        filename = os.path.basename(file_path)
-        return self._process_file(
-            file_path=file_path,
-            chunking_strategy=chunking_strategy,
-            filename=filename,
-            path_or_url=file_path,
-            **params
-        )
-
-    def process_minio_file(self, file_data: bytes, chunking_strategy: str = "basic", 
-                          filename: str = None, path_or_url: str = None, **params) -> List[Dict]:
+    def process_file(self, file_data: bytes, chunking_strategy: str, 
+                          filename: str, **params) -> List[Dict]:
         """
         Process file in memory (e.g., file fetched from MinIO) and return structured chunks.
         
         Args:
             file_data: File byte data
             chunking_strategy: Chunking strategy ("basic", "by_title", "none")
-            filename: Filename (optional)
-            path_or_url: Original file path or URL (optional)
+            filename: Filename
             **params: Additional processing parameters
             
         Returns:
@@ -66,25 +41,21 @@ class GenericFileProcess(FileProcess):
             file_data=file_data,
             chunking_strategy=chunking_strategy,
             filename=filename,
-            path_or_url=path_or_url,
             **params
         )
     
-    def _process_file(self, file_path: Optional[str] = None, 
-                     file_data: Optional[bytes] = None,
+    def _process_file(self,
+                     file_data: bytes,
                      chunking_strategy: str = "basic",
                      filename: Optional[str] = None,
-                     path_or_url: Optional[str] = None,
                      **params) -> List[Dict]:
         """
-        Core file processing method that uniformly processes files from path or byte data.
+        Core file processing method that uniformly processes files from byte data.
         
         Args:
-            file_path: File path (choose one between this and file_data)
-            file_data: File byte data (choose one between this and file_path)
+            file_data: File byte data
             chunking_strategy: Chunking strategy
             filename: Filename
-            path_or_url: File path or URL
             **params: Additional parameters
             
         Returns:
@@ -93,18 +64,15 @@ class GenericFileProcess(FileProcess):
         from unstructured.partition.auto import partition
 
         # Validate input parameters
-        if not file_path and not file_data:
-            raise ValueError("Must provide either file_path or file_data")
-        
-        if file_path and file_data:
-            raise ValueError("file_path and file_data cannot be provided simultaneously")
+        if not file_data:
+            raise ValueError("Must provide binary file_data")
         
         # Merge parameters
         processed_params = self._merge_params(params)
         
         # Prepare partition parameters
         partition_kwargs = self._prepare_partition_kwargs(
-            file_path, file_data, chunking_strategy, processed_params
+            file_data, chunking_strategy, processed_params
         )
         
         # Execute file partitioning
@@ -112,7 +80,7 @@ class GenericFileProcess(FileProcess):
         
         # Process results
         return self._process_elements(
-            elements, chunking_strategy, filename, path_or_url
+            elements, chunking_strategy, filename
         )
     
     def _merge_params(self, user_params: Dict) -> Dict:
@@ -129,15 +97,14 @@ class GenericFileProcess(FileProcess):
         merged_params.update(user_params)
         return merged_params
     
-    def _prepare_partition_kwargs(self, file_path: Optional[str], 
-                                 file_data: Optional[bytes],
+    def _prepare_partition_kwargs(self,
+                                 file_data: bytes,
                                  chunking_strategy: str,
                                  params: Dict) -> Dict:
         """
         Prepare parameters required for unstructured.partition.
         
         Args:
-            file_path: File path
             file_data: File byte data
             chunking_strategy: Chunking strategy
             params: Processing parameters
@@ -155,15 +122,12 @@ class GenericFileProcess(FileProcess):
         }
         
         # Set file input source
-        if file_data is not None:
-            partition_kwargs["file"] = io.BytesIO(file_data)
-        elif file_path is not None:
-            partition_kwargs["filename"] = file_path
+        partition_kwargs["file"] = io.BytesIO(file_data)
         
         return partition_kwargs
     
     def _process_elements(self, elements: List, chunking_strategy: str,
-                         filename: Optional[str], path_or_url: Optional[str]) -> List[Dict]:
+                         filename: Optional[str]) -> List[Dict]:
         """
         Process partitioned elements to generate standardized document chunks.
         
@@ -171,25 +135,22 @@ class GenericFileProcess(FileProcess):
             elements: List of elements after unstructured partitioning
             chunking_strategy: Chunking strategy
             filename: Filename
-            path_or_url: File path or URL
             
         Returns:
             List of standardized document chunks
         """
         if chunking_strategy == "none":
-            return self._create_single_document(elements, filename, path_or_url)
+            return self._create_single_document(elements, filename)
         else:
-            return self._create_chunked_documents(elements, filename, path_or_url)
+            return self._create_chunked_documents(elements, filename)
     
-    def _create_single_document(self, elements: List, filename: Optional[str], 
-                               path_or_url: Optional[str]) -> List[Dict]:
+    def _create_single_document(self, elements: List, filename: Optional[str]) -> List[Dict]:
         """
         Create a single document (no chunking).
         
         Args:
             elements: List of document elements
             filename: Filename
-            path_or_url: File path or URL
             
         Returns:
             List containing a single document
@@ -198,7 +159,6 @@ class GenericFileProcess(FileProcess):
         
         doc = {
             "content": full_text,
-            "path_or_url": path_or_url,
             "filename": filename,
         }
         
@@ -210,15 +170,13 @@ class GenericFileProcess(FileProcess):
         
         return [doc]
     
-    def _create_chunked_documents(self, elements: List, filename: Optional[str],
-                                 path_or_url: Optional[str]) -> List[Dict]:
+    def _create_chunked_documents(self, elements: List, filename: Optional[str]) -> List[Dict]:
         """
         Create chunked documents.
         
         Args:
             elements: List of document elements
             filename: Filename
-            path_or_url: File path or URL
             
         Returns:
             List of chunked documents
@@ -231,7 +189,6 @@ class GenericFileProcess(FileProcess):
                 
             doc = {
                 "content": element.text,
-                "path_or_url": path_or_url,
                 "filename": filename,
                 "metadata": {
                     "chunk_index": index,

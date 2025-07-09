@@ -1,75 +1,47 @@
-from .base import FileProcess
-import os
+from .base import FileProcessor
 import io
 from copy import deepcopy
 import openpyxl
-from typing import List, Dict
+from typing import List, Dict, Optional
+import os
 
-class ExcelFileProcess(FileProcess):
+class OpenPyxlProcessor(FileProcessor):
     """
-    Unified Excel file processing class, supports local file and in-memory file processing
+    Unified Excel file processing class, supports in-memory file processing
     """
     
-    def process_local_file(self, file_path: str, chunking_strategy: str, **params) -> List[Dict]:
-        """Process local Excel file"""
-        filename = os.path.basename(file_path)
-        return self._process_excel(
-            file_path=file_path,
-            chunking_strategy=chunking_strategy,
-            filename=filename,
-            path_or_url=file_path,
-            **params
-        )
-
-    def process_minio_file(self, file_data: bytes, chunking_strategy: str, 
-                          filename: str = None, path_or_url: str = None, **params) -> List[Dict]:
+    def process_file(self, file_data: bytes, chunking_strategy: str, filename: str, **params) -> List[Dict]:
         """Process Excel file in memory"""
         return self._process_excel(
             file_data=file_data,
             chunking_strategy=chunking_strategy,
             filename=filename,
-            path_or_url=path_or_url,
             **params
         )
     
-    def _process_excel(self, file_path: str = None, file_data: bytes = None, 
-                      chunking_strategy: str = "basic", filename: str = None, 
-                      path_or_url: str = None, **params) -> List[Dict]:
+    def _process_excel(self, file_data: bytes, 
+                    chunking_strategy: str = "basic", filename: str = "", **params) -> List[Dict]:
         """
-        Core Excel processing logic, supports file path and byte data input
+        Core Excel processing logic, supports byte data input
         """
-        # Validate input parameters
-        if file_path is None and file_data is None:
-            raise ValueError("Must provide either file_path or file_data")
-        
         # Load workbook
-        wb_original, wb_copy = self._load_workbook(file_path, file_data)
+        wb_original, wb_copy = self._load_workbook(file_data)
         
         # Extract content
         raw_content = self._extract_content(wb_original, wb_copy)
         
         # Convert to standardized chunk format
         chunks = self._convert_to_chunks(
-            raw_content, path_or_url, filename, file_path
+            raw_content, filename
         )
         
         return chunks
     
-    def _load_workbook(self, file_path: str = None, file_data: bytes = None):
+    def _load_workbook(self, file_data: bytes):
         """Load Excel workbook"""
         try:
-            if file_path:
-                if not self._check_file_exists(file_path):
-                    raise FileNotFoundError(f"File does not exist or is not accessible: {file_path}")
-                wb_original = openpyxl.load_workbook(file_path)
-            else:
-                if isinstance(file_data, bytes):
-                    file_obj = io.BytesIO(file_data)
-                elif hasattr(file_data, 'read'):
-                    file_obj = file_data
-                else:
-                    raise ValueError("file_data must be byte data or an object with read method")
-                wb_original = openpyxl.load_workbook(file_obj)
+            file_obj = io.BytesIO(file_data)
+            wb_original = openpyxl.load_workbook(file_obj)
             
             wb_copy = deepcopy(wb_original)
             return wb_original, wb_copy
@@ -96,21 +68,18 @@ class ExcelFileProcess(FileProcess):
         
         return contents
     
-    def _convert_to_chunks(self, raw_content: List[str], path_or_url: str, 
-                          filename: str, file_path: str) -> List[Dict]:
+    def _convert_to_chunks(self, raw_content: List[str], 
+                          filename: str) -> List[Dict]:
         """Convert raw content to standardized chunk format"""
         chunks = []
         
         for i, content_text in enumerate(raw_content):
             # Determine file type
-            file_type = self._determine_file_type(file_path, filename)
+            file_type = self._determine_file_type(filename)
             
             chunk = {
                 "content": content_text,
-                "path_or_url": path_or_url if path_or_url else file_path,
-                "filename": filename if filename else (
-                    os.path.basename(file_path) if file_path else None
-                ),
+                "filename": filename,
                 "metadata": {
                     "chunk_index": i,
                     "file_type": file_type
@@ -120,11 +89,9 @@ class ExcelFileProcess(FileProcess):
         
         return chunks
     
-    def _determine_file_type(self, file_path: str, filename: str) -> str:
+    def _determine_file_type(self, filename: str) -> str:
         """Determine Excel file type"""
-        if file_path and file_path.lower().endswith('.xlsx'):
-            return "xlsx"
-        elif filename and filename.lower().endswith('.xlsx'):
+        if filename and filename.lower().endswith('.xlsx'):
             return "xlsx"
         else:
             return "xls"
