@@ -31,6 +31,7 @@ jobs:
         run: |
           coverage run --branch -m unittest test/backend/test_sample.py
           coverage xml -o test/backend/coverage.xml
+          cat test/backend/coverage.xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
