@@ -27,6 +27,7 @@ from consts.model import SearchRequest, HybridSearchRequest
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
 from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
+from database import attachment_db
 
 # Configure logging
 logger = logging.getLogger("elasticsearch_service")
@@ -526,7 +527,6 @@ class ElasticSearchService:
         # 1. Delete ES documents
         deleted_count = es_core.delete_documents_by_path_or_url(index_name, path_or_url)
         # 2. Delete MinIO file
-        from database import attachment_db
         minio_result = attachment_db.delete_file(path_or_url)
         return {"status": "success", "deleted_es_count": deleted_count, "deleted_minio": minio_result.get("success")}
 

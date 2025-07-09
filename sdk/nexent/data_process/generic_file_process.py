@@ -1,7 +1,6 @@
 from .base import FileProcess
 import io
-from typing import List, Dict, Optional, Union
-from unstructured.partition.auto import partition
+from typing import List, Dict, Optional
 import os
 
 
@@ -91,6 +90,8 @@ class GenericFileProcess(FileProcess):
         Returns:
             List of standardized chunk dictionaries
         """
+        from unstructured.partition.auto import partition
+
         # Validate input parameters
         if not file_path and not file_data:
             raise ValueError("Must provide either file_path or file_data")

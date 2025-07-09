@@ -2,6 +2,7 @@ import os
 import logging
 import redis
 from typing import Dict, Any
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +149,6 @@ class RedisService:
                 parent_id = None
                 if task_data:
                     # Get parent_id before deleting
-                    import json
                     try:
                         task_info = json.loads(task_data)
                         parent_id = task_info.get('parent_id')
