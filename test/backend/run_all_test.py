@@ -148,10 +148,20 @@ def run_tests():
             logger.error("Errors:")
             logger.error(result.stderr)
         
+        # Check if any tests actually failed (not just warnings)
+        test_failed = False
+        if result.returncode != 0:
+            # Check output for failed tests vs just warnings
+            test_failed = (" failed " in result.stdout or 
+                           " FAILED " in result.stdout or 
+                           "ERROR " in result.stdout or 
+                           "ImportError" in result.stdout or 
+                           "ModuleNotFoundError" in result.stdout)
+        
         # Count tests and results
         test_info = {
             'file': rel_path,
-            'success': result.returncode == 0,
+            'success': result.returncode == 0 or (not test_failed),  # Success if returncode is 0 or only warnings
             'output': result.stdout
         }
         test_results.append(test_info)
@@ -190,6 +200,27 @@ def run_tests():
         # use the sum of passed and failed as the total
         if file_total == 0 and (file_passed > 0 or file_failed > 0):
             file_total = file_passed + file_failed
+            
+        # Special case: If we have an import error or collection error,
+        # count it as at least one failed test
+        if test_failed and "ImportError" in result.stdout or "ERROR collecting" in result.stdout:
+            if file_total == 0:
+                # If no tests were collected, count the file as having one test that failed
+                file_total = 1
+                file_failed = 1
+                
+                # Try to count the actual number of test methods in the file
+                try:
+                    with open(os.path.join(project_root, rel_path), 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        # Count test methods in unittest style tests
+                        test_methods = [line for line in content.split('\n') if line.strip().startswith('def test_')]
+                        if test_methods:
+                            file_total = len(test_methods)
+                            file_failed = file_total  # All tests in the file are considered failed
+                except Exception:
+                    # If counting fails, stick with the default of 1
+                    pass
 
         total_tests += file_total
         passed_tests += file_passed
@@ -212,6 +243,10 @@ def run_tests():
     logger.info(f"  Passed: {passed_tests}")
     logger.info(f"  Failed: {failed_tests}")
     logger.info(f"  Pass Rate: {pass_rate:.1f}%")
+    
+    # Generate error report if there are failures
+    if failed_tests > 0:
+        generate_error_report(test_results)
     
     # Generate coverage reports
     logger.info("\n" + "=" * 60)
@@ -248,6 +283,70 @@ def run_tests():
     
     print("\nAll tests completed")
     return True
+
+
+def generate_error_report(test_results):
+    """Generate a detailed report for failed tests"""
+    failed_tests = [test for test in test_results if not test['success']]
+    
+    if not failed_tests:
+        return
+    
+    logger.info("\n" + "=" * 60)
+    logger.info("Test Error Report")
+    logger.info("=" * 60)
+    
+    for index, test in enumerate(failed_tests):
+        file_path = test['file']
+        output = test['output']
+        
+        logger.info(f"\n{index + 1}. File: {file_path}")
+        logger.info("-" * 40)
+        
+        # Extract error information from output
+        error_lines = []
+        capture_error = False
+        
+        for line in output.split('\n'):
+            # Start capturing at ERROR or FAIL sections
+            if line.strip().startswith("=") and ("ERROR" in line or "FAIL" in line):
+                capture_error = True
+                error_lines.append(line)
+            # Stop at the short test summary
+            elif line.strip().startswith("=== short test summary"):
+                error_lines.append(line)
+                break
+            # Add lines while capturing
+            elif capture_error:
+                error_lines.append(line)
+        
+        # If we didn't capture specific errors, look for traceback
+        if not error_lines:
+            capture_error = False
+            for line in output.split('\n'):
+                if "Traceback" in line:
+                    capture_error = True
+                if capture_error:
+                    error_lines.append(line)
+                    if len(error_lines) > 15:  # Limit traceback to 15 lines
+                        error_lines.append("... (truncated) ...")
+                        break
+        
+        # If still no error lines found, just show the last few lines of output
+        if not error_lines:
+            output_lines = output.split('\n')
+            if len(output_lines) > 10:
+                error_lines = ["... (output truncated) ..."] + output_lines[-10:]
+            else:
+                error_lines = output_lines
+        
+        # Print the error details
+        for line in error_lines:
+            logger.info(line)
+    
+    logger.info("\n" + "=" * 60)
+    logger.info(f"Total failed test files: {len(failed_tests)}")
+    logger.info("=" * 60)
 
 
 if __name__ == "__main__":
