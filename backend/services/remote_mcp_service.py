@@ -80,9 +80,12 @@ async def add_remote_mcp_server_list(tenant_id: str,
                                       remote_mcp_server_name=remote_mcp_server_name)
 
     if response.status_code != 200:
-        if remote_mcp_server_name not in get_all_mount_mcp_service():
+        all_mount_service_list = await get_all_mount_mcp_service()
+        if remote_mcp_server_name not in all_mount_service_list:
             # check out mount status
             return response
+        else:
+            logger.info(f"{remote_mcp_server_name} is already in mount service list, but failed to add remote MCP proxy")
 
     # update the PG database record
     insert_mcp_data = {"mcp_name": remote_mcp_server_name,
