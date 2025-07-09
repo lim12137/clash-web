@@ -6,10 +6,10 @@ import sys
 import json
 from typing import Any, Optional
 
-# 简化测试，不再尝试模拟整个导入链，而是直接模拟所需的模块和函数
-# 这会让测试更加可维护，也避免了linter错误
+# Simplify testing by directly mocking required modules and functions instead of trying to mock the entire import chain
+# This makes tests more maintainable and avoids linter errors
 
-# 通用的模拟响应类
+# Generic mock response class
 class MockJSONResponse:
     def __init__(self, status_code=200, content=None):
         self.status_code = status_code
@@ -19,48 +19,48 @@ class MockJSONResponse:
         return self.body.decode("utf-8")
 
 
-# 自定义断言帮助方法
+# Custom assertion helper methods
 def assert_status_code(test_case, response, expected_code):
-    """断言状态码，安全处理可能没有status_code属性的情况"""
+    """Assert status code, safely handle cases where status_code attribute might not exist"""
     if not hasattr(response, 'status_code'):
-        return  # 跳过断言
+        return  # Skip assertion
     test_case.assertEqual(response.status_code, expected_code)
 
 
 def assert_response_data(test_case, response, key_values: dict):
-    """断言响应数据，安全处理可能没有body属性的情况"""
+    """Assert response data, safely handle cases where body attribute might not exist"""
     if not hasattr(response, 'body') or not hasattr(response.body, 'decode'):
-        return  # 跳过断言
+        return  # Skip assertion
     
     try:
         data = json.loads(response.body.decode())
         for key, value in key_values.items():
             if isinstance(value, str) and value.startswith("contains:"):
-                # 检查字符串包含关系
+                # Check string containment
                 actual_value = data.get(key, "")
-                expected_substring = value[9:]  # 去掉"contains:"前缀
+                expected_substring = value[9:]  # Remove "contains:" prefix
                 test_case.assertIn(expected_substring, actual_value)
             else:
-                # 精确匹配
+                # Exact match
                 test_case.assertEqual(data.get(key), value)
     except (json.JSONDecodeError, AttributeError, TypeError):
-        # 处理解码错误或属性错误
+        # Handle decoding errors or attribute errors
         pass
 
 
 @patch("backend.services.remote_mcp_service")
 class TestMCPServiceIntegration(unittest.TestCase):
-    """test mcp service integration"""
+    """Test MCP service integration"""
 
     def setUp(self):
-        """设置默认返回值"""
-        # 创建通用的成功响应
+        """Set up default return values"""
+        # Create generic success response
         self.success_response = JSONResponse(
             status_code=200, 
             content={"message": "Success", "status": "success"}
         )
         
-        # 创建模拟记录
+        # Create mock records
         self.mock_records = [
             {"remote_mcp_server_name": "server1", "remote_mcp_server": "http://server1.com"},
             {"remote_mcp_server_name": "server2", "remote_mcp_server": "http://server2.com"},
@@ -68,12 +68,12 @@ class TestMCPServiceIntegration(unittest.TestCase):
         ]
 
     async def test_complete_mcp_server_lifecycle(self, mock_service):
-        """测试完整的MCP服务器生命周期"""
-        # 设置模拟函数
+        """Test complete MCP server lifecycle"""
+        # Set up mock functions
         mock_service.add_remote_mcp_server_list = AsyncMock(return_value=self.success_response)
         mock_service.delete_remote_mcp_server_list = AsyncMock(return_value=self.success_response)
         
-        # 1. 添加远程MCP服务器
+        # 1. Add remote MCP server
         add_result = await mock_service.add_remote_mcp_server_list(
             tenant_id="test_tenant",
             user_id="test_user",
@@ -81,11 +81,11 @@ class TestMCPServiceIntegration(unittest.TestCase):
             remote_mcp_server_name="test_server"
         )
         
-        # 验证添加成功
+        # Verify add success
         self.assertIsInstance(add_result, JSONResponse)
         assert_status_code(self, add_result, 200)
         
-        # 2. 删除远程MCP服务器
+        # 2. Delete remote MCP server
         delete_result = await mock_service.delete_remote_mcp_server_list(
             tenant_id="test_tenant",
             user_id="test_user",
@@ -93,51 +93,51 @@ class TestMCPServiceIntegration(unittest.TestCase):
             remote_mcp_server_name="test_server"
         )
         
-        # 验证删除成功
+        # Verify delete success
         self.assertIsInstance(delete_result, JSONResponse)
         assert_status_code(self, delete_result, 200)
         
-        # 验证调用参数
+        # Verify call parameters
         mock_service.add_remote_mcp_server_list.assert_called_once()
         mock_service.delete_remote_mcp_server_list.assert_called_once()
 
     async def test_get_remote_mcp_server_list_integration(self, mock_service):
-        """测试获取远程MCP服务器列表集成"""
-        # 设置模拟函数返回值
+        """Test get remote MCP server list integration"""
+        # Set up mock function return values
         mock_service.get_remote_mcp_server_list = AsyncMock(return_value=self.mock_records)
 
-        # 执行测试
+        # Execute test
         result = await mock_service.get_remote_mcp_server_list(tenant_id="test_tenant")
 
-        # 验证结果
+        # Verify result
         self.assertEqual(len(result), 3)
         
-        # 验证数据格式
+        # Verify data format
         for i, record in enumerate(result):
             self.assertIn("remote_mcp_server_name", record)
             self.assertIn("remote_mcp_server", record)
 
     async def test_recover_remote_mcp_server_integration(self, mock_service):
-        """测试恢复远程MCP服务器集成"""
-        # 设置模拟函数
+        """Test recover remote MCP server integration"""
+        # Set up mock functions
         mock_service.recover_remote_mcp_server = AsyncMock(return_value=self.success_response)
 
-        # 执行恢复
+        # Execute recovery
         result = await mock_service.recover_remote_mcp_server(tenant_id="test_tenant")
 
-        # 验证结果
+        # Verify result
         self.assertIsInstance(result, JSONResponse)
         assert_status_code(self, result, 200)
         
-        # 验证调用
+        # Verify call
         mock_service.recover_remote_mcp_server.assert_called_once_with(tenant_id="test_tenant")
 
     async def test_concurrent_mcp_operations(self, mock_service):
-        """测试并发MCP操作"""
-        # 设置模拟函数
+        """Test concurrent MCP operations"""
+        # Set up mock functions
         mock_service.add_remote_mcp_server_list = AsyncMock(return_value=self.success_response)
 
-        # 创建多个并发任务
+        # Create multiple concurrent tasks
         tasks = []
         for i in range(3):
             task = mock_service.add_remote_mcp_server_list(
@@ -148,25 +148,25 @@ class TestMCPServiceIntegration(unittest.TestCase):
             )
             tasks.append(task)
 
-        # 并发执行
+        # Concurrent execution
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # 验证所有任务成功完成
+        # Verify all tasks completed successfully
         for result in results:
             self.assertNotIsInstance(result, Exception)
             self.assertIsInstance(result, JSONResponse)
             assert_status_code(self, result, 200)
 
     async def test_error_handling_integration(self, mock_service):
-        """测试错误处理集成"""
-        # 设置错误响应
+        """Test error handling integration"""
+        # Set error response
         error_response = JSONResponse(
             status_code=409,
             content={"message": "Service name already exists", "status": "error"}
         )
         mock_service.add_remote_mcp_server_list = AsyncMock(return_value=error_response)
 
-        # 执行测试
+        # Execute test
         result = await mock_service.add_remote_mcp_server_list(
             tenant_id="test_tenant",
             user_id="test_user",
@@ -174,7 +174,7 @@ class TestMCPServiceIntegration(unittest.TestCase):
             remote_mcp_server_name="existing_server"
         )
 
-        # 验证
+        # Verify
         self.assertIsInstance(result, JSONResponse)
         assert_status_code(self, result, 409)
         assert_response_data(self, result, {
@@ -183,35 +183,35 @@ class TestMCPServiceIntegration(unittest.TestCase):
         })
 
     async def test_network_failure_recovery(self, mock_service):
-        """测试网络失败恢复"""
-        # 设置错误响应
+        """Test network failure recovery"""
+        # Set error response
         error_response = JSONResponse(
             status_code=400,
             content={"message": "Failed to load remote MCP proxy list", "status": "error"}
         )
         mock_service.recover_remote_mcp_server = AsyncMock(return_value=error_response)
 
-        # 执行恢复
+        # Execute recovery
         result = await mock_service.recover_remote_mcp_server(tenant_id="test_tenant")
 
-        # 验证错误处理
+        # Verify error handling
         self.assertIsInstance(result, JSONResponse)
         assert_status_code(self, result, 400)
         assert_response_data(self, result, {"status": "error"})
 
     async def test_data_consistency_validation(self, mock_service):
-        """测试数据一致性验证"""
-        # 设置模拟数据
+        """Test data consistency validation"""
+        # Set up mock data
         mock_records = [
             {"remote_mcp_server_name": "server1", "remote_mcp_server": "http://server1.com"},
             {"remote_mcp_server_name": "server2", "remote_mcp_server": "http://server2.com"}
         ]
         mock_service.get_remote_mcp_server_list = AsyncMock(return_value=mock_records)
 
-        # 获取服务器列表
+        # Get server list
         result = await mock_service.get_remote_mcp_server_list(tenant_id="test_tenant")
 
-        # 验证数据结构和内容
+        # Verify data structure and content
         self.assertEqual(len(result), 2)
         server_names = [item["remote_mcp_server_name"] for item in result]
         server_urls = [item["remote_mcp_server"] for item in result]
@@ -222,18 +222,18 @@ class TestMCPServiceIntegration(unittest.TestCase):
         self.assertIn("http://server2.com", server_urls)
 
 
-# 修改模拟方式，不再直接尝试访问backend.utils.config_utils模块
+# Modify mock approach, no longer directly attempt to access backend.utils.config_utils module
 class TestMCPConfigurationIntegration(unittest.TestCase):
-    """测试MCP配置集成"""
+    """Test MCP configuration integration"""
 
     def setUp(self):
-        """设置模拟配置管理器"""
+        """Set up mock configuration manager"""
         self.mock_config_manager = MagicMock()
         
-        # 保存原始导入函数
+        # Save original import function
         self.original_import = __import__
         
-        # 模拟导入函数，当尝试导入模块时返回模拟对象
+        # Mock import function to return mock objects when importing modules
         def mock_import(name, *args, **kwargs):
             if name == 'backend.utils.config_utils' or name == 'utils.config_utils':
                 mock_module = MagicMock()
@@ -241,19 +241,19 @@ class TestMCPConfigurationIntegration(unittest.TestCase):
                 return mock_module
             return self.original_import(name, *args, **kwargs)
         
-        # 替换导入函数
+        # Replace import function
         sys.modules['backend.utils.config_utils'] = MagicMock()
         sys.modules['backend.utils.config_utils'].config_manager = self.mock_config_manager
 
     def tearDown(self):
-        """恢复原始导入函数"""
-        # 删除模拟模块
+        """Restore original import function"""
+        # Delete mock module
         if 'backend.utils.config_utils' in sys.modules:
             del sys.modules['backend.utils.config_utils']
 
     def test_config_manager_integration(self):
-        """测试配置管理器集成"""
-        # 设置不同的配置值
+        """Test config manager integration"""
+        # Set different configuration values
         test_configs = [
             "http://localhost:5011",
             "http://production-server:8080",
@@ -265,20 +265,20 @@ class TestMCPConfigurationIntegration(unittest.TestCase):
         for config_url in test_configs:
             self.mock_config_manager.get_config.return_value = config_url
             
-            # 验证配置是否正确获取
+            # Verify configuration is correctly retrieved
             result = self.mock_config_manager.get_config("NEXENT_MCP_SERVER")
             self.assertEqual(result, config_url)
 
     async def test_dynamic_config_update(self):
-        """测试动态配置更新"""
-        # 模拟配置变更
+        """Test dynamic config update"""
+        # Mock configuration change
         initial_config = "http://localhost:5011"
         updated_config = "http://updated-server:6012"
         
         self.mock_config_manager.get_config = MagicMock(side_effect=[initial_config, updated_config])
         
-        # 验证第一次调用
+        # Verify first call
         self.assertEqual(self.mock_config_manager.get_config(), initial_config)
         
-        # 验证第二次调用
+        # Verify second call
         self.assertEqual(self.mock_config_manager.get_config(), updated_config)
