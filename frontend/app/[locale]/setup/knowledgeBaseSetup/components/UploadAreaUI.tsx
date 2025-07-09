@@ -101,7 +101,6 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
     );
   }
 
-  console.log("modelMismatch:", modelMismatch)
   // Model mismatch status UI
   if (modelMismatch) {
     return (
