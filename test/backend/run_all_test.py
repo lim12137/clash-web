@@ -83,14 +83,23 @@ def run_tests():
         logger.error("Failed to install required packages. Exiting.")
         return False
     
+    # Coverage data file path
+    coverage_data_file = os.path.join(current_dir, '.coverage')
+    config_file = os.path.join(current_dir, '.coveragerc')
+    
+    # Delete old coverage data if it exists
+    if os.path.exists(coverage_data_file):
+        try:
+            os.remove(coverage_data_file)
+            logger.info("Removed old coverage data.")
+        except Exception as e:
+            logger.warning(f"Could not remove old coverage data: {e}")
+    
     # Results tracking
     total_tests = 0
     passed_tests = 0
     failed_tests = 0
     test_results = []
-    
-    # Coverage data file path
-    coverage_data_file = os.path.join(current_dir, '.coverage')
     
     # Define backend source directory for coverage
     backend_source = os.path.join(project_root, 'backend')
@@ -131,7 +140,7 @@ def run_tests():
             f"--cov={backend_source}", 
             f"--cov-report=", 
             "--cov-append",
-            "--cov-config=",  # 使用空值而不是 NONE
+            "--cov-config=test/backend/.coveragerc",  # Use the config file
         ]
         
         # Add omit patterns through environment variable to avoid command line length issues
@@ -256,22 +265,65 @@ def run_tests():
     try:
         # Use coverage API to generate reports from the collected data
         import coverage
-        cov = coverage.Coverage(data_file=coverage_data_file)
+        cov = coverage.Coverage(
+            data_file=coverage_data_file,
+            config_file=config_file
+        )
         cov.load()
         
+        # Get measured files and check if they exist
+        measured_files = cov.get_data().measured_files()
+        missing_files = []
+        for file_path in measured_files:
+            if not os.path.exists(file_path):
+                missing_files.append(file_path)
+                logger.warning(f"Source file not found: {file_path}")
+        
+        if missing_files:
+            logger.warning(f"\nFound {len(missing_files)} missing source files")
+            logger.warning("Coverage report may be incomplete")
+            
+            # Remove missing files from coverage data
+            logger.info("Attempting to exclude missing files from coverage reports...")
+            # Create a temporary copy of the config
+            temp_config = os.path.join(current_dir, '.coveragerc.tmp')
+            with open(config_file, 'r') as src, open(temp_config, 'w') as dst:
+                for line in src:
+                    dst.write(line)
+                # Add explicit omit rules for missing files
+                dst.write("\n# Additional files to omit (added automatically)\n")
+                for file_path in missing_files:
+                    dst.write(f"    {file_path}\n")
+            
+            # Reload coverage with the updated config
+            try:
+                logger.info("Reloading coverage with updated configuration...")
+                cov = coverage.Coverage(
+                    data_file=coverage_data_file,
+                    config_file=temp_config
+                )
+                cov.load()
+                logger.info("Successfully reloaded coverage data with updated config")
+            except Exception as e:
+                logger.warning(f"Failed to reload coverage with updated config: {e}")
+                # Continue with the original coverage object
+        
         # Console report
-        total_coverage = cov.report(show_missing=True)
-        logger.info(f"\nTotal Coverage: {total_coverage:.1f}%")
-        
-        # Generate HTML report
-        html_dir = os.path.join(current_dir, 'coverage_html')
-        cov.html_report(directory=html_dir)
-        logger.info(f"\nHTML coverage report generated in: {html_dir}")
-        
-        # Generate XML report
-        xml_file = os.path.join(current_dir, 'coverage.xml')
-        cov.xml_report(outfile=xml_file)
-        logger.info(f"XML coverage report generated: {xml_file}")
+        try:
+            total_coverage = cov.report(show_missing=True)
+            logger.info(f"\nTotal Coverage: {total_coverage:.1f}%")
+            
+            # Generate HTML report
+            html_dir = os.path.join(current_dir, 'coverage_html')
+            cov.html_report(directory=html_dir)
+            logger.info(f"\nHTML coverage report generated in: {html_dir}")
+            
+            # Generate XML report
+            xml_file = os.path.join(current_dir, 'coverage.xml')
+            cov.xml_report(outfile=xml_file)
+            logger.info(f"XML coverage report generated: {xml_file}")
+        except Exception as e:
+            logger.error(f"Error generating coverage reports after data cleanup: {e}")
     except Exception as e:
         if "No data to report" in str(e) or "No data was collected" in str(e):
             logger.info("No coverage data collected. This might be because:")
@@ -279,7 +331,17 @@ def run_tests():
             logger.info("2. All tested modules are mocked")
             logger.info("3. Tests are not actually calling the backend code")
         else:
-            print(f"Error generating coverage report: {e}")
+            logger.error(f"Error generating coverage report: {e}")
+            
+            # Additional debugging for missing source files
+            if "No source for code" in str(e):
+                file_path = str(e).split("'")[1] if "'" in str(e) else "unknown"
+                logger.error(f"The file exists: {os.path.exists(file_path)}")
+                logger.error("Possible solutions:")
+                logger.error("1. Make sure the file exists at the path shown in the error")
+                logger.error("2. Check if the PYTHONPATH includes the directory containing this file")
+                logger.error("3. Try running tests with absolute imports instead of relative imports")
+                logger.error("4. Add a .coveragerc file with [paths] section to map source paths")
     
     print("\nAll tests completed")
     return True
