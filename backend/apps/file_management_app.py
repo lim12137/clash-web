@@ -158,17 +158,9 @@ async def process_files(
     index_name: index name in elasticsearch
     destination: 'local' or 'minio'
     """
-    source_type = ""
-    if destination == "local":
-        source_type = "file"
-    elif destination == "minio":
-        source_type = "url"
-    else:
-        raise Exception("Invalid destination")
-
     process_params = ProcessParams(
         chunking_strategy=chunking_strategy,
-        source_type=source_type,
+        source_type=destination,
         index_name=index_name
     )
 
@@ -317,7 +309,7 @@ async def get_storage_file(
         )
 
 
-@router.delete("/storage/{object_name}")
+@router.delete("/storage/{object_name:path}")
 async def remove_storage_file(
     object_name: str = PathParam(..., description="File object name to delete")
 ):
@@ -399,7 +391,7 @@ async def get_storage_file_batch_urls(
 
 
 @router.post("/preprocess")
-async def agent_preprocess_api(query: str = Form(...), files: List[UploadFile] = File(...), authorization: Optional[str] = Header(None), request: Request = None):
+async def agent_preprocess_api(request: Request, query: str = Form(...), files: List[UploadFile] = File(...), authorization: Optional[str] = Header(None)):
     """
     Preprocess uploaded files and return streaming response
     """

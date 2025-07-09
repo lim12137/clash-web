@@ -24,7 +24,7 @@ class KnowledgeBaseSearchTool(Tool):
     index_names = []
 
     def __init__(self, top_k: int = Field(description="Maximum number of search results", default=5),
-                 observer: MessageObserver = Field(description="Message observer", default=None, exclude=True)):
+                 observer: MessageObserver = Field(description="Message observer", exclude=True)):
         """Initialize the KBSearchTool.
         
         Args:
@@ -69,8 +69,11 @@ class KnowledgeBaseSearchTool(Tool):
         search_results_json = []  # Organize search results into a unified format
         search_results_return = []  # Format for input to the large model
         for index, single_search_result in enumerate(kb_search_results):
+            # Temporarily correct the source_type stored in the knowledge base
+            source_type = single_search_result.get("filename", "")
+            source_type = "file" if source_type in ["local", "minio"] else source_type
             search_result_message = SearchResultTextMessage(title=single_search_result.get("title", ""),
-                text=single_search_result.get("content", ""), source_type=single_search_result.get("source_type", ""),
+                text=single_search_result.get("content", ""), source_type=source_type,
                 url=single_search_result.get("path_or_url", ""), filename=single_search_result.get("filename", ""),
                 published_date=single_search_result.get("create_time", ""), score=single_search_result.get("score", 0),
                 score_details=single_search_result.get("score_details", {}), cite_index=self.record_ops + index,
