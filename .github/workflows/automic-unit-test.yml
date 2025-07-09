@@ -29,15 +29,13 @@ jobs:
 
       - name: Run all tests and collect coverage
         run: |
-          coverage run --branch -m unittest test/backend/test_sample.py
+          coverage run --branch -m unittest discover -s test/backend/test
           coverage xml -o test/backend/coverage.xml
           cat test/backend/coverage.xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: test/backend/coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
+          fail_ci_if_error: true
+          verbose: true
           token: ${{ secrets.CODECOV_TOKEN }}
