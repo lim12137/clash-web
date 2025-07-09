@@ -3,7 +3,6 @@ Utility functions for Celery tasks
 """
 import logging
 import time
-import os
 import redis
 from typing import Dict, Any, Optional, List
 from celery.result import AsyncResult
@@ -22,11 +21,6 @@ def get_all_task_ids_from_redis(redis_client: redis.Redis) -> List[str]:
     Returns:
         List of task IDs found in Redis
     """
-    # Defensive check to prevent crashes if redis_client is None
-    if not redis_client:
-        logger.error("Redis client is not initialized, cannot get task IDs from Redis.")
-        return []
-        
     task_ids = []
     try:
         # Get all keys matching Celery result pattern

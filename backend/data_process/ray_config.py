@@ -216,4 +216,5 @@ def init_ray_for_service(num_cpus: Optional[int] = None,
     return ray_config.start_local_cluster(
         num_cpus=num_cpus,
         dashboard_port=dashboard_port
-    ) 
+    )
+    

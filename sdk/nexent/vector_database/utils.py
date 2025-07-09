@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Dict, Any, List
 
 def format_size(size_in_bytes):
     """Convert size in bytes to human readable format"""
@@ -16,35 +15,35 @@ def format_timestamp(timestamp_ms):
 
 def build_weighted_query(text, term_weights, field_weights=None, boost_factor=2.0):
     """
-    构建 Elasticsearch 加权查询 DSL
+    Build Elasticsearch weighted query DSL
 
-    参数:
-        text (str): 原始查询文本
-        term_weights (dict): 分词权重字典 {term: weight}
-        field_weights (dict): 字段权重字典 {field_name: weight}，默认 {"title": 1, "content": 1}
-        boost_factor (float): 权重放大系数，默认 2.0
+    Parameters:
+        text (str): Original query text
+        term_weights (dict): Term weight dictionary {term: weight}
+        field_weights (dict): Field weight dictionary {field_name: weight}, default {"title": 1, "content": 1}
+        boost_factor (float): Weight amplification factor, default 2.0
 
-    返回:
-        dict: Elasticsearch 查询 DSL
+    Returns:
+        dict: Elasticsearch query DSL
     """
     if field_weights is None:
         field_weights = {"title": 1, "content": 1}
 
-    # 将英文文本转换为小写
+    # Convert English text to lowercase
     text = text.lower()
 
-    # 构建 function_score 的 functions 数组
+    # Build functions array for function_score
     functions = []
     for term, weight in term_weights.items():
         for field in field_weights:
             functions.append({
-                # 为每个词创建 filter 条件
+                # Create filter condition for each term
                 "filter": {"term": {field: term}},
-                # 实际权重 = 计算权重 * 字段权重 * 放大系数
+                # Actual weight = calculated weight * field weight * amplification factor
                 "weight": weight * field_weights[field] * boost_factor
             })
 
-    # 生成 should 子句
+    # Generate should clause
     should_clauses = []
     for field, weight in field_weights.items():
         should_clauses.extend([
@@ -53,7 +52,7 @@ def build_weighted_query(text, term_weights, field_weights=None, boost_factor=2.
                     field: {
                         "query": text,
                         "slop": 3,
-                        "boost": weight  # 为 match_phrase 设置 boost
+                        "boost": weight  # Set boost for match_phrase
                     }
                 }
             },
@@ -63,7 +62,7 @@ def build_weighted_query(text, term_weights, field_weights=None, boost_factor=2.
                         "query": text,
                         "minimum_should_match": "50%",
                         "fuzziness": "AUTO",
-                        "boost": weight  # 为 match 设置 boost
+                        "boost": weight  # Set boost for match
                     }
                 }
             }

@@ -1,9 +1,6 @@
 from .tools import SearchTool, KnowledgeBaseSearchTool, SummaryTool
 from .utils.observer import MessageObserver, ProcessType
 
-from .tools import SearchTool, KnowledgeBaseSearchTool, SummaryTool
-
-
 __all__ = ["MessageObserver", "ProcessType",
            "SearchTool", "SummaryTool", "KnowledgeBaseSearchTool"]
 

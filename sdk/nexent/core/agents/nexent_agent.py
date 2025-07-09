@@ -7,12 +7,7 @@ from .agent_model import ModelConfig, ToolConfig, AgentConfig, AgentHistory
 from ..utils.observer import MessageObserver
 from ..models.openai_llm import OpenAIModel
 from .core_agent import CoreAgent
-from ..tools import (
-    SearchTool,
-    KnowledgeBaseSearchTool,
-    SummaryTool,
-    SendEmailTool,
-    GetEmailTool)           # Used for tool creation, do not delete!!!
+from ..tools import *  # Used for tool creation, do not delete!!!
 
 
 class NexentAgent:

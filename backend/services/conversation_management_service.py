@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import yaml
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -381,7 +380,8 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
 
         # Collect search content, grouped by unit_id
         search_by_unit_id = {}
-        search_by_message = {}  # 为消息级别的search字段收集数据
+        # Collect data for message-level search field
+        search_by_message = {}
         for record in history_data['search_records']:
             unit_id = record['unit_id']
             message_id = record['message_id']
@@ -407,13 +407,13 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
             if record["score_semantic"] is not None:
                 search_item["score_details"]["semantic"] = record["score_semantic"]
 
-            # 按unit_id分组（用于前端根据unit_id匹配）
+            # Group by unit_id (for frontend matching by unit_id)
             if unit_id is not None:
                 if unit_id not in search_by_unit_id:
                     search_by_unit_id[unit_id] = []
                 search_by_unit_id[unit_id].append(search_item)
             
-            # 按message_id分组（用于消息级别的search字段）
+            # Group by message_id (for message-level search field)
             if message_id not in search_by_message:
                 search_by_message[message_id] = []
             search_by_message[message_id].append(search_item)
@@ -494,7 +494,7 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
             # Add searchByUnitId for precise matching in frontend
             message_unit_search = {}
             for unit_id, search_results in search_by_unit_id.items():
-                # 只包含属于当前消息的 unit_id
+                # Only include unit_id belonging to the current message
                 for unit in message_units:
                     if unit.get('unit_id') == unit_id:
                         message_unit_search[str(unit_id)] = search_results
