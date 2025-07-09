@@ -118,7 +118,7 @@ async def delete_remote_mcp_server_list(tenant_id: str, user_id: str, remote_mcp
             if response.status_code == 200:
                 logger.info(f"Successfully removed remote MCP proxy: {remote_mcp_server_name}")
             elif response.status_code == 404:
-                logger.warning(f"Remote MCP proxy '{remote_mcp_server_name}' not found, may already be removed")
+                logger.error(f"Remote MCP proxy '{remote_mcp_server_name}' not found, may already be removed")
             else:
                 logger.error(f"Failed to call remote-proxies DELETE endpoint: {response.status_code} - {response.text}")
                 return JSONResponse(
@@ -177,7 +177,7 @@ async def get_all_mount_mcp_service():
         logger.error("Timeout when calling list-remote-proxies endpoint")
         return []
     except Exception as e:
-        logger.info(f"Failed get all mount MCP proxy: {e}")
+        logger.error(f"Failed get all mount MCP proxy: {e}")
         return []
 
 async def get_remote_mcp_server_list(tenant_id: str):
