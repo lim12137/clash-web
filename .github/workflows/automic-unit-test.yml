@@ -26,6 +26,9 @@ jobs:
 
       - name: Install coverage
         run: pip install coverage -i https://pypi.mirrors.ustc.edu.cn/simple/
+      
+      - name: Install dependencies
+        run: pip install -r pytest -i https://pypi.mirrors.ustc.edu.cn/simple/
 
       - name: Run all tests and collect coverage
         run: |
