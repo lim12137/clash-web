@@ -1,6 +1,7 @@
 from typing import Optional
 
-from fastapi import Query, APIRouter, Header
+from fastapi import Query, APIRouter, Header, Body
+import logging
 
 from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest
 from database.model_management_db import create_model_record, update_model_record, delete_model_record, \
@@ -10,12 +11,14 @@ from utils.model_name_utils import split_repo_name, add_repo_to_name
 from utils.auth_utils import get_current_user_id
 
 router = APIRouter(prefix="/model")
+logger = logging.getLogger("model_management_app")
 
 
 @router.post("/create", response_model=ModelResponse)
 async def create_model(request: ModelRequest, authorization: Optional[str] = Header(None)):
     try:
         user_id, tenant_id = get_current_user_id(authorization)
+        logger.info(f"Start to create model, user_id: {user_id}, tenant_id: {tenant_id}")
         model_data = request.model_dump()
         # Split model_name
         model_repo, model_name = split_repo_name(model_data["model_name"])
@@ -48,7 +51,7 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
         if is_multimodal:
             # Create the multi_embedding record
             create_model_record(model_data, user_id, tenant_id)
-            
+
             # Create the embedding record with the same data but different model_type
             embedding_data = model_data.copy()
             embedding_data["model_type"] = "embedding"
@@ -100,7 +103,7 @@ def update_model(request: ModelRequest, authorization: Optional[str] = Header(No
 
         # If display name is provided and different from existing, check for duplicates
         if model_data.get("display_name") and model_data["display_name"] != existing_model.get("display_name"):
-            existing_model_by_display = get_model_by_display_name(model_data["display_name"])
+            existing_model_by_display = get_model_by_display_name(model_data["display_name"], tenant_id)
             if existing_model_by_display and existing_model_by_display["model_id"] != existing_model["model_id"]:
                 return ModelResponse(
                     code=409,
@@ -135,6 +138,7 @@ async def delete_model(display_name: str = Query(..., embed=True), authorization
     """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
+        logger.info(f"Start to delete model, user_id: {user_id}, tenant_id: {tenant_id}")
         # Find model by display_name
         model = get_model_by_display_name(display_name, tenant_id)
         if not model:
@@ -176,6 +180,7 @@ async def get_model_list(authorization: Optional[str] = Header(None)):
     """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
+        logger.info(f"Start to list models, user_id: {user_id}, tenant_id: {tenant_id}")
         records = get_model_records(None, tenant_id)
 
         result = []

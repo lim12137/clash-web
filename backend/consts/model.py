@@ -57,6 +57,14 @@ class UserUpdateRequest(BaseModel):
     password: Optional[str] = Field(None, min_length=6)
     role: Optional[str] = None
 
+
+# Response models for user management
+class ServiceResponse(BaseModel):
+    code: int
+    message: str
+    data: Optional[Any] = None
+
+
 # Response models for model management
 class ModelResponse(BaseModel):
     code: int = 200

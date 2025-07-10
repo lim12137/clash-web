@@ -78,7 +78,7 @@ export function AvatarDropdown() {
     )
   }
 
-  // 用户已登录，展示用户菜单
+  // User has logged in, show user menu
   const menuItems: ItemType[] = [
     {
       key: 'user-info',
@@ -96,15 +96,16 @@ export function AvatarDropdown() {
         cursor: 'default'
       }
     },
-    ...(user.role === "admin"
-      ? [
-          {
-            key: 'admin',
-            icon: <SettingOutlined />,
-            label: t('auth.adminSettings'),
-          } as MenuItemType
-        ]
-      : []),
+    // TODO: Admin settings function is not implemented yet, comment out for now
+    // ...(user.role === "admin"
+    //   ? [
+    //       {
+    //         key: 'admin',
+    //         icon: <SettingOutlined />,
+    //         label: t('auth.adminSettings'),
+    //       } as MenuItemType
+    //     ]
+    //   : []),
     {
       type: 'divider',
     },

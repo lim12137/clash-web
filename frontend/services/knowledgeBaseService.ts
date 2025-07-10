@@ -18,7 +18,9 @@ class KnowledgeBaseService {
       console.log("强制刷新健康检查，不使用缓存");
       this.healthCheckCache = null; // 清除缓存
 
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.health);
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.health, {
+        headers: getAuthHeaders()
+      });
       const data = await response.json();
       
       const isHealthy = data.status === "healthy" && data.elasticsearch === "connected";
@@ -49,7 +51,9 @@ class KnowledgeBaseService {
 
       // Get knowledge bases from Elasticsearch
       try {
-        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=true`);
+        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=true`, {
+          headers: getAuthHeaders()
+        });
         const data = await response.json();
         
         if (data.indices && data.indices_info) {
@@ -101,7 +105,9 @@ class KnowledgeBaseService {
       let knowledgeBases = [];
 
       try{
-        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}`);
+        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}`, {
+          headers: getAuthHeaders()
+        });
         const data = await response.json();
         knowledgeBases = data.indices;
       } catch (error) {
@@ -198,7 +204,9 @@ class KnowledgeBaseService {
   // searchRedis: true means search redis to get the file in Celery, false means only search in ES
   async getAllFiles(kbId: string, searchRedis: boolean = true): Promise<Document[]> {
     try {
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.listFiles(kbId, searchRedis));
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.listFiles(kbId, searchRedis), {
+        headers: getAuthHeaders()
+      });
       const result = await response.json();
 
       if (result.status !== "success") {
@@ -268,9 +276,7 @@ class KnowledgeBaseService {
       // 1. Upload files
       const uploadResponse = await fetch(API_ENDPOINTS.knowledgeBase.upload, {
         method: "POST",
-        headers: {
-          'User-Agent': 'AgentFrontEnd/1.0'
-        },
+        headers: getAuthHeaders(),
         body: formData,
       });
 

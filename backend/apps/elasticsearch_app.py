@@ -13,8 +13,8 @@ from database.attachment_db import delete_file
 
 router = APIRouter(prefix="/indices")
 service = ElasticSearchService()
-
 logger = logging.getLogger("elasticsearch_app")
+
 
 @router.post("/{index_name}")
 def create_new_index(
@@ -139,6 +139,7 @@ def get_list_indices(
     """List all user indices with optional stats"""
     try:
         user_id, tenant_id = get_current_user_id(authorization)
+        logger.info(f"Get list indices: user {user_id} with tenant {tenant_id}")
         return ElasticSearchService.list_indices(pattern, include_stats, user_id, tenant_id, es_core)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error get index: {str(e)}")

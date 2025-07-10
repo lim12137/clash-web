@@ -166,7 +166,38 @@
             }
         ],
         "copyright": "Nexent 智能体 © {{year}}",
-        "termsOfUse": "使用条款"
+        "termsOfUse": "使用条款",
+        "loginPrompt": {
+            "title": "登录账号",
+            "register": "注册",
+            "login": "立即登录",
+            "header": "🚀 准备启航！",
+            "intro": "登录您的账户，开启智能问答之旅~",
+            "benefitsTitle": "✨ 登录后您将获得：",
+            "benefits": [
+                "专属的对话历史记录",
+                "个性化的智能推荐",
+                "企业知识库完整访问权限",
+                "更精准的问答体验"
+            ],
+            "githubSupport": "⭐️ Nexent还在成长中，帮帮我到<1>GitHub</1>加星支持我吧，谢谢你。",
+            "noAccount": "还没有账号？点击\"注册\"按钮创建您的专属账号~"
+        },
+        "adminPrompt": {
+            "title": "啊哦，您不是管理员",
+            "close": "好的",
+            "intro": "只有管理员可以调整配置，请先登录为管理员账号~",
+            "unlockHeader": "🌟 成为管理员，解锁更多能力！",
+            "unlockIntro": "成为管理员后，您可以：",
+            "permissionsTitle": "✨ 管理员专属权限：",
+            "permissions": [
+                "配置和管理自己的模型",
+                "制作和发布专属智能Agent",
+                "集成和配置自有工具"
+            ],
+            "githubSupport": "⭐️ Nexent还在成长中，帮帮我到<1>GitHub</1>加星支持我吧，谢谢你。",
+            "becomeAdmin": "💡 想成为管理员？请访问<1>官网联系页</1>，申请管理员账号。"
+        }
     },
     "chatStreamMessage": {
         "appIconAlt": "应用图标",
@@ -751,37 +782,6 @@
     "login.expired.okText": "立即登录",
     "login.expired.cancelText": "返回首页",
     "setup.page.error.adminOnly": "只有管理员可以访问模型配置页面",
-    "page.loginPrompt": {
-          "title": "登录账号",
-          "register": "注册",
-          "login": "立即登录",
-          "header": "🚀 准备启航！",
-          "intro": "登录您的账户，开启智能问答之旅~",
-          "benefitsTitle": "✨ 登录后您将获得：",
-          "benefits": [
-              "专属的对话历史记录",
-              "个性化的智能推荐",
-              "企业知识库完整访问权限",
-              "更精准的问答体验"
-          ],
-          "githubSupport": "⭐️ Nexent还在成长中，帮帮我到<1>GitHub</1>加星支持我吧，谢谢你。",
-          "noAccount": "还没有账号？点击\"注册\"按钮创建您的专属账号~"
-      },
-      "page.adminPrompt": {
-          "title": "啊哦，您不是管理员",
-          "close": "好的",
-          "intro": "只有管理员可以调整配置，请先登录为管理员账号~",
-          "unlockHeader": "🌟 成为管理员，解锁更多能力！",
-          "unlockIntro": "成为管理员后，您可以：",
-          "permissionsTitle": "✨ 管理员专属权限：",
-          "permissions": [
-              "配置和管理自己的模型",
-              "制作和发布专属智能Agent",
-              "集成和配置自有工具"
-          ],
-          "githubSupport": "⭐️ Nexent还在成长中，帮帮我到<1>GitHub</1>加星支持我吧，谢谢你。",
-          "becomeAdmin": "💡 想成为管理员？请访问<1>官网联系页</1>，申请管理员账号。"
-      },
       "auth": {
           "notLoggedIn": "您尚未登录",
           "login": "登录",
