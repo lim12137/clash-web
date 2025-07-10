@@ -258,20 +258,15 @@ class KnowledgeBaseService {
     try {
       // Create FormData object
       const formData = new FormData();
-      formData.append("index_name", kbId);
-
-      // Add files
       for (let i = 0; i < files.length; i++) {
         formData.append("file", files[i]);
       }
+      // Default destination is now Minio
+      formData.append("destination", "minio");
+      formData.append("folder", "knowledge_base");
 
-      // If chunking strategy is provided, add it to the request
-      if (chunkingStrategy) {
-        formData.append("chunking_strategy", chunkingStrategy);
-      }
-
-      // Send request - cannot use getAuthHeaders，cuz we actually need content-type: multipart/form-data here
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.upload, {
+      // 1. Upload files
+      const uploadResponse = await fetch(API_ENDPOINTS.knowledgeBase.upload, {
         method: "POST",
         headers: {
           'User-Agent': 'AgentFrontEnd/1.0'
@@ -279,38 +274,55 @@ class KnowledgeBaseService {
         body: formData,
       });
 
-      // Check response status code
-      if (!response.ok) {
-        const result = await response.json();
-        
-        // Handle 400 error (no files or invalid files)
-        if (response.status === 400) {
-          if (result.error === "No files in the request") {
-            throw new Error("No files in the request");
-          } else if (result.error === "No valid files uploaded") {
-            throw new Error(`Invalid file upload: ${result.errors.join(", ")}`);
-          }
-          throw new Error(result.error || "File upload validation failed");
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResponse.ok) {
+        if (uploadResponse.status === 400) {
+          throw new Error(uploadResult.error || "File upload validation failed");
         }
-        
-        // Handle 500 error (data processing service failure)
-        if (response.status === 500) {
-          const errorMessage = `Data processing service failed: ${result.error}. Uploaded files: ${result.files.join(", ")}`;
-          throw new Error(errorMessage);
-        }
-        
         throw new Error("File upload failed");
       }
 
+      if (!uploadResult.uploaded_file_paths || uploadResult.uploaded_file_paths.length === 0) {
+        throw new Error("No files were uploaded successfully.");
+      }
+      
+      // 2. Trigger data processing
+      // Combine uploaded file paths and filenames into the required format
+      const filesToProcess = uploadResult.uploaded_file_paths.map((filePath: string, index: number) => ({
+        path_or_url: filePath,
+        filename: uploadResult.uploaded_filenames[index]
+      }));
+
+      const processResponse = await fetch(API_ENDPOINTS.knowledgeBase.process, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          index_name: kbId,
+          files: filesToProcess,
+          chunking_strategy: chunkingStrategy,
+          destination: "minio"
+        }),
+      });
+      
+      if (!processResponse.ok) {
+        const processResult = await processResponse.json();
+        // Handle 500 error (data processing service failure)
+        if (processResponse.status === 500) {
+          const errorMessage = `Data processing service failed: ${processResult.error}. Files: ${processResult.files.join(", ")}`;
+          throw new Error(errorMessage);
+        }
+        throw new Error(processResult.error || "Data processing failed");
+      }
+
       // Handle successful response (201)
-      const result = await response.json();
-      if (response.status === 201) {
+      if (processResponse.status === 201) {
         return;
       }
 
-      throw new Error("Unknown response status");
+      throw new Error("Unknown response status during processing");
     } catch (error) {
-      console.error("Failed to upload files:", error);
+      console.error("Failed to upload and process files:", error);
       throw error;
     }
   }

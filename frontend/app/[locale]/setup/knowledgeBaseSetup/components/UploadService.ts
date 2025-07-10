@@ -16,60 +16,6 @@ export const updateKnowledgeBaseCache = (forceRefresh: boolean = true) => {
   knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(forceRefresh);
 };
 
-// 自定义上传请求函数
-export const customUploadRequest = async (
-  options: any, 
-  effectiveUploadUrl: string, 
-  isCreatingMode: boolean,
-  newKnowledgeBaseName: string,
-  indexName: string,
-  currentKnowledgeBaseRef: React.MutableRefObject<string>
-) => {
-  const { t } = useTranslation('common');
-  const { onSuccess, onError, file } = options;
-  const effectiveIndexName = isCreatingMode ? newKnowledgeBaseName : indexName;
-  
-  // 确保是当前知识库
-  if (effectiveIndexName !== currentKnowledgeBaseRef.current && !isCreatingMode) {
-    onError(new Error(t('knowledgeBase.upload.switchError')));
-    message.error(t('knowledgeBase.upload.fileUploadSwitchError', { fileName: file.name }));
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('index_name', effectiveIndexName);
-
-  try {
-    const response = await fetch(effectiveUploadUrl, {
-      method: 'POST',
-      body: formData,
-    });
-
-    // 再次确认是当前知识库
-    if (effectiveIndexName !== currentKnowledgeBaseRef.current && !isCreatingMode) {
-      onError(new Error(t('knowledgeBase.upload.switchError')));
-      message.error(t('knowledgeBase.upload.fileUploadSwitchError', { fileName: file.name }));
-      return;
-    }
-
-    if (response.ok) {
-      const result = await response.json();
-      onSuccess(result, file);
-
-    } else {
-      onError(new Error(t('knowledgeBase.upload.error')));
-      message.error(t('knowledgeBase.upload.fileUploadError', { fileName: file.name }));
-    }
-  } catch (err) {
-    // 确保是当前知识库的错误处理
-    if (effectiveIndexName === currentKnowledgeBaseRef.current || isCreatingMode) {
-      onError(new Error(t('knowledgeBase.upload.error')));
-      message.error(t('knowledgeBase.upload.fileUploadError', { fileName: file.name }));
-    }
-  }
-};
-
 // 检查知识库名称是否存在
 export const checkKnowledgeBaseNameExists = async (
   knowledgeBaseName: string,

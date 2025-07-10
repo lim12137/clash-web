@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import Query, Body, APIRouter, Header
+from fastapi import Query, APIRouter, Header
 
 from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest
 from database.model_management_db import create_model_record, update_model_record, delete_model_record, \
@@ -289,10 +289,10 @@ async def verify_model_config(request: ModelRequest):
     except Exception as e:
         return ModelResponse(
             code=500,
-            message=f"验证模型配置失败: {str(e)}",
+            message=f"Failed to verify model configuration: {str(e)}",
             data={
                 "connectivity": False,
-                "message": f"验证失败: {str(e)}",
+                "message": f"Verification failed: {str(e)}",
                 "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
             }
         )

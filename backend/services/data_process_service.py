@@ -29,6 +29,7 @@ class DataProcessService:
         """
         # Initialize components in a modular way
         self._init_redis_client()
+        
         # Don't init clip model here, otherwise it will drastically slow down the first call from data process.
         # self._init_clip_model()
 

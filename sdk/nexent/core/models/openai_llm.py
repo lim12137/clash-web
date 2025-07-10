@@ -8,6 +8,7 @@ from smolagents.models import OpenAIServerModel, ChatMessage
 
 from ..utils.observer import MessageObserver, ProcessType
 
+logger = logging.getLogger("openai_llm")
 
 class OpenAIModel(OpenAIServerModel):
     def __init__(self, observer: MessageObserver, temperature=0.2, top_p=0.95, *args, **kwargs):
@@ -31,12 +32,12 @@ class OpenAIModel(OpenAIServerModel):
             token_join = []
             role = None
 
-            # 重置输出模式
+            # Reset output mode
             self.observer.current_mode = ProcessType.MODEL_OUTPUT_THINKING
             for chunk in current_request:
                 new_token = chunk.choices[0].delta.content
                 if new_token is not None:
-                    print(new_token, end="")
+                    logger.info(new_token, end="")
                     self.observer.add_model_new_token(new_token)
                     token_join.append(new_token)
                     role = chunk.choices[0].delta.role
@@ -44,7 +45,7 @@ class OpenAIModel(OpenAIServerModel):
                 if self.stop_event.is_set():
                     raise RuntimeError("Model is interrupted by stop event")
 
-            # 发送结束标记
+            # Send end marker
             self.observer.flush_remaining_tokens()
             model_output = "".join(token_join)
 
@@ -56,7 +57,7 @@ class OpenAIModel(OpenAIServerModel):
                 self.last_output_token_count = 0
 
             message = ChatMessage.from_dict(
-                ChatCompletionMessage(role=role if role else "assistant",  # 如果没有明确角色，默认使用 "assistant"
+                ChatCompletionMessage(role=role if role else "assistant",  # If there is no explicit role, default to "assistant"
                     content=model_output).model_dump(include={"role", "content", "tool_calls"}))
 
             message.raw = current_request
@@ -69,24 +70,24 @@ class OpenAIModel(OpenAIServerModel):
 
     def check_connectivity(self) -> bool:
         """
-        测试与远程OpenAI大模型服务的连接是否正常
+        Test if the connection to the remote OpenAI large model service is normal
         
         Returns:
-            bool: 连接成功返回True，失败返回False
+            bool: True if the connection is successful, False if it fails
         """
         try:
-            # 构建一个简单的测试消息
+            # Construct a simple test message
             test_message = [{"role": "user", "content": "Hello"}]
 
-            # 直接发送一个简短的聊天请求来测试连接
+            # Directly send a short chat request to test the connection
             completion_kwargs = self._prepare_completion_kwargs(messages=test_message, model=self.model_id,
                 max_tokens=5)
 
-            # 发送请求但不使用流式传输，减少开销
+            # Send the request without using streaming to reduce overhead
             response = self.client.chat.completions.create(stream=False, **completion_kwargs)
 
-            # 如果没有引发异常，则连接成功
+            # If no exception is raised, the connection is successful
             return True
         except Exception as e:
-            logging.error(f"连接测试失败: {str(e)}")
+            logging.error(f"Connection test failed: {str(e)}")
             return False

@@ -14,7 +14,7 @@ from utils.auth_utils import get_current_user_id
 from typing import Optional
 
 
-logger = logging.getLogger("agent service")
+logger = logging.getLogger("agent_service")
 
 def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str = None, user_id: str = None):
     all_tool_instance = query_all_enabled_tool_instances(tenant_id=tenant_id, agent_id=agent_id)
@@ -233,7 +233,7 @@ def import_agent_impl(parent_agent_id: int, agent_info: ExportAndImportAgentInfo
 
 def search_sub_agents():
     user_id, tenant_id = get_current_user_id()
-    print(f"user_id: {user_id}, tenant_id: {tenant_id}")
+    logger.info(f"user_id: {user_id}, tenant_id: {tenant_id}")
     try:
         main_agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
     except Exception as e:

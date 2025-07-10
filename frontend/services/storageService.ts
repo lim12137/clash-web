@@ -45,7 +45,7 @@ export const storageService = {
     });
     
     if (!response.ok) {
-      throw new Error(`上传文件失败: ${response.statusText}`);
+      throw new Error(`Failed to upload files to Minio: ${response.statusText}`);
     }
     
     return await response.json();
@@ -65,7 +65,7 @@ export const storageService = {
     const response = await fetch(url.toString());
     
     if (!response.ok) {
-      throw new Error(`获取文件列表失败: ${response.statusText}`);
+      throw new Error(`Failed to get file list from Minio: ${response.statusText}`);
     }
     
     return await response.json();
@@ -80,7 +80,7 @@ export const storageService = {
     const response = await fetch(API_ENDPOINTS.storage.file(objectName));
     
     if (!response.ok) {
-      throw new Error(`获取文件URL失败: ${response.statusText}`);
+      throw new Error(`Failed to get file URL from Minio: ${response.statusText}`);
     }
     
     const data = await response.json();
@@ -98,7 +98,7 @@ export const storageService = {
     });
     
     if (!response.ok) {
-      throw new Error(`删除文件失败: ${response.statusText}`);
+      throw new Error(`Failed to delete file from Minio: ${response.statusText}`);
     }
     
     return await response.json();

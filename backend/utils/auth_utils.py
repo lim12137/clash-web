@@ -87,7 +87,7 @@ def get_current_user_id_from_token(authorization: str) -> Optional[str]:
 
         return user_id
     except Exception as e:
-        logging.error(f"从令牌提取用户ID失败: {str(e)}")
+        logging.error(f"Failed to extract user ID from token: {str(e)}")
         return DEFAULT_USER_ID
     
 def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
@@ -100,7 +100,7 @@ def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
         tenant_id = user_id
         return user_id, DEFAULT_TENANT_ID
     except Exception as e:
-        logging.error(f"获取用户ID失败: {str(e)}")
+        logging.error(f"Failed to get user ID: {str(e)}")
         return DEFAULT_USER_ID, DEFAULT_TENANT_ID
 
 def get_user_language(request: Request = None) -> str:
