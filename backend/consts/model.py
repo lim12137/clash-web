@@ -57,13 +57,6 @@ class UserUpdateRequest(BaseModel):
     password: Optional[str] = Field(None, min_length=6)
     role: Optional[str] = None
 
-# Response models for user management
-class ServiceResponse(BaseModel):
-    code: int
-    message: str
-    data: Optional[Any] = None
-
-
 # Response models for model management
 class ModelResponse(BaseModel):
     code: int = 200
@@ -173,6 +166,7 @@ class TaskRequest(BaseModel):
     additional_params: Dict[str, Any] = Field(default_factory=dict)
 
 
+
 class BatchTaskRequest(BaseModel):
     sources: List[Dict[str, Any]] = Field(..., description="List of source objects to process")
 
@@ -266,6 +260,12 @@ class OpinionRequest(BaseModel):
 class GeneratePromptRequest(BaseModel):
     task_description: str
     agent_id: int
+
+
+class GenerateTitleRequest(BaseModel):
+    conversation_id: int
+    history: List[Dict[str, str]]
+
 
 # used in prompt/finetune request
 class FineTunePromptRequest(BaseModel):

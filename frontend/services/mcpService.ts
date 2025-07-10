@@ -22,7 +22,7 @@ const getAuthHeaders = () => {
 export interface McpServer {
   service_name: string;
   mcp_url: string;
-  // 后端返回的字段名称
+  status: boolean;
   remote_mcp_server_name?: string;
   remote_mcp_server?: string;
 }
@@ -53,7 +53,8 @@ export const getMcpServerList = async () => {
         console.log(t('mcpService.debug.processingServerData'), server);
         return {
           service_name: server.remote_mcp_server_name,
-          mcp_url: server.remote_mcp_server
+          mcp_url: server.remote_mcp_server,
+          status: server.status || false 
         };
       });
       

@@ -1,12 +1,15 @@
 import json
 import os
 import time
+import logging
 
 from dotenv import load_dotenv, set_key
 from typing import Dict, Any
 from sqlalchemy.sql import func
 from database.tenant_config_db import get_all_configs_by_tenant_id, insert_config, delete_config_by_tenant_config_id, update_config_by_tenant_config_id_and_data, get_single_config_info
 from database.model_management_db import get_model_by_model_id
+
+logger = logging.getLogger("config_utils")
 
 def safe_value(value):
     """Helper function for processing configuration values"""
@@ -39,8 +42,6 @@ def get_model_name_from_config(model_config: Dict[str, Any]) -> str:
         return model_name
     return f"{model_repo}/{model_name}"
 
-
-
 class ConfigManager:
     """Configuration manager for dynamic loading and caching configurations"""
 
@@ -54,7 +55,7 @@ class ConfigManager:
         """Load configuration file and update cache"""
         # Check if file exists
         if not os.path.exists(self.env_file):
-            print(f"Warning: Configuration file {self.env_file} does not exist")
+            logger.warning(f"Configuration file {self.env_file} does not exist")
             return
 
         # Get file last modification time
@@ -72,8 +73,7 @@ class ConfigManager:
 
         # Update cache
         self.config_cache = {key: value for key, value in os.environ.items()}
-
-        print(f"Configuration reloaded at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"Configuration reloaded at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
     def get_config(self, key, default=""):
         """Get configuration value, reload if configuration has been updated"""
@@ -122,7 +122,7 @@ class TenantConfigManager:
         """
         # Check if tenant_id is valid
         if not tenant_id:
-            print("Warning: Invalid tenant ID provided")
+            logger.warning("Invalid tenant ID provided")
             return {}
 
         complete_cache_key = self._get_cache_key(tenant_id, "*")
@@ -138,7 +138,7 @@ class TenantConfigManager:
         configs = get_all_configs_by_tenant_id(tenant_id)
 
         if not configs:
-            print(f"Warning: No configurations found for tenant {tenant_id}")
+            logger.warning(f"No configurations found for tenant {tenant_id}")
             return {}
 
         # Update cache with new configurations
@@ -159,8 +159,7 @@ class TenantConfigManager:
         # Store the last modified time from database
         self.last_modified_times[tenant_id] = self._get_tenant_config_modified_time(tenant_id)
 
-        print(f"Configuration reloaded for tenant {tenant_id} at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Updated {cache_updates} configuration entries")
+        logger.info(f"Configuration reloaded for tenant {tenant_id} at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
         return tenant_configs
 
@@ -182,10 +181,10 @@ class TenantConfigManager:
         if default is None:
             default = {}
         if tenant_id is None:
-            print(f"Warning: No tenant_id specified when getting config for key: {key}")
+            logger.warning(f"No tenant_id specified when getting config for key: {key}")
             return default
         tenant_config = self.load_config(tenant_id)
-        # print(f"tenant_config: {tenant_config}")
+        
         if key in tenant_config:
             model_id = tenant_config[key]
             if not model_id:  # Check if model_id is empty
@@ -194,13 +193,13 @@ class TenantConfigManager:
                 model_config = get_model_by_model_id(model_id=int(model_id), tenant_id=tenant_id)
                 return model_config if model_config else default
             except (ValueError, TypeError):
-                print(f"Warning: Invalid model_id format: {model_id}")
+                logger.warning(f"Invalid model_id format: {model_id}")
                 return default
         return default
 
     def get_app_config(self, key: str, default="", tenant_id: str | None = None):
         if tenant_id is None:
-            print(f"Warning: No tenant_id specified when getting config for key: {key}")
+            logger.warning(f"No tenant_id specified when getting config for key: {key}")
             return default
         tenant_config = self.load_config(tenant_id)
         if key in tenant_config:
@@ -211,7 +210,7 @@ class TenantConfigManager:
                           value: str | None = None, ):
         """Set configuration value in database with caching"""
         if tenant_id is None:
-            print(f"Warning: No tenant_id specified when setting config for key: {key}")
+            logger.warning(f"No tenant_id specified when setting config for key: {key}")
             return
 
         insert_data = {
@@ -233,13 +232,11 @@ class TenantConfigManager:
     def delete_single_config(self, tenant_id: str | None = None, key: str | None = None, ):
         """Delete configuration value in database"""
         if tenant_id is None:
-            print(f"Warning: No tenant_id specified when deleting config for key: {key}")
+            logger.warning(f"No tenant_id specified when deleting config for key: {key}")
             return
 
         existing_config = get_single_config_info(tenant_id, key)
-        print(existing_config)
         if existing_config:
-            print(f"Deleting config for key: {key}")
             delete_config_by_tenant_config_id(existing_config["tenant_config_id"])
             # Clear cache for this tenant after deleting config
             self.clear_cache(tenant_id)
@@ -248,7 +245,7 @@ class TenantConfigManager:
     def update_single_config(self, tenant_id: str | None = None, key: str | None = None):
         """Update configuration value in database"""
         if tenant_id is None:
-            print(f"Warning: No tenant_id specified when updating config for key: {key}")
+            logger.warning(f"No tenant_id specified when updating config for key: {key}")
             return
 
         existing_config = get_single_config_info(tenant_id, key)
@@ -258,6 +255,7 @@ class TenantConfigManager:
                 "update_time": func.current_timestamp()
             }
             update_config_by_tenant_config_id_and_data(existing_config["tenant_config_id"], update_data)
+            
             # Clear cache for this tenant after updating config
             # self.clear_cache(tenant_id)
             return

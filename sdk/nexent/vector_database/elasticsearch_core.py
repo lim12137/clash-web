@@ -1,8 +1,7 @@
 import time
-import json
 import logging
 import threading
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -10,12 +9,9 @@ from ..core.models.embedding_model import JinaEmbedding
 from .utils import format_size, format_timestamp, build_weighted_query
 from elasticsearch import Elasticsearch, exceptions
 
-from urllib.request import urlopen
-
 from ..core.nlp.tokenizer import calculate_term_weights
 
-# Configure logging level
-logging.getLogger('elastic_transport.transport').setLevel(logging.WARNING)
+logger = logging.getLogger("elasticsearch_core")
 
 @dataclass
 class BulkOperation:
@@ -144,7 +140,7 @@ class ElasticSearchCore:
 
             # Check if index already exists
             if self.client.indices.exists(index=index_name):
-                logging.info(f"Index {index_name} already exists, skipping creation")
+                logger.info(f"Index {index_name} already exists, skipping creation")
                 self._ensure_index_ready(index_name)
                 return True
                 
@@ -184,19 +180,19 @@ class ElasticSearchCore:
             self._force_refresh_with_retry(index_name)
             self._ensure_index_ready(index_name)
 
-            logging.info(f"Successfully created index: {index_name}")
+            logger.info(f"Successfully created index: {index_name}")
             return True
             
         except exceptions.RequestError as e:
             # Handle the case where index already exists (error 400)
             if "resource_already_exists_exception" in str(e):
-                logging.info(f"Index {index_name} already exists, skipping creation")
+                logger.info(f"Index {index_name} already exists, skipping creation")
                 self._ensure_index_ready(index_name)
                 return True
-            logging.error(f"Error creating index: {str(e)}")
+            logger.error(f"Error creating index: {str(e)}")
             return False
         except Exception as e:
-            logging.error(f"Error creating index: {str(e)}")
+            logger.error(f"Error creating index: {str(e)}")
             return False
 
     def _force_refresh_with_retry(self, index_name: str, max_retries: int = 3) -> bool:
@@ -211,7 +207,7 @@ class ElasticSearchCore:
                 if attempt < max_retries - 1:
                     time.sleep(0.5 * (attempt + 1))
                     continue
-                logging.error(f"Failed to refresh index {index_name}: {e}")
+                logger.error(f"Failed to refresh index {index_name}: {e}")
                 return False
         return False
 
@@ -239,10 +235,9 @@ class ElasticSearchCore:
                     return True
 
             except Exception as e:
-                logging.debug(f"Index {index_name} not ready yet: {e}")
                 time.sleep(0.1)
 
-        logging.warning(f"Index {index_name} may not be fully ready after {timeout}s")
+        logger.warning(f"Index {index_name} may not be fully ready after {timeout}s")
         return False
 
     @contextmanager
@@ -296,9 +291,9 @@ class ElasticSearchCore:
                     "translog.sync_interval": "10s"
                 }
             )
-            logging.info(f"Applied bulk settings to {index_name}")
+            logger.info(f"Applied bulk settings to {index_name}")
         except Exception as e:
-            logging.warning(f"Failed to apply bulk settings: {e}")
+            logger.warning(f"Failed to apply bulk settings: {e}")
 
     def _restore_normal_settings(self, index_name: str):
         """Restore normal settings"""
@@ -312,9 +307,9 @@ class ElasticSearchCore:
             )
             # Refresh after restoration
             self._force_refresh_with_retry(index_name)
-            logging.info(f"Restored normal settings for {index_name}")
+            logger.info(f"Restored normal settings for {index_name}")
         except Exception as e:
-            logging.warning(f"Failed to restore settings: {e}")
+            logger.warning(f"Failed to restore settings: {e}")
 
     def delete_index(self, index_name: str) -> bool:
         """
@@ -328,13 +323,13 @@ class ElasticSearchCore:
         """
         try:
             self.client.indices.delete(index=index_name)
-            logging.info(f"Successfully deleted the index: {index_name}")
+            logger.info(f"Successfully deleted the index: {index_name}")
             return True
         except exceptions.NotFoundError:
-            logging.info(f"Index {index_name} not found")
+            logger.info(f"Index {index_name} not found")
             return False
         except Exception as e:
-            logging.error(f"Error deleting index: {str(e)}")
+            logger.error(f"Error deleting index: {str(e)}")
             return False
     
     def get_user_indices(self, index_pattern: str = "*") -> List[str]:
@@ -352,7 +347,7 @@ class ElasticSearchCore:
             # Filter out system indices (starting with '.')
             return [index_name for index_name in indices.keys() if not index_name.startswith('.')]
         except Exception as e:
-            logging.error(f"Error getting user indices: {str(e)}")
+            logger.error(f"Error getting user indices: {str(e)}")
             return []
     
     # ---- DOCUMENT OPERATIONS ----
@@ -376,7 +371,7 @@ class ElasticSearchCore:
         Returns:
             int: Number of documents successfully indexed
         """
-        logging.info(f"Indexing {len(documents)} documents to {index_name}")
+        logger.info(f"Indexing {len(documents)} documents to {index_name}")
 
         # Handle empty documents list
         if not documents:
@@ -422,11 +417,11 @@ class ElasticSearchCore:
             # Handle errors
             self._handle_bulk_errors(response)
 
-            logging.info(f"Small batch insert completed: {len(documents)} docs")
+            logger.info(f"Small batch insert completed: {len(documents)} docs")
             return len(documents)
             
         except Exception as e:
-            logging.error(f"Small batch insert failed: {e}")
+            logger.error(f"Small batch insert failed: {e}")
             return 0
 
     def _large_batch_insert(self, index_name: str, documents: List[Dict[str, Any]], batch_size: int, content_field: str) -> int:
@@ -460,12 +455,12 @@ class ElasticSearchCore:
                             doc_embedding_pairs.append((doc, embedding))
 
                     except Exception as e:
-                        logging.error(f"Embedding API error: {e}, ES batch num: {es_batch_num}, sub-batch start: {j}, size: {len(embedding_sub_batch)}")
+                        logger.error(f"Embedding API error: {e}, ES batch num: {es_batch_num}, sub-batch start: {j}, size: {len(embedding_sub_batch)}")
                         continue
                 
                 # Perform a single bulk insert for the entire Elasticsearch batch
                 if not doc_embedding_pairs:
-                    logging.warning(f"No documents with embeddings to index for ES batch {es_batch_num}")
+                    logger.warning(f"No documents with embeddings to index for ES batch {es_batch_num}")
                     continue
 
                 operations = []
@@ -484,20 +479,20 @@ class ElasticSearchCore:
                     )
                     self._handle_bulk_errors(response)
                     total_indexed += len(doc_embedding_pairs)
-                    logging.info(f"Processed ES batch {es_batch_num}/{es_total_batches}, indexed {len(doc_embedding_pairs)} documents.")
+                    logger.info(f"Processed ES batch {es_batch_num}/{es_total_batches}, indexed {len(doc_embedding_pairs)} documents.")
 
                 except Exception as e:
-                    logging.error(f"Bulk insert error: {e}, ES batch num: {es_batch_num}")
+                    logger.error(f"Bulk insert error: {e}, ES batch num: {es_batch_num}")
                     continue
                 
                 if es_batch_num % 10 == 0:
                     time.sleep(0.1)
 
             self._force_refresh_with_retry(index_name)
-            logging.info(f"Large batch insert completed: {total_indexed} docs indexed.")
+            logger.info(f"Large batch insert completed: {total_indexed} docs indexed.")
             return total_indexed
         except Exception as e:
-            logging.error(f"Large batch insert failed: {e}")
+            logger.error(f"Large batch insert failed: {e}")
             return 0
 
     def _preprocess_documents(self, documents: List[Dict[str, Any]], content_field: str) -> List[Dict[str, Any]]:
@@ -524,7 +519,7 @@ class ElasticSearchCore:
 
             # Ensure file_size is present (default to 0 if not provided)
             if not doc_copy.get("file_size"):
-                logging.warning(f"File size not found in {doc_copy}")
+                logger.warning(f"File size not found in {doc_copy}")
                 doc_copy["file_size"] = 0
 
             # Ensure process_source is present
@@ -553,9 +548,9 @@ class ElasticSearchCore:
                         # ignore version conflict
                         continue
                     else:
-                        logging.error(f"FATAL ERROR {error_type}: {error_reason}")
+                        logger.error(f"FATAL ERROR {error_type}: {error_reason}")
                         if error_cause:
-                            logging.error(f"Caused By: {error_cause.get('type')}: {error_cause.get('reason')}")
+                            logger.error(f"Caused By: {error_cause.get('type')}: {error_cause.get('reason')}")
     
     def delete_documents_by_path_or_url(self, index_name: str, path_or_url: str) -> int:
         """
@@ -579,10 +574,10 @@ class ElasticSearchCore:
                     }
                 }
             )
-            logging.info(f"Successfully deleted {result['deleted']} documents with path_or_url: {path_or_url} from index: {index_name}")
+            logger.info(f"Successfully deleted {result['deleted']} documents with path_or_url: {path_or_url} from index: {index_name}")
             return result['deleted']
         except Exception as e:
-            logging.error(f"Error deleting documents: {str(e)}")
+            logger.error(f"Error deleting documents: {str(e)}")
             return 0
     
     # ---- SEARCH OPERATIONS ----
@@ -702,7 +697,7 @@ class ElasticSearchCore:
                     'index': result['index']  # Keep track of source index
                 }
             except KeyError as e:
-                logging.warning(f"Warning: Missing required field in accurate result: {e}")
+                logger.warning(f"Warning: Missing required field in accurate result: {e}")
                 continue
 
         # Process semantic search results
@@ -719,7 +714,7 @@ class ElasticSearchCore:
                         'index': result['index']  # Keep track of source index
                     }
             except KeyError as e:
-                logging.warning(f"Warning: Missing required field in semantic result: {e}")
+                logger.warning(f"Warning: Missing required field in semantic result: {e}")
                 continue
 
         # Calculate maximum scores
@@ -752,7 +747,7 @@ class ElasticSearchCore:
                     }
                 })
             except KeyError as e:
-                logging.warning(f"Warning: Error processing result for doc_id {doc_id}: {e}")
+                logger.warning(f"Warning: Error processing result for doc_id {doc_id}: {e}")
                 continue
 
         # Sort by combined score and return top k results
@@ -809,7 +804,7 @@ class ElasticSearchCore:
             
             return file_list
         except Exception as e:
-            logging.error(f"Error getting file list: {str(e)}")
+            logger.error(f"Error getting file list: {str(e)}")
             return []
             
     def get_index_mapping(self, index_names: List[str]) -> Dict[str, List[str]]:
@@ -823,7 +818,7 @@ class ElasticSearchCore:
                 else:
                     mappings[index_name] = []
             except Exception as e:
-                logging.error(f"Error getting mapping for index {index_name}: {str(e)}")
+                logger.error(f"Error getting mapping for index {index_name}: {str(e)}")
                 mappings[index_name] = []
         return mappings
             
@@ -893,111 +888,8 @@ class ElasticSearchCore:
                     }
                 }
             except Exception as e:
-                logging.error(f"Error getting stats for index {index_name}: {str(e)}")
+                logger.error(f"Error getting stats for index {index_name}: {str(e)}")
                 all_stats[index_name] = {"error": str(e)}
 
         return all_stats
         
-    def print_all_indices_info(self, index_pattern: str = "*") -> None:
-        """Print information for all user indices"""
-        user_indices = self.get_user_indices(index_pattern)
-        
-        if not user_indices:
-            logging.info("No user indices found")
-            return
-        
-        logging.info("=== User Index List ===")
-        for index_name in user_indices:
-            logging.info(f"Index Name: {index_name}")
-        
-        logging.info("\n=== Knowledge Base Core Statistics ===")
-        try:
-            stats = self.get_index_stats(user_indices)
-            logging.info(stats)
-        except Exception as e:
-            logging.error(f"Error getting index statistics: {str(e)}")
-
-    def get_all_indices_stats(self, index_pattern: str = "*") -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """
-        Get statistics for all user indices.
-        
-        Args:
-            index_pattern: Pattern to match index names
-            
-        Returns:
-            Dictionary of index names to statistics
-        """
-        user_indices = self.get_user_indices(index_pattern)
-        
-        if not user_indices:
-            return {}
-        
-        try:
-            return self.get_index_stats(user_indices)
-        except Exception as e:
-            logging.error(f"Error getting all indices statistics: {str(e)}")
-            return {}
-
-    def get_index_count(self, index_name: str):
-        # use count API to get total document count
-        count_query = {"query": {"match_all": {}}}
-
-        try:
-            # Execute count query
-            count_response = self.client.count(index=index_name, body=count_query)
-            total_docs = count_response['count']
-            logging.info(f"Index {index_name} contains {total_docs} documents")
-            return total_docs
-        except Exception as e:
-            logging.error(f"Error getting document count: {e}")
-            return 0
-
-    def diagnose_yellow_status(self, index_name):
-        print(f"=== Diagnosing Yellow status for index {index_name} ===\n")
-
-        try:
-            # 1. Basic information
-            health = self.client.cluster.health(index=index_name)
-            print(f"Index health status: {health['status']}")
-            print(f"Unassigned shards: {health['unassigned_shards']}")
-            print(f"Active shards: {health['active_shards']}")
-            print(f"Replica shards: {health['active_shards'] - health['active_primary_shards']}")
-
-            # 2. Node information
-            nodes = self.client.cat.nodes(format='json')
-            print(f"Number of nodes: {len(nodes)}")
-
-            # 3. Index settings
-            settings = self.client.indices.get_settings(index=index_name)
-            replicas = int(settings[index_name]['settings']['index']['number_of_replicas'])
-            print(f"Configured replicas: {replicas}")
-
-            # 4. Shard status
-            shards = self.client.cat.shards(index=index_name, format='json')
-            unassigned_shards = [s for s in shards if s['state'] == 'UNASSIGNED']
-
-            print(f"Unassigned shards:")
-            for shard in unassigned_shards:
-                print(f"  - Shard {shard['shard']}, type: {shard['prirep']}")
-
-            # 5. Given advice
-            if len(nodes) == 1 and replicas > 0:
-                print("\n📋 Advice: For single-node cluster, set replicas to 0")
-                print("   Execute: PUT /{}/_settings".format(index_name))
-                print('   {"settings": {"number_of_replicas": 0}}')
-
-            # 6. Allocation explanation (for the first unassigned shard)
-            if unassigned_shards:
-                first_unassigned = unassigned_shards[0]
-                explain = self.client.cluster.allocation_explain(
-                    body={
-                        "index": index_name,
-                        "shard": int(first_unassigned['shard']),
-                        "primary": first_unassigned['prirep'] == 'p'
-                    }
-                )
-                print(f"\nShard allocation failure reason:")
-                print(f"  {explain.get('allocate_explanation', 'Unknown reason')}")
-
-        except Exception as e:
-            print(f"Error during diagnosis: {e}")

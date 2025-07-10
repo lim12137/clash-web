@@ -346,7 +346,7 @@ async def process_text_file(
         logger.exception(f"Error processing uploaded file {file.filename}: {str(e)}")
         raise HTTPException(
             status_code=500, 
-            detail=f"处理文件时发生错误: {str(e)}"
+            detail=f"An error occurred while processing the file: {str(e)}"
         )
     finally:
         # Clean up temporary files

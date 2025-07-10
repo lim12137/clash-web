@@ -2,6 +2,22 @@
 import { ApiMessage, SearchResult, AgentStep, ApiMessageItem, ChatMessageType, MinioFileItem } from "@/types/chat";
 import { useTranslation } from "react-i18next";
 
+// function: process the user break tag
+const processUserBreakTag = (content: string, t: any): string => {
+  if (!content || typeof content !== 'string') {
+    return content;
+  }
+  
+  // check if the content is equal to <user_break> tag
+  if (content == '<user_break>') {
+    // replace the content with the corresponding natural language according to the current language environment
+    const userBreakMessage = t('chatStreamHandler.userInterrupted');
+    return userBreakMessage;
+  }
+  
+  return content;
+};
+
 export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: number, create_time: number, t: any) {
   
   let searchResultsContent: SearchResult[] = [];
@@ -33,7 +49,8 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
     dialog_msg.message.forEach((msg: ApiMessageItem) => {
       switch (msg.type) {
         case "final_answer": {
-          finalAnswer += msg.content;
+          // process the final_answer content and identify the user break tag
+          finalAnswer += processUserBreakTag(msg.content, t);
           break;
         }
 
