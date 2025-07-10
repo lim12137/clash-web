@@ -28,20 +28,28 @@ jobs:
         run: pip install coverage
 
       - name: Install dependencies
-        run: pip install pytest
+        run: pip install -r test/requirements.txt
 
       - name: Run all tests and collect coverage
         run: |
-          coverage run -m pytest test/backend/test_sample.py
-          coverage report --show-missing
-          coverage xml
+          python test/backend/run_all_test.py
+
+          if [ -f "test/backend/coverage.xml" ]; then
+            echo "✅ Coverage XML file generated successfully"
+          else
+            echo "❌ Coverage XML file not found"
+            exit 1
+          fi
+
           echo "*** Coverage Summary ***"
-          coverage report
+          if [ -f "test/backend/.coverage" ]; then
+            coverage report --data-file=test/backend/.coverage --show-missing
+          fi
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: coverage.xml
+          files: test/backend/coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests
           name: codecov-umbrella
