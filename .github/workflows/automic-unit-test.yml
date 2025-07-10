@@ -14,7 +14,7 @@ on:
 
 jobs:
   test:
-    runs-on: ${{ github.event_name == 'workflow_dispatch' && fromJson(github.event.inputs.runner_label_json) || 'ubuntu-latest' }}
+    runs-on: ${{ fromJson(github.event.inputs.runner_label_json || '["ubuntu-latest"]') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,8 +24,15 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Install uv
+        run: pip install --upgrade uv
+
       - name: Install dependencies
-        run: pip install -r test/requirements.txt
+        run: |
+          cd backend
+          uv sync --extra data-process --extra test
+          source .venv/bin/activate
+          cd ..
 
       - name: Run all tests and collect coverage
         run: |
