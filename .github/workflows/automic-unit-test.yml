@@ -25,7 +25,10 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: pip install -r test/requirements.txt
+        run: |
+          cd test
+          uv sync
+          cd ..
 
       - name: Run all tests and collect coverage
         run: |
