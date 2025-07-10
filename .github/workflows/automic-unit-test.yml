@@ -25,20 +25,26 @@ jobs:
           python-version: '3.10'
 
       - name: Install coverage
-        run: pip install coverage -i https://pypi.mirrors.ustc.edu.cn/simple/
+        run: pip install coverage
 
       - name: Install dependencies
-        run: pip install pytest -i https://pypi.mirrors.ustc.edu.cn/simple/
+        run: pip install pytest
 
       - name: Run all tests and collect coverage
         run: |
-          set -e
-          coverage run --branch -m pytest test/backend/test_sample.py
-          coverage xml -o test/backend/coverage.xml
-          cat test/backend/coverage.xml
+          coverage run -m pytest test/backend/test_sample.py
+          coverage report --show-missing
+          coverage xml
+          echo "*** Coverage Summary ***"
+          coverage report
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: test/backend/coverage.xml
+          files: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          verbose: true
+          directory: .
