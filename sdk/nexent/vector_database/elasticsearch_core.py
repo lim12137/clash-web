@@ -641,7 +641,7 @@ class ElasticSearchCore:
         index_pattern = ",".join(index_names)
 
         # Get query embedding
-        query_embedding = self.embedding_model.get_embeddings(query_text)
+        query_embedding = self.embedding_model.get_embeddings(query_text)[0]
         
         # Prepare the search query
         search_query = {
