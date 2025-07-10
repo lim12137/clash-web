@@ -141,20 +141,24 @@ class LoggingTask(Task):
 
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process', queue='process_q')
-def process(self, source: str, source_type: str = "file", 
-            chunking_strategy: str = "basic", index_name: Optional[str] = None, **params) -> Dict:
+def process(self, source: str, source_type: str, 
+            chunking_strategy: str = "basic", index_name: Optional[str] = None, 
+            original_filename: Optional[str] = None, **params) -> Dict:
     """
     Process a file and extract text/chunks
     
     Args:
         source: Source file path, URL, or text content
-        source_type: Type of source ("file", "url", or "text")
+        source_type: Type of source ("local", "minio")
         chunking_strategy: Strategy for chunking the document
         index_name: Name of the index (for metadata)
+        original_filename: The original name of the file
         **params: Additional parameters
     """
     start_time = time.time()
     task_id = self.request.id
+
+    logger.info(f"[{self.request.id}] PROCESS TASK: source_type: {source_type}")
     
     self.update_state(
         state=states.PENDING,
@@ -162,6 +166,7 @@ def process(self, source: str, source_type: str = "file",
             'source': source,
             'source_type': source_type,
             'index_name': index_name,
+            'original_filename': original_filename,
             'task_name': 'process',
             'start_time': start_time
         }
@@ -173,6 +178,7 @@ def process(self, source: str, source_type: str = "file",
             'source': source,
             'source_type': source_type,
             'index_name': index_name,
+            'original_filename': original_filename,
             'task_name': 'process',
             'start_time': start_time,
             'stage': 'extracting_text'
@@ -183,7 +189,8 @@ def process(self, source: str, source_type: str = "file",
     
     try:
         # Process the file based on the source type
-        if source_type == "file":
+        file_size_mb = 0
+        if source_type == "local":
             # Check file existence and size for optimization
             if not os.path.exists(source):
                 raise FileNotFoundError(f"File does not exist: {source}")
@@ -193,24 +200,37 @@ def process(self, source: str, source_type: str = "file",
             
             logger.info(f"[{self.request.id}] PROCESS TASK: File size: {file_size_mb:.2f}MB")
             
-            # Get file extension
-            _, file_ext = os.path.splitext(source)
-            file_ext = file_ext.lower()
-            
-            if file_ext in ['.xlsx', '.xls']:
-                # For Excel files, use specialized processor
-                chunks_ref = actor.process_excel_file.remote(source, chunking_strategy, **params)
-            else:                
-                chunks_ref = actor.process_file.remote(source, chunking_strategy, 
-                                                    source_type=source_type, task_id=task_id, 
-                                                    **params)
+            # The unified actor call, mapping 'file' source_type to 'local' destination
+            chunks_ref = actor.process_file.remote(
+                source,
+                chunking_strategy,
+                destination=source_type,
+                task_id=task_id,
+                **params
+            )
 
             chunks = ray.get(chunks_ref)
                 
             end_time = time.time()
             elapsed_time = end_time - start_time
-            processing_speed = file_size_mb / elapsed_time if file_size_mb > 0 else 0
+            processing_speed = file_size_mb / elapsed_time if file_size_mb > 0 and elapsed_time > 0 else 0
             logger.info(f"[{self.request.id}] PROCESS TASK: File processing completed. Processing speed {processing_speed:.2f} MB/s")
+
+        elif source_type == "minio":
+            logger.info(f"[{self.request.id}] PROCESS TASK: Processing from URL: {source}")
+
+            # For URL source, core.py expects a non-local destination to trigger URL fetching
+            chunks_ref = actor.process_file.remote(
+                source,
+                chunking_strategy,
+                destination=source_type,
+                task_id=task_id,
+                **params
+            )
+            chunks = ray.get(chunks_ref)
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            logger.info(f"[{self.request.id}] PROCESS TASK: URL processing completed in {elapsed_time:.2f}s")
                 
         else:
             # For other source types, implement accordingly
@@ -224,6 +244,7 @@ def process(self, source: str, source_type: str = "file",
                 'processing_time': elapsed_time,
                 'source': source,
                 'index_name': index_name,
+                'original_filename': original_filename,
                 'task_name': 'process',
                 'stage': 'text_extracted',
                 'file_size_mb': file_size_mb,
@@ -238,6 +259,7 @@ def process(self, source: str, source_type: str = "file",
             'chunks': chunks,
             'source': source,
             'index_name': index_name,
+            'original_filename': original_filename,
             'task_id': task_id 
         }
 
@@ -250,13 +272,15 @@ def process(self, source: str, source_type: str = "file",
                 "message": str(e),
                 "index_name": index_name,
                 "task_name": "process",
-                "source": source
+                "source": source,
+                "original_filename": original_filename
             }
             self.update_state(
                 meta={
                     'source': error_info.get('source', ''),
                     'index_name': error_info.get('index_name', ''),
                     'task_name': error_info.get('task_name', ''),
+                    'original_filename': error_info.get('original_filename', ''),
                     'custom_error': error_info.get('message', str(e)),
                     'stage': 'text_extraction_failed'
                 }
@@ -273,7 +297,9 @@ def process(self, source: str, source_type: str = "file",
             raise
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.forward', queue='forward_q')
-def forward(self, processed_data: Dict, index_name: Optional[str] = None, source: Optional[str] = None) -> Dict:
+def forward(self, processed_data: Dict, index_name: str, 
+            source: str, source_type: str = 'minio', 
+            original_filename: Optional[str] = None) -> Dict:
     """
     Vectorize and store processed chunks in Elasticsearch
     
@@ -281,15 +307,17 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
         processed_data: Dict containing chunks and metadata
         index_name: Name of the index to store documents
         source: Original source path (for metadata)
+        source_type: The type of the source("local", "minio")
+        original_filename: The original name of the file
         
     Returns:
         Dict containing storage results and metadata
     """
     start_time = time.time()
     task_id = self.request.id
-    source_type = 'file'
     original_source = source
     original_index_name = index_name
+    filename = original_filename
     
     try:
         chunks = processed_data.get('chunks')
@@ -297,6 +325,8 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
             original_source = processed_data.get('source')
         if processed_data.get('index_name'):
             original_index_name = processed_data.get('index_name')
+        if processed_data.get('original_filename'):
+            filename = processed_data.get('original_filename')
         logger.info(f"[{self.request.id}] FORWARD TASK: Received data for source '{original_source}' with {len(chunks) if chunks else 'None'} chunks")
 
         # Update task state to FORWARDING
@@ -305,6 +335,7 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
             meta={
                 'source': original_source,
                 'index_name': original_index_name,
+                'original_filename': filename,
                 'task_name': 'forward',
                 'start_time': start_time,
                 'stage': 'vectorizing_and_storing'
@@ -316,7 +347,8 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                 "message": "No chunks received for forwarding",
                 "index_name": original_index_name,
                 "task_name": "forward",
-                "source": original_source
+                "source": original_source,
+                "original_filename": filename
             }, ensure_ascii=False))
         if len(chunks) == 0:
             logger.warning(f"[{self.request.id}] FORWARD TASK: Empty chunks list received for source {original_source}")
@@ -330,16 +362,18 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
             if not content or len(content.strip()) == 0:
                 logger.warning(f"[{self.request.id}] FORWARD TASK: Chunk {i+1} has empty text content, skipping")
                 continue
-            
+
+            file_size = get_file_size(source_type, original_source) if isinstance(original_source, str) else 0
+
             # Format as expected by the Elasticsearch API
             formatted_chunk = {
                 "metadata": metadata,
-                "filename": os.path.basename(original_source) if original_source else "",
+                "filename": filename or (os.path.basename(original_source) if original_source and isinstance(original_source, str) else ""),
                 "path_or_url": original_source,
                 "content": content,
                 "process_source": "Unstructured",
                 "source_type": source_type,
-                "file_size": get_file_size(source_type, original_source),
+                "file_size": file_size,
                 "create_time": metadata.get("creation_date"),
                 "date": metadata.get("date"),
             }
@@ -350,7 +384,8 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                 "message": "No valid chunks to forward after formatting",
                 "index_name": original_index_name,
                 "task_name": "forward",
-                "source": original_source
+                "source": original_source,
+                "original_filename": original_filename
             }, ensure_ascii=False))
         async def index_documents():
             elasticsearch_url = os.environ.get("ELASTICSEARCH_SERVICE")
@@ -359,7 +394,8 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                     "message": "ELASTICSEARCH_SERVICE env is not set",
                     "index_name": original_index_name,
                     "task_name": "forward",
-                    "source": original_source
+                    "source": original_source,
+                    "original_filename": original_filename
                 }, ensure_ascii=False))
             route_url = f"/indices/{original_index_name}/documents"
             full_url = elasticsearch_url + route_url
@@ -391,7 +427,8 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                             "message": f"ElasticSearch service unavailable: {str(e)}",
                             "index_name": original_index_name,
                             "task_name": "forward",
-                            "source": original_source
+                            "source": original_source,
+                            "original_filename": original_filename
                         }, ensure_ascii=False))
                 except aiohttp.ClientConnectorError as e:
                     logger.error(f"[{self.request.id}] FORWARD TASK: Connection error to {full_url}: {str(e)}")
@@ -404,7 +441,8 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                             "message": f"Failed to connect to API: {str(e)}",
                             "index_name": original_index_name,
                             "task_name": "forward",
-                            "source": original_source
+                            "source": original_source,
+                            "original_filename": original_filename
                         }, ensure_ascii=False))
                 except asyncio.TimeoutError as e:
                     if retry < max_retries - 1:
@@ -416,7 +454,8 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                             "message": f"Timeout after {max_retries} attempts: {str(e)}",
                             "index_name": original_index_name,
                             "task_name": "forward",
-                            "source": original_source
+                            "source": original_source,
+                            "original_filename": original_filename
                         }, ensure_ascii=False))
                 except Exception as e:
                     if retry < max_retries - 1:
@@ -428,7 +467,8 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                             "message": f"Unexpected error when indexing documents: {str(e)}",
                             "index_name": original_index_name,
                             "task_name": "forward",
-                            "source": original_source
+                            "source": original_source,
+                            "original_filename": original_filename
                         }, ensure_ascii=False))
         es_result = run_async(index_documents())
         logger.debug(f"[{self.request.id}] FORWARD TASK: API response from main_server for source '{original_source}': {es_result}")
@@ -448,7 +488,8 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                     "message": f"Failure reported by main_server. Expected {total_submitted} chunks, indexed {total_indexed} chunks.",
                     "index_name": original_index_name,
                     "task_name": "forward",
-                    "source": original_source
+                    "source": original_source,
+                    "original_filename": original_filename
                 }, ensure_ascii=False))
         elif isinstance(es_result, dict) and es_result.get("success") == False:
             error_message = es_result.get("message", "Unknown error from main_server")
@@ -456,14 +497,16 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                 "message": f"main_server API error: {error_message}",
                 "index_name": original_index_name,
                 "task_name": "forward",
-                "source": original_source
+                "source": original_source,
+                "original_filename": original_filename
             }, ensure_ascii=False))
         else:
             raise Exception(json.dumps({
                 "message": f"Unexpected API response format from main_server: {es_result}",
                 "index_name": original_index_name,
                 "task_name": "forward",
-                "source": original_source
+                "source": original_source,
+                "original_filename": original_filename
             }, ensure_ascii=False))
         end_time = time.time()
         self.update_state(
@@ -473,6 +516,7 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                 'storage_time': end_time - start_time,
                 'source': original_source,
                 'index_name': original_index_name,
+                'original_filename': original_filename,
                 'task_name': 'forward',
                 'es_result': es_result,
                 'stage': 'completed'
@@ -484,6 +528,7 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
             'task_id': task_id,
             'source': original_source,
             'index_name': original_index_name,
+            'original_filename': original_filename,
             'chunks_stored': len(chunks),
             'storage_time': end_time - start_time,
             'es_result': es_result
@@ -498,6 +543,7 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
                     'source': error_info.get('source', ''),
                     'index_name': error_info.get('index_name', ''),
                     'task_name': error_info.get('task_name', ''),
+                    'original_filename': error_info.get('original_filename', ''),
                     'custom_error': error_info.get('message', str(e)),
                     'stage': 'forward_task_failed'
                 }
@@ -513,8 +559,8 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
         raise
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process_and_forward')
-def process_and_forward(self, source: str, source_type: str = "file", 
-                        chunking_strategy: str = "basic", index_name: Optional[str] = None, **params) -> str:
+def process_and_forward(self, source: str, source_type: str, 
+                        chunking_strategy: str, index_name: Optional[str] = None, original_filename: Optional[str] = None) -> str:
     """
     Combined task that chains processing and forwarding
     
@@ -522,15 +568,16 @@ def process_and_forward(self, source: str, source_type: str = "file",
     
     Args:
         source: Source file path, URL, or text content
-        source_type: Type of source ("file", "url", or "text")
+        source_type: source of the file("local", "minio")
         chunking_strategy: Strategy for chunking the document
         index_name: Name of the index to store documents
+        original_filename: The original name of the file
         **params: Additional parameters
         
     Returns:
         Task ID of the chain
     """
-    logger.info(f"Starting processing chain for {source}, strategy={chunking_strategy}, index={index_name}")
+    logger.info(f"Starting processing chain for {source}, original_filename={original_filename}, strategy={chunking_strategy}, index={index_name}")
     
     # Create a task chain
     task_chain = chain(
@@ -539,11 +586,13 @@ def process_and_forward(self, source: str, source_type: str = "file",
             source_type=source_type,
             chunking_strategy=chunking_strategy,
             index_name=index_name,
-            **params
+            original_filename=original_filename
         ).set(queue='process_q'),
         forward.s(
             index_name=index_name,
-            source=source
+            source=source,
+            source_type=source_type,
+            original_filename=original_filename
         ).set(queue='forward_q')
     )
     
@@ -558,14 +607,14 @@ def process_and_forward(self, source: str, source_type: str = "file",
 
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process_sync')
-def process_sync(self, source: str, source_type: str = "file", 
+def process_sync(self, source: str, source_type: str, 
                  chunking_strategy: str = "basic", timeout: int = 30, **params) -> Dict:
     """
     Synchronous process task that returns text directly (for real-time API)
     
     Args:
         source: Source file path, URL, or text content
-        source_type: Type of source ("file", "url", or "text")
+        source_type: source of the file("local", "minio")
         chunking_strategy: Strategy for chunking the document
         timeout: Timeout for the operation
         **params: Additional parameters
@@ -599,14 +648,15 @@ def process_sync(self, source: str, source_type: str = "file",
 
     try:
         # Process the file based on the source type
-        if source_type == "file":
-            _, file_ext = os.path.splitext(source)
-            file_ext = file_ext.lower()
-            
-            if file_ext in ['.xlsx', '.xls']:
-                chunks_ref = actor.process_excel_file.remote(source, chunking_strategy, **params)
-            else:
-                chunks_ref = actor.process_file.remote(source, chunking_strategy, source_type=source_type, task_id=task_id, **params)
+        if source_type == "local":
+            # The unified actor call, mapping 'file' source_type to 'local' destination
+            chunks_ref = actor.process_file.remote(
+                source,
+                chunking_strategy,
+                destination=source_type,
+                task_id=task_id,
+                **params
+            )
             
             chunks = ray.get(chunks_ref)
         else:
