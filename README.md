@@ -2,7 +2,7 @@
 
 [![English](https://img.shields.io/badge/English-README-blue)](README.md)
 [![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
-[![codecov](https://codecov.io/gh/ModelEngine-Group/nexent/branch/feature/jpl_0709/graph/badge.svg)](https://codecov.io/gh/ModelEngine-Group/nexent)
+[![codecov](https://codecov.io/gh/ModelEngine-Group/nexent/branch/develop/graph/badge.svg?token=00JM5YAD5V)](https://codecov.io/gh/ModelEngine-Group/nexent?branch=develop)
 
 Nexent is an open-source agent platform that turns process-level natural language into complete multimodal agents — no diagrams, no wiring. Built on the MCP tool ecosystem, Nexent provides model integration, data processing, knowledge-base management, and zero-code agent development. Our goal is simple: to bring data, models, and tools together in one smart hub, making daily workflows smarter and more connected.
 
