@@ -54,7 +54,7 @@ export const API_ENDPOINTS = {
   storage: {
     upload: `${API_BASE_URL}/file/storage`,
     files: `${API_BASE_URL}/file/storage`,
-    file: (objectName: string) => `${API_BASE_URL}/file/storage/${objectName}`,
+    file: (objectName: string, download: string = 'ignore') => `${API_BASE_URL}/file/storage/${objectName}?download=${download}`,
     delete: (objectName: string) => `${API_BASE_URL}/file/storage/${objectName}`,
     preprocess: `${API_BASE_URL}/file/preprocess`,
   },
@@ -90,7 +90,8 @@ export const API_ENDPOINTS = {
     getSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
     
     // File upload service
-    upload: `${API_BASE_URL}/file/upload`
+    upload: `${API_BASE_URL}/file/upload`,
+    process: `${API_BASE_URL}/file/process`,
   },
   config: {
     save: `${API_BASE_URL}/config/save_config`,

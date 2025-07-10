@@ -39,11 +39,11 @@ class TestConversationManagementService(unittest.TestCase):
     @patch('backend.services.conversation_management_service.create_source_search')
     @patch('backend.services.conversation_management_service.create_source_image')
     @patch('backend.services.conversation_management_service.create_message_units')
-    def test_save_message_with_string_content(self, mock_create_message_units, mock_create_source_image, 
+    def test_save_message_with_string_content(self, mock_create_message_units, mock_create_source_image,
                                              mock_create_source_search, mock_create_conversation_message):
         # Setup
         mock_create_conversation_message.return_value = 123  # message_id
-        
+
         # Create message request with string content
         message_request = MessageRequest(
             conversation_id=456,
@@ -52,15 +52,15 @@ class TestConversationManagementService(unittest.TestCase):
             message=[MessageUnit(type="string", content="Hello, this is a test message")],
             minio_files=[]
         )
-        
+
         # Execute
         result = save_message(message_request)
-        
+
         # Assert
         self.assertEqual(result.code, 0)
         self.assertEqual(result.message, "success")
         self.assertTrue(result.data)
-        
+
         # Check if create_conversation_message was called with correct params
         mock_create_conversation_message.assert_called_once()
         call_args = mock_create_conversation_message.call_args[0][0]
@@ -68,7 +68,7 @@ class TestConversationManagementService(unittest.TestCase):
         self.assertEqual(call_args['message_idx'], 1)
         self.assertEqual(call_args['role'], "user")
         self.assertEqual(call_args['content'], "Hello, this is a test message")
-        
+
         # Check that other methods were not called
         mock_create_message_units.assert_not_called()
         mock_create_source_image.assert_not_called()
@@ -77,11 +77,11 @@ class TestConversationManagementService(unittest.TestCase):
     @patch('backend.services.conversation_management_service.create_conversation_message')
     @patch('backend.services.conversation_management_service.create_source_search')
     @patch('backend.services.conversation_management_service.create_message_units')
-    def test_save_message_with_search_content(self, mock_create_message_units, mock_create_source_search, 
+    def test_save_message_with_search_content(self, mock_create_message_units, mock_create_source_search,
                                              mock_create_conversation_message):
         # Setup
         mock_create_conversation_message.return_value = 123  # message_id
-        
+
         # Create message with search content
         search_content = json.dumps([{
             "source_type": "web",
@@ -95,7 +95,7 @@ class TestConversationManagementService(unittest.TestCase):
             "search_type": "web_search",
             "tool_sign": "web_search"
         }])
-        
+
         message_request = MessageRequest(
             conversation_id=456,
             message_idx=2,
@@ -106,19 +106,19 @@ class TestConversationManagementService(unittest.TestCase):
             ],
             minio_files=[]
         )
-        
+
         # Execute
         result = save_message(message_request)
-        
+
         # Assert
         self.assertEqual(result.code, 0)
         self.assertTrue(result.data)
-        
+
         # Check correct message was created
         mock_create_conversation_message.assert_called_once()
         call_args = mock_create_conversation_message.call_args[0][0]
         self.assertEqual(call_args['content'], "Here are the search results")
-        
+
         # Check search content was saved
         mock_create_source_search.assert_called_once()
         search_data = mock_create_source_search.call_args[0][0]
@@ -126,7 +126,7 @@ class TestConversationManagementService(unittest.TestCase):
         self.assertEqual(search_data['conversation_id'], 456)
         self.assertEqual(search_data['source_type'], "web")
         self.assertEqual(search_data['score_overall'], 0.95)
-        
+
         # Check message units were created with placeholder
         mock_create_message_units.assert_called_once()
         units = mock_create_message_units.call_args[0][0]
@@ -145,10 +145,10 @@ class TestConversationManagementService(unittest.TestCase):
                 {"role": "assistant", "content": "Hi there"}
             ]
         )
-        
+
         # Execute
         save_conversation_user(agent_request)
-        
+
         # Assert
         mock_save_message.assert_called_once()
         request_arg = mock_save_message.call_args[0][0]
@@ -170,15 +170,15 @@ class TestConversationManagementService(unittest.TestCase):
                 {"role": "assistant", "content": "Hi there"}
             ]
         )
-        
+
         messages = [
             json.dumps({"type": "string", "content": "Machine learning is "}),
             json.dumps({"type": "string", "content": "a field of AI"})
         ]
-        
+
         # Execute
         save_conversation_assistant(agent_request, messages)
-        
+
         # Assert
         mock_save_message.assert_called_once()
         request_arg = mock_save_message.call_args[0][0]
@@ -197,10 +197,10 @@ class TestConversationManagementService(unittest.TestCase):
             {"role": "assistant", "content": "AI stands for Artificial Intelligence."},
             {"role": "user", "content": "Give me examples of AI applications"}
         ]
-        
+
         # Execute
         result = extract_user_messages(history)
-        
+
         # Assert
         self.assertIn("What is AI?", result)
         self.assertIn("Give me examples of AI applications", result)
@@ -212,29 +212,37 @@ SYSTEM_PROMPT: "Generate a short title"
 USER_PROMPT: "Generate a title for: {{content}}"
 """)
     @patch('backend.services.conversation_management_service.yaml.safe_load')
-    @patch('backend.services.conversation_management_service.os.getenv')
-    def test_call_llm_for_title(self, mock_getenv, mock_yaml_load, mock_open_file, mock_openai):
+    @patch('os.getenv')
+    @patch('backend.services.conversation_management_service.tenant_config_manager.get_model_config')
+    def test_call_llm_for_title(self, mock_get_model_config, mock_getenv, mock_yaml_load, mock_open_file, mock_openai):
         # Setup
+        mock_get_model_config.return_value = {
+            "model_name": "gpt-4",
+            "model_repo": "openai",
+            "base_url": "http://example.com",
+            "api_key": "fake-key"
+        }
+
         mock_getenv.side_effect = lambda key: {
             'LLM_MODEL_NAME': 'gpt-4',
             'LLM_MODEL_URL': 'http://example.com',
             'LLM_API_KEY': 'fake-key'
         }.get(key)
-        
+
         mock_yaml_data = {
             "SYSTEM_PROMPT": "Generate a short title",
             "USER_PROMPT": "Generate a title for: {{content}}"
         }
         mock_yaml_load.return_value = mock_yaml_data
-        
+
         mock_llm_instance = mock_openai.return_value
         mock_response = MagicMock()
         mock_response.content = "AI Discussion"
         mock_llm_instance.return_value = mock_response
-        
+
         # Execute
-        result = call_llm_for_title("What is AI? AI stands for Artificial Intelligence.")
-        
+        result = call_llm_for_title("What is AI? AI stands for Artificial Intelligence.", tenant_id="default")
+
         # Assert
         self.assertEqual(result, "AI Discussion")
         mock_openai.assert_called_once()
@@ -244,10 +252,10 @@ USER_PROMPT: "Generate a title for: {{content}}"
     def test_update_conversation_title(self, mock_rename_conversation):
         # Setup
         mock_rename_conversation.return_value = True
-        
+
         # Execute
         result = update_conversation_title(123, "New Title")
-        
+
         # Assert
         self.assertTrue(result)
         mock_rename_conversation.assert_called_once_with(123, "New Title")
@@ -256,10 +264,10 @@ USER_PROMPT: "Generate a title for: {{content}}"
     def test_create_new_conversation(self, mock_create_conversation):
         # Setup
         mock_create_conversation.return_value = {"conversation_id": 123, "title": "New Chat", "create_time": "2023-04-01"}
-        
+
         # Execute
         result = create_new_conversation("New Chat")
-        
+
         # Assert
         self.assertEqual(result["conversation_id"], 123)
         self.assertEqual(result["title"], "New Chat")
@@ -273,10 +281,10 @@ USER_PROMPT: "Generate a title for: {{content}}"
             {"conversation_id": 2, "title": "Chat 2", "create_time": "2023-04-02"}
         ]
         mock_get_conversation_list.return_value = mock_conversations
-        
+
         # Execute
         result = get_conversation_list_service()
-        
+
         # Assert
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0]["conversation_id"], 1)
@@ -287,10 +295,10 @@ USER_PROMPT: "Generate a title for: {{content}}"
     def test_rename_conversation_service(self, mock_rename_conversation):
         # Setup
         mock_rename_conversation.return_value = True
-        
+
         # Execute
         result = rename_conversation_service(123, "Updated Title")
-        
+
         # Assert
         self.assertTrue(result)
         mock_rename_conversation.assert_called_once_with(123, "Updated Title")
@@ -299,10 +307,10 @@ USER_PROMPT: "Generate a title for: {{content}}"
     def test_delete_conversation_service(self, mock_delete_conversation):
         # Setup
         mock_delete_conversation.return_value = True
-        
+
         # Execute
         result = delete_conversation_service(123)
-        
+
         # Assert
         self.assertTrue(result)
         mock_delete_conversation.assert_called_once_with(123)
@@ -333,10 +341,10 @@ USER_PROMPT: "Generate a title for: {{content}}"
             "image_records": []
         }
         mock_get_conversation_history.return_value = mock_history
-        
+
         # Execute
         result = get_conversation_history_service(123)
-        
+
         # Assert
         self.assertEqual(len(result), 1)  # Result is wrapped in a list
         self.assertEqual(result[0]["conversation_id"], "123")  # Converted to string
@@ -345,7 +353,7 @@ USER_PROMPT: "Generate a title for: {{content}}"
         user_message = result[0]["message"][0]
         self.assertEqual(user_message["role"], "user")
         self.assertEqual(user_message["message"], "What is AI?")
-        
+
         assistant_message = result[0]["message"][1]
         self.assertEqual(assistant_message["role"], "assistant")
         self.assertEqual(len(assistant_message["message"]), 1)  # Contains final_answer unit
@@ -358,7 +366,7 @@ USER_PROMPT: "Generate a title for: {{content}}"
     def test_get_sources_service_by_message(self, mock_get_images, mock_get_searches, mock_get_conversation):
         # Setup
         mock_get_conversation.return_value = {"conversation_id": 123, "title": "Test Chat"}
-        
+
         mock_searches = [
             {
                 "message_id": 2,
@@ -376,15 +384,15 @@ USER_PROMPT: "Generate a title for: {{content}}"
             }
         ]
         mock_get_searches.return_value = mock_searches
-        
+
         mock_images = [
             {"message_id": 2, "image_url": "https://example.com/image.jpg"}
         ]
         mock_get_images.return_value = mock_images
-        
+
         # Execute
         result = get_sources_service(None, 2)
-        
+
         # Assert
         self.assertEqual(result["code"], 0)
         self.assertEqual(result["message"], "success")
@@ -403,20 +411,28 @@ USER_PROMPT: "Generate a title for: {{content}}"
     @patch('backend.services.conversation_management_service.extract_user_messages')
     @patch('backend.services.conversation_management_service.call_llm_for_title')
     @patch('backend.services.conversation_management_service.update_conversation_title')
-    def test_generate_conversation_title_service(self, mock_update_title, mock_call_llm, mock_extract_messages):
+    @patch('backend.services.conversation_management_service.tenant_config_manager.get_model_config')
+    def test_generate_conversation_title_service(self, mock_get_model_config, mock_update_title, mock_call_llm, mock_extract_messages):
         # Setup
+        mock_get_model_config.return_value = {
+            "model_name": "gpt-4",
+            "model_repo": "openai",
+            "base_url": "http://example.com",
+            "api_key": "fake-key"
+        }
+
         mock_extract_messages.return_value = "What is AI? AI stands for Artificial Intelligence."
         mock_call_llm.return_value = "AI Discussion"
         mock_update_title.return_value = True
-        
+
         history = [
             {"role": "user", "content": "What is AI?"},
             {"role": "assistant", "content": "AI stands for Artificial Intelligence."}
         ]
-        
+
         # Execute
-        result = generate_conversation_title_service(123, history)
-        
+        result = generate_conversation_title_service(123, history, tenant_id="default")
+
         # Assert
         self.assertEqual(result, "AI Discussion")
         mock_extract_messages.assert_called_once_with(history)
@@ -427,14 +443,14 @@ USER_PROMPT: "Generate a title for: {{content}}"
     def test_update_message_opinion_service(self, mock_update_opinion):
         # Setup
         mock_update_opinion.return_value = True
-        
+
         # Execute
         result = update_message_opinion_service(123, "Y")
-        
+
         # Assert
         self.assertTrue(result)
         mock_update_opinion.assert_called_once_with(123, "Y")
 
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main()

@@ -11,6 +11,7 @@ import requests
 
 from consts.const import DATA_PROCESS_SERVICE
 from consts.model import ProcessParams
+from database.attachment_db import get_file_size_from_minio
 
 logger = logging.getLogger("file_management_utils")
 
@@ -26,17 +27,23 @@ async def save_upload_file(file: UploadFile, upload_path: Path) -> bool:
         return False
 
 
-async def trigger_data_process(file_paths: List[str], process_params: ProcessParams):
+async def trigger_data_process(files: List[dict], process_params: ProcessParams):
     """Trigger data processing service to handle uploaded files"""
     try:
-        if not file_paths:
+        if not files:
             return None
 
         # Build source data list
-        if len(file_paths) == 1:
+        if len(files) == 1:
             # Single file request
-            payload = {"source": file_paths[0], "source_type": "file",
-                "chunking_strategy": process_params.chunking_strategy, "index_name": process_params.index_name}
+            file_details = files[0]
+            payload = {
+                "source": file_details.get("path_or_url"),
+                "source_type": process_params.source_type,
+                "chunking_strategy": process_params.chunking_strategy,
+                "index_name": process_params.index_name,
+                "original_filename": file_details.get("filename")
+            }
 
             try:
                 async with httpx.AsyncClient() as client:
@@ -58,9 +65,14 @@ async def trigger_data_process(file_paths: List[str], process_params: ProcessPar
         else:
             # Batch file request
             sources = []
-            for file_path in file_paths:
-                source = {"source": file_path, "source_type": "file", "index_name": process_params.index_name}
-
+            for file_details in files:
+                source = {
+                    "source": file_details.get("path_or_url"),
+                    "source_type": process_params.source_type,
+                    "chunking_strategy": process_params.chunking_strategy,
+                    "index_name": process_params.index_name,
+                    "original_filename": file_details.get("filename")
+                }
                 sources.append(source)
 
             payload = {"sources": sources}
@@ -110,7 +122,7 @@ async def get_all_files_status(index_name: str):
             logger.error(f"Failed to connect to data process service: {str(e)}")
             return {}
         
-        logger.info(f"Found {len(tasks_list)} tasks for index '{index_name}'")
+        logging.debug(f"Found {len(tasks_list)} tasks for index '{index_name}'")
         if not tasks_list:
             logger.warning(f"No tasks found for index '{index_name}'")
             return {}
@@ -124,6 +136,8 @@ async def get_all_files_status(index_name: str):
             task_status = task_info.get('status', '')
             task_created_at = task_info.get('created_at', 0)
             task_id = task_info.get('id', '')
+            original_filename = task_info.get('original_filename', '')
+            source_type = task_info.get('source_type', '')
             if task_path_or_url:
                 # Initialize file state if not exists
                 if task_path_or_url not in file_states:
@@ -132,7 +146,9 @@ async def get_all_files_status(index_name: str):
                         'forward_state': '',
                         'latest_process_created_at': 0,
                         'latest_forward_created_at': 0,
-                        'latest_task_id': ''
+                        'latest_task_id': '',
+                        'original_filename': '',
+                        'source_type': ''
                     }
                 file_state = file_states[task_path_or_url]
                 # Process task
@@ -140,11 +156,15 @@ async def get_all_files_status(index_name: str):
                     file_state['latest_process_created_at'] = task_created_at
                     file_state['process_state'] = task_status
                     file_state['latest_task_id'] = task_id
+                    file_state['original_filename'] = original_filename
+                    file_state['source_type'] = source_type
                 # Forward task
                 elif task_name == 'forward' and task_created_at > file_state['latest_forward_created_at']:
                     file_state['latest_forward_created_at'] = task_created_at
                     file_state['forward_state'] = task_status
                     file_state['latest_task_id'] = task_id
+                    file_state['original_filename'] = original_filename
+                    file_state['source_type'] = source_type
         result = {}
         for path_or_url, file_state in file_states.items():
             custom_state = _convert_to_custom_state(
@@ -153,7 +173,9 @@ async def get_all_files_status(index_name: str):
             )
             result[path_or_url] = {
                 'state': custom_state,
-                'latest_task_id': file_state['latest_task_id'] or ''
+                'latest_task_id': file_state['latest_task_id'] or '',
+                'original_filename': file_state['original_filename'] or '',
+                'source_type': file_state['source_type'] or ''
             }
         return result
     except Exception as e:
@@ -222,19 +244,25 @@ def _convert_to_custom_state(process_celery_state: str, forward_celery_state: st
     
 
 def get_file_size(source_type: str, path_or_url: str) -> int:
-        """Query the actual size(bytes) of the file"""
-        try:
-            if source_type == "url":
-                # For URL type, use requests library to get file size
-                response = requests.head(path_or_url)
-                if 'content-length' in response.headers:
-                    return int(response.headers['content-length'])
-                return 0
-            elif source_type == "file":
-                # For local files, use os.path.getsize to get file size
+    """Query the actual size(bytes) of the file."""
+    try:
+        if source_type == "minio":
+            return get_file_size_from_minio(path_or_url)
+
+        elif source_type == "local":
+            # For local files, use os.path.getsize to get file size
+            if os.path.exists(path_or_url):
                 return os.path.getsize(path_or_url)
             else:
-                raise NotImplementedError(f"Unexpected source type: {source_type}")
-        except Exception as e:
-            logger.error(f"Error getting file size for {path_or_url}: {str(e)}")
-            return 0
+                logging.warning(f"File not found at local path: {path_or_url}")
+                return 0
+        else:
+            raise NotImplementedError(f"Unexpected source type: {source_type}")
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Network error getting file size for URL {path_or_url}: {str(e)}")
+        return 0
+    except Exception as e:
+        logging.error(f"Error getting file size for {path_or_url}: {str(e)}")
+        return 0
+

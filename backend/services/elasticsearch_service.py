@@ -27,6 +27,7 @@ from consts.model import SearchRequest, HybridSearchRequest
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
 from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
+from database import attachment_db
 
 # Configure logging
 logger = logging.getLogger("elasticsearch_service")
@@ -122,17 +123,34 @@ class ElasticSearchService:
             raise HTTPException(status_code=500, detail=f"Error creating index: {str(e)}")
 
     @staticmethod
-    def delete_index(
+    async def delete_index(
             index_name: str = Path(..., description="Name of the index to delete"),
             es_core: ElasticSearchCore = Depends(get_es_core),
             user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base"),
     ):
         try:
-            # First delete the index in Elasticsearch
+            # 1. Get list of files from the index
+            try:
+                files_to_delete = await ElasticSearchService.list_files(index_name, search_redis=False, es_core=es_core)
+                if files_to_delete and files_to_delete.get("files"):
+                    # 2. Delete files from MinIO storage
+                    for file_info in files_to_delete["files"]:
+                        object_name = file_info.get("path_or_url")
+                        source_type = file_info.get("source_type")
+                        if object_name and source_type == "minio":
+                            logger.info(f"Deleting file {object_name} from MinIO for index {index_name}")
+                            attachment_db.delete_file(object_name)
+            except Exception as e:
+                # Log the error but don't block the index deletion
+                logger.error(f"Error deleting associated files from MinIO for index {index_name}: {str(e)}")
+
+            # 3. Delete the index in Elasticsearch
             success = es_core.delete_index(index_name)
             if not success:
-                raise HTTPException(status_code=500, detail=f"Index {index_name} not found or could not be deleted")
+                # Even if deletion fails, we proceed to database record cleanup
+                logger.warning(f"Index {index_name} not found in Elasticsearch or could not be deleted, but proceeding with DB cleanup.")
 
+            # 4. Delete the knowledge base record from the database
             update_data = {
                 "updated_by": user_id,
                 "index_name": index_name
@@ -141,7 +159,7 @@ class ElasticSearchService:
             if not success:
                 raise HTTPException(status_code=500, detail=f"Error deleting knowledge record for index {index_name}")
 
-            return {"status": "success", "message": f"Index {index_name} deleted successfully"}
+            return {"status": "success", "message": f"Index {index_name} and associated files deleted successfully"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error deleting index: {str(e)}")
 
@@ -304,12 +322,12 @@ class ElasticSearchService:
                     continue
 
                 # Extract metadata
-                metadata = item.get("metadata")
+                metadata = item.get("metadata", {})
                 source = item.get("path_or_url")
                 text = item.get("content", "")
-                source_type = item.get("source_type", "file")
+                source_type = item.get("source_type")
                 file_size = item.get("file_size")
-                file_name = item.get("filename", os.path.basename(source) if source and source_type == "file" else "")
+                file_name = item.get("filename", os.path.basename(source) if source and source_type == "local" else "")
 
                 # Get from metadata
                 title = metadata.get("title", "")
@@ -322,7 +340,9 @@ class ElasticSearchService:
                     create_time = datetime.datetime.fromtimestamp(create_time).isoformat()
 
                 # Set embedding model name from the embedding model
-                embedding_model_name = es_core.embedding_model.model
+                embedding_model_name = ""
+                if es_core.embedding_model:
+                    embedding_model_name = es_core.embedding_model.model
 
                 # Create document
                 document = {
@@ -421,13 +441,26 @@ class ElasticSearchService:
                 for path_or_url, status_info in celery_task_files.items():
                     # Skip files that are already in existing_files to avoid duplicates
                     if path_or_url not in existing_paths:
+                        # Ensure status_info is a dictionary
+                        status_dict = status_info if isinstance(status_info, dict) else {}
+
+                        # Get source_type and original_filename, with defaults
+                        source_type = status_dict.get('source_type') if status_dict.get('source_type') else 'minio'
+                        original_filename = status_dict.get('original_filename')
+
+                        # Determine the filename
+                        filename = original_filename or (os.path.basename(path_or_url) if path_or_url else '')
+
+                        file_size = 0
+                        file_size = get_file_size(source_type, path_or_url)
+
                         file_data = {
                             'path_or_url': path_or_url,
-                            'file': os.path.basename(path_or_url) if path_or_url else '',
-                            'file_size': get_file_size('file', path_or_url),
+                            'file': filename,
+                            'file_size': file_size,
                             'create_time': time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
-                            'status': status_info.get('state', status_info) if isinstance(status_info, dict) else status_info,
-                            'latest_task_id': status_info.get('latest_task_id', '') if isinstance(status_info, dict) else ''
+                            'status': status_dict.get('state', 'UNKNOWN'),
+                            'latest_task_id': status_dict.get('latest_task_id', '')
                         }
                         files.append(file_data)
             else:
@@ -465,8 +498,7 @@ class ElasticSearchService:
                     try:
                         msearch_responses = es_core.client.msearch(
                             body=msearch_body,
-                            index=index_name,
-                            request_timeout=30
+                            index=index_name
                         )
 
                         for i, file_path in enumerate(completed_files_map.keys()):
@@ -509,8 +541,11 @@ class ElasticSearchService:
             path_or_url: str = Query(..., description="Path or URL of documents to delete"),
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
+        # 1. Delete ES documents
         deleted_count = es_core.delete_documents_by_path_or_url(index_name, path_or_url)
-        return {"status": "success", "deleted_count": deleted_count}
+        # 2. Delete MinIO file
+        minio_result = attachment_db.delete_file(path_or_url)
+        return {"status": "success", "deleted_es_count": deleted_count, "deleted_minio": minio_result.get("success")}
 
     @staticmethod
     # Search Operations
@@ -696,6 +731,8 @@ class ElasticSearchService:
         """
         try:
             # Get all documents
+            if not tenant_id:
+                raise HTTPException(status_code=400, detail="Tenant ID is required for summary generation.")
             all_documents = ElasticSearchService.get_random_documents(index_name, batch_size, es_core)
             all_chunks = self._clean_chunks_for_summary(all_documents)
             keywords_dict = calculate_term_weights(all_chunks)
