@@ -7,7 +7,7 @@ import requests
 import os
 
 from consts.const import SUPABASE_URL, SUPABASE_KEY
-from consts.model import STATUS_CODES, ServiceResponse, UserSignUpRequest, UserSignInRequest, UserUpdateRequest
+from consts.model import STATUS_CODES, ServiceResponse, UserSignUpRequest, UserSignInRequest
 from utils.auth_utils import get_jwt_expiry_seconds, calculate_expires_at
 from database.user_tenant_db import insert_user_tenant
 from utils.config_utils import config_manager

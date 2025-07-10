@@ -50,6 +50,7 @@ def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id:
 async def save_config(config: GlobalConfig, authorization: Optional[str] = Header(None)):
     try:
         user_id, tenant_id = get_current_user_id(authorization)
+        logger.info(f"Start to save config, user_id: {user_id}, tenant_id: {tenant_id}")
         config_dict = config.model_dump(exclude_none=False)
         env_config = {}
 
