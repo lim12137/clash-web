@@ -12,7 +12,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "redis>=5.0.0",
     "celery>=5.3.6",
-    "fastmcp==2.4.0",
+    "fastmcp==2.6.0",
     "nexent"
 ]
 

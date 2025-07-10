@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import yaml
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -15,6 +14,7 @@ from database.conversation_db import create_conversation_message, create_source_
     get_source_images_by_conversation, get_source_searches_by_message, get_source_searches_by_conversation, \
     delete_conversation, get_conversation, create_conversation, update_message_opinion
 
+from utils.config_utils import tenant_config_manager,get_model_name_from_config
 
 logger = logging.getLogger("conversation_management_service")
 
@@ -222,7 +222,7 @@ def extract_user_messages(history: List[Dict[str, str]]) -> str:
     return content
 
 
-def call_llm_for_title(content: str) -> str:
+def call_llm_for_title(content: str, tenant_id: str) -> str:
     """
     Call LLM to generate a title
 
@@ -235,9 +235,11 @@ def call_llm_for_title(content: str) -> str:
     with open('backend/prompts/utils/generate_title.yaml', "r", encoding="utf-8") as f:
         prompt_template = yaml.safe_load(f)
 
+    model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
+
     # Create OpenAIServerModel instance
-    llm = OpenAIServerModel(model_id=os.getenv('LLM_MODEL_NAME'), api_base=os.getenv('LLM_MODEL_URL'),
-        api_key=os.getenv('LLM_API_KEY'), temperature=0.7, top_p=0.95)
+    llm = OpenAIServerModel(model_id=get_model_name_from_config(model_config) if model_config.get("model_name") else "", api_base=model_config.get("base_url", ""),
+        api_key=model_config.get("api_key", ""), temperature=0.7, top_p=0.95)
 
     # Build messages
     compiled_template = Template(prompt_template["USER_PROMPT"], undefined=StrictUndefined)
@@ -378,7 +380,8 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
 
         # Collect search content, grouped by unit_id
         search_by_unit_id = {}
-        search_by_message = {}  # 为消息级别的search字段收集数据
+        # Collect data for message-level search field
+        search_by_message = {}
         for record in history_data['search_records']:
             unit_id = record['unit_id']
             message_id = record['message_id']
@@ -404,13 +407,13 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
             if record["score_semantic"] is not None:
                 search_item["score_details"]["semantic"] = record["score_semantic"]
 
-            # 按unit_id分组（用于前端根据unit_id匹配）
+            # Group by unit_id (for frontend matching by unit_id)
             if unit_id is not None:
                 if unit_id not in search_by_unit_id:
                     search_by_unit_id[unit_id] = []
                 search_by_unit_id[unit_id].append(search_item)
             
-            # 按message_id分组（用于消息级别的search字段）
+            # Group by message_id (for message-level search field)
             if message_id not in search_by_message:
                 search_by_message[message_id] = []
             search_by_message[message_id].append(search_item)
@@ -491,7 +494,7 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
             # Add searchByUnitId for precise matching in frontend
             message_unit_search = {}
             for unit_id, search_results in search_by_unit_id.items():
-                # 只包含属于当前消息的 unit_id
+                # Only include unit_id belonging to the current message
                 for unit in message_units:
                     if unit.get('unit_id') == unit_id:
                         message_unit_search[str(unit_id)] = search_results
@@ -611,7 +614,7 @@ def get_sources_service(conversation_id: Optional[int], message_id: Optional[int
         }
 
 
-def generate_conversation_title_service(conversation_id: int, history: List[Dict[str, str]]) -> str:
+def generate_conversation_title_service(conversation_id: int, history: List[Dict[str, str]], tenant_id: str) -> str:
     """
     Generate conversation title
 
@@ -627,7 +630,7 @@ def generate_conversation_title_service(conversation_id: int, history: List[Dict
         content = extract_user_messages(history)
 
         # Call LLM to generate title
-        title = call_llm_for_title(content)
+        title = call_llm_for_title(content, tenant_id)
 
         # Update conversation title
         update_conversation_title(conversation_id, title)

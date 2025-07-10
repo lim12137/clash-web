@@ -1,7 +1,5 @@
-import asyncio
 import json
 import logging
-from functools import partial
 
 from fastapi import HTTPException, APIRouter, Header, Request
 from fastapi.responses import StreamingResponse
@@ -9,13 +7,12 @@ from typing import Optional
 
 from consts.model import GeneratePromptRequest, FineTunePromptRequest
 from services.prompt_service import generate_and_save_system_prompt_impl, fine_tune_prompt
-from utils.auth_utils import get_current_user_id, get_current_user_info
+from utils.auth_utils import get_current_user_info
 
 router = APIRouter(prefix="/prompt")
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("prompt app")
+logger = logging.getLogger("prompt_app")
 
 
 @router.post("/generate")

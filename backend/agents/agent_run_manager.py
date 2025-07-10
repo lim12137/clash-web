@@ -3,10 +3,7 @@ import threading
 from typing import Dict
 from nexent.core.agents.agent_model import AgentRunInfo
 
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("agent run manager")
-
+logger = logging.getLogger("agent_run_manager")
 
 class AgentRunManager:
     _instance = None

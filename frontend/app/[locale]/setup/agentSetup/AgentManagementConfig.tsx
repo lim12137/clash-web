@@ -319,7 +319,17 @@ function ToolPool({
   const [isRefreshing, setIsRefreshing] = useState(false);
   // Use useMemo to cache the tool list to avoid unnecessary recalculations
   const displayTools = useMemo(() => {
-    return tools || [];
+    const toolsToSort = tools || [];
+    // Sort by create_time, earliest created tools first (ascending order)
+    return toolsToSort.sort((a, b) => {
+      // If either tool doesn't have create_time, treat it as newer (sort to bottom)
+      if (!a.create_time && !b.create_time) return 0;
+      if (!a.create_time) return 1;
+      if (!b.create_time) return -1;
+      
+      // Compare create_time strings (ISO format can be compared directly)
+      return a.create_time.localeCompare(b.create_time);
+    });
   }, [tools]);
 
   // Use useMemo to cache the selected tool ID set to improve lookup efficiency
@@ -429,9 +439,20 @@ function ToolPool({
 
   // 监听工具更新事件
   useEffect(() => {
-    const handleToolsUpdate = () => {
-      if (onToolsRefresh) {
-        onToolsRefresh();
+    const handleToolsUpdate = async () => {
+      try {
+        // 重新获取最新的工具列表，确保包含新添加的MCP工具
+        const fetchResult = await fetchTools();
+        if (fetchResult.success) {
+          // 调用父组件的刷新回调，更新工具列表状态
+          if (onToolsRefresh) {
+            onToolsRefresh();
+          }
+        } else {
+          console.error('MCP配置后自动刷新工具列表失败:', fetchResult.message);
+        }
+      } catch (error) {
+        console.error('MCP配置后自动刷新工具列表出错:', error);
       }
     };
 
