@@ -29,8 +29,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd test
-          uv sync
+          cd backend
+          uv sync --extra data-process --extra test
+          source .venv/bin/activate
           cd ..
 
       - name: Run all tests and collect coverage
