@@ -159,6 +159,8 @@ export default function SystemPromptDisplay({
           >
             {t('systemPrompt.button.save')}
           </button>
+          {/* Hide tune button temporarily*/}
+          {/* 
           <button
             onClick={() => setIsModalOpen(true)}
             className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -166,6 +168,7 @@ export default function SystemPromptDisplay({
           >
             {t('systemPrompt.button.tune')}
           </button>
+          */}
           <button
             onClick={onDebug}
             className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"

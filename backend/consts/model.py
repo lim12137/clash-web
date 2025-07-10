@@ -57,13 +57,6 @@ class UserUpdateRequest(BaseModel):
     password: Optional[str] = Field(None, min_length=6)
     role: Optional[str] = None
 
-# Response models for user management
-class ServiceResponse(BaseModel):
-    code: int
-    message: str
-    data: Optional[Any] = None
-
-
 # Response models for model management
 class ModelResponse(BaseModel):
     code: int = 200
@@ -167,10 +160,12 @@ class GenerateTitleRequest(BaseModel):
 # Pydantic models for API
 class TaskRequest(BaseModel):
     source: str
-    source_type: str = "file"
+    source_type: str
     chunking_strategy: Optional[str] = None
     index_name: Optional[str] = None
+    original_filename: Optional[str] = None
     additional_params: Dict[str, Any] = Field(default_factory=dict)
+
 
 
 class BatchTaskRequest(BaseModel):
@@ -190,6 +185,7 @@ class SimpleTaskStatusResponse(BaseModel):
     task_name: str
     index_name: str
     path_or_url: str
+    original_filename: str
     status: str
     created_at: float
     updated_at: float
@@ -253,7 +249,8 @@ class HybridSearchRequest(SearchRequest):
 
 # Request models
 class ProcessParams(BaseModel):
-    chunking_strategy: Optional[str] = None
+    chunking_strategy: Optional[str] = "basic"
+    source_type: str
     index_name: str
 
 
@@ -266,6 +263,12 @@ class OpinionRequest(BaseModel):
 class GeneratePromptRequest(BaseModel):
     task_description: str
     agent_id: int
+
+
+class GenerateTitleRequest(BaseModel):
+    conversation_id: int
+    history: List[Dict[str, str]]
+
 
 # used in prompt/finetune request
 class FineTunePromptRequest(BaseModel):

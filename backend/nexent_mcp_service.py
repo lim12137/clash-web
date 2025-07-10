@@ -1,3 +1,5 @@
+import logging
+from utils.logging_utils import configure_logging
 from fastmcp import FastMCP, Client
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -10,6 +12,9 @@ hierarchical proxy architecture:
 - local service layer: stable local mount service
 - remote proxy layer: dynamic managed remote mcp service proxy
 """
+
+configure_logging(logging.INFO)
+logger = logging.getLogger("nexent_mcp_service")
 
 # initialize main mcp service
 nexent_mcp = FastMCP(name="nexent_mcp")

@@ -221,7 +221,8 @@
         "processRemainingDataFailed": "处理剩余数据失败:",
         "thinking": "正在思考中...",
         "generateTitleFailed": "生成标题失败:",
-        "streamResponseError": "处理流式响应时出错:"
+        "streamResponseError": "处理流式响应时出错:",
+        "userInterrupted": "对话主动中止。"
     },
     "taskWindow": {
         "unknownSource": "未知来源",
@@ -495,6 +496,7 @@
     "knowledgeBase.tag.createdAt": "创建于{{date}}",
     "knowledgeBase.tag.model": "{{model}}模型",
     "knowledgeBase.tag.modelMismatch": "模型不匹配",
+    "knowledgeBase.upload.modelMismatch.description": "当前知识库的模型与配置模型不匹配，无法上传文件，请切换知识库或调整模型配置",
     "knowledgeBase.list.empty": "暂无知识库，请先创建知识库",
     "knowledgeBase.modal.deleteConfirm.title": "确认删除知识库",
     "knowledgeBase.modal.deleteConfirm.content": "确定要删除这个知识库吗？删除后无法恢复。",
@@ -879,7 +881,7 @@
     "mcpConfig.modal.close": "关闭",
     "mcpConfig.modal.updatingTools": "正在更新工具列表...",
     "mcpConfig.addServer.title": "添加MCP服务器",
-    "mcpConfig.addServer.namePlaceholder": "服务器名称（仅支持英文、数字，最多20字符）",
+    "mcpConfig.addServer.namePlaceholder": "服务器名称",
     "mcpConfig.addServer.urlPlaceholder": "服务器URL (如: http://localhost:3001/sse)，目前仅支持sse协议",
     "mcpConfig.addServer.button.add": "添加",
     "mcpConfig.addServer.button.updating": "更新中...",
