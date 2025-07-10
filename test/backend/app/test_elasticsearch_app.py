@@ -220,6 +220,54 @@ class TestElasticsearchApp(unittest.TestCase):
     @patch("backend.apps.elasticsearch_app.get_current_user_id")
     @patch("backend.apps.elasticsearch_app.delete_selected_knowledge_by_index_name")
     @patch("backend.apps.elasticsearch_app.get_redis_service")
+    def test_delete_index_success_with_correct_response(self, mock_get_redis, mock_delete_knowledge, mock_get_user_id, mock_get_es_core):
+        """
+        Test deleting an index successfully with expected 200 status code.
+        Properly handles the async behavior to ensure correct response.
+        """
+        # Setup mocks
+        mock_get_user_id.return_value = (self.user_id, self.tenant_id)
+        mock_get_es_core.return_value = self.es_core_mock
+        mock_get_redis.return_value = self.redis_service_mock
+        
+        es_result = {"status": "success", "message": "Index deleted successfully"}
+        redis_result = {
+            "total_deleted": 10,
+            "celery_tasks_deleted": 5,
+            "cache_keys_deleted": 5
+        }
+        
+        # Mock the async behavior in a way that works with test client
+        with patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files") as mock_list_files:
+            # Use a completed future/coroutine that the test client can handle
+            mock_list_files.return_value = {"files": []}
+            
+            self.redis_service_mock.delete_knowledgebase_records.return_value = redis_result
+            
+            with patch.object(ElasticSearchService, "delete_index", return_value=es_result) as mock_delete:
+                # Execute request
+                response = client.delete(f"/indices/{self.index_name}", headers=self.auth_header)
+                
+                # Verify expected 200 status code
+                self.assertEqual(response.status_code, 200)
+                
+                # Verify response structure
+                expected_response = {
+                    "status": "success",
+                    "message": f"Index {self.index_name} deleted successfully. MinIO: 0 files deleted, 0 failed. Redis: Cleaned up 10 records.",
+                    "redis_cleanup": redis_result,
+                    "minio_cleanup": {
+                        "deleted_count": 0,
+                        "failed_count": 0,
+                        "total_files_found": 0
+                    }
+                }
+                self.assertEqual(response.json(), expected_response)
+
+    @patch("backend.apps.elasticsearch_app.get_es_core")
+    @patch("backend.apps.elasticsearch_app.get_current_user_id")
+    @patch("backend.apps.elasticsearch_app.delete_selected_knowledge_by_index_name")
+    @patch("backend.apps.elasticsearch_app.get_redis_service")
     @patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files")
     def test_delete_index_redis_error(self, mock_list_files, mock_get_redis, mock_delete_knowledge, mock_get_user_id, mock_get_es_core):
         """
