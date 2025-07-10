@@ -1,13 +1,8 @@
 import logging
-import os
 from typing import Optional
 
 from fastapi import Header, Request
 from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID
-
-# Get Supabase configuration
-SUPABASE_URL = os.getenv('SUPABASE_URL', 'http://118.31.249.152:8010')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
 
 
 def get_current_user_id_from_token(authorization: str) -> Optional[str]:
@@ -23,7 +18,7 @@ def get_current_user_id_from_token(authorization: str) -> Optional[str]:
     try:
         return DEFAULT_USER_ID
     except Exception as e:
-        logging.error(f"从令牌提取用户ID失败: {str(e)}")
+        logging.error(f"Failed to extract user ID from token: {str(e)}")
         return DEFAULT_USER_ID
     
 def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
@@ -35,7 +30,7 @@ def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
         user_id = get_current_user_id_from_token(str(authorization))
         return user_id, DEFAULT_TENANT_ID
     except Exception as e:
-        logging.error(f"获取用户ID失败: {str(e)}")
+        logging.error(f"Failed to get user ID: {str(e)}")
         return DEFAULT_USER_ID, DEFAULT_TENANT_ID
 
 def get_user_language(request: Request = None) -> str:

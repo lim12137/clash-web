@@ -1,7 +1,8 @@
 import os
 import logging
 import redis
-from typing import List, Optional, Dict, Any
+from typing import Dict, Any
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -117,9 +118,61 @@ class RedisService:
         
         return result
     
+    def _recursively_delete_task_and_parents(self, task_id: str) -> (int, set):
+        """
+        Iteratively delete a Celery task and all its parent tasks from Redis.
+        A single task chain is deleted, and the IDs of the deleted tasks are returned.
+
+        Args:
+            task_id: The starting task ID.
+
+        Returns:
+            A tuple containing:
+            - int: The number of deleted task records.
+            - set: A set of processed task IDs in the chain.
+        """
+        deleted_count = 0
+        processed_ids = set()
+        current_task_id = task_id
+
+        while current_task_id:
+            if current_task_id in processed_ids:
+                logger.warning(f"Detected a cycle or repeated task in parent chain, breaking at: {current_task_id}")
+                break
+            
+            processed_ids.add(current_task_id)
+            task_key = f'celery-task-meta-{current_task_id}'
+            
+            try:
+                task_data = self.backend_client.get(task_key)
+
+                parent_id = None
+                if task_data:
+                    # Get parent_id before deleting
+                    try:
+                        task_info = json.loads(task_data)
+                        parent_id = task_info.get('parent_id')
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.warning(f"Failed to parse task data for {task_key}, cannot find parent: {e}")
+                        parent_id = None
+
+                    # Delete the current task
+                    if self.backend_client.delete(task_key):
+                        deleted_count += 1
+                        logger.debug(f"Deleted task record from chain: {task_key}")
+                
+                current_task_id = parent_id
+            
+            except Exception as e:
+                logger.error(f"Error while processing task {task_key} in recursive delete: {e}")
+                # Stop if any redis error occurs
+                break
+                
+        return deleted_count, processed_ids
+
     def _cleanup_celery_tasks(self, index_name: str) -> int:
         """
-        Clean up Celery task results related to the knowledge base
+        Clean up Celery task results related to the knowledge base and their parents.
         
         Args:
             index_name: Name of the knowledge base
@@ -127,7 +180,8 @@ class RedisService:
         Returns:
             Number of task records deleted
         """
-        deleted_count = 0
+        total_deleted_count = 0
+        processed_tasks = set()  # Track tasks that have been processed to avoid redundant work
         
         try:
             # Get all Celery task result keys
@@ -143,29 +197,46 @@ class RedisService:
                         
                         # Check if this task is related to our knowledge base
                         result = task_info.get('result', {})
+                        task_index_name = None
+
                         if isinstance(result, dict):
-                            # Check various fields that might contain the index name
+                            # Standard check for successful tasks
                             task_index_name = (
                                 result.get('index_name') or 
                                 task_info.get('index_name') or
                                 result.get('kwargs', {}).get('index_name')
                             )
                             
-                            if task_index_name == index_name:
-                                # Delete this task record
-                                self.backend_client.delete(key)
-                                deleted_count += 1
-                                logger.debug(f"Deleted task record: {key}")
+                            # Check for failed tasks where metadata is in the exception message
+                            if task_index_name is None and 'exc_message' in result:
+                                try:
+                                    exc_str = str(result['exc_message'])
+                                    if '{' in exc_str and '}' in exc_str:
+                                        json_part = exc_str[exc_str.find('{'):exc_str.rfind('}')+1]
+                                        cleaned_json_part = json_part.replace('\\"', '"')
+                                        error_data = json.loads(cleaned_json_part)
+                                        task_index_name = error_data.get('index_name')
+                                except (json.JSONDecodeError, TypeError, IndexError) as e:
+                                    key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+                                    logger.warning(f"Could not parse exception metadata for task key {key_str}: {e}")
+
+                        if task_index_name == index_name:
+                            key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+                            task_id = key_str.replace('celery-task-meta-', '')
+                            if task_id not in processed_tasks:
+                                deleted, processed_chain = self._recursively_delete_task_and_parents(task_id)
+                                total_deleted_count += deleted
+                                processed_tasks.update(processed_chain)
                                 
                 except Exception as e:
-                    logger.warning(f"Error processing task key {key}: {str(e)}")
+                    logger.warning(f"Error processing task key {key} for cleanup: {str(e)}")
                     continue
                     
         except Exception as e:
             logger.error(f"Error cleaning up Celery tasks: {str(e)}")
             raise
         
-        return deleted_count
+        return total_deleted_count
     
     def _cleanup_cache_keys(self, index_name: str) -> int:
         """
@@ -209,7 +280,7 @@ class RedisService:
     
     def _cleanup_document_celery_tasks(self, index_name: str, path_or_url: str) -> int:
         """
-        Clean up Celery task results related to a specific document
+        Clean up Celery task results related to a specific document and their parents.
         
         Args:
             index_name: Name of the knowledge base
@@ -218,13 +289,20 @@ class RedisService:
         Returns:
             Number of task records deleted
         """
-        deleted_count = 0
+        total_deleted_count = 0
+        processed_tasks = set()
         
         try:
             # Get all Celery task result keys
             task_keys = self.backend_client.keys('celery-task-meta-*')
             
             for key in task_keys:
+                key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+                task_id = key_str.replace('celery-task-meta-', '')
+
+                if task_id in processed_tasks:
+                    continue
+
                 try:
                     # Get task data
                     task_data = self.backend_client.get(key)
@@ -234,8 +312,11 @@ class RedisService:
                         
                         # Check if this task is related to our specific document
                         result = task_info.get('result', {})
+                        task_index_name = None
+                        task_source = None
+
                         if isinstance(result, dict):
-                            # Check various fields that might contain the index name and document path
+                            # Standard check for successful tasks
                             task_index_name = (
                                 result.get('index_name') or 
                                 task_info.get('index_name') or
@@ -250,23 +331,37 @@ class RedisService:
                                 result.get('kwargs', {}).get('source') or
                                 result.get('kwargs', {}).get('path_or_url')
                             )
+
+                            # Check for failed tasks where metadata is in the exception message
+                            if task_index_name is None and 'exc_message' in result:
+                                try:
+                                    exc_str = str(result['exc_message'])
+                                    if '{' in exc_str and '}' in exc_str:
+                                        json_part = exc_str[exc_str.find('{'):exc_str.rfind('}')+1]
+                                        cleaned_json_part = json_part.replace('\\"', '"')
+                                        error_data = json.loads(cleaned_json_part)
+                                        task_index_name = error_data.get('index_name')
+                                        task_source = error_data.get('source') or error_data.get('path_or_url')
+                                except (json.JSONDecodeError, TypeError, IndexError) as e:
+                                    logger.warning(f"Could not parse exception metadata for task {task_id}: {e}")
                             
-                            # Match both index name and document path/source
-                            if task_index_name == index_name and task_source == path_or_url:
-                                # Delete this task record
-                                self.backend_client.delete(key)
-                                deleted_count += 1
-                                logger.debug(f"Deleted document task record: {key}")
+                        # Match both index name and document path/source
+                        if task_index_name == index_name and task_source == path_or_url:
+                            # Recursively delete this task and its parents
+                            if task_id not in processed_tasks:
+                                deleted, processed_chain = self._recursively_delete_task_and_parents(task_id)
+                                total_deleted_count += deleted
+                                processed_tasks.update(processed_chain)
                                 
                 except Exception as e:
-                    logger.warning(f"Error processing task key {key}: {str(e)}")
+                    logger.warning(f"Error processing task key {key} for document cleanup: {str(e)}")
                     continue
                     
         except Exception as e:
             logger.error(f"Error cleaning up document Celery tasks: {str(e)}")
             raise
         
-        return deleted_count
+        return total_deleted_count
     
     def _cleanup_document_cache_keys(self, index_name: str, path_or_url: str) -> int:
         """

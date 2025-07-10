@@ -32,7 +32,7 @@ app = Celery(
     include=[import_path]
 )
 
-# 关键检查：如果backend仍然是DisabledBackend，说明配置失败，立即崩溃
+# Critical check: If backend is still DisabledBackend, it means configuration failed, crash immediately
 if isinstance(app.backend, DisabledBackend):
     raise RuntimeError(
         "Celery result backend is disabled! "
@@ -81,23 +81,20 @@ app.conf.update(
         }
     },
 
-    # 添加 broker 连接配置
+    # Add broker connection configuration
     broker_connection_retry=True,
     broker_connection_retry_on_startup=True,
     broker_connection_max_retries=10,
-    broker_heartbeat=30,  # 心跳检测
-    broker_pool_limit=10,  # 连接池大小
+    broker_heartbeat=30,  # Heartbeat check
+    broker_pool_limit=10,  # Connection pool size
     
-    # 添加传输选项
+    # Add transport options
     broker_transport_options={
         'visibility_timeout': 3600,
         'max_retries': 5,
         'interval_start': 0,
         'interval_step': 0.2,
         'interval_max': 0.5,
-        'master_name': 'mymaster',  # 如果使用 Redis Sentinel
+        'master_name': 'mymaster',  # If using Redis Sentinel
     }
 )
-
-# Set simplified logging format to avoid timestamp duplication
-# app.conf.worker_log_format = '[%(task_name)s(%(task_id)s)] %(message)s' 

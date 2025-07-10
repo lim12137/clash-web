@@ -203,7 +203,32 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
     } catch (error) {
       message.error(t('mcpConfig.message.remountFailed'))
     } finally {
-      setRecovering(false)
+      try {
+        // 不论挂载成功还是失败，都重新加载服务器列表以获取最新状态
+        await loadServerList()
+        
+        // 不论挂载成功还是失败，都更新工具列表并通知工具池刷新
+        setUpdatingTools(true)
+        try {
+          const updateResult = await updateToolList()
+          if (updateResult.success) {
+            message.success(t('mcpConfig.message.toolsListUpdated'))
+            // 通知父组件更新工具列表
+            window.dispatchEvent(new CustomEvent('toolsUpdated'))
+          } else {
+            message.warning(t('mcpConfig.message.toolsListUpdateFailed'))
+          }
+        } catch (updateError) {
+          console.log(t('mcpConfig.debug.autoUpdateToolsFailed'), updateError)
+          message.warning(t('mcpConfig.message.toolsListUpdateFailed'))
+        } finally {
+          setUpdatingTools(false)
+        }
+      } catch (finalError) {
+        console.error('重新挂载后的清理操作失败:', finalError)
+      } finally {
+        setRecovering(false)
+      }
     }
   }
 
@@ -215,6 +240,20 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
       key: 'service_name',
       width: '25%',
       ellipsis: true,
+      render: (text: string, record: McpServer) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              backgroundColor: record.status ? '#52c41a' : '#ff4d4f',
+              flexShrink: 0
+            }}
+          />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</span>
+        </div>
+      ),
     },
     {
       title: t('mcpConfig.serverList.column.url'),

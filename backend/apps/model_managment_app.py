@@ -1,11 +1,11 @@
 from typing import Optional
 
-from fastapi import Query, Body, APIRouter, Header
+from fastapi import Query, APIRouter, Header
 
 from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest
 from database.model_management_db import create_model_record, delete_model_record, \
     get_model_records, get_model_by_display_name
-from services.model_health_service import check_model_connectivity, verify_model_config_connectivity
+from services.model_health_service import check_model_connectivity
 from utils.model_name_utils import split_repo_name, add_repo_to_name
 from utils.auth_utils import get_current_user_id
 
@@ -194,10 +194,10 @@ async def verify_model_config(request: ModelRequest):
     except Exception as e:
         return ModelResponse(
             code=500,
-            message=f"验证模型配置失败: {str(e)}",
+            message=f"Failed to verify model configuration: {str(e)}",
             data={
                 "connectivity": False,
-                "message": f"验证失败: {str(e)}",
+                "message": f"Verification failed: {str(e)}",
                 "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
             }
         )
