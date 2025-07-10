@@ -59,6 +59,7 @@ async def save_config(config: GlobalConfig, authorization: Optional[str] = Heade
         # Process app configuration - use key names directly without prefix
         for key, value in config_dict.get("app", {}).items():
             env_key = get_env_key(key)
+            env_config[env_key] = safe_value(value)
 
             # Check if the key exists and has the same value in tenant_config_dict
             if env_key in tenant_config_dict and tenant_config_dict[env_key] == safe_value(value):

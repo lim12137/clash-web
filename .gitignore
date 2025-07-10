@@ -29,3 +29,5 @@ test/coverage_html/
 test/coverage.xml
 test/.coverage
 test/.coverage.*
+test/backend/coverage.xml
+test/backend/.coverage
