@@ -37,7 +37,6 @@ class OpenAIModel(OpenAIServerModel):
             for chunk in current_request:
                 new_token = chunk.choices[0].delta.content
                 if new_token is not None:
-                    logger.info(new_token, end="")
                     self.observer.add_model_new_token(new_token)
                     token_join.append(new_token)
                     role = chunk.choices[0].delta.role
