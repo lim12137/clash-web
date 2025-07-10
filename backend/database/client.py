@@ -180,6 +180,15 @@ class MinioClient:
         except Exception as e:
             return False, str(e)
 
+    def get_file_size(self, object_name: str, bucket: Optional[str] = None) -> int:
+        bucket = bucket or self.default_bucket
+        try:
+            response = self.client.head_object(Bucket=bucket, Key=object_name)
+            return int(response['ContentLength'])
+        except ClientError as e:
+            logger.error(f"Get file size by objectname({object_name}) failed: {e}")
+            return 0
+
     def list_files(self, prefix: str = "", bucket: Optional[str] = None) -> List[dict]:
         """
         List files in bucket

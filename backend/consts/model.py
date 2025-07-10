@@ -160,9 +160,10 @@ class GenerateTitleRequest(BaseModel):
 # Pydantic models for API
 class TaskRequest(BaseModel):
     source: str
-    source_type: str = "file"
+    source_type: str
     chunking_strategy: Optional[str] = None
     index_name: Optional[str] = None
+    original_filename: Optional[str] = None
     additional_params: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -184,6 +185,7 @@ class SimpleTaskStatusResponse(BaseModel):
     task_name: str
     index_name: str
     path_or_url: str
+    original_filename: str
     status: str
     created_at: float
     updated_at: float
@@ -247,7 +249,8 @@ class HybridSearchRequest(SearchRequest):
 
 # Request models
 class ProcessParams(BaseModel):
-    chunking_strategy: Optional[str] = None
+    chunking_strategy: Optional[str] = "basic"
+    source_type: str
     index_name: str
 
 

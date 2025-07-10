@@ -371,7 +371,7 @@ class ElasticSearchCore:
         Returns:
             int: Number of documents successfully indexed
         """
-        logger.info(f"Indexing {len(documents)} documents to {index_name}")
+        logger.info(f"Indexing {len(documents)} chunks to {index_name}")
 
         # Handle empty documents list
         if not documents:
@@ -395,7 +395,7 @@ class ElasticSearchCore:
             processed_docs = self._preprocess_documents(documents, content_field)
             
             # Get embeddings
-            inputs = [{"text": doc[content_field]} for doc in processed_docs]
+            inputs = [doc[content_field] for doc in processed_docs]
             embeddings = self.embedding_model.get_embeddings(inputs)
 
             # Prepare bulk operations
@@ -417,7 +417,7 @@ class ElasticSearchCore:
             # Handle errors
             self._handle_bulk_errors(response)
 
-            logger.info(f"Small batch insert completed: {len(documents)} docs")
+            logger.info(f"Small batch insert completed: {len(documents)} chunks indexed.")
             return len(documents)
             
         except Exception as e:
@@ -448,7 +448,7 @@ class ElasticSearchCore:
                     embedding_sub_batch = es_batch[j:j + embedding_batch_size]
                     
                     try:
-                        inputs = [{"text": doc[content_field]} for doc in embedding_sub_batch]
+                        inputs = [doc[content_field] for doc in embedding_sub_batch]
                         embeddings = self.embedding_model.get_embeddings(inputs)
                         
                         for doc, embedding in zip(embedding_sub_batch, embeddings):
@@ -489,7 +489,7 @@ class ElasticSearchCore:
                     time.sleep(0.1)
 
             self._force_refresh_with_retry(index_name)
-            logger.info(f"Large batch insert completed: {total_indexed} docs indexed.")
+            logger.info(f"Large batch insert completed: {total_indexed} chunks indexed.")
             return total_indexed
         except Exception as e:
             logger.error(f"Large batch insert failed: {e}")
@@ -641,7 +641,7 @@ class ElasticSearchCore:
         index_pattern = ",".join(index_names)
 
         # Get query embedding
-        query_embedding = self.embedding_model.get_embeddings([{"text": query_text}])[0]
+        query_embedding = self.embedding_model.get_embeddings(query_text)
         
         # Prepare the search query
         search_query = {

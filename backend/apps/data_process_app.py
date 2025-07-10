@@ -42,18 +42,15 @@ async def create_task(request: TaskRequest):
     Returns task ID immediately. Processing happens in the background.
     Tasks are forwarded to Elasticsearch when complete.
     """
-    # Extract parameters
-    params = {}
-    if request.additional_params:
-        params.update(request.additional_params)
-
     # Create task using the new process_and_forward task
+
+    logger.info(f"Creating task with source_type: {request.source_type}")
     task_result = process_and_forward.delay(
         source=request.source,
         source_type=request.source_type,
         chunking_strategy=request.chunking_strategy,
         index_name=request.index_name,
-        **params
+        original_filename=request.original_filename
     )
 
     return TaskResponse(task_id=task_result.id)
@@ -62,7 +59,7 @@ async def create_task(request: TaskRequest):
 @router.post("/process", response_model=dict, status_code=200)
 async def process_sync_endpoint(
     source: str = Form(...),
-    source_type: str = Form("file"),
+    source_type: str = Form(...),
     chunking_strategy: str = Form("basic"),
     timeout: int = Form(30)
 ):
@@ -74,7 +71,7 @@ async def process_sync_endpoint(
     
     Parameters:
         source: File path, URL, or text content to process
-        source_type: Type of source ("file", "url", or "text")
+        source_type: Type of source ("local", "minio")
         chunking_strategy: Strategy for chunking the document
         timeout: Maximum time to wait for processing (seconds)
     
@@ -131,19 +128,15 @@ async def create_batch_tasks(request: BatchTaskRequest):
         for source_config in request.sources:
             # Extract parameters
             source = source_config.get('source')
-            source_type = source_config.get('source_type', 'file')
-            chunking_strategy = source_config.get('chunking_strategy', 'basic')
+            source_type = source_config.get('source_type')
+            chunking_strategy = source_config.get('chunking_strategy')
             index_name = source_config.get('index_name')
-            
-            # Extract additional parameters (excluding the standard ones)
-            additional_params = {k: v for k, v in source_config.items() 
-                               if k not in ['source', 'source_type', 'chunking_strategy', 'index_name']}
-            
+            original_filename = source_config.get('original_filename')
+
             # Validate required fields
             if not source:
                 logger.error(f"Missing required field 'source' in source config: {source_config}")
                 continue
-                
             if not index_name:
                 logger.error(f"Missing required field 'index_name' in source config: {source_config}")
                 continue
@@ -154,11 +147,11 @@ async def create_batch_tasks(request: BatchTaskRequest):
                 source_type=source_type,
                 chunking_strategy=chunking_strategy,
                 index_name=index_name,
-                **additional_params
+                original_filename=original_filename
             )
             
             task_ids.append(task_result.id)
-            logger.info(f"Created task {task_result.id} for source: {source}")
+            logger.debug(f"Created task {task_result.id} for source: {source}")
         
         logger.info(f"Created {len(task_ids)} individual tasks for batch processing")
         return BatchTaskResponse(task_ids=task_ids)
@@ -218,10 +211,11 @@ async def get_task(task_id: str):
         task_name=task["task_name"],
         index_name=task["index_name"],
         path_or_url=task["path_or_url"],
+        original_filename=task["original_filename"],
         status=task["status"],
-        created_at=task.get("created_at"),
-        updated_at=task.get("updated_at"),
-        error=task.get("error")
+        created_at=task["created_at"],
+        updated_at=task["updated_at"],
+        error=task["error"]
     )
 
 
@@ -238,10 +232,11 @@ async def list_tasks():
                 task_name=task["task_name"],
                 index_name=task["index_name"],
                 path_or_url=task["path_or_url"],
+                original_filename=task["original_filename"],
                 status=task["status"],
-                created_at=task.get("created_at"),
-                updated_at=task.get("updated_at"),
-                error=task.get("error")
+                created_at=task["created_at"],
+                updated_at=task["updated_at"],
+                error=task["error"]
             )
         )
 
@@ -328,7 +323,7 @@ async def process_text_file(
         
         logger.info(f"Saved uploaded file to temporary path: {temp_file_path}")
 
-        result = process_sync(source=temp_file_path, source_type='file', chunking_strategy=chunking_strategy, timeout=timeout)
+        result = process_sync(source=temp_file_path, source_type='local', chunking_strategy=chunking_strategy, timeout=timeout)
         logger.info(f"Successfully processed uploaded file: {file.filename}, extracted {result.get('text_length', 0)} characters")
         
         return {

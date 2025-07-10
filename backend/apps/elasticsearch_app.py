@@ -9,6 +9,7 @@ from services.elasticsearch_service import ElasticSearchService, get_es_core
 from services.redis_service import get_redis_service
 from utils.auth_utils import get_current_user_id
 from services.tenant_config_service import delete_selected_knowledge_by_index_name
+from database.attachment_db import delete_file
 
 router = APIRouter(prefix="/indices")
 service = ElasticSearchService()
@@ -31,49 +32,101 @@ def create_new_index(
 
 
 @router.delete("/{index_name}")
-def delete_index(
+async def delete_index(
         index_name: str = Path(..., description="Name of the index to delete"),
         es_core: ElasticSearchCore = Depends(get_es_core),
         authorization: Optional[str] = Header(None)
 ):
-    """Delete an index and clean up all related Redis records"""
+    """Delete an index, its related files in MinIO, and clean up all related Redis records"""
+    logger.debug(f"Starting deletion process for knowledge base (index): {index_name}")
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        # delete the selected knowledge by index name
+
+        # 1. Get all files associated with the index from Elasticsearch
+        logger.debug(f"Step 1/4: Retrieving file list for index: {index_name}")
+        try:
+            file_list_result = await ElasticSearchService.list_files(index_name, include_chunks=False, search_redis=True, es_core=es_core)
+            files_to_delete = file_list_result.get("files", [])
+            logger.debug(f"Found {len(files_to_delete)} files to delete from MinIO for index '{index_name}'.")
+        except Exception as e:
+            logger.error(f"Failed to retrieve file list for index '{index_name}': {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve file list for index {index_name}: {str(e)}")
+
+        # 2. Delete files from MinIO
+        minio_deletion_success_count = 0
+        minio_deletion_failure_count = 0
+        if files_to_delete:
+            logger.debug(f"Step 2/4: Starting deletion of {len(files_to_delete)} files from MinIO.")
+            for file_info in files_to_delete:
+                object_name = file_info.get("path_or_url")
+                if not object_name:
+                    logger.warning(f"Could not find 'path_or_url' for file entry: {file_info}. Skipping deletion.")
+                    minio_deletion_failure_count += 1
+                    continue
+                
+                try:
+                    logger.debug(f"Deleting object: '{object_name}' from MinIO for index '{index_name}'")
+                    delete_result = delete_file(object_name=object_name)
+                    if delete_result.get("success"):
+                        logger.debug(f"Successfully deleted object: '{object_name}' from MinIO.")
+                        minio_deletion_success_count += 1
+                    else:
+                        minio_deletion_failure_count += 1
+                        error_msg = delete_result.get("error", "Unknown error")
+                        logger.error(f"Failed to delete object: '{object_name}' from MinIO. Reason: {error_msg}")
+                except Exception as e:
+                    minio_deletion_failure_count += 1
+                    logger.error(f"An exception occurred while deleting object: '{object_name}' from MinIO. Error: {str(e)}")
+            
+            logger.info(f"MinIO file deletion summary for index '{index_name}': "
+                        f"{minio_deletion_success_count} succeeded, {minio_deletion_failure_count} failed.")
+        else:
+            logger.debug(f"Step 2/4: No files found in index '{index_name}', skipping MinIO deletion.")
+
+        # 3. Delete from tenant config
+        logger.debug(f"Step 3/4: Deleting knowledge base selection records for index '{index_name}'.")
         delete_selected_knowledge_by_index_name(tenant_id=tenant_id, user_id=user_id, index_name=index_name)
-        # First delete the index using existing service
-        result = ElasticSearchService.delete_index(index_name, es_core, user_id)
+        
+        # 4. Delete Elasticsearch index
+        logger.debug(f"Step 4/4: Deleting Elasticsearch index '{index_name}'.")
+        result = await ElasticSearchService.delete_index(index_name, es_core, user_id)
+
+        # Add MinIO cleanup info to the result
+        result["minio_cleanup"] = {
+            "total_files_found": len(files_to_delete),
+            "deleted_count": minio_deletion_success_count,
+            "failed_count": minio_deletion_failure_count
+        }
 
         # Then clean up Redis records related to this knowledge base
         try:
             redis_service = get_redis_service()
             redis_cleanup_result = redis_service.delete_knowledgebase_records(index_name)
+            logger.debug(f"Redis cleanup for index '{index_name}' completed. "
+                        f"Deleted {redis_cleanup_result['total_deleted']} records.")
 
             # Add Redis cleanup info to the result
             result["redis_cleanup"] = redis_cleanup_result
             result["message"] = (f"Index {index_name} deleted successfully. "
-                               f"Cleaned up {redis_cleanup_result['total_deleted']} Redis records "
-                               f"({redis_cleanup_result['celery_tasks_deleted']} tasks, "
-                               f"{redis_cleanup_result['cache_keys_deleted']} cache keys).")
+                               f"MinIO: {minio_deletion_success_count} files deleted, {minio_deletion_failure_count} failed. "
+                               f"Redis: Cleaned up {redis_cleanup_result['total_deleted']} records.")
 
             if redis_cleanup_result.get("errors"):
                 result["redis_warnings"] = redis_cleanup_result["errors"]
+                logger.warning(f"Redis cleanup for index '{index_name}' had warnings: {redis_cleanup_result['errors']}")
 
         except Exception as redis_error:
-            # Don't fail the whole operation if Redis cleanup fails
-            # Just log the error and add a warning to the response
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Redis cleanup failed for index {index_name}: {str(redis_error)}")
-
+            logger.error(f"Redis cleanup failed for index '{index_name}': {str(redis_error)}")
             result["redis_cleanup_error"] = str(redis_error)
             result["message"] = (f"Index {index_name} deleted successfully, "
                                f"but Redis cleanup encountered an error: {str(redis_error)}")
 
+        logger.info(f"Successfully completed deletion process for knowledge base '{index_name}'.")
         return result
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error delete index: {str(e)}")
+        logger.error(f"Error during deletion of index '{index_name}': {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error deleting index: {str(e)}")
 
 
 @router.get("")
