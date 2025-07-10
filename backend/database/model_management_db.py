@@ -128,7 +128,7 @@ def get_model_records(filters: Optional[Dict[str, Any]], tenant_id: Optional[str
         stmt = select(ModelRecord).where(ModelRecord.delete_flag == 'N')
 
         if tenant_id:
-            stmt = stmt.where(or_(ModelRecord.tenant_id == tenant_id, ModelRecord.tenant_id == DEFAULT_TENANT_ID))
+            stmt = stmt.where(ModelRecord.tenant_id == tenant_id)
 
         # Add filter conditions
         if filters:
