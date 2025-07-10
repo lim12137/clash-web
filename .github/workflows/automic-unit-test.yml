@@ -24,9 +24,6 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install coverage
-        run: pip install coverage
-
       - name: Install dependencies
         run: pip install -r test/requirements.txt
 
@@ -35,15 +32,10 @@ jobs:
           python test/backend/run_all_test.py
 
           if [ -f "test/backend/coverage.xml" ]; then
-            echo "✅ Coverage XML file generated successfully"
+            echo "✅ Coverage XML file generated successfully."
           else
-            echo "❌ Coverage XML file not found"
+            echo "❌ Coverage XML file not found."
             exit 1
-          fi
-
-          echo "*** Coverage Summary ***"
-          if [ -f "test/backend/.coverage" ]; then
-            coverage report --data-file=test/backend/.coverage --show-missing
           fi
 
       - name: Upload coverage to Codecov
