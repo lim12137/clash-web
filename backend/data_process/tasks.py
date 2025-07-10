@@ -2,15 +2,13 @@
 Celery tasks for data processing and vector storage
 """
 import logging
-import uuid
 import os
 import json
 import time
-import traceback
 import aiohttp
 import asyncio
 import ray
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 from celery import chain, Task, states
 import threading
 
@@ -491,7 +489,7 @@ def forward(self, processed_data: Dict, index_name: Optional[str] = None, source
             'es_result': es_result
         }
     except Exception as e:
-        # 只要是 Exception，全部走这里（包括我们自定义的 JSON message）
+        # If it's an Exception, all go here (including our custom JSON message)
         try:
             error_info = json.loads(str(e))
             logger.error(f"Error forwarding chunks for index '{error_info.get('index_name', '')}': {error_info.get('message', str(e))}")

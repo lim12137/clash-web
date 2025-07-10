@@ -29,7 +29,7 @@ async def auto_summary(
         )
     except Exception as e:
         return StreamingResponse(
-            f"data: {'status': 'error', 'message': '知识库摘要生成失败: '}\n\n",
+            f"data: {'status': 'error', 'message': 'Knowledge base summary generation failed: '}\n\n",
             media_type="text/event-stream",
             status_code=500
         )
@@ -47,7 +47,7 @@ def change_summary(
         summary_result = change_summary_request.summary_result
         return ElasticSearchService().change_summary(index_name=index_name,summary_result=summary_result,user_id=user_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"知识库摘要更新失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Knowledge base summary update failed: {str(e)}")
 
 
 @router.get("/{index_name}/summary")
@@ -59,4 +59,4 @@ def get_summary(
         # Try to list indices as a health check
         return ElasticSearchService().get_summary(index_name=index_name)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取知识库摘要失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get knowledge base summary: {str(e)}")
