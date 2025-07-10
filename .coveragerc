@@ -1,0 +1,73 @@
+[run]
+# 启用分支覆盖率收集（用于详细分析）
+# 注意：Codecov 默认会显示行覆盖率，除非明确指定显示分支覆盖率
+branch = True
+# 包含的源文件 - 只统计 backend 和 sdk 文件夹
+source = backend, sdk
+# 排除的文件和目录
+omit = 
+    # 测试文件
+    */test/*
+    */tests/*
+    # 开发环境配置
+    */.devcontainer/*
+    */.github/*
+    */.idea/*
+    */.vscode/*
+    # Python 缓存文件
+    */__pycache__/*
+    # 上传和静态资源
+    */uploads/*
+    */assets/*
+    # 虚拟环境
+    */venv/*
+    */.venv/*
+    */.env
+    # 构建和依赖文件
+    */node_modules/*
+    */dist/*
+    */build/*
+    # 版本控制
+    */.git/*
+    # 文档和示例
+    */docs/*
+    */examples/*
+    # 数据库迁移
+    */migrations/*
+    # 静态资源
+    */static/*
+    */media/*
+    */templates/*
+    # 部署和配置
+    */docker/*
+    */scripts/*
+    */deploy/*
+    */config/*
+    */settings/*
+    # 包初始化文件（可选，根据需要保留）
+    */__init__.py
+
+# 忽略错误
+ignore_errors = True
+
+# 显示缺失的行
+show_missing = True
+
+# 精确度
+precision = 2
+
+[html]
+# HTML报告目录
+directory = coverage_html
+# 标题
+title = Coverage Report
+# 显示缺失的行
+show_missing = True
+# 精确度
+precision = 2
+
+[xml]
+# XML报告输出文件
+output = coverage.xml
+# 精确度
+precision = 2 
