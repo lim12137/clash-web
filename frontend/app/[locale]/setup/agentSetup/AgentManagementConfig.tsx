@@ -499,7 +499,7 @@ function ToolPool({
               <div
                 className={`font-medium text-sm truncate ${!isAvailable && !isSelected ? 'text-gray-400' : ''}`}
                 style={{
-                  maxWidth: '160px',
+                  maxWidth: '300px',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
