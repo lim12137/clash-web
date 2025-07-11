@@ -70,7 +70,7 @@ class KnowledgeBaseSearchTool(Tool):
         search_results_return = []  # Format for input to the large model
         for index, single_search_result in enumerate(kb_search_results):
             # Temporarily correct the source_type stored in the knowledge base
-            source_type = single_search_result.get("filename", "")
+            source_type = single_search_result.get("source_type", "")
             source_type = "file" if source_type in ["local", "minio"] else source_type
             search_result_message = SearchResultTextMessage(title=single_search_result.get("title", ""),
                 text=single_search_result.get("content", ""), source_type=source_type,
