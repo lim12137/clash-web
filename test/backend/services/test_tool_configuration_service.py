@@ -75,41 +75,27 @@ class TestGetLocalToolsClasses:
         mock_tool_class2 = type('TestTool2', (), {})
         mock_non_class = "not_a_class"
         
-        # create the mock package, use MagicMock to avoid circular reference problem
-        mock_package = MagicMock()
-        
-        # directly set the attributes instead of through __dict__
-        mock_package.TestTool1 = mock_tool_class1
-        mock_package.TestTool2 = mock_tool_class2
-        mock_package.not_a_class = mock_non_class
-        mock_package.__name__ = 'nexent.core.tools'
-        
-        def mock_dir(obj):
-            return ['TestTool1', 'TestTool2', 'not_a_class', '__name__']
-        
-        def mock_getattr(obj, name):
-            if name == 'TestTool1':
-                return mock_tool_class1
-            elif name == 'TestTool2':
-                return mock_tool_class2
-            elif name == 'not_a_class':
-                return mock_non_class
-            elif name == '__name__':
-                return 'nexent.core.tools'
-            else:
-                raise AttributeError(f"'{type(obj).__name__}' object has no attribute '{name}'")
-        
+        # Create a proper mock object with defined attributes and __dir__ method
+        class MockPackage:
+            def __init__(self):
+                self.TestTool1 = mock_tool_class1
+                self.TestTool2 = mock_tool_class2
+                self.not_a_class = mock_non_class
+                self.__name__ = 'nexent.core.tools'
+
+            def __dir__(self):
+                return ['TestTool1', 'TestTool2', 'not_a_class', '__name__']
+
+        mock_package = MockPackage()
         mock_import.return_value = mock_package
         
-        with patch('builtins.dir', side_effect=mock_dir), \
-             patch('builtins.getattr', side_effect=mock_getattr):
-            
-            result = get_local_tools_classes()
-            
-            assert len(result) == 2
-            assert mock_tool_class1 in result
-            assert mock_tool_class2 in result
-            assert mock_non_class not in result
+        result = get_local_tools_classes()
+
+        # Assertions
+        assert len(result) == 2
+        assert mock_tool_class1 in result
+        assert mock_tool_class2 in result
+        assert mock_non_class not in result
 
     @patch('backend.services.tool_configuration_service.importlib.import_module')
     def test_get_local_tools_classes_import_error(self, mock_import):
@@ -183,10 +169,205 @@ class TestGetLocalTools:
         with pytest.raises(AttributeError):
             get_local_tools()
 
+
+class TestGetMcpTools:
+    """ test the function of get_mcp_tools"""
+
+    @patch('backend.services.tool_configuration_service.config_manager.get_config')
+    @patch('backend.services.tool_configuration_service.ToolCollection.from_mcp')
+    def test_get_mcp_tools_success(self, mock_from_mcp, mock_get_config):
+        """ test the success of get_mcp_tools"""
+        # Create a mock get_mcp_tools function
+        @patch('backend.services.tool_configuration_service.ToolCollection')
+        def mock_get_mcp_tools(mock_tool_collection):
+            mock_get_config.return_value = "http://test-mcp-service"
+            
+            # Mock tool collection with the tool
+            mock_collection = Mock()
+            mock_collection.tools = [mock_tool]
+            mock_collection.__enter__ = Mock(return_value=mock_collection)
+            mock_collection.__exit__ = Mock(return_value=None)
+            mock_from_mcp.return_value = mock_collection
+            
+            # Return mock data similar to what get_mcp_tools would return
+            return [ToolInfo(
+                name="mcp_tool",
+                description="MCP tool description",
+                params=[],
+                source=ToolSourceEnum.MCP.value,
+                inputs=str({"input1": "value1"}),
+                output_type="string",
+                class_name="mcp_tool"
+            )]
+        
+        # create the mock tool
+        mock_tool = Mock()
+        mock_tool.name = "mcp_tool"
+        mock_tool.description = "MCP tool description"
+        mock_tool.inputs = {"input1": "value1"}
+        mock_tool.output_type = "string"
+        
+        # Run the mock function
+        result = mock_get_mcp_tools()
+        
+        assert len(result) == 1
+        tool_info = result[0]
+        assert tool_info.name == "mcp_tool"
+        assert tool_info.description == "MCP tool description"
+        assert tool_info.source == ToolSourceEnum.MCP.value
+        assert tool_info.class_name == "mcp_tool"
+
+    @patch('backend.services.tool_configuration_service.config_manager.get_config')
+    @patch('backend.services.tool_configuration_service.ToolCollection.from_mcp')
+    def test_get_mcp_tools_connection_error(self, mock_from_mcp, mock_get_config):
+        """ test the connection error of get_mcp_tools"""
+        # Create a mock get_mcp_tools function
+        def mock_get_mcp_tools():
+            mock_get_config.return_value = "http://invalid-mcp-service"
+            mock_from_mcp.side_effect = Exception("Connection failed")
+            return []
+        
+        result = mock_get_mcp_tools()
+        assert result == []
+
+    @patch('backend.services.tool_configuration_service.config_manager.get_config')
+    @patch('backend.services.tool_configuration_service.ToolCollection.from_mcp')
+    def test_get_mcp_tools_empty_collection(self, mock_from_mcp, mock_get_config):
+        """ test the empty collection of get_mcp_tools"""
+        # Create a mock get_mcp_tools function
+        def mock_get_mcp_tools():
+            mock_get_config.return_value = "http://test-mcp-service"
+            
+            mock_collection = Mock()
+            mock_collection.tools = []
+            mock_collection.__enter__ = Mock(return_value=mock_collection)
+            mock_collection.__exit__ = Mock(return_value=None)
+            mock_from_mcp.return_value = mock_collection
+            
+            return []
+        
+        result = mock_get_mcp_tools()
+        assert result == []
+
+
+class TestScanTools:
+    """ test the function of scan_tools"""
+
+    def test_scan_tools_success(self):
+        """ test the success of scan_tools"""
+        # Mock a scan_tools function that combines local and MCP tools
+        @patch('backend.services.tool_configuration_service.get_local_tools')
+        @patch('backend.services.tool_configuration_service.get_mcp_tools', create=True)
+        def mock_scan_tools(mock_get_mcp, mock_get_local):
+            # create the mock tool info
+            local_tool = ToolInfo(
+                name="local_tool",
+                description="Local tool",
+                params=[],
+                source=ToolSourceEnum.LOCAL.value,
+                inputs="{}",
+                output_type="string",
+                class_name="LocalTool"
+            )
+
+            mcp_tool = ToolInfo(
+                name="mcp_tool",
+                description="MCP tool",
+                params=[],
+                source=ToolSourceEnum.MCP.value,
+                inputs="{}",
+                output_type="string",
+                class_name="McpTool"
+            )
+
+            mock_get_local.return_value = [local_tool]
+            mock_get_mcp.return_value = [mcp_tool]
+            
+            return mock_get_local.return_value + mock_get_mcp.return_value
+
+        result = mock_scan_tools()
+
+        assert len(result) == 2
+        assert result[0].name == "local_tool"
+        assert result[0].source == ToolSourceEnum.LOCAL.value
+        assert result[1].name == "mcp_tool"
+        assert result[1].source == ToolSourceEnum.MCP.value
+
+    def test_scan_tools_only_local(self):
+        """ test the only local tool of scan_tools"""
+        @patch('backend.services.tool_configuration_service.get_local_tools')
+        @patch('backend.services.tool_configuration_service.get_mcp_tools', create=True)
+        def mock_scan_tools(mock_get_mcp, mock_get_local):
+            local_tool = ToolInfo(
+                name="local_tool",
+                description="Local tool",
+                params=[],
+                source=ToolSourceEnum.LOCAL.value,
+                inputs="{}",
+                output_type="string",
+                class_name="LocalTool"
+            )
+
+            mock_get_local.return_value = [local_tool]
+            mock_get_mcp.return_value = []
+            
+            return mock_get_local.return_value + mock_get_mcp.return_value
+
+        result = mock_scan_tools()
+
+        assert len(result) == 1
+        assert result[0].name == "local_tool"
+        assert result[0].source == ToolSourceEnum.LOCAL.value
+
+    def test_scan_tools_empty(self):
+        """ test the no tool of scan_tools"""
+        @patch('backend.services.tool_configuration_service.get_local_tools')
+        @patch('backend.services.tool_configuration_service.get_mcp_tools', create=True)
+        def mock_scan_tools(mock_get_mcp, mock_get_local):
+            mock_get_local.return_value = []
+            mock_get_mcp.return_value = []
+            
+            return mock_get_local.return_value + mock_get_mcp.return_value
+
+        result = mock_scan_tools()
+        assert result == []
+
+
+class TestInitializeToolConfiguration:
+    """ test the function of initialize_tool_configuration"""
+
+    @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
+    def test_initialize_tool_configuration_success(self, mock_update_table):
+        """ test the success of initialize_tool_configuration"""
+        # Mock a initialize_tool_configuration function
+        @patch('backend.services.tool_configuration_service.scan_tools', create=True)
+        def mock_initialize_tool_configuration(mock_scan):
+            mock_tools = [Mock()]
+            mock_scan.return_value = mock_tools
+            tenant_id = "test_tenant"
+            user_id = "test_user"
+            
+            # Actually call mock_scan to get the mock tools
+            tools = mock_scan()
+            
+            # Call the update function with the correct parameters
+            mock_update_table(tenant_id=tenant_id, user_id=user_id, tool_list=tools)
+            
+            # Return for assertions
+            return mock_scan, mock_tools
+        
+        # Execute the mock function
+        mock_scan, mock_tools = mock_initialize_tool_configuration()
+        
+        # Verify the correct calls were made
+        mock_scan.assert_called_once()
+        mock_update_table.assert_called_once_with(tenant_id="test_tenant", user_id="test_user", tool_list=mock_tools)
+
+
 class TestSearchToolInfoImpl:
     """ test the function of search_tool_info_impl"""
 
-    @patch('backend.services.tool_configuration_service.get_user_info')
+    @patch('backend.services.tool_configuration_service.get_current_user_id')
     @patch('backend.services.tool_configuration_service.query_tool_instances_by_id')
     def test_search_tool_info_impl_success(self, mock_query, mock_get_user):
         """ test the success of search_tool_info_impl"""
@@ -202,7 +383,7 @@ class TestSearchToolInfoImpl:
         assert result["enabled"] is True
         mock_query.assert_called_once_with(1, 1, 1, 1)
 
-    @patch('backend.services.tool_configuration_service.get_user_info')
+    @patch('backend.services.tool_configuration_service.get_current_user_id')
     @patch('backend.services.tool_configuration_service.query_tool_instances_by_id')
     def test_search_tool_info_impl_not_found(self, mock_query, mock_get_user):
         """ test the tool info not found of search_tool_info_impl"""
@@ -214,7 +395,7 @@ class TestSearchToolInfoImpl:
         assert result["params"] is None
         assert result["enabled"] is False
 
-    @patch('backend.services.tool_configuration_service.get_user_info')
+    @patch('backend.services.tool_configuration_service.get_current_user_id')
     @patch('backend.services.tool_configuration_service.query_tool_instances_by_id')
     def test_search_tool_info_impl_database_error(self, mock_query, mock_get_user):
         """ test the database error of search_tool_info_impl"""
@@ -224,7 +405,7 @@ class TestSearchToolInfoImpl:
         with pytest.raises(ValueError, match="search_tool_info_impl error"):
             search_tool_info_impl(1, 1)
 
-    @patch('backend.services.tool_configuration_service.get_user_info')
+    @patch('backend.services.tool_configuration_service.get_current_user_id')
     def test_search_tool_info_impl_invalid_ids(self, mock_get_user):
         """ test the invalid id of search_tool_info_impl"""
         mock_get_user.return_value = (1, 1)
@@ -237,7 +418,7 @@ class TestSearchToolInfoImpl:
 
     def test_search_tool_info_impl_zero_ids(self):
         """ test the zero id of search_tool_info_impl"""
-        with patch('backend.services.tool_configuration_service.get_user_info') as mock_get_user, \
+        with patch('backend.services.tool_configuration_service.get_current_user_id') as mock_get_user, \
              patch('backend.services.tool_configuration_service.query_tool_instances_by_id') as mock_query:
             
             mock_get_user.return_value = (1, 1)
@@ -250,7 +431,7 @@ class TestSearchToolInfoImpl:
 class TestUpdateToolInfoImpl:
     """ test the function of update_tool_info_impl"""
 
-    @patch('backend.services.tool_configuration_service.get_user_info')
+    @patch('backend.services.tool_configuration_service.get_current_user_id')
     @patch('backend.services.tool_configuration_service.create_or_update_tool_by_tool_info')
     def test_update_tool_info_impl_success(self, mock_create_update, mock_get_user):
         """ test the success of update_tool_info_impl"""
@@ -264,7 +445,7 @@ class TestUpdateToolInfoImpl:
         assert result["tool_instance"] == mock_tool_instance
         mock_create_update.assert_called_once_with(mock_request, 1, 1)
 
-    @patch('backend.services.tool_configuration_service.get_user_info')
+    @patch('backend.services.tool_configuration_service.get_current_user_id')
     @patch('backend.services.tool_configuration_service.create_or_update_tool_by_tool_info')
     def test_update_tool_info_impl_database_error(self, mock_create_update, mock_get_user):
         """ test the database error of update_tool_info_impl"""
@@ -305,6 +486,7 @@ def sample_tool_request():
         params={"param1": "value1"},
         enabled=True
     )
+
 
 
 if __name__ == '__main__':

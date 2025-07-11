@@ -22,7 +22,7 @@ const getAuthHeaders = () => {
 export interface McpServer {
   service_name: string;
   mcp_url: string;
-  // 后端返回的字段名称
+  status: boolean;
   remote_mcp_server_name?: string;
   remote_mcp_server?: string;
 }
@@ -46,18 +46,15 @@ export const getMcpServerList = async () => {
     const data = await response.json();
     
     if (response.ok && data.status === 'success') {
-      console.log(t('mcpService.debug.serverListRawData'), data);
       
       // 转换后端字段名称为前端期望的格式
       const formattedData = (data.remote_mcp_server_list || []).map((server: any) => {
-        console.log(t('mcpService.debug.processingServerData'), server);
         return {
           service_name: server.remote_mcp_server_name,
-          mcp_url: server.remote_mcp_server
+          mcp_url: server.remote_mcp_server,
+          status: server.status || false 
         };
       });
-      
-      console.log(t('mcpService.debug.formattedData'), formattedData);
       
       return {
         success: true,
@@ -65,13 +62,24 @@ export const getMcpServerList = async () => {
         message: ''
       };
     } else {
-      // 处理具体的错误信息
+      // 根据HTTP状态码处理具体的错误信息
       let errorMessage = data.message || t('mcpService.message.getServerListFailed');
       
-      if (data.message === 'Failed to get remote MCP proxy') {
-        errorMessage = t('mcpService.message.getRemoteProxyFailed');
-      } else if (data.message) {
-        errorMessage = data.message;
+      switch (response.status) {
+        case 400:
+          errorMessage = t('mcpService.message.getRemoteProxyFailed');
+          break;
+        case 404:
+          errorMessage = t('mcpService.message.resourceNotFound');
+          break;
+        case 500:
+          errorMessage = t('mcpService.message.serverInternalError');
+          break;
+        case 503:
+          errorMessage = t('mcpService.message.serviceUnavailable');
+          break;
+        default:
+          errorMessage = data.message || t('mcpService.message.getServerListFailed');
       }
       
       return {
@@ -161,8 +169,22 @@ export const deleteMcpServer = async (mcpUrl: string, serviceName: string) => {
         message: data.message || t('mcpService.message.deleteServerSuccess')
       };
     } else {
-      // 处理具体的错误状态码和错误信息
+      // 根据HTTP状态码处理具体的错误信息
       let errorMessage = data.message || t('mcpService.message.deleteServerFailed');
+      
+      switch (response.status) {
+        case 400:
+          errorMessage = t('mcpService.message.deleteProxyFailed');
+          break;
+        case 404:
+          errorMessage = t('mcpService.message.serverNotFound');
+          break;
+        case 500:
+          errorMessage = t('mcpService.message.serverInternalError');
+          break;
+        default:
+          errorMessage = data.message || t('mcpService.message.deleteServerFailed');
+      }
       
       return {
         success: false,
@@ -201,8 +223,25 @@ export const getMcpTools = async (serviceName: string, mcpUrl: string) => {
         message: ''
       };
     } else {
-      // 处理具体的错误信息
+      // 根据HTTP状态码处理具体的错误信息
       let errorMessage = data.message || t('mcpService.message.getToolsFailed');
+      
+      switch (response.status) {
+        case 400:
+          errorMessage = t('mcpService.message.getToolsFromServerFailed');
+          break;
+        case 404:
+          errorMessage = t('mcpService.message.serverNotFound');
+          break;
+        case 500:
+          errorMessage = t('mcpService.message.serverInternalError');
+          break;
+        case 503:
+          errorMessage = t('mcpService.message.cannotConnectToServer');
+          break;
+        default:
+          errorMessage = data.message || t('mcpService.message.getToolsFailed');
+      }
       
       return {
         success: false,
@@ -238,8 +277,25 @@ export const updateToolList = async () => {
         message: data.message || t('mcpService.message.updateToolListSuccess')
       };
     } else {
-      // 处理具体的错误信息
+      // 根据HTTP状态码处理具体的错误信息
       let errorMessage = data.message || t('mcpService.message.updateToolListFailed');
+      
+      switch (response.status) {
+        case 400:
+          errorMessage = t('mcpService.message.updateToolListBadRequest');
+          break;
+        case 404:
+          errorMessage = t('mcpService.message.resourceNotFound');
+          break;
+        case 500:
+          errorMessage = t('mcpService.message.serverInternalError');
+          break;
+        case 503:
+          errorMessage = t('mcpService.message.serviceUnavailable');
+          break;
+        default:
+          errorMessage = data.message || t('mcpService.message.updateToolListFailed');
+      }
       
       return {
         success: false,
@@ -275,8 +331,25 @@ export const recoverMcpServers = async () => {
         message: data.message || t('mcpService.message.recoverServersSuccess')
       };
     } else {
-      // 处理具体的错误信息
+      // 根据HTTP状态码处理具体的错误信息
       let errorMessage = data.message || t('mcpService.message.recoverServersFailed');
+      
+      switch (response.status) {
+        case 400:
+          errorMessage = t('mcpService.message.recoverServerssBadRequest');
+          break;
+        case 404:
+          errorMessage = t('mcpService.message.resourceNotFound');
+          break;
+        case 500:
+          errorMessage = t('mcpService.message.serverInternalError');
+          break;
+        case 503:
+          errorMessage = t('mcpService.message.serviceUnavailable');
+          break;
+        default:
+          errorMessage = data.message || t('mcpService.message.recoverServersFailed');
+      }
       
       return {
         success: false,

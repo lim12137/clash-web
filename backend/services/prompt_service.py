@@ -13,13 +13,13 @@ from consts.model import AgentInfoRequest
 from database.agent_db import query_sub_agents, update_agent, \
     query_tools_by_ids
 from services.agent_service import get_enable_tool_id_by_agent_id
-from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
-from utils.auth_utils import get_current_user_id, get_current_user_info
+from utils.config_utils import tenant_config_manager, get_model_name_from_config
+from utils.auth_utils import get_current_user_info
 from fastapi import Header, Request
 
 
 # Configure logging
-logger = logging.getLogger("prompt service")
+logger = logging.getLogger("prompt_service")
 
 
 def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=None, tenant_id:str = None) -> str:
@@ -33,8 +33,6 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
     Returns:
         str: Generated system prompt
     """
-    logger.info("Calling LLM for system prompt generation")
-
     llm_model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
 
     llm = OpenAIServerModel(
@@ -180,6 +178,7 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
     prompt_template = get_prompt_template()
 
     threads = []
+    logger.info(f"Generating system prompt")
     for tag, sys_prompt in [
         ("duty", prompt_for_generate["DUTY_SYSTEM_PROMPT"]),
         ("constraint", prompt_for_generate["CONSTRAINT_SYSTEM_PROMPT"]),

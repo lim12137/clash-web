@@ -14,6 +14,7 @@ import { updateToolList } from '@/services/mcpService'
 import {generatePromptStream, savePrompt} from '@/services/promptService'
 import { useTranslation } from 'react-i18next'
 import { TFunction } from 'i18next'
+import { Tooltip as CustomTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 const { TextArea } = Input
 
 const ModelOptions = () => {
@@ -318,7 +319,17 @@ function ToolPool({
   const [isRefreshing, setIsRefreshing] = useState(false);
   // Use useMemo to cache the tool list to avoid unnecessary recalculations
   const displayTools = useMemo(() => {
-    return tools || [];
+    const toolsToSort = tools || [];
+    // Sort by create_time, earliest created tools first (ascending order)
+    return toolsToSort.sort((a, b) => {
+      // If either tool doesn't have create_time, treat it as newer (sort to bottom)
+      if (!a.create_time && !b.create_time) return 0;
+      if (!a.create_time) return 1;
+      if (!b.create_time) return -1;
+      
+      // Compare create_time strings (ISO format can be compared directly)
+      return a.create_time.localeCompare(b.create_time);
+    });
   }, [tools]);
 
   // Use useMemo to cache the selected tool ID set to improve lookup efficiency
@@ -428,9 +439,20 @@ function ToolPool({
 
   // 监听工具更新事件
   useEffect(() => {
-    const handleToolsUpdate = () => {
-      if (onToolsRefresh) {
-        onToolsRefresh();
+    const handleToolsUpdate = async () => {
+      try {
+        // 重新获取最新的工具列表，确保包含新添加的MCP工具
+        const fetchResult = await fetchTools();
+        if (fetchResult.success) {
+          // 调用父组件的刷新回调，更新工具列表状态
+          if (onToolsRefresh) {
+            onToolsRefresh();
+          }
+        } else {
+          console.error('MCP配置后自动刷新工具列表失败:', fetchResult.message);
+        }
+      } catch (error) {
+        console.error('MCP配置后自动刷新工具列表出错:', error);
       }
     };
 
@@ -472,14 +494,26 @@ function ToolPool({
       >
         {/* Tool name left */}
         <div className="flex-1 overflow-hidden">
-          <div className={`font-medium text-sm truncate ${!isAvailable && !isSelected ? 'text-gray-400' : ''}`} 
-               title={!isAvailable 
-                 ? isSelected 
-                   ? t('toolPool.tooltip.disabledTool')
-                   : t('toolPool.tooltip.unavailableTool')
-                 : tool.name}>
-            {tool.name}
-          </div>
+          <CustomTooltip>
+            <TooltipTrigger asChild>
+              <div
+                className={`font-medium text-sm truncate ${!isAvailable && !isSelected ? 'text-gray-400' : ''}`}
+                style={{
+                  maxWidth: '300px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  display: 'inline-block',
+                  verticalAlign: 'middle'
+                }}
+              >
+                {tool.name}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              {tool.name}
+            </TooltipContent>
+          </CustomTooltip>
         </div>
         {/* Tag and settings button right */}
         <div className="flex items-center gap-2 ml-2">
@@ -1282,63 +1316,64 @@ export default function BusinessLogicConfig({
   };
 
   return (
-    <div className="flex flex-col h-full w-full gap-0 justify-between">
-      {/* Upper part: Agent pool + Tool pool */}
-      <div className="flex gap-4 flex-1 min-h-0 pb-4 pr-4 pl-4">
-        {!isCreatingNewAgent && (
-          <div className="w-[360px] h-full">
-            <SubAgentPool
-              selectedAgents={selectedAgents}
-              onSelectAgent={handleAgentSelect}
-              onEditAgent={(agent) => handleEditAgent(agent, t)}
-              onCreateNewAgent={handleCreateNewAgent}
-              onImportAgent={() => handleImportAgent(t)}
-              onExportAgent={(agent) => handleExportAgent(agent, t)}
-              onDeleteAgent={handleDeleteAgent}
-              subAgentList={subAgentList}
-              loadingAgents={loadingAgents}
-              enabledAgentIds={enabledAgentIds}
-              isImporting={isImporting}
+    <TooltipProvider>
+      <div className="flex flex-col h-full w-full gap-0 justify-between">
+        {/* Upper part: Agent pool + Tool pool */}
+        <div className="flex gap-4 flex-1 min-h-0 pb-4 pr-4 pl-4">
+          {!isCreatingNewAgent && (
+            <div className="w-[360px] h-full">
+              <SubAgentPool
+                selectedAgents={selectedAgents}
+                onSelectAgent={handleAgentSelect}
+                onEditAgent={(agent) => handleEditAgent(agent, t)}
+                onCreateNewAgent={handleCreateNewAgent}
+                onImportAgent={() => handleImportAgent(t)}
+                onExportAgent={(agent) => handleExportAgent(agent, t)}
+                onDeleteAgent={handleDeleteAgent}
+                subAgentList={subAgentList}
+                loadingAgents={loadingAgents}
+                enabledAgentIds={enabledAgentIds}
+                isImporting={isImporting}
+              />
+            </div>
+          )}
+          
+          {isCreatingNewAgent && (
+            <div className="w-[360px] h-full">
+              <AgentInfoInput
+                name={newAgentName}
+                description={newAgentDescription}
+                provideSummary={newAgentProvideSummary}
+                onNameChange={setNewAgentName}
+                onDescriptionChange={setNewAgentDescription}
+                onProvideSummaryChange={setNewAgentProvideSummary}
+                onValidationChange={setIsNewAgentInfoValid}
+              />
+            </div>
+          )}
+          
+          <div className="flex-1 h-full">
+            <MemoizedToolPool
+              selectedTools={isLoadingTools ? [] : selectedTools}
+              onSelectTool={(tool, isSelected) => {
+                if (isLoadingTools) return;
+                setSelectedTools(prevTools => {
+                  if (isSelected) {
+                    return [...prevTools, tool];
+                  } else {
+                    return prevTools.filter(t => t.id !== tool.id);
+                  }
+                });
+              }}
+              isCreatingNewAgent={isCreatingNewAgent}
+              tools={tools}
+              loadingTools={isLoadingTools}
+              mainAgentId={isEditingAgent && editingAgent ? editingAgent.id : mainAgentId}
+              localIsGenerating={localIsGenerating}
+              onToolsRefresh={handleToolsRefresh}
             />
           </div>
-        )}
-        
-        {isCreatingNewAgent && (
-          <div className="w-[360px] h-full">
-            <AgentInfoInput
-              name={newAgentName}
-              description={newAgentDescription}
-              provideSummary={newAgentProvideSummary}
-              onNameChange={setNewAgentName}
-              onDescriptionChange={setNewAgentDescription}
-              onProvideSummaryChange={setNewAgentProvideSummary}
-              onValidationChange={setIsNewAgentInfoValid}
-            />
-          </div>
-        )}
-        
-        <div className="flex-1 h-full">
-          <MemoizedToolPool
-            selectedTools={isLoadingTools ? [] : selectedTools}
-            onSelectTool={(tool, isSelected) => {
-              if (isLoadingTools) return;
-              setSelectedTools(prevTools => {
-                if (isSelected) {
-                  return [...prevTools, tool];
-                } else {
-                  return prevTools.filter(t => t.id !== tool.id);
-                }
-              });
-            }}
-            isCreatingNewAgent={isCreatingNewAgent}
-            tools={tools}
-            loadingTools={isLoadingTools}
-            mainAgentId={isEditingAgent && editingAgent ? editingAgent.id : mainAgentId}
-            localIsGenerating={localIsGenerating}
-            onToolsRefresh={handleToolsRefresh}
-          />
         </div>
-      </div>
 
       {/* The second half: business logic description */}
       <div className="flex gap-4 h-[240px] pb-4 pr-4 pl-4 items-start">
@@ -1448,5 +1483,6 @@ export default function BusinessLogicConfig({
         </div>
       </Modal>
     </div>
+  </TooltipProvider>
   )
 }

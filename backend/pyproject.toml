@@ -12,7 +12,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "redis>=5.0.0",
     "celery>=5.3.6",
-    "fastmcp==2.4.0",
+    "fastmcp==2.6.0",
     "nexent"
 ]
 
@@ -22,6 +22,16 @@ data-process = [
     "flower>=2.0.1",
     "nest_asyncio>=1.5.6",
     "unstructured[csv,docx,pdf,pptx,xlsx,md]"
+]
+test = [
+    "pytest",
+    "pytest-cov",
+    "coverage",
+    "unittest2",
+    "mock",
+    "pytest-asyncio",
+    "pytest-mock",
+    "fastapi[testclient]",
 ]
 
 [tool.uv.sources]

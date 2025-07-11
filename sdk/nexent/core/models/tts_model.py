@@ -5,18 +5,9 @@ import json
 import os
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional, Union, AsyncGenerator, Dict, Any
 
 import websockets
-from dotenv import load_dotenv
-from pydantic import BaseModel
-
-
-class TTSRequest(BaseModel):
-    text: str
-    stream: bool = False
-
 
 @dataclass
 class TTSConfig:
@@ -166,15 +157,15 @@ class TTSModel:
 
     async def check_connectivity(self) -> bool:
         """
-        测试与远程TTS服务的连接是否正常
+        Test the connectivity to the remote TTS service
         
         Returns:
-            bool: 连接成功返回True，失败返回False
+            bool: Returns True if the connection is successful, False if it fails
         """
         try:
-            # 使用最短的测试文本生成语音，非流式传输
-            audio_data = await self.generate_speech("你好呀", stream=False)
-            # 检查是否成功获取到音频数据
+            # Generate speech using the shortest test text, non-streaming
+            audio_data = await self.generate_speech("Hello", stream=False)
+            # Check if audio data was successfully retrieved
             return isinstance(audio_data, bytes) and len(audio_data) > 0
         except Exception:
             return False
