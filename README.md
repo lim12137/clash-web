@@ -49,9 +49,6 @@ git clone https://github.com/ModelEngine-Group/nexent.git
 cd nexent/docker
 cp .env.example .env # fill only necessary configs
 bash deploy.sh
-
-# 创建管理员
-docker exec -ti nexent bash -c 'curl -X POST http://kong:8000/auth/v1/admin/users -H "apikey: ${SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" -H "Content-Type: application/json" -d "{\"email\":\"admin@example.com\",\"password\": \"123123\",\"role\": \"admin\",\"email_confirm\":true}"'
 ```
 
 When the containers are running, open **http://localhost:3000** in your browser and follow the setup wizard.
