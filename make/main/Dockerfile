@@ -5,6 +5,12 @@ LABEL authors="nexent"
 USER root
 RUN umask 0022
 
+# add sources
+RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list
+
 # install curl
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \
@@ -22,7 +28,7 @@ COPY backend /opt/backend
 
 # 创建 venv、安装 sdk（开发模式）、安装 backend 依赖（基础），合并为一层
 WORKDIR /opt/backend
-RUN uv sync && \cd
+RUN uv sync && \
     rm -rf /root/.cache/uv /root/.cache/pip && \
     find .venv -type d -name '__pycache__' -exec rm -rf {} + && \
     find .venv -type f -name '*.pyc' -delete
