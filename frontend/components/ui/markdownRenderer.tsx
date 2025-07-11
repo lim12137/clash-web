@@ -266,7 +266,9 @@ const HoverableText = ({ text, searchResults }: {
                 `}</style>
                 {matchedResult ? (
                   <>
-                    {matchedResult.url && matchedResult.url !== "#" ? (
+                    {(matchedResult.url &&
+                      matchedResult.source_type !== "file" && 
+                      !matchedResult.filename) ? (
                       <a
                         href={matchedResult.url}
                         target="_blank"
