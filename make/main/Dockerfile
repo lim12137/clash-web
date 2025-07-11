@@ -5,6 +5,11 @@ LABEL authors="nexent"
 USER root
 RUN umask 0022
 
+# install curl
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
 # 安装 uv
 RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ uv
 
@@ -17,7 +22,7 @@ COPY backend /opt/backend
 
 # 创建 venv、安装 sdk（开发模式）、安装 backend 依赖（基础），合并为一层
 WORKDIR /opt/backend
-RUN uv sync && \
+RUN uv sync && \cd
     rm -rf /root/.cache/uv /root/.cache/pip && \
     find .venv -type d -name '__pycache__' -exec rm -rf {} + && \
     find .venv -type f -name '*.pyc' -delete

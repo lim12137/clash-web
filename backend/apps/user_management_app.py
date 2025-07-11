@@ -196,16 +196,11 @@ async def signup(request: UserSignUpRequest):
     
     try:
         # Set user metadata, including role information
-        
-        user_metadata = {
-            "role": "admin" if request.is_admin else "user"
-        }
-        
         response = client.auth.sign_up({
             "email": request.email,
             "password": request.password,
-            "options": {
-                "data": user_metadata
+            "data": {
+                "role": "admin" if request.is_admin else "user"
             }
         })
 
@@ -348,7 +343,7 @@ async def signin(request: UserSignInRequest):
         
         # Get role information from user metadata
         user_role = "user"  # Default role
-        if response.user.user_metadata and 'role' in response.user.user_metadata:
+        if 'role' in response.user.user_metadata:  # Adapt to historical user data
             user_role = response.user.user_metadata['role']
 
         logging.info(f"User {request.email} logged in successfully, session validity is {expiry_seconds} seconds, role: {user_role}")
