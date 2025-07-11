@@ -72,7 +72,10 @@ class KnowledgeBaseSearchTool(Tool):
             # Temporarily correct the source_type stored in the knowledge base
             source_type = single_search_result.get("source_type", "")
             source_type = "file" if source_type in ["local", "minio"] else source_type
-            search_result_message = SearchResultTextMessage(title=single_search_result.get("title", ""),
+            title = single_search_result.get("title")
+            if not title:
+                title = single_search_result.get("filename", "")
+            search_result_message = SearchResultTextMessage(title=title,
                 text=single_search_result.get("content", ""), source_type=source_type,
                 url=single_search_result.get("path_or_url", ""), filename=single_search_result.get("filename", ""),
                 published_date=single_search_result.get("create_time", ""), score=single_search_result.get("score", 0),
