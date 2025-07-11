@@ -17,13 +17,14 @@ export const fetchTools = async () => {
     const data = await response.json();
     
     // convert backend Tool format to frontend Tool format
-    const formattedTools = data.map((tool: Tool) => ({
+    const formattedTools = data.map((tool: any) => ({
       id: String(tool.tool_id),
       name: tool.name,
       description: tool.description,
       source: tool.source,
       is_available: tool.is_available,
-      initParams: tool.params.map(param => {
+      create_time: tool.create_time,
+      initParams: tool.params.map((param: any) => {
         return {
           name: param.name,
           type: convertParamType(param.type),

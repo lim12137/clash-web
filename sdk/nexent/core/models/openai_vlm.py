@@ -16,17 +16,17 @@ class OpenAIVLModel(OpenAIModel):
         self.top_p = top_p
         self.frequency_penalty = frequency_penalty
         self.max_tokens = max_tokens
-        self._current_request = None  # 用于存储当前请求
+        self._current_request = None  # Used to store the current request
 
     def check_connectivity(self) -> bool:
         """
-        检查VLM模型的连通性。
+        Check the connectivity of the VLM model.
 
         Returns:
-            bool: 如果模型可以正常响应则返回True，否则返回False
+            bool: Returns True if the model can respond normally, otherwise returns False.
         """
         try:
-            # 直接复用父类的check_connectivity方法
+            # Directly reuse the parent class's check_connectivity method
             return super().check_connectivity()
         except Exception as e:
             import logging
@@ -35,41 +35,41 @@ class OpenAIVLModel(OpenAIModel):
 
     def encode_image(self, image_input: Union[str, BinaryIO]) -> str:
         """
-        将图像文件或文件流编码为base64字符串
+        Encode an image file or file stream into a base64 string.
 
         Args:
-            image_input: 图像文件路径或文件流对象
+            image_input: Image file path or file stream object.
 
         Returns:
-            str: base64编码后的图像数据
+            str: Base64 encoded image data.
         """
         if isinstance(image_input, str):
             with open(image_input, "rb") as image_file:
                 return base64.b64encode(image_file.read()).decode('utf-8')
         else:
-            # 对于文件流对象，直接读取
+            # For file stream objects, read directly
             return base64.b64encode(image_input.read()).decode('utf-8')
 
     def prepare_image_message(self, image_input: Union[str, BinaryIO], system_prompt: str = "Describe this picture.") -> \
     List[Dict[str, Any]]:
         """
-        准备包含图像的消息格式
+        Prepare a message format containing an image.
 
         Args:
-            image_input: 图像文件路径或文件流对象
-            system_prompt: 系统提示词
+            image_input: Image file path or file stream object.
+            system_prompt: System prompt.
 
         Returns:
-            List[Dict[str, Any]]: 准备好的消息列表
+            List[Dict[str, Any]]: Prepared message list.
         """
         base64_image = self.encode_image(image_input)
 
-        # 检测图像格式
-        image_format = "jpeg"  # 默认格式
+        # Detect image format
+        image_format = "jpeg"  # Default format
         if isinstance(image_input, str) and os.path.exists(image_input):
             _, ext = os.path.splitext(image_input)
             if ext.lower() in ['.png', '.jpg', '.jpeg', '.gif', '.webp']:
-                image_format = ext.lower()[1:]  # 移除点号
+                image_format = ext.lower()[1:]  # Remove the dot
                 if image_format == 'jpg':
                     image_format = 'jpeg'
 
@@ -80,19 +80,19 @@ class OpenAIVLModel(OpenAIModel):
         return messages
 
     def analyze_image(self, image_input: Union[str, BinaryIO],
-            system_prompt: str = "请精简、仔细描述一下这个图片，200字以内。", stream: bool = True,
+            system_prompt: str = "Please describe this picture concisely and carefully, within 200 words.", stream: bool = True,
             **kwargs) -> ChatMessage:
         """
-        分析图像内容
+        Analyze image content.
 
         Args:
-            image_input: 图像文件路径或文件流对象
-            system_prompt: 系统提示词
-            stream: 是否流式输出
-            **kwargs: 其他参数
+            image_input: Image file path or file stream object.
+            system_prompt: System prompt.
+            stream: Whether to output in streaming mode.
+            **kwargs: Other parameters.
 
         Returns:
-            ChatMessage: 模型返回的消息
+            ChatMessage: Message returned by the model.
         """
         messages = self.prepare_image_message(image_input, system_prompt)
         return self(messages=messages, **kwargs)

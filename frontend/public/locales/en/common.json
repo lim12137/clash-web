@@ -218,7 +218,8 @@
         "processRemainingDataFailed": "Failed to process remaining data:",
         "thinking": "Thinking...",
         "generateTitleFailed": "Failed to generate title:",
-        "streamResponseError": "Error processing streaming response:"
+        "streamResponseError": "Error processing streaming response:",
+        "userInterrupted": "Chat ended by user."
     },
     "taskWindow": {
         "unknownSource": "Unknown Source",
@@ -490,6 +491,7 @@
     "knowledgeBase.tag.createdAt": "Created on {{date}}",
     "knowledgeBase.tag.model": "{{model}} Model",
     "knowledgeBase.tag.modelMismatch": "Model Mismatch",
+    "knowledgeBase.upload.modelMismatch.description": "The model of the current knowledge base does not match the configured model, file upload is not allowed, please switch the knowledge base or adjust the model configuration",
     "knowledgeBase.list.empty": "No knowledge bases yet, please create one first",
     "knowledgeBase.modal.deleteConfirm.title": "Confirm Delete Knowledge Base",
     "knowledgeBase.modal.deleteConfirm.content": "Are you sure you want to delete this knowledge base? This action cannot be undone.",
@@ -767,7 +769,7 @@
     "mcpConfig.modal.close": "Close",
     "mcpConfig.modal.updatingTools": "Updating tools list...",
     "mcpConfig.addServer.title": "Add MCP Server",
-    "mcpConfig.addServer.namePlaceholder": "Server name (letters and numbers only, max 20 characters)",
+    "mcpConfig.addServer.namePlaceholder": "Server name",
     "mcpConfig.addServer.urlPlaceholder": "Server URL (e.g.: http://localhost:3001/sse), currently only SSE protocol supported",
     "mcpConfig.addServer.button.add": "Add",
     "mcpConfig.addServer.button.updating": "Updating...",
@@ -832,6 +834,14 @@
     "mcpService.message.updateToolListFailed": "Failed to update tool list",
     "mcpService.message.recoverServersSuccess": "MCP servers recovered successfully",
     "mcpService.message.recoverServersFailed": "Failed to recover MCP servers",
+    "mcpService.message.resourceNotFound": "Requested resource not found",
+    "mcpService.message.serverInternalError": "Server internal error, please try again later",
+    "mcpService.message.serviceUnavailable": "Service temporarily unavailable, please try again later",
+    "mcpService.message.deleteProxyFailed": "Failed to delete MCP proxy, please check server configuration",
+    "mcpService.message.serverNotFound": "MCP server not found",
+    "mcpService.message.getToolsFromServerFailed": "Failed to get tools from remote MCP server",
+    "mcpService.message.updateToolListBadRequest": "Update tool list request parameter error",
+    "mcpService.message.recoverServerssBadRequest": "Recover servers request parameter error",
     "agentConfig.tools.refreshSuccess": "Tool list refreshed successfully",
     "agentConfig.tools.refreshFailed": "Failed to refresh tool list",
     "agentConfig.debug.refreshToolsFailed": "Failed to refresh tool list:"

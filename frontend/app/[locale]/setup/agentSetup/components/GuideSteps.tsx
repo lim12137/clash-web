@@ -88,7 +88,6 @@ export default function GuideSteps({
   const { t } = useTranslation('common');
   const GUIDE_STEPS = getGuideSteps(t);
 
-  // print mainAgentId in the console
   useEffect(() => {
     console.log('当前 mainAgentId:', mainAgentId);
   }, [mainAgentId]);

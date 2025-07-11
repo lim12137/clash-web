@@ -6,7 +6,7 @@ from nexent.core.models.stt_model import STTModel, STTConfig
 from nexent.core.models.tts_model import TTSModel, TTSConfig
 from fastapi import WebSocket, APIRouter
 
-logging.getLogger("uvicorn").setLevel(logging.INFO)
+logger = logging.getLogger("voice_app")
 
 class VoiceService:
     """Unified voice service that hosts both STT and TTS on a single FastAPI application"""
@@ -41,27 +41,27 @@ class VoiceService:
         @self.router.websocket("/stt/ws")
         async def stt_websocket(websocket: WebSocket):
             """WebSocket endpoint for real-time audio streaming and STT"""
-            print("STT WebSocket connection attempt...")
+            logger.info("STT WebSocket connection attempt...")
             await websocket.accept()
-            print("STT WebSocket connection accepted")
+            logger.info("STT WebSocket connection accepted")
             try:
                 # Start streaming session
                 await self.stt_model.start_streaming_session(websocket)
             except Exception as e:
-                print(f"STT WebSocket error: {str(e)}")
+                logger.error(f"STT WebSocket error: {str(e)}")
                 import traceback
                 traceback.print_exc()
                 await websocket.send_json({"error": str(e)})
             finally:
-                print("STT WebSocket connection closed")
+                logger.info("STT WebSocket connection closed")
 
         # TTS WebSocket route
         @self.router.websocket("/tts/ws")
         async def tts_websocket(websocket: WebSocket):
             """WebSocket endpoint for streaming TTS"""
-            print("TTS WebSocket connection attempt...")
+            logger.info("TTS WebSocket connection attempt...")
             await websocket.accept()
-            print("TTS WebSocket connection accepted")
+            logger.info("TTS WebSocket connection accepted")
             
             try:
                 # Receive text from client (single request)
@@ -103,7 +103,7 @@ class VoiceService:
                 except TypeError as te:
                     # If speech_result is still a coroutine, try calling it directly without stream=True
                     if "async for" in str(te) and "requires an object with __aiter__" in str(te):
-                        print("Falling back to non-streaming TTS")
+                        logger.error("Falling back to non-streaming TTS")
                         speech_data = await self.tts_model.generate_speech(text, stream=False)
                         if websocket.client_state.name == "CONNECTED":
                             await websocket.send_bytes(speech_data)
@@ -115,12 +115,12 @@ class VoiceService:
                     await websocket.send_json({"status": "completed"})
 
             except Exception as e:
-                print(f"TTS WebSocket error: {str(e)}")
+                logger.error(f"TTS WebSocket error: {str(e)}")
                 import traceback
                 traceback.print_exc()
                 await websocket.send_json({"error": str(e)})
             finally:
-                print("TTS WebSocket connection closed")
+                logger.info("TTS WebSocket connection closed")
                 # Ensure connection is properly closed
                 if websocket.client_state.name == "CONNECTED":
                     await websocket.close()

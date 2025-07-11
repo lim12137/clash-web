@@ -53,7 +53,7 @@ def upload_file(file_path: str, object_name: Optional[str] = None, bucket: Optio
     # Build response
     response = {"success": success, "object_name": object_name, "file_name": os.path.basename(file_path),
                 "file_size": os.path.getsize(file_path) if os.path.exists(file_path) else 0,
-                "content_type": _get_content_type(file_path), "upload_time": datetime.now().isoformat()}
+                "content_type": get_content_type(file_path), "upload_time": datetime.now().isoformat()}
 
     if success:
         response["url"] = result
@@ -96,7 +96,7 @@ def upload_fileobj(file_obj: BinaryIO, file_name: str, bucket: Optional[str] = N
 
     # Build response
     response = {"success": success, "object_name": object_name, "file_name": file_name, "file_size": file_size,
-                "content_type": _get_content_type(file_name), "upload_time": datetime.now().isoformat()}
+                "content_type": get_content_type(file_name), "upload_time": datetime.now().isoformat()}
 
     if success:
         response["url"] = result
@@ -156,6 +156,14 @@ def get_file_url(object_name: str, bucket: Optional[str] = None, expires: int = 
     return response
 
 
+def get_file_size_from_minio(object_name: str, bucket: Optional[str] = None) -> int:
+    """
+    Get file size by object name
+    """
+    bucket = bucket or minio_client.default_bucket
+    return minio_client.get_file_size(object_name, bucket)
+
+
 def list_files(prefix: str = "", bucket: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     List files in bucket
@@ -172,7 +180,7 @@ def list_files(prefix: str = "", bucket: Optional[str] = None) -> List[Dict[str,
 
     # Enhance file information
     for file in files:
-        file["content_type"] = _get_content_type(file["key"])
+        file["content_type"] = get_content_type(file["key"])
 
         # Get presigned URL (valid for 1 hour)
         success, url = minio_client.get_file_url(file["key"], bucket, 3600)
@@ -193,10 +201,10 @@ def delete_file(object_name: str, bucket: Optional[str] = None) -> Dict[str, Any
     Returns:
         Dict[str, Any]: Delete result, containing success flag and error message (if any)
     """
-    # Delete file
+    if not bucket:
+        bucket = minio_client.default_bucket
     success, result = minio_client.delete_file(object_name, bucket)
 
-    # Build response
     response = {"success": success, "object_name": object_name}
 
     if not success:
@@ -229,7 +237,7 @@ def get_file_stream(object_name: str, bucket: Optional[str] = None) -> Optional[
         return None
 
 
-def _get_content_type(file_path: str) -> str:
+def get_content_type(file_path: str) -> str:
     """
     Get content type based on file extension
     
@@ -240,18 +248,34 @@ def _get_content_type(file_path: str) -> str:
         str: Content type
     """
     # File extension to MIME type mapping
-    mime_types = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif',
-                  '.bmp': 'image/bmp', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.pdf': 'application/pdf',
+    mime_types = {'.jpg': 'image/jpeg', 
+                  '.jpeg': 'image/jpeg', 
+                  '.png': 'image/png', 
+                  '.gif': 'image/gif',
+                  '.bmp': 'image/bmp', 
+                  '.webp': 'image/webp', 
+                  '.svg': 'image/svg+xml', 
+                  '.pdf': 'application/pdf',
                   '.doc': 'application/msword',
                   '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                   '.xls': 'application/vnd.ms-excel',
                   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                   '.ppt': 'application/vnd.ms-powerpoint',
                   '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                  '.txt': 'text/plain', '.csv': 'text/csv', '.html': 'text/html', '.htm': 'text/html',
-                  '.json': 'application/json', '.xml': 'application/xml', '.zip': 'application/zip',
-                  '.rar': 'application/x-rar-compressed', '.tar': 'application/x-tar', '.gz': 'application/gzip',
-                  '.mp3': 'audio/mpeg', '.mp4': 'video/mp4', '.avi': 'video/x-msvideo', '.mov': 'video/quicktime',
+                  '.txt': 'text/plain', 
+                  '.csv': 'text/csv', 
+                  '.html': 'text/html', 
+                  '.htm': 'text/html',
+                  '.json': 'application/json', 
+                  '.xml': 'application/xml', 
+                  '.zip': 'application/zip',
+                  '.rar': 'application/x-rar-compressed', 
+                  '.tar': 'application/x-tar', 
+                  '.gz': 'application/gzip',
+                  '.mp3': 'audio/mpeg', 
+                  '.mp4': 'video/mp4', 
+                  '.avi': 'video/x-msvideo', 
+                  '.mov': 'video/quicktime',
                   '.wmv': 'video/x-ms-wmv'}
 
     # Get file extension

@@ -3,20 +3,21 @@ import datetime
 import gzip
 import json
 import os
+import logging
 import time
 import uuid
 import wave
 from enum import Enum
 from io import BytesIO
-from pathlib import Path
-from typing import Dict, Any, Union
+from typing import Dict, Any
 
 import aiofiles
 import websockets
-from dotenv import load_dotenv
 from pydantic import BaseModel
 
 from consts.const import TEST_VOICE_PATH
+
+logger = logging.getLogger("stt_model")
 
 # Protocol constants
 PROTOCOL_VERSION = 0b0001
@@ -49,8 +50,8 @@ CUSTOM_COMPRESSION = 0b1111
 
 
 class AudioType(Enum):
-    LOCAL = 1  # 使用本地音频文件
-    STREAM = 2  # 使用流式音频
+    LOCAL = 1  # Use local audio file
+    STREAM = 2  # Use streaming audio
 
 
 class STTConfig(BaseModel):
@@ -110,7 +111,7 @@ class STTModel:
         Returns:
             Header bytes
         """
-        # 使用配置中的压缩设置
+        # Use compression setting from config
         if compression_type is None:
             compression_type = GZIP if self.config.compression else NO_COMPRESSION
 
@@ -162,13 +163,13 @@ class STTModel:
         payload_size = 0
 
         if message_type_specific_flags & 0x01:
-            # receive frame with sequence
+            # Receive frame with sequence
             seq = int.from_bytes(payload[:4], "big", signed=True)
             result['payload_sequence'] = seq
             payload = payload[4:]
 
         if message_type_specific_flags & 0x02:
-            # receive last package
+            # Receive last package
             result['is_last_package'] = True
 
         if message_type == SERVER_FULL_RESPONSE:
@@ -254,7 +255,7 @@ class STTModel:
             "request": {"model_name": "bigmodel", "enable_punc": True, # "result_type": "single",
                 # "vad_segment_duration": 800,
             }}
-        print(f"req: {req}", end="\n\n")
+        logger.info(f"req: {req}", end="\n\n")
         return req
 
     async def process_audio_data(self, audio_data: bytes, segment_size: int) -> Dict[str, Any]:
@@ -275,13 +276,13 @@ class STTModel:
         request_params = self.construct_request(reqid)
         payload_bytes = str.encode(json.dumps(request_params))
 
-        # 根据配置决定是否压缩
+        # According to config, decide whether to compress
         if self.config.compression:
             payload_bytes = gzip.compress(payload_bytes)
 
         full_client_request = bytearray(self.generate_header(message_type_specific_flags=POS_SEQUENCE))
         full_client_request.extend(self.generate_before_payload(sequence=seq))
-        full_client_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # payload size(4 bytes)
+        full_client_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # Payload size (4 bytes)
         full_client_request.extend(payload_bytes)  # payload
 
         # Prepare headers
@@ -293,7 +294,7 @@ class STTModel:
         if self.config.appid:
             header["X-Api-App-Key"] = self.config.appid
 
-        print(f"Connecting to {self.config.ws_url} with headers: {header}")
+        logger.info(f"Connecting to {self.config.ws_url} with headers: {header}")
 
         try:
             # Fix: Use additional_headers instead of extra_headers for websockets 15.0.1+
@@ -302,9 +303,9 @@ class STTModel:
                 await ws.send(full_client_request)
                 res = await ws.recv()
                 if hasattr(ws, 'response_headers'):
-                    print(f"Response headers: {ws.response_headers}")
+                    logger.info(f"Response headers: {ws.response_headers}")
                 result = self.parse_response(res)
-                print(f"Initial response: {result}")
+                logger.info(f"Initial response: {result}")
 
                 for _, (chunk, last) in enumerate(self.slice_data(audio_data, segment_size), 1):
                     seq += 1
@@ -313,7 +314,7 @@ class STTModel:
 
                     start = time.time()
 
-                    # 根据配置决定是否压缩
+                    # According to config, decide whether to compress
                     if self.config.compression:
                         payload_bytes = gzip.compress(chunk)
                     else:
@@ -327,7 +328,7 @@ class STTModel:
                             message_type_specific_flags=POS_SEQUENCE))
 
                     audio_only_request.extend(self.generate_before_payload(sequence=seq))
-                    audio_only_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # payload size(4 bytes)
+                    audio_only_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # Payload size (4 bytes)
                     audio_only_request.extend(payload_bytes)  # payload
 
                     # Send audio-only client request
@@ -335,7 +336,7 @@ class STTModel:
                     res = await ws.recv()
                     result = self.parse_response(res)
 
-                    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}, seq: {seq}, result: {result}")
+                    logger.info(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}, seq: {seq}, result: {result}")
 
                     if self.config.streaming:
                         sleep_time = max(0, (self.config.seg_duration / 1000.0 - (time.time() - start)))
@@ -344,22 +345,22 @@ class STTModel:
             return result
 
         except websockets.exceptions.ConnectionClosedError as e:
-            print(f"WebSocket connection closed with status code: {e.code}")
-            print(f"WebSocket connection closed with reason: {e.reason}")
+            logger.error(f"WebSocket connection closed with status code: {e.code}")
+            logger.error(f"WebSocket connection closed with reason: {e.reason}")
             return {"error": f"Connection closed: {e.reason}"}
 
         except websockets.exceptions.WebSocketException as e:
-            print(f"WebSocket connection failed: {e}")
+            logger.error(f"WebSocket connection failed: {e}")
             if hasattr(e, "status_code"):
-                print(f"Response status code: {e.status_code}")
+                logger.error(f"Response status code: {e.status_code}")
             if hasattr(e, "headers"):
-                print(f"Response headers: {e.headers}")
+                logger.error(f"Response headers: {e.headers}")
             if hasattr(e, "response") and hasattr(e.response, "text"):
-                print(f"Response body: {e.response.text}")
+                logger.error(f"Response body: {e.response.text}")
             return {"error": f"WebSocket error: {str(e)}"}
 
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            logger.error(f"Unexpected error: {e}")
             import traceback
             traceback.print_exc()
             return {"error": f"Unexpected error: {str(e)}"}
@@ -405,23 +406,23 @@ class STTModel:
         Returns:
             None
         """
-        print("Starting audio processing loop...")
+        logger.info("Starting audio processing loop...")
         reqid = str(uuid.uuid4())
         seq = 1
-        client_connected = True  # 跟踪客户端连接状态
+        client_connected = True  # Track client connection status
 
         # Construct full client request
         request_params = self.construct_request(reqid)
         payload_bytes = str.encode(json.dumps(request_params))
 
-        # 根据配置决定是否压缩
+        # According to config, decide whether to compress
         if self.config.compression:
             payload_bytes = gzip.compress(payload_bytes)
 
-        # 生成请求头，传递None让函数根据配置决定compression_type
+        # Generate request header, pass None to let the function decide compression_type based on config
         full_client_request = bytearray(self.generate_header(message_type_specific_flags=POS_SEQUENCE))
         full_client_request.extend(self.generate_before_payload(sequence=seq))
-        full_client_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # payload size(4 bytes)
+        full_client_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # Payload size (4 bytes)
         full_client_request.extend(payload_bytes)  # payload
 
         # Prepare headers
@@ -433,32 +434,32 @@ class STTModel:
         if self.config.appid:
             header["X-Api-App-Key"] = self.config.appid
 
-        print(f"Config: {self.config}")
+        logger.info(f"Config: {self.config}")
 
         try:
             # Connect to STT service
-            print(f"Connecting to STT WebSocket service at {self.config.ws_url}...")
+            logger.info(f"Connecting to STT WebSocket service at {self.config.ws_url}...")
             # Fix: Use additional_headers instead of extra_headers for websockets 15.0.1+
             async with websockets.connect(self.config.ws_url, additional_headers=header,
                                           max_size=1000000000) as ws_server:
-                print("Connected to STT service")
+                logger.info("Connected to STT service")
                 if hasattr(ws_server, 'response_headers'):
-                    print(f"Response headers: {ws_server.response_headers}")
+                    logger.info(f"Response headers: {ws_server.response_headers}")
 
                 # Send initial request
-                print("Sending initial request...")
+                logger.info("Sending initial request...")
                 await ws_server.send(full_client_request)
-                print("Waiting for response...")
+                logger.info("Waiting for response...")
                 response = await ws_server.recv()
                 result = self.parse_response(response)
-                print(f"Initial response received")
+                logger.info(f"Initial response received")
 
                 # Tell client we're ready to receive audio
-                print("Sending ready status to client...")
+                logger.info("Sending ready status to client...")
                 try:
                     await ws_client.send_json({"status": "ready"})
                 except Exception as e:
-                    print(f"Client disconnected: {e}")
+                    logger.error(f"Client disconnected: {e}")
                     client_connected = False
                     return
 
@@ -471,12 +472,12 @@ class STTModel:
                     try:
                         client_data = await ws_client.receive_bytes()
                     except Exception as e:
-                        print(f"Error receiving audio data: {str(e)}")
+                        logger.error(f"Error receiving audio data: {str(e)}")
                         client_connected = False
                         break
 
                     if not client_data:
-                        print("Received empty audio data, indicating end of stream")
+                        logger.info("Received empty audio data, indicating end of stream")
                         last_chunk_received = True
                         # Send a small empty buffer as the final chunk
                         client_data = bytes(0)
@@ -487,7 +488,7 @@ class STTModel:
                     # Only use negative sequence for explicitly marked last chunk
                     if last_chunk_received:
                         seq = -abs(seq)  # Make sequence negative for last chunk
-                        print("This is the final chunk, using negative sequence")
+                        logger.info("This is the final chunk, using negative sequence")
 
                         audio_only_request = bytearray(self.generate_header(message_type=CLIENT_AUDIO_ONLY_REQUEST,
                             message_type_specific_flags=NEG_WITH_SEQUENCE))
@@ -495,25 +496,25 @@ class STTModel:
                         audio_only_request = bytearray(self.generate_header(message_type=CLIENT_AUDIO_ONLY_REQUEST,
                             message_type_specific_flags=POS_SEQUENCE))
 
-                    # 根据配置决定是否压缩
+                    # According to config, decide whether to compress
                     if self.config.compression:
                         payload_bytes = gzip.compress(client_data)
                     else:
                         payload_bytes = client_data
 
                     audio_only_request.extend(self.generate_before_payload(sequence=seq))
-                    audio_only_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # payload size(4 bytes)
+                    audio_only_request.extend((len(payload_bytes)).to_bytes(4, 'big'))  # Payload size (4 bytes)
                     audio_only_request.extend(payload_bytes)  # payload
 
                     # Send to STT service
-                    print(f"Sending audio chunk {counter + 1} to STT service ({len(audio_only_request)} bytes)...")
+                    logger.info(f"Sending audio chunk {counter + 1} to STT service ({len(audio_only_request)} bytes)...")
                     try:
                         await ws_server.send(audio_only_request)
                     except Exception as e:
-                        print(f"Error sending to STT service: {e}")
+                        logger.error(f"Error sending to STT service: {e}")
                         if client_connected:
                             try:
-                                await ws_client.send_json({"error": f"STT服务错误: {str(e)}"})
+                                await ws_client.send_json({"error": f"STT service error: {str(e)}"})
                                 client_connected = False
                             except:
                                 pass
@@ -528,8 +529,8 @@ class STTModel:
                             result_text = result['payload_msg']['result']['text'] if result['payload_msg']['result'][
                                 'text'] else "empty"
                         except:
-                            print(f"Malformed result: {result}")
-                        print(f"Received response: {result_text}")
+                            logger.error(f"Malformed result: {result}")
+                        logger.info(f"Received response: {result_text}")
 
                         # Send result back to client
                         if client_connected and 'payload_msg' in result:
@@ -542,21 +543,21 @@ class STTModel:
                             try:
                                 await ws_client.send_json(payload)
                             except Exception as e:
-                                print(f"Client disconnected while sending result: {e}")
+                                logger.error(f"Client disconnected while sending result: {e}")
                                 client_connected = False
                                 break
                         elif client_connected:
-                            print("Sending processing status to client")
+                            logger.info("Sending processing status to client")
                             try:
                                 await ws_client.send_json({"status": "processing"})
                             except Exception as e:
-                                print(f"Client disconnected while sending status: {e}")
+                                logger.error(f"Client disconnected while sending status: {e}")
                                 client_connected = False
                                 break
                     except websockets.exceptions.ConnectionClosed as e:
-                        print(f"STT service connection closed: {e}")
+                        logger.error(f"STT service connection closed: {e}")
                         if last_chunk_received:
-                            print("Expected closure after final chunk")
+                            logger.error("Expected closure after final chunk")
                             break
                         elif client_connected:
                             try:
@@ -570,7 +571,7 @@ class STTModel:
 
                     # Exit after processing the last chunk
                     if last_chunk_received:
-                        print("Last chunk processed, exiting loop")
+                        logger.info("Last chunk processed, exiting loop")
                         break
 
                     # Simulate real-time processing if needed
@@ -580,35 +581,35 @@ class STTModel:
 
         except websockets.exceptions.ConnectionClosedError as e:
             error_msg = f"WebSocket connection closed: {e.reason} (code: {e.code})"
-            print(f"Error: {error_msg}")
+            logger.error(f"{error_msg}")
             if client_connected:
                 try:
                     await ws_client.send_json({"error": error_msg})
                 except:
-                    print("无法发送错误信息：客户端已断开连接")
+                    logger.error("Cannot send error message: client disconnected")
 
         except websockets.exceptions.WebSocketException as e:
             error_msg = f"WebSocket error: {str(e)}"
-            print(f"Error: {error_msg}")
+            logger.error(f"{error_msg}")
             if client_connected:
                 try:
                     await ws_client.send_json({"error": error_msg})
                 except:
-                    print("无法发送错误信息：客户端已断开连接")
+                    logger.error("Cannot send error message: client disconnected")
 
         except Exception as e:
             error_msg = f"Error in streaming session: {str(e)}"
-            print(f"Error: {error_msg}")
+            logger.error(f"{error_msg}")
             import traceback
             traceback.print_exc()
             if client_connected:
                 try:
                     await ws_client.send_json({"error": error_msg})
                 except:
-                    print("无法发送错误信息：客户端已断开连接")
+                    logger.error("Cannot send error message: client disconnected")
 
         finally:
-            print("Audio processing loop ended")
+            logger.info("Audio processing loop ended")
 
     async def start_streaming_session(self, ws_client):
         """
@@ -620,10 +621,10 @@ class STTModel:
         Returns:
             None
         """
-        print("Preparing streaming session...")
+        logger.info("Preparing streaming session...")
         # Calculate segment size based on audio parameters
         segment_size = int(self.config.rate * self.config.bits * self.config.channel / 8 * 0.1)  # 100ms chunk
-        print(f"Using segment size: {segment_size} bytes (100ms of audio)")
+        logger.info(f"Using segment size: {segment_size} bytes (100ms of audio)")
 
         try:
             # Process streaming audio
@@ -631,7 +632,7 @@ class STTModel:
 
         except Exception as e:
             error_msg = f"Error in streaming session: {str(e)}"
-            print(f"Error: {error_msg}")
+            logger.error(f"{error_msg}")
             import traceback
             traceback.print_exc()
             await ws_client.send_json({"error": error_msg})
@@ -650,14 +651,14 @@ class STTModel:
 
     async def check_connectivity(self) -> bool:
         """
-        测试与远程STT服务的连接是否正常
+        Test if the connection to the remote STT service is normal
             
         Returns:
-            bool: 连接成功返回True，失败返回False
+            bool: True if connection successful, False otherwise
         """
         try:
             result = await self.process_audio_file(TEST_VOICE_PATH)
-            # 检查返回结果是否为字典类型且非空
+            # Check if the return result is a dictionary type and non-empty
             return isinstance(result, dict) and bool(result)
         except Exception:
             return False
