@@ -3,8 +3,6 @@ from contextlib import asynccontextmanager
 from fastapi import HTTPException, APIRouter, Form, File, UploadFile
 import base64
 import io
-import tempfile
-import os
 import time
 
 from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTaskRequest, SimpleTaskStatusResponse, \
@@ -332,7 +330,7 @@ async def process_text_file(
             filename=filename,
             chunking_strategy=chunking_strategy
         )
-        cd
+
         # Extract text content from chunks
         full_text = ""
         chunk_texts = []
