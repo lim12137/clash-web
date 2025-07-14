@@ -31,12 +31,11 @@ jobs:
         run: |
           cd backend
           uv sync --extra data-process --extra test
-          source .venv/bin/activate
           cd ..
 
       - name: Run all tests and collect coverage
         run: |
-          python test/backend/run_all_test.py
+          source backend/.venv/bin/activate && python test/backend/run_all_test.py
 
           if [ -f "test/backend/coverage.xml" ]; then
             echo "✅ Coverage XML file generated successfully."
