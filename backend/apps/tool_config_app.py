@@ -20,7 +20,8 @@ async def list_tools_api(authorization: Optional[str] = Header(None)):
     List all system tools from PG dataset
     """
     try:
-        user_id, tenant_id = get_current_user_id(authorization)
+        _, tenant_id = get_current_user_id(authorization)
+        # now only admin can modify the tool, user_id is not used
         return query_all_tools(tenant_id=tenant_id)
     except Exception as e:
         logging.error(f"Failed to get tool info, error in: {str(e)}")
