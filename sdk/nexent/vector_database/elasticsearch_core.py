@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from ..core.models.embedding_model import JinaEmbedding
+from ..core.models.embedding_model import BaseEmbedding
 from .utils import format_size, format_timestamp, build_weighted_query
 from elasticsearch import Elasticsearch, exceptions
 
@@ -37,7 +37,6 @@ class ElasticSearchCore:
         self, 
         host: Optional[str],
         api_key: Optional[str],
-        embedding_model: Optional[JinaEmbedding],
         verify_certs: bool = False,
         ssl_show_warn: bool = False,
     ):
@@ -49,7 +48,6 @@ class ElasticSearchCore:
             api_key: Elasticsearch API key (defaults to env variable)
             verify_certs: Whether to verify SSL certificates
             ssl_show_warn: Whether to show SSL warnings
-            embedding_model: Optional embedding model instance
         """
         # Get credentials from environment if not provided
         self.host = host
@@ -68,7 +66,6 @@ class ElasticSearchCore:
         )
         
         # Initialize embedding model
-        self.embedding_model = embedding_model
         self._bulk_operations: Dict[str, List[BulkOperation]] = {}
         self._settings_lock = threading.Lock()
         self._operation_counter = 0
@@ -77,25 +74,6 @@ class ElasticSearchCore:
         self.max_texts_per_batch = 2048
         self.max_tokens_per_text = 8192
         self.max_total_tokens = 100000
-
-    @property
-    def embedding_dim(self) -> int:
-        """
-        Get embedding dimension from the embedding model.
-        
-        Returns:
-            int: Dimension of the embedding vectors
-        """
-        # Get embedding dimension from the model if available
-        if hasattr(self.embedding_model, 'embedding_dim'):
-            # Check if it's a string (from env var) and convert to int if needed
-            dim = self.embedding_model.embedding_dim
-            if isinstance(dim, str):
-                return int(dim)
-            return dim
-        
-        # Default dimension if not available from model
-        return 1024
     
     # ---- INDEX MANAGEMENT ----
     
@@ -112,7 +90,7 @@ class ElasticSearchCore:
         """
         try:
             # Use provided embedding_dim or get from model
-            actual_embedding_dim = embedding_dim or self.embedding_dim
+            actual_embedding_dim = embedding_dim or 1024
             
             # Use balanced fixed settings to avoid dynamic adjustment
             settings = {
@@ -354,7 +332,8 @@ class ElasticSearchCore:
     
     def index_documents(
         self, 
-        index_name: str, 
+        index_name: str,
+        embedding_model: BaseEmbedding,
         documents: List[Dict[str, Any]], 
         batch_size: int = 2048,
         content_field: str = "content"
@@ -364,6 +343,7 @@ class ElasticSearchCore:
         
         Args:
             index_name: Name of the index to add documents to
+            embedding_model: Model used to generate embeddings for documents
             documents: List of document dictionaries
             batch_size: Number of documents to process at once
             content_field: Field to use for generating embeddings
@@ -381,14 +361,14 @@ class ElasticSearchCore:
         total_docs = len(documents)
         if total_docs < 100:
             # Small data: direct insertion, using wait_for refresh
-            return self._small_batch_insert(index_name, documents, content_field)
+            return self._small_batch_insert(index_name, documents, content_field, embedding_model)
         else:
             # Large data: using context manager
             estimated_duration = max(60, total_docs // 100)
             with self.bulk_operation_context(index_name, estimated_duration):
-                return self._large_batch_insert(index_name, documents, batch_size, content_field)
+                return self._large_batch_insert(index_name, documents, batch_size, content_field, embedding_model)
 
-    def _small_batch_insert(self, index_name: str, documents: List[Dict[str, Any]], content_field: str) -> int:
+    def _small_batch_insert(self, index_name: str, documents: List[Dict[str, Any]], content_field: str, embedding_model:BaseEmbedding) -> int:
         """Small batch insertion: real-time"""
         try:
             # Preprocess documents
@@ -396,7 +376,7 @@ class ElasticSearchCore:
             
             # Get embeddings
             inputs = [doc[content_field] for doc in processed_docs]
-            embeddings = self.embedding_model.get_embeddings(inputs)
+            embeddings = embedding_model.get_embeddings(inputs)
 
             # Prepare bulk operations
             operations = []
@@ -404,7 +384,7 @@ class ElasticSearchCore:
                 operations.append({"index": {"_index": index_name}})
                 doc["embedding"] = embedding
                 if "embedding_model_name" not in doc:
-                    doc["embedding_model_name"] = self.embedding_model.embedding_model_name
+                    doc["embedding_model_name"] = embedding_model.embedding_model_name
                 operations.append(doc)
 
             # Execute bulk insertion, wait for refresh to complete
@@ -424,7 +404,7 @@ class ElasticSearchCore:
             logger.error(f"Small batch insert failed: {e}")
             return 0
 
-    def _large_batch_insert(self, index_name: str, documents: List[Dict[str, Any]], batch_size: int, content_field: str) -> int:
+    def _large_batch_insert(self, index_name: str, documents: List[Dict[str, Any]], batch_size: int, content_field: str, embedding_model: BaseEmbedding) -> int:
         """
         Large batch insertion with sub-batching for embedding API.
         Splits large document batches into smaller chunks to respect embedding API limits before bulk inserting into Elasticsearch.
@@ -449,7 +429,7 @@ class ElasticSearchCore:
                     
                     try:
                         inputs = [doc[content_field] for doc in embedding_sub_batch]
-                        embeddings = self.embedding_model.get_embeddings(inputs)
+                        embeddings = embedding_model.get_embeddings(inputs)
                         
                         for doc, embedding in zip(embedding_sub_batch, embeddings):
                             doc_embedding_pairs.append((doc, embedding))
@@ -468,7 +448,7 @@ class ElasticSearchCore:
                     operations.append({"index": {"_index": index_name}})
                     doc["embedding"] = embedding
                     if "embedding_model_name" not in doc:
-                        doc["embedding_model_name"] = getattr(self.embedding_model, 'embedding_model_name', 'unknown')
+                        doc["embedding_model_name"] = getattr(embedding_model, 'embedding_model_name', 'unknown')
                     operations.append(doc)
 
                 try:
@@ -625,7 +605,7 @@ class ElasticSearchCore:
             })
         return results
 
-    def semantic_search(self, index_names: List[str], query_text: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    def semantic_search(self, index_names: List[str], query_text: str, embedding_model: BaseEmbedding, top_k: int = 5) -> List[Dict[str, Any]]:
         """
         Search for similar documents using vector similarity across multiple indices.
         
@@ -641,7 +621,7 @@ class ElasticSearchCore:
         index_pattern = ",".join(index_names)
 
         # Get query embedding
-        query_embedding = self.embedding_model.get_embeddings(query_text)[0]
+        query_embedding = embedding_model.get_embeddings(query_text)[0]
         
         # Prepare the search query
         search_query = {
@@ -664,6 +644,7 @@ class ElasticSearchCore:
         self,
         index_names: List[str],
         query_text: str,
+        embedding_model: BaseEmbedding,
         top_k: int = 5,
         weight_accurate: float = 0.3
     ) -> List[Dict[str, Any]]:
@@ -681,7 +662,7 @@ class ElasticSearchCore:
         """
         # Get results from both searches
         accurate_results = self.accurate_search(index_names, query_text, top_k=top_k)
-        semantic_results = self.semantic_search(index_names, query_text, top_k=top_k)
+        semantic_results = self.semantic_search(index_names, query_text, embedding_model=embedding_model, top_k=top_k)
 
         # Create a mapping from document ID to results
         combined_results = {}
@@ -822,7 +803,7 @@ class ElasticSearchCore:
                 mappings[index_name] = []
         return mappings
             
-    def get_index_stats(self, index_names: List[str]) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    def get_index_stats(self, index_names: List[str], embedding_dim: Optional[int] = None) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """Get formatted statistics for multiple indices"""
         all_stats = {}
         for index_name in index_names:
@@ -878,7 +859,7 @@ class ElasticSearchCore:
                         "store_size": format_size(index_stats["store"]["size_in_bytes"]),
                         "process_source": process_source,
                         "embedding_model": embedding_model,
-                        "embedding_dim": self.embedding_dim,
+                        "embedding_dim": embedding_dim or 1024,
                         "creation_date": format_timestamp(creation_date),
                         "update_date": format_timestamp(update_time)
                     },

@@ -364,7 +364,11 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           </label>
           <Input
             id="url"
-            placeholder={t('model.dialog.placeholder.url')}
+            placeholder={
+              form.type === "embedding"
+                ? t('model.dialog.placeholder.url.embedding')
+                : t('model.dialog.placeholder.url')
+            }
             value={form.url}
             onChange={(e) => handleFormChange("url", e.target.value)}
           />
