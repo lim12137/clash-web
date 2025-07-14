@@ -49,7 +49,9 @@ dependencies = [
     "python-multipart>=0.0.20",
     "mcpadapt==0.1.9",
     "mcp==1.10.1",
-    "tiktoken>=0.5.0"
+    "tiktoken>=0.5.0",
+    "tavily-python",
+    "linkup-sdk"
 ]
 
 [project.optional-dependencies]
