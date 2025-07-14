@@ -17,7 +17,7 @@ from typing import Optional, Generator, List, Dict, Any
 from openai import OpenAI
 from dotenv import load_dotenv
 import yaml
-from nexent.core.models.embedding_model import JinaEmbedding
+from nexent.core.models.embedding_model import OpenAICompatibleEmbedding, JinaEmbedding, BaseEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from nexent.core.nlp.tokenizer import calculate_term_weights
 from fastapi import HTTPException, Query, Body, Path, Depends
@@ -88,7 +88,6 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
 elastic_core = ElasticSearchCore(
     host=ES_HOST,
     api_key=ES_API_KEY,
-    embedding_model=None,
     verify_certs=False,
     ssl_show_warn=False,
 )
@@ -96,8 +95,22 @@ elastic_core = ElasticSearchCore(
 
 def get_es_core():
     # ensure embedding model is latest
-    elastic_core.embedding_model = JinaEmbedding(api_key=config_manager.get_config("EMBEDDING_API_KEY"))
     return elastic_core
+
+
+def get_embedding_model(tenant_id: str):
+    # Get the tenant config
+    model_config = tenant_config_manager.get_model_config(key="EMBEDDING_ID", tenant_id=tenant_id)
+
+    model_type = model_config.get("model_type","")
+
+    if model_type == "embedding":
+        # Get the es core
+        return OpenAICompatibleEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=model_config.get("model_name",""), embedding_dim=model_config.get("max_tokens", 1024))
+    elif model_type == "multi_embedding":
+        return JinaEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=model_config.get("model_name",""), embedding_dim=model_config.get("max_tokens", 1024))
+    else:
+        return None
 
 
 class ElasticSearchService:
@@ -112,7 +125,8 @@ class ElasticSearchService:
         try:
             if es_core.client.indices.exists(index=index_name):
                 raise HTTPException(status_code=400, detail=f"Index {index_name} already exists")
-            success = es_core.create_vector_index(index_name, embedding_dim=embedding_dim or es_core.embedding_dim)
+            embedding_model = get_embedding_model(tenant_id)
+            success = es_core.create_vector_index(index_name, embedding_dim=embedding_dim or (embedding_model.embedding_dim if embedding_model else 1024) )
             if not success:
                 raise HTTPException(status_code=500, detail=f"Failed to create index {index_name}")
             knowledge_data = {'index_name': index_name, 'created_by': user_id, "tenant_id": tenant_id}
@@ -284,6 +298,7 @@ class ElasticSearchService:
 
     @staticmethod
     def index_documents(
+            embedding_model: BaseEmbedding,
             index_name: str = Path(..., description="Name of the index"),
             data: List[Dict[str, Any]] = Body(..., description="Document List to process"),
             es_core: ElasticSearchCore = Depends(get_es_core)
@@ -292,6 +307,7 @@ class ElasticSearchService:
         Index documents and create vector embeddings, create index if it doesn't exist
 
         Args:
+            embedding_model: Optional embedding model to use for generating document vectors
             index_name: Index name
             data: List containing document data to be indexed
             es_core: ElasticSearchCore instance
@@ -340,8 +356,8 @@ class ElasticSearchService:
 
                 # Set embedding model name from the embedding model
                 embedding_model_name = ""
-                if es_core.embedding_model:
-                    embedding_model_name = es_core.embedding_model.model
+                if embedding_model:
+                    embedding_model_name = embedding_model.model
 
                 # Create document
                 document = {
@@ -375,7 +391,8 @@ class ElasticSearchService:
             try:
                 total_indexed = es_core.index_documents(
                     index_name=index_name,
-                    documents=documents
+                    embedding_model=embedding_model,
+                    documents=documents,
                 )
 
                 return {

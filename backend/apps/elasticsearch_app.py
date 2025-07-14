@@ -5,7 +5,7 @@ from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter, Header
 from consts.model import IndexingResponse, SearchRequest, HybridSearchRequest
 
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
-from services.elasticsearch_service import ElasticSearchService, get_es_core
+from services.elasticsearch_service import ElasticSearchService, get_es_core, get_embedding_model
 from services.redis_service import get_redis_service
 from utils.auth_utils import get_current_user_id
 from services.tenant_config_service import delete_selected_knowledge_by_index_name
@@ -161,14 +161,17 @@ def get_es_index_info(
 def create_index_documents(
         index_name: str = Path(..., description="Name of the index"),
         data: List[Dict[str, Any]] = Body(..., description="Document List to process"),
-        es_core: ElasticSearchCore = Depends(get_es_core)
+        es_core: ElasticSearchCore = Depends(get_es_core),
+        authorization: Optional[str] = Header(None)
 ):
     """
     Index documents with embeddings, creating the index if it doesn't exist.
     Accepts an document list from data processing.
     """
     try:
-        return ElasticSearchService.index_documents(index_name, data, es_core)
+        user_id, tenant_id = get_current_user_id(authorization)
+        embedding_model = get_embedding_model(tenant_id)
+        return ElasticSearchService.index_documents(embedding_model, index_name, data, es_core)
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Error indexing documents: {error_msg}")
