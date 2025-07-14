@@ -14,9 +14,9 @@ from ..utils.tools_common_message import SearchResultTextMessage
 logger = logging.getLogger("exa_search_tool")
 
 
-class SearchTool(Tool):
-    name = "web_search"
-    description = "Performs a web search based on your query (think a Google search) then returns the top search results. " \
+class ExaSearchTool(Tool):
+    name = "exa_search"
+    description = "Performs a internet search based on your query (think a Google search) then returns the top search results. " \
                   "A tool for retrieving publicly available information, news, general knowledge, or non-proprietary data from the internet. " \
                   "Use this for real-time open-domain updates, broad topics, or or general knowledge queries" \
 
