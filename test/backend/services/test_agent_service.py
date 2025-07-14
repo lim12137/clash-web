@@ -65,7 +65,8 @@ class TestAgentService(unittest.TestCase):
             self.assertEqual(sorted(result), [1, 3, 4])
             mock_query.assert_called_once_with(
                 tenant_id="test_tenant", 
-                agent_id=123
+                agent_id=123,
+                user_id=None
             )
 
     def test_get_enable_sub_agent_id_by_agent_id(self):
