@@ -7,13 +7,10 @@ from fastapi import HTTPException
 from database.client import get_db_session, as_dict, filter_property
 from database.db_models import ToolInfo, AgentInfo, ToolInstance
 
-from sqlalchemy import or_
-from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID
-
 logger = logging.getLogger("agent_db")
 
 
-def search_agent_info_by_agent_id(agent_id: int, tenant_id: str, user_id: str):
+def search_agent_info_by_agent_id(agent_id: int, tenant_id: str, user_id: str = None):
     """
     Search agent info by agent_id
 
@@ -192,12 +189,11 @@ def query_all_tools(tenant_id: str):
     :return: List of ToolInfo objects
     """
     with get_db_session() as session:
-        # Filter tools with two conditions:
-        # 1. Tools that belong to the specific tenant (ToolInfo.tenant_id == tenant_id)
-        # 2. Tools with default tenant_id value "tenant_id" which are shared across all tenants
-        tools = session.query(ToolInfo).filter(
-            ToolInfo.delete_flag != 'Y'
-        ).filter(ToolInfo.author == tenant_id).all()
+        query = session.query(ToolInfo).filter(
+            ToolInfo.delete_flag != 'Y',
+            ToolInfo.author == tenant_id)
+
+        tools = query.all()
         return [as_dict(tool) for tool in tools]
 
 def query_tool_instances_by_id(agent_id: int, tool_id: int, tenant_id: str, user_id: str = None):
@@ -211,12 +207,12 @@ def query_tool_instances_by_id(agent_id: int, tool_id: int, tenant_id: str, user
     """
     with get_db_session() as session:
         query = session.query(ToolInstance).filter(
-            or_(ToolInstance.tenant_id == tenant_id, ToolInstance.tenant_id == DEFAULT_TENANT_ID),
+            ToolInstance.tenant_id == tenant_id,
             ToolInstance.agent_id == agent_id,
             ToolInstance.tool_id == tool_id,
             ToolInstance.delete_flag != 'Y')
         if user_id:
-            query = query.filter(or_(ToolInstance.user_id == user_id, ToolInstance.user_id == DEFAULT_USER_ID))
+            query = query.filter(ToolInstance.user_id == user_id)
         tool_instance = query.first()
         if tool_instance:
             return as_dict(tool_instance)
@@ -233,7 +229,7 @@ def query_tools_by_ids(tool_id_list: List[int]):
         tools = session.query(ToolInfo).filter(ToolInfo.tool_id.in_(tool_id_list)).filter(ToolInfo.delete_flag != 'Y').all()
         return [as_dict(tool) for tool in tools]
 
-def query_all_enabled_tool_instances(tenant_id: str, user_id: str = None, agent_id: int = None):
+def query_all_enabled_tool_instances(agent_id: int, tenant_id: str, user_id: str = None):
     """
     Query ToolInstance in the database based on tenant_id and agent_id, optional user_id.
     :param tenant_id: Tenant ID for filtering, mandatory
@@ -243,12 +239,13 @@ def query_all_enabled_tool_instances(tenant_id: str, user_id: str = None, agent_
     """
     with get_db_session() as session:
         query = session.query(ToolInstance).filter(
-            or_(ToolInstance.tenant_id == tenant_id, ToolInstance.tenant_id == DEFAULT_TENANT_ID)).filter(
-            ToolInstance.delete_flag != 'Y').filter(ToolInstance.enabled)
+            ToolInstance.tenant_id == tenant_id,
+            ToolInstance.delete_flag != 'Y',
+            ToolInstance.enabled,
+            ToolInstance.agent_id == agent_id)
         if user_id:
-            query = query.filter(ToolInstance.user_id == user_id or ToolInstance.user_id == DEFAULT_USER_ID)
-        if agent_id:
-            query = query.filter(ToolInstance.agent_id == agent_id)
+            query = query.filter(ToolInstance.user_id == user_id)
+
         tools = query.all()
         return [as_dict(tool) for tool in tools]
 
@@ -297,40 +294,13 @@ def update_tool_table_from_scan_tool_list(tenant_id: str, user_id: str, tool_lis
                     existing_tool.is_available = is_available
                 else:
                     # create new tool
-                    filtered_tool_data.update({"created_by": tenant_id, "updated_by": tenant_id, "author": tenant_id, "is_available": is_available})
+                    filtered_tool_data.update({"created_by": user_id, "updated_by": user_id, "author": tenant_id, "is_available": is_available})
                     new_tool = ToolInfo(**filtered_tool_data)
                     session.add(new_tool)
             session.flush()
         logger.info("Updated tool table in PG database")
     except Exception as e:
         logger.error(f"Updated tool table failed due to {e}")
-
-
-def save_agent_prompt(agent_id: int, prompt: str, tenant_id: str = None, user_id: str = None):
-    """
-    Save or update the prompt for an agent in the database.
-    :param agent_id: ID of the agent to update
-    :param prompt: The prompt to save
-    :param tenant_id: Optional tenant ID
-    :param user_id: Optional user ID
-    :return: Updated agent object
-    """
-    with get_db_session() as session:
-        agent = session.query(AgentInfo).filter(
-            AgentInfo.agent_id == agent_id,
-            AgentInfo.delete_flag != 'Y'
-        )
-        if tenant_id:
-            agent = agent.filter(AgentInfo.tenant_id == tenant_id)
-        agent = agent.first()
-
-        if not agent:
-            raise HTTPException(status_code=404, detail="Agent not found")
-
-        agent.prompt = prompt
-        agent.updated_by = user_id
-        session.flush()
-        return as_dict(agent)
 
 def add_tool_field(tool_info):
     with get_db_session() as session:
