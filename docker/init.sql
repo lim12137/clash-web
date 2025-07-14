@@ -199,7 +199,7 @@ INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factor
 CREATE TABLE IF NOT EXISTS "knowledge_record_t" (
   "knowledge_id" SERIAL,
   "index_name" varchar(100) COLLATE "pg_catalog"."default",
-  "knowledge_describe" varchar(300) COLLATE "pg_catalog"."default",
+  "knowledge_describe" varchar(3000) COLLATE "pg_catalog"."default",
   "tenant_id" varchar(100) COLLATE "pg_catalog"."default",
   "knowledge_sources" varchar(100) COLLATE "pg_catalog"."default",
   "create_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
