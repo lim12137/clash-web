@@ -4,7 +4,7 @@ import glob
 import sys
 import logging
 
-# 配置日志记录
+# Configure logger
 logger = logging.getLogger("run_all_test")
 logger.setLevel(logging.INFO)
 console_handler = logging.StreamHandler()
