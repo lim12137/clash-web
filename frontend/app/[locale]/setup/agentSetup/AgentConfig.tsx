@@ -51,28 +51,29 @@ export default function AgentConfig() {
   const [editingAgent, setEditingAgent] = useState<any>(null)
 
   // Only auto scan once flag
-  const hasAutoScanned = useRef(false);
+  const hasAutoScanned = useRef(false)
 
   // Load tools when page is loaded
   useEffect(() => {
     const loadTools = async () => {
       try {
-        const result = await fetchTools();
+        const result = await fetchTools()
         if (result.success) {
-          setTools(result.data);
+          setTools(result.data)
           // If the tool list is empty and auto scan hasn't been triggered, trigger scan once
           if (result.data.length === 0 && !hasAutoScanned.current) {
-            hasAutoScanned.current = true;
+            hasAutoScanned.current = true
             // Mark as auto scanned
-            const scanResult = await updateToolList();
+            const scanResult = await updateToolList()
             if (!scanResult.success) {
-              message.error(t('toolManagement.message.refreshFailed'));
+              message.error(t('toolManagement.message.refreshFailed'))
+              return
             }
-            message.success(t('toolManagement.message.refreshSuccess'));
+            message.success(t('toolManagement.message.refreshSuccess'))
             // After scan, fetch the tool list again
-            const reFetch = await fetchTools();
+            const reFetch = await fetchTools()
             if (reFetch.success) {
-              setTools(reFetch.data);
+              setTools(reFetch.data)
             }
           }
         } else {
