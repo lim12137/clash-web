@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import Mock, patch, MagicMock
 from typing import Any, List, Dict
 import sys
+import pytest
 
 boto3_mock = MagicMock()
 minio_client_mock = MagicMock()
