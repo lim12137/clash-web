@@ -66,9 +66,11 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
 
     try:
         # Create stream chat completion request
+        max_tokens = 300 if language == 'zh' else 120
         stream = client.chat.completions.create(
             model=get_model_name_from_config(model_config) if model_config.get("model_name") else "",  # use model name from config
             messages=messages,
+            max_tokens=max_tokens,  # add max_tokens limit
             stream=True  # enable stream output
         )
 
