@@ -390,6 +390,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   return (
     <>
       <style jsx global>{`
+        .markdown-body,
+        .task-message-content {
+          color: hsl(var(--foreground)) !important;
+        }
         .markdown-body {
           background: transparent !important;
           min-height: 1em;
