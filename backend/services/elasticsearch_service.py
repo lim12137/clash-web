@@ -106,9 +106,9 @@ def get_embedding_model(tenant_id: str):
 
     if model_type == "embedding":
         # Get the es core
-        return OpenAICompatibleEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=model_config.get("model_name",""), embedding_dim=model_config.get("max_tokens", 1024))
+        return OpenAICompatibleEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=get_model_name_from_config(model_config) or "", embedding_dim=model_config.get("max_tokens", 1024))
     elif model_type == "multi_embedding":
-        return JinaEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=model_config.get("model_name",""), embedding_dim=model_config.get("max_tokens", 1024))
+        return JinaEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=get_model_name_from_config(model_config) or "", embedding_dim=model_config.get("max_tokens", 1024))
     else:
         return None
 
