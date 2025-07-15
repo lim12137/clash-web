@@ -177,20 +177,6 @@ class AgentInfo(TableBase):
     provide_run_summary = Column(Boolean, doc="Whether to provide the running summary to the manager agent")
     business_description = Column(Text, doc="Manually entered by the user to describe the entire business process")
 
-class UserAgent(TableBase):
-    """
-    Information table for agent - related prompts.
-    """
-    __tablename__ = "ag_user_agent_t"
-    __table_args__ = {"schema": SCHEMA}
-
-    user_agent_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
-    agent_id = Column(Integer, doc="AgentID")
-    prompt = Column(String, doc="System prompt")
-    tenant_id = Column(String(100), doc="Belonging tenant")
-    user_id = Column(String(100), doc="Belonging user")
-    enabled = Column(Boolean, doc="Enabled")
-
 class ToolInstance(TableBase):
     """
     Information table for tenant tool configuration.
