@@ -266,6 +266,7 @@ class KnowledgeBaseService {
     try {
       // Create FormData object
       const formData = new FormData();
+      formData.append("index_name", kbId);
       for (let i = 0; i < files.length; i++) {
         formData.append("file", files[i]);
       }
@@ -273,10 +274,19 @@ class KnowledgeBaseService {
       formData.append("destination", "minio");
       formData.append("folder", "knowledge_base");
 
+
+      // If chunking strategy is provided, add it to the request
+      if (chunkingStrategy) {
+        formData.append("chunking_strategy", chunkingStrategy);
+      }
+
+
       // 1. Upload files
       const uploadResponse = await fetch(API_ENDPOINTS.knowledgeBase.upload, {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers: {
+          'User-Agent': 'AgentFrontEnd/1.0'
+        },
         body: formData,
       });
 
