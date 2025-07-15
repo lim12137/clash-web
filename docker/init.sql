@@ -199,7 +199,7 @@ INSERT INTO "nexent"."model_record_t" ("model_repo", "model_name", "model_factor
 CREATE TABLE IF NOT EXISTS "knowledge_record_t" (
   "knowledge_id" SERIAL,
   "index_name" varchar(100) COLLATE "pg_catalog"."default",
-  "knowledge_describe" varchar(300) COLLATE "pg_catalog"."default",
+  "knowledge_describe" varchar(3000) COLLATE "pg_catalog"."default",
   "tenant_id" varchar(100) COLLATE "pg_catalog"."default",
   "knowledge_sources" varchar(100) COLLATE "pg_catalog"."default",
   "create_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
@@ -332,57 +332,8 @@ COMMENT ON COLUMN nexent.ag_tenant_agent_t.created_by IS 'Creator';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.updated_by IS 'Updater';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.delete_flag IS 'Whether it is deleted. Optional values: Y/N';
 
--- Create the ag_user_agent_t table in the nexent schema with new fields
-CREATE TABLE IF NOT EXISTS nexent.ag_user_agent_t (
-    user_agent_id SERIAL PRIMARY KEY NOT NULL,
-    agent_id INTEGER,
-    prompt TEXT,
-    tenant_id VARCHAR(100),
-    user_id VARCHAR(100),
-    enabled BOOLEAN DEFAULT FALSE,
-    provide_run_summary BOOLEAN DEFAULT FALSE,
-    create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by VARCHAR(100),
-    updated_by VARCHAR(100),
-    delete_flag VARCHAR(1) DEFAULT 'N'
-);
-
--- Add comment to the table
-COMMENT ON TABLE nexent.ag_user_agent_t IS 'Information table for user agents';
-
 -- Add comments to the columns
-COMMENT ON COLUMN nexent.ag_user_agent_t.user_agent_id IS 'ID';
-COMMENT ON COLUMN nexent.ag_user_agent_t.agent_id IS 'Agent ID';
-COMMENT ON COLUMN nexent.ag_user_agent_t.prompt IS 'System prompt';
-COMMENT ON COLUMN nexent.ag_user_agent_t.tenant_id IS 'Belonging tenant';
-COMMENT ON COLUMN nexent.ag_user_agent_t.user_id IS 'User ID';
-COMMENT ON COLUMN nexent.ag_user_agent_t.enabled IS 'Enable flag';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.provide_run_summary IS 'Whether to provide the running summary to the manager agent';
-COMMENT ON COLUMN nexent.ag_user_agent_t.create_time IS 'Creation time';
-COMMENT ON COLUMN nexent.ag_user_agent_t.update_time IS 'Update time';
-COMMENT ON COLUMN nexent.ag_user_agent_t.delete_flag IS 'Whether it is deleted. Optional values: Y/N';
-
--- Create a function to update the update_time column
-CREATE OR REPLACE FUNCTION update_ag_user_agent_update_time()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.update_time = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Add comment to the function
-COMMENT ON FUNCTION update_ag_user_agent_update_time() IS 'Function to update the update_time column when a record in ag_user_agent_t is updated';
-
--- Create a trigger to call the function before each update
-CREATE TRIGGER update_ag_user_agent_update_time_trigger
-BEFORE UPDATE ON nexent.ag_user_agent_t
-FOR EACH ROW
-EXECUTE FUNCTION update_ag_user_agent_update_time();
-
--- Add comment to the trigger
-COMMENT ON TRIGGER update_ag_user_agent_update_time_trigger ON nexent.ag_user_agent_t IS 'Trigger to call update_ag_user_agent_update_time function before each update on ag_user_agent_t table';
 
 -- Create the ag_tool_instance_t table in the nexent schema
 CREATE TABLE IF NOT EXISTS nexent.ag_tool_instance_t (

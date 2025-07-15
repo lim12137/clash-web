@@ -65,7 +65,8 @@ class TestAgentService(unittest.TestCase):
             self.assertEqual(sorted(result), [1, 3, 4])
             mock_query.assert_called_once_with(
                 tenant_id="test_tenant", 
-                agent_id=123
+                agent_id=123,
+                user_id=None
             )
 
     def test_get_enable_sub_agent_id_by_agent_id(self):
@@ -102,7 +103,7 @@ class TestAgentService(unittest.TestCase):
             )
 
     @patch('backend.services.agent_service.create_agent')
-    @patch('backend.services.agent_service.search_sub_agent_by_main_agent_id')
+    @patch('backend.services.agent_service.search_blank_sub_agent_by_main_agent_id')
     def test_get_creating_sub_agent_id_service_existing_agent(self, mock_search, mock_create):
         """
         Test retrieving an existing sub-agent ID associated with a main agent.
@@ -127,7 +128,7 @@ class TestAgentService(unittest.TestCase):
         mock_create.assert_not_called()
 
     @patch('backend.services.agent_service.create_agent')
-    @patch('backend.services.agent_service.search_sub_agent_by_main_agent_id')
+    @patch('backend.services.agent_service.search_blank_sub_agent_by_main_agent_id')
     def test_get_creating_sub_agent_id_service_new_agent(self, mock_search, mock_create):
         """
         Test creating a new sub-agent when none exists for a main agent.

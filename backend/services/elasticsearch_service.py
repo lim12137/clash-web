@@ -66,9 +66,11 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
 
     try:
         # Create stream chat completion request
+        max_tokens = 300 if language == 'zh' else 120
         stream = client.chat.completions.create(
             model=get_model_name_from_config(model_config) if model_config.get("model_name") else "",  # use model name from config
             messages=messages,
+            max_tokens=max_tokens,  # add max_tokens limit
             stream=True  # enable stream output
         )
 
@@ -107,9 +109,9 @@ def get_embedding_model(tenant_id: str):
 
     if model_type == "embedding":
         # Get the es core
-        return OpenAICompatibleEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=model_config.get("model_name",""), embedding_dim=model_config.get("max_tokens", 1024))
+        return OpenAICompatibleEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=get_model_name_from_config(model_config) or "", embedding_dim=model_config.get("max_tokens", 1024))
     elif model_type == "multi_embedding":
-        return JinaEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=model_config.get("model_name",""), embedding_dim=model_config.get("max_tokens", 1024))
+        return JinaEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=get_model_name_from_config(model_config) or "", embedding_dim=model_config.get("max_tokens", 1024))
     else:
         return None
 
