@@ -1,4 +1,5 @@
 .idea
+.gitignore
 /.env
 .vscode
 
@@ -17,8 +18,11 @@ docker/postgresql
 docker/redis_data
 docker/uploads
 docker/.env
+docker/.run
 
 frontend_standalone/
+.pnpm-store/
+frontend-dist/
 
 backend/assets/clip-vit-base-patch32
 model-assets
