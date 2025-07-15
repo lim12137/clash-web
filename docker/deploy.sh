@@ -110,7 +110,6 @@ add_permission() {
   create_dir_with_permission "elasticsearch" 775
   create_dir_with_permission "postgresql" 775
   create_dir_with_permission "minio" 775
-  create_dir_with_permission "uploads" 777
 }
 
 install() {
