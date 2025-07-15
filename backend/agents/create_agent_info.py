@@ -79,7 +79,9 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
 async def create_tool_config_list(agent_id, tenant_id, user_id):
     # create tool
     tool_config_list = []
-    tools_list = search_tools_for_sub_agent(agent_id, tenant_id, user_id)
+
+    # now only admin can modify the agent, user_id is not used
+    tools_list = search_tools_for_sub_agent(agent_id, tenant_id, user_id=None)
     for tool in tools_list:
         param_dict = {}
         for param in tool.get("params", []):
