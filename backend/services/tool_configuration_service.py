@@ -15,7 +15,6 @@ from database.agent_db import (
 )
 from consts.model import ToolInstanceInfoRequest, ToolInfo, ToolSourceEnum
 from database.remote_mcp_db import get_mcp_records_by_tenant
-from services.remote_mcp_service import get_remote_mcp_server_list
 from utils.auth_utils import get_current_user_id
 from fastapi import Header
 
@@ -123,9 +122,9 @@ async def get_all_mcp_tools(tenant_id: str) -> List[ToolInfo]:
         List of ToolInfo objects for MCP tools, or empty list if connection fails
     """
     mcp_info = get_mcp_records_by_tenant(tenant_id=tenant_id)
-    mcp_server_name_list = [record["mcp_name"] for record in mcp_info]
+    mcp_server_list = [record["mcp_server"] for record in mcp_info]
 
-    tools_info = await scan_all_mcp_tools(mcp_server_list=mcp_server_name_list)
+    tools_info = await scan_all_mcp_tools(mcp_server_list=mcp_server_list)
     return tools_info
 
 def search_tool_info_impl(agent_id: int, tool_id: int, authorization: str = Header(None)):
@@ -194,7 +193,7 @@ async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_serve
         """get the tool information from the remote MCP server, avoid blocking the event loop"""
         try:
             tools_info = []
-            with ToolCollection.from_mcp({"url": mcp_url}) as tool_collection:
+            with ToolCollection.from_mcp({"url": mcp_url}, trust_remote_code=True) as tool_collection:
                 # iterate all MCP tools
                 for tool_class in tool_collection.tools:
                     tool_info = ToolInfo(
@@ -224,18 +223,12 @@ async def scan_all_mcp_tools(mcp_server_list: List[str]):
         """get the tool information from the remote MCP server, avoid blocking the event loop"""
         try:
             tools_info = []
-            mcp_url = urljoin(config_manager.get_config("NEXENT_MCP_SERVER"), "sse")
-            with ToolCollection.from_mcp({"url": mcp_url}) as tool_collection:
+
+            default_mcp_url = urljoin(config_manager.get_config("NEXENT_MCP_SERVER"), "sse")
+            mcp_client_list = [{"url": mcp_url} for mcp_url in server_name_list] + [{"url": default_mcp_url}]
+            with ToolCollection.from_mcp(mcp_client_list, trust_remote_code=True) as tool_collection:
                 # iterate all MCP tools
                 for tool_class in tool_collection.tools:
-                    try:
-                        tool_name_split = getattr(tool_class, 'name').split('_')
-                        if tool_name_split[0]=='remote' and tool_name_split[1] not in server_name_list:
-                            continue
-                    except Exception as e:
-                        logging.info(f"split tool name {getattr(tool_class, 'name')} error, detail: {e}")
-                        continue
-
                     tool_info = ToolInfo(
                         name=getattr(tool_class, 'name'),
                         description=getattr(tool_class, 'description'),
