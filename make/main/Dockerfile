@@ -6,18 +6,19 @@ USER root
 RUN umask 0022
 
 # 安装 uv
-RUN pip install --no-cache-dir uv
-
-# 复制 sdk 和 backend 代码到镜像
-COPY sdk /opt/sdk
-COPY backend /opt/backend
+RUN pip install uv
 
 # 创建 venv、安装 sdk（开发模式）、安装 backend 依赖（基础），合并为一层
 WORKDIR /opt/backend
+
+COPY backend/pyproject.toml /opt/backend/pyproject.toml
+COPY sdk /opt/sdk
 RUN uv sync && \
     rm -rf /root/.cache/uv /root/.cache/pip && \
     find .venv -type d -name '__pycache__' -exec rm -rf {} + && \
     find .venv -type f -name '*.pyc' -delete
+
+COPY backend /opt/backend
 
 ENV VIRTUAL_ENV=/opt/backend/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"

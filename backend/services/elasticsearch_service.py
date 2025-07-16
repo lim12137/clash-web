@@ -15,6 +15,7 @@ import logging
 
 from typing import Optional, Generator, List, Dict, Any
 from openai import OpenAI
+from openai.types.chat import ChatCompletionMessageParam
 from dotenv import load_dotenv
 import yaml
 from nexent.core.models.embedding_model import OpenAICompatibleEmbedding, JinaEmbedding, BaseEmbedding
@@ -27,7 +28,7 @@ from consts.model import SearchRequest, HybridSearchRequest
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
 from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
-from database import attachment_db
+from database.attachment_db import delete_file
 
 # Configure logging
 logger = logging.getLogger("elasticsearch_service")
@@ -54,8 +55,10 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
         prompts = yaml.safe_load(f)
     logger.info(f"Generating knowledge with template: {template_file}")
     # Build messages
-    messages = [{"role": "system", "content": prompts['system_prompt']},
-        {"role": "user", "content": prompts['user_prompt'].format(content=keywords)}]
+    messages: List[ChatCompletionMessageParam] = [
+        {"role": "system", "content": prompts['system_prompt']},
+        {"role": "user", "content": prompts['user_prompt'].format(content=keywords)}
+    ]
 
     # Get model configuration from tenant config manager
     model_config = tenant_config_manager.get_model_config(key="LLM_SECONDARY_ID", tenant_id=tenant_id)
@@ -66,9 +69,11 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
 
     try:
         # Create stream chat completion request
+        max_tokens = 300 if language == 'zh' else 120
         stream = client.chat.completions.create(
             model=get_model_name_from_config(model_config) if model_config.get("model_name") else "",  # use model name from config
             messages=messages,
+            max_tokens=max_tokens,  # add max_tokens limit
             stream=True  # enable stream output
         )
 
@@ -106,14 +111,108 @@ def get_embedding_model(tenant_id: str):
 
     if model_type == "embedding":
         # Get the es core
-        return OpenAICompatibleEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=model_config.get("model_name",""), embedding_dim=model_config.get("max_tokens", 1024))
+        return OpenAICompatibleEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=get_model_name_from_config(model_config) or "", embedding_dim=model_config.get("max_tokens", 1024))
     elif model_type == "multi_embedding":
-        return JinaEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=model_config.get("model_name",""), embedding_dim=model_config.get("max_tokens", 1024))
+        return JinaEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=get_model_name_from_config(model_config) or "", embedding_dim=model_config.get("max_tokens", 1024))
     else:
         return None
 
 
 class ElasticSearchService:
+    @staticmethod
+    async def full_delete_knowledge_base(index_name: str, es_core: ElasticSearchCore, user_id: str, tenant_id: str):
+        """
+        Completely delete a knowledge base, including its index, associated files in MinIO,
+        and all related records in Redis and PostgreSQL.
+        """
+        logger.debug(f"Starting full deletion process for knowledge base (index): {index_name}")
+        try:
+            # 1. Get all files associated with the index from Elasticsearch
+            logger.debug(f"Step 1/4: Retrieving file list for index: {index_name}")
+            try:
+                file_list_result = await ElasticSearchService.list_files(index_name, include_chunks=False,
+                                                                         search_redis=True, es_core=es_core)
+                files_to_delete = file_list_result.get("files", [])
+                logger.debug(f"Found {len(files_to_delete)} files to delete from MinIO for index '{index_name}'.")
+            except Exception as e:
+                logger.error(f"Failed to retrieve file list for index '{index_name}': {str(e)}")
+                # We can still proceed to delete the index itself even if listing files fails
+                files_to_delete = []
+
+            # 2. Delete files from MinIO
+            minio_deletion_success_count = 0
+            minio_deletion_failure_count = 0
+            if files_to_delete:
+                logger.debug(f"Step 2/4: Starting deletion of {len(files_to_delete)} files from MinIO.")
+                for file_info in files_to_delete:
+                    object_name = file_info.get("path_or_url")
+                    if not object_name:
+                        logger.warning(f"Could not find 'path_or_url' for file entry: {file_info}. Skipping deletion.")
+                        minio_deletion_failure_count += 1
+                        continue
+
+                    try:
+                        logger.debug(f"Deleting object: '{object_name}' from MinIO for index '{index_name}'")
+                        delete_result = delete_file(object_name=object_name)
+                        if delete_result.get("success"):
+                            logger.debug(f"Successfully deleted object: '{object_name}' from MinIO.")
+                            minio_deletion_success_count += 1
+                        else:
+                            minio_deletion_failure_count += 1
+                            error_msg = delete_result.get("error", "Unknown error")
+                            logger.error(f"Failed to delete object: '{object_name}' from MinIO. Reason: {error_msg}")
+                    except Exception as e:
+                        minio_deletion_failure_count += 1
+                        logger.error(
+                            f"An exception occurred while deleting object: '{object_name}' from MinIO. Error: {str(e)}")
+
+                logger.info(f"MinIO file deletion summary for index '{index_name}': "
+                            f"{minio_deletion_success_count} succeeded, {minio_deletion_failure_count} failed.")
+            else:
+                logger.debug(f"Step 2/4: No files found in index '{index_name}', skipping MinIO deletion.")
+
+            # 3. Delete Elasticsearch index and its DB record
+            logger.debug(f"Step 3/4: Deleting Elasticsearch index '{index_name}' and its database record.")
+            delete_index_result = await ElasticSearchService.delete_index(index_name, es_core, user_id)
+
+            # 4. Clean up Redis records related to this knowledge base
+            logger.debug(f"Step 4/4: Cleaning up Redis records for index '{index_name}'.")
+            redis_cleanup_result = {}
+            try:
+                from services.redis_service import get_redis_service
+                redis_service = get_redis_service()
+                redis_cleanup_result = redis_service.delete_knowledgebase_records(index_name)
+                logger.debug(f"Redis cleanup for index '{index_name}' completed. "
+                            f"Deleted {redis_cleanup_result['total_deleted']} records.")
+            except Exception as redis_error:
+                logger.error(f"Redis cleanup failed for index '{index_name}': {str(redis_error)}")
+                redis_cleanup_result = {"error": str(redis_error)}
+
+            # Construct final result
+            result = {
+                "status": "success",
+                "message": (f"Index {index_name} deleted successfully. "
+                            f"MinIO: {minio_deletion_success_count} files deleted, {minio_deletion_failure_count} failed. "
+                            f"Redis: Cleaned up {redis_cleanup_result.get('total_deleted', 0)} records."),
+                "es_delete_result": delete_index_result,
+                "minio_cleanup": {
+                    "total_files_found": len(files_to_delete),
+                    "deleted_count": minio_deletion_success_count,
+                    "failed_count": minio_deletion_failure_count
+                },
+                "redis_cleanup": redis_cleanup_result
+            }
+
+            if "errors" in redis_cleanup_result:
+                result["redis_warnings"] = redis_cleanup_result["errors"]
+
+            logger.info(f"Successfully completed full deletion process for knowledge base '{index_name}'.")
+            return result
+
+        except Exception as e:
+            logger.error(f"Error during full deletion of index '{index_name}': {str(e)}", exc_info=True)
+            raise e
+
     @staticmethod
     def create_index(
             index_name: str = Path(..., description="Name of the index to create"),
@@ -152,7 +251,7 @@ class ElasticSearchService:
                         source_type = file_info.get("source_type")
                         if object_name and source_type == "minio":
                             logger.info(f"Deleting file {object_name} from MinIO for index {index_name}")
-                            attachment_db.delete_file(object_name)
+                            delete_file(object_name)
             except Exception as e:
                 # Log the error but don't block the index deletion
                 logger.error(f"Error deleting associated files from MinIO for index {index_name}: {str(e)}")
@@ -467,8 +566,12 @@ class ElasticSearchService:
                         # Determine the filename
                         filename = original_filename or (os.path.basename(path_or_url) if path_or_url else '')
 
-                        file_size = 0
-                        file_size = get_file_size(source_type, path_or_url)
+                        # Safely get file size; default to 0 on any error
+                        try:
+                            file_size = get_file_size(source_type or 'minio', path_or_url)
+                        except Exception as size_err:
+                            logger.error(f"Failed to get file size for '{path_or_url}': {size_err}")
+                            file_size = 0
 
                         file_data = {
                             'path_or_url': path_or_url,
@@ -560,7 +663,7 @@ class ElasticSearchService:
         # 1. Delete ES documents
         deleted_count = es_core.delete_documents_by_path_or_url(index_name, path_or_url)
         # 2. Delete MinIO file
-        minio_result = attachment_db.delete_file(path_or_url)
+        minio_result = delete_file(path_or_url)
         return {"status": "success", "deleted_es_count": deleted_count, "deleted_minio": minio_result.get("success")}
 
     @staticmethod
