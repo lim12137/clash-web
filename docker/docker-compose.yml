@@ -13,7 +13,7 @@ x-proxy-vars: &proxy-vars
 
 services:
   nexent-elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.4
+    image: ${ELASTICSEARCH_IMAGE}
     container_name: nexent-elasticsearch
     environment:
       ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
@@ -55,7 +55,7 @@ services:
         max-file: "3"     # Maximum number of log files to keep
 
   nexent-postgresql:
-    image: postgres:15-alpine
+    image: ${POSTGRESQL_IMAGE}
     container_name: nexent-postgresql
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -79,7 +79,7 @@ services:
       - nexent
 
   nexent:
-    image: nexent/nexent
+    image: ${NEXENT_IMAGE}
     container_name: nexent
     restart: always
     ports:
@@ -104,7 +104,7 @@ services:
     entrypoint: ["/bin/bash", "-c", "python backend/nexent_mcp_service.py & python backend/main_service.py"]
 
   nexent-web:
-    image: nexent/nexent-web
+    image: ${NEXENT_WEB_IMAGE}
     container_name: nexent-web
     restart: always
     networks:
@@ -122,7 +122,7 @@ services:
         max-file: "3"    # Maximum number of log files to keep
 
   nexent-data-process:
-    image: nexent/nexent-data-process
+    image: ${NEXENT_DATA_PROCESS_IMAGE}
     container_name: nexent-data-process
     command: bash
     restart: always
@@ -157,7 +157,7 @@ services:
         max-file: "3"
 
   redis:
-    image: redis:alpine
+    image: ${REDIS_IMAGE}
     container_name: nexent-redis
     ports:
       - "6379:6379"
@@ -174,7 +174,7 @@ services:
       - nexent
 
   nexent-minio:
-    image: quay.io/minio/minio:RELEASE.2023-12-20T01-00-02Z
+    image: ${MINIO_IMAGE}
     container_name: nexent-minio
     command: server /data
     ports:

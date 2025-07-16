@@ -2,7 +2,7 @@ name: nexent
 
 services:
   nexent:
-    image: nexent/nexent
+    image: ${NEXENT_IMAGE}
     container_name: nexent
     restart: always
     ports:
@@ -37,7 +37,7 @@ services:
 
 
   nexent-data-process:
-    image: nexent/nexent-data-process
+    image: ${NEXENT_DATA_PROCESS_IMAGE}
     container_name: nexent-data-process
     restart: always
     privileged: true
@@ -72,7 +72,7 @@ services:
         python -c "import time; time.sleep(2147483647)"
 
   nexent-web:
-    image: docker.io/node:20-slim
+    image: ${NEXENT_WEB_IMAGE}
     container_name: nexent-web
     restart: always
     networks:
