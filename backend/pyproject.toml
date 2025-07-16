@@ -12,8 +12,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "redis>=5.0.0",
     "celery>=5.3.6",
-    "fastmcp==2.6.0",
-    "nexent"
+    "fastmcp==2.6.0"
 ]
 
 [project.optional-dependencies]
@@ -34,9 +33,6 @@ test = [
     "fastapi[testclient]",
     "selenium"
 ]
-
-[tool.uv.sources]
-nexent = { path = "../sdk", package = true }
 
 [tool.setuptools]
 packages = []
