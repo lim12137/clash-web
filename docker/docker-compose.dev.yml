@@ -10,13 +10,11 @@ services:
     volumes:
       - ../:/opt/
       - /opt/backend/.venv/
-      - $ROOT_DIR/uploads:/opt/backend/uploads
     environment:
       ELASTICSEARCH_API_KEY: $ELASTICSEARCH_API_KEY
       MINIO_ACCESS_KEY: $MINIO_ACCESS_KEY
       MINIO_SECRET_KEY: $MINIO_SECRET_KEY
       skip_proxy: "true"
-      UPLOAD_FOLDER: /opt/backend/uploads
       UMASK: 0022
     env_file:
       - .env
@@ -29,15 +27,17 @@ services:
     networks:
       - nexent
     entrypoint: "/bin/bash"
-    command: >
-      -c "
-      rm -rf /var/lib/apt/lists/* &&
-      sleep infinity
-      "
+    command:
+      - -c
+      - |
+        rm -rf /var/lib/apt/lists/* &&
+        echo "Python environment activated: $(which python)" && 
+        echo "Python version: $(python --version)" && 
+        tail -f /dev/null
 
 
   nexent-data-process:
-    image: nexent/nexent-data-process:latest
+    image: nexent/nexent-data-process
     container_name: nexent-data-process
     restart: always
     privileged: true
@@ -46,11 +46,10 @@ services:
     volumes:
       - ../:/opt/:cached
       - /opt/backend/.venv/
-      - $ROOT_DIR/uploads:/opt/backend/uploads
       - ../backend/assets/clip-vit-base-patch32:/opt/models/clip-vit-base-patch32:ro
     environment:
       skip_proxy: "true"
-      PATH: "/opt/backend/.venv/bin:$PATH"
+      PATH: "/usr/local/bin:/opt/backend/.venv/bin:${PATH}"
       VIRTUAL_ENV: "/opt/backend/.venv"
     env_file:
       - .env
@@ -63,14 +62,14 @@ services:
         max-size: "10m"
         max-file: "3"
     entrypoint: "/bin/bash"
-    command: >
-      -c "
-      cd /opt/backend &&
-      source .venv/bin/activate &&
-      echo 'Python environment activated: $(which python)' &&
-      echo 'Python version: $(python --version)' &&
-      sleep infinity
-      "
+    command:
+      - -c
+      - |
+        cd /opt/backend &&
+        source .venv/bin/activate &&
+        echo "Python environment activated: $(which python)" &&
+        echo "Python version: $(python --version)" &&
+        python -c "import time; time.sleep(2147483647)"
 
   nexent-web:
     image: docker.io/node:20-slim

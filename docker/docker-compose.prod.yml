@@ -77,12 +77,9 @@ services:
     image: nexent/nexent
     container_name: nexent
     restart: always
-    volumes:
-      - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
       <<: [*minio-vars, *es-vars]
       skip_proxy: "true"
-      UPLOAD_FOLDER: /opt/backend/uploads
       UMASK: 0022
     env_file:
       - .env
@@ -123,8 +120,6 @@ services:
     command: bash
     restart: always
     privileged: true
-    volumes:
-      - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
       <<: [*proxy-vars, *es-vars, *minio-vars]
       DOCKER_ENVIRONMENT: "true"
