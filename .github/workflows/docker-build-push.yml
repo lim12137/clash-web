@@ -21,10 +21,6 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Login to DockerHub
-        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
-      - name: Login to Tencent Cloud
-        run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Build main image (amd64) and load locally
         run: |
           docker buildx build --platform linux/amd64 -t nexent/nexent:amd64 --load -t ccr.ccs.tencentyun.com/nexent-hub/nexent:amd64 -f make/main/Dockerfile .
@@ -49,10 +45,6 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Login to DockerHub
-        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
-      - name: Login to Tencent Cloud
-        run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Build main image (arm64) and load locally
         run: |
           docker buildx build --platform linux/arm64 -t nexent/nexent:arm64 --load -t ccr.ccs.tencentyun.com/nexent-hub/nexent:arm64 -f make/main/Dockerfile .
@@ -80,10 +72,6 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Login to DockerHub
-        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
-      - name: Login to Tencent Cloud
-        run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Check if model is cached locally
         id: check-model
         run: |
@@ -127,10 +115,6 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Login to DockerHub
-        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
-      - name: Login to Tencent Cloud
-        run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Check if model is cached locally
         id: check-model
         run: |
@@ -171,10 +155,6 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Login to DockerHub
-        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
-      - name: Login to Tencent Cloud
-        run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Build web image (amd64) and load locally
         run: |
           docker buildx build --platform linux/amd64 -t nexent/nexent-web:amd64 --load -t ccr.ccs.tencentyun.com/nexent/nexent-web:amd64 -f make/web/Dockerfile .
@@ -199,10 +179,6 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Login to DockerHub
-        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
-      - name: Login to Tencent Cloud
-        run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Build web image (arm64) and load locally
         run: |
           docker buildx build --platform linux/arm64 -t nexent/nexent-web:arm64 --load -t ccr.ccs.tencentyun.com/nexent/nexent-web:arm64 -f make/web/Dockerfile .
