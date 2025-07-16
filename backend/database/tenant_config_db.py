@@ -1,15 +1,13 @@
 from typing import Dict, Any
-from sqlalchemy import or_
 
 from .client import get_db_session
 from .db_models import TenantConfig
-from consts.const import DEFAULT_TENANT_ID
 
 
 def get_all_configs_by_tenant_id(tenant_id: str):
     with get_db_session() as session:
         result = session.query(TenantConfig).filter(
-            or_(TenantConfig.tenant_id == tenant_id, TenantConfig.tenant_id == DEFAULT_TENANT_ID),
+            TenantConfig.tenant_id == tenant_id,
             TenantConfig.delete_flag == "N"
         ).all()
 
