@@ -50,3 +50,4 @@ Notes:
 - ⚠️ `--load` can only be used with single architecture builds
 - 📝 Use `docker images` to verify the images are loaded locally
 - 📊 Use `--progress=plain` to see detailed build and push progress
+- 📈 Use `--build-arg MIRROR=...` to set up a pip mirror to accelerate your build-up progress
