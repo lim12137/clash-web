@@ -28,6 +28,8 @@ jobs:
         run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
       - name: Push main image (amd64) to DockerHub
         run: docker push nexent/nexent:amd64
+      - name: Logout Tencent Cloud
+        run: docker logout ccr.ccs.tencentyun.com
       - name: Login to Tencent Cloud
         run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Push main image (amd64) to Tencent Cloud
@@ -52,6 +54,8 @@ jobs:
         run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
       - name: Push main image (arm64) to DockerHub
         run: docker push nexent/nexent:arm64
+      - name: Logout Tencent Cloud
+        run: docker logout ccr.ccs.tencentyun.com
       - name: Login to Tencent Cloud
         run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Push main image (arm64) to Tencent Cloud
@@ -95,6 +99,8 @@ jobs:
         run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
       - name: Push data process image (amd64) to DockerHub
         run: docker push nexent/nexent-data-process:amd64
+      - name: Logout Tencent Cloud
+        run: docker logout ccr.ccs.tencentyun.com
       - name: Login to Tencent Cloud
         run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Push data process image (amd64) to Tencent Cloud
@@ -138,6 +144,8 @@ jobs:
         run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
       - name: Push data process image (arm64) to DockerHub
         run: docker push nexent/nexent-data-process:arm64
+      - name: Logout Tencent Cloud
+        run: docker logout ccr.ccs.tencentyun.com
       - name: Login to Tencent Cloud
         run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Push data process image (arm64) to Tencent Cloud
@@ -162,6 +170,8 @@ jobs:
         run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
       - name: Push web image (amd64) to DockerHub
         run: docker push nexent/nexent-web:amd64
+      - name: Logout Tencent Cloud
+        run: docker logout ccr.ccs.tencentyun.com
       - name: Login to Tencent Cloud
         run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Push web image (amd64) to Tencent Cloud
@@ -186,6 +196,8 @@ jobs:
         run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
       - name: Push web image (arm64) to DockerHub
         run: docker push nexent/nexent-web:arm64
+      - name: Logout Tencent Cloud
+        run: docker logout ccr.ccs.tencentyun.com
       - name: Login to Tencent Cloud
         run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Push web image (arm64) to Tencent Cloud
@@ -205,6 +217,8 @@ jobs:
             nexent/nexent:amd64 \
             nexent/nexent:arm64
           docker manifest push nexent/nexent:latest
+      - name: Logout Tencent Cloud
+        run: docker logout ccr.ccs.tencentyun.com
       - name: Login to Tencent Cloud
         run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Create and push manifest for main (Tencent Cloud)
@@ -228,6 +242,8 @@ jobs:
             nexent/nexent-data-process:amd64 \
             nexent/nexent-data-process:arm64
           docker manifest push nexent/nexent-data-process:latest
+      - name: Logout Tencent Cloud
+        run: docker logout ccr.ccs.tencentyun.com
       - name: Login to Tencent Cloud
         run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Create and push manifest for data-process (Tencent Cloud)
@@ -251,6 +267,8 @@ jobs:
             nexent/nexent-web:amd64 \
             nexent/nexent-web:arm64
           docker manifest push nexent/nexent-web:latest
+      - name: Logout Tencent Cloud
+        run: docker logout ccr.ccs.tencentyun.com
       - name: Login to Tencent Cloud
         run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
       - name: Create and push manifest for web (Tencent Cloud)
