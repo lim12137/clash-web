@@ -407,11 +407,11 @@ export const handleStreamResponse = async (
                     // Find and update existing steps
                     const stepIndex = lastMsg.steps.findIndex(s => s.id === currentStep?.id);
                     if (stepIndex >= 0) {
-                      lastMsg.steps[stepIndex] = JSON.parse(JSON.stringify(currentStep)); // Deep copy to ensure state update
+                      lastMsg.steps[stepIndex] = currentStep;
                     } else {
                       // Only add new steps when there is content
                       if (currentStep.contents && currentStep.contents.length > 0) {
-                        lastMsg.steps.push(JSON.parse(JSON.stringify(currentStep)));
+                        lastMsg.steps.push(currentStep);
                       }
                     }
                   }
