@@ -253,20 +253,19 @@ export default function CreatePage() {
           }
         }}
         onCancel={() => setEmbeddingModalOpen(false)}
-        okText={t('embedding.modal.ok')}
+        okText={t('embedding.modal.ok_continue')}
         cancelButtonProps={{ style: { display: 'none' } }}
         centered
         bodyStyle={{
           padding: '32px 24px 24px 24px',
-          background: isDark
-            ? 'linear-gradient(135deg, #23272f 0%, #2c2f36 100%)'
-            : 'linear-gradient(135deg, #f0f5ff 0%, #fffbe6 100%)',
+          background: isDark ? '#23272f' : '#fffbe6',
           borderRadius: 12,
           color: isDark ? '#eee' : '#333',
         }}
         style={{
           borderRadius: 16,
-          maxWidth: 420,
+          maxWidth: 1000,
+          minWidth: 666,
           background: isDark ? '#23272f' : '#fff',
         }}
       >
