@@ -1,13 +1,12 @@
 from typing import Optional, Dict, List, Any
 
-from sqlalchemy import func, insert, update, select, and_, or_
+from sqlalchemy import func, insert, update, select, and_
 
 from .client import db_client, get_db_session, as_dict
 from .db_models import ModelRecord
-from consts.const import DEFAULT_TENANT_ID
 
 
-def create_model_record(model_data: Dict[str, Any], user_id: Optional[str] = None, tenant_id: Optional[str] = None) -> bool:
+def create_model_record(model_data: Dict[str, Any], user_id: str, tenant_id: str) -> bool:
     """
     Create a model record
 
@@ -73,7 +72,7 @@ def update_model_record(model_id: int, update_data: Dict[str, Any], user_id: Opt
         return result.rowcount > 0
 
 
-def delete_model_record(model_id: int, user_id: Optional[str] = None, tenant_id: Optional[str] = None) -> bool:
+def delete_model_record(model_id: int, user_id: str, tenant_id: str) -> bool:
     """
     Delete a model record (soft delete) and update the update timestamp
 
@@ -96,7 +95,7 @@ def delete_model_record(model_id: int, user_id: Optional[str] = None, tenant_id:
             ModelRecord.model_id == model_id
         ).values(update_data)
 
-        stmt = stmt.values(tenant_id=tenant_id or DEFAULT_TENANT_ID)
+        stmt = stmt.values(tenant_id=tenant_id)
 
         # Execute the update statement
         result = session.execute(stmt)
@@ -105,7 +104,7 @@ def delete_model_record(model_id: int, user_id: Optional[str] = None, tenant_id:
         return result.rowcount > 0
 
 
-def get_model_records(filters: Optional[Dict[str, Any]], tenant_id: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_model_records(filters: Optional[Dict[str, Any]], tenant_id: str) -> List[Dict[str, Any]]:
     """
     Get a list of model records
 
@@ -120,7 +119,7 @@ def get_model_records(filters: Optional[Dict[str, Any]], tenant_id: Optional[str
         stmt = select(ModelRecord).where(ModelRecord.delete_flag == 'N')
 
         if tenant_id:
-            stmt = stmt.where(or_(ModelRecord.tenant_id == tenant_id, ModelRecord.tenant_id == DEFAULT_TENANT_ID))
+            stmt = stmt.where(ModelRecord.tenant_id == tenant_id)
 
         # Add filter conditions
         if filters:
@@ -139,12 +138,13 @@ def get_model_records(filters: Optional[Dict[str, Any]], tenant_id: Optional[str
         return [as_dict(record) for record in records]
 
 
-def get_model_by_display_name(display_name: str, tenant_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def get_model_by_display_name(display_name: str, tenant_id: str) -> Optional[Dict[str, Any]]:
     """
     Get a model record by display name
 
     Args:
         display_name: Model display name
+        tenant_id: 
     """
     filters = {'display_name': display_name}
 
@@ -155,13 +155,13 @@ def get_model_by_display_name(display_name: str, tenant_id: Optional[str] = None
     model = records[0]
     return model
 
-def get_model_id_by_display_name(display_name: str, tenant_id: Optional[str] = None) -> Optional[int]:
+def get_model_id_by_display_name(display_name: str, tenant_id: str) -> Optional[int]:
     """
     Get a model ID by display name
 
     Args:
         display_name: Model display name 
-        tenant_id: Optional tenant ID, defaults to "tenant_id" if None or empty
+        tenant_id: tenant_id
 
     Returns:
         Optional[int]: Model ID
