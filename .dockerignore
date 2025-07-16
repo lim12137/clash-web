@@ -35,6 +35,10 @@ build/
 .npm
 *.tgz
 
+# Backend
+backend/assets/
+backend/flower_db.sqlite
+
 # OS generated files
 .DS_Store
 .DS_Store?
