@@ -845,5 +845,13 @@
     "mcpService.message.recoverServerssBadRequest": "重新挂载服务器请求参数错误",
     "agentConfig.tools.refreshSuccess": "工具列表已刷新",
     "agentConfig.tools.refreshFailed": "刷新工具列表失败",
-    "agentConfig.debug.refreshToolsFailed": "刷新工具列表失败:"
+    "agentConfig.debug.refreshToolsFailed": "刷新工具列表失败:",
+    "embedding": {
+        "modal": {
+            "title": "未选择向量化模型",
+            "content": "您未选择 <b>向量化</b> 模型，后续知识库配置和知识检索工具不可用。",
+            "tip": "请在模型配置中选择合适的向量化模型以获得完整体验。",
+            "ok": "我知道了"
+        }
+    }
 }
