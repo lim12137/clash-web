@@ -32,6 +32,7 @@ test = [
     "pytest-asyncio",
     "pytest-mock",
     "fastapi[testclient]",
+    "selenium"
 ]
 
 [tool.uv.sources]
