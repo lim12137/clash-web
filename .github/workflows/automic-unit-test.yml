@@ -35,9 +35,12 @@ jobs:
 
       - name: Run all tests and collect coverage
         run: |
-          source backend/.venv/bin/activate && python test/run_all_test.py
+          cd backend
+          source .venv/bin/activate
+          cd ../test
+          python run_all_test.py
 
-          if [ -f "test/coverage.xml" ]; then
+          if [ -f "coverage.xml" ]; then
             echo "✅ Coverage XML file generated successfully."
           else
             echo "❌ Coverage XML file not found."
