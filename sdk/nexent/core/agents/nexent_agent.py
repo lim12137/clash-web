@@ -9,7 +9,6 @@ from ..models.openai_llm import OpenAIModel
 from .core_agent import CoreAgent
 from ..tools import *  # Used for tool creation, do not delete!!!
 
-
 class NexentAgent:
     def __init__(self, observer: MessageObserver,
                  model_config_list: List[ModelConfig],
@@ -57,12 +56,18 @@ class NexentAgent:
         if tool_class is None:
             raise ValueError(f"{class_name} not found in local")
         else:
-            tools_obj = tool_class(**params)
-            if hasattr(tools_obj, 'observer'):
-                tools_obj.observer = self.observer
+
 
             if class_name == "KnowledgeBaseSearchTool":
-                tools_obj.update_search_index_names(tool_config.metadata.get("index_names", []))
+                tools_obj = tool_class(index_names=tool_config.metadata.get("index_names", []),
+                                       observer= self.observer,
+                                       es_core=tool_config.metadata.get("es_core", []),
+                                       embedding_model=tool_config.metadata.get("embedding_model", []),
+                                       **params)
+            else:
+                tools_obj = tool_class(**params)
+                if hasattr(tools_obj, 'observer'):
+                    tools_obj.observer = self.observer
             return tools_obj
 
     def create_mcp_tool(self, class_name):
