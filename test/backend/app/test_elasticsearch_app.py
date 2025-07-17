@@ -41,6 +41,9 @@ patch('backend.database.client.MinioClient').start()
 patch('backend.database.client.get_db_session').start()
 patch('backend.database.client.db_client').start()
 
+# Mock Elasticsearch to prevent connection errors
+patch('elasticsearch.Elasticsearch', return_value=MagicMock()).start()
+
 # Create a mock for consts.model
 consts_model_mock = MagicMock()
 consts_model_mock.SearchRequest = SearchRequest
