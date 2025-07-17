@@ -1,4 +1,3 @@
-import asyncio
 import importlib
 import inspect
 import json
@@ -6,7 +5,8 @@ import logging
 from typing import Any, List
 from urllib.parse import urljoin
 from pydantic_core import PydanticUndefined
-from smolagents import ToolCollection
+from fastmcp import Client
+import jsonref
 
 from database.agent_db import (
     query_tool_instances_by_id,
@@ -138,15 +138,15 @@ async def get_all_mcp_tools(tenant_id: str) -> List[ToolInfo]:
 def search_tool_info_impl(agent_id: int, tool_id: int, authorization: str = Header(None)):
     """
     Search for tool configuration information by agent ID and tool ID
-    
+
     Args:
         agent_id: Agent ID
         tool_id: Tool ID
         authorization:
-        
+
     Returns:
         Dictionary containing tool parameters and enabled status
-        
+
     Raises:
         ValueError: If database query fails
     """
@@ -173,13 +173,13 @@ def search_tool_info_impl(agent_id: int, tool_id: int, authorization: str = Head
 def update_tool_info_impl(request: ToolInstanceInfoRequest, authorization: str = Header(None)):
     """
     Update tool configuration information
-    
+
     Args:
         request: ToolInstanceInfoRequest containing tool configuration data
-        
+
     Returns:
         Dictionary containing the updated tool instance
-        
+
     Raises:
         ValueError: If database update fails
     """
@@ -194,35 +194,39 @@ def update_tool_info_impl(request: ToolInstanceInfoRequest, authorization: str =
         "tool_instance": tool_instance
     }
 
+
 async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_server: str):
     """get the tool information from the remote MCP server, avoid blocking the event loop"""
-    def _get_tools_from_mcp_sync(mcp_url):
-        """get the tool information from the remote MCP server, avoid blocking the event loop"""
-        try:
-            tools_info = []
-            with ToolCollection.from_mcp({"url": mcp_url}, trust_remote_code=True) as tool_collection:
-                # iterate all MCP tools
-                for tool_class in tool_collection.tools:
-                    tool_info = ToolInfo(
-                        name=getattr(tool_class, 'name'),
-                        description=getattr(tool_class, 'description'),
-                        params=[],
-                        source=ToolSourceEnum.MCP.value,
-                        inputs=str(getattr(tool_class, 'inputs')),
-                        output_type=getattr(tool_class, 'output_type'),
-                        class_name=getattr(tool_class, 'name'),
-                        usage=mcp_server_name
-                    )
+    tools_info = []
+    client = Client(remote_mcp_server, timeout=10)
+    async with client:
+        # List available operations
+        tools = await client.list_tools()
 
-                    tools_info.append(tool_info)
-            return tools_info
-        except Exception as e:
-            logger.error(f"mcp connection error: {str(e)}")
-            return []
+        for tool in tools:
+            input_schema = {
+                k: v
+                for k, v in jsonref.replace_refs(tool.inputSchema).items()
+                if k != "$defs"
+            }
+            # make sure mandatory `description` and `type` is provided for each argument:
+            for k, v in input_schema["properties"].items():
+                if "description" not in v:
+                    input_schema["properties"][k]["description"] = "see tool description"
+                if "type" not in v:
+                    input_schema["properties"][k]["type"] = "string"
 
-    loop = asyncio.get_event_loop()
-    tools_list = await loop.run_in_executor(None, _get_tools_from_mcp_sync, remote_mcp_server)
-    return tools_list
+            tool_info = ToolInfo(name=tool.name,
+                                description=tool.description,
+                                params=[],
+                                source=ToolSourceEnum.MCP.value,
+                                inputs=str(input_schema["properties"]),
+                                output_type="string",
+                                class_name=tool.name,
+                                usage=mcp_server_name)
+            tools_info.append(tool_info)
+        return tools_info
+
 
 async def update_tool_list(tenant_id: str, user_id: str):
     """
