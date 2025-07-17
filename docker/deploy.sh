@@ -11,7 +11,8 @@ select_deployment_mode() {
     echo "1) 🛠️  Development mode - Expose all service ports for debugging"
     echo "2) 🏗️  Infrastructure mode - Only start infrastructure services"
     echo "3) 🚀 Production mode - Only expose port 3000 for security"
-    read -p "👉 Enter your choice [1/2/3] (default: 1): " mode_choice
+    echo "4) 🧪 Beta mode - Use develop branch images (from .env.beta)"
+    read -p "👉 Enter your choice [1/2/3/4] (default: 1): " mode_choice
 
     case $mode_choice in
         2)
@@ -23,6 +24,11 @@ select_deployment_mode() {
             export DEPLOYMENT_MODE="production"
             export COMPOSE_FILE="docker-compose.prod.yml"
             echo "✅ Selected production mode 🚀"
+            ;;
+        4)
+            export DEPLOYMENT_MODE="beta"
+            export COMPOSE_FILE="docker-compose.yml"
+            echo "✅ Selected beta mode 🧪"
             ;;
         *)
             export DEPLOYMENT_MODE="development"
@@ -189,6 +195,14 @@ choose_image_env() {
   echo ""
 }
 
+choose_beta_env() {
+  echo "🌐 Beta mode selected, using .env.beta for image sources."
+  source .env.beta
+  echo ""
+  echo "--------------------------------"
+  echo ""
+}
+
 # Main execution flow
 echo ""
 echo "================================"
@@ -202,7 +216,13 @@ echo ""
 select_deployment_mode
 add_permission
 generate_minio_ak_sk
-choose_image_env
+
+if [ "$DEPLOYMENT_MODE" = "beta" ]; then
+  choose_beta_env
+else
+  choose_image_env
+fi
+
 install
 
 if [ "$ERROR_OCCURRED" -eq 1 ]; then
