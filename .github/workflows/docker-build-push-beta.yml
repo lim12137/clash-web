@@ -1,5 +1,9 @@
 name: Docker Build and Push All Images (Beta Version)
 
+concurrency:
+  group: docker-build-push-beta-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   pull_request:
