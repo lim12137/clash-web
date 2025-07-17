@@ -1,4 +1,5 @@
 FROM python:3.10-slim
+ARG MIRROR
 LABEL authors="nexent"
 
 # Set correct permissions as root
@@ -21,18 +22,20 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-WORKDIR /opt/backend
-
-COPY sdk /opt/sdk
-COPY backend/pyproject.toml /opt/backend/pyproject.toml
-RUN pip install uv
-RUN uv sync --extra data-process && \
-    rm -rf /home/notebook-user/.cache/uv /home/notebook-user/.cache/pip && \
-    find .venv -type d -name '__pycache__' -exec rm -rf {} + && \
-    find .venv -type f -name '*.pyc' -delete
-
-COPY backend /opt/backend
+RUN pip install --no-cache-dir uv $(test -n "$MIRROR" && echo "-i $MIRROR")
+# Layer 0: copy model assets
 COPY model-assets/clip-vit-base-patch32 /opt/models/clip-vit-base-patch32
+
+WORKDIR /opt/backend
+# Layer 1: install base dependencies
+COPY backend/pyproject.toml /opt/backend/pyproject.toml
+RUN uv sync --no-cache-dir --extra data-process $(test -n "$MIRROR" && echo "-i $MIRROR")
+# Layer 2: install sdk in link mode
+COPY sdk /opt/sdk
+RUN uv pip install --no-cache-dir -e /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR") && \
+    uv cache clean
+# Layer 3: copy backend code
+COPY backend /opt/backend
 
 ENV VIRTUAL_ENV=/opt/backend/.venv
 ENV PATH="$VIRTUAL_ENV/bin:/usr/bin:/bin:/usr/local/bin:$PATH"

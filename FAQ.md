@@ -16,7 +16,29 @@ This FAQ addresses common questions and issues you might encounter while install
 
 ## 🚫 Common Errors & Operations
 
-### 🌐 Port Conflicts
+### 🌐 Network Connection Issues
+- **Q: How can a Docker container access models deployed on the host machine (e.g., Ollama)?**
+  - A: Since `localhost` inside the container refers to the container itself, use one of these methods to connect to host services:
+
+    **Option 1: Use Docker's special DNS name `host.docker.internal`**  
+    Supported environments: Mac/Windows and newer Docker Desktop versions (Linux version also supported)  
+    ```bash
+    http://host.docker.internal:11434/v1
+    ```
+
+    **Option 2: Use host machine's actual IP (ensure firewall allows access)**
+    ```bash
+    http://[HOST_IP]:11434/v1
+    ```
+
+    **Option 3: Modify Docker Compose configuration**  
+    Add to your docker-compose.yaml file:
+    ```yaml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ```
+
+### 🔌 Port Conflicts
 - **Q: Port 3000 is already in use. How can I change it?**
   - A: You can modify the port in the Docker Compose configuration file.
 
