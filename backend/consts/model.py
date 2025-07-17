@@ -244,17 +244,6 @@ class DocumentResponse(BaseModel):
     create_time: Optional[str] = None
     score: Optional[float] = None
 
-
-class SearchRequest(BaseModel):
-    index_names: List[str] = Field(..., description="List of index names to search in")
-    query: str = Field(..., description="Text query to search for")
-    top_k: int = Field(5, description="Number of results to return")
-
-
-class HybridSearchRequest(SearchRequest):
-    weight_accurate: float = Field(0.3, description="Weight for accurate search score (0-1)", ge=0.0, le=1.0)
-
-
 # Request models
 class ProcessParams(BaseModel):
     chunking_strategy: Optional[str] = "basic"
