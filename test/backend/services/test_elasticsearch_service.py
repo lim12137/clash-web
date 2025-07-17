@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 # Mock MinioClient before importing modules that use it
 import sys
 from unittest.mock import patch
+import pytest
 
 # Apply the patches before importing the module being tested
 with patch('botocore.client.BaseClient._make_api_call'), \
@@ -27,6 +28,18 @@ class TestElasticSearchService(unittest.TestCase):
         self.mock_es_core = MagicMock()
         self.mock_es_core.embedding_model = MagicMock()
         self.mock_es_core.embedding_dim = 768
+        
+        # Patch get_embedding_model for all tests
+        self.get_embedding_model_patcher = patch('backend.services.elasticsearch_service.get_embedding_model')
+        self.mock_get_embedding = self.get_embedding_model_patcher.start()
+        self.mock_embedding = MagicMock()
+        self.mock_embedding.embedding_dim = 768
+        self.mock_embedding.model = "test-model"
+        self.mock_get_embedding.return_value = self.mock_embedding
+
+    def tearDown(self):
+        """Clean up resources after each test."""
+        self.get_embedding_model_patcher.stop()
 
     @patch('backend.services.elasticsearch_service.create_knowledge_record')
     def test_create_index_success(self, mock_create_knowledge):
@@ -49,7 +62,8 @@ class TestElasticSearchService(unittest.TestCase):
             index_name="test_index",
             embedding_dim=768,
             es_core=self.mock_es_core,
-            user_id="test_user"
+            user_id="test_user",
+            tenant_id="test_tenant"  # Added explicit tenant_id
         )
 
         # Assert
@@ -104,7 +118,8 @@ class TestElasticSearchService(unittest.TestCase):
                 index_name="test_index",
                 embedding_dim=768,
                 es_core=self.mock_es_core,
-                user_id="test_user"
+                user_id="test_user",
+                tenant_id="test_tenant"  # Added explicit tenant_id
             )
 
         self.assertEqual(context.exception.status_code, 500)
@@ -310,6 +325,9 @@ class TestElasticSearchService(unittest.TestCase):
         # Setup
         self.mock_es_core.client.indices.exists.return_value = True
         self.mock_es_core.index_documents.return_value = 2
+        mock_embedding_model = MagicMock()
+        mock_embedding_model.model = "test-model"
+        
         test_data = [
             {
                 "metadata": {
@@ -338,7 +356,8 @@ class TestElasticSearchService(unittest.TestCase):
         result = ElasticSearchService.index_documents(
             index_name="test_index",
             data=test_data,
-            es_core=self.mock_es_core
+            es_core=self.mock_es_core,
+            embedding_model=mock_embedding_model
         )
 
         # Assert
@@ -358,12 +377,14 @@ class TestElasticSearchService(unittest.TestCase):
         """
         # Setup
         test_data = []
+        mock_embedding_model = MagicMock()
 
         # Execute
         result = ElasticSearchService.index_documents(
             index_name="test_index",
             data=test_data,
-            es_core=self.mock_es_core
+            es_core=self.mock_es_core,
+            embedding_model=mock_embedding_model
         )
 
         # Assert
@@ -385,6 +406,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.mock_es_core.client.indices.exists.return_value = False
         self.mock_es_core.create_vector_index.return_value = True
         self.mock_es_core.index_documents.return_value = 1
+        mock_embedding_model = MagicMock()
         test_data = [
             {
                 "metadata": {"title": "Test"},
@@ -399,7 +421,8 @@ class TestElasticSearchService(unittest.TestCase):
             result = ElasticSearchService.index_documents(
                 index_name="test_index",
                 data=test_data,
-                es_core=self.mock_es_core
+                es_core=self.mock_es_core,
+                embedding_model=mock_embedding_model
             )
 
         # Assert
@@ -419,6 +442,7 @@ class TestElasticSearchService(unittest.TestCase):
         # Setup
         self.mock_es_core.client.indices.exists.return_value = True
         self.mock_es_core.index_documents.side_effect = Exception("Indexing error")
+        mock_embedding_model = MagicMock()
         test_data = [
             {
                 "metadata": {"title": "Test"},
@@ -432,7 +456,8 @@ class TestElasticSearchService(unittest.TestCase):
             ElasticSearchService.index_documents(
                 index_name="test_index",
                 data=test_data,
-                es_core=self.mock_es_core
+                es_core=self.mock_es_core,
+                embedding_model=mock_embedding_model
             )
 
         self.assertEqual(context.exception.status_code, 500)
@@ -705,6 +730,7 @@ class TestElasticSearchService(unittest.TestCase):
         search_request.query = "test query"
         search_request.top_k = 10
 
+        # Create a mock response directly on the es_core instance
         self.mock_es_core.semantic_search.return_value = [
             {
                 "document": {"title": "Doc1", "content": "Content1"},
@@ -744,6 +770,7 @@ class TestElasticSearchService(unittest.TestCase):
         search_request.top_k = 10
         search_request.weight_accurate = 0.5
 
+        # Create a mock response directly on the es_core instance
         self.mock_es_core.hybrid_search.return_value = [
             {
                 "document": {"title": "Doc1", "content": "Content1"},
@@ -1091,7 +1118,7 @@ class TestElasticSearchService(unittest.TestCase):
                 "index": "test_index"
             }
         ]
-
+        
         # Execute
         result = ElasticSearchService.semantic_search(
             request=search_request,
@@ -1118,6 +1145,8 @@ class TestElasticSearchService(unittest.TestCase):
         # Setup
         self.mock_es_core.client.indices.exists.return_value = True
         self.mock_es_core.index_documents.return_value = 3
+        mock_embedding_model = MagicMock()
+        mock_embedding_model.model = "test-model"
 
         test_data = [
             {
@@ -1141,7 +1170,8 @@ class TestElasticSearchService(unittest.TestCase):
         result = ElasticSearchService.index_documents(
             index_name="test_index",
             data=test_data,
-            es_core=self.mock_es_core
+            es_core=self.mock_es_core,
+            embedding_model=mock_embedding_model
         )
 
         # Assert
