@@ -91,15 +91,16 @@ git checkout -b your-branch-name
 ### Step 5 Commit Your Changes
 📝 Commit with a clear and concise message following our commit message guidelines：
 
-| Type | Icon | Description |
-|------|------|-------------|
-| Refactor | ♻️ | Code logic optimization without affecting functionality |
+| Type      | Icon | Description |
+|-----------|------|-------------|
+| Refactor  | ♻️ | Code logic optimization without affecting functionality |
 | Migration | 🚚 | Moving or migrating files or modules |
-| Feature | ✨ | Adding new features or functionality |
-| Bugfix | 🐛 | Fixing issues or bugs |
-| Style | 🎨 | Improving code style, formatting without changing functionality |
-| Chore | 🔨 | Updating tools, adjusting configurations |
-| Docs | 📝 | Documentation changes only |
+| Feature   | ✨ | Adding new features or functionality |
+| Bugfix    | 🐛 | Fixing issues or bugs |
+| Style     | 🎨 | Improving code style, formatting without changing functionality |
+| Chore     | 🔨 | Updating tools, adjusting configurations |
+| Docs      | 📝 | Documentation changes only |
+| Test      | 🧪 | Add test cases or modify test cases   |
 
 Example commit message：
 ```bash
