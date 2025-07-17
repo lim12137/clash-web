@@ -153,13 +153,17 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
 
     remote_mcp_list = await get_remote_mcp_server_list(tenant_id=tenant_id)
     default_mcp_url = urljoin(config_manager.get_config("NEXENT_MCP_SERVER"), "sse")
+    mcp_host = [default_mcp_url]
+    for remote_mcp_info in remote_mcp_list:
+        if remote_mcp_info["status"]:
+            mcp_host.append(remote_mcp_info["remote_mcp_server"])
 
     agent_run_info = AgentRunInfo(
         query=final_query,
         model_config_list= model_list,
         observer=MessageObserver(lang=language),
         agent_config=await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id, language=language),
-        mcp_host= [remote_mcp_info["remote_mcp_server"] for remote_mcp_info in remote_mcp_list] + [default_mcp_url],
+        mcp_host= mcp_host,
         history=history,
         stop_event=threading.Event()
     )

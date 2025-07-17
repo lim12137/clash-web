@@ -93,6 +93,7 @@ def get_mcp_records_by_tenant(tenant_id: str) -> List[Dict[str, Any]]:
         mcp_records = session.query(McpRecord).filter(
             McpRecord.tenant_id == tenant_id,
             McpRecord.delete_flag != 'Y'
-        ).all()
+        ).order_by(McpRecord.create_time.desc()).all()
+
         
         return [as_dict(record) for record in mcp_records]

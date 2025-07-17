@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Modal, Button, Input, Table, message, Space, Typography, Card, Divider, Tag } from 'antd'
+import { Modal, Button, Input, Table, message, Space, Typography, Card, Divider, Tag, Tooltip } from 'antd'
 import { DeleteOutlined, EyeOutlined, PlusOutlined, LoadingOutlined, ExpandAltOutlined, CompressOutlined, RedoOutlined } from '@ant-design/icons'
 import { getMcpServerList, addMcpServer, deleteMcpServer, getMcpTools, updateToolList, recoverMcpServers, McpServer, McpTool } from '@/services/mcpService'
 import { useTranslation } from 'react-i18next'
@@ -269,15 +269,28 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
       width: '30%',
       render: (_: any, record: McpServer) => (
         <Space size="small">
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewTools(record)}
-            size="small"
-            disabled={updatingTools}
-          >
-            {t('mcpConfig.serverList.button.viewTools')}
-          </Button>
+          {record.status ? (
+            <Button
+              type="link"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewTools(record)}
+              size="small"
+              disabled={updatingTools}
+            >
+              {t('mcpConfig.serverList.button.viewTools')}
+            </Button>
+          ) : (
+            <Tooltip title={t('mcpConfig.serverList.button.viewToolsDisabledHint')} placement="top">
+              <Button
+                type="link"
+                icon={<EyeOutlined />}
+                size="small"
+                disabled
+              >
+                {t('mcpConfig.serverList.button.viewTools')}
+              </Button>
+            </Tooltip>
+          )}
           <Button
             type="link"
             danger

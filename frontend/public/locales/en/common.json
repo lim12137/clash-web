@@ -784,6 +784,7 @@
     "mcpConfig.serverList.statusCheckHint": "Click to check server connectivity",
     "mcpConfig.serverList.statusCheckSuccess": "Server connectivity check succeeded",
     "mcpConfig.serverList.statusCheckFailed": "Server connectivity check failed",
+    "mcpConfig.serverList.button.viewToolsDisabledHint": "Please check MCP service availability first",
     "mcpConfig.toolsList.title": "Available Tools",
     "mcpConfig.toolsList.column.name": "Tool Name",
     "mcpConfig.toolsList.column.description": "Description",
@@ -854,6 +855,13 @@
         "tip": "Please select a suitable Embedding model in the model configuration for a complete experience.",
         "ok": "Got it",
         "ok_continue": "Got it, continue to the next step"
+        }
+    },
+    "mcpConfig": {
+        "message": {
+            "healthCheckFailed": "Cannot connect to mcp server, please check if the server is running",
+            "healthChecking": "Trying to connect to mcp server {{name}}",
+            "healthCheckSuccess": "Mcp server connected successfully"
         }
     }
 }
