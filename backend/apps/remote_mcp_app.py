@@ -16,7 +16,7 @@ router = APIRouter(prefix="/mcp")
 logger = logging.getLogger("remote_mcp_app")
 
 
-@router.get("/tools/")
+@router.post("/tools")
 async def get_tools_from_remote_mcp(
     service_name: str,
     mcp_url: str,
