@@ -4,6 +4,7 @@ import json
 import logging
 from typing import Any, List
 from urllib.parse import urljoin
+
 from pydantic_core import PydanticUndefined
 from fastmcp import Client
 import jsonref
@@ -127,8 +128,11 @@ async def get_all_mcp_tools(tenant_id: str) -> List[ToolInfo]:
     for record in mcp_info:
         # only update connected server
         if record["status"]:
-            tools_info.extend(await get_tool_from_remote_mcp_server(mcp_server_name=record["mcp_name"],
+            try:
+                tools_info.extend(await get_tool_from_remote_mcp_server(mcp_server_name=record["mcp_name"],
                                                                     remote_mcp_server=record["mcp_server"]))
+            except Exception as e:
+                logger.error(f"mcp connection error: {str(e)}")
 
     default_mcp_url = urljoin(config_manager.get_config("NEXENT_MCP_SERVER"), "sse")
     tools_info.extend(await get_tool_from_remote_mcp_server(mcp_server_name="nexent",
