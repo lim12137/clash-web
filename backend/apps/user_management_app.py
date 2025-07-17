@@ -199,8 +199,10 @@ async def signup(request: UserSignUpRequest):
         response = client.auth.sign_up({
             "email": request.email,
             "password": request.password,
-            "data": {
-                "role": "admin" if request.is_admin else "user"
+            "options":{
+                "data": {
+                    "role": "admin" if request.is_admin else "user"
+                }
             }
         })
 
