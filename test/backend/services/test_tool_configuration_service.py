@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import Mock, patch, MagicMock
 from typing import Any, List, Dict
 import sys
+import pytest
 
 boto3_mock = MagicMock()
 minio_client_mock = MagicMock()
@@ -381,7 +382,7 @@ class TestSearchToolInfoImpl:
         
         assert result["params"] == {"param1": "value1"}
         assert result["enabled"] is True
-        mock_query.assert_called_once_with(1, 1, 1, 1)
+        mock_query.assert_called_once_with(1, 1, 1, user_id=None)
 
     @patch('backend.services.tool_configuration_service.get_current_user_id')
     @patch('backend.services.tool_configuration_service.query_tool_instances_by_id')

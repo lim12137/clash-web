@@ -13,7 +13,7 @@ x-proxy-vars: &proxy-vars
 
 services:
   nexent-elasticsearch:
-    image: elasticsearch:8.17.4
+    image: ${ELASTICSEARCH_IMAGE}
     container_name: nexent-elasticsearch
     environment:
       <<: *es-vars
@@ -52,7 +52,7 @@ services:
         max-file: "3"     # Maximum number of log files to keep
 
   nexent-postgresql:
-    image: postgres:15-alpine
+    image: ${POSTGRESQL_IMAGE}
     container_name: nexent-postgresql
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -76,15 +76,12 @@ services:
       - nexent
 
   nexent:
-    image: nexent/nexent-commercial
+    image: ${NEXENT_IMAGE}
     container_name: nexent
     restart: always
-    volumes:
-      - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
       <<: [*minio-vars, *es-vars]
       skip_proxy: "true"
-      UPLOAD_FOLDER: /opt/backend/uploads
       UMASK: 0022
     env_file:
       - .env
@@ -102,7 +99,7 @@ services:
     entrypoint: ["/bin/bash", "-c", "python backend/nexent_mcp_service.py & python backend/main_service.py"]
 
   nexent-web:
-    image: nexent/nexent-web-commercial
+    image: ${NEXENT_WEB_IMAGE}
     container_name: nexent-web
     restart: always
     networks:
@@ -120,13 +117,11 @@ services:
         max-file: "3"    # Maximum number of log files to keep
 
   nexent-data-process:
-    image: nexent/nexent-data-process-commercial
+    image: ${NEXENT_DATA_PROCESS_IMAGE}
     container_name: nexent-data-process
     command: bash
     restart: always
     privileged: true
-    volumes:
-      - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
       <<: [*proxy-vars, *es-vars, *minio-vars]
       DOCKER_ENVIRONMENT: "true"
@@ -152,7 +147,7 @@ services:
       "
 
   redis:
-    image: redis:alpine
+    image: ${REDIS_IMAGE}
     container_name: nexent-redis
     command: redis-server --appendonly yes --appendfsync everysec --save "900 1" --save "300 10" --save "60 10000" --dir /data --maxmemory-policy allkeys-lru
     volumes:
@@ -167,7 +162,7 @@ services:
       - nexent
 
   nexent-minio:
-    image: quay.io/minio/minio:RELEASE.2023-12-20T01-00-02Z
+    image: ${MINIO_IMAGE}
     container_name: nexent-minio
     command: server /data
     environment:

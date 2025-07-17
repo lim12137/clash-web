@@ -6,12 +6,15 @@ docker buildx create --name nexent_builder --use
 
 # 🚀 build application for multiple architectures
 docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent -f make/main/Dockerfile . --push
+docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t ccr.ccs.tencentyun.com/nexent-hub/nexent -f make/web/Dockerfile . --push
 
 # 📊 build data_process for multiple architectures
 docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-data-process -f make/data_process/Dockerfile . --push
+docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t ccr.ccs.tencentyun.com/nexent-hub/nexent-data-process -f make/web/Dockerfile . --push
 
 # 🌐 build web frontend for multiple architectures
 docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-web -f make/web/Dockerfile . --push
+docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t ccr.ccs.tencentyun.com/nexent-hub/nexent-web -f make/web/Dockerfile . --push
 ```
 
 ### 💻 Local Development Build
@@ -47,3 +50,4 @@ Notes:
 - ⚠️ `--load` can only be used with single architecture builds
 - 📝 Use `docker images` to verify the images are loaded locally
 - 📊 Use `--progress=plain` to see detailed build and push progress
+- 📈 Use `--build-arg MIRROR=...` to set up a pip mirror to accelerate your build-up progress

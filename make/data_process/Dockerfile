@@ -1,11 +1,12 @@
 FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/python:3.10-slim
+ARG MIRROR
 LABEL authors="nexent"
 
 # Set correct permissions as root
 USER root
 
-# 配置清华大学镜像源
-RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
+RUN rm -f /etc/apt/sources.list.d/* && \
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list
@@ -16,25 +17,28 @@ RUN apt-get update && \
         libmagic-dev \
         libreoffice \
         libgl1 \
+        coreutils \
     && apt-get autoremove -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY backend /opt/backend
-COPY sdk /opt/sdk
+RUN pip install --no-cache-dir uv $(test -n "$MIRROR" && echo "-i $MIRROR")
+# Layer 0: copy model assets
 COPY model-assets/clip-vit-base-patch32 /opt/models/clip-vit-base-patch32
 
 WORKDIR /opt/backend
-
-RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ uv
-ENV UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
-RUN uv sync --extra data-process && \
-    rm -rf /home/notebook-user/.cache/uv /home/notebook-user/.cache/pip && \
-    find .venv -type d -name '__pycache__' -exec rm -rf {} + && \
-    find .venv -type f -name '*.pyc' -delete
+# Layer 1: install base dependencies
+COPY backend/pyproject.toml /opt/backend/pyproject.toml
+RUN uv sync --no-cache-dir --extra data-process $(test -n "$MIRROR" && echo "-i $MIRROR")
+# Layer 2: install sdk in link mode
+COPY sdk /opt/sdk
+RUN uv pip install --no-cache-dir -e /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR") && \
+    uv cache clean
+# Layer 3: copy backend code
+COPY backend /opt/backend
 
 ENV VIRTUAL_ENV=/opt/backend/.venv
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+ENV PATH="$VIRTUAL_ENV/bin:/usr/bin:/bin:/usr/local/bin:$PATH"
 
 WORKDIR /opt
 

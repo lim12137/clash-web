@@ -537,6 +537,7 @@
     "knowledgeBase.message.syncError": "Failed to synchronize knowledge base: {{error}}",
     "knowledgeBase.message.nameRequired": "Please enter knowledge base name",
     "knowledgeBase.message.nameExists": "Knowledge base {{name}} already exists, please use a different name",
+    "knowledgeBase.error.nameExistsInOtherTenant": "Knowledge base {{name}} is used by another tenant, please use a different name",
     "knowledgeBase.message.createError": "Failed to create knowledge base",
     "knowledgeBase.message.createUploadError": "Failed to create knowledge base or upload files",
     "knowledgeBase.message.selectFirst": "Please select a knowledge base first",
@@ -957,5 +958,14 @@
     "mcpService.message.recoverServerssBadRequest": "Recover servers request parameter error",
     "agentConfig.tools.refreshSuccess": "Tool list refreshed successfully",
     "agentConfig.tools.refreshFailed": "Failed to refresh tool list",
-    "agentConfig.debug.refreshToolsFailed": "Failed to refresh tool list:"
+    "agentConfig.debug.refreshToolsFailed": "Failed to refresh tool list:",
+    "embedding": {
+        "modal": {
+        "title": "No Embedding Model Selected",
+        "content": "You have not selected an <b>Embedding</b> model. Knowledge base configuration and retrieval tools will be unavailable.",
+        "tip": "Please select a suitable Embedding model in the model configuration for a complete experience.",
+        "ok": "Got it",
+        "ok_continue": "Got it, continue to the next step"
+        }
+    }
 }
