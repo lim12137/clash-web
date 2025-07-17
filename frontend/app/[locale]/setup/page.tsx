@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { message, Modal } from "antd"
-import { ExclamationCircleOutlined } from '@ant-design/icons'
+import { theme, message, Modal } from "antd"
+import { ExclamationCircleFilled, ExclamationCircleOutlined } from '@ant-design/icons'
 import AppModelConfig from "./modelSetup/config"
 import DataConfig from "./knowledgeBaseSetup/KnowledgeBaseManager"
 import AgentConfig from "./agentSetup/AgentConfig"
@@ -18,6 +18,8 @@ import { useKnowledgeBaseContext } from "./knowledgeBaseSetup/knowledgeBase/Know
 import { KnowledgeBase } from "@/types/knowledgeBase"
 import { API_ENDPOINTS } from "@/services/api"
 import { getAuthHeaders } from '@/lib/auth'
+import { useTheme } from 'next-themes';
+
 
 export default function CreatePage() {
   const [selectedKey, setSelectedKey] = useState("1")
@@ -31,6 +33,11 @@ export default function CreatePage() {
   const { confirm } = Modal
   const { state: { knowledgeBases, selectedIds }, saveUserSelectedKnowledgeBases } = useKnowledgeBaseContext()
   const { t } = useTranslation()
+  const [embeddingModalOpen, setEmbeddingModalOpen] = useState(false);
+  const [pendingJump, setPendingJump] = useState(false);
+  const { token } = theme.useToken ? theme.useToken() : { token: {} };
+  const { resolvedTheme } = typeof useTheme === 'function' ? useTheme() : { resolvedTheme: 'light' };
+  const isDark = resolvedTheme === 'dark';
 
 
   // Check login status and permission
@@ -289,6 +296,20 @@ export default function CreatePage() {
           return
         }
         
+        // 检查 embedding 模型
+        if (
+          !currentConfig.models.embedding.modelName &&
+          !currentConfig.models.multiEmbedding?.modelName
+        ) {
+          setEmbeddingModalOpen(true);
+          setPendingJump(true);
+          // 高亮 embedding 下拉框
+          window.dispatchEvent(new CustomEvent('highlightMissingField', {
+            detail: { field: 'embedding.embedding' }
+          }))
+          return;
+        }
+
         // All required fields have been filled, allow the jump to the second page
         setSelectedKey("2")
 
@@ -318,21 +339,75 @@ export default function CreatePage() {
   }
 
   return (
-    <>
-      <Layout
-        connectionStatus={connectionStatus}
-        lastChecked={lastChecked}
-        isCheckingConnection={isCheckingConnection}
-        onCheckConnection={checkModelEngineConnection}
-        selectedKey={getEffectiveSelectedKey()}
-        onBackToFirstPage={handleBackToFirstPage}
-        onCompleteConfig={handleCompleteConfig}
-        isSavingConfig={isSavingConfig}
-        userRole={user?.role}
-        showDebugButton={selectedKey === "3"}
+    <Layout
+      connectionStatus={connectionStatus}
+      lastChecked={lastChecked}
+      isCheckingConnection={isCheckingConnection}
+      onCheckConnection={checkModelEngineConnection}
+      selectedKey={getEffectiveSelectedKey()}
+      onBackToFirstPage={handleBackToFirstPage}
+      onCompleteConfig={handleCompleteConfig}
+      isSavingConfig={isSavingConfig}
+      userRole={user?.role}
+      showDebugButton={selectedKey === "3"}
+    >
+      {renderContent()}
+      <Modal
+        title={
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ExclamationCircleFilled style={{ color: '#faad14', fontSize: 22 }} />
+            <span style={{ fontWeight: 600, fontSize: 18, color: isDark ? '#fffbe6' : '#333' }}>{t('embedding.modal.title')}</span>
+          </span>
+        }
+        open={embeddingModalOpen}
+        onOk={() => {
+          setEmbeddingModalOpen(false);
+          if (pendingJump) {
+            setPendingJump(false);
+            setSelectedKey("2");
+          }
+        }}
+        onCancel={() => setEmbeddingModalOpen(false)}
+        okText={t('embedding.modal.ok_continue')}
+        cancelButtonProps={{ style: { display: 'none' } }}
+        centered
+        bodyStyle={{
+          padding: '32px 24px 24px 24px',
+          background: isDark ? '#23272f' : '#fffbe6',
+          borderRadius: 12,
+          color: isDark ? '#eee' : '#333',
+        }}
+        style={{
+          borderRadius: 16,
+          maxWidth: 1000,
+          minWidth: 666,
+          background: isDark ? '#23272f' : '#fff',
+        }}
       >
-        {renderContent()}
-      </Layout>
-    </>
+        <div
+          style={{
+            fontSize: 16,
+            color: isDark ? '#eee' : '#333',
+            textAlign: 'center',
+            marginBottom: 8,
+          }}
+          dangerouslySetInnerHTML={{
+            __html: t('embedding.modal.content').replace(
+              '<b>', `<b style=\"color:${isDark ? '#ffe58f' : '#faad14'}\">`
+            ),
+          }}
+        />
+        <div
+          style={{
+            textAlign: 'center',
+            color: isDark ? '#aaa' : '#999',
+            fontSize: 13,
+            marginTop: 8,
+          }}
+        >
+          {t('embedding.modal.tip')}
+        </div>
+      </Modal>
+    </Layout>
   )
 }

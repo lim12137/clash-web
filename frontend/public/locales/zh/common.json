@@ -537,6 +537,7 @@
     "knowledgeBase.message.syncError": "同步知识库失败：{{error}}",
     "knowledgeBase.message.nameRequired": "请输入知识库名称",
     "knowledgeBase.message.nameExists": "知识库 {{name}} 已存在，请更换名称",
+    "knowledgeBase.error.nameExistsInOtherTenant": "知识库 {{name}} 已被其他租户使用，请更换名称",
     "knowledgeBase.message.createError": "知识库创建失败",
     "knowledgeBase.message.createUploadError": "知识库创建或上传失败",
     "knowledgeBase.message.selectFirst": "请先选择一个知识库",
@@ -957,5 +958,13 @@
     "mcpService.message.recoverServerssBadRequest": "重新挂载服务器请求参数错误",
     "agentConfig.tools.refreshSuccess": "工具列表已刷新",
     "agentConfig.tools.refreshFailed": "刷新工具列表失败",
-    "agentConfig.debug.refreshToolsFailed": "刷新工具列表失败:"
+    "agentConfig.debug.refreshToolsFailed": "刷新工具列表失败:",
+    "embedding": {
+        "modal": {
+            "title": "未选择Embedding模型",
+            "content": "您未选择 <b>Embedding</b> 模型，后续知识库配置和知识检索工具不可用。",
+            "tip": "请在模型配置中选择合适的Embedding模型以获得完整体验。",
+            "ok_continue": "我知道了，继续下一步"
+        }
+    }
 }

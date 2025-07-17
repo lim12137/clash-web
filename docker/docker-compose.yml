@@ -13,7 +13,7 @@ x-proxy-vars: &proxy-vars
 
 services:
   nexent-elasticsearch:
-    image: elasticsearch:8.17.4
+    image: ${ELASTICSEARCH_IMAGE}
     container_name: nexent-elasticsearch
     environment:
       ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
@@ -44,7 +44,7 @@ services:
       - nexent
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "curl -s -u elastic:${ELASTIC_PASSWORD} -k http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"' || exit 1"]
+      test: ["CMD-SHELL", "curl -sf -u elastic:${ELASTIC_PASSWORD} http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"' || exit 1"]
       interval: 5s
       timeout: 10s
       retries: 20
@@ -55,7 +55,7 @@ services:
         max-file: "3"     # Maximum number of log files to keep
 
   nexent-postgresql:
-    image: postgres:15-alpine
+    image: ${POSTGRESQL_IMAGE}
     container_name: nexent-postgresql
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -79,17 +79,14 @@ services:
       - nexent
 
   nexent:
-    image: nexent/nexent-commercial
+    image: ${NEXENT_IMAGE}
     container_name: nexent
     restart: always
     ports:
       - "5010:5010"  # Backend service port
-    volumes:
-      - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
       <<: [*minio-vars, *es-vars]
       skip_proxy: "true"
-      UPLOAD_FOLDER: /opt/backend/uploads
       UMASK: 0022
     env_file:
       - .env
@@ -107,7 +104,7 @@ services:
     entrypoint: ["/bin/bash", "-c", "python backend/nexent_mcp_service.py & python backend/main_service.py"]
 
   nexent-web:
-    image: nexent/nexent-web-commercial
+    image: ${NEXENT_WEB_IMAGE}
     container_name: nexent-web
     restart: always
     networks:
@@ -125,7 +122,7 @@ services:
         max-file: "3"    # Maximum number of log files to keep
 
   nexent-data-process:
-    image: nexent/nexent-data-process-commercial
+    image: ${NEXENT_DATA_PROCESS_IMAGE}
     container_name: nexent-data-process
     command: bash
     restart: always
@@ -134,8 +131,6 @@ services:
       - "5012:5012"
       - "5555:5555"  # Celery Flower port
       - "8265:8265"  # Ray Dashboardport
-    volumes:
-      - ${ROOT_DIR}/uploads:/opt/backend/uploads
     environment:
       <<: [*proxy-vars, *es-vars, *minio-vars]
       DOCKER_ENVIRONMENT: "true"
@@ -162,7 +157,7 @@ services:
         max-file: "3"
 
   redis:
-    image: redis:alpine
+    image: ${REDIS_IMAGE}
     container_name: nexent-redis
     ports:
       - "6379:6379"
@@ -179,7 +174,7 @@ services:
       - nexent
 
   nexent-minio:
-    image: quay.io/minio/minio:RELEASE.2023-12-20T01-00-02Z
+    image: ${MINIO_IMAGE}
     container_name: nexent-minio
     command: server /data
     ports:

@@ -132,6 +132,24 @@ class KnowledgeBaseService {
     }
   }
 
+  // New method to check knowledge base name against the new endpoint
+  async checkKnowledgeBaseName(name: string): Promise<{status: string, action?: string}> {
+    try {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.checkName(name), {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Server error during name check');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Failed to check knowledge base name:", error);
+      // Return a specific status to indicate a failed check, so UI can handle it.
+      return { status: 'check_failed' };
+    }
+  }
+
   // Create a new knowledge base
   async createKnowledgeBase(params: KnowledgeBaseCreateParams): Promise<KnowledgeBase> {
     try {

@@ -243,10 +243,10 @@ test/
 
 ### 环境搭建与运行 🚀
 
-1. **安装 Python SDK 依赖：**
+1. **安装 Python 依赖包：**
    ```bash
-   cd sdk
-   pip install .
+   cd backend
+   uv sync && uv pip install -e ../sdk
    ```
 2. **启动后端服务：**
    Nexent 包含三个核心后端服务，需要分别启动：
@@ -332,6 +332,7 @@ docker builder prune -f && docker system prune -f
 - `--load` 仅单架构构建时本地加载
 - 用 `docker images` 查看镜像
 - 用 `--progress=plain` 查看详细日志
+- 添加 `build-arg MIRROR=...` 设置 pip 镜像下载地址
 
 ---
 

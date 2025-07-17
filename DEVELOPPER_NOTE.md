@@ -238,8 +238,8 @@ File upload → Temporary storage → Data processing → Vectorization → Know
 
 1. **Install Python SDK dependencies:**
    ```bash
-   cd sdk
-   pip install .
+   cd backend
+   uv sync && uv pip install -e ../sdk
    ```
 2. **Start Backend Services:**
    Nexent consists of three core backend services that need to be started separately:
@@ -326,6 +326,7 @@ docker builder prune -f && docker system prune -f
 - `--load` loads image locally (single arch only)
 - Use `docker images` to verify
 - Use `--progress=plain` for detailed logs
+- Use `--build-arg MIRROR=...` to setup pip mirror
 
 ---
 
