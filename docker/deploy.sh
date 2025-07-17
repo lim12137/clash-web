@@ -5,6 +5,26 @@ ERROR_OCCURRED=0
 set -a
 source .env
 
+# Parse arg
+MODE_CHOICE=""
+IS_MAINLAND=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --mode)
+      MODE_CHOICE="$2"
+      shift 2
+      ;;
+    --is-mainland)
+      IS_MAINLAND="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
 # Add deployment mode selection function
 select_deployment_mode() {
     echo "🎛️  Please select deployment mode:"
@@ -12,7 +32,12 @@ select_deployment_mode() {
     echo "2) 🏗️  Infrastructure mode - Only start infrastructure services"
     echo "3) 🚀 Production mode - Only expose port 3000 for security"
     echo "4) 🧪 Beta mode - Use develop branch images (from .env.beta)"
-    read -p "👉 Enter your choice [1/2/3/4] (default: 1): " mode_choice
+    if [ -n "$MODE_CHOICE" ]; then
+      mode_choice="$MODE_CHOICE"
+      echo "👉 Using mode_choice from argument: $mode_choice"
+    else
+      read -p "👉 Enter your choice [1/2/3/4] (default: 1): " mode_choice
+    fi
 
     local root_dir="# Root dir"
     case $mode_choice in
@@ -235,7 +260,12 @@ update_env_var() {
 }
 
 choose_image_env() {
-  read -p "🌏 Is your server network located in mainland China? [Y/N] (default N): " is_mainland
+  if [ -n "$IS_MAINLAND" ]; then
+    is_mainland="$IS_MAINLAND"
+    echo "🌏 Using is_mainland from argument: $is_mainland"
+  else
+    read -p "🌏 Is your server network located in mainland China? [Y/N] (default N): " is_mainland
+  fi
   if [[ "$is_mainland" =~ ^[Yy]$ ]]; then
     echo "🌐 Detected mainland China network, using .env.mainland for image sources."
     source .env.mainland

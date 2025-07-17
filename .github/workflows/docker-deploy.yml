@@ -87,7 +87,7 @@ jobs:
           cd $HOME/nexent-commercial/docker
           cp .env.example .env
           if [ "$DEPLOYMENT_MODE" = "production" ]; then
-            echo 3 | ./deploy.sh
+            ./deploy.sh --mode 3 --is-mainland N
           else
-            echo 1 | ./deploy.sh
+            ./deploy.sh --mode 1 --is-mainland N
           fi
