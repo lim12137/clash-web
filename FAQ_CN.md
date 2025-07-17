@@ -16,7 +16,26 @@
 
 ## 🚫 常见错误与运维方式
 
-### 🌐 端口冲突
+### 🌐 网络连接问题
+- **Q: Docker 容器如何访问宿主机上部署的模型（如 Ollama）？**
+  - A: 由于容器内的 `localhost` 指向容器自身，需要通过以下方式连接宿主机服务：
+  
+    **方案一：使用Docker特殊DNS名称 host.docker.internal**  
+    适用场景：Mac/Windows和较新版本的Docker Desktop(Linux版本也支持)  
+      ```bash
+      http://host.docker.internal:11434/v1
+      ```
+    **方案二：使用宿主机真实 IP（需确保防火墙放行）**
+    ```bash
+    http://[宿主机IP]:11434/v1
+    ```
+    **方案三：修改Docker Compose配置**  
+    在docker-compose.yaml中添加：
+    ```yaml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+### 🔌 端口冲突
 - **Q: 端口 3000 已被占用，如何修改？**
   - A: 可以在 Docker Compose 配置文件中修改端口。
 
