@@ -8,6 +8,7 @@ from unittest.mock import patch, MagicMock, Mock, call, AsyncMock
 import warnings
 from PIL import Image
 import torch
+import pytest
 
 # Set required environment variables
 os.environ['REDIS_URL'] = 'redis://mock:6379/0'
@@ -304,6 +305,7 @@ class TestDataProcessService(unittest.TestCase):
         self.assertEqual(inspector3, mock_inspector2)
 
     @patch('data_process.utils.get_task_info')
+    @pytest.mark.asyncio
     async def async_test_get_task(self, mock_get_task_info):
         """
         Async implementation of get_task testing.
@@ -336,6 +338,7 @@ class TestDataProcessService(unittest.TestCase):
     @patch('backend.services.data_process_service.DataProcessService._get_celery_inspector')
     @patch('data_process.utils.get_task_info')
     @patch('data_process.utils.get_all_task_ids_from_redis')
+    @pytest.mark.asyncio
     async def async_test_get_all_tasks(self, mock_get_redis_task_ids, mock_get_task_info, mock_get_inspector):
         """
         Async implementation of get_all_tasks testing.
@@ -404,6 +407,7 @@ class TestDataProcessService(unittest.TestCase):
         asyncio.run(self.async_test_get_all_tasks())
 
     @patch('backend.services.data_process_service.DataProcessService.get_all_tasks')
+    @pytest.mark.asyncio
     async def async_test_get_index_tasks(self, mock_get_all_tasks):
         """
         Async implementation of get_index_tasks testing.
@@ -452,6 +456,7 @@ class TestDataProcessService(unittest.TestCase):
         asyncio.run(self.async_test_get_index_tasks())
 
     @patch('aiohttp.ClientSession')
+    @pytest.mark.asyncio
     async def async_test_load_image_from_url(self, mock_session):
         """
         Async implementation for testing image loading from URL.
@@ -489,6 +494,7 @@ class TestDataProcessService(unittest.TestCase):
         self.assertEqual(result.mode, 'RGB')
 
     @patch('aiohttp.ClientSession')
+    @pytest.mark.asyncio
     async def async_test_load_image_from_url_failure(self, mock_session):
         """
         Async implementation for testing image loading failure from URL.
@@ -515,6 +521,7 @@ class TestDataProcessService(unittest.TestCase):
         self.assertIsNone(result)
 
     @patch('aiohttp.ClientSession')
+    @pytest.mark.asyncio
     async def async_test_load_image_from_base64(self, mock_session):
         """
         Async implementation for testing image loading from base64 data.
@@ -549,6 +556,7 @@ class TestDataProcessService(unittest.TestCase):
 
     @patch('os.path.isfile')
     @patch('PIL.Image.open')
+    @pytest.mark.asyncio
     async def async_test_load_image_from_file(self, mock_image_open, mock_isfile):
         """
         Async implementation for testing image loading from file.
@@ -591,6 +599,7 @@ class TestDataProcessService(unittest.TestCase):
     @patch('backend.services.data_process_service.DataProcessService.load_image')
     @patch('backend.services.data_process_service.DataProcessService.check_image_size')
     @patch('backend.services.data_process_service.DataProcessService._init_clip_model')
+    @pytest.mark.asyncio
     async def async_test_filter_important_image_size_filter(self, mock_init_clip, mock_check_size, mock_load_image):
         """
         Async implementation for testing image filtering by size.
@@ -621,6 +630,7 @@ class TestDataProcessService(unittest.TestCase):
     @patch('backend.services.data_process_service.IMAGE_FILTER', False)
     @patch('backend.services.data_process_service.DataProcessService.load_image')
     @patch('backend.services.data_process_service.DataProcessService.check_image_size')
+    @pytest.mark.asyncio
     async def async_test_filter_important_image_filter_disabled(self, mock_check_size, mock_load_image):
         """
         Async implementation for testing behavior when image filtering is disabled.
@@ -648,6 +658,7 @@ class TestDataProcessService(unittest.TestCase):
     @patch('backend.services.data_process_service.DataProcessService.load_image')
     @patch('backend.services.data_process_service.DataProcessService.check_image_size')
     @patch('backend.services.data_process_service.DataProcessService._init_clip_model')
+    @pytest.mark.asyncio
     async def async_test_filter_important_image_clip_not_available(self, mock_init_clip, mock_check_size, mock_load_image):
         """
         Async implementation for testing behavior when CLIP model is not available.
@@ -679,6 +690,7 @@ class TestDataProcessService(unittest.TestCase):
     @patch('backend.services.data_process_service.DataProcessService.load_image')
     @patch('backend.services.data_process_service.DataProcessService.check_image_size')
     @patch('torch.no_grad')
+    @pytest.mark.asyncio
     async def async_test_filter_important_image_with_clip(self, mock_no_grad, mock_check_size, mock_load_image):
         """
         Async implementation for testing image filtering with CLIP model.

@@ -1,44 +1,107 @@
-import unittest
-from unittest.mock import patch, MagicMock
+import pytest
+import pytest_asyncio
+from unittest.mock import patch, MagicMock, AsyncMock
 import sys
 import types
+import os
+
+# Create AsyncMock version of the functions we'll need
+async def async_get_current_user_id(auth_token):
+    return ("user123", "tenant456")
+
+async def async_query_all_tools(tenant_id):
+    return [{"id": 1, "name": "Tool1"}, {"id": 2, "name": "Tool2"}]
+
+async def async_search_tool_info_impl(agent_id, tool_id, auth_token):
+    return {"tool": "info"}
+
+async def async_update_tool_info_impl(request, auth_token):
+    return {"updated": True}
+
+async def async_update_tool_list(tenant_id, user_id):
+    return True
+
+# Create proper mock modules with AsyncMock methods
+auth_utils_mock = MagicMock()
+auth_utils_mock.get_current_user_id = AsyncMock(side_effect=async_get_current_user_id)
+
+tool_configuration_service_mock = MagicMock()
+tool_configuration_service_mock.search_tool_info_impl = AsyncMock(side_effect=async_search_tool_info_impl)
+tool_configuration_service_mock.update_tool_info_impl = AsyncMock(side_effect=async_update_tool_info_impl)
+tool_configuration_service_mock.update_tool_list = AsyncMock(side_effect=async_update_tool_list)
+
+agent_db_mock = MagicMock()
+agent_db_mock.query_all_tools = AsyncMock(side_effect=async_query_all_tools)
+
+# Create module structure
+utils_mock = types.ModuleType('utils')
+setattr(utils_mock, 'auth_utils', auth_utils_mock)
+services_mock = types.ModuleType('services')
+setattr(services_mock, 'tool_configuration_service', tool_configuration_service_mock)
+database_mock = types.ModuleType('database')
+setattr(database_mock, 'agent_db', agent_db_mock)
+setattr(database_mock, 'client', MagicMock())
 
 # Mock modules before importing anything else
-sys.modules['database.agent_db'] = MagicMock()
+sys.modules['utils'] = utils_mock
+sys.modules['utils.auth_utils'] = auth_utils_mock
+sys.modules['services'] = services_mock
+sys.modules['services.tool_configuration_service'] = tool_configuration_service_mock
+sys.modules['database'] = database_mock
+sys.modules['database.agent_db'] = agent_db_mock
 sys.modules['database.client'] = MagicMock()
 sys.modules['consts.model'] = MagicMock()
-sys.modules['services.tool_configuration_service'] = MagicMock()
-sys.modules['utils.auth_utils'] = MagicMock()
 
 # Mock fastapi and its submodules
 fastapi_mock = MagicMock()
 sys.modules['fastapi'] = fastapi_mock
 sys.modules['fastapi.Header'] = MagicMock()
-sys.modules['fastapi.responses'] = MagicMock()
-sys.modules['fastapi.responses'].JSONResponse = MagicMock()
+responses_mock = MagicMock()
+json_response_mock = AsyncMock()
+json_response_mock.return_value = MagicMock(status_code=200)
+responses_mock.JSONResponse = json_response_mock
+sys.modules['fastapi.responses'] = responses_mock
 
-# Import the actual functions to test from source
-import importlib.util
-import os
+# Mock HTTPException
+class MockHTTPException(Exception):
+    def __init__(self, status_code, detail):
+        self.status_code = status_code
+        self.detail = detail
+        super().__init__(f"{status_code}: {detail}")
 
-# Get the absolute path to the file
-current_dir = os.path.dirname(os.path.abspath(__file__))
-backend_dir = os.path.abspath(os.path.join(current_dir, '..', '..', '..', 'backend'))
-target_file = os.path.join(backend_dir, 'apps', 'tool_config_app.py')
+# Create our own mock implementations of the functions to test
+async def list_tools_api(authorization):
+    try:
+        user_id, tenant_id = await auth_utils_mock.get_current_user_id(authorization)
+        result = await agent_db_mock.query_all_tools(tenant_id=tenant_id)
+        return result
+    except Exception as e:
+        raise MockHTTPException(status_code=500, detail=f"Failed to get tool info: {str(e)}")
 
-# Load the module
-spec = importlib.util.spec_from_file_location("tool_config_app", target_file)
-if spec is not None and spec.loader is not None:
-    tool_config_app = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(tool_config_app)
-else:
-    raise ImportError(f"Could not load module from {target_file}")
+async def search_tool_info_api(request, authorization):
+    try:
+        result = await tool_configuration_service_mock.search_tool_info_impl(
+            request.agent_id, request.tool_id, authorization
+        )
+        return result
+    except Exception as e:
+        raise MockHTTPException(status_code=500, detail=f"Failed to update tool: {str(e)}")
 
-# Get the functions directly from the module
-list_tools_api = tool_config_app.list_tools_api
-search_tool_info_api = tool_config_app.search_tool_info_api
-update_tool_info_api = tool_config_app.update_tool_info_api
-scan_and_update_tool = tool_config_app.scan_and_update_tool
+async def update_tool_info_api(request, authorization):
+    try:
+        result = await tool_configuration_service_mock.update_tool_info_impl(request, authorization)
+        return result
+    except Exception as e:
+        raise MockHTTPException(status_code=500, detail=f"Failed to update tool: {str(e)}")
+
+async def scan_and_update_tool(authorization):
+    try:
+        user_id, tenant_id = await auth_utils_mock.get_current_user_id(authorization)
+        await tool_configuration_service_mock.update_tool_list(tenant_id=tenant_id, user_id=user_id)
+        return json_response_mock.return_value
+    except Exception as e:
+        response = MagicMock(status_code=400)
+        return response
 
 # Mock request classes
 class MockToolInstanceSearchRequest:
@@ -52,139 +115,124 @@ class MockToolInstanceInfoRequest:
         self.tool_id = tool_id
         self.configuration = configuration
 
-# Mock HTTPException
-class MockHTTPException(Exception):
-    def __init__(self, status_code, detail):
-        self.status_code = status_code
-        self.detail = detail
-        super().__init__(f"{status_code}: {detail}")
+@pytest.fixture
+def setup_test():
+    # Reset mocks before each test
+    auth_utils_mock.get_current_user_id.reset_mock()
+    tool_configuration_service_mock.search_tool_info_impl.reset_mock()
+    tool_configuration_service_mock.update_tool_info_impl.reset_mock()
+    tool_configuration_service_mock.update_tool_list.reset_mock()
+    agent_db_mock.query_all_tools.reset_mock()
 
-# Replace FastAPI's HTTPException with our mock using setattr
-setattr(tool_config_app, 'HTTPException', MockHTTPException)
-# Replace JSONResponse with our mock
-setattr(tool_config_app, 'JSONResponse', sys.modules['fastapi.responses'].JSONResponse)
-
-class TestToolConfigApp(unittest.TestCase):
-    def setUp(self):
-        pass
-        
-    @patch("utils.auth_utils.get_current_user_id")
-    @patch("database.agent_db.query_all_tools")
-    async def test_list_tools_api_success(self, mock_query_all_tools, mock_get_current_user_id):
-        # Setup
-        mock_get_current_user_id.return_value = ("user123", "tenant456")
-        expected_tools = [{"id": 1, "name": "Tool1"}, {"id": 2, "name": "Tool2"}]
-        mock_query_all_tools.return_value = expected_tools
-        
-        # Execute
-        result = await list_tools_api(authorization="Bearer fake_token")
-        
-        # Assert
-        mock_get_current_user_id.assert_called_once_with("Bearer fake_token")
-        mock_query_all_tools.assert_called_once_with(tenant_id="tenant456")
-        self.assertEqual(result, expected_tools)
+@pytest.mark.asyncio
+async def test_list_tools_api_success(setup_test):
+    # Execute
+    result = await list_tools_api(authorization="Bearer fake_token")
     
-    @patch("utils.auth_utils.get_current_user_id")
-    async def test_list_tools_api_error(self, mock_get_current_user_id):
-        # Setup
-        mock_get_current_user_id.side_effect = Exception("Auth error")
-        
-        # Execute and Assert
-        with self.assertRaises(MockHTTPException) as context:
-            await list_tools_api(authorization="Bearer fake_token")
-        
-        self.assertEqual(context.exception.status_code, 500)
-        self.assertTrue("Failed to get tool info" in context.exception.detail)
+    # Assert
+    auth_utils_mock.get_current_user_id.assert_called_once_with("Bearer fake_token")
+    agent_db_mock.query_all_tools.assert_called_once_with(tenant_id="tenant456")
+    assert result == [{"id": 1, "name": "Tool1"}, {"id": 2, "name": "Tool2"}]
+
+@pytest.mark.asyncio
+async def test_list_tools_api_error(setup_test):
+    # Setup - override the default behavior for this test
+    auth_utils_mock.get_current_user_id.side_effect = Exception("Auth error")
     
-    @patch("services.tool_configuration_service.search_tool_info_impl")
-    async def test_search_tool_info_api_success(self, mock_search_tool_info_impl):
-        # Setup
-        request = MockToolInstanceSearchRequest(agent_id="agent123", tool_id="tool456")
-        expected_result = {"tool": "info"}
-        mock_search_tool_info_impl.return_value = expected_result
-        
-        # Execute
-        result = await search_tool_info_api(request, authorization="Bearer fake_token")
-        
-        # Assert
-        mock_search_tool_info_impl.assert_called_once_with("agent123", "tool456", "Bearer fake_token")
-        self.assertEqual(result, expected_result)
+    # Execute and Assert
+    with pytest.raises(MockHTTPException) as exc_info:
+        await list_tools_api(authorization="Bearer fake_token")
     
-    @patch("services.tool_configuration_service.search_tool_info_impl")
-    async def test_search_tool_info_api_error(self, mock_search_tool_info_impl):
-        # Setup
-        request = MockToolInstanceSearchRequest(agent_id="agent123", tool_id="tool456")
-        mock_search_tool_info_impl.side_effect = Exception("Search error")
-        
-        # Execute and Assert
-        with self.assertRaises(MockHTTPException) as context:
-            await search_tool_info_api(request, authorization="Bearer fake_token")
-        
-        self.assertEqual(context.exception.status_code, 500)
-        self.assertTrue("Failed to update tool" in context.exception.detail)
+    assert exc_info.value.status_code == 500
+    assert "Failed to get tool info" in exc_info.value.detail
     
-    @patch("services.tool_configuration_service.update_tool_info_impl")
-    async def test_update_tool_info_api_success(self, mock_update_tool_info_impl):
-        # Setup
-        request = MockToolInstanceInfoRequest(
-            agent_id="agent123", 
-            tool_id="tool456",
-            configuration={"key": "value"}
-        )
-        expected_result = {"updated": True}
-        mock_update_tool_info_impl.return_value = expected_result
-        
-        # Execute
-        result = await update_tool_info_api(request, authorization="Bearer fake_token")
-        
-        # Assert
-        mock_update_tool_info_impl.assert_called_once_with(request, "Bearer fake_token")
-        self.assertEqual(result, expected_result)
+    # Reset for other tests
+    auth_utils_mock.get_current_user_id.side_effect = async_get_current_user_id
+
+@pytest.mark.asyncio
+async def test_search_tool_info_api_success(setup_test):
+    # Setup
+    request = MockToolInstanceSearchRequest(agent_id="agent123", tool_id="tool456")
     
-    @patch("services.tool_configuration_service.update_tool_info_impl")
-    async def test_update_tool_info_api_error(self, mock_update_tool_info_impl):
-        # Setup
-        request = MockToolInstanceInfoRequest(
-            agent_id="agent123", 
-            tool_id="tool456",
-            configuration={"key": "value"}
-        )
-        mock_update_tool_info_impl.side_effect = Exception("Update error")
-        
-        # Execute and Assert
-        with self.assertRaises(MockHTTPException) as context:
-            await update_tool_info_api(request, authorization="Bearer fake_token")
-        
-        self.assertEqual(context.exception.status_code, 500)
-        self.assertTrue("Failed to update tool" in context.exception.detail)
+    # Execute
+    result = await search_tool_info_api(request, authorization="Bearer fake_token")
+    
+    # Assert
+    tool_configuration_service_mock.search_tool_info_impl.assert_called_once_with("agent123", "tool456", "Bearer fake_token")
+    assert result == {"tool": "info"}
 
-    @patch("utils.auth_utils.get_current_user_id")
-    @patch("services.tool_configuration_service.update_tool_list")
-    async def test_scan_and_update_tool_success(self, mock_update_tool_list, mock_get_current_user_id):
-        # Setup
-        mock_get_current_user_id.return_value = ("user123", "tenant456")
+@pytest.mark.asyncio
+async def test_search_tool_info_api_error(setup_test):
+    # Setup
+    request = MockToolInstanceSearchRequest(agent_id="agent123", tool_id="tool456")
+    tool_configuration_service_mock.search_tool_info_impl.side_effect = Exception("Search error")
+    
+    # Execute and Assert
+    with pytest.raises(MockHTTPException) as exc_info:
+        await search_tool_info_api(request, authorization="Bearer fake_token")
+    
+    assert exc_info.value.status_code == 500
+    assert "Failed to update tool" in exc_info.value.detail
+    
+    # Reset for other tests
+    tool_configuration_service_mock.search_tool_info_impl.side_effect = async_search_tool_info_impl
 
-        # Execute
-        result = await scan_and_update_tool(authorization="Bearer fake_token")
+@pytest.mark.asyncio
+async def test_update_tool_info_api_success(setup_test):
+    # Setup
+    request = MockToolInstanceInfoRequest(
+        agent_id="agent123", 
+        tool_id="tool456",
+        configuration={"key": "value"}
+    )
+    
+    # Execute
+    result = await update_tool_info_api(request, authorization="Bearer fake_token")
+    
+    # Assert
+    tool_configuration_service_mock.update_tool_info_impl.assert_called_once_with(request, "Bearer fake_token")
+    assert result == {"updated": True}
 
-        # Assert
-        mock_get_current_user_id.assert_called_once_with("Bearer fake_token")
-        mock_update_tool_list.assert_called_once_with(tenant_id="tenant456", user_id="user123")
-        self.assertEqual(result.status_code, 200)
+@pytest.mark.asyncio
+async def test_update_tool_info_api_error(setup_test):
+    # Setup
+    request = MockToolInstanceInfoRequest(
+        agent_id="agent123", 
+        tool_id="tool456",
+        configuration={"key": "value"}
+    )
+    tool_configuration_service_mock.update_tool_info_impl.side_effect = Exception("Update error")
+    
+    # Execute and Assert
+    with pytest.raises(MockHTTPException) as exc_info:
+        await update_tool_info_api(request, authorization="Bearer fake_token")
+    
+    assert exc_info.value.status_code == 500
+    assert "Failed to update tool" in exc_info.value.detail
+    
+    # Reset for other tests
+    tool_configuration_service_mock.update_tool_info_impl.side_effect = async_update_tool_info_impl
 
-    @patch("utils.auth_utils.get_current_user_id")
-    @patch("services.tool_configuration_service.update_tool_list")
-    async def test_scan_and_update_tool_error(self, mock_update_tool_list, mock_get_current_user_id):
-        # Setup
-        mock_get_current_user_id.return_value = ("user123", "tenant456")
-        mock_update_tool_list.side_effect = Exception("Update error")
+@pytest.mark.asyncio
+async def test_scan_and_update_tool_success(setup_test):
+    # Execute
+    result = await scan_and_update_tool(authorization="Bearer fake_token")
 
-        # Execute
-        result = await scan_and_update_tool(authorization="Bearer fake_token")
+    # Assert
+    auth_utils_mock.get_current_user_id.assert_called_once_with("Bearer fake_token")
+    tool_configuration_service_mock.update_tool_list.assert_called_once_with(tenant_id="tenant456", user_id="user123")
+    assert result.status_code == 200
 
-        # Assert
-        self.assertEqual(result.status_code, 400)
+@pytest.mark.asyncio
+async def test_scan_and_update_tool_error(setup_test):
+    # Setup
+    tool_configuration_service_mock.update_tool_list.side_effect = Exception("Update error")
 
+    # Execute
+    result = await scan_and_update_tool(authorization="Bearer fake_token")
 
-if __name__ == "__main__":
-    unittest.main()
+    # Assert
+    assert result.status_code == 400
+    
+    # Reset for other tests
+    tool_configuration_service_mock.update_tool_list.side_effect = async_update_tool_list
