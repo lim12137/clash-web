@@ -567,7 +567,7 @@ class ElasticSearchCore:
         Search for documents using fuzzy text matching across multiple indices.
 
         Args:
-            index_name: Name of the index to search in
+            index_names: Name of the index to search in
             query_text: The text query to search for
             top_k: Number of results to return
             
@@ -612,6 +612,7 @@ class ElasticSearchCore:
         Args:
             index_names: List of index names to search in
             query_text: The text query to search for
+            embedding_model: The embedding model to use
             top_k: Number of results to return
             
         Returns:
@@ -654,6 +655,7 @@ class ElasticSearchCore:
         Args:
             index_names: List of index names to search in
             query_text: The text query to search for
+            embedding_model: The embedding model to use
             top_k: Number of results to return
             weight_accurate: The weight of the accurate matching score (0-1), the semantic search weight is 1-weight_accurate
 
