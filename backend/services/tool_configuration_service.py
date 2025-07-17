@@ -94,7 +94,8 @@ def get_local_tools() -> List[ToolInfo]:
             source=ToolSourceEnum.LOCAL.value,
             inputs=json.dumps(getattr(tool_class, 'inputs'), ensure_ascii=False),
             output_type=getattr(tool_class, 'output_type'),
-            class_name=tool_class.__name__
+            class_name=tool_class.__name__,
+            usage=None
         )
         tools_info.append(tool_info)
     return tools_info
@@ -122,13 +123,16 @@ async def get_all_mcp_tools(tenant_id: str) -> List[ToolInfo]:
         List of ToolInfo objects for MCP tools, or empty list if connection fails
     """
     mcp_info = get_mcp_records_by_tenant(tenant_id=tenant_id)
-    mcp_server_list = []
+    tools_info = []
     for record in mcp_info:
         # only update connected server
         if record["status"]:
-            mcp_server_list.append(record["mcp_server"])
+            tools_info.extend(await get_tool_from_remote_mcp_server(mcp_server_name=record["mcp_name"],
+                                                                    remote_mcp_server=record["mcp_server"]))
 
-    tools_info = await scan_all_mcp_tools(mcp_server_list=mcp_server_list)
+    default_mcp_url = urljoin(config_manager.get_config("NEXENT_MCP_SERVER"), "sse")
+    tools_info.extend(await get_tool_from_remote_mcp_server(mcp_server_name="nexent",
+                                                            remote_mcp_server=default_mcp_url))
     return tools_info
 
 def search_tool_info_impl(agent_id: int, tool_id: int, authorization: str = Header(None)):
@@ -190,7 +194,6 @@ def update_tool_info_impl(request: ToolInstanceInfoRequest, authorization: str =
         "tool_instance": tool_instance
     }
 
-
 async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_server: str):
     """get the tool information from the remote MCP server, avoid blocking the event loop"""
     def _get_tools_from_mcp_sync(mcp_url):
@@ -201,13 +204,14 @@ async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_serve
                 # iterate all MCP tools
                 for tool_class in tool_collection.tools:
                     tool_info = ToolInfo(
-                        name = getattr(tool_class, 'name'),
+                        name=getattr(tool_class, 'name'),
                         description=getattr(tool_class, 'description'),
                         params=[],
                         source=ToolSourceEnum.MCP.value,
                         inputs=str(getattr(tool_class, 'inputs')),
                         output_type=getattr(tool_class, 'output_type'),
-                        class_name=f"remote_{mcp_server_name}_{getattr(tool_class, 'name')}"
+                        class_name=getattr(tool_class, 'name'),
+                        usage=mcp_server_name
                     )
 
                     tools_info.append(tool_info)
@@ -218,39 +222,6 @@ async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_serve
 
     loop = asyncio.get_event_loop()
     tools_list = await loop.run_in_executor(None, _get_tools_from_mcp_sync, remote_mcp_server)
-    return tools_list
-
-
-async def scan_all_mcp_tools(mcp_server_list: List[str]):
-    """get the tool information from the remote MCP server, avoid blocking the event loop"""
-    def _get_tools_from_nexent_mcp_sync(server_name_list: List[str]):
-        """get the tool information from the remote MCP server, avoid blocking the event loop"""
-        try:
-            tools_info = []
-
-            default_mcp_url = urljoin(config_manager.get_config("NEXENT_MCP_SERVER"), "sse")
-            mcp_client_list = [{"url": mcp_url} for mcp_url in server_name_list] + [{"url": default_mcp_url}]
-            with ToolCollection.from_mcp(mcp_client_list, trust_remote_code=True) as tool_collection:
-                # iterate all MCP tools
-                for tool_class in tool_collection.tools:
-                    tool_info = ToolInfo(
-                        name=getattr(tool_class, 'name'),
-                        description=getattr(tool_class, 'description'),
-                        params=[],
-                        source=ToolSourceEnum.MCP.value,
-                        inputs=str(getattr(tool_class, 'inputs')),
-                        output_type=getattr(tool_class, 'output_type'),
-                        class_name=getattr(tool_class, 'name')
-                    )
-
-                    tools_info.append(tool_info)
-            return tools_info
-        except Exception as e:
-            logger.error(f"mcp connection error: {str(e)}")
-            return []
-
-    loop = asyncio.get_event_loop()
-    tools_list = await loop.run_in_executor(None, _get_tools_from_nexent_mcp_sync, mcp_server_list)
     return tools_list
 
 async def update_tool_list(tenant_id: str, user_id: str):
