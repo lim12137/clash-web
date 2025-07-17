@@ -122,7 +122,11 @@ async def get_all_mcp_tools(tenant_id: str) -> List[ToolInfo]:
         List of ToolInfo objects for MCP tools, or empty list if connection fails
     """
     mcp_info = get_mcp_records_by_tenant(tenant_id=tenant_id)
-    mcp_server_list = [record["mcp_server"] for record in mcp_info]
+    mcp_server_list = []
+    for record in mcp_info:
+        # only update connected server
+        if record["status"]:
+            mcp_server_list.append(record["mcp_server"])
 
     tools_info = await scan_all_mcp_tools(mcp_server_list=mcp_server_list)
     return tools_info
@@ -197,7 +201,7 @@ async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_serve
                 # iterate all MCP tools
                 for tool_class in tool_collection.tools:
                     tool_info = ToolInfo(
-                        name=f"remote_{mcp_server_name}_{getattr(tool_class, 'name')}",
+                        name = getattr(tool_class, 'name'),
                         description=getattr(tool_class, 'description'),
                         params=[],
                         source=ToolSourceEnum.MCP.value,
