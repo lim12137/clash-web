@@ -2,11 +2,6 @@ name: Docker Build and Push All Images (Beta Version)
 
 on:
   workflow_dispatch:
-    inputs:
-      runner_label_json:
-        description: 'JSON 格式的 runner 标签数组（如 ["ubuntu-latest"] 或 ["self-hosted"]）'
-        required: false
-        default: '["ubuntu-latest"]'
   pull_request:
     branches: [develop]
   push:
@@ -14,7 +9,7 @@ on:
 
 jobs:
   build-and-push-main-amd64:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
         run: |
@@ -40,7 +35,7 @@ jobs:
         run: docker push ccr.ccs.tencentyun.com/nexent-hub/nexent:beta-amd64
 
   build-and-push-main-arm64:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
         run: |
@@ -66,7 +61,7 @@ jobs:
         run: docker push ccr.ccs.tencentyun.com/nexent-hub/nexent:beta-arm64
 
   build-and-push-data-process-amd64:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    runs-on: ubuntu-latest
     steps:
       - name: Free up disk space on GitHub runner
         run: |
@@ -111,7 +106,7 @@ jobs:
         run: docker push ccr.ccs.tencentyun.com/nexent-hub/nexent-data-process:beta-amd64
 
   build-and-push-data-process-arm64:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    runs-on: ubuntu-latest
     steps:
       - name: Free up disk space on GitHub runner
         run: |
@@ -156,7 +151,7 @@ jobs:
         run: docker push ccr.ccs.tencentyun.com/nexent-hub/nexent-data-process:beta-arm64
 
   build-and-push-web-amd64:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
         run: |
@@ -182,7 +177,7 @@ jobs:
         run: docker push ccr.ccs.tencentyun.com/nexent-hub/nexent-web:beta-amd64
 
   build-and-push-web-arm64:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
         run: |
