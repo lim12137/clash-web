@@ -1,4 +1,5 @@
 [run]
+branch = True
 source = 
     ../../backend
 omit = 
@@ -15,7 +16,6 @@ omit =
 [paths]
 source =
     ../../backend
-    C:/Users/xhrwa/Nexent/backend
     */backend
 
 [report]

@@ -846,5 +846,14 @@
     "mcpService.message.recoverServerssBadRequest": "Recover servers request parameter error",
     "agentConfig.tools.refreshSuccess": "Tool list refreshed successfully",
     "agentConfig.tools.refreshFailed": "Failed to refresh tool list",
-    "agentConfig.debug.refreshToolsFailed": "Failed to refresh tool list:"
+    "agentConfig.debug.refreshToolsFailed": "Failed to refresh tool list:",
+    "embedding": {
+        "modal": {
+        "title": "No Embedding Model Selected",
+        "content": "You have not selected an <b>Embedding</b> model. Knowledge base configuration and retrieval tools will be unavailable.",
+        "tip": "Please select a suitable Embedding model in the model configuration for a complete experience.",
+        "ok": "Got it",
+        "ok_continue": "Got it, continue to the next step"
+        }
+    }
 }
