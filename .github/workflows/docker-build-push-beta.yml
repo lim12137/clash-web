@@ -138,7 +138,7 @@ jobs:
           rm -rf .git flax_model.msgpack tf_model.h5
       - name: Build data process image (arm64) and load locally
         run: |
-          docker buildx build --platform linux/arm64 -t nexent/nexent-data-process:beta-arm64 --load -t ccr.ccs.tencentyun.com/nexent-hub/nexent-data-process:beta-arm64 -f make/
+          docker buildx build --platform linux/arm64 -t nexent/nexent-data-process:beta-arm64 --load -t ccr.ccs.tencentyun.com/nexent-hub/nexent-data-process:beta-arm64 -f make/data_process/Dockerfile .
       - name: Login to DockerHub
         run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u nexent --password-stdin
       - name: Push data process image (arm64) to DockerHub
