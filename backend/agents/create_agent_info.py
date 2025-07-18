@@ -10,7 +10,7 @@ from utils.auth_utils import get_current_user_id
 
 from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents, \
     query_or_create_main_agent_id
-from services.elasticsearch_service import ElasticSearchService
+from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
 from services.tenant_config_service import get_selected_knowledge_list
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 
@@ -98,7 +98,9 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
         if tool_config.class_name == "KnowledgeBaseSearchTool":
             knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
             index_names = [knowledge_info.get("index_name") for knowledge_info in knowledge_info_list]
-            tool_config.metadata = {"index_names": index_names}
+            tool_config.metadata = {"index_names": index_names,
+                                    "es_core": elastic_core,
+                                    "embedding_model": get_embedding_model(tenant_id=tenant_id)}
         tool_config_list.append(tool_config)
     return tool_config_list
 

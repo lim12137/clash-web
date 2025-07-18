@@ -2,7 +2,7 @@ from typing import Dict, List, Any, Optional
 import logging
 
 from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter, Header
-from consts.model import IndexingResponse, SearchRequest, HybridSearchRequest
+from consts.model import IndexingResponse
 
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from services.elasticsearch_service import ElasticSearchService, get_es_core, get_embedding_model
@@ -50,7 +50,7 @@ async def check_knowledge_base_exist(
             except Exception as e:
                 logger.error(f"Failed to delete orphan ES index '{index_name}': {str(e)}")
                 # Still return orphan status so frontend knows it requires attention
-                return {"status": "error_cleaning_orphans", "error": str(e)}
+                return {"status": "error_cleaning_orphans", "error": True}
 
         # Case B: Orphan in PG only (missing in ES, present in PG)
         if not es_exists and pg_record:
@@ -60,7 +60,7 @@ async def check_knowledge_base_exist(
                 return {"status": "error_cleaning_orphans", "action": "cleaned_pg"}
             except Exception as e:
                 logger.error(f"Failed to delete orphan PG record for '{index_name}': {str(e)}")
-                return {"status": "error_cleaning_orphans", "error": str(e)}
+                return {"status": "error_cleaning_orphans", "error": True}
 
         # Case C: Index/record both absent -> name is available
         if not es_exists and not pg_record:
@@ -213,44 +213,6 @@ def delete_documents(
 
     except HTTPException as e:
         raise HTTPException(status_code=500, detail=f"Error delete indexing documents: {e}")
-
-
-# Search Operations
-
-@router.post("/search/accurate")
-def accurate_search(
-        request: SearchRequest = Body(..., description="Search request parameters"),
-        es_core: ElasticSearchCore = Depends(get_es_core)
-):
-    """Search for documents using fuzzy text matching across multiple indices"""
-    try:
-      return ElasticSearchService.accurate_search(request, es_core)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{str(e)}")
-
-
-@router.post("/search/semantic")
-def semantic_search(
-        request: SearchRequest = Body(..., description="Search request parameters"),
-        es_core: ElasticSearchCore = Depends(get_es_core)
-):
-    """Search for similar documents using vector similarity across multiple indices"""
-    try:
-       return ElasticSearchService.semantic_search(request, es_core)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{str(e)}")
-
-
-@router.post("/search/hybrid")
-def hybrid_search(
-        request: HybridSearchRequest = Body(..., description="Hybrid search request parameters"),
-        es_core: ElasticSearchCore = Depends(get_es_core)
-):
-    """Search for similar documents using hybrid search across multiple indices"""
-    try:
-        return ElasticSearchService.hybrid_search(request, es_core)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error during hybrid search: {str(e)}")
 
 
 # Health check
