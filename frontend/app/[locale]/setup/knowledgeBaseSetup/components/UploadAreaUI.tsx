@@ -11,7 +11,7 @@ interface UploadAreaUIProps {
   isLoading: boolean;
   isKnowledgeBaseReady: boolean;
   isCreatingMode: boolean;
-  nameExists: boolean;
+  nameStatus: string;
   isUploading: boolean;
   disabled: boolean;
   componentHeight: string;
@@ -26,7 +26,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
   isLoading,
   isKnowledgeBaseReady,
   isCreatingMode,
-  nameExists,
+  nameStatus,
   isUploading,
   disabled,
   componentHeight,
@@ -82,8 +82,12 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
     );
   }
   
-  // 名称已存在UI
-  if (isCreatingMode && nameExists) {
+  // 名称已存在UI - 根据status渲染不同消息
+  if (isCreatingMode && (nameStatus === 'exists_in_tenant' || nameStatus === 'exists_in_other_tenant')) {
+    const messageKey = nameStatus === 'exists_in_tenant' 
+      ? 'knowledgeBase.message.nameExists' 
+      : 'knowledgeBase.error.nameExistsInOtherTenant';
+
     return (
       <div className="p-3 bg-gray-50 border-t border-gray-200 h-[30%]">
         <div className="border-2 border-dashed border-red-200 bg-white rounded-md p-4 text-center flex flex-col items-center justify-center h-full">
@@ -91,7 +95,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
             <WarningFilled style={{ fontSize: 36, color: '#ff4d4f' }} />
           </div>
           <p className="mb-2 text-red-600 text-lg font-medium">
-            {t('knowledgeBase.error.nameExists', { name: newKnowledgeBaseName })}
+            {t(messageKey, { name: newKnowledgeBaseName })}
           </p>
           <p className="text-gray-500 text-sm max-w-md">
             {t('knowledgeBase.hint.changeName')}
