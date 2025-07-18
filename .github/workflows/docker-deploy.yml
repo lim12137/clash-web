@@ -35,7 +35,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Build main application image
-        run: docker build -t nexent/nexent-commercial -f make/main/Dockerfile . --no-cache
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-commercial -f make/main/Dockerfile . --no-cache
 
   build-data-process:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -61,7 +61,7 @@ jobs:
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
           rm -rf .git flax_model.msgpack tf_model.h5
       - name: Build data process image
-        run: docker build -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile . --no-cache
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple-t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile . --no-cache
 
   build-web:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -70,7 +70,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Build web frontend image
-        run: docker build -t nexent/nexent-web-commercial -f make/web/Dockerfile . --no-cache
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-web-commercial -f make/web/Dockerfile . --no-cache
 
   deploy:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
