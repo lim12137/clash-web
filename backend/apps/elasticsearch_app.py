@@ -50,7 +50,7 @@ async def check_knowledge_base_exist(
             except Exception as e:
                 logger.error(f"Failed to delete orphan ES index '{index_name}': {str(e)}")
                 # Still return orphan status so frontend knows it requires attention
-                return {"status": "error_cleaning_orphans", "error": str(e)}
+                return {"status": "error_cleaning_orphans", "error": True}
 
         # Case B: Orphan in PG only (missing in ES, present in PG)
         if not es_exists and pg_record:
@@ -60,7 +60,7 @@ async def check_knowledge_base_exist(
                 return {"status": "error_cleaning_orphans", "action": "cleaned_pg"}
             except Exception as e:
                 logger.error(f"Failed to delete orphan PG record for '{index_name}': {str(e)}")
-                return {"status": "error_cleaning_orphans", "error": str(e)}
+                return {"status": "error_cleaning_orphans", "error": True}
 
         # Case C: Index/record both absent -> name is available
         if not es_exists and not pg_record:
