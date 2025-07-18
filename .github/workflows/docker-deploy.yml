@@ -17,32 +17,25 @@ on:
         default: '[]'
 
 jobs:
-  prepare:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Copy project to $HOME/nexent-commercial
-        run: |
-          rm -rf $HOME/nexent-commercial
-          mkdir -p $HOME/nexent-commercial
-          cp -r $GITHUB_WORKSPACE/* $HOME/nexent-commercial/
-
   build-main:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [ prepare ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          retries: 3
       - name: Build main application image
         run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-commercial -f make/main/Dockerfile . --no-cache
 
   build-data-process:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [ prepare ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          retries: 3
       - name: Check if model is cached locally
         id: check-model
         run: |
@@ -65,19 +58,29 @@ jobs:
 
   build-web:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [ prepare ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          retries: 3
       - name: Build web frontend image
         run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-web-commercial -f make/web/Dockerfile . --no-cache
 
   deploy:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [ prepare, build-main, build-data-process, build-web ]
+    needs: [ build-main, build-data-process, build-web ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          retries: 3
+      - name: Copy project to $HOME/nexent-commercial
+        run: |
+          rm -rf $HOME/nexent-commercial
+          mkdir -p $HOME/nexent-commercial
+          cp -r $GITHUB_WORKSPACE/* $HOME/nexent-commercial/
       - name: Ensure deploy.sh is executable
         run: chmod +x $HOME/nexent-commercial/docker/deploy.sh
       - name: Deploy with deploy.sh
