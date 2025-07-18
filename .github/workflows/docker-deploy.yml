@@ -61,7 +61,7 @@ jobs:
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
           rm -rf .git flax_model.msgpack tf_model.h5
       - name: Build data process image
-        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple-t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile . --no-cache
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile . --no-cache
 
   build-web:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
