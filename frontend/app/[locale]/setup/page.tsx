@@ -272,18 +272,6 @@ export default function CreatePage() {
         // Get the current configuration
         const currentConfig = configStore.getConfig()
         
-        // Check the application name
-        if (!currentConfig.app.appName.trim()) {
-          message.error(t('setup.page.error.fillAppName'))
-          
-          // Trigger a custom event to notify the AppConfigSection to mark the application name input box as an error
-          window.dispatchEvent(new CustomEvent('highlightMissingField', {
-            detail: { field: t('setup.page.error.highlightField.appName') }
-          }))
-          
-          return // Interrupt the jump
-        }
-        
         // Check the main model
         if (!currentConfig.models.llm.modelName) {
           message.error(t('setup.page.error.selectMainModel'))
