@@ -269,7 +269,6 @@ export const AppConfigSection: React.FC = () => {
                 <div className="mb-4">
                   <div className="block mb-2">
                     <Text className="text-base text-gray-700 font-bold">{t('appConfig.appName.label')}</Text>
-                    <Text className="text-lg text-red-500 font-bold ml-1">*</Text>
                   </div>
                   <Input
                     placeholder={t('appConfig.appName.placeholder')}
@@ -292,7 +291,7 @@ export const AppConfigSection: React.FC = () => {
                     onChange={handleDescriptionChange}
                     onBlur={handleDescriptionBlur}
                     className="text-md rounded-md"
-                    autoSize={{ minRows: 12 }}
+                    autoSize={{ minRows: 15 }}
                     size="large"
                   />
                 </div>

@@ -47,4 +47,4 @@ COPY --from=builder /opt/frontend-dist .
 EXPOSE 3000
 
 # Start the server
-CMD ["npm", "start"] 
+CMD ["npm", "start"]
