@@ -348,10 +348,17 @@ export default function CreatePage() {
           </span>
         }
         open={embeddingModalOpen}
-        onOk={() => {
+        onOk={async () => {
           setEmbeddingModalOpen(false);
           if (pendingJump) {
             setPendingJump(false);
+            // 获取当前配置
+            const currentConfig = configStore.getConfig();
+            try {
+              await configService.saveConfigToBackend(currentConfig);
+            } catch (e) {
+              message.error(t('setup.page.error.saveConfig'));
+            }
             setSelectedKey("2");
           }
         }}
