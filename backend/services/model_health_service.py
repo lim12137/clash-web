@@ -44,9 +44,6 @@ async def _embedding_dimension_check(
 
     return 0
 
-    
-
-
 
 async def _perform_connectivity_check(
     model_name: str,

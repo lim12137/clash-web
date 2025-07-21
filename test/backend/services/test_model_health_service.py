@@ -14,6 +14,7 @@ sys.modules['database.client'] = MockModule()
 sys.modules['database.model_management_db'] = MockModule()
 sys.modules['utils'] = MockModule()
 sys.modules['utils.auth_utils'] = MockModule()
+sys.modules['utils.config_utils'] = MockModule()
 sys.modules['consts'] = MockModule()
 sys.modules['consts.model'] = MockModule()
 sys.modules['consts.const'] = MockModule()
@@ -68,6 +69,7 @@ with mock.patch.dict('sys.modules', {
     'database.model_management_db': mock.MagicMock(),
     'utils': mock.MagicMock(),
     'utils.auth_utils': mock.MagicMock(),
+    'utils.config_utils': mock.MagicMock(),
     'apps': mock.MagicMock(),
     'apps.voice_app': mock.MagicMock(),
     'consts.model': mock.MagicMock(),
@@ -93,7 +95,7 @@ async def test_perform_connectivity_check_embedding():
     # Setup
     with mock.patch("backend.services.model_health_service.OpenAICompatibleEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.check_connectivity.return_value = True
+        mock_embedding_instance.dimension_check.return_value = [1]
         mock_embedding.return_value = mock_embedding_instance
 
         # Execute
@@ -113,14 +115,14 @@ async def test_perform_connectivity_check_embedding():
             api_key="test-key",
             embedding_dim=1536
         )
-        mock_embedding_instance.check_connectivity.assert_called_once()
+        mock_embedding_instance.dimension_check.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_perform_connectivity_check_multi_embedding():
     # Setup
     with mock.patch("backend.services.model_health_service.JinaEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.check_connectivity.return_value = True
+        mock_embedding_instance.dimension_check.return_value = [1]
         mock_embedding.return_value = mock_embedding_instance
 
         # Execute
@@ -140,7 +142,7 @@ async def test_perform_connectivity_check_multi_embedding():
             api_key="test-key",
             embedding_dim=1024
         )
-        mock_embedding_instance.check_connectivity.assert_called_once()
+        mock_embedding_instance.dimension_check.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_perform_connectivity_check_llm():
