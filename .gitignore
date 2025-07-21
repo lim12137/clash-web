@@ -1,4 +1,5 @@
 .idea
+.gitignore
 /.env
 .vscode
 
@@ -17,16 +18,17 @@ docker/postgresql
 docker/redis_data
 docker/uploads
 docker/.env
+docker/.run
 
 frontend_standalone/
+.pnpm-store/
+frontend-dist/
 
 backend/assets/clip-vit-base-patch32
 model-assets
 
 # Test coverage reports
-test/coverage_html/
-test/coverage.xml
-test/.coverage
-test/.coverage.*
-test/backend/coverage.xml
-test/backend/.coverage
+*coverage_html
+*.pytest_cache
+*.coverage
+*coverage.xml

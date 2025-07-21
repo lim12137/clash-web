@@ -419,7 +419,6 @@ function ToolPool({
       // 第二步：获取最新的工具列表
       const fetchResult = await fetchTools();
       if (fetchResult.success) {
-        message.success(t('toolManagement.message.refreshSuccess'));
         // 调用父组件的刷新回调，更新工具列表状态
         if (onToolsRefresh) {
           onToolsRefresh();

@@ -118,17 +118,25 @@ def get_knowledge_record(query: Optional[Dict[str, Any]] = None) -> Dict[str, An
     Get a knowledge base record
 
     Args:
-        query: Dictionary containing filter conditions, optional parameter
+        query: Dictionary containing filter conditions, optional parameter.
+               If 'tenant_id' is provided, it will filter by tenant.
+               If 'tenant_id' is not provided, it will search across all tenants.
 
     Returns:
         Dict[str, Any]: Knowledge base record
     """
     try:
         with get_db_session() as session:
-            result = session.query(KnowledgeRecord).filter(
+            db_query = session.query(KnowledgeRecord).filter(
                 KnowledgeRecord.delete_flag != 'Y',
                 KnowledgeRecord.index_name == query['index_name'],
-            ).first()
+            )
+
+            # Add tenant_id filter only if it is provided in the query
+            if 'tenant_id' in query and query['tenant_id'] is not None:
+                db_query = db_query.filter(KnowledgeRecord.tenant_id == query['tenant_id'])
+            
+            result = db_query.first()
             
             if result:
                 return as_dict(result)

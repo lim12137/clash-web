@@ -1,4 +1,5 @@
 import unittest
+import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
 # Import FastAPI components only
@@ -78,6 +79,7 @@ async def verify_model_config_connectivity(model_data):
 
 # Create router endpoints that mimic the actual implementation
 @router.post("/create")
+@pytest.mark.asyncio
 async def create_model(request: ModelRequest, authorization: Optional[str] = Header(None)):
     try:
         user_id, tenant_id = get_current_user_id(authorization)
@@ -151,6 +153,7 @@ def update_model(request: ModelRequest, authorization: Optional[str] = Header(No
     )
 
 @router.post("/delete", response_model=None)
+@pytest.mark.asyncio
 async def delete_model(display_name: str = Query(...), authorization: Optional[str] = Header(None)):
     try:
         user_id, tenant_id = get_current_user_id(authorization)
@@ -187,6 +190,7 @@ async def delete_model(display_name: str = Query(...), authorization: Optional[s
         }
 
 @router.get("/list", response_model=None)
+@pytest.mark.asyncio
 async def get_model_list(authorization: Optional[str] = Header(None)):
     try:
         user_id, tenant_id = get_current_user_id(authorization)
@@ -214,6 +218,7 @@ async def get_model_list(authorization: Optional[str] = Header(None)):
         }
 
 @router.post("/healthcheck", response_model=None)
+@pytest.mark.asyncio
 async def check_model_healthcheck(
     display_name: str = Query(..., description="Display name to check"),
     authorization: Optional[str] = Header(None)
