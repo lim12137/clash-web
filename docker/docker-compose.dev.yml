@@ -2,7 +2,7 @@ name: nexent-commercial
 
 services:
   nexent:
-    image: ${NEXENT_IMAGE}
+    image: nexent/nexent-commercial:latest
     container_name: nexent
     restart: always
     ports:
@@ -37,7 +37,7 @@ services:
 
 
   nexent-data-process:
-    image: ${NEXENT_DATA_PROCESS_IMAGE}
+    image: nexent/nexent-data-process-commercial:latest
     container_name: nexent-data-process
     restart: always
     privileged: true
@@ -46,10 +46,9 @@ services:
     volumes:
       - ../:/opt/:cached
       - /opt/backend/.venv/
-      - ../backend/assets/clip-vit-base-patch32:/opt/models/clip-vit-base-patch32:ro
     environment:
       skip_proxy: "true"
-      PATH: "/usr/local/bin:/opt/backend/.venv/bin:${PATH}"
+      PATH: "/usr/local/bin:/usr/bin/:/opt/backend/.venv/bin:${PATH}"
       VIRTUAL_ENV: "/opt/backend/.venv"
     env_file:
       - .env

@@ -113,7 +113,7 @@ def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
         user_tenant_record = get_user_tenant_by_user_id(user_id)
         if user_tenant_record and user_tenant_record.get('tenant_id'):
             tenant_id = user_tenant_record['tenant_id']
-            logging.info(f"Found tenant ID for user {user_id}: {tenant_id}")
+            logging.debug(f"Found tenant ID for user {user_id}: {tenant_id}")
         else:
             tenant_id = DEFAULT_TENANT_ID
             logging.warning(f"No tenant relationship found for user {user_id}, using default tenant")
