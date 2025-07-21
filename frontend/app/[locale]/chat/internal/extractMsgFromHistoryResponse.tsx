@@ -1,9 +1,9 @@
 "use client";
 import { ApiMessage, SearchResult, AgentStep, ApiMessageItem, ChatMessageType, MinioFileItem } from "@/types/chat";
-import { useTranslation } from "react-i18next";
+
 
 // function: process the user break tag
-const processUserBreakTag = (content: string, t: any): string => {
+const processSpecialTag = (content: string, t: any): string => {
   if (!content || typeof content !== 'string') {
     return content;
   }
@@ -50,7 +50,7 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
       switch (msg.type) {
         case "final_answer": {
           // process the final_answer content and identify the user break tag
-          finalAnswer += processUserBreakTag(msg.content, t);
+          finalAnswer += processSpecialTag(msg.content, t);
           break;
         }
 

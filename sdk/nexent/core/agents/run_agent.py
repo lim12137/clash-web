@@ -3,7 +3,7 @@ from threading import Thread
 
 from smolagents import ToolCollection
 
-from .nexent_agent import NexentAgent
+from .nexent_agent import NexentAgent, ProcessType
 from .agent_model import AgentRunInfo
 
 
@@ -24,6 +24,7 @@ def agent_run_thread(agent_run_info: AgentRunInfo):
             nexent.add_history_to_agent(agent_run_info.history)
             nexent.agent_run_with_observer(query=agent_run_info.query, reset=False)
         else:
+            agent_run_info.observer.add_message("", ProcessType.AGENT_NEW_RUN, "<MCP_START>")
             mcp_client_list = [{"url": mcp_url} for mcp_url in mcp_host]
 
             with ToolCollection.from_mcp(mcp_client_list, trust_remote_code=True) as tool_collection:
@@ -38,6 +39,11 @@ def agent_run_thread(agent_run_info: AgentRunInfo):
                 nexent.add_history_to_agent(agent_run_info.history)
                 nexent.agent_run_with_observer(query=agent_run_info.query, reset=False)
     except Exception as e:
+        if "Couldn't connect to the MCP server" in str(e):
+            mcp_connect_error_str = "MCP服务器连接超时。" if agent_run_info.observer.lang == "zh" else "Couldn't connect to the MCP server."
+            agent_run_info.observer.add_message("", ProcessType.FINAL_ANSWER, mcp_connect_error_str)
+        else:
+            agent_run_info.observer.add_message("", ProcessType.FINAL_ANSWER, f"Run Agent Error: {e}")
         raise ValueError(f"Error in agent_run_thread: {e}")
 
 

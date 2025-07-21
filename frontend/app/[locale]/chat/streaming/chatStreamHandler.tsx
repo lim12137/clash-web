@@ -368,14 +368,26 @@ export const handleStreamResponse = async (
                   break;
                   
                 case "agent_new_run":
-                  // Add a "Thinking..." content
-                  currentStep.contents.push({
-                    id: `agent-run-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                    type: "agent_new_run",
-                    content: t('chatStreamHandler.thinking'),
-                    expanded: true,
-                    timestamp: Date.now()
-                  });
+                  // Check if content is MCP_START identifier
+                  if (messageContent === "<MCP_START>") {
+                    // Show MCP server connection message
+                    currentStep.contents.push({
+                      id: `agent-run-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                      type: "agent_new_run",
+                      content: t('chatStreamHandler.connectingMcpServer'),
+                      expanded: true,
+                      timestamp: Date.now()
+                    });
+                  } else {
+                    // Add a "Thinking..." content for other cases
+                    currentStep.contents.push({
+                      id: `agent-run-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                      type: "agent_new_run",
+                      content: t('chatStreamHandler.thinking'),
+                      expanded: true,
+                      timestamp: Date.now()
+                    });
+                  }
                   break;
                   
                 case "error":

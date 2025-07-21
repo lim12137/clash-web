@@ -217,6 +217,7 @@
         "parseSSEFailed": "SSE 数据解析失败:",
         "processRemainingDataFailed": "处理剩余数据失败:",
         "thinking": "正在思考中...",
+        "connectingMcpServer": "正在连接MCP服务器...",
         "generateTitleFailed": "生成标题失败:",
         "streamResponseError": "处理流式响应时出错:",
         "userInterrupted": "对话主动中止。"
