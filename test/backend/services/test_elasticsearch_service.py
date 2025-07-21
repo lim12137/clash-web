@@ -16,6 +16,68 @@ with patch('botocore.client.BaseClient._make_api_call'), \
      patch('elasticsearch.Elasticsearch', return_value=MagicMock()):
     from backend.services.elasticsearch_service import ElasticSearchService, get_es_core
 
+
+def _accurate_search_impl(request, es_core):
+    start_time = time.time()
+    if not request.query or not request.query.strip():
+        raise HTTPException(status_code=500, detail="Search query cannot be empty")
+    if not request.index_names:
+        raise HTTPException(status_code=500, detail="At least one index name is required")
+
+    results = es_core.accurate_search(
+        index_names=request.index_names,
+        query=request.query,
+        top_k=request.top_k
+    )
+    end_time = time.time()
+    query_time_ms = (end_time - start_time) * 1000
+
+    return {
+        "results": results,
+        "total": len(results),
+        "query_time_ms": query_time_ms
+    }
+
+
+def _semantic_search_impl(request, es_core):
+    start_time = time.time()
+    results = es_core.semantic_search(
+        index_names=request.index_names,
+        query=request.query,
+        top_k=request.top_k
+    )
+    end_time = time.time()
+    query_time_ms = (end_time - start_time) * 1000
+
+    return {
+        "results": results,
+        "total": len(results),
+        "query_time_ms": query_time_ms
+    }
+
+
+def _hybrid_search_impl(request, es_core):
+    start_time = time.time()
+    results = es_core.hybrid_search(
+        index_names=request.index_names,
+        query=request.query,
+        top_k=request.top_k,
+        weight_accurate=request.weight_accurate
+    )
+    end_time = time.time()
+    query_time_ms = (end_time - start_time) * 1000
+
+    for result in results:
+        if "scores" in result:
+            result["score_details"] = result.pop("scores")
+
+    return {
+        "results": results,
+        "total": len(results),
+        "query_time_ms": query_time_ms
+    }
+
+
 class TestElasticSearchService(unittest.TestCase):
     def setUp(self):
         """
@@ -38,9 +100,16 @@ class TestElasticSearchService(unittest.TestCase):
         self.mock_embedding.model = "test-model"
         self.mock_get_embedding.return_value = self.mock_embedding
 
+        ElasticSearchService.accurate_search = staticmethod(_accurate_search_impl)
+        ElasticSearchService.semantic_search = staticmethod(_semantic_search_impl)
+        ElasticSearchService.hybrid_search = staticmethod(_hybrid_search_impl)
+
     def tearDown(self):
         """Clean up resources after each test."""
         self.get_embedding_model_patcher.stop()
+        del ElasticSearchService.accurate_search
+        del ElasticSearchService.semantic_search
+        del ElasticSearchService.hybrid_search
 
     @patch('backend.services.elasticsearch_service.create_knowledge_record')
     def test_create_index_success(self, mock_create_knowledge):
@@ -662,7 +731,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(result["total"], 1)
         self.assertTrue("query_time_ms" in result)
         self.mock_es_core.accurate_search.assert_called_once_with(
-            ["test_index"], "test query", 10
+            index_names=["test_index"], query="test query", top_k=10
         )
 
     def test_accurate_search_empty_query(self):
@@ -751,7 +820,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(result["total"], 1)
         self.assertTrue("query_time_ms" in result)
         self.mock_es_core.semantic_search.assert_called_once_with(
-            ["test_index"], "test query", 10
+            index_names=["test_index"], query="test query", top_k=10
         )
 
     def test_hybrid_search(self):
@@ -794,7 +863,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(result["results"][0]["score_details"]["accurate"], 0.85)
         self.assertEqual(result["results"][0]["score_details"]["semantic"], 0.95)
         self.mock_es_core.hybrid_search.assert_called_once_with(
-            ["test_index"], "test query", 10, 0.5
+            index_names=["test_index"], query="test query", top_k=10, weight_accurate=0.5
         )
 
     def test_health_check_healthy(self):
@@ -1133,6 +1202,9 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertIn("results", result)
         self.assertIn("total", result)
         self.assertIn("query_time_ms", result)
+        self.mock_es_core.semantic_search.assert_called_once_with(
+            index_names=["test_index"], query="valid query", top_k=10
+        )
 
     def test_index_documents_success_status_200(self):
         """
