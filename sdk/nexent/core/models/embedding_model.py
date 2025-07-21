@@ -39,7 +39,7 @@ class BaseEmbedding(ABC):
         pass
 
     @abstractmethod
-    def dimension_check(self, timeout: float = 5.0) -> []:
+    def dimension_check(self, timeout: float = 5.0) -> List[List[float]]:
         """
         Test the connectivity to the embedding API, supporting timeout detection.
 
@@ -182,7 +182,7 @@ class JinaEmbedding(MultimodalEmbedding):
         embeddings = [item["embedding"] for item in response["data"]]
         return embeddings
 
-    def dimension_check(self, timeout: float = 5.0) -> []:
+    def dimension_check(self, timeout: float = 5.0) -> List[List[float]]:
         try:
             # Create a simple test input
             test_input = "Hello, nexent!"
@@ -195,13 +195,13 @@ class JinaEmbedding(MultimodalEmbedding):
 
         except requests.exceptions.Timeout:
             logging.error(f"Embedding API connection test timed out ({timeout} seconds)")
-            return False
+            return []
         except requests.exceptions.ConnectionError:
             logging.error("Embedding API connection error, unable to establish connection")
-            return False
+            return []
         except Exception as e:
             logging.error(f"Embedding API connection test failed: {str(e)}")
-            return False
+            return []
 
 
 class OpenAICompatibleEmbedding(TextEmbedding):
@@ -258,7 +258,7 @@ class OpenAICompatibleEmbedding(TextEmbedding):
         embeddings = [item["embedding"] for item in response["data"]]
         return embeddings
 
-    def dimension_check(self, timeout: float = 5.0) -> []:
+    def dimension_check(self, timeout: float = 5.0) -> List[List[float]]:
         try:
             # Create a simple test input
             test_input = "Hello, nexent!"
@@ -271,10 +271,10 @@ class OpenAICompatibleEmbedding(TextEmbedding):
 
         except requests.exceptions.Timeout:
             logging.error(f"Embedding API connection test timed out ({timeout} seconds)")
-            return False
+            return []
         except requests.exceptions.ConnectionError:
             logging.error("Embedding API connection error, unable to establish connection")
-            return False
+            return []
         except Exception as e:
             logging.error(f"Embedding API connection test failed: {str(e)}")
-            return False
+            return []
