@@ -8,6 +8,7 @@ from urllib.parse import urljoin
 from pydantic_core import PydanticUndefined
 from fastmcp import Client
 import jsonref
+from mcpadapt.smolagents_adapter import _sanitize_function_name
 
 from database.agent_db import (
     query_tool_instances_by_id,
@@ -220,17 +221,17 @@ async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_serve
                 if "type" not in v:
                     input_schema["properties"][k]["type"] = "string"
 
-            tool_info = ToolInfo(name=tool.name,
+            sanitized_tool_name = _sanitize_function_name(tool.name)
+            tool_info = ToolInfo(name=sanitized_tool_name,
                                 description=tool.description,
                                 params=[],
                                 source=ToolSourceEnum.MCP.value,
                                 inputs=str(input_schema["properties"]),
                                 output_type="string",
-                                class_name=tool.name,
+                                class_name=sanitized_tool_name,
                                 usage=mcp_server_name)
             tools_info.append(tool_info)
         return tools_info
-
 
 async def update_tool_list(tenant_id: str, user_id: str):
     """
