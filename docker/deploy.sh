@@ -335,8 +335,8 @@ fi
 install
 clean
 
-echo "Creating admin user..."
-docker exec -d nexent bash -c "curl -X POST http://kong:8000/auth/v1/signup -H \"apikey: ${SUPABASE_KEY}\" -H \"Authorization: Bearer ${SUPABASE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"admin@example.com\",\"password\":\"123123\",\"email_confirm\":true,\"data\":{\"role\":\"admin\"}}'"
+# echo "Creating admin user..."
+# docker exec -d nexent bash -c "curl -X POST http://kong:8000/auth/v1/signup -H \"apikey: ${SUPABASE_KEY}\" -H \"Authorization: Bearer ${SUPABASE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"admin@example.com\",\"password\":\"123123\",\"email_confirm\":true,\"data\":{\"role\":\"admin\"}}'"
 
 if [ "$ERROR_OCCURRED" -eq 1 ]; then
   echo "❌ Deployment did not complete successfully. Please review the logs and have a try again."

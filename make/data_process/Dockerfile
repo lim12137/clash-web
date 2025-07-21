@@ -1,4 +1,4 @@
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/python:3.10-slim
+FROM python:3.10-slim
 ARG MIRROR
 LABEL authors="nexent"
 
@@ -25,6 +25,7 @@ RUN apt-get update && \
 RUN pip install --no-cache-dir uv $(test -n "$MIRROR" && echo "-i $MIRROR")
 # Layer 0: copy model assets
 COPY model-assets/clip-vit-base-patch32 /opt/models/clip-vit-base-patch32
+COPY model-assets/nltk_data /opt/models/nltk_data
 
 WORKDIR /opt/backend
 # Layer 1: install base dependencies
