@@ -1,0 +1,28 @@
+[run]
+branch = True
+source = 
+    ../../backend
+omit = 
+    */test*
+    */tests/*
+    */__pycache__/*
+    */venv/*
+    */env/*
+    */.venv/*
+    */__init__.py
+    backend/database/utils.py
+    backend/utils/user_utils.py
+
+[paths]
+source =
+    ../../backend
+    */backend
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+    raise ImportError 

@@ -1,4 +1,3 @@
-import json
 import logging
 
 from fastapi import APIRouter, Header, Request
@@ -6,7 +5,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 
 from consts.model import GlobalConfig
-from utils.config_utils import config_manager, get_env_key, safe_value, safe_list, tenant_config_manager, \
+from utils.config_utils import config_manager, get_env_key, safe_value, tenant_config_manager, \
     get_model_name_from_config
 from utils.auth_utils import get_current_user_id, get_current_user_info
 from database.model_management_db import get_model_id_by_display_name
@@ -14,7 +13,7 @@ from database.model_management_db import get_model_id_by_display_name
 router = APIRouter(prefix="/config")
 
 # Get logger instance
-logger = logging.getLogger("app config")
+logger = logging.getLogger("config_sync_app")
 
 def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id: int, tenant_config_dict: dict) -> None:
     """
@@ -51,13 +50,11 @@ def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id:
 async def save_config(config: GlobalConfig, authorization: Optional[str] = Header(None)):
     try:
         user_id, tenant_id = get_current_user_id(authorization)
+        logger.info(f"Start to save config, user_id: {user_id}, tenant_id: {tenant_id}")
         config_dict = config.model_dump(exclude_none=False)
         env_config = {}
 
-        print(f"config_dict: {config_dict}")
-
         tenant_config_dict = tenant_config_manager.load_config(tenant_id)
-        print(f"Tenant {tenant_id} config: {tenant_config_dict}")
 
         # Process app configuration - use key names directly without prefix
         for key, value in config_dict.get("app", {}).items():
@@ -93,27 +90,11 @@ async def save_config(config: GlobalConfig, authorization: Optional[str] = Heade
 
             model_prefix = get_env_key(model_type)
 
-            # Process basic model attributes
-            for key, value in model_config.items():
-                if key == "apiConfig":
-                    # Process API configuration - use model name as prefix directly, without API_
-                    api_config = value or {}
-                    if api_config:
-                        for api_key, api_value in api_config.items():
-                            env_key = f"{model_prefix}_{get_env_key(api_key)}"
-                            env_config[env_key] = safe_value(api_value)
-                    else:
-                        # Set default empty values
-                        env_config[f"{model_prefix}_API_KEY"] = ""
-                        env_config[f"{model_prefix}_MODEL_URL"] = ""
-                else:
-                    env_key = f"{model_prefix}_{get_env_key(key)}"
-                    env_config[env_key] = safe_value(value)
-            
-            # Only store dimension for embedding or multiEmbedding models
-            if model_type in ["embedding", "multiEmbedding"] and model_config.get("dimension") is not None:
-                env_key = f"{model_prefix}_DIMENSION"
-                env_config[env_key] = safe_value(model_config.get("dimension"))
+            # Still keep EMBEDDING_API_KEY in env
+            if model_type == "embedding":
+                if model_config and "apiConfig" in model_config:
+                    embedding_apiCongig = model_config.get("apiConfig",{})
+                    env_config[f"{model_prefix}_API_KEY"] = safe_value(embedding_apiCongig.get("apiKey"))
 
         # Batch update environment variables
         for key, value in env_config.items():
@@ -190,7 +171,7 @@ async def load_config(authorization: Optional[str] = Header(None), request: Requ
                         "apiKey": embedding_model_name.get("api_key", ""),
                         "modelUrl": embedding_model_name.get("base_url", "")
                     },
-                    "dimension": int(config_manager.get_config("EMBEDDING_DIMENSION", "0")) or None
+                    "dimension": embedding_model_name.get("max_tokens", 0)
                 },
                 "multiEmbedding": {
                     "name": get_model_name_from_config(multi_embedding_model_name) if multi_embedding_model_name else "",
@@ -199,7 +180,7 @@ async def load_config(authorization: Optional[str] = Header(None), request: Requ
                         "apiKey": multi_embedding_model_name.get("api_key", ""),
                         "modelUrl": multi_embedding_model_name.get("base_url", "")
                     },
-                    "dimension": int(config_manager.get_config("MULTI_EMBEDDING_DIMENSION", "0")) or None
+                    "dimension": multi_embedding_model_name.get("max_tokens", 0)
                 },
                 "rerank": {
                     "name": get_model_name_from_config(rerank_model_name) if rerank_model_name else "",

@@ -18,8 +18,7 @@ from agents.agent_run_manager import agent_run_manager
 
 router = APIRouter(prefix="/agent")
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("agent app")
+logger = logging.getLogger("agent_app")
 
 # Define API route
 @router.post("/run")

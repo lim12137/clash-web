@@ -3,7 +3,6 @@ Utility functions for Celery tasks
 """
 import logging
 import time
-import os
 import redis
 from typing import Dict, Any, Optional, List
 from celery.result import AsyncResult
@@ -22,11 +21,6 @@ def get_all_task_ids_from_redis(redis_client: redis.Redis) -> List[str]:
     Returns:
         List of task IDs found in Redis
     """
-    # Defensive check to prevent crashes if redis_client is None
-    if not redis_client:
-        logger.error("Redis client is not initialized, cannot get task IDs from Redis.")
-        return []
-        
     task_ids = []
     try:
         # Get all keys matching Celery result pattern
@@ -72,6 +66,7 @@ async def get_task_info(task_id: str) -> Dict[str, Any]:
             'index_name': '',
             'task_name': '',
             'path_or_url': '',
+            'original_filename': '',
             'status': result.status if result.status else 'PENDING',
             'created_at': current_time,
             'updated_at': current_time,
@@ -121,6 +116,9 @@ async def get_task_info(task_id: str) -> Dict[str, Any]:
 
                         if 'source' in metadata:
                             status_info['path_or_url'] = metadata['source']
+
+                        if 'original_filename' in metadata:
+                            status_info['original_filename'] = metadata['original_filename']
                 # Add error information for failed tasks
                 if result.failed():
                     try:
@@ -144,6 +142,8 @@ async def get_task_info(task_id: str) -> Dict[str, Any]:
                                 status_info['task_name'] = error_json.get('task_name')
                             if error_json.get('source') is not None:
                                 status_info['path_or_url'] = error_json.get('source')
+                            if error_json.get('original_filename') is not None:
+                                status_info['original_filename'] = error_json.get('original_filename')
                         else:
                             # fallback: compatible with previous format
                             status_info['error'] = str(result.result) if result.result else "Unknown error"
@@ -178,6 +178,7 @@ async def get_task_info(task_id: str) -> Dict[str, Any]:
                 'index_name': '',
                 'task_name': '',
                 'path_or_url': '',
+                'original_filename': '',
             }
         else:
             logger.error(f"Error getting status for task {task_id}: {str(e)}")
@@ -190,6 +191,7 @@ async def get_task_info(task_id: str) -> Dict[str, Any]:
                 'index_name': '',
                 'task_name': '',
                 'path_or_url': '',
+                'original_filename': '',
             }
     except Exception as e:
         logger.warning(f"Error getting status for task {task_id}: {str(e)}")
@@ -203,6 +205,7 @@ async def get_task_info(task_id: str) -> Dict[str, Any]:
             'index_name': '',
             'task_name': '',
             'path_or_url': '',
+            'original_filename': '',
         }
 
 async def get_task_details(task_id: str) -> Optional[Dict[str, Any]]:

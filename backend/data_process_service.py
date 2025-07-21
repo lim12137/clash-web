@@ -14,17 +14,14 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from data_process.ray_config import init_ray_for_service
+from utils.logging_utils import configure_logging
 
 # Load environment variables
 load_dotenv()
 
-# Configure logging with simplified format
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s %(levelname)s] %(message)s',
-    datefmt='%H:%M:%S'
-)
-logger = logging.getLogger(__name__)
+# Configure logging with color formatter
+configure_logging(logging.INFO)
+logger = logging.getLogger("data_process_service")
 
 # Global variables to track processes
 service_processes = {
@@ -176,6 +173,8 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s: %(levelname)s/%(name)s] %(message)s')
+logger = logging.getLogger("data_process.worker_launcher")
+
 os.environ["QUEUES"] = "{config['queue']}"
 os.environ["WORKER_NAME"] = "{config['name']}"
 os.environ["WORKER_CONCURRENCY"] = "{config['concurrency']}"
@@ -183,21 +182,20 @@ os.environ["WORKER_CONCURRENCY"] = "{config['concurrency']}"
 try:
     # Ensure the Celery app is discovered correctly
     from data_process.app import app as celery_app
-    logger = logging.getLogger("data_process.worker_launcher")
+    
     logger.info(f"Celery app instance: {{celery_app}}")
     logger.info(f"Attempting to start worker for queue: {config['queue']}")
-
     from data_process.worker import start_worker
     start_worker()
 except ImportError as e:
-    print(f"Import error: {{e}}")
-    print(f"Python path: {{sys.path}}")
-    print(f"Current directory: {{os.getcwd()}}")
+    logger.info(f"Import error: {{e}}")
+    logger.info(f"Python path: {{sys.path}}")
+    logger.info(f"Current directory: {{os.getcwd()}}")
     sys.exit(1)
 except Exception as e_exec:
-    print(f"Error executing worker: {{e_exec}}")
+    logger.info(f"Error executing worker: {{e_exec}}")
     import traceback
-    print(traceback.format_exc())
+    logger.info(traceback.format_exc())
     sys.exit(1)
                     '''
                 ]
@@ -476,11 +474,11 @@ except Exception as e_exec:
         logger.info(f"✅ Started {success_count}/{enabled_count} services successfully")
         
         if success_count > 0:
-            self.print_service_info()
+            self.log_service_info()
         
         return success_count == enabled_count
     
-    def print_service_info(self):
+    def log_service_info(self):
         """Print information about running services"""
         logger.info("\n📋 Service Information:")
         logger.info("-" * 30)
@@ -743,7 +741,7 @@ def main():
             app, 
             host=args.api_host,
             port=args.api_port,
-            log_level="info"
+            log_level="warning"
         )
         
     except KeyboardInterrupt:

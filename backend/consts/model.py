@@ -43,6 +43,8 @@ class UserSignUpRequest(BaseModel):
     """User registration request model"""
     email: EmailStr
     password: str = Field(..., min_length=6)
+    is_admin: Optional[bool] = False
+    invite_code: Optional[str] = None
 
 class UserSignInRequest(BaseModel):
     """User login request model"""
@@ -54,6 +56,7 @@ class UserUpdateRequest(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = Field(None, min_length=6)
     role: Optional[str] = None
+
 
 # Response models for user management
 class ServiceResponse(BaseModel):
@@ -165,10 +168,12 @@ class GenerateTitleRequest(BaseModel):
 # Pydantic models for API
 class TaskRequest(BaseModel):
     source: str
-    source_type: str = "file"
+    source_type: str
     chunking_strategy: Optional[str] = None
     index_name: Optional[str] = None
+    original_filename: Optional[str] = None
     additional_params: Dict[str, Any] = Field(default_factory=dict)
+
 
 
 class BatchTaskRequest(BaseModel):
@@ -188,6 +193,7 @@ class SimpleTaskStatusResponse(BaseModel):
     task_name: str
     index_name: str
     path_or_url: str
+    original_filename: str
     status: str
     created_at: float
     updated_at: float
@@ -238,20 +244,10 @@ class DocumentResponse(BaseModel):
     create_time: Optional[str] = None
     score: Optional[float] = None
 
-
-class SearchRequest(BaseModel):
-    index_names: List[str] = Field(..., description="List of index names to search in")
-    query: str = Field(..., description="Text query to search for")
-    top_k: int = Field(5, description="Number of results to return")
-
-
-class HybridSearchRequest(SearchRequest):
-    weight_accurate: float = Field(0.3, description="Weight for accurate search score (0-1)", ge=0.0, le=1.0)
-
-
 # Request models
 class ProcessParams(BaseModel):
-    chunking_strategy: Optional[str] = None
+    chunking_strategy: Optional[str] = "basic"
+    source_type: str
     index_name: str
 
 
@@ -264,6 +260,12 @@ class OpinionRequest(BaseModel):
 class GeneratePromptRequest(BaseModel):
     task_description: str
     agent_id: int
+
+
+class GenerateTitleRequest(BaseModel):
+    conversation_id: int
+    history: List[Dict[str, str]]
+
 
 # used in prompt/finetune request
 class FineTunePromptRequest(BaseModel):

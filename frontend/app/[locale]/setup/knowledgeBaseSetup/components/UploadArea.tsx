@@ -6,8 +6,7 @@ import { API_ENDPOINTS } from '@/services/api';
 import knowledgeBasePollingService from '@/services/knowledgeBasePollingService';
 import UploadAreaUI from './UploadAreaUI';
 import { 
-  customUploadRequest,
-  checkKnowledgeBaseNameExists,
+  checkKnowledgeBaseName,
   fetchKnowledgeBaseInfo,
   validateFileType,
 } from './UploadService';
@@ -27,6 +26,7 @@ interface UploadAreaProps {
   uploadUrl?: string;
   indexName?: string;
   newKnowledgeBaseName?: string;
+  modelMismatch?: boolean;
 }
 
 export interface UploadAreaRef {
@@ -43,11 +43,12 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
   uploadUrl = '/api/upload',
   indexName = '',
   newKnowledgeBaseName = '',
-  selectedFiles = []
+  selectedFiles = [],
+  modelMismatch = false
 }, ref) => {
   const { t } = useTranslation('common');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
-  const [nameExists, setNameExists] = useState(false);
+  const [nameStatus, setNameStatus] = useState<string>('available');
   const [isLoading, setIsLoading] = useState(false);
   const [isKnowledgeBaseReady, setIsKnowledgeBaseReady] = useState(false);
   const currentKnowledgeBaseRef = useRef<string>('');
@@ -61,7 +62,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
   // 重置所有状态的函数
   const resetAllStates = useCallback(() => {
     setFileList([]);
-    setNameExists(false);
+    setNameStatus('available');
     setIsLoading(true);
     setIsKnowledgeBaseReady(false);
   }, []);
@@ -128,29 +129,26 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
   // 检查知识库名称是否已存在
   useEffect(() => {
     if (!isCreatingMode || !newKnowledgeBaseName) {
-      setNameExists(false);
+      setNameStatus('available');
       return;
     }
 
-    let isActive = true;
-
     const checkName = async () => {
       try {
-        const exists = await checkKnowledgeBaseNameExists(newKnowledgeBaseName, t);
-        if (isActive) {
-          setNameExists(exists);
-        }
+        const result = await checkKnowledgeBaseName(newKnowledgeBaseName, t);
+        setNameStatus(result.status);
       } catch (error) {
-        if (isActive) {
-          console.error(t('knowledgeBase.error.checkName'), error);
-        }
+        console.error(t('knowledgeBase.error.checkName'), error);
+        setNameStatus('check_failed'); // Handle check failure
       }
     };
       
-    checkName();
+    const timer = setTimeout(() => {
+        checkName();
+    }, 300); // Debounce for 300ms
 
     return () => {
-      isActive = false;
+        clearTimeout(timer);
     };
   }, [isCreatingMode, newKnowledgeBaseName, t]);
   
@@ -226,12 +224,13 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
       isLoading={isLoading}
       isKnowledgeBaseReady={isKnowledgeBaseReady}
       isCreatingMode={isCreatingMode}
-      nameExists={nameExists}
+      nameStatus={nameStatus}
       isUploading={isUploading}
       disabled={disabled}
       componentHeight={componentHeight}
       newKnowledgeBaseName={newKnowledgeBaseName}
       selectedFiles={selectedFiles}
+      modelMismatch={modelMismatch}
     />
   );
 });

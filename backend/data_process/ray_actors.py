@@ -1,12 +1,13 @@
 import logging
 import os
 import ray
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from nexent.data_process import DataProcessCore
+from database.attachment_db import get_file_stream
 
 logger = logging.getLogger(__name__)
-NUM_CPUS = os.getenv("RAY_NUM_CPUS", 1)
+NUM_CPUS = int(os.getenv("RAY_NUM_CPUS", "1"))
 
 
 @ray.remote(num_cpus=NUM_CPUS)
@@ -19,54 +20,44 @@ class DataProcessorRayActor:
         logger.info(f"Ray starting using {NUM_CPUS} CPUs...")
         self._processor = DataProcessCore()
 
-    def process_file(self, source: str, chunking_strategy: str, source_type: str, task_id: str, **params) -> List[Dict[str, Any]]:
-        """Process a generic file."""
-        logger.info(f"[RayActor] Processing file: {source}")
-        raw_chunks = self._processor._process_file(
-            source, chunking_strategy, source_type=source_type, task_id=task_id, **params
-        )
+    def process_file(self, source: str, chunking_strategy: str, destination: str, task_id: Optional[str] = None, **params) -> List[Dict[str, Any]]:
+        """
+        Process a file, auto-detecting its type using DataProcessCore.file_process.
+
+        Args:
+            source (str): The file path or URL.
+            chunking_strategy (str): The strategy for chunking the file.
+            destination (str): The source type of the file, e.g., 'local', 'minio'.
+            task_id (str, optional): The task ID for processing. Defaults to None.
+            **params: Additional parameters for the processing task.
+
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries representing the processed chunks.
+        """
+        logger.info(f"[RayActor] Processing file: {source}, destination: {destination}")
         
-        if not raw_chunks:
-            logger.warning(f"[RayActor] _process_file returned no chunks for {source}")
+        if task_id:
+            params['task_id'] = task_id
+        
+        try:
+            file_stream = get_file_stream(source)
+            if file_stream is None:
+                raise FileNotFoundError(f"Unable to fetch file from URL: {source}")
+            file_data = file_stream.read()
+        except Exception as e:
+            logger.error(f"Failed to fetch file from {source}: {e}")
+            raise
+
+        chunks = self._processor.file_process(
+            file_data=file_data,
+            filename=source,
+            chunking_strategy=chunking_strategy,
+            **params
+        )
+
+        if not chunks:
+            logger.warning(f"[RayActor] file_process returned no chunks for {source}")
             return []
 
-        # Inspect the first chunk to determine its type
-        first_chunk = raw_chunks[0]
-        
-        # If it's already a dict, assume it's correctly formatted and return as is.
-        if isinstance(first_chunk, dict):
-            logger.debug("[RayActor] Chunks are already dicts, returning as is.")
-            return raw_chunks
-
-        # If it's an object, convert to dict for serialization.
-        logger.debug("[RayActor] Chunks are objects, converting to dicts for serialization.")
-        return [
-            {"content": chunk.text, "metadata": chunk.metadata.to_dict()}
-            for chunk in raw_chunks if hasattr(chunk, 'text') and hasattr(chunk, 'metadata')
-        ]
-
-    def process_excel_file(self, source: str, chunking_strategy: str, **params) -> List[Dict[str, Any]]:
-        """Process an Excel file."""
-        logger.info(f"[RayActor] Processing Excel file: {source}")
-        raw_chunks = self._processor.process_excel_file(
-            source, chunking_strategy, **params
-        )
-        
-        if not raw_chunks:
-            logger.warning(f"[RayActor] _process_excel_file returned no chunks for {source}")
-            return []
-
-        # Inspect the first chunk to determine its type
-        first_chunk = raw_chunks[0]
-        
-        # If it's already a dict, assume it's correctly formatted and return as is.
-        if isinstance(first_chunk, dict):
-            logger.debug("[RayActor] Chunks are already dicts, returning as is.")
-            return raw_chunks
-
-        # If it's an object, convert to dict for serialization.
-        logger.debug("[RayActor] Chunks are objects, converting to dicts for serialization.")
-        return [
-            {"content": chunk.text, "metadata": chunk.metadata.to_dict()}
-            for chunk in raw_chunks if hasattr(chunk, 'text') and hasattr(chunk, 'metadata')
-        ] 
+        logger.debug(f"[RayActor] file_process returned {len(chunks)} chunks, returning as is.")
+        return chunks 

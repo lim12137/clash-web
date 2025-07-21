@@ -16,72 +16,34 @@ export const updateKnowledgeBaseCache = (forceRefresh: boolean = true) => {
   knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(forceRefresh);
 };
 
-// 自定义上传请求函数
-export const customUploadRequest = async (
-  options: any, 
-  effectiveUploadUrl: string, 
-  isCreatingMode: boolean,
-  newKnowledgeBaseName: string,
-  indexName: string,
-  currentKnowledgeBaseRef: React.MutableRefObject<string>
-) => {
-  const { t } = useTranslation('common');
-  const { onSuccess, onError, file } = options;
-  const effectiveIndexName = isCreatingMode ? newKnowledgeBaseName : indexName;
-  
-  // 确保是当前知识库
-  if (effectiveIndexName !== currentKnowledgeBaseRef.current && !isCreatingMode) {
-    onError(new Error(t('knowledgeBase.upload.switchError')));
-    message.error(t('knowledgeBase.upload.fileUploadSwitchError', { fileName: file.name }));
-    return;
-  }
+// 检查知识库名称是否存在 (旧方法，保留以便参考)
+// export const checkKnowledgeBaseNameExists = async (
+//   knowledgeBaseName: string,
+//   t: TFunction
+// ): Promise<boolean> => {
+//   try {
+//     return await knowledgeBaseService.checkKnowledgeBaseNameExists(knowledgeBaseName);
+//   } catch (error) {
+//     console.error(t('knowledgeBase.check.nameError'), error);
+//     return false;
+//   }
+// };
 
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('index_name', effectiveIndexName);
-
-  try {
-    const response = await fetch(effectiveUploadUrl, {
-      method: 'POST',
-      body: formData,
-    });
-
-    // 再次确认是当前知识库
-    if (effectiveIndexName !== currentKnowledgeBaseRef.current && !isCreatingMode) {
-      onError(new Error(t('knowledgeBase.upload.switchError')));
-      message.error(t('knowledgeBase.upload.fileUploadSwitchError', { fileName: file.name }));
-      return;
-    }
-
-    if (response.ok) {
-      const result = await response.json();
-      onSuccess(result, file);
-
-    } else {
-      onError(new Error(t('knowledgeBase.upload.error')));
-      message.error(t('knowledgeBase.upload.fileUploadError', { fileName: file.name }));
-    }
-  } catch (err) {
-    // 确保是当前知识库的错误处理
-    if (effectiveIndexName === currentKnowledgeBaseRef.current || isCreatingMode) {
-      onError(new Error(t('knowledgeBase.upload.error')));
-      message.error(t('knowledgeBase.upload.fileUploadError', { fileName: file.name }));
-    }
-  }
-};
-
-// 检查知识库名称是否存在
-export const checkKnowledgeBaseNameExists = async (
+// 新的检查知识库名称状态的方法
+export const checkKnowledgeBaseName = async (
   knowledgeBaseName: string,
   t: TFunction
-): Promise<boolean> => {
+): Promise<{status: string, action?: string}> => {
   try {
-    return await knowledgeBaseService.checkKnowledgeBaseNameExists(knowledgeBaseName);
+    // 调用新的service方法
+    return await knowledgeBaseService.checkKnowledgeBaseName(knowledgeBaseName);
   } catch (error) {
     console.error(t('knowledgeBase.check.nameError'), error);
-    return false;
+    // 返回一个表示检查失败的状态
+    return { status: 'check_failed' };
   }
 };
+
 
 // 获取知识库文档信息
 export const fetchKnowledgeBaseInfo = async (

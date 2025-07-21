@@ -14,14 +14,14 @@ from database.agent_db import (
     update_tool_table_from_scan_tool_list
 )
 from consts.model import ToolInstanceInfoRequest, ToolInfo, ToolSourceEnum
+from database.remote_mcp_db import get_mcp_records_by_tenant
 from services.remote_mcp_service import get_remote_mcp_server_list
 from utils.auth_utils import get_current_user_id
 from fastapi import Header
 
 from utils.config_utils import config_manager
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("tool config")
+logger = logging.getLogger("tool_configuration_service")
 
 def python_type_to_json_schema(annotation: Any) -> str:
     """
@@ -122,9 +122,9 @@ async def get_all_mcp_tools(tenant_id: str) -> List[ToolInfo]:
     Returns:
         List of ToolInfo objects for MCP tools, or empty list if connection fails
     """
-    remote_mcp_server_info = await get_remote_mcp_server_list(tenant_id)
+    mcp_info = get_mcp_records_by_tenant(tenant_id=tenant_id)
+    mcp_server_name_list = [record["mcp_name"] for record in mcp_info]
 
-    mcp_server_name_list = [item["remote_mcp_server_name"] for item in remote_mcp_server_info]
     tools_info = await scan_all_mcp_tools(mcp_server_list=mcp_server_name_list)
     return tools_info
 
@@ -143,9 +143,10 @@ def search_tool_info_impl(agent_id: int, tool_id: int, authorization: str = Head
     Raises:
         ValueError: If database query fails
     """
-    user_id, tenant_id = get_current_user_id(authorization)
+    _, tenant_id = get_current_user_id(authorization)
     try:
-        tool_instance = query_tool_instances_by_id(agent_id, tool_id, tenant_id, user_id)
+        # now only admin can modify the tool, user_id is not used
+        tool_instance = query_tool_instances_by_id(agent_id, tool_id, tenant_id, user_id=None)
     except Exception as e:
         logger.error(f"search_tool_info_impl error in query_tool_instances_by_id, detail: {e}")
         raise ValueError(f"search_tool_info_impl error in query_tool_instances_by_id, detail: {e}")

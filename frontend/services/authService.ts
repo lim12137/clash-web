@@ -105,7 +105,8 @@ export const authService = {
         return { 
           error: { 
             message: data.message || "登录失败",
-            code: data.code
+            code: data.code,
+            data: data.data
           }
         };
       }
@@ -156,14 +157,19 @@ export const authService = {
   },
 
   // 注册
-  signUp: async (email: string, password: string): Promise<SessionResponse> => {
+  signUp: async (email: string, password: string, isAdmin?: boolean, inviteCode?: string): Promise<SessionResponse> => {
     try {
       const response = await fetch(API_ENDPOINTS.user.signup, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ 
+          email, 
+          password, 
+          is_admin: isAdmin || false,
+          invite_code: inviteCode || null
+        }),
       });
       
       const data = await response.json();
@@ -172,7 +178,8 @@ export const authService = {
         return { 
           error: { 
             message: data.message || "注册失败",
-            code: data.code
+            code: data.code,
+            data: data.data  // 传递后端返回的完整data字段，包含error_type等信息
           }
         };
       }
@@ -184,7 +191,7 @@ export const authService = {
       const user: User = {
         id: data.data.user.id,
         email: data.data.user.email,
-        role: "user", // 从前端触发的注册请求只能创建user角色
+        role: data.data.user.role || "user", // 使用后端返回的角色信息
         avatar_url,
       };
       

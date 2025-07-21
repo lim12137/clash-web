@@ -18,7 +18,9 @@ class KnowledgeBaseService {
       console.log("强制刷新健康检查，不使用缓存");
       this.healthCheckCache = null; // 清除缓存
 
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.health);
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.health, {
+        headers: getAuthHeaders()
+      });
       const data = await response.json();
       
       const isHealthy = data.status === "healthy" && data.elasticsearch === "connected";
@@ -49,7 +51,9 @@ class KnowledgeBaseService {
 
       // Get knowledge bases from Elasticsearch
       try {
-        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=true`);
+        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=true`, {
+          headers: getAuthHeaders()
+        });
         const data = await response.json();
         
         if (data.indices && data.indices_info) {
@@ -101,7 +105,9 @@ class KnowledgeBaseService {
       let knowledgeBases = [];
 
       try{
-        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}`);
+        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}`, {
+          headers: getAuthHeaders()
+        });
         const data = await response.json();
         knowledgeBases = data.indices;
       } catch (error) {
@@ -123,6 +129,24 @@ class KnowledgeBaseService {
     } catch (error) {
       console.error("Failed to check knowledge base name existence:", error);
       throw error;
+    }
+  }
+
+  // New method to check knowledge base name against the new endpoint
+  async checkKnowledgeBaseName(name: string): Promise<{status: string, action?: string}> {
+    try {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.checkName(name), {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Server error during name check');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Failed to check knowledge base name:", error);
+      // Return a specific status to indicate a failed check, so UI can handle it.
+      return { status: 'check_failed' };
     }
   }
 
@@ -198,7 +222,9 @@ class KnowledgeBaseService {
   // searchRedis: true means search redis to get the file in Celery, false means only search in ES
   async getAllFiles(kbId: string, searchRedis: boolean = true): Promise<Document[]> {
     try {
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.listFiles(kbId, searchRedis));
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.listFiles(kbId, searchRedis), {
+        headers: getAuthHeaders()
+      });
       const result = await response.json();
 
       if (result.status !== "success") {
@@ -259,19 +285,22 @@ class KnowledgeBaseService {
       // Create FormData object
       const formData = new FormData();
       formData.append("index_name", kbId);
-
-      // Add files
       for (let i = 0; i < files.length; i++) {
         formData.append("file", files[i]);
       }
+      // Default destination is now Minio
+      formData.append("destination", "minio");
+      formData.append("folder", "knowledge_base");
+
 
       // If chunking strategy is provided, add it to the request
       if (chunkingStrategy) {
         formData.append("chunking_strategy", chunkingStrategy);
       }
 
-      // Send request - cannot use getAuthHeaders，cuz we actually need content-type: multipart/form-data here
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.upload, {
+
+      // 1. Upload files
+      const uploadResponse = await fetch(API_ENDPOINTS.knowledgeBase.upload, {
         method: "POST",
         headers: {
           'User-Agent': 'AgentFrontEnd/1.0'
@@ -279,38 +308,55 @@ class KnowledgeBaseService {
         body: formData,
       });
 
-      // Check response status code
-      if (!response.ok) {
-        const result = await response.json();
-        
-        // Handle 400 error (no files or invalid files)
-        if (response.status === 400) {
-          if (result.error === "No files in the request") {
-            throw new Error("No files in the request");
-          } else if (result.error === "No valid files uploaded") {
-            throw new Error(`Invalid file upload: ${result.errors.join(", ")}`);
-          }
-          throw new Error(result.error || "File upload validation failed");
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResponse.ok) {
+        if (uploadResponse.status === 400) {
+          throw new Error(uploadResult.error || "File upload validation failed");
         }
-        
-        // Handle 500 error (data processing service failure)
-        if (response.status === 500) {
-          const errorMessage = `Data processing service failed: ${result.error}. Uploaded files: ${result.files.join(", ")}`;
-          throw new Error(errorMessage);
-        }
-        
         throw new Error("File upload failed");
       }
 
+      if (!uploadResult.uploaded_file_paths || uploadResult.uploaded_file_paths.length === 0) {
+        throw new Error("No files were uploaded successfully.");
+      }
+      
+      // 2. Trigger data processing
+      // Combine uploaded file paths and filenames into the required format
+      const filesToProcess = uploadResult.uploaded_file_paths.map((filePath: string, index: number) => ({
+        path_or_url: filePath,
+        filename: uploadResult.uploaded_filenames[index]
+      }));
+
+      const processResponse = await fetch(API_ENDPOINTS.knowledgeBase.process, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          index_name: kbId,
+          files: filesToProcess,
+          chunking_strategy: chunkingStrategy,
+          destination: "minio"
+        }),
+      });
+      
+      if (!processResponse.ok) {
+        const processResult = await processResponse.json();
+        // Handle 500 error (data processing service failure)
+        if (processResponse.status === 500) {
+          const errorMessage = `Data processing service failed: ${processResult.error}. Files: ${processResult.files.join(", ")}`;
+          throw new Error(errorMessage);
+        }
+        throw new Error(processResult.error || "Data processing failed");
+      }
+
       // Handle successful response (201)
-      const result = await response.json();
-      if (response.status === 201) {
+      if (processResponse.status === 201) {
         return;
       }
 
-      throw new Error("Unknown response status");
+      throw new Error("Unknown response status during processing");
     } catch (error) {
-      console.error("Failed to upload files:", error);
+      console.error("Failed to upload and process files:", error);
       throw error;
     }
   }

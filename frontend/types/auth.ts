@@ -54,6 +54,7 @@ export interface Session {
 export interface ErrorResponse {
   message: string;
   code: number;
+  data?: any;
 }
 
 // 授权上下文类型
@@ -70,7 +71,7 @@ export interface AuthContextType {
   closeRegisterModal: () => void;
   setIsFromSessionExpired: (value: boolean) => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, isAdmin?: boolean, inviteCode?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 

@@ -166,7 +166,38 @@
             }
         ],
         "copyright": "Nexent 智能体 © {{year}}",
-        "termsOfUse": "使用条款"
+        "termsOfUse": "使用条款",
+        "loginPrompt": {
+            "title": "登录账号",
+            "register": "注册",
+            "login": "立即登录",
+            "header": "🚀 准备启航！",
+            "intro": "登录您的账户，开启智能问答之旅~",
+            "benefitsTitle": "✨ 登录后您将获得：",
+            "benefits": [
+                "专属的对话历史记录",
+                "个性化的智能推荐",
+                "企业知识库完整访问权限",
+                "更精准的问答体验"
+            ],
+            "githubSupport": "⭐️ Nexent还在成长中，帮帮我到<1>GitHub</1>加星支持我吧，谢谢你。",
+            "noAccount": "还没有账号？点击\"注册\"按钮创建您的专属账号~"
+        },
+        "adminPrompt": {
+            "title": "啊哦，您不是管理员",
+            "close": "好的",
+            "intro": "只有管理员可以调整配置，请先登录为管理员账号~",
+            "unlockHeader": "🌟 成为管理员，解锁更多能力！",
+            "unlockIntro": "成为管理员后，您可以：",
+            "permissionsTitle": "✨ 管理员专属权限：",
+            "permissions": [
+                "配置和管理自己的模型",
+                "制作和发布专属智能Agent",
+                "集成和配置自有工具"
+            ],
+            "githubSupport": "⭐️ Nexent还在成长中，帮帮我到<1>GitHub</1>加星支持我吧，谢谢你。",
+            "becomeAdmin": "💡 想成为管理员？请访问<1>官网联系页</1>，申请管理员账号。"
+        }
     },
     "chatStreamMessage": {
         "appIconAlt": "应用图标",
@@ -221,7 +252,8 @@
         "processRemainingDataFailed": "处理剩余数据失败:",
         "thinking": "正在思考中...",
         "generateTitleFailed": "生成标题失败:",
-        "streamResponseError": "处理流式响应时出错:"
+        "streamResponseError": "处理流式响应时出错:",
+        "userInterrupted": "对话主动中止。"
     },
     "taskWindow": {
         "unknownSource": "未知来源",
@@ -495,6 +527,7 @@
     "knowledgeBase.tag.createdAt": "创建于{{date}}",
     "knowledgeBase.tag.model": "{{model}}模型",
     "knowledgeBase.tag.modelMismatch": "模型不匹配",
+    "knowledgeBase.upload.modelMismatch.description": "当前知识库的模型与配置模型不匹配，无法上传文件，请切换知识库或调整模型配置",
     "knowledgeBase.list.empty": "暂无知识库，请先创建知识库",
     "knowledgeBase.modal.deleteConfirm.title": "确认删除知识库",
     "knowledgeBase.modal.deleteConfirm.content": "确定要删除这个知识库吗？删除后无法恢复。",
@@ -504,6 +537,7 @@
     "knowledgeBase.message.syncError": "同步知识库失败：{{error}}",
     "knowledgeBase.message.nameRequired": "请输入知识库名称",
     "knowledgeBase.message.nameExists": "知识库 {{name}} 已存在，请更换名称",
+    "knowledgeBase.error.nameExistsInOtherTenant": "知识库 {{name}} 已被其他租户使用，请更换名称",
     "knowledgeBase.message.createError": "知识库创建失败",
     "knowledgeBase.message.createUploadError": "知识库创建或上传失败",
     "knowledgeBase.message.selectFirst": "请先选择一个知识库",
@@ -544,6 +578,7 @@
     "model.dialog.placeholder.name": "请输入请求体中的模型名称",
     "model.dialog.placeholder.displayName": "请输入模型的展示名称",
     "model.dialog.placeholder.url": "请输入模型URL, 例如: https://api.openai.com/v1",
+    "model.dialog.placeholder.url.embedding": "请输入模型URL, 例如: https://api.openai.com/v1/embeddings",
     "model.dialog.placeholder.apiKey": "请输入API Key（可选）",
     "model.dialog.placeholder.vectorDimension": "请输入向量维度",
     "model.dialog.placeholder.maxTokens": "请输入最大Token数",
@@ -665,7 +700,7 @@
     "tool.message.unavailable": "该工具当前不可用，无法选择",
     "tool.error.noMainAgentId": "主代理ID未设置，无法更新工具状态",
     "tool.error.configFetchFailed": "获取工具配置失败",
-    "tool.message.statusUpdated": "工具{{name}}已{{status}}",
+    "tool.message.statusUpdated": "工具{{name}}{{status}}",
     "tool.error.updateFailed": "更新工具状态失败",
     "tool.error.updateRetry": "更新工具状态失败，请稍后重试",
     "model.option.main": "主模型",
@@ -749,37 +784,6 @@
     "login.expired.okText": "立即登录",
     "login.expired.cancelText": "返回首页",
     "setup.page.error.adminOnly": "只有管理员可以访问模型配置页面",
-    "page.loginPrompt": {
-          "title": "登录账号",
-          "register": "注册",
-          "login": "立即登录",
-          "header": "🚀 准备启航！",
-          "intro": "登录您的账户，开启智能问答之旅~",
-          "benefitsTitle": "✨ 登录后您将获得：",
-          "benefits": [
-              "专属的对话历史记录",
-              "个性化的智能推荐",
-              "企业知识库完整访问权限",
-              "更精准的问答体验"
-          ],
-          "githubSupport": "⭐️ Nexent还在成长中，帮帮我到<1>GitHub</1>加星支持我吧，谢谢你。",
-          "noAccount": "还没有账号？点击\"注册\"按钮创建您的专属账号~"
-      },
-      "page.adminPrompt": {
-          "title": "啊哦，您不是管理员",
-          "close": "好的",
-          "intro": "只有管理员可以调整配置，请先登录为管理员账号~",
-          "unlockHeader": "🌟 成为管理员，解锁更多能力！",
-          "unlockIntro": "成为管理员后，您可以：",
-          "permissionsTitle": "✨ 管理员专属权限：",
-          "permissions": [
-              "配置和管理自己的模型",
-              "制作和发布专属智能Agent",
-              "集成和配置自有工具"
-          ],
-          "githubSupport": "⭐️ Nexent还在成长中，帮帮我到<1>GitHub</1>加星支持我吧，谢谢你。",
-          "becomeAdmin": "💡 想成为管理员？请访问<1>官网联系页</1>，申请管理员账号。"
-      },
       "auth": {
           "notLoggedIn": "您尚未登录",
           "login": "登录",
@@ -810,13 +814,44 @@
           "confirmPasswordLabel": "确认密码",
           "confirmPasswordRequired": "请确认密码",
           "registering": "注册中...",
+          "registeringAdmin": "注册管理员中...",
           "hasAccount": "已有账号？",
           "loginNow": "立即登录",
           "loginSuccess": "登录成功，欢迎回来！",
           "registerSuccessAutoLogin": "注册成功，已为您自动登录",
           "registerSuccessManualLogin": "注册成功，请登录",
+          "adminRegisterSuccessAutoLogin": "管理员账号注册成功！已为您自动登录，您现在拥有系统管理权限",
+          "adminRegisterSuccessManualLogin": "管理员账号注册成功！请登录以获取管理权限",
           "logoutSuccess": "您已成功退出登录",
-          "logoutFailed": "退出失败，请重试"
+          "logoutFailed": "退出失败，请重试",
+          "adminAccount": "管理员账号",
+          "adminAccountDescription": "管理员拥有更多权限，可以配置模型、创建智能体等",
+          "admin": "管理员",
+          "user": "普通用户",
+          "inviteCodeLabel": "邀请码",
+          "inviteCodeRequired": "请输入管理员邀请码",
+          "registerAdmin": "注册管理员账号",
+          "inviteCodeError": "邀请码错误",
+          "passwordError": "密码设置有误",
+          "emailError": "邮箱格式错误",
+          "inviteCodeNotConfigured": "管理员注册功能暂未开放，请联系系统管理员配置邀请码",
+          "inviteCodeInvalid": "管理员邀请码错误，请检查后重新输入",
+          "emailAlreadyExists": "该邮箱已被注册，请使用其他邮箱地址或尝试登录现有账号",
+          "weakPassword": "密码强度不够，请设置更安全的密码",
+          "invalidEmailFormat": "邮箱格式不正确，请检查后重新输入",
+          "networkError": "网络连接超时，请检查网络后重试",
+          "registrationServiceError": "注册服务暂时不可用，请稍后重试",
+          "unknownError": "注册失败，请稍后重试",
+          "inviteCodeHint": {
+              "title": "如何获取管理员邀请码？",
+              "step1": "前往",
+              "step2": "加入",
+              "step2Action": "获取专属邀请码",
+              "contactPage": "联系页面",
+              "communityLink": "官方技术交流群",
+              "projectLink": "项目地址",
+              "starAction": "为我们点一个 Star"
+          }
       },
     "role_admin": "管理员",
     "role_user": "普通用户",
@@ -848,7 +883,7 @@
     "mcpConfig.modal.close": "关闭",
     "mcpConfig.modal.updatingTools": "正在更新工具列表...",
     "mcpConfig.addServer.title": "添加MCP服务器",
-    "mcpConfig.addServer.namePlaceholder": "服务器名称（仅支持英文、数字，最多20字符）",
+    "mcpConfig.addServer.namePlaceholder": "服务器名称",
     "mcpConfig.addServer.urlPlaceholder": "服务器URL (如: http://localhost:3001/sse)，目前仅支持sse协议",
     "mcpConfig.addServer.button.add": "添加",
     "mcpConfig.addServer.button.updating": "更新中...",
@@ -913,7 +948,23 @@
     "mcpService.message.updateToolListFailed": "更新工具列表失败",
     "mcpService.message.recoverServersSuccess": "重新挂载MCP服务器成功",
     "mcpService.message.recoverServersFailed": "重新挂载MCP服务器失败",
+    "mcpService.message.resourceNotFound": "请求的资源未找到",
+    "mcpService.message.serverInternalError": "服务器内部错误，请稍后重试",
+    "mcpService.message.serviceUnavailable": "服务暂时不可用，请稍后重试",
+    "mcpService.message.deleteProxyFailed": "删除MCP代理失败，请检查服务器配置",
+    "mcpService.message.serverNotFound": "MCP服务器未找到",
+    "mcpService.message.getToolsFromServerFailed": "从远程MCP服务器获取工具失败",
+    "mcpService.message.updateToolListBadRequest": "更新工具列表请求参数错误",
+    "mcpService.message.recoverServerssBadRequest": "重新挂载服务器请求参数错误",
     "agentConfig.tools.refreshSuccess": "工具列表已刷新",
     "agentConfig.tools.refreshFailed": "刷新工具列表失败",
-    "agentConfig.debug.refreshToolsFailed": "刷新工具列表失败:"
+    "agentConfig.debug.refreshToolsFailed": "刷新工具列表失败:",
+    "embedding": {
+        "modal": {
+            "title": "未选择Embedding模型",
+            "content": "您未选择 <b>Embedding</b> 模型，后续知识库配置和知识检索工具不可用。",
+            "tip": "请在模型配置中选择合适的Embedding模型以获得完整体验。",
+            "ok_continue": "我知道了，继续下一步"
+        }
+    }
 }
