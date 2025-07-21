@@ -270,11 +270,11 @@ class OpenAICompatibleEmbedding(TextEmbedding):
             return embeddings
 
         except requests.exceptions.Timeout:
-            logging.error(f"Embedding API connection test timed out ({timeout} seconds)")
+            logging.error(f"OpenAI API connection test timed out ({timeout} seconds)")
             return []
         except requests.exceptions.ConnectionError:
-            logging.error("Embedding API connection error, unable to establish connection")
+            logging.error("OpenAI API connection error, unable to establish connection")
             return []
         except Exception as e:
-            logging.error(f"Embedding API connection test failed: {str(e)}")
+            logging.error(f"OpenAI API connection test failed: {str(e)}")
             return []
