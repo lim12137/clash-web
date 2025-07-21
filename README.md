@@ -2,7 +2,7 @@
 
 [![English](https://img.shields.io/badge/English-README-blue)](README.md)
 [![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
-[![codecov](https://codecov.io/gh/ModelEngine-Group/nexent-commercial/branch/develop/graph/badge.svg)](https://codecov.io/gh/ModelEngine-Group/nexent-commercial)
+[![codecov](https://codecov.io/gh/ModelEngine-Group/nexent-commercial/branch/develop/graph/badge.svg?token=G6FRRL2M04)](https://codecov.io/gh/ModelEngine-Group/nexent-commercial?branch=develop)
 
 Nexent is an open-source agent platform that turns process-level natural language into complete multimodal agents — no diagrams, no wiring. Built on the MCP tool ecosystem, Nexent provides model integration, data processing, knowledge-base management, and zero-code agent development. Our goal is simple: to bring data, models, and tools together in one smart hub, making daily workflows smarter and more connected.
 
@@ -49,9 +49,6 @@ git clone https://github.com/ModelEngine-Group/nexent.git
 cd nexent/docker
 cp .env.example .env # fill only necessary configs
 bash deploy.sh
-
-# 创建管理员
-docker exec -ti nexent bash -c 'curl -X POST http://kong:8000/auth/v1/admin/users -H "apikey: ${SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" -H "Content-Type: application/json" -d "{\"email\":\"admin@example.com\",\"password\": \"123123\",\"role\": \"admin\",\"email_confirm\":true}"'
 ```
 
 When the containers are running, open **http://localhost:3000** in your browser and follow the setup wizard.
@@ -135,9 +132,22 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 1📝 **Code Output May Be Misinterpreted as Executable**  
    In Nexent conversations, if the model outputs code-like text, it may sometimes be misinterpreted as something that should be executed. We will fix this as soon as possible.
 
-# 👥 Contributing
+# 👥 External Developer Contribution Guide
 
 We welcome all kinds of contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes Nexent better for everyone. 
+
+If you are an external developer and want to contribute to this project, please follow these steps:
+
+1. **Fork the repository**
+   - Click the "Fork" button at the top right of the repository page to create your own copy.
+2. **Clone your fork**
+   - Use `git clone https://github.com/your-username/your-forked-repo.git` to clone your fork to your local machine.
+3. **Commit and push your changes**
+   - Make your changes, then use `git add .`, `git commit -m "Your message"`, and `git push origin` to push to your fork.
+4. **Open a Pull Request**
+   - Go to your forked repository on GitHub, click the "Contribute" button, and then select "Open Pull Request" to propose merging your changes into the main repository.
+
+Please make sure your PR follows the project's contribution guidelines and passes all required checks.
 
 - 📖 Read our [Contribution Guide](CONTRIBUTING.md) to get started
 - 🐛 Report bugs or suggest features in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)

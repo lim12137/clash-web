@@ -1,10 +1,6 @@
 import threading
-
-import json
 import yaml
 import logging
-from typing import Optional
-from fastapi import Header
 from urllib.parse import urljoin
 from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
@@ -12,12 +8,11 @@ from utils.auth_utils import get_current_user_id
 
 from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents, \
     query_or_create_main_agent_id
-from services.elasticsearch_service import ElasticSearchService
+from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
 from services.tenant_config_service import get_selected_knowledge_list
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("build agent")
+logger = logging.getLogger("create_agent_info")
 
 async def create_model_config_list(tenant_id):
      main_model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
@@ -56,6 +51,7 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     try:
         for tool in tool_list:
             if "KnowledgeBaseSearchTool" == tool.class_name:
+                # TODO: use prompt template
                 knowledge_base_summary = "\n\n### 本地知识库信息 ###\n" if language == 'zh' else "\n\n### Local Knowledge Base Information ###\n"
 
                 knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
@@ -83,7 +79,9 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
 async def create_tool_config_list(agent_id, tenant_id, user_id):
     # create tool
     tool_config_list = []
-    tools_list = search_tools_for_sub_agent(agent_id, tenant_id)
+
+    # now only admin can modify the agent, user_id is not used
+    tools_list = search_tools_for_sub_agent(agent_id, tenant_id, user_id=None)
     for tool in tools_list:
         param_dict = {}
         for param in tool.get("params", []):
@@ -98,7 +96,9 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
         if tool_config.class_name == "KnowledgeBaseSearchTool":
             knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
             index_names = [knowledge_info.get("index_name") for knowledge_info in knowledge_info_list]
-            tool_config.metadata = {"index_names": index_names}
+            tool_config.metadata = {"index_names": index_names,
+                                    "es_core": elastic_core,
+                                    "embedding_model": get_embedding_model(tenant_id=tenant_id)}
         tool_config_list.append(tool_config)
     return tool_config_list
 
@@ -153,7 +153,7 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
     agent_run_info = AgentRunInfo(
         query=final_query,
         model_config_list= model_list,
-        observer=MessageObserver(),
+        observer=MessageObserver(lang=language),
         agent_config=await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id, language=language),
         mcp_host=urljoin(config_manager.get_config("NEXENT_MCP_SERVER"), "sse"),
         history=history,

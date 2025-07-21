@@ -49,7 +49,6 @@ class RemoteProxyManager:
             return False
         except Exception as e:
             raise ValueError(f"Failed to remove remote proxy {service_name}: {e}")
-            return False
 
     def list_remote_proxies(self) -> Dict[str, RemoteMCPConfig]:
         """list all remote proxy configs"""

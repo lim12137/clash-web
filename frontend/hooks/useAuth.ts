@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
           // 更新最后验证时间
           localStorage.setItem('lastSessionVerifyTime', now.toString());
         } catch (error) {
-          console.error('验证会话有效性失败:', error);
+          console.error('Session validation failed:', error);
         } finally {
           setIsCheckingSession(false);
         }
@@ -169,12 +169,12 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
       const { data, error } = await authService.signIn(email, password)
 
       if (error) {
-        console.error("登录失败: ", error.message)
+        console.error("Login failed: ", error.message)
         throw error
       }
 
       if (data?.session?.user) {
-        // 确保role字段是"user"或"admin"
+        // Ensure role field is "user" or "admin"
         const safeUser: User = {
           id: data.session.user.id,
           email: data.session.user.email,
@@ -199,14 +199,14 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
         }, 150)
       }
     } catch (error: any) {
-      console.error("登录过程中出错:", error.message)
+      console.error("Error during login process:", error.message)
       throw error
     } finally {
       setIsLoading(false)
     }
   }
 
-  const register = async (email: string, password: string) => {
+  const register = async (email: string, password: string, isAdmin?: boolean, inviteCode?: string) => {
     try {
       setIsLoading(true)
       
@@ -218,14 +218,14 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
         throw error
       }
       
-      const { data, error } = await authService.signUp(email, password)
+      const { data, error } = await authService.signUp(email, password, isAdmin, inviteCode)
 
       if (error) {
         throw error
       }
 
       if (data?.user) {
-        // 确保role字段是"user"或"admin"
+        // Ensure role field is "user" or "admin"
         const safeUser: User = {
           id: data.user.id,
           email: data.user.email,
@@ -238,14 +238,16 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
           setUser(safeUser)
           configService.loadConfigToFrontend()
           closeRegisterModal()
-          message.success(t('auth.registerSuccessAutoLogin'))
+          const successMessage = isAdmin ? t('auth.adminRegisterSuccessAutoLogin') : t('auth.registerSuccessAutoLogin')
+          message.success(successMessage)
           // 主动触发 storage 事件
           window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: localStorage.getItem("session") }))
         } else {
           // 注册成功但需要手动登录
           closeRegisterModal()
           openLoginModal()
-          message.success(t('auth.registerSuccessManualLogin'))
+          const successMessage = isAdmin ? t('auth.adminRegisterSuccessManualLogin') : t('auth.registerSuccessManualLogin')
+          message.success(successMessage)
         }
       }
     } catch (error: any) {
@@ -265,7 +267,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
       // 主动触发 storage 事件
       window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: null }))
     } catch (error: any) {
-      console.error("退出登录失败:", error.message)
+      console.error("Logout failed:", error.message)
       message.error(t('auth.logoutFailed'))
     } finally {
       setIsLoading(false)

@@ -7,6 +7,7 @@ from fastapi import Header, Request
 from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID
 import jwt
 from supabase import create_client
+from database.user_tenant_db import get_user_tenant_by_user_id
 
 # Get Supabase configuration
 SUPABASE_URL = os.getenv('SUPABASE_URL', 'http://118.31.249.152:8010')
@@ -87,21 +88,42 @@ def get_current_user_id_from_token(authorization: str) -> Optional[str]:
 
         return user_id
     except Exception as e:
-        logging.error(f"从令牌提取用户ID失败: {str(e)}")
+        logging.error(f"Failed to extract user ID from token: {str(e)}")
         return DEFAULT_USER_ID
-    
-def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
 
+
+def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
+    """
+    Get current user ID and tenant ID from authorization token
+
+    Args:
+        authorization: Authorization header value
+
+    Returns:
+        tuple[str, str]: (user_id, tenant_id)
+    """
     if authorization is None or authorization == Header(None):
         return DEFAULT_USER_ID, DEFAULT_TENANT_ID
 
     try:
         user_id = get_current_user_id_from_token(str(authorization))
-        tenant_id = user_id
-        return user_id, DEFAULT_TENANT_ID
+        if not user_id:
+            return DEFAULT_USER_ID, DEFAULT_TENANT_ID
+
+        user_tenant_record = get_user_tenant_by_user_id(user_id)
+        if user_tenant_record and user_tenant_record.get('tenant_id'):
+            tenant_id = user_tenant_record['tenant_id']
+            logging.info(f"Found tenant ID for user {user_id}: {tenant_id}")
+        else:
+            tenant_id = DEFAULT_TENANT_ID
+            logging.warning(f"No tenant relationship found for user {user_id}, using default tenant")
+
+        return user_id, tenant_id
+
     except Exception as e:
-        logging.error(f"获取用户ID失败: {str(e)}")
+        logging.error(f"Failed to get user ID and tanent ID: {str(e)}")
         return DEFAULT_USER_ID, DEFAULT_TENANT_ID
+
 
 def get_user_language(request: Request = None) -> str:
     """
@@ -126,6 +148,7 @@ def get_user_language(request: Request = None) -> str:
             logging.warning(f"Error reading language from cookies: {e}")
 
     return default_language
+
 
 def get_current_user_info(authorization: Optional[str] = None, request: Request = None) -> tuple[str, str, str]:
     """

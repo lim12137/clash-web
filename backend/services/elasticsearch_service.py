@@ -15,30 +15,32 @@ import logging
 
 from typing import Optional, Generator, List, Dict, Any
 from openai import OpenAI
+from openai.types.chat import ChatCompletionMessageParam
 from dotenv import load_dotenv
 import yaml
-from nexent.core.models.embedding_model import JinaEmbedding
+from nexent.core.models.embedding_model import OpenAICompatibleEmbedding, JinaEmbedding, BaseEmbedding
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from nexent.core.nlp.tokenizer import calculate_term_weights
 from fastapi import HTTPException, Query, Body, Path, Depends
 from fastapi.responses import StreamingResponse
 from consts.const import ES_API_KEY, ES_HOST
-from consts.model import SearchRequest, HybridSearchRequest
-from utils.config_utils import config_manager
+from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
 from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
+from database.attachment_db import delete_file
 
 # Configure logging
 logger = logging.getLogger("elasticsearch_service")
 
 
-def generate_knowledge_summary_stream(keywords: str, language: str) -> Generator:
+def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: str) -> Generator:
     """
     Generate a knowledge base summary based on keywords
 
     Args:
         keywords: Keywords that frequently appear in the knowledge base content
         language: Language of the knowledge base content
+        tenant_id: The tenant ID for configuration
 
     Returns:
         str:  Generate a knowledge base summary
@@ -52,18 +54,25 @@ def generate_knowledge_summary_stream(keywords: str, language: str) -> Generator
         prompts = yaml.safe_load(f)
     logger.info(f"Generating knowledge with template: {template_file}")
     # Build messages
-    messages = [{"role": "system", "content": prompts['system_prompt']},
-        {"role": "user", "content": prompts['user_prompt'].format(content=keywords)}]
+    messages: List[ChatCompletionMessageParam] = [
+        {"role": "system", "content": prompts['system_prompt']},
+        {"role": "user", "content": prompts['user_prompt'].format(content=keywords)}
+    ]
 
+    # Get model configuration from tenant config manager
+    model_config = tenant_config_manager.get_model_config(key="LLM_SECONDARY_ID", tenant_id=tenant_id)
+    
     # initialize OpenAI client
-    client = OpenAI(api_key=os.getenv('LLM_SECONDARY_API_KEY'),
-                    base_url=os.getenv('LLM_SECONDARY_MODEL_URL'))
+    client = OpenAI(api_key=model_config.get('api_key', ""),
+                    base_url=model_config.get('base_url', ""))
 
     try:
         # Create stream chat completion request
+        max_tokens = 300 if language == 'zh' else 120
         stream = client.chat.completions.create(
-            model=os.getenv('LLM_SECONDARY_MODEL_NAME'),  # can change model as needed
+            model=get_model_name_from_config(model_config) if model_config.get("model_name") else "",  # use model name from config
             messages=messages,
+            max_tokens=max_tokens,  # add max_tokens limit
             stream=True  # enable stream output
         )
 
@@ -76,15 +85,14 @@ def generate_knowledge_summary_stream(keywords: str, language: str) -> Generator
 
     except Exception as e:
         # TODO: use logger
-        print(f"发生错误: {str(e)}")
-        yield f"错误: {str(e)}"
-        
+        logger.error(f"Error occurred: {str(e)}")
+        yield f"Error: {str(e)}"
+
 
 # Initialize ElasticSearchCore instance with HTTPS support
 elastic_core = ElasticSearchCore(
     host=ES_HOST,
     api_key=ES_API_KEY,
-    embedding_model=None,
     verify_certs=False,
     ssl_show_warn=False,
 )
@@ -92,11 +100,119 @@ elastic_core = ElasticSearchCore(
 
 def get_es_core():
     # ensure embedding model is latest
-    elastic_core.embedding_model = JinaEmbedding(api_key=config_manager.get_config("EMBEDDING_API_KEY"))
     return elastic_core
 
 
+def get_embedding_model(tenant_id: str):
+    # Get the tenant config
+    model_config = tenant_config_manager.get_model_config(key="EMBEDDING_ID", tenant_id=tenant_id)
+
+    model_type = model_config.get("model_type","")
+
+    if model_type == "embedding":
+        # Get the es core
+        return OpenAICompatibleEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=get_model_name_from_config(model_config) or "", embedding_dim=model_config.get("max_tokens", 1024))
+    elif model_type == "multi_embedding":
+        return JinaEmbedding(api_key= model_config.get("api_key",""), base_url=model_config.get("base_url",""), model_name=get_model_name_from_config(model_config) or "", embedding_dim=model_config.get("max_tokens", 1024))
+    else:
+        return None
+
+
 class ElasticSearchService:
+    @staticmethod
+    async def full_delete_knowledge_base(index_name: str, es_core: ElasticSearchCore, user_id: str, tenant_id: str):
+        """
+        Completely delete a knowledge base, including its index, associated files in MinIO,
+        and all related records in Redis and PostgreSQL.
+        """
+        logger.debug(f"Starting full deletion process for knowledge base (index): {index_name}")
+        try:
+            # 1. Get all files associated with the index from Elasticsearch
+            logger.debug(f"Step 1/4: Retrieving file list for index: {index_name}")
+            try:
+                file_list_result = await ElasticSearchService.list_files(index_name, include_chunks=False,
+                                                                         search_redis=True, es_core=es_core)
+                files_to_delete = file_list_result.get("files", [])
+                logger.debug(f"Found {len(files_to_delete)} files to delete from MinIO for index '{index_name}'.")
+            except Exception as e:
+                logger.error(f"Failed to retrieve file list for index '{index_name}': {str(e)}")
+                # We can still proceed to delete the index itself even if listing files fails
+                files_to_delete = []
+
+            # 2. Delete files from MinIO
+            minio_deletion_success_count = 0
+            minio_deletion_failure_count = 0
+            if files_to_delete:
+                logger.debug(f"Step 2/4: Starting deletion of {len(files_to_delete)} files from MinIO.")
+                for file_info in files_to_delete:
+                    object_name = file_info.get("path_or_url")
+                    if not object_name:
+                        logger.warning(f"Could not find 'path_or_url' for file entry: {file_info}. Skipping deletion.")
+                        minio_deletion_failure_count += 1
+                        continue
+
+                    try:
+                        logger.debug(f"Deleting object: '{object_name}' from MinIO for index '{index_name}'")
+                        delete_result = delete_file(object_name=object_name)
+                        if delete_result.get("success"):
+                            logger.debug(f"Successfully deleted object: '{object_name}' from MinIO.")
+                            minio_deletion_success_count += 1
+                        else:
+                            minio_deletion_failure_count += 1
+                            error_msg = delete_result.get("error", "Unknown error")
+                            logger.error(f"Failed to delete object: '{object_name}' from MinIO. Reason: {error_msg}")
+                    except Exception as e:
+                        minio_deletion_failure_count += 1
+                        logger.error(
+                            f"An exception occurred while deleting object: '{object_name}' from MinIO. Error: {str(e)}")
+
+                logger.info(f"MinIO file deletion summary for index '{index_name}': "
+                            f"{minio_deletion_success_count} succeeded, {minio_deletion_failure_count} failed.")
+            else:
+                logger.debug(f"Step 2/4: No files found in index '{index_name}', skipping MinIO deletion.")
+
+            # 3. Delete Elasticsearch index and its DB record
+            logger.debug(f"Step 3/4: Deleting Elasticsearch index '{index_name}' and its database record.")
+            delete_index_result = await ElasticSearchService.delete_index(index_name, es_core, user_id)
+
+            # 4. Clean up Redis records related to this knowledge base
+            logger.debug(f"Step 4/4: Cleaning up Redis records for index '{index_name}'.")
+            redis_cleanup_result = {}
+            try:
+                from services.redis_service import get_redis_service
+                redis_service = get_redis_service()
+                redis_cleanup_result = redis_service.delete_knowledgebase_records(index_name)
+                logger.debug(f"Redis cleanup for index '{index_name}' completed. "
+                            f"Deleted {redis_cleanup_result['total_deleted']} records.")
+            except Exception as redis_error:
+                logger.error(f"Redis cleanup failed for index '{index_name}': {str(redis_error)}")
+                redis_cleanup_result = {"error": str(redis_error)}
+
+            # Construct final result
+            result = {
+                "status": "success",
+                "message": (f"Index {index_name} deleted successfully. "
+                            f"MinIO: {minio_deletion_success_count} files deleted, {minio_deletion_failure_count} failed. "
+                            f"Redis: Cleaned up {redis_cleanup_result.get('total_deleted', 0)} records."),
+                "es_delete_result": delete_index_result,
+                "minio_cleanup": {
+                    "total_files_found": len(files_to_delete),
+                    "deleted_count": minio_deletion_success_count,
+                    "failed_count": minio_deletion_failure_count
+                },
+                "redis_cleanup": redis_cleanup_result
+            }
+
+            if "errors" in redis_cleanup_result:
+                result["redis_warnings"] = redis_cleanup_result["errors"]
+
+            logger.info(f"Successfully completed full deletion process for knowledge base '{index_name}'.")
+            return result
+
+        except Exception as e:
+            logger.error(f"Error during full deletion of index '{index_name}': {str(e)}", exc_info=True)
+            raise e
+
     @staticmethod
     def create_index(
             index_name: str = Path(..., description="Name of the index to create"),
@@ -108,7 +224,8 @@ class ElasticSearchService:
         try:
             if es_core.client.indices.exists(index=index_name):
                 raise HTTPException(status_code=400, detail=f"Index {index_name} already exists")
-            success = es_core.create_vector_index(index_name, embedding_dim=embedding_dim or es_core.embedding_dim)
+            embedding_model = get_embedding_model(tenant_id)
+            success = es_core.create_vector_index(index_name, embedding_dim=embedding_dim or (embedding_model.embedding_dim if embedding_model else 1024) )
             if not success:
                 raise HTTPException(status_code=500, detail=f"Failed to create index {index_name}")
             knowledge_data = {'index_name': index_name, 'created_by': user_id, "tenant_id": tenant_id}
@@ -118,17 +235,34 @@ class ElasticSearchService:
             raise HTTPException(status_code=500, detail=f"Error creating index: {str(e)}")
 
     @staticmethod
-    def delete_index(
+    async def delete_index(
             index_name: str = Path(..., description="Name of the index to delete"),
             es_core: ElasticSearchCore = Depends(get_es_core),
             user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base"),
     ):
         try:
-            # First delete the index in Elasticsearch
+            # 1. Get list of files from the index
+            try:
+                files_to_delete = await ElasticSearchService.list_files(index_name, search_redis=False, es_core=es_core)
+                if files_to_delete and files_to_delete.get("files"):
+                    # 2. Delete files from MinIO storage
+                    for file_info in files_to_delete["files"]:
+                        object_name = file_info.get("path_or_url")
+                        source_type = file_info.get("source_type")
+                        if object_name and source_type == "minio":
+                            logger.info(f"Deleting file {object_name} from MinIO for index {index_name}")
+                            delete_file(object_name)
+            except Exception as e:
+                # Log the error but don't block the index deletion
+                logger.error(f"Error deleting associated files from MinIO for index {index_name}: {str(e)}")
+
+            # 3. Delete the index in Elasticsearch
             success = es_core.delete_index(index_name)
             if not success:
-                raise HTTPException(status_code=500, detail=f"Index {index_name} not found or could not be deleted")
+                # Even if deletion fails, we proceed to database record cleanup
+                logger.warning(f"Index {index_name} not found in Elasticsearch or could not be deleted, but proceeding with DB cleanup.")
 
+            # 4. Delete the knowledge base record from the database
             update_data = {
                 "updated_by": user_id,
                 "index_name": index_name
@@ -137,7 +271,7 @@ class ElasticSearchService:
             if not success:
                 raise HTTPException(status_code=500, detail=f"Error deleting knowledge record for index {index_name}")
 
-            return {"status": "success", "message": f"Index {index_name} deleted successfully"}
+            return {"status": "success", "message": f"Index {index_name} and associated files deleted successfully"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error deleting index: {str(e)}")
 
@@ -163,7 +297,6 @@ class ElasticSearchService:
             Dict[str, Any]: A dictionary containing the list of indices and the count.
         """
         all_indices_list = es_core.get_user_indices(pattern)
-        print(f"all_indices_list: {all_indices_list}")
 
         filtered_indices_list = []
         if tenant_id:
@@ -176,7 +309,6 @@ class ElasticSearchService:
             filtered_indices_list = all_indices_list
 
         indices = [info.get("index") if isinstance(info, dict) else info for info in filtered_indices_list]
-        print(f"indices: {indices}")
 
         response = {
             "indices": indices,
@@ -187,7 +319,6 @@ class ElasticSearchService:
             stats_info = []
             if filtered_indices_list:
                 indice_stats = es_core.get_index_stats(filtered_indices_list)
-                print(f"indice_stats: {indice_stats}")
                 for index_name in filtered_indices_list:
                     index_stats = indice_stats.get(index_name, {})
                     stats_info.append({
@@ -223,15 +354,14 @@ class ElasticSearchService:
             if stats and index_name in stats:
                 index_stats = stats[index_name]
             else:
-                print(f"404: Index {index_name} not found in stats")
+                logger.error(f"404: Index {index_name} not found in stats")
                 index_stats = {}
 
             fields = None
             if mappings and index_name in mappings:
                 fields = mappings[index_name]
             else:
-                print(f"mappings: {mappings}")
-                print(f"404: Index {index_name} not found in mappings")
+                logger.error(f"404: Index {index_name} not found in mappings:")
                 fields = []
 
             # Check if base_info exists in stats
@@ -241,7 +371,7 @@ class ElasticSearchService:
                 base_info = index_stats["base_info"]
                 search_performance = index_stats.get("search_performance", {})
             else:
-                print(f"404: Index {index_name} may not be created yet")
+                logger.error(f"404: Index {index_name} may not be created yet")
                 base_info = {
                     "doc_count": 0,
                     "unique_sources_count": 0,
@@ -267,20 +397,22 @@ class ElasticSearchService:
 
     @staticmethod
     def index_documents(
+            embedding_model: BaseEmbedding,
             index_name: str = Path(..., description="Name of the index"),
             data: List[Dict[str, Any]] = Body(..., description="Document List to process"),
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        索引文档并创建向量嵌入，如果索引不存在则创建
+        Index documents and create vector embeddings, create index if it doesn't exist
 
         Args:
-            index_name: 索引名称
-            data: 包含要索引的文档数据的列表
-            es_core: ElasticSearchCore实例
+            embedding_model: Optional embedding model to use for generating document vectors
+            index_name: Index name
+            data: List containing document data to be indexed
+            es_core: ElasticSearchCore instance
 
         Returns:
-            IndexingResponse对象，包含索引结果信息
+            IndexingResponse object containing indexing result information
         """
         try:
             if not index_name:
@@ -290,7 +422,7 @@ class ElasticSearchService:
             if not es_core.client.indices.exists(index=index_name):
                 try:
                     ElasticSearchService.create_index(index_name, es_core=es_core)
-                    print(f"Created new index {index_name}")
+                    logger.info(f"Created new index {index_name}")
                 except Exception as create_error:
                     raise HTTPException(status_code=500, detail=f"Failed to create index {index_name}: {str(create_error)}")
 
@@ -300,16 +432,16 @@ class ElasticSearchService:
             for idx, item in enumerate(data):
                 # All items should be dictionaries
                 if not isinstance(item, dict):
-                    print(f"Skipping item {idx} - not a dictionary")
+                    logger.warning(f"Skipping item {idx} - not a dictionary")
                     continue
 
                 # Extract metadata
-                metadata = item.get("metadata")
+                metadata = item.get("metadata", {})
                 source = item.get("path_or_url")
                 text = item.get("content", "")
-                source_type = item.get("source_type", "file")
+                source_type = item.get("source_type")
                 file_size = item.get("file_size")
-                file_name = item.get("filename", os.path.basename(source) if source and source_type == "file" else "")
+                file_name = item.get("filename", os.path.basename(source) if source and source_type == "local" else "")
 
                 # Get from metadata
                 title = metadata.get("title", "")
@@ -322,7 +454,9 @@ class ElasticSearchService:
                     create_time = datetime.datetime.fromtimestamp(create_time).isoformat()
 
                 # Set embedding model name from the embedding model
-                embedding_model_name = es_core.embedding_model.model
+                embedding_model_name = ""
+                if embedding_model:
+                    embedding_model_name = embedding_model.model
 
                 # Create document
                 document = {
@@ -356,7 +490,8 @@ class ElasticSearchService:
             try:
                 total_indexed = es_core.index_documents(
                     index_name=index_name,
-                    documents=documents
+                    embedding_model=embedding_model,
+                    documents=documents,
                 )
 
                 return {
@@ -367,12 +502,12 @@ class ElasticSearchService:
                 }
             except Exception as e:
                 error_msg = str(e)
-                print(f"Error during indexing: {error_msg}")
+                logger.error(f"Error during indexing: {error_msg}")
                 raise HTTPException(status_code=500, detail=f"Error during indexing: {error_msg}")
 
         except Exception as e:
             error_msg = str(e)
-            print(f"Error indexing documents: {error_msg}")
+            logger.error(f"Error indexing documents: {error_msg}")
             raise HTTPException(status_code=500, detail=f"Error indexing documents: {error_msg}")
 
     @staticmethod
@@ -421,13 +556,30 @@ class ElasticSearchService:
                 for path_or_url, status_info in celery_task_files.items():
                     # Skip files that are already in existing_files to avoid duplicates
                     if path_or_url not in existing_paths:
+                        # Ensure status_info is a dictionary
+                        status_dict = status_info if isinstance(status_info, dict) else {}
+
+                        # Get source_type and original_filename, with defaults
+                        source_type = status_dict.get('source_type') if status_dict.get('source_type') else 'minio'
+                        original_filename = status_dict.get('original_filename')
+
+                        # Determine the filename
+                        filename = original_filename or (os.path.basename(path_or_url) if path_or_url else '')
+
+                        # Safely get file size; default to 0 on any error
+                        try:
+                            file_size = get_file_size(source_type or 'minio', path_or_url)
+                        except Exception as size_err:
+                            logger.error(f"Failed to get file size for '{path_or_url}': {size_err}")
+                            file_size = 0
+
                         file_data = {
                             'path_or_url': path_or_url,
-                            'file': os.path.basename(path_or_url) if path_or_url else '',
-                            'file_size': get_file_size('file', path_or_url),
+                            'file': filename,
+                            'file_size': file_size,
                             'create_time': time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
-                            'status': status_info.get('state', status_info) if isinstance(status_info, dict) else status_info,
-                            'latest_task_id': status_info.get('latest_task_id', '') if isinstance(status_info, dict) else ''
+                            'status': status_dict.get('state', 'UNKNOWN'),
+                            'latest_task_id': status_dict.get('latest_task_id', '')
                         }
                         files.append(file_data)
             else:
@@ -465,8 +617,7 @@ class ElasticSearchService:
                     try:
                         msearch_responses = es_core.client.msearch(
                             body=msearch_body,
-                            index=index_name,
-                            request_timeout=30
+                            index=index_name
                         )
 
                         for i, file_path in enumerate(completed_files_map.keys()):
@@ -474,7 +625,7 @@ class ElasticSearchService:
                             file_data = completed_files_map[file_path]
 
                             if 'error' in response:
-                                print(f"Error getting chunks for {file_data.get('path_or_url')}: {response['error']}")
+                                logger.error(f"Error getting chunks for {file_data.get('path_or_url')}: {response['error']}")
                                 continue
 
                             chunks = []
@@ -491,7 +642,7 @@ class ElasticSearchService:
                             file_data['chunk_count'] = len(chunks)
 
                     except Exception as e:
-                        print(f"Error during msearch for chunks: {str(e)}")
+                        logger.error(f"Error during msearch for chunks: {str(e)}")
             else:
                 for file_data in files:
                     file_data['chunks'] = []
@@ -509,146 +660,11 @@ class ElasticSearchService:
             path_or_url: str = Query(..., description="Path or URL of documents to delete"),
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
+        # 1. Delete ES documents
         deleted_count = es_core.delete_documents_by_path_or_url(index_name, path_or_url)
-        return {"status": "success", "deleted_count": deleted_count}
-
-    @staticmethod
-    # Search Operations
-    def accurate_search(
-            request: SearchRequest = Body(..., description="Search request parameters"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
-    ):
-        """
-        Search documents in multiple indices using fuzzy text matching
-
-        Args:
-            request: SearchRequest object containing search parameters
-            es_core: ElasticSearchCore instance
-
-        Returns:
-            Response containing search results, total count, and query time
-        """
-        try:
-            # 验证查询不为空
-            if not request.query.strip():
-                raise HTTPException(status_code=400, detail="Search query cannot be empty")
-
-            # 验证索引名称
-            if not request.index_names:
-                raise HTTPException(status_code=400, detail="At least one index name is required")
-
-            start_time = time.time()
-            results = es_core.accurate_search(request.index_names, request.query, request.top_k)
-            query_time = (time.time() - start_time) * 1000  # 转换为毫秒
-
-            # 格式化结果
-            formatted_results = []
-            for result in results:
-                doc = result["document"]
-                doc["score"] = result["score"]
-                doc["index"] = result["index"]  # 在结果中包含源索引
-                formatted_results.append(doc)
-
-            return {
-                "results": formatted_results,
-                "total": len(formatted_results),
-                "query_time_ms": query_time
-            }
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error during accurate search: {str(e)}")
-
-    @staticmethod
-    def semantic_search(
-            request: SearchRequest = Body(..., description="Search request parameters"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
-    ):
-        """
-        Search for similar documents in multiple indices using vector similarity
-
-        Args:
-            request: SearchRequest object containing search parameters
-            es_core: ElasticSearchCore instance
-
-        Returns:
-            Response containing search results, total count, and query time
-        """
-        try:
-            # 验证查询不为空
-            if not request.query.strip():
-                raise HTTPException(status_code=400, detail="Search query cannot be empty")
-
-            # 验证索引名称
-            if not request.index_names:
-                raise HTTPException(status_code=400, detail="At least one index name is required")
-
-            start_time = time.time()
-            results = es_core.semantic_search(request.index_names, request.query, request.top_k)
-            query_time = (time.time() - start_time) * 1000  # 转换为毫秒
-
-            # 格式化结果
-            formatted_results = []
-            for result in results:
-                doc = result["document"]
-                doc["score"] = result["score"]
-                doc["index"] = result["index"]  # 在结果中包含源索引
-                formatted_results.append(doc)
-
-            return {
-                "results": formatted_results,
-                "total": len(formatted_results),
-                "query_time_ms": query_time
-            }
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error during semantic search: {str(e)}")
-
-    @staticmethod
-    def hybrid_search(
-            request: HybridSearchRequest = Body(..., description="Hybrid search request parameters"),
-            es_core: ElasticSearchCore = Depends(get_es_core)
-    ):
-        """
-        Search for similar documents in multiple indices using hybrid search
-
-        Args:
-            request: HybridSearchRequest object containing search parameters
-            es_core: ElasticSearchCore instance
-
-        Returns:
-            Response containing search results, total count, query time, and detailed score information
-        """
-        try:
-            # 验证查询不为空
-            if not request.query.strip():
-                raise HTTPException(status_code=400, detail="Search query cannot be empty")
-
-            # 验证索引名称
-            if not request.index_names:
-                raise HTTPException(status_code=400, detail="At least one index name is required")
-
-            start_time = time.time()
-            results = es_core.hybrid_search(request.index_names, request.query, request.top_k, request.weight_accurate)
-            query_time = (time.time() - start_time) * 1000  # 转换为毫秒
-
-            # 格式化结果
-            formatted_results = []
-            for result in results:
-                doc = result["document"]
-                doc["score"] = result["score"]
-                doc["index"] = result["index"]  # 在结果中包含源索引
-                # 添加详细的分数信息
-                doc["score_details"] = {
-                    "accurate": result["scores"]["accurate"],
-                    "semantic": result["scores"]["semantic"]
-                }
-                formatted_results.append(doc)
-
-            return {
-                "results": formatted_results,
-                "total": len(formatted_results),
-                "query_time_ms": query_time
-            }
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error during hybrid search: {str(e)}")
+        # 2. Delete MinIO file
+        minio_result = delete_file(path_or_url)
+        return {"status": "success", "deleted_es_count": deleted_count, "deleted_minio": minio_result.get("success")}
 
     @staticmethod
     def health_check(es_core: ElasticSearchCore = Depends(get_es_core)):
@@ -662,7 +678,7 @@ class ElasticSearchService:
             Response containing health status information
         """
         try:
-            # 尝试列出索引作为健康检查
+            # Try to list indices as a health check
             indices = es_core.get_user_indices()
             return {
                 "status": "healthy",
@@ -677,21 +693,38 @@ class ElasticSearchService:
             batch_size: int = Query(1000, description="Number of documents to retrieve per batch"),
             es_core: ElasticSearchCore = Depends(get_es_core),
             user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base"),
+            tenant_id: Optional[str] = Body(None, description="ID of the tenant"),
             language: str = 'zh'
     ):
+        """
+        Generate a summary for the specified index based on its content
+
+        Args:
+            index_name: Name of the index to summarize
+            batch_size: Number of documents to process per batch
+            es_core: ElasticSearchCore instance
+            user_id: ID of the user requesting the summary
+            tenant_id: ID of the tenant
+            language: Language of the summary (default: 'zh')
+
+        Returns:
+            StreamingResponse containing the generated summary
+        """
         try:
-            # get all document
+            # Get all documents
+            if not tenant_id:
+                raise HTTPException(status_code=400, detail="Tenant ID is required for summary generation.")
             all_documents = ElasticSearchService.get_random_documents(index_name, batch_size, es_core)
             all_chunks = self._clean_chunks_for_summary(all_documents)
             keywords_dict = calculate_term_weights(all_chunks)
             keywords_for_summary = ""
             for _, key in enumerate(keywords_dict):
-                keywords_for_summary = keywords_for_summary + "、" + key
+                keywords_for_summary = keywords_for_summary + ", " + key
 
             async def generate_summary():
                 token_join = []
                 try:
-                    for new_token in generate_knowledge_summary_stream(keywords_for_summary, language):
+                    for new_token in generate_knowledge_summary_stream(keywords_for_summary, language, tenant_id):
                         if new_token == "END":
                             break
                         else:
@@ -713,10 +746,8 @@ class ElasticSearchService:
     @staticmethod
     def _clean_chunks_for_summary(all_documents):
         # Only use these three fields for summarization
-        # all_contents = []
         all_chunks = ""
         for _, chunk in enumerate(all_documents['documents']):
-            # all_contents.append({"title":chunk["title"], "file_name": chunk["filename"], "content": chunk["content"]})
             all_chunks = all_chunks + "\n" + chunk["title"] + "\n" + chunk["filename"] + "\n" + chunk["content"]
         return all_chunks
 
@@ -785,15 +816,25 @@ class ElasticSearchService:
             summary_result: Optional[str] = Body(description="knowledge base summary"),
             user_id: Optional[str] = Body(None, description="ID of the user delete the knowledge base")
     ):
-        """Summary Elasticsearch index_name by user"""
+        """
+        Update the summary for the specified Elasticsearch index
+
+        Args:
+            index_name: Name of the index to update
+            summary_result: New summary content
+            user_id: ID of the user making the update
+
+        Returns:
+            Dictionary containing status and updated summary information
+        """
         try:
             update_data = {
-                "knowledge_describe": summary_result,  # Set status to unavailable
+                "knowledge_describe": summary_result,  # Set the new summary
                 "updated_by": user_id,
                 "index_name": index_name
             }
             update_knowledge_record(update_data)
-            return {"status": "success", "message": f"Index {index_name} summary successfully", "summary": summary_result}
+            return {"status": "success", "message": f"Index {index_name} summary updated successfully", "summary": summary_result}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{str(e)}")
 
@@ -801,18 +842,27 @@ class ElasticSearchService:
             index_name: str = Path(..., description="Name of the index to get documents from"),
             language: str = 'zh'
     ):
-        """Get Elasticsearch index_name Summary"""
+        """
+        Get the summary for the specified Elasticsearch index
+
+        Args:
+            index_name: Name of the index to get summary from
+            language: Language of the summary (default: 'zh')
+
+        Returns:
+            Dictionary containing status and summary information
+        """
         try:
             knowledge_record = get_knowledge_record({'index_name': index_name})
             if knowledge_record:
                 summary_result = knowledge_record["knowledge_describe"]
-                success_msg = f"索引 {index_name} 摘要获取成功" if language == 'zh' else f"Index {index_name} summary retrieved successfully"
+                success_msg = f"Index {index_name} summary retrieved successfully"
                 return {"status": "success", "message": success_msg, "summary": summary_result}
-            error_detail = f"无法获取索引 {index_name} 的摘要" if language == 'zh' else f"Unable to get summary for index {index_name}"
+            error_detail = f"Unable to get summary for index {index_name}"
             raise HTTPException(
                 status_code=500,
                 detail=error_detail
             )
         except Exception as e:
-            error_msg = f"获取摘要失败: {str(e)}" if language == 'zh' else f"Failed to get summary: {str(e)}"
+            error_msg = f"Failed to get summary: {str(e)}"
             raise HTTPException(status_code=500, detail=error_msg)

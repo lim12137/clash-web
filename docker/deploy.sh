@@ -2,37 +2,69 @@
 
 ERROR_OCCURRED=0
 
+set -a
 source .env
+
+# Parse arg
+MODE_CHOICE=""
+IS_MAINLAND=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --mode)
+      MODE_CHOICE="$2"
+      shift 2
+      ;;
+    --is-mainland)
+      IS_MAINLAND="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
 
 # Add deployment mode selection function
 select_deployment_mode() {
-    echo "Please select deployment mode:"
-    echo "1) Development mode - Expose all service ports for debugging"
-    echo "2) Infrastructure mode - Only start infrastructure services"
-    echo "3) Production mode - Only expose port 3000 for security"
-    read -p "Enter your choice [1/2/3] (default: 1): " mode_choice
+    echo "🎛️  Please select deployment mode:"
+    echo "1) 🛠️  Development mode - Expose all service ports for debugging"
+    echo "2) 🏗️  Infrastructure mode - Only start infrastructure services"
+    echo "3) 🚀 Production mode - Only expose port 3000 for security"
+    echo "4) 🧪 Beta mode - Use develop branch images (from .env.beta)"
+    if [ -n "$MODE_CHOICE" ]; then
+      mode_choice="$MODE_CHOICE"
+      echo "👉 Using mode_choice from argument: $mode_choice"
+    else
+      read -p "👉 Enter your choice [1/2/3/4] (default: 1): " mode_choice
+    fi
 
     local root_dir="# Root dir"
     case $mode_choice in
         2)
             export DEPLOYMENT_MODE="infrastructure"
             export COMPOSE_FILE="docker-compose.yml"
-            echo "Selected infrastructure mode"
+            echo "✅ Selected infrastructure mode 🏗️"
             ;;
         3)
             export DEPLOYMENT_MODE="production"
             export COMPOSE_FILE_SUFFIX=".prod.yml"
-            echo "Selected production mode deployment"
+            echo "✅ Selected production mode deployment"
             if ! grep -q "$root_dir" .env; then
               sed -i -e '$a\' .env
               echo "# Root dir" >> .env
               echo "ROOT_DIR=\"$HOME/nexent-production-data\"" >> .env
             fi
             ;;
+        4)
+            export DEPLOYMENT_MODE="beta"
+            export COMPOSE_FILE_SUFFIX=".yml"
+            echo "✅ Selected beta mode 🧪"
+            ;;
         *)
             export DEPLOYMENT_MODE="development"
             export COMPOSE_FILE_SUFFIX=".yml"
-            echo "Selected development mode deployment"
+            echo "✅ Selected development mode deployment"
             if ! grep -q "$root_dir" .env; then
               sed -i -e '$a\' .env
               echo "# Root dir" >> .env
@@ -41,6 +73,9 @@ select_deployment_mode() {
             ;;
     esac
     source .env
+    echo ""
+    echo "--------------------------------"
+    echo ""
 }
 
 generate_minio_ak_sk() {
@@ -89,7 +124,7 @@ create_dir_with_permission() {
 
     # Check if parameters are provided
     if [ -z "$dir_path" ] || [ -z "$permission" ]; then
-        echo "[ERROR] Directory path and permission parameters are required." >&2
+        echo "❌ ERROR Directory path and permission parameters are required." >&2
         ERROR_OCCURRED=1
         return 1
     fi
@@ -98,7 +133,7 @@ create_dir_with_permission() {
     if [ ! -d "$dir_path" ]; then
         mkdir -p "$dir_path"
         if [ $? -ne 0 ]; then
-            echo "[ERROR] Failed to create directory $dir_path." >&2
+            echo "❌ ERROR Failed to create directory $dir_path." >&2
             ERROR_OCCURRED=1
             return 1
         fi
@@ -107,12 +142,12 @@ create_dir_with_permission() {
     # Set directory permissions
     chmod -R "$permission" "$dir_path"
     if [ $? -ne 0 ]; then
-        echo "[ERROR] Failed to set permissions $permission for directory $dir_path." >&2
+        echo "❌ ERROR Failed to set permissions $permission for directory $dir_path." >&2
         ERROR_OCCURRED=1
         return 1
     fi
 
-    echo "Directory $dir_path has been created and permissions set to $permission."
+    echo "📁 Directory $dir_path has been created and permissions set to $permission."
 }
 
 add_permission() {
@@ -122,9 +157,12 @@ add_permission() {
   create_dir_with_permission "$ROOT_DIR/elasticsearch" 777
   create_dir_with_permission "$ROOT_DIR/postgresql" 777
   create_dir_with_permission "$ROOT_DIR/minio" 777
-  create_dir_with_permission "$ROOT_DIR/uploads" 777
 
   cp -rn volumes $ROOT_DIR
+
+  echo ""
+  echo "--------------------------------"
+  echo ""
 }
 
 install() {
@@ -132,11 +170,15 @@ install() {
   docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent-elasticsearch nexent-postgresql nexent-minio redis
   docker-compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d
 
+  echo ""
+  echo "--------------------------------"
+  echo ""
+
   # Always generate a new ELASTICSEARCH_API_KEY for each deployment.
-  echo "Generating ELASTICSEARCH_API_KEY..."
+  echo "🔑 Generating ELASTICSEARCH_API_KEY..."
   # Wait for elasticsearch health check
   while ! docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" ps nexent-elasticsearch | grep -q "healthy"; do
-    echo "Waiting for Elasticsearch to become healthy..."
+    echo "⏳ Waiting for Elasticsearch to become healthy..."
     sleep 10
   done
 
@@ -156,14 +198,19 @@ install() {
     fi
 
     export ELASTICSEARCH_API_KEY
-    echo "ELASTICSEARCH_API_KEY generated successfully!"
+    echo "✅ ELASTICSEARCH_API_KEY generated successfully!"
   else
-    echo "[ERROR] Failed to generate ELASTICSEARCH_API_KEY"
+    echo "❌ ERROR Failed to generate ELASTICSEARCH_API_KEY"
     ERROR_OCCURRED=1
   fi
+
+  echo ""
+  echo "--------------------------------"
+  echo ""
+
   # Start core services
   if [ "$DEPLOYMENT_MODE" != "infrastructure" ]; then
-    echo "Starting core services..."
+    echo "👀 Starting core services..."
     docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent nexent-web nexent-data-process
   fi
   echo "Deploying services in ${DEPLOYMENT_MODE} mode..."
@@ -206,6 +253,38 @@ update_env_var() {
     # Key doesn't exist, so add it
     echo "${key}=\"${value}\"" >> "$env_file"
   fi
+
+  echo ""
+  echo "--------------------------------"
+  echo ""
+}
+
+choose_image_env() {
+  if [ -n "$IS_MAINLAND" ]; then
+    is_mainland="$IS_MAINLAND"
+    echo "🌏 Using is_mainland from argument: $is_mainland"
+  else
+    read -p "🌏 Is your server network located in mainland China? [Y/N] (default N): " is_mainland
+  fi
+  if [[ "$is_mainland" =~ ^[Yy]$ ]]; then
+    echo "🌐 Detected mainland China network, using .env.mainland for image sources."
+    source .env.mainland
+  else
+    echo "🌐 Using general image sources from .env.general."
+    source .env.general
+  fi
+
+  echo ""
+  echo "--------------------------------"
+  echo ""
+}
+
+choose_beta_env() {
+  echo "🌐 Beta mode selected, using .env.beta for image sources."
+  source .env.beta
+  echo ""
+  echo "--------------------------------"
+  echo ""
 }
 
 add_jwt_to_env() {
@@ -226,28 +305,43 @@ add_jwt_to_env() {
   update_env_var "ANON_KEY" "$anon_key"
   update_env_var "SUPABASE_KEY" "$anon_key"
   update_env_var "SERVICE_ROLE_KEY" "$service_role_key"
-  
+
   # Reload the environment variables from the updated .env file
   source .env
 }
 
 
 # Main execution flow
+echo ""
+echo "================================"
+echo ""
 echo "🚀  Nexent Deployment Script"
+echo ""
+echo "================================"
+echo ""
+
+# Start deployment
 select_deployment_mode
 add_permission
 add_jwt_to_env
 generate_minio_ak_sk
+
+if [ "$DEPLOYMENT_MODE" = "beta" ]; then
+  choose_beta_env
+else
+  choose_image_env
+fi
+
 install
 clean
 
 echo "Creating admin user..."
-docker exec -d nexent bash -c "curl -X POST http://kong:8000/auth/v1/admin/users -H \"apikey: ${SERVICE_ROLE_KEY}\" -H \"Authorization: Bearer ${SERVICE_ROLE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"admin@example.com\",\"password\": \"123123\",\"role\": \"admin\",\"email_confirm\":true}'"
+docker exec -d nexent bash -c "curl -X POST http://kong:8000/auth/v1/signup -H \"apikey: ${SUPABASE_KEY}\" -H \"Authorization: Bearer ${SUPABASE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"admin@example.com\",\"password\":\"123123\",\"email_confirm\":true,\"data\":{\"role\":\"admin\"}}'"
 
 if [ "$ERROR_OCCURRED" -eq 1 ]; then
   echo "❌ Deployment did not complete successfully. Please review the logs and have a try again."
 else
-  echo "🚀  Deployment completed!"
+  echo "🎉  Deployment completed!"
   if [ "$DEPLOYMENT_MODE" != "infrastructure" ]; then
     echo "🌐  You can now access the application at http://localhost:3000"
   else

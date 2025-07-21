@@ -7,55 +7,55 @@ import requests
 
 class BaseEmbedding(ABC):
     """
-    嵌入模型的抽象基类，定义了所有嵌入模型应该实现的方法。
+    Abstract base class for embedding models, defining methods that all embedding models should implement.
     """
 
     @abstractmethod
     def __init__(self, model_name: str = None, base_url: str = None, api_key: str = None, embedding_dim: int = None):
         """
-        初始化嵌入模型。
+        Initialize the embedding model.
 
         Args:
-            model_name: Embedding模型的名称
-            base_url: Embedding API的基础URL
-            api_key: Embedding API的密钥
-            embedding_dim: 嵌入向量的维度
+            model_name: Name of the embedding model
+            base_url: Base URL of the embedding API
+            api_key: API key for the embedding API
+            embedding_dim: Dimension of the embedding vector
         """
         pass
 
     @abstractmethod
-    def get_embeddings(self, inputs, with_metadata: bool = False, timeout: Optional[float] = None) -> Union[List[List[float]], Dict[str, Any]]:
+    def get_embeddings(self, inputs: Union[str, List[str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[List[List[float]], Dict[str, Any]]:
         """
-        获取输入的嵌入向量。
+        Get the embedding vectors for the input.
         
         Args:
-            inputs: 希望执行嵌入的对象
-            with_metadata: 是否返回包含元数据的完整响应
-            timeout: 请求超时时间，单位为秒
+            inputs: Objects to be embedded
+            with_metadata: Whether to return the full response with metadata
+            timeout: Request timeout in seconds
             
         Returns:
-            如果with_metadata为False，返回嵌入向量列表；否则，返回包含嵌入和元数据的字典
+            If with_metadata is False, returns a list of embedding vectors; otherwise, returns a dictionary containing embeddings and metadata
         """
         pass
 
     @abstractmethod
     def check_connectivity(self, timeout: float = 5.0) -> bool:
         """
-        测试与嵌入API的连接是否正常，支持超时检测。
+        Test the connectivity to the embedding API, supporting timeout detection.
         
         Args:
-            timeout: 超时时间，单位为秒
+            timeout: Timeout in seconds
             
         Returns:
-            bool: 连接成功返回True，失败或超时返回False
+            bool: Returns True if the connection is successful, False if it fails or times out
         """
         pass
 
 
 class TextEmbedding(BaseEmbedding):
     """
-    文本嵌入模型的抽象类，专门处理文本的向量化任务。
-    输入格式为字符串或字符串数组。
+    Abstract class for text embedding models, specifically handling the task of vectorizing text.
+    Input format is a string or an array of strings.
     """
     
     @abstractmethod
@@ -65,23 +65,23 @@ class TextEmbedding(BaseEmbedding):
     @abstractmethod
     def get_embeddings(self, inputs: Union[str, List[str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[List[List[float]], Dict[str, Any]]:
         """
-        获取文本输入的嵌入向量。
+        Get the embedding vectors for text inputs.
         
         Args:
-            inputs: 文本字符串或文本字符串列表
-            with_metadata: 是否返回包含元数据的完整响应
-            timeout: 请求超时时间，单位为秒
+            inputs: A text string or a list of text strings
+            with_metadata: Whether to return the full response with metadata
+            timeout: Request timeout in seconds
             
         Returns:
-            如果with_metadata为False，返回嵌入向量列表；否则，返回包含嵌入和元数据的字典
+            If with_metadata is False, returns a list of embedding vectors; otherwise, returns a dictionary containing embeddings and metadata
         """
         pass
 
 
 class MultimodalEmbedding(BaseEmbedding):
     """
-    多模态嵌入模型的抽象类，可以处理文本、图像、视频等多类型向量化任务。
-    输入格式为包含类型信息的字典列表List[Dict[str, str]]。
+    Abstract class for multimodal embedding models, capable of handling vectorization tasks for text, images, videos, etc.
+    Input format is a list of dictionaries containing type information List[Dict[str, str]].
     """
     
     @abstractmethod
@@ -89,17 +89,17 @@ class MultimodalEmbedding(BaseEmbedding):
         super().__init__(model_name, base_url, api_key, embedding_dim)
     
     @abstractmethod
-    def get_embeddings(self, inputs: List[Dict[str, str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[List[List[float]], Dict[str, Any]]:
+    def get_multimodal_embeddings(self, inputs: List[Dict[str, str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[List[List[float]], Dict[str, Any]]:
         """
-        获取多模态输入的嵌入向量。
+        Get the embedding vectors for multimodal inputs.
         
         Args:
-            inputs: 包含类型信息的字典列表，例如[{"text": "内容"}, {"image": "图片URL"}]
-            with_metadata: 是否返回包含元数据的完整响应
-            timeout: 请求超时时间，单位为秒
+            inputs: A list of dictionaries containing type information, e.g., [{"text": "content"}, {"image": "image URL"}]
+            with_metadata: Whether to return the full response with metadata
+            timeout: Request timeout in seconds
             
         Returns:
-            如果with_metadata为False，返回嵌入向量列表；否则，返回包含嵌入和元数据的字典
+            If with_metadata is False, returns a list of embedding vectors; otherwise, returns a dictionary containing embeddings and metadata
         """
         pass
 
@@ -114,7 +114,7 @@ class JinaEmbedding(MultimodalEmbedding):
 
         self.headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
 
-    def _prepare_input(self, inputs: List[Dict[str, str]]) -> Dict[str, Any]:
+    def _prepare_multimodal_input(self, inputs: List[Dict[str, str]]) -> Dict[str, Any]:
         """Prepare the input data for the API request."""
         return {"model": self.model, "input": inputs}
 
@@ -123,17 +123,35 @@ class JinaEmbedding(MultimodalEmbedding):
         Make the API request and return the response.
         
         Args:
-            data: 请求数据
-            timeout: 超时时间，单位为秒
+            data: Request data
+            timeout: Timeout in seconds
             
         Returns:
-            Dict[str, Any]: API响应
+            Dict[str, Any]: API response
         """
         response = requests.post(self.api_url, headers=self.headers, json=data, timeout=timeout)
         response.raise_for_status()
         return response.json()
 
-    def get_embeddings(self, inputs: List[Dict[str, str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[
+    def get_embeddings(self, inputs: Union[str, List[str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[
+        List[List[float]], Dict[str, Any]]:
+        """
+        Get embeddings for text inputs.
+        Args:
+            inputs: A single text string or a list of text strings.
+            with_metadata: Whether to return the full response with metadata.
+            timeout: Request timeout in seconds.
+        Returns:
+            A list of embedding vectors, or a dictionary with metadata if with_metadata is True.
+        """
+        if isinstance(inputs, str):
+            multimodal_inputs = [{"text": inputs}]
+        else:
+            multimodal_inputs = [{"text": item} for item in inputs]
+
+        return self.get_multimodal_embeddings(multimodal_inputs, with_metadata=with_metadata, timeout=timeout)
+
+    def get_multimodal_embeddings(self, inputs: List[Dict[str, str]], with_metadata: bool = False, timeout: Optional[float] = None) -> Union[
         List[List[float]], Dict[str, Any]]:
         """
         Get embeddings for a list of inputs (text or image URLs).
@@ -141,7 +159,7 @@ class JinaEmbedding(MultimodalEmbedding):
         Args:
             inputs: List of dictionaries containing either 'text' or 'image' keys
             with_metadata: Whether to return the full response with metadata or just a list of embedding vectors
-            timeout: 请求超时时间，单位为秒
+            timeout: Request timeout in seconds
             
         Returns:
             List of embedding vectors
@@ -152,9 +170,9 @@ class JinaEmbedding(MultimodalEmbedding):
             ...     {"text": "A beautiful sunset over the beach"},
             ...     {"image": "https://example.com/image.jpg"}
             ... ]
-            >>> embeddings = jina.get_embeddings(inputs)
+            >>> embeddings = jina.get_multimodal_embeddings(inputs)
         """
-        data = self._prepare_input(inputs)
+        data = self._prepare_multimodal_input(inputs)
         response = self._make_request(data, timeout=timeout)
 
         if with_metadata:
@@ -166,32 +184,32 @@ class JinaEmbedding(MultimodalEmbedding):
 
     def check_connectivity(self, timeout: float = 5.0) -> bool:
         """
-        测试与远程Jina Embedding API的连接是否正常，支持超时检测
+        Test the connectivity to the remote Jina Embedding API, supporting timeout detection
         
         Args:
-            timeout: 超时时间，单位为秒，默认为5秒
+            timeout: Timeout in seconds, default is 5 seconds
             
         Returns:
-            bool: 连接成功返回True，失败或超时返回False
+            bool: Returns True if the connection is successful, False if it fails or times out
         """
         try:
-            # 创建一个简单的测试输入
-            test_input = [{"text": "Hello, nexent!"}]
+            # Create a simple test input
+            test_input = "Hello, nexent!"
 
-            # 尝试获取嵌入向量，设置超时时间
+            # Try to get embedding vectors, setting a timeout
             embeddings = self.get_embeddings(test_input, timeout=timeout)
 
-            # 如果成功获取嵌入向量，则连接正常
+            # If embedding vectors are successfully obtained, the connection is normal
             return len(embeddings) > 0
 
         except requests.exceptions.Timeout:
-            logging.error(f"Embedding API 连接测试超时（{timeout}秒）")
+            logging.error(f"Embedding API connection test timed out ({timeout} seconds)")
             return False
         except requests.exceptions.ConnectionError:
-            logging.error("Embedding API 连接错误，无法建立连接")
+            logging.error("Embedding API connection error, unable to establish connection")
             return False
         except Exception as e:
-            logging.error(f"Embedding API 连接测试失败: {str(e)}")
+            logging.error(f"Embedding API connection test failed: {str(e)}")
             return False
 
 
@@ -200,28 +218,27 @@ class OpenAICompatibleEmbedding(TextEmbedding):
         """Initialize OpenAICompatibleEmbedding with configuration from environment variables or provided parameters."""
         self.api_key = api_key
         self.api_url = base_url
-        self.model_name = model_name
+        self.model = model_name
         self.embedding_dim = embedding_dim
 
         self.headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
 
     def _prepare_input(self, inputs: Union[str, List[str]]) -> Dict[str, Any]:
         """Prepare the input data for the API request."""
-        # 确保输入总是列表格式
         if isinstance(inputs, str):
             inputs = [inputs]
-        return {"model": self.model_name, "input": inputs}
+        return {"model": self.model, "input": inputs}
 
     def _make_request(self, data: Dict[str, Any], timeout: Optional[float] = None) -> Dict[str, Any]:
         """
         Make the API request and return the response.
         
         Args:
-            data: 请求数据
-            timeout: 超时时间，单位为秒
+            data: Request data
+            timeout: Timeout in seconds
             
         Returns:
-            Dict[str, Any]: API响应
+            Dict[str, Any]: API response
         """
         response = requests.post(self.api_url, headers=self.headers, json=data, timeout=timeout)
         response.raise_for_status()
@@ -233,9 +250,9 @@ class OpenAICompatibleEmbedding(TextEmbedding):
         Get embeddings for text inputs.
         
         Args:
-            inputs: 单个文本字符串或文本字符串列表
+            inputs: A single text string or a list of text strings
             with_metadata: Whether to return the full response with metadata or just a list of embedding vectors
-            timeout: 请求超时时间，单位为秒
+            timeout: Request timeout in seconds
             
         Returns:
             List of embedding vectors
@@ -252,29 +269,29 @@ class OpenAICompatibleEmbedding(TextEmbedding):
 
     def check_connectivity(self, timeout: float = 5.0) -> bool:
         """
-        测试与远程OpenAI API的连接是否正常，支持超时检测
+        Test the connectivity to the remote OpenAI API, supporting timeout detection
         
         Args:
-            timeout: 超时时间，单位为秒，默认为5秒
+            timeout: Timeout in seconds, default is 5 seconds
             
         Returns:
-            bool: 连接成功返回True，失败或超时返回False
+            bool: Returns True if the connection is successful, False if it fails or times out
         """
         try:
             test_input = "Hello, nexent!"
 
-            # 尝试获取嵌入向量，设置超时时间
+            # Try to get embedding vectors, setting a timeout
             embeddings = self.get_embeddings(test_input, timeout=timeout)
 
-            # 如果成功获取嵌入向量，则连接正常
+            # If embedding vectors are successfully obtained, the connection is normal
             return len(embeddings) > 0
 
         except requests.exceptions.Timeout:
-            logging.error(f"OpenAI API 连接测试超时（{timeout}秒）")
+            logging.error(f"OpenAI API connection test timed out ({timeout} seconds)")
             return False
         except requests.exceptions.ConnectionError:
-            logging.error("OpenAI API 连接错误，无法建立连接")
+            logging.error("OpenAI API connection error, unable to establish connection")
             return False
         except Exception as e:
-            logging.error(f"OpenAI API 连接测试失败: {str(e)}")
+            logging.error(f"OpenAI API connection test failed: {str(e)}")
             return False

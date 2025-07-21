@@ -6,7 +6,6 @@
 Thank you for considering contributing to Nexent! From code to docs to sharing your experience, every bit helps make Nexent better for everyone. It also helps us if you share Nexent with others, or simply ⭐️ the repo. Thanks a million! 💛 Let's build something amazing together! 🎉
 
 In terms of licensing, please take a minute to read our short [License and Contributor Agreement](https://github.com/ModelEngine-Group/nexent/blob/main/LICENSE). The community also adheres to the [code of conduct](https://github.com/ModelEngine-Group/nexent/blob/main/CODE_OF_CONDUCT.md).
----
 
 ## 🤔 How You Can Contribute
 
@@ -26,7 +25,28 @@ Whether it's fixing a bug or adding a new feature, your code contributions are h
 
 Great documentation is key to a great project. Help us make Nexent easier to use and understand.
 
----
+## 🌳 Branching Strategy GitFlow
+
+![GitFlow 工作流](assets/git-flow.svg)
+
+Gitflow is a branching model for Git that provides a structured approach to software development. It defines specific branches for different purposes, like features, releases, and hotfixes, and outlines how they should interact. This helps streamline the development process, manage releases effectively, and facilitate collaboration.
+
+### Main Branches
+- **main**: Represents the official release history and should always be deployable.
+- **develop**: The main branch for ongoing development. It integrates new features and bug fixes from feature branches.
+
+### Supporting Branches
+- **feature branches**: Used for developing new features. They branch off from develop and are merged back into it once the feature is complete.
+- **release branches**: Created when a new release is about to be prepared. They allow for final testing and minor adjustments before merging into main and develop.
+- **hotfix branches**: Used for fixing critical bugs in production. They branch off from main and are merged back into both main and develop.
+
+### Benefits of Gitflow
+- **Structured workflow**: Provides a clear and consistent process for managing different types of changes.
+- **Improved collaboration**: Facilitates teamwork by defining clear roles for branches and how they should interact.
+- **Efficient releases**: Streamlines the release process by isolating changes in dedicated branches and allowing for final testing.
+- **Reduced conflicts**: By using feature branches and release branches, it helps minimize merge conflicts and makes it easier to resolve them.
+
+For a visual overview, see the diagram above.
 
 ## 🐞 Submitting a Bug Report or Feature Request
 
@@ -48,49 +68,48 @@ For feature ideas, please provide:
 **Where to submit?**  
 Open a new issue in our [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) section and select the appropriate template (Bug Report or Feature Request).
 
----
-
 ## 💻 Submitting Code Changes
 
-### Step 1: Fork the Repository
+### Step 1 Fork the Repository
 🍴 Fork the [Nexent repository](https://github.com/ModelEngine-Group/nexent) to your GitHub account.
 
-### Step 2: Clone Your Fork
+### Step 2 Clone Your Fork
 📦 Clone your forked repository locally:
 ```bash
 git clone https://github.com/ModelEngine-Group/nexent.git
 ```
 
-### Step 3: Create a Branch
+### Step 3 Create a Branch
 🌿 Create a new branch for your changes:
 ```bash
 git checkout -b your-branch-name
 ```
 
-### Step 4: Make Your Changes
+### Step 4 Make Your Changes
 🧙‍♂️ Code like a wizard! Follow our [Development Guide](./DEVELOPPER_NOTE.md) for setup instructions and coding standards. Ensure your changes are well-tested and documented.
 
-### Step 5: Commit Your Changes
-📝 Commit with a clear and concise message following our commit message guidelines:
+### Step 5 Commit Your Changes
+📝 Commit with a clear and concise message following our commit message guidelines：
 
-| Type | Icon | Description |
-|------|------|-------------|
-| Refactor | ♻️ | Code logic optimization without affecting functionality |
+| Type      | Icon | Description |
+|-----------|------|-------------|
+| Refactor  | ♻️ | Code logic optimization without affecting functionality |
 | Migration | 🚚 | Moving or migrating files or modules |
-| Feature | ✨ | Adding new features or functionality |
-| Bugfix | 🐛 | Fixing issues or bugs |
-| Style | 🎨 | Improving code style, formatting without changing functionality |
-| Chore | 🔨 | Updating tools, adjusting configurations |
-| Docs | 📝 | Documentation changes only |
+| Feature   | ✨ | Adding new features or functionality |
+| Bugfix    | 🐛 | Fixing issues or bugs |
+| Style     | 🎨 | Improving code style, formatting without changing functionality |
+| Chore     | 🔨 | Updating tools, adjusting configurations |
+| Docs      | 📝 | Documentation changes only |
+| Test      | 🧪 | Add test cases or modify test cases   |
 
-Example commit message:
+Example commit message：
 ```bash
 git commit -m "✨ add user authentication"
 git commit -m "🐛 resolve login timeout issue"
 git commit -m "📝 update API documentation"
 ```
 
-### Step 6: Sync with Upstream
+### Step 6 Sync with Upstream
 ⚙️ Keep your fork updated with the latest changes from the main repository:
 ```bash
 git remote add upstream https://github.com/ModelEngine-Group/nexent.git
@@ -98,7 +117,7 @@ git fetch upstream
 git merge upstream/main
 ```
 
-### Step 7: Open a Pull Request (PR)
+### Step 7 Open a Pull Request (PR)
 🚀 Push your changes to your fork and open a PR in the main repository. Include:
 - A **clear title** and **description** of your changes.
 - A reference to the related issue (e.g., `fixes #123`).
@@ -108,7 +127,7 @@ Our team will review your PR and provide feedback. Collaboration makes the magic
 
 ### Protected Branches and Code Owner Reviews
 
-When submitting changes to protected branches (like `main`), please note the following requirements:
+When submitting changes to protected branches (like `main`), please note the following requirements：
 
 1. **Code Owner Review Required**
    - The PR will automatically request reviews from relevant code owners
@@ -129,30 +148,24 @@ When submitting changes to protected branches (like `main`), please note the fol
    - Direct pushes to protected branches are not allowed
    - Self-approvals are not valid
 
----
-
 ## 📖 Improving Documentation
 
-Great documentation is a team effort! You can help by:
+Great documentation is a team effort! You can help by：
 - Fixing typos or clarifying unclear sections.
 - Adding missing documentation for features or setup steps.
 - Translating docs into other languages.
 
-To contribute:
+To contribute：
 1. Follow the same steps as for code changes (fork, clone, branch, etc.).
 2. Edit the relevant documentation files (e.g., `README.md`, `docs/`).
 3. Submit a PR with your improvements.
 
----
-
 ## ❓ Need Help?
 
-Stuck or have questions? We're here to help! Reach out to us via:
+Stuck or have questions? We're here to help! Reach out to us via：
 - **GitHub Issues**: Open an issue for discussion.
 - **Discord**: Join our [Nexent Community](https://discord.gg/YXH5C8SQ) for real-time chat.
 - **Email**: Drop us a line at [chenshuangrui@huawei.com](mailto:chenshuangrui@huawei.com).
-
----
 
 ## 🎉 Celebrate Your Contribution!
 

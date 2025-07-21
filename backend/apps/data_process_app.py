@@ -3,14 +3,14 @@ from contextlib import asynccontextmanager
 from fastapi import HTTPException, APIRouter, Form, File, UploadFile
 import base64
 import io
-import tempfile
-import os
+import time
 
 from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTaskRequest, SimpleTaskStatusResponse, \
     SimpleTasksListResponse
 from data_process.utils import get_task_info
 from data_process.tasks import process_and_forward, process_sync
 from services.data_process_service import get_data_process_service
+from nexent.data_process.core import DataProcessCore
 
 # Configure logging
 logger = logging.getLogger("data_process.app")
@@ -42,18 +42,15 @@ async def create_task(request: TaskRequest):
     Returns task ID immediately. Processing happens in the background.
     Tasks are forwarded to Elasticsearch when complete.
     """
-    # Extract parameters
-    params = {}
-    if request.additional_params:
-        params.update(request.additional_params)
-
     # Create task using the new process_and_forward task
+
+    logger.info(f"Creating task with source_type: {request.source_type}")
     task_result = process_and_forward.delay(
         source=request.source,
         source_type=request.source_type,
         chunking_strategy=request.chunking_strategy,
         index_name=request.index_name,
-        **params
+        original_filename=request.original_filename
     )
 
     return TaskResponse(task_id=task_result.id)
@@ -62,7 +59,7 @@ async def create_task(request: TaskRequest):
 @router.post("/process", response_model=dict, status_code=200)
 async def process_sync_endpoint(
     source: str = Form(...),
-    source_type: str = Form("file"),
+    source_type: str = Form(...),
     chunking_strategy: str = Form("basic"),
     timeout: int = Form(30)
 ):
@@ -74,7 +71,7 @@ async def process_sync_endpoint(
     
     Parameters:
         source: File path, URL, or text content to process
-        source_type: Type of source ("file", "url", or "text")
+        source_type: Type of source ("local", "minio")
         chunking_strategy: Strategy for chunking the document
         timeout: Maximum time to wait for processing (seconds)
     
@@ -131,19 +128,15 @@ async def create_batch_tasks(request: BatchTaskRequest):
         for source_config in request.sources:
             # Extract parameters
             source = source_config.get('source')
-            source_type = source_config.get('source_type', 'file')
-            chunking_strategy = source_config.get('chunking_strategy', 'basic')
+            source_type = source_config.get('source_type')
+            chunking_strategy = source_config.get('chunking_strategy')
             index_name = source_config.get('index_name')
-            
-            # Extract additional parameters (excluding the standard ones)
-            additional_params = {k: v for k, v in source_config.items() 
-                               if k not in ['source', 'source_type', 'chunking_strategy', 'index_name']}
-            
+            original_filename = source_config.get('original_filename')
+
             # Validate required fields
             if not source:
                 logger.error(f"Missing required field 'source' in source config: {source_config}")
                 continue
-                
             if not index_name:
                 logger.error(f"Missing required field 'index_name' in source config: {source_config}")
                 continue
@@ -154,11 +147,11 @@ async def create_batch_tasks(request: BatchTaskRequest):
                 source_type=source_type,
                 chunking_strategy=chunking_strategy,
                 index_name=index_name,
-                **additional_params
+                original_filename=original_filename
             )
             
             task_ids.append(task_result.id)
-            logger.info(f"Created task {task_result.id} for source: {source}")
+            logger.debug(f"Created task {task_result.id} for source: {source}")
         
         logger.info(f"Created {len(task_ids)} individual tasks for batch processing")
         return BatchTaskResponse(task_ids=task_ids)
@@ -218,10 +211,11 @@ async def get_task(task_id: str):
         task_name=task["task_name"],
         index_name=task["index_name"],
         path_or_url=task["path_or_url"],
+        original_filename=task["original_filename"],
         status=task["status"],
-        created_at=task.get("created_at"),
-        updated_at=task.get("updated_at"),
-        error=task.get("error")
+        created_at=task["created_at"],
+        updated_at=task["updated_at"],
+        error=task["error"]
     )
 
 
@@ -238,10 +232,11 @@ async def list_tasks():
                 task_name=task["task_name"],
                 index_name=task["index_name"],
                 path_or_url=task["path_or_url"],
+                original_filename=task["original_filename"],
                 status=task["status"],
-                created_at=task.get("created_at"),
-                updated_at=task.get("updated_at"),
-                error=task.get("error")
+                created_at=task["created_at"],
+                updated_at=task["updated_at"],
+                error=task["error"]
             )
         )
 
@@ -303,10 +298,10 @@ async def process_text_file(
     timeout: int = Form(60)
 ):
     """
-    Transfer the uploaded file to text content
+    Transfer the uploaded file to text content using SDK DataProcessCore
     
     This interface is specifically used for file-to-text conversion, supporting multiple file formats including PDF, Word, Excel, etc.
-    Use high-priority processing queue for fast response.
+    Uses SDK's DataProcessCore for direct in-memory processing.
     
     Parameters:
         file: Uploaded file object
@@ -316,29 +311,49 @@ async def process_text_file(
     Returns:
         JSON object, containing the extracted full text content and processing metadata
     """
-    temp_file_path = None
     try:
-        logger.info(f"Processing uploaded file: {file.filename}")
+        logger.info(f"Processing uploaded file: {file.filename} using SDK DataProcessCore")
         
-        # Save the uploaded file to a temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename or "")[1]) as temp_file:
-            content = await file.read()
-            temp_file.write(content)
-            temp_file_path = temp_file.name
+        # Record processing start time
+        start_time = time.time()
         
-        logger.info(f"Saved uploaded file to temporary path: {temp_file_path}")
+        # Read file content directly into memory
+        file_content = await file.read()
+        filename = file.filename or "unknown_file"
+        
+        # Initialize DataProcessCore
+        data_processor = DataProcessCore()
+        
+        # Process file using SDK
+        chunks = data_processor.file_process(
+            file_data=file_content,
+            filename=filename,
+            chunking_strategy=chunking_strategy
+        )
 
-        result = process_sync(source=temp_file_path, source_type='file', chunking_strategy=chunking_strategy, timeout=timeout)
-        logger.info(f"Successfully processed uploaded file: {file.filename}, extracted {result.get('text_length', 0)} characters")
+        # Extract text content from chunks
+        full_text = ""
+        chunk_texts = []
+        for chunk in chunks:
+            if 'content' in chunk:
+                chunk_content = chunk['content']
+                full_text += chunk_content + "\n"
+                chunk_texts.append(chunk_content)
+        
+        # Calculate processing time
+        processing_time = time.time() - start_time
+        
+        logger.info(f"Successfully processed uploaded file: {filename}, extracted {len(full_text)} characters in {processing_time:.2f}s")
         
         return {
             "success": True,
-            "task_id": result.get("task_id"),
-            "filename": file.filename,
-            "text": result.get("text", ""),
-            "chunks_count": result.get("chunks_count", 0),
-            "text_length": result.get("text_length", 0),
-            "processing_time": result.get("processing_time", 0),
+            "task_id": None,  # No async task ID for direct processing
+            "filename": filename,
+            "text": full_text.strip(),
+            "chunks": chunk_texts,
+            "chunks_count": len(chunks),
+            "text_length": len(full_text.strip()),
+            "processing_time": processing_time,
             "chunking_strategy": chunking_strategy
         }
         
@@ -346,13 +361,5 @@ async def process_text_file(
         logger.exception(f"Error processing uploaded file {file.filename}: {str(e)}")
         raise HTTPException(
             status_code=500, 
-            detail=f"处理文件时发生错误: {str(e)}"
+            detail=f"An error occurred while processing the file: {str(e)}"
         )
-    finally:
-        # Clean up temporary files
-        if temp_file_path and os.path.exists(temp_file_path):
-            try:
-                os.unlink(temp_file_path)
-                logger.debug(f"Cleaned up temporary file: {temp_file_path}")
-            except Exception as e:
-                logger.warning(f"Failed to clean up temporary file {temp_file_path}: {str(e)}")

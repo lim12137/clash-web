@@ -11,12 +11,12 @@ from ..utils.observer import MessageObserver, ProcessType
 from ..utils.tools_common_message import SearchResultTextMessage
 
 # Get logger instance
-logger = logging.getLogger("exa_search tool")
+logger = logging.getLogger("exa_search_tool")
 
 
-class SearchTool(Tool):
-    name = "web_search"
-    description = "Performs a web search based on your query (think a Google search) then returns the top search results. " \
+class ExaSearchTool(Tool):
+    name = "exa_search"
+    description = "Performs a internet search based on your query (think a Google search) then returns the top search results. " \
                   "A tool for retrieving publicly available information, news, general knowledge, or non-proprietary data from the internet. " \
                   "Use this for real-time open-domain updates, broad topics, or or general knowledge queries" \
 
@@ -24,10 +24,10 @@ class SearchTool(Tool):
     output_type = "string"
     tool_sign = "b"  # Used to distinguish different index sources in summary
 
-    def __init__(self, exa_api_key:str=Field(description="key"),
-                 observer: MessageObserver=Field(description="键", default=None, exclude=True),
-                 max_results:int=Field(description="最大检索个数", default=5),
-                 image_filter: bool = Field(description="是否开启图片过滤", default=True)
+    def __init__(self, exa_api_key:str=Field(description="EXA API key"),
+                 observer: MessageObserver=Field(description="Message observer", default=None, exclude=True),
+                 max_results:int=Field(description="Maximum number of search results", default=5),
+                 image_filter: bool = Field(description="Whether to enable image filtering", default=True)
      ):
 
         super().__init__()
@@ -37,7 +37,8 @@ class SearchTool(Tool):
         self.max_results = max_results
         self.image_filter = image_filter
         self.record_ops = 0  # Used to record sequence number
-        self.running_prompt = "网络检索中..."
+        self.running_prompt_en = "Searching the web..."
+        self.running_prompt_zh = "网络搜索中..."
 
         # TODO add data_process_service
         self.data_process_service = os.getenv("DATA_PROCESS_SERVICE")
@@ -57,7 +58,8 @@ class SearchTool(Tool):
 
         # Send tool running message
         if self.observer:
-            self.observer.add_message("", ProcessType.TOOL, self.running_prompt)
+            running_prompt = self.running_prompt_zh if self.observer.lang=="zh" else self.running_prompt_en
+            self.observer.add_message("", ProcessType.TOOL, running_prompt)
             card_content = [{"icon": "search", "text": query}]
             self.observer.add_message("", ProcessType.CARD, json.dumps(
                 card_content, ensure_ascii=False))

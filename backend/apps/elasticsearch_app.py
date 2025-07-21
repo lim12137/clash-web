@@ -1,16 +1,81 @@
 from typing import Dict, List, Any, Optional
+import logging
 
 from fastapi import HTTPException, Query, Body, Path, Depends, APIRouter, Header
-from consts.model import IndexingResponse, SearchRequest, HybridSearchRequest, ChangeSummaryRequest
+from consts.model import IndexingResponse
 
 from nexent.vector_database.elasticsearch_core import ElasticSearchCore
-from services.elasticsearch_service import ElasticSearchService, get_es_core
+from services.elasticsearch_service import ElasticSearchService, get_es_core, get_embedding_model
 from services.redis_service import get_redis_service
 from utils.auth_utils import get_current_user_id
-from services.tenant_config_service import delete_selected_knowledge_by_index_name
+from database.knowledge_db import get_knowledge_record, delete_knowledge_record
 
 router = APIRouter(prefix="/indices")
 service = ElasticSearchService()
+logger = logging.getLogger("elasticsearch_app")
+
+
+@router.get("/check_exist/{index_name}")
+async def check_knowledge_base_exist(
+        index_name: str = Path(..., description="Name of the index to check"),
+        es_core: ElasticSearchCore = Depends(get_es_core),
+        authorization: Optional[str] = Header(None)
+):
+    """Check if a knowledge base name exists and in which scope."""
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+
+        # 1. Check index existence in ES and corresponding record in PG
+        es_exists = es_core.client.indices.exists(index=index_name)
+        pg_record = get_knowledge_record({"index_name": index_name})
+
+        # Case A: Orphan in ES only (exists in ES, missing in PG)
+        if es_exists and not pg_record:
+            logger.warning(f"Detected orphan knowledge base '{index_name}' – present in ES, absent in PG. Deleting ES index only.")
+            try:
+                es_core.delete_index(index_name)
+                # Clean up Redis records related to this index to avoid stale tasks
+                try:
+                    from services.redis_service import get_redis_service
+                    redis_service = get_redis_service()
+                    redis_cleanup = redis_service.delete_knowledgebase_records(index_name)
+                    logger.debug(f"Redis cleanup for orphan index '{index_name}': {redis_cleanup['total_deleted']} records removed")
+                except Exception as redis_error:
+                    logger.warning(f"Redis cleanup failed for orphan index '{index_name}': {str(redis_error)}")
+                return {
+                    "status": "error_cleaning_orphans",
+                    "action": "cleaned_es"
+                }
+            except Exception as e:
+                logger.error(f"Failed to delete orphan ES index '{index_name}': {str(e)}")
+                # Still return orphan status so frontend knows it requires attention
+                return {"status": "error_cleaning_orphans", "error": True}
+
+        # Case B: Orphan in PG only (missing in ES, present in PG)
+        if not es_exists and pg_record:
+            logger.warning(f"Detected orphan knowledge base '{index_name}' – present in PG, absent in ES. Deleting PG record only.")
+            try:
+                delete_knowledge_record({"index_name": index_name, "user_id": user_id})
+                return {"status": "error_cleaning_orphans", "action": "cleaned_pg"}
+            except Exception as e:
+                logger.error(f"Failed to delete orphan PG record for '{index_name}': {str(e)}")
+                return {"status": "error_cleaning_orphans", "error": True}
+
+        # Case C: Index/record both absent -> name is available
+        if not es_exists and not pg_record:
+            return {"status": "available"}
+
+        # Case D: Index and record both exist – check tenant ownership
+        record_tenant_id = pg_record.get('tenant_id') if pg_record else None
+        if str(record_tenant_id) == str(tenant_id):
+            return {"status": "exists_in_tenant"}
+        else:
+            return {"status": "exists_in_other_tenant"}
+
+    except Exception as e:
+        logger.error(f"Error checking knowledge base existence for '{index_name}': {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error checking existence for index: {str(e)}")
+
 
 @router.post("/{index_name}")
 def create_new_index(
@@ -28,49 +93,21 @@ def create_new_index(
 
 
 @router.delete("/{index_name}")
-def delete_index(
+async def delete_index(
         index_name: str = Path(..., description="Name of the index to delete"),
         es_core: ElasticSearchCore = Depends(get_es_core),
         authorization: Optional[str] = Header(None)
 ):
-    """Delete an index and clean up all related Redis records"""
+    """Delete an index and all its related data by calling the centralized service."""
+    logger.debug(f"Received request to delete knowledge base: {index_name}")
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        # delete the selected knowledge by index name
-        delete_selected_knowledge_by_index_name(tenant_id=tenant_id, user_id=user_id, index_name=index_name)
-        # First delete the index using existing service
-        result = ElasticSearchService.delete_index(index_name, es_core, user_id)
-
-        # Then clean up Redis records related to this knowledge base
-        try:
-            redis_service = get_redis_service()
-            redis_cleanup_result = redis_service.delete_knowledgebase_records(index_name)
-
-            # Add Redis cleanup info to the result
-            result["redis_cleanup"] = redis_cleanup_result
-            result["message"] = (f"Index {index_name} deleted successfully. "
-                               f"Cleaned up {redis_cleanup_result['total_deleted']} Redis records "
-                               f"({redis_cleanup_result['celery_tasks_deleted']} tasks, "
-                               f"{redis_cleanup_result['cache_keys_deleted']} cache keys).")
-
-            if redis_cleanup_result.get("errors"):
-                result["redis_warnings"] = redis_cleanup_result["errors"]
-
-        except Exception as redis_error:
-            # Don't fail the whole operation if Redis cleanup fails
-            # Just log the error and add a warning to the response
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Redis cleanup failed for index {index_name}: {str(redis_error)}")
-
-            result["redis_cleanup_error"] = str(redis_error)
-            result["message"] = (f"Index {index_name} deleted successfully, "
-                               f"but Redis cleanup encountered an error: {str(redis_error)}")
-
+        # Call the centralized full deletion service
+        result = await ElasticSearchService.full_delete_knowledge_base(index_name, es_core, user_id, tenant_id)
         return result
-
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error delete index: {str(e)}")
+        logger.error(f"Error during API call to delete index '{index_name}': {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error deleting index: {str(e)}")
 
 
 @router.get("")
@@ -88,34 +125,25 @@ def get_list_indices(
         raise HTTPException(status_code=500, detail=f"Error get index: {str(e)}")
 
 
-@router.get("/{index_name}/info")
-def get_es_index_info(
-        index_name: str = Path(..., description="Name of the index"),
-        es_core: ElasticSearchCore = Depends(get_es_core)
-):
-    """Get comprehensive information about an index including stats, fields, sources and process info"""
-    try:
-        return ElasticSearchService.get_index_info(index_name, es_core)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{str(e)}")
-
-
 # Document Operations
 @router.post("/{index_name}/documents", response_model=IndexingResponse)
 def create_index_documents(
         index_name: str = Path(..., description="Name of the index"),
         data: List[Dict[str, Any]] = Body(..., description="Document List to process"),
-        es_core: ElasticSearchCore = Depends(get_es_core)
+        es_core: ElasticSearchCore = Depends(get_es_core),
+        authorization: Optional[str] = Header(None)
 ):
     """
     Index documents with embeddings, creating the index if it doesn't exist.
     Accepts an document list from data processing.
     """
     try:
-        return ElasticSearchService.index_documents(index_name, data, es_core)
+        user_id, tenant_id = get_current_user_id(authorization)
+        embedding_model = get_embedding_model(tenant_id)
+        return ElasticSearchService.index_documents(embedding_model, index_name, data, es_core)
     except Exception as e:
         error_msg = str(e)
-        print(f"Error indexing documents: {error_msg}")
+        logger.error(f"Error indexing documents: {error_msg}")
         raise HTTPException(status_code=500, detail=f"Error indexing documents: {error_msg}")
 
 
@@ -135,7 +163,7 @@ async def get_index_files(
         }
     except Exception as e:
         error_msg = str(e)
-        print(f"Error indexing documents: {error_msg}")
+        logger.error(f"Error indexing documents: {error_msg}")
         raise HTTPException(status_code=500, detail=f"Error indexing documents: {error_msg}")
 
 
@@ -184,44 +212,6 @@ def delete_documents(
 
     except HTTPException as e:
         raise HTTPException(status_code=500, detail=f"Error delete indexing documents: {e}")
-
-
-# Search Operations
-
-@router.post("/search/accurate")
-def accurate_search(
-        request: SearchRequest = Body(..., description="Search request parameters"),
-        es_core: ElasticSearchCore = Depends(get_es_core)
-):
-    """Search for documents using fuzzy text matching across multiple indices"""
-    try:
-      return ElasticSearchService.accurate_search(request, es_core)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{str(e)}")
-
-
-@router.post("/search/semantic")
-def semantic_search(
-        request: SearchRequest = Body(..., description="Search request parameters"),
-        es_core: ElasticSearchCore = Depends(get_es_core)
-):
-    """Search for similar documents using vector similarity across multiple indices"""
-    try:
-       return ElasticSearchService.semantic_search(request, es_core)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{str(e)}")
-
-
-@router.post("/search/hybrid")
-def hybrid_search(
-        request: HybridSearchRequest = Body(..., description="Hybrid search request parameters"),
-        es_core: ElasticSearchCore = Depends(get_es_core)
-):
-    """Search for similar documents using hybrid search across multiple indices"""
-    try:
-        return ElasticSearchService.hybrid_search(request, es_core)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error during hybrid search: {str(e)}")
 
 
 # Health check

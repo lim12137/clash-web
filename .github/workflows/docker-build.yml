@@ -9,41 +9,17 @@ on:
         default: '["self-hosted", "MacOS", "ARM64"]'
 
 jobs:
-  checkout:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    outputs:
-      sha: ${{ steps.get-sha.outputs.sha }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Get commit SHA
-        id: get-sha
-        run: echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-
-  build-base:
-    runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: checkout
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build base image
-        run: docker build --progress=plain -t nexent/nexent-base -f make/base/Dockerfile .
-
   build-main:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: build-base
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Build main application image
-        run: docker build --progress=plain -t nexent/nexent -f make/main/Dockerfile .
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple --progress=plain -t nexent/nexent -f make/main/Dockerfile .
 
   build-data-process:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: checkout
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -67,14 +43,13 @@ jobs:
           rm -rf .git flax_model.msgpack tf_model.h5
 
       - name: Build data process image
-        run: docker build --progress=plain -t nexent/nexent-data-process -f make/data_process/Dockerfile .
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple --progress=plain -t nexent/nexent-data-process -f make/data_process/Dockerfile .
 
   build-web:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: checkout
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Build web frontend image
-        run: docker build --progress=plain -t nexent/nexent-web -f make/web/Dockerfile . 
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple --progress=plain -t nexent/nexent-web -f make/web/Dockerfile .

@@ -14,8 +14,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "redis>=5.0.0",
     "celery>=5.3.6",
-    "fastmcp==2.4.0",
-    "nexent"
+    "fastmcp==2.6.0"
 ]
 
 [project.optional-dependencies]
@@ -25,9 +24,18 @@ data-process = [
     "nest_asyncio>=1.5.6",
     "unstructured[csv,docx,pdf,pptx,xlsx,md]"
 ]
-
-[tool.uv.sources]
-nexent = { path = "../sdk", package = true }
+test = [
+    "pytest",
+    "pytest-cov",
+    "coverage",
+    "unittest2",
+    "mock",
+    "pytest-asyncio",
+    "pytest-mock",
+    "fastapi[testclient]",
+    "selenium",
+    "botocore"
+]
 
 [tool.setuptools]
 packages = []

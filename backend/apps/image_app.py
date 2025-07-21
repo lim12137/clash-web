@@ -10,8 +10,7 @@ from consts.const import DATA_PROCESS_SERVICE
 router = APIRouter()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("image app")
+logger = logging.getLogger("image_app")
 
 # TODO: To remove this proxy service after frontend uses image filter service as image provider
 @router.get("/image")
@@ -37,7 +36,7 @@ async def proxy_image(url: str):
             async with session.get(data_process_url) as response:
                 if response.status != 200:
                     error_text = await response.text()
-                    logger.error(f"Failed to fetch image from data process service: {error_text}")
+                    logger.warning(f"Failed to fetch image from data process service: {error_text}")
                     return {"success": False, "error": "Failed to fetch image or image format not supported"}
                 
                 result = await response.json()

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import BusinessLogicConfig from './AgentManagementConfig'
 import SystemPromptDisplay from './components/SystemPromptDisplay'
@@ -9,6 +9,7 @@ import GuideSteps from './components/GuideSteps'
 import { Row, Col, Drawer, message } from 'antd'
 import { fetchTools, fetchAgentList } from '@/services/agentConfigService'
 import { OpenAIModel } from '@/app/setup/agentSetup/ConstInterface'
+import { updateToolList } from '@/services/mcpService'
 import '../../i18n'
 
 // Layout Height Constant Configuration
@@ -49,13 +50,32 @@ export default function AgentConfig() {
   const [isEditingAgent, setIsEditingAgent] = useState(false)
   const [editingAgent, setEditingAgent] = useState<any>(null)
 
-  // load tools when page is loaded
+  // Only auto scan once flag
+  const hasAutoScanned = useRef(false)
+
+  // Load tools when page is loaded
   useEffect(() => {
     const loadTools = async () => {
       try {
         const result = await fetchTools()
         if (result.success) {
           setTools(result.data)
+          // If the tool list is empty and auto scan hasn't been triggered, trigger scan once
+          if (result.data.length === 0 && !hasAutoScanned.current) {
+            hasAutoScanned.current = true
+            // Mark as auto scanned
+            const scanResult = await updateToolList()
+            if (!scanResult.success) {
+              message.error(t('toolManagement.message.refreshFailed'))
+              return
+            }
+            message.success(t('toolManagement.message.refreshSuccess'))
+            // After scan, fetch the tool list again
+            const reFetch = await fetchTools()
+            if (reFetch.success) {
+              setTools(reFetch.data)
+            }
+          }
         } else {
           message.error(result.message)
         }
