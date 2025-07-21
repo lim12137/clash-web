@@ -6,7 +6,7 @@ from fastapi import Header
 from agents.create_agent_info import create_tool_config_list
 from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ToolInstanceInfoRequest
 from database.agent_db import create_agent, query_all_enabled_tool_instances, \
-    query_or_create_main_agent_id, query_sub_agents, search_sub_agent_by_main_agent_id, \
+    query_or_create_main_agent_id, query_sub_agents, search_blank_sub_agent_by_main_agent_id, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
     create_or_update_tool_by_tool_info, check_tool_is_available
 
@@ -16,15 +16,16 @@ from typing import Optional
 
 logger = logging.getLogger("agent_service")
 
-def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str = None, user_id: str = None):
-    all_tool_instance = query_all_enabled_tool_instances(tenant_id=tenant_id, agent_id=agent_id)
+def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str, user_id: str = None):
+    # now only admin can modify the tool, user_id is not used
+    all_tool_instance = query_all_enabled_tool_instances(agent_id=agent_id, tenant_id=tenant_id, user_id=None)
     enable_tool_id_set = set()
     for tool_instance in all_tool_instance:
         if tool_instance["enabled"]:
             enable_tool_id_set.add(tool_instance["tool_id"])
     return list(enable_tool_id_set)
 
-def get_enable_sub_agent_id_by_agent_id(agent_id: int, tenant_id: str = None, user_id: str = None):
+def get_enable_sub_agent_id_by_agent_id(agent_id: int, tenant_id: str, user_id: str):
     sub_agents = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
     sub_agents_list = []
     for sub_agent in sub_agents:
@@ -34,8 +35,11 @@ def get_enable_sub_agent_id_by_agent_id(agent_id: int, tenant_id: str = None, us
     return sub_agents_list
 
 def get_creating_sub_agent_id_service(main_agent_id: int, tenant_id: str, user_id: str = None) -> int:
-    #  first find the sub agent, if it exists, it means the agent was created before, but exited prematurely; if it does not exist, create a new one
-    sub_agent_id = search_sub_agent_by_main_agent_id(main_agent_id, tenant_id)
+    """
+        first find the blank sub agent, if it exists, it means the agent was created before, but exited prematurely;
+                                  if it does not exist, create a new one
+    """
+    sub_agent_id = search_blank_sub_agent_by_main_agent_id(main_agent_id, tenant_id)
     if sub_agent_id:
         return sub_agent_id
     else:
@@ -47,7 +51,8 @@ def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str
     sub_agents = query_sub_agents(main_agent_id, tenant_id, user_id)
 
     for sub_agent in sub_agents:
-        tool_info = search_tools_for_sub_agent(agent_id=sub_agent["agent_id"], tenant_id=tenant_id, user_id=user_id)
+        # search the tools used by each sub agent, here use the tools configured by admin, not use user_id
+        tool_info = search_tools_for_sub_agent(agent_id=sub_agent["agent_id"], tenant_id=tenant_id, user_id=None)
         sub_agent["tools"] = tool_info
 
         tool_id_list = [tool["tool_id"] for tool in tool_info]
@@ -108,7 +113,8 @@ def get_agent_info_impl(agent_id: int, authorization: str = Header(None)):
         raise ValueError(f"Failed to get agent info: {str(e)}")
 
     try:
-        tool_info = search_tools_for_sub_agent(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
+        # now only admin can modify the agent, user_id is not used
+        tool_info = search_tools_for_sub_agent(agent_id=agent_id, tenant_id=tenant_id, user_id=None)
         agent_info["tools"] = tool_info
     except Exception as e:
         logger.error(f"Failed to get agent tools: {str(e)}")
@@ -154,7 +160,7 @@ def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Heade
         raise ValueError(f"Failed to update agent info: {str(e)}")
 
 def delete_agent_impl(agent_id: int, authorization: str = Header(None)):
-    user_id, tenant_id = get_current_user_id()
+    user_id, tenant_id = get_current_user_id(authorization)
 
     try:
         delete_agent_by_id(agent_id, tenant_id, user_id)
@@ -186,8 +192,11 @@ def import_agent_impl(parent_agent_id: int, agent_info: ExportAndImportAgentInfo
     # check the validity and completeness of the tool parameters
     user_id, tenant_id = get_current_user_id(authorization)
     tool_list = []
+    
+    # query all tools in the current tenant
     tool_info = query_all_tools(tenant_id=tenant_id)
     db_all_tool_info_dict = {f"{tool['class_name']}&{tool['source']}": tool for tool in tool_info}
+
     for tool in agent_info.tools:
         db_tool_info: dict | None = db_all_tool_info_dict.get(f"{tool.class_name}&{tool.source}", None)
 

@@ -218,7 +218,7 @@ class OpenAICompatibleEmbedding(TextEmbedding):
         """Initialize OpenAICompatibleEmbedding with configuration from environment variables or provided parameters."""
         self.api_key = api_key
         self.api_url = base_url
-        self.model_name = model_name
+        self.model = model_name
         self.embedding_dim = embedding_dim
 
         self.headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
@@ -227,7 +227,7 @@ class OpenAICompatibleEmbedding(TextEmbedding):
         """Prepare the input data for the API request."""
         if isinstance(inputs, str):
             inputs = [inputs]
-        return {"model": self.model_name, "input": inputs}
+        return {"model": self.model, "input": inputs}
 
     def _make_request(self, data: Dict[str, Any], timeout: Optional[float] = None) -> Dict[str, Any]:
         """

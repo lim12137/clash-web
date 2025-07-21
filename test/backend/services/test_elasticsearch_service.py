@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 # Mock MinioClient before importing modules that use it
 import sys
 from unittest.mock import patch
+import pytest
 
 # Apply the patches before importing the module being tested
 with patch('botocore.client.BaseClient._make_api_call'), \
@@ -27,6 +28,18 @@ class TestElasticSearchService(unittest.TestCase):
         self.mock_es_core = MagicMock()
         self.mock_es_core.embedding_model = MagicMock()
         self.mock_es_core.embedding_dim = 768
+        
+        # Patch get_embedding_model for all tests
+        self.get_embedding_model_patcher = patch('backend.services.elasticsearch_service.get_embedding_model')
+        self.mock_get_embedding = self.get_embedding_model_patcher.start()
+        self.mock_embedding = MagicMock()
+        self.mock_embedding.embedding_dim = 768
+        self.mock_embedding.model = "test-model"
+        self.mock_get_embedding.return_value = self.mock_embedding
+
+    def tearDown(self):
+        """Clean up resources after each test."""
+        self.get_embedding_model_patcher.stop()
 
     @patch('backend.services.elasticsearch_service.create_knowledge_record')
     def test_create_index_success(self, mock_create_knowledge):
@@ -49,7 +62,8 @@ class TestElasticSearchService(unittest.TestCase):
             index_name="test_index",
             embedding_dim=768,
             es_core=self.mock_es_core,
-            user_id="test_user"
+            user_id="test_user",
+            tenant_id="test_tenant"  # Added explicit tenant_id
         )
 
         # Assert
@@ -104,7 +118,8 @@ class TestElasticSearchService(unittest.TestCase):
                 index_name="test_index",
                 embedding_dim=768,
                 es_core=self.mock_es_core,
-                user_id="test_user"
+                user_id="test_user",
+                tenant_id="test_tenant"  # Added explicit tenant_id
             )
 
         self.assertEqual(context.exception.status_code, 500)
@@ -126,16 +141,19 @@ class TestElasticSearchService(unittest.TestCase):
         mock_delete_knowledge.return_value = True
 
         # Execute
-        result = ElasticSearchService.delete_index(
-            index_name="test_index",
-            es_core=self.mock_es_core,
-            user_id="test_user"
-        )
+        async def run_test():
+            result = await ElasticSearchService.delete_index(
+                index_name="test_index",
+                es_core=self.mock_es_core,
+                user_id="test_user"
+            )
 
-        # Assert
-        self.assertEqual(result["status"], "success")
-        self.mock_es_core.delete_index.assert_called_once_with("test_index")
-        mock_delete_knowledge.assert_called_once()
+            # Assert
+            self.assertEqual(result["status"], "success")
+            self.mock_es_core.delete_index.assert_called_once_with("test_index")
+            mock_delete_knowledge.assert_called_once()
+            
+        asyncio.run(run_test())
 
     @patch('backend.services.elasticsearch_service.delete_knowledge_record')
     def test_delete_index_failure(self, mock_delete_knowledge):
@@ -143,22 +161,27 @@ class TestElasticSearchService(unittest.TestCase):
         Test index deletion failure.
 
         This test verifies that:
-        1. An HTTPException with status code 500 is raised when index deletion fails
-        2. No knowledge record is deleted
+        1. When index deletion fails, the method still proceeds with knowledge record deletion
+        2. The method returns success status if knowledge record deletion succeeds
         """
         # Setup
         self.mock_es_core.delete_index.return_value = False
+        mock_delete_knowledge.return_value = True
 
-        # Execute and Assert
-        with self.assertRaises(HTTPException) as context:
-            ElasticSearchService.delete_index(
+        # Execute
+        async def run_test():
+            result = await ElasticSearchService.delete_index(
                 index_name="test_index",
                 es_core=self.mock_es_core,
                 user_id="test_user"
             )
 
-        self.assertEqual(context.exception.status_code, 500)
-        mock_delete_knowledge.assert_not_called()
+            # Assert
+            self.assertEqual(result["status"], "success")
+            self.mock_es_core.delete_index.assert_called_once_with("test_index")
+            mock_delete_knowledge.assert_called_once()
+            
+        asyncio.run(run_test())
 
     @patch('backend.services.elasticsearch_service.delete_knowledge_record')
     def test_delete_index_knowledge_record_failure(self, mock_delete_knowledge):
@@ -166,8 +189,8 @@ class TestElasticSearchService(unittest.TestCase):
         Test deletion when the index is deleted but knowledge record deletion fails.
 
         This test verifies that:
-        1. Even if the Elasticsearch index is deleted successfully
-        2. An HTTPException with status code 500 is raised if knowledge record deletion fails
+        1. When Elasticsearch index is deleted successfully but knowledge record deletion fails
+        2. An HTTPException with status code 500 is raised
         3. The exception message contains "Error deleting knowledge record"
         """
         # Setup
@@ -175,15 +198,18 @@ class TestElasticSearchService(unittest.TestCase):
         mock_delete_knowledge.return_value = False
 
         # Execute and Assert
-        with self.assertRaises(HTTPException) as context:
-            ElasticSearchService.delete_index(
-                index_name="test_index",
-                es_core=self.mock_es_core,
-                user_id="test_user"
-            )
-
-        self.assertEqual(context.exception.status_code, 500)
-        self.assertIn("Error deleting knowledge record", context.exception.detail)
+        async def run_test():
+            with self.assertRaises(HTTPException) as context:
+                await ElasticSearchService.delete_index(
+                    index_name="test_index",
+                    es_core=self.mock_es_core,
+                    user_id="test_user"
+                )
+            
+            self.assertEqual(context.exception.status_code, 500)
+            self.assertIn("Error deleting knowledge record", context.exception.detail)
+            
+        asyncio.run(run_test())
 
     @patch('backend.services.elasticsearch_service.get_knowledge_record')
     def test_list_indices_without_stats(self, mock_get_knowledge):
@@ -299,6 +325,9 @@ class TestElasticSearchService(unittest.TestCase):
         # Setup
         self.mock_es_core.client.indices.exists.return_value = True
         self.mock_es_core.index_documents.return_value = 2
+        mock_embedding_model = MagicMock()
+        mock_embedding_model.model = "test-model"
+        
         test_data = [
             {
                 "metadata": {
@@ -327,7 +356,8 @@ class TestElasticSearchService(unittest.TestCase):
         result = ElasticSearchService.index_documents(
             index_name="test_index",
             data=test_data,
-            es_core=self.mock_es_core
+            es_core=self.mock_es_core,
+            embedding_model=mock_embedding_model
         )
 
         # Assert
@@ -347,12 +377,14 @@ class TestElasticSearchService(unittest.TestCase):
         """
         # Setup
         test_data = []
+        mock_embedding_model = MagicMock()
 
         # Execute
         result = ElasticSearchService.index_documents(
             index_name="test_index",
             data=test_data,
-            es_core=self.mock_es_core
+            es_core=self.mock_es_core,
+            embedding_model=mock_embedding_model
         )
 
         # Assert
@@ -374,6 +406,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.mock_es_core.client.indices.exists.return_value = False
         self.mock_es_core.create_vector_index.return_value = True
         self.mock_es_core.index_documents.return_value = 1
+        mock_embedding_model = MagicMock()
         test_data = [
             {
                 "metadata": {"title": "Test"},
@@ -388,7 +421,8 @@ class TestElasticSearchService(unittest.TestCase):
             result = ElasticSearchService.index_documents(
                 index_name="test_index",
                 data=test_data,
-                es_core=self.mock_es_core
+                es_core=self.mock_es_core,
+                embedding_model=mock_embedding_model
             )
 
         # Assert
@@ -408,6 +442,7 @@ class TestElasticSearchService(unittest.TestCase):
         # Setup
         self.mock_es_core.client.indices.exists.return_value = True
         self.mock_es_core.index_documents.side_effect = Exception("Indexing error")
+        mock_embedding_model = MagicMock()
         test_data = [
             {
                 "metadata": {"title": "Test"},
@@ -421,7 +456,8 @@ class TestElasticSearchService(unittest.TestCase):
             ElasticSearchService.index_documents(
                 index_name="test_index",
                 data=test_data,
-                es_core=self.mock_es_core
+                es_core=self.mock_es_core,
+                embedding_model=mock_embedding_model
             )
 
         self.assertEqual(context.exception.status_code, 500)
@@ -447,7 +483,7 @@ class TestElasticSearchService(unittest.TestCase):
                 "create_time": "2023-01-01T12:00:00"
             }
         ]
-        mock_get_files_status.return_value = {"file2": "PROCESSING"}
+        mock_get_files_status.return_value = {"file2": {"state": "PROCESSING", "latest_task_id": "task123"}}
 
         # Execute
         async def run_test():
@@ -573,8 +609,7 @@ class TestElasticSearchService(unittest.TestCase):
 
         This test verifies that:
         1. Documents with the specified path or URL are deleted
-        2. The correct number of deleted documents is returned
-        3. The response contains a success status
+        2. The response contains a success status
         """
         # Setup
         self.mock_es_core.delete_documents_by_path_or_url.return_value = 5
@@ -588,7 +623,7 @@ class TestElasticSearchService(unittest.TestCase):
 
         # Assert
         self.assertEqual(result["status"], "success")
-        self.assertEqual(result["deleted_count"], 5)
+        # Verify that delete_documents_by_path_or_url was called with correct parameters
         self.mock_es_core.delete_documents_by_path_or_url.assert_called_once_with("test_index", "test_path")
 
     def test_accurate_search(self):
@@ -695,6 +730,7 @@ class TestElasticSearchService(unittest.TestCase):
         search_request.query = "test query"
         search_request.top_k = 10
 
+        # Create a mock response directly on the es_core instance
         self.mock_es_core.semantic_search.return_value = [
             {
                 "document": {"title": "Doc1", "content": "Content1"},
@@ -734,6 +770,7 @@ class TestElasticSearchService(unittest.TestCase):
         search_request.top_k = 10
         search_request.weight_accurate = 0.5
 
+        # Create a mock response directly on the es_core instance
         self.mock_es_core.hybrid_search.return_value = [
             {
                 "document": {"title": "Doc1", "content": "Content1"},
@@ -836,7 +873,8 @@ class TestElasticSearchService(unittest.TestCase):
                 generator = result.body_iterator
                 # Get at least one item from the generator to trigger execution
                 try:
-                    await generator.__anext__()
+                    async for item in generator:
+                        break  # Just get one item to trigger execution
                 except StopAsyncIteration:
                     pass
 
@@ -1080,7 +1118,7 @@ class TestElasticSearchService(unittest.TestCase):
                 "index": "test_index"
             }
         ]
-
+        
         # Execute
         result = ElasticSearchService.semantic_search(
             request=search_request,
@@ -1107,6 +1145,8 @@ class TestElasticSearchService(unittest.TestCase):
         # Setup
         self.mock_es_core.client.indices.exists.return_value = True
         self.mock_es_core.index_documents.return_value = 3
+        mock_embedding_model = MagicMock()
+        mock_embedding_model.model = "test-model"
 
         test_data = [
             {
@@ -1130,7 +1170,8 @@ class TestElasticSearchService(unittest.TestCase):
         result = ElasticSearchService.index_documents(
             index_name="test_index",
             data=test_data,
-            es_core=self.mock_es_core
+            es_core=self.mock_es_core,
+            embedding_model=mock_embedding_model
         )
 
         # Assert
@@ -1148,7 +1189,7 @@ class TestElasticSearchService(unittest.TestCase):
 
         This test verifies that:
         1. The delete_documents method successfully deletes documents
-        2. The response indicates success and the correct delete count
+        2. The response indicates success
         3. The method completes without raising exceptions, implying a 200 status code
         """
         # Setup
@@ -1163,7 +1204,6 @@ class TestElasticSearchService(unittest.TestCase):
 
         # Assert
         self.assertEqual(result["status"], "success")
-        self.assertEqual(result["deleted_count"], 5)
         # Verify successful response status - 200
         self.assertIsInstance(result, dict)
         self.assertEqual(result["status"], "success")

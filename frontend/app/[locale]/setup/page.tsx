@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { message } from "antd"
+import { theme, Modal, message } from 'antd';
+import { ExclamationCircleFilled } from '@ant-design/icons';
 import AppModelConfig from "./modelSetup/config"
 import DataConfig from "./knowledgeBaseSetup/KnowledgeBaseManager"
 import AgentConfig from "./agentSetup/AgentConfig"
@@ -11,6 +12,8 @@ import { configService } from "@/services/configService"
 import modelEngineService, { ConnectionStatus } from "@/services/modelEngineService"
 import Layout from "./layout"
 import { useTranslation } from 'react-i18next'
+import { useTheme } from 'next-themes';
+
 
 export default function CreatePage() {
   const [selectedKey, setSelectedKey] = useState("1")
@@ -21,6 +24,11 @@ export default function CreatePage() {
   const [isSavingConfig, setIsSavingConfig] = useState(false)
   const [isFromSecondPage, setIsFromSecondPage] = useState(false)
   const { t } = useTranslation()
+  const [embeddingModalOpen, setEmbeddingModalOpen] = useState(false);
+  const [pendingJump, setPendingJump] = useState(false);
+  const { token } = theme.useToken ? theme.useToken() : { token: {} };
+  const { resolvedTheme } = typeof useTheme === 'function' ? useTheme() : { resolvedTheme: 'light' };
+  const isDark = resolvedTheme === 'dark';
 
   // Check the connection status when the page is initialized
   useEffect(() => {
@@ -173,6 +181,20 @@ export default function CreatePage() {
           return
         }
         
+        // 检查 embedding 模型
+        if (
+          !currentConfig.models.embedding.modelName &&
+          !currentConfig.models.multiEmbedding?.modelName
+        ) {
+          setEmbeddingModalOpen(true);
+          setPendingJump(true);
+          // 高亮 embedding 下拉框
+          window.dispatchEvent(new CustomEvent('highlightMissingField', {
+            detail: { field: 'embedding.embedding' }
+          }))
+          return;
+        }
+        
         // All required fields have been filled, allow the jump to the second page
         console.log(t('setup.page.log.readyToJump', { from: '1', to: '2' }));
         setSelectedKey("2")
@@ -215,6 +237,62 @@ export default function CreatePage() {
       showDebugButton={selectedKey === "3"}
     >
       {renderContent()}
+      <Modal
+        title={
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ExclamationCircleFilled style={{ color: '#faad14', fontSize: 22 }} />
+            <span style={{ fontWeight: 600, fontSize: 18, color: isDark ? '#fffbe6' : '#333' }}>{t('embedding.modal.title')}</span>
+          </span>
+        }
+        open={embeddingModalOpen}
+        onOk={() => {
+          setEmbeddingModalOpen(false);
+          if (pendingJump) {
+            setPendingJump(false);
+            setSelectedKey("2");
+          }
+        }}
+        onCancel={() => setEmbeddingModalOpen(false)}
+        okText={t('embedding.modal.ok_continue')}
+        cancelButtonProps={{ style: { display: 'none' } }}
+        centered
+        bodyStyle={{
+          padding: '32px 24px 24px 24px',
+          background: isDark ? '#23272f' : '#fffbe6',
+          borderRadius: 12,
+          color: isDark ? '#eee' : '#333',
+        }}
+        style={{
+          borderRadius: 16,
+          maxWidth: 1000,
+          minWidth: 666,
+          background: isDark ? '#23272f' : '#fff',
+        }}
+      >
+        <div
+          style={{
+            fontSize: 16,
+            color: isDark ? '#eee' : '#333',
+            textAlign: 'center',
+            marginBottom: 8,
+          }}
+          dangerouslySetInnerHTML={{
+            __html: t('embedding.modal.content').replace(
+              '<b>', `<b style=\"color:${isDark ? '#ffe58f' : '#faad14'}\">`
+            ),
+          }}
+        />
+        <div
+          style={{
+            textAlign: 'center',
+            color: isDark ? '#aaa' : '#999',
+            fontSize: 13,
+            marginTop: 8,
+          }}
+        >
+          {t('embedding.modal.tip')}
+        </div>
+      </Modal>
     </Layout>
   )
 }

@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Form, Body
 from typing import Dict, Any
 from fastapi.testclient import TestClient
 from PIL import Image
+import pytest
 
 # Dynamically determine the backend path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -116,12 +117,14 @@ class TestDataProcessApp(unittest.TestCase):
         Each route simulates the behavior of a real API endpoint with mocked service calls.
         """
         @self.app.post("/tasks")
+        @pytest.mark.asyncio
         async def create_task(request: Dict[str, Any] = Body(None)):
             # Simulate task creation
             task_result = self.process_and_forward.delay.return_value
             return {"task_id": task_result.id}
         
         @self.app.post("/tasks/process")
+        @pytest.mark.asyncio
         async def process_sync_endpoint(
             source: str = Form(...),
             source_type: str = Form("file"),
@@ -151,6 +154,7 @@ class TestDataProcessApp(unittest.TestCase):
                 raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
         
         @self.app.post("/tasks/batch")
+        @pytest.mark.asyncio
         async def create_batch_tasks(request: Dict[str, Any] = Body(None)):
             # Simulate batch task creation
             task_ids = []
@@ -171,6 +175,7 @@ class TestDataProcessApp(unittest.TestCase):
             return {"task_ids": task_ids}
         
         @self.app.get("/tasks/load_image")
+        @pytest.mark.asyncio
         async def load_image():
             # Simulate image loading
             if not getattr(self.service, 'load_image', None) or self.service.load_image.return_value is None:
@@ -180,6 +185,7 @@ class TestDataProcessApp(unittest.TestCase):
             return {"success": True, "base64": "mock_base64_data", "content_type": "image/jpeg"}
         
         @self.app.get("/tasks/{task_id}")
+        @pytest.mark.asyncio
         async def get_task(task_id: str):
             # Simulate getting task information
             task = self.get_task_info.return_value
@@ -190,17 +196,20 @@ class TestDataProcessApp(unittest.TestCase):
             return task
         
         @self.app.get("/tasks")
+        @pytest.mark.asyncio
         async def list_tasks():
             # Simulate listing all tasks
             tasks = self.service.get_all_tasks.return_value
             return {"tasks": tasks}
         
         @self.app.get("/tasks/indices/{index_name}")
+        @pytest.mark.asyncio
         async def get_index_tasks(index_name: str):
             # Simulate getting index tasks
             return self.service.get_index_tasks.return_value
         
         @self.app.get("/tasks/{task_id}/details")
+        @pytest.mark.asyncio
         async def get_task_details(task_id: str):
             # Simulate getting task details
             task = self.utils_get_task_details.return_value
@@ -209,6 +218,7 @@ class TestDataProcessApp(unittest.TestCase):
             return task
         
         @self.app.post("/tasks/filter_important_image")
+        @pytest.mark.asyncio
         async def filter_important_image(
             image_url: str = Form(...),
             positive_prompt: str = Form("an important image"),

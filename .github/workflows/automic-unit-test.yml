@@ -31,14 +31,14 @@ jobs:
         run: |
           cd backend
           uv sync --extra data-process --extra test
-          source .venv/bin/activate
+          uv pip install -e ../sdk
           cd ..
 
       - name: Run all tests and collect coverage
         run: |
-          python test/backend/run_all_test.py
+          source backend/.venv/bin/activate && python test/run_all_test.py
 
-          if [ -f "test/backend/coverage.xml" ]; then
+          if [ -f "test/coverage.xml" ]; then
             echo "✅ Coverage XML file generated successfully."
           else
             echo "❌ Coverage XML file not found."
@@ -48,7 +48,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: test/backend/coverage.xml
+          files: test/coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests
           name: codecov-umbrella

@@ -177,20 +177,6 @@ class AgentInfo(TableBase):
     provide_run_summary = Column(Boolean, doc="Whether to provide the running summary to the manager agent")
     business_description = Column(Text, doc="Manually entered by the user to describe the entire business process")
 
-class UserAgent(TableBase):
-    """
-    Information table for agent - related prompts.
-    """
-    __tablename__ = "ag_user_agent_t"
-    __table_args__ = {"schema": SCHEMA}
-
-    user_agent_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
-    agent_id = Column(Integer, doc="AgentID")
-    prompt = Column(String, doc="System prompt")
-    tenant_id = Column(String(100), doc="Belonging tenant")
-    user_id = Column(String(100), doc="Belonging user")
-    enabled = Column(Boolean, doc="Enabled")
-
 class ToolInstance(TableBase):
     """
     Information table for tenant tool configuration.
@@ -215,7 +201,7 @@ class KnowledgeRecord(TableBase):
 
     knowledge_id = Column(Integer, Sequence("knowledge_record_t_knowledge_id_seq", schema="nexent"), primary_key=True, nullable=False, doc="Knowledge base ID, unique primary key")
     index_name = Column(String(100), doc="Knowledge base name")
-    knowledge_describe = Column(String(300), doc="Knowledge base description")
+    knowledge_describe = Column(String(3000), doc="Knowledge base description")
     knowledge_sources = Column(String(300), doc="Knowledge base sources")
     tenant_id = Column(String(100), doc="Tenant ID")
     delete_flag = Column(String(1), default="N", doc="Knowledge base status. Currently defaults to 1, if knowledge base status is 0, then this knowledge base is unavailable")
