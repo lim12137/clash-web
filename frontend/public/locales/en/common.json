@@ -217,6 +217,7 @@
         "parseSSEFailed": "Failed to parse SSE data:",
         "processRemainingDataFailed": "Failed to process remaining data:",
         "thinking": "Thinking...",
+        "connectingMcpServer": "Connecting to MCP server...",
         "generateTitleFailed": "Failed to generate title:",
         "streamResponseError": "Error processing streaming response:",
         "userInterrupted": "Chat ended by user."
