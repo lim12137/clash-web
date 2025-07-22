@@ -29,7 +29,7 @@ jobs:
           GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/Nexent-AI/model-assets
           cd ./model-assets
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
-          rm .git .gitattributes
+          rm -rf .git .gitattributes
 
       - name: Build data process image
         run: docker build --progress=plain -t nexent/nexent-data-process -f make/data_process/Dockerfile .
