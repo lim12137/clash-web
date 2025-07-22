@@ -539,6 +539,7 @@
     "model.dialog.label.apiKey": "API Key",
     "model.dialog.label.vectorDimension": "向量维度",
     "model.dialog.label.maxTokens": "最大Token数",
+    "model.dialog.label.currentlySupported": "当前已支持：",
     "model.dialog.placeholder.name": "请输入请求体中的模型名称",
     "model.dialog.placeholder.displayName": "请输入模型的展示名称",
     "model.dialog.placeholder.url": "请输入模型URL, 例如: https://api.openai.com/v1",
