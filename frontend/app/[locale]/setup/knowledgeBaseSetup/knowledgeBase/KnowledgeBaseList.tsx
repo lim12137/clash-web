@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button, Checkbox } from 'antd'
+import { Button, Checkbox, ConfigProvider } from 'antd'
 import { SyncOutlined, PlusOutlined } from '@ant-design/icons'
 import { KnowledgeBase } from '@/types/knowledgeBase'
 import { useTranslation } from 'react-i18next'
@@ -42,6 +42,7 @@ interface KnowledgeBaseListProps {
   currentEmbeddingModel: string | null
   isLoading?: boolean
   onSelect: (id: string) => void
+  onRemoveKnowledgeBase?: (id: string) => void // 添加一个新的移除知识库的回调函数
   onClick: (kb: KnowledgeBase) => void
   onDelete: (id: string) => void
   onSync: () => void
@@ -60,6 +61,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
   currentEmbeddingModel,
   isLoading = false,
   onSelect,
+  onRemoveKnowledgeBase, // 添加新参数
   onClick,
   onDelete,
   onSync,
@@ -78,6 +80,15 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
       return date.toISOString().split('T')[0]; // 只返回YYYY-MM-DD部分
     } catch (e) {
       return dateString; // 如果解析失败，返回原始字符串
+    }
+  };
+
+  const handleRemoveKnowledgeBase = (id: string) => {
+    // 如果提供了专门的移除函数，则使用它，否则回退到onSelect
+    if (onRemoveKnowledgeBase) {
+      onRemoveKnowledgeBase(id);
+    } else {
+      onSelect(id); // 保持向后兼容
     }
   };
 
@@ -171,7 +182,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                     </span>
                     <button
                       className="ml-1.5 text-blue-600 hover:text-blue-800 flex-shrink-0"
-                      onClick={() => onSelect(id)}
+                      onClick={() => handleRemoveKnowledgeBase(id)}
                       aria-label={t('knowledgeBase.button.removeKb', { name: kb.name })}
                     >
                       ×
@@ -192,6 +203,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
               const canSelect = isSelectable(kb)
               const isSelected = selectedIds.includes(kb.id)
               const isActive = activeKnowledgeBase?.id === kb.id
+              const isMismatchedAndSelected = isSelected && !canSelect
 
               return (
                 <div
@@ -212,7 +224,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                     <div className="flex-shrink-0">
                       <div className="px-2" onClick={(e) => {
                         e.stopPropagation();
-                        if (canSelect) {
+                        if (canSelect || isSelected) {
                           onSelect(kb.id);
                         }
                       }}
@@ -223,18 +235,27 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                           alignItems: 'flex-start',
                           justifyContent: 'center'
                         }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={(e) => {
-                            e.stopPropagation()
-                            onSelect(kb.id)
+                        <ConfigProvider
+                          theme={{
+                            token: {
+                              // If selected with model mismatch, use light blue, otherwise default blue
+                              colorPrimary: isMismatchedAndSelected ? '#90caf9' : '#1677ff',
+                            },
                           }}
-                          disabled={!canSelect}
-                          style={{
-                            cursor: canSelect ? 'pointer' : 'not-allowed',
-                            transform: 'scale(1.5)',
-                          }}
-                        />
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={(e) => {
+                              e.stopPropagation()
+                              onSelect(kb.id)
+                            }}
+                            disabled={!canSelect && !isSelected}
+                            style={{
+                              cursor: (canSelect || isSelected) ? 'pointer' : 'not-allowed',
+                              transform: 'scale(1.5)',
+                            }}
+                          />
+                        </ConfigProvider>
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
