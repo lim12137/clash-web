@@ -42,7 +42,6 @@ interface KnowledgeBaseListProps {
   currentEmbeddingModel: string | null
   isLoading?: boolean
   onSelect: (id: string) => void
-  onRemoveKnowledgeBase?: (id: string) => void // 添加一个新的移除知识库的回调函数
   onClick: (kb: KnowledgeBase) => void
   onDelete: (id: string) => void
   onSync: () => void
@@ -61,7 +60,6 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
   currentEmbeddingModel,
   isLoading = false,
   onSelect,
-  onRemoveKnowledgeBase, // 添加新参数
   onClick,
   onDelete,
   onSync,
@@ -83,14 +81,6 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
     }
   };
 
-  const handleRemoveKnowledgeBase = (id: string) => {
-    // 如果提供了专门的移除函数，则使用它，否则回退到onSelect
-    if (onRemoveKnowledgeBase) {
-      onRemoveKnowledgeBase(id);
-    } else {
-      onSelect(id); // 保持向后兼容
-    }
-  };
 
   return (
     <div className="w-full bg-white border border-gray-200 rounded-md flex flex-col" style={{ height: containerHeight }}>
@@ -182,7 +172,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                     </span>
                     <button
                       className="ml-1.5 text-blue-600 hover:text-blue-800 flex-shrink-0"
-                      onClick={() => handleRemoveKnowledgeBase(id)}
+                      onClick={() => onSelect(id)}
                       aria-label={t('knowledgeBase.button.removeKb', { name: kb.name })}
                     >
                       ×
