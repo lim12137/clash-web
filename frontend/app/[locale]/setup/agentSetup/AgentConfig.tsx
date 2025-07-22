@@ -10,14 +10,18 @@ import { Row, Col, Drawer, message } from 'antd'
 import { fetchTools, fetchAgentList } from '@/services/agentConfigService'
 import { OpenAIModel } from '@/app/setup/agentSetup/ConstInterface'
 import { updateToolList } from '@/services/mcpService'
+import { 
+  SETUP_PAGE_CONTAINER, 
+  THREE_COLUMN_LAYOUT,
+  STANDARD_CARD,
+  CARD_HEADER 
+} from '@/lib/layoutConstants'
 import '../../i18n'
 
 // Layout Height Constant Configuration
 const LAYOUT_CONFIG = {
-  MAIN_CONTENT_HEIGHT: "72.5vh",
   CARD_HEADER_PADDING: "10px 24px",
   CARD_BODY_PADDING: "12px 20px",
-  CARD_GAP: 12,
   DRAWER_WIDTH: "40%",
 }
 
@@ -221,20 +225,20 @@ export default function AgentConfig() {
   }
 
   return (
-    <div className="w-full h-full mx-auto px-4" style={{ maxWidth: "1920px"}}>
+    <div className="w-full h-full mx-auto" style={{ 
+      maxWidth: SETUP_PAGE_CONTAINER.MAX_WIDTH,
+      padding: `0 ${SETUP_PAGE_CONTAINER.HORIZONTAL_PADDING}`
+    }}>
       <div className="w-full h-full">
-        <Row gutter={[LAYOUT_CONFIG.CARD_GAP, LAYOUT_CONFIG.CARD_GAP]} className="h-full">
+        <Row gutter={THREE_COLUMN_LAYOUT.GUTTER} className="h-full">
           {/* Left Timeline Guide */}
           <Col xs={24} md={24} lg={4} xl={4} className="h-full">
-            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
-              <div
-                className="h-full flex flex-col"
-                style={{
-                  height: LAYOUT_CONFIG.MAIN_CONTENT_HEIGHT,
-                  overflowY: "auto",
-                  overflowX: "hidden"
-                }}
-              >
+            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden" style={{
+              height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
+              padding: STANDARD_CARD.PADDING,
+              overflowY: "auto",
+              overflowX: "hidden"
+            }}>
                 <GuideSteps
                   isCreatingNewAgent={isCreatingNewAgent}
                   systemPrompt={systemPrompt}
@@ -247,18 +251,17 @@ export default function AgentConfig() {
                   agentDescription={newAgentDescription}
                   agentProvideSummary={newAgentProvideSummary}
                 />
-              </div>
             </div>
           </Col>
 
           {/* Middle Panel - Business Logic Configuration */}
           <Col xs={24} md={24} lg={13} xl={13}>
-            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
-              <div style={{ 
-                height: LAYOUT_CONFIG.MAIN_CONTENT_HEIGHT, 
-                overflowY: "auto",
-                overflowX: "hidden"
-              }}>
+            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden" style={{
+              height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
+              padding: STANDARD_CARD.PADDING,
+              overflowY: "auto",
+              overflowX: "hidden"
+            }}>
                 <BusinessLogicConfig 
                   businessLogic={businessLogic}
                   setBusinessLogic={setBusinessLogic}
@@ -293,18 +296,17 @@ export default function AgentConfig() {
                   onEditingStateChange={handleEditingStateChange}
                   onToolsRefresh={handleToolsRefresh}
                 />
-              </div>
             </div>
           </Col>
           
           {/* Right Panel - System Prompt Word Configuration */}
           <Col xs={24} md={24} lg={7} xl={7}>
-            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
-              <div style={{ 
-                height: LAYOUT_CONFIG.MAIN_CONTENT_HEIGHT, 
-                overflowY: "auto",
-                overflowX: "hidden"
-              }}>
+            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden" style={{
+              height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
+              padding: STANDARD_CARD.PADDING,
+              overflowY: "auto",
+              overflowX: "hidden"
+            }}>
                 <SystemPromptDisplay
                   prompt={systemPrompt}
                   onPromptChange={setSystemPrompt}
@@ -314,7 +316,6 @@ export default function AgentConfig() {
                   }}
                   agentId={getCurrentAgentId()}
                 />
-              </div>
             </div>
           </Col>
         </Row>
