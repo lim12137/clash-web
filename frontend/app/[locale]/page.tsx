@@ -18,19 +18,16 @@ const languageOptions = [
 export default function Home() {
   const [mounted, setMounted] = useState(false)
   const { t, i18n } = useTranslation('common');
-  const [lang, setLang] = useState(i18n.language || 'zh');
   const router = useRouter();
   const pathname = usePathname();
 
   // Prevent hydration errors
   useEffect(() => {
     setMounted(true)
-    setLang(i18n.language || 'zh')
   }, [])
 
   // Language switch handler for dropdown
   const handleLangChange = (newLang: string) => {
-    setLang(newLang);
     document.cookie = `NEXT_LOCALE=${newLang}; path=/; max-age=31536000`;
     // Compute new path: replace the first segment (locale) with newLang
     const segments = pathname.split('/').filter(Boolean);
@@ -224,7 +221,7 @@ export default function Home() {
                 {t('page.copyright', { year: new Date().getFullYear() })}
               </span>
               <Select
-                value={lang}
+                value={i18n.language}
                 onChange={handleLangChange}
                 options={languageOptions}
                 style={{ width: 98, border: 'none', boxShadow: 'none' }}
