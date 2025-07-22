@@ -55,9 +55,12 @@ export default function CreatePage() {
       localStorage.removeItem('preloaded_kb_data');
       localStorage.removeItem('kb_cache');
       // When entering the second page, get the latest knowledge base data
-      window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
-        detail: { forceRefresh: true }
-      }))
+      // 使用 setTimeout 确保组件完全挂载后再触发事件
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
+          detail: { forceRefresh: true }
+        }))
+      }, 100)
     }
     checkModelEngineConnection()
   }, [selectedKey])
@@ -247,7 +250,19 @@ export default function CreatePage() {
       isSavingConfig={isSavingConfig}
       showDebugButton={selectedKey === "3"}
     >
-      <AnimatePresence mode="wait">
+      <AnimatePresence 
+        mode="wait"
+        onExitComplete={() => {
+          // 当动画完成且切换到第二页时，确保触发知识库数据更新
+          if (selectedKey === "2") {
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
+                detail: { forceRefresh: true }
+              }))
+            }, 50)
+          }
+        }}
+      >
         <motion.div
           key={selectedKey}
           initial="initial"
