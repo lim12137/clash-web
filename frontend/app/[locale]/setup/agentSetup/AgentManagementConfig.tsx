@@ -1390,7 +1390,7 @@ export default function BusinessLogicConfig({
         </div>
 
       {/* The second half: business logic description */}
-      <div className="flex gap-4 h-[240px] pb-4 pr-4 pl-4 items-start">
+      <div className="flex gap-4 flex-shrink-0 pr-4 pl-4 items-start">
         <div className="flex-1 h-full">
           <BusinessLogicInput 
             value={businessLogic} 
@@ -1399,7 +1399,7 @@ export default function BusinessLogicConfig({
             systemPrompt={systemPrompt}
           />
         </div>
-        <div className="w-[280px] h-[200px] flex flex-col self-start">
+        <div className="w-[280px] flex flex-col self-start">
           <div className="flex flex-col gap-5 flex-1">
             <div>
               <span className="block text-lg font-medium mb-2">{t('businessLogic.config.model')}</span>
