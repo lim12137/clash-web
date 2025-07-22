@@ -539,6 +539,7 @@
     "model.dialog.label.apiKey": "API Key",
     "model.dialog.label.vectorDimension": "Vector Dimension",
     "model.dialog.label.maxTokens": "Max Tokens",
+    "model.dialog.label.currentlySupported": "Currently supported:",
     "model.dialog.placeholder.name": "Enter model name as in request body",
     "model.dialog.placeholder.displayName": "Enter display name for the model",
     "model.dialog.placeholder.url": "Enter model URL, e.g. https://api.openai.com/v1",
