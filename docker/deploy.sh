@@ -121,6 +121,14 @@ add_permission() {
   create_dir_with_permission "postgresql" 775
   create_dir_with_permission "minio" 775
 
+  # Create nexent user workspace directory
+  NEXENT_USER_DIR="$HOME/nexent"
+  create_dir_with_permission "$NEXENT_USER_DIR" 775
+  echo "📁 Created Nexent user workspace at: $NEXENT_USER_DIR"
+  
+  # Export for docker-compose
+  export NEXENT_USER_DIR
+
   echo ""
   echo "--------------------------------"
   echo ""
