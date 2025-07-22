@@ -6,6 +6,22 @@ import {
   deduplicateSearchResults
 } from '../internal/chatHelpers';
 
+// function: process the user break tag
+const processUserBreakTag = (content: string, t: any): string => {
+  if (!content || typeof content !== 'string') {
+    return content;
+  }
+  
+  // check if the content is equal to <user_break> tag
+  if (content == '<user_break>') {
+    // replace the content with the corresponding natural language according to the current language environment
+    const userBreakMessage = t('chatStreamHandler.userInterrupted');
+    return userBreakMessage;
+  }
+  
+  return content;
+};
+
 interface JsonData {
   type: string;
   content: any;
@@ -109,30 +125,153 @@ export const handleStreamResponse = async (
                   currentStep.metrics = messageContent;
                   break;
                   
+                case "model_output":
+                  // Process main model output content
+
+                  // If there's no currentStep, create one for simple responses
+                  if (!currentStep) {
+                    currentStep = {
+                      id: `step-simple-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      title: "AI Response",
+                      content: "",
+                      expanded: true,
+                      contents: [],
+                      metrics: "",
+                      thinking: { content: "", expanded: true },
+                      code: { content: "", expanded: true },
+                      output: { content: "", expanded: true }
+                    };
+                  }
+                  
+                  // If the last streaming output is model output, append
+                  if (lastContentType === "model_output" && lastModelOutputIndex >= 0) {
+                    const modelOutput = currentStep.contents[lastModelOutputIndex];
+                    modelOutput.content = modelOutput.content + messageContent;
+                  } else {
+                    // Otherwise, create new model output content
+                    currentStep.contents.push({
+                      id: `model-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                      type: "model_output",
+                      content: messageContent,
+                      expanded: true,
+                      timestamp: Date.now()
+                    });
+                    lastModelOutputIndex = currentStep.contents.length - 1;
+                  }
+                  
+                  // Update the last processed content type
+                  lastContentType = "model_output";
+                  break;
+                
                 case "model_output_thinking":
                   // Process thinking content
-                  if (currentStep) {
-                    // Ensure contents exists
-                    currentContentText = messageContent;
+                  // If there's no currentStep, create one
+                  if (!currentStep) {
+                    currentStep = {
+                      id: `step-thinking-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      title: "AI Thinking",
+                      content: "",
+                      expanded: true,
+                      contents: [],
+                      metrics: "",
+                      thinking: { content: "", expanded: true },
+                      code: { content: "", expanded: true },
+                      output: { content: "", expanded: true }
+                    };
+                  }
+                  
+                  // Ensure contents exists
+                  currentContentText = messageContent;
 
-                    // If the last streaming output is thinking content, append
-                    if (lastContentType === "model_output" && lastModelOutputIndex >= 0) {
+                  // If the last streaming output is thinking content, append
+                  if (lastContentType === "model_output" && lastModelOutputIndex >= 0) {
+                    const modelOutput = currentStep.contents[lastModelOutputIndex];
+                    // Update content directly without prefix check
+                    let newContent = modelOutput.content + messageContent;
+                    // Remove "思考：" prefix if present
+                    const thinkingPrefix = t('chatStreamHandler.thinkingPrefix');
+                    if (newContent.startsWith(thinkingPrefix)) {
+                      newContent = newContent.substring(thinkingPrefix.length);
+                    }
+                    modelOutput.content = newContent;
+                  } else {
+                    // Otherwise, create new thinking content
+                    currentStep.contents.push({
+                      id: `model-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                      type: "model_output",
+                      subType: "thinking",
+                      content: currentContentText,
+                      expanded: true,
+                      timestamp: Date.now()
+                    });
+                    lastModelOutputIndex = currentStep.contents.length - 1;
+                  }
+                  
+                  // Update the last processed content type
+                  lastContentType = "model_output";
+                  break;
+                
+                case "model_output_code":
+                  // Process code generation
+                  // If there's no currentStep, create one
+                  if (!currentStep) {
+                    currentStep = {
+                      id: `step-code-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      title: "Code Generation",
+                      content: "",
+                      expanded: true,
+                      contents: [],
+                      metrics: "",
+                      thinking: { content: "", expanded: true },
+                      code: { content: "", expanded: true },
+                      output: { content: "", expanded: true }
+                    };
+                  }
+                  
+                  if (isDebug) {
+                    // In debug mode, use streaming output like model_output_thinking
+                    // Ensure contents exists
+                    let processedContent = messageContent;
+                    
+                    // Check if we should append to existing content or create new
+                    const shouldAppend = lastContentType === "model_output" && 
+                                       lastModelOutputIndex >= 0 && 
+                                       currentStep.contents[lastModelOutputIndex] &&
+                                       currentStep.contents[lastModelOutputIndex].subType === "code";
+                    
+                    if (shouldAppend) {
                       const modelOutput = currentStep.contents[lastModelOutputIndex];
-                      // Update content directly without prefix check
-                      let newContent = modelOutput.content + messageContent;
-                      // Remove "思考：" prefix if present
-                      const thinkingPrefix = t('chatStreamHandler.thinkingPrefix');
-                      if (newContent.startsWith(thinkingPrefix)) {
-                        newContent = newContent.substring(thinkingPrefix.length);
+                      const codePrefix = t('chatStreamHandler.codePrefix');
+                      
+                      // In append mode, also check for prefix in case it wasn't removed before
+                      if (modelOutput.content.includes(codePrefix) && processedContent.trim()) {
+                        // Clean existing content
+                        modelOutput.content = modelOutput.content.replace(new RegExp(codePrefix + `\\s*`), "");
+                      }
+                      
+                      // Directly append without prefix processing (prefix should have been removed when first created)
+                      let newContent = modelOutput.content + processedContent;
+                      // Remove "<end" suffix if present
+                      if (newContent.endsWith("<end")) {
+                        newContent = newContent.slice(0, -4);
                       }
                       modelOutput.content = newContent;
                     } else {
-                      // Otherwise, create new thinking content
+                      // Otherwise, create new code content
+                      // Remove "代码：" prefix if present at the start of first content
+                      const codePrefix = t('chatStreamHandler.codePrefix');
+                      if (processedContent.startsWith(codePrefix)) {
+                        processedContent = processedContent.substring(codePrefix.length);
+                      }
+                      // Remove "<end" suffix if present
+                      if (processedContent.endsWith("<end")) {
+                        processedContent = processedContent.slice(0, -4);
+                      }
                       currentStep.contents.push({
-                        id: `model-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                        id: `model-code-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                         type: "model_output",
-                        subType: "thinking",
-                        content: currentContentText,
+                        subType: "code",
+                        content: processedContent,
                         expanded: true,
                         timestamp: Date.now()
                       });
@@ -141,65 +280,6 @@ export const handleStreamResponse = async (
                     
                     // Update the last processed content type
                     lastContentType = "model_output";
-                  }
-                  break;
-                
-                case "model_output_code":
-                  // Process code generation
-                  if (isDebug) {
-                    // In debug mode, use streaming output like model_output_thinking
-                    if (currentStep) {
-                      // Ensure contents exists
-                      let processedContent = messageContent;
-                      
-                      // Check if we should append to existing content or create new
-                      const shouldAppend = lastContentType === "model_output" && 
-                                         lastModelOutputIndex >= 0 && 
-                                         currentStep.contents[lastModelOutputIndex] &&
-                                         currentStep.contents[lastModelOutputIndex].subType === "code";
-                      
-                      if (shouldAppend) {
-                        const modelOutput = currentStep.contents[lastModelOutputIndex];
-                        const codePrefix = t('chatStreamHandler.codePrefix');
-                        
-                        // In append mode, also check for prefix in case it wasn't removed before
-                        if (modelOutput.content.includes(codePrefix) && processedContent.trim()) {
-                          // Clean existing content
-                          modelOutput.content = modelOutput.content.replace(new RegExp(codePrefix + `\\s*`), "");
-                        }
-                        
-                        // Directly append without prefix processing (prefix should have been removed when first created)
-                        let newContent = modelOutput.content + processedContent;
-                        // Remove "<end" suffix if present
-                        if (newContent.endsWith("<end")) {
-                          newContent = newContent.slice(0, -4);
-                        }
-                        modelOutput.content = newContent;
-                      } else {
-                        // Otherwise, create new code content
-                        // Remove "代码：" prefix if present at the start of first content
-                        const codePrefix = t('chatStreamHandler.codePrefix');
-                        if (processedContent.startsWith(codePrefix)) {
-                          processedContent = processedContent.substring(codePrefix.length);
-                        }
-                        // Remove "<end" suffix if present
-                        if (processedContent.endsWith("<end")) {
-                          processedContent = processedContent.slice(0, -4);
-                        }
-                        currentStep.contents.push({
-                          id: `model-code-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                          type: "model_output",
-                          subType: "code",
-                          content: processedContent,
-                          expanded: true,
-                          timestamp: Date.now()
-                        });
-                        lastModelOutputIndex = currentStep.contents.length - 1;
-                      }
-                      
-                      // Update the last processed content type
-                      lastContentType = "model_output";
-                    }
                   } else {
                     // In non-debug mode, use the original logic - add a stable loading prompt
                     // Check if there is a code generation prompt
@@ -225,6 +305,21 @@ export const handleStreamResponse = async (
                   break;
                 
                 case "card":
+                  // If there's no currentStep, create one
+                  if (!currentStep) {
+                    currentStep = {
+                      id: `step-card-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      title: "Card Content",
+                      content: "",
+                      expanded: true,
+                      contents: [],
+                      metrics: "",
+                      thinking: { content: "", expanded: true },
+                      code: { content: "", expanded: true },
+                      output: { content: "", expanded: true }
+                    };
+                  }
+                  
                   // Process card content
                   currentStep.contents.push({
                     id: `card-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -261,20 +356,33 @@ export const handleStreamResponse = async (
                       searchResultsContent = [...searchResultsContent, ...newSearchResults];
                       allSearchResults = [...allSearchResults, ...newSearchResults];
                       
-                      // Add to the current step's contents array
-                      if (currentStep) {
-                        // Add as a search_content type message
-                        currentStep.contents.push({
-                          id: `search-content-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                          type: "search_content",
-                          content: messageContent, // Keep the original JSON string
+                      // If there's no currentStep, create one
+                      if (!currentStep) {
+                        currentStep = {
+                          id: `step-search-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                          title: "Search Results",
+                          content: "",
                           expanded: true,
-                          timestamp: Date.now()
-                        });
-                        
-                        // Update the last processed content type
-                        lastContentType = "search_content";
+                          contents: [],
+                          metrics: "",
+                          thinking: { content: "", expanded: true },
+                          code: { content: "", expanded: true },
+                          output: { content: "", expanded: true }
+                        };
                       }
+                      
+                      // Add to the current step's contents array
+                      // Add as a search_content type message
+                      currentStep.contents.push({
+                        id: `search-content-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                        type: "search_content",
+                        content: messageContent, // Keep the original JSON string
+                        expanded: true,
+                        timestamp: Date.now()
+                      });
+                      
+                      // Update the last processed content type
+                      lastContentType = "search_content";
                     }
                     
                     // Update the search results of the current message
@@ -331,8 +439,8 @@ export const handleStreamResponse = async (
                   break;
                   
                 case "final_answer":
-                  // Accumulate final answer content
-                  finalAnswer += messageContent;
+                  // Accumulate final answer content and process user break tag
+                  finalAnswer += processUserBreakTag(messageContent, t);
                   break;
                 
                 case "parse":
@@ -344,6 +452,21 @@ export const handleStreamResponse = async (
                   // This keeps the animation effect continuous
                   if (lastContentType === "execution") {
                     break;
+                  }
+
+                  // If there's no currentStep, create one
+                  if (!currentStep) {
+                    currentStep = {
+                      id: `step-tool-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      title: "Tool Execution",
+                      content: "",
+                      expanded: true,
+                      contents: [],
+                      metrics: "",
+                      thinking: { content: "", expanded: true },
+                      code: { content: "", expanded: true },
+                      output: { content: "", expanded: true }
+                    };
                   }
 
                   // Add temporary content for executing code
@@ -368,6 +491,21 @@ export const handleStreamResponse = async (
                   break;
                   
                 case "agent_new_run":
+                  // If there's no currentStep, create one
+                  if (!currentStep) {
+                    currentStep = {
+                      id: `step-agent-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      title: "Agent Run",
+                      content: "",
+                      expanded: true,
+                      contents: [],
+                      metrics: "",
+                      thinking: { content: "", expanded: true },
+                      code: { content: "", expanded: true },
+                      output: { content: "", expanded: true }
+                    };
+                  }
+                  
                   // Add a "Thinking..." content
                   currentStep.contents.push({
                     id: `agent-run-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -379,6 +517,21 @@ export const handleStreamResponse = async (
                   break;
                   
                 case "error":
+                  // If there's no currentStep, create one
+                  if (!currentStep) {
+                    currentStep = {
+                      id: `step-error-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      title: "Error",
+                      content: "",
+                      expanded: true,
+                      contents: [],
+                      metrics: "",
+                      thinking: { content: "", expanded: true },
+                      code: { content: "", expanded: true },
+                      output: { content: "", expanded: true }
+                    };
+                  }
+                  
                   // Add error content to the current step's contents array
                   currentStep.contents.push({
                     id: `error-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,

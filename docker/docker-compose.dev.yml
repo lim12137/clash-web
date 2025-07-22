@@ -10,6 +10,7 @@ services:
     volumes:
       - ../:/opt/
       - /opt/backend/.venv/
+      - ${NEXENT_USER_DIR:-$HOME/nexent}:/mnt/nexent
     environment:
       ELASTICSEARCH_API_KEY: $ELASTICSEARCH_API_KEY
       MINIO_ACCESS_KEY: $MINIO_ACCESS_KEY
@@ -46,6 +47,7 @@ services:
     volumes:
       - ../:/opt/:cached
       - /opt/backend/.venv/
+      - ${NEXENT_USER_DIR:-$HOME/nexent}:/mnt/nexent
     environment:
       skip_proxy: "true"
       PATH: "/usr/local/bin:/usr/bin/:/opt/backend/.venv/bin:${PATH}"

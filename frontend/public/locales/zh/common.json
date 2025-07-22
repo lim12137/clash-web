@@ -124,7 +124,9 @@
         "confirmDeletionTitle": "删除对话",
         "confirmDeletionDescription": "确定要删除这个对话吗？此操作无法撤销。",
         "cancel": "取消",
-        "collapseSidebar": "收起侧边栏"
+        "collapseSidebar": "收起侧边栏",
+        "running": "正在运行中",
+        "completed": "已完成"
     },
     "page": {
         "contactUs": "联系我们",
@@ -855,5 +857,8 @@
             "tip": "请在模型配置中选择合适的Embedding模型以获得完整体验。",
             "ok_continue": "我知道了，继续下一步"
         }
+    },
+    "chatStreamMain": {
+        "loadingConversation": "正在加载对话内容..."
     }
 }
