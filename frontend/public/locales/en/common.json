@@ -134,12 +134,16 @@
         "description": "No orchestration, no complex drag-and-drop required. Integrate data, models, and tools into one intelligent hub.",
         "startChat": "Start Chatting",
         "quickConfig": "Quick Setup",
-        "dataProtection": "Secure and reliable enterprise-grade data protection",
+        "dataProtection": "Secure and reliable personal privacy protection",
         "coreFeatures": "Core Features",
         "features": [
             {
                 "title": "Multi-Agent Self-Decision",
                 "description": "Leveraging the ReAct framework to enable autonomous thinking, task planning, decision-making, and execution among multiple agents, automating model, data, and toolset integration within the MCP ecosystem."
+            },
+            {
+                "title": "Agent Auto-Generation",
+                "description": "Intelligently generate core agent prompts based on natural language, achieving >70% accuracy within 4-5 tools, with additional optimization capabilities."
             },
             {
                 "title": "Scalable Data Preparation",
@@ -152,10 +156,6 @@
             {
                 "title": "Native MCP Orchestration",
                 "description": "Supports seamless MCP tool onboarding and invocation, enabling sophisticated business logic implementation and workflow automation."
-            },
-            {
-                "title": "Comprehensive Knowledge Attribution",
-                "description": "Provides full-stack information source tracking, ensuring response reliability and verifiability with complete audit trails."
             },
             {
                 "title": "Multi-Modal Communication",
