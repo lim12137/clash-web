@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { theme, Modal, message } from 'antd';
 import { ExclamationCircleFilled } from '@ant-design/icons';
+import { motion, AnimatePresence } from 'framer-motion';
 import AppModelConfig from "./modelSetup/config"
 import DataConfig from "./knowledgeBaseSetup/KnowledgeBaseManager"
 import AgentConfig from "./agentSetup/AgentConfig"
@@ -89,6 +90,28 @@ export default function CreatePage() {
         return null
     }
   }
+
+  // Animation variants for smooth transitions
+  const pageVariants = {
+    initial: {
+      opacity: 0,
+      x: 20,
+    },
+    in: {
+      opacity: 1,
+      x: 0,
+    },
+    out: {
+      opacity: 0,
+      x: -20,
+    },
+  };
+
+  const pageTransition = {
+    type: "tween" as const,
+    ease: "anticipate" as const,
+    duration: 0.4,
+  };
 
   // Handle completed configuration
   const handleCompleteConfig = async () => {
@@ -224,7 +247,19 @@ export default function CreatePage() {
       isSavingConfig={isSavingConfig}
       showDebugButton={selectedKey === "3"}
     >
-      {renderContent()}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={selectedKey}
+          initial="initial"
+          animate="in"
+          exit="out"
+          variants={pageVariants}
+          transition={pageTransition}
+          style={{ width: '100%', height: '100%' }}
+        >
+          {renderContent()}
+        </motion.div>
+      </AnimatePresence>
       <Modal
         title={
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
