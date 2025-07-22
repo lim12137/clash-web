@@ -4,7 +4,7 @@
 [![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
 [![codecov](https://codecov.io/gh/ModelEngine-Group/nexent/branch/develop/graph/badge.svg?token=00JM5YAD5V)](https://codecov.io/gh/ModelEngine-Group/nexent?branch=develop)
 
-Nexent is an open-source agent platform that turns process-level natural language into complete multimodal agents — no diagrams, no wiring. Built on the MCP tool ecosystem, Nexent provides model integration, data processing, knowledge-base management, and zero-code agent development. Our goal is simple: to bring data, models, and tools together in one smart hub, making daily workflows smarter and more connected.
+Nexent is a zero-code platform for auto-generating agents — no orchestration, no complex drag-and-drop required, using pure language to develop any agent you want. Built on the MCP ecosystem with rich tool integration, Nexent also provides various built-in agents to meet your intelligent service needs in different scenarios such as work, travel, and daily life. Nexent offers powerful capabilities for agent running control, multi-agent collaboration, data processing and knowledge tracing, multimodal dialogue, and batch scaling.
 
 > One prompt. Endless reach.
 
@@ -13,7 +13,7 @@ Nexent is an open-source agent platform that turns process-level natural languag
 - 🌐 Visit our [official website](http://nexent.tech/) to learn more
 - 🚀 [Try it now](http://nexent.tech/try) to experience the power of Nexent
 
-https://github.com/user-attachments/assets/0758629c-3477-4cd4-a737-0aab330d53a7
+https://github.com/user-attachments/assets/b844e05d-5277-4509-9463-1c5b3516f11e
 
 # 🤝 Join Our Community
 
@@ -90,6 +90,10 @@ Want to build from source or add new features? Check the [Contribution Guide](CO
 
 Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_NOTE.md) for detailed setup instructions and customization options.
 
+## 🔧 MCP Tool Ecosystem
+
+Nexent is built on the Model Context Protocol (MCP) tool ecosystem, providing a flexible and extensible framework for integrating various tools and services.
+
 ## ✨ Key Features
 
 `1` **Smart agent prompt generation**  
@@ -132,26 +136,6 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 1📝 **Code Output May Be Misinterpreted as Executable**  
    In Nexent conversations, if the model outputs code-like text, it may sometimes be misinterpreted as something that should be executed. We will fix this as soon as possible.
 
-# 👥 External Developer Contribution Guide
-
-We welcome all kinds of contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes Nexent better for everyone. 
-
-If you are an external developer and want to contribute to this project, please follow these steps:
-
-1. **Fork the repository**
-   - Click the "Fork" button at the top right of the repository page to create your own copy.
-2. **Clone your fork**
-   - Use `git clone https://github.com/your-username/your-forked-repo.git` to clone your fork to your local machine.
-3. **Commit and push your changes**
-   - Make your changes, then use `git add .`, `git commit -m "Your message"`, and `git push origin` to push to your fork.
-4. **Open a Pull Request**
-   - Go to your forked repository on GitHub, click the "Contribute" button, and then select "Open Pull Request" to propose merging your changes into the main repository.
-
-Please make sure your PR follows the project's contribution guidelines and passes all required checks.
-
-- 📖 Read our [Contribution Guide](CONTRIBUTING.md) to get started
-- 🐛 Report bugs or suggest features in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)
-- 💬 Join our [Discord community](https://discord.gg/tb5H3S3wyv) to discuss ideas
 
 # 💬 Community & contact
 
