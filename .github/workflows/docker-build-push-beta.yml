@@ -72,7 +72,7 @@ jobs:
           GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/Nexent-AI/model-assets
           cd ./model-assets
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
-          rm .git .gitattributes
+          rm -rf .git .gitattributes
       - name: Build data process image (amd64) and load locally
         run: |
           docker buildx build --platform linux/amd64 -t nexent/nexent-data-process:beta-amd64 --load -f make/data_process/Dockerfile .
@@ -101,7 +101,7 @@ jobs:
           GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/Nexent-AI/model-assets
           cd ./model-assets
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
-          rm .git .gitattributes
+          rm -rf .git .gitattributes
       - name: Build data process image (arm64) and load locally
         run: |
           docker buildx build --platform linux/arm64 -t nexent/nexent-data-process:beta-arm64 --load -f make/data_process/Dockerfile .
