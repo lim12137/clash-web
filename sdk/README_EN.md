@@ -397,10 +397,6 @@ For more detailed usage instructions, please refer to the dedicated documentatio
 - Peiling Jiang
 - Yu Lin
 
-## Known Issues
-
-TODO
-
 ## Future Features
 
 - Complete refactoring of Observer to Callback architecture
