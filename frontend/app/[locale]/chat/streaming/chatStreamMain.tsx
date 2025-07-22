@@ -5,6 +5,7 @@ import { ChatMessageType } from "@/types/chat"
 import { FilePreview } from "@/app/chat/layout/chatInput"
 import { Button } from "@/components/ui/button"
 import { ChevronDown } from "lucide-react"
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChatStreamFinalMessage } from "./chatStreamFinalMessage"
 import { TaskWindow } from "./taskWindow"
 
@@ -57,6 +58,23 @@ export function ChatStreamMain({
   currentConversationId,
   shouldScrollToBottom,
 }: ChatStreamMainProps) {
+  // Animation variants for ChatInput
+  const chatInputVariants = {
+    initial: {
+      opacity: 0,
+      y: 80,
+    },
+    animate: {
+      opacity: 1,
+      y: 0,
+    },
+  };
+
+  const chatInputTransition = {
+    type: "spring" as const,
+    stiffness: 300,
+    damping: 80,
+  };
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [showTopFade, setShowTopFade] = useState(false)
@@ -348,20 +366,30 @@ export function ChatStreamMain({
           {processedMessages.finalMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
               <div className="w-full max-w-3xl">
-                <ChatInput
-                  input={input}
-                  isLoading={isLoading}
-                  isStreaming={isStreaming}
-                  isInitialMode={true}
-                  onInputChange={onInputChange}
-                  onSend={onSend}
-                  onStop={onStop}
-                  onKeyDown={onKeyDown}
-                  attachments={attachments}
-                  onAttachmentsChange={onAttachmentsChange}
-                  onFileUpload={onFileUpload}
-                  onImageUpload={onImageUpload}
-                />
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key="initial-chat-input"
+                    initial="initial"
+                    animate="animate"
+                    variants={chatInputVariants}
+                    transition={chatInputTransition}
+                  >
+                    <ChatInput
+                      input={input}
+                      isLoading={isLoading}
+                      isStreaming={isStreaming}
+                      isInitialMode={true}
+                      onInputChange={onInputChange}
+                      onSend={onSend}
+                      onStop={onStop}
+                      onKeyDown={onKeyDown}
+                      attachments={attachments}
+                      onAttachmentsChange={onAttachmentsChange}
+                      onFileUpload={onFileUpload}
+                      onImageUpload={onImageUpload}
+                    />
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </div>
           ) : (
@@ -419,19 +447,29 @@ export function ChatStreamMain({
 
       {/* Input box in non-initial mode */}
       {processedMessages.finalMessages.length > 0 && (
-        <ChatInput
-          input={input}
-          isLoading={isLoading}
-          isStreaming={isStreaming}
-          onInputChange={onInputChange}
-          onSend={onSend}
-          onStop={onStop}
-          onKeyDown={onKeyDown}
-          attachments={attachments}
-          onAttachmentsChange={onAttachmentsChange}
-          onFileUpload={onFileUpload}
-          onImageUpload={onImageUpload}
-        />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="regular-chat-input"
+            initial="initial"
+            animate="animate"
+            variants={chatInputVariants}
+            transition={chatInputTransition}
+          >
+            <ChatInput
+              input={input}
+              isLoading={isLoading}
+              isStreaming={isStreaming}
+              onInputChange={onInputChange}
+              onSend={onSend}
+              onStop={onStop}
+              onKeyDown={onKeyDown}
+              attachments={attachments}
+              onAttachmentsChange={onAttachmentsChange}
+              onFileUpload={onFileUpload}
+              onImageUpload={onImageUpload}
+            />
+          </motion.div>
+        </AnimatePresence>
       )}
 
       {/* Add animation keyframes */}
