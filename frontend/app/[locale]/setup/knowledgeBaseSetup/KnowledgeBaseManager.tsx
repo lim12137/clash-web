@@ -95,6 +95,7 @@ function DataConfig({ isActive }: DataConfigProps) {
   // Get context values
   const { 
     state: kbState, 
+    dispatch: kbDispatch,
     fetchKnowledgeBases,
     createKnowledgeBase,
     deleteKnowledgeBase,
@@ -570,6 +571,29 @@ const getAuthHeaders = () => {
     }, 500); // Delay execution, lower priority
   }
 
+  // 添加直接移除知识库的处理函数，绕过模型校验
+  const handleRemoveKnowledgeBase = (id: string) => {
+    hasUserInteractedRef.current = true; // 标记用户有交互
+    
+    // 直接从所选知识库中移除此ID
+    const updatedSelectedIds = kbState.selectedIds.filter(selectedId => selectedId !== id);
+    
+    // 使用已解构的kbDispatch更新状态
+    kbDispatch({ 
+      type: 'SELECT_KNOWLEDGE_BASE', 
+      payload: updatedSelectedIds 
+    });
+
+    // 与 handleSelectKnowledgeBase 保持一致，在移除后也刷新数据
+    setTimeout(async () => {
+      try {
+        await refreshKnowledgeBaseData(true);
+      } catch (error) {
+        console.error("刷新知识库数据失败:", error);
+      }
+    }, 500);
+  }
+
   // 在组件初始化或活动知识库变化时更新轮询服务中的活动知识库ID
   useEffect(() => {
     if (kbState.activeKnowledgeBase) {
@@ -616,6 +640,7 @@ const getAuthHeaders = () => {
             currentEmbeddingModel={kbState.currentEmbeddingModel}
             isLoading={kbState.isLoading}
             onSelect={handleSelectKnowledgeBase}
+            onRemoveKnowledgeBase={handleRemoveKnowledgeBase} // 添加新的处理函数
             onClick={handleKnowledgeBaseClick}
             onDelete={handleDelete}
             onSync={handleSync}
