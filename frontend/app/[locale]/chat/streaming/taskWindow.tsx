@@ -643,7 +643,7 @@ export function TaskWindow({
   const { t } = useTranslation('common');
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
-  const [isExpanded, setIsExpanded] = useState(isStreaming)
+  const [isExpanded, setIsExpanded] = useState(true) // default expand task details interface
   const [contentHeight, setContentHeight] = useState(0)
   const contentRef = useRef<HTMLDivElement>(null)
   

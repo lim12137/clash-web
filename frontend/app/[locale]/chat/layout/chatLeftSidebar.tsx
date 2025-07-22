@@ -21,10 +21,41 @@ import { useResponsiveTextSize } from "@/hooks/useResponsiveTextSize"
 import { extractColorsFromUri } from "@/lib/avatar"
 import { useTranslation } from "react-i18next"
 
+// conversation status indicator component
+const ConversationStatusIndicator = ({ 
+  conversationId, 
+  isStreaming, 
+  isCompleted 
+}: { 
+  conversationId: number
+  isStreaming: boolean
+  isCompleted: boolean 
+}) => {
+  const { t } = useTranslation();
+  
+  if (isStreaming) {
+    return (
+      <div className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" 
+           title={t('chatLeftSidebar.running')} />
+    );
+  }
+  
+  if (isCompleted) {
+    return (
+      <div className="flex-shrink-0 w-2 h-2 bg-blue-500 rounded-full mr-2" 
+           title={t('chatLeftSidebar.completed')} />
+    );
+  }
+  
+  return null;
+};
+
 interface ChatSidebarProps {
   conversationList: ConversationListItem[]
   selectedConversationId: number | null
   openDropdownId: string | null
+  streamingConversations: Set<number> // 正在运行的对话ID集合
+  completedConversations: Set<number> // 已完成但未查看的对话ID集合
   onNewConversation: () => void
   onDialogClick: (dialog: ConversationListItem) => void
   onRename: (dialogId: number, title: string) => void
@@ -68,6 +99,8 @@ export function ChatSidebar({
   conversationList,
   selectedConversationId,
   openDropdownId,
+  streamingConversations,
+  completedConversations,
   onNewConversation,
   onDialogClick,
   onRename,
@@ -183,7 +216,7 @@ export function ChatSidebar({
 
     return (
       <div className="space-y-1">
-        <p className="px-2 pr-3 text-sm font-medium text-gray-500 tracking-wide font-sans sticky top-0 py-1 z-10" style={{ fontWeight:'bold',color:'#4d4d4d',backgroundColor: 'rgb(242 248 255)',fontSize:'16px', whiteSpace: 'nowrap' }}>{title}</p>
+        <p className="px-2 pr-3 text-sm font-medium text-gray-500 tracking-wide font-sans py-1" style={{ fontWeight:'bold',color:'#4d4d4d',backgroundColor: 'rgb(242 248 255)',fontSize:'16px', whiteSpace: 'nowrap' }}>{title}</p>
         {dialogs.map((dialog) => (
           <div 
             key={dialog.conversation_id} 
@@ -215,6 +248,11 @@ export function ChatSidebar({
                         className="flex-1 justify-start text-left hover:bg-transparent min-w-0 max-w-[250px]"
                         onClick={() => onDialogClick(dialog)}
                       >
+                        <ConversationStatusIndicator
+                          conversationId={dialog.conversation_id}
+                          isStreaming={streamingConversations.has(dialog.conversation_id)}
+                          isCompleted={completedConversations.has(dialog.conversation_id)}
+                        />
                         <span className="truncate block text-base font-normal text-gray-800 tracking-wide font-sans">{dialog.conversation_title}</span>
                       </Button>
                     </TooltipTrigger>
@@ -348,9 +386,9 @@ export function ChatSidebar({
 
   return (
     <>
-      <div className="hidden md:flex w-64 flex-col border-r border-transparent bg-primary/5 text-base transition-all duration-300 ease-in-out" style={{width: expanded ? '300px' : '70px'}}>
+      <div className="hidden md:flex w-64 flex-col border-r border-transparent bg-primary/5 text-base transition-all duration-300 ease-in-out overflow-hidden" style={{width: expanded ? '300px' : '70px'}}>
         {(expanded || !animationComplete) ? (
-          <div className="hidden md:flex flex-col h-full">
+          <div className="hidden md:flex flex-col h-full overflow-hidden">
             <div className="p-2 border-b border-transparent">
               <div className="flex items-center p-2">
                 <div className="flex-1 min-w-0 flex items-center justify-start cursor-pointer" onClick={onToggleSidebar}>
@@ -393,7 +431,7 @@ export function ChatSidebar({
               </Button>
             </div>
 
-            <StaticScrollArea className="flex-1 m-2 h-fit">
+            <StaticScrollArea className="flex-1 m-2">
               <div className="space-y-4 pr-2">
                 {conversationList.length > 0 ? (
                   <>
