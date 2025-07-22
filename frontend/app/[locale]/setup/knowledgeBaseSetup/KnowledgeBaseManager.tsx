@@ -94,8 +94,7 @@ function DataConfig({ isActive }: DataConfigProps) {
 
   // Get context values
   const { 
-    state: kbState, 
-    dispatch: kbDispatch,
+    state: kbState,
     fetchKnowledgeBases,
     createKnowledgeBase,
     deleteKnowledgeBase,
@@ -570,7 +569,6 @@ const getAuthHeaders = () => {
       }
     }, 500); // Delay execution, lower priority
   }
-
 
   // 在组件初始化或活动知识库变化时更新轮询服务中的活动知识库ID
   useEffect(() => {
