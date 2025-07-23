@@ -860,6 +860,8 @@
         }
     },
     "chatStreamMain": {
-        "loadingConversation": "Loading conversation content..."
+        "loadingConversation": "Loading conversation content...",
+        "loadError": "Failed to load conversation",
+        "retry": "Retry"
     }
 }
