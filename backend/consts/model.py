@@ -243,6 +243,7 @@ class ToolInfo(BaseModel):
     inputs: str
     output_type: str
     class_name: str
+    usage: Optional[str]
 
 
 # used in Knowledge Summary request

@@ -219,6 +219,7 @@
         "parseSSEFailed": "SSE 数据解析失败:",
         "processRemainingDataFailed": "处理剩余数据失败:",
         "thinking": "正在思考中...",
+        "connectingMcpServer": "正在连接MCP服务器...",
         "generateTitleFailed": "生成标题失败:",
         "streamResponseError": "处理流式响应时出错:",
         "userInterrupted": "对话主动中止。"
@@ -784,9 +785,10 @@
     "mcpConfig.serverList.column.action": "操作",
     "mcpConfig.serverList.button.viewTools": "查看工具",
     "mcpConfig.serverList.button.delete": "删除",
-    "mcpConfig.serverList.button.remount": "重新挂载",
-    "mcpConfig.serverList.empty": "暂无MCP服务器",
-    "mcpConfig.serverList.remountTitle": "重新挂载所有MCP服务器",
+    "mcpConfig.serverList.statusCheckHint": "点击检测服务器连通性",
+    "mcpConfig.serverList.statusCheckSuccess": "mcp服务器连接成功",
+    "mcpConfig.serverList.statusCheckFailed": "mcp服务器连接失败",
+    "mcpConfig.serverList.button.viewToolsDisabledHint": "请先检查MCP服务可用性",
     "mcpConfig.toolsList.title": "可用工具",
     "mcpConfig.toolsList.column.name": "工具名称",
     "mcpConfig.toolsList.column.description": "描述",
@@ -862,5 +864,12 @@
         "loadingConversation": "正在加载对话内容...",
         "loadError": "加载对话失败",
         "retry": "重试"
+    },
+    "mcpConfig": {
+        "message": {
+            "healthCheckFailed": "无法连接mcp服务器，请检查服务器是否正常运行",
+            "healthChecking": "正在尝试连接mcp服务器 {{name}}",
+            "healthCheckSuccess": "mcp服务器连接成功"
+        }
     }
 }
