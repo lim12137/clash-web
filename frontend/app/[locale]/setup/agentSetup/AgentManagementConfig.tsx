@@ -111,7 +111,12 @@ function BusinessLogicInput({ value, onChange, selectedAgents, systemPrompt }: B
 
   return (
     <div className="flex flex-col h-full">
-      <h2 className="text-lg font-medium mb-2">{t('businessLogic.title')}</h2>
+      <div className="flex items-center mb-2">
+        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
+          3
+        </div>
+        <h2 className="text-lg font-medium">{t('businessLogic.title')}</h2>
+      </div>
       <div className="flex-1 flex flex-col">
         <TextArea
           value={value}
@@ -180,7 +185,12 @@ function SubAgentPool({
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-2">
-        <h2 className="text-lg font-medium">{t('subAgentPool.title')}</h2>
+        <div className="flex items-center">
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
+            1
+          </div>
+          <h2 className="text-lg font-medium">{t('subAgentPool.title')}</h2>
+        </div>
         {loadingAgents && <span className="text-sm text-gray-500">{t('subAgentPool.loading')}</span>}
       </div>
       <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
@@ -553,7 +563,12 @@ function ToolPool({
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-2">
-        <h2 className="text-lg font-medium">{t('toolPool.title')}</h2>
+        <div className="flex items-center">
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
+            2
+          </div>
+          <h2 className="text-lg font-medium">{t('toolPool.title')}</h2>
+        </div>
         <div className="flex items-center gap-2">
           <Button
             type="text"
@@ -1375,7 +1390,7 @@ export default function BusinessLogicConfig({
         </div>
 
       {/* The second half: business logic description */}
-      <div className="flex gap-4 h-[240px] pb-4 pr-4 pl-4 items-start">
+      <div className="flex gap-4 flex-shrink-0 pr-4 pl-4 items-start">
         <div className="flex-1 h-full">
           <BusinessLogicInput 
             value={businessLogic} 
@@ -1384,7 +1399,7 @@ export default function BusinessLogicConfig({
             systemPrompt={systemPrompt}
           />
         </div>
-        <div className="w-[280px] h-[200px] flex flex-col self-start">
+        <div className="w-[280px] flex flex-col self-start">
           <div className="flex flex-col gap-5 flex-1">
             <div>
               <span className="block text-lg font-medium mb-2">{t('businessLogic.config.model')}</span>

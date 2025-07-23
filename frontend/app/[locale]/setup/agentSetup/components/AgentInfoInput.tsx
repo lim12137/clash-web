@@ -78,7 +78,12 @@ export default function AgentInfoInput({
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      <h2 className="text-lg font-medium mb-4">{t('agent.info.title')}</h2>
+      <div className="flex items-center mb-4">
+        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
+          1
+        </div>
+        <h2 className="text-lg font-medium">{t('agent.info.title')}</h2>
+      </div>
       <div className="flex-1 flex flex-col gap-7 overflow-y-auto pr-2">
         <div>
           <Text className="block mb-2 font-medium">{t('agent.info.name')} *</Text>
