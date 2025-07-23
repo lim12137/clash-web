@@ -116,8 +116,6 @@ export default function SystemPromptDisplay({
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tunedPrompt, setTunedPrompt] = useState("")
   const [isTuning, setIsTuning] = useState(false)
-  const originalPromptRef = useRef(prompt)
-  const [localPrompt, setLocalPrompt] = useState(prompt)
   
   // Add local state to track content of three sections
   const [localDutyContent, setLocalDutyContent] = useState(dutyContent)
@@ -130,13 +128,6 @@ export default function SystemPromptDisplay({
   const originalFewShotsContentRef = useRef(fewShotsContent)
   
   const { t } = useTranslation('common')
-
-  useEffect(() => { 
-    setLocalPrompt(prompt); 
-    if (originalPromptRef.current === "" && prompt) {
-      originalPromptRef.current = prompt;
-    }
-  }, [prompt]);
 
   // Update local state and original references
   useEffect(() => {
@@ -156,24 +147,8 @@ export default function SystemPromptDisplay({
     }
   }, [dutyContent, constraintContent, fewShotsContent]);
 
-  // Check if there are segmented content sections
-  const hasSections = dutyContent || constraintContent || fewShotsContent;
-
-  // Render card view
+  // Render card view - always render 3 cards
   const renderCardView = () => {
-    if (!hasSections) {
-      return (
-        <div className="bg-white">
-          <MilkdownProvider>
-            <PromptEditor
-              value={localPrompt}
-              onChange={setLocalPrompt}
-            />
-          </MilkdownProvider>
-        </div>
-      );
-    }
-
     return (
       <div className="space-y-4">
         <PromptCard
@@ -253,15 +228,9 @@ export default function SystemPromptDisplay({
 
   // Check if there are content changes
   const hasContentChanges = () => {
-    if (hasSections) {
-      // Check if content of three sections has changed
-      return localDutyContent !== originalDutyContentRef.current ||
-             localConstraintContent !== originalConstraintContentRef.current ||
-             localFewShotsContent !== originalFewShotsContentRef.current;
-    } else {
-      // Check if complete prompt has changed
-      return localPrompt !== originalPromptRef.current;
-    }
+    return localDutyContent !== originalDutyContentRef.current ||
+           localConstraintContent !== originalConstraintContentRef.current ||
+           localFewShotsContent !== originalFewShotsContentRef.current;
   };
 
   // Handle manual save
@@ -269,40 +238,33 @@ export default function SystemPromptDisplay({
     if (!agentId) return;
     
     try {
-      if (hasSections) {
-        // Save content of three sections
-        const result = await updateAgent(
-          Number(agentId),
-          undefined, // name
-          undefined, // description
-          undefined, // modelName
-          undefined, // maxSteps
-          undefined, // provideRunSummary
-          undefined, // enabled
-          undefined, // businessDescription
-          localDutyContent,
-          localConstraintContent,
-          localFewShotsContent
-        );
+      // Save content of three sections
+      const result = await updateAgent(
+        Number(agentId),
+        undefined, // name
+        undefined, // description
+        undefined, // modelName
+        undefined, // maxSteps
+        undefined, // provideRunSummary
+        undefined, // enabled
+        undefined, // businessDescription
+        localDutyContent,
+        localConstraintContent,
+        localFewShotsContent
+      );
+      
+      if (result.success) {
+        // Update original references
+        originalDutyContentRef.current = localDutyContent;
+        originalConstraintContentRef.current = localConstraintContent;
+        originalFewShotsContentRef.current = localFewShotsContent;
         
-        if (result.success) {
-          // Update original references
-          originalDutyContentRef.current = localDutyContent;
-          originalConstraintContentRef.current = localConstraintContent;
-          originalFewShotsContentRef.current = localFewShotsContent;
-          
-          // Notify parent component that content has been updated
-          onDutyContentChange?.(localDutyContent);
-          onConstraintContentChange?.(localConstraintContent);
-          onFewShotsContentChange?.(localFewShotsContent);
-        } else {
-          throw new Error(result.message);
-        }
+        // Notify parent component that content has been updated
+        onDutyContentChange?.(localDutyContent);
+        onConstraintContentChange?.(localConstraintContent);
+        onFewShotsContentChange?.(localFewShotsContent);
       } else {
-        // Save complete prompt
-        await savePrompt({ agent_id: agentId, prompt: localPrompt });
-        originalPromptRef.current = localPrompt;
-        onPromptChange(localPrompt);
+        throw new Error(result.message);
       }
       
       message.success(t('systemPrompt.message.save.success'));
