@@ -176,14 +176,15 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     const kb = state.knowledgeBases.find((kb) => kb.id === id);
     if (!kb) return;
 
-    // Check model compatibility
-    if (!isKnowledgeBaseSelectable(kb)) {
+    const isSelected = state.selectedIds.includes(id);
+
+    // If trying to select an item, check for model compatibility. Deselection is always allowed.
+    if (!isSelected && !isKnowledgeBaseSelectable(kb)) {
       console.warn(`Cannot select knowledge base ${kb.name}, model mismatch`);
       return;
     }
 
     // Toggle selection status
-    const isSelected = state.selectedIds.includes(id);
     const newSelectedIds = isSelected
       ? state.selectedIds.filter(kbId => kbId !== id)
       : [...state.selectedIds, id];
@@ -295,6 +296,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
         // Publish document update event to notify document list component to refresh document data
         try {
           const documents = await knowledgeBaseService.getAllFiles(state.activeKnowledgeBase.id);
+          console.log("documents", documents);
           window.dispatchEvent(new CustomEvent('documentsUpdated', {
             detail: {
               kbId: state.activeKnowledgeBase.id,
