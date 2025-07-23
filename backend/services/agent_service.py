@@ -99,7 +99,9 @@ def list_main_agent_info_impl(authorization: Optional[str] = Header(None)):
         "model_name": main_agent_info["model_name"],
         "max_steps": main_agent_info["max_steps"],
         "business_description": main_agent_info["business_description"],
-        "prompt": main_agent_info["prompt"]
+        "duty_prompt": main_agent_info.get("duty_prompt"),
+        "constraint_prompt": main_agent_info.get("constraint_prompt"),
+        "few_shots_prompt": main_agent_info.get("few_shots_prompt")
     }
 
 
@@ -148,7 +150,9 @@ def get_creating_sub_agent_info_impl(agent_id: int, authorization: str = Header(
             "model_name": agent_info["model_name"],
             "max_steps": agent_info["max_steps"],
             "business_description": agent_info["business_description"],
-            "prompt": agent_info["prompt"]}
+            "duty_prompt": agent_info.get("duty_prompt"),
+            "constraint_prompt": agent_info.get("constraint_prompt"),
+            "few_shots_prompt": agent_info.get("few_shots_prompt")}
 
 def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Header(None)):
     user_id, tenant_id = get_current_user_id(authorization)
@@ -186,7 +190,9 @@ async def export_agent_impl(agent_id: int, authorization: str = Header(None)):
                                           model_name=agent_info_in_db["model_name"],
                                           max_steps=agent_info_in_db["max_steps"],
                                           provide_run_summary=agent_info_in_db["provide_run_summary"],
-                                          prompt=agent_info_in_db["prompt"],
+                                          duty_prompt=agent_info_in_db.get("duty_prompt"),
+                                          constraint_prompt=agent_info_in_db.get("constraint_prompt"),
+                                          few_shots_prompt=agent_info_in_db.get("few_shots_prompt"),
                                           enabled=agent_info_in_db["enabled"],
                                           tools=tool_list,
                                           managed_agents=[])
@@ -235,7 +241,9 @@ def import_agent_impl(parent_agent_id: int, agent_info: ExportAndImportAgentInfo
                             "model_name": agent_info.model_name,
                             "max_steps": agent_info.max_steps,
                             "provide_run_summary": agent_info.provide_run_summary,
-                            "prompt": agent_info.prompt,
+                            "duty_prompt": agent_info.duty_prompt,
+                            "constraint_prompt": agent_info.constraint_prompt,
+                            "few_shots_prompt": agent_info.few_shots_prompt,
                             "enabled": agent_info.enabled,
                             "parent_agent_id": parent_agent_id},
                   tenant_id=tenant_id,

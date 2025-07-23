@@ -14,7 +14,10 @@ export interface Agent {
   max_step: number;
   provide_run_summary: boolean;
   tools: Tool[];
-  prompt: string;
+  // prompt?: string;
+  duty_prompt?: string;
+  constraint_prompt?: string;
+  few_shots_prompt?: string;
   business_description?: string;
   is_available?: boolean;
 }
@@ -42,7 +45,16 @@ export interface BusinessLogicInputProps {
   value: string;
   onChange: (value: string) => void;
   selectedAgents: Agent[];
-  systemPrompt: string;
+  // systemPrompt: string;
+  isGenerating?: boolean;
+  generationProgress?: {
+    duty: boolean;
+    constraint: boolean;
+    few_shots: boolean;
+  };
+  dutyContent?: string;
+  constraintContent?: string;
+  fewShotsContent?: string;
 }
 // sub agent pool component props interface
 export interface SubAgentPoolProps {
@@ -103,4 +115,10 @@ export interface BusinessLogicConfigProps {
   setIsNewAgentInfoValid: (valid: boolean) => void;
   onEditingStateChange?: (isEditing: boolean, editingAgent: Agent | null) => void;
   onToolsRefresh?: () => void;
+  dutyContent?: string;
+  setDutyContent?: (content: string) => void;
+  constraintContent?: string;
+  setConstraintContent?: (content: string) => void;
+  fewShotsContent?: string;
+  setFewShotsContent?: (content: string) => void;
 }

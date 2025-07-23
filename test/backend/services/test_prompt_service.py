@@ -127,7 +127,6 @@ class TestPromptService(unittest.TestCase):
         agent_info = mock_update_agent.call_args[1]['agent_info']
         self.assertEqual(agent_info.agent_id, 123)
         self.assertEqual(agent_info.business_description, "Test task")
-        self.assertEqual(agent_info.prompt, "Final populated prompt")
         # Verify call parameters
         mock_update_agent.assert_called_once_with(
             agent_id=123, 
