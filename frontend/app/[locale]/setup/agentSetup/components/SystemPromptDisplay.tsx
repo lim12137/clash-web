@@ -17,8 +17,6 @@ import './milkdown-nord.css'
 
 // System prompt display component Props interface
 export interface SystemPromptDisplayProps {
-  prompt: string;
-  onPromptChange: (value: string) => void;
   onDebug?: () => void;
   agentId?: number;
   dutyContent?: string;
@@ -102,8 +100,6 @@ const PromptCard = ({ title, content, index, onChange }: {
  * System Prompt Display Component
  */
 export default function SystemPromptDisplay({ 
-  prompt, 
-  onPromptChange,
   onDebug, 
   agentId,
   dutyContent = '',
@@ -175,7 +171,9 @@ export default function SystemPromptDisplay({
 
   // Handle fine-tuning request
   const handleSendAdditionalRequest = async (request: string) => {
-    if (!prompt) {
+    // Check if any of the prompt parts have content
+    const hasPromptContent = localDutyContent?.trim() || localConstraintContent?.trim() || localFewShotsContent?.trim();
+    if (!hasPromptContent) {
       message.warning(t('systemPrompt.message.empty'));
       return;
     }
@@ -216,7 +214,6 @@ export default function SystemPromptDisplay({
         agent_id: agentId,
         prompt: tunedPrompt
       });
-      onPromptChange(tunedPrompt);
       setIsModalOpen(false);
       setTunedPrompt("");
       message.success(t('systemPrompt.message.save.success'));

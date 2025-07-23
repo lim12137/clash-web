@@ -951,7 +951,9 @@ export default function BusinessLogicConfig({
       message.warning(t('businessLogic.config.message.completeAgentInfo'));
       return;
     }
-    if (systemPrompt.trim().length === 0) {
+    // Check if any of the prompt parts have content
+    const hasPromptContent = dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim();
+    if (!hasPromptContent) {
       message.warning(t('businessLogic.config.message.generatePromptFirst'));
       return;
     }
@@ -1387,7 +1389,7 @@ export default function BusinessLogicConfig({
   }, [onToolsRefresh]);
 
   const canSaveAsAgent = selectedAgents.length === 0 && 
-    (dutyContent?.trim().length > 0 || constraintContent?.trim().length > 0 || fewShotsContent?.trim().length > 0) && 
+    ((dutyContent?.trim()?.length || 0) > 0 || (constraintContent?.trim()?.length || 0) > 0 || (fewShotsContent?.trim()?.length || 0) > 0) && 
     isNewAgentInfoValid;
 
   // Generate more intelligent prompt information according to conditions
@@ -1395,7 +1397,7 @@ export default function BusinessLogicConfig({
     if (selectedAgents.length > 0) {
       return t('businessLogic.config.message.noAgentSelected');
     }
-    if (!dutyContent?.trim() && !constraintContent?.trim() && !fewShotsContent?.trim()) {
+    if (!(dutyContent?.trim()) && !(constraintContent?.trim()) && !(fewShotsContent?.trim())) {
       return t('businessLogic.config.message.generatePromptFirst');
     }
     if (!isNewAgentInfoValid) {
