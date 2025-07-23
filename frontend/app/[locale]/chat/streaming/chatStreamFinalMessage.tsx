@@ -240,7 +240,7 @@ export function ChatStreamFinalMessage({
           <div className="bg-white rounded-lg w-full -mt-2">
             <MarkdownRenderer 
               content={message.finalAnswer || message.content || ""} 
-              searchResults={message.searchResults}
+              searchResults={message?.searchResults}
             />
             
             {/* Button group - only show when hideButtons is false and message is complete */}
@@ -248,7 +248,7 @@ export function ChatStreamFinalMessage({
               <div className="flex items-center justify-between mt-3">
                 {/* Source button */}
                 <div className="flex-1">
-                    {((message.searchResults && message.searchResults.length > 0) || (message.images && message.images.length > 0)) && (
+                    {((message?.searchResults && message.searchResults.length > 0) || (message?.images && message.images.length > 0)) && (
                       <div className="flex items-center text-xs text-gray-500">
                         <Button
                           variant="ghost"

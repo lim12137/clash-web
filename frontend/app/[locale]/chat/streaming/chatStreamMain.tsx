@@ -24,6 +24,7 @@ interface ChatStreamMainProps {
   isLoading: boolean
   isStreaming?: boolean
   isLoadingHistoricalConversation?: boolean
+  conversationLoadError?: string
   onInputChange: (value: string) => void
   onSend: () => void
   onStop: () => void
@@ -46,6 +47,7 @@ export function ChatStreamMain({
   isLoading,
   isStreaming = false,
   isLoadingHistoricalConversation = false,
+  conversationLoadError,
   onInputChange,
   onSend,
   onStop,
@@ -375,6 +377,28 @@ export function ChatStreamMain({
                       {t('chatStreamMain.loadingConversation')}
                     </div>
                   </div>
+                ) : conversationLoadError ? (
+                  // when conversation load error, show error message
+                  <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+                    <div className="text-center max-w-md">
+                      <div className="text-red-500 text-sm mb-4">
+                        {t('chatStreamMain.loadError')}
+                      </div>
+                      <div className="text-gray-500 text-xs mb-4">
+                        {conversationLoadError}
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          // Trigger a page refresh to retry loading
+                          window.location.reload();
+                        }}
+                      >
+                        {t('chatStreamMain.retry')}
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   // when new conversation, show input interface
                   <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
@@ -414,8 +438,8 @@ export function ChatStreamMain({
                     message={message}
                     onSelectMessage={onSelectMessage}
                     isSelected={message.id === selectedMessageId}
-                    searchResultsCount={message.searchResults?.length || 0}
-                    imagesCount={message.images?.length || 0}
+                    searchResultsCount={message?.searchResults?.length || 0}
+                    imagesCount={message?.images?.length || 0}
                     onImageClick={onImageClick}
                     onOpinionChange={onOpinionChange}
                     index={index}
