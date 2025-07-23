@@ -96,12 +96,14 @@ class TestPromptService(unittest.TestCase):
         mock_agent2 = {"name": "agent2", "description": "Agent 2 desc", "enabled": True}
         mock_get_agent_desc.return_value = [mock_agent1, mock_agent2]
         
-        mock_generate_system_prompt.return_value = ["Generated prompt", "Final populated prompt"]
-        
-        # We need to use a generator since the function is a generator
+        # Mock the generator to return the expected data structure
         def mock_generator(*args, **kwargs):
-            for prompt in mock_generate_system_prompt.return_value:
-                yield prompt
+            yield {"type": "duty", "content": "Generated duty prompt", "is_complete": False}
+            yield {"type": "constraint", "content": "Generated constraint prompt", "is_complete": False}
+            yield {"type": "few_shots", "content": "Generated few shots prompt", "is_complete": False}
+            yield {"type": "duty", "content": "Final duty prompt", "is_complete": True}
+            yield {"type": "constraint", "content": "Final constraint prompt", "is_complete": True}
+            yield {"type": "few_shots", "content": "Final few shots prompt", "is_complete": True}
         
         mock_generate_system_prompt.side_effect = mock_generator
         
@@ -110,10 +112,19 @@ class TestPromptService(unittest.TestCase):
         result = list(result_gen)  # Convert generator to list for assertion
         
         # Assert
-        self.assertEqual(result, mock_generate_system_prompt.return_value)
+        expected_results = [
+            {"type": "duty", "content": "Generated duty prompt", "is_complete": False},
+            {"type": "constraint", "content": "Generated constraint prompt", "is_complete": False},
+            {"type": "few_shots", "content": "Generated few shots prompt", "is_complete": False},
+            {"type": "duty", "content": "Final duty prompt", "is_complete": True},
+            {"type": "constraint", "content": "Final constraint prompt", "is_complete": True},
+            {"type": "few_shots", "content": "Final few shots prompt", "is_complete": True}
+        ]
+        self.assertEqual(result, expected_results)
+        
         mock_get_user_info.assert_called_once_with("fake-auth-token", None)
-        mock_get_tool_desc.assert_called_once_with(tenant_id="tenant456", agent_id=123, user_id="user123")
-        mock_get_agent_desc.assert_called_once_with(tenant_id="tenant456", agent_id=123, user_id="user123")
+        mock_get_tool_desc.assert_called_once_with(agent_id=123, tenant_id="tenant456", user_id="user123")
+        mock_get_agent_desc.assert_called_once_with(agent_id=123, tenant_id="tenant456", user_id="user123")
         
         mock_generate_system_prompt.assert_called_once_with(
             mock_get_agent_desc.return_value,
@@ -123,27 +134,33 @@ class TestPromptService(unittest.TestCase):
             "zh"
         )
         
+        # Verify update_agent was called with the correct parameters
         mock_update_agent.assert_called_once()
-        agent_info = mock_update_agent.call_args[1]['agent_info']
+        call_args = mock_update_agent.call_args
+        self.assertEqual(call_args[1]['agent_id'], 123)
+        self.assertEqual(call_args[1]['tenant_id'], "tenant456")
+        self.assertEqual(call_args[1]['user_id'], "user123")
+        
+        # Verify the agent_info object has the correct structure
+        agent_info = call_args[1]['agent_info']
         self.assertEqual(agent_info.agent_id, 123)
         self.assertEqual(agent_info.business_description, "Test task")
-        # Verify call parameters
-        mock_update_agent.assert_called_once_with(
-            agent_id=123, 
-            agent_info=ANY, 
-            tenant_id="tenant456", 
-            user_id="user123"
-        )
+        self.assertEqual(agent_info.duty_prompt, "Final duty prompt")
+        self.assertEqual(agent_info.constraint_prompt, "Final constraint prompt")
+        self.assertEqual(agent_info.few_shots_prompt, "Final few shots prompt")
 
     @patch('backend.services.prompt_service.generate_system_prompt')
     @patch('nexent.vector_database.elasticsearch_core.ElasticSearchCore')
     @patch('elasticsearch.Elasticsearch')
     def test_generate_system_prompt(self, mock_elasticsearch, mock_es_core, mock_generate_system_prompt):
-        # Setup - create a simple generator function for the mock
+        # Setup - create a generator function that returns the expected data structure
         def mock_generator(*args, **kwargs):
-            yield "Prompt 1"
-            yield "Prompt 2" 
-            yield "Final populated prompt"
+            yield {"type": "duty", "content": "Duty prompt", "is_complete": False}
+            yield {"type": "constraint", "content": "Constraint prompt", "is_complete": False}
+            yield {"type": "few_shots", "content": "Few shots prompt", "is_complete": False}
+            yield {"type": "duty", "content": "Final duty prompt", "is_complete": True}
+            yield {"type": "constraint", "content": "Final constraint prompt", "is_complete": True}
+            yield {"type": "few_shots", "content": "Final few shots prompt", "is_complete": True}
             
         mock_generate_system_prompt.side_effect = mock_generator
         
@@ -165,7 +182,15 @@ class TestPromptService(unittest.TestCase):
         ))
         
         # Assert
-        self.assertEqual(result, ["Prompt 1", "Prompt 2", "Final populated prompt"])
+        expected_results = [
+            {"type": "duty", "content": "Duty prompt", "is_complete": False},
+            {"type": "constraint", "content": "Constraint prompt", "is_complete": False},
+            {"type": "few_shots", "content": "Few shots prompt", "is_complete": False},
+            {"type": "duty", "content": "Final duty prompt", "is_complete": True},
+            {"type": "constraint", "content": "Final constraint prompt", "is_complete": True},
+            {"type": "few_shots", "content": "Final few shots prompt", "is_complete": True}
+        ]
+        self.assertEqual(result, expected_results)
         mock_generate_system_prompt.assert_called_once_with(
             mock_sub_agents,
             mock_task_description,
