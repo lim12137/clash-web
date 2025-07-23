@@ -61,9 +61,9 @@ export function ChatInterface() {
   // 如果正在加载历史会话且没有缓存的消息，返回空数组避免显示错误内容
   const currentMessages = selectedConversationId ? (sessionMessages[selectedConversationId] || []) : [];
   
+  // 监控 currentMessages 变化
   // 计算当前对话是否正在流式传输
   const isCurrentConversationStreaming = conversationId && conversationId !== -1 ? streamingConversations.has(conversationId) : false;
-  
 
 
   const [viewingImage, setViewingImage] = useState<string | null>(null)
@@ -84,6 +84,9 @@ export function ChatInterface() {
   
   // Add a state to track if we're loading a historical conversation
   const [isLoadingHistoricalConversation, setIsLoadingHistoricalConversation] = useState(false)
+  
+  // Add a state to track conversation loading errors
+  const [conversationLoadError, setConversationLoadError] = useState<{ [conversationId: number]: string }>({})
   
   // Add a state to track completed conversations that haven't been viewed yet
   const [completedConversations, setCompletedConversations] = useState<Set<number>>(new Set())
@@ -173,6 +176,11 @@ export function ChatInterface() {
     setShowRightPanel(false);
   }, [conversationId]);
 
+  // 确保 currentSelectedConversationRef 与 selectedConversationId 保持同步
+  useEffect(() => {
+    currentSelectedConversationRef.current = selectedConversationId;
+  }, [selectedConversationId]);
+
   // Clear all timers and requests when component unmounts
   useEffect(() => {
     return () => {
@@ -210,6 +218,11 @@ export function ChatInterface() {
     
     // Get current conversation ID
     let currentConversationId = conversationId;
+    
+    // 确保 ref 反映当前对话状态
+    if (currentConversationId && currentConversationId !== -1) {
+      currentSelectedConversationRef.current = currentConversationId;
+    }
     
     // Prepare attachment information
     // Handle file upload
@@ -323,6 +336,8 @@ export function ChatInterface() {
           // Update current session state
           setConversationId(currentConversationId);
           setSelectedConversationId(currentConversationId);
+          // 更新 ref 以实时跟踪当前选中的对话
+          currentSelectedConversationRef.current = currentConversationId;
           setConversationTitle(createData.conversation_title || t("chatInterface.newConversation"));
           
           // 创建新会话后，将其添加到流式传输列表
@@ -731,16 +746,6 @@ export function ChatInterface() {
     setIsNewConversation(true); // Ensure set to new conversation state
     setIsLoadingHistoricalConversation(false); // Ensure not loading historical conversation
 
-    // Reset messages and steps - 只清空当前对话的消息，保留其他对话的缓存
-    setSessionMessages(prev => {
-      const newSessionMessages = { ...prev };
-      // 只清空当前对话的消息，保留其他对话的缓存
-      if (conversationId && conversationId !== -1) {
-        delete newSessionMessages[conversationId];
-      }
-      return newSessionMessages;
-    });
-
     // Reset streaming state
     setIsStreaming(false);
 
@@ -809,10 +814,117 @@ export function ChatInterface() {
     const hasCachedMessages = sessionMessages[dialog.conversation_id] !== undefined;
     const isCurrentActive = dialog.conversation_id === conversationId;
 
+    // 日志：点击会话
     // 如果有缓存的消息，确保不显示加载状态
     if (hasCachedMessages) {
-      setIsLoadingHistoricalConversation(false);
-      setIsLoading(false); // 确保 isLoading 状态也被重置
+      const cachedMessages = sessionMessages[dialog.conversation_id];
+      // 如果缓存为空数组，强制重新加载历史消息
+      if (cachedMessages && cachedMessages.length === 0) {
+        setIsLoadingHistoricalConversation(true);
+        setIsLoading(true);
+        
+        try {
+          // Create new AbortController for current request
+          const controller = new AbortController();
+
+          // Set timeout timer - 120 seconds
+          timeoutRef.current = setTimeout(() => {
+            if (controller && !controller.signal.aborted) {
+              try {
+                controller.abort(t("chatInterface.requestTimeout"));
+              } catch (error) {
+                console.error(t("chatInterface.errorCancelingRequest"), error);
+              }
+            }
+            timeoutRef.current = null;
+          }, 120000);
+
+          // Save current controller reference
+          abortControllerRef.current = controller;
+
+          // Use controller.signal to make request with timeout
+          const data = await conversationService.getDetail(dialog.conversation_id, controller.signal);
+
+          // Clear timeout timer after request completes
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+          }
+
+          // Don't process result if request was canceled
+          if (controller.signal.aborted) {
+            console.warn('强制重新加载请求被取消');
+            return;
+          }
+
+          if (data.code === 0 && data.data && data.data.length > 0) {
+            const conversationData = data.data[0] as ApiConversationDetail;
+            const dialogMessages = conversationData.message || [];
+
+            // 立即处理消息，不使用 setTimeout
+            const formattedMessages: ChatMessageType[] = [];
+
+            // Optimized processing logic: process messages by role one by one, maintain original order
+            dialogMessages.forEach((dialog_msg, index) => {
+              if (dialog_msg.role === "user") {
+                const formattedUserMsg: ChatMessageType = extractUserMsgFromResponse(dialog_msg, index, conversationData.create_time)
+                formattedMessages.push(formattedUserMsg);
+              } else if (dialog_msg.role === "assistant") {
+                const formattedAssistantMsg: ChatMessageType = extractAssistantMsgFromResponse(dialog_msg, index, conversationData.create_time, t)
+                formattedMessages.push(formattedAssistantMsg);
+              }
+            });
+
+            // Update message array
+            setSessionMessages(prev => ({
+              ...prev,
+              [dialog.conversation_id]: formattedMessages
+            }));
+
+            // Clear any previous error for this conversation
+            setConversationLoadError(prev => {
+              const newErrors = { ...prev };
+              delete newErrors[dialog.conversation_id];
+              return newErrors;
+            });
+
+            // Asynchronously load all attachment URLs
+            loadAttachmentUrls(formattedMessages, dialog.conversation_id);
+
+            // Trigger scroll to bottom
+            setShouldScrollToBottom(true);
+
+            // Refresh history list
+            fetchConversationList().catch(err => {
+              console.error(t("chatInterface.refreshDialogListFailedButContinue"), err);
+            });
+          } else {
+            // 不再置空缓存，只提示无历史消息
+            setConversationLoadError(prev => ({
+              ...prev,
+              [dialog.conversation_id]: t('chatStreamMain.noHistory') || '该会话无历史消息'
+            }));
+            console.warn('强制重新加载 data.code 非0或无消息', { data });
+          }
+        } catch (error) {
+          console.error(t("chatInterface.errorFetchingConversationDetailsError"), error);
+          // if error, don't set empty array, keep existing state to avoid showing new conversation interface
+          // Instead, we can show an error message or retry mechanism
+          console.warn(`Failed to load conversation ${dialog.conversation_id}, keeping existing state`);
+          setConversationLoadError(prev => ({
+            ...prev,
+            [dialog.conversation_id]: error instanceof Error ? error.message : 'Failed to load conversation'
+          }));
+        } finally {
+          // ensure loading state is cleared
+          setIsLoading(false);
+          setIsLoadingHistoricalConversation(false);
+        }
+      } else {
+        // 缓存有内容，正常显示
+        setIsLoadingHistoricalConversation(false);
+        setIsLoading(false); // 确保 isLoading 状态也被重置
+      }
     }
 
     // 如果没有缓存的消息且不是当前活跃会话，则加载历史消息
@@ -851,6 +963,7 @@ export function ChatInterface() {
 
         // Don't process result if request was canceled
         if (controller.signal.aborted) {
+          console.warn('请求被取消');
           return;
         }
 
@@ -878,8 +991,15 @@ export function ChatInterface() {
             [dialog.conversation_id]: formattedMessages
           }));
 
+          // Clear any previous error for this conversation
+          setConversationLoadError(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[dialog.conversation_id];
+            return newErrors;
+          });
+
           // Asynchronously load all attachment URLs
-          loadAttachmentUrls(formattedMessages);
+          loadAttachmentUrls(formattedMessages, dialog.conversation_id);
 
           // Trigger scroll to bottom
           setShouldScrollToBottom(true);
@@ -889,18 +1009,21 @@ export function ChatInterface() {
             console.error(t("chatInterface.refreshDialogListFailedButContinue"), err);
           });
         } else {
-          // if no message, set to empty array
-          setSessionMessages(prev => ({
+          // 不再置空缓存，只提示无历史消息
+          setConversationLoadError(prev => ({
             ...prev,
-            [dialog.conversation_id]: []
+            [dialog.conversation_id]: t('chatStreamMain.noHistory') || '该会话无历史消息'
           }));
+          console.warn('data.code 非0或无消息', { data });
         }
       } catch (error) {
         console.error(t("chatInterface.errorFetchingConversationDetailsError"), error);
-        // if error, set to empty array, avoid duplicate request
-        setSessionMessages(prev => ({
+        // if error, don't set empty array, keep existing state to avoid showing new conversation interface
+        // Instead, we can show an error message or retry mechanism
+        console.warn(`Failed to load conversation ${dialog.conversation_id}, keeping existing state`);
+        setConversationLoadError(prev => ({
           ...prev,
-          [dialog.conversation_id]: []
+          [dialog.conversation_id]: error instanceof Error ? error.message : 'Failed to load conversation'
         }));
       } finally {
         // ensure loading state is cleared
@@ -911,10 +1034,11 @@ export function ChatInterface() {
   }
 
   // Add function to asynchronously load attachment URLs
-  const loadAttachmentUrls = async (messages: ChatMessageType[]) => {
+  const loadAttachmentUrls = async (messages: ChatMessageType[], targetConversationId?: number) => {
     // Create a copy to avoid directly modifying parameters
     const updatedMessages = [...messages];
     let hasUpdates = false;
+    const conversationIdToUse = targetConversationId || conversationId;
 
     // Process attachments for each message
     for (const message of updatedMessages) {
@@ -940,7 +1064,7 @@ export function ChatInterface() {
     if (hasUpdates) {
       setSessionMessages(prev => ({
         ...prev,
-        [conversationId]: updatedMessages
+        [conversationIdToUse]: updatedMessages
       }));
     }
   };
@@ -997,6 +1121,8 @@ export function ChatInterface() {
 
       if (selectedConversationId === dialogId) {
         setSelectedConversationId(null);
+        // 更新 ref 以实时跟踪当前选中的对话
+        currentSelectedConversationRef.current = null;
         setConversationTitle(t("chatInterface.newConversation"));
         handleNewConversation();
       }
@@ -1186,6 +1312,7 @@ export function ChatInterface() {
                 isLoading={isLoading}
                 isStreaming={isCurrentConversationStreaming}
                 isLoadingHistoricalConversation={isLoadingHistoricalConversation}
+                conversationLoadError={conversationLoadError[selectedConversationId || 0]}
                 onInputChange={(value) => setInput(value)}
                 onSend={handleSend}
                 onStop={handleStop}
