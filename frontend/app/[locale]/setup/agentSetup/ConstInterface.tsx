@@ -14,7 +14,6 @@ export interface Agent {
   max_step: number;
   provide_run_summary: boolean;
   tools: Tool[];
-  // prompt?: string;
   duty_prompt?: string;
   constraint_prompt?: string;
   few_shots_prompt?: string;
@@ -45,7 +44,6 @@ export interface BusinessLogicInputProps {
   value: string;
   onChange: (value: string) => void;
   selectedAgents: Agent[];
-  // systemPrompt: string;
   isGenerating?: boolean;
   generationProgress?: {
     duty: boolean;

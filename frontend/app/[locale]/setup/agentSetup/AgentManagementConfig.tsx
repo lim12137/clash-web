@@ -248,8 +248,6 @@ function SubAgentPool({
                     : t('subAgentPool.tooltip.unavailableAgent')
                   : undefined}
                 onClick={() => {
-                  console.log("isAvailable:", isAvailable)
-                  console.log("isEnabled:", isEnabled)
                   if (!isAvailable && !isEnabled) {
                     message.warning(t('subAgentPool.message.unavailable'));
                     return;
@@ -691,7 +689,7 @@ export default function BusinessLogicConfig({
     few_shots: false
   })
   
-  // 使用 ref 来跟踪当前提示词的内容
+  // Use refs to keep track of the content of the current prompt.
   const currentPromptRef = useRef({
     duty: '',
     constraint: '',
@@ -893,7 +891,7 @@ export default function BusinessLogicConfig({
             model,
             max_step,
             provide_run_summary,
-            undefined, // prompt
+            undefined,
             undefined,
             business_description
           );
@@ -905,7 +903,7 @@ export default function BusinessLogicConfig({
             model,
             max_step,
             provide_run_summary,
-            undefined, // prompt
+            undefined,
             undefined,
             business_description
           );
@@ -1003,15 +1001,15 @@ export default function BusinessLogicConfig({
       setMainAgentModel(agentDetail.model as OpenAIModel);
       setMainAgentMaxStep(agentDetail.max_step);
       setBusinessLogic(agentDetail.business_description || '');
-      setSystemPrompt(agentDetail.prompt || '');
+      // setSystemPrompt(agentDetail.prompt || '');
       
-      // 加载分段提示词内容
+      // Load the segmented prompt content
       setDutyContent?.(agentDetail.duty_prompt || '');
       setConstraintContent?.(agentDetail.constraint_prompt || '');
       setFewShotsContent?.(agentDetail.few_shots_prompt || '');
       
       console.log(t('debug.console.setBusinessDescription'), agentDetail.business_description); // 调试信息
-      console.log(t('debug.console.setSystemPrompt'), agentDetail.prompt); // 调试信息
+      // console.log(t('debug.console.setSystemPrompt'), agentDetail.prompt); // 调试信息
       // 加载Agent的工具
       if (agentDetail.tools && agentDetail.tools.length > 0) {
         setSelectedTools(agentDetail.tools);
