@@ -80,8 +80,9 @@ export function ChatStreamFinalMessage({
 
   // Copy content to clipboard
   const handleCopyContent = () => {
-    if (message.finalAnswer) {
-      navigator.clipboard.writeText(message.finalAnswer)
+    const contentToCopy = message.finalAnswer || message.content;
+    if (contentToCopy !== undefined) {
+      navigator.clipboard.writeText(contentToCopy)
         .then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
@@ -132,7 +133,8 @@ export function ChatStreamFinalMessage({
 
   // TTS functionality - using service layer
   const handleTTSPlay = async () => {
-    if (!message.finalAnswer || !ttsServiceRef.current) return;
+    const contentToPlay = message.finalAnswer || message.content;
+    if (contentToPlay === undefined || !ttsServiceRef.current) return;
 
     if (ttsStatus === 'playing') {
       ttsServiceRef.current.stopAudio();
@@ -141,7 +143,7 @@ export function ChatStreamFinalMessage({
     }
 
     try {
-      await ttsServiceRef.current.playAudio(message.finalAnswer, (status) => {
+      await ttsServiceRef.current.playAudio(contentToPlay, (status) => {
         setTtsStatus(status);
       });
     } catch (error) {
@@ -233,16 +235,16 @@ export function ChatStreamFinalMessage({
           </>
         )}
         
-        {/* Assistant message part - only show final answer */}
-        {message.role === "assistant" && message.finalAnswer && (
+        {/* Assistant message part - show final answer or content */}
+        {message.role === "assistant" && (message.finalAnswer || message.content !== undefined) && (
           <div className="bg-white rounded-lg w-full -mt-2">
             <MarkdownRenderer 
-              content={message.finalAnswer} 
+              content={message.finalAnswer || message.content || ""} 
               searchResults={message.searchResults}
             />
             
-            {/* Button group - only show when hideButtons is false */}
-            {!hideButtons && (
+            {/* Button group - only show when hideButtons is false and message is complete */}
+            {!hideButtons && message.isComplete && (
               <div className="flex items-center justify-between mt-3">
                 {/* Source button */}
                 <div className="flex-1">
@@ -332,7 +334,7 @@ export function ChatStreamFinalMessage({
                           size="icon"
                           className={`h-8 w-8 rounded-full ${ttsButtonContent.className} transition-all duration-200 shadow-sm`}
                           onClick={handleTTSPlay}
-                          disabled={ttsStatus === 'generating' || !message.finalAnswer}
+                          disabled={ttsStatus === 'generating' || (message.finalAnswer === undefined && message.content === undefined)}
                         >
                           {ttsButtonContent.icon}
                         </Button>

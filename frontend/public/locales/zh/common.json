@@ -124,7 +124,9 @@
         "confirmDeletionTitle": "删除对话",
         "confirmDeletionDescription": "确定要删除这个对话吗？此操作无法撤销。",
         "cancel": "取消",
-        "collapseSidebar": "收起侧边栏"
+        "collapseSidebar": "收起侧边栏",
+        "running": "正在运行中",
+        "completed": "已完成"
     },
     "page": {
         "contactUs": "联系我们",
@@ -134,12 +136,16 @@
         "description": "无需编排，无需复杂拖拉拽，将数据、模型和工具整合到一个智能中心中。",
         "startChat": "开始问答",
         "quickConfig": "快速配置",
-        "dataProtection": "安全可靠的企业级数据保护",
+        "dataProtection": "安全可靠的个人隐私保护",
         "coreFeatures": "核心功能",
         "features": [
             {
                 "title": "多智能体自主业务决策",
-                "description": "利用ReAct框架实现多智能体间的自主思考、任务规划、决策和执行，自动化MCP生态下的模型、数据与工具集"
+                "description": "利用ReAct框架实现多智能体间的自主思考、任务规划、决策和执行，自动化MCP生态下的模型、数据与工具集。"
+            },
+            {
+                "title": "智能体自动生成",
+                "description": "基于自然语言智能生成智能体核心提示词，在4-5个工具内运行准确度>70%，可追加优化。"
             },
             {
                 "title": "高效数据准备",
@@ -151,11 +157,7 @@
             },
             {
                 "title": "MCP工具支持",
-                "description": "支持MCP工具接入与调用，帮助实现更复杂的业务逻辑"
-            },
-            {
-                "title": "知识溯源",
-                "description": "提供完整的信息来源追溯，确保回答的可靠性和可验证性"
+                "description": "支持MCP工具接入与调用，基于生态提供的各类工具，快速帮助实现更复杂的业务逻辑。"
             },
             {
                 "title": "多模态对话",
@@ -266,7 +268,7 @@
     "guide.steps.normal.describeBusiness.description": "输入业务场景和需求描述",
     "guide.steps.normal.generatePrompt.title": "生成提示词",
     "guide.steps.normal.generatePrompt.description": "生成系统提示词并微调",
-    "guide.steps.normal.debugAgent.title": "调试Agent（可选）",
+    "guide.steps.normal.debugAgent.title": "调试Agent",
     "guide.steps.normal.debugAgent.description": "输入问题调试主Agent",
     "guide.steps.normal.complete.title": "完成配置",
     "guide.steps.normal.complete.description": "点击完成配置开始问答",
@@ -278,7 +280,7 @@
     "guide.steps.creating.describeBusiness.description": "输入业务场景和需求描述",
     "guide.steps.creating.generatePrompt.title": "生成提示词",
     "guide.steps.creating.generatePrompt.description": "生成系统提示词并微调",
-    "guide.steps.creating.debugAgent.title": "调试Agent（可选）",
+    "guide.steps.creating.debugAgent.title": "调试Agent",
     "guide.steps.creating.debugAgent.description": "输入问题调试当前Agent",
     "guide.steps.creating.saveAgent.title": "保存Agent",
     "guide.steps.creating.saveAgent.description": "配置并保存到Agent池",
@@ -540,6 +542,7 @@
     "model.dialog.label.apiKey": "API Key",
     "model.dialog.label.vectorDimension": "向量维度",
     "model.dialog.label.maxTokens": "最大Token数",
+    "model.dialog.label.currentlySupported": "当前已支持：",
     "model.dialog.placeholder.name": "请输入请求体中的模型名称",
     "model.dialog.placeholder.displayName": "请输入模型的展示名称",
     "model.dialog.placeholder.url": "请输入模型URL, 例如: https://api.openai.com/v1",
@@ -660,7 +663,7 @@
     "setup.page.log.selectedKeyUpdated": "selectedKey已更新为{{key}}",
     "common.subModel": "副模型",
     "common.mainModel": "主模型",
-    "businessLogic.title": "业务描述",
+    "businessLogic.title": "描述 Agent 应该如何工作",
     "businessLogic.placeholder": "请描述您的业务场景和需求...",
     "tool.message.unavailable": "该工具当前不可用，无法选择",
     "tool.error.noMainAgentId": "主代理ID未设置，无法更新工具状态",
@@ -670,7 +673,7 @@
     "tool.error.updateRetry": "更新工具状态失败，请稍后重试",
     "model.option.main": "主模型",
     "model.option.sub": "副模型",
-    "subAgentPool.title": "Agent",
+    "subAgentPool.title": "该 Agent 需要哪些子 Agent",
     "subAgentPool.loading": "加载中...",
     "subAgentPool.button.create": "创建Agent",
     "subAgentPool.button.import": "导入Agent",
@@ -678,7 +681,7 @@
     "subAgentPool.message.unavailable": "该Agent不可用",
     "subAgentPool.tooltip.disabledAgent": "该Agent已禁用，请点击取消启用",
     "subAgentPool.tooltip.unavailableAgent": "Agent不可用",
-    "toolPool.title": "工具",
+    "toolPool.title": "选择 Agent 的工具",
     "toolPool.loading": "加载中...",
     "toolPool.loadingTools": "加载工具中...",
     "toolPool.tooltip.disabledTool": "该工具已禁用，请点击取消启用",
@@ -856,6 +859,9 @@
             "tip": "请在模型配置中选择合适的Embedding模型以获得完整体验。",
             "ok_continue": "我知道了，继续下一步"
         }
+    },
+    "chatStreamMain": {
+        "loadingConversation": "正在加载对话内容..."
     },
     "mcpConfig": {
         "message": {

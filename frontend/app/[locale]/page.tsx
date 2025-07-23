@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useTranslation } from 'react-i18next'
-import { Bot, Globe, Database, Zap, Mic, FileSearch, Shield, MessagesSquare, Microchip } from "lucide-react"
+import { Bot, Globe, Zap, Shield, MessagesSquare, Unplug, TextQuote } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
 import { useRouter, usePathname } from 'next/navigation';
 import { Select } from "antd"
+import { motion } from 'framer-motion';
 
 const languageOptions = [
   { label: '简体中文', value: 'zh' },
@@ -17,19 +18,16 @@ const languageOptions = [
 export default function Home() {
   const [mounted, setMounted] = useState(false)
   const { t, i18n } = useTranslation('common');
-  const [lang, setLang] = useState(i18n.language || 'zh');
   const router = useRouter();
   const pathname = usePathname();
 
   // Prevent hydration errors
   useEffect(() => {
     setMounted(true)
-    setLang(i18n.language || 'zh')
   }, [])
 
   // Language switch handler for dropdown
   const handleLangChange = (newLang: string) => {
-    setLang(newLang);
     document.cookie = `NEXT_LOCALE=${newLang}; path=/; max-age=31536000`;
     // Compute new path: replace the first segment (locale) with newLang
     const segments = pathname.split('/').filter(Boolean);
@@ -106,20 +104,34 @@ export default function Home() {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 pt-32 pb-32">
+      <main className="flex-1 pt-16 pb-16">
         {/* Hero area */}
         <section className="relative w-full py-16 flex flex-col items-center justify-center text-center px-4">
           <div className="absolute inset-0 bg-grid-slate-200 dark:bg-grid-slate-800 [mask-image:radial-gradient(ellipse_at_center,white_20%,transparent_75%)] -z-10"></div>
-
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-white mb-4 tracking-tight">
+          <motion.h2
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-white mb-4 tracking-tight"
+          >
           {t('page.title')}<span className="text-blue-600 dark:text-blue-500"> {t('page.subtitle')}</span>
-          </h2>
-          <p className="max-w-2xl text-slate-600 dark:text-slate-300 text-lg md:text-xl mb-8">
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="max-w-2xl text-slate-600 dark:text-slate-300 text-lg md:text-xl mb-8"
+          >
           {t('page.description')}
-          </p>
+          </motion.p>
 
           {/* Two parallel buttons */}
-          <div className="flex flex-col sm:flex-row gap-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="flex flex-col sm:flex-row gap-4"
+          >
             <Link href="/chat">
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group"
@@ -134,39 +146,70 @@ export default function Home() {
                 {t('page.quickConfig')}
               </Button>
             </Link>
-          </div>
+          </motion.div>
 
-          <div className="mt-12 flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="mt-12 flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400"
+          >
             <Shield className="h-4 w-4" />
             <span>{t('page.dataProtection')}</span>
-          </div>
+          </motion.div>
         </section>
 
         {/* Feature cards */}
-        <section className="max-w-7xl mx-auto px-4 mb-6">
-          <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center">{t('page.coreFeatures')}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <motion.section 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.6 }}
+          className="max-w-7xl mx-auto px-4 mb-6"
+        >
+          <motion.h3 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.7 }}
+            className="text-2xl font-bold text-slate-900 dark:text-white mb-8 text-center"
+          >
+            {t('page.coreFeatures')}
+          </motion.h3>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch"
+          >
             {(t('page.features', { returnObjects: true }) as Array<{title: string, description: string}>).map((feature, index: number) => {
               const icons = [
                 <Bot key={0} className="h-8 w-8 text-blue-500" />,
-                <Zap key={1} className="h-8 w-8 text-blue-500" />,
-                <Globe key={2} className="h-8 w-8 text-emerald-500" />,
-                <Microchip key={3} className="h-8 w-8 text-amber-500" />,
-                <FileSearch key={4} className="h-8 w-8 text-rose-500" />,
+                <TextQuote key={1} className="h-8 w-8 text-green-500" />,
+                <Zap key={2} className="h-8 w-8 text-blue-500" />,
+                <Globe key={3} className="h-8 w-8 text-emerald-500" />,
+                <Unplug key={4} className="h-8 w-8 text-amber-500" />,
                 <MessagesSquare key={5} className="h-8 w-8 text-purple-500" />
               ];
               
               return (
-                <FeatureCard
+                <motion.div
                   key={index}
-                  icon={icons[index] || <Bot className="h-8 w-8 text-blue-500" />}
-                  title={feature.title}
-                  description={feature.description}
-                />
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ 
+                    duration: 0.6, 
+                    delay: 0.9 + (index * 0.1) 
+                  }}
+                >
+                  <FeatureCard
+                    icon={icons[index] || <Bot className="h-8 w-8 text-blue-500" />}
+                    title={feature.title}
+                    description={feature.description}
+                  />
+                </motion.div>
               );
             })}
-          </div>
-        </section>
+          </motion.div>
+        </motion.section>
       </main>
 
       {/* Footer */}
@@ -178,7 +221,7 @@ export default function Home() {
                 {t('page.copyright', { year: new Date().getFullYear() })}
               </span>
               <Select
-                value={lang}
+                value={i18n.language}
                 onChange={handleLangChange}
                 options={languageOptions}
                 style={{ width: 98, border: 'none', boxShadow: 'none' }}
@@ -215,29 +258,14 @@ interface FeatureCardProps {
 
 function FeatureCard({ icon, title, description }: FeatureCardProps) {
   return (
-    <Card className="overflow-hidden border border-slate-200 dark:border-slate-700 transition-all duration-300 hover:shadow-md hover:border-blue-200 dark:hover:border-blue-900 group">
-      <CardContent className="p-6">
+    <Card className="overflow-hidden border border-slate-200 dark:border-slate-700 transition-all duration-300 hover:shadow-md hover:border-blue-200 dark:hover:border-blue-900 group h-full">
+      <CardContent className="p-6 h-full flex flex-col">
         <div className="mb-4 p-3 bg-slate-100 dark:bg-slate-800 rounded-full w-fit group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
           {icon}
         </div>
         <h4 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">{title}</h4>
-        <p className="text-slate-600 dark:text-slate-300">{description}</p>
+        <p className="text-slate-600 dark:text-slate-300 flex-grow">{description}</p>
       </CardContent>
     </Card>
-  )
-}
-
-// Statistic card component
-interface StatCardProps {
-  number: string;
-  label: string;
-}
-
-function StatCard({ number, label }: StatCardProps) {
-  return (
-    <div className="flex flex-col items-center">
-      <span className="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-500 mb-2">{number}</span>
-      <span className="text-sm text-slate-600 dark:text-slate-300">{label}</span>
-    </div>
   )
 }

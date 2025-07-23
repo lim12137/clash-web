@@ -143,8 +143,6 @@ export function extractAssistantMsgFromResponse(dialog_msg: ApiMessage, index: n
                   expanded: true,
                   timestamp: Date.now()
                 });
-              } else {
-                console.warn(t("extractMsg.noSearchResultsForUnitId", { unitId }));
               }
             } catch (e) {
               console.error(t("extractMsg.cannotParseSearchPlaceholder"), e);
