@@ -4,7 +4,7 @@
 [![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
 [![codecov](https://codecov.io/gh/ModelEngine-Group/nexent/branch/develop/graph/badge.svg?token=00JM5YAD5V)](https://codecov.io/gh/ModelEngine-Group/nexent?branch=develop)
 
-Nexent is an open-source agent platform that turns process-level natural language into complete multimodal agents — no diagrams, no wiring. Built on the MCP tool ecosystem, Nexent provides model integration, data processing, knowledge-base management, and zero-code agent development. Our goal is simple: to bring data, models, and tools together in one smart hub, making daily workflows smarter and more connected.
+Nexent is a zero-code platform for auto-generating agents — no orchestration, no complex drag-and-drop required, using pure language to develop any agent you want. Built on the MCP ecosystem with rich tool integration, Nexent also provides various built-in agents to meet your intelligent service needs in different scenarios such as work, travel, and daily life. Nexent offers powerful capabilities for agent running control, multi-agent collaboration, data processing and knowledge tracing, multimodal dialogue, and batch scaling.
 
 > One prompt. Endless reach.
 
@@ -13,7 +13,7 @@ Nexent is an open-source agent platform that turns process-level natural languag
 - 🌐 Visit our [official website](http://nexent.tech/) to learn more
 - 🚀 [Try it now](http://nexent.tech/try) to experience the power of Nexent
 
-https://github.com/user-attachments/assets/0758629c-3477-4cd4-a737-0aab330d53a7
+https://github.com/user-attachments/assets/b844e05d-5277-4509-9463-1c5b3516f11e
 
 # 🤝 Join Our Community
 
@@ -90,6 +90,67 @@ Want to build from source or add new features? Check the [Contribution Guide](CO
 
 Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_NOTE.md) for detailed setup instructions and customization options.
 
+## 🌱 MCP Tool Ecosystem
+
+Nexent is built on the Model Context Protocol (MCP) tool ecosystem, providing a flexible and extensible framework for integrating various tools and services. MCP serves as the "USB-C of AI" - a universal interface standard that allows AI agents to seamlessly connect with external data sources, tools, and services.
+
+### 🌐 MCP Community Hub
+
+The global MCP ecosystem is thriving with multiple platforms supporting MCP development and deployment:
+
+| Platform | Description | Notes |
+|----------|-------------|-------|
+| **[GitHub MCP Server](https://github.com/github/github-mcp-server)** | Deep integration with Claude, GPT-4, Copilot etc., supports Go and Python | OAuth/GitHub account authorization |
+| **[Qdrant MCP Vector Server](https://github.com/qdrant/mcp-server-qdrant)** | Semantic vector storage with Python/Go compatibility | Compatible with LangChain and other tools |
+| **[Anthropic Reference MCP Servers](https://github.com/modelcontextprotocol/servers)** | Lightweight teaching and prototyping tools, Python | Includes fetch, git and other universal tools |
+| **[AWS Labs MCP Server](https://github.com/awslabs/mcp)** | AWS+Go+CDK cloud reference services | Suitable for cloud environments |
+| **[MCP Hub China](https://www.mcp-cn.com/)** | Chinese curated high-quality MCP service platform | Focuses on quality over quantity, community-driven |
+| **[ModelScope MCP Marketplace](https://modelscope.cn/mcp)** | China's largest MCP community with 1,500+ services | From Amap to Alipay, comprehensive service coverage |
+| **Community MCP Servers** | Various scenario-specific source code collection | Mostly experimental and innovative tools |
+
+### 🛠️ Recommended MCP Tools
+
+| Tool Name | Function | Description |
+|-----------|----------|-------------|
+| **[Amap Maps](https://modelscope.cn/mcp/servers/@amap/amap-maps)** | Geographic services and navigation | Comprehensive mapping, geocoding, routing, and location services |
+| **[Bing Search (Chinese)](https://modelscope.cn/mcp/servers/@yan5236/bing-cn-mcp-server)** | Web search in Chinese | Optimized Chinese web search and information retrieval |
+| **[12306 Train Ticket Query](https://modelscope.cn/mcp/servers/@Joooook/12306-mcp)** | China railway ticket booking | Real-time train schedules, ticket availability, and booking assistance |
+| **[Alipay MCP](https://modelscope.cn/mcp/servers/@alipay/mcp-server-alipay)** | Payment and financial services | Digital payments, financial tools, and services integration |
+| **[Variflight Aviation](https://modelscope.cn/mcp/servers/@variflight-ai/variflight-mcp)** | Flight information and aviation data | Real-time flight tracking, schedules, and aviation analytics |
+| **[Sequential Thinking](https://modelscope.cn/mcp/servers/@modelcontextprotocol/sequentialthinking)** | Structured problem-solving framework | Break down complex problems into manageable, sequential steps |
+| **[ArXiv AI Search](https://modelscope.cn/mcp/servers/@blazickjp/arxiv-mcp-server)** | Academic paper search and research | Advanced search and retrieval of scientific papers and research |
+| **[Firecrawl MCP Server](https://modelscope.cn/mcp/servers/@mendableai/firecrawl-mcp-server)** | Web scraping and content extraction | Intelligent web scraping, data extraction, and content processing |
+
+### 🚀 Suggested Agent Scenarios
+
+With MCP's powerful ecosystem, you can create sophisticated AI agents for various scenarios:
+
+🌍 **Travel Planning Agent** 
+- Use Amap for route planning and navigation 📍
+- Integrate 12306 for train bookings 🚄
+- Connect Variflight for flight information ✈️
+- Enable Alipay for seamless payments 💳
+
+🔬 **Research Assistant Agent**
+- Leverage ArXiv search for academic papers 📚
+- Use Bing Search for comprehensive web research 🔍
+- Apply Sequential Thinking for structured analysis 🧠
+- Integrate Firecrawl for web data extraction 🕷️
+
+💼 **Business Intelligence Agent**
+- Connect multiple data sources through various MCP servers 📊
+- Use geographic tools for location-based insights 🗺️
+- Integrate payment systems for financial analysis 💰
+- Apply structured thinking frameworks for decision-making 🎯
+
+🏠 **Smart Lifestyle Agent**
+- Combine mapping services with payment integration 🛒
+- Use transportation tools for commute optimization 🚗
+- Integrate web search for local recommendations 🏪
+- Apply intelligent content extraction for information gathering 📱
+
+The MCP ecosystem empowers you to build agents that can seamlessly interact with the real world, accessing live data, performing complex operations, and providing contextual assistance across virtually any domain. Each tool brings specialized capabilities that can be combined to create powerful, multi-functional AI experiences.
+
 ## ✨ Key Features
 
 `1` **Smart agent prompt generation**  
@@ -132,26 +193,6 @@ Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_N
 1📝 **Code Output May Be Misinterpreted as Executable**  
    In Nexent conversations, if the model outputs code-like text, it may sometimes be misinterpreted as something that should be executed. We will fix this as soon as possible.
 
-# 👥 External Developer Contribution Guide
-
-We welcome all kinds of contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes Nexent better for everyone. 
-
-If you are an external developer and want to contribute to this project, please follow these steps:
-
-1. **Fork the repository**
-   - Click the "Fork" button at the top right of the repository page to create your own copy.
-2. **Clone your fork**
-   - Use `git clone https://github.com/your-username/your-forked-repo.git` to clone your fork to your local machine.
-3. **Commit and push your changes**
-   - Make your changes, then use `git add .`, `git commit -m "Your message"`, and `git push origin` to push to your fork.
-4. **Open a Pull Request**
-   - Go to your forked repository on GitHub, click the "Contribute" button, and then select "Open Pull Request" to propose merging your changes into the main repository.
-
-Please make sure your PR follows the project's contribution guidelines and passes all required checks.
-
-- 📖 Read our [Contribution Guide](CONTRIBUTING.md) to get started
-- 🐛 Report bugs or suggest features in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)
-- 💬 Join our [Discord community](https://discord.gg/tb5H3S3wyv) to discuss ideas
 
 # 💬 Community & contact
 
