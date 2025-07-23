@@ -148,7 +148,7 @@ export default function SystemPromptDisplay({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-3 flex-shrink-0">
         <h2 className="text-lg font-medium">{t('systemPrompt.title')}</h2>
         <div className="flex gap-2">
           <button
@@ -178,10 +178,7 @@ export default function SystemPromptDisplay({
           </button>
         </div>
       </div>
-      <div
-        className="border border-gray-200 rounded-md"
-        style={{ height: 'calc(100% - 60px)', overflowY: 'auto' }}
-      >
+      <div className="flex-1 border border-gray-200 rounded-md overflow-y-auto">
         <MilkdownProvider>
           <PromptEditor
             value={prompt}

@@ -79,6 +79,8 @@ services:
     image: ${NEXENT_IMAGE}
     container_name: nexent
     restart: always
+    volumes:
+      - ${NEXENT_USER_DIR:-$HOME/nexent}:/mnt/nexent
     environment:
       <<: [*minio-vars, *es-vars]
       skip_proxy: "true"
@@ -122,6 +124,8 @@ services:
     command: bash
     restart: always
     privileged: true
+    volumes:
+      - ${NEXENT_USER_DIR:-$HOME/nexent}:/mnt/nexent
     environment:
       <<: [*proxy-vars, *es-vars, *minio-vars]
       DOCKER_ENVIRONMENT: "true"

@@ -93,7 +93,6 @@ export const KnowledgeBaseContext = createContext<{
   setActiveKnowledgeBase: (kb: KnowledgeBase) => void;
   isKnowledgeBaseSelectable: (kb: KnowledgeBase) => boolean;
   refreshKnowledgeBaseData: (forceRefresh?: boolean) => Promise<void>;
-  summaryIndex: (indexName: string, batchSize: number) => Promise<string>;
   loadUserSelectedKnowledgeBases: () => Promise<void>;
   saveUserSelectedKnowledgeBases: () => Promise<boolean>;
 }>({
@@ -113,7 +112,6 @@ export const KnowledgeBaseContext = createContext<{
   setActiveKnowledgeBase: () => {},
   isKnowledgeBaseSelectable: () => false,
   refreshKnowledgeBaseData: async () => {},
-  summaryIndex: async () => '',
   loadUserSelectedKnowledgeBases: async () => {},
   saveUserSelectedKnowledgeBases: async () => false,
 });
@@ -247,28 +245,6 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       return false;
     }
   }, [state.knowledgeBases, state.selectedIds, state.activeKnowledgeBase]);
-
-  // Summarize the content of the knowledge base
-  const summaryIndex = useCallback(async (indexName: string, batchSize: number = 1000) => {
-    try {
-      const result = await knowledgeBaseService.summaryIndex(indexName, batchSize);
-      return result;
-    } catch (error) {
-      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.summary') });
-      throw error;
-    }
-  }, [t]);
-
-  // Modify the summary of the knowledge base
-  const changekKnowledgeSummary = useCallback(async (indexName: string, summary: string) => {
-    try {
-      const result = await knowledgeBaseService.changeSummary(indexName, summary);
-      return result;
-    } catch (error) {
-      dispatch({ type: 'ERROR', payload: error as string });
-      throw error;
-    }
-  }, []);
 
   // Load user selected knowledge bases from backend
   const loadUserSelectedKnowledgeBases = useCallback(async () => {
@@ -412,7 +388,6 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
     refreshKnowledgeBaseData,
-    summaryIndex,
     loadUserSelectedKnowledgeBases,
     saveUserSelectedKnowledgeBases
   }), [
@@ -424,7 +399,6 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
     refreshKnowledgeBaseData,
-    summaryIndex,
     loadUserSelectedKnowledgeBases,
     saveUserSelectedKnowledgeBases
   ]);
