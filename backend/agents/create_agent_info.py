@@ -10,7 +10,10 @@ from database.agent_db import search_agent_info_by_agent_id, search_tools_for_su
     query_or_create_main_agent_id
 from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
 from services.tenant_config_service import get_selected_knowledge_list
+from utils.prompt_template_utils import get_prompt_template_path
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
+from smolagents.agents import populate_template
+from smolagents.utils import BASE_BUILTIN_MODULES
 
 logger = logging.getLogger("create_agent_info")
 
@@ -45,7 +48,36 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
         managed_agents.append(sub_agent_config)
 
     tool_list = await create_tool_config_list(agent_id, tenant_id, user_id)
-    system_prompt = agent_info.get("prompt")
+    
+    # Build system prompt: prioritize segmented fields, fallback to original prompt field if not available
+    duty_prompt = agent_info.get("duty_prompt", "")
+    constraint_prompt = agent_info.get("constraint_prompt", "")
+    few_shots_prompt = agent_info.get("few_shots_prompt", "")
+    
+    # Get template path
+    prompt_template_path = get_prompt_template_path(is_manager=len(managed_agents) > 0, language=language)
+    with open(prompt_template_path, "r", encoding="utf-8") as file:
+        prompt_template = yaml.safe_load(file)
+
+    # Get app information
+    default_app_description = 'Nexent 是一个开源智能体SDK和平台' if language == 'zh' else 'Nexent is an open-source agent SDK and platform'
+    app_name = tenant_config_manager.get_app_config('APP_NAME', tenant_id=tenant_id) or "Nexent"
+    app_description = tenant_config_manager.get_app_config('APP_DESCRIPTION', tenant_id=tenant_id) or default_app_description
+
+    # Assemble system_prompt
+    system_prompt = populate_template(
+        prompt_template["system_prompt"],
+        variables={
+            "duty": duty_prompt,
+            "constraint": constraint_prompt,
+            "few_shots": few_shots_prompt,
+            "tools": {tool.get("name"): tool for tool in tool_list},
+            "managed_agents": {agent.get("name"): agent for agent in managed_agents},
+            "authorized_imports": str(BASE_BUILTIN_MODULES),
+            "APP_NAME": app_name,
+            "APP_DESCRIPTION": app_description
+        },
+    ) if (duty_prompt or constraint_prompt or few_shots_prompt) else agent_info.get("prompt", "")
 
     # special logic
     try:
