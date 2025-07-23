@@ -76,7 +76,7 @@ async def delete_remote_mcp_server_list(tenant_id: str,
 
     return JSONResponse(
         status_code=200,
-        content={"message": "Successfully added remote MCP proxy", "status": "success"}
+        content={"message": "Successfully deleted remote MCP proxy", "status": "success"}
     )
 
 async def get_remote_mcp_server_list(tenant_id: str):
