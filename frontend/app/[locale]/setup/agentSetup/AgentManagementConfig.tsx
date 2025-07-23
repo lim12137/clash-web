@@ -671,8 +671,11 @@ export default function BusinessLogicConfig({
   setIsNewAgentInfoValid,
   onEditingStateChange,
   onToolsRefresh,
+  dutyContent,
   setDutyContent,
+  constraintContent,
   setConstraintContent,
+  fewShotsContent,
   setFewShotsContent
 }: BusinessLogicConfigProps) {
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
@@ -1383,14 +1386,16 @@ export default function BusinessLogicConfig({
     }
   }, [onToolsRefresh]);
 
-  const canSaveAsAgent = selectedAgents.length === 0 && systemPrompt.trim().length > 0 && isNewAgentInfoValid;
+  const canSaveAsAgent = selectedAgents.length === 0 && 
+    (dutyContent?.trim().length > 0 || constraintContent?.trim().length > 0 || fewShotsContent?.trim().length > 0) && 
+    isNewAgentInfoValid;
 
   // Generate more intelligent prompt information according to conditions
   const getButtonTitle = () => {
     if (selectedAgents.length > 0) {
       return t('businessLogic.config.message.noAgentSelected');
     }
-    if (systemPrompt.trim().length === 0) {
+    if (!dutyContent?.trim() && !constraintContent?.trim() && !fewShotsContent?.trim()) {
       return t('businessLogic.config.message.generatePromptFirst');
     }
     if (!isNewAgentInfoValid) {
