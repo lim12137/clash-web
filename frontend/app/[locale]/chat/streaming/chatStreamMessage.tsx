@@ -193,13 +193,13 @@ export function ChatStreamMessage({
                 <div className="px-3 pb-3">
                   <MarkdownRenderer 
                     content={message.finalAnswer} 
-                    searchResults={message.searchResults}
+                    searchResults={message?.searchResults}
                   />
                   
                   {/* Button group */}
                   <div className="flex items-center justify-between mt-3">
                     {/* Source button */}
-                    {((message.searchResults && message.searchResults.length > 0) || (message.images && message.images.length > 0)) && (
+                    {((message?.searchResults && message.searchResults.length > 0) || (message?.images && message.images.length > 0)) && (
                       <div className="flex items-center text-xs text-gray-500">
                         <Button
                           variant="ghost"
