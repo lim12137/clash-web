@@ -5,8 +5,10 @@ import { ChatMessageType } from "@/types/chat"
 import { FilePreview } from "@/app/chat/layout/chatInput"
 import { Button } from "@/components/ui/button"
 import { ChevronDown } from "lucide-react"
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChatStreamFinalMessage } from "./chatStreamFinalMessage"
 import { TaskWindow } from "./taskWindow"
+import { useTranslation } from "react-i18next"
 
 // Define a new message processing structure
 interface ProcessedMessages {
@@ -21,6 +23,8 @@ interface ChatStreamMainProps {
   input: string
   isLoading: boolean
   isStreaming?: boolean
+  isLoadingHistoricalConversation?: boolean
+  conversationLoadError?: string
   onInputChange: (value: string) => void
   onSend: () => void
   onStop: () => void
@@ -42,6 +46,8 @@ export function ChatStreamMain({
   input,
   isLoading,
   isStreaming = false,
+  isLoadingHistoricalConversation = false,
+  conversationLoadError,
   onInputChange,
   onSend,
   onStop,
@@ -57,6 +63,24 @@ export function ChatStreamMain({
   currentConversationId,
   shouldScrollToBottom,
 }: ChatStreamMainProps) {
+  const { t } = useTranslation();
+  // Animation variants for ChatInput
+  const chatInputVariants = {
+    initial: {
+      opacity: 0,
+      y: 80,
+    },
+    animate: {
+      opacity: 1,
+      y: 0,
+    },
+  };
+
+  const chatInputTransition = {
+    type: "spring" as const,
+    stiffness: 300,
+    damping: 80,
+  };
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [showTopFade, setShowTopFade] = useState(false)
@@ -101,8 +125,8 @@ export function ChatStreamMain({
       } 
       // Assistant messages need further processing
       else if (message.role === "assistant") {
-        // If there is a final answer, add it to the final message array
-        if (message.finalAnswer) {
+        // If there is a final answer or content (including empty string), add it to the final message array
+        if (message.finalAnswer || message.content !== undefined) {
           finalMsgs.push(message);
           // Do not reset currentUserMsgId here, continue to use it to associate tasks
         }
@@ -219,7 +243,7 @@ export function ChatStreamMain({
         conversationGroups.delete(key);
       }
     }
-    
+
     setProcessedMessages({
       finalMessages: finalMsgs,
       taskMessages: taskMsgs,
@@ -346,24 +370,66 @@ export function ChatStreamMain({
       <ScrollArea className="flex-1 px-4 pt-4" ref={scrollAreaRef}>
         <div className="max-w-3xl mx-auto">
           {processedMessages.finalMessages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-              <div className="w-full max-w-3xl">
-                <ChatInput
-                  input={input}
-                  isLoading={isLoading}
-                  isStreaming={isStreaming}
-                  isInitialMode={true}
-                  onInputChange={onInputChange}
-                  onSend={onSend}
-                  onStop={onStop}
-                  onKeyDown={onKeyDown}
-                  attachments={attachments}
-                  onAttachmentsChange={onAttachmentsChange}
-                  onFileUpload={onFileUpload}
-                  onImageUpload={onImageUpload}
-                />
-              </div>
-            </div>
+                isLoadingHistoricalConversation ? (
+                  // when loading historical conversation, show empty area
+                  <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+                    <div className="text-gray-500 text-sm">
+                      {t('chatStreamMain.loadingConversation')}
+                    </div>
+                  </div>
+                ) : conversationLoadError ? (
+                  // when conversation load error, show error message
+                  <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+                    <div className="text-center max-w-md">
+                      <div className="text-red-500 text-sm mb-4">
+                        {t('chatStreamMain.loadError')}
+                      </div>
+                      <div className="text-gray-500 text-xs mb-4">
+                        {conversationLoadError}
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          // Trigger a page refresh to retry loading
+                          window.location.reload();
+                        }}
+                      >
+                        {t('chatStreamMain.retry')}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  // when new conversation, show input interface
+                  <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+                    <div className="w-full max-w-3xl">
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key="initial-chat-input"
+                          initial="initial"
+                          animate="animate"
+                          variants={chatInputVariants}
+                          transition={chatInputTransition}
+                        >
+                        <ChatInput
+                          input={input}
+                          isLoading={isLoading}
+                          isStreaming={isStreaming}
+                          isInitialMode={true}
+                          onInputChange={onInputChange}
+                          onSend={onSend}
+                          onStop={onStop}
+                          onKeyDown={onKeyDown}
+                          attachments={attachments}
+                          onAttachmentsChange={onAttachmentsChange}
+                          onFileUpload={onFileUpload}
+                          onImageUpload={onImageUpload}
+                        />
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
+                </div>
+            )
           ) : (
             <>
               {processedMessages.finalMessages.map((message, index) => (
@@ -372,8 +438,8 @@ export function ChatStreamMain({
                     message={message}
                     onSelectMessage={onSelectMessage}
                     isSelected={message.id === selectedMessageId}
-                    searchResultsCount={message.searchResults?.length || 0}
-                    imagesCount={message.images?.length || 0}
+                    searchResultsCount={message?.searchResults?.length || 0}
+                    imagesCount={message?.images?.length || 0}
                     onImageClick={onImageClick}
                     onOpinionChange={onOpinionChange}
                     index={index}
@@ -419,19 +485,29 @@ export function ChatStreamMain({
 
       {/* Input box in non-initial mode */}
       {processedMessages.finalMessages.length > 0 && (
-        <ChatInput
-          input={input}
-          isLoading={isLoading}
-          isStreaming={isStreaming}
-          onInputChange={onInputChange}
-          onSend={onSend}
-          onStop={onStop}
-          onKeyDown={onKeyDown}
-          attachments={attachments}
-          onAttachmentsChange={onAttachmentsChange}
-          onFileUpload={onFileUpload}
-          onImageUpload={onImageUpload}
-        />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="regular-chat-input"
+            initial="initial"
+            animate="animate"
+            variants={chatInputVariants}
+            transition={chatInputTransition}
+          >
+            <ChatInput
+              input={input}
+              isLoading={isLoading}
+              isStreaming={isStreaming}
+              onInputChange={onInputChange}
+              onSend={onSend}
+              onStop={onStop}
+              onKeyDown={onKeyDown}
+              attachments={attachments}
+              onAttachmentsChange={onAttachmentsChange}
+              onFileUpload={onFileUpload}
+              onImageUpload={onImageUpload}
+            />
+          </motion.div>
+        </AnimatePresence>
       )}
 
       {/* Add animation keyframes */}
