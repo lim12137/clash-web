@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { theme, message, Modal } from "antd"
-import { ExclamationCircleFilled, ExclamationCircleOutlined } from '@ant-design/icons'
+import { theme, Modal, message } from "antd"
+import { ExclamationCircleFilled, ExclamationCircleOutlined } from "@ant-design/icons"
+import { motion, AnimatePresence } from "framer-motion"
 import AppModelConfig from "./modelSetup/config"
 import DataConfig from "./knowledgeBaseSetup/KnowledgeBaseManager"
 import AgentConfig from "./agentSetup/AgentConfig"
@@ -112,9 +113,12 @@ export default function CreatePage() {
       localStorage.removeItem('preloaded_kb_data');
       localStorage.removeItem('kb_cache');
       // When entering the second page, get the latest knowledge base data
-      window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
-        detail: { forceRefresh: true }
-      }))
+      // 使用 setTimeout 确保组件完全挂载后再触发事件
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
+          detail: { forceRefresh: true }
+        }))
+      }, 100)
     }
     checkModelEngineConnection()
   }, [selectedKey])
@@ -178,6 +182,28 @@ export default function CreatePage() {
         return null
     }
   }
+
+  // Animation variants for smooth transitions
+  const pageVariants = {
+    initial: {
+      opacity: 0,
+      x: 20,
+    },
+    in: {
+      opacity: 1,
+      x: 0,
+    },
+    out: {
+      opacity: 0,
+      x: -20,
+    },
+  };
+
+  const pageTransition = {
+    type: "tween" as const,
+    ease: "anticipate" as const,
+    duration: 0.4,
+  };
 
   // Handle completed configuration
   const handleCompleteConfig = async () => {
@@ -339,7 +365,31 @@ export default function CreatePage() {
       userRole={user?.role}
       showDebugButton={selectedKey === "3"}
     >
-      {renderContent()}
+      <AnimatePresence
+        mode="wait"
+        onExitComplete={() => {
+          // 当动画完成且切换到第二页时，确保触发知识库数据更新
+          if (selectedKey === "2") {
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
+                detail: { forceRefresh: true }
+              }))
+            }, 50)
+          }
+        }}
+      >
+        <motion.div
+          key={selectedKey}
+          initial="initial"
+          animate="in"
+          exit="out"
+          variants={pageVariants}
+          transition={pageTransition}
+          style={{ width: '100%', height: '100%' }}
+        >
+          {renderContent()}
+        </motion.div>
+      </AnimatePresence>
       <Modal
         title={
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

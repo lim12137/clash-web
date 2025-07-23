@@ -127,7 +127,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       setConnectivityStatus({
         status: result.connectivity ? "available" : "unavailable",
         // Use translated error code if available
-        message: result.error_code ? t(`model.validation.${result.error_code}`) : result.message
+        message: result.error_code ? t(`model.validation.${result.error_code}`) : (result.message || '')
       })
 
       // Display appropriate message based on result
@@ -189,9 +189,9 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       
       // Determine the maximum tokens value
       let maxTokensValue = parseInt(form.maxTokens);
-      if (form.type === "embedding") {
+      if (form.type === "embedding" || form.type === "multi_embedding") {
         // For embedding models, use the vector dimension as maxTokens
-        maxTokensValue = parseInt(form.vectorDimension);
+        maxTokensValue = 0;
       }
       
       // Add to the backend service
@@ -391,18 +391,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         {isEmbeddingModel && (
           <div>
             <label htmlFor="vectorDimension" className="block mb-1 text-sm font-medium text-gray-700">
-              {t('model.dialog.label.vectorDimension')} <span className="text-red-500">*</span>
             </label>
-            <Input
-              id="vectorDimension"
-              placeholder={t('model.dialog.placeholder.vectorDimension')}
-              value={form.vectorDimension}
-              onChange={(e) => handleFormChange("vectorDimension", e.target.value)}
-              status={!isValidVectorDimension(form.vectorDimension) ? "error" : ""}
-            />
-            {!isValidVectorDimension(form.vectorDimension) && (
-              <div className="text-red-500 text-xs mt-1">{t('model.dialog.error.invalidVectorDimension')}</div>
-            )}
           </div>
         )}
 
@@ -465,6 +454,54 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
             <p className="mt-0.5 ml-6">
               {t('model.dialog.help.content')}
             </p>
+            <div className="mt-2 ml-6 flex items-center">
+              <span>{t('model.dialog.label.currentlySupported')}</span>
+              {form.type === 'llm' && (
+                <>
+                  <Tooltip title="OpenAI">
+                    <img src="/openai.png" alt="OpenAI" className="h-4 ml-1.5" />
+                  </Tooltip>
+                  <Tooltip title="Kimi">
+                    <img src="/kimi-color.png" alt="Kimi" className="h-4 ml-1.5" />
+                  </Tooltip>
+                  <Tooltip title="Deepseek">
+                    <img src="/deepseek-color.png" alt="Deepseek" className="h-4 ml-1.5" />
+                  </Tooltip>
+                  <Tooltip title="Qwen">
+                    <img src="/qwen-color.png" alt="Qwen" className="h-4 ml-1.5" />
+                  </Tooltip>
+                  <span className="ml-1.5">...</span>
+                </>
+              )}
+              {form.type === 'embedding' && (
+                <>
+                  <Tooltip title="OpenAI">
+                    <img src="/openai.png" alt="OpenAI" className="h-4 ml-1.5" />
+                  </Tooltip>
+                  <Tooltip title="Qwen">
+                    <img src="/qwen-color.png" alt="Qwen" className="h-4 ml-1.5" />
+                  </Tooltip>
+                  <Tooltip title="Jina">
+                    <img src="/jina.png" alt="Jina" className="h-4 ml-1.5" />
+                  </Tooltip>
+                  <Tooltip title="Baai">
+                    <img src="/baai.png" alt="Baai" className="h-4 ml-1.5" />
+                  </Tooltip>
+                  <span className="ml-1.5">...</span>
+                </>
+              )}
+              {form.type === 'vlm' && (
+                <>
+                  <Tooltip title="Qwen">
+                    <img src="/qwen-color.png" alt="Qwen" className="h-4 ml-1.5" />
+                  </Tooltip>
+                  <Tooltip title="Deepseek">
+                    <img src="/deepseek-color.png" alt="Deepseek" className="h-4 ml-1.5" />
+                  </Tooltip>
+                  <span className="ml-1.5">...</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
