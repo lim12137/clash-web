@@ -16,14 +16,16 @@ import { useUIContext } from './UIStateManager'
 import knowledgeBaseService from '@/services/knowledgeBaseService'
 import knowledgeBasePollingService from '@/services/knowledgeBasePollingService'
 import { API_ENDPOINTS } from '@/services/api'
+import { 
+  SETUP_PAGE_CONTAINER, 
+  FLEX_TWO_COLUMN_LAYOUT,
+  STANDARD_CARD
+} from '@/lib/layoutConstants'
 
 // Import new components
 import KnowledgeBaseList from './knowledgeBase/KnowledgeBaseList'
-import DocumentList from './document/DocumentListContainer'
+import DocumentList from './document/DocumentListLayout'
 import ConfirmModal from './components/ConfirmModal'
-
-// Layout Height Constant Configuration (shared with AgentConfig)
-export const MAIN_CONTENT_HEIGHT = '72.5vh';
 
 // EmptyState component defined directly in this file
 interface EmptyStateProps {
@@ -100,7 +102,6 @@ function DataConfig({ isActive }: DataConfigProps) {
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
     refreshKnowledgeBaseData,
-    summaryIndex,
     loadUserSelectedKnowledgeBases,
     saveUserSelectedKnowledgeBases,
   } = useKnowledgeBaseContext();
@@ -124,7 +125,6 @@ function DataConfig({ isActive }: DataConfigProps) {
   const [newKbName, setNewKbName] = useState("");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [hasClickedUpload, setHasClickedUpload] = useState(false);
-  const [nameExists, setNameExists] = useState(false);
 
   // 添加监听选中新知识库的事件
   useEffect(() => {
@@ -133,7 +133,6 @@ function DataConfig({ isActive }: DataConfigProps) {
       if (knowledgeBase) {
         setIsCreatingMode(false);
         setHasClickedUpload(false);
-        setNameExists(false);
         setActiveKnowledgeBase(knowledgeBase);
         fetchDocuments(knowledgeBase.id);
       }
@@ -285,7 +284,6 @@ const getAuthHeaders = () => {
       hasUserInteractedRef.current = true; // 标记用户有交互
       setIsCreatingMode(false); // Reset creating mode
       setHasClickedUpload(false); // 重置上传按钮点击状态
-      setNameExists(false); // 重置名称存在状态
     }
 
     // 无论是否切换知识库，都需要获取最新文档信息
@@ -405,7 +403,6 @@ const getAuthHeaders = () => {
     setNewKbName(defaultName);
     setIsCreatingMode(true);
     setHasClickedUpload(false); // 重置上传按钮点击状态
-    setNameExists(false); // 重置名称存在状态
     setUploadFiles([]); // 重置上传文件数组，清空所有待上传文件
   };
 
@@ -451,7 +448,6 @@ const getAuthHeaders = () => {
       
       try {
         const nameExistsResult = await knowledgeBaseService.checkKnowledgeBaseNameExists(newKbName.trim());
-        setNameExists(nameExistsResult);
 
         if (nameExistsResult) {
           message.error(t('knowledgeBase.message.nameExists', { name: newKbName.trim() }));
@@ -475,7 +471,6 @@ const getAuthHeaders = () => {
         setActiveKnowledgeBase(newKB);
         knowledgeBasePollingService.setActiveKnowledgeBase(newKB.id);
         setHasClickedUpload(false);
-        setNameExists(false);
 
         await uploadDocuments(newKB.id, filesToUpload);
         setUploadFiles([]);
@@ -576,22 +571,6 @@ const getAuthHeaders = () => {
     }, 500); // Delay execution, lower priority
   }
 
-  // Handle auto summary
-  const handleAutoSummary = async () => {
-    if (!kbState.activeKnowledgeBase) {
-      message.warning(t('knowledgeBase.message.selectFirst'));
-      return;
-    }
-
-    try {
-      const summary = await summaryIndex(viewingKbName, 10);
-      message.success(t('knowledgeBase.message.summarySuccess'));
-    } catch (error) {
-      message.error(t('knowledgeBase.message.summaryError'));
-      console.error(t('knowledgeBase.error.getSummary'), error);
-    }
-  };
-
   // 在组件初始化或活动知识库变化时更新轮询服务中的活动知识库ID
   useEffect(() => {
     if (kbState.activeKnowledgeBase) {
@@ -614,20 +593,24 @@ const getAuthHeaders = () => {
   // 创建模式下，知识库名称变化时，重置"名称已存在"状态
   const handleNameChange = (name: string) => {
     setNewKbName(name);
-    setNameExists(false);
   };
 
   return (
     <>
       <div 
-        className="flex h-full pl-[16px] pr-[2px]"
+        className="w-full mx-auto"
+        style={{ 
+          maxWidth: SETUP_PAGE_CONTAINER.MAX_WIDTH,
+          padding: `0 ${SETUP_PAGE_CONTAINER.HORIZONTAL_PADDING}`
+        }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* Left knowledge base list - occupies 1/3 space */}
-        <div className="w-1/3 pr-3">
-          <KnowledgeBaseList
+        <div className="flex h-full" style={{ gap: FLEX_TWO_COLUMN_LAYOUT.GAP }}>
+          {/* Left knowledge base list - occupies 1/3 space */}
+          <div style={{ width: FLEX_TWO_COLUMN_LAYOUT.LEFT_WIDTH }}>
+            <KnowledgeBaseList
             knowledgeBases={kbState.knowledgeBases}
             selectedIds={kbState.selectedIds}
             activeKnowledgeBase={kbState.activeKnowledgeBase}
@@ -640,75 +623,71 @@ const getAuthHeaders = () => {
             onCreateNew={handleCreateNew}
             isSelectable={isKnowledgeBaseSelectable}
             getModelDisplayName={(modelId) => modelId}
-            containerHeight={MAIN_CONTENT_HEIGHT}
+            containerHeight={SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT}
             onKnowledgeBaseChange={() => {}} // No need to trigger repeatedly here as it's already handled in handleKnowledgeBaseClick
           />
         </div>
-        
-        {/* Right content area - occupies 2/3 space, now unified with config.tsx style */}
-        <div className="w-2/3 pr-3.5 flex flex-col h-full">
-          <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
-            <div style={{
-              background: "#fff",
-              overflowY: "auto",
-              overflowX: "hidden"
-            }}>
-              {isCreatingMode ? (
-                <DocumentList
-                  documents={[]}
-                  onDelete={() => {}}
-                  isCreatingMode={true}
-                  knowledgeBaseName={newKbName}
-                  onNameChange={handleNameChange}
-                  containerHeight={MAIN_CONTENT_HEIGHT}
-                  hasDocuments={hasClickedUpload || docState.isUploading}
-                  // Upload related props
-                  isDragging={uiState.isDragging}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onFileSelect={handleFileSelect}
-                  selectedFiles={uploadFiles}
-                  onUpload={() => handleFileUpload()}
-                  isUploading={docState.isUploading}
+          
+          {/* Right content area - occupies 2/3 space, now unified with config.tsx style */}
+          <div style={{ width: FLEX_TWO_COLUMN_LAYOUT.RIGHT_WIDTH }}>
+            {isCreatingMode ? (
+              <DocumentList
+                documents={[]}
+                onDelete={() => {}}
+                isCreatingMode={true}
+                knowledgeBaseName={newKbName}
+                onNameChange={handleNameChange}
+                containerHeight={SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT}
+                hasDocuments={hasClickedUpload || docState.isUploading}
+                // Upload related props
+                isDragging={uiState.isDragging}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onFileSelect={handleFileSelect}
+                onUpload={() => handleFileUpload()}
+                isUploading={docState.isUploading}
+              />
+            ) : kbState.activeKnowledgeBase ? (
+              <DocumentList
+                documents={viewingDocuments}
+                onDelete={handleDeleteDocument}
+                knowledgeBaseName={viewingKbName}
+                modelMismatch={!isKnowledgeBaseSelectable(kbState.activeKnowledgeBase)}
+                currentModel={kbState.currentEmbeddingModel || ''}
+                knowledgeBaseModel={kbState.activeKnowledgeBase.embeddingModel}
+                embeddingModelInfo={
+                  !isKnowledgeBaseSelectable(kbState.activeKnowledgeBase) ?
+                  `当前模型${kbState.currentEmbeddingModel || ''}与知识库模型${kbState.activeKnowledgeBase.embeddingModel}不匹配，无法使用` :
+                  undefined
+                }
+                containerHeight={SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT}
+                hasDocuments={viewingDocuments.length > 0}
+                // Upload related props
+                isDragging={uiState.isDragging}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onFileSelect={handleFileSelect}
+                onUpload={() => handleFileUpload()}
+                isUploading={docState.isUploading}
+              />
+            ) : (
+              <div className={STANDARD_CARD.BASE_CLASSES} style={{ 
+                height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
+                padding: STANDARD_CARD.PADDING,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <EmptyState
+                  title={t('knowledgeBase.empty.title')}
+                  description={t('knowledgeBase.empty.description')}
+                  icon={<InfoCircleFilled style={{ fontSize: 36, color: '#1677ff' }} />}
+                  containerHeight="100%"
                 />
-              ) : kbState.activeKnowledgeBase ? (
-                <DocumentList
-                  documents={viewingDocuments}
-                  onDelete={handleDeleteDocument}
-                  knowledgeBaseName={viewingKbName}
-                  loading={docState.loadingKbIds.has(kbState.activeKnowledgeBase.id)}
-                  modelMismatch={!isKnowledgeBaseSelectable(kbState.activeKnowledgeBase)}
-                  currentModel={kbState.currentEmbeddingModel || ''}
-                  knowledgeBaseModel={kbState.activeKnowledgeBase.embeddingModel}
-                  embeddingModelInfo={
-                    !isKnowledgeBaseSelectable(kbState.activeKnowledgeBase) ?
-                    `当前模型${kbState.currentEmbeddingModel || ''}与知识库模型${kbState.activeKnowledgeBase.embeddingModel}不匹配，无法使用` :
-                    undefined
-                  }
-                  containerHeight={MAIN_CONTENT_HEIGHT}
-                  hasDocuments={viewingDocuments.length > 0}
-                  // Upload related props
-                  isDragging={uiState.isDragging}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onFileSelect={handleFileSelect}
-                  selectedFiles={uploadFiles}
-                  onUpload={() => handleFileUpload()}
-                  isUploading={docState.isUploading}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <EmptyState
-                    title={t('knowledgeBase.empty.title')}
-                    description={t('knowledgeBase.empty.description')}
-                    icon={<InfoCircleFilled style={{ fontSize: 36, color: '#1677ff' }} />}
-                    containerHeight={MAIN_CONTENT_HEIGHT}
-                  />
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -6,7 +6,7 @@ import logging
 from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest
 from database.model_management_db import create_model_record, update_model_record, delete_model_record, \
     get_model_records, get_model_by_name, get_model_by_display_name
-from services.model_health_service import check_model_connectivity, verify_model_config_connectivity
+from services.model_health_service import check_model_connectivity, verify_model_config_connectivity, embedding_dimension_check
 from utils.model_name_utils import split_repo_name, add_repo_to_name
 from utils.auth_utils import get_current_user_id
 
@@ -41,6 +41,9 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
                     message=f"Name {model_data['display_name']} is already in use, please choose another display name",
                     data=None
                 )
+
+        if model_data.get("model_type") == "embedding" or model_data.get("model_type") == "multi_embedding":
+            model_data["max_tokens"] = await embedding_dimension_check(model_data)
 
         # Check if this is a multimodal embedding model
         is_multimodal = model_data.get("model_type") == "multi_embedding"
