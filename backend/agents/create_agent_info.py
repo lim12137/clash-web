@@ -71,8 +71,8 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             "duty": duty_prompt,
             "constraint": constraint_prompt,
             "few_shots": few_shots_prompt,
-            "tools": {tool.get("name"): tool for tool in tool_list},
-            "managed_agents": {agent.get("name"): agent for agent in managed_agents},
+            "tools": {tool.name: tool for tool in tool_list},
+            "managed_agents": {agent.name: agent for agent in managed_agents},
             "authorized_imports": str(BASE_BUILTIN_MODULES),
             "APP_NAME": app_name,
             "APP_DESCRIPTION": app_description
@@ -120,6 +120,10 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
             param_dict[param["name"]] = param.get("default")
         tool_config = ToolConfig(
             class_name=tool.get("class_name"),
+            name=tool.get("name"),
+            description=tool.get("description"),
+            inputs=tool.get("inputs"),
+            output_type=tool.get("output_type"),
             params=param_dict,
             source=tool.get("source")
         )
