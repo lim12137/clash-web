@@ -390,6 +390,12 @@ export const handleStreamResponse = async (
                       const recordMessages = [...prev];
                       const lastMsg = recordMessages[recordMessages.length - 1];
 
+                      // Check if lastMsg exists before accessing its properties
+                      if (!lastMsg) {
+                        console.warn('No last message found when processing search results');
+                        return recordMessages;
+                      }
+
                       if (!lastMsg.searchResults) {
                         lastMsg.searchResults = [];
                       }
@@ -419,6 +425,12 @@ export const handleStreamResponse = async (
                       setMessages((prev) => {
                         const newMessages = [...prev];
                         const lastMsg = newMessages[newMessages.length - 1];
+
+                        // Check if lastMsg exists before accessing its properties
+                        if (!lastMsg) {
+                          console.warn('No last message found when processing images');
+                          return newMessages;
+                        }
 
                         // If there is no image array, initialize it
                         if (!lastMsg.images) {
