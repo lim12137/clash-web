@@ -337,8 +337,6 @@ export default function AgentConfig() {
               overflowX: "hidden"
             }}>
                 <SystemPromptDisplay
-                  prompt={systemPrompt}
-                  onPromptChange={setSystemPrompt}
                   onDebug={() => {
                     setIsDebugDrawerOpen(true);
                     setCurrentGuideStep(isCreatingNewAgent ? 5 : 5);
