@@ -76,12 +76,13 @@ const PromptEditor = ({ value, onChange, placeholder }: {
       setInternalValue(value)
       lastExternalValueRef.current = value
 
-      // 直接调用 onChange 以确保外部状态同步，但不通过防抖
-      if (onChange) {
-        onChange(value)
-      }
+      // 移除这里的onChange调用，避免无限循环
+      // 外部值变化时不应该再次调用onChange回调
+      // if (onChange) {
+      //   onChange(value)
+      // }
     }
-  }, [value, onChange])
+  }, [value]) // 移除onChange依赖，避免重新创建effect
 
   const { get } = useEditor((root) => {
     return Editor
@@ -112,7 +113,7 @@ const PromptEditor = ({ value, onChange, placeholder }: {
       try {
         editor.action(ctx => {
           const parser = ctx.get(parserCtx);
-          const parsedNode = parser(value) || '';
+          const parsedNode = parser(value || '') || '';
           const newFragment = parsedNode.content; 
 
           const view = ctx.get(editorViewCtx);
@@ -124,13 +125,15 @@ const PromptEditor = ({ value, onChange, placeholder }: {
             )
           );
         })
-        setInternalValue(value)
+        setInternalValue(value || '')
+        lastExternalValueRef.current = value || ''
       } catch (error) {
         console.warn('Failed to update editor content directly:', error)
-        setInternalValue(value)
+        setInternalValue(value || '')
+        lastExternalValueRef.current = value || ''
       }
     }
-  }, [value, internalValue, get])
+  }, [value, internalValue, get]) // 确保依赖正确
 
   return (
     <div className="milkdown-editor-container h-full">
@@ -225,6 +228,8 @@ export default function SystemPromptDisplay({
   onConstraintContentChange,
   onFewShotsContentChange
 }: SystemPromptDisplayProps) {
+  // console.log('constraintContent 完整内容:\n', constraintContent);
+
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tunedPrompt, setTunedPrompt] = useState("")
   const [isTuning, setIsTuning] = useState(false)
@@ -285,34 +290,52 @@ export default function SystemPromptDisplay({
 
   // Update local state and original references
   useEffect(() => {
-    setLocalDutyContent(dutyContent);
-    setLocalConstraintContent(constraintContent);
-    setLocalFewShotsContent(fewShotsContent);
-  }, [dutyContent, constraintContent, fewShotsContent]);
+    // 只在值真正发生变化时才更新，避免不必要的重新渲染
+    if (dutyContent !== localDutyContent) {
+      setLocalDutyContent(dutyContent);
+    }
+    if (constraintContent !== localConstraintContent) {
+      setLocalConstraintContent(constraintContent);
+    }
+    if (fewShotsContent !== localFewShotsContent) {
+      setLocalFewShotsContent(fewShotsContent);
+    }
+  }, [dutyContent, constraintContent, fewShotsContent, localDutyContent, localConstraintContent, localFewShotsContent]);
 
   // Render card view - always render 3 cards with equal height
   const renderCardView = () => {
+    // console.log('localConstraintContent (约束部分) 完整内容:\n', localConstraintContent);
+    
     return (
       <div className="grid grid-rows-3 h-full gap-4">
         <PromptCard
           title={t('systemPrompt.card.duty.title')}
           content={localDutyContent}
           index={1}
-          onChange={setLocalDutyContent}
+          onChange={(value) => {
+            setLocalDutyContent(value);
+            onDutyContentChange?.(value);
+          }}
           onExpand={handleExpandCard}
         />
         <PromptCard
           title={t('systemPrompt.card.constraint.title')}
           content={localConstraintContent}
           index={2}
-          onChange={setLocalConstraintContent}
+          onChange={(value) => {
+            setLocalConstraintContent(value);
+            onConstraintContentChange?.(value);
+          }}
           onExpand={handleExpandCard}
         />
         <PromptCard
           title={t('systemPrompt.card.fewShots.title')}
           content={localFewShotsContent}
           index={3}
-          onChange={setLocalFewShotsContent}
+          onChange={(value) => {
+            setLocalFewShotsContent(value);
+            onFewShotsContentChange?.(value);
+          }}
           onExpand={handleExpandCard}
         />
       </div>
@@ -497,13 +520,13 @@ export default function SystemPromptDisplay({
       {/* Expand Card Content Modal */}
       <Modal
         title={
-          <div className="flex justify-between items-center pr-4">
-            <span>{expandTitle}</span>
+          <div className="flex justify-end items-center pr-4">
             <button
-              onClick={handleSaveExpandedContent}
-              className="px-4 py-1.5 rounded-md text-sm bg-green-500 text-white hover:bg-green-600 transition-colors"
+              onClick={handleCloseExpandedModal}
+              className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+              style={{ border: "none" }}
             >
-              保存
+              {t('systemPrompt.button.close')}
             </button>
           </div>
         }
