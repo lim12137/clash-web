@@ -98,8 +98,8 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
         logger.error(f"add knowledge base summary to system prompt failed, error: {e}")
 
     agent_config = AgentConfig(
-        name="" if agent_info["name"] is None else agent_info["name"],
-        description="" if agent_info["description"] is None else agent_info["description"],
+        name="undefined" if agent_info["name"] is None else agent_info["name"],
+        description="undefined" if agent_info["description"] is None else agent_info["description"],
         prompt_templates=await prepare_prompt_templates(is_manager=len(managed_agents)>0, system_prompt=system_prompt, language=language),
         tools=tool_list,
         max_steps=agent_info.get("max_steps", 10),
