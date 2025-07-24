@@ -166,8 +166,7 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
     # Wait for all threads to complete
     for t in threads:
         t.join(timeout=5)
-    
-    # 确保所有已完成的线程都发送了最后的完成状态
+
     for tag in ["duty", "constraint", "few_shots"]:
         if stop_flags[tag] and latest[tag] != last_results[tag]:
             result_data = {

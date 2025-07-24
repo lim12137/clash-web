@@ -31,8 +31,7 @@ export interface SystemPromptDisplayProps {
 // Debounce utility function
 const useDebounce = (callback: (...args: any[]) => void, delay: number) => {
   const timeoutRef = useRef<NodeJS.Timeout>()
-  
-  // 在组件卸载时清理定时器
+
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -60,7 +59,7 @@ const PromptEditor = ({ value, onChange, placeholder }: {
   const lastExternalValueRef = useRef(value)
   const debouncedOnChange = useDebounce(onChange, 300)
   
-  // 处理用户输入变化 - 使用防抖
+  // 处理用户输入变化
   const handleUserChange = useCallback((newValue: string) => {
     isUserEditingRef.current = true
     setInternalValue(newValue)
@@ -70,19 +69,13 @@ const PromptEditor = ({ value, onChange, placeholder }: {
     }, 500)
   }, [debouncedOnChange])
   
-  // 处理外部值变化 - 立即更新（用于 API 流式输出）
+  // 处理外部值变化 - API流式输出
   useEffect(() => {
     if (value !== lastExternalValueRef.current && !isUserEditingRef.current) {
       setInternalValue(value)
       lastExternalValueRef.current = value
-
-      // 移除这里的onChange调用，避免无限循环
-      // 外部值变化时不应该再次调用onChange回调
-      // if (onChange) {
-      //   onChange(value)
-      // }
     }
-  }, [value]) // 移除onChange依赖，避免重新创建effect
+  }, [value])
 
   const { get } = useEditor((root) => {
     return Editor
@@ -95,7 +88,6 @@ const PromptEditor = ({ value, onChange, placeholder }: {
         const listenerManager = ctx.get(listenerCtx)
         listenerManager.markdownUpdated((ctx, markdown, prevMarkdown) => {
           if (markdown !== prevMarkdown) {
-            // 处理用户编辑行为
             handleUserChange(markdown)
           }
         })
@@ -105,7 +97,7 @@ const PromptEditor = ({ value, onChange, placeholder }: {
       .use(listener)
   }, []) // 只在组件挂载时创建一次
 
-  // 当外部值变化时，直接更新编辑器内容（不重新创建编辑器）
+  // 当外部值变化时，直接更新编辑器内容，不重新创建编辑器
   useEffect(() => {
     const editor = get()
   
@@ -133,7 +125,7 @@ const PromptEditor = ({ value, onChange, placeholder }: {
         lastExternalValueRef.current = value || ''
       }
     }
-  }, [value, internalValue, get]) // 确保依赖正确
+  }, [value, internalValue, get])
 
   return (
     <div className="milkdown-editor-container h-full">
@@ -180,7 +172,7 @@ const PromptCard = ({ title, content, index, onChange, onExpand }: {
           <button
             onClick={() => onExpand?.(title, content, index)}
             className="text-gray-500 hover:text-gray-700 transition-colors duration-200 p-1 rounded"
-            title="放大查看"
+            title={t('systemPrompt.button.expand')}
           >
             <ExpandAltOutlined />
           </button>
@@ -228,8 +220,6 @@ export default function SystemPromptDisplay({
   onConstraintContentChange,
   onFewShotsContentChange
 }: SystemPromptDisplayProps) {
-  // console.log('constraintContent 完整内容:\n', constraintContent);
-
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tunedPrompt, setTunedPrompt] = useState("")
   const [isTuning, setIsTuning] = useState(false)
@@ -276,9 +266,7 @@ export default function SystemPromptDisplay({
         break;
     }
 
-    // 确保状态更新后再关闭模态框
     Promise.resolve().then(() => {
-      message.success('内容已保存');
       setExpandModalOpen(false);
     });
   }
@@ -290,7 +278,6 @@ export default function SystemPromptDisplay({
 
   // Update local state and original references
   useEffect(() => {
-    // 只在值真正发生变化时才更新，避免不必要的重新渲染
     if (dutyContent !== localDutyContent) {
       setLocalDutyContent(dutyContent);
     }
@@ -304,8 +291,6 @@ export default function SystemPromptDisplay({
 
   // Render card view - always render 3 cards with equal height
   const renderCardView = () => {
-    // console.log('localConstraintContent (约束部分) 完整内容:\n', localConstraintContent);
-    
     return (
       <div className="grid grid-rows-3 h-full gap-4">
         <PromptCard

@@ -289,6 +289,7 @@
     "systemPrompt.button.close": "Close",
     "systemPrompt.button.tune": "Tune",
     "systemPrompt.button.debug": "Debug",
+    "systemPrompt.button.expand": "Expand View",
     "systemPrompt.modal.title": "Prompt Tuning",
     "systemPrompt.modal.result": "Tuned Prompt:",
     "systemPrompt.modal.button.save": "Save to Configuration",
