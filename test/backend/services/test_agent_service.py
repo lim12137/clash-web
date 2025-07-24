@@ -246,7 +246,9 @@ def test_list_main_agent_info_impl_success(mock_get_current_user_id, mock_query_
         "model_name": "gpt-4",
         "max_steps": 10,
         "business_description": "Test agent",
-        "prompt": "Test prompt"
+        "duty_prompt": "Test duty prompt",
+        "constraint_prompt": "Test constraint prompt",
+        "few_shots_prompt": "Test few shots prompt"
     }
     mock_query_sub_agents.return_value = [{"agent_id": 456, "name": "Sub Agent"}]
     mock_get_enable_tools.return_value = [1, 2, 3]
@@ -264,7 +266,9 @@ def test_list_main_agent_info_impl_success(mock_get_current_user_id, mock_query_
         "model_name": "gpt-4",
         "max_steps": 10,
         "business_description": "Test agent",
-        "prompt": "Test prompt"
+        "duty_prompt": "Test duty prompt",
+        "constraint_prompt": "Test constraint prompt",
+        "few_shots_prompt": "Test few shots prompt"
     }
     assert result == expected_result
 
@@ -319,7 +323,9 @@ def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_id, mock
         "model_name": "gpt-4",
         "max_steps": 5,
         "business_description": "Sub agent",
-        "prompt": "Sub prompt"
+        "duty_prompt": "Sub duty prompt",
+        "constraint_prompt": "Sub constraint prompt",
+        "few_shots_prompt": "Sub few shots prompt"
     }
     mock_get_enable_tools.return_value = [1, 2]
     
@@ -333,7 +339,9 @@ def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_id, mock
         "model_name": "gpt-4",
         "max_steps": 5,
         "business_description": "Sub agent",
-        "prompt": "Sub prompt"
+        "duty_prompt": "Sub duty prompt",
+        "constraint_prompt": "Sub constraint prompt",
+        "few_shots_prompt": "Sub few shots prompt"
     }
     assert result == expected_result
 
@@ -491,7 +499,9 @@ async def test_export_agent_impl_success(mock_get_current_user_id, mock_search_a
         "model_name": "main_model",
         "max_steps": 10,
         "provide_run_summary": True,
-        "prompt": "Test prompt",
+        "duty_prompt": "Test duty prompt",
+        "constraint_prompt": "Test constraint prompt",
+        "few_shots_prompt": "Test few shots prompt",
         "enabled": True
     }
     mock_search_agent.return_value = mock_agent_info
@@ -561,7 +571,9 @@ def test_import_agent_impl_success(mock_get_current_user_id, mock_query_all_tool
         model_name="main_model",
         max_steps=5,
         provide_run_summary=True,
-        prompt="Imported prompt",
+        duty_prompt="Imported duty prompt",
+        constraint_prompt="Imported constraint prompt",
+        few_shots_prompt="Imported few shots prompt",
         enabled=True,
         tools=[tool_config],
         managed_agents=[]

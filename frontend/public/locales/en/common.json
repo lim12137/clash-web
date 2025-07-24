@@ -253,6 +253,7 @@
         "parseSSEFailed": "Failed to parse SSE data:",
         "processRemainingDataFailed": "Failed to process remaining data:",
         "thinking": "Thinking...",
+        "connectingMcpServer": "Connecting to MCP server...",
         "generateTitleFailed": "Failed to generate title:",
         "streamResponseError": "Error processing streaming response:",
         "userInterrupted": "Chat ended by user."
@@ -332,6 +333,9 @@
     "systemPrompt.message.empty": "Please generate system prompt first",
     "systemPrompt.message.noAgentId": "Cannot save prompt: Agent ID not specified",
     "systemPrompt.message.emptyTuning": "Please enter tuning instruction",
+    "systemPrompt.card.duty.title": "Agent Introduction",
+    "systemPrompt.card.constraint.title": "Usage Requirements",
+    "systemPrompt.card.fewShots.title": "Few Shots",
     "toolConfig.source.mcp": "MCP",
     "toolConfig.source.local": "Local Tool",
     "toolConfig.title.paramConfig": "Parameter Configuration",
@@ -896,9 +900,10 @@
     "mcpConfig.serverList.column.action": "Actions",
     "mcpConfig.serverList.button.viewTools": "View Tools",
     "mcpConfig.serverList.button.delete": "Delete",
-    "mcpConfig.serverList.button.remount": "Remount",
-    "mcpConfig.serverList.empty": "No MCP servers configured",
-    "mcpConfig.serverList.remountTitle": "Remount all MCP servers",
+    "mcpConfig.serverList.statusCheckHint": "Click to check server connectivity",
+    "mcpConfig.serverList.statusCheckSuccess": "Server connectivity check succeeded",
+    "mcpConfig.serverList.statusCheckFailed": "Server connectivity check failed",
+    "mcpConfig.serverList.button.viewToolsDisabledHint": "Please check MCP service availability first",
     "mcpConfig.toolsList.title": "Available Tools",
     "mcpConfig.toolsList.column.name": "Tool Name",
     "mcpConfig.toolsList.column.description": "Description",
@@ -975,5 +980,12 @@
         "loadingConversation": "Loading conversation content...",
         "loadError": "Failed to load conversation",
         "retry": "Retry"
+    },
+    "mcpConfig": {
+        "message": {
+            "healthCheckFailed": "Cannot connect to mcp server, please check if the server is running",
+            "healthChecking": "Trying to connect to mcp server {{name}}",
+            "healthCheckSuccess": "Mcp server connected successfully"
+        }
     }
 }
