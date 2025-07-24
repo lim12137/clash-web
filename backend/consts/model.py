@@ -272,3 +272,14 @@ class ExportAndImportAgentInfo(BaseModel):
 class AgentImportRequest(BaseModel):
     agent_id: int
     agent_info: ExportAndImportAgentInfo
+
+
+class ConvertStateRequest(BaseModel):
+    """Request schema for /tasks/convert_state endpoint"""
+    process_state: str = ""
+    forward_state: str = ""
+
+
+class ConvertStateResponse(BaseModel):
+    """Response schema for /tasks/convert_state endpoint"""
+    state: str

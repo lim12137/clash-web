@@ -7,17 +7,20 @@ from nexent.data_process import DataProcessCore
 from database.attachment_db import get_file_stream
 
 logger = logging.getLogger(__name__)
-NUM_CPUS = int(os.getenv("RAY_NUM_CPUS", "1"))
+# This now controls the number of CPUs requested by each DataProcessorRayActor instance.
+# It allows a single file processing task to potentially use more than one core if the
+# underlying processing library (e.g., unstructured) can leverage it.
+RAY_ACTOR_NUM_CPUS = int(os.getenv("RAY_ACTOR_NUM_CPUS", "2"))
 
 
-@ray.remote(num_cpus=NUM_CPUS)
+@ray.remote(num_cpus=RAY_ACTOR_NUM_CPUS)
 class DataProcessorRayActor:
     """
     Ray actor for handling data processing tasks.
     Encapsulates the DataProcessCore to be used in a Ray cluster.
     """
     def __init__(self):
-        logger.info(f"Ray starting using {NUM_CPUS} CPUs...")
+        logger.info(f"Ray actor initialized using {RAY_ACTOR_NUM_CPUS} CPU cores...")
         self._processor = DataProcessCore()
 
     def process_file(self, source: str, chunking_strategy: str, destination: str, task_id: Optional[str] = None, **params) -> List[Dict[str, Any]]:
