@@ -289,6 +289,7 @@
     "systemPrompt.button.close": "关闭",
     "systemPrompt.button.tune": "微调",
     "systemPrompt.button.debug": "调试",
+    "systemPrompt.button.expand": "放大查看",
     "systemPrompt.modal.title": "提示词微调",
     "systemPrompt.modal.result": "微调后的提示词:",
     "systemPrompt.modal.button.save": "保存到配置",

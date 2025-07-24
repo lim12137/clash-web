@@ -896,9 +896,9 @@ export default function BusinessLogicConfig({
             provide_run_summary,
             undefined,
             business_description,
-            dutyContent,        // 传递右侧 PromptCard 的内容
-            constraintContent,  // 传递右侧 PromptCard 的内容
-            fewShotsContent     // 传递右侧 PromptCard 的内容
+            dutyContent,
+            constraintContent,
+            fewShotsContent
           );
         } else {
           result = await updateAgent(
@@ -910,9 +910,9 @@ export default function BusinessLogicConfig({
             provide_run_summary,
             undefined,
             business_description,
-            dutyContent,        // 传递右侧 PromptCard 的内容
-            constraintContent,  // 传递右侧 PromptCard 的内容
-            fewShotsContent     // 传递右侧 PromptCard 的内容
+            dutyContent,
+            constraintContent,
+            fewShotsContent
           );
         }
 
