@@ -53,6 +53,11 @@ export default function AgentConfig() {
   const [isNewAgentInfoValid, setIsNewAgentInfoValid] = useState(false)
   const [isEditingAgent, setIsEditingAgent] = useState(false)
   const [editingAgent, setEditingAgent] = useState<any>(null)
+  
+  // Add state for three segmented content sections
+  const [dutyContent, setDutyContent] = useState("")
+  const [constraintContent, setConstraintContent] = useState("")
+  const [fewShotsContent, setFewShotsContent] = useState("")
 
   // Only auto scan once flag
   const hasAutoScanned = useRef(false)
@@ -113,8 +118,14 @@ export default function AgentConfig() {
         if (result.data.businessDescription) {
           setBusinessLogic(result.data.businessDescription);
         }
-        if (result.data.prompt) {
-          setSystemPrompt(result.data.prompt);
+        if (result.data.dutyPrompt) {
+          setDutyContent(result.data.dutyPrompt);
+        }
+        if (result.data.constraintPrompt) {
+          setConstraintContent(result.data.constraintPrompt);
+        }
+        if (result.data.fewShotsPrompt) {
+          setFewShotsContent(result.data.fewShotsPrompt);
         }
       } else {
         message.error(result.message || t('agent.error.fetchAgentList'));
@@ -136,11 +147,23 @@ export default function AgentConfig() {
   // add event listener to respond to the data request from the main page
   useEffect(() => {
     const handleGetAgentConfigData = () => {
+      // Check if there is system prompt content
+      let hasSystemPrompt = false;
+      
+      // If any of the segmented prompts has content, consider it as having system prompt
+      if (dutyContent && dutyContent.trim() !== '') {
+        hasSystemPrompt = true;
+      } else if (constraintContent && constraintContent.trim() !== '') {
+        hasSystemPrompt = true;
+      } else if (fewShotsContent && fewShotsContent.trim() !== '') {
+        hasSystemPrompt = true;
+      }
+      
       // send the current configuration data to the main page
       window.dispatchEvent(new CustomEvent('agentConfigDataResponse', {
         detail: {
           businessLogic: businessLogic,
-          systemPrompt: systemPrompt
+          systemPrompt: hasSystemPrompt ? 'has_content' : ''
         }
       }));
     };
@@ -150,7 +173,7 @@ export default function AgentConfig() {
     return () => {
       window.removeEventListener('getAgentConfigData', handleGetAgentConfigData);
     };
-  }, [businessLogic, systemPrompt]);
+  }, [businessLogic, dutyContent, constraintContent, fewShotsContent]);
 
   // When the tool list is loaded, check and set the enabled tools
   useEffect(() => {
@@ -208,7 +231,7 @@ export default function AgentConfig() {
     return mainAgentId ? parseInt(mainAgentId) : undefined
   }
 
-  // 刷新工具列表
+  // Refresh tool list
   const handleToolsRefresh = async () => {
     try {
       const result = await fetchTools()
@@ -295,6 +318,12 @@ export default function AgentConfig() {
                   setIsNewAgentInfoValid={setIsNewAgentInfoValid}
                   onEditingStateChange={handleEditingStateChange}
                   onToolsRefresh={handleToolsRefresh}
+                  dutyContent={dutyContent}
+                  setDutyContent={setDutyContent}
+                  constraintContent={constraintContent}
+                  setConstraintContent={setConstraintContent}
+                  fewShotsContent={fewShotsContent}
+                  setFewShotsContent={setFewShotsContent}
                 />
             </div>
           </Col>
@@ -308,13 +337,14 @@ export default function AgentConfig() {
               overflowX: "hidden"
             }}>
                 <SystemPromptDisplay
-                  prompt={systemPrompt}
-                  onPromptChange={setSystemPrompt}
                   onDebug={() => {
                     setIsDebugDrawerOpen(true);
                     setCurrentGuideStep(isCreatingNewAgent ? 5 : 5);
                   }}
                   agentId={getCurrentAgentId()}
+                  dutyContent={dutyContent}
+                  constraintContent={constraintContent}
+                  fewShotsContent={fewShotsContent}
                 />
             </div>
           </Col>

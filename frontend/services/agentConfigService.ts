@@ -71,7 +71,9 @@ export const fetchAgentList = async () => {
       description: agent.description,
       modelName: agent.model_name,
       max_step: agent.max_steps,
-      prompt: agent.prompt,
+      duty_prompt: agent.duty_prompt,
+      constraint_prompt: agent.constraint_prompt,
+      few_shots_prompt: agent.few_shots_prompt,
       business_description: agent.business_description,
       parentAgentId: agent.parent_agent_id,
       enabled: agent.enabled,
@@ -108,7 +110,9 @@ export const fetchAgentList = async () => {
         modelName: data.model_name,
         maxSteps: data.max_steps,
         businessDescription: data.business_description,
-        prompt: data.prompt
+        dutyPrompt: data.duty_prompt,
+        constraintPrompt: data.constraint_prompt,
+        fewShotsPrompt: data.few_shots_prompt
       },
       message: ''
     };
@@ -124,7 +128,9 @@ export const fetchAgentList = async () => {
         modelName: null,
         maxSteps: null,
         businessDescription: null,
-        prompt: null
+        dutyPrompt: null,
+        constraintPrompt: null,
+        fewShotsPrompt: null
       },
       message: '获取 agent 列表失败，请稍后重试'
     };
@@ -267,7 +273,9 @@ export const searchToolConfig = async (toolId: number, agentId: number) => {
  * @param modelName 模型名称
  * @param maxSteps 最大步骤数
  * @param provideRunSummary 是否提供运行摘要
- * @param prompt 系统提示词
+ * @param dutyPrompt 职责提示词
+ * @param constraintPrompt 约束提示词
+ * @param fewShotsPrompt 示例提示词
  * @returns 更新结果
  */
 export const updateAgent = async (
@@ -277,9 +285,11 @@ export const updateAgent = async (
   modelName?: string,
   maxSteps?: number,
   provideRunSummary?: boolean,
-  prompt?: string,
   enabled?: boolean,
-  businessDescription?: string
+  businessDescription?: string,
+  dutyPrompt?: string,
+  constraintPrompt?: string,
+  fewShotsPrompt?: string
 ) => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.update, {
@@ -292,9 +302,11 @@ export const updateAgent = async (
         model_name: modelName,
         max_steps: maxSteps,
         provide_run_summary: provideRunSummary,
-        prompt: prompt,
         enabled: enabled,
-        business_description: businessDescription
+        business_description: businessDescription,
+        duty_prompt: dutyPrompt,
+        constraint_prompt: constraintPrompt,
+        few_shots_prompt: fewShotsPrompt
       }),
     });
 
@@ -453,7 +465,9 @@ export const searchAgentInfo = async (agentId: number) => {
       description: data.description,
       model: data.model_name,
       max_step: data.max_steps,
-      prompt: data.prompt,
+      duty_prompt: data.duty_prompt,
+      constraint_prompt: data.constraint_prompt,
+      few_shots_prompt: data.few_shots_prompt,
       business_description: data.business_description,
       provide_run_summary: data.provide_run_summary,
       enabled: data.enabled,

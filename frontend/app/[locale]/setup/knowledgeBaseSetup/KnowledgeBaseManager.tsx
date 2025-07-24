@@ -94,7 +94,7 @@ function DataConfig({ isActive }: DataConfigProps) {
 
   // Get context values
   const { 
-    state: kbState, 
+    state: kbState,
     fetchKnowledgeBases,
     createKnowledgeBase,
     deleteKnowledgeBase,
