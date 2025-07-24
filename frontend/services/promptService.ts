@@ -26,9 +26,28 @@ export interface SavePromptParams {
   prompt: string;
 }
 
+/**
+ * Stream Response Data Structure
+ */
+export interface StreamResponseData {
+  type: 'duty' | 'constraint' | 'few_shots';
+  content: string;
+  is_complete: boolean;
+}
+
+/**
+ * Get Request Headers
+ */
+const getHeaders = () => {
+  return {
+    'Content-Type': 'application/json',
+    'User-Agent': 'AgentFrontEnd/1.0',
+  };
+};
+
 export const generatePromptStream = async (
   params: GeneratePromptParams,
-  onData: (data: string) => void,
+  onData: (data: StreamResponseData) => void,
   onError?: (err: any) => void,
   onComplete?: () => void
 ) => {

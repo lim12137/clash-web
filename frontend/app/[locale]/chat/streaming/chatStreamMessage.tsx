@@ -60,21 +60,16 @@ export function ChatStreamMessage({
   // Copy content to clipboard
   const handleCopyContent = () => {
     const contentToCopy = message.finalAnswer || message.content;
-    if (contentToCopy) {
-      // Handle newlines: trim leading/trailing newlines and normalize multiple consecutive newlines
-      const trimmedContent = contentToCopy
-        .replace(/^\n+|\n+$/g, '') // Remove leading and trailing newlines
-        .replace(/\n{3,}/g, '\n\n'); // Replace 3+ consecutive newlines with double newlines
+    if (!contentToCopy) return;
 
-      navigator.clipboard.writeText(trimmedContent)
-        .then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        })
-        .catch(err => {
-          console.error(t('chatStreamMessage.copyFailed'), err);
-        });
-    }
+    copyToClipboard(contentToCopy)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(err => {
+        console.error(t('chatStreamMessage.copyFailed'), err);
+      });
   };
 
   // Handle likes

@@ -1,18 +1,16 @@
 import logging
-import logging
 import queue
 import threading
 
 import yaml
 from jinja2 import StrictUndefined, Template
 from smolagents import OpenAIServerModel
-from smolagents.agents import populate_template
-from smolagents.utils import BASE_BUILTIN_MODULES
 
 from consts.model import AgentInfoRequest
 from database.agent_db import query_sub_agents, update_agent, \
     query_tools_by_ids
 from services.agent_service import get_enable_tool_id_by_agent_id
+from utils.prompt_template_utils import get_prompt_generate_config_path
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.auth_utils import get_current_user_info
 from fastapi import Header, Request
@@ -66,42 +64,7 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
         raise e
 
 
-def get_prompt_template_path(is_manager: bool, language: str = 'zh') -> str:
-    """
-    Get the prompt template path based on the agent type and language
-    
-    Args:
-        is_manager: Whether it is a manager mode
-        language: Language code ('zh' or 'en')
-        
-    Returns:
-        str: Prompt template file path
-    """
-    if language == 'en':
-        if is_manager:
-            return "backend/prompts/manager_system_prompt_template_en.yaml"
-        else:
-            return "backend/prompts/managed_system_prompt_template_en.yaml"
-    else:  # Default to Chinese
-        if is_manager:
-            return "backend/prompts/manager_system_prompt_template.yaml"
-        else:
-            return "backend/prompts/managed_system_prompt_template.yaml"
 
-def get_prompt_generate_config_path(language: str = 'zh') -> str:
-    """
-    Get the prompt generation configuration file path based on the language
-    
-    Args:
-        language: Language code ('zh' or 'en')
-        
-    Returns:
-        str: Prompt generation configuration file path
-    """
-    if language == 'en':
-        return 'backend/prompts/utils/prompt_generate_en.yaml'
-    else:  # Default to Chinese
-        return 'backend/prompts/utils/prompt_generate.yaml'
 
 
 def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, authorization: str = Header(None), 
@@ -117,17 +80,20 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
     )
 
     # 1. Real-time streaming push
-    last_system_prompt = None
-    for system_prompt in generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id, language):
-        yield system_prompt
-        last_system_prompt = system_prompt
+    final_results = {"duty": "", "constraint": "", "few_shots": ""}
+    for result_data in generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id, language):
+        # Update final results
+        final_results[result_data["type"]] = result_data["content"]
+        yield result_data
 
     # 2. Update agent with the final result
-    logger.info("Updating agent with business_description and prompt")
+    logger.info("Updating agent with business_description and prompt segments")
     agent_info = AgentInfoRequest(
         agent_id=agent_id,
         business_description=task_description,
-        prompt=last_system_prompt
+        duty_prompt=final_results["duty"],
+        constraint_prompt=final_results["constraint"],
+        few_shots_prompt=final_results["few_shots"]
     )
     update_agent(
         agent_id=agent_id,
@@ -143,19 +109,9 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
     with open(prompt_config_path, "r", encoding="utf-8") as f:
         prompt_for_generate = yaml.safe_load(f)
 
-    # Get app information from environment variables
-    default_app_description = 'Nexent 是一个开源智能体SDK和平台' if language == 'zh' else 'Nexent is an open-source agent SDK and platform'
-    app_name = tenant_config_manager.get_app_config('APP_NAME', tenant_id=tenant_id) or "Nexent"
-    app_description = tenant_config_manager.get_app_config('APP_DESCRIPTION', tenant_id=tenant_id) or default_app_description
-
     # Add app information to the template variables
     content = join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description,
                                                    tool_info_list)
-
-    def get_prompt_template():
-        template_path = get_prompt_template_path(is_manager=len(sub_agent_info_list) > 0, language=language)
-        with open(template_path, "r", encoding="utf-8") as file:
-            return yaml.safe_load(file)
 
     def make_callback(tag):
         def callback_fn(current_text):
@@ -175,7 +131,6 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
     produce_queue = queue.Queue()
     latest = {"duty": "", "constraint": "", "few_shots": ""}
     stop_flags = {"duty": False, "constraint": False, "few_shots": False}
-    prompt_template = get_prompt_template()
 
     threads = []
     logger.info(f"Generating system prompt")
@@ -188,29 +143,27 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
         t.start()
         threads.append(t)
 
-    last_formatted = None
+    # Directly stream output of three sections
+    last_results = {"duty": "", "constraint": "", "few_shots": ""}
     while not all(stop_flags.values()):
         try:
             produce_queue.get(timeout=0.5)
         except queue.Empty:
             continue
-        formatted = populate_template(
-            prompt_template["system_prompt"],
-            variables={
-                "duty": latest["duty"],
-                "constraint": latest["constraint"],
-                "few_shots": latest["few_shots"],
-                "tools": {tool.get("name"): tool for tool in tool_info_list},
-                "managed_agents": {sub_agent.get("name"): sub_agent for sub_agent in sub_agent_info_list},
-                "authorized_imports": str(BASE_BUILTIN_MODULES),
-                "APP_NAME": app_name,
-                "APP_DESCRIPTION": app_description
-            },
-        )
-        if formatted != last_formatted:
-            yield formatted
-            last_formatted = formatted
+        
+        # Check if there is new content
+        for tag in ["duty", "constraint", "few_shots"]:
+            if latest[tag] != last_results[tag]:
+                # Build return data structure
+                result_data = {
+                    "type": tag,
+                    "content": latest[tag],
+                    "is_complete": stop_flags[tag]
+                }
+                yield result_data
+                last_results[tag] = latest[tag]
 
+    # Wait for all threads to complete
     for t in threads:
         t.join(timeout=5)
 

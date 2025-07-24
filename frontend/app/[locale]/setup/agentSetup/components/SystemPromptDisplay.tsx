@@ -4,6 +4,7 @@ import { Modal, message } from 'antd'
 import { useState, useRef, useEffect } from 'react'
 import AdditionalRequestInput from './AdditionalRequestInput'
 import { fineTunePrompt, savePrompt } from '@/services/promptService'
+import { updateAgent } from '@/services/agentConfigService'
 import { useTranslation } from 'react-i18next'
 
 // Milkdown imports
@@ -16,10 +17,14 @@ import './milkdown-nord.css'
 
 // System prompt display component Props interface
 export interface SystemPromptDisplayProps {
-  prompt: string;
-  onPromptChange: (value: string) => void;
   onDebug?: () => void;
   agentId?: number;
+  dutyContent?: string;
+  constraintContent?: string;
+  fewShotsContent?: string;
+  onDutyContentChange?: (content: string) => void;
+  onConstraintContentChange?: (content: string) => void;
+  onFewShotsContentChange?: (content: string) => void;
 }
 
 // Milkdown Editor Component
@@ -55,32 +60,120 @@ const PromptEditor = ({ value, onChange, placeholder }: {
   )
 }
 
+// Card component
+const PromptCard = ({ title, content, index, onChange }: {
+  title: string;
+  content: string;
+  index: number;
+  onChange?: (value: string) => void;
+}) => {
+  if (!content.trim()) return null;
+
+  return (
+    <div className="flex flex-col rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+      {/* Card header */}
+      <div className="bg-gray-50 text-gray-700 px-4 py-3 rounded-t-lg border-b border-gray-200">
+        <div className="flex items-center">
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
+            {index}
+          </div>
+          <h3 className="text-lg font-medium">{title}</h3>
+        </div>
+      </div>
+      
+      {/* Card content */}
+      <div className="flex-1 pt-1 pb-1 px-3">
+        <div className="h-full overflow-y-auto">
+          <MilkdownProvider>
+            <PromptEditor
+              value={content}
+              onChange={onChange || (() => {})}
+            />
+          </MilkdownProvider>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /**
  * System Prompt Display Component
  */
 export default function SystemPromptDisplay({ 
-  prompt, 
-  onPromptChange,
   onDebug, 
-  agentId, 
+  agentId,
+  dutyContent = '',
+  constraintContent = '',
+  fewShotsContent = '',
+  onDutyContentChange,
+  onConstraintContentChange,
+  onFewShotsContentChange
 }: SystemPromptDisplayProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tunedPrompt, setTunedPrompt] = useState("")
   const [isTuning, setIsTuning] = useState(false)
-  const originalPromptRef = useRef(prompt)
-  const [localPrompt, setLocalPrompt] = useState(prompt)
+  
+  // Add local state to track content of three sections
+  const [localDutyContent, setLocalDutyContent] = useState(dutyContent)
+  const [localConstraintContent, setLocalConstraintContent] = useState(constraintContent)
+  const [localFewShotsContent, setLocalFewShotsContent] = useState(fewShotsContent)
+  
+  // Add references to original content
+  const originalDutyContentRef = useRef(dutyContent)
+  const originalConstraintContentRef = useRef(constraintContent)
+  const originalFewShotsContentRef = useRef(fewShotsContent)
+  
   const { t } = useTranslation('common')
 
-  useEffect(() => { 
-    setLocalPrompt(prompt); 
-    if (originalPromptRef.current === "" && prompt) {
-      originalPromptRef.current = prompt;
+  // Update local state and original references
+  useEffect(() => {
+    setLocalDutyContent(dutyContent);
+    setLocalConstraintContent(constraintContent);
+    setLocalFewShotsContent(fewShotsContent);
+    
+    // Update original references
+    if (originalDutyContentRef.current === "" && dutyContent) {
+      originalDutyContentRef.current = dutyContent;
     }
-  }, [prompt]);
+    if (originalConstraintContentRef.current === "" && constraintContent) {
+      originalConstraintContentRef.current = constraintContent;
+    }
+    if (originalFewShotsContentRef.current === "" && fewShotsContent) {
+      originalFewShotsContentRef.current = fewShotsContent;
+    }
+  }, [dutyContent, constraintContent, fewShotsContent]);
+
+  // Render card view - always render 3 cards
+  const renderCardView = () => {
+    return (
+      <div className="space-y-4">
+        <PromptCard
+          title={t('systemPrompt.card.duty.title')}
+          content={localDutyContent}
+          index={1}
+          onChange={setLocalDutyContent}
+        />
+        <PromptCard
+          title={t('systemPrompt.card.constraint.title')}
+          content={localConstraintContent}
+          index={2}
+          onChange={setLocalConstraintContent}
+        />
+        <PromptCard
+          title={t('systemPrompt.card.fewShots.title')}
+          content={localFewShotsContent}
+          index={3}
+          onChange={setLocalFewShotsContent}
+        />
+      </div>
+    );
+  };
 
   // Handle fine-tuning request
   const handleSendAdditionalRequest = async (request: string) => {
-    if (!prompt) {
+    // Check if any of the prompt parts have content
+    const hasPromptContent = localDutyContent?.trim() || localConstraintContent?.trim() || localFewShotsContent?.trim();
+    if (!hasPromptContent) {
       message.warning(t('systemPrompt.message.empty'));
       return;
     }
@@ -121,7 +214,6 @@ export default function SystemPromptDisplay({
         agent_id: agentId,
         prompt: tunedPrompt
       });
-      onPromptChange(tunedPrompt);
       setIsModalOpen(false);
       setTunedPrompt("");
       message.success(t('systemPrompt.message.save.success'));
@@ -131,29 +223,62 @@ export default function SystemPromptDisplay({
     }
   };
 
+  // Check if there are content changes
+  const hasContentChanges = () => {
+    return localDutyContent !== originalDutyContentRef.current ||
+           localConstraintContent !== originalConstraintContentRef.current ||
+           localFewShotsContent !== originalFewShotsContentRef.current;
+  };
+
   // Handle manual save
   const handleSavePrompt = async () => {
-    if (agentId && localPrompt !== originalPromptRef.current) {
-      try {
-        await savePrompt({ agent_id: agentId, prompt: localPrompt });
-        originalPromptRef.current = localPrompt;
-        onPromptChange(localPrompt);
-        message.success(t('systemPrompt.message.save.success'));
-      } catch (error) {
-        console.error(t('systemPrompt.message.save.error'), error);
-        message.error(t('systemPrompt.message.save.error'));
+    if (!agentId) return;
+    
+    try {
+      // Save content of three sections
+      const result = await updateAgent(
+        Number(agentId),
+        undefined, // name
+        undefined, // description
+        undefined, // modelName
+        undefined, // maxSteps
+        undefined, // provideRunSummary
+        undefined, // enabled
+        undefined, // businessDescription
+        localDutyContent,
+        localConstraintContent,
+        localFewShotsContent
+      );
+      
+      if (result.success) {
+        // Update original references
+        originalDutyContentRef.current = localDutyContent;
+        originalConstraintContentRef.current = localConstraintContent;
+        originalFewShotsContentRef.current = localFewShotsContent;
+        
+        // Notify parent component that content has been updated
+        onDutyContentChange?.(localDutyContent);
+        onConstraintContentChange?.(localConstraintContent);
+        onFewShotsContentChange?.(localFewShotsContent);
+      } else {
+        throw new Error(result.message);
       }
+      
+      message.success(t('systemPrompt.message.save.success'));
+    } catch (error) {
+      console.error(t('systemPrompt.message.save.error'), error);
+      message.error(t('systemPrompt.message.save.error'));
     }
   };
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-center mb-3 flex-shrink-0">
-        <h2 className="text-lg font-medium">{t('systemPrompt.title')}</h2>
+        <h2 className="text-lg font-medium"></h2>
         <div className="flex gap-2">
           <button
             onClick={handleSavePrompt}
-            disabled={!agentId || localPrompt === originalPromptRef.current}
+            disabled={!agentId || !hasContentChanges()}
             className="px-4 py-1.5 rounded-md flex items-center text-sm bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ border: "none" }}
           >
@@ -178,13 +303,19 @@ export default function SystemPromptDisplay({
           </button>
         </div>
       </div>
-      <div className="flex-1 border border-gray-200 rounded-md overflow-y-auto">
-        <MilkdownProvider>
-          <PromptEditor
-            value={prompt}
-            onChange={setLocalPrompt}
-          />
-        </MilkdownProvider>
+      <div 
+        className="flex-1 border border-gray-200 rounded-md overflow-y-auto"
+        style={{
+          scrollbarWidth: 'none', /* Firefox */
+          msOverflowStyle: 'none', /* Internet Explorer 10+ */
+        }}
+      >
+        <style jsx>{`
+          div::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+          }
+        `}</style>
+        {renderCardView()}
       </div>
       <Modal
         title={t('systemPrompt.modal.title')}
