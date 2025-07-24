@@ -411,7 +411,9 @@ def test_import_agent_api_success(mocker, mock_auth_header):
                 "model_name": "gpt-4",
                 "max_steps": 10,
                 "provide_run_summary": True,
-                "prompt": "Test prompt",
+                "duty_prompt": "Test duty prompt",
+                "constraint_prompt": "Test constraint prompt", 
+                "few_shots_prompt": "Test few shots prompt",
                 "enabled": True,
                 "tools": [],
                 "managed_agents": []
@@ -432,7 +434,9 @@ def test_import_agent_api_success(mocker, mock_auth_header):
     assert args[1].model_name == "gpt-4"
     assert args[1].max_steps == 10
     assert args[1].provide_run_summary == True
-    assert args[1].prompt == "Test prompt"
+    assert args[1].duty_prompt == "Test duty prompt"
+    assert args[1].constraint_prompt == "Test constraint prompt"
+    assert args[1].few_shots_prompt == "Test few shots prompt"
     assert args[1].enabled == True
     assert args[1].tools == []
     assert args[1].managed_agents == []
@@ -456,7 +460,9 @@ def test_import_agent_api_exception(mocker, mock_auth_header):
                 "model_name": "gpt-4",
                 "max_steps": 10,
                 "provide_run_summary": True,
-                "prompt": "Test prompt",
+                "duty_prompt": "Test duty prompt",
+                "constraint_prompt": "Test constraint prompt", 
+                "few_shots_prompt": "Test few shots prompt",
                 "enabled": True,
                 "tools": [],
                 "managed_agents": []

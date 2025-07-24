@@ -16,6 +16,10 @@ class ModelConfig(BaseModel):
 
 class ToolConfig(BaseModel):
     class_name: str = Field(description="Tool class name")
+    name: Optional[str] = Field(description="Tool name")
+    description: Optional[str] = Field(description="Tool description")
+    inputs: Optional[str] = Field(description="Tool inputs")
+    output_type: Optional[str] = Field(description="Tool output type")
     params: Dict[str, Any] = Field(description="Initialization parameters")
     source: str = Field(description="Tool source, can be local or mcp")
     metadata: Optional[Dict[str, Any]] = Field(description="Metadata", default=None)
