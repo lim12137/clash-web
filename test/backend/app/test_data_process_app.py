@@ -663,6 +663,8 @@ class TestDataProcessApp(unittest.TestCase):
             # Failure states
             ({"process_state": "FAILURE", "forward_state": ""}, "PROCESS_FAILED"),
             ({"process_state": "SUCCESS", "forward_state": "FAILURE"}, "FORWARD_FAILED"),
+            ({"process_state": "FAILURE", "forward_state": "FAILURE"}, "PROCESS_FAILED"),
+            ({"process_state": "FAILURE", "forward_state": "SUCCESS"}, "PROCESS_FAILED"),
             # Success state
             ({"process_state": "SUCCESS", "forward_state": "SUCCESS"}, "COMPLETED"),
             # In-progress states
@@ -678,6 +680,9 @@ class TestDataProcessApp(unittest.TestCase):
             ({"process_state": "", "forward_state": "PENDING"}, "WAIT_FOR_FORWARDING"),
             ({"process_state": "", "forward_state": "STARTED"}, "FORWARDING"),
             ({"process_state": "", "forward_state": "SUCCESS"}, "COMPLETED"),
+            # Test cases for unknown states
+            ({"process_state": "UNKNOWN_STATE", "forward_state": ""}, "WAIT_FOR_PROCESSING"),
+            ({"process_state": "SUCCESS", "forward_state": "UNKNOWN_STATE"}, "WAIT_FOR_FORWARDING"),
         ]
 
         for request_data, expected_state in test_cases:

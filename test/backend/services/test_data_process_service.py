@@ -542,6 +542,9 @@ class TestDataProcessService(unittest.TestCase):
         img.save(img_byte_arr, format='PNG')
         img_bytes = img_byte_arr.getvalue()
 
+        # Create the image object to be returned *before* the patch is active.
+        successful_img_open_return = Image.open(io.BytesIO(img_bytes))
+
         # Setup mock response
         mock_response = AsyncMock()
         mock_response.status = 200
@@ -555,7 +558,7 @@ class TestDataProcessService(unittest.TestCase):
 
         with patch('PIL.Image.open') as mock_pil_open:
             # First call raises an error, second call (from temp file) succeeds
-            mock_pil_open.side_effect = [IOError("Failed to open from memory"), Image.open(io.BytesIO(img_bytes))]
+            mock_pil_open.side_effect = [IOError("Failed to open from memory"), successful_img_open_return]
             
             # Load image from URL
             result = await self.service.load_image("http://example.com/image.png")
