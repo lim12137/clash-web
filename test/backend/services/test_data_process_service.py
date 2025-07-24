@@ -20,7 +20,10 @@ from unittest.mock import MagicMock
 
 # Mock modules to prevent actual import chain
 sys.modules['data_process.app'] = MagicMock()
-sys.modules['data_process.app'].app = MagicMock()
+celery_app_mock = MagicMock()
+celery_app_mock.conf.broker_url = 'redis://mock_url'
+celery_app_mock.conf.result_backend = 'redis://mock_url'
+sys.modules['data_process.app'].app = celery_app_mock
 sys.modules['data_process.tasks'] = MagicMock()
 sys.modules['data_process.ray_actors'] = MagicMock()
 sys.modules['database.attachment_db'] = MagicMock()
@@ -271,6 +274,30 @@ class TestDataProcessService(unittest.TestCase):
         self.assertIn("Failed to create inspector with celery_app", str(context.exception))
 
     @patch('backend.services.data_process_service.celery_app')
+    def test_get_celery_inspector_reconfiguration(self, mock_celery_app):
+        """
+        Test Celery inspector reconfiguration fallback.
+        This test verifies that if the celery_app is not configured, the inspector
+        will reconfigure it before attempting to create an inspector instance.
+        """
+        # Set broker_url to None to trigger reconfiguration
+        mock_celery_app.conf.broker_url = None
+        mock_celery_app.conf.result_backend = None
+
+        # Setup mocks
+        mock_inspector = MagicMock()
+        mock_inspector.ping.return_value = True
+        mock_celery_app.control.inspect.return_value = mock_inspector
+        
+        # Get inspector
+        inspector = self.service._get_celery_inspector()
+
+        # Verify that the inspector was created and the celery_app was reconfigured
+        self.assertIsNotNone(inspector)
+        self.assertIsNotNone(mock_celery_app.conf.broker_url)
+        self.assertIsNotNone(mock_celery_app.conf.result_backend)
+
+    @patch('backend.services.data_process_service.celery_app')
     def test_get_celery_inspector_cache(self, mock_celery_app):
         """
         Test Celery inspector caching behavior.
@@ -334,6 +361,33 @@ class TestDataProcessService(unittest.TestCase):
         It verifies that the service can retrieve information about a specific task.
         """
         asyncio.run(self.async_test_get_task())
+
+    @patch('backend.services.data_process_service.DataProcessService._get_celery_inspector')
+    @patch('data_process.utils.get_task_info')
+    @patch('data_process.utils.get_all_task_ids_from_redis')
+    @pytest.mark.asyncio
+    async def async_test_get_all_tasks_redis_error(self, mock_get_redis_task_ids, mock_get_task_info, mock_get_inspector):
+        """
+        Async implementation of get_all_tasks testing with Redis error.
+
+        This test verifies that the service gracefully handles an error when fetching
+        task IDs from Redis.
+        """
+        # Setup mocks to simulate a Redis error
+        mock_inspector = MagicMock()
+        mock_inspector.active.return_value = {'worker1': [{'id': 'task1'}]}
+        mock_inspector.reserved.return_value = {}
+        mock_get_inspector.return_value = mock_inspector
+
+        mock_get_redis_task_ids.side_effect = Exception("Redis connection failed")
+        mock_get_task_info.side_effect = lambda tid: {'id': tid}
+
+        # Get all tasks
+        result = await self.service.get_all_tasks(filter=False)
+
+        # Verify that only the task from the inspector is returned
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['id'], 'task1')
 
     @patch('backend.services.data_process_service.DataProcessService._get_celery_inspector')
     @patch('data_process.utils.get_task_info')
@@ -405,6 +459,7 @@ class TestDataProcessService(unittest.TestCase):
         from both Celery (active and reserved) and Redis (completed).
         """
         asyncio.run(self.async_test_get_all_tasks())
+        asyncio.run(self.async_test_get_all_tasks_redis_error())
 
     @patch('backend.services.data_process_service.DataProcessService.get_all_tasks')
     @pytest.mark.asyncio
@@ -454,6 +509,62 @@ class TestDataProcessService(unittest.TestCase):
         It verifies that the service can filter tasks based on their associated index.
         """
         asyncio.run(self.async_test_get_index_tasks())
+
+    @patch('aiohttp.ClientSession')
+    @pytest.mark.asyncio
+    async def async_test_load_image_svg(self, mock_session):
+        """
+        Async implementation for testing SVG image filtering.
+        This test verifies that SVG images are correctly filtered out and None is returned.
+        """
+        # Setup mock session
+        mock_session_instance = MagicMock()
+        mock_session_instance.__aenter__.return_value = mock_session_instance
+        mock_session.return_value = mock_session_instance
+
+        # Attempt to load an SVG image
+        result = await self.service.load_image("http://example.com/image.svg")
+
+        # Verify that SVG is filtered
+        self.assertIsNone(result)
+
+    @patch('aiohttp.ClientSession')
+    @pytest.mark.asyncio
+    async def async_test_load_image_from_url_with_temp_file_fallback(self, mock_session):
+        """
+        Async implementation for testing image loading from URL with temp file fallback.
+        This test simulates a failure in direct image loading from memory, forcing
+        the code to use the temporary file fallback mechanism.
+        """
+        # Create a test image
+        img = Image.new('RGB', (300, 300), color='green')
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_bytes = img_byte_arr.getvalue()
+
+        # Setup mock response
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.read.return_value = img_bytes
+
+        # Setup mock session
+        mock_session_instance = MagicMock()
+        mock_session_instance.__aenter__.return_value = mock_session_instance
+        mock_session_instance.get.return_value.__aenter__.return_value = mock_response
+        mock_session.return_value = mock_session_instance
+
+        with patch('PIL.Image.open') as mock_pil_open:
+            # First call raises an error, second call (from temp file) succeeds
+            mock_pil_open.side_effect = [IOError("Failed to open from memory"), Image.open(io.BytesIO(img_bytes))]
+            
+            # Load image from URL
+            result = await self.service.load_image("http://example.com/image.png")
+
+            # Verify result
+            self.assertIsNotNone(result)
+            self.assertEqual(result.width, 300)
+            self.assertEqual(result.height, 300)
+            self.assertEqual(mock_pil_open.call_count, 2)
 
     @patch('aiohttp.ClientSession')
     @pytest.mark.asyncio
@@ -554,6 +665,25 @@ class TestDataProcessService(unittest.TestCase):
         mock_session_instance = mock_session.return_value.__aenter__.return_value
         mock_session_instance.get.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def async_test_load_image_from_base64_rgba(self):
+        """
+        Async implementation for testing RGBA to RGB conversion from base64 data.
+        """
+        # Create a test RGBA image and convert to base64
+        img = Image.new('RGBA', (10, 10), color=(255, 0, 0, 128))
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_base64 = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
+        img_data_uri = f"data:image/png;base64,{img_base64}"
+
+        # Load image from base64
+        result = await self.service.load_image(img_data_uri)
+
+        # Verify result
+        self.assertIsNotNone(result)
+        self.assertEqual(result.mode, 'RGB')
+
     @patch('os.path.isfile')
     @patch('PIL.Image.open')
     @pytest.mark.asyncio
@@ -594,7 +724,10 @@ class TestDataProcessService(unittest.TestCase):
         asyncio.run(self.async_test_load_image_from_url())
         asyncio.run(self.async_test_load_image_from_url_failure())
         asyncio.run(self.async_test_load_image_from_base64())
+        asyncio.run(self.async_test_load_image_from_base64_rgba())
         asyncio.run(self.async_test_load_image_from_file())
+        asyncio.run(self.async_test_load_image_svg())
+        asyncio.run(self.async_test_load_image_from_url_with_temp_file_fallback())
 
     @patch('backend.services.data_process_service.DataProcessService.load_image')
     @patch('backend.services.data_process_service.DataProcessService.check_image_size')
@@ -657,34 +790,69 @@ class TestDataProcessService(unittest.TestCase):
     @patch('backend.services.data_process_service.IMAGE_FILTER', True)
     @patch('backend.services.data_process_service.DataProcessService.load_image')
     @patch('backend.services.data_process_service.DataProcessService.check_image_size')
-    @patch('backend.services.data_process_service.DataProcessService._init_clip_model')
+    @patch('backend.services.data_process_service.CLIPModel.from_pretrained')
     @pytest.mark.asyncio
-    async def async_test_filter_important_image_clip_not_available(self, mock_init_clip, mock_check_size, mock_load_image):
+    async def async_test_filter_important_image_clip_not_available(self, mock_from_pretrained, mock_check_size, mock_load_image):
         """
-        Async implementation for testing behavior when CLIP model is not available.
+        Async implementation for testing image filtering when CLIP model is not available.
 
-        This test verifies that when the CLIP model is not available:
-        1. The service attempts to initialize the CLIP model
-        2. If initialization fails, all images that pass size filtering are considered important
-        3. The result indicates the image is important with maximum confidence
+        This test verifies that if the CLIP model fails to load on-demand, the service
+        gracefully falls back to treating the image as important.
         """
         # Setup mocks
         mock_img = MagicMock()
         mock_img.width = 300
         mock_img.height = 300
         mock_load_image.return_value = mock_img
-        mock_check_size.return_value = True  # Image meets size requirements
+        mock_check_size.return_value = True
 
-        # Make CLIP unavailable
+        # Simulate CLIP model loading failure
+        mock_from_pretrained.side_effect = Exception("Model not found")
+
+        # Ensure clip_available is False before the call to trigger lazy loading
         self.service.clip_available = False
+        self.service.model = None
+        self.service.processor = None
 
         # Filter image
         result = await self.service.filter_important_image("http://example.com/image.png")
 
-        # Verify result
+        # Verify result - should fallback to important
         self.assertTrue(result["is_important"])
         self.assertEqual(result["confidence"], 1.0)
-        mock_init_clip.assert_called_once()  # CLIP initialization attempted
+
+        # Verify that an attempt was made to load the model
+        mock_from_pretrained.assert_called_once()
+
+    @patch('backend.services.data_process_service.IMAGE_FILTER', True)
+    @patch('backend.services.data_process_service.DataProcessService.load_image')
+    @patch('backend.services.data_process_service.DataProcessService.check_image_size')
+    @patch('torch.no_grad')
+    @pytest.mark.asyncio
+    async def async_test_filter_important_image_clip_processing_failure(self, mock_no_grad, mock_check_size, mock_load_image):
+        """
+        Async implementation for testing image filtering with CLIP model processing failure.
+        This test verifies that if CLIP processing fails, the service falls back to size-only filtering.
+        """
+        # Setup image mock
+        mock_img = MagicMock()
+        mock_img.width = 300
+        mock_img.height = 300
+        mock_img.mode = 'RGB'
+        mock_load_image.return_value = mock_img
+        mock_check_size.return_value = True
+
+        # Setup CLIP model mocks to raise an exception
+        self.service.clip_available = True
+        self.service.model = MagicMock(side_effect=Exception("CLIP processing failed"))
+        self.service.processor = MagicMock()
+
+        # Filter image
+        result = await self.service.filter_important_image("http://example.com/image.png")
+
+        # Verify fallback to size-only filter
+        self.assertTrue(result["is_important"])
+        self.assertEqual(result["confidence"], 0.8) # Arbitrary high confidence for fallback
 
     @patch('backend.services.data_process_service.IMAGE_FILTER', True)
     @patch('backend.services.data_process_service.DataProcessService.load_image')
@@ -757,6 +925,7 @@ class TestDataProcessService(unittest.TestCase):
         asyncio.run(self.async_test_filter_important_image_filter_disabled())
         asyncio.run(self.async_test_filter_important_image_clip_not_available())
         asyncio.run(self.async_test_filter_important_image_with_clip())
+        asyncio.run(self.async_test_filter_important_image_clip_processing_failure())
 
     @patch('backend.services.data_process_service.DataProcessService')
     def test_get_data_process_service(self, mock_service_class):

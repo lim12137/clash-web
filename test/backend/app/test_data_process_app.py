@@ -49,9 +49,18 @@ mock_model.TaskResponse = MockTaskResponse
 mock_model.BatchTaskResponse = MockBatchTaskResponse
 mock_model.SimpleTaskStatusResponse = MagicMock()
 mock_model.SimpleTasksListResponse = MagicMock()
+mock_model.ConvertStateRequest = MagicMock()
+mock_model.ConvertStateResponse = MagicMock()
+
 
 # Mock celery and other services to prevent actual service calls
 mock_celery = MagicMock()
+mock_states = MagicMock()
+mock_states.PENDING = "PENDING"
+mock_states.STARTED = "STARTED"
+mock_states.SUCCESS = "SUCCESS"
+mock_states.FAILURE = "FAILURE"
+mock_celery.states = mock_states
 mock_service = MagicMock()
 sys.modules['celery'] = mock_celery
 sys.modules['services.data_process_service'] = mock_service
@@ -235,6 +244,48 @@ class TestDataProcessApp(unittest.TestCase):
                 # Catch exceptions and return appropriate HTTP error responses
                 raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
     
+        @self.app.post("/tasks/convert_state")
+        @pytest.mark.asyncio
+        async def convert_state(request: Dict[str, Any] = Body(None)):
+            from celery import states
+
+            process_celery_state = request.get("process_state", "")
+            forward_celery_state = request.get("forward_state", "")
+
+            # Handle failure states first
+            if process_celery_state == states.FAILURE:
+                return {"state": "PROCESS_FAILED"}
+            if forward_celery_state == states.FAILURE:
+                return {"state": "FORWARD_FAILED"}
+
+            # Handle completed state - both must be SUCCESS
+            if process_celery_state == states.SUCCESS and forward_celery_state == states.SUCCESS:
+                return {"state": "COMPLETED"}
+
+            # Handle case where nothing has started
+            if not process_celery_state and not forward_celery_state:
+                return {"state": "WAIT_FOR_PROCESSING"}
+
+            # Define state mappings
+            forward_state_map = {
+                states.PENDING: "WAIT_FOR_FORWARDING",
+                states.STARTED: "FORWARDING",
+                states.SUCCESS: "COMPLETED",
+                states.FAILURE: "FORWARD_FAILED",
+            }
+            process_state_map = {
+                states.PENDING: "WAIT_FOR_PROCESSING",
+                states.STARTED: "PROCESSING",
+                states.SUCCESS: "WAIT_FOR_FORWARDING",  # Process done, waiting for forward
+                states.FAILURE: "PROCESS_FAILED",
+            }
+
+            if forward_celery_state:
+                return {"state": forward_state_map.get(forward_celery_state, "WAIT_FOR_FORWARDING")}
+            if process_celery_state:
+                return {"state": process_state_map.get(process_celery_state, "WAIT_FOR_PROCESSING")}
+            return {"state": "WAIT_FOR_PROCESSING"}
+
     def test_create_task(self):
         """
         Test creating a new task.
@@ -602,6 +653,38 @@ class TestDataProcessApp(unittest.TestCase):
         # Assert expectations
         self.assertEqual(response.status_code, 500)
         self.assertIn("Error processing image", response.json()["detail"])
+
+    def test_convert_state(self):
+        """
+        Test the state conversion logic.
+        Verifies that Celery states are correctly mapped to custom frontend states.
+        """
+        test_cases = [
+            # Failure states
+            ({"process_state": "FAILURE", "forward_state": ""}, "PROCESS_FAILED"),
+            ({"process_state": "SUCCESS", "forward_state": "FAILURE"}, "FORWARD_FAILED"),
+            # Success state
+            ({"process_state": "SUCCESS", "forward_state": "SUCCESS"}, "COMPLETED"),
+            # In-progress states
+            ({"process_state": "STARTED", "forward_state": ""}, "PROCESSING"),
+            ({"process_state": "SUCCESS", "forward_state": "STARTED"}, "FORWARDING"),
+            # Pending states
+            ({"process_state": "PENDING", "forward_state": ""}, "WAIT_FOR_PROCESSING"),
+            ({"process_state": "SUCCESS", "forward_state": "PENDING"}, "WAIT_FOR_FORWARDING"),
+            # Initial state
+            ({"process_state": "", "forward_state": ""}, "WAIT_FOR_PROCESSING"),
+            # Edge cases
+            ({"process_state": "SUCCESS", "forward_state": ""}, "WAIT_FOR_FORWARDING"),
+            ({"process_state": "", "forward_state": "PENDING"}, "WAIT_FOR_FORWARDING"),
+            ({"process_state": "", "forward_state": "STARTED"}, "FORWARDING"),
+            ({"process_state": "", "forward_state": "SUCCESS"}, "COMPLETED"),
+        ]
+
+        for request_data, expected_state in test_cases:
+            with self.subTest(request_data=request_data, expected_state=expected_state):
+                response = self.client.post("/tasks/convert_state", json=request_data)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), {"state": expected_state})
 
 
 if __name__ == "__main__":
