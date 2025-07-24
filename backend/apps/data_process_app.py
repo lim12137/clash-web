@@ -6,7 +6,7 @@ import io
 import time
 
 from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTaskRequest, SimpleTaskStatusResponse, \
-    SimpleTasksListResponse
+    SimpleTasksListResponse, ConvertStateRequest, ConvertStateResponse
 from data_process.utils import get_task_info
 from data_process.tasks import process_and_forward, process_sync
 from services.data_process_service import get_data_process_service
@@ -363,3 +363,51 @@ async def process_text_file(
             status_code=500, 
             detail=f"An error occurred while processing the file: {str(e)}"
         )
+
+@router.post("/convert_state", response_model=ConvertStateResponse, status_code=200)
+async def convert_state(request: ConvertStateRequest):
+    """Convert Celery task states to custom frontend state.
+
+    This helper endpoint allows callers that do **not** install Celery dependencies
+    to obtain the corresponding frontend state for a pair of Celery task states.
+    """
+    from celery import states
+
+    def _convert_to_custom_state_inner(process_celery_state: str, forward_celery_state: str) -> str:
+        """Inner helper to keep the original mapping logic in one place."""
+        # Handle failure states first
+        if process_celery_state == states.FAILURE:
+            return "PROCESS_FAILED"
+        if forward_celery_state == states.FAILURE:
+            return "FORWARD_FAILED"
+
+        # Handle completed state - both must be SUCCESS
+        if process_celery_state == states.SUCCESS and forward_celery_state == states.SUCCESS:
+            return "COMPLETED"
+
+        # Handle case where nothing has started
+        if not process_celery_state and not forward_celery_state:
+            return "WAIT_FOR_PROCESSING"
+
+        # Define state mappings
+        forward_state_map = {
+            states.PENDING: "WAIT_FOR_FORWARDING",
+            states.STARTED: "FORWARDING",
+            states.SUCCESS: "COMPLETED",
+            states.FAILURE: "FORWARD_FAILED",
+        }
+        process_state_map = {
+            states.PENDING: "WAIT_FOR_PROCESSING",
+            states.STARTED: "PROCESSING",
+            states.SUCCESS: "WAIT_FOR_FORWARDING",  # Process done, waiting for forward
+            states.FAILURE: "PROCESS_FAILED",
+        }
+
+        if forward_celery_state:
+            return forward_state_map.get(forward_celery_state, "WAIT_FOR_FORWARDING")
+        if process_celery_state:
+            return process_state_map.get(process_celery_state, "WAIT_FOR_PROCESSING")
+        return "WAIT_FOR_PROCESSING"
+
+    state = _convert_to_custom_state_inner(request.process_state or "", request.forward_state or "")
+    return ConvertStateResponse(state=state)

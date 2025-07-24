@@ -180,7 +180,7 @@ class DataProcessService:
                 if filter and not (task_info.get('index_name') and task_info.get('task_name')):
                     continue
                 all_tasks.append(task_info)
-            logger.info(f"Retrieved {len(all_tasks)} tasks.")
+            logger.debug(f"Retrieved {len(all_tasks)} tasks.")
         except Exception as e:
             logger.error(f"Error retrieving all tasks: {str(e)}")
             all_tasks = []
