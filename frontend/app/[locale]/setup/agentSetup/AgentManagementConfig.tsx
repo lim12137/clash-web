@@ -895,8 +895,10 @@ export default function BusinessLogicConfig({
             max_step,
             provide_run_summary,
             undefined,
-            undefined,
-            business_description
+            business_description,
+            dutyContent,        // 传递右侧 PromptCard 的内容
+            constraintContent,  // 传递右侧 PromptCard 的内容
+            fewShotsContent     // 传递右侧 PromptCard 的内容
           );
         } else {
           result = await updateAgent(
@@ -907,8 +909,10 @@ export default function BusinessLogicConfig({
             max_step,
             provide_run_summary,
             undefined,
-            undefined,
-            business_description
+            business_description,
+            dutyContent,        // 传递右侧 PromptCard 的内容
+            constraintContent,  // 传递右侧 PromptCard 的内容
+            fewShotsContent     // 传递右侧 PromptCard 的内容
           );
         }
 

@@ -166,6 +166,24 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
     # Wait for all threads to complete
     for t in threads:
         t.join(timeout=5)
+    
+    # 确保所有已完成的线程都发送了最后的完成状态
+    for tag in ["duty", "constraint", "few_shots"]:
+        if stop_flags[tag] and latest[tag] != last_results[tag]:
+            result_data = {
+                "type": tag,
+                "content": latest[tag],
+                "is_complete": True
+            }
+            yield result_data
+            last_results[tag] = latest[tag]
+        elif stop_flags[tag] and latest[tag] == last_results[tag]:
+            result_data = {
+                "type": tag,
+                "content": latest[tag],
+                "is_complete": True
+            }
+            yield result_data
 
 
 def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description, tool_info_list,

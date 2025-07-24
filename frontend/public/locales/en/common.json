@@ -286,6 +286,7 @@
     "guide.steps.creating.saveAgent.description": "Configure and save to agent pool",
     "agent.title": "Agent",
     "systemPrompt.button.save": "Save",
+    "systemPrompt.button.close": "Close",
     "systemPrompt.button.tune": "Tune",
     "systemPrompt.button.debug": "Debug",
     "systemPrompt.modal.title": "Prompt Tuning",
