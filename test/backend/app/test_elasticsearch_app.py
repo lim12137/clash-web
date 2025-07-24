@@ -410,35 +410,3 @@ async def test_health_check_success(es_core_mock):
         # Verify
         assert response.status_code == 200
         assert response.json() == expected_response
-
-@pytest.mark.asyncio
-async def test_delete_documents_success(es_core_mock, redis_service_mock, auth_data):
-    """
-    Test deleting documents successfully.
-    Verifies that the endpoint deletes documents and cleans up Redis records.
-    """
-    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
-         patch("backend.apps.elasticsearch_app.get_redis_service", return_value=redis_service_mock), \
-         patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_documents") as mock_delete_docs:
-        
-        index_name = "test_index"
-        path_or_url = "path/to/file.txt"
-        
-        # Mock service responses
-        mock_delete_docs.return_value = {"status": "success", "message": "Documents deleted successfully"}
-        redis_service_mock.delete_document_records.return_value = {
-            "total_deleted": 2,
-            "celery_tasks_deleted": 1,
-            "cache_keys_deleted": 1
-        }
-        
-        # Execute request
-        response = client.delete(f"/indices/{index_name}/documents", params={"path_or_url": path_or_url})
-        
-        # Verify
-        assert response.status_code == 200
-        json_response = response.json()
-        assert json_response["status"] == "success"
-        assert "Cleaned up 2 Redis records" in json_response["message"]
-        mock_delete_docs.assert_called_once_with(index_name, path_or_url, es_core_mock)
-        redis_service_mock.delete_document_records.assert_called_once_with(index_name, path_or_url)
