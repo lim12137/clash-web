@@ -1006,7 +1006,6 @@ export default function BusinessLogicConfig({
       setMainAgentModel(agentDetail.model as OpenAIModel);
       setMainAgentMaxStep(agentDetail.max_step);
       setBusinessLogic(agentDetail.business_description || '');
-      // setSystemPrompt(agentDetail.prompt || '');
       
       // Load the segmented prompt content
       setDutyContent?.(agentDetail.duty_prompt || '');
@@ -1014,7 +1013,6 @@ export default function BusinessLogicConfig({
       setFewShotsContent?.(agentDetail.few_shots_prompt || '');
       
       console.log(t('debug.console.setBusinessDescription'), agentDetail.business_description); // 调试信息
-      // console.log(t('debug.console.setSystemPrompt'), agentDetail.prompt); // 调试信息
       // 加载Agent的工具
       if (agentDetail.tools && agentDetail.tools.length > 0) {
         setSelectedTools(agentDetail.tools);
