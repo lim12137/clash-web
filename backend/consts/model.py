@@ -249,7 +249,9 @@ class AgentInfoRequest(BaseModel):
     model_name: Optional[str] = None
     max_steps: Optional[int] = None
     provide_run_summary: Optional[bool] = None
-    prompt: Optional[str] = None
+    duty_prompt: Optional[str] = None
+    constraint_prompt: Optional[str] = None
+    few_shots_prompt: Optional[str] = None
     enabled: Optional[bool] = None
 
 
@@ -282,6 +284,7 @@ class ToolInfo(BaseModel):
     inputs: str
     output_type: str
     class_name: str
+    usage: Optional[str]
 
 
 # used in Knowledge Summary request
@@ -301,7 +304,9 @@ class ExportAndImportAgentInfo(BaseModel):
     model_name: str
     max_steps: int
     provide_run_summary: bool
-    prompt: str
+    duty_prompt: Optional[str] = None
+    constraint_prompt: Optional[str] = None
+    few_shots_prompt: Optional[str] = None
     enabled: bool
     tools: List[ToolConfig]
     managed_agents: List

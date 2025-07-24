@@ -285,7 +285,9 @@ CREATE TABLE IF NOT EXISTS nexent.ag_tenant_agent_t (
     business_description VARCHAR,
     model_name VARCHAR(100),
     max_steps INTEGER,
-    prompt TEXT,
+    duty_prompt TEXT,
+    constraint_prompt TEXT,
+    few_shots_prompt TEXT,
     parent_agent_id INTEGER,
     tenant_id VARCHAR(100),
     enabled BOOLEAN DEFAULT FALSE,
@@ -321,7 +323,9 @@ COMMENT ON COLUMN nexent.ag_tenant_agent_t.description IS 'Description';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.business_description IS 'Manually entered by the user to describe the entire business process';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.model_name IS 'Name of the model used';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.max_steps IS 'Maximum number of steps';
-COMMENT ON COLUMN nexent.ag_tenant_agent_t.prompt IS 'System prompt';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.duty_prompt IS 'Duty prompt';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.constraint_prompt IS 'Constraint prompt';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.few_shots_prompt IS 'Few-shots prompt';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.parent_agent_id IS 'Parent Agent ID';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.tenant_id IS 'Belonging tenant';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.enabled IS 'Enable flag';
@@ -439,6 +443,7 @@ CREATE TABLE IF NOT EXISTS nexent.mcp_record_t (
     user_id VARCHAR(100),
     mcp_name VARCHAR(100),
     mcp_server VARCHAR(500),
+    status BOOLEAN DEFAULT NULL,
     create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
@@ -455,6 +460,7 @@ COMMENT ON COLUMN nexent.mcp_record_t.tenant_id IS 'Tenant ID';
 COMMENT ON COLUMN nexent.mcp_record_t.user_id IS 'User ID';
 COMMENT ON COLUMN nexent.mcp_record_t.mcp_name IS 'MCP name';
 COMMENT ON COLUMN nexent.mcp_record_t.mcp_server IS 'MCP server address';
+COMMENT ON COLUMN nexent.mcp_record_t.status IS 'MCP server connection status, true=connected, false=disconnected, null=unknown';
 COMMENT ON COLUMN nexent.mcp_record_t.create_time IS 'Creation time, audit field';
 COMMENT ON COLUMN nexent.mcp_record_t.update_time IS 'Update time, audit field';
 COMMENT ON COLUMN nexent.mcp_record_t.created_by IS 'Creator ID, audit field';

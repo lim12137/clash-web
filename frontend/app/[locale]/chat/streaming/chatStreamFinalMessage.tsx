@@ -80,17 +80,16 @@ export function ChatStreamFinalMessage({
 
   // Copy content to clipboard
   const handleCopyContent = () => {
-    const contentToCopy = message.finalAnswer || message.content;
-    if (contentToCopy !== undefined) {
-      navigator.clipboard.writeText(contentToCopy)
-        .then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        })
-        .catch(err => {
-          console.error(t('chatStreamFinalMessage.copyFailed'), err);
-        });
-    }
+    if (!message.finalAnswer) return;
+
+    copyToClipboard(message.finalAnswer)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(err => {
+        console.error(t('chatStreamFinalMessage.copyFailed'), err);
+      });
   };
 
   // Handle thumbs up

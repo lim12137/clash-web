@@ -51,7 +51,8 @@ def run_tests():
     # Get the test directories path using relative path
     app_test_dir = os.path.join(current_dir, "app")
     services_test_dir = os.path.join(current_dir, "services")
-    
+    utils_test_dir = os.path.join(current_dir, "utils")
+
     test_files = []
     
     # Check and collect test files from app directory
@@ -67,6 +68,13 @@ def run_tests():
         test_files.extend(services_test_files)
     else:
         logger.warning(f"Directory not found: {services_test_dir}")
+
+    # Check and collect test files from utils directory
+    if os.path.exists(utils_test_dir):
+        utils_test_files = glob.glob(os.path.join(utils_test_dir, "test_*.py"))
+        test_files.extend(utils_test_files)
+    else:
+        logger.warning(f"Directory not found: {utils_test_dir}")
     
     if not test_files:
         logger.warning(f"No test files found in {app_test_dir} or {services_test_dir}")
