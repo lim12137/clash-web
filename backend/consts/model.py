@@ -235,6 +235,7 @@ class ToolInstanceSearchRequest(BaseModel):
 class ToolSourceEnum(Enum):
     LOCAL = "local"
     MCP = "mcp"
+    LANGCHAIN = "langchain"
 
 
 class ToolInfo(BaseModel):
