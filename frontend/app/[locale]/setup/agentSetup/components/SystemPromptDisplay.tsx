@@ -273,6 +273,21 @@ export default function SystemPromptDisplay({
 
   // Handle close expanded modal
   const handleCloseExpandedModal = () => {
+    // 关闭前先保存修改的内容
+    switch (expandIndex) {
+      case 1:
+        setLocalDutyContent(expandContent);
+        onDutyContentChange?.(expandContent);
+        break;
+      case 2:
+        setLocalConstraintContent(expandContent);
+        onConstraintContentChange?.(expandContent);
+        break;
+      case 3:
+        setLocalFewShotsContent(expandContent);
+        onFewShotsContentChange?.(expandContent);
+        break;
+    }
     setExpandModalOpen(false)
   }
 
