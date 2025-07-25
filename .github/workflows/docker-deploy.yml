@@ -45,14 +45,12 @@ jobs:
           else
             echo "cache-hit=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Clone model if not cached
-        if: steps.check-model.outputs.cache-hit == 'false'
+      - name: Clone model
         run: |
-          mkdir -p ./model-assets
-          GIT_LFS_SKIP_SMUDGE=1 git clone https://www.modelscope.cn/openai-mirror/clip-vit-base-patch32.git ./model-assets/clip-vit-base-patch32
-          cd ./model-assets/clip-vit-base-patch32
+          GIT_LFS_SKIP_SMUDGE=1 git clone https://hf-mirror.com/Nexent-AI/model-assets
+          cd ./model-assets
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
-          rm -rf .git flax_model.msgpack tf_model.h5
+          rm -rf .git .gitattributes
       - name: Build data process image
         run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile .
 
