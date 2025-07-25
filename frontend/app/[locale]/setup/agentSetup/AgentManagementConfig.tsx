@@ -895,8 +895,10 @@ export default function BusinessLogicConfig({
             max_step,
             provide_run_summary,
             undefined,
-            undefined,
-            business_description
+            business_description,
+            dutyContent,
+            constraintContent,
+            fewShotsContent
           );
         } else {
           result = await updateAgent(
@@ -907,8 +909,10 @@ export default function BusinessLogicConfig({
             max_step,
             provide_run_summary,
             undefined,
-            undefined,
-            business_description
+            business_description,
+            dutyContent,
+            constraintContent,
+            fewShotsContent
           );
         }
 
