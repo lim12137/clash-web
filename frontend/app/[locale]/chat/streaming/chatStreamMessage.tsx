@@ -8,6 +8,7 @@ import { FaRegThumbsDown, FaRegThumbsUp } from "react-icons/fa"
 import { useConfig } from "@/hooks/useConfig"
 import { ChatAttachment, AttachmentItem } from '@/app/chat/internal/chatAttachment'
 import { useTranslation } from "react-i18next"
+import { copyToClipboard } from "@/lib/clipboard"
 
 interface StreamMessageProps {
   message: ChatMessageType
