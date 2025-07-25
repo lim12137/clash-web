@@ -56,7 +56,7 @@ export const fetchTools = async () => {
  */
 export const fetchAgentList = async () => {
   try {
-    const response = await fetch(API_ENDPOINTS.agent.list, {
+    const response = await fetch(API_ENDPOINTS.agent.listMainAgentInfo, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -502,6 +502,43 @@ export const searchAgentInfo = async (agentId: number) => {
       success: false,
       data: null,
       message: '获取Agent详情失败，请稍后重试'
+    };
+  }
+};
+
+/**
+ * fetch all available agents for chat
+ * @returns list of available agents with agent_id, name, description, is_available
+ */
+export const fetchAllAgents = async () => {
+  try {
+    const response = await fetch(API_ENDPOINTS.agent.list, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`);
+    }
+    const data = await response.json();
+    
+    // convert backend data to frontend format
+    const formattedAgents = data.map((agent: any) => ({
+      agent_id: agent.agent_id,
+      name: agent.name,
+      description: agent.description,
+      is_available: agent.is_available
+    }));
+    
+    return {
+      success: true,
+      data: formattedAgents,
+      message: ''
+    };
+  } catch (error) {
+    console.error('获取所有Agent列表失败:', error);
+    return {
+      success: false,
+      data: [],
+      message: '获取Agent列表失败，请稍后重试'
     };
   }
 };
