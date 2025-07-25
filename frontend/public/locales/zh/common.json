@@ -358,7 +358,7 @@
     "agent.error.saveRetry": "Agent保存失败，请稍后重试",
     "agent.error.searchInfoFailed": "获取Agent详情失败",
     "agent.error.loadInfoRetry": "加载Agent详情失败，请稍后重试",
-    "agent.error.disabledAgent": "该Agent当前不可用，无法启用",
+    "agent.error.disabledAgent": "该Agent当前不可用，无法启用，请通知管理员。",
     "agent.error.statusUpdateFailed": "更新Agent状态失败",
     "agent.error.statusUpdateRetry": "更新Agent状态失败，请稍后重试",
     "agent.error.modelUpdateFailed": "更新模型失败",
@@ -876,5 +876,13 @@
             "healthChecking": "正在尝试连接mcp服务器 {{name}}",
             "healthCheckSuccess": "mcp服务器连接成功"
         }
+    },
+    "agentSelector": {
+        "loading": "加载中...",
+        "selectAgent": "请选择Agent",
+        "noAgent": "不选择Agent",
+        "noAvailableAgents": "暂无可用Agent",
+        "unavailable": "不可用",
+        "agentUnavailable": "此Agent当前不可用，请检查工具配置信息或通知管理员。"
     }
 }
