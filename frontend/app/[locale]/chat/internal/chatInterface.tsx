@@ -104,6 +104,9 @@ export function ChatInterface() {
   // Add force scroll to bottom state control
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
 
+  // Add agent selection state
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+
   // Reset scroll to bottom state
   useEffect(() => {
     if (shouldScrollToBottom) {
@@ -516,7 +519,7 @@ export function ChatInterface() {
       }
 
       // Send request to backend API, add signal parameter
-      const reader = await conversationService.runAgent({
+      const runAgentParams: any = {
         query: finalQuery, // Use preprocessed query or original query
         conversation_id: currentConversationId,
         is_set: isSwitchedConversation || currentMessages.length <= 1,
@@ -542,7 +545,14 @@ export function ChatInterface() {
             description: description
           };
         }) : undefined // Use complete attachment object structure
-      }, currentController.signal);
+      };
+
+      // Only add agent_id if it's not null
+      if (selectedAgentId !== null) {
+        runAgentParams.agent_id = selectedAgentId;
+      }
+
+      const reader = await conversationService.runAgent(runAgentParams, currentController.signal);
 
       if (!reader) throw new Error("Response body is null")
 
@@ -1345,6 +1355,8 @@ export function ChatInterface() {
                 onOpinionChange={handleOpinionChange}
                 currentConversationId={conversationId}
                 shouldScrollToBottom={shouldScrollToBottom}
+                selectedAgentId={selectedAgentId}
+                onAgentSelect={setSelectedAgentId}
               />
 
               {/* Footer */}

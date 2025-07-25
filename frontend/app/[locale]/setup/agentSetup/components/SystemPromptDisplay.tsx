@@ -1,7 +1,8 @@
 "use client"
 
-import { Modal, message } from 'antd'
-import { useState, useRef, useEffect } from 'react'
+import { Modal, message, Badge } from 'antd'
+import { ExpandAltOutlined } from '@ant-design/icons'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import AdditionalRequestInput from './AdditionalRequestInput'
 import { fineTunePrompt, savePrompt } from '@/services/promptService'
 import { updateAgent } from '@/services/agentConfigService'
@@ -9,7 +10,7 @@ import { useTranslation } from 'react-i18next'
 
 // Milkdown imports
 import { MilkdownProvider, Milkdown, useEditor } from '@milkdown/react'
-import { defaultValueCtx, Editor, rootCtx } from '@milkdown/kit/core'
+import { defaultValueCtx, Editor, editorViewCtx, parserCtx, rootCtx } from '@milkdown/kit/core'
 import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { nord } from '@milkdown/theme-nord'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
@@ -27,12 +28,55 @@ export interface SystemPromptDisplayProps {
   onFewShotsContentChange?: (content: string) => void;
 }
 
+// Debounce utility function
+const useDebounce = (callback: (...args: any[]) => void, delay: number) => {
+  const timeoutRef = useRef<NodeJS.Timeout>()
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [])
+  
+  return useCallback((...args: any[]) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+    timeoutRef.current = setTimeout(() => callback(...args), delay)
+  }, [callback, delay])
+}
+
 // Milkdown Editor Component
 const PromptEditor = ({ value, onChange, placeholder }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
 }) => {
+  const [internalValue, setInternalValue] = useState(value)
+  const isUserEditingRef = useRef(false)
+  const lastExternalValueRef = useRef(value)
+  const debouncedOnChange = useDebounce(onChange, 300)
+  
+  // 处理用户输入变化
+  const handleUserChange = useCallback((newValue: string) => {
+    isUserEditingRef.current = true
+    setInternalValue(newValue)
+    debouncedOnChange(newValue)
+    setTimeout(() => {
+      isUserEditingRef.current = false
+    }, 500)
+  }, [debouncedOnChange])
+  
+  // 处理外部值变化 - API流式输出
+  useEffect(() => {
+    if (value !== lastExternalValueRef.current && !isUserEditingRef.current) {
+      setInternalValue(value)
+      lastExternalValueRef.current = value
+    }
+  }, [value])
+
   const { get } = useEditor((root) => {
     return Editor
       .make()
@@ -43,15 +87,45 @@ const PromptEditor = ({ value, onChange, placeholder }: {
         // Configure listener for content changes
         const listenerManager = ctx.get(listenerCtx)
         listenerManager.markdownUpdated((ctx, markdown, prevMarkdown) => {
-          if (markdown !== prevMarkdown && onChange) {
-            onChange(markdown)
+          if (markdown !== prevMarkdown) {
+            handleUserChange(markdown)
           }
         })
       })
       .config(nord)
       .use(commonmark)
       .use(listener)
-  }, [value])
+  }, []) // 只在组件挂载时创建一次
+
+  // 当外部值变化时，直接更新编辑器内容，不重新创建编辑器
+  useEffect(() => {
+    const editor = get()
+  
+    if (editor && value !== internalValue && !isUserEditingRef.current) {
+      try {
+        editor.action(ctx => {
+          const parser = ctx.get(parserCtx);
+          const parsedNode = parser(value || '') || '';
+          const newFragment = parsedNode.content; 
+
+          const view = ctx.get(editorViewCtx);
+          view.dispatch(
+            view.state.tr.replaceWith(
+              0,
+              view.state.doc.content.size,
+              newFragment
+            )
+          );
+        })
+        setInternalValue(value || '')
+        lastExternalValueRef.current = value || ''
+      } catch (error) {
+        console.warn('Failed to update editor content directly:', error)
+        setInternalValue(value || '')
+        lastExternalValueRef.current = value || ''
+      }
+    }
+  }, [value, internalValue, get])
 
   return (
     <div className="milkdown-editor-container h-full">
@@ -61,29 +135,64 @@ const PromptEditor = ({ value, onChange, placeholder }: {
 }
 
 // Card component
-const PromptCard = ({ title, content, index, onChange }: {
+const PromptCard = ({ title, content, index, onChange, onExpand }: {
   title: string;
   content: string;
   index: number;
   onChange?: (value: string) => void;
+  onExpand?: (title: string, content: string, index: number) => void;
 }) => {
-  if (!content.trim()) return null;
+  const { t } = useTranslation('common');
+
+  const getBadgeProps = (index: number): { status?: 'success' | 'warning' | 'error' | 'default', color?: string } => {
+    switch(index) {
+      case 1:
+        return { status: 'success' };  // 绿色
+      case 2:
+        return { status: 'warning' };  // 黄色
+      case 3:
+        return { color: '#1677ff' };   // 蓝色
+      default:
+        return { status: 'default' };
+    }
+  };
 
   return (
-    <div className="flex flex-col rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+    <div className="h-full flex flex-col rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
       {/* Card header */}
-      <div className="bg-gray-50 text-gray-700 px-4 py-3 rounded-t-lg border-b border-gray-200">
-        <div className="flex items-center">
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
-            {index}
+      <div className="bg-gray-50 text-gray-700 px-4 py-3 rounded-t-lg border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Badge
+              {...getBadgeProps(index)}
+              className="mr-3"
+            />
+            <h3 className="text-lg font-medium">{title}</h3>
           </div>
-          <h3 className="text-lg font-medium">{title}</h3>
+          <button
+            onClick={() => onExpand?.(title, content, index)}
+            className="text-gray-500 hover:text-gray-700 transition-colors duration-200 p-1 rounded"
+            title={t('systemPrompt.button.expand')}
+          >
+            <ExpandAltOutlined />
+          </button>
         </div>
       </div>
       
       {/* Card content */}
-      <div className="flex-1 pt-1 pb-1 px-3">
-        <div className="h-full overflow-y-auto">
+      <div className="flex-1 min-h-0 pt-1 pb-1 px-3">
+        <div 
+          className="h-full overflow-y-auto"
+          style={{
+            scrollbarWidth: 'none',  /* Firefox */
+            msOverflowStyle: 'none',  /* IE and Edge */
+          }}
+        >
+          <style jsx>{`
+            div::-webkit-scrollbar {
+              display: none;  /* Chrome, Safari, Opera */
+            }
+          `}</style>
           <MilkdownProvider>
             <PromptEditor
               value={content}
@@ -99,6 +208,8 @@ const PromptCard = ({ title, content, index, onChange }: {
 /**
  * System Prompt Display Component
  */
+const PADDING_X = 16; // px
+
 export default function SystemPromptDisplay({ 
   onDebug, 
   agentId,
@@ -112,6 +223,10 @@ export default function SystemPromptDisplay({
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tunedPrompt, setTunedPrompt] = useState("")
   const [isTuning, setIsTuning] = useState(false)
+  const [expandModalOpen, setExpandModalOpen] = useState(false)
+  const [expandTitle, setExpandTitle] = useState("")
+  const [expandContent, setExpandContent] = useState("")
+  const [expandIndex, setExpandIndex] = useState(0)
   
   // Add local state to track content of three sections
   const [localDutyContent, setLocalDutyContent] = useState(dutyContent)
@@ -125,45 +240,88 @@ export default function SystemPromptDisplay({
   
   const { t } = useTranslation('common')
 
+  // Handle expand card content
+  const handleExpandCard = (title: string, content: string, index: number) => {
+    setExpandTitle(title)
+    setExpandContent(content)
+    setExpandIndex(index)
+    setExpandModalOpen(true)
+  }
+
+  // Handle save expanded content
+  const handleSaveExpandedContent = () => {
+    // 立即更新本地状态和调用回调
+    switch (expandIndex) {
+      case 1:
+        setLocalDutyContent(expandContent);
+        onDutyContentChange?.(expandContent);
+        break;
+      case 2:
+        setLocalConstraintContent(expandContent);
+        onConstraintContentChange?.(expandContent);
+        break;
+      case 3:
+        setLocalFewShotsContent(expandContent);
+        onFewShotsContentChange?.(expandContent);
+        break;
+    }
+
+    Promise.resolve().then(() => {
+      setExpandModalOpen(false);
+    });
+  }
+
+  // Handle close expanded modal
+  const handleCloseExpandedModal = () => {
+    setExpandModalOpen(false)
+  }
+
   // Update local state and original references
   useEffect(() => {
-    setLocalDutyContent(dutyContent);
-    setLocalConstraintContent(constraintContent);
-    setLocalFewShotsContent(fewShotsContent);
-    
-    // Update original references
-    if (originalDutyContentRef.current === "" && dutyContent) {
-      originalDutyContentRef.current = dutyContent;
+    if (dutyContent !== localDutyContent) {
+      setLocalDutyContent(dutyContent);
     }
-    if (originalConstraintContentRef.current === "" && constraintContent) {
-      originalConstraintContentRef.current = constraintContent;
+    if (constraintContent !== localConstraintContent) {
+      setLocalConstraintContent(constraintContent);
     }
-    if (originalFewShotsContentRef.current === "" && fewShotsContent) {
-      originalFewShotsContentRef.current = fewShotsContent;
+    if (fewShotsContent !== localFewShotsContent) {
+      setLocalFewShotsContent(fewShotsContent);
     }
-  }, [dutyContent, constraintContent, fewShotsContent]);
+  }, [dutyContent, constraintContent, fewShotsContent, localDutyContent, localConstraintContent, localFewShotsContent]);
 
-  // Render card view - always render 3 cards
+  // Render card view - always render 3 cards with equal height
   const renderCardView = () => {
     return (
-      <div className="space-y-4">
+      <div className="grid grid-rows-3 h-full gap-4">
         <PromptCard
           title={t('systemPrompt.card.duty.title')}
           content={localDutyContent}
           index={1}
-          onChange={setLocalDutyContent}
+          onChange={(value) => {
+            setLocalDutyContent(value);
+            onDutyContentChange?.(value);
+          }}
+          onExpand={handleExpandCard}
         />
         <PromptCard
           title={t('systemPrompt.card.constraint.title')}
           content={localConstraintContent}
           index={2}
-          onChange={setLocalConstraintContent}
+          onChange={(value) => {
+            setLocalConstraintContent(value);
+            onConstraintContentChange?.(value);
+          }}
+          onExpand={handleExpandCard}
         />
         <PromptCard
           title={t('systemPrompt.card.fewShots.title')}
           content={localFewShotsContent}
           index={3}
-          onChange={setLocalFewShotsContent}
+          onChange={(value) => {
+            setLocalFewShotsContent(value);
+            onFewShotsContentChange?.(value);
+          }}
+          onExpand={handleExpandCard}
         />
       </div>
     );
@@ -189,7 +347,7 @@ export default function SystemPromptDisplay({
       // Use service for fine-tuning
       const result = await fineTunePrompt({
         agent_id: agentId!,
-        system_prompt: prompt,
+        system_prompt: `${localDutyContent}\n\n${localConstraintContent}\n\n${localFewShotsContent}`,
         command: request
       });
       
@@ -223,13 +381,6 @@ export default function SystemPromptDisplay({
     }
   };
 
-  // Check if there are content changes
-  const hasContentChanges = () => {
-    return localDutyContent !== originalDutyContentRef.current ||
-           localConstraintContent !== originalConstraintContentRef.current ||
-           localFewShotsContent !== originalFewShotsContentRef.current;
-  };
-
   // Handle manual save
   const handleSavePrompt = async () => {
     if (!agentId) return;
@@ -245,9 +396,9 @@ export default function SystemPromptDisplay({
         undefined, // provideRunSummary
         undefined, // enabled
         undefined, // businessDescription
-        localDutyContent,
-        localConstraintContent,
-        localFewShotsContent
+        localDutyContent, // duty_prompt
+        localConstraintContent, // constraint_prompt
+        localFewShotsContent // few_shots_prompt
       );
       
       if (result.success) {
@@ -273,27 +424,19 @@ export default function SystemPromptDisplay({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex justify-between items-center mb-3 flex-shrink-0">
-        <h2 className="text-lg font-medium"></h2>
+      <div className="flex justify-between items-center mb-3 flex-shrink-0 px-2">
+        <div className="flex flex-col">
+          <h2 className="text-lg font-medium text-gray-700 mt-1.5">{t('agent.title')}</h2>
+        </div>
         <div className="flex gap-2">
           <button
             onClick={handleSavePrompt}
-            disabled={!agentId || !hasContentChanges()}
+            disabled={!agentId}
             className="px-4 py-1.5 rounded-md flex items-center text-sm bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ border: "none" }}
           >
             {t('systemPrompt.button.save')}
           </button>
-          {/* Hide tune button temporarily*/}
-          {/* 
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
-            style={{ border: "none" }}
-          >
-            {t('systemPrompt.button.tune')}
-          </button>
-          */}
           <button
             onClick={onDebug}
             className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -304,15 +447,15 @@ export default function SystemPromptDisplay({
         </div>
       </div>
       <div 
-        className="flex-1 border border-gray-200 rounded-md overflow-y-auto"
+        className="flex-1 overflow-y-auto px-2"
         style={{
-          scrollbarWidth: 'none', /* Firefox */
-          msOverflowStyle: 'none', /* Internet Explorer 10+ */
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
         }}
       >
         <style jsx>{`
           div::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Opera */
+            display: none;
           }
         `}</style>
         {renderCardView()}
@@ -356,6 +499,41 @@ export default function SystemPromptDisplay({
               </div>
             </div>
           )}
+        </div>
+      </Modal>
+      
+      {/* Expand Card Content Modal */}
+      <Modal
+        title={
+          <div className="flex justify-end items-center pr-4">
+            <button
+              onClick={handleCloseExpandedModal}
+              className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+              style={{ border: "none" }}
+            >
+              {t('systemPrompt.button.close')}
+            </button>
+          </div>
+        }
+        open={expandModalOpen}
+        closeIcon={null}
+        onCancel={handleCloseExpandedModal}
+        footer={null}
+        width={1000}
+        styles={{
+          body: { padding: '20px' },
+          content: { top: 20 }
+        }}
+      >
+        <div className="flex flex-col h-[80vh]">
+          <div className="flex-1 border border-gray-200 rounded-md overflow-y-auto">
+            <MilkdownProvider>
+              <PromptEditor
+                value={expandContent}
+                onChange={setExpandContent}
+              />
+            </MilkdownProvider>
+          </div>
         </div>
       </Modal>
     </div>

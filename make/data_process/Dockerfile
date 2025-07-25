@@ -13,6 +13,7 @@ RUN rm -f /etc/apt/sources.list.d/* && \
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
+        curl \
         libmagic1 \
         libmagic-dev \
         libreoffice \
@@ -30,10 +31,10 @@ COPY model-assets/nltk_data /opt/models/nltk_data
 WORKDIR /opt/backend
 # Layer 1: install base dependencies
 COPY backend/pyproject.toml /opt/backend/pyproject.toml
-RUN uv sync --no-cache-dir --extra data-process $(test -n "$MIRROR" && echo "-i $MIRROR")
+RUN uv sync --extra data-process $(test -n "$MIRROR" && echo "-i $MIRROR")
 # Layer 2: install sdk in link mode
 COPY sdk /opt/sdk
-RUN uv pip install --no-cache-dir -e /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR") && \
+RUN uv pip install /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR") && \
     uv cache clean
 # Layer 3: copy backend code
 COPY backend /opt/backend

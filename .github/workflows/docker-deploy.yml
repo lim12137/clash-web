@@ -65,7 +65,7 @@ jobs:
           fetch-depth: 1
           retries: 3
       - name: Build web frontend image
-        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-web-commercial -f make/web/Dockerfile .
+        run: docker build --build-arg MIRROR=https://registry.npmmirror.com -t nexent/nexent-web-commercial -f make/web/Dockerfile .
 
   deploy:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}

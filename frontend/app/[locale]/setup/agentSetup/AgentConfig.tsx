@@ -345,6 +345,9 @@ export default function AgentConfig() {
                   dutyContent={dutyContent}
                   constraintContent={constraintContent}
                   fewShotsContent={fewShotsContent}
+                  onDutyContentChange={setDutyContent}
+                  onConstraintContentChange={setConstraintContent}
+                  onFewShotsContentChange={setFewShotsContent}
                 />
             </div>
           </Col>
