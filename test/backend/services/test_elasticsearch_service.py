@@ -560,7 +560,6 @@ class TestElasticSearchService(unittest.TestCase):
             return await ElasticSearchService.list_files(
                 index_name="test_index",
                 include_chunks=False,
-                search_redis=True,
                 es_core=self.mock_es_core
             )
 
@@ -620,7 +619,6 @@ class TestElasticSearchService(unittest.TestCase):
             return await ElasticSearchService.list_files(
                 index_name="test_index",
                 include_chunks=True,
-                search_redis=True,
                 es_core=self.mock_es_core
             )
 
@@ -662,7 +660,6 @@ class TestElasticSearchService(unittest.TestCase):
             return await ElasticSearchService.list_files(
                 index_name="test_index",
                 include_chunks=True,
-                search_redis=True,
                 es_core=self.mock_es_core
             )
 

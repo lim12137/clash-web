@@ -7,13 +7,14 @@ import logging
 import argparse
 import time
 import threading
+import re
 import ray
 from contextlib import asynccontextmanager
 from typing import Any
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
-from data_process.ray_config import init_ray_for_service
+from data_process.ray_config import RayConfig
 from utils.logging_utils import configure_logging
 
 # Load environment variables
@@ -21,6 +22,7 @@ load_dotenv()
 
 # Configure logging with color formatter
 configure_logging(logging.INFO)
+logging.getLogger("ray").setLevel(logging.WARNING)
 logger = logging.getLogger("data_process_service")
 
 # Global variables to track processes
@@ -39,6 +41,18 @@ class ServiceManager:
         self.redis_port = config.get('redis_port', 6379)
         self.flower_port = config.get('flower_port', 5555)
         self.ray_dashboard_port = config.get('ray_dashboard_port', 8265)
+        
+        # Unify configuration from command-line arguments and environment variables.
+        # A service is disabled if EITHER the command-line flag is set OR the env var is 'true'.
+        disable_dashboard_from_args = self.config.get('disable_ray_dashboard', False)
+        disable_dashboard_from_env = os.environ.get('DISABLE_RAY_DASHBOARD', 'false').lower() == 'true'
+        self.config['disable_ray_dashboard'] = disable_dashboard_from_args or disable_dashboard_from_env
+
+        # Flower is started only if it's enabled by args AND not disabled by env var.
+        disable_flower_from_args = self.config.get('disable_celery_flower', False)
+        disable_flower_from_env = os.environ.get('DISABLE_CELERY_FLOWER', 'false').lower() == 'true'
+        self.config['start_flower'] = not (disable_flower_from_args or disable_flower_from_env)
+
         self._shutdown_called = False  # Flag to prevent multiple shutdowns
         self._ray_cluster_started = False  # Track if we started Ray cluster
         
@@ -67,10 +81,11 @@ class ServiceManager:
     def start_ray_cluster(self):
         """Start Ray cluster if not already running"""
         if not self.config.get('start_ray', True):
-            logger.info("Ray cluster startup disabled by configuration")
+            logger.info("⏸️ Ray cluster startup disabled")
             return True
             
         try:
+            include_dashboard = not self.config.get('disable_ray_dashboard', False)
             # Check if Ray is already initialized
             if ray.is_initialized():
                 logger.info("✅ Ray cluster already running")
@@ -83,20 +98,21 @@ class ServiceManager:
             
             logger.info("🔮 Starting Ray cluster...")
             
-            # Use the centralized Ray initialization if available
-            if init_ray_for_service:
-                success = init_ray_for_service(
-                    num_cpus=num_cpus,
-                    dashboard_port=self.ray_dashboard_port,
-                    try_connect_first=True
-                )
-            else:
+            # Initialize Ray using the centralized RayConfig helper
+            success = RayConfig.init_ray_for_service(
+                num_cpus=num_cpus,
+                dashboard_port=self.ray_dashboard_port,
+                try_connect_first=True,
+                include_dashboard=include_dashboard
+            )
+
+            if not success:
                 # Fallback to direct Ray initialization
                 try:
                     ray.init(
                         num_cpus=num_cpus,
                         _plasma_directory="/tmp",
-                        include_dashboard=True,
+                        include_dashboard=include_dashboard,
                         dashboard_host=dashboard_host,
                         dashboard_port=self.ray_dashboard_port,
                         ignore_reinit_error=True
@@ -110,14 +126,17 @@ class ServiceManager:
                 service_processes['ray_cluster'] = True  # Mark as managed by this service
                 
                 logger.info("✅ Ray cluster initialized successfully!")
-                logger.info(f"✅ Ray dashboard available at: http://{dashboard_host}:{self.ray_dashboard_port}")
+                if include_dashboard:
+                    logger.info(f"✅ Ray dashboard available at: http://{dashboard_host}:{self.ray_dashboard_port}")
+                else:
+                    logger.info("⏸️ Ray dashboard disabled")
                 
                 # Display cluster info
                 try:
                     cluster_resources = ray.cluster_resources()
                     logger.info(f"✅ Ray cluster resources: {cluster_resources}")
                 except Exception as e:
-                    logger.debug(f"Could not get cluster resources: {e}")
+                    logger.debug(f"❌ Could not get cluster resources: {e}")
                 
                 return True
                 
@@ -130,25 +149,47 @@ class ServiceManager:
     def start_workers(self):
         """Start Celery workers for process and forward queues"""
         if not self.config.get('start_workers', True):
-            logger.info("Workers startup disabled by configuration")
+            logger.info("⏸️ Workers startup disabled")
             return True
             
         try:
             # Check if we're in Docker environment
             docker_env = os.environ.get('DOCKER_ENVIRONMENT', 'false').lower() == 'true'
             logger.info(f"Starting workers in {'Docker' if docker_env else 'development'} environment")
+
+            # Dynamically determine concurrency for process-worker based on Ray's CPU resources
+            ray_num_cpus = os.environ.get('RAY_NUM_CPUS')
+            # Each process task requires 1 CPU from Ray. Concurrency should not exceed available CPUs.
+            # Fallback to 1 if os.cpu_count() is None.
+            total_cpus = int(ray_num_cpus) if ray_num_cpus else (os.cpu_count() or 1)
+
+            # Get the number of CPUs requested by each actor. Default to 2.
+            ray_actor_num_cpus = int(os.getenv('RAY_ACTOR_NUM_CPUS', '2'))
             
+            # Calculate concurrency for the process-worker. Each worker will spawn an actor,
+            # so we limit concurrency to avoid oversubscribing Ray's CPU resources.
+            process_worker_concurrency = max(1, total_cpus // ray_actor_num_cpus)
+            
+            # For forward-worker, it's I/O bound. A higher concurrency is fine, but we can cap it
+            # relative to CPU count to avoid creating excessive threads on small machines.
+            forward_worker_concurrency = min(8, total_cpus * 2)
+
+            logger.debug(f"Total available CPUs: {total_cpus}")
+            logger.debug(f"CPUs per processing actor (RAY_ACTOR_NUM_CPUS): {ray_actor_num_cpus}")
+            logger.debug(f"Process-worker concurrency set to: {process_worker_concurrency}")
+            logger.debug(f"Forward-worker concurrency set to: {forward_worker_concurrency}")
+
             # Define worker configurations based on new architecture
             workers_config = [
                 {
                     'name': 'process-worker',
                     'queue': 'process_q',
-                    'concurrency': 8
+                    'concurrency': process_worker_concurrency
                 },
                 {
                     'name': 'forward-worker', 
                     'queue': 'forward_q',
-                    'concurrency': 8
+                    'concurrency': forward_worker_concurrency
                 }
             ]
             
@@ -183,21 +224,21 @@ try:
     # Ensure the Celery app is discovered correctly
     from data_process.app import app as celery_app
     
-    logger.info(f"Celery app instance: {{celery_app}}")
-    logger.info(f"Attempting to start worker for queue: {config['queue']}")
+    logger.debug(f"Celery app instance: {{celery_app}}")
+    logger.debug(f"Attempting to start worker for queue: {config['queue']}")
     from data_process.worker import start_worker
     start_worker()
 except ImportError as e:
-    logger.info(f"Import error: {{e}}")
-    logger.info(f"Python path: {{sys.path}}")
-    logger.info(f"Current directory: {{os.getcwd()}}")
+    logger.error(f"Import error: {{e}}")
+    logger.error(f"Python path: {{sys.path}}")
+    logger.error(f"Current directory: {{os.getcwd()}}")
     sys.exit(1)
 except Exception as e_exec:
-    logger.info(f"Error executing worker: {{e_exec}}")
+    logger.error(f"Error executing worker: {{e_exec}}")
     import traceback
-    logger.info(traceback.format_exc())
+    logger.error(traceback.format_exc())
     sys.exit(1)
-                    '''
+                    '''  # noqa: F821
                 ]
 
                 logger.info(f"Starting {config['name']} worker for queue: {config['queue']} with concurrency: {config['concurrency']}")
@@ -257,33 +298,35 @@ except Exception as e_exec:
                 
                 # Start a thread to capture and log worker output
                 def log_worker_output(process, worker_name):
+                    log_mapping = {
+                        'INFO': logging.INFO,
+                        'WARNING': logging.WARNING,
+                        'ERROR': logging.ERROR,
+                        'DEBUG': logging.DEBUG,
+                        'CRITICAL': logging.CRITICAL
+                    }
+                    # Regex to capture log level and message from Celery-style logs
+                    log_pattern = re.compile(r'^\[[^\]]+:\s*(?P<level>\w+)/[^\]]+\]\s*(?P<message>.*)$')
+
                     try:
                         for line in iter(process.stdout.readline, ''):
-                            if line.strip():
-                                # Clean up redundant timestamps and worker info from output
-                                clean_line = line.strip()
-                                
-                                # Remove timestamp prefix if present (e.g., "[2025-05-24 07:35:02,461: INFO/...")
-                                if clean_line.startswith('[') and ': ' in clean_line:
-                                    # Find the first ']' and extract the message part
-                                    bracket_end = clean_line.find(']', 1)
-                                    if bracket_end != -1 and bracket_end < len(clean_line) - 1:
-                                        clean_line = clean_line[bracket_end + 1:].strip()
-                                        
-                                # Remove additional worker prefixes like "[process-worker]"
-                                while clean_line.startswith('[') and ']' in clean_line:
-                                    bracket_end = clean_line.find(']')
-                                    if bracket_end != -1:
-                                        clean_line = clean_line[bracket_end + 1:].strip()
-                                    else:
-                                        break
-                                
+                            line = line.strip()
+                            if not line:
+                                continue
+
+                            match = log_pattern.match(line)
+                            if match:
+                                level_name = match.group('level').upper()
+                                message = match.group('message')
+                                log_level = log_mapping.get(level_name, logging.INFO)
+
                                 # Only log meaningful messages
-                                if clean_line and not clean_line.startswith('Worker module imported'):
-                                    logger.info(f"[{worker_name}] {clean_line}")
+                                if message and 'imported' not in message and 'Creating pool' not in message:
+                                    logger.log(log_level, f"[{worker_name}] {message}")
+                            elif 'celery@' not in line: # Filter out celery startup noise
+                                logger.info(f"[{worker_name}] {line}")
                     except Exception as e:
                         logger.warning(f"Error in log thread for worker {worker_name}: {str(e)}")
-                        # Thread will exit gracefully, worker process continues
                     finally:
                         logger.debug(f"Log thread for worker {worker_name} has terminated")
                 
@@ -305,13 +348,7 @@ except Exception as e_exec:
     
     def start_flower(self):
         """Start Flower monitoring for Celery"""
-        if not self.config.get('start_flower', True):
-            logger.info("Flower monitoring startup disabled by configuration")
-            return True
-            
         try:
-            logger.info(f"Starting Flower monitoring on port {self.flower_port}...")
-            
             # Get Redis URL from environment to ensure consistency
             redis_url = os.environ.get('REDIS_URL')
             
@@ -356,21 +393,21 @@ except Exception as e_exec:
                 '--max-tasks=10000'
             ]
             
-            logger.info(f"Flower command: {' '.join(flower_cmd)}")
-            logger.info(f"Flower CWD: {backend_dir}")
-            logger.info(f"Flower PYTHONPATH: {flower_env['PYTHONPATH']}")
-            logger.info(f"Flower REDIS_URL: {redis_url}")
+            logger.debug(f"Flower command: {' '.join(flower_cmd)}")
+            logger.debug(f"Flower CWD: {backend_dir}")
+            logger.debug(f"Flower PYTHONPATH: {flower_env['PYTHONPATH']}")
+            logger.debug(f"Flower REDIS_URL: {redis_url}")
             
-            # Test if the Celery app can be imported
-            try:
-                sys.path.insert(0, project_root_dir)
-                sys.path.insert(0, backend_dir)
-                from data_process.app import app as celery_app
-                logger.info(f"✅ Celery app import test successful: {celery_app}")
-            except Exception as import_error:
-                logger.warning(f"⚠️ Celery app import test failed: {import_error}")
-                logger.warning("This might cause Flower startup issues")
-            
+            # Platform-specific arguments for creating a new process group/session
+            # This allows us to terminate the entire process tree reliably.
+            popen_kwargs = {}
+            if sys.platform == "win32":
+                popen_kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+            else:
+                # Use os.setsid to create a new session, making the process group leader.
+                # This is the standard way on Unix-like systems.
+                popen_kwargs['preexec_fn'] = os.setsid
+
             process = subprocess.Popen(
                 flower_cmd,
                 stdout=subprocess.PIPE,
@@ -378,34 +415,57 @@ except Exception as e_exec:
                 text=True,
                 cwd=backend_dir,  # Run from backend directory for module import
                 env=flower_env,  # Pass environment variables for configuration
-                preexec_fn=os.setsid if hasattr(os, 'setsid') else None  # Create new process group
+                **popen_kwargs
             )
             
             service_processes['flower'] = process
-            logger.info(f"Flower monitoring started with PID: {process.pid}")
-            logger.info(f"🌸 Flower web interface: http://localhost:{self.flower_port}")
+            logger.info(f"✅ Flower monitoring started with PID: {process.pid}")
             
             # Start thread to log Flower output
             def log_flower_output():
+                log_mapping = {
+                    'INFO': logging.INFO,
+                    'WARNING': logging.WARNING,
+                    'ERROR': logging.ERROR,
+                    'DEBUG': logging.DEBUG,
+                    'CRITICAL': logging.CRITICAL
+                }
+                # Regex for Flower logs (e.g., [I 240...], or ... INFO - ...)
+                flower_pattern1 = re.compile(r'\[([IWEFDC])\s\d{6}\s\d{2}:\d{2}:\d{2}\s[^\]]+\]\s*(.*)')
+                flower_pattern2 = re.compile(r'^\S+\s*-\s*(INFO|WARNING|ERROR|DEBUG|CRITICAL)\s*-\s*(.*)')
+                level_map_short = {'I': 'INFO', 'W': 'WARNING', 'E': 'ERROR', 'D': 'DEBUG', 'C': 'CRITICAL'}
+
                 try:
                     if process.stdout:
                         for line in iter(process.stdout.readline, ''):
-                            if line.strip():
-                                # Clean up redundant timestamps and logging info from Flower output
-                                clean_line = line.strip()
-                                if ' - ' in clean_line:
-                                    # Remove timestamp and level if present in Flower log line
-                                    parts = clean_line.split(' - ')
-                                    if len(parts) > 1:
-                                        clean_line = ' - '.join(parts[1:])
+                            clean_line = line.strip()
+                            if not clean_line:
+                                continue
+                            
+                            level_name, message = None, None
+                            match1 = flower_pattern1.match(clean_line)
+                            match2 = flower_pattern2.match(clean_line)
+
+                            if match1:
+                                level_char = match1.group(1)
+                                level_name = level_map_short.get(level_char)
+                                message = match1.group(2)
+                            elif match2:
+                                level_name = match2.group(1).upper()
+                                message = match2.group(2)
+                            
+                            if level_name and message:
+                                log_level = log_mapping.get(level_name, logging.INFO)
                                 # Filter out Ray-related error messages from Flower logs
-                                if 'ray' not in clean_line.lower() or 'started' in clean_line.lower():
-                                    logger.info(f"[Flower] {clean_line}")
+                                if 'ray' not in message.lower() or 'started' in message.lower():
+                                    logger.log(log_level, f"[Flower] {message}")
+                            elif 'ray' not in clean_line.lower() or 'started' in clean_line.lower():
+                                logger.info(f"[Flower] {clean_line}")
+
                 except Exception as e:
-                    logger.warning(f"Error in Flower log thread: {str(e)}")
-                    # Thread will exit gracefully, Flower process continues
+                    logger.warning(f"❌ Error in Flower log thread: {str(e)}")
                 finally:
-                    logger.debug("Flower log thread has terminated")
+                    logger.debug("🛑 Flower log thread has terminated")
             
             output_thread = threading.Thread(target=log_flower_output, daemon=True)
             output_thread.start()
@@ -420,8 +480,8 @@ except Exception as e_exec:
                     if process.stdout:
                         output = process.stdout.read()
                         if output:
-                            logger.error(f"Flower error output: {output}")
-                except:
+                            logger.error(f"❌ Flower error output: {output}")
+                except Exception as _:
                     pass
                 return False
             
@@ -452,6 +512,8 @@ except Exception as e_exec:
         
         success_count = 0
         enabled_count = 0
+
+        logger.info(f"📋 Effective service config: {self.config}")
         
         for service_name, start_func, config_key in services:
             if self.config.get(config_key, True):
@@ -468,7 +530,7 @@ except Exception as e_exec:
                 else:
                     logger.warning(f"Failed to start {service_name}")
             else:
-                logger.info(f"Skipping {service_name} (disabled by configuration)")
+                logger.info(f"⏸️ {service_name} disabled")
         
         logger.info("=" * 50)
         logger.info(f"✅ Started {success_count}/{enabled_count} services successfully")
@@ -490,11 +552,12 @@ except Exception as e_exec:
                 try:
                     gcs_address = ray.get_runtime_context().gcs_address
                     logger.info(f"🔮 Ray Cluster: {gcs_address}")
-                    logger.info(f"🎯 Ray Dashboard: http://localhost:{self.ray_dashboard_port}")
-                except:
-                    logger.info(f"🔮 Ray Cluster: Running locally")
+                    if not self.config.get('disable_ray_dashboard', False):
+                        logger.info(f"🎯 Ray Dashboard: http://localhost:{self.ray_dashboard_port}")
+                except Exception as _:
+                    logger.info("🔮 Ray Cluster: Running locally")
             else:
-                logger.info(f" Ray Cluster: Not started")
+                logger.info("❌ Ray Cluster: Not started")
         
         if self.config.get('start_workers', True):
             logger.info(f"👷 Workers: {len(service_processes['workers'])} processes")
@@ -558,48 +621,56 @@ except Exception as e_exec:
         
         # Stop Flower after Ray is shutdown to prevent conflicts
         if service_processes['flower']:
+            process = service_processes['flower']
+            pid = process.pid
+            logger.info(f"🛑 Stopping Flower monitoring (PID: {pid})...")
+
             try:
-                logger.info("Stopping Flower monitoring...")
-                
-                # Try to terminate the process group first (if using setsid)
-                try:
-                    if hasattr(os, 'killpg'):
-                        os.killpg(os.getpgid(service_processes['flower'].pid), signal.SIGTERM)
-                        logger.info("Sent SIGTERM to Flower process group")
+                if process.poll() is None:  # Check if process is still running
+                    if sys.platform == "win32":
+                        # On Windows, send CTRL_BREAK_EVENT to the process group.
+                        logger.info(f"Sending CTRL_BREAK_EVENT to Flower process group (PID: {pid}) on Windows.")
+                        process.send_signal(signal.CTRL_BREAK_EVENT)
                     else:
-                        service_processes['flower'].terminate()
-                        logger.info("Sent SIGTERM to Flower process")
-                except (ProcessLookupError, OSError):
-                    # Process or process group might already be gone
-                    logger.info("Flower process/group already terminated")
-                
-                try:
-                    service_processes['flower'].wait(timeout=10)
-                    logger.info("Flower stopped gracefully")
-                except subprocess.TimeoutExpired:
-                    logger.warning("Flower didn't terminate gracefully, killing it")
+                        # On Unix-like systems, send SIGTERM to the entire process group.
+                        logger.info(f"Sending SIGTERM to Flower process group (PGID: {os.getpgid(pid)}).")
+                        os.killpg(os.getpgid(pid), signal.SIGTERM)
+
+                    # Wait for the process to terminate
                     try:
-                        # Try to kill the process group first
-                        if hasattr(os, 'killpg'):
-                            os.killpg(os.getpgid(service_processes['flower'].pid), signal.SIGKILL)
-                            logger.info("Killed Flower process group")
+                        process.wait(timeout=10)
+                        logger.info("✅ Flower stopped gracefully.")
+                    except subprocess.TimeoutExpired:
+                        logger.warning("Flower did not terminate gracefully after 10s. Forcing kill.")
+                        if sys.platform == "win32":
+                            # Use taskkill as a more forceful method to ensure the process tree is killed.
+                            logger.info(f"Using taskkill to forcefully terminate Flower process tree (PID: {pid}).")
+                            subprocess.run(['taskkill', '/F', '/T', '/PID', str(pid)], check=False, capture_output=True)
                         else:
-                            service_processes['flower'].kill()
-                            logger.info("Killed Flower process")
-                        service_processes['flower'].wait()
-                    except (ProcessLookupError, OSError):
-                        # Process already gone
-                        logger.info("Flower process already terminated")
-                    
+                            # Send SIGKILL to the process group as a last resort.
+                            logger.info(f"Sending SIGKILL to Flower process group (PGID: {os.getpgid(pid)}).")
+                            os.killpg(os.getpgid(pid), signal.SIGKILL)
+                        
+                        process.wait(timeout=5) # Final wait
+                        logger.info("✅ Flower process forcefully terminated.")
+                else:
+                    logger.info("✅ Flower process was already terminated.")
+            
+            except (ProcessLookupError, OSError) as e:
+                logger.warning(f"Could not terminate Flower process group, it may have already exited: {e}")
+                # Fallback to killing just the main process if it's still running
+                if process.poll() is None:
+                    process.kill()
+                    logger.info("Fell back to killing only the main Flower process.")
             except Exception as e:
-                logger.error(f"Error stopping Flower: {str(e)}")
-                # Best effort cleanup
-                try:
-                    if service_processes['flower'].poll() is None:
-                        service_processes['flower'].kill()
-                        logger.info("Flower force killed after error")
-                except:
-                    pass
+                logger.error(f"An unexpected error occurred while stopping Flower: {str(e)}")
+                # Best-effort kill as a final fallback
+                if process.poll() is None:
+                    try:
+                        process.kill()
+                        logger.warning("Flower process was force-killed due to an error during shutdown.")
+                    except Exception as final_e:
+                        logger.error(f"Final attempt to kill Flower process failed: {final_e}")
             finally:
                 service_processes['flower'] = None
         
@@ -610,7 +681,7 @@ except Exception as e_exec:
                 service_processes['redis'].terminate()
                 service_processes['redis'].wait(timeout=5)
                 logger.info("Redis stopped")
-            except:
+            except Exception as _:
                 service_processes['redis'].kill()
                 logger.info("Redis force killed")
             service_processes['redis'] = None
@@ -625,7 +696,8 @@ def parse_arguments():
         epilog="""
 Examples:
   python data_process_service.py                           # Start all services (Redis, Ray, Workers, Flower)
-  python data_process_service.py --no-flower               # Skip Flower monitoring
+  python data_process_service.py --disable-celery-flower   # Skip Flower monitoring
+  python data_process_service.py --disable-ray-dashboard   # Skip Ray dashboard
   python data_process_service.py --no-ray                  # Skip Ray cluster (use external Ray)
   python data_process_service.py --ray-dashboard-port 8266 # Use custom Ray dashboard port
         """
@@ -634,17 +706,22 @@ Examples:
     # Service control arguments
     parser.add_argument('--no-workers', action='store_true',
                        help='Do not start Celery workers')
-    parser.add_argument('--no-flower', action='store_true',
-                       help='Do not start Flower monitoring')
     parser.add_argument('--no-ray', action='store_true',
                        help='Do not start Ray cluster')
+    
     # Port configuration
-    parser.add_argument('--redis-port', type=int, default=6379,
-                       help='Redis server port (default: 6379)')
-    parser.add_argument('--flower-port', type=int, default=5555,
-                       help='Flower monitoring port (default: 5555)')
-    parser.add_argument('--ray-dashboard-port', type=int, default=8265,
-                       help='Ray dashboard port (default: 8265)')
+    parser.add_argument('--redis-port', type=int, default=int(os.getenv('REDIS_PORT', '6379')),
+                       help='Redis server port (default: env REDIS_PORT or 6379)')
+    parser.add_argument('--flower-port', type=int, default=int(os.getenv('FLOWER_PORT', '5555')),
+                       help='Flower monitoring port (default: env FLOWER_PORT or 5555)')
+    parser.add_argument('--ray-dashboard-port', type=int, default=int(os.getenv('RAY_DASHBOARD_PORT', '8265')),
+                       help='Ray dashboard port (default: env RAY_DASHBOARD_PORT or 8265)')
+    
+    # Dashboard / monitoring disable flags
+    parser.add_argument('--disable-ray-dashboard', action='store_true',
+                       help='Disable Ray dashboard if this flag is present.')
+    parser.add_argument('--disable-celery-flower', action='store_true',
+                       help='Disable Celery Flower monitoring if this flag is present.')
     
     # API server configuration
     parser.add_argument('--api-host', default='0.0.0.0',
@@ -716,8 +793,9 @@ def main():
     # Create service configuration
     config = {
         'start_workers': not args.no_workers,
-        'start_flower': not args.no_flower,
+        'start_flower': not args.disable_celery_flower,
         'start_ray': not args.no_ray,
+        'disable_ray_dashboard': args.disable_ray_dashboard,
         'redis_port': args.redis_port,
         'flower_port': args.flower_port,
         'ray_dashboard_port': args.ray_dashboard_port,
