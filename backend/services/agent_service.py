@@ -328,6 +328,8 @@ def list_all_agent_info_impl(tenant_id: str, user_id: str) -> list[dict]:
         simple_agent_list = []
         for agent in agent_list:
             # check agent is available
+            if not agent["name"]:
+                continue
             tool_info = search_tools_for_sub_agent(agent_id=agent["agent_id"], tenant_id=tenant_id, user_id=None)
             tool_id_list = [tool["tool_id"] for tool in tool_info]
             is_available = all(check_tool_is_available(tool_id_list))
