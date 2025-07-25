@@ -24,8 +24,7 @@ frontend_standalone/
 .pnpm-store/
 frontend-dist/
 
-backend/assets/clip-vit-base-patch32
-model-assets
+model-assets/
 
 # Test coverage reports
 *coverage_html

@@ -70,7 +70,6 @@ def run_async(coro):
                 logger.warning("nest_asyncio not available, creating new thread for async operation")
                 # Fallback: run in a new thread
                 import concurrent.futures
-                import threading
                 
                 def run_in_thread():
                     new_loop = asyncio.new_event_loop()
@@ -97,22 +96,15 @@ def run_async(coro):
 # This will be initialized on first task run by a worker process
 def get_ray_actor() -> Any:
     """
-    Creates or gets a handle to the named DataProcessorRayActor.
-    This is an idempotent operation, safe from race conditions.
+    Creates a new, anonymous DataProcessorRayActor instance for each call.
+    This allows for parallel execution of data processing tasks, with each
+    task running in its own actor.
     """
     with ray_init_lock:
         init_ray_in_worker()
-        
-    # Use get_if_exists=True to make this operation idempotent.
-    # This will create the actor if it doesn't exist, or get a handle to it if it does.
-    # This is safe to be called from multiple workers concurrently.
-    actor = DataProcessorRayActor.options(
-        name="data_processor_actor",
-        lifetime="detached",
-        get_if_exists=True
-    ).remote()
+    actor = DataProcessorRayActor.remote()
     
-    logger.debug("Successfully obtained handle for DataProcessorRayActor.")
+    logger.debug("Successfully created a new DataProcessorRayActor for a task.")
     return actor
 
 class LoggingTask(Task):
@@ -159,18 +151,6 @@ def process(self, source: str, source_type: str,
     task_id = self.request.id
 
     logger.info(f"[{self.request.id}] PROCESS TASK: source_type: {source_type}")
-    
-    self.update_state(
-        state=states.PENDING,
-        meta={
-            'source': source,
-            'source_type': source_type,
-            'index_name': index_name,
-            'original_filename': original_filename,
-            'task_name': 'process',
-            'start_time': start_time
-        }
-    )
     
     self.update_state(
         state=states.STARTED,
@@ -473,7 +453,7 @@ def forward(self, processed_data: Dict, index_name: str,
         es_result = run_async(index_documents())
         logger.debug(f"[{self.request.id}] FORWARD TASK: API response from main_server for source '{original_source}': {es_result}")
 
-        if isinstance(es_result, dict) and es_result.get("success") == True:
+        if isinstance(es_result, dict) and es_result.get("success"):
             total_indexed = es_result.get("total_indexed", 0)
             total_submitted = es_result.get("total_submitted", len(formatted_chunks))
             logger.debug(f"[{self.request.id}] FORWARD TASK: main_server reported {total_indexed}/{total_submitted} documents indexed successfully for '{original_source}'. Message: {es_result.get('message')}")
@@ -482,7 +462,7 @@ def forward(self, processed_data: Dict, index_name: str,
                 logger.info("Value when raise Exception:")
                 logger.info(f"original_source: {original_source}")
                 logger.info(f"original_index_name: {original_index_name}")
-                logger.info(f"task_name: forward")
+                logger.info("task_name: forward")
                 logger.info(f"source: {original_source}")
                 raise Exception(json.dumps({
                     "message": f"Failure reported by main_server. Expected {total_submitted} chunks, indexed {total_indexed} chunks.",
@@ -491,7 +471,7 @@ def forward(self, processed_data: Dict, index_name: str,
                     "source": original_source,
                     "original_filename": original_filename
                 }, ensure_ascii=False))
-        elif isinstance(es_result, dict) and es_result.get("success") == False:
+        elif isinstance(es_result, dict) and not es_result.get("success"):
             error_message = es_result.get("message", "Unknown error from main_server")
             raise Exception(json.dumps({
                 "message": f"main_server API error: {error_message}",
