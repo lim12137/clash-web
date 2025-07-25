@@ -700,3 +700,52 @@ async def test_export_agent_api_empty_response(mocker, mock_auth_header):
     assert response_data["code"] == 0
     assert response_data["message"] == "success"
     assert response_data["data"] == {}
+
+
+def test_list_all_agent_info_api_success(mocker, mock_auth_header):
+    # Setup mocks using pytest-mock
+    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
+    mock_list_all_agent = mocker.patch("backend.apps.agent_app.list_all_agent_info_impl")
+    
+    # Mock return values
+    mock_get_user_info.return_value = ("test_user", "test_tenant", "en")
+    mock_list_all_agent.return_value = [
+        {"agent_id": 1, "name": "Agent 1"},
+        {"agent_id": 2, "name": "Agent 2"}
+    ]
+    
+    # Test the endpoint
+    response = client.get(
+        "/agent/list",
+        headers=mock_auth_header
+    )
+    
+    # Assertions
+    assert response.status_code == 200
+    mock_get_user_info.assert_called_once()
+    mock_list_all_agent.assert_called_once_with(tenant_id="test_tenant", user_id="test_user")
+    assert len(response.json()) == 2
+    assert response.json()[0]["agent_id"] == 1
+    assert response.json()[1]["name"] == "Agent 2"
+
+
+def test_list_all_agent_info_api_exception(mocker, mock_auth_header):
+    # Setup mocks using pytest-mock
+    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
+    mock_list_all_agent = mocker.patch("backend.apps.agent_app.list_all_agent_info_impl")
+    
+    # Mock return values and exception
+    mock_get_user_info.return_value = ("test_user", "test_tenant", "en")
+    mock_list_all_agent.side_effect = Exception("Test error")
+    
+    # Test the endpoint
+    response = client.get(
+        "/agent/list",
+        headers=mock_auth_header
+    )
+    
+    # Assertions
+    assert response.status_code == 500
+    mock_get_user_info.assert_called_once()
+    mock_list_all_agent.assert_called_once_with(tenant_id="test_tenant", user_id="test_user")
+    assert "Agent list error" in response.json()["detail"]
