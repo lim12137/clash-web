@@ -692,6 +692,7 @@
     "toolPool.message.unavailable": "该工具不可用",
     "toolPool.tag.mcp": "MCP工具",
     "toolPool.tag.local": "本地工具",
+    "toolPool.tag.langchain": "LangChain工具",
     "toolPool.error.requiredFields": "以下必填字段未填写: {{fields}}",
     "businessLogic.config.model": "模型",
     "businessLogic.config.maxSteps": "最大步骤数",

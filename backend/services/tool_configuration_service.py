@@ -10,6 +10,10 @@ from fastmcp import Client
 import jsonref
 from mcpadapt.smolagents_adapter import _sanitize_function_name
 
+# Support for LangChain-decorated function tools
+import os
+import importlib.util
+
 from database.agent_db import (
     query_tool_instances_by_id,
     create_or_update_tool_by_tool_info,
@@ -116,6 +120,130 @@ def get_local_tools_classes() -> List[type]:
         if inspect.isclass(obj):
             tools_classes.append(obj)
     return tools_classes
+
+
+# --------------------------------------------------
+# LangChain tools discovery (functions decorated with @tool)
+# --------------------------------------------------
+
+
+def _is_langchain_tool(obj) -> bool:
+    """Rudimentary check to determine whether an object is a LangChain Tool.
+
+    LangChain's `@tool` decorator returns an instance of `BaseTool` (often
+    `StructuredTool`).  These objects expose a `name` and `description` field
+    that we can leverage.  We purposefully avoid importing the LangChain
+    classes directly to keep dependencies loose – we only rely on duck typing
+    (i.e. presence of the expected attributes).
+    """
+    # Must be *callable* (implements __call__) OR has a .run/ .invoke etc.
+    has_name = hasattr(obj, "name") and isinstance(getattr(obj, "name"), str)
+    has_desc = hasattr(obj, "description") and isinstance(
+        getattr(obj, "description"), str
+    )
+    return has_name and has_desc
+
+
+def _build_tool_info_from_langchain(obj) -> ToolInfo:
+    """Convert a LangChain Tool object into our internal ToolInfo model."""
+
+    # Try to infer parameter schema from the underlying callable signature if
+    # available.  LangChain tools usually expose a `.func` attribute pointing
+    # to the original python function.  If not present, we fallback to the
+    # tool instance itself (implements __call__).
+    target_callable = getattr(obj, "func", obj)
+
+    params = []
+    try:
+        sig = inspect.signature(target_callable)
+        for param_name, param in sig.parameters.items():
+            if param_name == "self":
+                continue
+
+            param_info = {
+                "name": param_name,
+                "type": python_type_to_json_schema(param.annotation),
+                "description": "",  # LangChain doesn’t store per-arg descriptions by default
+                "optional": param.default is not inspect._empty,
+            }
+
+            if param.default is not inspect._empty:
+                param_info["default"] = param.default
+
+            params.append(param_info)
+    except (TypeError, ValueError):
+        # Fall back gracefully if we cannot inspect signature
+        params = []
+
+    # Prepare the `inputs` description shown in prompts. We’ll serialise the
+    # simple param schema dict for readability.
+    inputs_repr = json.dumps({p["name"]: p for p in params}, ensure_ascii=False)
+
+    # Attempt to infer output type from return annotation
+    try:
+        return_schema = inspect.signature(target_callable).return_annotation
+        output_type = python_type_to_json_schema(return_schema)
+    except (TypeError, ValueError):
+        output_type = "string"
+
+    tool_info = ToolInfo(
+        name=getattr(obj, "name", target_callable.__name__),
+        description=getattr(obj, "description", ""),
+        params=params,
+        source=ToolSourceEnum.LANGCHAIN.value,
+        inputs=inputs_repr,
+        output_type=output_type,
+        class_name=getattr(obj, "name", target_callable.__name__),
+        usage=None,
+    )
+    return tool_info
+
+
+def get_langchain_tools(directory: str = os.path.join(os.path.dirname(__file__), "../mcp_service/langchain")) -> List[ToolInfo]:
+    """Discover LangChain tools in the specified directory.
+
+    We dynamically import every `*.py` file and extract objects that look like
+    LangChain tools (based on presence of `name` & `description`).  Any valid
+    tool is converted to ToolInfo with source = "langchain".
+    """
+
+    tools_info: List[ToolInfo] = []
+
+    if not os.path.isdir(directory):
+        logger.warning("LangChain tools directory not found: %s", directory)
+        return tools_info
+
+    for filename in os.listdir(directory):
+        if not filename.endswith(".py") or filename.startswith("__"):
+            continue
+
+        filepath = os.path.join(directory, filename)
+
+        module_name = f"langchain_tool_{filename[:-3]}"  # remove .py
+        try:
+            spec = importlib.util.spec_from_file_location(module_name, filepath)
+            if spec and spec.loader:
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)  # type: ignore
+            else:
+                logger.warning("Failed to load spec for %s", filepath)
+                continue
+
+            for attr_name in dir(module):
+                if attr_name.startswith("__"):
+                    continue
+
+                obj = getattr(module, attr_name)
+                try:
+                    if _is_langchain_tool(obj):
+                        tool_info = _build_tool_info_from_langchain(obj)
+                        tools_info.append(tool_info)
+                except Exception as e:
+                    logger.warning("Error processing potential LangChain tool %s in %s: %s", attr_name, filename, e)
+        except Exception as e:
+            logger.error("Failed to import LangChain tool module %s: %s", filename, e)
+
+    return tools_info
 
 async def get_all_mcp_tools(tenant_id: str) -> List[ToolInfo]:
     """
@@ -245,6 +373,12 @@ async def update_tool_list(tenant_id: str, user_id: str):
             List of ToolInfo objects containing tool metadata
         """
     local_tools = get_local_tools()
+
+    # Discover LangChain tools (decorated functions) and include them in the
+    # unified tool list.
+    langchain_tools = get_langchain_tools()
+
+
     try:
         mcp_tools = await get_all_mcp_tools(tenant_id)
     except Exception as e:
@@ -254,7 +388,7 @@ async def update_tool_list(tenant_id: str, user_id: str):
     try:
         update_tool_table_from_scan_tool_list(tenant_id=tenant_id,
                                               user_id=user_id,
-                                              tool_list=local_tools+mcp_tools)
+                                              tool_list=local_tools+mcp_tools+langchain_tools)
     except Exception as e:
         logger.error(f"failed to update tool list to PG, detail: {e}")
         raise Exception(f"failed to update tool list to PG, detail: {e}")
