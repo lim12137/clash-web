@@ -199,6 +199,7 @@ You have been provided with these additional arguments, that you can access usin
 
             finally:
                 self._finalize_step(memory_step, step_start_time)
+                self.memory.steps.append(memory_step)
                 yield memory_step
                 self.step_number += 1
 
