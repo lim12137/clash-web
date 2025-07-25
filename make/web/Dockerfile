@@ -1,12 +1,14 @@
 # Build stage
 FROM node:20-alpine AS builder
+ARG MIRROR
 
 # Copy frontend directory
 COPY frontend /opt/frontend
 
 # Build Next.js application
 WORKDIR /opt/frontend
-RUN npm install --verbose && \
+RUN if [ -n "$MIRROR" ]; then npm config set registry "$MIRROR"; fi && \
+    npm install --verbose && \
     NODE_ENV=production npm run build && \
     mkdir -p ../frontend-dist && \
     cp -r .next ../frontend-dist/ && \
@@ -28,6 +30,7 @@ RUN npm install --verbose && \
   }\
 }' > ../frontend-dist/package.json && \
     cd ../frontend-dist && \
+    if [ -n "$MIRROR" ]; then npm config set registry "$MIRROR"; fi && \
     npm install --verbose --omit=dev --production && \
     npm cache clean --force && \
     rm -rf /root/.npm && \
@@ -37,6 +40,10 @@ RUN npm install --verbose && \
 # Production stage
 FROM node:20-alpine
 LABEL authors="nexent"
+
+RUN echo "https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/main" > /etc/apk/repositories && \
+    echo "https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/community" >> /etc/apk/repositories && \
+    apk add --no-cache curl
 
 WORKDIR /opt/frontend-dist
 

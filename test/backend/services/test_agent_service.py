@@ -36,7 +36,8 @@ with patch('backend.database.client.MinioClient', return_value=minio_client_mock
         import_agent_impl,
         search_sub_agents,
         load_default_agents_json_file,
-        import_default_agents_to_pg
+        import_default_agents_to_pg,
+        list_all_agent_info_impl
     )
     from backend.consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ToolInstanceInfoRequest, ToolConfig
 
@@ -483,11 +484,6 @@ def test_delete_agent_impl_exception_handling(mock_get_current_user_id, mock_del
 async def test_export_agent_impl_success(mock_get_current_user_id, mock_search_agent, mock_create_tool_config):
     """
     Test successful export of agent information.
-    
-    This test verifies that:
-    1. The function correctly gets the current user and tenant IDs
-    2. It retrieves the agent's tools and information
-    3. It returns the properly formatted agent information as JSON
     """
     # Setup
     mock_get_current_user_id.return_value = ("test_user", "test_tenant")
@@ -507,7 +503,26 @@ async def test_export_agent_impl_success(mock_get_current_user_id, mock_search_a
     mock_search_agent.return_value = mock_agent_info
     
     mock_tools = [
-        ToolConfig(class_name="Tool1", source="source1", params={"param1": "value1"})
+        ToolConfig(
+            class_name="Tool1",
+            name="Tool One",
+            source="source1",
+            params={"param1": "value1"},
+            metadata={},
+            description="Tool 1 description",
+            inputs="input description",
+            output_type="output type description"
+        ),
+        ToolConfig(
+            class_name="KnowledgeBaseSearchTool",
+            name="Knowledge Search",
+            source="source2",
+            params={"param2": "value2"},
+            metadata={"some": "data"},
+            description="Knowledge base search tool",
+            inputs="search query",
+            output_type="search results"
+        )
     ]
     mock_create_tool_config.return_value = mock_tools
     
@@ -517,9 +532,30 @@ async def test_export_agent_impl_success(mock_get_current_user_id, mock_search_a
         authorization="Bearer token"
     )
     
-    # Assert
-    assert "Test Agent" in result
-    assert "For testing purposes" in result
+    # Parse the JSON result
+    import json
+    result_json = json.loads(result)
+    
+    # Assert basic agent info
+    assert result_json["name"] == "Test Agent"
+    assert result_json["business_description"] == "For testing purposes"
+    
+    # Assert tools information
+    assert len(result_json["tools"]) == 2
+    
+    # Verify first tool
+    tool1 = result_json["tools"][0]
+    assert tool1["class_name"] == "Tool1"
+    assert tool1["name"] == "Tool One"
+    assert tool1["metadata"] == {}
+    
+    # Verify KnowledgeBaseSearchTool
+    tool2 = result_json["tools"][1]
+    assert tool2["class_name"] == "KnowledgeBaseSearchTool"
+    assert tool2["name"] == "Knowledge Search"
+    assert tool2["metadata"] == {}  # Verify metadata is empty for KnowledgeBaseSearchTool
+    
+    # Verify function calls
     mock_get_current_user_id.assert_called_once_with("Bearer token")
     mock_search_agent.assert_called_once_with(agent_id=123, tenant_id="test_tenant", user_id="test_user")
     mock_create_tool_config.assert_called_once_with(agent_id=123, tenant_id="test_tenant", user_id="test_user")
@@ -533,12 +569,6 @@ def test_import_agent_impl_success(mock_get_current_user_id, mock_query_all_tool
                                    mock_create_agent, mock_create_tool):
     """
     Test successful import of agent information.
-    
-    This test verifies that:
-    1. The function correctly validates tool parameters
-    2. It validates agent parameters
-    3. It creates a new agent with the provided information
-    4. It creates tool instances for the agent
     """
     # Setup
     mock_get_current_user_id.return_value = ("test_user", "test_tenant")
@@ -549,7 +579,11 @@ def test_import_agent_impl_success(mock_get_current_user_id, mock_query_all_tool
             "tool_id": 101,
             "class_name": "Tool1",
             "source": "source1",
-            "params": [{"name": "param1", "type": "string"}]
+            "params": [{"name": "param1", "type": "string"}],
+            "description": "Tool 1 description",
+            "name": "Tool One",
+            "inputs": "input description",
+            "output_type": "output type description"
         }
     ]
     mock_query_all_tools.return_value = mock_tool_info
@@ -560,12 +594,17 @@ def test_import_agent_impl_success(mock_get_current_user_id, mock_query_all_tool
     # Create import data
     tool_config = ToolConfig(
         class_name="Tool1",
+        name="Tool One",
         source="source1",
-        params={"param1": "value1"}
+        params={"param1": "value1"},
+        metadata={},
+        description="Tool 1 description",
+        inputs="input description",
+        output_type="output type description"
     )
     
     agent_info = ExportAndImportAgentInfo(
-        name="Imported Agent",
+        name="valid_agent_name",
         description="Imported description",
         business_description="Imported business description",
         model_name="main_model",
@@ -588,7 +627,7 @@ def test_import_agent_impl_success(mock_get_current_user_id, mock_query_all_tool
     
     # Assert
     mock_create_agent.assert_called_once()
-    assert mock_create_agent.call_args[1]["agent_info"]["name"] == "Imported Agent"
+    assert mock_create_agent.call_args[1]["agent_info"]["name"] == "valid_agent_name"
     mock_create_tool.assert_called_once()
 
 
@@ -599,21 +638,21 @@ def test_import_agent_impl_invalid_tool(mock_get_current_user_id, mock_query_all
                                        mock_create_tool):
     """
     Test import of agent information with an invalid tool.
-    
-    This test verifies that:
-    1. The function correctly validates tool parameters
-    2. It raises an appropriate error for invalid tools
     """
     # Setup
     mock_get_current_user_id.return_value = ("test_user", "test_tenant")
     
-    # Mock tool database records
+    # Mock tool database records with different tool
     mock_tool_info = [
         {
             "tool_id": 101,
             "class_name": "OtherTool",
             "source": "source1",
-            "params": [{"name": "param1", "type": "string"}]
+            "params": [{"name": "param1", "type": "string"}],
+            "description": "Other tool description",
+            "name": "Other Tool",
+            "inputs": "other input",
+            "output_type": "other output"
         }
     ]
     mock_query_all_tools.return_value = mock_tool_info
@@ -621,18 +660,25 @@ def test_import_agent_impl_invalid_tool(mock_get_current_user_id, mock_query_all
     # Create import data with non-existent tool
     tool_config = ToolConfig(
         class_name="Tool1",
+        name="Tool One",
         source="source1",
-        params={"param1": "value1"}
+        params={"param1": "value1"},
+        metadata={},
+        description="Tool 1 description",
+        inputs="input description",
+        output_type="output type description"
     )
     
     agent_info = ExportAndImportAgentInfo(
-        name="Imported Agent",
+        name="valid_agent_name",
         description="Imported description",
         business_description="Imported business description",
         model_name="main_model",
         max_steps=5,
         provide_run_summary=True,
-        prompt="Imported prompt",
+        duty_prompt="Imported duty prompt",
+        constraint_prompt="Imported constraint prompt",
+        few_shots_prompt="Imported few shots prompt",
         enabled=True,
         tools=[tool_config],
         managed_agents=[]
@@ -657,10 +703,6 @@ def test_import_agent_impl_invalid_parameters(mock_get_current_user_id, mock_que
                                             mock_create_tool):
     """
     Test import of agent information with invalid tool parameters.
-    
-    This test verifies that:
-    1. The function correctly validates tool parameter names
-    2. It raises an appropriate error for invalid parameter names
     """
     # Setup
     mock_get_current_user_id.return_value = ("test_user", "test_tenant")
@@ -671,7 +713,11 @@ def test_import_agent_impl_invalid_parameters(mock_get_current_user_id, mock_que
             "tool_id": 101,
             "class_name": "Tool1",
             "source": "source1",
-            "params": [{"name": "valid_param", "type": "string"}]
+            "params": [{"name": "valid_param", "type": "string"}],
+            "description": "Tool 1 description",
+            "name": "Tool One",
+            "inputs": "input description",
+            "output_type": "output type description"
         }
     ]
     mock_query_all_tools.return_value = mock_tool_info
@@ -679,18 +725,25 @@ def test_import_agent_impl_invalid_parameters(mock_get_current_user_id, mock_que
     # Create import data with invalid parameter
     tool_config = ToolConfig(
         class_name="Tool1",
+        name="Tool One",
         source="source1",
-        params={"invalid_param": "value1"}
+        params={"invalid_param": "value1"},
+        metadata={},
+        description="Tool 1 description",
+        inputs="input description",
+        output_type="output type description"
     )
     
     agent_info = ExportAndImportAgentInfo(
-        name="Imported Agent",
+        name="valid_agent_name",
         description="Imported description",
         business_description="Imported business description",
         model_name="main_model",
         max_steps=5,
         provide_run_summary=True,
-        prompt="Imported prompt",
+        duty_prompt="Imported duty prompt",
+        constraint_prompt="Imported constraint prompt",
+        few_shots_prompt="Imported few shots prompt",
         enabled=True,
         tools=[tool_config],
         managed_agents=[]
@@ -716,10 +769,6 @@ def test_import_agent_impl_invalid_model_name(mock_get_current_user_id, mock_que
                                             mock_create_agent, mock_create_tool):
     """
     Test import of agent information with an invalid model name.
-    
-    This test verifies that:
-    1. The function correctly validates the model name
-    2. It raises an appropriate error for invalid model names
     """
     # Setup
     mock_get_current_user_id.return_value = ("test_user", "test_tenant")
@@ -730,7 +779,11 @@ def test_import_agent_impl_invalid_model_name(mock_get_current_user_id, mock_que
             "tool_id": 101,
             "class_name": "Tool1",
             "source": "source1",
-            "params": [{"name": "param1", "type": "string"}]
+            "params": [{"name": "param1", "type": "string"}],
+            "description": "Tool 1 description",
+            "name": "Tool One",
+            "inputs": "input description",
+            "output_type": "output type description"
         }
     ]
     mock_query_all_tools.return_value = mock_tool_info
@@ -738,18 +791,25 @@ def test_import_agent_impl_invalid_model_name(mock_get_current_user_id, mock_que
     # Create import data with invalid model name
     tool_config = ToolConfig(
         class_name="Tool1",
+        name="Tool One",
         source="source1",
-        params={"param1": "value1"}
+        params={"param1": "value1"},
+        metadata={},
+        description="Tool 1 description",
+        inputs="input description",
+        output_type="output type description"
     )
     
     agent_info = ExportAndImportAgentInfo(
-        name="Imported Agent",
+        name="valid_agent_name",
         description="Imported description",
         business_description="Imported business description",
         model_name="invalid_model",  # Not main_model or sub_model
         max_steps=5,
         provide_run_summary=True,
-        prompt="Imported prompt",
+        duty_prompt="Imported duty prompt",
+        constraint_prompt="Imported constraint prompt",
+        few_shots_prompt="Imported few shots prompt",
         enabled=True,
         tools=[tool_config],
         managed_agents=[]
@@ -1037,6 +1097,142 @@ def test_get_agent_info_impl_with_tool_error(mock_get_current_user_id, mock_sear
         assert result["agent_id"] == 123
         assert result["tools"] == []
         mock_search_agent_info.assert_called_once_with(123, "test_tenant", "test_user")
+
+
+def test_list_all_agent_info_impl_success():
+    """
+    Test successful retrieval of all agent information.
+    
+    This test verifies that:
+    1. The function correctly queries all agents for a tenant
+    2. It retrieves tool information for each agent
+    3. It checks tool availability
+    4. It returns a properly formatted list of agent information
+    """
+    # Setup mock agents
+    mock_agents = [
+        {
+            "agent_id": 1,
+            "name": "Agent 1",
+            "description": "First test agent"
+        },
+        {
+            "agent_id": 2,
+            "name": "Agent 2",
+            "description": "Second test agent"
+        }
+    ]
+    
+    # Setup mock tools
+    mock_tools = [
+        {"tool_id": 101, "name": "Tool 1"},
+        {"tool_id": 102, "name": "Tool 2"}
+    ]
+    
+    with patch('backend.services.agent_service.query_all_agent_info_by_tenant_id') as mock_query_agents, \
+         patch('backend.services.agent_service.search_tools_for_sub_agent') as mock_search_tools, \
+         patch('backend.services.agent_service.check_tool_is_available') as mock_check_tools:
+        
+        # Configure mocks
+        mock_query_agents.return_value = mock_agents
+        mock_search_tools.return_value = mock_tools
+        mock_check_tools.return_value = [True, True]  # All tools are available
+        
+        # Execute
+        result = list_all_agent_info_impl(tenant_id="test_tenant", user_id="test_user")
+        
+        # Assert
+        assert len(result) == 2
+        assert result[0]["agent_id"] == 1
+        assert result[0]["name"] == "Agent 1"
+        assert result[0]["is_available"] == True
+        assert result[1]["agent_id"] == 2
+        assert result[1]["name"] == "Agent 2"
+        assert result[1]["is_available"] == True
+        
+        # Verify mock calls
+        mock_query_agents.assert_called_once_with(tenant_id="test_tenant")
+        assert mock_search_tools.call_count == 2
+        mock_search_tools.assert_has_calls([
+            call(agent_id=1, tenant_id="test_tenant", user_id=None),
+            call(agent_id=2, tenant_id="test_tenant", user_id=None)
+        ])
+        mock_check_tools.assert_has_calls([
+            call([101, 102]),
+            call([101, 102])
+        ])
+
+
+def test_list_all_agent_info_impl_with_unavailable_tools():
+    """
+    Test retrieval of agent information with some unavailable tools.
+    
+    This test verifies that:
+    1. The function correctly handles cases where some tools are unavailable
+    2. It properly sets the is_available flag based on tool availability
+    """
+    # Setup mock agents
+    mock_agents = [
+        {
+            "agent_id": 1,
+            "name": "Agent 1",
+            "description": "Agent with available tools"
+        },
+        {
+            "agent_id": 2,
+            "name": "Agent 2",
+            "description": "Agent with unavailable tools"
+        }
+    ]
+    
+    # Setup mock tools
+    mock_tools = [
+        {"tool_id": 101, "name": "Tool 1"},
+        {"tool_id": 102, "name": "Tool 2"}
+    ]
+    
+    with patch('backend.services.agent_service.query_all_agent_info_by_tenant_id') as mock_query_agents, \
+         patch('backend.services.agent_service.search_tools_for_sub_agent') as mock_search_tools, \
+         patch('backend.services.agent_service.check_tool_is_available') as mock_check_tools:
+        
+        # Configure mocks
+        mock_query_agents.return_value = mock_agents
+        mock_search_tools.return_value = mock_tools
+        # First agent has available tools, second agent has unavailable tools
+        mock_check_tools.side_effect = [[True, True], [False, True]]
+        
+        # Execute
+        result = list_all_agent_info_impl(tenant_id="test_tenant", user_id="test_user")
+        
+        # Assert
+        assert len(result) == 2
+        assert result[0]["is_available"] == True
+        assert result[1]["is_available"] == False
+        
+        # Verify mock calls
+        mock_query_agents.assert_called_once_with(tenant_id="test_tenant")
+        assert mock_search_tools.call_count == 2
+        assert mock_check_tools.call_count == 2
+
+
+def test_list_all_agent_info_impl_query_error():
+    """
+    Test error handling when querying agent information fails.
+    
+    This test verifies that:
+    1. When an error occurs during agent query
+    2. The function raises a ValueError with an appropriate message
+    """
+    with patch('backend.services.agent_service.query_all_agent_info_by_tenant_id') as mock_query_agents:
+        # Configure mock to raise exception
+        mock_query_agents.side_effect = Exception("Database error")
+        
+        # Execute & Assert
+        with pytest.raises(ValueError) as context:
+            list_all_agent_info_impl(tenant_id="test_tenant", user_id="test_user")
+        
+        assert "Failed to query all agent info" in str(context.value)
+        mock_query_agents.assert_called_once_with(tenant_id="test_tenant")
 
 
 if __name__ == '__main__':

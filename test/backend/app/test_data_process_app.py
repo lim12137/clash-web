@@ -49,9 +49,18 @@ mock_model.TaskResponse = MockTaskResponse
 mock_model.BatchTaskResponse = MockBatchTaskResponse
 mock_model.SimpleTaskStatusResponse = MagicMock()
 mock_model.SimpleTasksListResponse = MagicMock()
+mock_model.ConvertStateRequest = MagicMock()
+mock_model.ConvertStateResponse = MagicMock()
+
 
 # Mock celery and other services to prevent actual service calls
 mock_celery = MagicMock()
+mock_states = MagicMock()
+mock_states.PENDING = "PENDING"
+mock_states.STARTED = "STARTED"
+mock_states.SUCCESS = "SUCCESS"
+mock_states.FAILURE = "FAILURE"
+mock_celery.states = mock_states
 mock_service = MagicMock()
 sys.modules['celery'] = mock_celery
 sys.modules['services.data_process_service'] = mock_service
@@ -61,13 +70,13 @@ sys.modules['consts.model'] = mock_model
 class MockRouter:
     def __init__(self):
         self.routes = []
-        
+
     def post(self, path, **kwargs):
         def decorator(func):
             self.routes.append((path, func))
             return func
         return decorator
-        
+
     def get(self, path, **kwargs):
         def decorator(func):
             self.routes.append((path, func))
@@ -80,7 +89,7 @@ class TestDataProcessApp(unittest.TestCase):
     Test suite for the data processing application endpoints.
     Tests the API behavior with mocked service dependencies.
     """
-    
+
     def setUp(self):
         """
         Set up the test environment before each test.
@@ -93,24 +102,24 @@ class TestDataProcessApp(unittest.TestCase):
         self.process_sync = MagicMock()
         self.get_task_info = AsyncMock()
         self.utils_get_task_details = AsyncMock()
-        
+
         # Mock async context manager
         self.lifespan = MagicMock()
-        
+
         # Common test data
         self.task_id = "test-task-id-123"
         self.index_name = "test-index"
         self.source = "test-file.pdf"
-        
+
         # Create actual FastAPI application
         self.app = FastAPI()
-        
+
         # Define mock routes
         self.setup_mock_routes()
-        
+
         # Create test client
         self.client = TestClient(self.app)
-    
+
     def setup_mock_routes(self):
         """
         Set up mock API routes for testing.
@@ -122,7 +131,7 @@ class TestDataProcessApp(unittest.TestCase):
             # Simulate task creation
             task_result = self.process_and_forward.delay.return_value
             return {"task_id": task_result.id}
-        
+
         @self.app.post("/tasks/process")
         @pytest.mark.asyncio
         async def process_sync_endpoint(
@@ -135,10 +144,10 @@ class TestDataProcessApp(unittest.TestCase):
             try:
                 if getattr(self.process_sync, 'apply_async', None) and getattr(self.process_sync.apply_async, 'side_effect', None):
                     raise self.process_sync.apply_async.side_effect
-                
+
                 task_result = self.process_sync.apply_async.return_value
                 result = task_result.get.return_value if hasattr(task_result, 'get') else {}
-                
+
                 return {
                     "success": True,
                     "task_id": task_result.id if hasattr(task_result, 'id') else self.task_id,
@@ -152,62 +161,62 @@ class TestDataProcessApp(unittest.TestCase):
             except Exception as e:
                 # Catch exceptions and return appropriate HTTP error responses
                 raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
-        
+
         @self.app.post("/tasks/batch")
         @pytest.mark.asyncio
         async def create_batch_tasks(request: Dict[str, Any] = Body(None)):
             # Simulate batch task creation
             task_ids = []
-            
+
             # Handle both Dict and MockBatchTaskRequest types
             if hasattr(request, 'sources'):
                 sources = request.sources
             else:
                 sources = request.get("sources", [])
-            
+
             for i in range(len(sources)):
                 if isinstance(self.process_and_forward.delay.return_value, list):
                     task_result = self.process_and_forward.delay.return_value[i]
                 else:
                     task_result = self.process_and_forward.delay.return_value
                 task_ids.append(task_result.id if hasattr(task_result, 'id') else f"batch-task-{i+1}")
-            
+
             return {"task_ids": task_ids}
-        
+
         @self.app.get("/tasks/load_image")
         @pytest.mark.asyncio
         async def load_image():
             # Simulate image loading
             if not getattr(self.service, 'load_image', None) or self.service.load_image.return_value is None:
                 raise HTTPException(status_code=404, detail="Failed to load image or image format not supported")
-            
+
             image = self.service.load_image.return_value
             return {"success": True, "base64": "mock_base64_data", "content_type": "image/jpeg"}
-        
+
         @self.app.get("/tasks/{task_id}")
         @pytest.mark.asyncio
         async def get_task(task_id: str):
             # Simulate getting task information
             task = self.get_task_info.return_value
-            
+
             if not task:
                 raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
-            
+
             return task
-        
+
         @self.app.get("/tasks")
         @pytest.mark.asyncio
         async def list_tasks():
             # Simulate listing all tasks
             tasks = self.service.get_all_tasks.return_value
             return {"tasks": tasks}
-        
+
         @self.app.get("/tasks/indices/{index_name}")
         @pytest.mark.asyncio
         async def get_index_tasks(index_name: str):
             # Simulate getting index tasks
             return self.service.get_index_tasks.return_value
-        
+
         @self.app.get("/tasks/{task_id}/details")
         @pytest.mark.asyncio
         async def get_task_details(task_id: str):
@@ -216,7 +225,7 @@ class TestDataProcessApp(unittest.TestCase):
             if not task:
                 raise HTTPException(status_code=404, detail="Task not found")
             return task
-        
+
         @self.app.post("/tasks/filter_important_image")
         @pytest.mark.asyncio
         async def filter_important_image(
@@ -228,13 +237,55 @@ class TestDataProcessApp(unittest.TestCase):
             try:
                 if getattr(self.service, 'filter_important_image', None) and getattr(self.service.filter_important_image, 'side_effect', None):
                     raise self.service.filter_important_image.side_effect
-                
+
                 # Remove await, return value directly
                 return self.service.filter_important_image.return_value
             except Exception as e:
                 # Catch exceptions and return appropriate HTTP error responses
                 raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
-    
+
+        @self.app.post("/tasks/convert_state")
+        @pytest.mark.asyncio
+        async def convert_state(request: Dict[str, Any] = Body(None)):
+            from celery import states
+
+            process_celery_state = request.get("process_state", "")
+            forward_celery_state = request.get("forward_state", "")
+
+            # Handle failure states first
+            if process_celery_state == states.FAILURE:
+                return {"state": "PROCESS_FAILED"}
+            if forward_celery_state == states.FAILURE:
+                return {"state": "FORWARD_FAILED"}
+
+            # Handle completed state - both must be SUCCESS
+            if process_celery_state == states.SUCCESS and forward_celery_state == states.SUCCESS:
+                return {"state": "COMPLETED"}
+
+            # Handle case where nothing has started
+            if not process_celery_state and not forward_celery_state:
+                return {"state": "WAIT_FOR_PROCESSING"}
+
+            # Define state mappings
+            forward_state_map = {
+                states.PENDING: "WAIT_FOR_FORWARDING",
+                states.STARTED: "FORWARDING",
+                states.SUCCESS: "COMPLETED",
+                states.FAILURE: "FORWARD_FAILED",
+            }
+            process_state_map = {
+                states.PENDING: "WAIT_FOR_PROCESSING",
+                states.STARTED: "PROCESSING",
+                states.SUCCESS: "WAIT_FOR_FORWARDING",  # Process done, waiting for forward
+                states.FAILURE: "PROCESS_FAILED",
+            }
+
+            if forward_celery_state:
+                return {"state": forward_state_map.get(forward_celery_state, "WAIT_FOR_FORWARDING")}
+            if process_celery_state:
+                return {"state": process_state_map.get(process_celery_state, "WAIT_FOR_PROCESSING")}
+            return {"state": "WAIT_FOR_PROCESSING"}
+
     def test_create_task(self):
         """
         Test creating a new task.
@@ -253,10 +304,10 @@ class TestDataProcessApp(unittest.TestCase):
             "index_name": self.index_name,
             "additional_params": {"param1": "value1"}
         }
-        
+
         # Execute request
         response = self.client.post("/tasks", json=request_data)
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 200)  # FastAPI test client defaults to 200
         self.assertEqual(response.json(), {"task_id": self.task_id})
@@ -277,7 +328,7 @@ class TestDataProcessApp(unittest.TestCase):
             "text_length": 100
         }
         self.process_sync.apply_async.return_value = mock_task
-        
+
         # Execute request
         response = self.client.post(
             "/tasks/process",
@@ -288,7 +339,7 @@ class TestDataProcessApp(unittest.TestCase):
                 "timeout": 30
             }
         )
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -305,7 +356,7 @@ class TestDataProcessApp(unittest.TestCase):
         """
         # Set up mock to throw exception
         self.process_sync.apply_async.side_effect = Exception("Processing error")
-        
+
         # Execute request
         response = self.client.post(
             "/tasks/process",
@@ -316,7 +367,7 @@ class TestDataProcessApp(unittest.TestCase):
                 "timeout": 30
             }
         )
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 500)
         self.assertIn("Error processing file", response.json()["detail"])
@@ -353,10 +404,10 @@ class TestDataProcessApp(unittest.TestCase):
                 }
             ]
         }
-        
+
         # Execute request
         response = self.client.post("/tasks/batch", json=request_data)
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"task_ids": ["batch-task-1", "batch-task-2"]})
@@ -369,13 +420,13 @@ class TestDataProcessApp(unittest.TestCase):
         # Create test image
         test_image = Image.new('RGB', (100, 100), color='red')
         test_image.format = 'JPEG'
-        
+
         # Set up mock
         self.service.load_image = AsyncMock(return_value=test_image)
-        
+
         # Execute request
         response = self.client.get("/tasks/load_image?url=http://example.com/image.jpg")
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -390,10 +441,10 @@ class TestDataProcessApp(unittest.TestCase):
         """
         # Set up mock to return None (image loading failure)
         self.service.load_image = AsyncMock(return_value=None)
-        
+
         # Execute request
         response = self.client.get("/tasks/load_image?url=http://example.com/bad_image.jpg")
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 404)
         self.assertIn("Failed to load image", response.json()["detail"])
@@ -415,10 +466,10 @@ class TestDataProcessApp(unittest.TestCase):
             "error": None
         }
         self.get_task_info.return_value = task_data
-        
+
         # Execute request
         response = self.client.get(f"/tasks/{self.task_id}")
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -433,10 +484,10 @@ class TestDataProcessApp(unittest.TestCase):
         """
         # Set up mock to return None (task not found)
         self.get_task_info.return_value = None
-        
+
         # Execute request
         response = self.client.get("/tasks/nonexistent-id")
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 404)
         self.assertIn("not found", response.json()["detail"])
@@ -470,10 +521,10 @@ class TestDataProcessApp(unittest.TestCase):
             }
         ]
         self.service.get_all_tasks = AsyncMock(return_value=tasks_data)
-        
+
         # Execute request
         response = self.client.get("/tasks")
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -500,10 +551,10 @@ class TestDataProcessApp(unittest.TestCase):
             }
         ]
         self.service.get_index_tasks = AsyncMock(return_value=tasks_data)
-        
+
         # Execute request
         response = self.client.get(f"/tasks/indices/{self.index_name}")
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -525,10 +576,10 @@ class TestDataProcessApp(unittest.TestCase):
             }
         }
         self.utils_get_task_details.return_value = task_detail_data
-        
+
         # Execute request
         response = self.client.get(f"/tasks/{self.task_id}/details")
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -543,10 +594,10 @@ class TestDataProcessApp(unittest.TestCase):
         """
         # Set up mock to return None (task not found)
         self.utils_get_task_details.return_value = None
-        
+
         # Execute request
         response = self.client.get(f"/tasks/nonexistent-id/details")
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 404)
         self.assertIn("not found", response.json()["detail"])
@@ -563,7 +614,7 @@ class TestDataProcessApp(unittest.TestCase):
             "processing_time": 1.2
         }
         self.service.filter_important_image = AsyncMock(return_value=filter_result)
-        
+
         # Execute request
         response = self.client.post(
             "/tasks/filter_important_image",
@@ -573,7 +624,7 @@ class TestDataProcessApp(unittest.TestCase):
                 "negative_prompt": "an unimportant image"
             }
         )
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -588,7 +639,7 @@ class TestDataProcessApp(unittest.TestCase):
         # Set up mock to throw exception
         self.service.filter_important_image = AsyncMock()
         self.service.filter_important_image.side_effect = Exception("Image processing error")
-        
+
         # Execute request
         response = self.client.post(
             "/tasks/filter_important_image",
@@ -598,10 +649,42 @@ class TestDataProcessApp(unittest.TestCase):
                 "negative_prompt": "an unimportant image"
             }
         )
-        
+
         # Assert expectations
         self.assertEqual(response.status_code, 500)
         self.assertIn("Error processing image", response.json()["detail"])
+
+    def test_convert_state(self):
+        """
+        Test the state conversion logic.
+        Verifies that Celery states are correctly mapped to custom frontend states.
+        """
+        test_cases = [
+            # Failure states
+            ({"process_state": "FAILURE", "forward_state": ""}, "PROCESS_FAILED"),
+            ({"process_state": "SUCCESS", "forward_state": "FAILURE"}, "FORWARD_FAILED"),
+            # Success state
+            ({"process_state": "SUCCESS", "forward_state": "SUCCESS"}, "COMPLETED"),
+            # In-progress states
+            ({"process_state": "STARTED", "forward_state": ""}, "PROCESSING"),
+            ({"process_state": "SUCCESS", "forward_state": "STARTED"}, "FORWARDING"),
+            # Pending states
+            ({"process_state": "PENDING", "forward_state": ""}, "WAIT_FOR_PROCESSING"),
+            ({"process_state": "SUCCESS", "forward_state": "PENDING"}, "WAIT_FOR_FORWARDING"),
+            # Initial state
+            ({"process_state": "", "forward_state": ""}, "WAIT_FOR_PROCESSING"),
+            # Edge cases
+            ({"process_state": "SUCCESS", "forward_state": ""}, "WAIT_FOR_FORWARDING"),
+            ({"process_state": "", "forward_state": "PENDING"}, "WAIT_FOR_FORWARDING"),
+            ({"process_state": "", "forward_state": "STARTED"}, "FORWARDING"),
+            ({"process_state": "", "forward_state": "SUCCESS"}, "COMPLETED"),
+        ]
+
+        for request_data, expected_state in test_cases:
+            with self.subTest(request_data=request_data, expected_state=expected_state):
+                response = self.client.post("/tasks/convert_state", json=request_data)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), {"state": expected_state})
 
 
 if __name__ == "__main__":

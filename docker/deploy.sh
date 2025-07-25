@@ -23,6 +23,9 @@ select_deployment_mode() {
         3)
             export DEPLOYMENT_MODE="production"
             export COMPOSE_FILE="docker-compose.prod.yml"
+            # Set environment variables to disable dashboards in production
+            export DISABLE_RAY_DASHBOARD="true"
+            export DISABLE_CELERY_FLOWER="true"
             echo "✅ Selected production mode 🚀"
             ;;
         4)
