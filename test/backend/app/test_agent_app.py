@@ -193,7 +193,7 @@ def test_list_main_agent_info_api_success(mocker, mock_auth_header):
     mock_list_main_agent.return_value = [{"agent_id": "agent1"}, {"agent_id": "agent2"}]
     
     # Test the endpoint
-    response = client.get("/agent/list", headers=mock_auth_header)
+    response = client.get("/agent/list_main_agent_info", headers=mock_auth_header)
     
     # Assertions
     assert response.status_code == 200
@@ -207,7 +207,7 @@ def test_list_main_agent_info_api_exception(mocker, mock_auth_header):
     mock_list_main_agent.side_effect = Exception("Test error")
     
     # Test the endpoint
-    response = client.get("/agent/list", headers=mock_auth_header)
+    response = client.get("/agent/list_main_agent_info", headers=mock_auth_header)
     
     # Assertions
     assert response.status_code == 500

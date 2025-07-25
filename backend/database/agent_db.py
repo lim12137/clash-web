@@ -58,8 +58,8 @@ def query_or_create_main_agent_id(tenant_id: str, user_id: str) -> int:
         main_agent = query.first()
 
         if main_agent is None:
-            main_agent = create_agent(agent_info={"name": "main",
-                                                  "description": "",
+            main_agent = create_agent(agent_info={"name": "manager_agent",
+                                                  "description": "You are a manager agent capable of invoking other agents and tools.",
                                                   "enabled": True}, tenant_id=tenant_id, user_id=user_id)
 
             return main_agent["agent_id"]
@@ -348,4 +348,12 @@ def check_tool_is_available(tool_id_list: List[int]):
         tools = session.query(ToolInfo).filter(ToolInfo.tool_id.in_(tool_id_list), ToolInfo.delete_flag != 'Y').all()
         return [tool.is_available for tool in tools]
     
+def query_all_agent_info_by_tenant_id(tenant_id: str):
+    """
+    Query all agent info by tenant id
+    """
+    with get_db_session() as session:
+        agents = session.query(AgentInfo).filter(AgentInfo.tenant_id == tenant_id, 
+                                                 AgentInfo.delete_flag != 'Y').order_by(AgentInfo.create_time.desc()).all()
+        return [as_dict(agent) for agent in agents]
     

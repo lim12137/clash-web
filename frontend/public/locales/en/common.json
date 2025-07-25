@@ -358,7 +358,7 @@
     "agent.error.saveRetry": "Failed to save agent, please try again later",
     "agent.error.searchInfoFailed": "Failed to get agent details",
     "agent.error.loadInfoRetry": "Failed to load agent details, please try again later",
-    "agent.error.disabledAgent": "This agent is currently unavailable and cannot be enabled",
+    "agent.error.disabledAgent": "This agent is currently unavailable and cannot be enabled, please contact the administrator",
     "agent.error.statusUpdateFailed": "Failed to update agent status",
     "agent.error.statusUpdateRetry": "Failed to update agent status, please try again later",
     "agent.error.modelUpdateFailed": "Failed to update model",
@@ -877,5 +877,13 @@
             "healthChecking": "Trying to connect to mcp server {{name}}",
             "healthCheckSuccess": "Mcp server connected successfully"
         }
+    },
+    "agentSelector": {
+        "loading": "Loading...",
+        "selectAgent": "Select Agent",
+        "noAgent": "No Agent",
+        "noAvailableAgents": "No available agents",
+        "unavailable": "Unavailable",
+        "agentUnavailable": "This agent is currently unavailable, please check the tool configuration information or contact the administrator"
     }
 }

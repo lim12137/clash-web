@@ -28,6 +28,7 @@ import {
 } from "react-icons/ai"
 import { extractColorsFromUri } from "@/lib/avatar"
 import { useTranslation } from "react-i18next"
+import { AgentSelector } from "@/components/ui/agentSelector"
 
 // Image viewer component
 function ImageViewer({ src, alt, onClose }: { src: string, alt: string, onClose: () => void }) {
@@ -307,6 +308,8 @@ interface ChatInputProps {
   onImageUpload?: (file: File) => void
   attachments?: FilePreview[]
   onAttachmentsChange?: (attachments: FilePreview[]) => void
+  selectedAgentId?: number | null
+  onAgentSelect?: (agentId: number | null) => void
 }
 
 export function ChatInput({
@@ -322,7 +325,9 @@ export function ChatInput({
   onFileUpload,
   onImageUpload,
   attachments = [],
-  onAttachmentsChange
+  onAttachmentsChange,
+  selectedAgentId = null,
+  onAgentSelect
 }: ChatInputProps) {
   const [isRecording, setIsRecording] = useState(false)
   const [recordingStatus, setRecordingStatus] = useState<"idle" | "recording" | "connecting" | "error">("idle")
@@ -883,6 +888,16 @@ export function ChatInput({
       />
     </div>
     <div className="h-12 bg-slate-100 relative">
+      {/* Agent selector on the left */}
+      <div className="absolute left-3 top-[40%] -translate-y-1/2">
+        <AgentSelector
+          selectedAgentId={selectedAgentId}
+          onAgentSelect={onAgentSelect || (() => {})}
+          disabled={isLoading || isStreaming}
+          isInitialMode={isInitialMode}
+        />
+      </div>
+      
       <div className="absolute right-3 top-[40%] -translate-y-1/2 flex items-center space-x-1">
         {/* Voice to text button */}
         <TooltipProvider>
