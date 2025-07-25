@@ -65,7 +65,7 @@ class Config:
     @property
     def ray_object_store_memory_gb(self) -> float:
         """Ray object store memory limit (GB)"""
-        return float(os.getenv('RAY_OBJECT_STORE_MEMORY_GB', '4.0'))
+        return float(os.getenv('RAY_OBJECT_STORE_MEMORY_GB', '2.0'))
     
     @property
     def ray_temp_dir(self) -> str:
