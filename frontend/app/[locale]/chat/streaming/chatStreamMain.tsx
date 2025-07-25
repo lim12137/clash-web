@@ -39,6 +39,8 @@ interface ChatStreamMainProps {
   onOpinionChange?: (messageId: number, opinion: 'Y' | 'N' | null) => void
   currentConversationId?: number
   shouldScrollToBottom?: boolean
+  selectedAgentId?: number | null
+  onAgentSelect?: (agentId: number | null) => void
 }
 
 export function ChatStreamMain({
@@ -62,6 +64,8 @@ export function ChatStreamMain({
   onOpinionChange,
   currentConversationId,
   shouldScrollToBottom,
+  selectedAgentId,
+  onAgentSelect,
 }: ChatStreamMainProps) {
   const { t } = useTranslation();
   // Animation variants for ChatInput
@@ -424,6 +428,8 @@ export function ChatStreamMain({
                           onAttachmentsChange={onAttachmentsChange}
                           onFileUpload={onFileUpload}
                           onImageUpload={onImageUpload}
+                          selectedAgentId={selectedAgentId}
+                          onAgentSelect={onAgentSelect}
                         />
                         </motion.div>
                       </AnimatePresence>
@@ -505,6 +511,8 @@ export function ChatStreamMain({
               onAttachmentsChange={onAttachmentsChange}
               onFileUpload={onFileUpload}
               onImageUpload={onImageUpload}
+              selectedAgentId={selectedAgentId}
+              onAgentSelect={onAgentSelect}
             />
           </motion.div>
         </AnimatePresence>
