@@ -85,7 +85,12 @@ class RayConfig:
             
             params = self.get_init_params(**kwargs)
             
-            logger.info("Initializing Ray cluster...")
+            # Get Ray configuration from environment
+            ray_num_cpus = os.environ.get('RAY_NUM_CPUS')
+            num_cpus = int(ray_num_cpus) if ray_num_cpus else None  # None lets Ray decide
+
+            # Log the attempt to initialize
+            logger.debug("Initializing Ray cluster...")
             logger.debug("Ray configuration parameters:")
             for key, value in params.items():
                 if key.startswith('_'):
