@@ -35,7 +35,7 @@ from celery.signals import (
 
 from .app import app
 from .config import config
-from .ray_config import init_ray_for_worker
+from .ray_config import RayConfig
 
 # Global worker state for monitoring and debugging
 worker_state = {
@@ -71,6 +71,9 @@ def setup_worker_environment(**kwargs):
     logger.info("="*60)
     
     try:
+        # Disable verbose Celery task success logging
+        logging.getLogger('celery.worker.strategy').setLevel(logging.WARNING)
+
         # Initialize Ray - connect to existing cluster
         if not ray.is_initialized():
             logger.info("🔮 Ray connecting to existing cluster...")
@@ -79,14 +82,11 @@ def setup_worker_environment(**kwargs):
             ray_address = os.environ.get('RAY_ADDRESS', 'auto')
             
             try:
-                # Use the new Ray configuration module if available
-                if init_ray_for_worker:
-                    if not init_ray_for_worker(ray_address):
-                        raise ConnectionError("Failed to initialize Ray connection")
-                else:
-                    # Fallback to direct ray.init
+                # Initialize Ray using the centralized RayConfig helper
+                if not RayConfig.init_ray_for_worker(ray_address):
+                    # Fallback to direct ray.init if helper fails
                     ray.init(
-                        address=ray_address, 
+                        address=ray_address,
                         ignore_reinit_error=True,
                         _plasma_directory=config.ray_plasma_directory
                     )
@@ -201,7 +201,8 @@ def task_postrun_handler(sender=None, task_id=None, task=None, args=None, kwargs
     """Handler after task execution"""
     if state == 'SUCCESS':
         worker_state['tasks_completed'] += 1
-        logger.debug(f"✅ Task completed: {task.name}[{task_id}]")
+        # No log output for successful tasks, to reduce noise
+        pass
     else:
         logger.debug(f"⚠️ Task ended: {task.name}[{task_id}] - State: {state}")
 
@@ -286,7 +287,7 @@ def start_worker():
     ]
     
     try:
-        logger.info(f"⚙️  Start worker '{worker_name}'...")
+        logger.info(f"⚙️ Starting worker '{worker_name}'...")
         
         # Flush stdout to ensure immediate output
         sys.stdout.flush()

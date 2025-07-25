@@ -127,6 +127,8 @@ services:
     environment:
       <<: [*proxy-vars, *es-vars, *minio-vars]
       DOCKER_ENVIRONMENT: "true"
+      DISABLE_RAY_DASHBOARD: ${DISABLE_RAY_DASHBOARD:-false}
+      DISABLE_CELERY_FLOWER: ${DISABLE_CELERY_FLOWER:-false}
       PYTHONPATH: "/opt/backend"
       skip_proxy: "true"
     env_file:
