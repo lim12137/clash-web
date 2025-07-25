@@ -9,6 +9,7 @@ import { useConfig } from "@/hooks/useConfig"
 import { ChatAttachment, AttachmentItem } from '@/app/chat/internal/chatAttachment'
 import { conversationService } from '@/services/conversationService'
 import { useTranslation } from "react-i18next"
+import { copyToClipboard } from "@/lib/clipboard"
 
 interface FinalMessageProps {
   message: ChatMessageType
