@@ -1,7 +1,7 @@
 "use client"
 
-import { Modal, message, Badge } from 'antd'
-import { ExpandAltOutlined } from '@ant-design/icons'
+import { Modal, message, Badge, Button } from 'antd'
+import { ExpandAltOutlined, SaveOutlined, BugOutlined } from '@ant-design/icons'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import AdditionalRequestInput from './AdditionalRequestInput'
 import { fineTunePrompt, savePrompt } from '@/services/promptService'
@@ -160,14 +160,14 @@ const PromptCard = ({ title, content, index, onChange, onExpand }: {
   return (
     <div className="h-full flex flex-col rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
       {/* Card header */}
-      <div className="bg-gray-50 text-gray-700 px-4 py-3 rounded-t-lg border-b border-gray-200 flex-shrink-0">
+      <div className="bg-gray-50 text-gray-700 px-4 py-2 rounded-t-lg border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Badge
               {...getBadgeProps(index)}
               className="mr-3"
             />
-            <h3 className="text-lg font-medium">{title}</h3>
+            <h3 className="text-base font-medium">{title}</h3>
           </div>
           <button
             onClick={() => onExpand?.(title, content, index)}
@@ -239,6 +239,23 @@ export default function SystemPromptDisplay({
   const originalFewShotsContentRef = useRef(fewShotsContent)
   
   const { t } = useTranslation('common')
+
+  // Calculate dynamic modal height based on content
+  const calculateModalHeight = (content: string) => {
+    const lineCount = content.split('\n').length;
+    const contentLength = content.length;
+    
+    // 基于行数和内容长度的高度计算，范围 25vh - 85vh
+    const minHeight = 25;
+    const maxHeight = 85;
+    
+    // 结合行数和内容长度来计算高度
+    const heightByLines = minHeight + Math.floor(lineCount / 8) * 5;
+    const heightByContent = minHeight + Math.floor(contentLength / 200) * 3;
+
+    const calculatedHeight = Math.max(heightByLines, heightByContent);
+    return Math.max(minHeight, Math.min(maxHeight, calculatedHeight));
+  };
 
   // Handle expand card content
   const handleExpandCard = (title: string, content: string, index: number) => {
@@ -439,28 +456,35 @@ export default function SystemPromptDisplay({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex justify-between items-center mb-3 flex-shrink-0 px-2">
-        <div className="flex flex-col">
-          <h2 className="text-lg font-medium text-gray-700 mt-1.5">{t('agent.title')}</h2>
+      <div className="flex justify-between items-center mb-2 flex-shrink-0 px-2">
+        <div className="flex items-center">
+          <h2 className="text-lg font-medium">{t('agent.title')}</h2>
         </div>
-        <div className="flex gap-2">
-          <button
+        <div className="flex gap-1">
+          <Button
+            type="text"
+            size="small"
+            icon={<SaveOutlined />}
             onClick={handleSavePrompt}
             disabled={!agentId}
-            className="px-4 py-1.5 rounded-md flex items-center text-sm bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ border: "none" }}
+            className="text-green-500 hover:text-green-600 hover:bg-green-50"
+            title={t('systemPrompt.button.save')}
           >
             {t('systemPrompt.button.save')}
-          </button>
-          <button
+          </Button>
+          <Button
+            type="text"
+            size="small"
+            icon={<BugOutlined />}
             onClick={onDebug}
-            className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
-            style={{ border: "none" }}
+            className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+            title={t('systemPrompt.button.debug')}
           >
             {t('systemPrompt.button.debug')}
-          </button>
+          </Button>
         </div>
       </div>
+      <div className="border-t border-gray-200 mx-2 mb-2"></div>
       <div 
         className="flex-1 overflow-y-auto px-2"
         style={{
@@ -504,13 +528,16 @@ export default function SystemPromptDisplay({
                 </MilkdownProvider>
               </div>
               <div className="mt-4 flex justify-end">
-                <button
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<SaveOutlined />}
                   onClick={handleSaveTunedPrompt}
-                  className="px-4 py-1.5 rounded-md flex items-center text-sm bg-blue-500 text-white hover:bg-blue-600"
-                  style={{ border: "none" }}
+                  className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                  title={t('systemPrompt.modal.button.save')}
                 >
                   {t('systemPrompt.modal.button.save')}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -520,7 +547,7 @@ export default function SystemPromptDisplay({
       {/* Expand Card Content Modal */}
       <Modal
         title={
-          <div className="flex justify-end items-center pr-4">
+          <div className="flex justify-end items-center pr-4 -mb-2">
             <button
               onClick={handleCloseExpandedModal}
               className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -540,7 +567,10 @@ export default function SystemPromptDisplay({
           content: { top: 20 }
         }}
       >
-        <div className="flex flex-col h-[80vh]">
+        <div 
+          className="flex flex-col"
+          style={{ height: `${calculateModalHeight(expandContent)}vh` }}
+        >
           <div className="flex-1 border border-gray-200 rounded-md overflow-y-auto">
             <MilkdownProvider>
               <PromptEditor
