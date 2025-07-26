@@ -8,6 +8,7 @@ import { FaRegThumbsDown, FaRegThumbsUp } from "react-icons/fa"
 import { useConfig } from "@/hooks/useConfig"
 import { ChatAttachment, AttachmentItem } from '@/app/chat/internal/chatAttachment'
 import { useTranslation } from "react-i18next"
+import { copyToClipboard } from "@/lib/clipboard"
 
 interface StreamMessageProps {
   message: ChatMessageType
@@ -60,21 +61,16 @@ export function ChatStreamMessage({
   // Copy content to clipboard
   const handleCopyContent = () => {
     const contentToCopy = message.finalAnswer || message.content;
-    if (contentToCopy) {
-      // Handle newlines: trim leading/trailing newlines and normalize multiple consecutive newlines
-      const trimmedContent = contentToCopy
-        .replace(/^\n+|\n+$/g, '') // Remove leading and trailing newlines
-        .replace(/\n{3,}/g, '\n\n'); // Replace 3+ consecutive newlines with double newlines
+    if (!contentToCopy) return;
 
-      navigator.clipboard.writeText(trimmedContent)
-        .then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        })
-        .catch(err => {
-          console.error(t('chatStreamMessage.copyFailed'), err);
-        });
-    }
+    copyToClipboard(contentToCopy)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(err => {
+        console.error(t('chatStreamMessage.copyFailed'), err);
+      });
   };
 
   // Handle likes
@@ -193,13 +189,13 @@ export function ChatStreamMessage({
                 <div className="px-3 pb-3">
                   <MarkdownRenderer 
                     content={message.finalAnswer} 
-                    searchResults={message.searchResults}
+                    searchResults={message?.searchResults}
                   />
                   
                   {/* Button group */}
                   <div className="flex items-center justify-between mt-3">
                     {/* Source button */}
-                    {((message.searchResults && message.searchResults.length > 0) || (message.images && message.images.length > 0)) && (
+                    {((message?.searchResults && message.searchResults.length > 0) || (message?.images && message.images.length > 0)) && (
                       <div className="flex items-center text-xs text-gray-500">
                         <Button
                           variant="ghost"

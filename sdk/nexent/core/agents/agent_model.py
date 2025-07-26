@@ -16,6 +16,10 @@ class ModelConfig(BaseModel):
 
 class ToolConfig(BaseModel):
     class_name: str = Field(description="Tool class name")
+    name: Optional[str] = Field(description="Tool name")
+    description: Optional[str] = Field(description="Tool description")
+    inputs: Optional[str] = Field(description="Tool inputs")
+    output_type: Optional[str] = Field(description="Tool output type")
     params: Dict[str, Any] = Field(description="Initialization parameters")
     source: str = Field(description="Tool source, can be local or mcp")
     metadata: Optional[Dict[str, Any]] = Field(description="Metadata", default=None)
@@ -41,7 +45,7 @@ class AgentRunInfo(BaseModel):
     model_config_list: List[ModelConfig] = Field(description="List of model configurations")
     observer: MessageObserver = Field(description="Return data")
     agent_config: AgentConfig = Field(description="Detailed Agent configuration")
-    mcp_host: Optional[str] = Field(description="MCP server address", default=None)
+    mcp_host: Optional[List[str]] = Field(description="MCP server address", default=None)
     history: Optional[List[AgentHistory]] = Field(description="Historical conversation information", default=None)
     stop_event: Event = Field(description="Stop event control")
 

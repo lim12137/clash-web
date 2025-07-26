@@ -1,11 +1,12 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react'
 import { Document } from '@/types/knowledgeBase'
 import DocumentStatus from './DocumentStatus'
 import { InfoCircleFilled } from '@ant-design/icons'
 import UploadArea from '../components/UploadArea'
-import { formatFileSize, formatDateTime } from '@/lib/utils'
+import { formatFileSize, formatDateTime, sortByStatusAndDate } from '@/lib/utils'
 import { Input, Button, Tooltip } from 'antd'
 import { useKnowledgeBaseContext } from '../knowledgeBase/KnowledgeBaseContext'
+import { useDocumentContext } from './DocumentContext'
 import { message } from 'antd'
 import knowledgeBaseService from '@/services/knowledgeBaseService'
 import { useTranslation } from 'react-i18next'
@@ -56,71 +57,102 @@ export const LAYOUT = {
   ACTION_TEXT: 'text-red-500 hover:text-red-700 font-medium text-xs' // Action button text style
 }
 
-export interface DocumentListLayoutProps {
-  sortedDocuments: Document[]
-  knowledgeBaseName: string
-  loading: boolean
-  isInitialLoad: boolean
-  modelMismatch: boolean
-  isCreatingMode: boolean
-  isUploading: boolean
-  nameLockedAfterUpload: boolean
-  hasDocuments: boolean
-  containerHeight: string
-  contentHeight: string
-  titleBarHeight: string
-  uploadHeight: string
-  
-  // Functions
-  getFileIcon: (type: string) => string
-  getMismatchInfo: () => string
-  onNameChange?: (name: string) => void
+interface DocumentListProps {
+  documents: Document[]
   onDelete: (id: string) => void
+  knowledgeBaseName?: string // 当前知识库名称，用于显示标题
+  modelMismatch?: boolean // 模型不匹配标志
+  currentModel?: string // 当前使用的模型
+  knowledgeBaseModel?: string // 知识库使用的模型
+  embeddingModelInfo?: string // 嵌入模型信息
+  containerHeight?: string // 容器总高度
+  isCreatingMode?: boolean // 是否处于创建模式
+  onNameChange?: (name: string) => void // 知识库名称变更
+  hasDocuments?: boolean // 是否已经有文档上传
   
-  // Upload related props
-  uploadAreaRef: React.RefObject<any>
-  isDragging: boolean
+  // 上传相关的props
+  isDragging?: boolean
   onDragOver?: (e: React.DragEvent) => void
   onDragLeave?: (e: React.DragEvent) => void
   onDrop?: (e: React.DragEvent) => void
   onFileSelect: (files: File[]) => void
-  selectedFiles: File[]
-  handleUpload: () => void
-  uploadUrl: string
+  onUpload?: () => void
+  isUploading?: boolean
+  uploadUrl?: string
 }
 
-const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
-  sortedDocuments,
-  knowledgeBaseName,
-  loading,
-  isInitialLoad,
-  modelMismatch,
-  isCreatingMode,
-  isUploading,
-  nameLockedAfterUpload,
-  hasDocuments,
-  containerHeight,
-  contentHeight,
-  titleBarHeight,
-  uploadHeight,
-  
-  // Functions
-  getFileIcon,
-  getMismatchInfo,
-  onNameChange,
+export interface DocumentListRef {
+  uppy: any;
+}
+
+const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
+  documents,
   onDelete,
+  knowledgeBaseName = '',
+  modelMismatch = false,
+  currentModel = '',
+  knowledgeBaseModel = '',
+  embeddingModelInfo = '',
+  containerHeight = '57vh', // 默认整体容器高度
+  isCreatingMode = false,
+  onNameChange,
+  hasDocuments = false,
   
-  // Upload related props
-  uploadAreaRef,
-  isDragging,
+  // 上传相关props
+  isDragging = false,
   onDragOver,
   onDragLeave,
   onDrop,
   onFileSelect,
-  selectedFiles,
-  handleUpload,
-  uploadUrl
-}) => {
+  onUpload,
+  isUploading = false,
+  uploadUrl = '/api/upload'
+}, ref) => {
+  const uploadAreaRef = useRef<any>(null);
+  const { state: docState } = useDocumentContext();
+  
+  // 使用固定高度而不是百分比
+  const titleBarHeight = UI_CONFIG.TITLE_BAR_HEIGHT;
+  const uploadHeight = UI_CONFIG.UPLOAD_COMPONENT_HEIGHT;
+  
+  // 计算文档列表区域高度 = 总高度 - 标题栏高度 - 上传区域高度
+  const contentHeight = `calc(${containerHeight} - ${titleBarHeight} - ${uploadHeight})`;
+
+  // 按状态和日期排序的文档列表
+  const sortedDocuments = sortByStatusAndDate(documents);
+
+  // 获取文件图标
+  const getFileIcon = (type: string): string => {
+    switch (type.toLowerCase()) {
+      case 'pdf':
+        return '📄'
+      case 'word':
+        return '📝'
+      case 'excel':
+        return '📊'
+      case 'powerpoint':
+        return '📑'
+      default:
+        return '📃'
+    }
+  }
+
+  // 构建模型不匹配提示信息
+  const getMismatchInfo = (): string => {
+    if (embeddingModelInfo) return embeddingModelInfo;
+    if (currentModel && knowledgeBaseModel) {
+      return t('document.modelMismatch.withModels', {
+        currentModel,
+        knowledgeBaseModel
+      });
+    }
+    return t('document.modelMismatch.general');
+  }
+
+  // 暴露 uppy 实例给父组件
+  useImperativeHandle(ref, () => ({
+    uppy: uploadAreaRef.current?.uppy
+  }));
   const [showDetail, setShowDetail] = React.useState(false);
   const [summary, setSummary] = useState('');
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -209,7 +241,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center">
             {isCreatingMode ? (
-              nameLockedAfterUpload ? (
+              false ? (
                 <div className="flex items-center">
                   <span className="text-blue-600 mr-2">📚</span>
                   <h3 className={`${LAYOUT.KB_TITLE_MARGIN} ${LAYOUT.KB_TITLE_SIZE} font-semibold text-gray-800`}>
@@ -236,7 +268,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
                   }}
                   prefix={<span className="text-blue-600">📚</span>}
                   autoFocus
-                  disabled={hasDocuments || isUploading || nameLockedAfterUpload || loading} // Disable editing name if there are documents or uploading
+                  disabled={hasDocuments || isUploading || docState.isLoadingDocuments} // Disable editing name if there are documents or uploading
                 />
               )
             ) : (
@@ -307,7 +339,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
             </div>
           </div>
         ) : (
-          loading? (
+          docState.isLoadingDocuments? (
             <div className="flex items-center justify-center h-full border border-gray-200 rounded-md">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
@@ -412,7 +444,7 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
           key={isCreatingMode ? `create-${knowledgeBaseName}` : `view-${knowledgeBaseName}`}
           ref={uploadAreaRef}
           onFileSelect={onFileSelect}
-          onUpload={handleUpload}
+          onUpload={onUpload || (() => {})}
           isUploading={isUploading}
           isDragging={isDragging}
           onDragOver={onDragOver}
@@ -429,6 +461,6 @@ const DocumentListLayout: React.FC<DocumentListLayoutProps> = ({
       )}
     </div>
   )
-}
+});
 
-export default DocumentListLayout 
+export default DocumentListContainer 

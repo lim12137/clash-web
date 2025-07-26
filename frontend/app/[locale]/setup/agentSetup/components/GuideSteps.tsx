@@ -115,11 +115,11 @@ export default function GuideSteps({
   const step = typeof currentStep === 'number' ? currentStep : getCurrentStep();
 
   return (
-    <div className="h-[65vh]">
-      <div className="flex-1 flex flex-col h-full overflow-y-auto overflow-x-hidden">
-        <h2 className="text-xl font-bold mb-4">
-          {isCreatingNewAgent ? t('guide.title.subAgent') : t('guide.title.mainAgent')}
-        </h2>
+    <div className="h-full flex flex-col">
+      <h2 className="text-xl font-bold mb-3 px-2 flex-shrink-0">
+        {isCreatingNewAgent ? t('guide.title.subAgent') : t('guide.title.mainAgent')}
+      </h2>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <Steps
           direction="vertical"
           current={step}

@@ -10,14 +10,18 @@ import { Row, Col, Drawer, message } from 'antd'
 import { fetchTools, fetchAgentList } from '@/services/agentConfigService'
 import { OpenAIModel } from '@/app/setup/agentSetup/ConstInterface'
 import { updateToolList } from '@/services/mcpService'
+import { 
+  SETUP_PAGE_CONTAINER, 
+  THREE_COLUMN_LAYOUT,
+  STANDARD_CARD,
+  CARD_HEADER 
+} from '@/lib/layoutConstants'
 import '../../i18n'
 
 // Layout Height Constant Configuration
 const LAYOUT_CONFIG = {
-  MAIN_CONTENT_HEIGHT: "72.5vh",
   CARD_HEADER_PADDING: "10px 24px",
   CARD_BODY_PADDING: "12px 20px",
-  CARD_GAP: 12,
   DRAWER_WIDTH: "40%",
 }
 
@@ -49,6 +53,11 @@ export default function AgentConfig() {
   const [isNewAgentInfoValid, setIsNewAgentInfoValid] = useState(false)
   const [isEditingAgent, setIsEditingAgent] = useState(false)
   const [editingAgent, setEditingAgent] = useState<any>(null)
+  
+  // Add state for three segmented content sections
+  const [dutyContent, setDutyContent] = useState("")
+  const [constraintContent, setConstraintContent] = useState("")
+  const [fewShotsContent, setFewShotsContent] = useState("")
 
   // Only auto scan once flag
   const hasAutoScanned = useRef(false)
@@ -109,8 +118,14 @@ export default function AgentConfig() {
         if (result.data.businessDescription) {
           setBusinessLogic(result.data.businessDescription);
         }
-        if (result.data.prompt) {
-          setSystemPrompt(result.data.prompt);
+        if (result.data.dutyPrompt) {
+          setDutyContent(result.data.dutyPrompt);
+        }
+        if (result.data.constraintPrompt) {
+          setConstraintContent(result.data.constraintPrompt);
+        }
+        if (result.data.fewShotsPrompt) {
+          setFewShotsContent(result.data.fewShotsPrompt);
         }
       } else {
         message.error(result.message || t('agent.error.fetchAgentList'));
@@ -132,11 +147,23 @@ export default function AgentConfig() {
   // add event listener to respond to the data request from the main page
   useEffect(() => {
     const handleGetAgentConfigData = () => {
+      // Check if there is system prompt content
+      let hasSystemPrompt = false;
+      
+      // If any of the segmented prompts has content, consider it as having system prompt
+      if (dutyContent && dutyContent.trim() !== '') {
+        hasSystemPrompt = true;
+      } else if (constraintContent && constraintContent.trim() !== '') {
+        hasSystemPrompt = true;
+      } else if (fewShotsContent && fewShotsContent.trim() !== '') {
+        hasSystemPrompt = true;
+      }
+      
       // send the current configuration data to the main page
       window.dispatchEvent(new CustomEvent('agentConfigDataResponse', {
         detail: {
           businessLogic: businessLogic,
-          systemPrompt: systemPrompt
+          systemPrompt: hasSystemPrompt ? 'has_content' : ''
         }
       }));
     };
@@ -146,7 +173,7 @@ export default function AgentConfig() {
     return () => {
       window.removeEventListener('getAgentConfigData', handleGetAgentConfigData);
     };
-  }, [businessLogic, systemPrompt]);
+  }, [businessLogic, dutyContent, constraintContent, fewShotsContent]);
 
   // When the tool list is loaded, check and set the enabled tools
   useEffect(() => {
@@ -204,7 +231,7 @@ export default function AgentConfig() {
     return mainAgentId ? parseInt(mainAgentId) : undefined
   }
 
-  // 刷新工具列表
+  // Refresh tool list
   const handleToolsRefresh = async () => {
     try {
       const result = await fetchTools()
@@ -221,20 +248,20 @@ export default function AgentConfig() {
   }
 
   return (
-    <div className="w-full h-full mx-auto px-4" style={{ maxWidth: "1920px"}}>
+    <div className="w-full h-full mx-auto" style={{ 
+      maxWidth: SETUP_PAGE_CONTAINER.MAX_WIDTH,
+      padding: `0 ${SETUP_PAGE_CONTAINER.HORIZONTAL_PADDING}`
+    }}>
       <div className="w-full h-full">
-        <Row gutter={[LAYOUT_CONFIG.CARD_GAP, LAYOUT_CONFIG.CARD_GAP]} className="h-full">
+        <Row gutter={THREE_COLUMN_LAYOUT.GUTTER} className="h-full">
           {/* Left Timeline Guide */}
           <Col xs={24} md={24} lg={4} xl={4} className="h-full">
-            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
-              <div
-                className="h-full flex flex-col"
-                style={{
-                  height: LAYOUT_CONFIG.MAIN_CONTENT_HEIGHT,
-                  overflowY: "auto",
-                  overflowX: "hidden"
-                }}
-              >
+            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden" style={{
+              height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
+              padding: STANDARD_CARD.PADDING,
+              overflowY: "auto",
+              overflowX: "hidden"
+            }}>
                 <GuideSteps
                   isCreatingNewAgent={isCreatingNewAgent}
                   systemPrompt={systemPrompt}
@@ -247,18 +274,17 @@ export default function AgentConfig() {
                   agentDescription={newAgentDescription}
                   agentProvideSummary={newAgentProvideSummary}
                 />
-              </div>
             </div>
           </Col>
 
           {/* Middle Panel - Business Logic Configuration */}
           <Col xs={24} md={24} lg={13} xl={13}>
-            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
-              <div style={{ 
-                height: LAYOUT_CONFIG.MAIN_CONTENT_HEIGHT, 
-                overflowY: "auto",
-                overflowX: "hidden"
-              }}>
+            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden" style={{
+              height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
+              padding: STANDARD_CARD.PADDING,
+              overflowY: "auto",
+              overflowX: "hidden"
+            }}>
                 <BusinessLogicConfig 
                   businessLogic={businessLogic}
                   setBusinessLogic={setBusinessLogic}
@@ -292,29 +318,37 @@ export default function AgentConfig() {
                   setIsNewAgentInfoValid={setIsNewAgentInfoValid}
                   onEditingStateChange={handleEditingStateChange}
                   onToolsRefresh={handleToolsRefresh}
+                  dutyContent={dutyContent}
+                  setDutyContent={setDutyContent}
+                  constraintContent={constraintContent}
+                  setConstraintContent={setConstraintContent}
+                  fewShotsContent={fewShotsContent}
+                  setFewShotsContent={setFewShotsContent}
                 />
-              </div>
             </div>
           </Col>
           
           {/* Right Panel - System Prompt Word Configuration */}
           <Col xs={24} md={24} lg={7} xl={7}>
-            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden p-4">
-              <div style={{ 
-                height: LAYOUT_CONFIG.MAIN_CONTENT_HEIGHT, 
-                overflowY: "auto",
-                overflowX: "hidden"
-              }}>
+            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden" style={{
+              height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
+              padding: STANDARD_CARD.PADDING,
+              overflowY: "auto",
+              overflowX: "hidden"
+            }}>
                 <SystemPromptDisplay
-                  prompt={systemPrompt}
-                  onPromptChange={setSystemPrompt}
                   onDebug={() => {
                     setIsDebugDrawerOpen(true);
                     setCurrentGuideStep(isCreatingNewAgent ? 5 : 5);
                   }}
                   agentId={getCurrentAgentId()}
+                  dutyContent={dutyContent}
+                  constraintContent={constraintContent}
+                  fewShotsContent={fewShotsContent}
+                  onDutyContentChange={setDutyContent}
+                  onConstraintContentChange={setConstraintContent}
+                  onFewShotsContentChange={setFewShotsContent}
                 />
-              </div>
             </div>
           </Col>
         </Row>

@@ -165,45 +165,12 @@ class SimpleTasksListResponse(BaseModel):
     tasks: List[SimpleTaskStatusResponse]
 
 
-class FileInfo(BaseModel):
-    path_or_url: str = Field(..., description="Document source path or URL")
-    file: str = Field(..., description="File name or identifier")
-    file_size: Optional[int] = Field(None, description="Size of the file in bytes")
-    create_time: Optional[str] = Field(None, description="Creation time of the file")
-
-
-class IndexInfo(BaseModel):
-    base_info: Dict[str, Any]
-    search_performance: Dict[str, Any]
-    fields: List[str]
-    doc_count: int
-    chunk_count: int
-    process_source: str
-    embedding_model: Optional[str] = Field(None, description="Embedding model used")
-    files: Optional[List[FileInfo]] = Field(None, description="List of files in the index")
-
-
 class IndexingResponse(BaseModel):
     success: bool
     message: str
     total_indexed: int
     total_submitted: int
 
-
-class DocumentResponse(BaseModel):
-    id: str
-    title: str
-    filename: str
-    path_or_url: str
-    language: Optional[str] = None
-    author: Optional[str] = None
-    date: Optional[str] = None
-    content: str
-    process_source: str
-    embedding_model_name: Optional[str] = None
-    file_size: Optional[int] = None
-    create_time: Optional[str] = None
-    score: Optional[float] = None
 
 # Request models
 class ProcessParams(BaseModel):
@@ -243,7 +210,9 @@ class AgentInfoRequest(BaseModel):
     model_name: Optional[str] = None
     max_steps: Optional[int] = None
     provide_run_summary: Optional[bool] = None
-    prompt: Optional[str] = None
+    duty_prompt: Optional[str] = None
+    constraint_prompt: Optional[str] = None
+    few_shots_prompt: Optional[str] = None
     enabled: Optional[bool] = None
 
 
@@ -276,6 +245,7 @@ class ToolInfo(BaseModel):
     inputs: str
     output_type: str
     class_name: str
+    usage: Optional[str]
 
 
 # used in Knowledge Summary request
@@ -295,7 +265,9 @@ class ExportAndImportAgentInfo(BaseModel):
     model_name: str
     max_steps: int
     provide_run_summary: bool
-    prompt: str
+    duty_prompt: Optional[str] = None
+    constraint_prompt: Optional[str] = None
+    few_shots_prompt: Optional[str] = None
     enabled: bool
     tools: List[ToolConfig]
     managed_agents: List
@@ -304,3 +276,14 @@ class ExportAndImportAgentInfo(BaseModel):
 class AgentImportRequest(BaseModel):
     agent_id: int
     agent_info: ExportAndImportAgentInfo
+
+
+class ConvertStateRequest(BaseModel):
+    """Request schema for /tasks/convert_state endpoint"""
+    process_state: str = ""
+    forward_state: str = ""
+
+
+class ConvertStateResponse(BaseModel):
+    """Response schema for /tasks/convert_state endpoint"""
+    state: str
