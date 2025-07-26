@@ -45,7 +45,8 @@ jobs:
           else
             echo "cache-hit=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Clone model
+      - name: Clone model if not cached
+        if: steps.check-model.outputs.cache-hit == 'false'
         run: |
           GIT_LFS_SKIP_SMUDGE=1 git clone https://hf-mirror.com/Nexent-AI/model-assets
           cd ./model-assets
