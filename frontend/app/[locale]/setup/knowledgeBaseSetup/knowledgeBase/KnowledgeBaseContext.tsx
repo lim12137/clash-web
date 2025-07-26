@@ -93,7 +93,6 @@ export const KnowledgeBaseContext = createContext<{
   setActiveKnowledgeBase: (kb: KnowledgeBase) => void;
   isKnowledgeBaseSelectable: (kb: KnowledgeBase) => boolean;
   refreshKnowledgeBaseData: (forceRefresh?: boolean) => Promise<void>;
-  summaryIndex: (indexName: string, batchSize: number) => Promise<string>;
   loadUserSelectedKnowledgeBases: () => Promise<void>;
   saveUserSelectedKnowledgeBases: () => Promise<boolean>;
 }>({
@@ -113,7 +112,6 @@ export const KnowledgeBaseContext = createContext<{
   setActiveKnowledgeBase: () => {},
   isKnowledgeBaseSelectable: () => false,
   refreshKnowledgeBaseData: async () => {},
-  summaryIndex: async () => '',
   loadUserSelectedKnowledgeBases: async () => {},
   saveUserSelectedKnowledgeBases: async () => false,
 });
@@ -178,14 +176,15 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     const kb = state.knowledgeBases.find((kb) => kb.id === id);
     if (!kb) return;
 
-    // Check model compatibility
-    if (!isKnowledgeBaseSelectable(kb)) {
+    const isSelected = state.selectedIds.includes(id);
+
+    // If trying to select an item, check for model compatibility. Deselection is always allowed.
+    if (!isSelected && !isKnowledgeBaseSelectable(kb)) {
       console.warn(`Cannot select knowledge base ${kb.name}, model mismatch`);
       return;
     }
 
     // Toggle selection status
-    const isSelected = state.selectedIds.includes(id);
     const newSelectedIds = isSelected
       ? state.selectedIds.filter(kbId => kbId !== id)
       : [...state.selectedIds, id];
@@ -248,28 +247,6 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     }
   }, [state.knowledgeBases, state.selectedIds, state.activeKnowledgeBase]);
 
-  // Summarize the content of the knowledge base
-  const summaryIndex = useCallback(async (indexName: string, batchSize: number = 1000) => {
-    try {
-      const result = await knowledgeBaseService.summaryIndex(indexName, batchSize);
-      return result;
-    } catch (error) {
-      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.summary') });
-      throw error;
-    }
-  }, [t]);
-
-  // Modify the summary of the knowledge base
-  const changekKnowledgeSummary = useCallback(async (indexName: string, summary: string) => {
-    try {
-      const result = await knowledgeBaseService.changeSummary(indexName, summary);
-      return result;
-    } catch (error) {
-      dispatch({ type: 'ERROR', payload: error as string });
-      throw error;
-    }
-  }, []);
-
   // Load user selected knowledge bases from backend
   const loadUserSelectedKnowledgeBases = useCallback(async () => {
     try {
@@ -319,6 +296,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
         // Publish document update event to notify document list component to refresh document data
         try {
           const documents = await knowledgeBaseService.getAllFiles(state.activeKnowledgeBase.id);
+          console.log("documents", documents);
           window.dispatchEvent(new CustomEvent('documentsUpdated', {
             detail: {
               kbId: state.activeKnowledgeBase.id,
@@ -412,7 +390,6 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
     refreshKnowledgeBaseData,
-    summaryIndex,
     loadUserSelectedKnowledgeBases,
     saveUserSelectedKnowledgeBases
   }), [
@@ -424,7 +401,6 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     setActiveKnowledgeBase,
     isKnowledgeBaseSelectable,
     refreshKnowledgeBaseData,
-    summaryIndex,
     loadUserSelectedKnowledgeBases,
     saveUserSelectedKnowledgeBases
   ]);

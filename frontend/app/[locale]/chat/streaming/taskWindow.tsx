@@ -1,8 +1,8 @@
-import { useRef, useEffect, useState, useMemo } from "react"
+import { useRef, useEffect, useState } from "react"
 import { ScrollArea } from "@/components/ui/scrollArea"
 import { ChatMessageType, TaskMessageType } from "@/types/chat"
 import { MarkdownRenderer } from '@/components/ui/markdownRenderer'
-import { Globe, Search, Zap, Bot, Code, FileText, HelpCircle, ChevronRight } from "lucide-react"
+import { Globe, Search, Zap, Bot, Code, FileText, HelpCircle, ChevronRight, Wrench } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useChatTaskMessage } from "@/hooks/useChatTaskMessage"
 import { useTranslation } from "react-i18next"
@@ -16,7 +16,7 @@ const iconMap: Record<string, React.ReactNode> = {
   "globe": <Globe size={16} className="mr-2" color="#4b5563" />,
   "zap": <Zap size={16} className="mr-2" color="#4b5563" />,
   "knowledge": <FileText size={16} className="mr-2" color="#4b5563" />,
-  "default": <HelpCircle size={16} className="mr-2" color="#4b5563" /> // Default icon
+  "default": <Wrench size={16} className="mr-2" color="#4b5563" /> // Default icon
 };
 
 // Define the type for card items
@@ -643,7 +643,7 @@ export function TaskWindow({
   const { t } = useTranslation('common');
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
-  const [isExpanded, setIsExpanded] = useState(isStreaming)
+  const [isExpanded, setIsExpanded] = useState(true) // default expand task details interface
   const [contentHeight, setContentHeight] = useState(0)
   const contentRef = useRef<HTMLDivElement>(null)
   

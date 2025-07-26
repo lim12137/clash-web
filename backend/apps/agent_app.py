@@ -9,7 +9,8 @@ from utils.auth_utils import get_current_user_info
 from agents.create_agent_info import create_agent_run_info
 from consts.model import AgentRequest, AgentInfoRequest, AgentIDRequest, ConversationResponse, AgentImportRequest
 from services.agent_service import list_main_agent_info_impl, get_agent_info_impl, \
-    get_creating_sub_agent_info_impl, update_agent_info_impl, delete_agent_impl, export_agent_impl, import_agent_impl
+    get_creating_sub_agent_info_impl, update_agent_info_impl, delete_agent_impl, export_agent_impl, import_agent_impl, \
+    list_all_agent_info_impl
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 from utils.config_utils import config_manager
 from utils.thread_utils import submit
@@ -84,7 +85,7 @@ async def reload_config():
     return config_manager.force_reload()
 
 
-@router.get("/list")
+@router.get("/list_main_agent_info")
 async def list_main_agent_info_api(authorization: str = Header(None)):
     """
     List all agents, create if the main Agent cannot be found.
@@ -163,4 +164,15 @@ async def import_agent_api(request: AgentImportRequest, authorization: Optional[
         return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent import error: {str(e)}")
+
+@router.get("/list")
+async def list_all_agent_info_api(authorization: Optional[str] = Header(None), request: Request = None):
+    """
+    list all agent info
+    """
+    try:
+        user_id, tenant_id, _ = get_current_user_info(authorization, request)
+        return list_all_agent_info_impl(tenant_id=tenant_id, user_id=user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
     

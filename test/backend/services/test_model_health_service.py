@@ -14,6 +14,7 @@ sys.modules['database.client'] = MockModule()
 sys.modules['database.model_management_db'] = MockModule()
 sys.modules['utils'] = MockModule()
 sys.modules['utils.auth_utils'] = MockModule()
+sys.modules['utils.config_utils'] = MockModule()
 sys.modules['consts'] = MockModule()
 sys.modules['consts.model'] = MockModule()
 sys.modules['consts.const'] = MockModule()
@@ -49,6 +50,8 @@ from backend.services.model_health_service import (
     check_model_connectivity,
     check_me_model_connectivity,
     verify_model_config_connectivity,
+    _embedding_dimension_check,
+    embedding_dimension_check,
 )
 
 # Mock imported functions/classes after import
@@ -68,6 +71,7 @@ with mock.patch.dict('sys.modules', {
     'database.model_management_db': mock.MagicMock(),
     'utils': mock.MagicMock(),
     'utils.auth_utils': mock.MagicMock(),
+    'utils.config_utils': mock.MagicMock(),
     'apps': mock.MagicMock(),
     'apps.voice_app': mock.MagicMock(),
     'consts.model': mock.MagicMock(),
@@ -86,6 +90,8 @@ with mock.patch.dict('sys.modules', {
         check_model_connectivity,
         check_me_model_connectivity,
         verify_model_config_connectivity,
+        _embedding_dimension_check,
+        embedding_dimension_check,
     )
 
 @pytest.mark.asyncio
@@ -93,7 +99,7 @@ async def test_perform_connectivity_check_embedding():
     # Setup
     with mock.patch("backend.services.model_health_service.OpenAICompatibleEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.check_connectivity.return_value = True
+        mock_embedding_instance.dimension_check.return_value = [1]
         mock_embedding.return_value = mock_embedding_instance
 
         # Execute
@@ -113,14 +119,14 @@ async def test_perform_connectivity_check_embedding():
             api_key="test-key",
             embedding_dim=1536
         )
-        mock_embedding_instance.check_connectivity.assert_called_once()
+        mock_embedding_instance.dimension_check.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_perform_connectivity_check_multi_embedding():
     # Setup
     with mock.patch("backend.services.model_health_service.JinaEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.check_connectivity.return_value = True
+        mock_embedding_instance.dimension_check.return_value = [1]
         mock_embedding.return_value = mock_embedding_instance
 
         # Execute
@@ -140,7 +146,7 @@ async def test_perform_connectivity_check_multi_embedding():
             api_key="test-key",
             embedding_dim=1024
         )
-        mock_embedding_instance.check_connectivity.assert_called_once()
+        mock_embedding_instance.dimension_check.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_perform_connectivity_check_llm():
@@ -769,3 +775,97 @@ async def test_verify_model_config_connectivity_exception():
 async def test_save_config_with_error():
     # This is the placeholder test function provided by the user
     pass
+
+@pytest.mark.asyncio
+async def test_embedding_dimension_check_embedding_success():
+    with mock.patch("backend.services.model_health_service.OpenAICompatibleEmbedding") as mock_embedding:
+        mock_embedding_instance = mock.MagicMock()
+        mock_embedding_instance.dimension_check.return_value = [[0.1, 0.2, 0.3]]
+        mock_embedding.return_value = mock_embedding_instance
+
+        dimension = await _embedding_dimension_check(
+            "test-embedding", "embedding", "http://test.com", "test-key"
+        )
+        assert dimension == 3
+        mock_embedding.assert_called_once_with(
+            model_name="test-embedding",
+            base_url="http://test.com",
+            api_key="test-key",
+            embedding_dim=0
+        )
+
+@pytest.mark.asyncio
+async def test_embedding_dimension_check_multi_embedding_success():
+    with mock.patch("backend.services.model_health_service.JinaEmbedding") as mock_embedding:
+        mock_embedding_instance = mock.MagicMock()
+        mock_embedding_instance.dimension_check.return_value = [[0.1, 0.2, 0.3, 0.4]]
+        mock_embedding.return_value = mock_embedding_instance
+
+        dimension = await _embedding_dimension_check(
+            "test-multi-embedding", "multi_embedding", "http://test.com", "test-key"
+        )
+        assert dimension == 4
+        mock_embedding.assert_called_once_with(
+            model_name="test-multi-embedding",
+            base_url="http://test.com",
+            api_key="test-key",
+            embedding_dim=0
+        )
+
+@pytest.mark.asyncio
+async def test_embedding_dimension_check_unsupported_type():
+    dimension = await _embedding_dimension_check(
+        "test-model", "unsupported", "http://test.com", "test-key"
+    )
+    assert dimension == 0
+
+@pytest.mark.asyncio
+async def test_embedding_dimension_check_empty_return():
+    with mock.patch("backend.services.model_health_service.OpenAICompatibleEmbedding") as mock_embedding:
+        mock_embedding_instance = mock.MagicMock()
+        mock_embedding_instance.dimension_check.return_value = []
+        mock_embedding.return_value = mock_embedding_instance
+
+        dimension = await _embedding_dimension_check(
+            "test-embedding", "embedding", "http://test.com", "test-key"
+        )
+        assert dimension == 0
+
+@pytest.mark.asyncio
+async def test_embedding_dimension_check_wrapper_success():
+    with mock.patch("backend.services.model_health_service._embedding_dimension_check") as mock_internal_check, \
+         mock.patch("backend.services.model_health_service.get_model_name_from_config") as mock_get_name:
+        mock_internal_check.return_value = 1536
+        mock_get_name.return_value = "openai/text-embedding-ada-002"
+        model_config = {
+            "model_repo": "openai",
+            "model_name": "text-embedding-ada-002",
+            "model_type": "embedding",
+            "base_url": "https://api.openai.com",
+            "api_key": "test-key"
+        }
+        dimension = await embedding_dimension_check(model_config)
+        assert dimension == 1536
+        mock_get_name.assert_called_once_with(model_config)
+        mock_internal_check.assert_called_once_with(
+            "openai/text-embedding-ada-002", "embedding", "https://api.openai.com", "test-key"
+        )
+
+@pytest.mark.asyncio
+async def test_embedding_dimension_check_wrapper_exception():
+    with mock.patch("backend.services.model_health_service._embedding_dimension_check") as mock_internal_check, \
+         mock.patch("backend.services.model_health_service.get_model_name_from_config") as mock_get_name, \
+         mock.patch("backend.services.model_health_service.logger") as mock_logger:
+        mock_internal_check.side_effect = Exception("test error")
+        mock_get_name.return_value = "openai/text-embedding-ada-002"
+        model_config = {
+            "model_repo": "openai",
+            "model_name": "text-embedding-ada-002",
+            "model_type": "embedding",
+            "base_url": "https://api.openai.com",
+            "api_key": "test-key"
+        }
+        dimension = await embedding_dimension_check(model_config)
+        assert dimension == 0
+        mock_get_name.assert_called_once_with(model_config)
+        mock_logger.warning.assert_called_once()
