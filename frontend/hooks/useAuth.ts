@@ -3,6 +3,7 @@
 import { useState, useEffect, useContext, createContext, type ReactNode } from "react"
 import { message } from "antd"
 import { authService } from "@/services/authService"
+import { getSessionFromStorage } from "@/lib/auth"
 import { configService } from "@/services/configService"
 import { User, AuthContextType } from "@/types/auth"
 import { EVENTS, STATUS_CODES } from "@/types/auth"
@@ -97,44 +98,44 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
 
   // 会话有效性检查，确保本地存储的会话不是过期的
   useEffect(() => {
-    // 只在有用户、不在加载状态时，且允许检查会话时进行额外验证
-    if (user && !isLoading && !isCheckingSession && shouldCheckSession) {
-      const verifySession = async () => {
-        // 检查上次验证时间,如果在1分钟内则跳过
-        const lastVerifyTime = Number(localStorage.getItem('lastSessionVerifyTime') || 0);
-        const now = Date.now();
-        if (now - lastVerifyTime < 60000) { // 60000ms
-          return;
+    if (!user || isLoading || !shouldCheckSession) return;
+
+    const verifySession = () => {
+      const lastVerifyTime = Number(localStorage.getItem('lastSessionVerifyTime') || 0);
+      const now = Date.now();
+      // 如果距离上次验证不足 10 秒，跳过
+      if (now - lastVerifyTime < 10000) {
+        return;
+      }
+
+      try {
+        setIsCheckingSession(true);
+
+        const sessionObj = getSessionFromStorage();
+        if (!sessionObj || sessionObj.expires_at * 1000 <= now) {
+          // 会话不存在或已过期
+          window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
+            detail: { message: t('auth.sessionExpired') }
+          }));
+          setShouldCheckSession(false);
         }
 
-        try {
-          setIsCheckingSession(true);
-          // 使用 authService.getSession() 进行验证
-          const session = await authService.getSession();
-          if (!session) {
-            // 触发会话过期事件
-            window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
-              detail: { message: t('auth.sessionExpired') }
-            }));
-            setShouldCheckSession(false); // 会话失效时禁用会话检查
-          }
-          // 更新最后验证时间
-          localStorage.setItem('lastSessionVerifyTime', now.toString());
-        } catch (error) {
-          console.error('Session validation failed:', error);
-        } finally {
-          setIsCheckingSession(false);
-        }
-      };
+        localStorage.setItem('lastSessionVerifyTime', now.toString());
+      } catch (error) {
+        console.error('Session validation failed:', error);
+      } finally {
+        setIsCheckingSession(false);
+      }
+    };
 
-      // 添加延迟，避免在登录成功后立即检查
-      const timeoutId = setTimeout(() => {
-        verifySession();
-      }, 2000);
+    // 立即执行一次
+    verifySession();
 
-      return () => clearTimeout(timeoutId);
-    }
-  }, [user, isLoading, isCheckingSession, shouldCheckSession, t]);
+    // 每 10 秒轮询一次
+    const intervalId = setInterval(verifySession, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [user, isLoading, shouldCheckSession, t]);
 
   const openLoginModal = () => {
     setIsRegisterModalOpen(false)

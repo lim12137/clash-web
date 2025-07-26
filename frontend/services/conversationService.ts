@@ -4,7 +4,9 @@ import type {
   ConversationListItem,
   ApiConversationResponse
 } from '@/types/conversation';
-import { getAuthHeaders } from '@/lib/auth';
+import { getAuthHeaders, fetchWithAuth } from '@/lib/auth';
+// @ts-ignore
+const fetch = fetchWithAuth;
 
 export interface STTResponse {
   result?: {
@@ -16,10 +18,7 @@ export interface STTResponse {
 export const conversationService = {
   // Get conversation list
   async getList(): Promise<ConversationListItem[]> {
-    const response = await fetch(API_ENDPOINTS.conversation.list, {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+    const response = await fetch(API_ENDPOINTS.conversation.list);
 
     const data = await response.json() as ConversationListResponse;
     

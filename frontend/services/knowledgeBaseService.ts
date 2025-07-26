@@ -2,7 +2,9 @@
 
 import { Document, KnowledgeBase, KnowledgeBaseCreateParams } from '@/types/knowledgeBase';
 import { API_ENDPOINTS } from './api';
-import { getAuthHeaders } from '@/lib/auth';
+import { getAuthHeaders, fetchWithAuth } from '@/lib/auth';
+// @ts-ignore
+const fetch: typeof fetchWithAuth = fetchWithAuth;
 
 // Knowledge base service class
 class KnowledgeBaseService {
@@ -219,10 +221,9 @@ class KnowledgeBaseService {
   }
 
   // Get all files from a knowledge base, regardless of the existence of index
-  // searchRedis: true means search redis to get the file in Celery, false means only search in ES
-  async getAllFiles(kbId: string, searchRedis: boolean = true): Promise<Document[]> {
+  async getAllFiles(kbId: string): Promise<Document[]> {
     try {
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.listFiles(kbId, searchRedis), {
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.listFiles(kbId), {
         headers: getAuthHeaders()
       });
       const result = await response.json();

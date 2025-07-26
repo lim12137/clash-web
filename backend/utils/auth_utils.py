@@ -12,6 +12,8 @@ from database.user_tenant_db import get_user_tenant_by_user_id
 # Get Supabase configuration
 SUPABASE_URL = os.getenv('SUPABASE_URL', 'http://118.31.249.152:8010')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
+# 调试用 JWT 过期时间（秒），未设置或为 0 表示不生效
+DEBUG_JWT_EXPIRE_SECONDS = int(os.getenv('DEBUG_JWT_EXPIRE_SECONDS', '0') or 0)
 
 def get_supabase_client():
     """获取Supabase客户端实例"""
@@ -35,6 +37,10 @@ def get_jwt_expiry_seconds(token: str) -> int:
     try:
         # 确保token是纯JWT，去除可能的Bearer前缀
         jwt_token = token.replace("Bearer ", "") if token.startswith("Bearer ") else token
+
+        # 如果设置了调试过期时间，直接返回以便快速调试
+        if DEBUG_JWT_EXPIRE_SECONDS > 0:
+            return DEBUG_JWT_EXPIRE_SECONDS
 
         # 解码JWT令牌(不验证签名，只解析内容)
         decoded = jwt.decode(jwt_token, options={"verify_signature": False})

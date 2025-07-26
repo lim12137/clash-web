@@ -1,5 +1,7 @@
 import { API_ENDPOINTS } from './api';
-import { getAuthHeaders } from '@/lib/auth';
+import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
+// @ts-ignore
+const fetch = fetchWithAuth;
 
 /**
  * Prompt Generation Request Parameters
@@ -39,10 +41,7 @@ export interface StreamResponseData {
  * Get Request Headers
  */
 const getHeaders = () => {
-  return {
-    'Content-Type': 'application/json',
-    'User-Agent': 'AgentFrontEnd/1.0',
-  };
+  return getAuthHeaders();
 };
 
 export const generatePromptStream = async (
@@ -54,7 +53,7 @@ export const generatePromptStream = async (
   try {
     const response = await fetch(API_ENDPOINTS.prompt.generate, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: getHeaders(),
       body: JSON.stringify(params),
     });
 
@@ -100,7 +99,7 @@ export const fineTunePrompt = async (params: FineTunePromptParams): Promise<stri
   try {
     const response = await fetch(API_ENDPOINTS.prompt.fineTune, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: getHeaders(),
       body: JSON.stringify(params),
     });
 
@@ -126,7 +125,7 @@ export const savePrompt = async (params: SavePromptParams): Promise<any> => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.update, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: getHeaders(),
       body: JSON.stringify({
         agent_id: params.agent_id,
         prompt: params.prompt
