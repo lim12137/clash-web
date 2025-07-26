@@ -651,7 +651,7 @@ export const handleStreamResponse = async (
         }
 
         // If it is the first answer of a new conversation, generate a title
-        if (isNewConversation && newMessages.length === 2) {
+        if (isNewConversation && newMessages.length >= 2) {
           // Use setTimeout to ensure the state has been updated
           setTimeout(async () => {
             try {
