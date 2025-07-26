@@ -34,6 +34,7 @@ def agent_run_thread(agent_run_info: AgentRunInfo):
             # Load local LangChain tools once and extend the MCP ToolCollection with them
             langchain_tools = load_langchain_tools()
 
+
             with ToolCollection.from_mcp(mcp_client_list, trust_remote_code=True) as tool_collection:
                 # Merge LangChain tools into the MCP tool collection for downstream usage
                 if langchain_tools:
