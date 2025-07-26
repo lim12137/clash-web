@@ -774,7 +774,7 @@ export default function BusinessLogicConfig({
     try {
       const result = await getCreatingSubAgentId(mainAgentId);
       if (result.success && result.data) {
-        const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, prompt } = result.data;
+        const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, dutyPrompt, constraintPrompt, fewShotsPrompt } = result.data;
         
         // Update the main agent ID
         setMainAgentId(agentId);
@@ -792,9 +792,17 @@ export default function BusinessLogicConfig({
         if (businessDescription) {
           setBusinessLogic(businessDescription);
         }
-        // Update the system prompt
-        if (prompt) {
-          setSystemPrompt(prompt);
+        // Update the duty prompt
+        if (setDutyContent) {
+          setDutyContent(dutyPrompt || '');
+        }
+        // Update the constraint prompt
+        if (setConstraintContent) {
+          setConstraintContent(constraintPrompt || '');
+        }
+        // Update the few shots prompt
+        if (setFewShotsContent) {
+          setFewShotsContent(fewShotsPrompt || '');
         }
       } else {
         message.error(result.message || t('businessLogic.config.error.agentIdFailed'));
