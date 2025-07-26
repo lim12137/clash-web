@@ -56,7 +56,7 @@ export const fetchTools = async () => {
  */
 export const fetchAgentList = async () => {
   try {
-    const response = await fetch(API_ENDPOINTS.agent.list, {
+    const response = await fetch(API_ENDPOINTS.agent.listMainAgentInfo, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -71,7 +71,9 @@ export const fetchAgentList = async () => {
       description: agent.description,
       modelName: agent.model_name,
       max_step: agent.max_steps,
-      prompt: agent.prompt,
+      duty_prompt: agent.duty_prompt,
+      constraint_prompt: agent.constraint_prompt,
+      few_shots_prompt: agent.few_shots_prompt,
       business_description: agent.business_description,
       parentAgentId: agent.parent_agent_id,
       enabled: agent.enabled,
@@ -108,7 +110,9 @@ export const fetchAgentList = async () => {
         modelName: data.model_name,
         maxSteps: data.max_steps,
         businessDescription: data.business_description,
-        prompt: data.prompt
+        dutyPrompt: data.duty_prompt,
+        constraintPrompt: data.constraint_prompt,
+        fewShotsPrompt: data.few_shots_prompt
       },
       message: ''
     };
@@ -124,7 +128,9 @@ export const fetchAgentList = async () => {
         modelName: null,
         maxSteps: null,
         businessDescription: null,
-        prompt: null
+        dutyPrompt: null,
+        constraintPrompt: null,
+        fewShotsPrompt: null
       },
       message: '获取 agent 列表失败，请稍后重试'
     };
@@ -157,7 +163,9 @@ export const getCreatingSubAgentId = async (mainAgentId: string | null) => {
         modelName: data.model_name,
         maxSteps: data.max_steps,
         businessDescription: data.business_description,
-        prompt: data.prompt
+        dutyPrompt: data.duty_prompt,
+        constraintPrompt: data.constraint_prompt,
+        fewShotsPrompt: data.few_shots_prompt
       },
       message: ''
     };
@@ -267,7 +275,9 @@ export const searchToolConfig = async (toolId: number, agentId: number) => {
  * @param modelName 模型名称
  * @param maxSteps 最大步骤数
  * @param provideRunSummary 是否提供运行摘要
- * @param prompt 系统提示词
+ * @param dutyPrompt 职责提示词
+ * @param constraintPrompt 约束提示词
+ * @param fewShotsPrompt 示例提示词
  * @returns 更新结果
  */
 export const updateAgent = async (
@@ -277,9 +287,11 @@ export const updateAgent = async (
   modelName?: string,
   maxSteps?: number,
   provideRunSummary?: boolean,
-  prompt?: string,
   enabled?: boolean,
-  businessDescription?: string
+  businessDescription?: string,
+  dutyPrompt?: string,
+  constraintPrompt?: string,
+  fewShotsPrompt?: string
 ) => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.update, {
@@ -292,9 +304,11 @@ export const updateAgent = async (
         model_name: modelName,
         max_steps: maxSteps,
         provide_run_summary: provideRunSummary,
-        prompt: prompt,
         enabled: enabled,
-        business_description: businessDescription
+        business_description: businessDescription,
+        duty_prompt: dutyPrompt,
+        constraint_prompt: constraintPrompt,
+        few_shots_prompt: fewShotsPrompt
       }),
     });
 
@@ -453,7 +467,9 @@ export const searchAgentInfo = async (agentId: number) => {
       description: data.description,
       model: data.model_name,
       max_step: data.max_steps,
-      prompt: data.prompt,
+      duty_prompt: data.duty_prompt,
+      constraint_prompt: data.constraint_prompt,
+      few_shots_prompt: data.few_shots_prompt,
       business_description: data.business_description,
       provide_run_summary: data.provide_run_summary,
       enabled: data.enabled,
@@ -488,6 +504,43 @@ export const searchAgentInfo = async (agentId: number) => {
       success: false,
       data: null,
       message: '获取Agent详情失败，请稍后重试'
+    };
+  }
+};
+
+/**
+ * fetch all available agents for chat
+ * @returns list of available agents with agent_id, name, description, is_available
+ */
+export const fetchAllAgents = async () => {
+  try {
+    const response = await fetch(API_ENDPOINTS.agent.list, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`);
+    }
+    const data = await response.json();
+    
+    // convert backend data to frontend format
+    const formattedAgents = data.map((agent: any) => ({
+      agent_id: agent.agent_id,
+      name: agent.name,
+      description: agent.description,
+      is_available: agent.is_available
+    }));
+    
+    return {
+      success: true,
+      data: formattedAgents,
+      message: ''
+    };
+  } catch (error) {
+    console.error('获取所有Agent列表失败:', error);
+    return {
+      success: false,
+      data: [],
+      message: '获取Agent列表失败，请稍后重试'
     };
   }
 };

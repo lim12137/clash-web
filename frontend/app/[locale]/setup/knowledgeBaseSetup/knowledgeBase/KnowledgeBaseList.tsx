@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button, Checkbox } from 'antd'
+import { Button, Checkbox, ConfigProvider } from 'antd'
 import { SyncOutlined, PlusOutlined } from '@ant-design/icons'
 import { KnowledgeBase } from '@/types/knowledgeBase'
 import { useTranslation } from 'react-i18next'
@@ -80,6 +80,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
       return dateString; // 如果解析失败，返回原始字符串
     }
   };
+
 
   return (
     <div className="w-full bg-white border border-gray-200 rounded-md flex flex-col" style={{ height: containerHeight }}>
@@ -192,6 +193,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
               const canSelect = isSelectable(kb)
               const isSelected = selectedIds.includes(kb.id)
               const isActive = activeKnowledgeBase?.id === kb.id
+              const isMismatchedAndSelected = isSelected && !canSelect
 
               return (
                 <div
@@ -212,7 +214,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                     <div className="flex-shrink-0">
                       <div className="px-2" onClick={(e) => {
                         e.stopPropagation();
-                        if (canSelect) {
+                        if (canSelect || isSelected) {
                           onSelect(kb.id);
                         }
                       }}
@@ -223,18 +225,27 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
                           alignItems: 'flex-start',
                           justifyContent: 'center'
                         }}>
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={(e) => {
-                            e.stopPropagation()
-                            onSelect(kb.id)
+                        <ConfigProvider
+                          theme={{
+                            token: {
+                              // If selected with model mismatch, use light blue, otherwise default blue
+                              colorPrimary: isMismatchedAndSelected ? '#90caf9' : '#1677ff',
+                            },
                           }}
-                          disabled={!canSelect}
-                          style={{
-                            cursor: canSelect ? 'pointer' : 'not-allowed',
-                            transform: 'scale(1.5)',
-                          }}
-                        />
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={(e) => {
+                              e.stopPropagation()
+                              onSelect(kb.id)
+                            }}
+                            disabled={!canSelect && !isSelected}
+                            style={{
+                              cursor: (canSelect || isSelected) ? 'pointer' : 'not-allowed',
+                              transform: 'scale(1.5)',
+                            }}
+                          />
+                        </ConfigProvider>
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">

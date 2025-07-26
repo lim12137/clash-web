@@ -8,7 +8,7 @@ from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ToolInstanc
 from database.agent_db import create_agent, query_all_enabled_tool_instances, \
     query_or_create_main_agent_id, query_sub_agents, search_blank_sub_agent_by_main_agent_id, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
-    create_or_update_tool_by_tool_info, check_tool_is_available
+    create_or_update_tool_by_tool_info, check_tool_is_available, query_all_agent_info_by_tenant_id
 
 from utils.auth_utils import get_current_user_id
 from typing import Optional
@@ -99,7 +99,9 @@ def list_main_agent_info_impl(authorization: Optional[str] = Header(None)):
         "model_name": main_agent_info["model_name"],
         "max_steps": main_agent_info["max_steps"],
         "business_description": main_agent_info["business_description"],
-        "prompt": main_agent_info["prompt"]
+        "duty_prompt": main_agent_info.get("duty_prompt"),
+        "constraint_prompt": main_agent_info.get("constraint_prompt"),
+        "few_shots_prompt": main_agent_info.get("few_shots_prompt")
     }
 
 
@@ -148,7 +150,9 @@ def get_creating_sub_agent_info_impl(agent_id: int, authorization: str = Header(
             "model_name": agent_info["model_name"],
             "max_steps": agent_info["max_steps"],
             "business_description": agent_info["business_description"],
-            "prompt": agent_info["prompt"]}
+            "duty_prompt": agent_info.get("duty_prompt"),
+            "constraint_prompt": agent_info.get("constraint_prompt"),
+            "few_shots_prompt": agent_info.get("few_shots_prompt")}
 
 def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Header(None)):
     user_id, tenant_id = get_current_user_id(authorization)
@@ -172,6 +176,12 @@ async def export_agent_impl(agent_id: int, authorization: str = Header(None)):
     user_id, tenant_id = get_current_user_id(authorization)
 
     tool_list = await create_tool_config_list(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
+
+    # Check if any tool is KnowledgeBaseSearchTool and set its metadata to empty dict
+    for tool in tool_list:
+        if tool.class_name == "KnowledgeBaseSearchTool":
+            tool.metadata = {}
+    
     agent_info_in_db = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
 
     agent_info = ExportAndImportAgentInfo(name=agent_info_in_db["name"],
@@ -180,7 +190,9 @@ async def export_agent_impl(agent_id: int, authorization: str = Header(None)):
                                           model_name=agent_info_in_db["model_name"],
                                           max_steps=agent_info_in_db["max_steps"],
                                           provide_run_summary=agent_info_in_db["provide_run_summary"],
-                                          prompt=agent_info_in_db["prompt"],
+                                          duty_prompt=agent_info_in_db.get("duty_prompt"),
+                                          constraint_prompt=agent_info_in_db.get("constraint_prompt"),
+                                          few_shots_prompt=agent_info_in_db.get("few_shots_prompt"),
                                           enabled=agent_info_in_db["enabled"],
                                           tools=tool_list,
                                           managed_agents=[])
@@ -219,8 +231,8 @@ def import_agent_impl(parent_agent_id: int, agent_info: ExportAndImportAgentInfo
         raise ValueError(f"Invalid model name: {agent_info.model_name}. model name must be 'main_model' or 'sub_model'.")
     if agent_info.max_steps <= 0 or agent_info.max_steps > 20:
         raise ValueError(f"Invalid max steps: {agent_info.max_steps}. max steps must be greater than 0 and less than 20.")
-    if agent_info.name == "main":
-        raise ValueError(f"Invalid agent name: {agent_info.name}. agent name cannot be 'main'.")
+    if not agent_info.name.isidentifier():
+        raise ValueError(f"Invalid agent name: {agent_info.name}. agent name must be a valid python variable name.")
     # create a new agent
     user_id, tenant_id = get_current_user_id()
     new_agent = create_agent(agent_info={"name": agent_info.name,
@@ -229,7 +241,9 @@ def import_agent_impl(parent_agent_id: int, agent_info: ExportAndImportAgentInfo
                             "model_name": agent_info.model_name,
                             "max_steps": agent_info.max_steps,
                             "provide_run_summary": agent_info.provide_run_summary,
-                            "prompt": agent_info.prompt,
+                            "duty_prompt": agent_info.duty_prompt,
+                            "constraint_prompt": agent_info.constraint_prompt,
+                            "few_shots_prompt": agent_info.few_shots_prompt,
                             "enabled": agent_info.enabled,
                             "parent_agent_id": parent_agent_id},
                   tenant_id=tenant_id,
@@ -293,3 +307,40 @@ def import_default_agents_to_pg():
     except Exception as e:
         logger.error(f"Failed to import default agents: {str(e)}")
         raise ValueError(f"Failed to import default agents: {str(e)}")
+
+def list_all_agent_info_impl(tenant_id: str, user_id: str) -> list[dict]:
+    """
+    list all agent info
+
+    Args:
+        tenant_id (str): tenant id
+        user_id (str): user id
+
+    Raises:
+        ValueError: failed to query all agent info
+
+    Returns:
+        list: list of agent info
+    """
+    try:
+        agent_list = query_all_agent_info_by_tenant_id(tenant_id=tenant_id)
+        
+        simple_agent_list = []
+        for agent in agent_list:
+            # check agent is available
+            if not agent["name"]:
+                continue
+            tool_info = search_tools_for_sub_agent(agent_id=agent["agent_id"], tenant_id=tenant_id, user_id=None)
+            tool_id_list = [tool["tool_id"] for tool in tool_info]
+            is_available = all(check_tool_is_available(tool_id_list))
+
+            simple_agent_list.append({
+                "agent_id": agent["agent_id"],
+                "name": agent["name"],
+                "description": agent["description"],
+                "is_available": is_available
+            })
+        return simple_agent_list
+    except Exception as e:
+        logger.error(f"Failed to query all agent info: {str(e)}")
+        raise ValueError(f"Failed to query all agent info: {str(e)}")

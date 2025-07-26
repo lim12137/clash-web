@@ -167,7 +167,8 @@ async def get_all_files_status(index_name: str):
                     file_state['source_type'] = source_type
         result = {}
         for path_or_url, file_state in file_states.items():
-            custom_state = _convert_to_custom_state(
+            # Call remote state conversion API so this service no longer depends on Celery
+            custom_state = await _convert_to_custom_state(
                 process_celery_state=file_state['process_state'] or '',
                 forward_celery_state=file_state['forward_state'] or ''
             )
@@ -183,65 +184,64 @@ async def get_all_files_status(index_name: str):
         return {}  # Return empty dict on error
 
 
-def _convert_to_custom_state(process_celery_state: str, forward_celery_state: str) -> str:
+async def _convert_to_custom_state(process_celery_state: str, forward_celery_state: str) -> str:
+    """Delegates Celery-state conversion to the data-process service.
+
+    This removes the direct dependency on the *celery* package for callers of
+    `file_management_utils`.
     """
-    Convert Celery task state to frontend representation
-    
-    Args:
-        process_celery_state: Process task Celery state
-        forward_celery_state: Forward task Celery state
-        
-    Returns:
-        Converted state for frontend, value set:
-        - WAIT_FOR_PROCESSING
-        - PROCESSING
-        - WAIT_FOR_FORWARDING
-        - FORWARDING
-        - COMPLETED
-        - PROCESS_FAILED
-        - FORWARD_FAILED
-    """
-    from celery import states
-    
-    # Handle failure states first
-    if process_celery_state == states.FAILURE:
+    try:
+        payload = {
+            "process_state": process_celery_state,
+            "forward_state": forward_celery_state,
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{DATA_PROCESS_SERVICE}/tasks/convert_state", json=payload, timeout=5.0)
+
+        if response.status_code == 200:
+            return response.json().get("state", "WAIT_FOR_PROCESSING")
+        else:
+            logger.warning(
+                "State conversion service error: %s - %s", response.status_code, response.text
+            )
+    except Exception as e:
+        logger.warning("Failed to convert state via service: %s", str(e))
+
+    # Fallback mapping without Celery dependency (string comparison only)
+    success = "SUCCESS"
+    failure = "FAILURE"
+    pending = "PENDING"
+    started = "STARTED"
+
+    if process_celery_state == failure:
         return "PROCESS_FAILED"
-    if forward_celery_state == states.FAILURE:
+    if forward_celery_state == failure:
         return "FORWARD_FAILED"
-    
-    # Handle completed state - both must be SUCCESS
-    if process_celery_state == states.SUCCESS and forward_celery_state == states.SUCCESS:
+    if process_celery_state == success and forward_celery_state == success:
         return "COMPLETED"
-    
-    # Handle case where nothing has started
     if not process_celery_state and not forward_celery_state:
         return "WAIT_FOR_PROCESSING"
-    
-    # Define state mappings with SUCCESS included
+
     forward_state_map = {
-        states.PENDING: "WAIT_FOR_FORWARDING",
-        states.STARTED: "FORWARDING",
-        states.SUCCESS: "COMPLETED",
-        states.FAILURE: "FORWARD_FAILED",
+        pending: "WAIT_FOR_FORWARDING",
+        started: "FORWARDING",
+        success: "COMPLETED",
+        failure: "FORWARD_FAILED",
     }
     process_state_map = {
-        states.PENDING: "WAIT_FOR_PROCESSING", 
-        states.STARTED: "PROCESSING",
-        states.SUCCESS: "WAIT_FOR_FORWARDING",  # Process done, waiting for forward
-        states.FAILURE: "PROCESS_FAILED",
+        pending: "WAIT_FOR_PROCESSING",
+        started: "PROCESSING",
+        success: "WAIT_FOR_FORWARDING",
+        failure: "PROCESS_FAILED",
     }
-    
-    # Determine current state based on progress
+
     if forward_celery_state:
-        # Forward task exists, use its state with fallback
         return forward_state_map.get(forward_celery_state, "WAIT_FOR_FORWARDING")
-    elif process_celery_state:
-        # Only process task exists, use its state with fallback
+    if process_celery_state:
         return process_state_map.get(process_celery_state, "WAIT_FOR_PROCESSING")
-    else:
-        # Fallback case
-        return "WAIT_FOR_PROCESSING"
-    
+    return "WAIT_FOR_PROCESSING"
+
 
 def get_file_size(source_type: str, path_or_url: str) -> int:
     """Query the actual size(bytes) of the file."""

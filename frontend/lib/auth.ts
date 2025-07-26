@@ -51,8 +51,9 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const session = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.SESSION) : null;
   const sessionObj = session ? JSON.parse(session) : null;
 
+  const isFormData = options.body instanceof FormData;
   const headers = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
     ...options.headers,
   };
