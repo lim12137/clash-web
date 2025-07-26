@@ -1,6 +1,8 @@
 import threading
 import yaml
 import logging
+import importlib
+import inspect
 from urllib.parse import urljoin
 from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
@@ -16,6 +18,7 @@ from utils.prompt_template_utils import get_prompt_template_path
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 from smolagents.agents import populate_template
 from smolagents.utils import BASE_BUILTIN_MODULES
+from smolagents.tools import Tool
 
 logger = logging.getLogger("create_agent_info")
 
@@ -138,6 +141,42 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
                                     "es_core": elastic_core,
                                     "embedding_model": get_embedding_model(tenant_id=tenant_id)}
         tool_config_list.append(tool_config)
+    
+    # Import and instantiate all langchain tools
+    langchain_tools = []
+    try:
+        import os
+        import importlib.util
+        
+        # Get the absolute path to the langchain tools directory
+        langchain_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
+                                     "mcp_service", "langchain")
+        
+        # Iterate through all Python files in the langchain directory
+        for filename in os.listdir(langchain_dir):
+            if filename.endswith(".py") and not filename.startswith("__"):
+                try:
+                    # Import the module dynamically
+                    module_name = filename[:-3]  # Remove .py extension
+                    module_path = os.path.join(langchain_dir, filename)
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    
+                    # Find all functions decorated with @tool in the module
+                    for name, func in inspect.getmembers(module, inspect.isfunction):
+                        if hasattr(func, "_type") and func._type == "tool":
+                            langchain_tool = Tool.from_langchain(func)
+                            langchain_tools.append(langchain_tool)
+                            logger.info(f"Loaded Langchain tool: {name} from {filename}")
+                except Exception as e:
+                    logger.error(f"Error loading Langchain tools from {filename}: {e}")
+    except Exception as e:
+        logger.error(f"Error scanning Langchain tools directory: {e}")
+    
+    # Add langchain tools to the tool_config_list
+    tool_config_list.extend(langchain_tools)
+    
     return tool_config_list
 
 
