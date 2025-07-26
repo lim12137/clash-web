@@ -163,7 +163,9 @@ export const getCreatingSubAgentId = async (mainAgentId: string | null) => {
         modelName: data.model_name,
         maxSteps: data.max_steps,
         businessDescription: data.business_description,
-        prompt: data.prompt
+        dutyPrompt: data.duty_prompt,
+        constraintPrompt: data.constraint_prompt,
+        fewShotsPrompt: data.few_shots_prompt
       },
       message: ''
     };
