@@ -7,6 +7,7 @@ import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { authService } from '@/services/authService';
 import { EVENTS } from '@/types/auth';
 import { useAuth } from '@/hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 
 /**
  * 会话管理组件
@@ -15,9 +16,47 @@ import { useAuth } from '@/hooks/useAuth';
 export function SessionListeners() {
   const router = useRouter();
   const pathname = usePathname();
-  const { confirm } = Modal;
-  const { openLoginModal, setIsFromSessionExpired } = useAuth();
+  const { t } = useTranslation('common');
+  const { openLoginModal, setIsFromSessionExpired, logout } = useAuth();
   const modalShownRef = useRef<boolean>(false);
+
+  /**
+   * 显示“登录已过期”确认弹窗
+   * 该函数负责防抖逻辑，避免弹窗重复出现
+   */
+  const showSessionExpiredModal = () => {
+    // 若已显示过，则直接返回
+    if (modalShownRef.current) return;
+
+    modalShownRef.current = true;
+
+    Modal.confirm({
+      title: t('login.expired.title'),
+      icon: <ExclamationCircleOutlined />,
+      content: t('login.expired.content'),
+      okText: t('login.expired.okText'),
+      cancelText: t('login.expired.cancelText'),
+      closable: false,
+      async onOk() {
+        try {
+          await logout(); // Log out first
+        } finally {
+          // Mark the source as session expired
+          setIsFromSessionExpired(true);
+          openLoginModal();
+          setTimeout(() => (modalShownRef.current = false), 500);
+        }
+      },
+      async onCancel() {
+        try {
+          await logout();
+        } finally {
+          router.push('/');
+          setTimeout(() => (modalShownRef.current = false), 500);
+        }
+      }
+    });
+  };
 
   // 监听登录成功后的事件，重置modalShown状态
   useEffect(() => {
@@ -38,41 +77,8 @@ export function SessionListeners() {
   useEffect(() => {
     const handleSessionExpired = (event: CustomEvent) => {
 
-      // 防止多次显示弹窗
-      if (modalShownRef.current) return;
-      
-      // 首页不显示会话过期弹窗
-      if (pathname === '/' || pathname?.startsWith('/?')) {
-        return;
-      }
-      
-      modalShownRef.current = true;
-
-      // 显示确认对话框
-      confirm({
-        title: '登录已过期',
-        icon: <ExclamationCircleOutlined />,
-        content: '您的登录信息已过期，请重新登录以继续使用。',
-        okText: '立即登录',
-        cancelText: '返回首页',
-        closable: false,
-        onOk() {
-          // 标记来源为会话过期
-          setIsFromSessionExpired(true);
-          openLoginModal();
-          // 重置标记，允许下次再显示
-          setTimeout(() => {
-            modalShownRef.current = false;
-          }, 500);
-        },
-        onCancel() {
-          router.push('/');
-          // 重置标记，允许下次再显示
-          setTimeout(() => {
-            modalShownRef.current = false;
-          }, 500);
-        }
-      });
+      // 直接调用封装函数
+      showSessionExpiredModal();
     };
 
     // 添加事件监听
@@ -82,7 +88,20 @@ export function SessionListeners() {
     return () => {
       window.removeEventListener(EVENTS.SESSION_EXPIRED, handleSessionExpired as EventListener);
     };
-  }, [router, confirm, pathname, openLoginModal, setIsFromSessionExpired]);
+  // 依赖数组中去掉 confirm，避免因函数引用变化导致重复注册
+  }, [router, pathname, openLoginModal, setIsFromSessionExpired]);
+
+  // 组件初次挂载时，如果发现本地已经没有 session，也立即弹窗
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const localSession = localStorage.getItem('session');
+      if (!localSession) {
+        showSessionExpiredModal();
+      }
+    }
+    // 该副作用只需在首次渲染时执行一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 会话状态检查
   useEffect(() => {

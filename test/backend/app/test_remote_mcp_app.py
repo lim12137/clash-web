@@ -300,3 +300,101 @@ async def test_dynamic_config_update(mock_config_manager):
     
     # Verify second call
     assert mock_config_manager.get_config() == updated_config
+
+
+@pytest.mark.asyncio
+async def test_healthcheck_success(mock_service):
+    """Test healthcheck endpoint success scenario"""
+    # Mock successful health check response
+    success_health_response = JSONResponse(
+        status_code=200,
+        content={"message": "Successfully connected to remote MCP server", "status": "success"}
+    )
+    
+    # Set up mock functions
+    mock_service.mcp_server_health = AsyncMock(return_value=success_health_response)
+    mock_service.update_mcp_status_by_name_and_url = MagicMock(return_value=True)
+    mock_service.get_current_user_id = MagicMock(return_value=("test_user", "test_tenant"))
+    
+    # Simulate the healthcheck endpoint logic
+    # 1. Get user info
+    user_id, tenant_id = mock_service.get_current_user_id("test_auth")
+    
+    # 2. Check health
+    response = await mock_service.mcp_server_health(remote_mcp_server="http://test-server.com")
+    
+    # 3. Update database status
+    status = response.status_code == 200
+    mock_service.update_mcp_status_by_name_and_url(
+        mcp_name="test_service",
+        mcp_server="http://test-server.com",
+        tenant_id=tenant_id,
+        user_id=user_id,
+        status=status
+    )
+    
+    # Verify health check response
+    assert isinstance(response, JSONResponse)
+    assert_status_code(response, 200)
+    assert_response_data(response, {
+        "status": "success",
+        "message": "contains:Successfully connected to remote MCP server"
+    })
+    
+    # Verify database status update was called with correct parameters
+    mock_service.update_mcp_status_by_name_and_url.assert_called_once_with(
+        mcp_name="test_service",
+        mcp_server="http://test-server.com",
+        tenant_id="test_tenant",
+        user_id="test_user",
+        status=True  # True because status_code == 200
+    )
+
+
+@pytest.mark.asyncio
+async def test_healthcheck_failure(mock_service):
+    """Test healthcheck endpoint failure scenario"""
+    # Mock failed health check response
+    failed_health_response = JSONResponse(
+        status_code=503,
+        content={"message": "Cannot connect to remote MCP server", "status": "error"}
+    )
+    
+    # Set up mock functions
+    mock_service.mcp_server_health = AsyncMock(return_value=failed_health_response)
+    mock_service.update_mcp_status_by_name_and_url = MagicMock(return_value=True)
+    mock_service.get_current_user_id = MagicMock(return_value=("test_user", "test_tenant"))
+    
+    # Simulate the healthcheck endpoint logic
+    # 1. Get user info
+    user_id, tenant_id = mock_service.get_current_user_id("test_auth")
+    
+    # 2. Check health
+    response = await mock_service.mcp_server_health(remote_mcp_server="http://unreachable-server.com")
+    
+    # 3. Update database status
+    status = response.status_code == 200
+    mock_service.update_mcp_status_by_name_and_url(
+        mcp_name="test_service",
+        mcp_server="http://unreachable-server.com",
+        tenant_id=tenant_id,
+        user_id=user_id,
+        status=status
+    )
+    
+    # Verify health check response
+    assert isinstance(response, JSONResponse)
+    assert_status_code(response, 503)
+    assert_response_data(response, {
+        "status": "error",
+        "message": "contains:Cannot connect to remote MCP server"
+    })
+    
+    # Verify database status update was called with correct parameters
+    mock_service.update_mcp_status_by_name_and_url.assert_called_once_with(
+        mcp_name="test_service",
+        mcp_server="http://unreachable-server.com",
+        tenant_id="test_tenant",
+        user_id="test_user",
+        status=False  # False because status_code != 200
+    )

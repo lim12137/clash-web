@@ -1,7 +1,6 @@
-import pytest
 import inspect
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from typing import Any, List, Dict
 import sys
 import pytest
@@ -171,198 +170,7 @@ class TestGetLocalTools:
             get_local_tools()
 
 
-class TestGetMcpTools:
-    """ test the function of get_mcp_tools"""
 
-    @patch('backend.services.tool_configuration_service.config_manager.get_config')
-    @patch('backend.services.tool_configuration_service.ToolCollection.from_mcp')
-    def test_get_mcp_tools_success(self, mock_from_mcp, mock_get_config):
-        """ test the success of get_mcp_tools"""
-        # Create a mock get_mcp_tools function
-        @patch('backend.services.tool_configuration_service.ToolCollection')
-        def mock_get_mcp_tools(mock_tool_collection):
-            mock_get_config.return_value = "http://test-mcp-service"
-            
-            # Mock tool collection with the tool
-            mock_collection = Mock()
-            mock_collection.tools = [mock_tool]
-            mock_collection.__enter__ = Mock(return_value=mock_collection)
-            mock_collection.__exit__ = Mock(return_value=None)
-            mock_from_mcp.return_value = mock_collection
-            
-            # Return mock data similar to what get_mcp_tools would return
-            return [ToolInfo(
-                name="mcp_tool",
-                description="MCP tool description",
-                params=[],
-                source=ToolSourceEnum.MCP.value,
-                inputs=str({"input1": "value1"}),
-                output_type="string",
-                class_name="mcp_tool"
-            )]
-        
-        # create the mock tool
-        mock_tool = Mock()
-        mock_tool.name = "mcp_tool"
-        mock_tool.description = "MCP tool description"
-        mock_tool.inputs = {"input1": "value1"}
-        mock_tool.output_type = "string"
-        
-        # Run the mock function
-        result = mock_get_mcp_tools()
-        
-        assert len(result) == 1
-        tool_info = result[0]
-        assert tool_info.name == "mcp_tool"
-        assert tool_info.description == "MCP tool description"
-        assert tool_info.source == ToolSourceEnum.MCP.value
-        assert tool_info.class_name == "mcp_tool"
-
-    @patch('backend.services.tool_configuration_service.config_manager.get_config')
-    @patch('backend.services.tool_configuration_service.ToolCollection.from_mcp')
-    def test_get_mcp_tools_connection_error(self, mock_from_mcp, mock_get_config):
-        """ test the connection error of get_mcp_tools"""
-        # Create a mock get_mcp_tools function
-        def mock_get_mcp_tools():
-            mock_get_config.return_value = "http://invalid-mcp-service"
-            mock_from_mcp.side_effect = Exception("Connection failed")
-            return []
-        
-        result = mock_get_mcp_tools()
-        assert result == []
-
-    @patch('backend.services.tool_configuration_service.config_manager.get_config')
-    @patch('backend.services.tool_configuration_service.ToolCollection.from_mcp')
-    def test_get_mcp_tools_empty_collection(self, mock_from_mcp, mock_get_config):
-        """ test the empty collection of get_mcp_tools"""
-        # Create a mock get_mcp_tools function
-        def mock_get_mcp_tools():
-            mock_get_config.return_value = "http://test-mcp-service"
-            
-            mock_collection = Mock()
-            mock_collection.tools = []
-            mock_collection.__enter__ = Mock(return_value=mock_collection)
-            mock_collection.__exit__ = Mock(return_value=None)
-            mock_from_mcp.return_value = mock_collection
-            
-            return []
-        
-        result = mock_get_mcp_tools()
-        assert result == []
-
-
-class TestScanTools:
-    """ test the function of scan_tools"""
-
-    def test_scan_tools_success(self):
-        """ test the success of scan_tools"""
-        # Mock a scan_tools function that combines local and MCP tools
-        @patch('backend.services.tool_configuration_service.get_local_tools')
-        @patch('backend.services.tool_configuration_service.get_mcp_tools', create=True)
-        def mock_scan_tools(mock_get_mcp, mock_get_local):
-            # create the mock tool info
-            local_tool = ToolInfo(
-                name="local_tool",
-                description="Local tool",
-                params=[],
-                source=ToolSourceEnum.LOCAL.value,
-                inputs="{}",
-                output_type="string",
-                class_name="LocalTool"
-            )
-
-            mcp_tool = ToolInfo(
-                name="mcp_tool",
-                description="MCP tool",
-                params=[],
-                source=ToolSourceEnum.MCP.value,
-                inputs="{}",
-                output_type="string",
-                class_name="McpTool"
-            )
-
-            mock_get_local.return_value = [local_tool]
-            mock_get_mcp.return_value = [mcp_tool]
-            
-            return mock_get_local.return_value + mock_get_mcp.return_value
-
-        result = mock_scan_tools()
-
-        assert len(result) == 2
-        assert result[0].name == "local_tool"
-        assert result[0].source == ToolSourceEnum.LOCAL.value
-        assert result[1].name == "mcp_tool"
-        assert result[1].source == ToolSourceEnum.MCP.value
-
-    def test_scan_tools_only_local(self):
-        """ test the only local tool of scan_tools"""
-        @patch('backend.services.tool_configuration_service.get_local_tools')
-        @patch('backend.services.tool_configuration_service.get_mcp_tools', create=True)
-        def mock_scan_tools(mock_get_mcp, mock_get_local):
-            local_tool = ToolInfo(
-                name="local_tool",
-                description="Local tool",
-                params=[],
-                source=ToolSourceEnum.LOCAL.value,
-                inputs="{}",
-                output_type="string",
-                class_name="LocalTool"
-            )
-
-            mock_get_local.return_value = [local_tool]
-            mock_get_mcp.return_value = []
-            
-            return mock_get_local.return_value + mock_get_mcp.return_value
-
-        result = mock_scan_tools()
-
-        assert len(result) == 1
-        assert result[0].name == "local_tool"
-        assert result[0].source == ToolSourceEnum.LOCAL.value
-
-    def test_scan_tools_empty(self):
-        """ test the no tool of scan_tools"""
-        @patch('backend.services.tool_configuration_service.get_local_tools')
-        @patch('backend.services.tool_configuration_service.get_mcp_tools', create=True)
-        def mock_scan_tools(mock_get_mcp, mock_get_local):
-            mock_get_local.return_value = []
-            mock_get_mcp.return_value = []
-            
-            return mock_get_local.return_value + mock_get_mcp.return_value
-
-        result = mock_scan_tools()
-        assert result == []
-
-
-class TestInitializeToolConfiguration:
-    """ test the function of initialize_tool_configuration"""
-
-    @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
-    def test_initialize_tool_configuration_success(self, mock_update_table):
-        """ test the success of initialize_tool_configuration"""
-        # Mock a initialize_tool_configuration function
-        @patch('backend.services.tool_configuration_service.scan_tools', create=True)
-        def mock_initialize_tool_configuration(mock_scan):
-            mock_tools = [Mock()]
-            mock_scan.return_value = mock_tools
-            tenant_id = "test_tenant"
-            user_id = "test_user"
-            
-            # Actually call mock_scan to get the mock tools
-            tools = mock_scan()
-            
-            # Call the update function with the correct parameters
-            mock_update_table(tenant_id=tenant_id, user_id=user_id, tool_list=tools)
-            
-            # Return for assertions
-            return mock_scan, mock_tools
-        
-        # Execute the mock function
-        mock_scan, mock_tools = mock_initialize_tool_configuration()
-        
-        # Verify the correct calls were made
-        mock_scan.assert_called_once()
-        mock_update_table.assert_called_once_with(tenant_id="test_tenant", user_id="test_user", tool_list=mock_tools)
 
 
 class TestSearchToolInfoImpl:
@@ -488,6 +296,343 @@ def sample_tool_request():
         enabled=True
     )
 
+
+class TestGetAllMcpTools:
+    """测试 get_all_mcp_tools 函数"""
+
+    @patch('backend.services.tool_configuration_service.get_mcp_records_by_tenant')
+    @patch('backend.services.tool_configuration_service.get_tool_from_remote_mcp_server')
+    @patch('backend.services.tool_configuration_service.config_manager.get_config')
+    @patch('backend.services.tool_configuration_service.urljoin')
+    async def test_get_all_mcp_tools_success(self, mock_urljoin, mock_get_config, mock_get_tools, mock_get_records):
+        """测试成功获取所有 MCP 工具"""
+        # Mock MCP 记录
+        mock_get_records.return_value = [
+            {"mcp_name": "server1", "mcp_server": "http://server1.com", "status": True},
+            {"mcp_name": "server2", "mcp_server": "http://server2.com", "status": False},  # 未连接
+            {"mcp_name": "server3", "mcp_server": "http://server3.com", "status": True}
+        ]
+        
+        # Mock 工具信息
+        mock_tools1 = [
+            ToolInfo(name="tool1", description="Tool 1", params=[], source=ToolSourceEnum.MCP.value, 
+                    inputs="{}", output_type="string", class_name="Tool1", usage="server1")
+        ]
+        mock_tools2 = [
+            ToolInfo(name="tool2", description="Tool 2", params=[], source=ToolSourceEnum.MCP.value, 
+                    inputs="{}", output_type="string", class_name="Tool2", usage="server3")
+        ]
+        mock_default_tools = [
+            ToolInfo(name="default_tool", description="Default Tool", params=[], source=ToolSourceEnum.MCP.value, 
+                    inputs="{}", output_type="string", class_name="DefaultTool", usage="nexent")
+        ]
+        
+        mock_get_tools.side_effect = [mock_tools1, mock_tools2, mock_default_tools]
+        mock_get_config.return_value = "http://default-server.com"
+        mock_urljoin.return_value = "http://default-server.com/sse"
+        
+        # 导入函数
+        from backend.services.tool_configuration_service import get_all_mcp_tools
+        
+        result = await get_all_mcp_tools("test_tenant")
+        
+        # 验证结果
+        assert len(result) == 3  # 2个连接服务器的工具 + 1个默认工具
+        assert result[0].name == "tool1"
+        assert result[0].usage == "server1"
+        assert result[1].name == "tool2"
+        assert result[1].usage == "server3"
+        assert result[2].name == "default_tool"
+        assert result[2].usage == "nexent"
+        
+        # 验证调用
+        assert mock_get_tools.call_count == 3
+        mock_get_config.assert_called_once_with("NEXENT_MCP_SERVER")
+
+    @patch('backend.services.tool_configuration_service.get_mcp_records_by_tenant')
+    @patch('backend.services.tool_configuration_service.get_tool_from_remote_mcp_server')
+    @patch('backend.services.tool_configuration_service.config_manager.get_config')
+    @patch('backend.services.tool_configuration_service.urljoin')
+    async def test_get_all_mcp_tools_connection_error(self, mock_urljoin, mock_get_config, mock_get_tools, mock_get_records):
+        """测试 MCP 连接错误的情况"""
+        mock_get_records.return_value = [
+            {"mcp_name": "server1", "mcp_server": "http://server1.com", "status": True}
+        ]
+        # 第一次调用失败，第二次调用成功（默认服务器）
+        mock_get_tools.side_effect = [Exception("Connection failed"), 
+                                     [ToolInfo(name="default_tool", description="Default Tool", params=[], 
+                                              source=ToolSourceEnum.MCP.value, inputs="{}", output_type="string", 
+                                              class_name="DefaultTool", usage="nexent")]]
+        mock_get_config.return_value = "http://default-server.com"
+        mock_urljoin.return_value = "http://default-server.com/sse"
+        
+        from backend.services.tool_configuration_service import get_all_mcp_tools
+        
+        result = await get_all_mcp_tools("test_tenant")
+        
+        # 即使连接失败，也应该返回默认工具
+        assert len(result) == 1
+        assert result[0].name == "default_tool"
+
+    @patch('backend.services.tool_configuration_service.get_mcp_records_by_tenant')
+    @patch('backend.services.tool_configuration_service.get_tool_from_remote_mcp_server')
+    @patch('backend.services.tool_configuration_service.config_manager.get_config')
+    @patch('backend.services.tool_configuration_service.urljoin')
+    async def test_get_all_mcp_tools_no_connected_servers(self, mock_urljoin, mock_get_config, mock_get_tools, mock_get_records):
+        """测试没有连接服务器的情况"""
+        mock_get_records.return_value = [
+            {"mcp_name": "server1", "mcp_server": "http://server1.com", "status": False},
+            {"mcp_name": "server2", "mcp_server": "http://server2.com", "status": False}
+        ]
+        mock_default_tools = [
+            ToolInfo(name="default_tool", description="Default Tool", params=[], source=ToolSourceEnum.MCP.value, 
+                    inputs="{}", output_type="string", class_name="DefaultTool", usage="nexent")
+        ]
+        mock_get_tools.return_value = mock_default_tools
+        mock_get_config.return_value = "http://default-server.com"
+        mock_urljoin.return_value = "http://default-server.com/sse"
+        
+        from backend.services.tool_configuration_service import get_all_mcp_tools
+        
+        result = await get_all_mcp_tools("test_tenant")
+        
+        # 只应该返回默认工具
+        assert len(result) == 1
+        assert result[0].name == "default_tool"
+        assert mock_get_tools.call_count == 1  # 只调用一次默认服务器
+
+
+class TestGetToolFromRemoteMcpServer:
+    """测试 get_tool_from_remote_mcp_server 函数"""
+
+    @patch('backend.services.tool_configuration_service.Client')
+    @patch('backend.services.tool_configuration_service.jsonref.replace_refs')
+    @patch('backend.services.tool_configuration_service._sanitize_function_name')
+    async def test_get_tool_from_remote_mcp_server_success(self, mock_sanitize, mock_replace_refs, mock_client_cls):
+        """测试成功从远程 MCP 服务器获取工具"""
+        # Mock 客户端
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client_cls.return_value = mock_client
+        
+        # Mock 工具列表
+        mock_tool1 = Mock()
+        mock_tool1.name = "test_tool_1"
+        mock_tool1.description = "Test tool 1 description"
+        mock_tool1.inputSchema = {"properties": {"param1": {"type": "string"}}}
+        
+        mock_tool2 = Mock()
+        mock_tool2.name = "test_tool_2"
+        mock_tool2.description = "Test tool 2 description"
+        mock_tool2.inputSchema = {"properties": {"param2": {"type": "integer"}}}
+        
+        mock_client.list_tools.return_value = [mock_tool1, mock_tool2]
+        
+        # Mock JSON schema 处理
+        mock_replace_refs.side_effect = [
+            {"properties": {"param1": {"type": "string", "description": "see tool description"}}},
+            {"properties": {"param2": {"type": "integer", "description": "see tool description"}}}
+        ]
+        
+        # Mock 名称清理
+        mock_sanitize.side_effect = ["test_tool_1", "test_tool_2"]
+        
+        from backend.services.tool_configuration_service import get_tool_from_remote_mcp_server
+        
+        result = await get_tool_from_remote_mcp_server("test_server", "http://test-server.com")
+        
+        # 验证结果
+        assert len(result) == 2
+        assert result[0].name == "test_tool_1"
+        assert result[0].description == "Test tool 1 description"
+        assert result[0].source == ToolSourceEnum.MCP.value
+        assert result[0].usage == "test_server"
+        assert result[1].name == "test_tool_2"
+        assert result[1].description == "Test tool 2 description"
+        
+        # 验证调用
+        mock_client_cls.assert_called_once_with("http://test-server.com", timeout=10)
+        assert mock_client.list_tools.call_count == 1
+
+    @patch('backend.services.tool_configuration_service.Client')
+    async def test_get_tool_from_remote_mcp_server_empty_tools(self, mock_client_cls):
+        """测试远程服务器没有工具的情况"""
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client_cls.return_value = mock_client
+        mock_client.list_tools.return_value = []
+        
+        from backend.services.tool_configuration_service import get_tool_from_remote_mcp_server
+        
+        result = await get_tool_from_remote_mcp_server("test_server", "http://test-server.com")
+        
+        assert result == []
+
+    @patch('backend.services.tool_configuration_service.Client')
+    async def test_get_tool_from_remote_mcp_server_connection_error(self, mock_client_cls):
+        """测试连接错误的情况"""
+        mock_client_cls.side_effect = Exception("Connection failed")
+        
+        from backend.services.tool_configuration_service import get_tool_from_remote_mcp_server
+        
+        with pytest.raises(Exception, match="Connection failed"):
+            await get_tool_from_remote_mcp_server("test_server", "http://test-server.com")
+
+    @patch('backend.services.tool_configuration_service.Client')
+    @patch('backend.services.tool_configuration_service.jsonref.replace_refs')
+    @patch('backend.services.tool_configuration_service._sanitize_function_name')
+    async def test_get_tool_from_remote_mcp_server_missing_properties(self, mock_sanitize, mock_replace_refs, mock_client_cls):
+        """测试工具缺少必要属性的情况"""
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client_cls.return_value = mock_client
+        
+        # Mock 缺少 description 和 type 的工具
+        mock_tool = Mock()
+        mock_tool.name = "test_tool"
+        mock_tool.description = "Test tool description"
+        mock_tool.inputSchema = {"properties": {"param1": {}}}  # 缺少 description 和 type
+        
+        mock_client.list_tools.return_value = [mock_tool]
+        mock_replace_refs.return_value = {"properties": {"param1": {}}}
+        mock_sanitize.return_value = "test_tool"
+        
+        from backend.services.tool_configuration_service import get_tool_from_remote_mcp_server
+        
+        result = await get_tool_from_remote_mcp_server("test_server", "http://test-server.com")
+        
+        assert len(result) == 1
+        assert result[0].name == "test_tool"
+        # 验证默认值被添加
+        assert "see tool description" in str(result[0].inputs)
+        assert "string" in str(result[0].inputs)
+
+
+class TestUpdateToolList:
+    """测试 update_tool_list 函数"""
+
+    @patch('backend.services.tool_configuration_service.get_local_tools')
+    @patch('backend.services.tool_configuration_service.get_all_mcp_tools')
+    @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
+    async def test_update_tool_list_success(self, mock_update_table, mock_get_mcp_tools, mock_get_local_tools):
+        """测试成功更新工具列表"""
+        # Mock 本地工具
+        local_tools = [
+            ToolInfo(name="local_tool", description="Local tool", params=[], source=ToolSourceEnum.LOCAL.value, 
+                    inputs="{}", output_type="string", class_name="LocalTool", usage=None)
+        ]
+        mock_get_local_tools.return_value = local_tools
+        
+        # Mock MCP 工具
+        mcp_tools = [
+            ToolInfo(name="mcp_tool", description="MCP tool", params=[], source=ToolSourceEnum.MCP.value, 
+                    inputs="{}", output_type="string", class_name="McpTool", usage="test_server")
+        ]
+        mock_get_mcp_tools.return_value = mcp_tools
+        
+        from backend.services.tool_configuration_service import update_tool_list
+        
+        await update_tool_list("test_tenant", "test_user")
+        
+        # 验证调用
+        mock_get_local_tools.assert_called_once()
+        mock_get_mcp_tools.assert_called_once_with("test_tenant")
+        mock_update_table.assert_called_once_with(
+            tenant_id="test_tenant",
+            user_id="test_user",
+            tool_list=local_tools + mcp_tools
+        )
+
+    @patch('backend.services.tool_configuration_service.get_local_tools')
+    @patch('backend.services.tool_configuration_service.get_all_mcp_tools')
+    @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
+    async def test_update_tool_list_mcp_error(self, mock_update_table, mock_get_mcp_tools, mock_get_local_tools):
+        """测试 MCP 工具获取失败的情况"""
+        mock_get_local_tools.return_value = []
+        mock_get_mcp_tools.side_effect = Exception("MCP connection failed")
+        
+        from backend.services.tool_configuration_service import update_tool_list
+        
+        with pytest.raises(Exception, match="failed to get all mcp tools"):
+            await update_tool_list("test_tenant", "test_user")
+
+    @patch('backend.services.tool_configuration_service.get_local_tools')
+    @patch('backend.services.tool_configuration_service.get_all_mcp_tools')
+    @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
+    async def test_update_tool_list_database_error(self, mock_update_table, mock_get_mcp_tools, mock_get_local_tools):
+        """测试数据库更新失败的情况"""
+        mock_get_local_tools.return_value = []
+        mock_get_mcp_tools.return_value = []
+        mock_update_table.side_effect = Exception("Database error")
+        
+        from backend.services.tool_configuration_service import update_tool_list
+        
+        with pytest.raises(Exception, match="failed to update tool list to PG"):
+            await update_tool_list("test_tenant", "test_user")
+
+    @patch('backend.services.tool_configuration_service.get_local_tools')
+    @patch('backend.services.tool_configuration_service.get_all_mcp_tools')
+    @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
+    async def test_update_tool_list_empty_tools(self, mock_update_table, mock_get_mcp_tools, mock_get_local_tools):
+        """测试没有工具的情况"""
+        mock_get_local_tools.return_value = []
+        mock_get_mcp_tools.return_value = []
+        
+        from backend.services.tool_configuration_service import update_tool_list
+        
+        await update_tool_list("test_tenant", "test_user")
+        
+        # 验证即使没有工具也会调用更新函数
+        mock_update_table.assert_called_once_with(
+            tenant_id="test_tenant",
+            user_id="test_user",
+            tool_list=[]
+        )
+
+
+class TestIntegrationScenarios:
+    """集成测试场景"""
+
+    @patch('backend.services.tool_configuration_service.get_local_tools')
+    @patch('backend.services.tool_configuration_service.get_all_mcp_tools')
+    @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
+    @patch('backend.services.tool_configuration_service.get_tool_from_remote_mcp_server')
+    async def test_full_tool_update_workflow(self, mock_get_remote_tools, mock_update_table, mock_get_mcp_tools, mock_get_local_tools):
+        """测试完整的工具更新工作流程"""
+        # 1. 模拟本地工具
+        local_tools = [
+            ToolInfo(name="local_tool", description="Local tool", params=[], source=ToolSourceEnum.LOCAL.value, 
+                    inputs="{}", output_type="string", class_name="LocalTool", usage=None)
+        ]
+        mock_get_local_tools.return_value = local_tools
+        
+        # 2. 模拟 MCP 工具
+        mcp_tools = [
+            ToolInfo(name="mcp_tool", description="MCP tool", params=[], source=ToolSourceEnum.MCP.value, 
+                    inputs="{}", output_type="string", class_name="McpTool", usage="test_server")
+        ]
+        mock_get_mcp_tools.return_value = mcp_tools
+        
+        # 3. 模拟远程工具获取
+        remote_tools = [
+            ToolInfo(name="remote_tool", description="Remote tool", params=[], source=ToolSourceEnum.MCP.value, 
+                    inputs="{}", output_type="string", class_name="RemoteTool", usage="remote_server")
+        ]
+        mock_get_remote_tools.return_value = remote_tools
+        
+        from backend.services.tool_configuration_service import update_tool_list
+        
+        # 4. 执行更新
+        await update_tool_list("test_tenant", "test_user")
+        
+        # 5. 验证整个流程
+        mock_get_local_tools.assert_called_once()
+        mock_get_mcp_tools.assert_called_once_with("test_tenant")
+        mock_update_table.assert_called_once_with(
+            tenant_id="test_tenant",
+            user_id="test_user",
+            tool_list=local_tools + mcp_tools
+        )
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/python:3.10-slim
+FROM python:3.10-slim
 ARG MIRROR
 LABEL authors="nexent"
 
@@ -6,17 +6,12 @@ LABEL authors="nexent"
 USER root
 RUN umask 0022
 
-# add sources
 RUN rm -f /etc/apt/sources.list.d/* && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list
-
-# install curl
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
+    apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir uv $(test -n "$MIRROR" && echo "-i $MIRROR")
 WORKDIR /opt/backend

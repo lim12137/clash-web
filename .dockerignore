@@ -30,7 +30,7 @@ yarn-error.log*
 frontend/node_modules/
 node_modules/
 .pnpm-store/
-.next/
+.pnpm-lock.yaml
 dist/
 build/
 .npm

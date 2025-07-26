@@ -18,7 +18,7 @@
 ### 2.1 准备工作
 
 1. 安装 Cursor
-2. 安装 Dev Containers 插件 (`ms-vscode-remote.remote-containers`)
+02. 安装 Dev Containers 插件 (`anysphere.remote-containers` 与 `anysphere.remote-sshRemote`)
 3. 确保 Docker 和 Docker Compose 已安装并运行
 
 ### 2.2 使用 Dev Container 启动项目

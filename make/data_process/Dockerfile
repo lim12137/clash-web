@@ -1,4 +1,4 @@
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/python:3.10-slim
+FROM python:3.10-slim
 ARG MIRROR
 LABEL authors="nexent"
 
@@ -13,6 +13,7 @@ RUN rm -f /etc/apt/sources.list.d/* && \
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
+        curl \
         libmagic1 \
         libmagic-dev \
         libreoffice \
@@ -25,14 +26,15 @@ RUN apt-get update && \
 RUN pip install --no-cache-dir uv $(test -n "$MIRROR" && echo "-i $MIRROR")
 # Layer 0: copy model assets
 COPY model-assets/clip-vit-base-patch32 /opt/models/clip-vit-base-patch32
+COPY model-assets/nltk_data /opt/models/nltk_data
 
 WORKDIR /opt/backend
 # Layer 1: install base dependencies
 COPY backend/pyproject.toml /opt/backend/pyproject.toml
-RUN uv sync --no-cache-dir --extra data-process $(test -n "$MIRROR" && echo "-i $MIRROR")
+RUN uv sync --extra data-process $(test -n "$MIRROR" && echo "-i $MIRROR")
 # Layer 2: install sdk in link mode
 COPY sdk /opt/sdk
-RUN uv pip install --no-cache-dir -e /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR") && \
+RUN uv pip install /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR") && \
     uv cache clean
 # Layer 3: copy backend code
 COPY backend /opt/backend

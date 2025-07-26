@@ -49,6 +49,9 @@ select_deployment_mode() {
         3)
             export DEPLOYMENT_MODE="production"
             export COMPOSE_FILE_SUFFIX=".prod.yml"
+            # Set environment variables to disable dashboards in production
+            export DISABLE_RAY_DASHBOARD="true"
+            export DISABLE_CELERY_FLOWER="true"
             echo "✅ Selected production mode deployment"
             if ! grep -q "$root_dir" .env; then
               sed -i -e '$a\' .env
@@ -159,6 +162,14 @@ add_permission() {
   create_dir_with_permission "$ROOT_DIR/minio" 777
 
   cp -rn volumes $ROOT_DIR
+
+  # Create nexent user workspace directory
+  NEXENT_USER_DIR="$HOME/nexent"
+  create_dir_with_permission "$NEXENT_USER_DIR" 775
+  echo "📁 Created Nexent user workspace at: $NEXENT_USER_DIR"
+  
+  # Export for docker-compose
+  export NEXENT_USER_DIR
 
   echo ""
   echo "--------------------------------"
@@ -335,8 +346,8 @@ fi
 install
 clean
 
-echo "Creating admin user..."
-docker exec -d nexent bash -c "curl -X POST http://kong:8000/auth/v1/signup -H \"apikey: ${SUPABASE_KEY}\" -H \"Authorization: Bearer ${SUPABASE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"admin@example.com\",\"password\":\"123123\",\"email_confirm\":true,\"data\":{\"role\":\"admin\"}}'"
+# echo "Creating admin user..."
+# docker exec -d nexent bash -c "curl -X POST http://kong:8000/auth/v1/signup -H \"apikey: ${SUPABASE_KEY}\" -H \"Authorization: Bearer ${SUPABASE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"admin@example.com\",\"password\":\"123123\",\"email_confirm\":true,\"data\":{\"role\":\"admin\"}}'"
 
 if [ "$ERROR_OCCURRED" -eq 1 ]; then
   echo "❌ Deployment did not complete successfully. Please review the logs and have a try again."

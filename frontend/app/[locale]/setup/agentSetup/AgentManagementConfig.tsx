@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback, memo } from 'react'
+import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react'
 import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber, Tag, Upload } from 'antd'
 import { SettingOutlined, UploadOutlined, ThunderboltOutlined, LoadingOutlined, ApiOutlined, ReloadOutlined } from '@ant-design/icons'
 import ToolConfigModal from './components/ToolConfigModal'
 import McpConfigModal from './components/McpConfigModal'
 import AgentInfoInput from './components/AgentInfoInput'
 import AgentContextMenu from './components/AgentContextMenu'
-import { Tool, BusinessLogicInputProps, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
+import { Tool, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
 import { ScrollArea } from '@/components/ui/scrollArea'
 import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent, importAgent, exportAgent, deleteAgent, searchAgentInfo, fetchTools } from '@/services/agentConfigService'
 import { updateToolList } from '@/services/mcpService'
@@ -106,12 +106,23 @@ const handleToolSelectCommon = async (
 /**
  * Business Logic Input Component
  */
-function BusinessLogicInput({ value, onChange, selectedAgents, systemPrompt }: BusinessLogicInputProps) {
+function BusinessLogicInput({ 
+  value, 
+  onChange
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
   const { t } = useTranslation('common');
 
   return (
     <div className="flex flex-col h-full">
-      <h2 className="text-lg font-medium mb-2">{t('businessLogic.title')}</h2>
+      <div className="flex items-center mb-2">
+        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
+          3
+        </div>
+        <h2 className="text-lg font-medium">{t('businessLogic.title')}</h2>
+      </div>
       <div className="flex-1 flex flex-col">
         <TextArea
           value={value}
@@ -180,7 +191,12 @@ function SubAgentPool({
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-2">
-        <h2 className="text-lg font-medium">{t('subAgentPool.title')}</h2>
+        <div className="flex items-center">
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
+            1
+          </div>
+          <h2 className="text-lg font-medium">{t('subAgentPool.title')}</h2>
+        </div>
         {loadingAgents && <span className="text-sm text-gray-500">{t('subAgentPool.loading')}</span>}
       </div>
       <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
@@ -553,7 +569,12 @@ function ToolPool({
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-2">
-        <h2 className="text-lg font-medium">{t('toolPool.title')}</h2>
+        <div className="flex items-center">
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
+            2
+          </div>
+          <h2 className="text-lg font-medium">{t('toolPool.title')}</h2>
+        </div>
         <div className="flex items-center gap-2">
           <Button
             type="text"
@@ -649,15 +670,34 @@ export default function BusinessLogicConfig({
   isNewAgentInfoValid,
   setIsNewAgentInfoValid,
   onEditingStateChange,
-  onToolsRefresh
+  onToolsRefresh,
+  dutyContent,
+  setDutyContent,
+  constraintContent,
+  setConstraintContent,
+  fewShotsContent,
+  setFewShotsContent
 }: BusinessLogicConfigProps) {
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
   const [fileList, setFileList] = useState<any[]>([]);
   const [isImporting, setIsImporting] = useState(false);
-  const [isPromptGenerating, setIsPromptGenerating] = useState(false);
-  const [isPromptSaving, setIsPromptSaving] = useState(false);
-  const [localIsGenerating, setLocalIsGenerating] = useState(false);
+  const [isPromptGenerating, setIsPromptGenerating] = useState(false)
+  const [isPromptSaving, setIsPromptSaving] = useState(false)
+  const [localIsGenerating, setLocalIsGenerating] = useState(false)
+  
+  const [generationProgress, setGenerationProgress] = useState({
+    duty: false,
+    constraint: false,
+    few_shots: false
+  })
+  
+  // Use refs to keep track of the content of the current prompt.
+  const currentPromptRef = useRef({
+    duty: '',
+    constraint: '',
+    few_shots: ''
+  })
   
   // Delete confirmation popup status
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -697,8 +737,14 @@ export default function BusinessLogicConfig({
         if (result.data.businessDescription) {
           setBusinessLogic(result.data.businessDescription);
         }
-        if (result.data.prompt) {
-          setSystemPrompt(result.data.prompt);
+        if (result.data.dutyPrompt) {
+          setDutyContent?.(result.data.dutyPrompt);
+        }
+        if (result.data.constraintPrompt) {
+          setConstraintContent?.(result.data.constraintPrompt);
+        }
+        if (result.data.fewShotsPrompt) {
+          setFewShotsContent?.(result.data.fewShotsPrompt);
         }
         
         // Update the selected tools
@@ -728,7 +774,7 @@ export default function BusinessLogicConfig({
     try {
       const result = await getCreatingSubAgentId(mainAgentId);
       if (result.success && result.data) {
-        const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, prompt } = result.data;
+        const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, dutyPrompt, constraintPrompt, fewShotsPrompt } = result.data;
         
         // Update the main agent ID
         setMainAgentId(agentId);
@@ -746,9 +792,17 @@ export default function BusinessLogicConfig({
         if (businessDescription) {
           setBusinessLogic(businessDescription);
         }
-        // Update the system prompt
-        if (prompt) {
-          setSystemPrompt(prompt);
+        // Update the duty prompt
+        if (setDutyContent) {
+          setDutyContent(dutyPrompt || '');
+        }
+        // Update the constraint prompt
+        if (setConstraintContent) {
+          setConstraintContent(constraintPrompt || '');
+        }
+        // Update the few shots prompt
+        if (setFewShotsContent) {
+          setFewShotsContent(fewShotsPrompt || '');
         }
       } else {
         message.error(result.message || t('businessLogic.config.error.agentIdFailed'));
@@ -848,9 +902,11 @@ export default function BusinessLogicConfig({
             model,
             max_step,
             provide_run_summary,
-            prompt,
             undefined,
-            business_description
+            business_description,
+            dutyContent,
+            constraintContent,
+            fewShotsContent
           );
         } else {
           result = await updateAgent(
@@ -860,9 +916,11 @@ export default function BusinessLogicConfig({
             model,
             max_step,
             provide_run_summary,
-            prompt,
             undefined,
-            business_description
+            business_description,
+            dutyContent,
+            constraintContent,
+            fewShotsContent
           );
         }
 
@@ -881,7 +939,7 @@ export default function BusinessLogicConfig({
           setNewAgentDescription('');
           setNewAgentProvideSummary(true);
           setSystemPrompt('');
-          
+
           refreshAgentList(t);
         } else {
           message.error(result.message || t('businessLogic.config.error.saveFailed'));
@@ -905,7 +963,9 @@ export default function BusinessLogicConfig({
       message.warning(t('businessLogic.config.message.completeAgentInfo'));
       return;
     }
-    if (systemPrompt.trim().length === 0) {
+    // Check if any of the prompt parts have content
+    const hasPromptContent = dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim();
+    if (!hasPromptContent) {
       message.warning(t('businessLogic.config.message.generatePromptFirst'));
       return;
     }
@@ -914,8 +974,8 @@ export default function BusinessLogicConfig({
       newAgentDescription, 
       mainAgentModel, 
       mainAgentMaxStep, 
-      newAgentProvideSummary, 
-      systemPrompt, 
+      newAgentProvideSummary,
+      systemPrompt,
       businessLogic
     );
   };
@@ -958,11 +1018,13 @@ export default function BusinessLogicConfig({
       setMainAgentModel(agentDetail.model as OpenAIModel);
       setMainAgentMaxStep(agentDetail.max_step);
       setBusinessLogic(agentDetail.business_description || '');
-      setSystemPrompt(agentDetail.prompt || '');
+      
+      // Load the segmented prompt content
+      setDutyContent?.(agentDetail.duty_prompt || '');
+      setConstraintContent?.(agentDetail.constraint_prompt || '');
+      setFewShotsContent?.(agentDetail.few_shots_prompt || '');
       
       console.log(t('debug.console.setBusinessDescription'), agentDetail.business_description); // 调试信息
-      console.log(t('debug.console.setSystemPrompt'), agentDetail.prompt); // 调试信息
-      
       // 加载Agent的工具
       if (agentDetail.tools && agentDetail.tools.length > 0) {
         setSelectedTools(agentDetail.tools);
@@ -1002,8 +1064,11 @@ export default function BusinessLogicConfig({
         undefined,
         undefined,
         undefined,
-        undefined,
-        isSelected
+        isSelected, // enabled
+        undefined, // businessDescription
+        undefined, // dutyPrompt
+        undefined, // constraintPrompt
+        undefined  // fewShotsPrompt
       );
 
       if (result.success) {
@@ -1235,13 +1300,48 @@ export default function BusinessLogicConfig({
       setIsPromptGenerating(true);
       setLocalIsGenerating(true);
       setSystemPrompt('');
+      
+      // Reset content and progress for three sections
+      setDutyContent?.('');
+      setConstraintContent?.('');
+      setFewShotsContent?.('');
+      setGenerationProgress({
+        duty: false,
+        constraint: false,
+        few_shots: false
+      });
+      
+      // Reset ref
+      currentPromptRef.current = {
+        duty: '',
+        constraint: '',
+        few_shots: ''
+      };
+      
       await generatePromptStream(
         {
           agent_id: Number(targetAgentId),
           task_description: businessLogic
         },
-        (streamedText) => {
-          setSystemPrompt(streamedText);
+        (streamData) => {
+          // Update corresponding content and progress based on type
+          switch (streamData.type) {
+            case 'duty':
+              setDutyContent?.(streamData.content);
+              setGenerationProgress(prev => ({ ...prev, duty: streamData.is_complete }));
+              currentPromptRef.current.duty = streamData.content;
+              break;
+            case 'constraint':
+              setConstraintContent?.(streamData.content);
+              setGenerationProgress(prev => ({ ...prev, constraint: streamData.is_complete }));
+              currentPromptRef.current.constraint = streamData.content;
+              break;
+            case 'few_shots':
+              setFewShotsContent?.(streamData.content);
+              setGenerationProgress(prev => ({ ...prev, few_shots: streamData.is_complete }));
+              currentPromptRef.current.few_shots = streamData.content;
+              break;
+          }
         },
         (err) => {
           message.error(t('businessLogic.config.error.promptGenerateFailed', {
@@ -1298,14 +1398,16 @@ export default function BusinessLogicConfig({
     }
   }, [onToolsRefresh]);
 
-  const canSaveAsAgent = selectedAgents.length === 0 && systemPrompt.trim().length > 0 && isNewAgentInfoValid;
+  const canSaveAsAgent = selectedAgents.length === 0 && 
+    ((dutyContent?.trim()?.length || 0) > 0 || (constraintContent?.trim()?.length || 0) > 0 || (fewShotsContent?.trim()?.length || 0) > 0) && 
+    isNewAgentInfoValid;
 
   // Generate more intelligent prompt information according to conditions
   const getButtonTitle = () => {
     if (selectedAgents.length > 0) {
       return t('businessLogic.config.message.noAgentSelected');
     }
-    if (systemPrompt.trim().length === 0) {
+    if (!(dutyContent?.trim()) && !(constraintContent?.trim()) && !(fewShotsContent?.trim())) {
       return t('businessLogic.config.message.generatePromptFirst');
     }
     if (!isNewAgentInfoValid) {
@@ -1375,16 +1477,14 @@ export default function BusinessLogicConfig({
         </div>
 
       {/* The second half: business logic description */}
-      <div className="flex gap-4 h-[240px] pb-4 pr-4 pl-4 items-start">
+      <div className="flex gap-4 flex-shrink-0 pr-4 pl-4 items-start">
         <div className="flex-1 h-full">
           <BusinessLogicInput 
             value={businessLogic} 
             onChange={setBusinessLogic} 
-            selectedAgents={selectedAgents}
-            systemPrompt={systemPrompt}
           />
         </div>
-        <div className="w-[280px] h-[200px] flex flex-col self-start">
+        <div className="w-[280px] flex flex-col self-start">
           <div className="flex flex-col gap-5 flex-1">
             <div>
               <span className="block text-lg font-medium mb-2">{t('businessLogic.config.model')}</span>
