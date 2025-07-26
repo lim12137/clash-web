@@ -39,6 +39,12 @@ export const AppConfigSection: React.FC = () => {
   // 添加错误状态管理
   const [appNameError, setAppNameError] = useState(false);
 
+  // 添加用户输入状态跟踪
+  const isUserTypingAppName = useRef(false);
+  const isUserTypingDescription = useRef(false);
+  const appNameUpdateTimer = useRef<NodeJS.Timeout | null>(null);
+  const descriptionUpdateTimer = useRef<NodeJS.Timeout | null>(null);
+
   // 头像相关状态
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [selectedIconKey, setSelectedIconKey] = useState<string>(presetIcons[0].key);
@@ -59,8 +65,13 @@ export const AppConfigSection: React.FC = () => {
     const handleConfigChanged = (event: any) => {
       const { config } = event.detail;
       if (config?.app) {
-        setLocalAppName(config.app.appName || "");
-        setLocalAppDescription(config.app.appDescription || "");
+        // 只有在用户未正在输入时才更新状态
+        if (!isUserTypingAppName.current) {
+          setLocalAppName(config.app.appName || "");
+        }
+        if (!isUserTypingDescription.current) {
+          setLocalAppDescription(config.app.appDescription || "");
+        }
         setAvatarType(config.app.iconType || "preset");
         setCustomAvatarUrl(config.app.customIconUrl || null);
         
@@ -79,8 +90,13 @@ export const AppConfigSection: React.FC = () => {
 
   // 监听appConfig变化，同步更新本地状态
   useEffect(() => {
-    setLocalAppName(appConfig.appName);
-    setLocalAppDescription(appConfig.appDescription);
+    // 只有在用户未正在输入时才更新状态
+    if (!isUserTypingAppName.current) {
+      setLocalAppName(appConfig.appName);
+    }
+    if (!isUserTypingDescription.current) {
+      setLocalAppDescription(appConfig.appDescription);
+    }
     setAvatarType(appConfig.iconType);
     setCustomAvatarUrl(appConfig.customIconUrl);
   }, [appConfig.appName, appConfig.appDescription, appConfig.iconType, appConfig.customIconUrl]);
@@ -105,27 +121,74 @@ export const AppConfigSection: React.FC = () => {
     };
   }, []);
 
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (appNameUpdateTimer.current) {
+        clearTimeout(appNameUpdateTimer.current);
+      }
+      if (descriptionUpdateTimer.current) {
+        clearTimeout(descriptionUpdateTimer.current);
+      }
+    };
+  }, []);
+
   // Handle basic app config changes
   const handleAppNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newAppName = e.target.value;
+    isUserTypingAppName.current = true;
     setLocalAppName(newAppName);
+    
     // 如果输入了值，清除错误状态
     if (newAppName.trim()) {
       setAppNameError(false);
     }
+
+    // 清除之前的定时器
+    if (appNameUpdateTimer.current) {
+      clearTimeout(appNameUpdateTimer.current);
+    }
+
+    // 设置防抖更新
+    appNameUpdateTimer.current = setTimeout(() => {
+      updateAppConfig({ appName: newAppName });
+      isUserTypingAppName.current = false;
+    }, 500);
   };
 
   const handleAppNameBlur = () => {
+    // 清除定时器，立即更新
+    if (appNameUpdateTimer.current) {
+      clearTimeout(appNameUpdateTimer.current);
+    }
     updateAppConfig({ appName: localAppName });
+    isUserTypingAppName.current = false;
   };
 
   const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newDescription = e.target.value;
+    isUserTypingDescription.current = true;
     setLocalAppDescription(newDescription);
+
+    // 清除之前的定时器
+    if (descriptionUpdateTimer.current) {
+      clearTimeout(descriptionUpdateTimer.current);
+    }
+
+    // 设置防抖更新
+    descriptionUpdateTimer.current = setTimeout(() => {
+      updateAppConfig({ appDescription: newDescription });
+      isUserTypingDescription.current = false;
+    }, 500);
   };
 
   const handleDescriptionBlur = () => {
+    // 清除定时器，立即更新
+    if (descriptionUpdateTimer.current) {
+      clearTimeout(descriptionUpdateTimer.current);
+    }
     updateAppConfig({ appDescription: localAppDescription });
+    isUserTypingDescription.current = false;
   };
 
   // 打开头像选择模态框
