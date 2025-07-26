@@ -15,12 +15,11 @@ from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.auth_utils import get_current_user_info
 from fastapi import Header, Request
 
-
 # Configure logging
 logger = logging.getLogger("prompt_service")
 
 
-def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=None, tenant_id:str = None) -> str:
+def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=None, tenant_id: str = None) -> str:
     """
     Call LLM to generate system prompt
 
@@ -64,11 +63,8 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
         raise e
 
 
-
-
-
-def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, authorization: str = Header(None), 
-                                       request: Request = None):
+def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, authorization: str = Header(None),
+                                         request: Request = None):
     user_id, tenant_id, language = get_current_user_info(authorization, request)
 
     # Get description of tool and agent
@@ -81,7 +77,8 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
 
     # 1. Real-time streaming push
     final_results = {"duty": "", "constraint": "", "few_shots": ""}
-    for result_data in generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id, language):
+    for result_data in generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id,
+                                              language):
         # Update final results
         final_results[result_data["type"]] = result_data["content"]
         yield result_data
@@ -118,6 +115,7 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
             latest[tag] = current_text
             # Notify main thread that new content is available
             produce_queue.put(tag)
+
         return callback_fn
 
     def run_and_flag(tag, sys_prompt):
@@ -150,7 +148,7 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
             produce_queue.get(timeout=0.5)
         except queue.Empty:
             continue
-        
+
         # Check if there is new content
         for tag in ["duty", "constraint", "few_shots"]:
             if latest[tag] != last_results[tag]:
@@ -230,7 +228,7 @@ def fine_tune_prompt(system_prompt: str, command: str, tenant_id: str, language:
 
     try:
         fine_tune_config_path = 'backend/prompts/utils/prompt_fine_tune_en.yaml' if language == 'en' else 'backend/prompts/utils/prompt_fine_tune.yaml'
-        
+
         with open(fine_tune_config_path, "r", encoding="utf-8") as f:
             prompt_for_fine_tune = yaml.safe_load(f)
 
