@@ -312,7 +312,7 @@ export const AppConfigSection: React.FC = () => {
             }}
           >
             <div className="flex items-start justify-center mx-auto my-2" style={{ maxWidth: "95%" }}>
-              <div className="mr-6 mt-4 relative group">
+              <div className="mr-6 mt-1 relative group">
                 <div 
                   className="h-[60px] w-[60px] rounded-full overflow-hidden cursor-pointer"
                   style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}

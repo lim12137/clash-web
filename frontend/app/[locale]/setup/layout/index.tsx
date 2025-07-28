@@ -164,9 +164,7 @@ function Layout({
 
       {/* Main content */}
       <div className="max-w-[1800px] mx-auto px-8 pb-4 mt-6">
-        <div className="bg-white p-5 rounded-lg shadow-md">
           {children}
-
           <Navigation
             selectedKey={selectedKey}
             onBackToFirstPage={onBackToFirstPage}
@@ -174,7 +172,6 @@ function Layout({
             isSavingConfig={isSavingConfig}
             showDebugButton={showDebugButton}
           />
-        </div>
       </div>
     </div>
   )

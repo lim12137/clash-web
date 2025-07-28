@@ -678,7 +678,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     <>
       <div style={{ width: "100%", margin: "0 auto", height: "100%", display: "flex", flexDirection: "column", gap: "12px" }}>
         <div style={{ display: "flex", justifyContent: "flex-start", paddingRight: 12, marginLeft: "4px", height: LAYOUT_CONFIG.BUTTON_AREA_HEIGHT }}>
-          <Space size={8}>
+          <Space size={10}>
             <Button type="primary" size="middle" onClick={handleSyncModels}>
               <SyncOutlined spin={isSyncing} /> {t('modelConfig.button.syncModelEngine')}
             </Button>

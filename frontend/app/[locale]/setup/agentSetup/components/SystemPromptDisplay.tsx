@@ -59,7 +59,7 @@ const PromptEditor = ({ value, onChange, placeholder }: {
   const lastExternalValueRef = useRef(value)
   const debouncedOnChange = useDebounce(onChange, 300)
   
-  // 处理用户输入变化
+  // Handle user input changes
   const handleUserChange = useCallback((newValue: string) => {
     isUserEditingRef.current = true
     setInternalValue(newValue)
@@ -69,7 +69,7 @@ const PromptEditor = ({ value, onChange, placeholder }: {
     }, 500)
   }, [debouncedOnChange])
   
-  // 处理外部值变化 - API流式输出
+  // Handle external value changes - API streaming output
   useEffect(() => {
     if (value !== lastExternalValueRef.current && !isUserEditingRef.current) {
       setInternalValue(value)
@@ -95,9 +95,9 @@ const PromptEditor = ({ value, onChange, placeholder }: {
       .config(nord)
       .use(commonmark)
       .use(listener)
-  }, []) // 只在组件挂载时创建一次
+  }, []) // Only create once when component mounts
 
-  // 当外部值变化时，直接更新编辑器内容，不重新创建编辑器
+  // When external value changes, directly update editor content without recreating editor
   useEffect(() => {
     const editor = get()
   
@@ -135,39 +135,27 @@ const PromptEditor = ({ value, onChange, placeholder }: {
 }
 
 // Card component
-const PromptCard = ({ title, content, index, onChange, onExpand }: {
+const PromptCard = ({ title, content, index, onChange, onExpand, getBadgeProps }: {
   title: string;
   content: string;
   index: number;
   onChange?: (value: string) => void;
   onExpand?: (title: string, content: string, index: number) => void;
+  getBadgeProps: (index: number) => { status?: 'success' | 'warning' | 'error' | 'default', color?: string };
 }) => {
   const { t } = useTranslation('common');
-
-  const getBadgeProps = (index: number): { status?: 'success' | 'warning' | 'error' | 'default', color?: string } => {
-    switch(index) {
-      case 1:
-        return { status: 'success' };  // 绿色
-      case 2:
-        return { status: 'warning' };  // 黄色
-      case 3:
-        return { color: '#1677ff' };   // 蓝色
-      default:
-        return { status: 'default' };
-    }
-  };
 
   return (
     <div className="h-full flex flex-col rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
       {/* Card header */}
-      <div className="bg-gray-50 text-gray-700 px-4 py-2 rounded-t-lg border-b border-gray-200 flex-shrink-0">
+      <div className="bg-gray-50 text-gray-700 px-4 py-1 rounded-t-lg border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Badge
               {...getBadgeProps(index)}
               className="mr-3"
             />
-            <h3 className="text-base font-medium">{title}</h3>
+            <h3 className="text-sm font-medium">{title}</h3>
           </div>
           <button
             onClick={() => onExpand?.(title, content, index)}
@@ -240,16 +228,30 @@ export default function SystemPromptDisplay({
   
   const { t } = useTranslation('common')
 
+  // Move getBadgeProps to main component level
+  const getBadgeProps = (index: number): { status?: 'success' | 'warning' | 'error' | 'default', color?: string } => {
+    switch(index) {
+      case 1:
+        return { status: 'success' };  // Green
+      case 2:
+        return { status: 'warning' };  // Yellow
+      case 3:
+        return { color: '#1677ff' };   // Blue
+      default:
+        return { status: 'default' };
+    }
+  };
+
   // Calculate dynamic modal height based on content
   const calculateModalHeight = (content: string) => {
     const lineCount = content.split('\n').length;
     const contentLength = content.length;
     
-    // 基于行数和内容长度的高度计算，范围 25vh - 85vh
+    // Height calculation based on line count and content length, range 25vh - 85vh
     const minHeight = 25;
     const maxHeight = 85;
     
-    // 结合行数和内容长度来计算高度
+    // Combine line count and content length to calculate height
     const heightByLines = minHeight + Math.floor(lineCount / 8) * 5;
     const heightByContent = minHeight + Math.floor(contentLength / 200) * 3;
 
@@ -265,32 +267,9 @@ export default function SystemPromptDisplay({
     setExpandModalOpen(true)
   }
 
-  // Handle save expanded content
-  const handleSaveExpandedContent = () => {
-    // 立即更新本地状态和调用回调
-    switch (expandIndex) {
-      case 1:
-        setLocalDutyContent(expandContent);
-        onDutyContentChange?.(expandContent);
-        break;
-      case 2:
-        setLocalConstraintContent(expandContent);
-        onConstraintContentChange?.(expandContent);
-        break;
-      case 3:
-        setLocalFewShotsContent(expandContent);
-        onFewShotsContentChange?.(expandContent);
-        break;
-    }
-
-    Promise.resolve().then(() => {
-      setExpandModalOpen(false);
-    });
-  }
-
   // Handle close expanded modal
   const handleCloseExpandedModal = () => {
-    // 关闭前先保存修改的内容
+    // Save modified content before closing
     switch (expandIndex) {
       case 1:
         setLocalDutyContent(expandContent);
@@ -334,6 +313,7 @@ export default function SystemPromptDisplay({
             onDutyContentChange?.(value);
           }}
           onExpand={handleExpandCard}
+          getBadgeProps={getBadgeProps}
         />
         <PromptCard
           title={t('systemPrompt.card.constraint.title')}
@@ -344,6 +324,7 @@ export default function SystemPromptDisplay({
             onConstraintContentChange?.(value);
           }}
           onExpand={handleExpandCard}
+          getBadgeProps={getBadgeProps}
         />
         <PromptCard
           title={t('systemPrompt.card.fewShots.title')}
@@ -354,6 +335,7 @@ export default function SystemPromptDisplay({
             onFewShotsContentChange?.(value);
           }}
           onExpand={handleExpandCard}
+          getBadgeProps={getBadgeProps}
         />
       </div>
     );
@@ -547,7 +529,14 @@ export default function SystemPromptDisplay({
       {/* Expand Card Content Modal */}
       <Modal
         title={
-          <div className="flex justify-end items-center pr-4 -mb-2">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <Badge
+                {...getBadgeProps(expandIndex)}
+                className="mr-3"
+              />
+              <span className="text-base font-medium">{expandTitle}</span>
+            </div>
             <button
               onClick={handleCloseExpandedModal}
               className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
