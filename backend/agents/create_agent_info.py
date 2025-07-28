@@ -116,6 +116,7 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
 async def create_tool_config_list(agent_id, tenant_id, user_id):
     # create tool
     tool_config_list = []
+    langchain_tools = await discover_langchain_tools()
 
     # now only admin can modify the agent, user_id is not used
     tools_list = search_tools_for_sub_agent(agent_id, tenant_id, user_id=None)
@@ -133,6 +134,13 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
             source=tool.get("source")
         )
 
+        if tool.get("source") == "langchain":
+            tool_class_name = tool.get("class_name")
+            for langchain_tool in langchain_tools:
+                if langchain_tool.name == tool_class_name:
+                    tool_config.metadata = langchain_tool
+                    break
+
         # special logic for knowledge base search tool
         if tool_config.class_name == "KnowledgeBaseSearchTool":
             knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
@@ -142,42 +150,40 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
                                     "embedding_model": get_embedding_model(tenant_id=tenant_id)}
         tool_config_list.append(tool_config)
     
-    # Import and instantiate all langchain tools
-    langchain_tools = []
-    try:
-        import os
-        import importlib.util
-        
-        # Get the absolute path to the langchain tools directory
-        langchain_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
-                                     "mcp_service", "langchain")
-        
-        # Iterate through all Python files in the langchain directory
-        for filename in os.listdir(langchain_dir):
-            if filename.endswith(".py") and not filename.startswith("__"):
-                try:
-                    # Import the module dynamically
-                    module_name = filename[:-3]  # Remove .py extension
-                    module_path = os.path.join(langchain_dir, filename)
-                    spec = importlib.util.spec_from_file_location(module_name, module_path)
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
-                    
-                    # Find all functions decorated with @tool in the module
-                    for name, func in inspect.getmembers(module, inspect.isfunction):
-                        if hasattr(func, "_type") and func._type == "tool":
-                            langchain_tool = Tool.from_langchain(func)
-                            langchain_tools.append(langchain_tool)
-                            logger.info(f"Loaded Langchain tool: {name} from {filename}")
-                except Exception as e:
-                    logger.error(f"Error loading Langchain tools from {filename}: {e}")
-    except Exception as e:
-        logger.error(f"Error scanning Langchain tools directory: {e}")
-    
-    # Add langchain tools to the tool_config_list
-    tool_config_list.extend(langchain_tools)
-    
     return tool_config_list
+
+
+async def discover_langchain_tools():
+    """
+    Discover LangChain tools implemented with the `@tool` decorator.
+    
+    Returns:
+        list: List of discovered LangChain tool instances
+    """
+    from backend.utils.langchain_utils import discover_langchain_modules
+    
+    langchain_tools = []
+
+    # ----------------------------------------------
+    # Discover LangChain tools implemented with the
+    # `@tool` decorator and convert them to ToolConfig
+    # ----------------------------------------------
+    try:
+        # Use the utility function to discover all BaseTool objects
+        discovered_tools = discover_langchain_modules()
+        
+        for obj, filename in discovered_tools:
+            try:
+                # Log successful tool discovery
+                logger.info(f"Loaded LangChain tool '{obj.name}' from {filename}")
+                langchain_tools.append(obj)
+            except Exception as e:
+                logger.error(f"Error processing LangChain tool from {filename}: {e}")
+                
+    except Exception as e:
+        logger.error(f"Unexpected error scanning LangChain tools directory: {e}")
+    
+    return langchain_tools
 
 
 async def prepare_prompt_templates(is_manager: bool, system_prompt: str, language: str = 'zh'):
