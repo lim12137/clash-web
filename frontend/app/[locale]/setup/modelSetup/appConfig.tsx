@@ -330,7 +330,7 @@ export const AppConfigSection: React.FC = () => {
               </div>
               <div className="flex-1">
                 <div className="mb-4">
-                  <div className="block mb-2">
+                  <div className="flex items-center mb-2 min-h-[24px]">
                     <Text className="text-base text-gray-700 font-bold">{t('appConfig.appName.label')}</Text>
                   </div>
                   <Input
@@ -345,7 +345,7 @@ export const AppConfigSection: React.FC = () => {
                   />
                 </div>
                 <div className="mb-1">
-                  <div className="block mb-2">
+                  <div className="flex items-center mb-2 min-h-[24px]">
                     <Text className="text-base text-gray-700 font-bold">{t('appConfig.description.label')}</Text>
                   </div>
                   <TextArea

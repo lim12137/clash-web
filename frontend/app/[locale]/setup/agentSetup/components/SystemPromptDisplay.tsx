@@ -1,10 +1,10 @@
 "use client"
 
 import { Modal, message, Badge, Button } from 'antd'
-import { ExpandAltOutlined, SaveOutlined, BugOutlined } from '@ant-design/icons'
+import { ExpandAltOutlined, SaveOutlined, BugOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import AdditionalRequestInput from './AdditionalRequestInput'
-import { fineTunePrompt, savePrompt } from '@/services/promptService'
+import { fineTunePrompt, savePrompt, generatePromptStream, GeneratePromptParams, StreamResponseData } from '@/services/promptService'
 import { updateAgent } from '@/services/agentConfigService'
 import { useTranslation } from 'react-i18next'
 
@@ -20,6 +20,7 @@ import './milkdown-nord.css'
 export interface SystemPromptDisplayProps {
   onDebug?: () => void;
   agentId?: number;
+  businessLogic?: string;
   dutyContent?: string;
   constraintContent?: string;
   fewShotsContent?: string;
@@ -201,6 +202,7 @@ const PADDING_X = 16; // px
 export default function SystemPromptDisplay({ 
   onDebug, 
   agentId,
+  businessLogic = '',
   dutyContent = '',
   constraintContent = '',
   fewShotsContent = '',
@@ -221,10 +223,28 @@ export default function SystemPromptDisplay({
   const [localConstraintContent, setLocalConstraintContent] = useState(constraintContent)
   const [localFewShotsContent, setLocalFewShotsContent] = useState(fewShotsContent)
   
+  // Add state to control showing manual edit mode (empty cards)
+  const [showManualEdit, setShowManualEdit] = useState(false)
+  
+  // Add smart generation states
+  const [isSmartGenerating, setIsSmartGenerating] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState({
+    duty: false,
+    constraint: false,
+    few_shots: false
+  })
+  
   // Add references to original content
   const originalDutyContentRef = useRef(dutyContent)
   const originalConstraintContentRef = useRef(constraintContent)
   const originalFewShotsContentRef = useRef(fewShotsContent)
+  
+  // Add refs for current prompt during generation
+  const currentPromptRef = useRef({
+    duty: '',
+    constraint: '',
+    few_shots: ''
+  })
   
   const { t } = useTranslation('common')
 
@@ -298,10 +318,140 @@ export default function SystemPromptDisplay({
     if (fewShotsContent !== localFewShotsContent) {
       setLocalFewShotsContent(fewShotsContent);
     }
-  }, [dutyContent, constraintContent, fewShotsContent, localDutyContent, localConstraintContent, localFewShotsContent]);
+    
+    // If any content is provided from outside, exit manual edit mode
+    if ((dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim()) && showManualEdit) {
+      setShowManualEdit(false);
+    }
+  }, [dutyContent, constraintContent, fewShotsContent, localDutyContent, localConstraintContent, localFewShotsContent, showManualEdit]);
+
+  // Check if all content is empty
+  const isAllContentEmpty = !localDutyContent?.trim() && !localConstraintContent?.trim() && !localFewShotsContent?.trim()
+
+  // Handle manual edit click
+  const handleManualEdit = () => {
+    setShowManualEdit(true)
+  }
+
+  // Handle smart generation
+  const handleSmartGenerate = async () => {
+    if (!businessLogic || businessLogic.trim() === '') {
+      message.warning(t('businessLogic.config.error.businessDescriptionRequired'));
+      return;
+    }
+
+    if (!agentId) {
+      message.warning(t('systemPrompt.message.noAgentId'));
+      return;
+    }
+
+    try {
+      setIsSmartGenerating(true);
+      setShowManualEdit(false);
+      
+      // Reset content and progress for three sections
+      setLocalDutyContent('');
+      setLocalConstraintContent('');
+      setLocalFewShotsContent('');
+      setGenerationProgress({
+        duty: false,
+        constraint: false,
+        few_shots: false
+      });
+      
+      // Reset ref
+      currentPromptRef.current = {
+        duty: '',
+        constraint: '',
+        few_shots: ''
+      };
+
+      await generatePromptStream(
+        {
+          agent_id: agentId,
+          task_description: businessLogic
+        },
+        (data: StreamResponseData) => {
+          currentPromptRef.current[data.type as keyof typeof currentPromptRef.current] = data.content;
+          
+          // Update the corresponding content
+          switch (data.type) {
+            case 'duty':
+              setLocalDutyContent(data.content);
+              onDutyContentChange?.(data.content);
+              setGenerationProgress(prev => ({ ...prev, duty: true }));
+              break;
+            case 'constraint':
+              setLocalConstraintContent(data.content);
+              onConstraintContentChange?.(data.content);
+              setGenerationProgress(prev => ({ ...prev, constraint: true }));
+              break;
+            case 'few_shots':
+              setLocalFewShotsContent(data.content);
+              onFewShotsContentChange?.(data.content);
+              setGenerationProgress(prev => ({ ...prev, few_shots: true }));
+              break;
+          }
+        },
+        (error) => {
+          console.error('Smart generation error:', error);
+          message.error(`${t('systemPrompt.message.generateError')} ${error instanceof Error ? error.message : t('error.unknown')}`);
+        },
+        () => {
+          message.success(t('systemPrompt.message.generateSuccess'));
+        }
+      );
+    } catch (error) {
+      console.error('Smart generation failed:', error);
+      message.error(`${t('systemPrompt.message.generateError')} ${error instanceof Error ? error.message : t('error.unknown')}`);
+    } finally {
+      setIsSmartGenerating(false);
+    }
+  }
+
+  // Render empty state component
+  const renderEmptyState = () => {
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
+        <div className="text-center space-y-4">
+          <InfoCircleOutlined className="text-6xl text-gray-400" />
+          <div>
+            <h3 className="text-lg font-medium text-gray-700 mb-2">
+              {t('systemPrompt.empty.title')}
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              {t('systemPrompt.empty.subtitle')}
+            </p>
+          </div>
+          <div className="flex gap-3 justify-center">
+            <Button
+              type="primary"
+              className="bg-blue-500 hover:bg-blue-600"
+              loading={isSmartGenerating}
+              onClick={handleSmartGenerate}
+            >
+              {isSmartGenerating ? t('systemPrompt.button.generating') : t('systemPrompt.empty.smartGenerate')}
+            </Button>
+            <Button
+              type="default"
+              onClick={handleManualEdit}
+              disabled={isSmartGenerating}
+            >
+              {t('systemPrompt.empty.manualEdit')}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // Render card view - always render 3 cards with equal height
   const renderCardView = () => {
+    // Show empty state if all content is empty and not in manual edit mode and not generating
+    if (isAllContentEmpty && !showManualEdit && !isSmartGenerating) {
+      return renderEmptyState()
+    }
+
     return (
       <div className="grid grid-rows-3 h-full gap-4">
         <PromptCard
@@ -366,6 +516,8 @@ export default function SystemPromptDisplay({
       });
       
       setTunedPrompt(result);
+      // Exit manual edit mode when smart generation is successful
+      setShowManualEdit(false);
       message.success(t('systemPrompt.message.tune.success'));
     } catch (error) {
       console.error(t('systemPrompt.message.tune.error'), error);
