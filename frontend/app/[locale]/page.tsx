@@ -10,6 +10,7 @@ import { Select } from "antd"
 import { motion } from 'framer-motion';
 import { languageOptions } from '@/lib/constants';
 import { useLanguageSwitch } from '@/lib/languageUtils';
+import { HEADER_CONFIG, FOOTER_CONFIG } from '@/lib/layoutConstants';
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
@@ -30,7 +31,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       {/* Top navigation bar */}
-      <header className="w-full py-4 px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm fixed top-0 z-10">
+      <header className="w-full py-4 px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm fixed top-0 z-10" style={{ height: HEADER_CONFIG.HEIGHT }}>
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-start">
             <img src="/modelengine-logo2.png" alt="ModelEngine" className="h-6" />
@@ -90,9 +91,9 @@ export default function Home() {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 pt-16 pb-16">
+      <main className="flex-1 pt-8 pb-8 flex flex-col justify-center my-8">
         {/* Hero area */}
-        <section className="relative w-full py-16 flex flex-col items-center justify-center text-center px-4">
+        <section className="relative w-full py-10 flex flex-col items-center justify-center text-center px-4">
           <div className="absolute inset-0 bg-grid-slate-200 dark:bg-grid-slate-800 [mask-image:radial-gradient(ellipse_at_center,white_20%,transparent_75%)] -z-10"></div>
           <motion.h2
             initial={{ opacity: 0, y: -20 }}
@@ -199,10 +200,10 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 py-8">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center gap-2 mb-4 md:mb-0">
+      <footer className="w-full py-4 px-4 flex items-center justify-center border-t border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm" style={{ height: FOOTER_CONFIG.HEIGHT }}>
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="flex flex-col md:flex-row justify-between items-center h-full">
+            <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-slate-900 dark:text-white">
                 {t('page.copyright', { year: new Date().getFullYear() })}
               </span>
