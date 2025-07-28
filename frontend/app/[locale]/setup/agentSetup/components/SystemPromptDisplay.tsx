@@ -1,10 +1,10 @@
 "use client"
 
 import { Modal, message, Badge, Button } from 'antd'
-import { ExpandAltOutlined, SaveOutlined, BugOutlined } from '@ant-design/icons'
+import { ExpandAltOutlined, SaveOutlined, BugOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import AdditionalRequestInput from './AdditionalRequestInput'
-import { fineTunePrompt, savePrompt } from '@/services/promptService'
+import { fineTunePrompt, savePrompt, generatePromptStream, GeneratePromptParams, StreamResponseData } from '@/services/promptService'
 import { updateAgent } from '@/services/agentConfigService'
 import { useTranslation } from 'react-i18next'
 
@@ -20,6 +20,7 @@ import './milkdown-nord.css'
 export interface SystemPromptDisplayProps {
   onDebug?: () => void;
   agentId?: number;
+  businessLogic?: string;
   dutyContent?: string;
   constraintContent?: string;
   fewShotsContent?: string;
@@ -59,7 +60,7 @@ const PromptEditor = ({ value, onChange, placeholder }: {
   const lastExternalValueRef = useRef(value)
   const debouncedOnChange = useDebounce(onChange, 300)
   
-  // 处理用户输入变化
+  // Handle user input changes
   const handleUserChange = useCallback((newValue: string) => {
     isUserEditingRef.current = true
     setInternalValue(newValue)
@@ -69,7 +70,7 @@ const PromptEditor = ({ value, onChange, placeholder }: {
     }, 500)
   }, [debouncedOnChange])
   
-  // 处理外部值变化 - API流式输出
+  // Handle external value changes - API streaming output
   useEffect(() => {
     if (value !== lastExternalValueRef.current && !isUserEditingRef.current) {
       setInternalValue(value)
@@ -95,9 +96,9 @@ const PromptEditor = ({ value, onChange, placeholder }: {
       .config(nord)
       .use(commonmark)
       .use(listener)
-  }, []) // 只在组件挂载时创建一次
+  }, []) // Only create once when component mounts
 
-  // 当外部值变化时，直接更新编辑器内容，不重新创建编辑器
+  // When external value changes, directly update editor content without recreating editor
   useEffect(() => {
     const editor = get()
   
@@ -135,39 +136,27 @@ const PromptEditor = ({ value, onChange, placeholder }: {
 }
 
 // Card component
-const PromptCard = ({ title, content, index, onChange, onExpand }: {
+const PromptCard = ({ title, content, index, onChange, onExpand, getBadgeProps }: {
   title: string;
   content: string;
   index: number;
   onChange?: (value: string) => void;
   onExpand?: (title: string, content: string, index: number) => void;
+  getBadgeProps: (index: number) => { status?: 'success' | 'warning' | 'error' | 'default', color?: string };
 }) => {
   const { t } = useTranslation('common');
-
-  const getBadgeProps = (index: number): { status?: 'success' | 'warning' | 'error' | 'default', color?: string } => {
-    switch(index) {
-      case 1:
-        return { status: 'success' };  // 绿色
-      case 2:
-        return { status: 'warning' };  // 黄色
-      case 3:
-        return { color: '#1677ff' };   // 蓝色
-      default:
-        return { status: 'default' };
-    }
-  };
 
   return (
     <div className="h-full flex flex-col rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
       {/* Card header */}
-      <div className="bg-gray-50 text-gray-700 px-4 py-2 rounded-t-lg border-b border-gray-200 flex-shrink-0">
+      <div className="bg-gray-50 text-gray-700 px-4 py-1 rounded-t-lg border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Badge
               {...getBadgeProps(index)}
               className="mr-3"
             />
-            <h3 className="text-base font-medium">{title}</h3>
+            <h3 className="text-sm font-medium">{title}</h3>
           </div>
           <button
             onClick={() => onExpand?.(title, content, index)}
@@ -213,6 +202,7 @@ const PADDING_X = 16; // px
 export default function SystemPromptDisplay({ 
   onDebug, 
   agentId,
+  businessLogic = '',
   dutyContent = '',
   constraintContent = '',
   fewShotsContent = '',
@@ -233,23 +223,55 @@ export default function SystemPromptDisplay({
   const [localConstraintContent, setLocalConstraintContent] = useState(constraintContent)
   const [localFewShotsContent, setLocalFewShotsContent] = useState(fewShotsContent)
   
+  // Add state to control showing manual edit mode (empty cards)
+  const [showManualEdit, setShowManualEdit] = useState(false)
+  
+  // Add smart generation states
+  const [isSmartGenerating, setIsSmartGenerating] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState({
+    duty: false,
+    constraint: false,
+    few_shots: false
+  })
+  
   // Add references to original content
   const originalDutyContentRef = useRef(dutyContent)
   const originalConstraintContentRef = useRef(constraintContent)
   const originalFewShotsContentRef = useRef(fewShotsContent)
   
+  // Add refs for current prompt during generation
+  const currentPromptRef = useRef({
+    duty: '',
+    constraint: '',
+    few_shots: ''
+  })
+  
   const { t } = useTranslation('common')
+
+  // Move getBadgeProps to main component level
+  const getBadgeProps = (index: number): { status?: 'success' | 'warning' | 'error' | 'default', color?: string } => {
+    switch(index) {
+      case 1:
+        return { status: 'success' };  // Green
+      case 2:
+        return { status: 'warning' };  // Yellow
+      case 3:
+        return { color: '#1677ff' };   // Blue
+      default:
+        return { status: 'default' };
+    }
+  };
 
   // Calculate dynamic modal height based on content
   const calculateModalHeight = (content: string) => {
     const lineCount = content.split('\n').length;
     const contentLength = content.length;
     
-    // 基于行数和内容长度的高度计算，范围 25vh - 85vh
+    // Height calculation based on line count and content length, range 25vh - 85vh
     const minHeight = 25;
     const maxHeight = 85;
     
-    // 结合行数和内容长度来计算高度
+    // Combine line count and content length to calculate height
     const heightByLines = minHeight + Math.floor(lineCount / 8) * 5;
     const heightByContent = minHeight + Math.floor(contentLength / 200) * 3;
 
@@ -265,32 +287,9 @@ export default function SystemPromptDisplay({
     setExpandModalOpen(true)
   }
 
-  // Handle save expanded content
-  const handleSaveExpandedContent = () => {
-    // 立即更新本地状态和调用回调
-    switch (expandIndex) {
-      case 1:
-        setLocalDutyContent(expandContent);
-        onDutyContentChange?.(expandContent);
-        break;
-      case 2:
-        setLocalConstraintContent(expandContent);
-        onConstraintContentChange?.(expandContent);
-        break;
-      case 3:
-        setLocalFewShotsContent(expandContent);
-        onFewShotsContentChange?.(expandContent);
-        break;
-    }
-
-    Promise.resolve().then(() => {
-      setExpandModalOpen(false);
-    });
-  }
-
   // Handle close expanded modal
   const handleCloseExpandedModal = () => {
-    // 关闭前先保存修改的内容
+    // Save modified content before closing
     switch (expandIndex) {
       case 1:
         setLocalDutyContent(expandContent);
@@ -319,10 +318,140 @@ export default function SystemPromptDisplay({
     if (fewShotsContent !== localFewShotsContent) {
       setLocalFewShotsContent(fewShotsContent);
     }
-  }, [dutyContent, constraintContent, fewShotsContent, localDutyContent, localConstraintContent, localFewShotsContent]);
+    
+    // If any content is provided from outside, exit manual edit mode
+    if ((dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim()) && showManualEdit) {
+      setShowManualEdit(false);
+    }
+  }, [dutyContent, constraintContent, fewShotsContent, localDutyContent, localConstraintContent, localFewShotsContent, showManualEdit]);
+
+  // Check if all content is empty
+  const isAllContentEmpty = !localDutyContent?.trim() && !localConstraintContent?.trim() && !localFewShotsContent?.trim()
+
+  // Handle manual edit click
+  const handleManualEdit = () => {
+    setShowManualEdit(true)
+  }
+
+  // Handle smart generation
+  const handleSmartGenerate = async () => {
+    if (!businessLogic || businessLogic.trim() === '') {
+      message.warning(t('businessLogic.config.error.businessDescriptionRequired'));
+      return;
+    }
+
+    if (!agentId) {
+      message.warning(t('systemPrompt.message.noAgentId'));
+      return;
+    }
+
+    try {
+      setIsSmartGenerating(true);
+      setShowManualEdit(false);
+      
+      // Reset content and progress for three sections
+      setLocalDutyContent('');
+      setLocalConstraintContent('');
+      setLocalFewShotsContent('');
+      setGenerationProgress({
+        duty: false,
+        constraint: false,
+        few_shots: false
+      });
+      
+      // Reset ref
+      currentPromptRef.current = {
+        duty: '',
+        constraint: '',
+        few_shots: ''
+      };
+
+      await generatePromptStream(
+        {
+          agent_id: agentId,
+          task_description: businessLogic
+        },
+        (data: StreamResponseData) => {
+          currentPromptRef.current[data.type as keyof typeof currentPromptRef.current] = data.content;
+          
+          // Update the corresponding content
+          switch (data.type) {
+            case 'duty':
+              setLocalDutyContent(data.content);
+              onDutyContentChange?.(data.content);
+              setGenerationProgress(prev => ({ ...prev, duty: true }));
+              break;
+            case 'constraint':
+              setLocalConstraintContent(data.content);
+              onConstraintContentChange?.(data.content);
+              setGenerationProgress(prev => ({ ...prev, constraint: true }));
+              break;
+            case 'few_shots':
+              setLocalFewShotsContent(data.content);
+              onFewShotsContentChange?.(data.content);
+              setGenerationProgress(prev => ({ ...prev, few_shots: true }));
+              break;
+          }
+        },
+        (error) => {
+          console.error('Smart generation error:', error);
+          message.error(`${t('systemPrompt.message.generateError')} ${error instanceof Error ? error.message : t('error.unknown')}`);
+        },
+        () => {
+          message.success(t('systemPrompt.message.generateSuccess'));
+        }
+      );
+    } catch (error) {
+      console.error('Smart generation failed:', error);
+      message.error(`${t('systemPrompt.message.generateError')} ${error instanceof Error ? error.message : t('error.unknown')}`);
+    } finally {
+      setIsSmartGenerating(false);
+    }
+  }
+
+  // Render empty state component
+  const renderEmptyState = () => {
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
+        <div className="text-center space-y-4">
+          <InfoCircleOutlined className="text-6xl text-gray-400" />
+          <div>
+            <h3 className="text-lg font-medium text-gray-700 mb-2">
+              {t('systemPrompt.empty.title')}
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              {t('systemPrompt.empty.subtitle')}
+            </p>
+          </div>
+          <div className="flex gap-3 justify-center">
+            <Button
+              type="primary"
+              className="bg-blue-500 hover:bg-blue-600"
+              loading={isSmartGenerating}
+              onClick={handleSmartGenerate}
+            >
+              {isSmartGenerating ? t('systemPrompt.button.generating') : t('systemPrompt.empty.smartGenerate')}
+            </Button>
+            <Button
+              type="default"
+              onClick={handleManualEdit}
+              disabled={isSmartGenerating}
+            >
+              {t('systemPrompt.empty.manualEdit')}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // Render card view - always render 3 cards with equal height
   const renderCardView = () => {
+    // Show empty state if all content is empty and not in manual edit mode and not generating
+    if (isAllContentEmpty && !showManualEdit && !isSmartGenerating) {
+      return renderEmptyState()
+    }
+
     return (
       <div className="grid grid-rows-3 h-full gap-4">
         <PromptCard
@@ -334,6 +463,7 @@ export default function SystemPromptDisplay({
             onDutyContentChange?.(value);
           }}
           onExpand={handleExpandCard}
+          getBadgeProps={getBadgeProps}
         />
         <PromptCard
           title={t('systemPrompt.card.constraint.title')}
@@ -344,6 +474,7 @@ export default function SystemPromptDisplay({
             onConstraintContentChange?.(value);
           }}
           onExpand={handleExpandCard}
+          getBadgeProps={getBadgeProps}
         />
         <PromptCard
           title={t('systemPrompt.card.fewShots.title')}
@@ -354,6 +485,7 @@ export default function SystemPromptDisplay({
             onFewShotsContentChange?.(value);
           }}
           onExpand={handleExpandCard}
+          getBadgeProps={getBadgeProps}
         />
       </div>
     );
@@ -384,6 +516,8 @@ export default function SystemPromptDisplay({
       });
       
       setTunedPrompt(result);
+      // Exit manual edit mode when smart generation is successful
+      setShowManualEdit(false);
       message.success(t('systemPrompt.message.tune.success'));
     } catch (error) {
       console.error(t('systemPrompt.message.tune.error'), error);
@@ -547,7 +681,14 @@ export default function SystemPromptDisplay({
       {/* Expand Card Content Modal */}
       <Modal
         title={
-          <div className="flex justify-end items-center pr-4 -mb-2">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <Badge
+                {...getBadgeProps(expandIndex)}
+                className="mr-3"
+              />
+              <span className="text-base font-medium">{expandTitle}</span>
+            </div>
             <button
               onClick={handleCloseExpandedModal}
               className="px-4 py-1.5 rounded-md flex items-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
