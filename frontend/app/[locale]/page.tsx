@@ -6,42 +6,22 @@ import { Bot, Globe, Zap, Shield, MessagesSquare, Unplug, TextQuote } from "luci
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
-import { useRouter, usePathname } from 'next/navigation';
 import { Select } from "antd"
 import { motion } from 'framer-motion';
-
-const languageOptions = [
-  { label: '简体中文', value: 'zh' },
-  { label: 'English', value: 'en' },
-];
+import { languageOptions } from '@/lib/constants';
+import { useLanguageSwitch } from '@/lib/languageUtils';
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
-  const { t, i18n } = useTranslation('common');
-  const router = useRouter();
-  const pathname = usePathname();
+  const { t } = useTranslation('common');
+  const { currentLanguage, handleLanguageChange, getOppositeLanguage } = useLanguageSwitch();
 
   // Prevent hydration errors
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Language switch handler for dropdown
-  const handleLangChange = (newLang: string) => {
-    document.cookie = `NEXT_LOCALE=${newLang}; path=/; max-age=31536000`;
-    // Compute new path: replace the first segment (locale) with newLang
-    const segments = pathname.split('/').filter(Boolean);
-    if (segments.length > 0 && (segments[0] === 'zh' || segments[0] === 'en')) {
-      segments[0] = newLang;
-    } else {
-      segments.unshift(newLang);
-    }
-    const newPath = '/' + segments.join('/');
-    router.push(newPath);
 
-    // Force a full page reload to ensure the middleware can obtain the latest language setting.
-    window.location.href = '/'; 
-  };
 
   if (!mounted) {
     return null
@@ -82,6 +62,12 @@ export default function Home() {
           >
             {t('page.aboutUs')}
           </Link>
+          <button
+            onClick={() => handleLanguageChange(getOppositeLanguage().lang)}
+            className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
+          >
+            {getOppositeLanguage().label}
+          </button>
         </div>
         <Button variant="ghost" size="icon" className="md:hidden">
           <svg
@@ -221,8 +207,8 @@ export default function Home() {
                 {t('page.copyright', { year: new Date().getFullYear() })}
               </span>
               <Select
-                value={i18n.language}
-                onChange={handleLangChange}
+                value={currentLanguage}
+                onChange={handleLanguageChange}
                 options={languageOptions}
                 style={{ width: 98, border: 'none', boxShadow: 'none' }}
                 variant={'borderless'}

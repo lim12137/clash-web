@@ -2,10 +2,12 @@
 
 import { ReactNode } from "react"
 import { FiRefreshCw, FiArrowLeft } from "react-icons/fi"
-import { Badge, Button, Tooltip } from "antd"
+import { Badge, Button, Tooltip, Select } from "antd"
 import { useRouter } from "next/navigation"
 import { BugOutlined } from '@ant-design/icons'
 import { useTranslation } from "react-i18next"
+import { languageOptions } from '@/lib/constants'
+import { useLanguageSwitch } from '@/lib/languageUtils'
 
 
 // ================ Header 组件 ================
@@ -24,6 +26,7 @@ function Header({
 }: HeaderProps) {
   const router = useRouter()
   const { t } = useTranslation()
+  const { currentLanguage, handleLanguageChange } = useLanguageSwitch()
 
   // 获取状态文本
   const getStatusText = () => {
@@ -38,6 +41,8 @@ function Header({
         return t("setup.header.status.unknown")
     }
   }
+
+
 
   // 重构：风格被嵌入在组件内
   return (
@@ -56,7 +61,7 @@ function Header({
             <div className="mx-2 h-6 border-l border-gray-300"></div>
             <span className="text-gray-500 text-sm">{t("setup.header.description")}</span>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
             {/* ModelEngine连通性状态 */}
             <div className="flex items-center bg-gray-50 px-3 py-1.5 rounded-md border border-gray-200">
               <Badge 
@@ -74,6 +79,17 @@ function Header({
                   className="ml-2"
                 />
               </Tooltip>
+            </div>
+            {/* 语言切换 */}
+            <div className="flex items-center bg-gray-50 px-3 py-1.5 rounded-md border border-gray-200">
+              <Select
+                value={currentLanguage}
+                onChange={handleLanguageChange}
+                options={languageOptions}
+                style={{ width: 110, border: 'none', backgroundColor: 'transparent' }}
+                variant="borderless"
+                size="small"
+              />
             </div>
           </div>
         </div>
