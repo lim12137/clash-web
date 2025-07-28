@@ -143,7 +143,7 @@ const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
 
       {/* 固定的选择状态区域 */}
       <div className="border-b border-gray-200 shrink-0 relative z-10 shadow-md">
-        <div className="px-3 py-2 bg-blue-50">
+        <div className="px-5 py-2 bg-blue-50">
           <div className="flex items-center">
             <span className="font-medium text-blue-700">{t('knowledgeBase.selected.prefix')} </span>
             <span className="mx-1 text-blue-600 font-bold text-lg">{selectedIds.length}</span>
