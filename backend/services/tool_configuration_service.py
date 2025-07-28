@@ -141,7 +141,7 @@ def _build_tool_info_from_langchain(obj) -> ToolInfo:
             param_info = {
                 "name": param_name,
                 "type": python_type_to_json_schema(param.annotation),
-                "description": "",  # LangChain doesn’t store per-arg descriptions by default
+                "description": "see tool description",  # LangChain doesn’t store per-arg descriptions by default
                 "optional": param.default is not inspect._empty,
             }
 

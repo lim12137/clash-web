@@ -513,8 +513,9 @@ class TestUpdateToolList:
 
     @patch('backend.services.tool_configuration_service.get_local_tools')
     @patch('backend.services.tool_configuration_service.get_all_mcp_tools')
+    @patch('backend.services.tool_configuration_service.get_langchain_tools')  # 添加对get_langchain_tools的模拟
     @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
-    async def test_update_tool_list_success(self, mock_update_table, mock_get_mcp_tools, mock_get_local_tools):
+    async def test_update_tool_list_success(self, mock_update_table, mock_get_langchain_tools, mock_get_mcp_tools, mock_get_local_tools):
         """测试成功更新工具列表"""
         # Mock 本地工具
         local_tools = [
@@ -530,6 +531,12 @@ class TestUpdateToolList:
         ]
         mock_get_mcp_tools.return_value = mcp_tools
         
+        # Mock LangChain 工具 - 返回空列表
+        mock_get_langchain_tools.return_value = [
+            ToolInfo(name="langchain_tool", description="LangChain tool", params=[], source=ToolSourceEnum.LANGCHAIN.value, 
+                    inputs="{}", output_type="string", class_name="LangchainTool", usage="test_server")
+        ]
+        
         from backend.services.tool_configuration_service import update_tool_list
         
         await update_tool_list("test_tenant", "test_user")
@@ -537,10 +544,15 @@ class TestUpdateToolList:
         # 验证调用
         mock_get_local_tools.assert_called_once()
         mock_get_mcp_tools.assert_called_once_with("test_tenant")
+        mock_get_langchain_tools.assert_called_once()
+        
+        # 获取mockget_langchain_tools返回的工具列表
+        langchain_tools = mock_get_langchain_tools.return_value
+        
         mock_update_table.assert_called_once_with(
             tenant_id="test_tenant",
             user_id="test_user",
-            tool_list=local_tools + mcp_tools
+            tool_list=local_tools + mcp_tools + langchain_tools
         )
 
     @patch('backend.services.tool_configuration_service.get_local_tools')
@@ -572,11 +584,13 @@ class TestUpdateToolList:
 
     @patch('backend.services.tool_configuration_service.get_local_tools')
     @patch('backend.services.tool_configuration_service.get_all_mcp_tools')
+    @patch('backend.services.tool_configuration_service.get_langchain_tools')  # 添加对get_langchain_tools的模拟
     @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
-    async def test_update_tool_list_empty_tools(self, mock_update_table, mock_get_mcp_tools, mock_get_local_tools):
+    async def test_update_tool_list_empty_tools(self, mock_update_table, mock_get_langchain_tools, mock_get_mcp_tools, mock_get_local_tools):
         """测试没有工具的情况"""
         mock_get_local_tools.return_value = []
         mock_get_mcp_tools.return_value = []
+        mock_get_langchain_tools.return_value = []  # 确保LangChain工具也返回空列表
         
         from backend.services.tool_configuration_service import update_tool_list
         
@@ -595,13 +609,14 @@ class TestIntegrationScenarios:
 
     @patch('backend.services.tool_configuration_service.get_local_tools')
     @patch('backend.services.tool_configuration_service.get_all_mcp_tools')
+    @patch('backend.services.tool_configuration_service.get_langchain_tools')  # 添加对get_langchain_tools的模拟
     @patch('backend.services.tool_configuration_service.update_tool_table_from_scan_tool_list')
     @patch('backend.services.tool_configuration_service.get_tool_from_remote_mcp_server')
-    async def test_full_tool_update_workflow(self, mock_get_remote_tools, mock_update_table, mock_get_mcp_tools, mock_get_local_tools):
+    async def test_full_tool_update_workflow(self, mock_get_remote_tools, mock_update_table, mock_get_langchain_tools, mock_get_mcp_tools, mock_get_local_tools):
         """测试完整的工具更新工作流程"""
         # 1. 模拟本地工具
         local_tools = [
-            ToolInfo(name="local_tool", description="Local tool", params=[], source=ToolSourceEnum.LOCAL.value, 
+            ToolInfo(name="local_tool", description="Local tool", params=[], source=ToolSourceEnum.LOCAL.value,
                     inputs="{}", output_type="string", class_name="LocalTool", usage=None)
         ]
         mock_get_local_tools.return_value = local_tools
@@ -613,7 +628,10 @@ class TestIntegrationScenarios:
         ]
         mock_get_mcp_tools.return_value = mcp_tools
         
-        # 3. 模拟远程工具获取
+        # 3. 模拟LangChain工具 - 设置为空列表
+        mock_get_langchain_tools.return_value = []
+        
+        # 4. 模拟远程工具获取
         remote_tools = [
             ToolInfo(name="remote_tool", description="Remote tool", params=[], source=ToolSourceEnum.MCP.value, 
                     inputs="{}", output_type="string", class_name="RemoteTool", usage="remote_server")
@@ -622,17 +640,203 @@ class TestIntegrationScenarios:
         
         from backend.services.tool_configuration_service import update_tool_list
         
-        # 4. 执行更新
+        # 5. 执行更新
         await update_tool_list("test_tenant", "test_user")
         
-        # 5. 验证整个流程
+        # 6. 验证整个流程
         mock_get_local_tools.assert_called_once()
         mock_get_mcp_tools.assert_called_once_with("test_tenant")
+        mock_get_langchain_tools.assert_called_once()
         mock_update_table.assert_called_once_with(
             tenant_id="test_tenant",
             user_id="test_user",
             tool_list=local_tools + mcp_tools
         )
+
+
+class TestGetLangchainTools:
+    """测试 get_langchain_tools 函数"""
+
+    @patch('backend.utils.langchain_utils.discover_langchain_modules')
+    @patch('backend.services.tool_configuration_service._build_tool_info_from_langchain')
+    def test_get_langchain_tools_success(self, mock_build_tool_info, mock_discover_modules):
+        """测试成功发现并转换LangChain工具"""
+        # 创建模拟的LangChain工具对象
+        mock_tool1 = Mock()
+        mock_tool1.name = "langchain_tool_1"
+        mock_tool1.description = "LangChain tool 1"
+        
+        mock_tool2 = Mock()
+        mock_tool2.name = "langchain_tool_2"
+        mock_tool2.description = "LangChain tool 2"
+        
+        # 模拟discover_langchain_modules返回值
+        mock_discover_modules.return_value = [
+            (mock_tool1, "tool1.py"),
+            (mock_tool2, "tool2.py")
+        ]
+        
+        # 模拟_build_tool_info_from_langchain返回值
+        tool_info1 = ToolInfo(
+            name="langchain_tool_1",
+            description="LangChain tool 1",
+            params=[],
+            source=ToolSourceEnum.LANGCHAIN.value,
+            inputs="{}",
+            output_type="string",
+            class_name="langchain_tool_1",
+            usage=None
+        )
+        
+        tool_info2 = ToolInfo(
+            name="langchain_tool_2",
+            description="LangChain tool 2",
+            params=[],
+            source=ToolSourceEnum.LANGCHAIN.value,
+            inputs="{}",
+            output_type="string",
+            class_name="langchain_tool_2",
+            usage=None
+        )
+        
+        mock_build_tool_info.side_effect = [tool_info1, tool_info2]
+        
+        # 导入待测函数
+        from backend.services.tool_configuration_service import get_langchain_tools
+        
+        # 调用函数
+        result = get_langchain_tools()
+        
+        # 验证结果
+        assert len(result) == 2
+        assert result[0] == tool_info1
+        assert result[1] == tool_info2
+        
+        # 验证调用
+        mock_discover_modules.assert_called_once()
+        assert mock_build_tool_info.call_count == 2
+
+    @patch('backend.utils.langchain_utils.discover_langchain_modules')
+    def test_get_langchain_tools_empty_result(self, mock_discover_modules):
+        """测试未发现任何LangChain工具的情况"""
+        # 模拟discover_langchain_modules返回空列表
+        mock_discover_modules.return_value = []
+        
+        from backend.services.tool_configuration_service import get_langchain_tools
+        
+        result = get_langchain_tools()
+        
+        # 验证结果为空列表
+        assert result == []
+        mock_discover_modules.assert_called_once()
+
+    @patch('backend.utils.langchain_utils.discover_langchain_modules')
+    @patch('backend.services.tool_configuration_service._build_tool_info_from_langchain')
+    def test_get_langchain_tools_exception_handling(self, mock_build_tool_info, mock_discover_modules):
+        """测试处理工具时出现异常的情况"""
+        # 创建模拟的LangChain工具对象
+        mock_tool1 = Mock()
+        mock_tool1.name = "good_tool"
+        
+        mock_tool2 = Mock()
+        mock_tool2.name = "problematic_tool"
+        
+        # 模拟discover_langchain_modules返回值
+        mock_discover_modules.return_value = [
+            (mock_tool1, "good_tool.py"),
+            (mock_tool2, "problematic_tool.py")
+        ]
+        
+        # 模拟_build_tool_info_from_langchain的行为
+        # 第一次调用成功，第二次调用抛出异常
+        tool_info1 = ToolInfo(
+            name="good_tool",
+            description="Good LangChain tool",
+            params=[],
+            source=ToolSourceEnum.LANGCHAIN.value,
+            inputs="{}",
+            output_type="string",
+            class_name="good_tool",
+            usage=None
+        )
+        
+        mock_build_tool_info.side_effect = [
+            tool_info1,
+            Exception("Error processing tool")
+        ]
+        
+        from backend.services.tool_configuration_service import get_langchain_tools
+        
+        # 调用函数 - 不应该抛出异常
+        result = get_langchain_tools()
+        
+        # 验证结果 - 只有成功处理的工具
+        assert len(result) == 1
+        assert result[0] == tool_info1
+        
+        # 验证调用
+        mock_discover_modules.assert_called_once()
+        assert mock_build_tool_info.call_count == 2
+
+    @patch('backend.utils.langchain_utils.discover_langchain_modules')
+    @patch('backend.services.tool_configuration_service._build_tool_info_from_langchain')
+    def test_get_langchain_tools_with_different_tool_types(self, mock_build_tool_info, mock_discover_modules):
+        """测试处理不同类型的LangChain工具对象"""
+        # 创建不同类型的工具对象
+        class CustomTool:
+            def __init__(self):
+                self.name = "custom_tool"
+                self.description = "Custom tool"
+        
+        mock_tool1 = Mock()  # 标准Mock对象
+        mock_tool1.name = "mock_tool"
+        mock_tool1.description = "Mock tool"
+        
+        mock_tool2 = CustomTool()  # 自定义类对象
+        
+        # 模拟discover_langchain_modules返回值
+        mock_discover_modules.return_value = [
+            (mock_tool1, "mock_tool.py"),
+            (mock_tool2, "custom_tool.py")
+        ]
+        
+        # 模拟_build_tool_info_from_langchain返回值
+        tool_info1 = ToolInfo(
+            name="mock_tool",
+            description="Mock tool",
+            params=[],
+            source=ToolSourceEnum.LANGCHAIN.value,
+            inputs="{}",
+            output_type="string",
+            class_name="mock_tool",
+            usage=None
+        )
+        
+        tool_info2 = ToolInfo(
+            name="custom_tool",
+            description="Custom tool",
+            params=[],
+            source=ToolSourceEnum.LANGCHAIN.value,
+            inputs="{}",
+            output_type="string",
+            class_name="custom_tool",
+            usage=None
+        )
+        
+        mock_build_tool_info.side_effect = [tool_info1, tool_info2]
+        
+        from backend.services.tool_configuration_service import get_langchain_tools
+        
+        result = get_langchain_tools()
+        
+        # 验证结果
+        assert len(result) == 2
+        assert result[0] == tool_info1
+        assert result[1] == tool_info2
+        
+        # 验证调用
+        mock_discover_modules.assert_called_once()
+        assert mock_build_tool_info.call_count == 2
 
 
 if __name__ == '__main__':
