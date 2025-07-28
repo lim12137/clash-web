@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { ChevronDown, MousePointerClick } from 'lucide-react'
 import { fetchAllAgents } from '@/services/agentConfigService'
 import { useTranslation } from 'react-i18next'
 
@@ -29,6 +28,10 @@ export function AgentSelector({ selectedAgentId, onAgentSelect, disabled = false
   const { t } = useTranslation('common')
   const buttonRef = useRef<HTMLDivElement>(null)
 
+  // 可自定义的下拉框宽度（单位：px）
+  // 你可以根据需要修改这个数值来调整选择框的宽度
+  const dropdownWidth = 550
+
   const selectedAgent = agents.find(agent => agent.agent_id === selectedAgentId)
 
   useEffect(() => {
@@ -40,7 +43,7 @@ export function AgentSelector({ selectedAgentId, onAgentSelect, disabled = false
     if (isOpen && buttonRef.current) {
       const buttonRect = buttonRef.current.getBoundingClientRect()
       const viewportHeight = window.innerHeight
-      const dropdownHeight = 240 // 估算下拉框高度 (max-h-60)
+      const dropdownHeight = 320 // 估算下拉框高度 (max-h-80)，可根据agent数量调整
       
       // 检查是否有足够空间向下显示
       const hasSpaceBelow = buttonRect.bottom + dropdownHeight + 10 < viewportHeight
@@ -139,7 +142,7 @@ export function AgentSelector({ selectedAgentId, onAgentSelect, disabled = false
       <div
         ref={buttonRef}
         className={`
-          relative h-8 min-w-[120px] max-w-[180px] px-2
+          relative h-8 min-w-[150px] max-w-[250px] px-2
           rounded-lg border border-slate-200
           bg-white hover:bg-slate-50
           flex items-center justify-between
@@ -152,7 +155,7 @@ export function AgentSelector({ selectedAgentId, onAgentSelect, disabled = false
       >
         <div className="flex items-center gap-2 truncate">
           {selectedAgent && (
-            <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+            <MousePointerClick className="w-4 h-4 text-blue-500 flex-shrink-0" />
           )}
           <span className={`truncate text-sm ${selectedAgent ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
             {isLoading 
@@ -193,12 +196,13 @@ export function AgentSelector({ selectedAgentId, onAgentSelect, disabled = false
           
           {/* 下拉框 */}
           <div 
-            className="agent-selector-dropdown fixed w-64 bg-white border border-slate-200 rounded-md shadow-lg z-[9999] max-h-60 overflow-y-auto"
+            className="agent-selector-dropdown fixed bg-white border border-slate-200 rounded-md shadow-lg z-[9999] max-h-80 overflow-y-auto"
             style={{
               top: dropdownPosition.direction === 'up' 
                 ? `${dropdownPosition.top}px` 
                 : `${dropdownPosition.top}px`,
               left: `${dropdownPosition.left}px`,
+              width: `${dropdownWidth}px`,
               transform: dropdownPosition.direction === 'up' ? 'translateY(-100%)' : 'none'
             }}
             onWheel={(e) => {
@@ -220,67 +224,64 @@ export function AgentSelector({ selectedAgentId, onAgentSelect, disabled = false
                 </div>
               ) : (
                 allAgents.map((agent, idx) => (
-                  <TooltipProvider key={agent.agent_id}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div
-                          className={`
-                            flex items-center px-3.5 py-2.5 text-sm
-                            transition-all duration-150 ease-in-out
-                            ${agent.is_available 
-                              ? `hover:bg-slate-50 cursor-pointer ${
-                                  selectedAgentId === agent.agent_id 
-                                    ? 'bg-blue-50/70 text-blue-600 hover:bg-blue-50/70 font-medium' 
-                                    : ''
-                                }` 
-                              : 'cursor-not-allowed bg-slate-50/50'
-                            }
-                            ${selectedAgentId === agent.agent_id ? 'shadow-[inset_2px_0_0_0] shadow-blue-500' : ''}
-                            ${idx !== 0 ? 'border-t border-slate-100' : ''}
-                          `}
-                          onClick={() => agent.is_available && handleAgentSelect(agent.agent_id)}
-                        >
-                          <div className="flex-1 truncate">
-                            <div className={`${
-                              agent.is_available 
-                                ? selectedAgentId === agent.agent_id 
-                                  ? 'text-blue-600' 
-                                  : 'text-slate-700 hover:text-slate-900'
-                                : 'text-slate-400'
-                            }`}>
-                              {agent.name}
-                            </div>
-                          </div>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent 
-                        side="right" 
-                        className="max-w-lg bg-white rounded-lg shadow-lg border border-slate-200 p-0 overflow-hidden"
-                        sideOffset={5}
-                      >
-                        <div className="relative">
-                          {/* 顶部状态条 */}
-                          <div className={`h-1 w-full ${agent.is_available ? 'bg-green-500' : 'bg-red-400'}`} />
-                          
-                          {/* 主要内容区 */}
-                          <div className="p-4">
-                            {/* 描述文本 */}
-                            <div className="text-sm leading-relaxed text-slate-600 whitespace-normal break-words">
-                              {agent.description}
-                            </div>
-                            
-                            {/* 不可用状态提示 */}
-                            {!agent.is_available && (
-                              <div className="mt-3 pt-3 border-t border-slate-200 flex items-start gap-2.5 text-sm text-red-500">
-                                <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 animate-pulse mt-1" />
-                                {t('agentSelector.agentUnavailable')}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <div
+                    key={agent.agent_id}
+                    className={`
+                      flex items-start gap-3 px-3.5 py-3 text-sm
+                      transition-all duration-150 ease-in-out
+                      ${agent.is_available 
+                        ? `hover:bg-slate-50 cursor-pointer ${
+                            selectedAgentId === agent.agent_id 
+                              ? 'bg-blue-50/70 text-blue-600 hover:bg-blue-50/70' 
+                              : ''
+                          }` 
+                        : 'cursor-not-allowed bg-slate-50/50'
+                      }
+                      ${selectedAgentId === agent.agent_id ? 'shadow-[inset_2px_0_0_0] shadow-blue-500' : ''}
+                      ${idx !== 0 ? 'border-t border-slate-100' : ''}
+                    `}
+                    onClick={() => agent.is_available && handleAgentSelect(agent.agent_id)}
+                  >
+                    {/* Agent Icon */}
+                    <div className="flex-shrink-0 mt-0.5">
+                      <MousePointerClick 
+                        className={`h-4 w-4 ${
+                          agent.is_available 
+                            ? selectedAgentId === agent.agent_id 
+                              ? 'text-blue-500' 
+                              : 'text-slate-500'
+                            : 'text-slate-300'
+                        }`}
+                      />
+                    </div>
+                    
+                    {/* Agent Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className={`font-medium truncate ${
+                        agent.is_available 
+                          ? selectedAgentId === agent.agent_id 
+                            ? 'text-blue-600' 
+                            : 'text-slate-700 hover:text-slate-900'
+                          : 'text-slate-400'
+                      }`}>
+                        {agent.name}
+                      </div>
+                      <div className={`text-xs mt-1 leading-relaxed ${
+                        agent.is_available 
+                          ? selectedAgentId === agent.agent_id 
+                            ? 'text-blue-500' 
+                            : 'text-slate-500'
+                          : 'text-slate-300'
+                      }`}>
+                        {agent.description}
+                        {!agent.is_available && (
+                          <span className="block mt-1 text-red-400">
+                            {t('agentSelector.agentUnavailable')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ))
               )}
             </div>
