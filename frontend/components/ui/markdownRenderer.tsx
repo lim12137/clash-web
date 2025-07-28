@@ -10,6 +10,8 @@ import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { SearchResult } from '@/types/chat'
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+import { CopyButton } from '@/components/ui/copyButton'
+import { useTranslation } from "react-i18next"
 import 'katex/dist/katex.min.css'
 import 'github-markdown-css/github-markdown.css'
 
@@ -298,6 +300,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   className,
   searchResults = [] 
 }) => {
+  const { t } = useTranslation('common');
   // Customize code block style with light gray background
   const customStyle = {
     ...oneLight,
@@ -332,8 +335,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     }
   };
 
-  // Check if this is user message content
-  const isUserMessage = className?.includes('user-message-content');
+
 
   // Modified processText function logic
   const processText = (text: string) => {
@@ -475,6 +477,11 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           margin-bottom: 0.25rem !important;
           margin-top: 0.25rem !important;
         }
+        /* Code block container styles */
+        .code-block-container {
+          position: relative;
+          display: block;
+        }
       `}</style>
       <div className={`markdown-body ${className || ''}`}>
         <ReactMarkdown
@@ -493,15 +500,26 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             ),
             code({node, inline, className, children, ...props}: any) {
               const match = /language-(\w+)/.exec(className || '')
+              const codeContent = String(children).replace(/^\n+|\n+$/g, '')
               return !inline && match ? (
-                <SyntaxHighlighter
-                  style={customStyle}
-                  language={match[1]}
-                  PreTag="div"
-                  {...props}
-                >
-                  {String(children).replace(/^\n+|\n+$/g, '')}
-                </SyntaxHighlighter>
+                <div className="code-block-container group">
+                  <SyntaxHighlighter
+                    style={customStyle}
+                    language={match[1]}
+                    PreTag="div"
+                    {...props}
+                  >
+                    {codeContent}
+                  </SyntaxHighlighter>
+                  <CopyButton 
+                    content={codeContent} 
+                    variant="code-block"
+                    tooltipText={{
+                      copy: t('chatStreamMessage.copyContent'),
+                      copied: t('chatStreamMessage.copied')
+                    }}
+                  />
+                </div>
               ) : (
                 <code {...props}>
                   <TextWrapper>{children}</TextWrapper>

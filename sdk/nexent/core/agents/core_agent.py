@@ -194,6 +194,8 @@ You have been provided with these additional arguments, that you can access usin
                 if except_parse_error_pattern in e.message:
                     # When the model does not output code, directly treat the large model content as the final answer
                     final_answer = memory_step.model_output
+                    if isinstance(final_answer, str):
+                        final_answer = final_answer.replace("```code", "```python")
                 else:
                     memory_step.error = e
 
