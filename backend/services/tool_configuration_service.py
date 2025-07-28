@@ -10,10 +10,6 @@ from fastmcp import Client
 import jsonref
 from mcpadapt.smolagents_adapter import _sanitize_function_name
 
-# Support for LangChain-decorated function tools
-import os
-import importlib.util
-
 from database.agent_db import (
     query_tool_instances_by_id,
     create_or_update_tool_by_tool_info,
@@ -126,24 +122,6 @@ def get_local_tools_classes() -> List[type]:
 # LangChain tools discovery (functions decorated with @tool)
 # --------------------------------------------------
 
-
-def _is_langchain_tool(obj) -> bool:
-    """Rudimentary check to determine whether an object is a LangChain Tool.
-
-    LangChain's `@tool` decorator returns an instance of `BaseTool` (often
-    `StructuredTool`).  These objects expose a `name` and `description` field
-    that we can leverage.  We purposefully avoid importing the LangChain
-    classes directly to keep dependencies loose – we only rely on duck typing
-    (i.e. presence of the expected attributes).
-    """
-    # Must be *callable* (implements __call__) OR has a .run/ .invoke etc.
-    has_name = hasattr(obj, "name") and isinstance(getattr(obj, "name"), str)
-    has_desc = hasattr(obj, "description") and isinstance(
-        getattr(obj, "description"), str
-    )
-    return has_name and has_desc
-
-
 def _build_tool_info_from_langchain(obj) -> ToolInfo:
     """Convert a LangChain Tool object into our internal ToolInfo model."""
 
@@ -189,7 +167,7 @@ def _build_tool_info_from_langchain(obj) -> ToolInfo:
     tool_info = ToolInfo(
         name=getattr(obj, "name", target_callable.__name__),
         description=getattr(obj, "description", ""),
-        params=params,
+        params=[],
         source=ToolSourceEnum.LANGCHAIN.value,
         inputs=inputs_repr,
         output_type=output_type,
@@ -199,50 +177,27 @@ def _build_tool_info_from_langchain(obj) -> ToolInfo:
     return tool_info
 
 
-def get_langchain_tools(directory: str = os.path.join(os.path.dirname(__file__), "../mcp_service/langchain")) -> List[ToolInfo]:
+def get_langchain_tools() -> List[ToolInfo]:
     """Discover LangChain tools in the specified directory.
 
     We dynamically import every `*.py` file and extract objects that look like
     LangChain tools (based on presence of `name` & `description`).  Any valid
     tool is converted to ToolInfo with source = "langchain".
     """
+    from backend.utils.langchain_utils import discover_langchain_modules
 
     tools_info: List[ToolInfo] = []
-
-    if not os.path.isdir(directory):
-        logger.warning("LangChain tools directory not found: %s", directory)
-        return tools_info
-
-    for filename in os.listdir(directory):
-        if not filename.endswith(".py") or filename.startswith("__"):
-            continue
-
-        filepath = os.path.join(directory, filename)
-
-        module_name = f"langchain_tool_{filename[:-3]}"  # remove .py
+    # Discover all objects that look like LangChain tools
+    discovered_tools = discover_langchain_modules()
+    
+    # Process discovered tools
+    for obj, filename in discovered_tools:
         try:
-            spec = importlib.util.spec_from_file_location(module_name, filepath)
-            if spec and spec.loader:
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)  # type: ignore
-            else:
-                logger.warning("Failed to load spec for %s", filepath)
-                continue
-
-            for attr_name in dir(module):
-                if attr_name.startswith("__"):
-                    continue
-
-                obj = getattr(module, attr_name)
-                try:
-                    if _is_langchain_tool(obj):
-                        tool_info = _build_tool_info_from_langchain(obj)
-                        tools_info.append(tool_info)
-                except Exception as e:
-                    logger.warning("Error processing potential LangChain tool %s in %s: %s", attr_name, filename, e)
+            tool_info = _build_tool_info_from_langchain(obj)
+            tools_info.append(tool_info)
         except Exception as e:
-            logger.error("Failed to import LangChain tool module %s: %s", filename, e)
-
+            logger.warning(f"Error processing LangChain tool in {filename}: {e}")
+    
     return tools_info
 
 async def get_all_mcp_tools(tenant_id: str) -> List[ToolInfo]:

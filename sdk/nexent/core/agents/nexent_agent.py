@@ -75,67 +75,8 @@ class NexentAgent:
             return tools_obj
 
     def create_langchain_tool(self, tool_config: ToolConfig):
-        """Dynamically load and return a LangChain **StructuredTool** (or其它 BaseTool)
-        based on the information contained in *tool_config*.
-
-        原先依赖 `smolagents.tools.Tool.from_langchain`，但有时会因为库版本
-        或打包方式的差异导致找不到该方法。此实现完全独立，通过扫描
-        `backend/mcp_service/langchain` 目录下的所有 python 文件并导入，
-        依照 `tool_config.class_name`（即工具在 LangChain 中的 *name*）来
-        定位目标工具对象并直接返回。
-        """
-
-        logger = logging.getLogger(__name__)
-
-        class_name = tool_config.class_name
-
-        # 约定的 LangChain 工具存放路径（相对当前文件）
-        langchain_dir = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "../../../backend/mcp_service/langchain")
-        )
-
-        if not os.path.isdir(langchain_dir):
-            raise ValueError(f"LangChain tools directory not found: {langchain_dir}")
-
-        def _is_langchain_tool(obj):
-            """简单判断对象是否符合 LangChain Tool Duck-Typing"""
-            has_name = hasattr(obj, "name") and isinstance(getattr(obj, "name"), str)
-            has_desc = hasattr(obj, "description") and isinstance(getattr(obj, "description"), str)
-            return has_name and has_desc
-
-        # 遍历目录中的所有 python 文件，动态导入并查找匹配的工具
-        for filename in os.listdir(langchain_dir):
-            if not filename.endswith(".py") or filename.startswith("__"):
-                continue
-
-            filepath = os.path.join(langchain_dir, filename)
-            module_name = f"langchain_tool_{filename[:-3]}"  # 唯一化模块名，避免冲突
-
-            try:
-                spec = importlib.util.spec_from_file_location(module_name, filepath)
-                if spec and spec.loader:
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)  # type: ignore
-                else:
-                    logger.warning("Failed to load spec for %s", filepath)
-                    continue
-
-                for attr_name in dir(module):
-                    if attr_name.startswith("__"):
-                        continue
-
-                    obj = getattr(module, attr_name)
-
-                    try:
-                        if _is_langchain_tool(obj) and getattr(obj, "name", None) == class_name:
-                            return obj
-                    except Exception as e:
-                        logger.debug("Error inspecting %s.%s: %s", module_name, attr_name, e)
-            except Exception as e:
-                logger.warning("Failed to import LangChain tool module %s: %s", filename, e)
-
-        # 如果没找到
-        raise ValueError(f"{class_name} not found in local LangChain tool directory")
+        tool_obj = tool_config.metadata
+        return Tool.from_langchain(tool_obj)
 
     def create_mcp_tool(self, class_name):
         if self.mcp_tool_collection is None:
