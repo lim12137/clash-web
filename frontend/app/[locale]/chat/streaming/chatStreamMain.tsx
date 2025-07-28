@@ -376,47 +376,31 @@ export function ChatStreamMain({
           {processedMessages.finalMessages.length === 0 ? (
                 isLoadingHistoricalConversation ? (
                   // when loading historical conversation, show empty area
-                  <div className="flex flex-col min-h-[calc(100vh-200px)]">
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-gray-500 text-sm">
-                        {t('chatStreamMain.loadingConversation')}
-                      </div>
-                    </div>
-                    {/* Footer */}
-                    <div className="flex-shrink-0 mt-auto">
-                      <div className="text-center text-sm py-1" style={{ color: 'rgb(163, 163, 163)', position: 'sticky', bottom: 0, backgroundColor: 'white', width: '100%' }}>
-                        {t("chatInterface.aiGeneratedContentWarning")}
-                      </div>
+                  <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+                    <div className="text-gray-500 text-sm">
+                      {t('chatStreamMain.loadingConversation')}
                     </div>
                   </div>
                 ) : conversationLoadError ? (
                   // when conversation load error, show error message
-                  <div className="flex flex-col min-h-[calc(100vh-200px)]">
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-center max-w-md">
-                        <div className="text-red-500 text-sm mb-4">
-                          {t('chatStreamMain.loadError')}
-                        </div>
-                        <div className="text-gray-500 text-xs mb-4">
-                          {conversationLoadError}
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            // Trigger a page refresh to retry loading
-                            window.location.reload();
-                          }}
-                        >
-                          {t('chatStreamMain.retry')}
-                        </Button>
+                  <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+                    <div className="text-center max-w-md">
+                      <div className="text-red-500 text-sm mb-4">
+                        {t('chatStreamMain.loadError')}
                       </div>
-                    </div>
-                    {/* Footer */}
-                    <div className="flex-shrink-0 mt-auto">
-                      <div className="text-center text-sm py-1" style={{ color: 'rgb(163, 163, 163)', position: 'sticky', bottom: 0, backgroundColor: 'white', width: '100%' }}>
-                        {t("chatInterface.aiGeneratedContentWarning")}
+                      <div className="text-gray-500 text-xs mb-4">
+                        {conversationLoadError}
                       </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          // Trigger a page refresh to retry loading
+                          window.location.reload();
+                        }}
+                      >
+                        {t('chatStreamMain.retry')}
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -447,12 +431,6 @@ export function ChatStreamMain({
                           selectedAgentId={selectedAgentId}
                           onAgentSelect={onAgentSelect}
                         />
-                        {/* Footer */}
-                        <div className="flex-shrink-0 mt-auto">
-                          <div className="text-center text-sm py-1" style={{ color: 'rgb(163, 163, 163)', position: 'sticky', bottom: 0, backgroundColor: 'white', width: '100%' }}>
-                            {t("chatInterface.aiGeneratedContentWarning")}
-                          </div>
-                        </div>
                         </motion.div>
                       </AnimatePresence>
                     </div>
@@ -536,12 +514,6 @@ export function ChatStreamMain({
               selectedAgentId={selectedAgentId}
               onAgentSelect={onAgentSelect}
             />
-            {/* Footer */}
-            <div className="flex-shrink-0 mt-auto">
-              <div className="text-center text-sm py-1" style={{ color: 'rgb(163, 163, 163)', position: 'sticky', bottom: 0, backgroundColor: 'white', width: '100%' }}>
-                {t("chatInterface.aiGeneratedContentWarning")}
-              </div>
-            </div>
           </motion.div>
         </AnimatePresence>
       )}
