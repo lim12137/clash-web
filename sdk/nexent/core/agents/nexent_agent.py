@@ -181,9 +181,11 @@ class NexentAgent:
             final_answer = handle_agent_output_types(final_answer)
 
             if isinstance(final_answer, AgentText):
-                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, final_answer.to_string())
+                final_answer_str = final_answer.to_string().replace("```code", "```python")
+                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, final_answer_str)
             else:
-                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, str(final_answer))
+                final_answer_str = str(final_answer).replace("```code", "```python")
+                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, final_answer_str)
 
             # Check if we need to stop from external stop_event
             if self.agent.stop_event.is_set():
