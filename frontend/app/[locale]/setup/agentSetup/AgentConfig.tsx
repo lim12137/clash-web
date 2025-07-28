@@ -342,6 +342,7 @@ export default function AgentConfig() {
                     setCurrentGuideStep(isCreatingNewAgent ? 5 : 5);
                   }}
                   agentId={getCurrentAgentId()}
+                  businessLogic={businessLogic}
                   dutyContent={dutyContent}
                   constraintContent={constraintContent}
                   fewShotsContent={fewShotsContent}

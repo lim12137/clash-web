@@ -8,6 +8,9 @@ import {
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdownMenu"
 import { useTranslation } from "react-i18next"
+import { Select } from "antd"
+import { languageOptions } from '@/lib/constants'
+import { useLanguageSwitch } from '@/lib/languageUtils'
 
 interface ChatHeaderProps {
   title: string
@@ -24,6 +27,7 @@ export function ChatHeader({
   const [editTitle, setEditTitle] = useState(title);
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation('common');
+  const { currentLanguage, handleLanguageChange } = useLanguageSwitch();
 
   // Update editTitle when the title attribute changes
   useEffect(() => {
@@ -63,6 +67,8 @@ export function ChatHeader({
     }
   };
 
+
+
   return (
     <header className="border-b border-transparent bg-background z-10">
       <div className="p-3 pb-1">
@@ -95,7 +101,17 @@ export function ChatHeader({
             </div>
           </div>
           
-          <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
+          <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+            {/* 语言切换 */}
+            <Select
+              value={currentLanguage}
+              onChange={handleLanguageChange}
+              options={languageOptions}
+              style={{ width: 110, border: 'none' }}
+              variant="borderless"
+              size="small"
+            />
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-6 w-6 rounded">
