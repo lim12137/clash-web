@@ -12,7 +12,7 @@ export const SETUP_PAGE_CONTAINER = {
   HORIZONTAL_PADDING: "16px",
   
   // 主要内容区域高度
-  MAIN_CONTENT_HEIGHT: "77vh",
+  MAIN_CONTENT_HEIGHT: "82vh",
 } as const;
 
 // 两列布局响应式配置 (基于第一页的设计)
