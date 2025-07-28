@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { fetchAllAgents } from '@/services/agentConfigService'
 import { useTranslation } from 'react-i18next'
@@ -141,7 +140,7 @@ export function AgentSelector({ selectedAgentId, onAgentSelect, disabled = false
         ref={buttonRef}
         className={`
           relative h-8 min-w-[120px] max-w-[180px] px-2
-          rounded-md border border-slate-200
+          rounded-lg border border-slate-200
           bg-white hover:bg-slate-50
           flex items-center justify-between
           cursor-pointer select-none
