@@ -889,7 +889,7 @@ export function ChatInput({
     </div>
     <div className="h-12 bg-slate-100 relative">
       {/* Agent selector on the left */}
-      <div className="absolute left-3 top-[40%] -translate-y-1/2">
+      <div className="absolute left-5 top-[40%] -translate-y-1/2">
         <AgentSelector
           selectedAgentId={selectedAgentId}
           onAgentSelect={onAgentSelect || (() => {})}
