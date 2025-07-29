@@ -131,31 +131,12 @@ def _build_tool_info_from_langchain(obj) -> ToolInfo:
     # tool instance itself (implements __call__).
     target_callable = getattr(obj, "func", obj)
 
-    params = []
-    try:
-        sig = inspect.signature(target_callable)
-        for param_name, param in sig.parameters.items():
-            if param_name == "self":
-                continue
+    inputs = getattr(obj, "args", {})
 
-            param_info = {
-                "name": param_name,
-                "type": python_type_to_json_schema(param.annotation),
-                "description": "see tool description",  # LangChain doesn’t store per-arg descriptions by default
-                "optional": param.default is not inspect._empty,
-            }
-
-            if param.default is not inspect._empty:
-                param_info["default"] = param.default
-
-            params.append(param_info)
-    except (TypeError, ValueError):
-        # Fall back gracefully if we cannot inspect signature
-        params = []
-
-    # Prepare the `inputs` description shown in prompts. We’ll serialise the
-    # simple param schema dict for readability.
-    inputs_repr = json.dumps({p["name"]: p for p in params}, ensure_ascii=False)
+    if inputs:
+        for key,value in inputs.items():
+            if "description" not in value:
+                value["description"] = "see the description"
 
     # Attempt to infer output type from return annotation
     try:
@@ -169,7 +150,7 @@ def _build_tool_info_from_langchain(obj) -> ToolInfo:
         description=getattr(obj, "description", ""),
         params=[],
         source=ToolSourceEnum.LANGCHAIN.value,
-        inputs=inputs_repr,
+        inputs=json.dumps(inputs,ensure_ascii=False),
         output_type=output_type,
         class_name=getattr(obj, "name", target_callable.__name__),
         usage=None,
@@ -184,7 +165,7 @@ def get_langchain_tools() -> List[ToolInfo]:
     LangChain tools (based on presence of `name` & `description`).  Any valid
     tool is converted to ToolInfo with source = "langchain".
     """
-    from backend.utils.langchain_utils import discover_langchain_modules
+    from utils.langchain_utils import discover_langchain_modules
 
     tools_info: List[ToolInfo] = []
     # Discover all objects that look like LangChain tools
