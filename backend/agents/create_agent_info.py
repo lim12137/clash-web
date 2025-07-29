@@ -16,7 +16,6 @@ from utils.prompt_template_utils import get_prompt_template_path
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 from smolagents.agents import populate_template
 from smolagents.utils import BASE_BUILTIN_MODULES
-from smolagents.tools import Tool
 
 logger = logging.getLogger("create_agent_info")
 
