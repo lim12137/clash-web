@@ -1,9 +1,5 @@
 import asyncio
 from threading import Thread
-import os
-import importlib.util
-from langchain_core.tools import BaseTool
-from smolagents.tools import Tool
 
 from smolagents import ToolCollection
 
@@ -30,8 +26,6 @@ def agent_run_thread(agent_run_info: AgentRunInfo):
         else:
             agent_run_info.observer.add_message("", ProcessType.AGENT_NEW_RUN, "<MCP_START>")
             mcp_client_list = [{"url": mcp_url} for mcp_url in mcp_host]
-            
-            # Load local LangChain tools once and extend the MCP ToolCollection with them
 
             with ToolCollection.from_mcp(mcp_client_list, trust_remote_code=True) as tool_collection:
                 nexent = NexentAgent(
