@@ -657,7 +657,7 @@ class TestIntegrationScenarios:
 class TestGetLangchainTools:
     """测试 get_langchain_tools 函数"""
 
-    @patch('backend.utils.langchain_utils.discover_langchain_modules')
+    @patch('utils.langchain_utils.discover_langchain_modules')
     @patch('backend.services.tool_configuration_service._build_tool_info_from_langchain')
     def test_get_langchain_tools_success(self, mock_build_tool_info, mock_discover_modules):
         """测试成功发现并转换LangChain工具"""
@@ -716,7 +716,7 @@ class TestGetLangchainTools:
         mock_discover_modules.assert_called_once()
         assert mock_build_tool_info.call_count == 2
 
-    @patch('backend.utils.langchain_utils.discover_langchain_modules')
+    @patch('utils.langchain_utils.discover_langchain_modules')
     def test_get_langchain_tools_empty_result(self, mock_discover_modules):
         """测试未发现任何LangChain工具的情况"""
         # 模拟discover_langchain_modules返回空列表
@@ -730,7 +730,7 @@ class TestGetLangchainTools:
         assert result == []
         mock_discover_modules.assert_called_once()
 
-    @patch('backend.utils.langchain_utils.discover_langchain_modules')
+    @patch('utils.langchain_utils.discover_langchain_modules')
     @patch('backend.services.tool_configuration_service._build_tool_info_from_langchain')
     def test_get_langchain_tools_exception_handling(self, mock_build_tool_info, mock_discover_modules):
         """测试处理工具时出现异常的情况"""
@@ -778,7 +778,7 @@ class TestGetLangchainTools:
         mock_discover_modules.assert_called_once()
         assert mock_build_tool_info.call_count == 2
 
-    @patch('backend.utils.langchain_utils.discover_langchain_modules')
+    @patch('utils.langchain_utils.discover_langchain_modules')
     @patch('backend.services.tool_configuration_service._build_tool_info_from_langchain')
     def test_get_langchain_tools_with_different_tool_types(self, mock_build_tool_info, mock_discover_modules):
         """测试处理不同类型的LangChain工具对象"""
