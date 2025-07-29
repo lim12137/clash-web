@@ -52,7 +52,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
   在思考结束后，当你认为可以回答用户问题，那么可以不生成代码，直接生成最终回答给到用户并停止循环。
   
   ### python代码规范 ###
-  1. 如果认为是需要执行的代码，代码内容以'代码：\n```py\n'开头，并以'```<end_code>'标识符结尾。如果是不需要执行仅用于展示的代码，代码内容以'代码：\n```code\n'开头，并以'```<end_code>'标识符结尾；
+  1. 如果认为是需要执行的代码，代码内容以'代码：\n```py\n'开头，并以'```<end_code>'标识符结尾。如果是不需要执行仅用于展示的代码，代码内容以'代码：\n```code:语言类型\n'开头，并以'```<end_code>'标识符结尾，其中语言类型例如python、java、javascript等；
   2. 只使用已定义的变量，变量将在多次调用之间持续保持。使用'print()'函数让下一次的模型调用看到对应变量信息；
   3. 正确使用工具的入参，使用关键字参数，不要用字典形式；
   4. 避免在一轮对话中进行过多的工具调用，这会导致输出格式难以预测；
@@ -112,7 +112,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     任务："Python写一个快排序代码"
   
     快速排序是一种高效的排序算法，通过递归和分治策略对数据进行排序。以下是使用 Python 实现的快速排序代码：
-    ```code
+    ```code:python
     def quicksort(arr):
     if len(arr) <= 1:
         return arr
@@ -133,7 +133,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
   
     我已经获得了有关信息，现在我将生成最终回答。
     以下是使用 Python 实现的快速排序代码：
-    ```code
+    ```code:python
     def quicksort(arr):
     if len(arr) <= 1:
         return arr
@@ -149,6 +149,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     ```<end_code>
     根据提供的Python代码执行结果，使用快速排序算法对示例数组 `[3,6,8,10,1,2,1]` 进行排序后得到的结果是 `[1, 1, 2, 3, 6, 8, 10]`。
     这段代码定义了一个名为 `quicksort` 的函数，该函数接收一个列表作为输入参数，并返回一个新的已排序列表。
+
     ---
     任务: "Generate an image of the oldest person in this document."
 

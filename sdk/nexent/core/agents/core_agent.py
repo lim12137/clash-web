@@ -1,3 +1,4 @@
+import re
 import time
 import threading
 from collections import deque
@@ -15,6 +16,15 @@ from smolagents.utils import AgentExecutionError, AgentGenerationError, AgentPar
     truncate_content
 
 from ..utils.observer import MessageObserver, ProcessType
+
+
+def convert_code_format(text):
+    """
+    transform from ```code:python to ```python
+    """
+    pattern = r'```code:(\w+)'
+    replacement = r'```\1'
+    return re.sub(pattern, replacement, text).replace("```<", "```")
 
 
 class CoreAgent(CodeAgent):
@@ -195,7 +205,7 @@ You have been provided with these additional arguments, that you can access usin
                     # When the model does not output code, directly treat the large model content as the final answer
                     final_answer = memory_step.model_output
                     if isinstance(final_answer, str):
-                        final_answer = final_answer.replace("```code", "```python")
+                        final_answer = convert_code_format(final_answer)
                 else:
                     memory_step.error = e
 

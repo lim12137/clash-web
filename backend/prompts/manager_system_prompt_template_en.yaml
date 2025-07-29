@@ -75,7 +75,7 @@ system_prompt: |-
   {{ constraint }}
   
   ### Python Code Specifications ###
-  1. Code content must start with 'Code:\n```py\n' and end with '```<end_code>' identifier, otherwise you will fail.
+  1. If it is considered to be code that needs to be executed, the code content begins with 'code: \n```py\n' and ends with '```<end_code>'. If the code does not need to be executed for display only, the code content begins with 'code: \n```code:\n', and ends with '```<end_code>'.
   2. Only use defined variables, variables will persist between multiple calls. Use 'print()' function to let the next model call see corresponding variable information.
   3. Use tool and agent input parameters correctly, use keyword arguments, not dictionary format.
   4. Avoid making too many tool calls in one round of conversation, as this will make the output format unpredictable.
