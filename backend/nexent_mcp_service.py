@@ -1,7 +1,7 @@
 import logging
 from utils.logging_utils import configure_logging
 from fastmcp import FastMCP
-from tool_collections.local_mcp_service import local_mcp_service
+from tool_collection.mcp.local_mcp_service import local_mcp_service
 
 """
 hierarchical proxy architecture:
