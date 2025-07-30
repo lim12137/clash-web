@@ -7,7 +7,8 @@ import SystemPromptDisplay from './components/SystemPromptDisplay'
 import DebugConfig from './DebugConfig'
 import GuideSteps from './components/GuideSteps'
 import { Row, Col, Drawer, message } from 'antd'
-import { fetchTools, fetchAgentList } from '@/services/agentConfigService'
+import { fetchTools, fetchAgentList, fetchAgentDetail, exportAgent, deleteAgent, updateAgent } from '@/services/agentConfigService'
+import { generatePromptStream } from '@/services/promptService'
 import { OpenAIModel } from '@/app/setup/agentSetup/ConstInterface'
 import { updateToolList } from '@/services/mcpService'
 import { 
@@ -44,7 +45,7 @@ export default function AgentConfig() {
   const [mainAgentId, setMainAgentId] = useState<string | null>(null)
   const [subAgentList, setSubAgentList] = useState<any[]>([])
   const [loadingAgents, setLoadingAgents] = useState(false)
-  const [enabledToolIds, setEnabledToolIds] = useState<number[]>([])
+
   const [enabledAgentIds, setEnabledAgentIds] = useState<number[]>([])
   const [currentGuideStep, setCurrentGuideStep] = useState<number | undefined>(undefined)
   const [newAgentName, setNewAgentName] = useState("")
@@ -59,8 +60,202 @@ export default function AgentConfig() {
   const [constraintContent, setConstraintContent] = useState("")
   const [fewShotsContent, setFewShotsContent] = useState("")
 
+  // Add state for agent name and description
+  const [agentName, setAgentName] = useState("")
+  const [agentDescription, setAgentDescription] = useState("")
+
+  // Add state for business logic and action buttons
+  const [isGeneratingAgent, setIsGeneratingAgent] = useState(false)
+  const [isSavingAgent, setIsSavingAgent] = useState(false)
+
   // Only auto scan once flag
   const hasAutoScanned = useRef(false)
+
+  // Handle business logic change
+  const handleBusinessLogicChange = (value: string) => {
+    setBusinessLogic(value)
+  }
+
+  // Handle generate agent
+  const handleGenerateAgent = async () => {
+    if (!businessLogic || businessLogic.trim() === '') {
+      message.warning(t('businessLogic.config.error.businessDescriptionRequired'))
+      return
+    }
+
+    const currentAgentId = getCurrentAgentId()
+    if (!currentAgentId) {
+      message.error(t('businessLogic.config.error.noAgentId'))
+      return
+    }
+
+    setIsGeneratingAgent(true)
+    try {
+      // 调用后端API生成智能体提示词
+      await generatePromptStream(
+        {
+          agent_id: Number(currentAgentId),
+          task_description: businessLogic
+        },
+        (data) => {
+          // 处理流式响应数据
+          switch (data.type) {
+            case 'duty':
+              setDutyContent(data.content)
+              break
+            case 'constraint':
+              setConstraintContent(data.content)
+              break
+            case 'few_shots':
+              setFewShotsContent(data.content)
+              break
+          }
+        },
+        (error) => {
+          console.error('Generate prompt stream error:', error)
+          message.error(t('businessLogic.config.message.generateError'))
+        },
+        () => {
+          message.success(t('businessLogic.config.message.generateSuccess'))
+        }
+      )
+    } catch (error) {
+      console.error('Generate agent error:', error)
+      message.error(t('businessLogic.config.message.generateError'))
+    } finally {
+      setIsGeneratingAgent(false)
+    }
+  }
+
+  // Handle save agent
+  const handleSaveAgent = async () => {
+    if (!canSaveAgent) {
+      message.warning(getButtonTitle())
+      return
+    }
+
+    const currentAgentId = getCurrentAgentId()
+    if (!currentAgentId) {
+      message.error(t('businessLogic.config.error.noAgentId'))
+      return
+    }
+
+    setIsSavingAgent(true)
+    try {
+      // 调用实际的保存API
+      const result = await updateAgent(
+        Number(currentAgentId),
+        agentName,
+        agentDescription,
+        mainAgentModel,
+        mainAgentMaxStep,
+        true, // provide_run_summary
+        true, // enabled - 保存到agent池时启用
+        businessLogic,
+        dutyContent,
+        constraintContent,
+        fewShotsContent
+      )
+
+      if (result.success) {
+        const actionText = isCreatingNewAgent ? t('agent.action.create') : t('agent.action.modify')
+        message.success(t('businessLogic.config.message.agentCreated', { name: agentName, action: actionText }))
+
+        // 重置状态
+        setIsCreatingNewAgent(false)
+        setIsEditingAgent(false)
+        setEditingAgent(null)
+        setBusinessLogic('')
+        setDutyContent('')
+        setConstraintContent('')
+        setFewShotsContent('')
+        setAgentName('')
+        setAgentDescription('')
+        setSelectedTools([])
+
+        // 通知父组件状态变化
+        handleEditingStateChange(false, null)
+
+        // 刷新agent列表
+        fetchAgents()
+      } else {
+        message.error(result.message || t('businessLogic.config.error.saveFailed'))
+      }
+    } catch (error) {
+      console.error('Save agent error:', error)
+      message.error(t('businessLogic.config.error.saveFailed'))
+    } finally {
+      setIsSavingAgent(false)
+    }
+  }
+
+  // Handle export agent
+  const handleExportAgent = async () => {
+    if (!editingAgent) {
+      message.warning(t('agent.error.noAgentSelected'))
+      return
+    }
+
+    try {
+      const result = await exportAgent(editingAgent)
+      if (result.success) {
+        message.success(t('businessLogic.config.error.agentExportSuccess'))
+      } else {
+        message.error(result.message || t('businessLogic.config.error.agentExportFailed'))
+      }
+    } catch (error) {
+      console.error(t('debug.console.exportAgentFailed'), error)
+      message.error(t('businessLogic.config.error.agentExportFailed'))
+    }
+  }
+
+  // Handle delete agent
+  const handleDeleteAgent = async () => {
+    if (!editingAgent) {
+      message.warning(t('agent.error.noAgentSelected'))
+      return
+    }
+
+    try {
+      const result = await deleteAgent(Number(editingAgent.id))
+      if (result.success) {
+        message.success(t('businessLogic.config.message.agentDeleteSuccess', { name: editingAgent.name }))
+        // Reset editing state
+        setIsEditingAgent(false)
+        setEditingAgent(null)
+        setBusinessLogic("")
+        setDutyContent("")
+        setConstraintContent("")
+        setFewShotsContent("")
+        setAgentName("")
+        setAgentDescription("")
+        // Refresh agent list
+        fetchAgents()
+      } else {
+        message.error(result.message || t('businessLogic.config.message.agentDeleteFailed'))
+      }
+    } catch (error) {
+      console.error(t('debug.console.deleteAgentFailed'), error)
+      message.error(t('businessLogic.config.message.agentDeleteFailed'))
+    }
+  }
+
+  // Get button title
+  const getButtonTitle = () => {
+    if (!businessLogic || businessLogic.trim() === '') {
+      return t('businessLogic.config.message.businessDescriptionRequired')
+    }
+    if (!(dutyContent?.trim()) && !(constraintContent?.trim()) && !(fewShotsContent?.trim())) {
+      return t('businessLogic.config.message.generatePromptFirst')
+    }
+    if (!agentName || agentName.trim() === '') {
+      return t('businessLogic.config.message.completeAgentInfo')
+    }
+    return ""
+  }
+
+  // Check if can save agent
+  const canSaveAgent = !!(businessLogic?.trim() && agentName?.trim() && (dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim()))
 
   // Load tools when page is loaded
   useEffect(() => {
@@ -103,29 +298,21 @@ export default function AgentConfig() {
     try {
       const result = await fetchAgentList();
       if (result.success) {
-        setSubAgentList(result.data.subAgentList);
-        setMainAgentId(result.data.mainAgentId ? String(result.data.mainAgentId) : null);
-        setEnabledToolIds(result.data.enabledToolIds);
-        setEnabledAgentIds(result.data.enabledAgentIds);
-        
-        // Update the status of the newly added fields
-        if (result.data.modelName) {
-          setMainAgentModel(result.data.modelName as OpenAIModel);
-        }
-        if (result.data.maxSteps) {
-          setMainAgentMaxStep(result.data.maxSteps);
-        }
-        if (result.data.businessDescription) {
-          setBusinessLogic(result.data.businessDescription);
-        }
-        if (result.data.dutyPrompt) {
-          setDutyContent(result.data.dutyPrompt);
-        }
-        if (result.data.constraintPrompt) {
-          setConstraintContent(result.data.constraintPrompt);
-        }
-        if (result.data.fewShotsPrompt) {
-          setFewShotsContent(result.data.fewShotsPrompt);
+        // fetchAgentList now returns AgentBasicInfo[], so we just set the subAgentList
+        setSubAgentList(result.data);
+        // Clear other states since we don't have detailed info yet
+        setMainAgentId(null);
+        // 不再手动清空enabledAgentIds，完全依赖后端返回的sub_agent_id_list
+        setMainAgentModel(OpenAIModel.MainModel);
+        setMainAgentMaxStep(5);
+        setBusinessLogic('');
+        setDutyContent('');
+        setConstraintContent('');
+        setFewShotsContent('');
+        // Clear agent name and description only when not in editing mode
+        if (!isEditingAgent) {
+          setAgentName('');
+          setAgentDescription('');
         }
       } else {
         message.error(result.message || t('agent.error.fetchAgentList'));
@@ -175,27 +362,10 @@ export default function AgentConfig() {
     };
   }, [businessLogic, dutyContent, constraintContent, fewShotsContent]);
 
-  // When the tool list is loaded, check and set the enabled tools
-  useEffect(() => {
-    if (tools.length > 0 && enabledToolIds.length > 0) {
-      const enabledTools = tools.filter(tool => 
-        enabledToolIds.includes(Number(tool.id))
-      );
-      setSelectedTools(enabledTools);
-      setCurrentGuideStep(undefined);
-    }
-  }, [tools, enabledToolIds]);
 
-  // When the agent list is loaded, check and set the selected agents
-  useEffect(() => {
-    if (subAgentList.length > 0 && enabledAgentIds.length > 0) {
-      const enabledAgents = subAgentList.filter(agent => 
-        enabledAgentIds.includes(Number(agent.id))
-      );
-      setSelectedAgents(enabledAgents);
-      setCurrentGuideStep(undefined);
-    }
-  }, [subAgentList, enabledAgentIds]);
+
+  // 移除前端缓存逻辑，完全依赖后端返回的sub_agent_id_list
+  // 不再需要根据enabledAgentIds来设置selectedAgents
 
   // Monitor the status change of creating a new agent, and reset the relevant status
   useEffect(() => {
@@ -212,6 +382,11 @@ export default function AgentConfig() {
     setNewAgentDescription('');
     setNewAgentProvideSummary(true);
     setIsNewAgentInfoValid(false);
+    // Reset agent name and description only when not in editing mode
+    if (!isEditingAgent) {
+      setAgentName('');
+      setAgentDescription('');
+    }
     // Reset the main agent configuration related status
     if (!isCreatingNewAgent) {
       setMainAgentModel(OpenAIModel.MainModel);
@@ -220,8 +395,21 @@ export default function AgentConfig() {
   }, [isCreatingNewAgent]);
 
   const handleEditingStateChange = (isEditing: boolean, agent: any) => {
+    console.log('handleEditingStateChange called:', isEditing, agent);
     setIsEditingAgent(isEditing)
     setEditingAgent(agent)
+    
+    // 当开始编辑agent时，设置agent的名称和描述到右侧的名称描述框
+    if (isEditing && agent) {
+      console.log('Setting agent name and description:', agent.name, agent.description);
+      setAgentName(agent.name || '')
+      setAgentDescription(agent.description || '')
+    } else if (!isEditing) {
+      // 当停止编辑时，清空名称描述框
+      console.log('Clearing agent name and description');
+      setAgentName('')
+      setAgentDescription('')
+    }
   }
 
   const getCurrentAgentId = () => {
@@ -229,6 +417,18 @@ export default function AgentConfig() {
       return parseInt(editingAgent.id)
     }
     return mainAgentId ? parseInt(mainAgentId) : undefined
+  }
+
+  // Handle model change with proper type conversion
+  const handleModelChange = (value: string) => {
+    setMainAgentModel(value as OpenAIModel)
+  }
+
+  // Handle max step change with proper type conversion
+  const handleMaxStepChange = (value: number | null) => {
+    if (value !== null) {
+      setMainAgentMaxStep(value)
+    }
   }
 
   // Refresh tool list
@@ -324,6 +524,11 @@ export default function AgentConfig() {
                   setConstraintContent={setConstraintContent}
                   fewShotsContent={fewShotsContent}
                   setFewShotsContent={setFewShotsContent}
+                  agentName={agentName}
+                  setAgentName={setAgentName}
+                  agentDescription={agentDescription}
+                  setAgentDescription={setAgentDescription}
+                  isGeneratingAgent={isGeneratingAgent}
                 />
             </div>
           </Col>
@@ -349,6 +554,27 @@ export default function AgentConfig() {
                   onDutyContentChange={setDutyContent}
                   onConstraintContentChange={setConstraintContent}
                   onFewShotsContentChange={setFewShotsContent}
+                  agentName={agentName}
+                  agentDescription={agentDescription}
+                  onAgentNameChange={setAgentName}
+                  onAgentDescriptionChange={setAgentDescription}
+                  isEditingMode={isEditingAgent || isCreatingNewAgent}
+                  mainAgentModel={mainAgentModel}
+                  mainAgentMaxStep={mainAgentMaxStep}
+                  onModelChange={handleModelChange}
+                  onMaxStepChange={handleMaxStepChange}
+                  // Add new props for business logic and action buttons
+                  onBusinessLogicChange={handleBusinessLogicChange}
+                  onGenerateAgent={handleGenerateAgent}
+                  onSaveAgent={handleSaveAgent}
+                  isGeneratingAgent={isGeneratingAgent}
+                  isSavingAgent={isSavingAgent}
+                  isCreatingNewAgent={isCreatingNewAgent}
+                  canSaveAgent={canSaveAgent}
+                  getButtonTitle={getButtonTitle}
+                  onExportAgent={handleExportAgent}
+                  onDeleteAgent={handleDeleteAgent}
+                  editingAgent={editingAgent}
                 />
             </div>
           </Col>

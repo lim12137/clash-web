@@ -117,7 +117,7 @@ export default function GuideSteps({
   return (
     <div className="h-full flex flex-col">
       <h2 className="text-xl font-bold mb-5 px-2 flex-shrink-0">
-        {isCreatingNewAgent ? t('guide.title.subAgent') : t('guide.title.mainAgent')}
+        {t('guide.title.agentConfig')}
       </h2>
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <Steps

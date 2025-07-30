@@ -1,0 +1,511 @@
+"use client"
+
+import { Collapse, Badge, Button } from 'antd'
+import { ExpandAltOutlined, SaveOutlined, LoadingOutlined, BugOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
+import { OpenAIModel } from '../ConstInterface'
+import PromptEditor from './PromptEditor'
+import { MilkdownProvider } from '@milkdown/react'
+
+export interface AgentConfigurationSectionProps {
+  agentId?: number;
+  dutyContent?: string;
+  constraintContent?: string;
+  fewShotsContent?: string;
+  onDutyContentChange?: (content: string) => void;
+  onConstraintContentChange?: (content: string) => void;
+  onFewShotsContentChange?: (content: string) => void;
+  agentName?: string;
+  agentDescription?: string;
+  onAgentNameChange?: (name: string) => void;
+  onAgentDescriptionChange?: (description: string) => void;
+  isEditingMode?: boolean;
+  mainAgentModel?: string;
+  mainAgentMaxStep?: number;
+  onModelChange?: (value: string) => void;
+  onMaxStepChange?: (value: number | null) => void;
+  onSavePrompt?: () => void;
+  onExpandCard?: (title: string, content: string, index: number) => void;
+  isGeneratingAgent?: boolean; // 新增：生成状态
+  // Add new props for action buttons
+  onDebug?: () => void;
+  onExportAgent?: () => void;
+  onDeleteAgent?: () => void;
+  onSaveAgent?: () => void;
+  isCreatingNewAgent?: boolean;
+  editingAgent?: any;
+  canSaveAgent?: boolean;
+  isSavingAgent?: boolean;
+}
+
+export default function AgentConfigurationSection({
+  agentId,
+  dutyContent = '',
+  constraintContent = '',
+  fewShotsContent = '',
+  onDutyContentChange,
+  onConstraintContentChange,
+  onFewShotsContentChange,
+  agentName = '',
+  agentDescription = '',
+  onAgentNameChange,
+  onAgentDescriptionChange,
+  isEditingMode = false,
+  mainAgentModel = '',
+  mainAgentMaxStep = 5,
+  onModelChange,
+  onMaxStepChange,
+  onSavePrompt,
+  onExpandCard,
+  isGeneratingAgent = false,
+  // Add new props for action buttons
+  onDebug,
+  onExportAgent,
+  onDeleteAgent,
+  onSaveAgent,
+  isCreatingNewAgent = false,
+  editingAgent,
+  canSaveAgent = false,
+  isSavingAgent = false
+}: AgentConfigurationSectionProps) {
+  const { t } = useTranslation('common')
+  
+  // Add local state to track content of three sections
+  const [localDutyContent, setLocalDutyContent] = useState(dutyContent)
+  const [localConstraintContent, setLocalConstraintContent] = useState(constraintContent)
+  const [localFewShotsContent, setLocalFewShotsContent] = useState(fewShotsContent)
+  
+  // Add segmented state management
+  const [activeSegment, setActiveSegment] = useState<string>('agent-info');
+  const [renderKey, setRenderKey] = useState<number>(0);
+
+  // Optimized click handlers using useCallback
+  const handleSegmentClick = useCallback((segment: string) => {
+    setActiveSegment(segment);
+    setRenderKey(prev => prev + 1);
+  }, []);
+
+  // Set default active segment when entering edit mode
+  useEffect(() => {
+    if (isEditingMode) {
+      setActiveSegment('agent-info');
+    }
+  }, [isEditingMode]);
+
+  // Move getBadgeProps to component level
+  const getBadgeProps = (index: number): { status?: 'success' | 'warning' | 'error' | 'default', color?: string } => {
+    switch(index) {
+      case 1:
+        return { status: 'success' };  // Green - Agent Info
+      case 2:
+        return { status: 'warning' };  // Yellow - Duty
+      case 3:
+        return { color: '#1677ff' };   // Blue - Constraint
+      case 4:
+        return { status: 'default' };  // Default - Few Shots
+      default:
+        return { status: 'default' };
+    }
+  };
+
+  // Update local state
+  useEffect(() => {
+    if (dutyContent !== localDutyContent) {
+      setLocalDutyContent(dutyContent);
+    }
+    if (constraintContent !== localConstraintContent) {
+      setLocalConstraintContent(constraintContent);
+    }
+    if (fewShotsContent !== localFewShotsContent) {
+      setLocalFewShotsContent(fewShotsContent);
+    }
+  }, [dutyContent, constraintContent, fewShotsContent, localDutyContent, localConstraintContent, localFewShotsContent]);
+
+  // Render content based on active segment
+  const renderContent = () => {
+    switch (activeSegment) {
+      case 'agent-info':
+        return (
+          <div className="space-y-4 p-4">
+            {/* Agent Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('agent.name')}:
+              </label>
+              <input
+                type="text"
+                value={agentName}
+                onChange={(e) => onAgentNameChange?.(e.target.value)}
+                placeholder={t('agent.namePlaceholder')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 box-border"
+                disabled={!isEditingMode}
+              />
+            </div>
+            
+            {/* Model Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('businessLogic.config.model')}:
+              </label>
+              <select
+                value={mainAgentModel}
+                onChange={(e) => onModelChange?.(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 box-border"
+                disabled={!isEditingMode}
+              >
+                <option value={OpenAIModel.MainModel}>{t('model.option.main')}</option>
+                <option value={OpenAIModel.SubModel}>{t('model.option.sub')}</option>
+              </select>
+            </div>
+            
+            {/* Max Steps */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('businessLogic.config.maxSteps')}:
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={mainAgentMaxStep}
+                onChange={(e) => onMaxStepChange?.(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 box-border"
+                disabled={!isEditingMode}
+              />
+            </div>
+            
+            {/* Agent Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('agent.description')}:
+              </label>
+              <textarea
+                value={agentDescription}
+                onChange={(e) => onAgentDescriptionChange?.(e.target.value)}
+                placeholder={t('agent.descriptionPlaceholder')}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none box-border"
+                disabled={!isEditingMode}
+              />
+            </div>
+          </div>
+        );
+      
+      case 'duty':
+        return (
+          <div className="relative p-4">
+            <button
+              onClick={() => onExpandCard?.(t('systemPrompt.card.duty.title'), localDutyContent, 2)}
+              className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
+              style={{ border: "none" }}
+              title={t('systemPrompt.button.expand')}
+            >
+              <ExpandAltOutlined className="text-xs" />
+            </button>
+            <div className="pr-8">
+              <MilkdownProvider>
+                <PromptEditor
+                  value={localDutyContent}
+                  onChange={(value) => {
+                    setLocalDutyContent(value);
+                    onDutyContentChange?.(value);
+                  }}
+                  placeholder={t('systemPrompt.placeholder')}
+                />
+              </MilkdownProvider>
+            </div>
+          </div>
+        );
+      
+      case 'constraint':
+        return (
+          <div className="relative p-4">
+            <button
+              onClick={() => onExpandCard?.(t('systemPrompt.card.constraint.title'), localConstraintContent, 3)}
+              className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
+              style={{ border: "none" }}
+              title={t('systemPrompt.button.expand')}
+            >
+              <ExpandAltOutlined className="text-xs" />
+            </button>
+            <div className="pr-8">
+              <MilkdownProvider>
+                <PromptEditor
+                  value={localConstraintContent}
+                  onChange={(value) => {
+                    setLocalConstraintContent(value);
+                    onConstraintContentChange?.(value);
+                  }}
+                  placeholder={t('systemPrompt.placeholder')}
+                />
+              </MilkdownProvider>
+            </div>
+          </div>
+        );
+      
+      case 'few-shots':
+        return (
+          <div className="relative p-4">
+            <button
+              onClick={() => onExpandCard?.(t('systemPrompt.card.fewShots.title'), localFewShotsContent, 4)}
+              className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
+              style={{ border: "none" }}
+              title={t('systemPrompt.button.expand')}
+            >
+              <ExpandAltOutlined className="text-xs" />
+            </button>
+            <div className="pr-8">
+              <MilkdownProvider>
+                <PromptEditor
+                  value={localFewShotsContent}
+                  onChange={(value) => {
+                    setLocalFewShotsContent(value);
+                    onFewShotsContentChange?.(value);
+                  }}
+                  placeholder={t('systemPrompt.placeholder')}
+                />
+              </MilkdownProvider>
+            </div>
+          </div>
+        );
+      
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="flex flex-col flex-1 relative mt-4">
+      {/* Header with action buttons */}
+      <div className="flex justify-between items-center mb-4 flex-shrink-0 px-2">
+        <div className="flex items-center">
+          {/* Removed agent title */}
+        </div>
+        <div className="flex gap-1">
+          {/* Debug Button - Always show */}
+          <Button
+            type="text"
+            size="small"
+            icon={<BugOutlined />}
+            onClick={onDebug}
+            className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+            title={t('systemPrompt.button.debug')}
+          >
+            {t('systemPrompt.button.debug')}
+          </Button>
+          
+          {/* Export and Delete Buttons - Only show when editing existing agent */}
+          {isEditingMode && editingAgent && onExportAgent && !isCreatingNewAgent && (
+            <>
+              <Button
+                type="text"
+                size="small"
+                icon={<UploadOutlined />}
+                onClick={onExportAgent}
+                className="text-green-500 hover:text-green-600 hover:bg-green-50"
+                title={t('agent.contextMenu.export')}
+              >
+                {t('agent.contextMenu.export')}
+              </Button>
+              
+              <Button
+                type="text"
+                size="small"
+                icon={<DeleteOutlined />}
+                onClick={onDeleteAgent}
+                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                title={t('agent.contextMenu.delete')}
+              >
+                {t('agent.contextMenu.delete')}
+              </Button>
+            </>
+          )}
+          
+          {/* Save Button - Different logic for new agent vs existing agent */}
+          {isCreatingNewAgent ? (
+            <Button
+              type="text"
+              size="small"
+              icon={<SaveOutlined />}
+              onClick={onSaveAgent}
+              disabled={!canSaveAgent}
+              className="text-green-500 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={t('businessLogic.config.button.saveToAgentPool')}
+            >
+              {isSavingAgent ? t('businessLogic.config.button.saving') : t('businessLogic.config.button.saveToAgentPool')}
+            </Button>
+          ) : (
+            <Button
+              type="text"
+              size="small"
+              icon={<SaveOutlined />}
+              onClick={onSavePrompt}
+              disabled={!agentId || !isEditingMode}
+              className="text-green-500 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={t('systemPrompt.button.save')}
+            >
+              {t('systemPrompt.button.save')}
+            </Button>
+          )}
+        </div>
+      </div>
+      
+      {/* Segmented Control */}
+      <div className="flex justify-center mb-4">
+        <div className="w-full max-w-4xl">
+          <div className="flex bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+            <button
+              onClick={handleSegmentClick.bind(null, 'agent-info')}
+              className={`flex-1 px-4 py-2 text-sm font-medium transition-colors text-sm segment-button ${
+                activeSegment === 'agent-info'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+              style={{ fontSize: '14px' }}
+              type="button"
+            >
+              {t('agent.info.title')}
+            </button>
+            <button
+              onClick={handleSegmentClick.bind(null, 'duty')}
+              className={`flex-1 px-4 py-2 text-sm font-medium transition-colors relative text-sm segment-button ${
+                activeSegment === 'duty'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+              style={{ fontSize: '14px' }}
+              type="button"
+            >
+              {t('systemPrompt.card.duty.title')}
+              {isGeneratingAgent && activeSegment === 'duty' && (
+                <LoadingOutlined className="ml-2 text-white" />
+              )}
+            </button>
+            <button
+              onClick={handleSegmentClick.bind(null, 'constraint')}
+              className={`flex-1 px-4 py-2 text-sm font-medium transition-colors relative text-sm segment-button ${
+                activeSegment === 'constraint'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+              style={{ fontSize: '14px' }}
+              type="button"
+            >
+              {t('systemPrompt.card.constraint.title')}
+              {isGeneratingAgent && activeSegment === 'constraint' && (
+                <LoadingOutlined className="ml-2 text-white" />
+              )}
+            </button>
+            <button
+              onClick={handleSegmentClick.bind(null, 'few-shots')}
+              className={`flex-1 px-4 py-2 text-sm font-medium transition-colors relative text-sm segment-button ${
+                activeSegment === 'few-shots'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+              style={{ fontSize: '14px' }}
+              type="button"
+            >
+              {t('systemPrompt.card.fewShots.title')}
+              {isGeneratingAgent && activeSegment === 'few-shots' && (
+                <LoadingOutlined className="ml-2 text-white" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      {/* Content area */}
+      <div className="flex-1 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden w-full max-w-4xl mx-auto" style={{ maxHeight: '48vh' }}>
+        <style jsx global>{`
+          /* Custom scrollbar styles for better UX */
+          .milkdown-editor-container .milkdown {
+            overflow: auto !important;
+          }
+          .milkdown-editor-container .milkdown .editor {
+            overflow: auto !important;
+          }
+          /* Show Milkdown editor's scrollbar */
+          .milkdown-editor-container .milkdown .editor::-webkit-scrollbar {
+            width: 8px !important;
+            display: block !important;
+          }
+          .milkdown-editor-container .milkdown .editor {
+            scrollbar-width: auto !important;
+            -ms-overflow-style: auto !important;
+          }
+          /* Show all Milkdown related scrollbars */
+          .milkdown-editor-container *::-webkit-scrollbar {
+            width: 8px !important;
+            display: block !important;
+          }
+          .milkdown-editor-container * {
+            scrollbar-width: auto !important;
+            -ms-overflow-style: auto !important;
+          }
+          /* Force consistent font sizes */
+          .agent-config-content * {
+            font-size: inherit !important;
+          }
+          .agent-config-content input,
+          .agent-config-content select,
+          .agent-config-content textarea {
+            font-size: 14px !important;
+          }
+          .agent-config-content label {
+            font-size: 14px !important;
+          }
+          /* Custom scrollbar for content area */
+          .content-scroll::-webkit-scrollbar {
+            width: 8px !important;
+            display: block !important;
+          }
+          .content-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9 !important;
+            border-radius: 4px !important;
+          }
+          .content-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1 !important;
+            border-radius: 4px !important;
+          }
+          .content-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8 !important;
+          }
+          /* Custom scrollbar for input containers */
+          .overflow-y-auto::-webkit-scrollbar {
+            width: 8px !important;
+            display: block !important;
+          }
+          .overflow-y-auto::-webkit-scrollbar-track {
+            background: #f1f5f9 !important;
+            border-radius: 4px !important;
+          }
+          .overflow-y-auto::-webkit-scrollbar-thumb {
+            background: #cbd5e1 !important;
+            border-radius: 4px !important;
+          }
+          .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8 !important;
+          }
+          /* Prevent button click issues */
+          .segment-button {
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            -moz-user-select: none !important;
+            -ms-user-select: none !important;
+          }
+          .segment-button:focus {
+            outline: none !important;
+          }
+        `}</style>
+        
+        <div className="content-scroll h-full overflow-y-auto agent-config-content" style={{ height: 'calc(48vh - 2px)' }}>
+          <div key={`${activeSegment}-${renderKey}`}>
+            {renderContent()}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+} 

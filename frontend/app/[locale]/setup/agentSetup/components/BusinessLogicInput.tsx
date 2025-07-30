@@ -33,7 +33,7 @@ export default function BusinessLogicInput({
           onChange={(e) => onChange(e.target.value)}
           placeholder={t('businessLogic.placeholder')}
           className="w-full h-full resize-none p-3 text-base"
-          style={{ height: '100%' }}
+          style={{ height: '80px' }}
           autoSize={false}
         />
       </div>
