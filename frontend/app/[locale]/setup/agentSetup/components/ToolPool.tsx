@@ -23,6 +23,8 @@ interface ToolPoolProps {
   mainAgentId?: string | null;
   localIsGenerating?: boolean;
   onToolsRefresh?: () => void;
+  isEditingMode?: boolean; // 新增：控制是否处于编辑模式
+  isGeneratingAgent?: boolean; // 新增：生成智能体状态
 }
 
 
@@ -38,7 +40,9 @@ function ToolPool({
   loadingTools = false,
   mainAgentId,
   localIsGenerating = false,
-  onToolsRefresh
+  onToolsRefresh,
+  isEditingMode = false, // 新增：默认不处于编辑模式
+  isGeneratingAgent = false // 新增：默认不在生成状态
 }: ToolPoolProps) {
   const { t } = useTranslation('common');
 
@@ -72,6 +76,11 @@ function ToolPool({
   const handleToolSelect = useCallback(async (tool: Tool, isSelected: boolean, e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // 在生成过程中禁止选择工具
+    if (isGeneratingAgent) {
+      return;
+    }
+    
     const { shouldProceed, params } = await handleToolSelectCommon(
       tool,
       isSelected,
@@ -91,14 +100,20 @@ function ToolPool({
       setPendingToolSelection({ tool, isSelected });
       setIsToolModalOpen(true);
     }
-  }, [mainAgentId, onSelectTool, t]);
+  }, [mainAgentId, onSelectTool, t, isGeneratingAgent]);
 
   // Use useCallback to cache the tool configuration click processing function
   const handleConfigClick = useCallback((tool: Tool, e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // 在生成过程中禁止配置工具
+    if (isGeneratingAgent) {
+      return;
+    }
+    
     setCurrentTool(tool);
     setIsToolModalOpen(true);
-  }, []);
+  }, [isGeneratingAgent]);
 
   // Use useCallback to cache the tool save processing function
   const handleToolSave = useCallback((updatedTool: Tool) => {
@@ -194,10 +209,11 @@ function ToolPool({
   const ToolItem = memo(({ tool }: { tool: Tool }) => {
     const isSelected = selectedToolIds.has(tool.id);
     const isAvailable = tool.is_available !== false; // 默认为true，只有明确为false时才不可用
+    const isDisabled = localIsGenerating || !isEditingMode || isGeneratingAgent; // 在非编辑模式或生成过程中禁用选择
     
     return (
       <div 
-        className={`border rounded-md p-2 flex items-center transition-colors duration-200 min-h-[45px] ${
+        className={`border rounded-md p-2 flex items-center transition-all duration-300 ease-in-out min-h-[45px] ${
           !isAvailable
             ? isSelected
               ? 'bg-blue-100 border-blue-400 opacity-60'
@@ -205,14 +221,16 @@ function ToolPool({
             : isSelected 
               ? 'bg-blue-100 border-blue-400' 
               : 'hover:border-blue-300'
-        } ${localIsGenerating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        } ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         title={!isAvailable 
           ? isSelected 
             ? t('toolPool.tooltip.disabledTool')
             : t('toolPool.tooltip.unavailableTool')
-          : tool.name}
+          : !isEditingMode
+            ? t('toolPool.tooltip.viewOnlyMode')
+            : tool.name}
         onClick={(e) => {
-          if (localIsGenerating) return;
+          if (isDisabled) return;
           if (!isAvailable && !isSelected) {
             message.warning(t('toolPool.message.unavailable'));
             return;
@@ -225,7 +243,7 @@ function ToolPool({
           <CustomTooltip>
             <TooltipTrigger asChild>
               <div
-                className={`font-medium text-sm truncate ${!isAvailable && !isSelected ? 'text-gray-400' : ''}`}
+                className={`font-medium text-sm truncate transition-colors duration-300 ${!isAvailable && !isSelected ? 'text-gray-400' : ''}`}
                 style={{
                   maxWidth: '300px',
                   overflow: 'hidden',
@@ -247,7 +265,7 @@ function ToolPool({
         <div className="flex items-center gap-2 ml-2">
           <div className="flex items-center justify-start min-w-[90px] w-[90px]">
             <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} 
-                 className={`w-full text-center ${!isAvailable && !isSelected ? 'opacity-50' : ''}`}>
+                 className={`w-full text-center transition-opacity duration-300 ${!isAvailable && !isSelected ? 'opacity-50' : ''}`}>
               {tool?.source === 'mcp' ? t('toolPool.tag.mcp') : t('toolPool.tag.local')}
             </Tag>
           </div>
@@ -255,10 +273,13 @@ function ToolPool({
             type="button"
             onClick={(e) => {
               e.stopPropagation();  // 防止触发父元素的点击事件
-              if (localIsGenerating) return;
+              if (localIsGenerating || isGeneratingAgent) return;
               if (!isAvailable) {
-                if (isSelected) {
+                if (isSelected && isEditingMode) {
                   handleToolSelect(tool, false, e);
+                } else if (!isEditingMode) {
+                  message.warning(t('toolPool.message.viewOnlyMode'));
+                  return;
                 } else {
                   message.warning(t('toolPool.message.unavailable'));
                 }
@@ -266,9 +287,9 @@ function ToolPool({
               }
               handleConfigClick(tool, e);
             }}
-            disabled={localIsGenerating}
+            disabled={localIsGenerating || isGeneratingAgent}
             className={`flex-shrink-0 flex items-center justify-center bg-transparent ${
-              localIsGenerating ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-blue-500'
+              localIsGenerating || isGeneratingAgent ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-blue-500'
             }`}
             style={{ border: "none", padding: "4px" }}
           >
@@ -294,7 +315,7 @@ function ToolPool({
             size="small"
             icon={isRefreshing ? <LoadingOutlined /> : <ReloadOutlined />}
             onClick={handleRefreshTools}
-            disabled={localIsGenerating || isRefreshing}
+            disabled={localIsGenerating || isRefreshing || isGeneratingAgent}
             className="text-green-500 hover:text-green-600 hover:bg-green-50"
             title={t('toolManagement.refresh.title')}
           >
@@ -305,7 +326,7 @@ function ToolPool({
             size="small"
             icon={<ApiOutlined />}
             onClick={() => setIsMcpModalOpen(true)}
-            disabled={localIsGenerating}
+            disabled={localIsGenerating || isGeneratingAgent}
             className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
             title={t('toolManagement.mcp.title')}
           >

@@ -5,29 +5,27 @@ import { message, Modal } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { TFunction } from 'i18next'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import BusinessLogicInput from './components/BusinessLogicInput'
 import SubAgentPool from './components/SubAgentPool'
 import { MemoizedToolPool } from './components/ToolPool'
-import ModelConfigPanel from './components/ModelConfigPanel'
-import ActionButtons from './components/ActionButtons'
 import DeleteConfirmModal from './components/DeleteConfirmModal'
-import AgentInfoInput from './components/AgentInfoInput'
+// import AgentInfoInput from './components/AgentInfoInput'
 import { 
   BusinessLogicConfigProps, 
   Agent, 
   Tool, 
-  OpenAIModel 
+  OpenAIModel,
+  AgentBasicInfo
 } from './ConstInterface'
 import { 
   getCreatingSubAgentId, 
   fetchAgentList, 
+  fetchAgentDetail,
   updateAgent, 
   importAgent, 
   exportAgent, 
   deleteAgent, 
   searchAgentInfo 
 } from '@/services/agentConfigService'
-import { generatePromptStream, savePrompt } from '@/services/promptService'
 
 /**
  * Business Logic Configuration Main Component
@@ -70,14 +68,22 @@ export default function BusinessLogicConfig({
   constraintContent,
   setConstraintContent,
   fewShotsContent,
-  setFewShotsContent
+  setFewShotsContent,
+  // Add new props for agent name and description
+  agentName,
+  setAgentName,
+  agentDescription,
+  setAgentDescription,
+  // Add new prop for generating agent state
+  isGeneratingAgent = false
 }: BusinessLogicConfigProps) {
+  console.log('BusinessLogicConfig props received:', { agentName, agentDescription, setAgentName: !!setAgentName, setAgentDescription: !!setAgentDescription });
+  
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [isPromptGenerating, setIsPromptGenerating] = useState(false)
-  const [isPromptSaving, setIsPromptSaving] = useState(false)
-  const [localIsGenerating, setLocalIsGenerating] = useState(false)
+  // 使用父组件传递的生成状态，而不是本地状态
+  // const [localIsGenerating, setLocalIsGenerating] = useState(false)
   
   const [generationProgress, setGenerationProgress] = useState({
     duty: false,
@@ -104,8 +110,6 @@ export default function BusinessLogicConfig({
 
   // Common refresh agent list function, moved to the front to avoid hoisting issues
   const refreshAgentList = async (t: TFunction) => {
-    if (!mainAgentId) return;
-    
     setIsLoadingTools(true);
     // Clear the tool selection status when loading starts
     setSelectedTools([]);
@@ -114,39 +118,9 @@ export default function BusinessLogicConfig({
     try {
       const result = await fetchAgentList();
       if (result.success) {
-        // Update all related states
-        setSubAgentList(result.data.subAgentList);
-        setMainAgentId(result.data.mainAgentId);
-        const newEnabledToolIds = result.data.enabledToolIds || [];
-        setEnabledToolIds(newEnabledToolIds);
-        
-        // Update the status of the newly added fields
-        if (result.data.modelName) {
-          setMainAgentModel(result.data.modelName as OpenAIModel);
-        }
-        if (result.data.maxSteps) {
-          setMainAgentMaxStep(result.data.maxSteps);
-        }
-        if (result.data.businessDescription) {
-          setBusinessLogic(result.data.businessDescription);
-        }
-        if (result.data.dutyPrompt) {
-          setDutyContent?.(result.data.dutyPrompt);
-        }
-        if (result.data.constraintPrompt) {
-          setConstraintContent?.(result.data.constraintPrompt);
-        }
-        if (result.data.fewShotsPrompt) {
-          setFewShotsContent?.(result.data.fewShotsPrompt);
-        }
-        
-        // Update the selected tools
-        if (tools && tools.length > 0) {
-          const enabledTools = tools.filter(tool => 
-            newEnabledToolIds.includes(Number(tool.id))
-          );
-          setSelectedTools(enabledTools);
-        }
+        // Update agent list with basic info only
+        setSubAgentList(result.data);
+        message.success(t('businessLogic.config.message.agentListLoaded'));
       } else {
         message.error(result.message || t('businessLogic.config.error.agentListFailed'));
       }
@@ -158,6 +132,118 @@ export default function BusinessLogicConfig({
     }
   };
 
+  // Handle agent selection and load detailed configuration
+  // 移除前端缓存逻辑，完全依赖后端返回的sub_agent_id_list
+  const handleAgentSelectionOnly = (agent: Agent, isSelected: boolean) => {
+    // 不再进行前端缓存，完全依赖后端返回的sub_agent_id_list
+    // 这个函数现在只是一个占位符，实际的状态管理由后端控制
+    console.log('Agent selection changed:', agent.name, isSelected);
+  };
+
+  // 刷新agent状态的函数
+  const handleRefreshAgentState = async () => {
+    if (isEditingAgent && editingAgent) {
+      try {
+        // 添加一个小延迟，确保后端操作完成
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // 重新获取当前编辑agent的详细信息
+        const result = await searchAgentInfo(Number(editingAgent.id));
+        if (result.success && result.data) {
+          const agentDetail = result.data;
+          
+          // 更新enabledAgentIds
+          if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
+            const newEnabledAgentIds = agentDetail.sub_agent_id_list.map((id: any) => Number(id));
+            setEnabledAgentIds(newEnabledAgentIds);
+          } else {
+            setEnabledAgentIds([]);
+          }
+        }
+      } catch (error) {
+        console.error('刷新agent状态失败:', error);
+      }
+    }
+  };
+
+  // 直接更新enabledAgentIds的函数
+  const handleUpdateEnabledAgentIds = (newEnabledAgentIds: number[]) => {
+    setEnabledAgentIds(newEnabledAgentIds);
+  };
+
+  const handleAgentSelectAndLoadDetail = async (agent: Agent, isSelected: boolean) => {
+    if (agent.is_available === false && isSelected) {
+      message.error(t('agent.error.disabledAgent'));
+      return;
+    }
+
+    if (isSelected) {
+      // Load detailed agent configuration when selected
+      try {
+        const result = await fetchAgentDetail(Number(agent.id));
+        if (result.success && result.data) {
+          const agentDetail = result.data;
+          
+          // Update all related states with detailed configuration
+          setMainAgentId(agentDetail.id);
+          setMainAgentModel(agentDetail.model as OpenAIModel);
+          setMainAgentMaxStep(agentDetail.max_step);
+          setBusinessLogic(agentDetail.business_description || '');
+          
+          // Set agent name and description
+          setAgentName?.(agentDetail.name || '');
+          setAgentDescription?.(agentDetail.description || '');
+          
+          // Load the segmented prompt content
+          setDutyContent?.(agentDetail.duty_prompt || '');
+          setConstraintContent?.(agentDetail.constraint_prompt || '');
+          setFewShotsContent?.(agentDetail.few_shots_prompt || '');
+          
+          // Load agent tools
+          if (agentDetail.tools && agentDetail.tools.length > 0) {
+            setSelectedTools(agentDetail.tools);
+            const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
+            setEnabledToolIds(toolIds);
+          } else {
+            setSelectedTools([]);
+            setEnabledToolIds([]);
+          }
+          
+          // Update selected agents list
+          setSelectedAgents([agentDetail]);
+          // 使用后端返回的sub_agent_id_list设置enabledAgentIds
+          if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
+            setEnabledAgentIds(agentDetail.sub_agent_id_list.map((id: any) => Number(id)));
+          } else {
+            setEnabledAgentIds([]);
+          }
+          
+          message.success(t('businessLogic.config.message.agentDetailLoaded'));
+        } else {
+          message.error(result.message || t('businessLogic.config.error.agentDetailFailed'));
+        }
+      } catch (error) {
+        console.error('加载Agent详情失败:', error);
+        message.error(t('businessLogic.config.error.agentDetailFailed'));
+      }
+    } else {
+      // Clear configuration when deselected
+      setSelectedAgents([]);
+      // 清空enabledAgentIds
+      setEnabledAgentIds([]);
+      setSelectedTools([]);
+      setEnabledToolIds([]);
+      setMainAgentId(null);
+      setBusinessLogic('');
+      setDutyContent?.('');
+      setConstraintContent?.('');
+      setFewShotsContent?.('');
+      // Clear agent name and description
+      setAgentName?.('');
+      setAgentDescription?.('');
+    }
+  };
+
   const fetchSubAgentIdAndEnableToolList = async (t: TFunction) => {
     setIsLoadingTools(true);
     // Clear the tool selection status when loading starts
@@ -165,7 +251,7 @@ export default function BusinessLogicConfig({
     setEnabledToolIds([]);
     
     try {
-      const result = await getCreatingSubAgentId(mainAgentId);
+      const result = await getCreatingSubAgentId();
       if (result.success && result.data) {
         const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, dutyPrompt, constraintPrompt, fewShotsPrompt } = result.data;
         
@@ -236,7 +322,10 @@ export default function BusinessLogicConfig({
         setSystemPrompt(''); // Also clear the system prompt
         setMainAgentModel(OpenAIModel.MainModel);
         setMainAgentMaxStep(5);
-        refreshAgentList(t);
+        // 延迟刷新agent列表，避免跳变
+        setTimeout(() => {
+          refreshAgentList(t);
+        }, 200);
       }
     }
   }, [isCreatingNewAgent, isEditingAgent]);
@@ -249,13 +338,7 @@ export default function BusinessLogicConfig({
       enabledToolIds.includes(Number(tool.id))
     );
 
-    setSelectedTools(prevTools => {
-      // Only update when the tool list is确实不同时
-      if (JSON.stringify(prevTools) !== JSON.stringify(enabledTools)) {
-        return enabledTools;
-      }
-      return prevTools;
-    });
+    setSelectedTools(enabledTools);
   }, [tools, enabledToolIds, isLoadingTools]);
 
   // Handle the creation of a new Agent
@@ -264,21 +347,60 @@ export default function BusinessLogicConfig({
     setIsEditingAgent(false);
     setEditingAgent(null);
     setIsCreatingNewAgent(true);
+    // 清空右侧名称描述框
+    setAgentName?.('');
+    setAgentDescription?.('');
+    // 清空业务逻辑和工具选择
+    setBusinessLogic('');
+    setSelectedTools([]);
+    setEnabledToolIds([]);
+    // 清空分段提示内容
+    setDutyContent?.('');
+    setConstraintContent?.('');
+    setFewShotsContent?.('');
+    // 重置agent信息状态
+    setNewAgentName('');
+    setNewAgentDescription('');
+    setNewAgentProvideSummary(true);
+    setIsNewAgentInfoValid(false);
     onEditingStateChange?.(false, null);
   };
 
   // Reset the status when the user cancels the creation of an Agent
   const handleCancelCreating = async () => {
-    setIsCreatingNewAgent(false);
-    setIsEditingAgent(false);
-    setEditingAgent(null);
-    // Reset agent info states
-    setNewAgentName('');
-    setNewAgentDescription('');
-    setNewAgentProvideSummary(true);
-    setIsNewAgentInfoValid(false);
-    // 通知外部编辑状态变化
+    // 先通知外部编辑状态变化，避免UI跳变
     onEditingStateChange?.(false, null);
+    
+    // 延迟重置状态，让UI先完成状态切换
+    setTimeout(() => {
+      setIsCreatingNewAgent(false);
+      setIsEditingAgent(false);
+      setEditingAgent(null);
+      
+      // Reset agent info states
+      setNewAgentName('');
+      setNewAgentDescription('');
+      setNewAgentProvideSummary(true);
+      setIsNewAgentInfoValid(false);
+      
+      // 清空右侧名称描述框
+      setAgentName?.('');
+      setAgentDescription?.('');
+      
+      // 清空业务逻辑
+      setBusinessLogic('');
+      
+      // 清空分段提示内容
+      setDutyContent?.('');
+      setConstraintContent?.('');
+      setFewShotsContent?.('');
+      
+      // 延迟清空工具选择，避免工具池跳变
+      setTimeout(() => {
+        setSelectedTools([]);
+        setEnabledToolIds([]);
+      }, 300);
+    }, 100);
   };
 
   // Handle the creation of a new Agent
@@ -328,10 +450,18 @@ export default function BusinessLogicConfig({
 
           setBusinessLogic('');
           setSelectedTools([]);
+          setEnabledToolIds([]);
           setNewAgentName('');
           setNewAgentDescription('');
           setNewAgentProvideSummary(true);
           setSystemPrompt('');
+          // 清空右侧名称描述框
+          setAgentName?.('');
+          setAgentDescription?.('');
+          // 清空分段提示内容
+          setDutyContent?.('');
+          setConstraintContent?.('');
+          setFewShotsContent?.('');
 
           refreshAgentList(t);
         } else {
@@ -375,32 +505,30 @@ export default function BusinessLogicConfig({
 
   const handleEditAgent = async (agent: Agent, t: TFunction) => {
     try {
-      // 首先设置为编辑模式，避免useEffect清空数据
-      setIsEditingAgent(true);
-      setEditingAgent(agent); // 先用传入的agent，稍后会用详细数据替换
-      setIsCreatingNewAgent(true);
-      // 通知外部编辑状态变化
-      onEditingStateChange?.(true, agent);
-      
       // 调用查询接口获取完整的Agent信息
       const result = await searchAgentInfo(Number(agent.id));
       
       if (!result.success || !result.data) {
         message.error(result.message || t('businessLogic.config.error.agentDetailFailed'));
-        // 如果获取失败，重置编辑状态
-        setIsEditingAgent(false);
-        setEditingAgent(null);
-        setIsCreatingNewAgent(false);
-        onEditingStateChange?.(false, null);
         return;
       }
       
       const agentDetail = result.data;
       
-      console.log(t('debug.console.loadAgentDetails'), agentDetail); // 调试信息
-      
-      // 更新为完整的Agent数据
+      // 获取信息成功后再设置编辑状态和高亮
+      setIsEditingAgent(true);
       setEditingAgent(agentDetail);
+      // 编辑现有agent时，不设置isCreatingNewAgent为true
+      
+      // 先设置右侧名称描述框的数据，确保立即显示
+      console.log('Setting agent name and description in handleEditAgent:', agentDetail.name, agentDetail.description);
+      console.log('setAgentName function exists:', !!setAgentName);
+      console.log('setAgentDescription function exists:', !!setAgentDescription);
+      
+      setAgentName?.(agentDetail.name || '');
+      setAgentDescription?.(agentDetail.description || '');
+      console.log('setAgentName and setAgentDescription called');
+      
       // 通知外部编辑状态变化（使用完整数据）
       onEditingStateChange?.(true, agentDetail);
       
@@ -412,19 +540,24 @@ export default function BusinessLogicConfig({
       setMainAgentMaxStep(agentDetail.max_step);
       setBusinessLogic(agentDetail.business_description || '');
       
+      // 使用后端返回的sub_agent_id_list设置启用的agent列表
+      if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
+        setEnabledAgentIds(agentDetail.sub_agent_id_list.map((id: any) => Number(id)));
+      } else {
+        setEnabledAgentIds([]);
+      }
+      
       // Load the segmented prompt content
       setDutyContent?.(agentDetail.duty_prompt || '');
       setConstraintContent?.(agentDetail.constraint_prompt || '');
       setFewShotsContent?.(agentDetail.few_shots_prompt || '');
       
-      console.log(t('debug.console.setBusinessDescription'), agentDetail.business_description); // 调试信息
       // 加载Agent的工具
       if (agentDetail.tools && agentDetail.tools.length > 0) {
         setSelectedTools(agentDetail.tools);
         // 设置已启用的工具ID
         const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
         setEnabledToolIds(toolIds);
-        console.log(t('debug.console.loadedTools'), agentDetail.tools); // 调试信息
       } else {
         setSelectedTools([]);
         setEnabledToolIds([]);
@@ -437,53 +570,12 @@ export default function BusinessLogicConfig({
       // 如果出错，重置编辑状态
       setIsEditingAgent(false);
       setEditingAgent(null);
-      setIsCreatingNewAgent(false);
+      // 注意：不重置isCreatingNewAgent，保持agent池显示
       onEditingStateChange?.(false, null);
     }
   };
 
-  // Handle the update of the Agent selection status
-  const handleAgentSelect = async (agent: Agent, isSelected: boolean) => {
-    if (agent.is_available === false && isSelected) {
-      message.error(t('agent.error.disabledAgent'));
-      return;
-    }
 
-    try {
-      const result = await updateAgent(
-        Number(agent.id),
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        isSelected, // enabled
-        undefined, // businessDescription
-        undefined, // dutyPrompt
-        undefined, // constraintPrompt
-        undefined  // fewShotsPrompt
-      );
-
-      if (result.success) {
-        if (isSelected) {
-          setSelectedAgents([...selectedAgents, agent]);
-          setEnabledAgentIds([...enabledAgentIds, Number(agent.id)]);
-        } else {
-          setSelectedAgents(selectedAgents.filter((a) => a.id !== agent.id));
-          setEnabledAgentIds(enabledAgentIds.filter(id => id !== Number(agent.id)));
-        }
-        message.success(t('businessLogic.config.message.agentStatusUpdated', {
-          name: agent.name,
-          status: isSelected ? t('common.enabled') : t('common.disabled')
-        }));
-      } else {
-        message.error(result.message || t('agent.error.statusUpdateFailed'));
-      }
-    } catch (error) {
-      console.error(t('debug.console.updateAgentStatusFailed'), error);
-      message.error(t('agent.error.statusUpdateRetry'));
-    }
-  };
 
   // Handle the update of the model
   const handleModelChange = async (value: OpenAIModel) => {
@@ -675,113 +767,26 @@ export default function BusinessLogicConfig({
     }
   };
 
-  // Generate system prompt
-  const handleGenerateSystemPrompt = async (t: TFunction) => {
-    if (!businessLogic || businessLogic.trim() === '') {
-      message.warning(t('businessLogic.config.error.businessDescriptionRequired'));
-      return;
-    }
-
-    const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
-    
-    if (!targetAgentId) {
-      message.warning(t('businessLogic.config.error.noAgentIdForPrompt'));
-      return;
-    }
-    
-    try {
-      setIsPromptGenerating(true);
-      setLocalIsGenerating(true);
-      setSystemPrompt('');
-      
-      // Reset content and progress for three sections
-      setDutyContent?.('');
-      setConstraintContent?.('');
-      setFewShotsContent?.('');
-      setGenerationProgress({
-        duty: false,
-        constraint: false,
-        few_shots: false
-      });
-      
-      // Reset ref
-      currentPromptRef.current = {
-        duty: '',
-        constraint: '',
-        few_shots: ''
-      };
-      
-      await generatePromptStream(
-        {
-          agent_id: Number(targetAgentId),
-          task_description: businessLogic
-        },
-        (streamData) => {
-          // Update corresponding content and progress based on type
-          switch (streamData.type) {
-            case 'duty':
-              setDutyContent?.(streamData.content);
-              setGenerationProgress(prev => ({ ...prev, duty: streamData.is_complete }));
-              currentPromptRef.current.duty = streamData.content;
-              break;
-            case 'constraint':
-              setConstraintContent?.(streamData.content);
-              setGenerationProgress(prev => ({ ...prev, constraint: streamData.is_complete }));
-              currentPromptRef.current.constraint = streamData.content;
-              break;
-            case 'few_shots':
-              setFewShotsContent?.(streamData.content);
-              setGenerationProgress(prev => ({ ...prev, few_shots: streamData.is_complete }));
-              currentPromptRef.current.few_shots = streamData.content;
-              break;
-          }
-        },
-        (err) => {
-          message.error(t('businessLogic.config.error.promptGenerateFailed', {
-            error: err instanceof Error ? err.message : t('common.unknownError')
-          }));
-          setIsPromptGenerating(false);
-          setLocalIsGenerating(false);
-        },
-        () => {
-          setIsPromptGenerating(false);
-          setLocalIsGenerating(false);
-          message.success(t('businessLogic.config.message.promptGenerateSuccess'));
-        }
-      );
-    } catch (error) {
-      console.error(t('debug.console.generatePromptFailed'), error);
-      message.error(t('businessLogic.config.error.promptGenerateFailed', {
-        error: error instanceof Error ? error.message : t('common.unknownError')
-      }));
-      setIsPromptGenerating(false);
-      setLocalIsGenerating(false);
-    }
-  };
-
-  // Save system prompt
-  const handleSaveSystemPrompt = async () => {
-    const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
-    
-    if (!targetAgentId) {
-      message.warning(t('businessLogic.config.error.noAgentIdForPrompt'));
-      return;
-    }
-    if (!systemPrompt || systemPrompt.trim() === '') {
-      message.warning(t('businessLogic.config.message.promptEmpty'));
-      return;
-    }
-    
-    try {
-      setIsPromptSaving(true);
-      await savePrompt({ agent_id: Number(targetAgentId), prompt: systemPrompt });
-      message.success(t('businessLogic.config.message.promptSaved'));
-    } catch (error) {
-      console.error(t('debug.console.savePromptFailed'), error);
-      message.error(t('businessLogic.config.error.promptSaveFailed'));
-    } finally {
-      setIsPromptSaving(false);
-    }
+  // Handle exit edit mode
+  const handleExitEdit = () => {
+    setIsEditingAgent(false);
+    setEditingAgent(null);
+    setIsCreatingNewAgent(false);
+    setNewAgentName('');
+    setNewAgentDescription('');
+    setNewAgentProvideSummary(true);
+    setIsNewAgentInfoValid(false);
+    setBusinessLogic('');
+    setDutyContent('');
+    setConstraintContent('');
+    setFewShotsContent('');
+    setAgentName?.('');
+    setAgentDescription?.('');
+    // Reset selected tools
+    setSelectedTools([]);
+    setEnabledToolIds([]);
+    // Notify parent component about editing state change
+    onEditingStateChange?.(false, null);
   };
 
   // 刷新工具列表
@@ -791,111 +796,60 @@ export default function BusinessLogicConfig({
     }
   }, [onToolsRefresh]);
 
-  const canSaveAsAgent = selectedAgents.length === 0 && 
-    ((dutyContent?.trim()?.length || 0) > 0 || (constraintContent?.trim()?.length || 0) > 0 || (fewShotsContent?.trim()?.length || 0) > 0) && 
-    isNewAgentInfoValid;
-
-  // Generate more intelligent prompt information according to conditions
-  const getButtonTitle = () => {
-    if (selectedAgents.length > 0) {
-      return t('businessLogic.config.message.noAgentSelected');
-    }
-    if (!(dutyContent?.trim()) && !(constraintContent?.trim()) && !(fewShotsContent?.trim())) {
-      return t('businessLogic.config.message.generatePromptFirst');
-    }
-    if (!isNewAgentInfoValid) {
-      return t('businessLogic.config.message.completeAgentInfo');
-    }
-    return "";
-  };
-
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-full w-full gap-0 justify-between">
-        {/* Upper part: Agent pool + Tool pool */}
+      <div className="flex flex-col h-full w-full gap-0 justify-between relative">
+        {/* Lower part: Agent pool + Tool pool */}
         <div className="flex gap-4 flex-1 min-h-0 pb-4 pr-4 pl-4">
-          {!isCreatingNewAgent && (
-            <div className="w-[360px] h-full">
-              <SubAgentPool
-                selectedAgents={selectedAgents}
-                onSelectAgent={handleAgentSelect}
-                onEditAgent={(agent) => handleEditAgent(agent, t)}
-                onCreateNewAgent={handleCreateNewAgent}
-                onImportAgent={() => handleImportAgent(t)}
-                onExportAgent={(agent) => handleExportAgent(agent, t)}
-                onDeleteAgent={handleDeleteAgent}
-                subAgentList={subAgentList}
-                loadingAgents={loadingAgents}
-                enabledAgentIds={enabledAgentIds}
-                isImporting={isImporting}
-              />
-            </div>
-          )}
-          
-          {isCreatingNewAgent && (
-            <div className="w-[360px] h-full">
-              <AgentInfoInput
-                name={newAgentName}
-                description={newAgentDescription}
-                provideSummary={newAgentProvideSummary}
-                onNameChange={setNewAgentName}
-                onDescriptionChange={setNewAgentDescription}
-                onProvideSummaryChange={setNewAgentProvideSummary}
-                onValidationChange={setIsNewAgentInfoValid}
-              />
-            </div>
-          )}
+          {/* Left column: Always show SubAgentPool */}
+          <div className="w-[360px] h-full">
+            <SubAgentPool
+              selectedAgents={selectedAgents}
+              onSelectAgent={() => {}} // 保留原有接口但不使用
+              onSelectAgentAndLoadDetail={handleAgentSelectAndLoadDetail}
+              onEditAgent={(agent) => handleEditAgent(agent, t)}
+              onCreateNewAgent={handleCreateNewAgent}
+              onImportAgent={() => handleImportAgent(t)}
+              onExportAgent={(agent) => handleExportAgent(agent, t)}
+              onDeleteAgent={handleDeleteAgent}
+              subAgentList={subAgentList}
+              loadingAgents={loadingAgents}
+              enabledAgentIds={enabledAgentIds}
+              isImporting={isImporting}
+              isEditingAgent={isEditingAgent}
+              editingAgent={editingAgent}
+              parentAgentId={isEditingAgent && editingAgent ? Number(editingAgent.id) : (isCreatingNewAgent && mainAgentId ? Number(mainAgentId) : undefined)}
+              onAgentSelectionOnly={handleAgentSelectionOnly}
+              onRefreshAgentState={handleRefreshAgentState}
+              onUpdateEnabledAgentIds={handleUpdateEnabledAgentIds}
+              isCreatingNewAgent={isCreatingNewAgent}
+              onExitEdit={handleExitEdit}
+              isGeneratingAgent={isGeneratingAgent}
+            />
+          </div>
           
           <div className="flex-1 h-full">
             <MemoizedToolPool
               selectedTools={isLoadingTools ? [] : selectedTools}
               onSelectTool={(tool, isSelected) => {
                 if (isLoadingTools) return;
-                setSelectedTools(prevTools => {
-                  if (isSelected) {
-                    return [...prevTools, tool];
-                  } else {
-                    return prevTools.filter(t => t.id !== tool.id);
-                  }
-                });
+                if (isSelected) {
+                  setSelectedTools([...selectedTools, tool]);
+                } else {
+                  setSelectedTools(selectedTools.filter(t => t.id !== tool.id));
+                }
               }}
               isCreatingNewAgent={isCreatingNewAgent}
               tools={tools}
               loadingTools={isLoadingTools}
               mainAgentId={isEditingAgent && editingAgent ? editingAgent.id : mainAgentId}
-              localIsGenerating={localIsGenerating}
+              localIsGenerating={isGeneratingAgent}
               onToolsRefresh={handleToolsRefresh}
+              isEditingMode={isEditingAgent || isCreatingNewAgent}
+              isGeneratingAgent={isGeneratingAgent}
             />
           </div>
         </div>
-
-      {/* The second half: business logic description */}
-      <div className="flex gap-4 flex-shrink-0 pr-4 pl-4 items-start">
-        <div className="flex-1 h-full">
-          <BusinessLogicInput 
-            value={businessLogic} 
-            onChange={setBusinessLogic} 
-          />
-        </div>
-        <div className="flex flex-col gap-4">
-          <ModelConfigPanel
-            mainAgentModel={mainAgentModel}
-            mainAgentMaxStep={mainAgentMaxStep}
-            onModelChange={handleModelChange}
-            onMaxStepChange={handleMaxStepChange}
-          />
-          <ActionButtons
-            isPromptGenerating={isPromptGenerating}
-            isPromptSaving={isPromptSaving}
-            isCreatingNewAgent={isCreatingNewAgent}
-            canSaveAsAgent={canSaveAsAgent}
-            getButtonTitle={getButtonTitle}
-            onGeneratePrompt={() => handleGenerateSystemPrompt(t)}
-            onSaveAsAgent={handleSaveAsAgent}
-            onCancelCreating={handleCancelCreating}
-          />
-        </div>
-      </div>
 
       {/* Delete confirmation popup */}
       <DeleteConfirmModal

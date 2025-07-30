@@ -30,11 +30,11 @@ export default function ActionButtons({
   const { t } = useTranslation('common');
 
   return (
-    <div className="flex justify-start gap-2 w-full mt-4">
+    <div className="flex flex-col gap-2 w-full">
       <button
         onClick={onGeneratePrompt}
         disabled={isPromptGenerating || isPromptSaving}
-        className="px-3.5 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed w-full"
         style={{ border: 'none' }}
       >
         {isPromptGenerating ? (
@@ -55,7 +55,7 @@ export default function ActionButtons({
             onClick={onSaveAsAgent}
             disabled={!canSaveAsAgent}
             title={getButtonTitle()}
-            className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed w-full"
             style={{ border: "none" }}
           >
             {isPromptSaving ? t('businessLogic.config.button.saving') : t('businessLogic.config.button.save')}
@@ -63,7 +63,7 @@ export default function ActionButtons({
           <button
             onClick={onCancelCreating}
             disabled={isPromptGenerating || isPromptSaving}
-            className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed w-full"
             style={{ border: 'none' }}
           >
             {t('businessLogic.config.button.cancel')}

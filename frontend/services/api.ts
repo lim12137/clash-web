@@ -24,6 +24,8 @@ export const API_ENDPOINTS = {
     export: `${API_BASE_URL}/agent/export`,
     import: `${API_BASE_URL}/agent/import`,
     searchInfo: `${API_BASE_URL}/agent/search_info`,
+    relatedAgent: `${API_BASE_URL}/agent/related_agent`,
+    deleteRelatedAgent: `${API_BASE_URL}/agent/delete_related_agent`,
   },
   tool: {
     list: `${API_BASE_URL}/tool/list`,
