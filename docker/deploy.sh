@@ -8,6 +8,31 @@ ERROR_OCCURRED=0
 set -a
 source .env
 
+# Parse arg
+MODE_CHOICE=""
+IS_MAINLAND=""
+ENABLE_TERMINAL=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --mode)
+      MODE_CHOICE="$2"
+      shift 2
+      ;;
+    --is-mainland)
+      IS_MAINLAND="$2"
+      shift 2
+      ;;
+    --enable-terminal)
+      ENABLE_TERMINAL="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
 # Add deployment mode selection function
 select_deployment_mode() {
     echo "🎛️  Please select deployment mode:"
@@ -15,7 +40,12 @@ select_deployment_mode() {
     echo "2) 🏗️  Infrastructure mode - Only start infrastructure services"
     echo "3) 🚀 Production mode - Only expose port 3000 for security"
     echo "4) 🧪 Beta mode - Use develop branch images (from .env.beta)"
-    read -p "👉 Enter your choice [1/2/3/4] (default: 1): " mode_choice
+    if [ -n "$MODE_CHOICE" ]; then
+      mode_choice="$MODE_CHOICE"
+      echo "👉 Using mode_choice from argument: $mode_choice"
+    else
+      read -p "👉 Enter your choice [1/2/3/4] (default: 1): " mode_choice
+    fi
 
     case $mode_choice in
         2)
@@ -42,9 +72,7 @@ select_deployment_mode() {
             echo "✅ Selected development mode 🛠️"
             ;;
     esac
-    echo ""
-    echo "--------------------------------"
-    echo ""
+    echo -e "\n--------------------------------\n"
 }
 
 generate_minio_ak_sk() {
@@ -145,15 +173,10 @@ add_permission() {
   # Export for docker-compose
   export NEXENT_USER_DIR
 
-  echo ""
-  echo "--------------------------------"
-  echo ""
+  echo -e "\n--------------------------------\n"
 }
 
 install() {
-  # Start infrastructure services
-  echo "🔌 Starting infrastructure services..."
-  
   # Build base infrastructure command
   INFRA_SERVICES="nexent-elasticsearch nexent-postgresql nexent-minio redis"
   
@@ -175,9 +198,7 @@ install() {
     return 1
   fi
 
-  echo ""
-  echo "--------------------------------"
-  echo ""
+  echo -e "\n--------------------------------\n"
   
   # Always generate a new ELASTICSEARCH_API_KEY for each deployment.
   echo "🔑 Generating ELASTICSEARCH_API_KEY..."
@@ -209,9 +230,7 @@ install() {
     ERROR_OCCURRED=1
   fi
 
-  echo ""
-  echo "--------------------------------"
-  echo ""
+  echo -e "\n--------------------------------\n"
 
   # Start core services
   if [ "$DEPLOYMENT_MODE" != "infrastructure" ]; then
@@ -223,13 +242,16 @@ install() {
     fi
   fi
 
-  echo ""
-  echo "--------------------------------"
-  echo ""
+  echo -e "\n--------------------------------\n"
 }
 
 choose_image_env() {
-  read -p "🌏 Is your server network located in mainland China? [Y/N] (default N): " is_mainland
+  if [ -n "$IS_MAINLAND" ]; then
+    is_mainland="$IS_MAINLAND"
+    echo "🌏 Using is_mainland from argument: $is_mainland"
+  else
+    read -p "🌏 Is your server network located in mainland China? [Y/N] (default N): " is_mainland
+  fi
   if [[ "$is_mainland" =~ ^[Yy]$ ]]; then
     echo "🌐 Detected mainland China network, using .env.mainland for image sources."
     source .env.mainland
@@ -238,17 +260,13 @@ choose_image_env() {
     source .env.general
   fi
 
-  echo ""
-  echo "--------------------------------"
-  echo ""
+  echo -e "\n--------------------------------\n"
 }
 
 choose_beta_env() {
   echo "🌐 Beta mode selected, using .env.beta for image sources."
   source .env.beta
-  echo ""
-  echo "--------------------------------"
-  echo ""
+  echo -e "\n--------------------------------\n"
 }
 
 # Function to setup SSH timeout configuration using custom-init
@@ -284,8 +302,11 @@ select_terminal_tool() {
     echo "🔧 Terminal Tool Configuration:"
     echo "Terminal tool allows AI agents to execute shell commands via SSH."
     echo "This creates an openssh-server container for secure command execution."
-    echo ""
-    read -p "👉 Do you want to enable Terminal tool? [Y/N] (default: N): " enable_terminal
+    if [ -n "$ENABLE_TERMINAL" ]; then
+        enable_terminal="$ENABLE_TERMINAL"
+    else
+        read -p "👉 Do you want to enable Terminal tool? [Y/N] (default: N): " enable_terminal
+    fi
     
     if [[ "$enable_terminal" =~ ^[Yy]$ ]]; then
         export ENABLE_TERMINAL_TOOL="true"
@@ -296,9 +317,7 @@ select_terminal_tool() {
         export ENABLE_TERMINAL_TOOL="false"
         echo "❌ Terminal tool disabled"
     fi
-    echo ""
-    echo "--------------------------------"
-    echo ""
+    echo -e "\n--------------------------------\n"
 }
 
 # Function to generate SSH key pair for Terminal tool
@@ -333,9 +352,7 @@ generate_ssh_keys() {
                 echo "SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH" >> .env
             fi
             
-            echo ""
-            echo "--------------------------------"
-            echo ""
+            echo -e "\n--------------------------------\n"
             return 0
         fi
         
@@ -432,20 +449,12 @@ generate_ssh_keys() {
             rm -f "$TEMP_OUTPUT"
         fi
         
-        echo ""
-        echo "--------------------------------"
-        echo ""
+        echo -e "\n--------------------------------\n"
     fi
 }
 
 # Main execution flow
-echo ""
-echo "================================"
-echo ""
-echo "🚀  Nexent Deployment Script"
-echo ""
-echo "================================"
-echo ""
+echo  "🚀  Nexent Deployment Script"
 
 # Main deployment function
 main_deploy() {
