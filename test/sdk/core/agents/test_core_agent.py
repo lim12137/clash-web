@@ -201,3 +201,46 @@ def test_run_with_agent_error(core_agent_instance):
     # Assertions
     assert result[0] == mock_step
     assert hasattr(mock_step, 'error')  # Error should be set on the step
+
+
+def test_run_with_agent_parse_error_branch(core_agent_instance):
+    """Ensure branch that converts model_output via convert_code_format is covered."""
+
+    task = "parse task"
+    max_steps = 1
+    mock_step = MagicMock()
+    mock_step.model_output = "unformatted answer"
+
+    parse_hint = "Make sure to include code with the correct pattern, for instance"
+
+    # 监听 convert_code_format 调用
+    with patch.object(core_agent_instance, '_create_action_step', return_value=mock_step), \
+            patch.object(core_agent_instance, '_execute_step', side_effect=MockAgentError(f"{parse_hint} - error")), \
+            patch.object(core_agent_module, 'convert_code_format', return_value="formatted answer") as mock_convert, \
+            patch.object(core_agent_instance, '_finalize_step'):
+        results = list(core_agent_instance._run(task, max_steps))
+
+    # _run 应该产出 action step + 处理后的结果
+    assert results[0] == mock_step
+    # assert results[1] == "handled_output"
+
+    # 确认 convert_code_format 被调用一次
+    mock_convert.assert_called_once_with("unformatted answer")
+    # handle_agent_output_types 处理了转换后的结果
+    # mock_smolagents.handle_agent_output_types.assert_any_call("formatted answer")
+
+# ------------------------------------------------------------
+# 新增：直接测试 convert_code_format 函数
+# ------------------------------------------------------------
+
+
+def test_convert_code_format_replacements():
+    """Validate convert_code_format correctly transforms code fences."""
+
+    original_text = """Here is code:\n```code:python\nprint('hello')\n```\nAnd mixed fence ```< should be fixed."""
+
+    expected_text = """Here is code:\n```python\nprint('hello')\n```\nAnd mixed fence ``` should be fixed."""
+
+    transformed = core_agent_module.convert_code_format(original_text)
+
+    assert transformed == expected_text, "convert_code_format did not perform expected replacements"
