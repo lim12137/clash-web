@@ -395,7 +395,7 @@ generate_ssh_keys() {
         TEMP_OUTPUT="/tmp/ssh_keygen_output_$$.txt"
         
         # Generate ed25519 key pair using the openssh-server container
-        if docker run --rm -i --entrypoint /keygen.sh "$OPENSSH_SERVER_IMAGE" <<< "1" > "$TEMP_OUTPUT" 2>&1; then
+        if docker run --rm -i --entrypoint //keygen.sh "$OPENSSH_SERVER_IMAGE" <<< "1" > "$TEMP_OUTPUT" 2>&1; then
             echo "🔍 SSH key generation completed, extracting keys..."
             
             # Extract private key (everything between -----BEGIN and -----END)
