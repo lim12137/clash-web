@@ -157,7 +157,7 @@ async def discover_langchain_tools():
     Returns:
         list: List of discovered LangChain tool instances
     """
-    from backend.utils.langchain_utils import discover_langchain_modules
+    from utils.langchain_utils import discover_langchain_modules
     
     langchain_tools = []
 
