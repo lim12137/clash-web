@@ -52,7 +52,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
   After thinking, when you believe you can answer the user's question, you can generate a final answer directly to the user without generating code and stop the loop.
   
   ### Python Code Specifications ###
-  1. Code content must start with 'Code:\n```py\n' and end with '```<end_code>' identifier, otherwise you will fail;
+  1. If it is considered to be code that needs to be executed, the code content begins with 'code: \n```py\n' and ends with '```<end_code>'. If the code does not need to be executed for display only, the code content begins with 'code: \n```code:\n', and ends with '```<end_code>'.
   2. Only use defined variables, variables will persist between multiple calls. Use 'print()' function to let the next model call see corresponding variable information;
   3. Use tool input parameters correctly, use keyword arguments, not dictionary format;
   4. Avoid making too many tool calls in one round of conversation, as this will make the output format unpredictable;
@@ -85,6 +85,48 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     [Generate final answer]
   
   ### Compliant Examples:
+    Task: "Write a Python quick sort code"
+  
+    Quicksort is an efficient sorting algorithm that sorts data through recursion and divide-and-conquer strategy. Here is the Python implementation of quicksort code:
+    ```code:python
+    def quicksort(arr):
+        if len(arr) <= 1:
+            return arr
+        pivot = arr[len(arr) // 2]  # Choose middle element as pivot
+        left = [x for x in arr if x < pivot]   # Elements less than pivot
+        middle = [x for x in arr if x == pivot]  # Elements equal to pivot
+        right = [x for x in arr if x > pivot]  # Elements greater than pivot
+        return quicksort(left) + middle + quicksort(right)  # Recursively sort and merge
+
+    example_array = [3,6,8,10,1,2,1]
+    result = quicksort(example_array)
+    print(result)
+    ```<end_code>
+    Based on the provided Python code execution result, using the quicksort algorithm to sort the example array `[3,6,8,10,1,2,1]` yields the result `[1, 1, 2, 3, 6, 8, 10]`.
+    This code defines a function named `quicksort` that takes a list as input parameter and returns a new sorted list.
+
+    [Quicksort code related information]
+  
+    I have obtained the relevant information, now I will generate the final answer.
+    Here is the Python implementation of quicksort code:
+    ```code:python
+    def quicksort(arr):
+        if len(arr) <= 1:
+            return arr
+        pivot = arr[len(arr) // 2]  # Choose middle element as pivot
+        left = [x for x in arr if x < pivot]   # Elements less than pivot
+        middle = [x for x in arr if x == pivot]  # Elements equal to pivot
+        right = [x for x in arr if x > pivot]  # Elements greater than pivot
+        return quicksort(left) + middle + quicksort(right)  # Recursively sort and merge
+
+    example_array = [3,6,8,10,1,2,1]
+    result = quicksort(example_array)
+    print(result)
+    ```<end_code>
+    Based on the provided Python code execution result, using the quicksort algorithm to sort the example array `[3,6,8,10,1,2,1]` yields the result `[1, 1, 2, 3, 6, 8, 10]`.
+    This code defines a function named `quicksort` that takes a list as input parameter and returns a new sorted list.
+  
+    ---
     Task: "Introduce the Oriental Pearl Tower"
   
     I will first use the knowledge_base_search tool to find if there is relevant information in the local knowledge base.
