@@ -6,9 +6,9 @@ from ..utils.observer import ProcessType
 from .agent_model import ModelConfig, ToolConfig, AgentConfig, AgentHistory
 from ..utils.observer import MessageObserver
 from ..models.openai_llm import OpenAIModel
-from .core_agent import CoreAgent
 from smolagents.tools import Tool
-from langchain.tools import StructuredTool
+from .core_agent import CoreAgent, convert_code_format
+
 from ..tools import *  # Used for tool creation, do not delete!!!
 
 class NexentAgent:
@@ -187,9 +187,11 @@ class NexentAgent:
             final_answer = handle_agent_output_types(final_answer)
 
             if isinstance(final_answer, AgentText):
-                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, final_answer.to_string())
+                final_answer_str = convert_code_format(final_answer.to_string())
+                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, final_answer_str)
             else:
-                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, str(final_answer))
+                final_answer_str = convert_code_format(str(final_answer))
+                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, final_answer_str)
 
             # Check if we need to stop from external stop_event
             if self.agent.stop_event.is_set():
