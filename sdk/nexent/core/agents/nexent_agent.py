@@ -2,13 +2,12 @@ from typing import List
 
 from threading import Event
 from smolagents import ActionStep, TaskStep, AgentText, handle_agent_output_types
+from smolagents.tools import Tool
 from ..utils.observer import ProcessType
 from .agent_model import ModelConfig, ToolConfig, AgentConfig, AgentHistory
 from ..utils.observer import MessageObserver
 from ..models.openai_llm import OpenAIModel
-from smolagents.tools import Tool
 from .core_agent import CoreAgent, convert_code_format
-
 from ..tools import *  # Used for tool creation, do not delete!!!
 
 class NexentAgent:
