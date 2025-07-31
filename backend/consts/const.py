@@ -1,5 +1,7 @@
 import os
 from dotenv import load_dotenv
+
+# Load environment variables
 load_dotenv()
 
 # Test voice file path
@@ -12,6 +14,7 @@ MODEL_ENGINE_APIKEY = os.getenv('MODEL_ENGINE_APIKEY')
 # Elasticsearch Configuration
 ES_HOST = os.getenv("ELASTICSEARCH_HOST")
 ES_API_KEY = os.getenv("ELASTICSEARCH_API_KEY")
+ELASTICSEARCH_SERVICE = os.getenv("ELASTICSEARCH_SERVICE")
 
 # Data Processing Service Configuration
 DATA_PROCESS_SERVICE = os.getenv("DATA_PROCESS_SERVICE")
@@ -25,6 +28,7 @@ UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
 # Image Filter Configuration
 IMAGE_FILTER = os.getenv("IMAGE_FILTER", "false").lower() == "true"
 
+# Default User and Tenant IDs
 DEFAULT_USER_ID = "user_id"
 DEFAULT_TENANT_ID = "tenant_id"
 
@@ -33,3 +37,49 @@ DEFAULT_APP_DESCRIPTION_EN = "Nexent is an open-source agent SDK and platform, w
 
 DEFAULT_APP_NAME_ZH = "Nexent 智能体"
 DEFAULT_APP_NAME_EN = "Nexent Agent"
+
+# Minio Configuration
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
+MINIO_REGION = os.getenv("MINIO_REGION")
+MINIO_DEFAULT_BUCKET = os.getenv("MINIO_DEFAULT_BUCKET")
+
+# Postgres Configuration
+POSTGRES_HOST = os.getenv("POSTGRES_HOST")
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+NEXENT_POSTGRES_PASSWORD = os.getenv("NEXENT_POSTGRES_PASSWORD")
+POSTGRES_DB = os.getenv("POSTGRES_DB")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT")
+
+# Data Processing Service Configuration
+REDIS_URL = os.getenv("REDIS_URL")
+REDIS_BACKEND_URL = os.getenv("REDIS_BACKEND_URL")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+FLOWER_PORT = int(os.getenv("FLOWER_PORT", "5555"))
+
+# Ray Configuration
+RAY_ACTOR_NUM_CPUS = int(os.getenv("RAY_ACTOR_NUM_CPUS", "2"))
+RAY_DASHBOARD_PORT = int(os.getenv("RAY_DASHBOARD_PORT", "8265"))
+RAY_DASHBOARD_HOST = os.getenv("RAY_DASHBOARD_HOST", "0.0.0.0")
+RAY_NUM_CPUS = os.getenv("RAY_NUM_CPUS")
+RAY_PLASMA_DIRECTORY = os.getenv("RAY_PLASMA_DIRECTORY", "/tmp")
+RAY_OBJECT_STORE_MEMORY_GB = float(os.getenv("RAY_OBJECT_STORE_MEMORY_GB", "2.0"))
+RAY_TEMP_DIR = os.getenv("RAY_TEMP_DIR", "/tmp/ray")
+RAY_LOG_LEVEL = os.getenv("RAY_LOG_LEVEL", "INFO").upper()
+
+# Service Control Flags
+DISABLE_RAY_DASHBOARD = os.getenv("DISABLE_RAY_DASHBOARD", "false").lower() == "true"
+DISABLE_CELERY_FLOWER = os.getenv("DISABLE_CELERY_FLOWER", "false").lower() == "true"
+DOCKER_ENVIRONMENT = os.getenv("DOCKER_ENVIRONMENT", "false").lower() == "true"
+
+# Celery Configuration
+CELERY_WORKER_PREFETCH_MULTIPLIER = int(os.getenv("CELERY_WORKER_PREFETCH_MULTIPLIER", "1"))
+CELERY_TASK_TIME_LIMIT = int(os.getenv("CELERY_TASK_TIME_LIMIT", "3600"))
+ELASTICSEARCH_REQUEST_TIMEOUT = int(os.getenv("ELASTICSEARCH_REQUEST_TIMEOUT", "30"))
+
+# Worker Configuration
+RAY_ADDRESS = os.getenv("RAY_ADDRESS", "auto")
+QUEUES = os.getenv("QUEUES", "process_q,forward_q")
+WORKER_NAME = os.getenv("WORKER_NAME")  # Will be dynamically set based on PID if not provided
+WORKER_CONCURRENCY = int(os.getenv("WORKER_CONCURRENCY", "4"))

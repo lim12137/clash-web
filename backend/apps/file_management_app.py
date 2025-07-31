@@ -13,7 +13,7 @@ from fastapi import UploadFile, File, HTTPException, Form, APIRouter, Query, Pat
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from consts.model import ProcessParams
-from consts.const import MAX_CONCURRENT_UPLOADS, UPLOAD_FOLDER
+from consts.const import MAX_CONCURRENT_UPLOADS, UPLOAD_FOLDER, DATA_PROCESS_SERVICE
 from utils.file_management_utils import save_upload_file, trigger_data_process
 from utils.attachment_utils import convert_image_to_text, convert_long_text_to_text
 from database.attachment_db import (
@@ -495,7 +495,7 @@ async def process_text_file(query, filename, file_content, tenant_id: str, langu
     Process text file, convert to text using external API
     """
     # file_content is byte data, need to send to API through file upload
-    data_process_service_url = os.environ.get('DATA_PROCESS_SERVICE')
+    data_process_service_url = DATA_PROCESS_SERVICE
     api_url = f"{data_process_service_url}/tasks/process_text_file"
     logger.info(f"Processing text file {filename} with API: {api_url}")
 
