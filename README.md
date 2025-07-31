@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/modelengine-group-nexent-badge.png)](https://mseep.ai/app/modelengine-group-nexent)
+
 ![Nexent Banner](./assets/NexentBanner.png)
 
 [![English](https://img.shields.io/badge/English-README-blue)](README.md)
