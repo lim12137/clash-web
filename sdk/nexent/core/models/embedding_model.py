@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Union, Optional
 
 import requests
+import asyncio
 
 
 class BaseEmbedding(ABC):
@@ -39,7 +40,7 @@ class BaseEmbedding(ABC):
         pass
 
     @abstractmethod
-    def dimension_check(self, timeout: float = 5.0) -> List[List[float]]:
+    async def dimension_check(self, timeout: float = 5.0) -> List[List[float]]:
         """
         Test the connectivity to the embedding API, supporting timeout detection.
 
@@ -182,13 +183,13 @@ class JinaEmbedding(MultimodalEmbedding):
         embeddings = [item["embedding"] for item in response["data"]]
         return embeddings
 
-    def dimension_check(self, timeout: float = 5.0) -> List[List[float]]:
+    async def dimension_check(self, timeout: float = 5.0) -> List[List[float]]:
         try:
             # Create a simple test input
             test_input = "Hello, nexent!"
 
             # Try to get embedding vectors, setting a timeout
-            embeddings = self.get_embeddings(test_input, timeout=timeout)
+            embeddings = await asyncio.to_thread(self.get_embeddings,test_input, timeout=timeout)
 
             # If embedding vectors are successfully obtained, the connection is normal
             return embeddings
@@ -258,13 +259,13 @@ class OpenAICompatibleEmbedding(TextEmbedding):
         embeddings = [item["embedding"] for item in response["data"]]
         return embeddings
 
-    def dimension_check(self, timeout: float = 5.0) -> List[List[float]]:
+    async def dimension_check(self, timeout: float = 5.0) -> List[List[float]]:
         try:
             # Create a simple test input
             test_input = "Hello, nexent!"
 
-            # Try to get embedding vectors, setting a timeout
-            embeddings = self.get_embeddings(test_input, timeout=timeout)
+            # Try to get embedding vectors in a background thread, setting a timeout
+            embeddings = await asyncio.to_thread(self.get_embeddings, test_input, timeout=timeout)
 
             # If embedding vectors are successfully obtained, the connection is normal
             return embeddings
