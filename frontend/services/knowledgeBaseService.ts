@@ -213,10 +213,9 @@ class KnowledgeBaseService {
   }
 
   // Get all files from a knowledge base, regardless of the existence of index
-  // searchRedis: true means search redis to get the file in Celery, false means only search in ES
-  async getAllFiles(kbId: string, searchRedis: boolean = true): Promise<Document[]> {
+  async getAllFiles(kbId: string): Promise<Document[]> {
     try {
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.listFiles(kbId, searchRedis));
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.listFiles(kbId));
       const result = await response.json();
 
       if (result.status !== "success") {
