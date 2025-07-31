@@ -230,6 +230,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
       message.error(errorMessage);
     } finally {
       setIsSaving(false);
+      setShowDetail(false);
     }
   };
 

@@ -55,7 +55,6 @@ export default function AppModelConfig({ skipModelVerification = false }: AppMod
                 flexDirection: 'column'
               }}>
                 <div style={{ 
-                  marginBottom: CARD_HEADER.MARGIN_BOTTOM,
                   padding: CARD_HEADER.PADDING,
                   flexShrink: 0
                 }}>
@@ -85,7 +84,6 @@ export default function AppModelConfig({ skipModelVerification = false }: AppMod
                 flexDirection: 'column'
               }}>
                 <div style={{ 
-                  marginBottom: CARD_HEADER.MARGIN_BOTTOM,
                   padding: CARD_HEADER.PADDING,
                   flexShrink: 0
                 }}>

@@ -469,7 +469,7 @@ export function ChatSidebar({
               </div>
             </div>
 
-            <div className="p-2">
+            <div className="m-4">
               <Button variant="outline" className="w-full justify-start text-base overflow-hidden" onClick={onNewConversation}>
                 <Plus className="mr-2 flex-shrink-0" style={{height:'20px', width:'20px'}}/>
                 <span className="truncate">{t('chatLeftSidebar.newConversation')}</span>
