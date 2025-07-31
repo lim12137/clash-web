@@ -264,8 +264,6 @@ export const AppConfigSection: React.FC = () => {
           avatarUri: tempCustomAvatarUrl || null
         });
       }
-
-      message.success(t('appConfig.icon.saveSuccess'));
     } catch (error) {
       message.error(t('appConfig.icon.saveError'));
       console.error(t('appConfig.icon.saveErrorLog'), error);

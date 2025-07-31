@@ -49,7 +49,7 @@ class KnowledgeBasePollingService {
           await this.handlePollingTimeout(kbId, 'document', callback);
           // Push documents to UI
           try {
-            const documents = await knowledgeBaseService.getAllFiles(kbId, true);
+            const documents = await knowledgeBaseService.getAllFiles(kbId);
             this.triggerDocumentsUpdate(kbId, documents);
           } catch (e) {
             // Ignore error
@@ -59,7 +59,7 @@ class KnowledgeBasePollingService {
         }
         
         // Get latest document status
-        const documents = await knowledgeBaseService.getAllFiles(kbId,true);
+        const documents = await knowledgeBaseService.getAllFiles(kbId);
         
         // Call callback function with latest documents first to ensure UI updates immediately
         callback(documents);
@@ -111,7 +111,7 @@ class KnowledgeBasePollingService {
     try {
       console.log(`Handling ${timeoutType} polling timeout for knowledge base ${kbId}`);
       // Get current documents
-      const documents = await knowledgeBaseService.getAllFiles(kbId, true);
+      const documents = await knowledgeBaseService.getAllFiles(kbId);
       // Find all documents that are still in processing state
       const processingDocs = documents.filter(doc => 
         NON_TERMINAL_STATUSES.includes(doc.status)
@@ -188,7 +188,7 @@ class KnowledgeBasePollingService {
             await this.handlePollingTimeout(kbName, 'knowledgeBase');
             // Push documents to UI
             try {
-              const documents = await knowledgeBaseService.getAllFiles(kbName, true);
+              const documents = await knowledgeBaseService.getAllFiles(kbName);
               this.triggerDocumentsUpdate(kbName, documents);
             } catch (e) {
               // Ignore error
@@ -206,7 +206,7 @@ class KnowledgeBasePollingService {
             await this.handlePollingTimeout(kbName, 'knowledgeBase');
             // Push documents to UI
             try {
-              const documents = await knowledgeBaseService.getAllFiles(kbName, true);
+              const documents = await knowledgeBaseService.getAllFiles(kbName);
               this.triggerDocumentsUpdate(kbName, documents);
             } catch (e) {
               // Ignore error
