@@ -2,6 +2,7 @@ from typing import List
 
 from threading import Event
 from smolagents import ActionStep, TaskStep, AgentText, handle_agent_output_types
+from smolagents.tools import Tool
 from ..utils.observer import ProcessType
 from .agent_model import ModelConfig, ToolConfig, AgentConfig, AgentHistory
 from ..utils.observer import MessageObserver
@@ -56,8 +57,6 @@ class NexentAgent:
         if tool_class is None:
             raise ValueError(f"{class_name} not found in local")
         else:
-
-
             if class_name == "KnowledgeBaseSearchTool":
                 tools_obj = tool_class(index_names=tool_config.metadata.get("index_names", []),
                                        observer= self.observer,
@@ -69,6 +68,10 @@ class NexentAgent:
                 if hasattr(tools_obj, 'observer'):
                     tools_obj.observer = self.observer
             return tools_obj
+
+    def create_langchain_tool(self, tool_config: ToolConfig):
+        tool_obj = tool_config.metadata
+        return Tool.from_langchain(tool_obj)
 
     def create_mcp_tool(self, class_name):
         if self.mcp_tool_collection is None:
@@ -93,6 +96,8 @@ class NexentAgent:
                 tool_obj = self.create_local_tool(tool_config)
             elif source == "mcp":
                 tool_obj = self.create_mcp_tool(class_name)
+            elif source == "langchain":
+                tool_obj = self.create_langchain_tool(tool_config)
             else:
                 raise ValueError(f"unsupported tool source: {source}")
             return tool_obj

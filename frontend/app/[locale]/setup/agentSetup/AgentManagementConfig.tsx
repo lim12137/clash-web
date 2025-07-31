@@ -531,11 +531,11 @@ function ToolPool({
           </CustomTooltip>
         </div>
         {/* Tag and settings button right */}
-        <div className="flex items-center gap-2 ml-2">
-          <div className="flex items-center justify-start min-w-[90px] w-[90px]">
-            <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} 
+        <div className="flex items-center gap-2">
+          <div className="flex items-center min-w-[100px] w-[100px] mr-2">
+            <Tag color={tool?.source === 'mcp' ? 'blue' : tool?.source === 'langchain' ? 'orange' : 'green'} 
                  className={`w-full text-center ${!isAvailable && !isSelected ? 'opacity-50' : ''}`}>
-              {tool?.source === 'mcp' ? t('toolPool.tag.mcp') : t('toolPool.tag.local')}
+              {tool?.source === 'mcp' ? t('toolPool.tag.mcp') : tool?.source === 'langchain' ? t('toolPool.tag.langchain') : t('toolPool.tag.local')}
             </Tag>
           </div>
           <button 
