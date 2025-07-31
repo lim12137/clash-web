@@ -11,7 +11,8 @@ dependencies = [
     "websocket-client>=1.8.0",
     "pyyaml>=6.0.2",
     "redis>=5.0.0",
-    "fastmcp==2.6.0"
+    "fastmcp==2.6.0",
+    "langchain>=0.3.26"
 ]
 
 [project.optional-dependencies]
