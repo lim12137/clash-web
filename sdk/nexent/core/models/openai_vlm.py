@@ -18,7 +18,7 @@ class OpenAIVLModel(OpenAIModel):
         self.max_tokens = max_tokens
         self._current_request = None  # Used to store the current request
 
-    def check_connectivity(self) -> bool:
+    async def check_connectivity(self) -> bool:
         """
         Check the connectivity of the VLM model.
 
@@ -27,7 +27,7 @@ class OpenAIVLModel(OpenAIModel):
         """
         try:
             # Directly reuse the parent class's check_connectivity method
-            return super().check_connectivity()
+            return await super().check_connectivity()
         except Exception as e:
             import logging
             logging.error(f"VLM connectivity check failed: {str(e)}")

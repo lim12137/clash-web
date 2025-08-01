@@ -1,31 +1,37 @@
 import logging
-from typing import Optional
 import asyncio
 
 from nexent.core.models.stt_model import STTModel, STTConfig
 from nexent.core.models.tts_model import TTSModel, TTSConfig
 from fastapi import WebSocket, APIRouter
+from consts.const import APPID, TOKEN, CLUSTER, VOICE_TYPE, SPEED_RATIO, TEST_VOICE_PATH
 
 logger = logging.getLogger("voice_app")
 
 class VoiceService:
     """Unified voice service that hosts both STT and TTS on a single FastAPI application"""
 
-    def __init__(self,
-                 stt_config: Optional[STTConfig] = None,
-                 tts_config: Optional[TTSConfig] = None):
+    def __init__(self):
         """
-        Initialize the voice service with STT and TTS configurations.
+        Initialize the voice service with configurations from const.py.
+        """
+        # Initialize STT configuration
+        self.stt_config = STTConfig(
+            appid=APPID,
+            token=TOKEN
+        )
         
-        Args:
-            stt_config: STT configuration. If None, loads from environment.
-            tts_config: TTS configuration. If None, loads from environment.
-        """
-        self.stt_config = stt_config or STTConfig.from_env()
-        self.tts_config = tts_config or TTSConfig.from_env()
+        # Initialize TTS configuration  
+        self.tts_config = TTSConfig(
+            appid=APPID,
+            token=TOKEN,
+            cluster=CLUSTER,
+            voice_type=VOICE_TYPE,
+            speed_ratio=SPEED_RATIO
+        )
 
         # Initialize models
-        self.stt_model = STTModel(self.stt_config)
+        self.stt_model = STTModel(self.stt_config, TEST_VOICE_PATH)
         self.tts_model = TTSModel(self.tts_config)
 
         # Create FastAPI application

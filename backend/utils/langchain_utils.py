@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 # Default path for LangChain tools
 LANGCHAIN_TOOLS_DIR = os.path.abspath(os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "tool_collections",
+    "tool_collection",
     "langchain"
 ))
 

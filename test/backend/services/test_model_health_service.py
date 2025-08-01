@@ -99,7 +99,7 @@ async def test_perform_connectivity_check_embedding():
     # Setup
     with mock.patch("backend.services.model_health_service.OpenAICompatibleEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.dimension_check.return_value = [1]
+        mock_embedding_instance.dimension_check = mock.AsyncMock(return_value=[1])
         mock_embedding.return_value = mock_embedding_instance
 
         # Execute
@@ -126,7 +126,7 @@ async def test_perform_connectivity_check_multi_embedding():
     # Setup
     with mock.patch("backend.services.model_health_service.JinaEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.dimension_check.return_value = [1]
+        mock_embedding_instance.dimension_check = mock.AsyncMock(return_value=[1])
         mock_embedding.return_value = mock_embedding_instance
 
         # Execute
@@ -157,7 +157,7 @@ async def test_perform_connectivity_check_llm():
         mock_observer.return_value = mock_observer_instance
         
         mock_model_instance = mock.MagicMock()
-        mock_model_instance.check_connectivity.return_value = True
+        mock_model_instance.check_connectivity = mock.AsyncMock(return_value=True)
         mock_model.return_value = mock_model_instance
 
         # Execute
@@ -187,7 +187,7 @@ async def test_perform_connectivity_check_vlm():
         mock_observer.return_value = mock_observer_instance
         
         mock_model_instance = mock.MagicMock()
-        mock_model_instance.check_connectivity.return_value = True
+        mock_model_instance.check_connectivity = mock.AsyncMock(return_value=True)
         mock_model.return_value = mock_model_instance
 
         # Execute
