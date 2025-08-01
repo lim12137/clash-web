@@ -85,3 +85,10 @@ RAY_ADDRESS = os.getenv("RAY_ADDRESS", "auto")
 QUEUES = os.getenv("QUEUES", "process_q,forward_q")
 WORKER_NAME = os.getenv("WORKER_NAME")  # Will be dynamically set based on PID if not provided
 WORKER_CONCURRENCY = int(os.getenv("WORKER_CONCURRENCY", "4"))
+
+# Voice Service Configuration
+APPID = os.getenv("APPID", "")
+TOKEN = os.getenv("TOKEN", "")
+CLUSTER = os.getenv("CLUSTER", "volcano_tts")
+VOICE_TYPE = os.getenv("VOICE_TYPE", "zh_male_jieshuonansheng_mars_bigtts")
+SPEED_RATIO = float(os.getenv("SPEED_RATIO", "1.3"))
