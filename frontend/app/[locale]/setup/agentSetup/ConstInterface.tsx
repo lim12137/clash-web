@@ -143,4 +143,18 @@ export interface BusinessLogicConfigProps {
   setAgentDescription?: (value: string) => void;
   // Add new prop for generating agent state
   isGeneratingAgent?: boolean;
+  // SystemPromptDisplay related props
+  onDebug?: () => void;
+  getCurrentAgentId?: () => number | undefined;
+  onModelChange?: (value: string) => void;
+  onMaxStepChange?: (value: number | null) => void;
+  onBusinessLogicChange?: (value: string) => void;
+  onGenerateAgent?: () => void;
+  onSaveAgent?: () => void;
+  isSavingAgent?: boolean;
+  canSaveAgent?: boolean;
+  getButtonTitle?: () => string;
+  onExportAgent?: () => void;
+  onDeleteAgent?: () => void;
+  editingAgent?: any;
 }

@@ -8,7 +8,7 @@ from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ToolInstanc
 from database.agent_db import create_agent, query_all_enabled_tool_instances, \
     query_or_create_main_agent_id, query_sub_agents, search_blank_sub_agent_by_main_agent_id, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
-    create_or_update_tool_by_tool_info, check_tool_is_available, query_all_agent_info_by_tenant_id
+    create_or_update_tool_by_tool_info, check_tool_is_available, query_all_agent_info_by_tenant_id, query_sub_agents_id_list
 
 from utils.auth_utils import get_current_user_id
 from typing import Optional
@@ -26,7 +26,7 @@ def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str, user_id: str =
     return list(enable_tool_id_set)
 
 def get_enable_sub_agent_id_by_agent_id(agent_id: int, tenant_id: str, user_id: str):
-    sub_agents = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
+    sub_agents = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id)
     sub_agents_list = []
     for sub_agent in sub_agents:
         if sub_agent["enabled"]:
@@ -34,25 +34,24 @@ def get_enable_sub_agent_id_by_agent_id(agent_id: int, tenant_id: str, user_id: 
 
     return sub_agents_list
 
-def get_creating_sub_agent_id_service(main_agent_id: int, tenant_id: str, user_id: str = None) -> int:
+def get_creating_sub_agent_id_service(tenant_id: str, user_id: str = None) -> int:
     """
         first find the blank sub agent, if it exists, it means the agent was created before, but exited prematurely;
                                   if it does not exist, create a new one
     """
-    sub_agent_id = search_blank_sub_agent_by_main_agent_id(main_agent_id, tenant_id)
+    sub_agent_id = search_blank_sub_agent_by_main_agent_id(tenant_id=tenant_id)
     if sub_agent_id:
         return sub_agent_id
     else:
-        return create_agent(agent_info={"enabled": False,
-                                        "parent_agent_id": main_agent_id}, tenant_id=tenant_id, user_id=user_id)["agent_id"]
+        return create_agent(agent_info={"enabled": False}, tenant_id=tenant_id, user_id=user_id)["agent_id"]
 
 
 def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str = None):
-    sub_agents = query_sub_agents(main_agent_id, tenant_id, user_id)
+    sub_agents = query_sub_agents(main_agent_id, tenant_id)
 
     for sub_agent in sub_agents:
         # search the tools used by each sub agent, here use the tools configured by admin, not use user_id
-        tool_info = search_tools_for_sub_agent(agent_id=sub_agent["agent_id"], tenant_id=tenant_id, user_id=None)
+        tool_info = search_tools_for_sub_agent(agent_id=sub_agent["agent_id"], tenant_id=tenant_id)
         sub_agent["tools"] = tool_info
 
         tool_id_list = [tool["tool_id"] for tool in tool_info]
@@ -73,7 +72,7 @@ def list_main_agent_info_impl(authorization: Optional[str] = Header(None)):
         raise ValueError(f"Failed to get main agent id: {str(e)}")
         
     try:
-        main_agent_info = search_agent_info_by_agent_id(agent_id=main_agent_id, tenant_id=tenant_id, user_id=user_id)
+        main_agent_info = search_agent_info_by_agent_id(agent_id=main_agent_id, tenant_id=tenant_id)
     except Exception as e:
         logger.error(f"Failed to get main agent info: {str(e)}")
         raise ValueError(f"Failed to get main agent info: {str(e)}")
@@ -105,36 +104,41 @@ def list_main_agent_info_impl(authorization: Optional[str] = Header(None)):
     }
 
 
-def get_agent_info_impl(agent_id: int, authorization: str = Header(None)):
-    user_id, tenant_id = get_current_user_id(authorization)
-    
+def get_agent_info_impl(agent_id: int, tenant_id: str):
     try:    
-        agent_info = search_agent_info_by_agent_id(agent_id, tenant_id, user_id)
+        agent_info = search_agent_info_by_agent_id(agent_id, tenant_id)
     except Exception as e:
         logger.error(f"Failed to get agent info: {str(e)}")
         raise ValueError(f"Failed to get agent info: {str(e)}")
 
     try:
-        # now only admin can modify the agent, user_id is not used
-        tool_info = search_tools_for_sub_agent(agent_id=agent_id, tenant_id=tenant_id, user_id=None)
+        tool_info = search_tools_for_sub_agent(agent_id=agent_id, tenant_id=tenant_id)
         agent_info["tools"] = tool_info
     except Exception as e:
         logger.error(f"Failed to get agent tools: {str(e)}")
         agent_info["tools"] = []
 
+    try:
+        sub_agent_id_list = query_sub_agents_id_list(main_agent_id=agent_id, tenant_id=tenant_id)
+        agent_info["sub_agent_id_list"] = sub_agent_id_list
+    except Exception as e:
+        logger.error(f"Failed to get sub agent id list: {str(e)}")
+        agent_info["sub_agent_id_list"] = []
+
     return agent_info
 
-def get_creating_sub_agent_info_impl(agent_id: int, authorization: str = Header(None)):
+
+def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
     user_id, tenant_id = get_current_user_id(authorization)
     
     try:
-        sub_agent_id = get_creating_sub_agent_id_service(agent_id, tenant_id, user_id)
+        sub_agent_id = get_creating_sub_agent_id_service(tenant_id, user_id)
     except Exception as e:
         logger.error(f"Failed to get creating sub agent id: {str(e)}")
         raise ValueError(f"Failed to get creating sub agent id: {str(e)}")
 
     try:
-        agent_info = search_agent_info_by_agent_id(agent_id=sub_agent_id, tenant_id=tenant_id, user_id=user_id)
+        agent_info = search_agent_info_by_agent_id(agent_id=sub_agent_id, tenant_id=tenant_id)
     except Exception as e:
         logger.error(f"Failed to get sub agent info: {str(e)}")
         raise ValueError(f"Failed to get sub agent info: {str(e)}")
@@ -152,7 +156,8 @@ def get_creating_sub_agent_info_impl(agent_id: int, authorization: str = Header(
             "business_description": agent_info["business_description"],
             "duty_prompt": agent_info.get("duty_prompt"),
             "constraint_prompt": agent_info.get("constraint_prompt"),
-            "few_shots_prompt": agent_info.get("few_shots_prompt")}
+            "few_shots_prompt": agent_info.get("few_shots_prompt"),
+            "sub_agent_id_list": query_sub_agents_id_list(main_agent_id=sub_agent_id, tenant_id=tenant_id)}
 
 def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Header(None)):
     user_id, tenant_id = get_current_user_id(authorization)
@@ -182,7 +187,7 @@ async def export_agent_impl(agent_id: int, authorization: str = Header(None)):
         if tool.class_name == "KnowledgeBaseSearchTool":
             tool.metadata = {}
     
-    agent_info_in_db = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
+    agent_info_in_db = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id)
 
     agent_info = ExportAndImportAgentInfo(name=agent_info_in_db["name"],
                                           description=agent_info_in_db["description"],
@@ -264,7 +269,7 @@ def search_sub_agents():
         raise ValueError(f"Failed to get main agent id: {str(e)}")
 
     try:
-        sub_agent_list = query_sub_agents(main_agent_id, tenant_id, user_id)
+        sub_agent_list = query_sub_agents(main_agent_id, tenant_id)
     except Exception as e:
         logger.error(f"Failed to get sub agent list: {str(e)}")
         raise ValueError(f"Failed to get sub agent list: {str(e)}")
@@ -330,7 +335,7 @@ def list_all_agent_info_impl(tenant_id: str, user_id: str) -> list[dict]:
             # check agent is available
             if not agent["name"]:
                 continue
-            tool_info = search_tools_for_sub_agent(agent_id=agent["agent_id"], tenant_id=tenant_id, user_id=None)
+            tool_info = search_tools_for_sub_agent(agent_id=agent["agent_id"], tenant_id=tenant_id)
             tool_id_list = [tool["tool_id"] for tool in tool_info]
             is_available = all(check_tool_is_available(tool_id_list))
 

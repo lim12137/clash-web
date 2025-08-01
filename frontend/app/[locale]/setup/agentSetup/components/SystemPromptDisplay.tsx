@@ -1,13 +1,13 @@
 "use client"
 
-import { message } from 'antd'
+import { message, Input } from 'antd'
 import { useState, useEffect } from 'react'
+import { ThunderboltOutlined, LoadingOutlined } from '@ant-design/icons'
 import { fineTunePrompt, savePrompt } from '@/services/promptService'
 import { updateAgent } from '@/services/agentConfigService'
 import { useTranslation } from 'react-i18next'
 
 // Import new components
-import BusinessLogicSection from './BusinessLogicSection'
 import AgentConfigurationSection from './AgentConfigurationSection'
 import ExpandModal from './ExpandModal'
 import FineTuneModal from './FineTuneModal'
@@ -217,22 +217,88 @@ export default function SystemPromptDisplay({
 
   return (
     <div className="flex flex-col h-full relative">
+      <style jsx global>{`
+        /* Responsive adjustments for SystemPromptDisplay */
+        @media (max-width: 768px) {
+          .system-prompt-container {
+            overflow-y: auto !important;
+            max-height: none !important;
+          }
+          .system-prompt-content {
+            min-height: auto !important;
+            max-height: none !important;
+          }
+        }
+        @media (max-width: 1024px) {
+          .system-prompt-business-logic {
+            min-height: 100px !important;
+            max-height: 150px !important;
+          }
+        }
+      `}</style>
+      
       {/* Non-editing mode overlay */}
       {!isEditingMode && <NonEditingOverlay />}
 
-      {/* Business Logic Section */}
-      <BusinessLogicSection
-        businessLogic={businessLogic}
-        onBusinessLogicChange={onBusinessLogicChange}
-        onGenerateAgent={onGenerateAgent}
-        isGeneratingAgent={isGeneratingAgent}
-        isSavingAgent={isSavingAgent}
-        isEditingMode={isEditingMode}
-      />
+      {/* Main Container Header: 描述 Agent 应该如何工作 */}
+      <div className="flex justify-between items-center mb-2">
+        <div className="flex items-center">
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
+            3
+          </div>
+                     <h2 className="text-lg font-medium">{t('guide.steps.describeBusinessLogic.title')}</h2>
+        </div>
+      </div>
 
-      {/* Action Buttons Section - Removed, buttons moved to AgentConfigurationSection header */}
+      {/* Main Container Content */}
+      <div className="flex-1 flex flex-col border-t pt-2 system-prompt-container overflow-hidden">
+        {/* Upper Section: Business Logic Description */}
+        <div className="flex-shrink-0 mb-4">
+          <div className="mb-2">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">{t('businessLogic.title')}</h3>
+          </div>
+          <div className="relative">
+                         <Input.TextArea
+               value={businessLogic}
+               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onBusinessLogicChange?.(e.target.value)}
+               placeholder={t('businessLogic.placeholder')}
+              className="w-full resize-none p-3 text-base pr-20 transition-all duration-300 system-prompt-business-logic"
+              style={{ 
+                minHeight: '120px',
+                maxHeight: '200px'
+              }}
+              autoSize={{ 
+                minRows: 4, 
+                maxRows: 8 
+              }}
+               disabled={!isEditingMode}
+             />
+            {/* Generate button positioned in input box bottom-right corner */}
+            <div className="absolute bottom-2 right-2">
+              <button
+                onClick={onGenerateAgent}
+                disabled={isGeneratingAgent || isSavingAgent}
+                className="px-3 py-1.5 rounded-md flex items-center justify-center text-xs bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ border: 'none' }}
+              >
+                {isGeneratingAgent ? (
+                  <>
+                    <LoadingOutlined spin className="mr-1" />
+                    {t('businessLogic.config.button.generating')}
+                  </>
+                ) : (
+                  <>
+                    <ThunderboltOutlined className="mr-1" />
+                    {t('businessLogic.config.button.generatePrompt')}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
 
-      {/* Agent Configuration Section */}
+        {/* Lower Section: Agent Configuration */}
+        <div className="flex-1 min-h-0 system-prompt-content">
       <AgentConfigurationSection
         agentId={agentId}
         dutyContent={dutyContent}
@@ -263,6 +329,8 @@ export default function SystemPromptDisplay({
         canSaveAgent={canSaveAgent}
         isSavingAgent={isSavingAgent}
       />
+        </div>
+      </div>
 
       {/* Expand Modal */}
       <ExpandModal
