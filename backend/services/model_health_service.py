@@ -67,14 +67,14 @@ async def _perform_connectivity_check(
     
     # Test connectivity based on different model types
     if model_type == "embedding":
-        connectivity = len(OpenAICompatibleEmbedding(
+        connectivity = len(await OpenAICompatibleEmbedding(
             model_name=model_name, 
             base_url=model_base_url, 
             api_key=model_api_key, 
             embedding_dim=embedding_dim
         ).dimension_check()) > 0
     elif model_type == "multi_embedding":
-        connectivity = len(JinaEmbedding(
+        connectivity = len(await JinaEmbedding(
             model_name=model_name, 
             base_url=model_base_url, 
             api_key=model_api_key, 
@@ -82,7 +82,7 @@ async def _perform_connectivity_check(
         ).dimension_check()) > 0
     elif model_type == "llm":
         observer = MessageObserver()
-        connectivity = OpenAIModel(
+        connectivity = await OpenAIModel(
             observer, 
             model_id=model_name, 
             api_base=model_base_url, 
@@ -92,7 +92,7 @@ async def _perform_connectivity_check(
         connectivity = False
     elif model_type == "vlm":
         observer = MessageObserver()
-        connectivity = OpenAIVLModel(
+        connectivity =await OpenAIVLModel(
             observer, 
             model_id=model_name, 
             api_base=model_base_url, 
