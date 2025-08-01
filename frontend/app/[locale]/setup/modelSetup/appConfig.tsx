@@ -264,8 +264,6 @@ export const AppConfigSection: React.FC = () => {
           avatarUri: tempCustomAvatarUrl || null
         });
       }
-
-      message.success(t('appConfig.icon.saveSuccess'));
     } catch (error) {
       message.error(t('appConfig.icon.saveError'));
       console.error(t('appConfig.icon.saveErrorLog'), error);
@@ -312,7 +310,7 @@ export const AppConfigSection: React.FC = () => {
             }}
           >
             <div className="flex items-start justify-center mx-auto my-2" style={{ maxWidth: "95%" }}>
-              <div className="mr-6 mt-4 relative group">
+              <div className="mr-6 mt-1 relative group">
                 <div 
                   className="h-[60px] w-[60px] rounded-full overflow-hidden cursor-pointer"
                   style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
@@ -330,7 +328,7 @@ export const AppConfigSection: React.FC = () => {
               </div>
               <div className="flex-1">
                 <div className="mb-4">
-                  <div className="block mb-2">
+                  <div className="flex items-center mb-2 min-h-[24px]">
                     <Text className="text-base text-gray-700 font-bold">{t('appConfig.appName.label')}</Text>
                   </div>
                   <Input
@@ -345,7 +343,7 @@ export const AppConfigSection: React.FC = () => {
                   />
                 </div>
                 <div className="mb-1">
-                  <div className="block mb-2">
+                  <div className="flex items-center mb-2 min-h-[24px]">
                     <Text className="text-base text-gray-700 font-bold">{t('appConfig.description.label')}</Text>
                   </div>
                   <TextArea

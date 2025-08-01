@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Exit immediately if a command exits with a non-zero status
+set -e
+
 ERROR_OCCURRED=0
 
 set -a
@@ -8,6 +11,7 @@ source .env
 # Parse arg
 MODE_CHOICE=""
 IS_MAINLAND=""
+ENABLE_TERMINAL=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -17,6 +21,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --is-mainland)
       IS_MAINLAND="$2"
+      shift 2
+      ;;
+    --enable-terminal)
+      ENABLE_TERMINAL="$2"
       shift 2
       ;;
     *)
@@ -76,12 +84,12 @@ select_deployment_mode() {
             ;;
     esac
     source .env
-    echo ""
-    echo "--------------------------------"
-    echo ""
+    echo -e "\n--------------------------------\n"
 }
 
 generate_minio_ak_sk() {
+  echo "🔑 Generating MinIO access keys..."
+
   if [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "mingw" ] || [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "msys" ]; then
     # Windows
     ACCESS_KEY=$(powershell -Command "[System.Convert]::ToBase64String([System.Guid]::NewGuid().ToByteArray()) -replace '[^a-zA-Z0-9]', '' -replace '=.+$', '' | Select-Object -First 12")
@@ -93,6 +101,12 @@ generate_minio_ak_sk() {
 
     # Generate a random SK (32-character high-strength random string) and clean it
     SECRET_KEY=$(openssl rand -base64 32 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9+/=]//g')
+  fi
+
+  if [ -z "$ACCESS_KEY" ] || [ -z "$SECRET_KEY" ]; then
+    echo "❌ ERROR Failed to generate MinIO access keys"
+    ERROR_OCCURRED=1
+    return 1
   fi
 
   export MINIO_ACCESS_KEY=$ACCESS_KEY
@@ -111,6 +125,8 @@ generate_minio_ak_sk() {
   else
     echo "MINIO_SECRET_KEY=$SECRET_KEY" >> .env
   fi
+
+  echo "✅ MinIO access keys generated successfully"
 }
 
 clean() {
@@ -167,23 +183,27 @@ add_permission() {
   NEXENT_USER_DIR="$HOME/nexent"
   create_dir_with_permission "$NEXENT_USER_DIR" 775
   echo "📁 Created Nexent user workspace at: $NEXENT_USER_DIR"
-  
+
   # Export for docker-compose
   export NEXENT_USER_DIR
 
-  echo ""
-  echo "--------------------------------"
-  echo ""
+  echo -e "\n--------------------------------\n"
 }
 
 install() {
-  # Start infrastructure services
-  docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent-elasticsearch nexent-postgresql nexent-minio redis
+  # Build base infrastructure command
+  INFRA_SERVICES="nexent-elasticsearch nexent-postgresql nexent-minio redis"
+
+  # Add openssh-server if Terminal tool is enabled
+  if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
+    INFRA_SERVICES="$INFRA_SERVICES nexent-openssh-server"
+    echo "🔧 Terminal tool enabled - openssh-server will be included"
+  fi
+
+  docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES
   docker-compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d
 
-  echo ""
-  echo "--------------------------------"
-  echo ""
+  echo -e "\n--------------------------------\n"
 
   # Always generate a new ELASTICSEARCH_API_KEY for each deployment.
   echo "🔑 Generating ELASTICSEARCH_API_KEY..."
@@ -215,9 +235,7 @@ install() {
     ERROR_OCCURRED=1
   fi
 
-  echo ""
-  echo "--------------------------------"
-  echo ""
+  echo -e "\n--------------------------------\n"
 
   # Start core services
   if [ "$DEPLOYMENT_MODE" != "infrastructure" ]; then
@@ -265,9 +283,7 @@ update_env_var() {
     echo "${key}=\"${value}\"" >> "$env_file"
   fi
 
-  echo ""
-  echo "--------------------------------"
-  echo ""
+  echo -e "\n--------------------------------\n"
 }
 
 choose_image_env() {
@@ -285,17 +301,244 @@ choose_image_env() {
     source .env.general
   fi
 
-  echo ""
-  echo "--------------------------------"
-  echo ""
+  echo -e "\n--------------------------------\n"
 }
 
 choose_beta_env() {
   echo "🌐 Beta mode selected, using .env.beta for image sources."
   source .env.beta
-  echo ""
-  echo "--------------------------------"
-  echo ""
+  echo -e "\n--------------------------------\n"
+}
+
+# Function to pull required images
+pull_required_images() {
+  if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
+    echo "🐳 Pulling openssh-server image for Terminal tool..."
+    if ! docker pull "$OPENSSH_SERVER_IMAGE"; then
+      echo "❌ ERROR Failed to pull openssh-server image: $OPENSSH_SERVER_IMAGE"
+      ERROR_OCCURRED=1
+      return 1
+    fi
+    echo "✅ Successfully pulled openssh-server image"
+    echo ""
+    echo "--------------------------------"
+    echo ""
+  fi
+}
+
+# Function to setup SSH timeout configuration using custom-init
+setup_ssh_timeout_config() {
+    echo "📝 Setting up SSH timeout configuration..."
+    mkdir -p "openssh-server/config/custom-cont-init.d"
+    if [ ! -f "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config" ]; then
+        cat > "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config" << 'EOF'
+#!/usr/bin/with-contenv bash
+
+# Configure SSH timeout settings for nexent terminal tool
+echo "Configuring SSH timeout settings (60 minutes)..."
+
+# Fix SSH host key permissions (must be 600 for private keys)
+echo "Fixing SSH host key permissions..."
+find /config -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
+find /config/ssh_host_keys -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
+echo "SSH host key permissions fixed"
+
+# Append timeout configuration to sshd_config
+cat >> /config/sshd/sshd_config << 'SSHD_EOF'
+
+# Nexent Terminal Tool - Session timeout configuration (60 minutes = 3600 seconds)
+ClientAliveInterval 300
+ClientAliveCountMax 12
+SSHD_EOF
+
+echo "SSH timeout configuration applied successfully"
+EOF
+        chmod +x "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config"
+        echo "✅ SSH timeout configuration script created"
+    else
+        echo "🔄 SSH timeout configuration script already exists, updating..."
+        # Always recreate the script to ensure it has the latest configuration
+        cat > "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config" << 'EOF'
+#!/usr/bin/with-contenv bash
+
+# Configure SSH timeout settings for nexent terminal tool
+echo "Configuring SSH timeout settings (60 minutes)..."
+
+# Fix SSH host key permissions (must be 600 for private keys)
+echo "Fixing SSH host key permissions..."
+find /config -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
+find /config/ssh_host_keys -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
+echo "SSH host key permissions fixed"
+
+# Append timeout configuration to sshd_config
+cat >> /config/sshd/sshd_config << 'SSHD_EOF'
+
+# Nexent Terminal Tool - Session timeout configuration (60 minutes = 3600 seconds)
+ClientAliveInterval 300
+ClientAliveCountMax 12
+SSHD_EOF
+
+echo "SSH timeout configuration applied successfully"
+EOF
+        chmod +x "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config"
+        echo "✅ SSH timeout configuration script updated"
+    fi
+}
+
+# Function to ask if user wants to enable Terminal tool
+select_terminal_tool() {
+    echo "🔧 Terminal Tool Configuration:"
+    echo "Terminal tool allows AI agents to execute shell commands via SSH."
+    echo "This creates an openssh-server container for secure command execution."
+    if [ -n "$ENABLE_TERMINAL" ]; then
+        enable_terminal="$ENABLE_TERMINAL"
+    else
+        read -p "👉 Do you want to enable Terminal tool? [Y/N] (default: N): " enable_terminal
+    fi
+
+    if [[ "$enable_terminal" =~ ^[Yy]$ ]]; then
+        export ENABLE_TERMINAL_TOOL="true"
+        export COMPOSE_PROFILES="${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}terminal"
+        echo "✅ Terminal tool enabled 🔧"
+        echo "📝 An openssh-server container will be deployed for secure command execution."
+    else
+        export ENABLE_TERMINAL_TOOL="false"
+        echo "❌ Terminal tool disabled"
+    fi
+    echo -e "\n--------------------------------\n"
+}
+
+# Function to generate SSH key pair for Terminal tool
+generate_ssh_keys() {
+    if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
+        # Create ssh-keys directory
+        create_dir_with_permission "openssh-server/ssh-keys" 700
+        create_dir_with_permission "openssh-server/config" 755
+
+        # Check if SSH keys already exist
+        if [ -f "openssh-server/ssh-keys/openssh_server_key" ] && [ -f "openssh-server/ssh-keys/openssh_server_key.pub" ]; then
+            echo "🔑 SSH key pair already exists, skipping generation..."
+            echo "🔑 Private key: openssh-server/ssh-keys/openssh_server_key"
+            echo "🗝️  Public key: openssh-server/ssh-keys/openssh_server_key.pub"
+
+            # Ensure authorized_keys is set up correctly with ONLY our public key
+            cp "openssh-server/ssh-keys/openssh_server_key.pub" "openssh-server/config/authorized_keys"
+            chmod 644 "openssh-server/config/authorized_keys"
+
+            # Setup SSH timeout configuration
+            setup_ssh_timeout_config
+
+            # Set SSH key path in environment
+            SSH_PRIVATE_KEY_PATH="$(pwd)/openssh-server/ssh-keys/openssh_server_key"
+            export SSH_PRIVATE_KEY_PATH
+
+            # Add to .env file
+            if grep -q "^SSH_PRIVATE_KEY_PATH=" .env; then
+                sed -i.bak "s~^SSH_PRIVATE_KEY_PATH=.*~SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH~" .env
+                rm .env.bak
+            else
+                echo "SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH" >> .env
+            fi
+
+            echo -e "\n--------------------------------\n"
+            return 0
+        fi
+
+        echo "🔑 Generating SSH key pair for Terminal tool..."
+
+        # Generate SSH key pair using Docker (cross-platform compatible)
+        echo "🔐 Using Docker to generate SSH key pair..."
+
+        # Create temporary file to capture output
+        TEMP_OUTPUT="/tmp/ssh_keygen_output_$$.txt"
+
+        # Generate ed25519 key pair using the openssh-server container
+        if docker run --rm -i --entrypoint //keygen.sh "$OPENSSH_SERVER_IMAGE" <<< "1" > "$TEMP_OUTPUT" 2>&1; then
+            echo "🔍 SSH key generation completed, extracting keys..."
+
+            # Extract private key (everything between -----BEGIN and -----END)
+            PRIVATE_KEY=$(sed -n '/-----BEGIN OPENSSH PRIVATE KEY-----/,/-----END OPENSSH PRIVATE KEY-----/p' "$TEMP_OUTPUT")
+
+            # Extract public key (line that starts with ssh-)
+            PUBLIC_KEY=$(grep "^ssh-" "$TEMP_OUTPUT" | head -1)
+
+            # Remove leading/trailing whitespace
+            PRIVATE_KEY=$(echo "$PRIVATE_KEY" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            PUBLIC_KEY=$(echo "$PUBLIC_KEY" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+            # Validate extracted keys
+            if [ -z "$PRIVATE_KEY" ]; then
+                echo "❌ Failed to extract private key"
+                ERROR_OCCURRED=1
+                return 1
+            fi
+
+            if [ -z "$PUBLIC_KEY" ]; then
+                echo "❌ Failed to extract public key"
+                ERROR_OCCURRED=1
+                return 1
+            fi
+
+            echo "✅ SSH keys extracted successfully"
+
+            if [ -n "$PRIVATE_KEY" ] && [ -n "$PUBLIC_KEY" ]; then
+                # Save private key
+                echo "$PRIVATE_KEY" > "openssh-server/ssh-keys/openssh_server_key"
+                chmod 600 "openssh-server/ssh-keys/openssh_server_key"
+
+                # Save public key
+                echo "$PUBLIC_KEY" > "openssh-server/ssh-keys/openssh_server_key.pub"
+                chmod 644 "openssh-server/ssh-keys/openssh_server_key.pub"
+
+                # Copy public key to authorized_keys with correct permissions (ensure ONLY our key)
+                cp "openssh-server/ssh-keys/openssh_server_key.pub" "openssh-server/config/authorized_keys"
+                chmod 644 "openssh-server/config/authorized_keys"
+
+                # Setup SSH timeout configuration
+                setup_ssh_timeout_config
+
+                # Set SSH key path in environment
+                SSH_PRIVATE_KEY_PATH="$(pwd)/openssh-server/ssh-keys/openssh_server_key"
+                export SSH_PRIVATE_KEY_PATH
+
+                # Add to .env file
+                if grep -q "^SSH_PRIVATE_KEY_PATH=" .env; then
+                    sed -i.bak "s~^SSH_PRIVATE_KEY_PATH=.*~SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH~" .env
+                    rm .env.bak
+                else
+                    echo "SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH" >> .env
+                fi
+
+                # Fix SSH host key permissions (must be 600)
+                find "openssh-server/config" -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
+
+                echo "✅ SSH key pair generated successfully!"
+                echo "🔑 Private key: openssh-server/ssh-keys/openssh_server_key"
+                echo "🗝️  Public key: openssh-server/ssh-keys/openssh_server_key.pub"
+                echo "⚙️  SSH config: openssh-server/config/sshd_config (60min session timeout)"
+            else
+                echo "❌ ERROR Failed to extract SSH keys from Docker output"
+                echo "📋 Full output saved to: $TEMP_OUTPUT for debugging"
+                ERROR_OCCURRED=1
+                return 1
+            fi
+        else
+            echo "❌ ERROR Docker key generation command failed"
+            if [ -f "$TEMP_OUTPUT" ]; then
+                echo "📋 Error output:"
+                cat "$TEMP_OUTPUT"
+            fi
+            ERROR_OCCURRED=1
+            return 1
+        fi
+
+        # Clean up temp file (only if successful)
+        if [ "$ERROR_OCCURRED" -eq 0 ]; then
+            rm -f "$TEMP_OUTPUT"
+        fi
+
+        echo -e "\n--------------------------------\n"
+    fi
 }
 
 add_jwt_to_env() {
@@ -323,39 +566,44 @@ add_jwt_to_env() {
 
 
 # Main execution flow
-echo ""
-echo "================================"
-echo ""
-echo "🚀  Nexent Deployment Script"
-echo ""
-echo "================================"
-echo ""
+echo  "🚀  Nexent Deployment Script"
 
-# Start deployment
-select_deployment_mode
-add_permission
-add_jwt_to_env
-generate_minio_ak_sk
+# Main deployment function
+main_deploy() {
+  # Start deployment
+  select_deployment_mode || { echo "❌ Deployment mode selection failed"; exit 1; }
+  select_terminal_tool || { echo "❌ Terminal tool configuration failed"; exit 1; }
+  add_permission || { echo "❌ Permission setup failed"; exit 1; }
+  add_jwt_to_env
 
-if [ "$DEPLOYMENT_MODE" = "beta" ]; then
-  choose_beta_env
-else
-  choose_image_env
-fi
+  # Choose image environment before generating keys that need Docker images
+  if [ "$DEPLOYMENT_MODE" = "beta" ]; then
+    choose_beta_env || { echo "❌ Beta environment setup failed"; exit 1; }
+  else
+    choose_image_env || { echo "❌ Image environment setup failed"; exit 1; }
+  fi
 
-install
-clean
+  # Pull required images before using them
+  pull_required_images || { echo "❌ Required image pull failed"; exit 1; }
 
-# echo "Creating admin user..."
-# docker exec -d nexent bash -c "curl -X POST http://kong:8000/auth/v1/signup -H \"apikey: ${SUPABASE_KEY}\" -H \"Authorization: Bearer ${SUPABASE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"admin@example.com\",\"password\":\"123123\",\"email_confirm\":true,\"data\":{\"role\":\"admin\"}}'"
+  generate_minio_ak_sk || { echo "❌ MinIO key generation failed"; exit 1; }
+  generate_ssh_keys || { echo "❌ SSH key generation failed"; exit 1; }
 
-if [ "$ERROR_OCCURRED" -eq 1 ]; then
-  echo "❌ Deployment did not complete successfully. Please review the logs and have a try again."
-else
-  echo "🎉  Deployment completed!"
+  install || { echo "❌ Service installation failed"; exit 1; }
+  clean
+  # echo "Creating admin user..."
+  # docker exec -d nexent bash -c "curl -X POST http://kong:8000/auth/v1/signup -H \"apikey: ${SUPABASE_KEY}\" -H \"Authorization: Bearer ${SUPABASE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"admin@example.com\",\"password\":\"123123\",\"email_confirm\":true,\"data\":{\"role\":\"admin\"}}'"
+
+  echo "🎉  Deployment completed successfully!"
   if [ "$DEPLOYMENT_MODE" != "infrastructure" ]; then
     echo "🌐  You can now access the application at http://localhost:3000"
   else
     echo "📦  You can now start the core services manually using dev containers"
   fi
+}
+
+# Execute main deployment with error handling
+if ! main_deploy; then
+  echo "❌ Deployment failed. Please check the error messages above and try again."
+  exit 1
 fi

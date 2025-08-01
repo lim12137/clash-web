@@ -8,6 +8,7 @@ import os
 
 from consts.const import SUPABASE_URL, SUPABASE_KEY
 from consts.model import STATUS_CODES, ServiceResponse, UserSignUpRequest, UserSignInRequest
+from database.model_management_db import create_model_record
 from utils.auth_utils import get_jwt_expiry_seconds, calculate_expires_at
 from database.user_tenant_db import insert_user_tenant
 from utils.config_utils import config_manager
@@ -233,6 +234,24 @@ async def signup(request: UserSignUpRequest):
 
             success_message = f"🎉 {'Admin account' if request.is_admin else 'User account'} registered successfully!"
             if request.is_admin:
+                tts_model_data = {
+                    "model_name": "volcano_tts",
+                    "model_factory": "OpenAI-API-Compatible",
+                    "model_type": "tts",
+                    "display_name": "volcano_tts",
+                    "connect_status": "unavailable",
+                    "delete_flag": "N"
+                }
+                stt_model_data = {
+                    "model_name": "volcano_stt",
+                    "model_factory": "OpenAI-API-Compatible",
+                    "model_type": "stt",
+                    "display_name": "volcano_stt",
+                    "connect_status": "unavailable",
+                    "delete_flag": "N"
+                }
+                create_model_record(tts_model_data, user_id, tenant_id)
+                create_model_record(stt_model_data, user_id, tenant_id)
                 success_message += " You now have system management permissions."
             else:
                 success_message += " Please start experiencing the AI assistant service."
