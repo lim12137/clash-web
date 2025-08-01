@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 
 from consts.model import GlobalConfig
-from consts.const import DEFAULT_APP_DESCRIPTION_ZH, DEFAULT_APP_DESCRIPTION_EN, DEFAULT_APP_NAME_EN, DEFAULT_APP_NAME_ZH
+from consts.const import DEFAULT_APP_DESCRIPTION_ZH, DEFAULT_APP_DESCRIPTION_EN, DEFAULT_APP_NAME_EN, DEFAULT_APP_NAME_ZH, DEFAULT_APP_ICON_URL
 from utils.config_utils import config_manager, get_env_key, safe_value, tenant_config_manager, \
     get_model_name_from_config
 from utils.auth_utils import get_current_user_id, get_current_user_info
@@ -145,7 +145,7 @@ async def load_config(authorization: Optional[str] = Header(None), request: Requ
                 "description": tenant_config_manager.get_app_config("APP_DESCRIPTION", tenant_id=tenant_id) or default_app_description,
                 "icon": {
                     "type": tenant_config_manager.get_app_config("ICON_TYPE", tenant_id=tenant_id) or "preset",
-                    "avatarUri": tenant_config_manager.get_app_config("AVATAR_URI", tenant_id=tenant_id) or "",
+                    "avatarUri": tenant_config_manager.get_app_config("AVATAR_URI", tenant_id=tenant_id) or DEFAULT_APP_ICON_URL,
                     "customUrl": tenant_config_manager.get_app_config("CUSTOM_ICON_URL", tenant_id=tenant_id) or ""
                 }
             },
