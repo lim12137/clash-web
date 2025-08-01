@@ -10,6 +10,7 @@ from botocore.exceptions import ClientError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, class_mapper
 
+from consts.const import MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_REGION, MINIO_DEFAULT_BUCKET, POSTGRES_HOST, POSTGRES_USER, NEXENT_POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_PORT
 from database.db_models import TableBase
 
 logger = logging.getLogger("database.client")
@@ -25,11 +26,11 @@ class PostgresClient:
         return cls._instance
 
     def __init__(self):
-        self.host = os.getenv('POSTGRES_HOST', 'localhost')
-        self.user = os.getenv('POSTGRES_USER')
-        self.password = os.getenv('NEXENT_POSTGRES_PASSWORD')
-        self.database = os.getenv('POSTGRES_DB', 'nexent')
-        self.port = os.getenv('POSTGRES_PORT', 5432)
+        self.host = POSTGRES_HOST
+        self.user = POSTGRES_USER
+        self.password = NEXENT_POSTGRES_PASSWORD
+        self.database = POSTGRES_DB
+        self.port = POSTGRES_PORT
         self.engine = create_engine("postgresql://",
                                     connect_args={
                                         "host": self.host,
@@ -65,11 +66,11 @@ class MinioClient:
         return cls._instance
 
     def __init__(self):
-        self.endpoint = os.getenv('MINIO_ENDPOINT')
-        self.access_key = os.getenv('MINIO_ACCESS_KEY')
-        self.secret_key = os.getenv('MINIO_SECRET_KEY')
-        self.region = os.getenv('MINIO_REGION')
-        self.default_bucket = os.getenv('MINIO_DEFAULT_BUCKET')
+        self.endpoint = MINIO_ENDPOINT
+        self.access_key = MINIO_ACCESS_KEY
+        self.secret_key = MINIO_SECRET_KEY
+        self.region = MINIO_REGION
+        self.default_bucket = MINIO_DEFAULT_BUCKET
 
         # Initialize S3 client with proxy settings
         self.client = boto3.client('s3', 

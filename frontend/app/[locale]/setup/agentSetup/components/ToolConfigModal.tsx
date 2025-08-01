@@ -235,8 +235,8 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
       title={
         <div className="flex justify-between items-center w-full pr-8">
           <span>{`${tool?.name}`}</span>
-          <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'}>
-            {tool?.source === 'mcp' ? t('toolConfig.source.mcp') : t('toolConfig.source.local')}
+          <Tag color={tool?.source === 'mcp' ? 'blue' : tool?.source === 'langchain' ? 'orange' : 'green'}>
+            {tool?.source === 'mcp' ? t('toolPool.tag.mcp') : tool?.source === 'langchain' ? t('toolPool.tag.langchain') : t('toolPool.tag.local')}
           </Tag>
         </div>
       }
