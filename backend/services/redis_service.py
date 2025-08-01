@@ -3,6 +3,7 @@ import logging
 import redis
 from typing import Dict, Any
 import json
+from consts.const import REDIS_URL, REDIS_BACKEND_URL
 
 logger = logging.getLogger(__name__)
 
@@ -18,17 +19,16 @@ class RedisService:
     def client(self) -> redis.Redis:
         """Get Redis client for general use"""
         if self._client is None:
-            redis_url = os.environ.get('REDIS_URL')
-            if not redis_url:
+            if not REDIS_URL:
                 raise ValueError("REDIS_URL environment variable is not set")
-            self._client = redis.from_url(redis_url, socket_timeout=5, socket_connect_timeout=5)
+            self._client = redis.from_url(REDIS_URL, socket_timeout=5, socket_connect_timeout=5)
         return self._client
     
     @property
     def backend_client(self) -> redis.Redis:
         """Get Redis client for backend use (Celery task results)"""
         if self._backend_client is None:
-            redis_backend_url = os.environ.get('REDIS_BACKEND_URL') or os.environ.get('REDIS_URL')
+            redis_backend_url = REDIS_BACKEND_URL or REDIS_URL
             if not redis_backend_url:
                 raise ValueError("REDIS_BACKEND_URL or REDIS_URL environment variable is not set")
             self._backend_client = redis.from_url(redis_backend_url, socket_timeout=5, socket_connect_timeout=5)
@@ -118,7 +118,7 @@ class RedisService:
         
         return result
     
-    def _recursively_delete_task_and_parents(self, task_id: str) -> (int, set):
+    def _recursively_delete_task_and_parents(self, task_id: str) -> tuple[int, set]:
         """
         Iteratively delete a Celery task and all its parent tasks from Redis.
         A single task chain is deleted, and the IDs of the deleted tasks are returned.

@@ -8,11 +8,10 @@ from utils.auth_utils import get_current_user_id
 from fastapi.responses import JSONResponse
 
 from utils.auth_utils import get_current_user_id
+from consts.const import ELASTICSEARCH_SERVICE
 
 logger = logging.getLogger("tenant_config_app")
 router = APIRouter(prefix="/tenant_config")
-
-ELASTICSEARCH_SERVICE = os.environ.get("ELASTICSEARCH_SERVICE")
 
 @router.get("/load_knowledge_list")
 def load_knowledge_list(
