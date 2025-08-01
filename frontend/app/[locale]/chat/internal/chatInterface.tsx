@@ -1359,12 +1359,7 @@ export function ChatInterface() {
                 onAgentSelect={setSelectedAgentId}
               />
 
-              {/* Footer */}
-              <div className="flex-shrink-0 mt-auto">
-                <div className="text-center text-sm py-1" style={{ color: 'rgb(163, 163, 163)', position: 'sticky', bottom: 0, backgroundColor: 'white', width: '100%' }}>
-                  {t("chatInterface.aiGeneratedContentWarning")}
-                </div>
-              </div>
+
             </div>
 
             <ChatRightPanel

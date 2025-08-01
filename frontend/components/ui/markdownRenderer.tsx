@@ -10,6 +10,8 @@ import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { SearchResult } from '@/types/chat'
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+import { CopyButton } from '@/components/ui/copyButton'
+import { useTranslation } from "react-i18next"
 import 'katex/dist/katex.min.css'
 import 'github-markdown-css/github-markdown.css'
 
@@ -298,42 +300,45 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   className,
   searchResults = [] 
 }) => {
+  const { t } = useTranslation('common');
   // Customize code block style with light gray background
   const customStyle = {
     ...oneLight,
     'pre[class*="language-"]': {
       ...oneLight['pre[class*="language-"]'],
-      background: '#f5f5f5', // Light gray background
-      borderRadius: '4px',
-      padding: '8px 12px',
-      margin: '4px 0',
-      fontSize: '0.875rem', // Slightly smaller font size for better fit
-      lineHeight: '1.5', // Adjusted line height
-      whiteSpace: 'pre-wrap', // Allow wrapping of long lines
-      wordWrap: 'break-word', // Break long words
-      wordBreak: 'break-word', // Break long words
-      overflowWrap: 'break-word', // Break long words
-      overflow: 'auto', // Add scroll for extremely long content
-      maxWidth: '100%', // Ensure it doesn't exceed container width
-      boxSizing: 'border-box' // Include padding in width calculation
+      background: '#f8f8f8',
+      borderRadius: '0',
+      padding: '12px 16px',
+      margin: '0',
+      fontSize: '0.875rem',
+      lineHeight: '1.5',
+      whiteSpace: 'pre-wrap',
+      wordWrap: 'break-word',
+      wordBreak: 'break-word',
+      overflowWrap: 'break-word',
+      overflow: 'auto',
+      width: '100%',
+      boxSizing: 'border-box',
+      display: 'block',
+      borderTop: 'none'
     },
     'code[class*="language-"]': {
       ...oneLight['code[class*="language-"]'],
-      background: '#f5f5f5', // Light gray background
-      color: '#333333', // Dark gray text for better readability
-      fontSize: '0.875rem', // Slightly smaller font size for better fit
-      lineHeight: '1.5', // Adjusted line height
-      whiteSpace: 'pre-wrap', // Allow wrapping of long lines
-      wordWrap: 'break-word', // Break long words
-      wordBreak: 'break-word', // Break long words
-      overflowWrap: 'break-word', // Break long words
-      maxWidth: '100%', // Ensure it doesn't exceed container width
-      padding: '0' // 移除code元素的内部padding
+      background: '#f8f8f8',
+      color: '#333333',
+      fontSize: '0.875rem',
+      lineHeight: '1.5',
+      whiteSpace: 'pre-wrap',
+      wordWrap: 'break-word',
+      wordBreak: 'break-word',
+      overflowWrap: 'break-word',
+      width: '100%',
+      padding: '0',
+      display: 'block'
     }
   };
 
-  // Check if this is user message content
-  const isUserMessage = className?.includes('user-message-content');
+
 
   // Modified processText function logic
   const processText = (text: string) => {
@@ -475,8 +480,125 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           margin-bottom: 0.25rem !important;
           margin-top: 0.25rem !important;
         }
+        /* Code block container styles */
+        .code-block-container {
+          position: relative;
+          display: block;
+          border-radius: 6px;
+          margin: 16px 0;
+          width: 100%;
+          overflow: hidden;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+          border: 1px solid #e0e0e0;
+        }
+        
+        .code-block-container > div {
+          margin: 0 !important;
+        }
+        
+        .code-block-container pre {
+          margin: 0 !important;
+        }
+        
+        .code-block-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 6px 12px;
+          background: #eeeeee;
+          border-bottom: 1px solid #ddd;
+          font-size: 13px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          min-height: 36px;
+          box-sizing: border-box;
+        }
+        
+        .code-language-label {
+          color: #666;
+          font-weight: 500;
+          text-transform: lowercase;
+          display: flex;
+          align-items: center;
+          font-size: 12px;
+          letter-spacing: 0.5px;
+          margin-left: 0;
+        }
+        
+        .code-language-label::before {
+          display: none;
+        }
+        
+        .code-language-label[data-language="python"]::before,
+        .code-language-label[data-language="javascript"]::before,
+        .code-language-label[data-language="js"]::before,
+        .code-language-label[data-language="typescript"]::before,
+        .code-language-label[data-language="ts"]::before,
+        .code-language-label[data-language="html"]::before,
+        .code-language-label[data-language="css"]::before {
+          display: none;
+        }
+        
+        .code-block-content {
+          position: relative;
+          background: #f8f8f8;
+          padding: 0;
+        }
+        
+        .code-block-header .copy-button,
+        .code-block-header .header-copy-button {
+          padding: 2px;
+          height: 24px;
+          width: 24px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0.6;
+          background: transparent;
+          border: none;
+          border-radius: 4px;
+          transition: all 0.2s ease;
+          font-size: 12px;
+          cursor: pointer;
+          position: static;
+          margin: 0;
+          float: right;
+          margin-right: 0;
+        }
+        
+        .code-block-header .copy-button:hover,
+        .code-block-header .header-copy-button:hover {
+          opacity: 1;
+          background: rgba(0, 0, 0, 0.05);
+          border-color: transparent;
+        }
+        
+        .token.punctuation, .token.operator {
+          opacity: 0.7;
+        }
+        
+        .token.comment {
+          font-style: italic;
+          color: #6a9955;
+        }
+        
+        .token.string {
+          color: #a31515;
+        }
+        
+        .code-block-content pre::-webkit-scrollbar {
+          height: 6px;
+          width: 6px;
+        }
+        
+        .code-block-content pre::-webkit-scrollbar-thumb {
+          background: #ccc;
+          border-radius: 3px;
+        }
+        
+        .code-block-content pre::-webkit-scrollbar-thumb:hover {
+          background: #aaa;
+        }
       `}</style>
-      <div className={`markdown-body ${className || ''}`}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkMath]}
           rehypePlugins={[rehypeKatex as any]}
@@ -493,15 +615,32 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             ),
             code({node, inline, className, children, ...props}: any) {
               const match = /language-(\w+)/.exec(className || '')
+              const codeContent = String(children).replace(/^\n+|\n+$/g, '')
               return !inline && match ? (
-                <SyntaxHighlighter
-                  style={customStyle}
-                  language={match[1]}
-                  PreTag="div"
-                  {...props}
-                >
-                  {String(children).replace(/^\n+|\n+$/g, '')}
-                </SyntaxHighlighter>
+                <div className="code-block-container group">
+                  <div className="code-block-header">
+                    <span className="code-language-label" data-language={match[1]}>{match[1]}</span>
+                    <CopyButton 
+                      content={codeContent} 
+                      variant="code-block"
+                      className="header-copy-button"
+                      tooltipText={{
+                        copy: t('chatStreamMessage.copyContent'),
+                        copied: t('chatStreamMessage.copied')
+                      }}
+                    />
+                  </div>
+                  <div className="code-block-content">
+                    <SyntaxHighlighter
+                      style={customStyle}
+                      language={match[1]}
+                      PreTag="div"
+                      {...props}
+                    >
+                      {codeContent}
+                    </SyntaxHighlighter>
+                  </div>
+                </div>
               ) : (
                 <code {...props}>
                   <TextWrapper>{children}</TextWrapper>
@@ -515,7 +654,6 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         >
           {content}
         </ReactMarkdown>
-      </div>
     </>
   );
 };
