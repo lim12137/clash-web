@@ -5,7 +5,7 @@ import { Button, Tag, message } from 'antd'
 import { SettingOutlined, LoadingOutlined, ApiOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { TFunction } from 'i18next'
-import { ScrollArea } from '@/components/ui/scrollArea'
+
 import { Tooltip as CustomTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import ToolConfigModal from './ToolConfigModal'
 import McpConfigModal from './McpConfigModal'
@@ -213,14 +213,14 @@ function ToolPool({
     
     return (
       <div 
-        className={`border rounded-md p-2 flex items-center transition-all duration-300 ease-in-out min-h-[45px] ${
+        className={`border-2 rounded-md p-2 flex items-center transition-all duration-300 ease-in-out min-h-[45px] shadow-sm ${
           !isAvailable
             ? isSelected
               ? 'bg-blue-100 border-blue-400 opacity-60'
               : 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
             : isSelected 
-              ? 'bg-blue-100 border-blue-400' 
-              : 'hover:border-blue-300'
+              ? 'bg-blue-100 border-blue-400 shadow-md' 
+              : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
         } ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         title={!isAvailable 
           ? isSelected 
@@ -304,10 +304,7 @@ function ToolPool({
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-2">
         <div className="flex items-center">
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
-            2
-          </div>
-          <h2 className="text-lg font-medium">{t('toolPool.title')}</h2>
+          <h4 className="text-md font-medium text-gray-700">{t('toolPool.title')}</h4>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -335,7 +332,7 @@ function ToolPool({
           {loadingTools && <span className="text-sm text-gray-500">{t('toolPool.loading')}</span>}
         </div>
       </div>
-      <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
+      <div className="flex-1 min-h-0 border-t pt-2 pb-2 overflow-y-auto">
         {loadingTools ? (
           <div className="flex items-center justify-center h-full">
             <span className="text-gray-500">{t('toolPool.loadingTools')}</span>
@@ -347,7 +344,7 @@ function ToolPool({
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       <ToolConfigModal
         isOpen={isToolModalOpen}

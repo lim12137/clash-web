@@ -456,8 +456,7 @@ export default function AgentConfig() {
         <Row gutter={THREE_COLUMN_LAYOUT.GUTTER} className="h-full">
           {/* Left Timeline Guide */}
           <Col xs={24} md={24} lg={4} xl={4} className="h-full">
-            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden" style={{
-              height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
+            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden h-[300px] lg:h-[82vh]" style={{
               padding: STANDARD_CARD.PADDING,
               overflowY: "auto",
               overflowX: "hidden"
@@ -473,109 +472,90 @@ export default function AgentConfig() {
                   agentName={newAgentName}
                   agentDescription={newAgentDescription}
                   agentProvideSummary={newAgentProvideSummary}
+                  isEditingAgent={isEditingAgent}
+                  dutyContent={dutyContent}
+                  constraintContent={constraintContent}
+                  fewShotsContent={fewShotsContent}
+                  enabledAgentIds={enabledAgentIds}
                 />
             </div>
           </Col>
 
-          {/* Middle Panel - Business Logic Configuration */}
-          <Col xs={24} md={24} lg={13} xl={13}>
-            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden" style={{
-              height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
-              padding: STANDARD_CARD.PADDING,
+          {/* Middle and Right Panel Container */}
+          <Col xs={24} md={24} lg={20} xl={20}>
+            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden h-[calc(100vh-200px)] lg:h-[82vh]" style={{
               overflowY: "auto",
               overflowX: "hidden"
             }}>
-                <BusinessLogicConfig 
-                  businessLogic={businessLogic}
-                  setBusinessLogic={setBusinessLogic}
-                  selectedAgents={selectedAgents}
-                  setSelectedAgents={setSelectedAgents}
-                  selectedTools={selectedTools}
-                  setSelectedTools={setSelectedTools}
-                  systemPrompt={systemPrompt}
-                  setSystemPrompt={setSystemPrompt}
-                  isCreatingNewAgent={isCreatingNewAgent}
-                  setIsCreatingNewAgent={setIsCreatingNewAgent}
-                  mainAgentModel={mainAgentModel}
-                  setMainAgentModel={setMainAgentModel}
-                  mainAgentMaxStep={mainAgentMaxStep}
-                  setMainAgentMaxStep={setMainAgentMaxStep}
-                  tools={tools}
-                  subAgentList={subAgentList}
-                  loadingAgents={loadingAgents}
-                  mainAgentId={mainAgentId}
-                  setMainAgentId={setMainAgentId}
-                  setSubAgentList={setSubAgentList}
-                  enabledAgentIds={enabledAgentIds}
-                  setEnabledAgentIds={setEnabledAgentIds}
-                  newAgentName={newAgentName}
-                  newAgentDescription={newAgentDescription}
-                  newAgentProvideSummary={newAgentProvideSummary}
-                  setNewAgentName={setNewAgentName}
-                  setNewAgentDescription={setNewAgentDescription}
-                  setNewAgentProvideSummary={setNewAgentProvideSummary}
-                  isNewAgentInfoValid={isNewAgentInfoValid}
-                  setIsNewAgentInfoValid={setIsNewAgentInfoValid}
-                  onEditingStateChange={handleEditingStateChange}
-                  onToolsRefresh={handleToolsRefresh}
-                  dutyContent={dutyContent}
-                  setDutyContent={setDutyContent}
-                  constraintContent={constraintContent}
-                  setConstraintContent={setConstraintContent}
-                  fewShotsContent={fewShotsContent}
-                  setFewShotsContent={setFewShotsContent}
-                  agentName={agentName}
-                  setAgentName={setAgentName}
-                  agentDescription={agentDescription}
-                  setAgentDescription={setAgentDescription}
-                  isGeneratingAgent={isGeneratingAgent}
-                />
-            </div>
-          </Col>
-          
-          {/* Right Panel - System Prompt Word Configuration */}
-          <Col xs={24} md={24} lg={7} xl={7}>
-            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden" style={{
-              height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT,
-              padding: STANDARD_CARD.PADDING,
-              overflowY: "auto",
-              overflowX: "hidden"
-            }}>
-                <SystemPromptDisplay
-                  onDebug={() => {
-                    setIsDebugDrawerOpen(true);
-                    setCurrentGuideStep(isCreatingNewAgent ? 5 : 5);
-                  }}
-                  agentId={getCurrentAgentId()}
-                  businessLogic={businessLogic}
-                  dutyContent={dutyContent}
-                  constraintContent={constraintContent}
-                  fewShotsContent={fewShotsContent}
-                  onDutyContentChange={setDutyContent}
-                  onConstraintContentChange={setConstraintContent}
-                  onFewShotsContentChange={setFewShotsContent}
-                  agentName={agentName}
-                  agentDescription={agentDescription}
-                  onAgentNameChange={setAgentName}
-                  onAgentDescriptionChange={setAgentDescription}
-                  isEditingMode={isEditingAgent || isCreatingNewAgent}
-                  mainAgentModel={mainAgentModel}
-                  mainAgentMaxStep={mainAgentMaxStep}
-                  onModelChange={handleModelChange}
-                  onMaxStepChange={handleMaxStepChange}
-                  // Add new props for business logic and action buttons
-                  onBusinessLogicChange={handleBusinessLogicChange}
-                  onGenerateAgent={handleGenerateAgent}
-                  onSaveAgent={handleSaveAgent}
-                  isGeneratingAgent={isGeneratingAgent}
-                  isSavingAgent={isSavingAgent}
-                  isCreatingNewAgent={isCreatingNewAgent}
-                  canSaveAgent={canSaveAgent}
-                  getButtonTitle={getButtonTitle}
-                  onExportAgent={handleExportAgent}
-                  onDeleteAgent={handleDeleteAgent}
-                  editingAgent={editingAgent}
-                />
+                {/* Middle Panel - Business Logic Configuration */}
+                <div className="flex-1 min-h-0" style={{
+                  padding: STANDARD_CARD.PADDING,
+                  overflowY: "auto",
+                  overflowX: "hidden"
+                }}>
+                  <BusinessLogicConfig 
+                    businessLogic={businessLogic}
+                    setBusinessLogic={setBusinessLogic}
+                    selectedAgents={selectedAgents}
+                    setSelectedAgents={setSelectedAgents}
+                    selectedTools={selectedTools}
+                    setSelectedTools={setSelectedTools}
+                    systemPrompt={systemPrompt}
+                    setSystemPrompt={setSystemPrompt}
+                    isCreatingNewAgent={isCreatingNewAgent}
+                    setIsCreatingNewAgent={setIsCreatingNewAgent}
+                    mainAgentModel={mainAgentModel}
+                    setMainAgentModel={setMainAgentModel}
+                    mainAgentMaxStep={mainAgentMaxStep}
+                    setMainAgentMaxStep={setMainAgentMaxStep}
+                    tools={tools}
+                    subAgentList={subAgentList}
+                    loadingAgents={loadingAgents}
+                    mainAgentId={mainAgentId}
+                    setMainAgentId={setMainAgentId}
+                    setSubAgentList={setSubAgentList}
+                    enabledAgentIds={enabledAgentIds}
+                    setEnabledAgentIds={setEnabledAgentIds}
+                    newAgentName={newAgentName}
+                    newAgentDescription={newAgentDescription}
+                    newAgentProvideSummary={newAgentProvideSummary}
+                    setNewAgentName={setNewAgentName}
+                    setNewAgentDescription={setNewAgentDescription}
+                    setNewAgentProvideSummary={setNewAgentProvideSummary}
+                    isNewAgentInfoValid={isNewAgentInfoValid}
+                    setIsNewAgentInfoValid={setIsNewAgentInfoValid}
+                    onEditingStateChange={handleEditingStateChange}
+                    onToolsRefresh={handleToolsRefresh}
+                    dutyContent={dutyContent}
+                    setDutyContent={setDutyContent}
+                    constraintContent={constraintContent}
+                    setConstraintContent={setConstraintContent}
+                    fewShotsContent={fewShotsContent}
+                    setFewShotsContent={setFewShotsContent}
+                    agentName={agentName}
+                    setAgentName={setAgentName}
+                    agentDescription={agentDescription}
+                    setAgentDescription={setAgentDescription}
+                    isGeneratingAgent={isGeneratingAgent}
+                  // SystemPromptDisplay related props
+                    onDebug={() => {
+                      setIsDebugDrawerOpen(true);
+                      setCurrentGuideStep(isCreatingNewAgent ? 5 : 5);
+                    }}
+                  getCurrentAgentId={getCurrentAgentId}
+                    onModelChange={handleModelChange}
+                    onMaxStepChange={handleMaxStepChange}
+                    onBusinessLogicChange={handleBusinessLogicChange}
+                    onGenerateAgent={handleGenerateAgent}
+                    onSaveAgent={handleSaveAgent}
+                    isSavingAgent={isSavingAgent}
+                    canSaveAgent={canSaveAgent}
+                    getButtonTitle={getButtonTitle}
+                    onExportAgent={handleExportAgent}
+                    onDeleteAgent={handleDeleteAgent}
+                    editingAgent={editingAgent}
+                  />
+              </div>
             </div>
           </Col>
         </Row>

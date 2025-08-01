@@ -182,7 +182,8 @@ export const getCreatingSubAgentId = async () => {
         businessDescription: data.business_description,
         dutyPrompt: data.duty_prompt,
         constraintPrompt: data.constraint_prompt,
-        fewShotsPrompt: data.few_shots_prompt
+        fewShotsPrompt: data.few_shots_prompt,
+        sub_agent_id_list: data.sub_agent_id_list || []
       },
       message: ''
     };

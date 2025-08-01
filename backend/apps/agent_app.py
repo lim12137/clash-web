@@ -1,18 +1,18 @@
 import logging
 from typing import Optional
 
-from fastapi import HTTPException, APIRouter, Header, Request
+from fastapi import HTTPException, APIRouter, Header, Request, Body
 from fastapi.responses import StreamingResponse
 from nexent.core.agents.run_agent import agent_run
 
-from utils.auth_utils import get_current_user_info
+from database.agent_db import insert_related_agent, delete_related_agent
+from utils.auth_utils import get_current_user_info, get_current_user_id
 from agents.create_agent_info import create_agent_run_info
 from consts.model import AgentRequest, AgentInfoRequest, AgentIDRequest, ConversationResponse, AgentImportRequest
 from services.agent_service import list_main_agent_info_impl, get_agent_info_impl, \
     get_creating_sub_agent_info_impl, update_agent_info_impl, delete_agent_impl, export_agent_impl, import_agent_impl, \
     list_all_agent_info_impl
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
-from utils.config_utils import config_manager
 from utils.thread_utils import submit
 from agents.agent_run_manager import agent_run_manager
 
@@ -76,15 +76,10 @@ async def agent_stop_api(conversation_id: int):
     else:
         raise HTTPException(status_code=404, detail=f"no running agent found for conversation_id {conversation_id}")
 
-# Add configuration reload API
-@router.post("/reload_config")
-async def reload_config():
-    """
-    Manually trigger configuration reload
-    """
-    return config_manager.force_reload()
 
-
+"""
+此接口废弃，该接口目前作用获取agent池工具，获取main_agent信息，功能拆分成两个接口实现
+"""
 @router.get("/list_main_agent_info")
 async def list_main_agent_info_api(authorization: str = Header(None)):
     """
@@ -95,25 +90,30 @@ async def list_main_agent_info_api(authorization: str = Header(None)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
 
-
+"""
+该接口可以继续沿用，但是需要补充被调用的agent信息
+"""
 @router.post("/search_info")
-async def search_agent_info_api(request: AgentInfoRequest, authorization: Optional[str] = Header(None)):
+async def search_agent_info_api(agent_id: int = Body(...), authorization: Optional[str] = Header(None)):
     """
     Search agent info by agent_id
     """
     try:
-        return get_agent_info_impl(request.agent_id, authorization)
+        _, tenant_id = get_current_user_id(authorization)
+        return get_agent_info_impl(agent_id, tenant_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent search info error: {str(e)}")
 
-
-@router.post("/get_creating_sub_agent_id")
-async def get_creating_sub_agent_info_api(request: AgentIDRequest, authorization: Optional[str] = Header(None)):
+"""
+该接口继续沿用，用于获取新创建的agent信息
+"""
+@router.get("/get_creating_sub_agent_id")
+async def get_creating_sub_agent_info_api(authorization: Optional[str] = Header(None)):
     """
     Create a new sub agent, return agent_ID
     """
     try:
-        return get_creating_sub_agent_info_impl(request.agent_id, authorization)
+        return get_creating_sub_agent_info_impl(authorization)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent create error: {str(e)}")
 
@@ -141,7 +141,9 @@ async def delete_agent_api(request: AgentIDRequest, authorization: Optional[str]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent delete error: {str(e)}")
 
-
+"""
+导入导出逻辑需要支持多级agent导出
+"""
 @router.post("/export")
 async def export_agent_api(request: AgentIDRequest, authorization: Optional[str] = Header(None)):
     """
@@ -175,4 +177,30 @@ async def list_all_agent_info_api(authorization: Optional[str] = Header(None), r
         return list_all_agent_info_impl(tenant_id=tenant_id, user_id=user_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
-    
+
+
+@router.post("/related_agent")
+async def related_agent_api(parent_agent_id: int = Body(...), 
+                            child_agent_id: int = Body(...), 
+                            authorization: Optional[str] = Header(None)):
+    """
+    get related agent info
+    """
+    try:
+        _, tenant_id = get_current_user_id(authorization)
+        return insert_related_agent(parent_agent_id, child_agent_id, tenant_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent related info error: {str(e)}")
+
+@router.post("/delete_related_agent")
+async def delete_related_agent_api(parent_agent_id: int = Body(...), 
+                                   child_agent_id: int = Body(...), 
+                                   authorization: Optional[str] = Header(None)):
+    """
+    delete related agent info
+    """
+    try:
+        _, tenant_id = get_current_user_id(authorization)
+        return delete_related_agent(parent_agent_id, child_agent_id, tenant_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent related info error: {str(e)}")

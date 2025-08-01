@@ -127,9 +127,9 @@ export default function AgentConfigurationSection({
     switch (activeSegment) {
       case 'agent-info':
         return (
-          <div className="space-y-4 p-4">
+          <div className="p-4 agent-info-content">
             {/* Agent Name */}
-            <div>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('agent.name')}:
               </label>
@@ -144,7 +144,7 @@ export default function AgentConfigurationSection({
             </div>
             
             {/* Model Selection */}
-            <div>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('businessLogic.config.model')}:
               </label>
@@ -160,7 +160,7 @@ export default function AgentConfigurationSection({
             </div>
             
             {/* Max Steps */}
-            <div>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('businessLogic.config.maxSteps')}:
               </label>
@@ -176,7 +176,7 @@ export default function AgentConfigurationSection({
             </div>
             
             {/* Agent Description */}
-            <div>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('agent.description')}:
               </label>
@@ -187,6 +187,10 @@ export default function AgentConfigurationSection({
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none box-border"
                 disabled={!isEditingMode}
+                style={{
+                  minHeight: '100px',
+                  maxHeight: '150px'
+                }}
               />
             </div>
           </div>
@@ -276,83 +280,16 @@ export default function AgentConfigurationSection({
   };
 
   return (
-    <div className="flex flex-col flex-1 relative mt-4">
-      {/* Header with action buttons */}
-      <div className="flex justify-between items-center mb-4 flex-shrink-0 px-2">
+    <div className="flex flex-col h-full relative mt-4">
+      {/* Section Title */}
+      <div className="flex justify-between items-center mb-2 flex-shrink-0">
         <div className="flex items-center">
-          {/* Removed agent title */}
-        </div>
-        <div className="flex gap-1">
-          {/* Debug Button - Always show */}
-          <Button
-            type="text"
-            size="small"
-            icon={<BugOutlined />}
-            onClick={onDebug}
-            className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
-            title={t('systemPrompt.button.debug')}
-          >
-            {t('systemPrompt.button.debug')}
-          </Button>
-          
-          {/* Export and Delete Buttons - Only show when editing existing agent */}
-          {isEditingMode && editingAgent && onExportAgent && !isCreatingNewAgent && (
-            <>
-              <Button
-                type="text"
-                size="small"
-                icon={<UploadOutlined />}
-                onClick={onExportAgent}
-                className="text-green-500 hover:text-green-600 hover:bg-green-50"
-                title={t('agent.contextMenu.export')}
-              >
-                {t('agent.contextMenu.export')}
-              </Button>
-              
-              <Button
-                type="text"
-                size="small"
-                icon={<DeleteOutlined />}
-                onClick={onDeleteAgent}
-                className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                title={t('agent.contextMenu.delete')}
-              >
-                {t('agent.contextMenu.delete')}
-              </Button>
-            </>
-          )}
-          
-          {/* Save Button - Different logic for new agent vs existing agent */}
-          {isCreatingNewAgent ? (
-            <Button
-              type="text"
-              size="small"
-              icon={<SaveOutlined />}
-              onClick={onSaveAgent}
-              disabled={!canSaveAgent}
-              className="text-green-500 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={t('businessLogic.config.button.saveToAgentPool')}
-            >
-              {isSavingAgent ? t('businessLogic.config.button.saving') : t('businessLogic.config.button.saveToAgentPool')}
-            </Button>
-          ) : (
-            <Button
-              type="text"
-              size="small"
-              icon={<SaveOutlined />}
-              onClick={onSavePrompt}
-              disabled={!agentId || !isEditingMode}
-              className="text-green-500 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={t('systemPrompt.button.save')}
-            >
-              {t('systemPrompt.button.save')}
-            </Button>
-          )}
+          <h3 className="text-sm font-medium text-gray-700">{t('agent.detailContent.title')}</h3>
         </div>
       </div>
       
       {/* Segmented Control */}
-      <div className="flex justify-center mb-4">
+      <div className="flex justify-center mb-4 flex-shrink-0">
         <div className="w-full max-w-4xl">
           <div className="flex bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
             <button
@@ -416,8 +353,11 @@ export default function AgentConfigurationSection({
         </div>
       </div>
       
-      {/* Content area */}
-      <div className="flex-1 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden w-full max-w-4xl mx-auto" style={{ maxHeight: '48vh' }}>
+      {/* Content area - flexible height */}
+      <div className="flex-1 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden w-full max-w-4xl mx-auto min-h-0" style={{ 
+        maxHeight: 'min(calc(60vh - 120px), 450px)', 
+        minHeight: 'min(calc(40vh - 120px), 280px)'
+      }}>
         <style jsx global>{`
           /* Custom scrollbar styles for better UX */
           .milkdown-editor-container .milkdown {
@@ -498,12 +438,208 @@ export default function AgentConfigurationSection({
           .segment-button:focus {
             outline: none !important;
           }
+          /* Responsive adjustments for small screens */
+          @media (max-width: 768px) {
+            .agent-config-content {
+              height: calc(50vh - 80px) !important;
+              min-height: calc(300px - 80px) !important;
+              max-height: calc(50vh - 80px) !important;
+            }
+            .content-scroll {
+              height: calc(50vh - 82px) !important;
+              min-height: calc(300px - 82px) !important;
+            }
+          }
+          
+          @media (max-width: 480px) {
+            .agent-config-content {
+              height: calc(45vh - 80px) !important;
+              min-height: calc(250px - 80px) !important;
+              max-height: calc(45vh - 80px) !important;
+            }
+            .content-scroll {
+              height: calc(45vh - 82px) !important;
+              min-height: calc(250px - 82px) !important;
+            }
+          }
+          
+          /* Ensure textarea has proper height in agent info */
+          .agent-info-content textarea {
+            min-height: 80px !important;
+            max-height: 120px !important;
+          }
+          
+          @media (max-width: 768px) {
+            .agent-info-content textarea {
+              min-height: 60px !important;
+              max-height: 100px !important;
+            }
+          }
+          
+          /* Ensure button container is always visible */
+          .agent-config-buttons {
+            position: sticky !important;
+            bottom: 0 !important;
+            z-index: 10 !important;
+            background: white !important;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1) !important;
+          }
+          
+          /* Responsive button styles */
+          .responsive-button {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+          
+          @media (max-width: 768px) {
+            .agent-config-buttons {
+              padding: 12px 16px !important;
+              margin: 0 -16px !important;
+            }
+            .responsive-button {
+              font-size: 12px !important;
+              padding: 4px 8px !important;
+              height: 28px !important;
+              min-width: 60px !important;
+              max-width: 120px !important;
+            }
+            .responsive-button .anticon {
+              font-size: 12px !important;
+            }
+          }
+          
+          @media (max-width: 480px) {
+            .responsive-button {
+              font-size: 11px !important;
+              padding: 3px 6px !important;
+              height: 24px !important;
+              min-width: 50px !important;
+              max-width: 100px !important;
+              flex: 1 0 auto !important;
+            }
+            .responsive-button .anticon {
+              font-size: 11px !important;
+              margin-right: 2px !important;
+            }
+            .agent-config-buttons .flex {
+              gap: 4px !important;
+              max-width: 100% !important;
+              flex-wrap: wrap !important;
+            }
+            .agent-config-buttons {
+              padding: 8px 12px !important;
+              margin: 0 -12px !important;
+            }
+          }
+          
+          @media (max-width: 360px) {
+            .responsive-button {
+              font-size: 10px !important;
+              padding: 2px 4px !important;
+              height: 22px !important;
+              min-width: 40px !important;
+              max-width: 80px !important;
+            }
+            .responsive-button .anticon {
+              font-size: 10px !important;
+              margin-right: 1px !important;
+            }
+            .agent-config-buttons .flex {
+              gap: 3px !important;
+            }
+          }
+          
+          @media (min-width: 769px) {
+            .responsive-button {
+              font-size: 14px !important;
+              padding: 6px 15px !important;
+              height: 32px !important;
+            }
+          }
         `}</style>
         
-        <div className="content-scroll h-full overflow-y-auto agent-config-content" style={{ height: 'calc(48vh - 2px)' }}>
+        <div className="content-scroll h-full overflow-y-auto agent-config-content" style={{ 
+          height: 'calc(min(calc(60vh - 120px), 450px) - 2px)',
+          minHeight: 'calc(min(calc(40vh - 120px), 280px) - 2px)'
+        }}>
           <div key={`${activeSegment}-${renderKey}`}>
             {renderContent()}
           </div>
+        </div>
+      </div>
+      
+      {/* Action Buttons - Fixed at bottom */}
+      <div className="flex justify-center mt-4 flex-shrink-0 pt-4 border-t border-gray-200 bg-white agent-config-buttons">
+        <div className="flex gap-2 lg:gap-3 flex-wrap justify-center">
+          {/* Debug Button - Always show */}
+          <Button
+            type="primary"
+            size="middle"
+            icon={<BugOutlined />}
+            onClick={onDebug}
+            className="bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600 responsive-button"
+            title={t('systemPrompt.button.debug')}
+          >
+            {t('systemPrompt.button.debug')}
+          </Button>
+          
+          {/* Export and Delete Buttons - Only show when editing existing agent */}
+          {isEditingMode && editingAgent && editingAgent.id && onExportAgent && !isCreatingNewAgent && (
+            <>
+              <Button
+                type="primary"
+                size="middle"
+                icon={<UploadOutlined />}
+                onClick={onExportAgent}
+                className="bg-green-500 hover:bg-green-600 border-green-500 hover:border-green-600 responsive-button"
+                title={t('agent.contextMenu.export')}
+              >
+                {t('agent.contextMenu.export')}
+              </Button>
+              
+              <Button
+                type="primary"
+                size="middle"
+                icon={<DeleteOutlined />}
+                onClick={onDeleteAgent}
+                className="bg-red-500 hover:bg-red-600 border-red-500 hover:border-red-600 responsive-button"
+                title={t('agent.contextMenu.delete')}
+              >
+                {t('agent.contextMenu.delete')}
+              </Button>
+            </>
+          )}
+          
+          {/* Save Button - Different logic for new agent vs existing agent */}
+          {isCreatingNewAgent ? (
+            <Button
+              type="primary"
+              size="middle"
+              icon={<SaveOutlined />}
+              onClick={onSaveAgent}
+              disabled={!canSaveAgent}
+              className="bg-green-500 hover:bg-green-600 border-green-500 hover:border-green-600 disabled:opacity-50 disabled:cursor-not-allowed responsive-button"
+              title={t('businessLogic.config.button.saveToAgentPool')}
+            >
+              {isSavingAgent ? t('businessLogic.config.button.saving') : t('businessLogic.config.button.saveToAgentPool')}
+            </Button>
+          ) : (
+            <Button
+              type="primary"
+              size="middle"
+              icon={<SaveOutlined />}
+              onClick={onSavePrompt}
+              disabled={!agentId || !isEditingMode || !editingAgent?.id}
+              className="bg-green-500 hover:bg-green-600 border-green-500 hover:border-green-600 disabled:opacity-50 disabled:cursor-not-allowed responsive-button"
+              title={t('systemPrompt.button.save')}
+            >
+              {t('systemPrompt.button.save')}
+            </Button>
+          )}
         </div>
       </div>
     </div>

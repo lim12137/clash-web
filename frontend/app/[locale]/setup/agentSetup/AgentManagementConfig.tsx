@@ -8,6 +8,8 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import SubAgentPool from './components/SubAgentPool'
 import { MemoizedToolPool } from './components/ToolPool'
 import DeleteConfirmModal from './components/DeleteConfirmModal'
+import CollaborativeAgentDisplay from './components/CollaborativeAgentDisplay'
+import SystemPromptDisplay from './components/SystemPromptDisplay'
 // import AgentInfoInput from './components/AgentInfoInput'
 import { 
   BusinessLogicConfigProps, 
@@ -75,7 +77,21 @@ export default function BusinessLogicConfig({
   agentDescription,
   setAgentDescription,
   // Add new prop for generating agent state
-  isGeneratingAgent = false
+  isGeneratingAgent = false,
+  // SystemPromptDisplay related props
+  onDebug,
+  getCurrentAgentId,
+  onModelChange: onModelChangeFromParent,
+  onMaxStepChange: onMaxStepChangeFromParent,
+  onBusinessLogicChange,
+  onGenerateAgent,
+  onSaveAgent,
+  isSavingAgent,
+  canSaveAgent,
+  getButtonTitle,
+  onExportAgent,
+  onDeleteAgent,
+  editingAgent: editingAgentFromParent
 }: BusinessLogicConfigProps) {
   console.log('BusinessLogicConfig props received:', { agentName, agentDescription, setAgentName: !!setAgentName, setAgentDescription: !!setAgentDescription });
   
@@ -253,12 +269,18 @@ export default function BusinessLogicConfig({
     try {
       const result = await getCreatingSubAgentId();
       if (result.success && result.data) {
-        const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, dutyPrompt, constraintPrompt, fewShotsPrompt } = result.data;
+        const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, dutyPrompt, constraintPrompt, fewShotsPrompt, sub_agent_id_list } = result.data;
         
         // Update the main agent ID
         setMainAgentId(agentId);
         // Update the enabled tool ID list
         setEnabledToolIds(enabledToolIds);
+        // Update the enabled agent ID list from sub_agent_id_list
+        if (sub_agent_id_list && sub_agent_id_list.length > 0) {
+          setEnabledAgentIds(sub_agent_id_list.map((id: any) => Number(id)));
+        } else {
+          setEnabledAgentIds([]);
+        }
         // Update the model
         if (modelName) {
           setMainAgentModel(modelName as OpenAIModel);
@@ -316,7 +338,8 @@ export default function BusinessLogicConfig({
         console.log('Edit mode useEffect - Do not clear data'); // Debug information
       }
     } else {
-      // When exiting the creation of a new Agent, reset the main Agent configuration and refresh the list
+      // When exiting the creation of a new Agent, reset the main Agent configuration
+      // 只有在非编辑模式下退出创建模式时才刷新列表，避免编辑模式退出时的闪烁
       if (!isEditingAgent) {
         setBusinessLogic('');
         setSystemPrompt(''); // Also clear the system prompt
@@ -395,12 +418,51 @@ export default function BusinessLogicConfig({
       setConstraintContent?.('');
       setFewShotsContent?.('');
       
-      // 延迟清空工具选择，避免工具池跳变
+      // 延迟清空工具和协作Agent选择，避免跳变
       setTimeout(() => {
         setSelectedTools([]);
         setEnabledToolIds([]);
-      }, 300);
+        setEnabledAgentIds([]);
+      }, 200);
     }, 100);
+  };
+
+  // 处理退出编辑模式
+  const handleExitEditMode = async () => {
+    if (isCreatingNewAgent) {
+      // 如果是创建模式，调用取消创建逻辑
+      await handleCancelCreating();
+    } else if (isEditingAgent) {
+      // 如果是编辑模式，先清空相关状态，再更新编辑状态，避免闪烁
+      // 先清空工具和agent选择状态
+      setSelectedTools([]);
+      setSelectedAgents([]);
+      setEnabledToolIds([]);
+      setEnabledAgentIds([]);
+      
+      // 清空右侧名称描述框
+      setAgentName?.('');
+      setAgentDescription?.('');
+      
+      // 清空业务逻辑
+      setBusinessLogic('');
+      
+      // 清空分段提示内容
+      setDutyContent?.('');
+      setConstraintContent?.('');
+      setFewShotsContent?.('');
+      
+      // 通知外部编辑状态变化
+      onEditingStateChange?.(false, null);
+      
+      // 最后更新编辑状态，避免触发useEffect中的刷新逻辑
+      setIsEditingAgent(false);
+      setEditingAgent(null);
+      setMainAgentId(null);
+      
+      // 确保工具池不会显示加载状态
+      setIsLoadingTools(false);
+    }
   };
 
   // Handle the creation of a new Agent
@@ -518,7 +580,10 @@ export default function BusinessLogicConfig({
       // 获取信息成功后再设置编辑状态和高亮
       setIsEditingAgent(true);
       setEditingAgent(agentDetail);
-      // 编辑现有agent时，不设置isCreatingNewAgent为true
+      // 设置mainAgentId为当前编辑的Agent ID
+      setMainAgentId(agentDetail.id);
+      // 编辑现有agent时，确保退出创建模式
+      setIsCreatingNewAgent(false);
       
       // 先设置右侧名称描述框的数据，确保立即显示
       console.log('Setting agent name and description in handleEditAgent:', agentDetail.name, agentDetail.description);
@@ -782,6 +847,9 @@ export default function BusinessLogicConfig({
     setFewShotsContent('');
     setAgentName?.('');
     setAgentDescription?.('');
+    // Reset mainAgentId and enabledAgentIds
+    setMainAgentId(null);
+    setEnabledAgentIds([]);
     // Reset selected tools
     setSelectedTools([]);
     setEnabledToolIds([]);
@@ -799,54 +867,112 @@ export default function BusinessLogicConfig({
   return (
     <TooltipProvider>
       <div className="flex flex-col h-full w-full gap-0 justify-between relative">
-        {/* Lower part: Agent pool + Tool pool */}
-        <div className="flex gap-4 flex-1 min-h-0 pb-4 pr-4 pl-4">
-          {/* Left column: Always show SubAgentPool */}
-          <div className="w-[360px] h-full">
+        {/* Lower part: Agent pool + Agent capability configuration + System Prompt */}
+        <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0 pb-4 pr-4 pl-4">
+          {/* Left column: Always show SubAgentPool - 30% width */}
+          <div className="w-full lg:w-[30%] h-full lg:flex-shrink-0">
             <SubAgentPool
-              selectedAgents={selectedAgents}
-              onSelectAgent={() => {}} // 保留原有接口但不使用
-              onSelectAgentAndLoadDetail={handleAgentSelectAndLoadDetail}
               onEditAgent={(agent) => handleEditAgent(agent, t)}
               onCreateNewAgent={handleCreateNewAgent}
+              onExitEditMode={handleExitEditMode}
               onImportAgent={() => handleImportAgent(t)}
               onExportAgent={(agent) => handleExportAgent(agent, t)}
               onDeleteAgent={handleDeleteAgent}
               subAgentList={subAgentList}
               loadingAgents={loadingAgents}
-              enabledAgentIds={enabledAgentIds}
               isImporting={isImporting}
+              isGeneratingAgent={isGeneratingAgent}
               isEditingAgent={isEditingAgent}
               editingAgent={editingAgent}
-              parentAgentId={isEditingAgent && editingAgent ? Number(editingAgent.id) : (isCreatingNewAgent && mainAgentId ? Number(mainAgentId) : undefined)}
-              onAgentSelectionOnly={handleAgentSelectionOnly}
-              onRefreshAgentState={handleRefreshAgentState}
-              onUpdateEnabledAgentIds={handleUpdateEnabledAgentIds}
               isCreatingNewAgent={isCreatingNewAgent}
-              onExitEdit={handleExitEdit}
-              isGeneratingAgent={isGeneratingAgent}
             />
           </div>
           
-          <div className="flex-1 h-full">
-            <MemoizedToolPool
-              selectedTools={isLoadingTools ? [] : selectedTools}
-              onSelectTool={(tool, isSelected) => {
-                if (isLoadingTools) return;
-                if (isSelected) {
-                  setSelectedTools([...selectedTools, tool]);
-                } else {
-                  setSelectedTools(selectedTools.filter(t => t.id !== tool.id));
-                }
-              }}
-              isCreatingNewAgent={isCreatingNewAgent}
-              tools={tools}
-              loadingTools={isLoadingTools}
-              mainAgentId={isEditingAgent && editingAgent ? editingAgent.id : mainAgentId}
-              localIsGenerating={isGeneratingAgent}
-              onToolsRefresh={handleToolsRefresh}
+          {/* Middle column: Agent capability configuration - 40% width */}
+          <div className="w-full lg:w-[40%] min-h-0 flex flex-col h-full">
+              {/* Header: 配置Agent能力 */}
+            <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
+                    2
+                  </div>
+                  <h2 className="text-lg font-medium">{t('businessLogic.config.title')}</h2>
+                </div>
+              </div>
+              
+              {/* Content: ScrollArea with two sections */}
+            <div className="flex-1 min-h-0 overflow-hidden border-t pt-2">
+                <div className="flex flex-col h-full" style={{ gap: '16px' }}>
+                  {/* Upper section: Collaborative Agent Display - 固定区域 */}
+                  <div className="h-[148px] lg:h-[168px]" style={{ flexShrink: 0 }}>
+                    <CollaborativeAgentDisplay
+                      availableAgents={subAgentList}
+                      selectedAgentIds={enabledAgentIds}
+                      parentAgentId={isEditingAgent && editingAgent ? Number(editingAgent.id) : (isCreatingNewAgent && mainAgentId ? Number(mainAgentId) : undefined)}
+                      onAgentIdsChange={handleUpdateEnabledAgentIds}
+                      isEditingMode={isEditingAgent || isCreatingNewAgent}
+                      isGeneratingAgent={isGeneratingAgent}
+                    />
+                  </div>
+                  
+                  {/* Lower section: Tool Pool - 弹性区域 */}
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <MemoizedToolPool
+                      selectedTools={isLoadingTools ? [] : selectedTools}
+                      onSelectTool={(tool, isSelected) => {
+                        if (isLoadingTools) return;
+                        if (isSelected) {
+                          setSelectedTools([...selectedTools, tool]);
+                        } else {
+                          setSelectedTools(selectedTools.filter(t => t.id !== tool.id));
+                        }
+                      }}
+                      isCreatingNewAgent={isCreatingNewAgent}
+                      tools={tools}
+                      loadingTools={isLoadingTools}
+                      mainAgentId={isEditingAgent && editingAgent ? editingAgent.id : mainAgentId}
+                      localIsGenerating={isGeneratingAgent}
+                      onToolsRefresh={handleToolsRefresh}
+                      isEditingMode={isEditingAgent || isCreatingNewAgent}
+                      isGeneratingAgent={isGeneratingAgent}
+                    />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Right column: System Prompt Display - 30% width */}
+          <div className="w-full lg:w-[30%] h-full lg:flex-shrink-0">
+            <SystemPromptDisplay
+              onDebug={onDebug || (() => {})}
+              agentId={getCurrentAgentId ? getCurrentAgentId() : (isEditingAgent && editingAgent ? Number(editingAgent.id) : (isCreatingNewAgent && mainAgentId ? Number(mainAgentId) : undefined))}
+              businessLogic={businessLogic}
+              dutyContent={dutyContent}
+              constraintContent={constraintContent}
+              fewShotsContent={fewShotsContent}
+              onDutyContentChange={setDutyContent}
+              onConstraintContentChange={setConstraintContent}
+              onFewShotsContentChange={setFewShotsContent}
+              agentName={agentName}
+              agentDescription={agentDescription}
+              onAgentNameChange={setAgentName}
+              onAgentDescriptionChange={setAgentDescription}
               isEditingMode={isEditingAgent || isCreatingNewAgent}
+              mainAgentModel={mainAgentModel}
+              mainAgentMaxStep={mainAgentMaxStep}
+              onModelChange={(value: string) => handleModelChange(value as OpenAIModel)}
+              onMaxStepChange={handleMaxStepChange}
+              onBusinessLogicChange={(value: string) => setBusinessLogic(value)}
+              onGenerateAgent={onGenerateAgent || (() => {})}
+              onSaveAgent={onSaveAgent || (() => {})}
               isGeneratingAgent={isGeneratingAgent}
+              isSavingAgent={isSavingAgent || false}
+              isCreatingNewAgent={isCreatingNewAgent}
+              canSaveAgent={canSaveAgent || false}
+              getButtonTitle={getButtonTitle || (() => "")}
+              onExportAgent={onExportAgent || (() => {})}
+              onDeleteAgent={onDeleteAgent || (() => {})}
+              editingAgent={editingAgentFromParent || editingAgent}
             />
           </div>
         </div>
