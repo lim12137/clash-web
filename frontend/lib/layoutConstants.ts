@@ -3,6 +3,30 @@
  * 以第一页(config.tsx)的设计为标准
  */
 
+// Header配置
+export const HEADER_CONFIG = {
+  // Header高度 (包含padding)
+  HEIGHT: "64px",
+  
+  // 垂直内边距
+  VERTICAL_PADDING: "16px", // py-4
+  
+  // 水平内边距
+  HORIZONTAL_PADDING: "24px", // px-6
+} as const;
+
+// Footer配置
+export const FOOTER_CONFIG = {
+  // Footer高度 (包含padding)
+  HEIGHT: "64px",
+  
+  // 垂直内边距
+  VERTICAL_PADDING: "16px", // py-4
+  
+  // 水平内边距
+  HORIZONTAL_PADDING: "16px", // px-4
+} as const;
+
 // 页面级别容器配置
 export const SETUP_PAGE_CONTAINER = {
   // 最大宽度约束
@@ -12,7 +36,7 @@ export const SETUP_PAGE_CONTAINER = {
   HORIZONTAL_PADDING: "16px",
   
   // 主要内容区域高度
-  MAIN_CONTENT_HEIGHT: "77vh",
+  MAIN_CONTENT_HEIGHT: "83vh",
 } as const;
 
 // 两列布局响应式配置 (基于第一页的设计)
@@ -106,6 +130,8 @@ export const CARD_HEADER = {
 } as const;
 
 // 导出所有常量的类型定义
+export type HeaderConfig = typeof HEADER_CONFIG;
+export type FooterConfig = typeof FOOTER_CONFIG;
 export type SetupPageContainer = typeof SETUP_PAGE_CONTAINER;
 export type TwoColumnLayout = typeof TWO_COLUMN_LAYOUT;  
 export type ThreeColumnLayout = typeof THREE_COLUMN_LAYOUT;

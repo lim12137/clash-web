@@ -77,7 +77,7 @@ select_deployment_mode() {
 
 generate_minio_ak_sk() {
   echo "🔑 Generating MinIO access keys..."
-  
+
   if [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "mingw" ] || [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "msys" ]; then
     # Windows
     ACCESS_KEY=$(powershell -Command "[System.Convert]::ToBase64String([System.Guid]::NewGuid().ToByteArray()) -replace '[^a-zA-Z0-9]', '' -replace '=.+$', '' | Select-Object -First 12")
@@ -113,7 +113,7 @@ generate_minio_ak_sk() {
   else
     echo "MINIO_SECRET_KEY=$SECRET_KEY" >> .env
   fi
-  
+
   echo "✅ MinIO access keys generated successfully"
 }
 
@@ -179,19 +179,19 @@ add_permission() {
 install() {
   # Build base infrastructure command
   INFRA_SERVICES="nexent-elasticsearch nexent-postgresql nexent-minio redis"
-  
+
   # Add openssh-server if Terminal tool is enabled
   if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
     INFRA_SERVICES="$INFRA_SERVICES nexent-openssh-server"
     echo "🔧 Terminal tool enabled - openssh-server will be included"
   fi
-  
+
   # Set profiles for docker-compose if any are defined
   if [ -n "$COMPOSE_PROFILES" ]; then
     export COMPOSE_PROFILES
     echo "📋 Using profiles: $COMPOSE_PROFILES"
   fi
-  
+
   if ! docker-compose -p nexent -f "${COMPOSE_FILE}" up -d $INFRA_SERVICES; then
     echo "❌ ERROR Failed to start infrastructure services"
     ERROR_OCCURRED=1
@@ -269,6 +269,22 @@ choose_beta_env() {
   echo -e "\n--------------------------------\n"
 }
 
+# Function to pull required images
+pull_required_images() {
+  if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
+    echo "🐳 Pulling openssh-server image for Terminal tool..."
+    if ! docker pull "$OPENSSH_SERVER_IMAGE"; then
+      echo "❌ ERROR Failed to pull openssh-server image: $OPENSSH_SERVER_IMAGE"
+      ERROR_OCCURRED=1
+      return 1
+    fi
+    echo "✅ Successfully pulled openssh-server image"
+    echo ""
+    echo "--------------------------------"
+    echo ""
+  fi
+}
+
 # Function to setup SSH timeout configuration using custom-init
 setup_ssh_timeout_config() {
     echo "📝 Setting up SSH timeout configuration..."
@@ -279,6 +295,12 @@ setup_ssh_timeout_config() {
 
 # Configure SSH timeout settings for nexent terminal tool
 echo "Configuring SSH timeout settings (60 minutes)..."
+
+# Fix SSH host key permissions (must be 600 for private keys)
+echo "Fixing SSH host key permissions..."
+find /config -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
+find /config/ssh_host_keys -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
+echo "SSH host key permissions fixed"
 
 # Append timeout configuration to sshd_config
 cat >> /config/sshd/sshd_config << 'SSHD_EOF'
@@ -293,7 +315,32 @@ EOF
         chmod +x "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config"
         echo "✅ SSH timeout configuration script created"
     else
-        echo "✅ SSH timeout configuration script already exists"
+        echo "🔄 SSH timeout configuration script already exists, updating..."
+        # Always recreate the script to ensure it has the latest configuration
+        cat > "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config" << 'EOF'
+#!/usr/bin/with-contenv bash
+
+# Configure SSH timeout settings for nexent terminal tool
+echo "Configuring SSH timeout settings (60 minutes)..."
+
+# Fix SSH host key permissions (must be 600 for private keys)
+echo "Fixing SSH host key permissions..."
+find /config -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
+find /config/ssh_host_keys -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
+echo "SSH host key permissions fixed"
+
+# Append timeout configuration to sshd_config
+cat >> /config/sshd/sshd_config << 'SSHD_EOF'
+
+# Nexent Terminal Tool - Session timeout configuration (60 minutes = 3600 seconds)
+ClientAliveInterval 300
+ClientAliveCountMax 12
+SSHD_EOF
+
+echo "SSH timeout configuration applied successfully"
+EOF
+        chmod +x "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config"
+        echo "✅ SSH timeout configuration script updated"
     fi
 }
 
@@ -365,7 +412,7 @@ generate_ssh_keys() {
         TEMP_OUTPUT="/tmp/ssh_keygen_output_$$.txt"
 
         # Generate ed25519 key pair using the openssh-server container
-        if docker run --rm -i --entrypoint /keygen.sh lscr.io/linuxserver/openssh-server <<< "1" > "$TEMP_OUTPUT" 2>&1; then
+        if docker run --rm -i --entrypoint //keygen.sh "$OPENSSH_SERVER_IMAGE" <<< "1" > "$TEMP_OUTPUT" 2>&1; then
             echo "🔍 SSH key generation completed, extracting keys..."
 
             # Extract private key (everything between -----BEGIN and -----END)
@@ -462,14 +509,19 @@ main_deploy() {
   select_deployment_mode || { echo "❌ Deployment mode selection failed"; exit 1; }
   select_terminal_tool || { echo "❌ Terminal tool configuration failed"; exit 1; }
   add_permission || { echo "❌ Permission setup failed"; exit 1; }
-  generate_minio_ak_sk || { echo "❌ MinIO key generation failed"; exit 1; }
-  generate_ssh_keys || { echo "❌ SSH key generation failed"; exit 1; }
 
+  # Choose image environment before generating keys that need Docker images
   if [ "$DEPLOYMENT_MODE" = "beta" ]; then
     choose_beta_env || { echo "❌ Beta environment setup failed"; exit 1; }
   else
     choose_image_env || { echo "❌ Image environment setup failed"; exit 1; }
   fi
+
+  # Pull required images before using them
+  pull_required_images || { echo "❌ Required image pull failed"; exit 1; }
+
+  generate_minio_ak_sk || { echo "❌ MinIO key generation failed"; exit 1; }
+  generate_ssh_keys || { echo "❌ SSH key generation failed"; exit 1; }
 
   install || { echo "❌ Service installation failed"; exit 1; }
 
