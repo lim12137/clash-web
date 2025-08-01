@@ -140,6 +140,19 @@ class ServiceManager:
                 except Exception as e:
                     logger.debug(f"❌ Could not get cluster resources: {e}")
                 
+                # Propagate Ray address to environment for child processes so that
+                # subsequently spawned worker processes can connect to the same Ray
+                # cluster without additional configuration.
+                try:
+                    gcs_address = ray.get_runtime_context().gcs_address
+                    if gcs_address:
+                        os.environ["RAY_ADDRESS"] = gcs_address
+                        # Store in config for potential later use
+                        self.config['ray_address'] = gcs_address
+                        logger.info(f"✅ RAY_ADDRESS environment variable set to {gcs_address}")
+                except Exception as e:
+                    logger.debug(f"❌ Could not determine Ray address: {e}")
+                
                 return True
                 
         except Exception as e:
