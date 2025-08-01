@@ -1,16 +1,15 @@
 import logging
-import os
 import ray
 from typing import List, Dict, Any, Optional
 
 from nexent.data_process import DataProcessCore
 from database.attachment_db import get_file_stream
+from consts.const import RAY_ACTOR_NUM_CPUS
 
 logger = logging.getLogger(__name__)
 # This now controls the number of CPUs requested by each DataProcessorRayActor instance.
 # It allows a single file processing task to potentially use more than one core if the
 # underlying processing library (e.g., unstructured) can leverage it.
-RAY_ACTOR_NUM_CPUS = int(os.getenv("RAY_ACTOR_NUM_CPUS", "2"))
 
 
 @ray.remote(num_cpus=RAY_ACTOR_NUM_CPUS)

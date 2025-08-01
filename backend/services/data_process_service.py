@@ -14,7 +14,7 @@ import torch
 from transformers import CLIPProcessor, CLIPModel
 from data_process.app import app as celery_app
 
-from consts.const import CLIP_MODEL_PATH, IMAGE_FILTER
+from consts.const import CLIP_MODEL_PATH, IMAGE_FILTER, REDIS_BACKEND_URL, REDIS_URL
 
 # Configure logging
 logger = logging.getLogger("data_process.service")
@@ -48,7 +48,7 @@ class DataProcessService:
         self.redis_pool = None
         self.redis_client = None
         try:
-            redis_url = os.environ.get('REDIS_BACKEND_URL')
+            redis_url = REDIS_BACKEND_URL
             if redis_url:
                 self.redis_pool = redis.ConnectionPool.from_url(
                     redis_url,
@@ -94,8 +94,8 @@ class DataProcessService:
                 return self._inspector
             # 确保当前应用配置正确
             if not celery_app.conf.broker_url or not celery_app.conf.result_backend:
-                celery_app.conf.broker_url = os.environ.get('REDIS_URL')
-                celery_app.conf.result_backend = os.environ.get('REDIS_BACKEND_URL')
+                celery_app.conf.broker_url = REDIS_URL
+                celery_app.conf.result_backend = REDIS_BACKEND_URL
                 logger.warning(f"Celery broker URL is not configured properly, reconfiguring to {celery_app.conf.broker_url}")
             try:
                 inspector = celery_app.control.inspect()
