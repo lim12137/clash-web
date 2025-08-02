@@ -5,7 +5,7 @@
 
 感谢您考虑为 Nexent 贡献力量！无论是代码、文档还是经验分享，您的每一份付出都能让 Nexent 变得更好。如果您愿意向他人推荐 Nexent 或在仓库点个 ⭐️，我们也非常感激。万分感谢！💛 让我们一起打造非凡之作！🎉
 
-关于许可证，请花一分钟阅读我们简短的[许可和贡献者协议](https://github.com/ModelEngine-Group/nexent/blob/main/LICENSE)。同时也请遵循[社区行为准则](https://github.com/ModelEngine-Group/nexent/blob/main/CODE_OF_CONDUCT.md)。
+关于许可证，请花一分钟阅读我们简短的[许可和贡献者协议](https://modelengine-group.github.io/nexent/zh/license)。同时也请遵循[社区行为准则](https://modelengine-group.github.io/nexent/zh/code-of-conduct)。
 
 ## 🤔 如何贡献
 
@@ -89,7 +89,7 @@ git checkout -b 您的分支名
 ```
 
 ### 第四步：进行更改
-🧙‍♂️ 像魔法师一样编码！遵循我们的 [开发指南](./DEVELOPPER_NOTE_CN.md) 获取设置说明和编码标准。确保您的更改经过充分测试并有文档记录。
+🧙‍♂️ 像魔法师一样编码！遵循我们的 [开发指南](https://modelengine-group.github.io/nexent/zh/getting-started/development-guide) 获取设置说明和编码标准。确保您的更改经过充分测试并有文档记录。
 
 ### 第五步：提交更改
 📝 按照我们的提交消息规范，提交清晰简洁的消息（建议采用英文，让更多人理解你）：
