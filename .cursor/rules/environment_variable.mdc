@@ -1,0 +1,69 @@
+---
+description: Environment Variable Management Rules
+alwaysApply: false
+---
+# Environment Variable Management Rules
+
+## Environment Variable Access Pattern
+
+All environment variable access MUST go through `backend/consts/const.py`. Direct `os.getenv()` or `os.environ.get()` calls are NOT allowed in any other files.
+
+### ✅ Correct Pattern:
+```python
+# In backend/consts/const.py
+APPID = os.getenv("APPID", "")
+TOKEN = os.getenv("TOKEN", "")
+
+# In other files
+from consts.const import APPID, TOKEN
+```
+
+### ❌ Forbidden Pattern:
+```python
+# Direct environment variable access - NOT ALLOWED
+import os
+appid = os.getenv("APPID")
+token = os.environ.get("TOKEN")
+```
+
+## Architecture Rules
+
+1. **Single Source of Truth**: `backend/consts/const.py` is the ONLY place where `os.getenv()` or `os.environ.get()` should be called.
+
+2. **SDK Layer Dependencies**: SDK modules (in `sdk/` directory) should NOT directly access environment variables. Instead:
+   - Accept configuration parameters through constructors
+   - Remove `from_env()` methods from config classes
+   - Pass required values from higher-level modules
+
+3. **Configuration Classes**: 
+   - Remove `@classmethod from_env()` methods
+   - Use `__init__()` with required parameters
+   - Keep reasonable defaults for technical configurations
+
+4. **Service Initialization**: Services should read from `const.py` and pass configurations to SDK modules.
+
+## File Structure Requirements
+
+- `backend/consts/const.py`: Centralized environment variable management
+- `backend/apps/`: Import from `consts.const` and pass to SDK modules
+- `backend/services/`: Import from `consts.const` for service configuration
+- `sdk/`: Accept configuration through parameters, no direct env access
+
+## Migration Checklist
+
+When modifying environment variable access:
+1. ✅ Add new variables to `backend/consts/const.py`
+2. ✅ Update `.env.example` with new variables
+3. ✅ Remove `os.getenv()` calls from target files
+4. ✅ Import from `consts.const` in backend files
+5. ✅ Pass configuration as parameters to SDK modules
+6. ✅ Remove `from_env()` methods from config classes
+7. ✅ Update service constructors to read from `const.py`
+
+## Validation
+
+Before committing changes:
+- No `os.getenv()` calls outside `const.py`
+- No `from_env()` methods in config classes
+- All environment variables defined in `const.py`
+- SDK modules accept configuration through parameters 
