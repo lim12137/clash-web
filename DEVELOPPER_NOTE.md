@@ -338,6 +338,6 @@ docker builder prune -f && docker system prune -f
 5. System prompts need thorough testing
 
 ### Getting Help 💬
-- Check the [FAQ](FAQ.md)
+- Check Our [Documentation](https://modelengine-group.github.io/nexent/en/getting-started/overview)
 - Join our [Discord community](https://discord.gg/tb5H3S3wyv)
 - Submit [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)

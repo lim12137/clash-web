@@ -279,11 +279,13 @@ export function ChatStreamMain({
         setShowTopFade(false);
       }
 
-      // Control autoScroll based on user's scroll position
-      if (distanceToBottom < 50) {
-        setAutoScroll(true);
-      } else if (distanceToBottom > 80) { 
-        setAutoScroll(false);
+      // Only if shouldScrollToBottom is false does autoScroll adjust based on user scroll position.
+      if (!shouldScrollToBottom) {
+        if (distanceToBottom < 50) {
+          setAutoScroll(true);
+        } else if (distanceToBottom > 80) { 
+          setAutoScroll(false);
+        }
       }
     };
     
@@ -296,7 +298,7 @@ export function ChatStreamMain({
     return () => {
       scrollAreaElement.removeEventListener('scroll', handleScroll);
     };
-  }, []);
+  }, [shouldScrollToBottom]);
 
   // Scroll to bottom function
   const scrollToBottom = (smooth = false) => {
@@ -322,17 +324,11 @@ export function ChatStreamMain({
   useEffect(() => {
     if (shouldScrollToBottom && processedMessages.finalMessages.length > 0) {
       setAutoScroll(true);
+      scrollToBottom(false);
+
       setTimeout(() => {
         scrollToBottom(false);
-        
-        setTimeout(() => {
-          scrollToBottom(false);
-        }, 300);
-        
-        setTimeout(() => {
-          scrollToBottom(false);
-        }, 800);
-      }, 100);
+      }, 300);
     }
   }, [shouldScrollToBottom, processedMessages.finalMessages.length]);
 
@@ -345,12 +341,12 @@ export function ChatStreamMain({
       const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
       
-      // Only auto-scroll if user is near the bottom (within 50px)
-      if (distanceToBottom < 50) {
+      // When shouldScrollToBottom is true, force scroll to the bottom, regardless of distance.
+      if (shouldScrollToBottom || distanceToBottom < 50) {
         scrollToBottom();
       }
     }
-  }, [processedMessages.finalMessages.length, processedMessages.conversationGroups.size, autoScroll]);
+  }, [processedMessages.finalMessages.length, processedMessages.conversationGroups.size, autoScroll, shouldScrollToBottom]);
 
   // Scroll to bottom when task messages are updated
   useEffect(() => {
@@ -361,12 +357,12 @@ export function ChatStreamMain({
       const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
       
-      // Only auto-scroll if user is near the bottom (within 150px)
-      if (distanceToBottom < 150) {
+      // When shouldScrollToBottom is true, force scroll to the bottom, regardless of distance.
+      if (shouldScrollToBottom || distanceToBottom < 150) {
         scrollToBottom();
       }
     }
-  }, [processedMessages.taskMessages.length, isStreaming, autoScroll]);
+  }, [processedMessages.taskMessages.length, isStreaming, autoScroll, shouldScrollToBottom]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative custom-scrollbar">
