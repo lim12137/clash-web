@@ -46,11 +46,23 @@ Drop in or build Python plug-ins that follow the MCP spec; swap models, tools, a
 
 ## 🏗️ Architecture Benefits
 
-- **Zero-Code Development**: Build sophisticated agents using natural language
-- **Scalable Processing**: Handle everything from single files to enterprise-scale batch operations
-- **Rich Integration**: Connect with multiple AI models, databases, and external services
-- **Extensible Design**: Add new capabilities through the MCP ecosystem
-- **Enterprise Ready**: Built for production environments with proper scaling and monitoring
+### ⚡ Distributed Processing Capabilities
+- **Asynchronous Architecture**: High-performance asynchronous processing based on asyncio
+- **Multi-threading Safety**: Thread-safe concurrent processing mechanisms
+- **Celery Integration**: Optimized for distributed task queues
+- **Batch Optimization**: Intelligent batch operations to reduce network overhead
+
+### 🏢 Enterprise-grade Scalability
+- **Modular Design**: Loose-coupled module architecture for easy extension
+- **Plugin-based Tools**: Standardized tool interfaces for rapid integration
+- **Configuration Management**: Flexible configuration system supporting multi-environment deployment
+- **Monitoring Friendly**: Comprehensive logging and status monitoring
+
+### 🚀 High-performance Optimization
+- **Connection Pooling**: Intelligent reuse of database and HTTP connections
+- **Memory Management**: Stream processing of large files and memory optimization
+- **Concurrency Control**: Intelligent concurrency limiting and load balancing
+- **Caching Strategy**: Multi-layer caching to improve response speed
 
 For detailed information about Nexent's software architecture and technical advantages, see our **[Software Architecture](./software-architecture)** guide.
 

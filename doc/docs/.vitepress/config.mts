@@ -32,13 +32,14 @@ export default defineConfig({
               { text: 'Key Features', link: '/en/getting-started/features' },
               { text: 'Software Architecture', link: '/en/getting-started/software-architecture' },
               { text: 'Development Guide', link: '/en/getting-started/development-guide' },
-              { text: 'FAQ', link: '/en/faq' }
+              { text: 'FAQ', link: '/en/getting-started/faq' }
             ]
           },
           {
             text: 'SDK Documentation',
             items: [
               { text: 'SDK Overview', link: '/en/sdk/overview' },
+              { text: 'Basic Usage', link: '/en/sdk/basic-usage' },
               { 
                 text: 'Core Modules',
                 items: [
@@ -134,13 +135,14 @@ export default defineConfig({
               { text: '核心特性', link: '/zh/getting-started/features' },
               { text: '软件架构', link: '/zh/getting-started/software-architecture' },
               { text: '开发指南', link: '/zh/getting-started/development-guide' },
-              { text: '常见问题', link: '/zh/faq' }
+              { text: '常见问题', link: '/zh/getting-started/faq' }
             ]
           },
           {
             text: 'SDK 文档',
             items: [
               { text: 'SDK 概览', link: '/zh/sdk/overview' },
+              { text: '基本使用', link: '/zh/sdk/basic-usage' },
               { 
                 text: '核心模块',
                 items: [
