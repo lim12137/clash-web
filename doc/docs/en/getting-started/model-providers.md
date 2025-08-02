@@ -15,7 +15,7 @@ This guide helps you obtain API keys and configure various AI model providers su
 3. Create a new API key and copy it
 4. Use base URL: `https://api.siliconflow.cn/v1`
 
-### Alibaba Bailian
+### Alibaba Cloud Bailian
 - **Website**: [bailian.console.aliyun.com](https://bailian.console.aliyun.com/)
 - **Free Tier**: Available
 - **Supported Models**: Qwen series, ERNIE, and various open-source models
@@ -49,9 +49,9 @@ Nexent supports multimodal models that can process both text and images:
 ## 🔤 Embedding Models
 
 ### Jina AI
-**Website**: [jina.ai](https://jina.ai/)
-**Free Tier**: Available
-**Specialties**: Multilingual embeddings, document understanding
+- **Website**: [jina.ai](https://jina.ai/)
+- **Free Tier**: Available
+- **Specialties**: Multilingual embeddings, document understanding
 
 **Getting Started**:
 1. Visit [Jina AI](https://jina.ai/) (no sign-up required for basic usage)
@@ -64,7 +64,7 @@ Nexent supports multimodal models that can process both text and images:
 - **Cohere**: High-quality multilingual embeddings
 - **Local Embeddings**: BGE, E5, or any OpenAI-compatible embedding service
 
-## 🎤 Text-to-Speech (TTS) & Speech-to-Text (STT)
+## 🎤 Voice Models
 
 ### Volcengine Voice
 - **Website**: [volcengine.com/product/voice-tech](https://www.volcengine.com/product/voice-tech)
@@ -80,44 +80,44 @@ Nexent supports multimodal models that can process both text and images:
 ## 🔍 Search Providers
 
 ### EXA
-**Website**: [exa.ai](https://exa.ai/)
-**Free Tier**: Available
-**Specialties**: Semantic search, web content retrieval
+- **Website**: [exa.ai](https://exa.ai/)
+- **Free Tier**: Available
+- **Specialties**: Semantic search, web content retrieval
 
 **Getting Started**:
 1. Sign up at [EXA](https://exa.ai/)
 2. Generate API key in dashboard
 3. Configure search parameters
 
+### Tavily
+- **Website**: [tavily.com](https://tavily.com/)
+- **Free Tier**: Available
+- **Specialties**: AI-powered search, research assistant
+
+**Getting Started**:
+1. Sign up at [Tavily](https://tavily.com/)
+2. Get your API key from the dashboard
+3. Configure search preferences
+
+### Linkup
+- **Website**: [linkup.com](https://linkup.com/)
+- **Free Tier**: Available
+- **Specialties**: Real-time web search, content discovery
+
+**Getting Started**:
+1. Register at [Linkup](https://linkup.com/)
+2. Generate API credentials
+3. Set up search parameters
+
 ## 🛠️ Configuration in Nexent
 
-### Method 1: Web Interface
+### Model Configuration Page
 1. Access Nexent at `http://localhost:3000`
 2. Navigate to Model Configuration page
 3. Add your provider details:
    - **Base URL**: Provider's API endpoint
    - **API Key**: Your provider's API key
    - **Model Name**: Specific model identifier
-
-### Method 2: Environment Configuration
-Add to your `.env` file:
-```bash
-# Model Provider Configuration
-LLM_BASE_URL=https://api.siliconflow.cn/v1
-LLM_API_KEY=your_api_key_here
-LLM_MODEL_NAME=deepseek-ai/DeepSeek-V3
-
-EMBEDDING_BASE_URL=https://api.jina.ai/v1
-EMBEDDING_API_KEY=your_jina_key_here
-EMBEDDING_MODEL_NAME=jina-embeddings-v3
-
-# TTS/STT Configuration
-TTS_API_KEY=your_volcengine_key
-STT_API_KEY=your_volcengine_key
-
-# Search Configuration
-EXA_API_KEY=your_exa_key
-```
 
 ## 💡 Tips for Choosing Providers
 
@@ -142,7 +142,7 @@ EXA_API_KEY=your_exa_key
 - [Model Configuration FAQ](../faq) - Common configuration issues
 - [Known Issues](../known-issues) - Current limitations and workarounds
 
-## 🆘 Need Help?
+## 💡 Need Help
 
 If you encounter issues with model providers:
 1. Check provider-specific documentation

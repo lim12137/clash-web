@@ -30,6 +30,7 @@ export default defineConfig({
               { text: 'Installation & Setup', link: '/en/getting-started/installation' },
               { text: 'Model Providers', link: '/en/getting-started/model-providers' },
               { text: 'Key Features', link: '/en/getting-started/features' },
+              { text: 'Software Architecture', link: '/en/getting-started/software-architecture' },
               { text: 'Development Guide', link: '/en/getting-started/development-guide' },
               { text: 'FAQ', link: '/en/faq' }
             ]
@@ -77,7 +78,7 @@ export default defineConfig({
             ]
           },
           {
-            text: 'Deployment',
+            text: 'Container Build & Containerized Development',
             items: [
               { text: 'Docker Build', link: '/en/deployment/docker-build' },
               { text: 'Dev Container', link: '/en/deployment/devcontainer' }
@@ -131,6 +132,7 @@ export default defineConfig({
               { text: '安装与配置', link: '/zh/getting-started/installation' },
               { text: '模型提供商', link: '/zh/getting-started/model-providers' },
               { text: '核心特性', link: '/zh/getting-started/features' },
+              { text: '软件架构', link: '/zh/getting-started/software-architecture' },
               { text: '开发指南', link: '/zh/getting-started/development-guide' },
               { text: '常见问题', link: '/zh/faq' }
             ]
@@ -178,7 +180,7 @@ export default defineConfig({
             ]
           },
           {
-            text: '部署指南',
+            text: '容器构建与容器化开发',
             items: [
               { text: 'Docker 构建', link: '/zh/deployment/docker-build' },
               { text: '开发容器', link: '/zh/deployment/devcontainer' }
