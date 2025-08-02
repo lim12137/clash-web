@@ -1,10 +1,10 @@
 # Nexent FAQ
 
-This FAQ addresses common questions and issues you might encounter while installing and deploying Nexent. For the basic installation steps, please refer to the [Quick Start Guide](./getting-started/overview#quick-start) in our documentation.
+This FAQ addresses common questions and issues you might encounter while installing and deploying Nexent. For the basic installation steps, please refer to the [Quick Start Guide](./overview#quick-start) in our documentation.
 
 ## 🚀 Installation & Setup
 
-For model provider setup and API key acquisition, see our detailed **[Model Providers Guide](./getting-started/model-providers)**.
+For model provider setup and API key acquisition, see our detailed **[Model Providers Guide](./model-providers)**.
 
 ## 🚫 Common Errors & Operations
 
@@ -49,7 +49,7 @@ For model provider setup and API key acquisition, see our detailed **[Model Prov
     3. **Model name**: Confirm the model identifier is correct
     4. **Network access**: Ensure your deployment can reach the provider's servers
     
-    For specific provider setup, see our [Model Providers Guide](./getting-started/model-providers).
+    For specific provider setup, see our [Model Providers Guide](./model-providers).
 
 ### 📧 Email Tools Configuration
 - **Q: How can I enable and configure email tools?**
@@ -59,9 +59,9 @@ For model provider setup and API key acquisition, see our detailed **[Model Prov
     3. Switch to the email-enabled system prompt by using `code_agent_with_email.yaml`
     4. Restart the MCP service to apply changes
 
-## ❓ Still Need Help?
+## 💡 Need Help
 
 If your question isn't answered here:
 - Join our [Discord community](https://discord.gg/tb5H3S3wyv) for real-time support
 - Check our [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) for similar problems
-- Refer to our [Contribution Guide](contributing) for more detailed information
+- Refer to our [Contribution Guide](../contributing) for more detailed information 
