@@ -66,7 +66,8 @@ export default defineConfig({
                   { text: 'LangChain Tools', link: '/en/backend/tools/langchain' },
                   { text: 'MCP Tools', link: '/en/backend/tools/mcp' }
                 ]
-              }
+              },
+              { text: 'Prompt Development', link: '/en/backend/prompt-development' }
             ]
           },
           {
@@ -90,10 +91,19 @@ export default defineConfig({
             ]
           },
           {
+            text: 'Testing',
+            items: [
+              { text: 'Testing Overview', link: '/en/testing/overview' },
+              { text: 'Backend Testing', link: '/en/testing/backend' }
+            ]
+          },
+          {
             text: 'Community',
             items: [
               { text: 'Contributing', link: '/en/contributing' },
               { text: 'Code of Conduct', link: '/en/code-of-conduct' },
+              { text: 'Security Policy', link: '/en/security' },
+              { text: 'Core Contributors', link: '/en/contributors' },
               { text: 'Known Issues', link: '/en/known-issues' },
               { text: 'License', link: '/en/license' }
             ]
@@ -157,7 +167,8 @@ export default defineConfig({
                   { text: 'LangChain 工具', link: '/zh/backend/tools/langchain' },
                   { text: 'MCP 工具', link: '/zh/backend/tools/mcp' }
                 ]
-              }
+              },
+              { text: '提示词开发', link: '/zh/backend/prompt-development' }
             ]
           },
           {
@@ -181,10 +192,19 @@ export default defineConfig({
             ]
           },
           {
+            text: '测试',
+            items: [
+              { text: '测试概览', link: '/zh/testing/overview' },
+              { text: '后端测试', link: '/zh/testing/backend' }
+            ]
+          },
+          {
             text: '社区',
             items: [
               { text: '贡献指南', link: '/zh/contributing' },
               { text: '行为准则', link: '/zh/code-of-conduct' },
+              { text: '安全政策', link: '/zh/security' },
+              { text: '核心贡献者', link: '/zh/contributors' },
               { text: '已知问题', link: '/zh/known-issues' },
               { text: '许可证', link: '/zh/license' }
             ]

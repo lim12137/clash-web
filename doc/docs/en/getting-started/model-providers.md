@@ -138,9 +138,9 @@ EXA_API_KEY=your_exa_key
 
 ## 🔗 Quick Links
 
-- [Installation & Setup](./installation.md) - Complete deployment guide
-- [Model Configuration FAQ](../faq.md) - Common configuration issues
-- [Known Issues](../known-issues.md) - Current limitations and workarounds
+- [Installation & Setup](./installation) - Complete deployment guide
+- [Model Configuration FAQ](../faq) - Common configuration issues
+- [Known Issues](../known-issues) - Current limitations and workarounds
 
 ## 🆘 Need Help?
 

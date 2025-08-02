@@ -26,7 +26,7 @@ https://github.com/user-attachments/assets/b844e05d-5277-4509-9463-1c5b3516f11e
 
 > *Rome wasn't built in a day.*
 
-如果我们的愿景与您产生共鸣，请通过 **[贡献指南](CONTRIBUTING_CN.md)** 加入我们，共同塑造 Nexent。
+如果我们的愿景与您产生共鸣，请通过 **[贡献指南](https://modelengine-group.github.io/nexent/zh/contributing)** 加入我们，共同塑造 Nexent。
 
 早期贡献者不会被忽视：从特殊徽章和纪念品到其他实质性奖励，我们致力于感谢那些帮助 Nexent 诞生的先驱者。
 
@@ -74,21 +74,21 @@ bash deploy.sh
 - TTS 与 STT 相关配置
 - EXA 搜索 API Key
 
-> ℹ️ 由于开发紧张，目前我们仅支持 Jina Embedding 模型。其他模型的支持将在未来版本中添加。有关 Jina API 密钥获取，请参阅我们的[常见问题](FAQ_CN.md)。
+> ℹ️ 由于开发紧张，目前我们仅支持 Jina Embedding 模型。其他模型的支持将在未来版本中添加。有关 Jina API 密钥获取，请参阅我们的[常见问题](https://modelengine-group.github.io/nexent/zh/faq)。
 
 ### 4. ❓ 需要帮助？
 
-- 浏览 [常见问题](FAQ_CN.md) 了解常见安装问题。  
+- 浏览 [常见问题](https://modelengine-group.github.io/nexent/zh/faq) 了解常见安装问题。  
 - 在我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 中提问。  
 - 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 中提交错误报告或功能建议。
 
 ### 5. 🔧 开发 Nexent
 
-想要从源代码构建或添加新功能？查看 [贡献指南](CONTRIBUTING_CN.md) 获取分步说明。
+想要从源代码构建或添加新功能？查看 [贡献指南](https://modelengine-group.github.io/nexent/zh/contributing) 获取分步说明。
 
 ### 6. 🛠️ 从源码构建
 
-想要从源码运行 Nexent？查看我们的[开发者指南](DEVELOPPER_NOTE_CN.md)获取详细的设置说明和自定义选项。
+想要从源码运行 Nexent？查看我们的[开发者指南](https://modelengine-group.github.io/nexent/zh/getting-started/development-guide)获取详细的设置说明和自定义选项。
 
 ## 🌱 MCP 工具生态
 

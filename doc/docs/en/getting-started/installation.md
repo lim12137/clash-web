@@ -76,7 +76,7 @@ For complete port mapping details, see our [Dev Container Guide](../deployment/d
 When deployment completes successfully:
 1. Open **http://localhost:3000** in your browser
 2. Follow the setup wizard for initial configuration
-3. Configure your model providers (see [Model Providers Guide](./model-providers.md))
+3. Configure your model providers (see [Model Providers Guide](./model-providers))
 
 ## Model Configuration
 
@@ -89,7 +89,7 @@ Nexent supports all **OpenAI-compatible models**, including:
 
 ### Quick Provider Setup
 
-For detailed setup instructions and API key acquisition, see our **[Model Providers Guide](./model-providers.md)**.
+For detailed setup instructions and API key acquisition, see our **[Model Providers Guide](./model-providers)**.
 
 **Recommended for Quick Start**:
 - **LLM**: [Silicon Flow](https://siliconflow.cn/) (Free tier available)
@@ -113,12 +113,12 @@ EXA_API_KEY=your_exa_key
 
 ## Need Help?
 
-- Browse the [FAQ](../faq.md) for common install issues
+- Browse the [FAQ](../faq) for common install issues
 - Drop questions in our [Discord community](https://discord.gg/tb5H3S3wyv)
 - File bugs or feature ideas in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)
 
 ## Build from Source
 
-Want to build from source or add new features? Check the [Contributing Guide](../contributing.md) for step-by-step instructions.
+Want to build from source or add new features? Check the [Contributing Guide](../contributing) for step-by-step instructions.
 
-For detailed setup instructions and customization options, see our [Development Guide](./development-guide.md).
+For detailed setup instructions and customization options, see our [Development Guide](./development-guide).

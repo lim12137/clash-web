@@ -4,7 +4,7 @@
 
 ## 🚀 安装与设置
 
-有关模型提供商设置和 API 密钥获取，请参阅我们的详细 **[模型提供商指南](./getting-started/model-providers.md)**。
+有关模型提供商设置和 API 密钥获取，请参阅我们的详细 **[模型提供商指南](./getting-started/model-providers)**。
 
 
 ## 🚫 常见错误与运维方式
@@ -45,7 +45,7 @@
     3. **模型名称**: 确认模型标识符正确
     4. **网络访问**: 确保您的部署可以访问提供商的服务器
     
-    有关特定提供商设置，请参阅我们的 [模型提供商指南](./getting-started/model-providers.md)。
+    有关特定提供商设置，请参阅我们的 [模型提供商指南](./getting-started/model-providers)。
 
 ### 📧 邮件工具配置
 - **Q: 如何启用和配置邮件工具？**

@@ -4,7 +4,7 @@ This FAQ addresses common questions and issues you might encounter while install
 
 ## 🚀 Installation & Setup
 
-For model provider setup and API key acquisition, see our detailed **[Model Providers Guide](./getting-started/model-providers.md)**.
+For model provider setup and API key acquisition, see our detailed **[Model Providers Guide](./getting-started/model-providers)**.
 
 ## 🚫 Common Errors & Operations
 
@@ -49,7 +49,7 @@ For model provider setup and API key acquisition, see our detailed **[Model Prov
     3. **Model name**: Confirm the model identifier is correct
     4. **Network access**: Ensure your deployment can reach the provider's servers
     
-    For specific provider setup, see our [Model Providers Guide](./getting-started/model-providers.md).
+    For specific provider setup, see our [Model Providers Guide](./getting-started/model-providers).
 
 ### 📧 Email Tools Configuration
 - **Q: How can I enable and configure email tools?**
