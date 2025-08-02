@@ -1,5 +1,5 @@
 # 使用 Node.js 18 作为基础镜像
-FROM node:18-alpine
+FROM docker.m.daocloud.io/library/node:18-alpine
 ARG MIRROR
 
 WORKDIR /app
