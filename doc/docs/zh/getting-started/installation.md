@@ -113,7 +113,7 @@ EXA_API_KEY=your_exa_key
 
 ## 💡 需要帮助
 
-- 浏览 [常见问题](../faq) 了解常见安装问题
+- 浏览 [常见问题](./faq) 了解常见安装问题
 - 在我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 提问
 - 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 提交错误报告或功能建议
 

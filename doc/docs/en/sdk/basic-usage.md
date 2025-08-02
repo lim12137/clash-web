@@ -241,4 +241,4 @@ for step in agent.execution_steps:
     print(f"Result: {step.result}")
 ```
 
-For more advanced usage patterns and detailed API documentation, see the **[Core Components](./core/)** and **[Tool Development](./core/tools)** guides. 
+For more advanced usage patterns and detailed API documentation, see the **[Core Components](./overview)** and **[Tool Development](./core/tools)** guides. 
