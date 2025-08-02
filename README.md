@@ -2,7 +2,7 @@
 
 [![English](https://img.shields.io/badge/English-README-blue)](README.md)
 [![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
-[![Documentation](https://img.shields.io/badge/Documentation-English-blue)](https://modelengine-group.github.io/nexent/en)
+[![Documentation](https://img.shields.io/badge/Documentation-yellow)](https://modelengine-group.github.io/nexent)
 [![codecov](https://codecov.io/gh/ModelEngine-Group/nexent/branch/develop/graph/badge.svg?token=00JM5YAD5V)](https://codecov.io/gh/ModelEngine-Group/nexent?branch=develop)
 
 Nexent is a zero-code platform for auto-generating agents — no orchestration, no complex drag-and-drop required, using pure language to develop any agent you want. Built on the MCP ecosystem with rich tool integration, Nexent also provides various built-in agents to meet your intelligent service needs in different scenarios such as work, travel, and daily life. Nexent offers powerful capabilities for agent running control, multi-agent collaboration, data processing and knowledge tracing, multimodal dialogue, and batch scaling.
