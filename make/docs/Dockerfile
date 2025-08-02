@@ -1,5 +1,5 @@
 # 使用 Node.js 18 作为基础镜像
-FROM docker.m.daocloud.io/library/node:18-alpine
+FROM node:18-alpine
 ARG MIRROR
 
 WORKDIR /app
@@ -19,7 +19,7 @@ EXPOSE 4173
 
 # 设置健康检查
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:4173/doc/ || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:4173/ || exit 1
 
 # 启动 VitePress 预览服务（服务构建后的静态文件）
 CMD ["npm", "run", "docs:preview", "--", "--host", "0.0.0.0", "--port", "4173"]
