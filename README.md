@@ -2,6 +2,7 @@
 
 [![English](https://img.shields.io/badge/English-README-blue)](README.md)
 [![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
+[![Documentation](https://img.shields.io/badge/Documentation-English-blue)](https://modelengine-group.github.io/nexent/en)
 [![codecov](https://codecov.io/gh/ModelEngine-Group/nexent/branch/develop/graph/badge.svg?token=00JM5YAD5V)](https://codecov.io/gh/ModelEngine-Group/nexent?branch=develop)
 
 Nexent is a zero-code platform for auto-generating agents — no orchestration, no complex drag-and-drop required, using pure language to develop any agent you want. Built on the MCP ecosystem with rich tool integration, Nexent also provides various built-in agents to meet your intelligent service needs in different scenarios such as work, travel, and daily life. Nexent offers powerful capabilities for agent running control, multi-agent collaboration, data processing and knowledge tracing, multimodal dialogue, and batch scaling.
@@ -53,9 +54,7 @@ bash deploy.sh
 
 When the containers are running, open **http://localhost:3000** in your browser and follow the setup wizard.
 
-
-
-## 🌱 MCP Tool Ecosystem
+# 🌱 MCP Tool Ecosystem
 
 Check our [MCP Ecosystem page](https://modelengine-group.github.io/nexent/en/mcp-ecosystem/overview.html) for detailed information about the MCP tool ecosystem, including community hubs, recommended tools, and integration guides.
 
@@ -63,7 +62,7 @@ Check our [MCP Ecosystem page](https://modelengine-group.github.io/nexent/en/mcp
 
 Check our [Agent Scenarios page](https://modelengine-group.github.io/nexent/en/mcp-ecosystem/use-cases.html) for detailed agent use cases and best practices, including travel planning, research assistant, business intelligence, smart lifestyle, and more scenarios.
 
-## ✨ Key Features
+# ✨ Key Features
 
 `1` **Smart agent prompt generation**  
    Turn plain language into runnable prompts. Nexent automatically chooses the right tools and plans the best action path for every request.

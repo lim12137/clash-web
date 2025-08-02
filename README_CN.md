@@ -2,6 +2,7 @@
 
 [![English](https://img.shields.io/badge/English-README-blue)](README.md)
 [![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
+[![Documentation](https://img.shields.io/badge/Documentation-中文-green)](https://modelengine-group.github.io/nexent/zh)
 [![codecov](https://codecov.io/gh/ModelEngine-Group/nexent/branch/develop/graph/badge.svg?token=00JM5YAD5V)](https://codecov.io/gh/ModelEngine-Group/nexent?branch=develop)
 
 Nexent 是一个零代码智能体自动生成平台 —— 无需编排，无需复杂的拖拉拽操作，使用纯语言开发你想要的任何智能体。基于MCP生态，具备丰富的工具集成，同时提供多种自带智能体，满足你的工作、旅行、生活等不同场景的智能服务需要。Nexent 还提供强大的智能体运行控制、多智能体协作、数据处理和知识溯源、多模态对话、批量扩展能力。
@@ -53,7 +54,7 @@ bash deploy.sh
 
 当容器运行后，在浏览器中打开 **http://localhost:3000** 并按照设置向导操作。
 
-## 🌱 MCP 工具生态
+# 🌱 MCP 工具生态
 
 查看我们的[MCP 生态系统页面](https://modelengine-group.github.io/nexent/zh/mcp-ecosystem/overview.html)了解 MCP 工具生态系统的详细信息，包括社区中心、推荐工具和集成指南。
 
@@ -61,7 +62,7 @@ bash deploy.sh
 
 查看我们的[智能体场景页面](https://modelengine-group.github.io/nexent/zh/mcp-ecosystem/use-cases.html)了解详细的智能体用例和最佳实践，包括旅行规划、研究助手、商业智能、智能生活等场景。
 
-## ✨ 主要特性
+# ✨ 主要特性
 
 `1` **智能体提示词自动生成**  
    将自然语言转化为可被Agent执行的提示词。Nexent可以根据你的需要自动选择正确的工具并为每个请求规划最佳执行路径。
