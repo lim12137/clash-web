@@ -20,7 +20,7 @@
 
 如果您遇到此处未列出的任何问题，请：
 
-1. **查看我们的 [常见问题](./faq)** 寻找常见解决方案
+1. **查看我们的 [常见问题](./getting-started/faq)** 寻找常见解决方案
 2. **搜索现有问题** 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)
 3. **创建新问题** 并提供详细信息，包括：
    - 重现步骤

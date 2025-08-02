@@ -139,7 +139,7 @@ Nexent supports multimodal models that can process both text and images:
 ## 🔗 Quick Links
 
 - [Installation & Setup](./installation) - Complete deployment guide
-- [Model Configuration FAQ](../faq) - Common configuration issues
+- [Model Configuration FAQ](./faq) - Common configuration issues
 - [Known Issues](../known-issues) - Current limitations and workarounds
 
 ## 💡 Need Help

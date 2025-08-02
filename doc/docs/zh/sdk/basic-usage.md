@@ -241,4 +241,4 @@ for step in agent.execution_steps:
     print(f"结果: {step.result}")
 ```
 
-有关更高级的使用模式和详细的API文档，请参阅 **[核心组件](./core/)** 和 **[工具开发](./core/tools)** 指南。 
+有关更高级的使用模式和详细的API文档，请参阅 **[核心组件](./overview)** 和 **[工具开发](./core/tools)** 指南。 

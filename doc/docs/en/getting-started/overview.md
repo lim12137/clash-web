@@ -36,7 +36,7 @@ Ready to get started? Here are your next steps:
 
 1. **📋 [Installation & Setup](./installation)** - System requirements and deployment guide
 2. **🔧 [Development Guide](./development-guide)** - Build from source and customize
-3. **❓ [FAQ](../faq)** - Common questions and troubleshooting
+3. **❓ [FAQ](./faq)** - Common questions and troubleshooting
 
 ## 🌱 MCP Tool Ecosystem
 

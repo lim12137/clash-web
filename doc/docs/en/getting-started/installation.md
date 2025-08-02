@@ -113,7 +113,7 @@ For complete port mapping details, see our [Dev Container Guide](../deployment/d
 
 ## 💡 Need Help
 
-- Browse the [FAQ](../faq) for common install issues
+- Browse the [FAQ](./faq) for common install issues
 - Drop questions in our [Discord community](https://discord.gg/tb5H3S3wyv)
 - File bugs or feature ideas in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)
 

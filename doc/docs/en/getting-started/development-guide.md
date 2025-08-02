@@ -142,7 +142,7 @@ For detailed build instructions, see [Docker Build Guide](../deployment/docker-b
 ### Documentation Resources
 - [Installation Guide](./installation.md) - Environment setup and deployment
 - [Model Providers](./model-providers.md) - Model configuration and API acquisition
-- [FAQ](../faq.md) - Frequently asked questions
+- [FAQ](./faq) - Frequently asked questions
 
 ### Community Support
 - [Discord Community](https://discord.gg/tb5H3S3wyv) - Real-time communication and support

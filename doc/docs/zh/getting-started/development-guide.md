@@ -142,7 +142,7 @@ python backend/nexent_mcp_service.py     # MCP 服务
 ### 文档资源
 - [安装指南](./installation.md) - 环境搭建和部署
 - [模型提供商](./model-providers.md) - 模型配置和API获取
-- [常见问题](../faq.md) - 常见问题解答
+- [常见问题](./faq) - 常见问题解答
 
 ### 社区支持
 - [Discord 社区](https://discord.gg/tb5H3S3wyv) - 实时交流和支持
