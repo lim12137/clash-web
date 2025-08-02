@@ -26,7 +26,7 @@ We have released **Nexent v1**, and the platform is now relatively stable. Howev
 
 > *Rome wasn't built in a day.*
 
-If our vision speaks to you, jump in via the **[Contribution Guide](CONTRIBUTING.md)** and shape Nexent with us.
+If our vision speaks to you, jump in via the **[Contribution Guide](https://modelengine-group.github.io/nexent/en/contributing)** and shape Nexent with us.
 
 Early contributors won't go unnoticed: from special badges and swag to other tangible rewards, we're committed to thanking the pioneers who help bring Nexent to life.
 
@@ -74,21 +74,21 @@ The following configurations need to be added to your `.env` file (we'll make th
 - TTS and STT related configurations
 - EXA search API Key
 
-> ℹ️ Due to core features development, currently, we only support Jina Embedding model. Support for other models will be added in future releases. For Jina API key setup, please refer to our [FAQ](FAQ.md).
+> ℹ️ Due to core features development, currently, we only support Jina Embedding model. Support for other models will be added in future releases. For Jina API key setup, please refer to our [FAQ](https://modelengine-group.github.io/nexent/en/faq).
 
 ### 4. ❓ Need help?
 
-- Browse the [FAQ](FAQ.md) for common install issues.  
+- Browse the [FAQ](https://modelengine-group.github.io/nexent/en/faq) for common install issues.  
 - Drop questions in our [Discord community](https://discord.gg/tb5H3S3wyv).  
 - File bugs or feature ideas in [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues).
 
 ### 5. 🔧 Hack on Nexent
 
-Want to build from source or add new features? Check the [Contribution Guide](CONTRIBUTING.md) for step-by-step instructions.
+Want to build from source or add new features? Check the [Contribution Guide](https://modelengine-group.github.io/nexent/en/contributing) for step-by-step instructions.
 
 ### 6. 🛠️ Build from Source
 
-Prefer to run Nexent from source code? Follow our [Developer Guide](DEVELOPPER_NOTE.md) for detailed setup instructions and customization options.
+Prefer to run Nexent from source code? Follow our [Developer Guide](https://modelengine-group.github.io/nexent/en/getting-started/development-guide) for detailed setup instructions and customization options.
 
 ## 🌱 MCP Tool Ecosystem
 

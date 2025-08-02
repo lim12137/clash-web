@@ -61,4 +61,4 @@ Nexent is designed for various scenarios including:
 - **Research Assistance**: Academic paper analysis and information synthesis
 - **Personal Productivity**: Smart assistants for daily tasks and information management
 
-For detailed agent scenarios and real-world implementations, see our **[MCP Ecosystem Use Cases](../mcp-ecosystem/use-cases.md)**.
+For detailed agent scenarios and real-world implementations, see our **[MCP Ecosystem Use Cases](../mcp-ecosystem/use-cases)**.

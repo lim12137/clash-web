@@ -5,7 +5,7 @@
 
 Thank you for considering contributing to Nexent! From code to docs to sharing your experience, every bit helps make Nexent better for everyone. It also helps us if you share Nexent with others, or simply ⭐️ the repo. Thanks a million! 💛 Let's build something amazing together! 🎉
 
-In terms of licensing, please take a minute to read our short [License and Contributor Agreement](https://github.com/ModelEngine-Group/nexent/blob/main/LICENSE). The community also adheres to the [code of conduct](https://github.com/ModelEngine-Group/nexent/blob/main/CODE_OF_CONDUCT.md).
+In terms of licensing, please take a minute to read our short [License and Contributor Agreement](https://modelengine-group.github.io/nexent/en/license). The community also adheres to the [code of conduct](https://modelengine-group.github.io/nexent/en/code-of-conduct).
 
 ## 🤔 How You Can Contribute
 
@@ -86,7 +86,7 @@ git checkout -b your-branch-name
 ```
 
 ### Step 4 Make Your Changes
-🧙‍♂️ Code like a wizard! Follow our [Development Guide](./DEVELOPPER_NOTE.md) for setup instructions and coding standards. Ensure your changes are well-tested and documented.
+🧙‍♂️ Code like a wizard! Follow our [Development Guide](https://modelengine-group.github.io/nexent/en/getting-started/development-guide) for setup instructions and coding standards. Ensure your changes are well-tested and documented.
 
 ### Step 5 Commit Your Changes
 📝 Commit with a clear and concise message following our commit message guidelines：

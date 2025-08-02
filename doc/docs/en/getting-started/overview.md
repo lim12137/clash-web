@@ -34,17 +34,17 @@ Most of all, we need visibility. Star ⭐ and watch the repo, share it with frie
 
 Ready to get started? Here are your next steps:
 
-1. **📋 [Installation & Setup](./installation.md)** - System requirements and deployment guide
-2. **🔧 [Development Guide](./development-guide.md)** - Build from source and customize
-3. **❓ [FAQ](../faq.md)** - Common questions and troubleshooting
+1. **📋 [Installation & Setup](./installation)** - System requirements and deployment guide
+2. **🔧 [Development Guide](./development-guide)** - Build from source and customize
+3. **❓ [FAQ](../faq)** - Common questions and troubleshooting
 
 ## 🌱 MCP Tool Ecosystem
 
 Nexent is built on the Model Context Protocol (MCP) tool ecosystem, providing a flexible and extensible framework for integrating various tools and services. MCP serves as the "USB-C of AI" - a universal interface standard that allows AI agents to seamlessly connect with external data sources, tools, and services.
 
 Learn more about the MCP ecosystem:
-- **[MCP Overview](../mcp-ecosystem/overview.md)** - Understanding the MCP ecosystem and tools
-- **[Use Cases & Scenarios](../mcp-ecosystem/use-cases.md)** - Real-world agent scenarios and implementations
+- **[MCP Overview](../mcp-ecosystem/overview)** - Understanding the MCP ecosystem and tools
+- **[Use Cases & Scenarios](../mcp-ecosystem/use-cases)** - Real-world agent scenarios and implementations
 
 ## ✨ Key Features
 
@@ -58,7 +58,7 @@ Nexent offers a comprehensive set of features for building powerful AI agents:
 - **🎭 Multimodal Support** - Voice, text, images, and file processing
 - **🔧 MCP Ecosystem** - Extensible tool integration and custom development
 
-For detailed feature information and examples, see our **[Features Guide](./features.md)**.
+For detailed feature information and examples, see our **[Features Guide](./features)**.
 
 ## 💬 Community & contact
 

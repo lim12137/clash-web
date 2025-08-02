@@ -76,7 +76,7 @@ bash deploy.sh
 部署成功完成后：
 1. 在浏览器中打开 **http://localhost:3000**
 2. 按照设置向导进行初始配置
-3. 配置您的模型提供商（参见 [模型提供商指南](./model-providers.md)）
+3. 配置您的模型提供商（参见 [模型提供商指南](./model-providers)）
 
 ## 模型配置
 
@@ -89,7 +89,7 @@ Nexent 支持所有 **OpenAI 兼容的模型**，包括：
 
 ### 快速提供商设置
 
-有关详细设置说明和 API 密钥获取，请参阅我们的 **[模型提供商指南](./model-providers.md)**。
+有关详细设置说明和 API 密钥获取，请参阅我们的 **[模型提供商指南](./model-providers)**。
 
 **快速开始推荐**:
 - **LLM**: [硅基流动](https://siliconflow.cn/) (有免费额度)
@@ -113,12 +113,12 @@ EXA_API_KEY=your_exa_key
 
 ## 需要帮助？
 
-- 浏览 [常见问题](../faq.md) 了解常见安装问题
+- 浏览 [常见问题](../faq) 了解常见安装问题
 - 在我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 提问
 - 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 提交错误报告或功能建议
 
 ## 从源码构建
 
-想要从源码构建或添加新功能？查看 [贡献指南](../contributing.md) 获取详细说明。
+想要从源码构建或添加新功能？查看 [贡献指南](../contributing) 获取详细说明。
 
-有关详细的安装说明和自定义选项，请查看我们的 [开发指南](./development-guide.md)。
+有关详细的安装说明和自定义选项，请查看我们的 [开发指南](./development-guide)。

@@ -20,7 +20,7 @@ This page lists known issues and limitations in the current version of Nexent. W
 
 If you encounter any issues not listed here, please:
 
-1. **Check our [FAQ](./faq.md)** for common solutions
+1. **Check our [FAQ](./faq)** for common solutions
 2. **Search existing issues** on [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)
 3. **Create a new issue** with detailed information including:
    - Steps to reproduce
@@ -38,4 +38,4 @@ We regularly update this page with the status of known issues. Check back freque
 For immediate help or discussion about issues:
 - Join our [Discord community](https://discord.gg/tb5H3S3wyv)
 - Ask questions in [GitHub Discussions](https://github.com/ModelEngine-Group/nexent/discussions)
-- Check our [Contributing Guide](./contributing.md) if you'd like to help fix issues
+- Check our [Contributing Guide](./contributing) if you'd like to help fix issues

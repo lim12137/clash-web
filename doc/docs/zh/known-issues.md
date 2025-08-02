@@ -20,7 +20,7 @@
 
 如果您遇到此处未列出的任何问题，请：
 
-1. **查看我们的 [常见问题](./faq.md)** 寻找常见解决方案
+1. **查看我们的 [常见问题](./faq)** 寻找常见解决方案
 2. **搜索现有问题** 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)
 3. **创建新问题** 并提供详细信息，包括：
    - 重现步骤
@@ -38,4 +38,4 @@
 如需即时帮助或讨论问题：
 - 加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv)
 - 在 [GitHub Discussions](https://github.com/ModelEngine-Group/nexent/discussions) 提问
-- 如果您想帮助修复问题，请查看我们的 [贡献指南](./contributing.md)
+- 如果您想帮助修复问题，请查看我们的 [贡献指南](./contributing)

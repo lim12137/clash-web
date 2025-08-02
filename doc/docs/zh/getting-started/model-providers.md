@@ -138,9 +138,9 @@ EXA_API_KEY=your_exa_key
 
 ## 🔗 快速链接
 
-- [安装与配置](./installation.md) - 完整部署指南
-- [模型配置常见问题](../faq.md) - 常见配置问题
-- [已知问题](../known-issues.md) - 当前限制和解决方法
+- [安装与配置](./installation) - 完整部署指南
+- [模型配置常见问题](../faq) - 常见配置问题
+- [已知问题](../known-issues) - 当前限制和解决方法
 
 ## 🆘 需要帮助？
 
