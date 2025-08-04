@@ -9,7 +9,7 @@ For detailed installation instructions and usage guides, see our **[Basic Usage 
 ## ⭐ Key Features
 
 ### 🏢 Enterprise-grade Agent Framework
-Extended from SmolAgent, built specifically for enterprise environments with proper scaling and monitoring capabilities.
+Extended from SmolAgents, built specifically for enterprise environments with proper scaling and monitoring capabilities.
 
 ### ⚡ Distributed Processing Capabilities
 High-performance asynchronous architecture based on asyncio, supporting large-scale data batch processing and optimization.
