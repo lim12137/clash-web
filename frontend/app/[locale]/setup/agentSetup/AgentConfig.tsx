@@ -64,6 +64,16 @@ export default function AgentConfig() {
   const [agentName, setAgentName] = useState("")
   const [agentDescription, setAgentDescription] = useState("")
 
+  // Add cache for new agent creation to preserve content when switching controllers
+  const [newAgentCache, setNewAgentCache] = useState({
+    businessLogic: "",
+    dutyContent: "",
+    constraintContent: "",
+    fewShotsContent: "",
+    agentName: "",
+    agentDescription: ""
+  })
+
   // Add state for business logic and action buttons
   const [isGeneratingAgent, setIsGeneratingAgent] = useState(false)
   const [isSavingAgent, setIsSavingAgent] = useState(false)
@@ -74,6 +84,10 @@ export default function AgentConfig() {
   // Handle business logic change
   const handleBusinessLogicChange = (value: string) => {
     setBusinessLogic(value)
+    // Cache the content when creating new agent
+    if (isCreatingNewAgent) {
+      setNewAgentCache(prev => ({ ...prev, businessLogic: value }))
+    }
   }
 
   // Handle generate agent
@@ -172,6 +186,9 @@ export default function AgentConfig() {
         setAgentName('')
         setAgentDescription('')
         setSelectedTools([])
+
+        // 清除新建Agent的缓存
+        clearNewAgentCache()
 
         // 通知父组件状态变化
         handleEditingStateChange(false, null)
@@ -369,8 +386,23 @@ export default function AgentConfig() {
 
   // Monitor the status change of creating a new agent, and reset the relevant status
   useEffect(() => {
-    // Reset all states to initial values
-    setBusinessLogic('');
+    if (isCreatingNewAgent) {
+      // When starting to create new agent, try to restore cached content
+      restoreNewAgentContent();
+    } else {
+      // When not creating new agent, reset all states to initial values
+      setBusinessLogic('');
+      setDutyContent('');
+      setConstraintContent('');
+      setFewShotsContent('');
+      // Only clear agent name/description if not editing existing agent
+      if (!isEditingAgent) {
+        setAgentName('');
+        setAgentDescription('');
+      }
+    }
+    
+    // Always reset these states regardless of creation mode
     setSystemPrompt('');
     setSelectedAgents([]);
     setSelectedTools([]);
@@ -382,11 +414,7 @@ export default function AgentConfig() {
     setNewAgentDescription('');
     setNewAgentProvideSummary(true);
     setIsNewAgentInfoValid(false);
-    // Reset agent name and description only when not in editing mode
-    if (!isEditingAgent) {
-      setAgentName('');
-      setAgentDescription('');
-    }
+    
     // Reset the main agent configuration related status
     if (!isCreatingNewAgent) {
       setMainAgentModel(OpenAIModel.MainModel);
@@ -395,7 +423,6 @@ export default function AgentConfig() {
   }, [isCreatingNewAgent]);
 
   const handleEditingStateChange = (isEditing: boolean, agent: any) => {
-    console.log('handleEditingStateChange called:', isEditing, agent);
     setIsEditingAgent(isEditing)
     setEditingAgent(agent)
     
@@ -404,9 +431,25 @@ export default function AgentConfig() {
       console.log('Setting agent name and description:', agent.name, agent.description);
       setAgentName(agent.name || '')
       setAgentDescription(agent.description || '')
+      // 如果正在创建新agent，先缓存当前内容，然后清空
+      if (isCreatingNewAgent) {
+        setNewAgentCache({
+          businessLogic,
+          dutyContent,
+          constraintContent,
+          fewShotsContent,
+          agentName,
+          agentDescription
+        })
+        // 清空新建相关的内容
+        setIsCreatingNewAgent(false)
+        setBusinessLogic('')
+        setDutyContent('')
+        setConstraintContent('')
+        setFewShotsContent('')
+      }
     } else if (!isEditing) {
       // 当停止编辑时，清空名称描述框
-      console.log('Clearing agent name and description');
       setAgentName('')
       setAgentDescription('')
     }
@@ -417,6 +460,57 @@ export default function AgentConfig() {
       return parseInt(editingAgent.id)
     }
     return mainAgentId ? parseInt(mainAgentId) : undefined
+  }
+
+  // Handle caching and restoring content for new agent creation
+  const cacheNewAgentContent = () => {
+    if (isCreatingNewAgent) {
+      setNewAgentCache({
+        businessLogic,
+        dutyContent,
+        constraintContent,
+        fewShotsContent,
+        agentName,
+        agentDescription
+      })
+    }
+  }
+
+
+
+  const restoreNewAgentContent = () => {
+    if (newAgentCache.businessLogic || newAgentCache.dutyContent || newAgentCache.constraintContent || 
+        newAgentCache.fewShotsContent || newAgentCache.agentName || newAgentCache.agentDescription) {
+      setBusinessLogic(newAgentCache.businessLogic)
+      setDutyContent(newAgentCache.dutyContent)
+      setConstraintContent(newAgentCache.constraintContent)
+      setFewShotsContent(newAgentCache.fewShotsContent)
+      setAgentName(newAgentCache.agentName)
+      setAgentDescription(newAgentCache.agentDescription)
+    }
+  }
+
+  const clearNewAgentCache = () => {
+    setNewAgentCache({
+      businessLogic: "",
+      dutyContent: "",
+      constraintContent: "",
+      fewShotsContent: "",
+      agentName: "",
+      agentDescription: ""
+    })
+  }
+
+  // Handle exit creation mode - should clear cache
+  const handleExitCreation = () => {
+    setIsCreatingNewAgent(false)
+    clearNewAgentCache()
+    setBusinessLogic('')
+    setDutyContent('')
+    setConstraintContent('')
+    setFewShotsContent('')
+    setAgentName('')
+    setAgentDescription('')
   }
 
   // Handle model change with proper type conversion
@@ -495,7 +589,12 @@ export default function AgentConfig() {
                 }}>
                   <BusinessLogicConfig 
                     businessLogic={businessLogic}
-                    setBusinessLogic={setBusinessLogic}
+                    setBusinessLogic={(value) => {
+                      setBusinessLogic(value);
+                      if (isCreatingNewAgent) {
+                        setNewAgentCache(prev => ({ ...prev, businessLogic: value }));
+                      }
+                    }}
                     selectedAgents={selectedAgents}
                     setSelectedAgents={setSelectedAgents}
                     selectedTools={selectedTools}
@@ -527,15 +626,40 @@ export default function AgentConfig() {
                     onEditingStateChange={handleEditingStateChange}
                     onToolsRefresh={handleToolsRefresh}
                     dutyContent={dutyContent}
-                    setDutyContent={setDutyContent}
+                    setDutyContent={(value) => {
+                      setDutyContent(value);
+                      if (isCreatingNewAgent) {
+                        setNewAgentCache(prev => ({ ...prev, dutyContent: value }));
+                      }
+                    }}
                     constraintContent={constraintContent}
-                    setConstraintContent={setConstraintContent}
+                    setConstraintContent={(value) => {
+                      setConstraintContent(value);
+                      if (isCreatingNewAgent) {
+                        setNewAgentCache(prev => ({ ...prev, constraintContent: value }));
+                      }
+                    }}
                     fewShotsContent={fewShotsContent}
-                    setFewShotsContent={setFewShotsContent}
+                    setFewShotsContent={(value) => {
+                      setFewShotsContent(value);
+                      if (isCreatingNewAgent) {
+                        setNewAgentCache(prev => ({ ...prev, fewShotsContent: value }));
+                      }
+                    }}
                     agentName={agentName}
-                    setAgentName={setAgentName}
+                    setAgentName={(value) => {
+                      setAgentName(value);
+                      if (isCreatingNewAgent) {
+                        setNewAgentCache(prev => ({ ...prev, agentName: value }));
+                      }
+                    }}
                     agentDescription={agentDescription}
-                    setAgentDescription={setAgentDescription}
+                    setAgentDescription={(value) => {
+                      setAgentDescription(value);
+                      if (isCreatingNewAgent) {
+                        setNewAgentCache(prev => ({ ...prev, agentDescription: value }));
+                      }
+                    }}
                     isGeneratingAgent={isGeneratingAgent}
                   // SystemPromptDisplay related props
                     onDebug={() => {
@@ -554,6 +678,7 @@ export default function AgentConfig() {
                     onExportAgent={handleExportAgent}
                     onDeleteAgent={handleDeleteAgent}
                     editingAgent={editingAgent}
+                    onExitCreation={handleExitCreation}
                   />
               </div>
             </div>

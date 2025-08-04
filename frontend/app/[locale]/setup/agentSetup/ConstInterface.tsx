@@ -157,4 +157,5 @@ export interface BusinessLogicConfigProps {
   onExportAgent?: () => void;
   onDeleteAgent?: () => void;
   editingAgent?: any;
+  onExitCreation?: () => void;
 }
