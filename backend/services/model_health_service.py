@@ -24,7 +24,7 @@ async def _embedding_dimension_check(
 
     # Test connectivity based on different model types
     if model_type == "embedding":
-        embedding = OpenAICompatibleEmbedding(
+        embedding =await OpenAICompatibleEmbedding(
             model_name=model_name, 
             base_url=model_base_url, 
             api_key=model_api_key, 
@@ -33,7 +33,7 @@ async def _embedding_dimension_check(
         if len(embedding)>0:
             return len(embedding[0])
     elif model_type == "multi_embedding":
-        embedding = JinaEmbedding(
+        embedding =await JinaEmbedding(
             model_name=model_name, 
             base_url=model_base_url, 
             api_key=model_api_key, 
