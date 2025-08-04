@@ -261,7 +261,7 @@ install() {
   # Start core services
   if [ "$DEPLOYMENT_MODE" != "infrastructure" ]; then
     echo "👀 Starting core services..."
-    if ! docker-compose -p nexent -f "${COMPOSE_FILE}" up -d nexent nexent-web nexent-data-process; then
+    if ! docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent nexent-web nexent-data-process; then
       echo "❌ ERROR Failed to start core services"
       ERROR_OCCURRED=1
       return 1
@@ -306,11 +306,11 @@ update_env_var() {
   else
     # Key doesn't exist, so add it
     echo "${key}=\"${value}\"" >> "$env_file"
+    echo ""
+    echo "--------------------------------"
+    echo ""
   fi
 
-  echo ""
-  echo "--------------------------------"
-  echo ""
 }
 
 choose_image_env() {
@@ -420,7 +420,7 @@ EOF
 wait_for_elasticsearch_healthy() {
     local retries=0
     local max_retries=${1:-60}  # Default 10 minutes, can be overridden
-    while ! docker-compose -p nexent -f "${COMPOSE_FILE}" ps nexent-elasticsearch | grep -q "healthy" && [ $retries -lt $max_retries ]; do
+    while ! docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" ps nexent-elasticsearch | grep -q "healthy" && [ $retries -lt $max_retries ]; do
         echo "⏳ Waiting for Elasticsearch to become healthy... (attempt $((retries + 1))/$max_retries)"
         sleep 10
         retries=$((retries + 1))
@@ -441,7 +441,7 @@ generate_elasticsearch_api_key_for_env() {
     echo "🔑 Generating ELASTICSEARCH_API_KEY for environment..."
 
     # Generate API key
-    API_KEY_JSON=$(docker-compose -p nexent -f "${COMPOSE_FILE}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"nexent_deploy_key","role_descriptors":{"nexent_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
+    API_KEY_JSON=$(docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"nexent_deploy_key","role_descriptors":{"nexent_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
 
     # Extract API key
     ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
@@ -722,7 +722,7 @@ main_deploy() {
     # Start infrastructure services (basic services only)
     echo "🔧 Starting infrastructure services..."
     INFRA_SERVICES="nexent-elasticsearch nexent-postgresql nexent-minio redis"
-    if ! docker-compose -p nexent -f "${COMPOSE_FILE}" up -d $INFRA_SERVICES; then
+    if ! docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES; then
       echo "❌ ERROR Failed to start infrastructure services"
       exit 1
     fi
