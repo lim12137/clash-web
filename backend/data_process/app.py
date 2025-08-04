@@ -4,7 +4,7 @@ Celery application configuration for data processing tasks
 import os
 import logging
 from celery import Celery
-from .config import config
+from consts.const import REDIS_URL, REDIS_BACKEND_URL, ELASTICSEARCH_SERVICE
 from celery.backends.base import DisabledBackend
 
 # Configure logging
@@ -13,9 +13,6 @@ logger = logging.getLogger("data_process.app")
 # Determine package path dynamically
 import_path = 'data_process.tasks'
 logger.debug(f"Using import path: {import_path}")
-
-REDIS_URL = config.redis_url
-REDIS_BACKEND_URL = config.redis_backend_url
 
 if not REDIS_URL or not REDIS_BACKEND_URL:
     raise ValueError("FATAL: REDIS_URL or REDIS_BACKEND_URL is not configured. Please check the environment variables in this container.")
@@ -28,7 +25,7 @@ app = Celery(
     'nexent',
     broker=REDIS_URL,
     backend=REDIS_BACKEND_URL,
-    elasticsearch_service=os.environ.get('ELASTICSEARCH_SERVICE'),
+    elasticsearch_service=ELASTICSEARCH_SERVICE,
     include=[import_path]
 )
 

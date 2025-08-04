@@ -17,6 +17,7 @@ docker/minio
 docker/postgresql
 docker/redis_data
 docker/uploads
+docker/openssh-server
 docker/.env
 docker/.run
 

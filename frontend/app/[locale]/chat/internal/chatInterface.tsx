@@ -903,6 +903,11 @@ export function ChatInterface() {
 
             // Trigger scroll to bottom
             setShouldScrollToBottom(true);
+            
+            // Reset shouldScrollToBottom after a delay to ensure scrolling completes.
+            setTimeout(() => {
+              setShouldScrollToBottom(false);
+            }, 1000);
 
             // Refresh history list
             fetchConversationList().catch(err => {
@@ -934,6 +939,12 @@ export function ChatInterface() {
         // 缓存有内容，正常显示
         setIsLoadingHistoricalConversation(false);
         setIsLoading(false); // 确保 isLoading 状态也被重置
+        
+        // For cases where there are cached messages, also trigger scrolling to the bottom.
+        setShouldScrollToBottom(true);
+        setTimeout(() => {
+          setShouldScrollToBottom(false);
+        }, 1000);
       }
     }
 
@@ -1013,6 +1024,11 @@ export function ChatInterface() {
 
           // Trigger scroll to bottom
           setShouldScrollToBottom(true);
+          
+          // Reset shouldScrollToBottom after a delay to ensure scrolling completes.
+          setTimeout(() => {
+            setShouldScrollToBottom(false);
+          }, 1000);
 
           // Refresh history list
           fetchConversationList().catch(err => {
@@ -1341,12 +1357,7 @@ export function ChatInterface() {
                 onAgentSelect={setSelectedAgentId}
               />
 
-              {/* Footer */}
-              <div className="flex-shrink-0 mt-auto">
-                <div className="text-center text-sm py-1" style={{ color: 'rgb(163, 163, 163)', position: 'sticky', bottom: 0, backgroundColor: 'white', width: '100%' }}>
-                  {t("chatInterface.aiGeneratedContentWarning")}
-                </div>
-              </div>
+
             </div>
 
             <ChatRightPanel
