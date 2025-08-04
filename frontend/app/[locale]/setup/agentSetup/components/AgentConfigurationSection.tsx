@@ -289,16 +289,13 @@ export default function AgentConfigurationSection({
   );
 
   return (
-    <div className={`flex flex-col h-full relative mt-4 ${isEditingMode ? 'editing-mode' : 'viewing-mode'}`} style={{
-        minHeight: isEditingMode ? 'calc(100vh - 120px)' : 'auto',
-        maxHeight: isEditingMode ? 'calc(100vh - 60px)' : 'none'
-      }}>
-        {/* Section Title */}
-        <div className="flex justify-between items-center mb-2 flex-shrink-0">
-          <div className="flex items-center">
-            <h3 className="text-sm font-medium text-gray-700">{t('agent.detailContent.title')}</h3>
-          </div>
+    <div className={`flex flex-col h-full relative mt-4 ${isEditingMode ? 'editing-mode' : 'viewing-mode'}`}>
+      {/* Section Title */}
+      <div className="flex justify-between items-center mb-2 flex-shrink-0">
+        <div className="flex items-center">
+          <h3 className="text-sm font-medium text-gray-700">{t('agent.detailContent.title')}</h3>
         </div>
+      </div>
       
       {/* Segmented Control */}
       <div className="flex justify-center mb-4 flex-shrink-0">
@@ -366,10 +363,7 @@ export default function AgentConfigurationSection({
       </div>
       
       {/* Content area - flexible height */}
-      <div className="flex-1 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden w-full max-w-4xl mx-auto min-h-0" style={{ 
-        maxHeight: isEditingMode ? 'min(calc(60vh - 180px), 400px)' : 'min(60vh, 500px)', 
-        minHeight: isEditingMode ? 'min(calc(40vh - 180px), 250px)' : 'min(40vh, 350px)'
-      }}>
+      <div className="flex-1 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden w-full max-w-4xl mx-auto min-h-0">
         <style jsx global>{`
           /* Custom scrollbar styles for better UX */
           .milkdown-editor-container .milkdown {
@@ -461,10 +455,7 @@ export default function AgentConfigurationSection({
           }
         `}</style>
         
-        <div className="content-scroll h-full overflow-y-auto agent-config-content" style={{ 
-          height: isEditingMode ? 'calc(min(calc(60vh - 180px), 400px) - 2px)' : 'calc(min(60vh, 500px) - 2px)',
-          minHeight: isEditingMode ? 'calc(min(calc(40vh - 180px), 250px) - 2px)' : 'calc(min(40vh, 350px) - 2px)'
-        }}>
+        <div className="content-scroll h-full overflow-y-auto agent-config-content">
           {/* Agent Info */}
           {activeSegment === 'agent-info' && (
             <div>
@@ -562,12 +553,18 @@ export default function AgentConfigurationSection({
                 type="primary"
                 size="middle"
                 icon={<SaveOutlined />}
-                onClick={onSavePrompt}
-                disabled={!agentId || !editingAgent?.id}
+                onClick={onSaveAgent}
+                disabled={!canSaveAgent}
                 className="bg-green-500 hover:bg-green-600 border-green-500 hover:border-green-600 disabled:opacity-50 disabled:cursor-not-allowed responsive-button"
-                title={t('systemPrompt.button.save')}
+                title={(() => {
+                  if (!canSaveAgent && getButtonTitle) {
+                    const tooltipText = getButtonTitle();
+                    return tooltipText || t('systemPrompt.button.save');
+                  }
+                  return t('systemPrompt.button.save');
+                })()}
               >
-                {t('systemPrompt.button.save')}
+                {isSavingAgent ? t('businessLogic.config.button.saving') : t('systemPrompt.button.save')}
               </Button>
             )}
           </div>
