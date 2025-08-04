@@ -165,10 +165,64 @@ update_env_file() {
     fi
   fi
   
+  # Force update development environment service URLs for localhost access
+  echo "🔧 Updating service URLs for localhost development environment..."
+  
+  # ELASTICSEARCH_HOST
+  if grep -q "^ELASTICSEARCH_HOST=" ../.env; then
+    sed -i.bak "s~^ELASTICSEARCH_HOST=.*~ELASTICSEARCH_HOST=http://localhost:9210~" ../.env
+  else
+    echo "" >> ../.env
+    echo "# Development Environment URLs" >> ../.env
+    echo "ELASTICSEARCH_HOST=http://localhost:9210" >> ../.env
+  fi
+  
+  # ELASTICSEARCH_SERVICE
+  if grep -q "^ELASTICSEARCH_SERVICE=" ../.env; then
+    sed -i.bak "s~^ELASTICSEARCH_SERVICE=.*~ELASTICSEARCH_SERVICE=http://localhost:5010/api~" ../.env
+  else
+    echo "ELASTICSEARCH_SERVICE=http://localhost:5010/api" >> ../.env
+  fi
+  
+  # NEXENT_MCP_SERVER
+  if grep -q "^NEXENT_MCP_SERVER=" ../.env; then
+    sed -i.bak "s~^NEXENT_MCP_SERVER=.*~NEXENT_MCP_SERVER=http://localhost:5011~" ../.env
+  else
+    echo "NEXENT_MCP_SERVER=http://localhost:5011" >> ../.env
+  fi
+  
+  # DATA_PROCESS_SERVICE
+  if grep -q "^DATA_PROCESS_SERVICE=" ../.env; then
+    sed -i.bak "s~^DATA_PROCESS_SERVICE=.*~DATA_PROCESS_SERVICE=http://localhost:5012/api~" ../.env
+  else
+    echo "DATA_PROCESS_SERVICE=http://localhost:5012/api" >> ../.env
+  fi
+  
+  # MINIO_ENDPOINT
+  if grep -q "^MINIO_ENDPOINT=" ../.env; then
+    sed -i.bak "s~^MINIO_ENDPOINT=.*~MINIO_ENDPOINT=http://localhost:9010~" ../.env
+  else
+    echo "MINIO_ENDPOINT=http://localhost:9010" >> ../.env
+  fi
+  
+  # REDIS_URL
+  if grep -q "^REDIS_URL=" ../.env; then
+    sed -i.bak "s~^REDIS_URL=.*~REDIS_URL=redis://localhost:6379/0~" ../.env
+  else
+    echo "REDIS_URL=redis://localhost:6379/0" >> ../.env
+  fi
+  
+  # REDIS_BACKEND_URL
+  if grep -q "^REDIS_BACKEND_URL=" ../.env; then
+    sed -i.bak "s~^REDIS_BACKEND_URL=.*~REDIS_BACKEND_URL=redis://localhost:6379/1~" ../.env
+  else
+    echo "REDIS_BACKEND_URL=redis://localhost:6379/1" >> ../.env
+  fi
+  
   # Remove backup file
   rm -f ../.env.bak
   
-  echo "✅ .env file updated successfully"
+  echo "✅ .env file updated successfully with localhost development URLs"
 }
 
 # Function to show summary
