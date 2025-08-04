@@ -13,10 +13,9 @@ export default defineConfig({
   ],
   
   locales: {
-    root: {
+    en: {
       label: 'English',
       lang: 'en',
-      link: '/en/getting-started/overview',
       themeConfig: {
         nav: [
           { text: 'Home', link: 'http://nexent.tech' },
@@ -117,7 +116,6 @@ export default defineConfig({
     zh: {
       label: '简体中文',
       lang: 'zh-CN',
-      link: '/zh/getting-started/overview',
       themeConfig: {
         nav: [
           { text: '首页', link: 'http://nexent.tech' },
