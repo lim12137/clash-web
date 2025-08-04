@@ -210,4 +210,4 @@ def my_tool(param1: str, param2: int) -> str:
 3. **扩展策略**: 规划增加的负载和使用
 4. **安全考虑**: 验证输入并保护API访问
 
-详细的实现示例和高级模式，请参阅 [开发指南](../getting-started/development-guide)。
+详细的实现示例和高级模式，请参阅 [开发指南](../../getting-started/development-guide)。
