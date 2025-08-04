@@ -84,10 +84,10 @@ python backend/nexent_mcp_service.py     # MCP service
 ### 🤖 AI Agent Development
 - **Framework**: Enterprise agent framework based on smolagents
 - **Core Features**: Agent creation, tool integration, reasoning execution, multi-modal support
-- **Custom Agents**: See [Agent Overview](../agents/overview.md)
+- **Custom Agents**: See [Agents](../sdk/core/agents)
 - **System Prompts**: Located in `backend/prompts/`
 - **Implementation Steps**: Create instance → Configure tools → Set prompts → Test run
-- **Details**: See [Agent Overview](../agents/overview.md)
+- **Details**: See [Agents](../sdk/core/agents)
 
 ### 🛠️ Tool Development
 - **MCP Tool System**: Based on Model Context Protocol
