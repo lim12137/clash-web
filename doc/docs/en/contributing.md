@@ -1,11 +1,8 @@
-# Nexent Contributing Guide ✨
-
-[![English](https://img.shields.io/badge/English-README-blue)](CONTRIBUTING.md)
-[![中文](https://img.shields.io/badge/中文-README-green)](CONTRIBUTING_CN.md)
+# Nexent Contributing Guide
 
 Thank you for considering contributing to Nexent! From code to docs to sharing your experience, every bit helps make Nexent better for everyone. It also helps us if you share Nexent with others, or simply ⭐️ the repo. Thanks a million! 💛 Let's build something amazing together! 🎉
 
-In terms of licensing, please take a minute to read our short [License and Contributor Agreement](https://modelengine-group.github.io/nexent/en/license). The community also adheres to the [code of conduct](https://modelengine-group.github.io/nexent/en/code-of-conduct).
+In terms of licensing, please take a minute to read our short [License and Contributor Agreement](https://github.com/ModelEngine-Group/nexent/blob/main/LICENSE). The community also adheres to the [code of conduct](https://github.com/ModelEngine-Group/nexent/blob/main/CODE_OF_CONDUCT.md).
 
 ## 🤔 How You Can Contribute
 
@@ -27,7 +24,7 @@ Great documentation is key to a great project. Help us make Nexent easier to use
 
 ## 🌳 Branching Strategy GitFlow
 
-![GitFlow 工作流](assets/git-flow.svg)
+![GitFlow Workflow](../assets/git-flow.svg)
 
 Gitflow is a branching model for Git that provides a structured approach to software development. It defines specific branches for different purposes, like features, releases, and hotfixes, and outlines how they should interact. This helps streamline the development process, manage releases effectively, and facilitate collaboration.
 
@@ -86,7 +83,7 @@ git checkout -b your-branch-name
 ```
 
 ### Step 4 Make Your Changes
-🧙‍♂️ Code like a wizard! Follow our [Development Guide](https://modelengine-group.github.io/nexent/en/getting-started/development-guide) for setup instructions and coding standards. Ensure your changes are well-tested and documented.
+🧙‍♂️ Code like a wizard! Follow our [Development Guide](./getting-started/development-guide) for setup instructions and coding standards. Ensure your changes are well-tested and documented.
 
 ### Step 5 Commit Your Changes
 📝 Commit with a clear and concise message following our commit message guidelines：
