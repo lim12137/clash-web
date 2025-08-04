@@ -1,11 +1,8 @@
-# Nexent 贡献指南 ✨
-
-[![English](https://img.shields.io/badge/English-README-blue)](CONTRIBUTING.md)
-[![中文](https://img.shields.io/badge/中文-README-green)](CONTRIBUTING_CN.md)
+# Nexent 贡献指南
 
 感谢您考虑为 Nexent 贡献力量！无论是代码、文档还是经验分享，您的每一份付出都能让 Nexent 变得更好。如果您愿意向他人推荐 Nexent 或在仓库点个 ⭐️，我们也非常感激。万分感谢！💛 让我们一起打造非凡之作！🎉
 
-关于许可证，请花一分钟阅读我们简短的[许可和贡献者协议](https://modelengine-group.github.io/nexent/zh/license)。同时也请遵循[社区行为准则](https://modelengine-group.github.io/nexent/zh/code-of-conduct)。
+关于许可证，请花一分钟阅读我们简短的[许可和贡献者协议](https://github.com/ModelEngine-Group/nexent/blob/main/LICENSE)。同时也请遵循[社区行为准则](https://github.com/ModelEngine-Group/nexent/blob/main/CODE_OF_CONDUCT.md)。
 
 ## 🤔 如何贡献
 
@@ -29,7 +26,7 @@
 
 ## 🌳 分支策略 GitFlow
 
-![GitFlow 工作流](assets/git-flow.svg)
+![GitFlow 工作流](../assets/git-flow.svg)
 
 
 Gitflow 是一种结构化的 Git 分支管理模型，为软件开发提供了清晰的流程。它为不同目的（如功能、发布、热修复）定义了专用分支，并规定了它们的交互方式，有助于规范开发流程、高效管理发布并促进协作。
@@ -89,7 +86,7 @@ git checkout -b 您的分支名
 ```
 
 ### 第四步：进行更改
-🧙‍♂️ 像魔法师一样编码！遵循我们的 [开发指南](https://modelengine-group.github.io/nexent/zh/getting-started/development-guide) 获取设置说明和编码标准。确保您的更改经过充分测试并有文档记录。
+🧙‍♂️ 像魔法师一样编码！遵循我们的 [开发指南](./getting-started/development-guide) 获取设置说明和编码标准。确保您的更改经过充分测试并有文档记录。
 
 ### 第五步：提交更改
 📝 按照我们的提交消息规范，提交清晰简洁的消息（建议采用英文，让更多人理解你）：

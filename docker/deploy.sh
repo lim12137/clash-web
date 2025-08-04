@@ -83,8 +83,9 @@ select_deployment_mode() {
             fi
             ;;
     esac
-    source .env
-    echo -e "\n--------------------------------\n"
+    echo ""
+    echo "--------------------------------"
+    echo ""
 }
 
 generate_minio_ak_sk() {
@@ -187,9 +188,12 @@ add_permission() {
   # Export for docker-compose
   export NEXENT_USER_DIR
 
-  echo -e "\n--------------------------------\n"
+  echo ""
+  echo "--------------------------------"
+  echo ""
 }
 
+# Function to install services for non-infrastructure modes
 install() {
   # Build base infrastructure command
   INFRA_SERVICES="nexent-elasticsearch nexent-postgresql nexent-minio redis"
@@ -199,48 +203,69 @@ install() {
     INFRA_SERVICES="$INFRA_SERVICES nexent-openssh-server"
     echo "🔧 Terminal tool enabled - openssh-server will be included"
   fi
-
-  docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES
-  docker-compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d
-
-  echo -e "\n--------------------------------\n"
-
-  # Always generate a new ELASTICSEARCH_API_KEY for each deployment.
-  echo "🔑 Generating ELASTICSEARCH_API_KEY..."
-  # Wait for elasticsearch health check
-  while ! docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" ps nexent-elasticsearch | grep -q "healthy"; do
-    echo "⏳ Waiting for Elasticsearch to become healthy..."
-    sleep 10
-  done
-
-  # Generate API key
-  API_KEY_JSON=$(docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"my_api_key","role_descriptors":{"my_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
-
-  # Extract API key and add to .env
-  ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
-  if [ -n "$ELASTICSEARCH_API_KEY" ]; then
-    if grep -q "^ELASTICSEARCH_API_KEY=" .env; then
-      # Use ~ as a separator in sed to avoid conflicts with special characters in the API key.
-      sed -i.bak "s~^ELASTICSEARCH_API_KEY=.*~ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY~" .env
-      rm .env.bak
-    else
-      echo "" >> .env
-      echo "ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY" >> .env
-    fi
-
-    export ELASTICSEARCH_API_KEY
-    echo "✅ ELASTICSEARCH_API_KEY generated successfully!"
-  else
-    echo "❌ ERROR Failed to generate ELASTICSEARCH_API_KEY"
+  
+  # Set profiles for docker-compose if any are defined
+  if [ -n "$COMPOSE_PROFILES" ]; then
+    export COMPOSE_PROFILES
+    echo "📋 Using profiles: $COMPOSE_PROFILES"
+  fi
+  
+  # Start infrastructure services
+  if ! docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES; then
+    echo "❌ ERROR Failed to start infrastructure services"
     ERROR_OCCURRED=1
+    return 1
   fi
 
-  echo -e "\n--------------------------------\n"
+  if ! docker-compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d; then
+    echo "❌ ERROR Failed to start supabase services"
+    ERROR_OCCURRED=1
+    return 1
+  fi
+
+  echo ""
+  echo "--------------------------------"
+  echo ""
+  
+  # Generate environment variables for deployment
+  echo "🔑 Generating environment variables..."
+
+  # Generate MinIO keys if not already set
+  if [ -z "$MINIO_ACCESS_KEY" ] || [ -z "$MINIO_SECRET_KEY" ]; then
+    generate_minio_ak_sk || {
+      echo "❌ ERROR Failed to generate MinIO keys"
+      ERROR_OCCURRED=1
+      return 1
+    }
+    export MINIO_ACCESS_KEY
+    export MINIO_SECRET_KEY
+  fi
+
+  wait_for_elasticsearch_healthy || {
+    echo "❌ ERROR Elasticsearch health check failed"
+    ERROR_OCCURRED=1
+    return 1
+  }
+
+  # Generate Elasticsearch API key and export to environment
+  generate_elasticsearch_api_key_for_env || {
+    echo "❌ ERROR Failed to generate Elasticsearch API key"
+    ERROR_OCCURRED=1
+    return 1
+  }
+
+  echo ""
+  echo "--------------------------------"
+  echo ""
 
   # Start core services
   if [ "$DEPLOYMENT_MODE" != "infrastructure" ]; then
     echo "👀 Starting core services..."
-    docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent nexent-web nexent-data-process
+    if ! docker-compose -p nexent -f "${COMPOSE_FILE}" up -d nexent nexent-web nexent-data-process; then
+      echo "❌ ERROR Failed to start core services"
+      ERROR_OCCURRED=1
+      return 1
+    fi
   fi
   echo "Deploying services in ${DEPLOYMENT_MODE} mode..."
 }
@@ -283,7 +308,9 @@ update_env_var() {
     echo "${key}=\"${value}\"" >> "$env_file"
   fi
 
-  echo -e "\n--------------------------------\n"
+  echo ""
+  echo "--------------------------------"
+  echo ""
 }
 
 choose_image_env() {
@@ -301,13 +328,17 @@ choose_image_env() {
     source .env.general
   fi
 
-  echo -e "\n--------------------------------\n"
+  echo ""
+  echo "--------------------------------"
+  echo ""
 }
 
 choose_beta_env() {
   echo "🌐 Beta mode selected, using .env.beta for image sources."
   source .env.beta
-  echo -e "\n--------------------------------\n"
+  echo ""
+  echo "--------------------------------"
+  echo ""
 }
 
 # Function to pull required images
@@ -385,6 +416,93 @@ EOF
     fi
 }
 
+# Function to wait for Elasticsearch to become healthy
+wait_for_elasticsearch_healthy() {
+    local retries=0
+    local max_retries=${1:-60}  # Default 10 minutes, can be overridden
+    while ! docker-compose -p nexent -f "${COMPOSE_FILE}" ps nexent-elasticsearch | grep -q "healthy" && [ $retries -lt $max_retries ]; do
+        echo "⏳ Waiting for Elasticsearch to become healthy... (attempt $((retries + 1))/$max_retries)"
+        sleep 10
+        retries=$((retries + 1))
+    done
+
+    if [ $retries -eq $max_retries ]; then
+        echo "⚠️  Warning: Elasticsearch did not become healthy within expected time"
+        echo "   You may need to check the container logs and try again"
+        return 1
+    else
+        echo "✅ Elasticsearch is now healthy!"
+        return 0
+    fi
+}
+
+# Function to generate Elasticsearch API key for environment variables (not file)
+generate_elasticsearch_api_key_for_env() {
+    echo "🔑 Generating ELASTICSEARCH_API_KEY for environment..."
+
+    # Generate API key
+    API_KEY_JSON=$(docker-compose -p nexent -f "${COMPOSE_FILE}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"nexent_deploy_key","role_descriptors":{"nexent_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
+
+    # Extract API key
+    ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
+
+    if [ -n "$ELASTICSEARCH_API_KEY" ]; then
+        # Export to environment for docker-compose
+        export ELASTICSEARCH_API_KEY
+        echo "✅ ELASTICSEARCH_API_KEY generated and exported to environment"
+        return 0
+    else
+        echo "❌ ERROR Failed to generate ELASTICSEARCH_API_KEY"
+        echo "   Response: $API_KEY_JSON"
+        return 1
+    fi
+}
+
+# Function to generate complete environment file for infrastructure mode using generate_env.sh
+generate_env_for_infrastructure() {
+    # Wait for Elasticsearch to be healthy first
+    wait_for_elasticsearch_healthy || {
+        echo "⚠️  Elasticsearch is not healthy, but continuing with environment generation..."
+    }
+    echo ""
+    echo "--------------------------------"
+    echo ""
+    echo "🚀 Running generate_env.sh to create complete environment..."
+
+    # Check if generate_env.sh exists
+    if [ ! -f "generate_env.sh" ]; then
+        echo "❌ ERROR generate_env.sh not found in docker directory"
+        return 1
+    fi
+
+    # Make sure the script is executable and run it
+    chmod +x generate_env.sh
+    if ./generate_env.sh; then
+        echo "--------------------------------"
+        echo ""
+        echo "✅ Environment file generated successfully for infrastructure mode!"
+
+        # Source the generated .env file to make variables available
+        if [ -f "../.env" ]; then
+            echo "📁 Sourcing generated .env file..."
+            set -a
+            source ../.env
+            set +a
+            echo "✅ Environment variables loaded from ../.env"
+        else
+            echo "⚠️  Warning: ../.env file not found after generation"
+            return 1
+        fi
+    else
+        echo "❌ ERROR Failed to generate environment file"
+        return 1
+    fi
+
+    echo ""
+    echo "--------------------------------"
+    echo ""
+}
+
 # Function to ask if user wants to enable Terminal tool
 select_terminal_tool() {
     echo "🔧 Terminal Tool Configuration:"
@@ -405,7 +523,9 @@ select_terminal_tool() {
         export ENABLE_TERMINAL_TOOL="false"
         echo "❌ Terminal tool disabled"
     fi
-    echo -e "\n--------------------------------\n"
+    echo ""
+    echo "--------------------------------"
+    echo ""
 }
 
 # Function to generate SSH key pair for Terminal tool
@@ -439,8 +559,10 @@ generate_ssh_keys() {
             else
                 echo "SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH" >> .env
             fi
-
-            echo -e "\n--------------------------------\n"
+            
+            echo ""
+            echo "--------------------------------"
+            echo ""
             return 0
         fi
 
@@ -536,8 +658,10 @@ generate_ssh_keys() {
         if [ "$ERROR_OCCURRED" -eq 0 ]; then
             rm -f "$TEMP_OUTPUT"
         fi
-
-        echo -e "\n--------------------------------\n"
+        
+        echo ""
+        echo "--------------------------------"
+        echo ""
     fi
 }
 
@@ -567,11 +691,54 @@ add_jwt_to_env() {
 
 # Main execution flow
 echo  "🚀  Nexent Deployment Script"
+echo ""
+echo "--------------------------------"
+echo ""
 
 # Main deployment function
 main_deploy() {
   # Start deployment
   select_deployment_mode || { echo "❌ Deployment mode selection failed"; exit 1; }
+
+  # Special handling for infrastructure mode
+  if [ "$DEPLOYMENT_MODE" = "infrastructure" ]; then
+    echo "🏗️  Infrastructure mode detected - preparing infrastructure services..."
+
+    # Set up basic environment and permissions first
+    add_permission || { echo "❌ Permission setup failed"; exit 1; }
+
+    # Choose image environment (required for Docker images)
+    echo "🌐 Selecting image environment for infrastructure services..."
+    choose_image_env || { echo "❌ Image environment setup failed"; exit 1; }
+
+    # Generate MinIO keys first to avoid docker-compose warnings
+    echo "🔑 Pre-generating MinIO keys to avoid docker-compose warnings..."
+    generate_minio_ak_sk || { echo "❌ MinIO key generation failed"; exit 1; }
+
+    # Export MinIO keys to current environment for docker-compose
+    export MINIO_ACCESS_KEY
+    export MINIO_SECRET_KEY
+
+    # Start infrastructure services (basic services only)
+    echo "🔧 Starting infrastructure services..."
+    INFRA_SERVICES="nexent-elasticsearch nexent-postgresql nexent-minio redis"
+    if ! docker-compose -p nexent -f "${COMPOSE_FILE}" up -d $INFRA_SERVICES; then
+      echo "❌ ERROR Failed to start infrastructure services"
+      exit 1
+    fi
+
+    # Wait for services to be healthy, then generate complete environment
+    echo "🔑 Generating complete environment file with all keys..."
+    generate_env_for_infrastructure || { echo "❌ Environment generation failed"; exit 1; }
+
+    echo "🎉  Infrastructure deployment completed successfully!"
+    echo "📦  You can now start the core services manually using dev containers"
+    echo "📁  Environment file available at: $(cd .. && pwd)/.env"
+    echo "💡  Use 'source .env' to load environment variables in your development shell"
+    return 0
+  fi
+
+  # Normal deployment flow for other modes
   select_terminal_tool || { echo "❌ Terminal tool configuration failed"; exit 1; }
   add_permission || { echo "❌ Permission setup failed"; exit 1; }
   add_jwt_to_env
@@ -586,20 +753,17 @@ main_deploy() {
   # Pull required images before using them
   pull_required_images || { echo "❌ Required image pull failed"; exit 1; }
 
-  generate_minio_ak_sk || { echo "❌ MinIO key generation failed"; exit 1; }
+  # Generate SSH keys for terminal tool (only needed if terminal tool is enabled)
   generate_ssh_keys || { echo "❌ SSH key generation failed"; exit 1; }
 
+  # Install services and generate environment
   install || { echo "❌ Service installation failed"; exit 1; }
   clean
   # echo "Creating admin user..."
   # docker exec -d nexent bash -c "curl -X POST http://kong:8000/auth/v1/signup -H \"apikey: ${SUPABASE_KEY}\" -H \"Authorization: Bearer ${SUPABASE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"admin@example.com\",\"password\":\"123123\",\"email_confirm\":true,\"data\":{\"role\":\"admin\"}}'"
 
   echo "🎉  Deployment completed successfully!"
-  if [ "$DEPLOYMENT_MODE" != "infrastructure" ]; then
-    echo "🌐  You can now access the application at http://localhost:3000"
-  else
-    echo "📦  You can now start the core services manually using dev containers"
-  fi
+  echo "🌐  You can now access the application at http://localhost:3000"
 }
 
 # Execute main deployment with error handling

@@ -344,6 +344,6 @@ docker builder prune -f && docker system prune -f
 5. 系统提示词需充分测试
 
 ### 获取帮助 💬
-- 查看 [常见问题](FAQ_CN.md)
+- 查看 [我们的文档](https://modelengine-group.github.io/nexent/zh/getting-started/overview)
 - 加入 [Discord 社区](https://discord.gg/tb5H3S3wyv)
 - 提交 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues)
