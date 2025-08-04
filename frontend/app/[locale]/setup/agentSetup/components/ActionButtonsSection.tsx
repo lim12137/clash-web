@@ -14,6 +14,7 @@ export interface ActionButtonsSectionProps {
   editingAgent?: any;
   canSaveAgent?: boolean;
   isSavingAgent?: boolean;
+  getButtonTitle?: () => string;
 }
 
 export default function ActionButtonsSection({
@@ -25,7 +26,8 @@ export default function ActionButtonsSection({
   isEditingMode,
   editingAgent,
   canSaveAgent,
-  isSavingAgent
+  isSavingAgent,
+  getButtonTitle
 }: ActionButtonsSectionProps) {
   const { t } = useTranslation('common')
 
@@ -79,7 +81,13 @@ export default function ActionButtonsSection({
             icon={<SaveOutlined />}
             onClick={onSaveAgent}
             disabled={!canSaveAgent}
-            title={t('businessLogic.config.button.saveToAgentPool')}
+            title={(() => {
+              if (!canSaveAgent && getButtonTitle) {
+                const tooltipText = getButtonTitle();
+                return tooltipText || t('businessLogic.config.button.saveToAgentPool');
+              }
+              return t('businessLogic.config.button.saveToAgentPool');
+            })()}
             className="text-green-500 hover:text-green-600 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSavingAgent ? t('businessLogic.config.button.saving') : t('businessLogic.config.button.saveToAgentPool')}

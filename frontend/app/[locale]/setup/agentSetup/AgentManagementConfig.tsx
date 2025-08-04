@@ -91,7 +91,8 @@ export default function BusinessLogicConfig({
   getButtonTitle,
   onExportAgent,
   onDeleteAgent,
-  editingAgent: editingAgentFromParent
+  editingAgent: editingAgentFromParent,
+  onExitCreation
 }: BusinessLogicConfigProps) {
   console.log('BusinessLogicConfig props received:', { agentName, agentDescription, setAgentName: !!setAgentName, setAgentDescription: !!setAgentDescription });
   
@@ -370,22 +371,8 @@ export default function BusinessLogicConfig({
     setIsEditingAgent(false);
     setEditingAgent(null);
     setIsCreatingNewAgent(true);
-    // 清空右侧名称描述框
-    setAgentName?.('');
-    setAgentDescription?.('');
-    // 清空业务逻辑和工具选择
-    setBusinessLogic('');
-    setSelectedTools([]);
-    setEnabledToolIds([]);
-    // 清空分段提示内容
-    setDutyContent?.('');
-    setConstraintContent?.('');
-    setFewShotsContent?.('');
-    // 重置agent信息状态
-    setNewAgentName('');
-    setNewAgentDescription('');
-    setNewAgentProvideSummary(true);
-    setIsNewAgentInfoValid(false);
+    // Note: Don't clear content here - let the parent component's useEffect handle restoration
+    // The parent component will restore cached content if available
     onEditingStateChange?.(false, null);
   };
 
@@ -396,7 +383,12 @@ export default function BusinessLogicConfig({
     
     // 延迟重置状态，让UI先完成状态切换
     setTimeout(() => {
-      setIsCreatingNewAgent(false);
+      // Use the parent's exit creation handler to properly clear cache
+      if (onExitCreation) {
+        onExitCreation();
+      } else {
+        setIsCreatingNewAgent(false);
+      }
       setIsEditingAgent(false);
       setEditingAgent(null);
       
@@ -406,17 +398,7 @@ export default function BusinessLogicConfig({
       setNewAgentProvideSummary(true);
       setIsNewAgentInfoValid(false);
       
-      // 清空右侧名称描述框
-      setAgentName?.('');
-      setAgentDescription?.('');
-      
-      // 清空业务逻辑
-      setBusinessLogic('');
-      
-      // 清空分段提示内容
-      setDutyContent?.('');
-      setConstraintContent?.('');
-      setFewShotsContent?.('');
+      // Note: Content clearing is handled by onExitCreation above
       
       // 延迟清空工具和协作Agent选择，避免跳变
       setTimeout(() => {
@@ -583,6 +565,8 @@ export default function BusinessLogicConfig({
       // 设置mainAgentId为当前编辑的Agent ID
       setMainAgentId(agentDetail.id);
       // 编辑现有agent时，确保退出创建模式
+      // Note: This will be handled by the parent component's handleEditingStateChange
+      // which will cache the current creation content before switching
       setIsCreatingNewAgent(false);
       
       // 先设置右侧名称描述框的数据，确保立即显示
@@ -836,7 +820,12 @@ export default function BusinessLogicConfig({
   const handleExitEdit = () => {
     setIsEditingAgent(false);
     setEditingAgent(null);
-    setIsCreatingNewAgent(false);
+    // Use the parent's exit creation handler to properly clear cache
+    if (isCreatingNewAgent && onExitCreation) {
+      onExitCreation();
+    } else {
+      setIsCreatingNewAgent(false);
+    }
     setNewAgentName('');
     setNewAgentDescription('');
     setNewAgentProvideSummary(true);
@@ -863,6 +852,23 @@ export default function BusinessLogicConfig({
       await onToolsRefresh();
     }
   }, [onToolsRefresh]);
+
+  // 获取按钮提示信息
+  const getLocalButtonTitle = () => {
+    if (!businessLogic || businessLogic.trim() === '') {
+      return t('businessLogic.config.message.businessDescriptionRequired')
+    }
+    if (!(dutyContent?.trim()) && !(constraintContent?.trim()) && !(fewShotsContent?.trim())) {
+      return t('businessLogic.config.message.generatePromptFirst')
+    }
+    if (!agentName || agentName.trim() === '') {
+      return t('businessLogic.config.message.completeAgentInfo')
+    }
+    return ""
+  };
+
+  // 检查是否可以保存agent
+  const localCanSaveAgent = !!(businessLogic?.trim() && agentName?.trim() && (dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim()));
 
   return (
     <TooltipProvider>
@@ -968,8 +974,8 @@ export default function BusinessLogicConfig({
               isGeneratingAgent={isGeneratingAgent}
               isSavingAgent={isSavingAgent || false}
               isCreatingNewAgent={isCreatingNewAgent}
-              canSaveAgent={canSaveAgent || false}
-              getButtonTitle={getButtonTitle || (() => "")}
+              canSaveAgent={localCanSaveAgent}
+              getButtonTitle={getLocalButtonTitle}
               onExportAgent={onExportAgent || (() => {})}
               onDeleteAgent={onDeleteAgent || (() => {})}
               editingAgent={editingAgentFromParent || editingAgent}
