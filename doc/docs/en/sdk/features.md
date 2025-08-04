@@ -4,8 +4,8 @@ Nexent SDK provides comprehensive enterprise-grade intelligent agent development
 
 ## 🏢 Enterprise-grade Agent Framework
 
-### Extended from SmolAgent
-- **Complex Business Scenario Support**: Inherits SmolAgent's excellent architecture, supporting complex business logic processing
+### Extended from SmolAgents
+- **Complex Business Scenario Support**: Inherits SmolAgents' excellent architecture, supporting complex business logic processing
 - **Production Ready**: Built specifically for enterprise environments with proper scaling and monitoring capabilities
 - **Comprehensive Testing**: Extensive test coverage ensuring system reliability and stability
 

@@ -16,7 +16,7 @@ The core of Nexent's agent system, providing complete intelligent agent solution
 - **State Management**: Complete task state tracking and error recovery mechanisms
 
 #### CoreAgent - Code Execution Engine
-Inherits and enhances SmolAgent's `CodeAgent`, providing the following key capabilities:
+Inherits and enhances SmolAgents' `CodeAgent`, providing the following key capabilities:
 
 - **Python Code Execution**: Supports parsing and executing Python code for dynamic task processing
 - **Multi-language Support**: Built-in Chinese and English prompt templates, switchable as needed
