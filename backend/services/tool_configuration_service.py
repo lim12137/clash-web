@@ -117,6 +117,70 @@ def get_local_tools_classes() -> List[type]:
             tools_classes.append(obj)
     return tools_classes
 
+
+# --------------------------------------------------
+# LangChain tools discovery (functions decorated with @tool)
+# --------------------------------------------------
+
+def _build_tool_info_from_langchain(obj) -> ToolInfo:
+    """Convert a LangChain Tool object into our internal ToolInfo model."""
+
+    # Try to infer parameter schema from the underlying callable signature if
+    # available.  LangChain tools usually expose a `.func` attribute pointing
+    # to the original python function.  If not present, we fallback to the
+    # tool instance itself (implements __call__).
+    target_callable = getattr(obj, "func", obj)
+
+    inputs = getattr(obj, "args", {})
+
+    if inputs:
+        for key,value in inputs.items():
+            if "description" not in value:
+                value["description"] = "see the description"
+
+    # Attempt to infer output type from return annotation
+    try:
+        return_schema = inspect.signature(target_callable).return_annotation
+        output_type = python_type_to_json_schema(return_schema)
+    except (TypeError, ValueError):
+        output_type = "string"
+
+    tool_info = ToolInfo(
+        name=getattr(obj, "name", target_callable.__name__),
+        description=getattr(obj, "description", ""),
+        params=[],
+        source=ToolSourceEnum.LANGCHAIN.value,
+        inputs=json.dumps(inputs,ensure_ascii=False),
+        output_type=output_type,
+        class_name=getattr(obj, "name", target_callable.__name__),
+        usage=None,
+    )
+    return tool_info
+
+
+def get_langchain_tools() -> List[ToolInfo]:
+    """Discover LangChain tools in the specified directory.
+
+    We dynamically import every `*.py` file and extract objects that look like
+    LangChain tools (based on presence of `name` & `description`).  Any valid
+    tool is converted to ToolInfo with source = "langchain".
+    """
+    from utils.langchain_utils import discover_langchain_modules
+
+    tools_info: List[ToolInfo] = []
+    # Discover all objects that look like LangChain tools
+    discovered_tools = discover_langchain_modules()
+    
+    # Process discovered tools
+    for obj, filename in discovered_tools:
+        try:
+            tool_info = _build_tool_info_from_langchain(obj)
+            tools_info.append(tool_info)
+        except Exception as e:
+            logger.warning(f"Error processing LangChain tool in {filename}: {e}")
+    
+    return tools_info
+
 async def get_all_mcp_tools(tenant_id: str) -> List[ToolInfo]:
     """
     Get metadata for all tools available from the MCP service
@@ -245,6 +309,12 @@ async def update_tool_list(tenant_id: str, user_id: str):
             List of ToolInfo objects containing tool metadata
         """
     local_tools = get_local_tools()
+
+    # Discover LangChain tools (decorated functions) and include them in the
+    # unified tool list.
+    langchain_tools = get_langchain_tools()
+
+
     try:
         mcp_tools = await get_all_mcp_tools(tenant_id)
     except Exception as e:
@@ -254,7 +324,7 @@ async def update_tool_list(tenant_id: str, user_id: str):
     try:
         update_tool_table_from_scan_tool_list(tenant_id=tenant_id,
                                               user_id=user_id,
-                                              tool_list=local_tools+mcp_tools)
+                                              tool_list=local_tools+mcp_tools+langchain_tools)
     except Exception as e:
         logger.error(f"failed to update tool list to PG, detail: {e}")
         raise Exception(f"failed to update tool list to PG, detail: {e}")

@@ -34,19 +34,19 @@ class TestNexent():
         cls.driver.quit()
 
     def test_login(self):
-        url = os.environ.get("NEXENT_PRODUCTION_URL")
+        url = os.getenv("NEXENT_PRODUCTION_URL")
         self.driver.get(url)
         # Wait for and click the user icon
         wait_and_click(self.wait, By.CSS_SELECTOR, ".anticon-user > svg")
         # Wait for and click the login menu
         wait_and_click(self.wait, By.XPATH, "//li[3]/span[2]")
         # Wait for email input to be visible and enter email
-        user_name = os.environ.get("NEXENT_LOGIN_USER")
+        user_name = os.getenv("NEXENT_LOGIN_USER")
         wait_and_send_keys(self.wait, By.XPATH, "(//input[@id='email'])[2]", user_name)
         # Wait for and click the area before the password input (if any)
         wait_and_click(self.wait, By.XPATH, "//div[4]/div[2]/div/div/div")
         # Wait for password input to be visible and enter password
-        passwd = os.environ.get("NEXENT_LOGIN_PASSWD")
+        passwd = os.getenv("NEXENT_LOGIN_PASSWD")
         wait_and_send_keys(self.wait, By.XPATH, "(//input[@id='password'])[2]", passwd)
         # Wait for and click the login button
         wait_and_click(self.wait, By.XPATH,

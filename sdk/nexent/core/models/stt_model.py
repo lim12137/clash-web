@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import gzip
 import json
-import os
 import logging
 import time
 import uuid
@@ -14,8 +13,6 @@ from typing import Dict, Any
 import aiofiles
 import websockets
 from pydantic import BaseModel
-
-from consts.const import TEST_VOICE_PATH
 
 logger = logging.getLogger("stt_model")
 
@@ -56,7 +53,7 @@ class AudioType(Enum):
 
 class STTConfig(BaseModel):
     appid: str
-    token: str = ""
+    token: str
     ws_url: str = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel"
     uid: str = "streaming_asr_demo"
     format: str = "wav"
@@ -70,30 +67,18 @@ class STTConfig(BaseModel):
     streaming: bool = True
     compression: bool = True
 
-    @classmethod
-    def from_env(cls):
-        """Load configuration from environment variables"""
-        return cls(
-            appid=os.getenv("APPID", ""), token=os.getenv("TOKEN", ""),
-            ws_url=os.getenv("WS_URL", "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel"),
-            uid=os.getenv("UID", "streaming_asr_demo"), format=os.getenv("FORMAT", "pcm"),
-            rate=int(os.getenv("RATE", "16000")), bits=int(os.getenv("BITS", "16")),
-            channel=int(os.getenv("CHANNEL", "1")), codec=os.getenv("CODEC", "raw"),
-            seg_duration=int(os.getenv("SEG_DURATION", "100")), mp3_seg_size=int(os.getenv("MP3_SEG_SIZE", "1000")),
-            resourceid=os.getenv("RESOURCEID", "volc.bigasr.sauc.duration"),
-            compression=os.getenv("COMPRESSION", "false").lower() == "true"
-            )
-
 
 class STTModel:
-    def __init__(self, config: STTConfig):
+    def __init__(self, config: STTConfig, test_voice_path: str):
         """
         Initialize the STT Model.
         
         Args:
             config: STT configuration
+            test_voice_path: Path to test voice file for connectivity testing
         """
         self.config = config
+        self.test_voice_path = test_voice_path
         self.success_code = 1000  # success code, default is 1000
 
     def generate_header(self, message_type=CLIENT_FULL_REQUEST, message_type_specific_flags=NO_SEQUENCE,
@@ -657,20 +642,21 @@ class STTModel:
             bool: True if connection successful, False otherwise
         """
         try:
-            result = await self.process_audio_file(TEST_VOICE_PATH)
+            result = await self.process_audio_file(self.test_voice_path)
             # Check if the return result is a dictionary type and non-empty
             return isinstance(result, dict) and bool(result)
         except Exception:
             return False
 
 
-async def process_audio_item(audio_item: Dict[str, Any], config: STTConfig) -> Dict[str, Any]:
+async def process_audio_item(audio_item: Dict[str, Any], config: STTConfig, test_voice_path: str) -> Dict[str, Any]:
     """
     Process an audio item with the STT model.
     
     Args:
         audio_item: Audio item with 'id' and 'path' keys
         config: STT configuration
+        test_voice_path: Path to test voice file for connectivity testing
         
     Returns:
         Recognition result with id and path
@@ -681,7 +667,7 @@ async def process_audio_item(audio_item: Dict[str, Any], config: STTConfig) -> D
     audio_id = audio_item['id']
     audio_path = audio_item['path']
 
-    stt_model = STTModel(config)
+    stt_model = STTModel(config, test_voice_path)
     result = await stt_model.recognize_file(audio_path)
 
     return {"id": audio_id, "path": audio_path, "result": result}

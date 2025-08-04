@@ -230,6 +230,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
       message.error(errorMessage);
     } finally {
       setIsSaving(false);
+      setShowDetail(false);
     }
   };
 
@@ -286,13 +287,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
           </div>
           {/* 右侧：详细内容 */}
           {!isCreatingMode && (
-            <Tooltip 
-              title={summary || t('document.summary.empty')} 
-              placement="left"
-              mouseEnterDelay={0.5}
-            >
-              <Button type="primary" onClick={() => setShowDetail(true)}>{t('document.button.details')}</Button>
-            </Tooltip>
+            <Button type="primary" onClick={() => setShowDetail(true)}>{t('document.button.details')}</Button>
           )}
         </div>
       </div>
