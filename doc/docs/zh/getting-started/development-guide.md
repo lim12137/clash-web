@@ -84,10 +84,10 @@ python backend/nexent_mcp_service.py     # MCP 服务
 ### 🤖 AI 智能体开发
 - **框架**: 基于 smolagents 的企业级智能体框架
 - **核心功能**: 智能体创建、工具集成、推理执行、多模态支持
-- **自定义智能体**: 查看 [智能体概览](../agents/overview)
+- **自定义智能体**: 查看 [智能体模块](../sdk/core/agents)
 - **系统提示词**: 位于 `backend/prompts/`
 - **实现步骤**: 创建实例 → 配置工具 → 设置提示词 → 测试运行
-- **详细信息**: 查看 [智能体概览](../agents/overview)
+- **详细信息**: 查看 [智能体模块](../sdk/core/agents)
 
 ### 🛠️ 工具开发
 - **MCP 工具系统**: 基于 Model Context Protocol
