@@ -210,4 +210,4 @@ Standard execution pattern for problem-solving agents:
 3. **Scaling Strategy**: Plan for increased load and usage
 4. **Security Considerations**: Validate inputs and protect API access
 
-For detailed implementation examples and advanced patterns, please refer to [Development Guide](../getting-started/development-guide).
+For detailed implementation examples and advanced patterns, please refer to [Development Guide](../../getting-started/development-guide).

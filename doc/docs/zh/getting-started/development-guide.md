@@ -47,27 +47,56 @@ nexent/
 - Node.js 18+
 - Docker & Docker Compose
 - uv (Python 包管理器)
+- pnpm (Node.js 包管理器)
+
+### 基础设施部署
+在开始后端开发之前，需要先部署基础设施服务。这些服务包括数据库、缓存、文件存储等核心组件。
+
+```bash
+cd docker
+./deploy.sh --mode infrastructure
+```
+
+::: info 重要说明
+基础设施模式会启动 PostgreSQL、Redis、Elasticsearch 和 MinIO 服务。部署脚本会自动生成开发环境所需的密钥和环境变量，并保存到根目录的 `.env` 文件中。生成的密钥包括 MinIO 访问密钥和 Elasticsearch API 密钥。所有服务 URL 会配置为 localhost 地址，方便本地开发。
+:::
 
 ### 后端设置
 ```bash
 cd backend
-uv sync && uv pip install -e ../sdk
+uv sync --all-extras
+uv pip install ../sdk
 ```
+
+::: tip 说明
+`--all-extras` 会安装所有可选依赖，包括数据处理、测试等模块。然后安装本地 SDK 包。
+:::
 
 ### 前端设置
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 ### 服务启动
+在启动服务之前，需要先激活虚拟环境：
+
+```bash
+# 在项目根目录下执行
+source venv/bin/activate  # 激活虚拟环境
+```
+
 Nexent 包含三个核心后端服务，需要分别启动：
 ```bash
-python backend/data_process_service.py   # 数据处理服务
-python backend/main_service.py           # 主服务
-python backend/nexent_mcp_service.py     # MCP 服务
+source .env && python backend/data_process_service.py   # 数据处理服务
+source .env && python backend/main_service.py           # 主服务
+source .env && python backend/nexent_mcp_service.py     # MCP 服务
 ```
+
+::: warning 重要提示
+所有服务必须在项目根目录下启动。每个 Python 命令前都需要先执行 `source .env` 来加载环境变量。确保基础设施服务（数据库、Redis、Elasticsearch、MinIO）已经启动并正常运行。
+:::
 
 ## 🔧 开发模块指南
 
@@ -136,6 +165,8 @@ python backend/nexent_mcp_service.py     # MCP 服务
 2. **代码修改**: 修改代码后需重启相关服务
 3. **开发模式**: 开发环境建议用调试模式
 4. **提示词测试**: 系统提示词需充分测试
+5. **环境变量**: 确保 `.env` 文件中的配置正确
+6. **基础设施**: 开发前确保基础设施服务正常运行
 
 ## 💡 获取帮助
 
