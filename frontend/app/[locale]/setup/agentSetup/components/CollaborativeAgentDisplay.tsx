@@ -16,6 +16,8 @@ interface CollaborativeAgentDisplayProps {
   onAgentIdsChange: (newAgentIds: number[]) => void
   isEditingMode: boolean
   isGeneratingAgent: boolean
+  className?: string
+  style?: React.CSSProperties
 }
 
 export default function CollaborativeAgentDisplay({
@@ -24,7 +26,9 @@ export default function CollaborativeAgentDisplay({
   parentAgentId,
   onAgentIdsChange,
   isEditingMode,
-  isGeneratingAgent
+  isGeneratingAgent,
+  className,
+  style
 }: CollaborativeAgentDisplayProps) {
   const { t } = useTranslation('common')
   const [isDropdownVisible, setIsDropdownVisible] = useState(false)
@@ -182,7 +186,7 @@ export default function CollaborativeAgentDisplay({
   }
 
   return (
-    <div className="flex flex-col">
+    <div className={`flex flex-col w-full max-w-[calc(100%-1rem)] ${className}`} style={style}>
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-md font-medium text-gray-700">{t('collaborativeAgent.title')}</h4>
       </div>

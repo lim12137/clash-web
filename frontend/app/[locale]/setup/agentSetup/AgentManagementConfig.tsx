@@ -525,20 +525,24 @@ export default function BusinessLogicConfig({
     }
   };
 
-  const handleSaveAsAgent = () => {
-    if (!isNewAgentInfoValid) {
+  const handleSaveAgent = () => {
+    // The save button's disabled state is controlled by canSaveAgent, which already validates the required fields.
+    // We can still add checks here for better user feedback in case the function is triggered unexpectedly.
+    if (!agentName || agentName.trim() === '') {
       message.warning(t('businessLogic.config.message.completeAgentInfo'));
       return;
     }
-    // Check if any of the prompt parts have content
+    
     const hasPromptContent = dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim();
     if (!hasPromptContent) {
       message.warning(t('businessLogic.config.message.generatePromptFirst'));
       return;
     }
+    
+    // Always use agentName and agentDescription as they are bound to the inputs in both create and edit modes.
     handleSaveNewAgent(
-      newAgentName, 
-      newAgentDescription, 
+      agentName, 
+      agentDescription || '', 
       mainAgentModel, 
       mainAgentMaxStep, 
       newAgentProvideSummary,
@@ -910,16 +914,16 @@ export default function BusinessLogicConfig({
             <div className="flex-1 min-h-0 overflow-hidden border-t pt-2">
                 <div className="flex flex-col h-full" style={{ gap: '16px' }}>
                   {/* Upper section: Collaborative Agent Display - 固定区域 */}
-                  <div className="h-[148px] lg:h-[168px]" style={{ flexShrink: 0 }}>
-                    <CollaborativeAgentDisplay
-                      availableAgents={subAgentList}
-                      selectedAgentIds={enabledAgentIds}
-                      parentAgentId={isEditingAgent && editingAgent ? Number(editingAgent.id) : (isCreatingNewAgent && mainAgentId ? Number(mainAgentId) : undefined)}
-                      onAgentIdsChange={handleUpdateEnabledAgentIds}
-                      isEditingMode={isEditingAgent || isCreatingNewAgent}
-                      isGeneratingAgent={isGeneratingAgent}
-                    />
-                  </div>
+                  <CollaborativeAgentDisplay
+                    className="h-[148px] lg:h-[168px]"
+                    style={{ flexShrink: 0 }}
+                    availableAgents={subAgentList}
+                    selectedAgentIds={enabledAgentIds}
+                    parentAgentId={isEditingAgent && editingAgent ? Number(editingAgent.id) : (isCreatingNewAgent && mainAgentId ? Number(mainAgentId) : undefined)}
+                    onAgentIdsChange={handleUpdateEnabledAgentIds}
+                    isEditingMode={isEditingAgent || isCreatingNewAgent}
+                    isGeneratingAgent={isGeneratingAgent}
+                  />
                   
                   {/* Lower section: Tool Pool - 弹性区域 */}
                   <div className="flex-1 min-h-0 overflow-hidden">
@@ -970,7 +974,7 @@ export default function BusinessLogicConfig({
               onMaxStepChange={handleMaxStepChange}
               onBusinessLogicChange={(value: string) => setBusinessLogic(value)}
               onGenerateAgent={onGenerateAgent || (() => {})}
-              onSaveAgent={onSaveAgent || (() => {})}
+              onSaveAgent={handleSaveAgent}
               isGeneratingAgent={isGeneratingAgent}
               isSavingAgent={isSavingAgent || false}
               isCreatingNewAgent={isCreatingNewAgent}
