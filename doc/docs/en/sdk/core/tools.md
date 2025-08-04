@@ -2,7 +2,7 @@
 
 This document summarizes the complete guidelines and best practices for tool development in the Nexent SDK based on analysis of existing tools.
 
-## Tool Categories
+## 📂 Tool Categories
 
 The current SDK includes the following tool types:
 
@@ -28,7 +28,7 @@ The current SDK includes the following tool types:
 - **GetEmailTool**: Email retrieval tool via IMAP
 - **SendEmailTool**: Email sending tool via SMTP
 
-## Common Characteristics
+## 🔧 Common Characteristics
 
 ### 1. Basic Architecture
 - **Base Class Inheritance**: All tools must inherit from `smolagents.tools.Tool`
@@ -60,7 +60,7 @@ class ToolExample(Tool):
 - **Error Logging**: Use logging module to record detailed error information
 - **Graceful Degradation**: Provide fallback solutions when possible
 
-## Naming Conventions
+## 📝 Naming Conventions
 
 ### File Naming
 - **Format**: `{function_name}_tool.py`
@@ -85,7 +85,7 @@ class ToolExample(Tool):
   - `l`: Linkup search (LinkupSearchTool)
   - Other letters assigned by functional type
 
-## Code Structure Templates
+## 🏗️ Code Structure Templates
 
 ### Basic Template
 
@@ -102,7 +102,7 @@ logger = logging.getLogger("your_tool_name")
 
 class YourTool(Tool):
     name = "your_tool"
-    description = "Detailed description of tool functionality, including use cases and methods"
+    description = "Detailed description of tool functionality, explaining applicable scenarios and usage methods"
     inputs = {
         "param1": {
             "type": "string", 
@@ -129,19 +129,19 @@ class YourTool(Tool):
         self.observer = observer
         self.optional_param = optional_param
         
-        # Multi-language prompt messages
+        # Multi-language prompts
         self.running_prompt_zh = "正在执行..."
         self.running_prompt_en = "Processing..."
         
-        # Record operation sequence number (if needed)
+        # Record operation sequence (if needed)
         self.record_ops = 0
 
     def forward(self, param1: str, param2: int = 10) -> str:
         """Main execution method of the tool
         
         Args:
-            param1: Description of parameter 1
-            param2: Description of parameter 2
+            param1: Parameter 1 description
+            param2: Parameter 2 description
             
         Returns:
             JSON format string result
@@ -165,7 +165,7 @@ class YourTool(Tool):
             # Main business logic
             result = self._execute_main_logic(param1, param2)
             
-            # Process results and return
+            # Process result and return
             return self._format_result(result)
             
         except Exception as e:
@@ -173,7 +173,7 @@ class YourTool(Tool):
             raise Exception(f"Error executing {self.name}: {str(e)}")
 
     def _execute_main_logic(self, param1: str, param2: int):
-        """Private method to execute main business logic"""
+        """Private method for executing main business logic"""
         # Implement specific business logic
         pass
 
@@ -203,7 +203,7 @@ logger = logging.getLogger("search_tool_name")
 
 class SearchTool(Tool):
     name = "search_tool"
-    description = "Detailed description of search tool, including search scope and use cases"
+    description = "Detailed description of search tool, including search scope and applicable scenarios"
     inputs = {
         "query": {"type": "string", "description": "Search query"},
         "max_results": {"type": "integer", "description": "Maximum number of results", "default": 5, "nullable": True}
@@ -215,7 +215,7 @@ class SearchTool(Tool):
         self,
         api_key: str = Field(description="API key"),
         observer: MessageObserver = Field(description="Message observer", default=None, exclude=True),
-        max_results: int = Field(description="Maximum number of search results", default=5)
+        max_results: int = Field(description="Maximum search results", default=5)
     ):
         super().__init__()
         self.api_key = api_key
@@ -241,11 +241,11 @@ class SearchTool(Tool):
                                     json.dumps(card_content, ensure_ascii=False))
 
         try:
-            # Perform search
+            # Execute search
             search_results = self._perform_search(query, max_results)
             
             if not search_results:
-                raise Exception("No search results found! Try a shorter or broader query.")
+                raise Exception("No search results found! Please try shorter or broader queries.")
 
             # Format search results
             formatted_results = self._format_search_results(search_results)
@@ -296,44 +296,44 @@ class SearchTool(Tool):
         }
 ```
 
-## Development Process Guidelines
+## 🔄 Development Process Guidelines
 
 ### 1. Pre-development Preparation
-- Determine tool functionality and use cases
-- Select appropriate tool category and identifier
-- Check for functionality duplication with existing tools
+- Determine tool functionality and applicable scenarios
+- Choose appropriate tool category and identifier
+- Check for duplication with existing tool functionality
 
 ### 2. Implementation Steps
-1. **Create tool file**: Create `{name}_tool.py` according to naming conventions
-2. **Define class structure**: Inherit from Tool base class, define necessary attributes
-3. **Implement constructor**: Use pydantic Field to define parameters
-4. **Implement forward method**: Core functionality logic
-5. **Add private methods**: Split complex logic into private methods
-6. **Integrate message observer**: Support streaming output and multi-language
-7. **Exception handling**: Complete error handling and logging
+1. **Create Tool File**: Create `{name}_tool.py` according to naming conventions
+2. **Define Class Structure**: Inherit from Tool base class, define necessary attributes
+3. **Implement Constructor**: Use pydantic Field to define parameters
+4. **Implement forward Method**: Core functionality logic
+5. **Add Private Methods**: Break down complex logic into private methods
+6. **Integrate Message Observer**: Support streaming output and multi-language
+7. **Exception Handling**: Comprehensive error handling and logging
 
 ### 3. Testing and Integration
-1. **Unit testing**: Test various input scenarios and edge cases
-2. **Integration testing**: Integration testing with CoreAgent
-3. **Update exports**: Add tool export in `__init__.py`
-4. **Documentation updates**: Update related documentation and examples
+1. **Unit Testing**: Test various input scenarios and edge cases
+2. **Integration Testing**: Integration testing with CoreAgent
+3. **Update Exports**: Add tool exports in `__init__.py`
+4. **Documentation Updates**: Update related documentation and examples
 
-## Best Practices
+## ⭐ Best Practices
 
 ### 1. Performance Optimization
-- **Asynchronous Processing**: Use asynchronous processing for time-consuming operations
+- **Async Processing**: Use async processing for time-consuming operations
 - **Connection Pooling**: Reuse network connections to reduce latency
-- **Caching Mechanism**: Use caching appropriately to improve response speed
+- **Caching Mechanisms**: Use caching appropriately to improve response speed
 - **Concurrency Control**: Use Semaphore to control concurrent request numbers
 
 ### 2. Security
 - **Input Validation**: Strictly validate input parameters
 - **Sensitive Information**: API keys and other sensitive information should not appear in logs
 - **Error Messages**: Avoid leaking sensitive information in error messages
-- **Timeout Control**: Set reasonable timeout periods to prevent blocking
+- **Timeout Control**: Set reasonable timeout times to prevent blocking
 
 ### 3. Maintainability
-- **Modular Design**: Split complex functionality into multiple methods
+- **Modular Design**: Break down complex functionality into multiple methods
 - **Clear Comments**: Add detailed comments for complex logic
 - **Type Annotations**: Use complete type annotations
 - **Documentation Strings**: Add documentation strings for all public methods
@@ -344,12 +344,12 @@ class SearchTool(Tool):
 - **Error Prompts**: Provide clear error messages and solution suggestions
 - **Parameter Validation**: Validate parameter validity before execution
 
-## Important Notes
+## ⚠️ Important Notes
 
 1. **Version Compatibility**: Ensure tools are compatible with different versions of dependency libraries
-2. **Resource Cleanup**: Release network connections, file handles, and other resources promptly
-3. **Log Levels**: Set appropriate log levels to avoid excessive debug information
-4. **Configuration Management**: Support configuring key parameters through environment variables
+2. **Resource Cleanup**: Release network connections, file handles and other resources in time
+3. **Log Level**: Set log levels reasonably to avoid too much debug information
+4. **Configuration Management**: Support configuration of key parameters through environment variables
 5. **Error Recovery**: Provide error recovery mechanisms when possible
 
 By following these guidelines, you can ensure that newly developed tools maintain consistency with existing tools and have good maintainability and extensibility. 

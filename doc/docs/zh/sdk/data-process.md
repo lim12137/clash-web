@@ -1,10 +1,10 @@
 # DataProcessCore 使用指南
 
-## 概述
+## 📋 概述
 
 `DataProcessCore` 是一个统一的文件处理核心类，支持多种文件格式的自动检测和处理，提供灵活的分块策略和多种输入源支持。
 
-## 主要功能
+## ⭐ 主要功能
 
 ### 1. 核心处理方法：`file_process()`
 
@@ -81,7 +81,7 @@ def file_process(self,
 | `language` | `str` | 语言标识（可选） | `"en"` |
 | `metadata` | `dict` | 元数据信息（可选） | `{"chunk_index": 0}` |
 
-## 支持的文件类型
+## 📁 支持的文件类型
 
 ### Excel文件
 - `.xlsx` - Excel 2007及更高版本
@@ -99,7 +99,7 @@ def file_process(self,
 - `.pptx` - PowerPoint 2007及更高版本
 - `.ppt` - PowerPoint 97-2003版本
 
-## 使用示例
+## 💡 使用示例
 
 ### 示例1：处理本地文本文件
 ```python
@@ -160,7 +160,7 @@ result = core.file_process(
 )
 ```
 
-## 辅助方法
+## 🛠️ 辅助方法
 
 ### 1. 获取支持的文件类型
 ```python
@@ -192,7 +192,7 @@ print(f"支持的分块策略: {strategies}")
 print(f"支持的目标类型: {destinations}")
 ```
 
-## 错误处理
+## ⚠️ 错误处理
 
 ### 常见异常
 
@@ -217,7 +217,7 @@ except Exception as e:
     print(f"处理失败: {e}")
 ```
 
-## 性能优化建议
+## 🚀 性能优化建议
 
 1. **选择合适的分块策略**：
    - 小文件使用 `"none"`
@@ -236,7 +236,7 @@ except Exception as e:
    - 复用 `DataProcessCore` 实例
    - 避免重复初始化
 
-## 数据流架构
+## 🔄 数据流架构
 
 Nexent 系统中的数据处理遵循以下流程模式：
 
