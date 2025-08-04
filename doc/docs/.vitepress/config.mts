@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   base: '/doc/',
-  title: "Nexent",
+  title: "Nexent Doc",
   description: "A zero-code platform for auto-generating agents — no orchestration, no complex drag-and-drop required.",
   
   // Ignore localhost links as they are meant for local deployment access
@@ -16,7 +16,7 @@ export default defineConfig({
     root: {
       label: 'English',
       lang: 'en',
-      link: '/en/',
+      link: '/en/getting-started/overview',
       themeConfig: {
         nav: [
           { text: 'Home', link: 'http://nexent.tech' },
@@ -40,9 +40,11 @@ export default defineConfig({
             items: [
               { text: 'SDK Overview', link: '/en/sdk/overview' },
               { text: 'Basic Usage', link: '/en/sdk/basic-usage' },
+              { text: 'Features Explained', link: '/en/sdk/features' },
               { 
                 text: 'Core Modules',
                 items: [
+                  { text: 'Agents', link: '/en/sdk/core/agents' },
                   { text: 'Tools', link: '/en/sdk/core/tools' },
                   { text: 'Models', link: '/en/sdk/core/models' }
                 ]
@@ -70,12 +72,6 @@ export default defineConfig({
                 ]
               },
               { text: 'Prompt Development', link: '/en/backend/prompt-development' }
-            ]
-          },
-          {
-            text: 'AI Agents',
-            items: [
-              { text: 'Agent Overview', link: '/en/agents/overview' }
             ]
           },
           {
@@ -112,14 +108,16 @@ export default defineConfig({
           }
         ],
         socialLinks: [
-          { icon: 'github', link: 'https://github.com/ModelEngine-Group/nexent' }
+          { icon: 'github', link: 'https://github.com/ModelEngine-Group/nexent' },
+          { icon: 'discord', link: 'https://discord.gg/tb5H3S3wyv' },
+          { icon: 'wechat', link: 'http://nexent.tech/contact' }
         ]
       }
     },
     zh: {
       label: '简体中文',
       lang: 'zh-CN',
-      link: '/zh/',
+      link: '/zh/getting-started/overview',
       themeConfig: {
         nav: [
           { text: '首页', link: 'http://nexent.tech' },
@@ -143,9 +141,11 @@ export default defineConfig({
             items: [
               { text: 'SDK 概览', link: '/zh/sdk/overview' },
               { text: '基本使用', link: '/zh/sdk/basic-usage' },
+              { text: '特性详解', link: '/zh/sdk/features' },
               { 
                 text: '核心模块',
                 items: [
+                  { text: '智能体模块', link: '/zh/sdk/core/agents' },
                   { text: '工具模块', link: '/zh/sdk/core/tools' },
                   { text: '模型模块', link: '/zh/sdk/core/models' }
                 ]
@@ -173,12 +173,6 @@ export default defineConfig({
                 ]
               },
               { text: '提示词开发', link: '/zh/backend/prompt-development' }
-            ]
-          },
-          {
-            text: 'AI 智能体',
-            items: [
-              { text: '智能体概览', link: '/zh/agents/overview' }
             ]
           },
           {
@@ -215,7 +209,9 @@ export default defineConfig({
           }
         ],
         socialLinks: [
-          { icon: 'github', link: 'https://github.com/ModelEngine-Group/nexent' }
+          { icon: 'github', link: 'https://github.com/ModelEngine-Group/nexent' },
+          { icon: 'discord', link: 'https://discord.gg/tb5H3S3wyv' },
+          { icon: 'wechat', link: 'http://nexent.tech/contact' }
         ]
       }
     }

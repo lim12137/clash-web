@@ -2,7 +2,37 @@
 
 This guide provides a comprehensive introduction to using the Nexent SDK for building intelligent agents.
 
-## 🚀 Quick Start
+## 🚀 Installation
+
+### User Installation
+If you want to use Nexent:
+
+```bash
+# Recommended: Install from source
+git clone https://github.com/ModelEngine-Group/nexent.git
+cd nexent/sdk
+uv pip install -e .
+
+# Or install using uv
+uv add nexent
+```
+
+### Development Environment Setup
+If you are a third-party SDK developer:
+
+```bash
+# Install complete development environment (including Nexent)
+cd nexent/sdk
+uv pip install -e ".[dev]"  # Includes all development tools (testing, code quality checks, etc.)
+```
+
+The development environment includes the following additional features:
+- Code quality checking tools (ruff)
+- Testing framework (pytest)
+- Data processing dependencies (unstructured)
+- Other development dependencies
+
+## ⚡ Quick Start
 
 ### Basic Import
 
@@ -91,28 +121,7 @@ custom_tool = CustomTool(observer=observer)
 agent.tools.append(custom_tool)
 ```
 
-### 🎭 Multi-modal Agent Setup
-
-```python
-from nexent.core.models import OpenAIVLMModel
-
-# Create vision-capable model
-vision_model = OpenAIVLMModel(
-    observer=observer,
-    model_id="gpt-4-vision-preview",
-    api_key="your-api-key"
-)
-
-# Create agent with vision capabilities
-vision_agent = CoreAgent(
-    observer=observer,
-    tools=[search_tool],
-    model=vision_model,
-    name="vision_agent"
-)
-```
-
-### 📡 Streaming Output Handling
+### 📡 Streaming Output Processing
 
 ```python
 # Monitor streaming output
@@ -124,7 +133,7 @@ def handle_stream(message: str, process_type: ProcessType):
     elif process_type == ProcessType.FINAL_ANSWER:
         print(f"✅ Answer: {message}")
 
-# Set up observer with custom handler
+# Set observer with custom handler
 observer.set_message_handler(handle_stream)
 ```
 
@@ -174,71 +183,19 @@ except Exception as e:
 ### 🔧 Tool Error Handling
 
 ```python
-# Tools automatically handle errors and provide fallbacks
+# Tools automatically handle errors and provide fallback options
 search_tool = ExaSearchTool(
     exa_api_key="your-exa-key",
     observer=observer,
     max_results=5,
-    fallback_to_keyword=True  # Fallback to keyword search if neural fails
+    fallback_to_keyword=True  # Fallback to keyword search if neural search fails
 )
 ```
 
-## 🎭 Multi-modal Examples
+## 📚 More Resources
 
-### 🖼️ Image Processing
+For more advanced usage patterns and detailed API documentation, please refer to:
 
-```python
-# Process image with vision model
-result = vision_agent.run(
-    "Describe what you see in this image",
-    image_path="path/to/image.jpg"
-)
-```
-
-### 🎤 Voice Processing
-
-```python
-from nexent.core.tools import SpeechToTextTool, TextToSpeechTool
-
-# Add voice capabilities
-stt_tool = SpeechToTextTool(observer=observer)
-tts_tool = TextToSpeechTool(observer=observer)
-
-voice_agent = CoreAgent(
-    observer=observer,
-    tools=[stt_tool, tts_tool, search_tool],
-    model=model,
-    name="voice_agent"
-)
-```
-
-## 🔍 Best Practices
-
-### ⚡ Performance Optimization
-
-- **Connection Pooling**: Reuse connections for better performance
-- **Batch Processing**: Process multiple requests together when possible
-- **Caching**: Implement caching for frequently accessed data
-- **Async Operations**: Use async/await for I/O intensive operations
-
-### 🔒 Security Considerations
-
-- **API Key Management**: Store API keys securely using environment variables
-- **Input Validation**: Validate all inputs before processing
-- **Rate Limiting**: Implement rate limiting to prevent abuse
-- **Error Logging**: Log errors without exposing sensitive information
-
-### 🔍 Monitoring and Debugging
-
-```python
-# Enable detailed logging
-import logging
-logging.basicConfig(level=logging.DEBUG)
-
-# Monitor agent execution
-for step in agent.execution_steps:
-    print(f"Step {step.step_number}: {step.action}")
-    print(f"Result: {step.result}")
-```
-
-For more advanced usage patterns and detailed API documentation, see the **[Core Components](./overview)** and **[Tool Development](./core/tools)** guides. 
+- **[Tool Development Guide](./core/tools)** - Detailed tool development standards and examples
+- **[Model Architecture Guide](./core/models)** - Model integration and usage documentation
+- **[Agents](./core/agents)** - Best practices and advanced patterns for agent development 
