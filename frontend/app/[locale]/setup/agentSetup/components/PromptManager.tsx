@@ -501,7 +501,7 @@ export default function PromptManager({
               <button
                 onClick={onGenerateAgent}
                 disabled={isGeneratingAgent || isSavingAgent}
-                className="px-3 py-1.5 rounded-md flex items-center justify-center text-xs bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ border: 'none' }}
               >
                 {isGeneratingAgent ? (

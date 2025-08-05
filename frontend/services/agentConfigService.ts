@@ -24,6 +24,7 @@ export const fetchTools = async () => {
       source: tool.source,
       is_available: tool.is_available,
       create_time: tool.create_time,
+      usage: tool.usage, // 新增：处理usage字段
       initParams: tool.params.map((param: any) => {
         return {
           name: param.name,
@@ -129,6 +130,7 @@ export const fetchAgentDetail = async (agentId: number) => {
           description: tool.description,
           source: tool.source,
           is_available: tool.is_available,
+          usage: tool.usage, // 新增：处理usage字段
           initParams: Array.isArray(params) ? params.map((param: any) => ({
             name: param.name,
             type: convertParamType(param.type),
@@ -498,6 +500,7 @@ export const searchAgentInfo = async (agentId: number) => {
           description: tool.description,
           source: tool.source,
           is_available: tool.is_available,
+          usage: tool.usage, // 新增：处理usage字段
           initParams: Array.isArray(params) ? params.map((param: any) => ({
             name: param.name,
             type: convertParamType(param.type),

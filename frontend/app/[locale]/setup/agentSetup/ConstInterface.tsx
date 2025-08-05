@@ -38,6 +38,7 @@ export interface Tool {
   initParams: ToolParam[];
   is_available?: boolean;
   create_time?: string;
+  usage?: string; // 新增：用于标注工具来源的usage字段
 }
 
 export interface ToolParam {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, memo } from 'react'
-import { Button, Tag, message } from 'antd'
+import { Button, Tag, message, Tabs } from 'antd'
 import { SettingOutlined, LoadingOutlined, ApiOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { TFunction } from 'i18next'
@@ -27,7 +27,12 @@ interface ToolPoolProps {
   isGeneratingAgent?: boolean; // 新增：生成智能体状态
 }
 
-
+// 工具分组接口
+interface ToolGroup {
+  key: string;
+  label: string;
+  tools: Tool[];
+}
 
 /**
  * Tool Pool Component
@@ -51,21 +56,80 @@ function ToolPool({
   const [pendingToolSelection, setPendingToolSelection] = useState<{tool: Tool, isSelected: boolean} | null>(null);
   const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeTabKey, setActiveTabKey] = useState<string>('');
   
-  // Use useMemo to cache the tool list to avoid unnecessary recalculations
-  const displayTools = useMemo(() => {
-    const toolsToSort = tools || [];
-    // Sort by create_time, earliest created tools first (ascending order)
-    return toolsToSort.sort((a, b) => {
-      // If either tool doesn't have create_time, treat it as newer (sort to bottom)
-      if (!a.create_time && !b.create_time) return 0;
-      if (!a.create_time) return 1;
-      if (!b.create_time) return -1;
+  // 使用 useMemo 缓存工具分组
+  const toolGroups = useMemo(() => {
+    const groups: ToolGroup[] = [];
+    const groupMap = new Map<string, Tool[]>();
+    
+    // 按 source 和 usage 分组
+    tools.forEach(tool => {
+      let groupKey: string;
+      let groupLabel: string;
       
-      // Compare create_time strings (ISO format can be compared directly)
-      return a.create_time.localeCompare(b.create_time);
+      if (tool.source === 'mcp') {
+        // MCP 工具按 usage 分组
+        const usage = tool.usage || 'other';
+        groupKey = `mcp-${usage}`;
+        groupLabel = usage;
+      } else if (tool.source === 'local') {
+        groupKey = 'local';
+        groupLabel = t('toolPool.group.local');
+      } else if (tool.source === 'langchain') {
+        groupKey = 'langchain';
+        groupLabel = t('toolPool.group.langchain');
+      } else {
+        // 其他类型
+        groupKey = tool.source || 'other';
+        groupLabel = tool.source || t('toolPool.group.other');
+      }
+      
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, []);
+      }
+      groupMap.get(groupKey)!.push(tool);
     });
-  }, [tools]);
+    
+    // 转换为数组并排序
+    groupMap.forEach((tools, key) => {
+      const sortedTools = tools.sort((a, b) => {
+        // 按创建时间排序
+        if (!a.create_time && !b.create_time) return 0;
+        if (!a.create_time) return 1;
+        if (!b.create_time) return -1;
+        return a.create_time.localeCompare(b.create_time);
+      });
+      
+      groups.push({
+        key,
+        label: key.startsWith('mcp-') ? key.replace('mcp-', '') : (
+          key === 'local' ? t('toolPool.group.local') :
+          key === 'langchain' ? t('toolPool.group.langchain') :
+          key
+        ),
+        tools: sortedTools
+      });
+    });
+    
+    // 按优先级排序：local > langchain > mcp groups
+    return groups.sort((a, b) => {
+      const getPriority = (key: string) => {
+        if (key === 'local') return 1;
+        if (key === 'langchain') return 2;
+        if (key.startsWith('mcp-')) return 3;
+        return 4;
+      };
+      return getPriority(a.key) - getPriority(b.key);
+    });
+  }, [tools, t]);
+
+  // 设置默认激活的标签
+  useEffect(() => {
+    if (toolGroups.length > 0 && !activeTabKey) {
+      setActiveTabKey(toolGroups[0].key);
+    }
+  }, [toolGroups, activeTabKey]);
 
   // Use useMemo to cache the selected tool ID set to improve lookup efficiency
   const selectedToolIds = useMemo(() => {
@@ -261,14 +325,8 @@ function ToolPool({
             </TooltipContent>
           </CustomTooltip>
         </div>
-        {/* Tag and settings button right */}
+        {/* Settings button right - 移除了Tag标签 */}
         <div className="flex items-center gap-2 ml-2">
-          <div className="flex items-center justify-start min-w-[90px] w-[90px]">
-            <Tag color={tool?.source === 'mcp' ? 'blue' : 'green'} 
-                 className={`w-full text-center transition-opacity duration-300 ${!isAvailable && !isSelected ? 'opacity-50' : ''}`}>
-              {tool?.source === 'mcp' ? t('toolPool.tag.mcp') : t('toolPool.tag.local')}
-            </Tag>
-          </div>
           <button 
             type="button"
             onClick={(e) => {
@@ -300,9 +358,45 @@ function ToolPool({
     );
   });
 
+  // 生成 Tabs 配置
+  const tabItems = toolGroups.map(group => {
+    // 限制标签显示最多7个字符
+    const displayLabel = group.label.length > 7 ? `${group.label.substring(0, 7)}...` : group.label;
+    
+    return {
+      key: group.key,
+      label: (
+        <span style={{ 
+          display: 'block',
+          maxWidth: '70px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}>
+          {displayLabel}
+        </span>
+      ),
+      children: (
+        <div 
+          className="flex flex-col gap-3 pr-2" 
+          style={{ 
+            height: '100%', 
+            overflowY: 'auto', 
+            padding: '8px 0',
+            maxHeight: '100%'
+          }}
+        >
+          {group.tools.map((tool) => (
+            <ToolItem key={tool.id} tool={tool} />
+          ))}
+        </div>
+      )
+    };
+  });
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-2 flex-shrink-0">
         <div className="flex items-center">
           <h4 className="text-md font-medium text-gray-700">{t('toolPool.title')}</h4>
         </div>
@@ -332,16 +426,33 @@ function ToolPool({
           {loadingTools && <span className="text-sm text-gray-500">{t('toolPool.loading')}</span>}
         </div>
       </div>
-      <div className="flex-1 min-h-0 border-t pt-2 pb-2 overflow-y-auto">
+      <div className="flex-1 min-h-0 border-t pt-2 pb-2 overflow-hidden">
         {loadingTools ? (
           <div className="flex items-center justify-center h-full">
             <span className="text-gray-500">{t('toolPool.loadingTools')}</span>
           </div>
+        ) : toolGroups.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <span className="text-gray-500">{t('toolPool.noTools')}</span>
+          </div>
         ) : (
-          <div className="flex flex-col gap-3 pr-2">
-            {displayTools.map((tool) => (
-              <ToolItem key={tool.id} tool={tool} />
-            ))}
+          <div style={{ height: '100%' }}>
+            <Tabs
+              tabPosition="left"
+              activeKey={activeTabKey}
+              onChange={setActiveTabKey}
+              items={tabItems}
+              className="h-full tool-pool-tabs"
+              style={{
+                height: '100%'
+              }}
+              tabBarStyle={{
+                minWidth: '80px',
+                maxWidth: '100px',
+                padding: '4px 0',
+                margin: 0
+              }}
+            />
           </div>
         )}
       </div>
