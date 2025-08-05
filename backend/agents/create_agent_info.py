@@ -247,4 +247,51 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
         history=history,
         stop_event=threading.Event()
     )
+
+    # 过滤 mcp_host，只保留实际用到的 MCP 服务器
+    used_mcp_urls = set()
+    used_mcp_server_names = set()
+    
+    # 创建 MCP 服务器名称到 URL 的映射
+    mcp_name_to_url = {}
+    mcp_name_to_url["nexent"] = default_mcp_url  # 默认 MCP 服务器
+    for remote_mcp_info in remote_mcp_list:
+        if remote_mcp_info["status"]:
+            mcp_name_to_url[remote_mcp_info["remote_mcp_server_name"]] = remote_mcp_info["remote_mcp_server"]
+    
+    # 检查是否有 MCP 工具
+    has_mcp_tools = False
+    has_configured_mcp_servers = False
+    for tool in getattr(agent_run_info.agent_config, "tools", []):
+        if hasattr(tool, "source") and tool.source == "mcp":
+            has_mcp_tools = True
+            # 对于 MCP 工具，从 usage 字段获取 MCP 服务器名称
+            if hasattr(tool, "usage") and tool.usage:
+                mcp_server_name = tool.usage
+                if mcp_server_name in mcp_name_to_url:
+                    used_mcp_urls.add(mcp_name_to_url[mcp_server_name])
+                    used_mcp_server_names.add(mcp_server_name)
+                    has_configured_mcp_servers = True
+    
+    # 如果有 MCP 工具但没有配置的服务器，才使用默认服务器
+    if has_mcp_tools and not has_configured_mcp_servers:
+        used_mcp_urls.add(default_mcp_url)
+        used_mcp_server_names.add("nexent")
+    
+    # 过滤 mcp_host，只保留用到的 MCP 服务器
+    if hasattr(agent_run_info, "mcp_host") and isinstance(agent_run_info.mcp_host, list):
+        agent_run_info.mcp_host = [url for url in agent_run_info.mcp_host if url in used_mcp_urls]
+    
+    # 过滤 agent 配置中的工具，移除未使用的 MCP 工具
+    if hasattr(agent_run_info.agent_config, "tools") and isinstance(agent_run_info.agent_config.tools, list):
+        filtered_tools = []
+        for tool in agent_run_info.agent_config.tools:
+            if hasattr(tool, "source") and tool.source == "mcp":
+                # 保留所有 MCP 工具，不管是否找到对应的服务器
+                filtered_tools.append(tool)
+            else:
+                # 保留非 MCP 工具
+                filtered_tools.append(tool)
+        agent_run_info.agent_config.tools = filtered_tools
+
     return agent_run_info
