@@ -238,18 +238,11 @@ def filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_lis
     """
     used_mcp_urls = set()
     used_mcp_server_names = set()
-
-    # 创建 MCP 服务器名称到 URL 的映射
-    mcp_name_to_url = {}
-    mcp_name_to_url["nexent"] = default_mcp_url  # 默认 MCP 服务器
-    for remote_mcp_info in remote_mcp_list:
-        if remote_mcp_info["status"]:
-            mcp_name_to_url[remote_mcp_info["remote_mcp_server_name"]] = remote_mcp_info["remote_mcp_server"]
+    has_mcp_tools = False
 
     # 递归检查所有 agent 的工具
     def check_agent_tools(agent_config):
-        has_mcp_tools = False
-        has_configured_mcp_servers = False
+        nonlocal has_mcp_tools
         
         # 检查当前 agent 的工具
         for tool in getattr(agent_config, "tools", []):
@@ -258,42 +251,28 @@ def filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_lis
                 # 对于 MCP 工具，从 usage 字段获取 MCP 服务器名称
                 if hasattr(tool, "usage") and tool.usage:
                     mcp_server_name = tool.usage
-                    if mcp_server_name in mcp_name_to_url:
-                        used_mcp_urls.add(mcp_name_to_url[mcp_server_name])
-                        used_mcp_server_names.add(mcp_server_name)
-                        has_configured_mcp_servers = True
-        
+                    used_mcp_server_names.add(mcp_server_name)
+                    
+                    # 从远程 MCP 列表中查找对应的 URL
+                    for remote_mcp_info in remote_mcp_list:
+                        if (remote_mcp_info["remote_mcp_server_name"] == mcp_server_name and 
+                            remote_mcp_info["status"]):
+                            used_mcp_urls.add(remote_mcp_info["remote_mcp_server"])
+                            break
+
         # 递归检查子 agent
         for sub_agent_config in getattr(agent_config, "managed_agents", []):
-            sub_has_mcp_tools, sub_has_configured = check_agent_tools(sub_agent_config)
-            has_mcp_tools = has_mcp_tools or sub_has_mcp_tools
-            has_configured_mcp_servers = has_configured_mcp_servers or sub_has_configured
-        
-        return has_mcp_tools, has_configured_mcp_servers
+            check_agent_tools(sub_agent_config)
 
-    # 检查是否有 MCP 工具
-    has_mcp_tools, has_configured_mcp_servers = check_agent_tools(agent_run_info.agent_config)
+    # 检查所有 agent 的工具
+    check_agent_tools(agent_run_info.agent_config)
 
-    # 如果有 MCP 工具但没有配置的服务器，才使用默认服务器
-    if has_mcp_tools and not has_configured_mcp_servers:
+    # 如果有 MCP 工具但没有找到对应的服务器，使用默认服务器
+    if has_mcp_tools and not used_mcp_urls:
         used_mcp_urls.add(default_mcp_url)
-        used_mcp_server_names.add("nexent")
 
-    # 过滤 mcp_host，只保留用到的 MCP 服务器
-    if hasattr(agent_run_info, "mcp_host") and isinstance(agent_run_info.mcp_host, list):
-        agent_run_info.mcp_host = [url for url in agent_run_info.mcp_host if url in used_mcp_urls]
-
-    # 过滤 agent 配置中的工具，移除未使用的 MCP 工具
-    if hasattr(agent_run_info.agent_config, "tools") and isinstance(agent_run_info.agent_config.tools, list):
-        filtered_tools = []
-        for tool in agent_run_info.agent_config.tools:
-            if hasattr(tool, "source") and tool.source == "mcp":
-                # 保留所有 MCP 工具，不管是否找到对应的服务器
-                filtered_tools.append(tool)
-            else:
-                # 保留非 MCP 工具
-                filtered_tools.append(tool)
-        agent_run_info.agent_config.tools = filtered_tools
+    # 直接设置 mcp_host 为找到的 URL 列表
+    agent_run_info.mcp_host = list(used_mcp_urls)
 
 
 async def create_agent_run_info(agent_id, minio_files, query, history, authorization, language: str = 'zh'):
