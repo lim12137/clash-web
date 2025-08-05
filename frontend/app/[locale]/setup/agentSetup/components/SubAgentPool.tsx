@@ -7,7 +7,6 @@ import { useTranslation } from 'react-i18next'
 import { ScrollArea } from '@/components/ui/scrollArea'
 import AgentContextMenu from './AgentContextMenu'
 import { Agent } from '../ConstInterface'
-import { addRelatedAgent, deleteRelatedAgent } from '@/services/agentConfigService'
 
 interface SubAgentPoolProps {
   onEditAgent: (agent: Agent) => void;
@@ -78,11 +77,6 @@ export default function SubAgentPool({
     });
   };
 
-  // 标题始终为Agent管理
-  const getTitle = () => {
-    return "Agent管理";
-  };
-
   return (
     <div className="flex flex-col h-full min-h-[300px] lg:min-h-0 overflow-hidden">
       <div className="flex justify-between items-center mb-2">
@@ -90,7 +84,7 @@ export default function SubAgentPool({
           <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
             1
           </div>
-          <h2 className="text-lg font-medium">{getTitle()}</h2>
+          <h2 className="text-lg font-medium">{t('subAgentPool.management')}</h2>
         </div>
         <div className="flex items-center gap-2">
           {loadingAgents && <span className="text-sm text-gray-500">{t('subAgentPool.loading')}</span>}

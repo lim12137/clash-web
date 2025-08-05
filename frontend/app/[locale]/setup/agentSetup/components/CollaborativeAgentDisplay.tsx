@@ -94,7 +94,11 @@ export default function CollaborativeAgentDisplay({
         setIsDropdownVisible(false)
         setSelectedAgentToAdd(null)
       } else {
-        message.error(result.message || t('collaborativeAgent.message.addFailed'))
+        if (result.status === 500) {
+          message.error(t('collaborativeAgent.message.circularDependency'))
+        } else {
+          message.error(result.message || t('collaborativeAgent.message.addFailed'))
+        }
       }
     } catch (error) {
       console.error('添加协作Agent失败:', error)
@@ -192,7 +196,7 @@ export default function CollaborativeAgentDisplay({
       </div>
       
       {/* 标签展示区域 - 固定高度避免布局跳变 */}
-      <div className="bg-gray-50 rounded-md border-2 border-gray-200 p-4 overflow-y-auto relative shadow-sm h-[100px] lg:h-[120px]">
+      <div className="bg-gray-50 rounded-md border-2 border-gray-200 p-4 overflow-y-auto relative shadow-sm h-[100px] lg:h-[120px] w-[98%]">
         <div className={`flex flex-wrap gap-2 min-h-[32px] transition-opacity duration-300 ${
           isEditingMode ? 'opacity-100' : 'opacity-0'
         }`}>

@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import BusinessLogicConfig from './AgentManagementConfig'
-import SystemPromptDisplay from './components/SystemPromptDisplay'
 import DebugConfig from './DebugConfig'
 import GuideSteps from './components/GuideSteps'
 import { Row, Col, Drawer, message } from 'antd'
@@ -50,7 +49,7 @@ export default function AgentConfig() {
   const [currentGuideStep, setCurrentGuideStep] = useState<number | undefined>(undefined)
   const [newAgentName, setNewAgentName] = useState("")
   const [newAgentDescription, setNewAgentDescription] = useState("")
-  const [newAgentProvideSummary, setNewAgentProvideSummary] = useState(true)
+  const [newAgentProvideSummary, setNewAgentProvideSummary] = useState(false)
   const [isNewAgentInfoValid, setIsNewAgentInfoValid] = useState(false)
   const [isEditingAgent, setIsEditingAgent] = useState(false)
   const [editingAgent, setEditingAgent] = useState<any>(null)
@@ -163,7 +162,7 @@ export default function AgentConfig() {
         agentDescription,
         mainAgentModel,
         mainAgentMaxStep,
-        true, // provide_run_summary
+        false, // provide_run_summary
         true, // enabled - 保存到agent池时启用
         businessLogic,
         dutyContent,

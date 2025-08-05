@@ -2,16 +2,16 @@ import logging
 from typing import Optional
 
 from fastapi import HTTPException, APIRouter, Header, Request, Body
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from nexent.core.agents.run_agent import agent_run
 
 from database.agent_db import insert_related_agent, delete_related_agent
 from utils.auth_utils import get_current_user_info, get_current_user_id
 from agents.create_agent_info import create_agent_run_info
 from consts.model import AgentRequest, AgentInfoRequest, AgentIDRequest, ConversationResponse, AgentImportRequest
-from services.agent_service import list_main_agent_info_impl, get_agent_info_impl, \
+from services.agent_service import get_agent_info_impl, \
     get_creating_sub_agent_info_impl, update_agent_info_impl, delete_agent_impl, export_agent_impl, import_agent_impl, \
-    list_all_agent_info_impl
+    list_all_agent_info_impl, insert_related_agent_impl
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 from utils.thread_utils import submit
 from agents.agent_run_manager import agent_run_manager
@@ -77,22 +77,6 @@ async def agent_stop_api(conversation_id: int):
         raise HTTPException(status_code=404, detail=f"no running agent found for conversation_id {conversation_id}")
 
 
-"""
-此接口废弃，该接口目前作用获取agent池工具，获取main_agent信息，功能拆分成两个接口实现
-"""
-@router.get("/list_main_agent_info")
-async def list_main_agent_info_api(authorization: str = Header(None)):
-    """
-    List all agents, create if the main Agent cannot be found.
-    """
-    try:
-        return list_main_agent_info_impl(authorization)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Agent list error: {str(e)}")
-
-"""
-该接口可以继续沿用，但是需要补充被调用的agent信息
-"""
 @router.post("/search_info")
 async def search_agent_info_api(agent_id: int = Body(...), authorization: Optional[str] = Header(None)):
     """
@@ -104,9 +88,7 @@ async def search_agent_info_api(agent_id: int = Body(...), authorization: Option
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent search info error: {str(e)}")
 
-"""
-该接口继续沿用，用于获取新创建的agent信息
-"""
+
 @router.get("/get_creating_sub_agent_id")
 async def get_creating_sub_agent_info_api(authorization: Optional[str] = Header(None)):
     """
@@ -188,9 +170,15 @@ async def related_agent_api(parent_agent_id: int = Body(...),
     """
     try:
         _, tenant_id = get_current_user_id(authorization)
-        return insert_related_agent(parent_agent_id, child_agent_id, tenant_id)
+        return insert_related_agent_impl(parent_agent_id=parent_agent_id,
+                                         child_agent_id=child_agent_id,
+                                         tenant_id=tenant_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Agent related info error: {str(e)}")
+        logger.error(f"Agent related info error: {str(e)}")
+        JSONResponse(
+            status_code=400,
+            content={"message": "Failed to insert relation", "status": "error"}
+        )
 
 @router.post("/delete_related_agent")
 async def delete_related_agent_api(parent_agent_id: int = Body(...), 

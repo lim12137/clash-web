@@ -448,7 +448,7 @@ export default function BusinessLogicConfig({
   };
 
   // Handle the creation of a new Agent
-  const handleSaveNewAgent = async (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string, business_description: string) => {
+  const handleSaveNewAgent = async (name: string, description: string, model: string, max_step: number, prompt: string, business_description: string) => {
     if (name.trim() && mainAgentId) {
       try {
         let result;
@@ -460,8 +460,8 @@ export default function BusinessLogicConfig({
             description,
             model,
             max_step,
-            provide_run_summary,
-            undefined,
+            false,
+            true,
             business_description,
             dutyContent,
             constraintContent,
@@ -474,8 +474,8 @@ export default function BusinessLogicConfig({
             description,
             model,
             max_step,
-            provide_run_summary,
-            undefined,
+            false,
+            true,
             business_description,
             dutyContent,
             constraintContent,
@@ -545,7 +545,6 @@ export default function BusinessLogicConfig({
       agentDescription || '', 
       mainAgentModel, 
       mainAgentMaxStep, 
-      newAgentProvideSummary,
       systemPrompt,
       businessLogic
     );
@@ -638,29 +637,7 @@ export default function BusinessLogicConfig({
       message.error(t('businessLogic.config.error.noAgentId'));
       return;
     }
-
-    try {
-      const result = await updateAgent(
-        Number(targetAgentId),
-        undefined,
-        undefined,
-        value,
-        undefined,
-        undefined,
-        undefined,
-        undefined
-      );
-
-      if (result.success) {
-        setMainAgentModel(value);
-        message.success(t('businessLogic.config.message.modelUpdateSuccess'));
-      } else {
-        message.error(result.message || t('businessLogic.config.error.modelUpdateFailed'));
-      }
-    } catch (error) {
-      console.error(t('debug.console.updateModelFailed'), error);
-      message.error(t('businessLogic.config.error.modelUpdateRetry'));
-    }
+    setMainAgentModel(value);
   };
 
   // Handle the update of the maximum number of steps
@@ -673,29 +650,8 @@ export default function BusinessLogicConfig({
     }
 
     const newValue = value ?? 5;
-    
-    try {
-      const result = await updateAgent(
-        Number(targetAgentId),
-        undefined,
-        undefined,
-        undefined,
-        newValue,
-        undefined,
-        undefined,
-        undefined
-      );
 
-      if (result.success) {
-        setMainAgentMaxStep(newValue);
-        message.success(t('businessLogic.config.message.maxStepsUpdateSuccess'));
-      } else {
-        message.error(result.message || t('businessLogic.config.error.maxStepsUpdateFailed'));
-      }
-    } catch (error) {
-      console.error(t('debug.console.updateMaxStepsFailed'), error);
-      message.error(t('businessLogic.config.error.maxStepsUpdateRetry'));
-    }
+    setMainAgentMaxStep(newValue);
   };
 
   // Handle importing agent
@@ -982,6 +938,7 @@ export default function BusinessLogicConfig({
               getButtonTitle={getLocalButtonTitle}
               onExportAgent={onExportAgent || (() => {})}
               onDeleteAgent={onDeleteAgent || (() => {})}
+              onDeleteSuccess={handleExitEdit}
               editingAgent={editingAgentFromParent || editingAgent}
             />
           </div>

@@ -1,17 +1,19 @@
 import os
 import json
 import logging
+from collections import deque
 
 from fastapi import Header
+from fastapi.responses import JSONResponse
 from agents.create_agent_info import create_tool_config_list
 from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ToolInstanceInfoRequest
 from database.agent_db import create_agent, query_all_enabled_tool_instances, \
     query_or_create_main_agent_id, query_sub_agents, search_blank_sub_agent_by_main_agent_id, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
-    create_or_update_tool_by_tool_info, check_tool_is_available, query_all_agent_info_by_tenant_id, query_sub_agents_id_list
+    create_or_update_tool_by_tool_info, check_tool_is_available, query_all_agent_info_by_tenant_id, \
+    query_sub_agents_id_list, insert_related_agent
 
 from utils.auth_utils import get_current_user_id
-from typing import Optional
 
 
 logger = logging.getLogger("agent_service")
@@ -24,15 +26,6 @@ def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str, user_id: str =
         if tool_instance["enabled"]:
             enable_tool_id_set.add(tool_instance["tool_id"])
     return list(enable_tool_id_set)
-
-def get_enable_sub_agent_id_by_agent_id(agent_id: int, tenant_id: str, user_id: str):
-    sub_agents = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id)
-    sub_agents_list = []
-    for sub_agent in sub_agents:
-        if sub_agent["enabled"]:
-            sub_agents_list.append(sub_agent["agent_id"])
-
-    return sub_agents_list
 
 def get_creating_sub_agent_id_service(tenant_id: str, user_id: str = None) -> int:
     """
@@ -60,49 +53,6 @@ def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str
         else:
             sub_agent["is_available"] = False
     return sub_agents
-
-
-def list_main_agent_info_impl(authorization: Optional[str] = Header(None)):
-    user_id, tenant_id = get_current_user_id(authorization)
-
-    try:
-        main_agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
-    except Exception as e:
-        logger.error(f"Failed to get main agent id: {str(e)}")
-        raise ValueError(f"Failed to get main agent id: {str(e)}")
-        
-    try:
-        main_agent_info = search_agent_info_by_agent_id(agent_id=main_agent_id, tenant_id=tenant_id)
-    except Exception as e:
-        logger.error(f"Failed to get main agent info: {str(e)}")
-        raise ValueError(f"Failed to get main agent info: {str(e)}")
-
-    try:
-        sub_agent_list = query_sub_agents_api(main_agent_id, tenant_id, user_id)
-    except Exception as e:
-        logger.error(f"Failed to get sub agent list: {str(e)}")
-        raise ValueError(f"Failed to get sub agent list: {str(e)}")
-
-    try:
-        enable_tool_id_list = get_enable_tool_id_by_agent_id(main_agent_id, tenant_id, user_id)
-        enable_agent_id_list = get_enable_sub_agent_id_by_agent_id(main_agent_id, tenant_id, user_id)
-    except Exception as e:
-        logger.error(f"Failed to get enable tool id list: {str(e)}")
-        raise ValueError(f"Failed to get enable tool id list: {str(e)}")
-
-    return {
-        "main_agent_id": main_agent_id,
-        "sub_agent_list": sub_agent_list,
-        "enable_tool_id_list": enable_tool_id_list,
-        "enable_agent_id_list": enable_agent_id_list,
-        "model_name": main_agent_info["model_name"],
-        "max_steps": main_agent_info["max_steps"],
-        "business_description": main_agent_info["business_description"],
-        "duty_prompt": main_agent_info.get("duty_prompt"),
-        "constraint_prompt": main_agent_info.get("constraint_prompt"),
-        "few_shots_prompt": main_agent_info.get("few_shots_prompt")
-    }
-
 
 def get_agent_info_impl(agent_id: int, tenant_id: str):
     try:    
@@ -349,3 +299,35 @@ def list_all_agent_info_impl(tenant_id: str, user_id: str) -> list[dict]:
     except Exception as e:
         logger.error(f"Failed to query all agent info: {str(e)}")
         raise ValueError(f"Failed to query all agent info: {str(e)}")
+
+
+def insert_related_agent_impl(parent_agent_id, child_agent_id, tenant_id):
+    # search the agent by bfs, check if there is a circular call
+    search_list = deque([child_agent_id])
+    agent_id_set = set()
+
+    while len(search_list):
+        left_ele = search_list.popleft()
+        if left_ele == parent_agent_id:
+            return JSONResponse(
+            status_code=500,
+            content={"message": "There is a circular call in the agent", "status": "error"}
+        )
+        if left_ele in agent_id_set:
+            continue
+        else:
+            agent_id_set.add(left_ele)
+        sub_ids = query_sub_agents_id_list(main_agent_id=left_ele, tenant_id=tenant_id)
+        search_list.extend(sub_ids)
+
+    result = insert_related_agent(parent_agent_id, child_agent_id, tenant_id)
+    if result:
+        return JSONResponse(
+            status_code=200,
+            content={"message": "Insert relation success", "status": "success"}
+        )
+    else:
+        return JSONResponse(
+            status_code=400,
+            content={"message":"Failed to insert relation", "status": "error"}
+        )
