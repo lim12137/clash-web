@@ -19,9 +19,6 @@ on:
 jobs:
   build-images:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    strategy:
-      matrix:
-        target: [main, data-process, web]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -29,9 +26,8 @@ jobs:
           fetch-depth: 1
           retries: 3
 
-      # Data process specific cache handling
+      # Data process specific cache handling (for data-process build)
       - name: Check if model is cached locally
-        if: matrix.target == 'data-process'
         id: check-model
         run: |
           if [ -f ~/model-assets/clip-vit-base-patch32/config.json ] && [ -d ~/model-assets/nltk_data ]; then
@@ -42,22 +38,29 @@ jobs:
           fi
 
       - name: Clone model if not cached
-        if: matrix.target == 'data-process' && steps.check-model.outputs.cache-hit == 'false'
+        if: steps.check-model.outputs.cache-hit == 'false'
         run: |
           GIT_LFS_SKIP_SMUDGE=1 git clone https://hf-mirror.com/Nexent-AI/model-assets
           cd ./model-assets
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
           rm -rf .git .gitattributes
 
-      - name: Build docker image
+      - name: Build all Docker images in parallel
         run: |
-          if [ "${{ matrix.target }}" = "main" ]; then
-            docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent -f make/main/Dockerfile .
-          elif [ "${{ matrix.target }}" = "data-process" ]; then
-            docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-data-process -f make/data_process/Dockerfile .
-          else
-            docker build --build-arg MIRROR=https://registry.npmmirror.com -t nexent/nexent-web -f make/web/Dockerfile .
-          fi
+          set -e
+          echo "Starting parallel Docker builds..."
+          docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent -f make/main/Dockerfile . &
+          PID_MAIN=$!
+
+          docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-data-process -f make/data_process/Dockerfile . &
+          PID_DATA=$!
+
+          docker build --build-arg MIRROR=https://registry.npmmirror.com -t nexent/nexent-web -f make/web/Dockerfile . &
+          PID_WEB=$!
+
+          # Wait for all builds to finish
+          wait $PID_MAIN $PID_DATA $PID_WEB
+          echo "All Docker images built successfully."
 
   deploy:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
