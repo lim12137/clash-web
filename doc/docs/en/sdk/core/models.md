@@ -2,11 +2,11 @@
 
 Nexent provides a comprehensive model architecture supporting multiple AI model types through OpenAI-compatible interfaces. The SDK supports large language models, multimodal models, embedding models, and speech processing capabilities.
 
-## Overview
+## 📋 Overview
 
 The models module provides standardized interfaces for various AI model providers and types:
 
-## Supported Model Categories
+## 🎯 Supported Model Categories
 
 ### 🤖 Large Language Models (LLM)
 - **OpenAI-compatible models**: Any provider following OpenAI API specification
@@ -31,9 +31,9 @@ The models module provides standardized interfaces for various AI model provider
 - **Voice cloning**: Advanced voice synthesis capabilities
 - **Multilingual speech**: Support for multiple languages and accents
 
-## Model Implementation Classes
+## 🏗️ Model Implementation Classes
 
-## Usage
+## 💡 Usage
 
 ```python
 from nexent.core.models import OpenAIModel
@@ -48,7 +48,7 @@ model = OpenAIModel(
 response = model.complete("Hello, world!")
 ```
 
-## Configuration
+## ⚙️ Configuration
 
 Models can be configured through:
 - Environment variables

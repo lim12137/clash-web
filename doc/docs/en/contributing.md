@@ -65,6 +65,35 @@ For feature ideas, please provide:
 **Where to submit?**  
 Open a new issue in our [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) section and select the appropriate template (Bug Report or Feature Request).
 
+## 🌟 Quick Memorial Wall Contribution
+
+Want to leave your mark on the Open Source Memorial Wall? Here's a simplified process designed especially for beginners:
+
+### Super Simple Three Steps
+1. **Edit Online**: Click the ✏️ edit button on the [Memorial Wall file](https://github.com/ModelEngine-Group/nexent/blob/develop/doc/docs/en/opensource-memorial-wall.md) directly on GitHub
+2. **Add Your Message**: Add your message in the "Community Messages" section using this format:
+   ```markdown
+   ::: info Your Name - 2024-01-15
+   Share your open source story or experience with Nexent!
+   :::
+   ```
+3. **Submit PR**: Click "Propose changes" at the bottom, then "Create pull request"
+
+That's it! We'll review and merge your contribution as soon as possible. ✨
+
+### Memorial Wall Contribution Examples
+```markdown
+::: tip Open Source Newbie - 2024-01-15
+Thanks to Nexent for getting me started on my open source journey! The documentation is really great and helped me get up to speed quickly.
+:::
+
+::: info Senior Developer - 2024-01-16
+Used Nexent for several projects, the MCP tool integration is particularly powerful and saved me tons of development time!
+:::
+```
+
+---
+
 ## 💻 Submitting Code Changes
 
 ### Step 1 Fork the Repository
