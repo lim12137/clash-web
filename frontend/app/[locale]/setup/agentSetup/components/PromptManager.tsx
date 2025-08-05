@@ -483,7 +483,7 @@ export default function PromptManager({
               value={businessLogic}
               onChange={(e) => onBusinessLogicChange?.(e.target.value)}
               placeholder={t('businessLogic.placeholder')}
-              className="w-full resize-none p-3 text-base pr-20 transition-all duration-300 system-prompt-business-logic"
+              className="w-full resize-none p-3 text-sm pr-20 transition-all duration-300 system-prompt-business-logic"
               style={{ 
                 minHeight: '120px',
                 maxHeight: '200px'

@@ -5,7 +5,6 @@ import { message } from 'antd'
 import { SettingOutlined, UploadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { ScrollArea } from '@/components/ui/scrollArea'
-import AgentContextMenu from './AgentContextMenu'
 import { Agent } from '../ConstInterface'
 
 interface SubAgentPoolProps {
@@ -44,38 +43,7 @@ export default function SubAgentPool({
 }: SubAgentPoolProps) {
   const { t } = useTranslation('common');
 
-  const [contextMenu, setContextMenu] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-    agent: Agent | null;
-  }>({
-    visible: false,
-    x: 0,
-    y: 0,
-    agent: null
-  });
 
-  const handleContextMenu = (e: React.MouseEvent, agent: Agent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    setContextMenu({
-      visible: true,
-      x: e.clientX,
-      y: e.clientY,
-      agent: agent
-    });
-  };
-
-  const handleCloseContextMenu = () => {
-    setContextMenu({
-      visible: false,
-      x: 0,
-      y: 0,
-      agent: null
-    });
-  };
 
   return (
     <div className="flex flex-col h-full min-h-[300px] lg:min-h-0 overflow-hidden">
@@ -91,73 +59,98 @@ export default function SubAgentPool({
         </div>
       </div>
       <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
-        <div className="grid grid-cols-1 gap-3 pr-2">
-          {/* 始终显示创建和导入按钮 */}
-          <div className="flex gap-2 mb-2">
-            <div 
-              className={`flex-1 border-2 rounded-md p-3 flex flex-col justify-center items-center cursor-pointer transition-all duration-200 h-[80px] shadow-sm ${
-                isCreatingNewAgent
-                  ? 'shadow-md bg-blue-50 border-blue-400' // 创建模式下高亮显示
-                  : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow-md'
-              }`}
-              title={isCreatingNewAgent ? '点击退出创建模式' : '点击创建新Agent'}
-              onClick={() => {
-                if (isCreatingNewAgent) {
-                  // 如果当前处于创建模式，点击退出创建模式
-                  onExitEditMode?.();
-                } else {
-                  // 否则进入创建模式
-                  onCreateNewAgent();
-                }
-              }}
-            >
-              <div className={`flex items-center justify-center h-full ${
-                isCreatingNewAgent ? 'text-blue-600' : 'text-blue-500'
-              }`}>
-                <span className="text-lg mr-2">+</span>
-                <span className="text-sm">
-                  {isCreatingNewAgent ? t('subAgentPool.button.exitCreate') : t('subAgentPool.button.create')}
-                </span>
-              </div>
-            </div>
+        <div className="flex flex-col pr-2">
+          {/* 功能操作区块 */}
+          <div className="mb-4">
+              <div className="flex gap-3">
+                <div 
+                  className={`flex-1 rounded-md p-2 flex items-center cursor-pointer transition-all duration-200 min-h-[70px] ${
+                    isCreatingNewAgent
+                      ? 'bg-blue-100 border border-blue-200 shadow-sm' // 创建模式下高亮显示
+                      : 'bg-white hover:bg-blue-50 hover:shadow-sm'
+                  }`}
+                  title={isCreatingNewAgent ? t('subAgentPool.tooltip.exitCreateMode') : t('subAgentPool.tooltip.createNewAgent')}
+                  onClick={() => {
+                    if (isCreatingNewAgent) {
+                      // 如果当前处于创建模式，点击退出创建模式
+                      onExitEditMode?.();
+                    } else {
+                      // 否则进入创建模式
+                      onCreateNewAgent();
+                    }
+                  }}
+                >
+                  <div className={`flex items-center w-full ${
+                    isCreatingNewAgent ? 'text-blue-700' : 'text-blue-600'
+                  }`}>
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 mr-3 flex-shrink-0">
+                      <span className="text-sm font-medium">+</span>
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">
+                        {isCreatingNewAgent ? t('subAgentPool.button.exitCreate') : t('subAgentPool.button.create')}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {isCreatingNewAgent ? t('subAgentPool.description.exitCreate') : t('subAgentPool.description.createAgent')}
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-            <div
-              className={`flex-1 border-2 rounded-md p-3 flex flex-col justify-center items-center transition-all duration-200 h-[80px] shadow-sm ${
-                isImporting
-                  ? 'bg-gray-50 border-gray-300 cursor-not-allowed' // 导入中：禁用状态
-                  : 'border-gray-200 cursor-pointer hover:border-green-300 hover:bg-green-50 hover:shadow-md' // 正常状态：可点击
-              }`}
-              onClick={isImporting ? undefined : onImportAgent}
-            >
-              <div className={`flex items-center justify-center h-full ${
-                isImporting ? 'text-gray-400' : 'text-green-500' // 导入中使用灰色
-              }`}>
-                <UploadOutlined className="text-lg mr-2" />
-                <span className="text-sm">{isImporting ? t('subAgentPool.button.importing') : t('subAgentPool.button.import')}</span>
+                <div
+                  className={`flex-1 rounded-md p-2 flex items-center transition-all duration-200 min-h-[70px] ${
+                    isImporting
+                      ? 'bg-gray-100 cursor-not-allowed' // 导入中：禁用状态
+                      : 'bg-white cursor-pointer hover:bg-green-50 hover:shadow-sm' // 正常状态：可点击
+                  }`}
+                  onClick={isImporting ? undefined : onImportAgent}
+                >
+                  <div className={`flex items-center w-full ${
+                    isImporting ? 'text-gray-400' : 'text-green-600' // 导入中使用灰色
+                  }`}>
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full mr-3 flex-shrink-0 ${
+                      isImporting ? 'bg-gray-100' : 'bg-green-100'
+                    }`}>
+                      <UploadOutlined className="text-sm" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">
+                        {isImporting ? t('subAgentPool.button.importing') : t('subAgentPool.button.import')}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {isImporting ? t('subAgentPool.description.importing') : t('subAgentPool.description.importAgent')}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
           </div>
 
-          {/* Agent列表 */}
-          {subAgentList.map((agent) => {
+          {/* Agent列表区块 */}
+          <div>
+            <div className="text-sm font-medium text-gray-600 mb-2 px-1">
+              {t('subAgentPool.section.agentList')} ({subAgentList.length})
+            </div>
+            <div className="space-y-0">
+              {subAgentList.map((agent) => {
             const isAvailable = agent.is_available !== false; // 默认为true，只有明确为false时才不可用
             const isCurrentlyEditing = editingAgent && String(editingAgent.id) === String(agent.id); // 确保类型匹配
             
             return (
               <div 
                 key={agent.id} 
-                className={`border-2 rounded-md p-3 flex flex-col justify-center transition-all duration-300 ease-in-out h-[80px] shadow-sm ${
+                className={`py-4 px-2 flex flex-col justify-center transition-colors border-t border-gray-200 ${
                   isCurrentlyEditing
-                    ? 'shadow-md bg-blue-50 border-blue-400' // 编辑中的agent高亮显示
+                    ? 'bg-blue-50 border-l-4 border-l-blue-500' // 编辑中的agent高亮显示，添加左侧竖线
                     : !isAvailable
-                      ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
-                      : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow-md'
+                      ? 'bg-gray-50 opacity-60 cursor-not-allowed'
+                      : 'hover:bg-gray-50 cursor-pointer'
                 }`}
                 title={!isAvailable 
                   ? t('subAgentPool.tooltip.unavailableAgent')
                   : isCurrentlyEditing
-                    ? `点击退出编辑模式`
-                  : `点击编辑 ${agent.name}`}
+                    ? t('subAgentPool.tooltip.exitEditMode')
+                  : `${t('subAgentPool.tooltip.editAgent')} ${agent.name}`}
                 onClick={async (e) => {
                   // 阻止事件冒泡
                   e.preventDefault();
@@ -175,16 +168,15 @@ export default function SubAgentPool({
                     message.warning(t('subAgentPool.message.unavailable'));
                   }
                 }}
-                onContextMenu={(e) => handleContextMenu(e, agent)}
               >
                 <div className="flex items-center h-full">
                   <div className="flex-1 overflow-hidden">
-                    <div className={`font-medium text-sm truncate transition-colors duration-300 ${
+                    <div className={`font-medium text-base truncate transition-colors duration-300 ${
                       !isAvailable ? 'text-gray-500' : ''
                     }`} 
                          title={!isAvailable 
                            ? t('subAgentPool.tooltip.unavailableAgent')
-                           : `点击编辑 ${agent.name}`}>
+                           : `${t('subAgentPool.tooltip.editAgent')} ${agent.name}`}>
                       {agent.name}
                     </div>
                     <div 
@@ -198,22 +190,12 @@ export default function SubAgentPool({
                   </div>
                 </div>
               </div>
-            );
-          })}
+              );
+            })}
+            </div>
+          </div>
         </div>
       </ScrollArea>
-
-      {/* Context Menu */}
-      <AgentContextMenu
-        visible={contextMenu.visible}
-        x={contextMenu.x}
-        y={contextMenu.y}
-        agent={contextMenu.agent}
-        onEdit={onEditAgent}
-        onExport={onExportAgent}
-        onDelete={onDeleteAgent}
-        onClose={handleCloseContextMenu}
-      />
     </div>
   )
 } 
