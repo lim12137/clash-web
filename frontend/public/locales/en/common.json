@@ -251,6 +251,7 @@
     "agent.info.name.placeholder": "Please enter agent name",
     "agent.info.name.error.empty": "Name cannot be empty",
     "agent.info.name.error.format": "Name can only contain letters, numbers and underscores, and must start with a letter or underscore",
+    "agent.info.name.error.length": "Name length cannot exceed 30 characters",
     "agent.info.description": "Description",
     "agent.info.description.placeholder": "Please enter agent description, this description is used to introduce the current agent's capabilities to the main agent",
     "agent.info.description.error.empty": "Description cannot be empty",

@@ -251,6 +251,7 @@
     "agent.info.name.placeholder": "请输入Agent名称",
     "agent.info.name.error.empty": "名称不能为空",
     "agent.info.name.error.format": "名称只能包含字母、数字和下划线，且必须以字母或下划线开头",
+    "agent.info.name.error.length": "名称长度不能超过30个字符",
     "agent.info.description": "描述",
     "agent.info.description.placeholder": "请输入Agent描述，此描述用于向主Agent介绍当前Agent的能力",
     "agent.info.description.error.empty": "描述不能为空",
