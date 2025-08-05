@@ -733,6 +733,7 @@
     "toolPool.message.viewOnlyMode": "Currently in view mode, cannot select tools",
     "toolPool.tag.mcp": "MCP Tool",
     "toolPool.tag.local": "Local Tool",
+    "toolPool.tag.langchain": "LangChain Tool",
     "toolPool.group.local": "Local",
     "toolPool.group.langchain": "LangChain",
     "toolPool.group.other": "Other Tools",
