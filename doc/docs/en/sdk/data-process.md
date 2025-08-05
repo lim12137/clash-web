@@ -1,10 +1,10 @@
 # Data Processing Core
 
-## Overview
+## 📋 Overview
 
 `DataProcessCore` is a unified file processing core class that supports automatic detection and processing of multiple file formats, providing flexible chunking strategies and multiple input source support.
 
-## Key Features
+## ⭐ Key Features
 
 ### 1. Core Processing Method: `file_process()`
 
@@ -41,7 +41,7 @@ def file_process(self,
 | `"by_title"` | Title-based chunking | Structured documents with clear headings | Chunks divided by document structure |
 | `"none"` | No chunking | Small files or when full content is needed | Returns complete content without chunking |
 
-## Supported File Formats
+## 📁 Supported File Formats
 
 - **Text files**: .txt, .md, .csv
 - **Documents**: .pdf, .docx, .pptx
@@ -49,7 +49,7 @@ def file_process(self,
 - **Web content**: HTML, URLs
 - **Archives**: .zip, .tar
 
-## Usage Examples
+## 💡 Usage Examples
 
 ```python
 from nexent.data_process import DataProcessCore
