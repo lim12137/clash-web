@@ -6,7 +6,7 @@ import os
 import logging
 import ray
 from typing import Dict, Any, Optional
-from .config import config
+from consts.const import RAY_PLASMA_DIRECTORY, RAY_OBJECT_STORE_MEMORY_GB, RAY_TEMP_DIR, RAY_NUM_CPUS
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +18,9 @@ class RayConfig:
     """Ray configuration manager"""
     
     def __init__(self):
-        self.plasma_directory = config.ray_plasma_directory
-        self.object_store_memory_gb = config.ray_object_store_memory_gb
-        self.temp_dir = config.ray_temp_dir
+        self.plasma_directory = RAY_PLASMA_DIRECTORY
+        self.object_store_memory_gb = RAY_OBJECT_STORE_MEMORY_GB
+        self.temp_dir = RAY_TEMP_DIR
     
     def get_init_params(self, 
                        address: Optional[str] = None,
@@ -86,8 +86,7 @@ class RayConfig:
             params = self.get_init_params(**kwargs)
             
             # Get Ray configuration from environment
-            ray_num_cpus = os.environ.get('RAY_NUM_CPUS')
-            num_cpus = int(ray_num_cpus) if ray_num_cpus else None  # None lets Ray decide
+            num_cpus = int(RAY_NUM_CPUS) if RAY_NUM_CPUS else None  # None lets Ray decide
 
             # Log the attempt to initialize
             logger.debug("Initializing Ray cluster...")

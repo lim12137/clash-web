@@ -1,0 +1,122 @@
+---
+description: English Comments Rule
+alwaysApply: false
+---
+# English Comments Rule
+
+## English-Only Comments Requirement
+
+All code comments MUST be written in English. No Chinese, Japanese, Korean, or other non-English languages are allowed in comments.
+
+### ✅ Correct Pattern:
+```python
+# Initialize the processor with default settings
+processor = DataProcessor()
+
+# Cache inspector for 60 seconds
+self._inspector_ttl = 60
+
+# Ensure current application configuration is correct
+if not self._validate_config():
+    raise ConfigurationError("Invalid configuration")
+
+# Concurrently fetch all task details asynchronously
+tasks = await self._fetch_all_tasks_async()
+
+# Lazy load CLIP model
+self._clip_model = None
+```
+
+### ❌ Forbidden Pattern:
+```python
+# 初始化处理器
+processor = DataProcessor()
+
+# inspector缓存时间，秒
+self._inspector_ttl = 60
+
+# 确保当前应用配置正确
+if not self._validate_config():
+    raise ConfigurationError("Invalid configuration")
+
+# 并发异步获取所有任务详情
+tasks = await self._fetch_all_tasks_async()
+
+# 延迟加载CLIP模型
+self._clip_model = None
+```
+
+## Architecture Rules
+
+1. **English-Only Comments**: All comments must be written in English, regardless of the target audience or deployment region.
+
+2. **Code Documentation**: 
+   - Function docstrings must be in English
+   - Inline comments must be in English
+   - TODO comments must be in English
+   - FIXME comments must be in English
+
+3. **Variable and Function Names**: 
+   - Variable names can be in English or follow existing naming conventions
+   - Function names should be descriptive in English
+   - Class names should be in English
+
+4. **String Literals**: 
+   - User-facing strings can be localized
+   - Error messages can be localized
+   - Comments and documentation must remain in English
+
+## File Structure Requirements
+
+- All `.py` files: English comments only
+- All `.js`/`.ts` files: English comments only
+- All `.md` files: English documentation only
+- All `.yaml`/`.yml` files: English comments only
+
+## Migration Checklist
+
+When refactoring existing code:
+1. ✅ Identify all non-English comments
+2. ✅ Translate comments to English while preserving meaning
+3. ✅ Update docstrings to English
+4. ✅ Ensure inline comments are in English
+5. ✅ Verify all TODO/FIXME comments are in English
+6. ✅ Update any related documentation
+
+## Validation
+
+Before committing changes:
+- No Chinese characters in comments
+- No Japanese characters in comments
+- No Korean characters in comments
+- All comments are in English
+- All docstrings are in English
+- All TODO/FIXME comments are in English
+
+## Examples of Refactoring
+
+### Before:
+```python
+# 解析输入URL
+def parse_url(url: str) -> str:
+    """解析并验证URL格式"""
+    # 检查URL是否有效
+    if not url.startswith('http'):
+        raise ValueError("无效的URL格式")
+    return url
+```
+
+### After:
+```python
+# Parse input URL
+def parse_url(url: str) -> str:
+    """Parse and validate URL format"""
+    # Check if URL is valid
+    if not url.startswith('http'):
+        raise ValueError("Invalid URL format")
+    return url
+```
+description:
+globs:
+alwaysApply: false
+---

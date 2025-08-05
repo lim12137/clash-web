@@ -319,6 +319,7 @@
     "subAgentPool.button.exitCreate": "Exit Create",
     "toolConfig.source.mcp": "MCP",
     "toolConfig.source.local": "Local Tool",
+    "toolPool.source.langchain": "LangChain Tool",
     "toolConfig.title.paramConfig": "Parameter Configuration",
     "toolConfig.message.loadError": "Failed to load tool configuration",
     "toolConfig.message.loadErrorUseDefault": "Failed to load tool configuration, using default configuration",

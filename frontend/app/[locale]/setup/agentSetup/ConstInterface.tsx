@@ -34,7 +34,7 @@ export interface Tool {
   id: string;
   name: string;
   description: string;
-  source: 'local' | 'mcp';
+  source: 'local' | 'mcp' | 'langchain';
   initParams: ToolParam[];
   is_available?: boolean;
   create_time?: string;

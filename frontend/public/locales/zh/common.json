@@ -319,6 +319,7 @@
     "subAgentPool.button.exitCreate": "退出创建",
     "toolConfig.source.mcp": "MCP",
     "toolConfig.source.local": "本地工具",
+    "toolPool.source.langchain": "LangChain工具",
     "toolConfig.title.paramConfig": "参数配置",
     "toolConfig.message.loadError": "加载工具配置失败",
     "toolConfig.message.loadErrorUseDefault": "加载工具配置失败，使用默认配置",

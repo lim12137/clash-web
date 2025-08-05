@@ -189,7 +189,6 @@ def import_agent_impl(parent_agent_id: int, agent_info: ExportAndImportAgentInfo
     if not agent_info.name.isidentifier():
         raise ValueError(f"Invalid agent name: {agent_info.name}. agent name must be a valid python variable name.")
     # create a new agent
-    user_id, tenant_id = get_current_user_id()
     new_agent = create_agent(agent_info={"name": agent_info.name,
                             "description": agent_info.description,
                             "business_description": agent_info.business_description,
