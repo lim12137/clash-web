@@ -85,6 +85,35 @@ export default function AgentConfigurationSection({
 
   // Add state for delete confirmation modal
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  
+  // Add state for agent name validation error
+  const [agentNameError, setAgentNameError] = useState<string>('');
+
+  // Agent name validation function
+  const validateAgentName = useCallback((name: string): string => {
+    if (!name.trim()) {
+      return t('agent.info.name.error.empty');
+    }
+    
+    if (name.length > 30) {
+      return t('agent.info.name.error.length');
+    }
+    
+    // 只能包含下划线，英文字符和数字；符合变量名命名规范（不能以数字开头）
+    const namePattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+    if (!namePattern.test(name)) {
+      return t('agent.info.name.error.format');
+    }
+    
+    return '';
+  }, [t]);
+
+  // Handle agent name change with validation
+  const handleAgentNameChange = useCallback((name: string) => {
+    const error = validateAgentName(name);
+    setAgentNameError(error);
+    onAgentNameChange?.(name);
+  }, [validateAgentName, onAgentNameChange]);
 
   // Handle delete confirmation
   const handleDeleteConfirm = useCallback(() => {
@@ -150,6 +179,19 @@ export default function AgentConfigurationSection({
     }
   }, [fewShotsContent]);
 
+  // Validate agent name when it changes externally
+  useEffect(() => {
+    if (agentName && isEditingMode) {
+      const error = validateAgentName(agentName);
+      setAgentNameError(error);
+    } else {
+      setAgentNameError('');
+    }
+  }, [agentName, isEditingMode, validateAgentName]);
+
+  // Calculate whether save buttons should be enabled
+  const canActuallySave = canSaveAgent && !agentNameError;
+
   // Render individual content sections
   const renderAgentInfo = () => (
     <div className="p-4 agent-info-content">
@@ -161,11 +203,20 @@ export default function AgentConfigurationSection({
         <input
           type="text"
           value={agentName}
-          onChange={(e) => onAgentNameChange?.(e.target.value)}
+          onChange={(e) => handleAgentNameChange(e.target.value)}
           placeholder={t('agent.namePlaceholder')}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 box-border"
+          className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 box-border ${
+            agentNameError 
+              ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+          }`}
           disabled={!isEditingMode}
         />
+        {agentNameError && (
+          <p className="mt-1 text-sm text-red-600">
+            {agentNameError}
+          </p>
+        )}
       </div>
       
       {/* Model Selection */}
@@ -557,9 +608,12 @@ export default function AgentConfigurationSection({
                 size="middle"
                 icon={<SaveOutlined />}
                 onClick={onSaveAgent}
-                disabled={!canSaveAgent}
+                disabled={!canActuallySave}
                 className="bg-green-500 hover:bg-green-600 border-green-500 hover:border-green-600 disabled:opacity-50 disabled:cursor-not-allowed responsive-button"
                 title={(() => {
+                  if (agentNameError) {
+                    return agentNameError;
+                  }
                   if (!canSaveAgent && getButtonTitle) {
                     const tooltipText = getButtonTitle();
                     return tooltipText || t('businessLogic.config.button.saveToAgentPool');
@@ -575,9 +629,12 @@ export default function AgentConfigurationSection({
                 size="middle"
                 icon={<SaveOutlined />}
                 onClick={onSaveAgent}
-                disabled={!canSaveAgent}
+                disabled={!canActuallySave}
                 className="bg-green-500 hover:bg-green-600 border-green-500 hover:border-green-600 disabled:opacity-50 disabled:cursor-not-allowed responsive-button"
                 title={(() => {
+                  if (agentNameError) {
+                    return agentNameError;
+                  }
                   if (!canSaveAgent && getButtonTitle) {
                     const tooltipText = getButtonTitle();
                     return tooltipText || t('systemPrompt.button.save');
