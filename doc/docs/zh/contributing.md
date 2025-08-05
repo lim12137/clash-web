@@ -68,6 +68,35 @@ Gitflow 是一种结构化的 Git 分支管理模型，为软件开发提供了�
 **提交到哪里？**  
 在我们的 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 中新建一个 Issue，并选择合适的模板（Bug 报告或功能请求）。
 
+## 🌟 开源纪念墙快速贡献
+
+想要在开源纪念墙上留下您的印记吗？这是一个专门为初学者设计的简化流程：
+
+### 超简单的三步走
+1. **在线编辑**：直接在 GitHub 网页上点击 [开源纪念墙文件](https://github.com/ModelEngine-Group/nexent/blob/develop/doc/docs/zh/opensource-memorial-wall.md) 右上角的 ✏️ 编辑按钮
+2. **添加留言**：在"社区留言"部分添加您的消息，使用以下格式：
+   ```markdown
+   ::: info 您的姓名 - 2024-01-15
+   分享您的开源故事或对 Nexent 的使用体验！
+   :::
+   ```
+3. **提交 PR**：点击页面底部"Propose changes"，然后"Create pull request"
+
+就这么简单！我们会尽快审核并合并您的贡献。✨
+
+### 纪念墙贡献示例
+```markdown
+::: tip 开源新手 - 2024-01-15
+感谢 Nexent 让我踏上了开源之旅！这个项目的文档真的很棒，帮助我快速上手。
+:::
+
+::: info 资深开发者 - 2024-01-16
+使用 Nexent 开发了几个项目，MCP 工具集成特别强大，节省了大量开发时间！
+:::
+```
+
+---
+
 ## 💻 提交代码更改
 
 ### 第一步：Fork 仓库
