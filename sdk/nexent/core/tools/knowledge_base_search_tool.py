@@ -48,7 +48,7 @@ class KnowledgeBaseSearchTool(Tool):
         self.index_names = [] if index_names is None else index_names
         self.embedding_model = embedding_model
 
-        self.record_ops = 0  # To record serial number
+        self.record_ops = 1  # To record serial number
         self.running_prompt_zh = "知识库检索中..."
         self.running_prompt_en = "Searching the knowledge base..."
 
