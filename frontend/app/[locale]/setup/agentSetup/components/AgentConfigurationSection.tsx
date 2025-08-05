@@ -1,6 +1,6 @@
 "use client"
 
-import { Button } from 'antd'
+import { Button, Modal } from 'antd'
 import { ExpandAltOutlined, SaveOutlined, LoadingOutlined, BugOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -32,6 +32,7 @@ export interface AgentConfigurationSectionProps {
   onDebug?: () => void;
   onExportAgent?: () => void;
   onDeleteAgent?: () => void;
+  onDeleteSuccess?: () => void; // New prop for handling delete success
   onSaveAgent?: () => void;
   isCreatingNewAgent?: boolean;
   editingAgent?: any;
@@ -64,6 +65,7 @@ export default function AgentConfigurationSection({
   onDebug,
   onExportAgent,
   onDeleteAgent,
+  onDeleteSuccess,
   onSaveAgent,
   isCreatingNewAgent = false,
   editingAgent,
@@ -80,6 +82,24 @@ export default function AgentConfigurationSection({
   
   // Add segmented state management
   const [activeSegment, setActiveSegment] = useState<string>('agent-info');
+
+  // Add state for delete confirmation modal
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = useCallback(() => {
+    setIsDeleteModalVisible(false);
+    // Execute the delete operation
+    onDeleteAgent?.();
+    // Call the success callback immediately after triggering delete
+    // The actual success/failure will be handled by the parent component
+    onDeleteSuccess?.();
+  }, [onDeleteAgent, onDeleteSuccess]);
+
+  // Handle delete button click
+  const handleDeleteClick = useCallback(() => {
+    setIsDeleteModalVisible(true);
+  }, []);
 
   // Optimized click handlers using useCallback
   const handleSegmentClick = useCallback((segment: string) => {
@@ -134,7 +154,7 @@ export default function AgentConfigurationSection({
   const renderAgentInfo = () => (
     <div className="p-4 agent-info-content">
       {/* Agent Name */}
-      <div className="mb-4">
+      <div className="mb-2">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t('agent.name')}:
         </label>
@@ -149,7 +169,7 @@ export default function AgentConfigurationSection({
       </div>
       
       {/* Model Selection */}
-      <div className="mb-4">
+      <div className="mb-2">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t('businessLogic.config.model')}:
         </label>
@@ -165,7 +185,7 @@ export default function AgentConfigurationSection({
       </div>
       
       {/* Max Steps */}
-      <div className="mb-4">
+      <div className="mb-2">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t('businessLogic.config.maxSteps')}:
         </label>
@@ -181,7 +201,7 @@ export default function AgentConfigurationSection({
       </div>
       
       {/* Agent Description */}
-      <div className="mb-4">
+      <div className="mb-2">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t('agent.description')}:
         </label>
@@ -489,7 +509,8 @@ export default function AgentConfigurationSection({
       {/* Action Buttons - Fixed at bottom - Only show in editing mode */}
       {isEditingMode && (
         <div className="flex justify-center mt-4 flex-shrink-0 border-t border-gray-200 bg-white agent-config-buttons">
-          <div className="flex gap-2 lg:gap-3 flex-wrap justify-center">
+          {/* <div className="flex gap-2 lg:gap-3 flex-wrap justify-center"> */}
+          <div className="flex gap-1 sm:gap-2 lg:gap-3 flex-nowrap justify-center w-full">
             {/* Debug Button - Always show in editing mode */}
             <Button
               type="primary"
@@ -520,7 +541,7 @@ export default function AgentConfigurationSection({
                   type="primary"
                   size="middle"
                   icon={<DeleteOutlined />}
-                  onClick={onDeleteAgent}
+                  onClick={handleDeleteClick}
                   className="bg-red-500 hover:bg-red-600 border-red-500 hover:border-red-600 responsive-button"
                   title={t('agent.contextMenu.delete')}
                 >
@@ -570,6 +591,21 @@ export default function AgentConfigurationSection({
           </div>
         </div>
       )}
+
+             {/* Delete Confirmation Modal */}
+       <Modal
+         title={t('businessLogic.config.modal.deleteTitle')}
+         open={isDeleteModalVisible}
+         onOk={handleDeleteConfirm}
+         onCancel={() => setIsDeleteModalVisible(false)}
+         okText={t('businessLogic.config.modal.button.confirm')}
+         cancelText={t('businessLogic.config.modal.button.cancel')}
+         okButtonProps={{
+           danger: true,
+         }}
+       >
+         <p>{t('businessLogic.config.modal.deleteContent', { name: agentName || '未命名Agent' })}</p>
+       </Modal>
     </div>
   )
 } 

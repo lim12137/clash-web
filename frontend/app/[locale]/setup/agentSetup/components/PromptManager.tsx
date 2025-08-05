@@ -122,7 +122,7 @@ function ExpandEditModal({ open, title, content, index, onClose, onSave }: Expan
             className="px-4 py-1.5 rounded-md text-sm bg-blue-500 text-white hover:bg-blue-600"
             style={{ border: "none" }}
           >
-            关闭
+            {t('systemPrompt.expandEdit.close')}
           </button>
         </div>
       }
@@ -298,6 +298,7 @@ export interface PromptManagerProps {
   onDebug?: () => void
   onExportAgent?: () => void
   onDeleteAgent?: () => void
+  onDeleteSuccess?: () => void
   getButtonTitle?: () => string
   
   // 编辑中的agent
@@ -332,6 +333,7 @@ export default function PromptManager({
   onDebug,
   onExportAgent,
   onDeleteAgent,
+  onDeleteSuccess,
   getButtonTitle,
   editingAgent
 }: PromptManagerProps) {
@@ -541,6 +543,7 @@ export default function PromptManager({
             onDebug={onDebug}
             onExportAgent={onExportAgent}
             onDeleteAgent={onDeleteAgent}
+            onDeleteSuccess={onDeleteSuccess}
             onSaveAgent={onSaveAgent}
             isCreatingNewAgent={isCreatingNewAgent}
             editingAgent={editingAgent}
@@ -558,7 +561,7 @@ export default function PromptManager({
           expandIndex === 3 ? constraintContent :
           expandIndex === 4 ? fewShotsContent : 'default'
         }
-        title={expandIndex === 1 ? '背景信息' : expandIndex === 2 ? '职责' : expandIndex === 3 ? '约束' : '示例'}
+        title={expandIndex === 1 ? t('systemPrompt.expandEdit.backgroundInfo') : expandIndex === 2 ? t('systemPrompt.card.duty.title') : expandIndex === 3 ? t('systemPrompt.card.constraint.title') : t('systemPrompt.card.fewShots.title')}
         open={expandModalOpen}
         content={
           expandIndex === 1 ? businessLogic :

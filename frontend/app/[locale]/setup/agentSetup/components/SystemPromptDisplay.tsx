@@ -32,6 +32,7 @@ export interface SystemPromptDisplayProps {
   getButtonTitle?: () => string;
   onExportAgent?: () => void;
   onDeleteAgent?: () => void;
+  onDeleteSuccess?: () => void;
   editingAgent?: any;
 }
 

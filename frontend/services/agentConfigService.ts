@@ -293,9 +293,6 @@ export const searchToolConfig = async (toolId: number, agentId: number) => {
  * @param modelName 模型名称
  * @param maxSteps 最大步骤数
  * @param provideRunSummary 是否提供运行摘要
- * @param dutyPrompt 职责提示词
- * @param constraintPrompt 约束提示词
- * @param fewShotsPrompt 示例提示词
  * @returns 更新结果
  */
 export const updateAgent = async (
@@ -581,23 +578,31 @@ export const addRelatedAgent = async (parentAgentId: number, childAgentId: numbe
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
-    }
-
     const data = await response.json();
-    
-    return {
-      success: true,
-      data: data,
-      message: ''
-    };
+
+    if (response.ok) {
+      return {
+        success: true,
+        data: data,
+        message: data[0] || '添加关联Agent成功',
+        status: response.status,
+      };
+    } else {
+      const errorMessage = data.detail || data[0] || `添加关联Agent失败: ${response.statusText}`;
+      return {
+        success: false,
+        data: null,
+        message: errorMessage,
+        status: response.status,
+      };
+    }
   } catch (error) {
     console.error('添加关联Agent失败:', error);
     return {
       success: false,
       data: null,
-      message: '添加关联Agent失败，请稍后重试'
+      message: '添加关联Agent失败，请稍后重试',
+      status: 500, // or a custom error code
     };
   }
 };
