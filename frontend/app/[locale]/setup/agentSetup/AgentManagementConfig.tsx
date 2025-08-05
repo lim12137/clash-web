@@ -11,22 +11,22 @@ import DeleteConfirmModal from './components/DeleteConfirmModal'
 import CollaborativeAgentDisplay from './components/CollaborativeAgentDisplay'
 import SystemPromptDisplay from './components/SystemPromptDisplay'
 // import AgentInfoInput from './components/AgentInfoInput'
-import { 
-  BusinessLogicConfigProps, 
-  Agent, 
-  Tool, 
+import {
+  BusinessLogicConfigProps,
+  Agent,
+  Tool,
   OpenAIModel,
   AgentBasicInfo
 } from './ConstInterface'
-import { 
-  getCreatingSubAgentId, 
-  fetchAgentList, 
+import {
+  getCreatingSubAgentId,
+  fetchAgentList,
   fetchAgentDetail,
-  updateAgent, 
-  importAgent, 
-  exportAgent, 
-  deleteAgent, 
-  searchAgentInfo 
+  updateAgent,
+  importAgent,
+  exportAgent,
+  deleteAgent,
+  searchAgentInfo
 } from '@/services/agentConfigService'
 
 /**
@@ -95,7 +95,7 @@ export default function BusinessLogicConfig({
   onExitCreation
 }: BusinessLogicConfigProps) {
   console.log('BusinessLogicConfig props received:', { agentName, agentDescription, setAgentName: !!setAgentName, setAgentDescription: !!setAgentDescription });
-  
+
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -163,12 +163,12 @@ export default function BusinessLogicConfig({
       try {
         // 添加一个小延迟，确保后端操作完成
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         // 重新获取当前编辑agent的详细信息
         const result = await searchAgentInfo(Number(editingAgent.id));
         if (result.success && result.data) {
           const agentDetail = result.data;
-          
+
           // 更新enabledAgentIds
           if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
             const newEnabledAgentIds = agentDetail.sub_agent_id_list.map((id: any) => Number(id));
@@ -200,22 +200,22 @@ export default function BusinessLogicConfig({
         const result = await fetchAgentDetail(Number(agent.id));
         if (result.success && result.data) {
           const agentDetail = result.data;
-          
+
           // Update all related states with detailed configuration
           setMainAgentId(agentDetail.id);
           setMainAgentModel(agentDetail.model as OpenAIModel);
           setMainAgentMaxStep(agentDetail.max_step);
           setBusinessLogic(agentDetail.business_description || '');
-          
+
           // Set agent name and description
           setAgentName?.(agentDetail.name || '');
           setAgentDescription?.(agentDetail.description || '');
-          
+
           // Load the segmented prompt content
           setDutyContent?.(agentDetail.duty_prompt || '');
           setConstraintContent?.(agentDetail.constraint_prompt || '');
           setFewShotsContent?.(agentDetail.few_shots_prompt || '');
-          
+
           // Load agent tools
           if (agentDetail.tools && agentDetail.tools.length > 0) {
             setSelectedTools(agentDetail.tools);
@@ -225,7 +225,7 @@ export default function BusinessLogicConfig({
             setSelectedTools([]);
             setEnabledToolIds([]);
           }
-          
+
           // Update selected agents list
           setSelectedAgents([agentDetail]);
           // 使用后端返回的sub_agent_id_list设置enabledAgentIds
@@ -234,7 +234,7 @@ export default function BusinessLogicConfig({
           } else {
             setEnabledAgentIds([]);
           }
-          
+
           message.success(t('businessLogic.config.message.agentDetailLoaded'));
         } else {
           message.error(result.message || t('businessLogic.config.error.agentDetailFailed'));
@@ -380,7 +380,7 @@ export default function BusinessLogicConfig({
   const handleCancelCreating = async () => {
     // 先通知外部编辑状态变化，避免UI跳变
     onEditingStateChange?.(false, null);
-    
+
     // 延迟重置状态，让UI先完成状态切换
     setTimeout(() => {
       // Use the parent's exit creation handler to properly clear cache
@@ -391,15 +391,15 @@ export default function BusinessLogicConfig({
       }
       setIsEditingAgent(false);
       setEditingAgent(null);
-      
+
       // Reset agent info states
       setNewAgentName('');
       setNewAgentDescription('');
       setNewAgentProvideSummary(true);
       setIsNewAgentInfoValid(false);
-      
+
       // Note: Content clearing is handled by onExitCreation above
-      
+
       // 延迟清空工具和协作Agent选择，避免跳变
       setTimeout(() => {
         setSelectedTools([]);
@@ -421,27 +421,27 @@ export default function BusinessLogicConfig({
       setSelectedAgents([]);
       setEnabledToolIds([]);
       setEnabledAgentIds([]);
-      
+
       // 清空右侧名称描述框
       setAgentName?.('');
       setAgentDescription?.('');
-      
+
       // 清空业务逻辑
       setBusinessLogic('');
-      
+
       // 清空分段提示内容
       setDutyContent?.('');
       setConstraintContent?.('');
       setFewShotsContent?.('');
-      
+
       // 通知外部编辑状态变化
       onEditingStateChange?.(false, null);
-      
+
       // 最后更新编辑状态，避免触发useEffect中的刷新逻辑
       setIsEditingAgent(false);
       setEditingAgent(null);
       setMainAgentId(null);
-      
+
       // 确保工具池不会显示加载状态
       setIsLoadingTools(false);
     }
@@ -532,19 +532,19 @@ export default function BusinessLogicConfig({
       message.warning(t('businessLogic.config.message.completeAgentInfo'));
       return;
     }
-    
+
     const hasPromptContent = dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim();
     if (!hasPromptContent) {
       message.warning(t('businessLogic.config.message.generatePromptFirst'));
       return;
     }
-    
+
     // Always use agentName and agentDescription as they are bound to the inputs in both create and edit modes.
     handleSaveNewAgent(
-      agentName, 
-      agentDescription || '', 
+      agentName,
+      agentDescription || '',
       mainAgentModel, 
-      mainAgentMaxStep, 
+      mainAgentMaxStep,
       systemPrompt,
       businessLogic
     );
@@ -571,16 +571,16 @@ export default function BusinessLogicConfig({
       // Note: This will be handled by the parent component's handleEditingStateChange
       // which will cache the current creation content before switching
       setIsCreatingNewAgent(false);
-      
+
       // 先设置右侧名称描述框的数据，确保立即显示
       console.log('Setting agent name and description in handleEditAgent:', agentDetail.name, agentDetail.description);
       console.log('setAgentName function exists:', !!setAgentName);
       console.log('setAgentDescription function exists:', !!setAgentDescription);
-      
+
       setAgentName?.(agentDetail.name || '');
       setAgentDescription?.(agentDetail.description || '');
       console.log('setAgentName and setAgentDescription called');
-      
+
       // 通知外部编辑状态变化（使用完整数据）
       onEditingStateChange?.(true, agentDetail);
       
@@ -598,12 +598,12 @@ export default function BusinessLogicConfig({
       } else {
         setEnabledAgentIds([]);
       }
-      
+
       // Load the segmented prompt content
       setDutyContent?.(agentDetail.duty_prompt || '');
       setConstraintContent?.(agentDetail.constraint_prompt || '');
       setFewShotsContent?.(agentDetail.few_shots_prompt || '');
-      
+
       // 加载Agent的工具
       if (agentDetail.tools && agentDetail.tools.length > 0) {
         setSelectedTools(agentDetail.tools);
@@ -853,7 +853,7 @@ export default function BusinessLogicConfig({
               isCreatingNewAgent={isCreatingNewAgent}
             />
           </div>
-          
+
           {/* Middle column: Agent capability configuration - 40% width */}
           <div className="w-full lg:w-[40%] min-h-0 flex flex-col h-full">
               {/* Header: 配置Agent能力 */}
@@ -865,7 +865,7 @@ export default function BusinessLogicConfig({
                   <h2 className="text-lg font-medium">{t('businessLogic.config.title')}</h2>
                 </div>
               </div>
-              
+
               {/* Content: ScrollArea with two sections */}
             <div className="flex-1 min-h-0 overflow-hidden border-t pt-2">
                 <div className="flex flex-col h-full" style={{ gap: '16px' }}>
@@ -880,7 +880,7 @@ export default function BusinessLogicConfig({
                     isEditingMode={isEditingAgent || isCreatingNewAgent}
                     isGeneratingAgent={isGeneratingAgent}
                   />
-                  
+
                   {/* Lower section: Tool Pool - 弹性区域 */}
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <MemoizedToolPool
@@ -906,7 +906,7 @@ export default function BusinessLogicConfig({
               </div>
             </div>
           </div>
-          
+
           {/* Right column: System Prompt Display - 30% width */}
           <div className="w-full lg:w-[30%] h-full lg:flex-shrink-0">
             <SystemPromptDisplay
@@ -954,4 +954,4 @@ export default function BusinessLogicConfig({
     </div>
   </TooltipProvider>
   )
-} 
+}
