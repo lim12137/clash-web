@@ -483,14 +483,16 @@ export default function PromptManager({
               value={businessLogic}
               onChange={(e) => onBusinessLogicChange?.(e.target.value)}
               placeholder={t('businessLogic.placeholder')}
-              className="w-full resize-none p-3 text-sm pr-20 transition-all duration-300 system-prompt-business-logic"
+              className="w-full resize-none p-3 text-sm transition-all duration-300 system-prompt-business-logic"
               style={{ 
                 minHeight: '120px',
-                maxHeight: '200px'
+                maxHeight: '200px',
+                paddingRight: '12px',
+                paddingBottom: '40px'  // 为按钮预留空间
               }}
               autoSize={{ 
-                minRows: 4, 
-                maxRows: 8 
+                minRows: 3, 
+                maxRows: 5 
               }}
               disabled={!isEditingMode}
             />
