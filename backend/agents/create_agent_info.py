@@ -237,13 +237,11 @@ def filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_lis
         None (直接修改 agent_run_info 对象)
     """
     used_mcp_urls = set()
-    used_mcp_server_names = set()
     has_mcp_tools = False
 
     # 递归检查所有 agent 的工具
     def check_agent_tools(agent_config):
         nonlocal has_mcp_tools
-        
         # 检查当前 agent 的工具
         for tool in getattr(agent_config, "tools", []):
             if hasattr(tool, "source") and tool.source == "mcp":
@@ -251,8 +249,6 @@ def filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_lis
                 # 对于 MCP 工具，从 usage 字段获取 MCP 服务器名称
                 if hasattr(tool, "usage") and tool.usage:
                     mcp_server_name = tool.usage
-                    used_mcp_server_names.add(mcp_server_name)
-                    
                     # 从远程 MCP 列表中查找对应的 URL
                     for remote_mcp_info in remote_mcp_list:
                         if (remote_mcp_info["remote_mcp_server_name"] == mcp_server_name and 
