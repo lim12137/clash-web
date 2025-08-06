@@ -6,11 +6,11 @@ from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest, Pr
     BatchCreateModelsRequest
 from database.model_management_db import create_model_record, delete_model_record, \
     get_model_records, get_model_by_display_name, get_models_by_tenant_factory_type
-from services.model_health_service import check_model_connectivity, embedding_dimension_check, \
-    get_models_from_silicon, prepare_model_dict
+from services.model_health_service import check_model_connectivity, embedding_dimension_check
+from services.model_provider_service import SiliconModelProvider, prepare_model_dict
 from utils.model_name_utils import split_repo_name, add_repo_to_name, split_display_name
 from utils.auth_utils import get_current_user_id
-from consts.provider import SILICON_BASE_URL
+from consts.provider import SILICON_BASE_URL, ProviderEnum
 
 router = APIRouter(prefix="/model")
 
@@ -85,8 +85,9 @@ async def create_provider_model(request: ProviderModelRequest, authorization: Op
     try:
         model_data = request.model_dump()
         model_list=[]
-        if model_data["provider"] == "silicon":
-            model_list = await get_models_from_silicon(model_data)
+        if model_data["provider"] == ProviderEnum.SILICON.value:
+            provider = SiliconModelProvider()
+            model_list = await provider.get_models(model_data)
         return ModelResponse(   
             code=200,
             message=f"Provider model {model_data['provider']} created successfully",
@@ -107,7 +108,7 @@ async def batch_create_models(request: BatchCreateModelsRequest, authorization: 
         model_list = request.models
         model_api_key = request.api_key
         max_tokens = request.max_tokens
-        if request.provider == "silicon":
+        if request.provider == ProviderEnum.SILICON.value:
             model_url = SILICON_BASE_URL
         else:
             model_url = ""
