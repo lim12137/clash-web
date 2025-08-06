@@ -10,7 +10,7 @@ from services.model_health_service import check_model_connectivity, embedding_di
     get_models_from_silicon, prepare_model_dict
 from utils.model_name_utils import split_repo_name, add_repo_to_name, split_display_name
 from utils.auth_utils import get_current_user_id
-from consts.const import SILICON_BASE_URL
+from consts.provider import SILICON_BASE_URL
 
 router = APIRouter(prefix="/model")
 

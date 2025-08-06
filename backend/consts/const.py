@@ -92,7 +92,3 @@ TOKEN = os.getenv("TOKEN", "")
 CLUSTER = os.getenv("CLUSTER", "volcano_tts")
 VOICE_TYPE = os.getenv("VOICE_TYPE", "zh_male_jieshuonansheng_mars_bigtts")
 SPEED_RATIO = float(os.getenv("SPEED_RATIO", "1.3"))
-
-
-SILICON_BASE_URL = "https://api.siliconflow.cn/v1/"
-SILICON_GET_URL = "https://api.siliconflow.cn/v1/models"
