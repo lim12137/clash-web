@@ -15,6 +15,7 @@ import threading
 from .ray_actors import DataProcessorRayActor
 from .app import app
 from utils.file_management_utils import get_file_size
+from consts.const import ELASTICSEARCH_SERVICE
 
 # Configure logging
 logger = logging.getLogger("data_process.tasks")
@@ -368,7 +369,7 @@ def forward(self, processed_data: Dict, index_name: str,
                 "original_filename": original_filename
             }, ensure_ascii=False))
         async def index_documents():
-            elasticsearch_url = os.environ.get("ELASTICSEARCH_SERVICE")
+            elasticsearch_url = ELASTICSEARCH_SERVICE
             if not elasticsearch_url:
                 raise Exception(json.dumps({
                     "message": "ELASTICSEARCH_SERVICE env is not set",

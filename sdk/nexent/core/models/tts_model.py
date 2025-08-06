@@ -2,7 +2,6 @@ import copy
 import gzip
 import io
 import json
-import os
 import uuid
 from dataclasses import dataclass
 from typing import Optional, Union, AsyncGenerator, Dict, Any
@@ -15,23 +14,12 @@ class TTSConfig:
     token: str
     cluster: str
     voice_type: str
+    speed_ratio: float
     host: str = "openspeech.bytedance.com"
-    speed_ratio: float = 1.5
 
     @property
     def api_url(self) -> str:
         return f"wss://{self.host}/api/v1/tts/ws_binary"
-
-    @classmethod
-    def from_env(cls) -> 'TTSConfig':
-        """
-        Create TTSConfig instance from environment variables.
-                    
-        Returns:
-            TTSConfig: Configuration instance loaded from environment variables
-        """
-        return cls(appid=os.getenv("APPID"), token=os.getenv("TOKEN"), cluster=os.getenv("CLUSTER"),
-            voice_type=os.getenv("VOICE_TYPE"), speed_ratio=os.getenv("SPEED_RATIO"))
 
 
 class TTSModel:

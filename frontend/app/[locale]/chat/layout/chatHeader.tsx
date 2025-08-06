@@ -24,6 +24,9 @@ const GradientDefs = () => (
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdownMenu"
 import { useTranslation } from "react-i18next"
+import { Select } from "antd"
+import { languageOptions } from '@/lib/constants'
+import { useLanguageSwitch } from '@/lib/languageUtils'
 import MemoryManageModal from "../internal/memory/memoryManageModal"
 
 interface ChatHeaderProps {
@@ -42,6 +45,7 @@ export function ChatHeader({
   const [memoryModalVisible, setMemoryModalVisible] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation('common');
+  const { currentLanguage, handleLanguageChange } = useLanguageSwitch();
 
   // Update editTitle when the title attribute changes
   useEffect(() => {
@@ -81,6 +85,8 @@ export function ChatHeader({
     }
   };
 
+
+
   return (
     <>
       <GradientDefs />
@@ -104,7 +110,7 @@ export function ChatHeader({
                     autoFocus
                   />
                 ) : (
-                  <h1 
+                  <h1
                     className="text-xl font-bold cursor-pointer px-2 py-1 rounded border border-transparent hover:border-slate-200"
                     onDoubleClick={handleDoubleClick}
                     title={t("chatHeader.doubleClickToEdit")}
@@ -114,11 +120,22 @@ export function ChatHeader({
                 )}
               </div>
             </div>
-            
+
             <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center space-x-1 gap-1">
+              {/* Language Switch */}
+              <Select
+                value={currentLanguage}
+                onChange={handleLanguageChange}
+                options={languageOptions}
+                style={{ width: 110, border: 'none' }}
+                variant="borderless"
+                size="small"
+              />
+              {/* Memory Setting */}
               <Button variant="ghost" className="h-8 w-12 rounded-full" onClick={() => setMemoryModalVisible(true)}>
                 <BrainCircuit className="size-5" stroke="url(#brainCogGradient)" />
               </Button>
+              {/* Dropdown Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-8 w-12 rounded-full">

@@ -16,6 +16,11 @@ from fastapi import FastAPI
 
 from data_process.ray_config import RayConfig
 from utils.logging_utils import configure_logging
+from consts.const import (
+    REDIS_URL, REDIS_PORT, FLOWER_PORT, RAY_DASHBOARD_PORT, RAY_DASHBOARD_HOST,
+    RAY_ACTOR_NUM_CPUS, RAY_NUM_CPUS, DISABLE_RAY_DASHBOARD, DISABLE_CELERY_FLOWER,
+    DOCKER_ENVIRONMENT
+)
 
 # Load environment variables
 load_dotenv()
@@ -38,20 +43,18 @@ class ServiceManager:
     
     def __init__(self, config: dict[str, Any]):
         self.config = config
-        self.redis_port = config.get('redis_port', 6379)
-        self.flower_port = config.get('flower_port', 5555)
-        self.ray_dashboard_port = config.get('ray_dashboard_port', 8265)
+        self.redis_port = config.get('redis_port', REDIS_PORT)
+        self.flower_port = config.get('flower_port', FLOWER_PORT)
+        self.ray_dashboard_port = config.get('ray_dashboard_port', RAY_DASHBOARD_PORT)
         
         # Unify configuration from command-line arguments and environment variables.
         # A service is disabled if EITHER the command-line flag is set OR the env var is 'true'.
         disable_dashboard_from_args = self.config.get('disable_ray_dashboard', False)
-        disable_dashboard_from_env = os.environ.get('DISABLE_RAY_DASHBOARD', 'false').lower() == 'true'
-        self.config['disable_ray_dashboard'] = disable_dashboard_from_args or disable_dashboard_from_env
+        self.config['disable_ray_dashboard'] = disable_dashboard_from_args or DISABLE_RAY_DASHBOARD
 
         # Flower is started only if it's enabled by args AND not disabled by env var.
         disable_flower_from_args = self.config.get('disable_celery_flower', False)
-        disable_flower_from_env = os.environ.get('DISABLE_CELERY_FLOWER', 'false').lower() == 'true'
-        self.config['start_flower'] = not (disable_flower_from_args or disable_flower_from_env)
+        self.config['start_flower'] = not (disable_flower_from_args or DISABLE_CELERY_FLOWER)
 
         self._shutdown_called = False  # Flag to prevent multiple shutdowns
         self._ray_cluster_started = False  # Track if we started Ray cluster
@@ -59,12 +62,12 @@ class ServiceManager:
     def start_redis(self):
         """Start Redis server if not already running"""
         # Local Redis is not supported yet
-        redis_url = os.environ.get('REDIS_URL', f'redis://localhost:{self.redis_port}/0')
+        redis_url = REDIS_URL or f'redis://localhost:{self.redis_port}/0'
         return self._check_redis_connection(redis_url)
     
     def _check_redis_connection(self, redis_url: str) -> bool:
         """Check Redis connection using Python redis client"""
-        redis_url = os.environ.get('REDIS_URL')
+        redis_url = REDIS_URL
         try:
             import redis
             redis_client = redis.from_url(redis_url, socket_timeout=5, socket_connect_timeout=5)
@@ -92,9 +95,8 @@ class ServiceManager:
                 return True
             
             # Get Ray configuration from environment
-            ray_num_cpus = os.environ.get('RAY_NUM_CPUS')
-            num_cpus = int(ray_num_cpus) if ray_num_cpus else os.cpu_count()
-            dashboard_host = os.environ.get('RAY_DASHBOARD_HOST', '0.0.0.0')
+            num_cpus = int(RAY_NUM_CPUS) if RAY_NUM_CPUS else os.cpu_count()
+            dashboard_host = RAY_DASHBOARD_HOST
             
             logger.info("🔮 Starting Ray cluster...")
             
@@ -138,6 +140,19 @@ class ServiceManager:
                 except Exception as e:
                     logger.debug(f"❌ Could not get cluster resources: {e}")
                 
+                # Propagate Ray address to environment for child processes so that
+                # subsequently spawned worker processes can connect to the same Ray
+                # cluster without additional configuration.
+                try:
+                    gcs_address = ray.get_runtime_context().gcs_address
+                    if gcs_address:
+                        os.environ["RAY_ADDRESS"] = gcs_address
+                        # Store in config for potential later use
+                        self.config['ray_address'] = gcs_address
+                        logger.info(f"✅ RAY_ADDRESS environment variable set to {gcs_address}")
+                except Exception as e:
+                    logger.debug(f"❌ Could not determine Ray address: {e}")
+                
                 return True
                 
         except Exception as e:
@@ -154,17 +169,15 @@ class ServiceManager:
             
         try:
             # Check if we're in Docker environment
-            docker_env = os.environ.get('DOCKER_ENVIRONMENT', 'false').lower() == 'true'
-            logger.info(f"Starting workers in {'Docker' if docker_env else 'development'} environment")
+            logger.info(f"Starting workers in {'Docker' if DOCKER_ENVIRONMENT else 'development'} environment")
 
             # Dynamically determine concurrency for process-worker based on Ray's CPU resources
-            ray_num_cpus = os.environ.get('RAY_NUM_CPUS')
             # Each process task requires 1 CPU from Ray. Concurrency should not exceed available CPUs.
             # Fallback to 1 if os.cpu_count() is None.
-            total_cpus = int(ray_num_cpus) if ray_num_cpus else (os.cpu_count() or 1)
+            total_cpus = int(RAY_NUM_CPUS) if RAY_NUM_CPUS else (os.cpu_count() or 1)
 
-            # Get the number of CPUs requested by each actor. Default to 2.
-            ray_actor_num_cpus = int(os.getenv('RAY_ACTOR_NUM_CPUS', '2'))
+            # Get the number of CPUs requested by each actor.
+            ray_actor_num_cpus = RAY_ACTOR_NUM_CPUS
             
             # Calculate concurrency for the process-worker. Each worker will spawn an actor,
             # so we limit concurrency to avoid oversubscribing Ray's CPU resources.
@@ -256,8 +269,8 @@ except Exception as e_exec:
                 # Set environment variables for the worker process
                 worker_env = os.environ.copy()
                 # Ensure REDIS_URL is correctly passed from the parent environment
-                if 'REDIS_URL' in os.environ: # Make sure it is set
-                    worker_env['REDIS_URL'] = os.environ['REDIS_URL']
+                if REDIS_URL: # Make sure it is set
+                    worker_env['REDIS_URL'] = REDIS_URL
                 else: # Default if not set. This should match your Celery app config.
                      worker_env['REDIS_URL'] = f'redis://localhost:{self.redis_port}/0'
 
@@ -350,7 +363,7 @@ except Exception as e_exec:
         """Start Flower monitoring for Celery"""
         try:
             # Get Redis URL from environment to ensure consistency
-            redis_url = os.environ.get('REDIS_URL')
+            redis_url = REDIS_URL
             
             # Get the backend directory path to ensure correct module import
             backend_dir = os.path.dirname(os.path.abspath(__file__))
@@ -545,7 +558,7 @@ except Exception as e_exec:
         logger.info("\n📋 Service Information:")
         logger.info("-" * 30)
         
-        logger.info(f"🔴 Redis: {os.environ.get('REDIS_URL')}")
+        logger.info(f"🔴 Redis: {REDIS_URL}")
         
         if self.config.get('start_ray', True):
             if ray.is_initialized():
@@ -710,11 +723,11 @@ Examples:
                        help='Do not start Ray cluster')
     
     # Port configuration
-    parser.add_argument('--redis-port', type=int, default=int(os.getenv('REDIS_PORT', '6379')),
+    parser.add_argument('--redis-port', type=int, default=REDIS_PORT,
                        help='Redis server port (default: env REDIS_PORT or 6379)')
-    parser.add_argument('--flower-port', type=int, default=int(os.getenv('FLOWER_PORT', '5555')),
+    parser.add_argument('--flower-port', type=int, default=FLOWER_PORT,
                        help='Flower monitoring port (default: env FLOWER_PORT or 5555)')
-    parser.add_argument('--ray-dashboard-port', type=int, default=int(os.getenv('RAY_DASHBOARD_PORT', '8265')),
+    parser.add_argument('--ray-dashboard-port', type=int, default=RAY_DASHBOARD_PORT,
                        help='Ray dashboard port (default: env RAY_DASHBOARD_PORT or 8265)')
     
     # Dashboard / monitoring disable flags

@@ -25,6 +25,10 @@ RUN uv pip install -e /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR")
 # Layer 2: copy backend code
 COPY backend /opt/backend
 
+# Create SSH key directory for Terminal tool
+RUN mkdir -p /opt/ssh-keys
+VOLUME ["/opt/ssh-keys"]
+
 ENV VIRTUAL_ENV=/opt/backend/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 WORKDIR /opt

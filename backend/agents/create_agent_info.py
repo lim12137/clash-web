@@ -143,6 +143,7 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
 async def create_tool_config_list(agent_id, tenant_id, user_id):
     # create tool
     tool_config_list = []
+    langchain_tools = await discover_langchain_tools()
 
     # now only admin can modify the agent, user_id is not used
     tools_list = search_tools_for_sub_agent(agent_id, tenant_id, user_id=None)
@@ -160,6 +161,13 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
             source=tool.get("source")
         )
 
+        if tool.get("source") == "langchain":
+            tool_class_name = tool.get("class_name")
+            for langchain_tool in langchain_tools:
+                if langchain_tool.name == tool_class_name:
+                    tool_config.metadata = langchain_tool
+                    break
+
         # special logic for knowledge base search tool
         if tool_config.class_name == "KnowledgeBaseSearchTool":
             knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
@@ -168,7 +176,41 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
                                     "es_core": elastic_core,
                                     "embedding_model": get_embedding_model(tenant_id=tenant_id)}
         tool_config_list.append(tool_config)
+    
     return tool_config_list
+
+
+async def discover_langchain_tools():
+    """
+    Discover LangChain tools implemented with the `@tool` decorator.
+    
+    Returns:
+        list: List of discovered LangChain tool instances
+    """
+    from utils.langchain_utils import discover_langchain_modules
+    
+    langchain_tools = []
+
+    # ----------------------------------------------
+    # Discover LangChain tools implemented with the
+    # `@tool` decorator and convert them to ToolConfig
+    # ----------------------------------------------
+    try:
+        # Use the utility function to discover all BaseTool objects
+        discovered_tools = discover_langchain_modules()
+        
+        for obj, filename in discovered_tools:
+            try:
+                # Log successful tool discovery
+                logger.info(f"Loaded LangChain tool '{obj.name}' from {filename}")
+                langchain_tools.append(obj)
+            except Exception as e:
+                logger.error(f"Error processing LangChain tool from {filename}: {e}")
+                
+    except Exception as e:
+        logger.error(f"Unexpected error scanning LangChain tools directory: {e}")
+    
+    return langchain_tools
 
 
 async def prepare_prompt_templates(is_manager: bool, system_prompt: str, language: str = 'zh'):
