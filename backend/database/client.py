@@ -32,18 +32,18 @@ class PostgresClient:
         self.database = POSTGRES_DB
         self.port = POSTGRES_PORT
         self.engine = create_engine("postgresql://",
-            connect_args={
-                "host": self.host,
-                "user": self.user,
-                "password": self.password,
-                "database": self.database,
-                "port": self.port,
-                "client_encoding": "utf8"
-            },
-            echo=False,
-            pool_size=10,
-            pool_pre_ping=True,
-            pool_timeout=30)
+                                    connect_args={
+                                        "host": self.host,
+                                        "user": self.user,
+                                        "password": self.password,
+                                        "database": self.database,
+                                        "port": self.port,
+                                        "client_encoding": "utf8"
+                                    },
+                                    echo=False,
+                                    pool_size=10,
+                                    pool_pre_ping=True,
+                                    pool_timeout=30)
         self.session_maker = sessionmaker(bind=self.engine)
 
     def clean_string_values(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -187,4 +187,107 @@ class MinioClient:
             response = self.client.head_object(Bucket=bucket, Key=object_name)
             return int(response['ContentLength'])
         except ClientError as e:
-            logger.error(f"Get file size by objectname({object_name}) failed: {
+            logger.error(f"Get file size by objectname({object_name}) failed: {e}")
+            return 0
+
+    def list_files(self, prefix: str = "", bucket: Optional[str] = None) -> List[dict]:
+        """
+        List files in bucket
+        
+        Args:
+            prefix: Prefix filter
+            bucket: Bucket name, if not specified use default bucket
+            
+        Returns:
+            List[dict]: List of file information
+        """
+        bucket = bucket or self.default_bucket
+        try:
+            response = self.client.list_objects_v2(Bucket=bucket, Prefix=prefix)
+            files = []
+            if 'Contents' in response:
+                for obj in response['Contents']:
+                    files.append({'key': obj['Key'], 'size': obj['Size'], 'last_modified': obj['LastModified']})
+            return files
+        except Exception as e:
+            logger.error(f"Error listing files: {str(e)}")
+            return []
+
+    def delete_file(self, object_name: str, bucket: Optional[str] = None) -> Tuple[bool, str]:
+        """
+        Delete file
+        
+        Args:
+            object_name: Object name
+            bucket: Bucket name, if not specified use default bucket
+            
+        Returns:
+            Tuple[bool, str]: (Success status, Success message or error message)
+        """
+        bucket = bucket or self.default_bucket
+        try:
+            self.client.delete_object(Bucket=bucket, Key=object_name)
+            return True, f"File {object_name} deleted successfully"
+        except Exception as e:
+            return False, str(e)
+
+    def get_file_stream(self, object_name: str, bucket: Optional[str] = None) -> Tuple[bool, Any]:
+        """
+        Get file binary stream from MinIO
+        
+        Args:
+            object_name: Object name
+            bucket: Bucket name, if not specified use default bucket
+            
+        Returns:
+            Tuple[bool, Any]: (Success status, File stream object or error message)
+        """
+        bucket = bucket or self.default_bucket
+        try:
+            response = self.client.get_object(Bucket=bucket, Key=object_name)
+            return True, response['Body']
+        except Exception as e:
+            return False, str(e)
+
+
+# Create global database and MinIO client instances
+db_client = PostgresClient()
+minio_client = MinioClient()
+
+@contextmanager
+def get_db_session(db_session = None):
+    """
+    param db_session: Optional session to use, if None, a new session will be created.
+    Provide a transactional scope around a series of operations.
+    """
+    session = db_client.session_maker() if db_session is None else db_session
+    try:
+        yield session
+        if db_session is None:
+            session.commit()
+    except Exception as e:
+        if db_session is None:
+            session.rollback()
+        logger.error(f"Database operation failed: {str(e)}")
+        raise e
+    finally:
+        if db_session is None:
+            session.close()
+
+def as_dict(obj):
+    if isinstance(obj, TableBase):
+        return {c.key: getattr(obj, c.key) for c in class_mapper(obj.__class__).columns}
+
+    # noinspection PyProtectedMember
+    return dict(obj._mapping)
+
+def filter_property(data, model_class):
+    """
+    Filter the data dictionary to only include keys that correspond to columns in the model class.
+
+    :param data: Dictionary containing the data to be filtered.
+    :param model_class: The SQLAlchemy model class to filter against.
+    :return: A new dictionary with only the keys that match the model's columns.
+    """
+    model_fields = model_class.__table__.columns.keys()
+    return {key: value for key, value in data.items() if key in model_fields}
