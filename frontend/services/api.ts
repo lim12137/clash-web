@@ -65,6 +65,9 @@ export const API_ENDPOINTS = {
     // Custom model service
     customModelList: `${API_BASE_URL}/model/list`,
     customModelCreate: `${API_BASE_URL}/model/create`,
+    customModelCreateProvider: `${API_BASE_URL}/model/create_provider`,
+    customModelBatchCreate: `${API_BASE_URL}/model/batch_create_models`,
+    getProviderSelectedModalList: `${API_BASE_URL}/model/provider/list`,
     customModelDelete: (displayName: string) => `${API_BASE_URL}/model/delete?display_name=${encodeURIComponent(displayName)}`,
     customModelHealthcheck: (displayName: string) => `${API_BASE_URL}/model/healthcheck?display_name=${encodeURIComponent(displayName)}`,
     verifyModelConfig: `${API_BASE_URL}/model/verify_config`,
