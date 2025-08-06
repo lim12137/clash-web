@@ -809,8 +809,6 @@
     "businessLogic.config.message.agentDeleteFailed": "Agent delete failed",
     "businessLogic.config.message.agentDeleteRetry": "Agent delete failed, please try again later",
     "businessLogic.config.message.agentDeleteConfirm": "Are you sure you want to delete this agent? This action cannot be undone.",
-    "businessLogic.nonEditing.title": "Please Enter Edit Mode First",
-    "businessLogic.nonEditing.subtitle": "Please select an Agent to edit or create a new Agent",
     "model.validation.MODEL_VALIDATION_SUCCESS": "Model connectivity validation successful",
     "model.validation.MODEL_VALIDATION_FAILED": "Model connectivity validation failed",
     "model.validation.MODEL_VALIDATION_ERROR": "Model validation error",

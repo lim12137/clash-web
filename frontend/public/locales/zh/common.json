@@ -972,7 +972,5 @@
         }
     },
     "model.dialog.success.addBatchModel": "批量添加模型成功！",
-    "model.dialog.error.addBatchModel": "批量添加模型失败：{{message}}",
-    "businessLogic.nonEditing.title": "请先进入编辑模式",
-    "businessLogic.nonEditing.subtitle": "请先选择一个Agent进行编辑，或创建新的Agent"
+    "model.dialog.error.addBatchModel": "批量添加模型失败：{{message}}"
 }
