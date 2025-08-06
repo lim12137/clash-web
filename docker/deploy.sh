@@ -196,7 +196,7 @@ install() {
     export COMPOSE_PROFILES
     echo "📋 Using profiles: $COMPOSE_PROFILES"
   fi
-  
+
   # Start infrastructure services
   if ! docker-compose -p nexent -f "${COMPOSE_FILE}" up -d $INFRA_SERVICES; then
     echo "❌ ERROR Failed to start infrastructure services"
@@ -221,13 +221,13 @@ install() {
     export MINIO_ACCESS_KEY
     export MINIO_SECRET_KEY
   fi
-  
+
   wait_for_elasticsearch_healthy || {
     echo "❌ ERROR Elasticsearch health check failed"
     ERROR_OCCURRED=1
     return 1
   }
-  
+
   # Generate Elasticsearch API key and export to environment
   generate_elasticsearch_api_key_for_env || {
     echo "❌ ERROR Failed to generate Elasticsearch API key"
@@ -364,7 +364,7 @@ wait_for_elasticsearch_healthy() {
         sleep 10
         retries=$((retries + 1))
     done
-    
+
     if [ $retries -eq $max_retries ]; then
         echo "⚠️  Warning: Elasticsearch did not become healthy within expected time"
         echo "   You may need to check the container logs and try again"
@@ -378,13 +378,13 @@ wait_for_elasticsearch_healthy() {
 # Function to generate Elasticsearch API key for environment variables (not file)
 generate_elasticsearch_api_key_for_env() {
     echo "🔑 Generating ELASTICSEARCH_API_KEY for environment..."
-    
+
     # Generate API key
     API_KEY_JSON=$(docker-compose -p nexent -f "${COMPOSE_FILE}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"nexent_deploy_key","role_descriptors":{"nexent_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
-    
+
     # Extract API key
     ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
-    
+
     if [ -n "$ELASTICSEARCH_API_KEY" ]; then
         # Export to environment for docker-compose
         export ELASTICSEARCH_API_KEY
@@ -413,14 +413,14 @@ generate_env_for_infrastructure() {
         echo "❌ ERROR generate_env.sh not found in docker directory"
         return 1
     fi
-    
+
     # Make sure the script is executable and run it
     chmod +x generate_env.sh
     if ./generate_env.sh; then
         echo "--------------------------------"
         echo ""
         echo "✅ Environment file generated successfully for infrastructure mode!"
-        
+
         # Source the generated .env file to make variables available
         if [ -f "../.env" ]; then
             echo "📁 Sourcing generated .env file..."
@@ -436,7 +436,7 @@ generate_env_for_infrastructure() {
         echo "❌ ERROR Failed to generate environment file"
         return 1
     fi
-    
+
     echo ""
     echo "--------------------------------"
     echo ""
@@ -614,26 +614,26 @@ echo ""
 main_deploy() {
   # Start deployment
   select_deployment_mode || { echo "❌ Deployment mode selection failed"; exit 1; }
-  
+
   # Special handling for infrastructure mode
   if [ "$DEPLOYMENT_MODE" = "infrastructure" ]; then
     echo "🏗️  Infrastructure mode detected - preparing infrastructure services..."
-    
+
     # Set up basic environment and permissions first
     add_permission || { echo "❌ Permission setup failed"; exit 1; }
-    
+
     # Choose image environment (required for Docker images)
     echo "🌐 Selecting image environment for infrastructure services..."
     choose_image_env || { echo "❌ Image environment setup failed"; exit 1; }
-    
+
     # Generate MinIO keys first to avoid docker-compose warnings
     echo "🔑 Pre-generating MinIO keys to avoid docker-compose warnings..."
     generate_minio_ak_sk || { echo "❌ MinIO key generation failed"; exit 1; }
-    
+
     # Export MinIO keys to current environment for docker-compose
     export MINIO_ACCESS_KEY
     export MINIO_SECRET_KEY
-    
+
     # Start infrastructure services (basic services only)
     echo "🔧 Starting infrastructure services..."
     INFRA_SERVICES="nexent-elasticsearch nexent-postgresql nexent-minio redis"
@@ -641,18 +641,18 @@ main_deploy() {
       echo "❌ ERROR Failed to start infrastructure services"
       exit 1
     fi
-    
+
     # Wait for services to be healthy, then generate complete environment
     echo "🔑 Generating complete environment file with all keys..."
     generate_env_for_infrastructure || { echo "❌ Environment generation failed"; exit 1; }
-    
+
     echo "🎉  Infrastructure deployment completed successfully!"
     echo "📦  You can now start the core services manually using dev containers"
     echo "📁  Environment file available at: $(cd .. && pwd)/.env"
     echo "💡  Use 'source .env' to load environment variables in your development shell"
     return 0
   fi
-  
+
   # Normal deployment flow for other modes
   select_terminal_tool || { echo "❌ Terminal tool configuration failed"; exit 1; }
   add_permission || { echo "❌ Permission setup failed"; exit 1; }
