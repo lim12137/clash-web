@@ -26,14 +26,14 @@ export default function AgentSelector({ onAgentSelect, selectedAgentId }: AgentS
   const [loading, setLoading] = useState(true)
   const [selectedAgent, setSelectedAgent] = useState<AgentBasicInfo | null>(null)
 
-  // 获取所有agent的基本信息
+  // Get basic information of all agents
   const loadAgents = async () => {
     setLoading(true)
     try {
       const result = await fetchAllAgentsBasicInfo()
       if (result.success) {
         setAgents(result.data)
-        // 如果有预选的agent，设置选中状态
+        // If there is a pre-selected agent, set selected state
         if (selectedAgentId) {
           const preSelectedAgent = result.data.find(agent => agent.agent_id === selectedAgentId)
           if (preSelectedAgent) {
@@ -44,7 +44,7 @@ export default function AgentSelector({ onAgentSelect, selectedAgentId }: AgentS
         message.error(result.message || t('agent.error.fetchAgentList'))
       }
     } catch (error) {
-      console.error('获取Agent列表失败:', error)
+      console.error('Failed to get agent list:', error)
       message.error(t('agent.error.fetchAgentListRetry'))
     } finally {
       setLoading(false)

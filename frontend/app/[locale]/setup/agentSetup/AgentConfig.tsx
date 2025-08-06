@@ -104,14 +104,14 @@ export default function AgentConfig() {
 
     setIsGeneratingAgent(true)
     try {
-      // 调用后端API生成智能体提示词
+      // Call backend API to generate agent prompt
       await generatePromptStream(
         {
           agent_id: Number(currentAgentId),
           task_description: businessLogic
         },
         (data) => {
-          // 处理流式响应数据
+          // Process streaming response data
           switch (data.type) {
             case 'duty':
               setDutyContent(data.content)
@@ -155,7 +155,7 @@ export default function AgentConfig() {
 
     setIsSavingAgent(true)
     try {
-      // 调用实际的保存API
+      // Call the actual save API
       const result = await updateAgent(
         Number(currentAgentId),
         agentName,
@@ -163,7 +163,7 @@ export default function AgentConfig() {
         mainAgentModel,
         mainAgentMaxStep,
         false, // provide_run_summary
-        true, // enabled - 保存到agent池时启用
+        true, // enabled - enable when saving to agent pool
         businessLogic,
         dutyContent,
         constraintContent,
@@ -174,7 +174,7 @@ export default function AgentConfig() {
         const actionText = isCreatingNewAgent ? t('agent.action.create') : t('agent.action.modify')
         message.success(t('businessLogic.config.message.agentCreated', { name: agentName, action: actionText }))
 
-        // 重置状态
+        // Reset state
         setIsCreatingNewAgent(false)
         setIsEditingAgent(false)
         setEditingAgent(null)
@@ -186,13 +186,13 @@ export default function AgentConfig() {
         setAgentDescription('')
         setSelectedTools([])
 
-        // 清除新建Agent的缓存
+        // Clear new agent cache
         clearNewAgentCache()
 
-        // 通知父组件状态变化
+        // Notify parent component of state change
         handleEditingStateChange(false, null)
 
-        // 刷新agent列表
+        // Refresh agent list
         fetchAgents()
       } else {
         message.error(result.message || t('businessLogic.config.error.saveFailed'))
@@ -215,13 +215,13 @@ export default function AgentConfig() {
     try {
       const result = await exportAgent(Number(editingAgent.id))
       if (result.success) {
-        // 处理后端返回的字符串或对象
+        // Handle backend returned string or object
         let exportData = result.data;
         if (typeof exportData === 'string') {
           try {
             exportData = JSON.parse(exportData);
           } catch (e) {
-            // 如果解析失败，说明本身就是字符串，直接导出
+            // If parsing fails, it means it's already a string, export directly
           }
         }
         const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -340,7 +340,7 @@ export default function AgentConfig() {
         setSubAgentList(result.data);
         // Clear other states since we don't have detailed info yet
         setMainAgentId(null);
-        // 不再手动清空enabledAgentIds，完全依赖后端返回的sub_agent_id_list
+        // No longer manually clear enabledAgentIds, completely rely on backend returned sub_agent_id_list
         setMainAgentModel(OpenAIModel.MainModel);
         setMainAgentMaxStep(5);
         setBusinessLogic('');
@@ -402,8 +402,8 @@ export default function AgentConfig() {
 
 
 
-  // 移除前端缓存逻辑，完全依赖后端返回的sub_agent_id_list
-  // 不再需要根据enabledAgentIds来设置selectedAgents
+  // Remove frontend caching logic, completely rely on backend returned sub_agent_id_list
+  // No longer need to set selectedAgents based on enabledAgentIds
 
   // Monitor the status change of creating a new agent, and reset the relevant status
   useEffect(() => {
@@ -447,12 +447,12 @@ export default function AgentConfig() {
     setIsEditingAgent(isEditing)
     setEditingAgent(agent)
     
-    // 当开始编辑agent时，设置agent的名称和描述到右侧的名称描述框
+    // When starting to edit agent, set agent name and description to the right-side name description box
     if (isEditing && agent) {
       console.log('Setting agent name and description:', agent.name, agent.description);
       setAgentName(agent.name || '')
       setAgentDescription(agent.description || '')
-      // 如果正在创建新agent，先缓存当前内容，然后清空
+      // If creating new agent, cache current content first, then clear
       if (isCreatingNewAgent) {
         setNewAgentCache({
           businessLogic,
@@ -462,7 +462,7 @@ export default function AgentConfig() {
           agentName,
           agentDescription
         })
-        // 清空新建相关的内容
+        // Clear new creation related content
         setIsCreatingNewAgent(false)
         setBusinessLogic('')
         setDutyContent('')
@@ -470,7 +470,7 @@ export default function AgentConfig() {
         setFewShotsContent('')
       }
     } else if (!isEditing) {
-      // 当停止编辑时，清空名称描述框
+      // When stopping editing, clear name description box
       setAgentName('')
       setAgentDescription('')
     }
