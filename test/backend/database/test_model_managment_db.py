@@ -1,7 +1,21 @@
+import sys
 import pytest
 from unittest.mock import patch, MagicMock
 
-from backend.database.model_management_db import get_models_by_tenant_factory_type
+# Patch the Minio client (and boto3, which it relies on) *before* importing the
+# module under test.  This prevents any real network calls from being executed
+# when the global `minio_client` instance is created during import time.
+
+# Provide a stub for the `boto3` module so that it can be imported safely even
+# if the testing environment does not have it available.
+boto3_mock = MagicMock()
+sys.modules['boto3'] = boto3_mock
+
+# Replace the `MinioClient` class with a mock that returns another mock
+# instance.  All methods/properties invoked on it inside the code under test
+# will therefore be harmless no-ops.
+with patch('backend.database.client.MinioClient', return_value=MagicMock()):
+    from backend.database.model_management_db import get_models_by_tenant_factory_type
 
 @pytest.fixture
 def mock_session():
