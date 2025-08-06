@@ -15,6 +15,7 @@ export interface ToolParam {
     params: ToolParam[]
     enable: boolean
     is_available: boolean
+    usage?: string // 新增：用于标注工具来源的usage字段
   }
   
   export interface Agent {
