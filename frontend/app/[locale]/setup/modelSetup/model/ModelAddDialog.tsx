@@ -215,6 +215,9 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey
       })
       setModelList(result)
+      if (!result || result.length === 0) {
+        message.error(t('model.dialog.error.noModelsFetched'))
+      }
       const selectedModels = await getProviderSelectedModalList() || []
       // 关键逻辑
       if (!selectedModels.length) {
@@ -679,7 +682,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               <p className="font-bold text-medium">{t('model.dialog.help.title')}</p>
             </div>
             <p className="mt-0.5 ml-6">
-              {t('model.dialog.help.content')}
+              {form.isBatchImport ? t('model.dialog.help.content.batchImport') : t('model.dialog.help.content')}
             </p>
             <div className="mt-2 ml-6 flex items-center">
               <span>{t('model.dialog.label.currentlySupported')}</span>
