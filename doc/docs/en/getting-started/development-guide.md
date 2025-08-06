@@ -72,6 +72,32 @@ uv pip install ../sdk
 `--all-extras` will install all optional dependencies, including data processing, testing, and other modules. Then install the local SDK package.
 :::
 
+#### Using Domestic Mirror Sources (Optional)
+If network access is slow, you can use domestic mirror sources to accelerate installation:
+
+```bash
+# Using Tsinghua University mirror source
+uv sync --all-extras --default-index https://pypi.tuna.tsinghua.edu.cn/simple
+uv pip install ../sdk --default-index https://pypi.tuna.tsinghua.edu.cn/simple
+
+# Using Alibaba Cloud mirror source
+uv sync --all-extras --default-index https://mirrors.aliyun.com/pypi/simple/
+uv pip install ../sdk --default-index https://mirrors.aliyun.com/pypi/simple/
+
+# Using multiple mirror sources (recommended)
+uv sync --all-extras --index https://pypi.tuna.tsinghua.edu.cn/simple --index https://mirrors.aliyun.com/pypi/simple/
+uv pip install ../sdk --index https://pypi.tuna.tsinghua.edu.cn/simple --index https://mirrors.aliyun.com/pypi/simple/
+```
+
+::: info Mirror Source Information
+- **Tsinghua University Mirror**: `https://pypi.tuna.tsinghua.edu.cn/simple`
+- **Alibaba Cloud Mirror**: `https://mirrors.aliyun.com/pypi/simple/`
+- **USTC Mirror**: `https://pypi.mirrors.ustc.edu.cn/simple/`
+- **Douban Mirror**: `https://pypi.douban.com/simple/`
+
+It's recommended to use multiple mirror source configurations to improve download success rates.
+:::
+
 ### Frontend Setup
 ```bash
 cd frontend
@@ -83,15 +109,18 @@ pnpm dev
 Before starting services, you need to activate the virtual environment:
 
 ```bash
-# Execute in the project root directory
-source venv/bin/activate  # Activate virtual environment
+# Execute in the project backend directory
+cd backend
+source .venv/bin/activate  # Activate virtual environment
 ```
 
 Nexent includes three core backend services that need to be started separately:
+
 ```bash
+# Execute in the project root directory, please follow this order:
+source .env && python backend/nexent_mcp_service.py     # MCP service
 source .env && python backend/data_process_service.py   # Data processing service
 source .env && python backend/main_service.py           # Main service
-source .env && python backend/nexent_mcp_service.py     # MCP service
 ```
 
 ::: warning Important Notes
