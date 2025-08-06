@@ -260,6 +260,7 @@ class MessageIdRequest(BaseModel):
 
 
 class ExportAndImportAgentInfo(BaseModel):
+    agent_id: int
     name: str
     description: str
     business_description: str
@@ -273,10 +274,13 @@ class ExportAndImportAgentInfo(BaseModel):
     tools: List[ToolConfig]
     managed_agents: List
 
+class ExportAndImportDataFormat(BaseModel):
+    agent_id: int
+    agent_info: Dict[str, ExportAndImportAgentInfo]
+
 
 class AgentImportRequest(BaseModel):
-    agent_id: int
-    agent_info: ExportAndImportAgentInfo
+    agent_info: ExportAndImportDataFormat
 
 
 class ConvertStateRequest(BaseModel):

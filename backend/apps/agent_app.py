@@ -144,7 +144,7 @@ async def import_agent_api(request: AgentImportRequest, authorization: Optional[
     import an agent
     """
     try:
-        import_agent_impl(request.agent_id, request.agent_info, authorization)
+        import_agent_impl(request.agent_info, authorization)
         return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent import error: {str(e)}")
