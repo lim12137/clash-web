@@ -33,7 +33,7 @@ class LinkupSearchTool(Tool):
         self.observer = observer
         self.client = LinkupClient(api_key=linkup_api_key)
         self.max_results = max_results
-        self.record_ops = 0
+        self.record_ops = 1
         self.running_prompt_en = "Searching the web..."
         self.running_prompt_zh = "网络搜索中..."
         self.image_filter = image_filter
