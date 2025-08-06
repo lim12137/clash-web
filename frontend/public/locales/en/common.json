@@ -562,6 +562,8 @@
     "model.dialog.label.apiKey": "API Key",
     "model.dialog.label.vectorDimension": "Vector Dimension",
     "model.dialog.label.maxTokens": "Max Tokens",
+    "model.dialog.label.batchImport": "Batch Add",
+    "model.dialog.label.provider": "Model Provider",
     "model.dialog.label.currentlySupported": "Currently supported:",
     "model.dialog.placeholder.name": "Enter model name as in request body",
     "model.dialog.placeholder.displayName": "Enter display name for the model",
@@ -572,10 +574,16 @@
     "model.dialog.placeholder.maxTokens": "Enter maximum tokens",
     "model.dialog.hint.multimodalEnabled": "Multimodal vector model can process both images and text",
     "model.dialog.hint.multimodalDisabled": "Text vector model only processes text",
+    "model.dialog.hint.batchImportEnabled": "Batch add enabled. Multiple models will be added at once.",
+    "model.dialog.hint.batchImportDisabled": "Batch add disabled. Only a single model will be added.",
+    "model.provider.silicon": "SiliconFlow",
+    "model.provider.local": "Local Deployment",
+    "model.dialog.modelList.title":"Show Models",
     "model.dialog.connectivity.title": "Connectivity Verification",
     "model.dialog.connectivity.status.checking": "Checking",
     "model.dialog.connectivity.status.available": "Available",
     "model.dialog.connectivity.status.unavailable": "Unavailable",
+    "model.dialog.button.modelList": "Get Models",
     "model.dialog.button.verify": "Verify",
     "model.dialog.button.verifying": "Verifying...",
     "model.dialog.button.add": "Add",
@@ -589,7 +597,9 @@
     "model.dialog.error.verificationError": "Failed to verify connectivity: {{error}}",
     "model.dialog.error.addFailed": "Failed to add model: {{error}}",
     "model.dialog.error.addFailedLog": "Failed to add model",
+    "model.dialog.message.noModels": "Please fetch models first",
     "model.dialog.error.invalidVectorDimension": "Please enter a positive integer",
+    "model.type.all": "All Models",
     "model.type.llm": "Large Language Model",
     "model.type.embedding": "Embedding Model",
     "model.type.vlm": "Vision Language Model",
@@ -963,5 +973,7 @@
             "generatingInProgress": "Agent generation in progress, please wait",
             "circularDependency": "Circular agent dependency detected"
         }
-    }
+    },
+    "model.dialog.success.addBatchModel": "Batch add models succeeded!",
+    "model.dialog.error.addBatchModel": "Batch add models failed: {{message}}"
 }
