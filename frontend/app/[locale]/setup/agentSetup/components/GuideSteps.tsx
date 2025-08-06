@@ -71,29 +71,29 @@ export default function GuideSteps({
   const GUIDE_STEPS = getGuideSteps(t);
 
   useEffect(() => {
-    console.log('当前 mainAgentId:', mainAgentId);
+    console.log('Current mainAgentId:', mainAgentId);
   }, [mainAgentId]);
 
   // Get Current Step
   const getCurrentStep = () => {
-    // 统一的步骤判断逻辑，不管是在创建模式还是编辑模式
+    // Unified step judgment logic, whether in creation mode or editing mode
     if (systemPrompt || (dutyContent?.trim()) || (constraintContent?.trim()) || (fewShotsContent?.trim())) {
-      return 4; // 生成智能体并调试
+      return 4; // Generate agent and debug
     }
     if (businessLogic && businessLogic.trim() !== '') {
-      return 3; // 描述业务逻辑
+      return 3; // Describe business logic
     }
     if (selectedTools.length > 0) {
-      return 2; // 选择使用工具
+      return 2; // Select tools to use
     }
-    // 使用enabledAgentIds来判断是否选择了协作Agent，因为这是实际管理协作Agent选择的状态
+    // Use enabledAgentIds to determine if collaborative agents are selected, as this is the actual state managing collaborative agent selection
     if (enabledAgentIds.length > 0) {
-      return 1; // 选择协作Agent
+      return 1; // Select collaborative agents
     }
     if (isCreatingNewAgent || isEditingAgent) {
-      return 0; // 新建/修改Agent
+      return 0; // Create/modify agent
     }
-    return 0; // 默认第一步
+    return 0; // Default first step
   };
 
   // Use external currentStep if provided

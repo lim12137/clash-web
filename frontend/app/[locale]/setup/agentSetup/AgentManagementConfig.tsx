@@ -99,7 +99,7 @@ export default function BusinessLogicConfig({
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  // 使用父组件传递的生成状态，而不是本地状态
+  // Use generation state passed from parent component, not local state
   // const [localIsGenerating, setLocalIsGenerating] = useState(false)
   
   const [generationProgress, setGenerationProgress] = useState({
@@ -150,26 +150,26 @@ export default function BusinessLogicConfig({
   };
 
   // Handle agent selection and load detailed configuration
-  // 移除前端缓存逻辑，完全依赖后端返回的sub_agent_id_list
+  // Remove frontend caching logic, completely rely on backend returned sub_agent_id_list
   const handleAgentSelectionOnly = (agent: Agent, isSelected: boolean) => {
-    // 不再进行前端缓存，完全依赖后端返回的sub_agent_id_list
-    // 这个函数现在只是一个占位符，实际的状态管理由后端控制
+    // No longer perform frontend caching, completely rely on backend returned sub_agent_id_list
+    // This function is now just a placeholder, actual state management is controlled by backend
     console.log('Agent selection changed:', agent.name, isSelected);
   };
 
-  // 刷新agent状态的函数
+  // Function to refresh agent state
   const handleRefreshAgentState = async () => {
     if (isEditingAgent && editingAgent) {
       try {
-        // 添加一个小延迟，确保后端操作完成
+        // Add a small delay to ensure backend operation is completed
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // 重新获取当前编辑agent的详细信息
+        // Re-fetch detailed information of currently editing agent
         const result = await searchAgentInfo(Number(editingAgent.id));
         if (result.success && result.data) {
           const agentDetail = result.data;
 
-          // 更新enabledAgentIds
+          // Update enabledAgentIds
           if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
             const newEnabledAgentIds = agentDetail.sub_agent_id_list.map((id: any) => Number(id));
             setEnabledAgentIds(newEnabledAgentIds);
@@ -178,12 +178,12 @@ export default function BusinessLogicConfig({
           }
         }
       } catch (error) {
-        console.error('刷新agent状态失败:', error);
+        console.error('Failed to refresh agent state:', error);
       }
     }
   };
 
-  // 直接更新enabledAgentIds的函数
+  // Function to directly update enabledAgentIds
   const handleUpdateEnabledAgentIds = (newEnabledAgentIds: number[]) => {
     setEnabledAgentIds(newEnabledAgentIds);
   };
@@ -228,7 +228,7 @@ export default function BusinessLogicConfig({
 
           // Update selected agents list
           setSelectedAgents([agentDetail]);
-          // 使用后端返回的sub_agent_id_list设置enabledAgentIds
+          // Use backend returned sub_agent_id_list to set enabledAgentIds
           if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
             setEnabledAgentIds(agentDetail.sub_agent_id_list.map((id: any) => Number(id)));
           } else {
@@ -240,13 +240,13 @@ export default function BusinessLogicConfig({
           message.error(result.message || t('businessLogic.config.error.agentDetailFailed'));
         }
       } catch (error) {
-        console.error('加载Agent详情失败:', error);
+        console.error('Failed to load agent details:', error);
         message.error(t('businessLogic.config.error.agentDetailFailed'));
       }
     } else {
       // Clear configuration when deselected
       setSelectedAgents([]);
-      // 清空enabledAgentIds
+      // Clear enabledAgentIds
       setEnabledAgentIds([]);
       setSelectedTools([]);
       setEnabledToolIds([]);
@@ -310,7 +310,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('businessLogic.config.error.agentIdFailed'));
       }
     } catch (error) {
-      console.error('创建新Agent失败:', error);
+      console.error('Failed to create new Agent:', error);
       message.error(t('businessLogic.config.error.agentIdFailed'));
     } finally {
       setIsLoadingTools(false);
@@ -338,20 +338,20 @@ export default function BusinessLogicConfig({
         setIsNewAgentInfoValid(true); // Assume data is valid when editing
         console.log('Edit mode useEffect - Do not clear data'); // Debug information
       }
-    } else {
-      // When exiting the creation of a new Agent, reset the main Agent configuration
-      // 只有在非编辑模式下退出创建模式时才刷新列表，避免编辑模式退出时的闪烁
-      if (!isEditingAgent) {
-        setBusinessLogic('');
-        setSystemPrompt(''); // Also clear the system prompt
-        setMainAgentModel(OpenAIModel.MainModel);
-        setMainAgentMaxStep(5);
-        // 延迟刷新agent列表，避免跳变
-        setTimeout(() => {
-          refreshAgentList(t);
-        }, 200);
+          } else {
+        // When exiting the creation of a new Agent, reset the main Agent configuration
+        // Only refresh list when exiting creation mode in non-editing mode to avoid flicker when exiting editing mode
+        if (!isEditingAgent) {
+          setBusinessLogic('');
+          setSystemPrompt(''); // Also clear the system prompt
+          setMainAgentModel(OpenAIModel.MainModel);
+          setMainAgentMaxStep(5);
+          // Delay refreshing agent list to avoid jumping
+          setTimeout(() => {
+            refreshAgentList(t);
+          }, 200);
+        }
       }
-    }
   }, [isCreatingNewAgent, isEditingAgent]);
 
   // Listen for changes in the tool status, update the selected tool
@@ -378,10 +378,10 @@ export default function BusinessLogicConfig({
 
   // Reset the status when the user cancels the creation of an Agent
   const handleCancelCreating = async () => {
-    // 先通知外部编辑状态变化，避免UI跳变
+    // First notify external editing state change to avoid UI jumping
     onEditingStateChange?.(false, null);
 
-    // 延迟重置状态，让UI先完成状态切换
+    // Delay resetting state to let UI complete state switching first
     setTimeout(() => {
       // Use the parent's exit creation handler to properly clear cache
       if (onExitCreation) {
@@ -400,7 +400,7 @@ export default function BusinessLogicConfig({
 
       // Note: Content clearing is handled by onExitCreation above
 
-      // 延迟清空工具和协作Agent选择，避免跳变
+      // Delay clearing tool and collaborative agent selection to avoid jumping
       setTimeout(() => {
         setSelectedTools([]);
         setEnabledToolIds([]);
@@ -409,40 +409,40 @@ export default function BusinessLogicConfig({
     }, 100);
   };
 
-  // 处理退出编辑模式
+  // Handle exit edit mode
   const handleExitEditMode = async () => {
     if (isCreatingNewAgent) {
-      // 如果是创建模式，调用取消创建逻辑
+      // If in creation mode, call cancel creation logic
       await handleCancelCreating();
     } else if (isEditingAgent) {
-      // 如果是编辑模式，先清空相关状态，再更新编辑状态，避免闪烁
-      // 先清空工具和agent选择状态
+      // If in editing mode, clear related states first, then update editing state to avoid flickering
+      // First clear tool and agent selection states
       setSelectedTools([]);
       setSelectedAgents([]);
       setEnabledToolIds([]);
       setEnabledAgentIds([]);
 
-      // 清空右侧名称描述框
+      // Clear right-side name description box
       setAgentName?.('');
       setAgentDescription?.('');
 
-      // 清空业务逻辑
+      // Clear business logic
       setBusinessLogic('');
 
-      // 清空分段提示内容
+      // Clear segmented prompt content
       setDutyContent?.('');
       setConstraintContent?.('');
       setFewShotsContent?.('');
 
-      // 通知外部编辑状态变化
+      // Notify external editing state change
       onEditingStateChange?.(false, null);
 
-      // 最后更新编辑状态，避免触发useEffect中的刷新逻辑
+      // Finally update editing state to avoid triggering refresh logic in useEffect
       setIsEditingAgent(false);
       setEditingAgent(null);
       setMainAgentId(null);
 
-      // 确保工具池不会显示加载状态
+      // Ensure tool pool won't show loading state
       setIsLoadingTools(false);
     }
   };
@@ -499,10 +499,10 @@ export default function BusinessLogicConfig({
           setNewAgentDescription('');
           setNewAgentProvideSummary(true);
           setSystemPrompt('');
-          // 清空右侧名称描述框
+          // Clear right-side name description box
           setAgentName?.('');
           setAgentDescription?.('');
-          // 清空分段提示内容
+          // Clear segmented prompt content
           setDutyContent?.('');
           setConstraintContent?.('');
           setFewShotsContent?.('');
@@ -552,7 +552,7 @@ export default function BusinessLogicConfig({
 
   const handleEditAgent = async (agent: Agent, t: TFunction) => {
     try {
-      // 调用查询接口获取完整的Agent信息
+      // Call query interface to get complete Agent information
       const result = await searchAgentInfo(Number(agent.id));
       
       if (!result.success || !result.data) {
@@ -562,17 +562,17 @@ export default function BusinessLogicConfig({
       
       const agentDetail = result.data;
       
-      // 获取信息成功后再设置编辑状态和高亮
+      // Set editing state and highlight after successfully getting information
       setIsEditingAgent(true);
       setEditingAgent(agentDetail);
-      // 设置mainAgentId为当前编辑的Agent ID
+      // Set mainAgentId to current editing Agent ID
       setMainAgentId(agentDetail.id);
-      // 编辑现有agent时，确保退出创建模式
+      // When editing existing agent, ensure exit creation mode
       // Note: This will be handled by the parent component's handleEditingStateChange
       // which will cache the current creation content before switching
       setIsCreatingNewAgent(false);
 
-      // 先设置右侧名称描述框的数据，确保立即显示
+      // First set right-side name description box data to ensure immediate display
       console.log('Setting agent name and description in handleEditAgent:', agentDetail.name, agentDetail.description);
       console.log('setAgentName function exists:', !!setAgentName);
       console.log('setAgentDescription function exists:', !!setAgentDescription);
@@ -581,10 +581,10 @@ export default function BusinessLogicConfig({
       setAgentDescription?.(agentDetail.description || '');
       console.log('setAgentName and setAgentDescription called');
 
-      // 通知外部编辑状态变化（使用完整数据）
+      // Notify external editing state change (use complete data)
       onEditingStateChange?.(true, agentDetail);
       
-      // 加载Agent数据到界面
+      // Load Agent data to interface
       setNewAgentName(agentDetail.name);
       setNewAgentDescription(agentDetail.description);
       setNewAgentProvideSummary(agentDetail.provide_run_summary);
@@ -592,7 +592,7 @@ export default function BusinessLogicConfig({
       setMainAgentMaxStep(agentDetail.max_step);
       setBusinessLogic(agentDetail.business_description || '');
       
-      // 使用后端返回的sub_agent_id_list设置启用的agent列表
+      // Use backend returned sub_agent_id_list to set enabled agent list
       if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
         setEnabledAgentIds(agentDetail.sub_agent_id_list.map((id: any) => Number(id)));
       } else {
@@ -604,10 +604,10 @@ export default function BusinessLogicConfig({
       setConstraintContent?.(agentDetail.constraint_prompt || '');
       setFewShotsContent?.(agentDetail.few_shots_prompt || '');
 
-      // 加载Agent的工具
+      // Load Agent tools
       if (agentDetail.tools && agentDetail.tools.length > 0) {
         setSelectedTools(agentDetail.tools);
-        // 设置已启用的工具ID
+        // Set enabled tool IDs
         const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
         setEnabledToolIds(toolIds);
       } else {
@@ -619,10 +619,10 @@ export default function BusinessLogicConfig({
     } catch (error) {
       console.error(t('debug.console.loadAgentDetailsFailed'), error);
       message.error(t('businessLogic.config.error.agentDetailFailed'));
-      // 如果出错，重置编辑状态
+      // If error occurs, reset editing state
       setIsEditingAgent(false);
       setEditingAgent(null);
-      // 注意：不重置isCreatingNewAgent，保持agent池显示
+      // Note: Don't reset isCreatingNewAgent, keep agent pool display
       onEditingStateChange?.(false, null);
     }
   };
@@ -715,13 +715,13 @@ export default function BusinessLogicConfig({
     try {
       const result = await exportAgent(Number(agent.id));
       if (result.success) {
-        // 处理后端返回的字符串或对象
+        // Handle backend returned string or object
         let exportData = result.data;
         if (typeof exportData === 'string') {
           try {
             exportData = JSON.parse(exportData);
           } catch (e) {
-            // 如果解析失败，说明本身就是字符串，直接导出
+            // If parsing fails, it means it's already a string, export directly
           }
         }
         const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -806,14 +806,14 @@ export default function BusinessLogicConfig({
     onEditingStateChange?.(false, null);
   };
 
-  // 刷新工具列表
+  // Refresh tool list
   const handleToolsRefresh = useCallback(async () => {
     if (onToolsRefresh) {
       await onToolsRefresh();
     }
   }, [onToolsRefresh]);
 
-  // 获取按钮提示信息
+  // Get button tooltip information
   const getLocalButtonTitle = () => {
     if (!businessLogic || businessLogic.trim() === '') {
       return t('businessLogic.config.message.businessDescriptionRequired')
@@ -827,7 +827,7 @@ export default function BusinessLogicConfig({
     return ""
   };
 
-  // 检查是否可以保存agent
+  // Check if agent can be saved
   const localCanSaveAgent = !!(businessLogic?.trim() && agentName?.trim() && (dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim()));
 
   return (
@@ -856,7 +856,7 @@ export default function BusinessLogicConfig({
 
           {/* Middle column: Agent capability configuration - 40% width */}
           <div className="w-full lg:w-[40%] min-h-0 flex flex-col h-full">
-              {/* Header: 配置Agent能力 */}
+              {/* Header: Configure Agent Capabilities */}
             <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center">
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
@@ -869,7 +869,7 @@ export default function BusinessLogicConfig({
               {/* Content: ScrollArea with two sections */}
             <div className="flex-1 min-h-0 overflow-hidden border-t pt-2">
                 <div className="flex flex-col h-full" style={{ gap: '16px' }}>
-                  {/* Upper section: Collaborative Agent Display - 固定区域 */}
+                  {/* Upper section: Collaborative Agent Display - fixed area */}
                   <CollaborativeAgentDisplay
                     className="h-[148px] lg:h-[168px]"
                     style={{ flexShrink: 0 }}
@@ -881,7 +881,7 @@ export default function BusinessLogicConfig({
                     isGeneratingAgent={isGeneratingAgent}
                   />
 
-                  {/* Lower section: Tool Pool - 弹性区域 */}
+                  {/* Lower section: Tool Pool - flexible area */}
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <MemoizedToolPool
                       selectedTools={isLoadingTools ? [] : selectedTools}

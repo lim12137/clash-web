@@ -99,7 +99,7 @@ export default function AgentConfigurationSection({
       return t('agent.info.name.error.length');
     }
     
-    // 只能包含下划线，英文字符和数字；符合变量名命名规范（不能以数字开头）
+    // Can only contain underscores, English characters and numbers; follows variable naming conventions (cannot start with numbers)
     const namePattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
     if (!namePattern.test(name)) {
       return t('agent.info.name.error.format');
@@ -276,7 +276,7 @@ export default function AgentConfigurationSection({
     <div className="relative p-4">
       <button
               onClick={() => {
-        // 使用最新的内容，优先使用props中的内容，如果没有则使用本地状态
+        // Use the latest content, prioritize content from props, if not available use local state
         const currentContent = dutyContent !== undefined ? dutyContent : localDutyContent;
         onExpandCard?.(t('systemPrompt.card.duty.title'), currentContent, 2);
       }}
@@ -305,7 +305,7 @@ export default function AgentConfigurationSection({
     <div className="relative p-4">
       <button
               onClick={() => {
-        // 使用最新的内容，优先使用props中的内容，如果没有则使用本地状态
+        // Use the latest content, prioritize content from props, if not available use local state
         const currentContent = constraintContent !== undefined ? constraintContent : localConstraintContent;
         onExpandCard?.(t('systemPrompt.card.constraint.title'), currentContent, 3);
       }}
@@ -334,7 +334,7 @@ export default function AgentConfigurationSection({
     <div className="relative p-4">
       <button
               onClick={() => {
-        // 使用最新的内容，优先使用props中的内容，如果没有则使用本地状态
+        // Use the latest content, prioritize content from props, if not available use local state
         const currentContent = fewShotsContent !== undefined ? fewShotsContent : localFewShotsContent;
         onExpandCard?.(t('systemPrompt.card.fewShots.title'), currentContent, 4);
       }}
@@ -661,7 +661,7 @@ export default function AgentConfigurationSection({
            danger: true,
          }}
        >
-         <p>{t('businessLogic.config.modal.deleteContent', { name: agentName || '未命名Agent' })}</p>
+         <p>{t('businessLogic.config.modal.deleteContent', { name: agentName || 'Unnamed Agent' })}</p>
        </Modal>
     </div>
   )

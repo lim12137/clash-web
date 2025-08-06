@@ -36,11 +36,11 @@ export default function CollaborativeAgentDisplay({
   const [isLoading, setIsLoading] = useState(false)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 })
 
-  // 点击外部关闭下拉框
+  // Click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element
-      // 检查点击的是否是下拉框内的元素
+      // Check if the clicked element is inside the dropdown
       if (isDropdownVisible && !target.closest('.collaborative-dropdown')) {
         setIsDropdownVisible(false)
       }
@@ -55,12 +55,12 @@ export default function CollaborativeAgentDisplay({
     }
   }, [isDropdownVisible])
 
-  // 获取已选择的Agent详细信息
+  // Get detailed information of selected agents
   const selectedAgents = availableAgents.filter(agent => 
     selectedAgentIds.includes(Number(agent.id))
   )
 
-  // 获取可选择的Agent（排除已选择的和自己）
+  // Get selectable agents (excluding already selected and self)
   const availableAgentsToSelect = availableAgents.filter(agent => 
     !selectedAgentIds.includes(Number(agent.id)) && 
     agent.is_available !== false &&
@@ -69,7 +69,7 @@ export default function CollaborativeAgentDisplay({
 
 
 
-  // 处理添加协作Agent
+  // Handle adding collaborative agent
   const handleAddCollaborativeAgent = async (agentIdToAdd?: string) => {
     const targetAgentId = agentIdToAdd || selectedAgentToAdd
     
@@ -87,7 +87,7 @@ export default function CollaborativeAgentDisplay({
     try {
       const result = await addRelatedAgent(parentAgentId, Number(targetAgentId))
       if (result.success) {
-        // 添加成功后更新本地状态
+        // Update local state after successful addition
         const newSelectedAgentIds = [...selectedAgentIds, Number(targetAgentId)]
         onAgentIdsChange(newSelectedAgentIds)
         message.success(t('collaborativeAgent.message.addSuccess'))
@@ -101,14 +101,14 @@ export default function CollaborativeAgentDisplay({
         }
       }
     } catch (error) {
-      console.error('添加协作Agent失败:', error)
+      console.error('Failed to add collaborative agent:', error)
       message.error(t('collaborativeAgent.message.addFailed'))
     } finally {
       setIsLoading(false)
     }
   }
 
-  // 处理删除协作Agent
+  // Handle removing collaborative agent
   const handleRemoveCollaborativeAgent = async (agentId: number) => {
     if (!parentAgentId) {
       message.error(t('collaborativeAgent.message.noParentAgent'))
@@ -118,7 +118,7 @@ export default function CollaborativeAgentDisplay({
     try {
       const result = await deleteRelatedAgent(parentAgentId, agentId)
       if (result.success) {
-        // 删除成功后更新本地状态
+        // Update local state after successful deletion
         const newSelectedAgentIds = selectedAgentIds.filter(id => id !== agentId)
         onAgentIdsChange(newSelectedAgentIds)
         message.success(t('collaborativeAgent.message.removeSuccess'))
@@ -126,12 +126,12 @@ export default function CollaborativeAgentDisplay({
         message.error(result.message || t('collaborativeAgent.message.removeFailed'))
       }
     } catch (error) {
-      console.error('删除协作Agent失败:', error)
+      console.error('Failed to delete collaborative agent:', error)
       message.error(t('collaborativeAgent.message.removeFailed'))
     }
   }
 
-  // 处理添加按钮点击
+  // Handle add button click
   const handleAddButtonClick = (event: React.MouseEvent) => {
     if (!isEditingMode) {
       message.warning(t('collaborativeAgent.message.notInEditMode'))
@@ -143,7 +143,7 @@ export default function CollaborativeAgentDisplay({
     }
     
     if (!isDropdownVisible) {
-      // 计算下拉框位置
+      // Calculate dropdown position
       const rect = event.currentTarget.getBoundingClientRect()
       setDropdownPosition({
         top: rect.bottom + window.scrollY + 4,
@@ -154,7 +154,7 @@ export default function CollaborativeAgentDisplay({
     setIsDropdownVisible(!isDropdownVisible)
   }
 
-  // 渲染下拉框组件
+  // Render dropdown component
   const renderDropdown = () => {
     if (!isDropdownVisible) return null
     
@@ -195,12 +195,12 @@ export default function CollaborativeAgentDisplay({
         <h4 className="text-md font-medium text-gray-700">{t('collaborativeAgent.title')}</h4>
       </div>
       
-      {/* 标签展示区域 - 固定高度避免布局跳变 */}
+      {/* Tag display area - fixed height to avoid layout jumping */}
       <div className="bg-gray-50 rounded-md border-2 border-gray-200 p-4 overflow-y-auto relative shadow-sm h-[100px] lg:h-[120px] w-[98%]">
         <div className={`flex flex-wrap gap-2 min-h-[32px] transition-opacity duration-300 ${
           isEditingMode ? 'opacity-100' : 'opacity-0'
         }`}>
-          {/* 添加按钮始终存在，只是在非编辑模式下不可见 */}
+          {/* Add button always exists, just invisible in non-editing mode */}
           <div className="relative">
             <button
               type="button"
@@ -215,7 +215,7 @@ export default function CollaborativeAgentDisplay({
             >
               <PlusOutlined className="text-sm" />
             </button>
-            {/* 下拉框只在编辑模式下渲染 */}
+            {/* Dropdown only renders in editing mode */}
             {isEditingMode && renderDropdown()}
           </div>
           {selectedAgents.map((agent) => (
