@@ -59,6 +59,7 @@ class PostgresClient:
 
 class MinioClient:
     _instance: Optional['MinioClient'] = None
+    _initialized: bool = False
 
     def __new__(cls):
         if cls._instance is None:
@@ -66,6 +67,9 @@ class MinioClient:
         return cls._instance
 
     def __init__(self):
+        if self._initialized:
+            return
+
         self.endpoint = MINIO_ENDPOINT
         self.access_key = MINIO_ACCESS_KEY
         self.secret_key = MINIO_SECRET_KEY
@@ -88,6 +92,7 @@ class MinioClient:
 
         # Ensure default bucket exists
         self._ensure_bucket_exists(self.default_bucket)
+        self._initialized = True
 
     def _ensure_bucket_exists(self, bucket_name: str) -> None:
         """Ensure bucket exists, create if it doesn't"""
@@ -252,7 +257,13 @@ class MinioClient:
 
 # Create global database and MinIO client instances
 db_client = PostgresClient()
-minio_client = MinioClient()
+
+class MinioClientProxy:
+    def __getattr__(self, name):
+        return getattr(MinioClient(), name)
+
+minio_client = MinioClientProxy()
+
 
 @contextmanager
 def get_db_session(db_session = None):

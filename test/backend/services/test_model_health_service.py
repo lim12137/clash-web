@@ -15,6 +15,7 @@ sys.modules['database.model_management_db'] = MockModule()
 sys.modules['utils'] = MockModule()
 sys.modules['utils.auth_utils'] = MockModule()
 sys.modules['utils.config_utils'] = MockModule()
+sys.modules['utils.model_name_utils'] = MockModule()
 sys.modules['consts'] = MockModule()
 sys.modules['consts.model'] = MockModule()
 sys.modules['consts.const'] = MockModule()
@@ -52,6 +53,8 @@ from backend.services.model_health_service import (
     verify_model_config_connectivity,
     _embedding_dimension_check,
     embedding_dimension_check,
+    get_models_from_silicon,
+    prepare_model_dict,
 )
 
 # Mock imported functions/classes after import
@@ -72,6 +75,7 @@ with mock.patch.dict('sys.modules', {
     'utils': mock.MagicMock(),
     'utils.auth_utils': mock.MagicMock(),
     'utils.config_utils': mock.MagicMock(),
+    'utils.model_name_utils': mock.MagicMock(),
     'apps': mock.MagicMock(),
     'apps.voice_app': mock.MagicMock(),
     'consts.model': mock.MagicMock(),
@@ -780,7 +784,7 @@ async def test_save_config_with_error():
 async def test_embedding_dimension_check_embedding_success():
     with mock.patch("backend.services.model_health_service.OpenAICompatibleEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.dimension_check.return_value = [[0.1, 0.2, 0.3]]
+        mock_embedding_instance.dimension_check = mock.AsyncMock(return_value=[[0.1, 0.2, 0.3]])
         mock_embedding.return_value = mock_embedding_instance
 
         dimension = await _embedding_dimension_check(
@@ -798,7 +802,7 @@ async def test_embedding_dimension_check_embedding_success():
 async def test_embedding_dimension_check_multi_embedding_success():
     with mock.patch("backend.services.model_health_service.JinaEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.dimension_check.return_value = [[0.1, 0.2, 0.3, 0.4]]
+        mock_embedding_instance.dimension_check = mock.AsyncMock(return_value=[[0.1, 0.2, 0.3, 0.4]])
         mock_embedding.return_value = mock_embedding_instance
 
         dimension = await _embedding_dimension_check(
@@ -823,7 +827,7 @@ async def test_embedding_dimension_check_unsupported_type():
 async def test_embedding_dimension_check_empty_return():
     with mock.patch("backend.services.model_health_service.OpenAICompatibleEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.dimension_check.return_value = []
+        mock_embedding_instance.dimension_check = mock.AsyncMock(return_value=[])
         mock_embedding.return_value = mock_embedding_instance
 
         dimension = await _embedding_dimension_check(
@@ -869,3 +873,254 @@ async def test_embedding_dimension_check_wrapper_exception():
         assert dimension == 0
         mock_get_name.assert_called_once_with(model_config)
         mock_logger.warning.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_models_from_silicon_llm_success():
+    with mock.patch("backend.services.model_health_service.httpx.AsyncClient") as mock_client, \
+         mock.patch("backend.services.model_health_service.SILICON_GET_URL", "https://silicon.com"):
+        # Prepare mocked client and response
+        mock_client_instance = mock.AsyncMock()
+        mock_client.return_value.__aenter__.return_value = mock_client_instance
+
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"data": [{"id": "gpt-4"}]}
+        mock_response.raise_for_status = mock.Mock()
+        mock_client_instance.get.return_value = mock_response
+
+        provider_config = {"model_type": "llm", "api_key": "test-key"}
+
+        result = await get_models_from_silicon(provider_config)
+
+        # Assertions
+        assert result == [{"id": "gpt-4", "model_tag": "chat", "model_type": "llm"}]
+        mock_client_instance.get.assert_called_once_with(
+            "https://silicon.com?sub_type=chat", headers={"Authorization": "Bearer test-key"}
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_models_from_silicon_embedding_success():
+    with mock.patch("backend.services.model_health_service.httpx.AsyncClient") as mock_client, \
+         mock.patch("backend.services.model_health_service.SILICON_GET_URL", "https://silicon.com"):
+        mock_client_instance = mock.AsyncMock()
+        mock_client.return_value.__aenter__.return_value = mock_client_instance
+
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"data": [{"id": "text-embedding-ada-002"}]}
+        mock_response.raise_for_status = mock.Mock()
+        mock_client_instance.get.return_value = mock_response
+
+        provider_config = {"model_type": "embedding", "api_key": "test-key"}
+        result = await get_models_from_silicon(provider_config)
+
+        assert result == [{"id": "text-embedding-ada-002", "model_tag": "embedding", "model_type": "embedding"}]
+        mock_client_instance.get.assert_called_once_with(
+            "https://silicon.com?sub_type=embedding", headers={"Authorization": "Bearer test-key"}
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_models_from_silicon_unknown_type():
+    with mock.patch("backend.services.model_health_service.httpx.AsyncClient") as mock_client, \
+         mock.patch("backend.services.model_health_service.SILICON_GET_URL", "https://silicon.com"):
+        mock_client_instance = mock.AsyncMock()
+        mock_client.return_value.__aenter__.return_value = mock_client_instance
+
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"data": [{"id": "model-x"}]}
+        mock_response.raise_for_status = mock.Mock()
+        mock_client_instance.get.return_value = mock_response
+
+        provider_config = {"model_type": "other", "api_key": "test-key"}
+        result = await get_models_from_silicon(provider_config)
+
+        # Should not add model_tag/model_type for unknown type
+        assert result == [{"id": "model-x"}]
+        mock_client_instance.get.assert_called_once_with(
+            "https://silicon.com", headers={"Authorization": "Bearer test-key"}
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_models_from_silicon_exception():
+    with mock.patch("backend.services.model_health_service.httpx.AsyncClient") as mock_client, \
+         mock.patch("backend.services.model_health_service.SILICON_GET_URL", "https://silicon.com"):
+        mock_client_instance = mock.AsyncMock()
+        mock_client.return_value.__aenter__.return_value = mock_client_instance
+
+        # Simulate request failure
+        mock_client_instance.get.side_effect = Exception("Request failed")
+
+        provider_config = {"model_type": "llm", "api_key": "test-key"}
+        result = await get_models_from_silicon(provider_config)
+
+        assert result == []
+
+
+@pytest.mark.asyncio
+async def test_prepare_model_dict_for_llm():
+    """ Test prepare_model_dict for a standard LLM model. """
+    with mock.patch("backend.services.model_health_service.split_repo_name", return_value=("openai", "gpt-4")) as mock_split, \
+         mock.patch("backend.services.model_health_service.split_display_name", return_value="gpt-4") as mock_split_display, \
+         mock.patch("backend.services.model_health_service.ModelRequest") as mock_model_request, \
+         mock.patch("backend.services.model_health_service.embedding_dimension_check", new_callable=mock.AsyncMock) as mock_embedding_check, \
+         mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum:
+
+        # Setup mocks
+        mock_model_request_instance = mock.MagicMock()
+        model_dump_dict = {
+            "model_factory": "openai",
+            "model_name": "gpt-4",
+            "model_type": "llm",
+            "api_key": "test-key",
+            "max_tokens": 4096,
+            "display_name": "openai/gpt-4",
+        }
+        mock_model_request_instance.model_dump.return_value = model_dump_dict
+        mock_model_request.return_value = mock_model_request_instance
+        mock_enum.NOT_DETECTED.value = "not_detected"
+
+        # Function args
+        provider = "openai"
+        model = {"id": "openai/gpt-4", "model_type": "llm"}
+        model_url = "https://api.openai.com/v1"
+        api_key = "test-key"
+        max_tokens = 4096
+
+        # Call the function
+        result_dict = await prepare_model_dict(provider, model, model_url, api_key, max_tokens)
+
+        # Assertions
+        mock_split.assert_called_once_with("openai/gpt-4")
+        mock_split_display.assert_called_once_with("openai/gpt-4")
+        mock_model_request.assert_called_once_with(
+            model_factory="openai",
+            model_name="gpt-4",
+            model_type="llm",
+            api_key="test-key",
+            max_tokens=4096,
+            display_name="openai/gpt-4"
+        )
+        mock_embedding_check.assert_not_called()
+
+        expected_dict = model_dump_dict.copy()
+        expected_dict.update({
+            "model_repo": "openai",
+            "base_url": model_url,
+            "connect_status": "not_detected"
+        })
+        assert result_dict == expected_dict
+
+
+@pytest.mark.asyncio
+async def test_prepare_model_dict_for_embedding():
+    """ Test prepare_model_dict for an embedding model, checking that dimension check is called. """
+    with mock.patch("backend.services.model_health_service.split_repo_name", return_value=("openai", "text-embedding-ada-002")) as mock_split, \
+         mock.patch("backend.services.model_health_service.split_display_name", return_value="text-embedding-ada-002") as mock_split_display, \
+         mock.patch("backend.services.model_health_service.ModelRequest") as mock_model_request, \
+         mock.patch("backend.services.model_health_service.embedding_dimension_check", new_callable=mock.AsyncMock, return_value=1536) as mock_embedding_check, \
+         mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum:
+
+        # Setup mocks
+        mock_model_request_instance = mock.MagicMock()
+        model_dump_dict = {
+            "model_factory": "openai",
+            "model_name": "text-embedding-ada-002",
+            "model_type": "embedding",
+            "api_key": "test-key",
+            "max_tokens": 1024,
+            "display_name": "openai/text-embedding-ada-002",
+        }
+        mock_model_request_instance.model_dump.return_value = model_dump_dict
+        mock_model_request.return_value = mock_model_request_instance
+        mock_enum.NOT_DETECTED.value = "not_detected"
+
+        # Function args
+        provider = "openai"
+        model = {"id": "openai/text-embedding-ada-002", "model_type": "embedding"}
+        model_url = "https://api.openai.com/v1/"
+        api_key = "test-key"
+        max_tokens = 1024
+
+        # Call the function
+        result_dict = await prepare_model_dict(provider, model, model_url, api_key, max_tokens)
+
+        # Assertions
+        mock_split.assert_called_once_with("openai/text-embedding-ada-002")
+        mock_split_display.assert_called_once_with("openai/text-embedding-ada-002")
+        mock_model_request.assert_called_once_with(
+            model_factory="openai",
+            model_name="text-embedding-ada-002",
+            model_type="embedding",
+            api_key="test-key",
+            max_tokens=1024,
+            display_name="openai/text-embedding-ada-002"
+        )
+        mock_embedding_check.assert_called_once_with(model_dump_dict)
+        
+        expected_dict = model_dump_dict.copy()
+        expected_dict.update({
+            "model_repo": "openai",
+            "base_url": "https://api.openai.com/v1/embeddings",
+            "connect_status": "not_detected",
+            "max_tokens": 1536
+        })
+        assert result_dict == expected_dict
+
+@pytest.mark.asyncio
+async def test_prepare_model_dict_no_repo():
+    """ Test prepare_model_dict for a model without a repository prefix. """
+    with mock.patch("backend.services.model_health_service.split_repo_name", return_value=("", "gpt-4")) as mock_split, \
+         mock.patch("backend.services.model_health_service.split_display_name", return_value="gpt-4") as mock_split_display, \
+         mock.patch("backend.services.model_health_service.ModelRequest") as mock_model_request, \
+         mock.patch("backend.services.model_health_service.embedding_dimension_check", new_callable=mock.AsyncMock) as mock_embedding_check, \
+         mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum:
+
+        # Setup mocks
+        mock_model_request_instance = mock.MagicMock()
+        model_dump_dict = {
+            "model_factory": "local",
+            "model_name": "gpt-4",
+            "model_type": "llm",
+            "api_key": "test-key",
+            "max_tokens": 2048,
+            "display_name": "local/gpt-4",
+        }
+        mock_model_request_instance.model_dump.return_value = model_dump_dict
+        mock_model_request.return_value = mock_model_request_instance
+        mock_enum.NOT_DETECTED.value = "not_detected"
+
+        # Function args
+        provider = "local"
+        model = {"id": "gpt-4", "model_type": "llm"}
+        model_url = "http://localhost:8080/v1"
+        api_key = "test-key"
+        max_tokens = 2048
+
+        # Call the function
+        result_dict = await prepare_model_dict(provider, model, model_url, api_key, max_tokens)
+
+        # Assertions
+        mock_split.assert_called_once_with("gpt-4")
+        mock_split_display.assert_called_once_with("gpt-4")
+        mock_model_request.assert_called_once_with(
+            model_factory="local",
+            model_name="gpt-4",
+            model_type="llm",
+            api_key="test-key",
+            max_tokens=2048,
+            display_name="local/gpt-4"
+        )
+        mock_embedding_check.assert_not_called()
+
+        expected_dict = model_dump_dict.copy()
+        expected_dict.update({
+            "model_repo": "",
+            "base_url": model_url,
+            "connect_status": "not_detected"
+        })
+        assert result_dict == expected_dict

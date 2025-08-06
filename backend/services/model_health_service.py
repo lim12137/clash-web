@@ -9,8 +9,9 @@ from utils.auth_utils import get_current_user_id
 from utils.config_utils import get_model_name_from_config
 
 from apps.voice_app import VoiceService
-from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
-from consts.model import ModelConnectStatusEnum, ModelResponse
+from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST, SILICON_GET_URL
+from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest
+from utils.model_name_utils import split_repo_name, split_display_name
 from database.model_management_db import get_model_by_display_name, update_model_record
 
 logger = logging.getLogger("model_health_service")
@@ -290,3 +291,90 @@ async def embedding_dimension_check(model_config: dict):
         logger.warning(f"UNCONNECTED: {model_name}; Base URL: {model_base_url}; API Key: {model_api_key}; Error: {str(e)}")
         return 0
 
+async def get_models_from_silicon(provider_config: dict):
+    try:
+        model_list = []
+        model_type = provider_config["model_type"]
+        model_api_key = provider_config["api_key"]
+        headers = {'Authorization': f'Bearer {model_api_key}'}
+
+        # Build SiliconFlow models endpoint based on model_type
+        if model_type == "llm" or model_type == "vlm":
+            silicon_url = f"{SILICON_GET_URL}?sub_type=chat"
+        elif model_type == "embedding" or model_type == "multi_embedding":
+            silicon_url = f"{SILICON_GET_URL}?sub_type=embedding"
+        else:
+            # Fallback to base URL if provided or constant
+            silicon_url = SILICON_GET_URL
+
+        async with httpx.AsyncClient(verify=False) as client:
+            # Get models list
+            response = await client.get(silicon_url, headers=headers)
+            response.raise_for_status()
+            model_list = response.json()['data']
+
+            # Annotate each model item with expected model_type value
+            if model_type in ("llm", "vlm"):
+                for item in model_list:
+                    item["model_tag"] = "chat"
+                    item["model_type"] = model_type
+            elif model_type in ("embedding", "multi_embedding"):
+                for item in model_list:
+                    item["model_tag"] = "embedding"
+                    item["model_type"] = model_type
+
+            return model_list
+    except Exception as e:
+        logger.error(f"Error getting models from silicon: {str(e)}")
+        return []
+
+async def prepare_model_dict(provider: str, model: dict, model_url: str, model_api_key: str, max_tokens: int) -> dict:
+    """
+    Construct a model configuration dictionary that is ready to be stored in the
+    database. This utility centralises the logic that was previously embedded in
+    the *batch_create_models* route so that it can be reused elsewhere and keep
+    the router implementation concise.
+
+    Args:
+        provider: Name of the model provider (e.g. "silicon", "openai").
+        model:      A single model item coming from the provider list.
+        model_url:  Base URL for the provider API.
+        model_api_key: API key that should be saved together with the model.
+        max_tokens: User-supplied max token / embedding dimension upper-bound.
+
+    Returns:
+        A dictionary ready to be passed to *create_model_record*.
+    """
+
+    # Split repo/name once so it can be reused multiple times.
+    model_repo, model_name = split_repo_name(model["id"])
+    model_display_name = split_display_name(model["id"])
+
+
+    # Build the canonical representation using the existing Pydantic schema for
+    # consistency of validation and default handling.
+    model_obj = ModelRequest(
+        model_factory=provider,
+        model_name=model_name,
+        model_type=model["model_type"],
+        api_key=model_api_key,
+        max_tokens=max_tokens,
+        display_name=f"{provider}/{model_display_name}"
+    )
+
+    model_dict = model_obj.model_dump()
+    model_dict["model_repo"] = model_repo or ""
+
+    # Determine the correct base_url and, for embeddings, update the actual
+    # dimension by performing a real connectivity check.
+    if model["model_type"] in ["embedding", "multi_embedding"]:
+        model_dict["base_url"] = f"{model_url}embeddings"
+        # The embedding dimension might differ from the provided max_tokens.
+        model_dict["max_tokens"] = await embedding_dimension_check(model_dict)
+    else:
+        model_dict["base_url"] = model_url
+
+    # All newly created models start in NOT_DETECTED status.
+    model_dict["connect_status"] = ModelConnectStatusEnum.NOT_DETECTED.value
+
+    return model_dict
