@@ -45,6 +45,20 @@ class ModelRequest(BaseModel):
     connect_status: Optional[str] = ''
 
 
+class ProviderModelRequest(BaseModel):
+    provider: str
+    model_type: str
+    api_key: Optional[str] = ''
+
+
+class BatchCreateModelsRequest(BaseModel):
+    api_key: str
+    models: List[Dict]
+    provider: str
+    type: str
+    max_tokens: int
+
+
 # Configuration models
 class ModelApiConfig(BaseModel):
     apiKey: str
