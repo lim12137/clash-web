@@ -10,9 +10,7 @@ from utils.config_utils import get_model_name_from_config
 
 from apps.voice_app import VoiceService
 from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
-from consts.provider import SILICON_GET_URL
-from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest
-from utils.model_name_utils import split_repo_name, split_display_name
+from consts.model import ModelConnectStatusEnum, ModelResponse
 from database.model_management_db import get_model_by_display_name, update_model_record
 
 logger = logging.getLogger("model_health_service")
