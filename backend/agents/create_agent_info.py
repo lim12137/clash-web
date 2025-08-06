@@ -195,13 +195,7 @@ async def prepare_prompt_templates(is_manager: bool, system_prompt: str, languag
     Returns:
         dict: Prompt template configuration
     """
-    def get_template_path(is_manager: bool, language: str) -> str:
-        if language == 'en':
-            return "backend/prompts/manager_system_prompt_template_en.yaml" if is_manager else "backend/prompts/managed_system_prompt_template_en.yaml"
-        else:  # Default to Chinese
-            return "backend/prompts/manager_system_prompt_template.yaml" if is_manager else "backend/prompts/managed_system_prompt_template.yaml"
-
-    prompt_template_path = get_template_path(is_manager, language)
+    prompt_template_path = get_prompt_template_path(is_manager, language)
     with open(prompt_template_path, "r", encoding="utf-8") as f:
         prompt_templates = yaml.safe_load(f)
     prompt_templates["system_prompt"] = system_prompt
