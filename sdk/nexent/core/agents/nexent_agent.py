@@ -2,12 +2,13 @@ from threading import Event
 from typing import List
 
 from smolagents import ActionStep, AgentText, TaskStep, handle_agent_output_types
+from smolagents.tools import Tool
 
 from ..models.openai_llm import OpenAIModel
 from ..tools import *  # Used for tool creation, do not delete!!!
 from ..utils.observer import MessageObserver, ProcessType
 from .agent_model import AgentConfig, AgentHistory, ModelConfig, ToolConfig
-from .core_agent import CoreAgent
+from .core_agent import CoreAgent, convert_code_format
 
 
 class NexentAgent:
@@ -57,8 +58,6 @@ class NexentAgent:
         if tool_class is None:
             raise ValueError(f"{class_name} not found in local")
         else:
-
-
             if class_name == "KnowledgeBaseSearchTool":
                 tools_obj = tool_class(index_names=tool_config.metadata.get("index_names", []),
                                        observer= self.observer,
@@ -70,6 +69,10 @@ class NexentAgent:
                 if hasattr(tools_obj, 'observer'):
                     tools_obj.observer = self.observer
             return tools_obj
+
+    def create_langchain_tool(self, tool_config: ToolConfig):
+        tool_obj = tool_config.metadata
+        return Tool.from_langchain(tool_obj)
 
     def create_mcp_tool(self, class_name):
         if self.mcp_tool_collection is None:
@@ -94,6 +97,8 @@ class NexentAgent:
                 tool_obj = self.create_local_tool(tool_config)
             elif source == "mcp":
                 tool_obj = self.create_mcp_tool(class_name)
+            elif source == "langchain":
+                tool_obj = self.create_langchain_tool(tool_config)
             else:
                 raise ValueError(f"unsupported tool source: {source}")
             return tool_obj
@@ -182,9 +187,11 @@ class NexentAgent:
             final_answer = handle_agent_output_types(final_answer)
 
             if isinstance(final_answer, AgentText):
-                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, final_answer.to_string())
+                final_answer_str = convert_code_format(final_answer.to_string())
+                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, final_answer_str)
             else:
-                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, str(final_answer))
+                final_answer_str = convert_code_format(str(final_answer))
+                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, final_answer_str)
 
             # Check if we need to stop from external stop_event
             if self.agent.stop_event.is_set():
