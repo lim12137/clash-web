@@ -68,18 +68,15 @@ class NexentAgent:
 
     def create_model(self, model_cite_name: str):
         """create a model instance"""
-        try:
-            # Filter out None values and find matching model config
-            model_config = next(
-                (model_config for model_config in self.model_config_list 
-                 if model_config is not None and model_config.cite_name == model_cite_name),
-                None
-            )
-            if model_config is None:
-                raise ValueError(f"Model {model_cite_name} not found")
-            return ModelFactory.create_model(model_config, self.observer, self.stop_event)
-        except StopIteration:
+        # Filter out None values and find matching model config
+        model_config = next(
+            (model_config for model_config in self.model_config_list
+             if model_config is not None and model_config.cite_name == model_cite_name),
+            None
+        )
+        if model_config is None:
             raise ValueError(f"Model {model_cite_name} not found")
+        return ModelFactory.create_model(model_config, self.observer, self.stop_event)
 
     def create_local_tool(self, tool_config: ToolConfig):
         class_name = tool_config.class_name

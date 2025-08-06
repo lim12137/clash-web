@@ -49,7 +49,7 @@ class OpenAIDeepThinkingModel(OpenAIModel):
                     new_token = self.process_token(new_token)
                     
                     # If in think block, process as deep thinking content
-                    if self.observer.in_think_block and new_token:
+                    if self.observer.in_think_block:
                         self.observer.message_query.append(
                             Message(ProcessType.MODEL_OUTPUT_DEEP_THINKING, new_token).to_json()
                         )

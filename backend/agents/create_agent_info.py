@@ -34,7 +34,7 @@ async def create_model_config_list(tenant_id):
                         model_name=get_model_name_from_config(sub_model_config) if sub_model_config.get(
                             "model_name") else "",
                         url=sub_model_config.get("base_url", ""),
-                        is_deep_thinking=main_model_config.get("is_deep_thinking", False))]
+                        is_deep_thinking=sub_model_config.get("is_deep_thinking", False))]
 
 
 async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'):
