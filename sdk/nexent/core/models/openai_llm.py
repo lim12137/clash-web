@@ -23,8 +23,7 @@ class OpenAIModel(OpenAIServerModel):
     def __call__(self, messages: List[Dict[str, Any]], stop_sequences: Optional[List[str]] = None,
             grammar: Optional[str] = None, tools_to_call_from: Optional[List[Tool]] = None, **kwargs, ) -> ChatMessage:
         try:
-            # 如果启用no_think，添加/no_think后缀到用户最后一条消息
-            if messages[-1]["role"] == "user":
+            if messages and isinstance(messages[-1], dict) and messages[-1].get("role") == "user":
                 messages[-1]["content"][-1]['text'] += " /no_think"
 
             completion_kwargs = self._prepare_completion_kwargs(messages=messages, stop_sequences=stop_sequences,

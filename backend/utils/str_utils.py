@@ -15,5 +15,7 @@ def remove_think_tags(text: str) -> str:
 
 
 def add_no_think_token(messages: List[dict]):
-    if messages[-1]["role"] == "user":
+    if not messages:
+        return
+    if messages[-1]["role"] == "user" and "content" in messages[-1]:
         messages[-1]["content"] += " /no_think"
