@@ -216,7 +216,7 @@ def get_enabled_tool_description_for_generate_prompt(agent_id: int, tenant_id: s
 
 def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
     logger.info("Fetching sub-agents information")
-    sub_agent_raw_info_list = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
+    sub_agent_raw_info_list = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id)
     logger.info(f"Found {len(sub_agent_raw_info_list)} sub-agents")
 
     sub_agent_info_list = []

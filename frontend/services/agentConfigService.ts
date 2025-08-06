@@ -24,6 +24,7 @@ export const fetchTools = async () => {
       source: tool.source,
       is_available: tool.is_available,
       create_time: tool.create_time,
+      usage: tool.usage, // 新增：处理usage字段
       initParams: tool.params.map((param: any) => {
         return {
           name: param.name,
@@ -51,12 +52,12 @@ export const fetchTools = async () => {
 };
 
 /**
- * get agent list from backend
- * @returns object containing main_agent_id and sub_agent_list
+ * get agent list from backend (basic info only)
+ * @returns list of agents with basic info (id, name, description, is_available)
  */
 export const fetchAgentList = async () => {
   try {
-    const response = await fetch(API_ENDPOINTS.agent.listMainAgentInfo, {
+    const response = await fetch(API_ENDPOINTS.agent.list, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
@@ -64,30 +65,72 @@ export const fetchAgentList = async () => {
     }
     const data = await response.json();
     
-    // convert backend data to frontend format
-    const formattedAgents = data.sub_agent_list.map((agent: any) => ({
-      id: agent.agent_id,
+    // convert backend data to frontend format (basic info only)
+    const formattedAgents = data.map((agent: any) => ({
+      id: String(agent.agent_id),
       name: agent.name,
       description: agent.description,
-      modelName: agent.model_name,
-      max_step: agent.max_steps,
-      duty_prompt: agent.duty_prompt,
-      constraint_prompt: agent.constraint_prompt,
-      few_shots_prompt: agent.few_shots_prompt,
-      business_description: agent.business_description,
-      parentAgentId: agent.parent_agent_id,
-      enabled: agent.enabled,
-      is_available: agent.is_available,
-      createTime: agent.create_time,
-      updateTime: agent.update_time,
-      tools: agent.tools ? agent.tools.map((tool: any) => {
+      is_available: agent.is_available
+    }));
+    
+    return {
+      success: true,
+      data: formattedAgents,
+      message: ''
+    };
+  } catch (error) {
+    console.error('获取 agent 列表失败:', error);
+    return {
+      success: false,
+      data: [],
+      message: '获取 agent 列表失败，请稍后重试'
+    };
+  }
+};
+
+/**
+ * get detailed agent info by agent id
+ * @param agentId agent id
+ * @returns detailed agent info including tools, prompts, etc.
+ */
+export const fetchAgentDetail = async (agentId: number) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.agent.searchInfo, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(agentId),
+    });
+
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // convert backend data to frontend format
+    const formattedAgent = {
+      id: String(data.agent_id),
+      name: data.name,
+      description: data.description,
+      model: data.model_name,
+      max_step: data.max_steps,
+      duty_prompt: data.duty_prompt,
+      constraint_prompt: data.constraint_prompt,
+      few_shots_prompt: data.few_shots_prompt,
+      business_description: data.business_description,
+      provide_run_summary: data.provide_run_summary,
+      enabled: data.enabled,
+      is_available: data.is_available,
+      sub_agent_id_list: data.sub_agent_id_list || [], // 添加sub_agent_id_list字段
+      tools: data.tools ? data.tools.map((tool: any) => {
         const params = typeof tool.params === 'string' ? JSON.parse(tool.params) : tool.params;
         return {
-          id: tool.tool_id,
+          id: String(tool.tool_id),
           name: tool.name,
           description: tool.description,
           source: tool.source,
           is_available: tool.is_available,
+          usage: tool.usage, // 新增：处理usage字段
           initParams: Array.isArray(params) ? params.map((param: any) => ({
             name: param.name,
             type: convertParamType(param.type),
@@ -96,43 +139,20 @@ export const fetchAgentList = async () => {
             description: param.description
           })) : []
         };
-      }) : [],
-      provide_run_summary: agent.provide_run_summary
-    }));
-    
+      }) : []
+    };
+
     return {
       success: true,
-      data: {
-        mainAgentId: data.main_agent_id,
-        subAgentList: formattedAgents,
-        enabledToolIds: data.enable_tool_id_list || [],
-        enabledAgentIds: data.enable_agent_id_list || [],
-        modelName: data.model_name,
-        maxSteps: data.max_steps,
-        businessDescription: data.business_description,
-        dutyPrompt: data.duty_prompt,
-        constraintPrompt: data.constraint_prompt,
-        fewShotsPrompt: data.few_shots_prompt
-      },
+      data: formattedAgent,
       message: ''
     };
   } catch (error) {
-    console.error('获取 agent 列表失败:', error);
+    console.error('获取Agent详情失败:', error);
     return {
       success: false,
-      data: {
-        mainAgentId: null,
-        subAgentList: [],
-        enabledToolIds: [],
-        enabledAgentIds: [],
-        modelName: null,
-        maxSteps: null,
-        businessDescription: null,
-        dutyPrompt: null,
-        constraintPrompt: null,
-        fewShotsPrompt: null
-      },
-      message: '获取 agent 列表失败，请稍后重试'
+      data: null,
+      message: '获取Agent详情失败，请稍后重试'
     };
   }
 };
@@ -142,12 +162,11 @@ export const fetchAgentList = async () => {
  * @param mainAgentId current main agent id
  * @returns new sub agent id
  */
-export const getCreatingSubAgentId = async (mainAgentId: string | null) => {
+export const getCreatingSubAgentId = async () => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.getCreatingSubAgentId, {
-      method: 'POST',
+      method: 'GET',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ agent_id: mainAgentId }),
     });
 
     if (!response.ok) {
@@ -165,7 +184,8 @@ export const getCreatingSubAgentId = async (mainAgentId: string | null) => {
         businessDescription: data.business_description,
         dutyPrompt: data.duty_prompt,
         constraintPrompt: data.constraint_prompt,
-        fewShotsPrompt: data.few_shots_prompt
+        fewShotsPrompt: data.few_shots_prompt,
+        sub_agent_id_list: data.sub_agent_id_list || []
       },
       message: ''
     };
@@ -275,9 +295,6 @@ export const searchToolConfig = async (toolId: number, agentId: number) => {
  * @param modelName 模型名称
  * @param maxSteps 最大步骤数
  * @param provideRunSummary 是否提供运行摘要
- * @param dutyPrompt 职责提示词
- * @param constraintPrompt 约束提示词
- * @param fewShotsPrompt 示例提示词
  * @returns 更新结果
  */
 export const updateAgent = async (
@@ -451,7 +468,7 @@ export const searchAgentInfo = async (agentId: number) => {
     const response = await fetch(API_ENDPOINTS.agent.searchInfo, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ agent_id: agentId }),
+      body: JSON.stringify(agentId),
     });
 
     if (!response.ok) {
@@ -474,6 +491,7 @@ export const searchAgentInfo = async (agentId: number) => {
       provide_run_summary: data.provide_run_summary,
       enabled: data.enabled,
       is_available: data.is_available,
+      sub_agent_id_list: data.sub_agent_id_list || [], // 添加sub_agent_id_list
       tools: data.tools ? data.tools.map((tool: any) => {
         const params = typeof tool.params === 'string' ? JSON.parse(tool.params) : tool.params;
         return {
@@ -482,6 +500,7 @@ export const searchAgentInfo = async (agentId: number) => {
           description: tool.description,
           source: tool.source,
           is_available: tool.is_available,
+          usage: tool.usage, // 新增：处理usage字段
           initParams: Array.isArray(params) ? params.map((param: any) => ({
             name: param.name,
             type: convertParamType(param.type),
@@ -541,6 +560,90 @@ export const fetchAllAgents = async () => {
       success: false,
       data: [],
       message: '获取Agent列表失败，请稍后重试'
+    };
+  }
+};
+
+/**
+ * add related agent relationship
+ * @param parentAgentId parent agent id
+ * @param childAgentId child agent id
+ * @returns success status
+ */
+export const addRelatedAgent = async (parentAgentId: number, childAgentId: number) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.agent.relatedAgent, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        parent_agent_id: parentAgentId,
+        child_agent_id: childAgentId
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      return {
+        success: true,
+        data: data,
+        message: data[0] || '添加关联Agent成功',
+        status: response.status,
+      };
+    } else {
+      const errorMessage = data.detail || data[0] || `添加关联Agent失败: ${response.statusText}`;
+      return {
+        success: false,
+        data: null,
+        message: errorMessage,
+        status: response.status,
+      };
+    }
+  } catch (error) {
+    console.error('添加关联Agent失败:', error);
+    return {
+      success: false,
+      data: null,
+      message: '添加关联Agent失败，请稍后重试',
+      status: 500, // or a custom error code
+    };
+  }
+};
+
+/**
+ * delete related agent relationship
+ * @param parentAgentId parent agent id
+ * @param childAgentId child agent id
+ * @returns success status
+ */
+export const deleteRelatedAgent = async (parentAgentId: number, childAgentId: number) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.agent.deleteRelatedAgent, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        parent_agent_id: parentAgentId,
+        child_agent_id: childAgentId
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    return {
+      success: true,
+      data: data,
+      message: ''
+    };
+  } catch (error) {
+    console.error('删除关联Agent失败:', error);
+    return {
+      success: false,
+      data: null,
+      message: '删除关联Agent失败，请稍后重试'
     };
   }
 };
