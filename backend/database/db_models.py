@@ -232,6 +232,24 @@ class TenantConfig(TableBase):
     updated_by = Column(String(100), doc="Updater")
     delete_flag = Column(String(1), default="N", doc="Whether it is deleted. Optional values: Y/N")
 
+class MemoryUserConfig(TableBase):
+    """
+    Tenant configuration information table
+    """
+    __tablename__ = "memory_user_config_t"
+    __table_args__ = {"schema": SCHEMA}
+
+    config_id = Column(Integer, Sequence("memory_user_config_t_config_id_seq", schema=SCHEMA), primary_key=True, nullable=False, doc="ID")
+    tenant_id = Column(String(100), doc="Tenant ID")
+    user_id = Column(String(100), doc="User ID")
+    value_type = Column(String(100), doc=" the data type of config_value, optional values: single/multi", default="single")
+    config_key = Column(String(100), doc="the key of the config")
+    config_value = Column(String(10000), doc="the value of the config")
+    create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time")
+    update_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Update time")
+    created_by = Column(String(100), doc="Creator")
+    updated_by = Column(String(100), doc="Updater")
+    delete_flag = Column(String(1), default="N", doc="Whether it is deleted. Optional values: Y/N")
 
 class McpRecord(TableBase):
     """

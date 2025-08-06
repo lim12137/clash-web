@@ -1,13 +1,14 @@
+from threading import Event
 from typing import List
 
-from threading import Event
-from smolagents import ActionStep, TaskStep, AgentText, handle_agent_output_types
-from ..utils.observer import ProcessType
-from .agent_model import ModelConfig, ToolConfig, AgentConfig, AgentHistory
-from ..utils.observer import MessageObserver
+from smolagents import ActionStep, AgentText, TaskStep, handle_agent_output_types
+
 from ..models.openai_llm import OpenAIModel
-from .core_agent import CoreAgent
 from ..tools import *  # Used for tool creation, do not delete!!!
+from ..utils.observer import MessageObserver, ProcessType
+from .agent_model import AgentConfig, AgentHistory, ModelConfig, ToolConfig
+from .core_agent import CoreAgent
+
 
 class NexentAgent:
     def __init__(self, observer: MessageObserver,
@@ -195,6 +196,4 @@ class NexentAgent:
             raise ValueError(f"Error in interaction: {str(e)}")
 
     def set_agent(self, agent: CoreAgent):
-        if not isinstance(agent, CoreAgent):
-            raise TypeError(f"agent must be a CoreAgent object, not {type(agent)}")
         self.agent = agent

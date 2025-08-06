@@ -68,6 +68,53 @@
   }
 }
 
+/* Ant Design Button Icon with Lucide icons */
+.ant-btn-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.ant-collapse-header {
+  @apply bg-gray-50;
+}
+
+.ant-collapse-collapsible-disabled {
+  cursor: default !important;
+}
+
+.ant-collapse-content-box {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-right: 0 !important;
+}
+
+.ant-collapse-item-active>.ant-collapse-header {
+  @apply shadow-md;
+}
+.ant-collapse-item-disabled>.ant-collapse-header {
+  @apply cursor-default;
+}
+
+/* Styles for the List component inside MemoryManageModal */
+.memory-modal-list .ant-list-item {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 2px;
+}
+
+.memory-modal-list .ant-list-item-action {
+  width: 5%;
+  margin-left: auto !important;
+  display: flex;
+  justify-content: right;
+}
+
+.memory-modal-panel {
+  background: #f9fafb;
+  border-radius: 4px;
+  border: 1px solid #f0f0f0;
+}
+
 /* Scrollbar styles */
 /* For Webkit browsers (Chrome, Safari, Edge, etc.) */
 ::-webkit-scrollbar {

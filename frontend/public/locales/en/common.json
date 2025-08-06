@@ -254,6 +254,7 @@
         "processRemainingDataFailed": "Failed to process remaining data:",
         "thinking": "Thinking...",
         "connectingMcpServer": "Connecting to MCP server...",
+        "fetchingMemory": "Fetching memory...",
         "generateTitleFailed": "Failed to generate title:",
         "streamResponseError": "Error processing streaming response:",
         "userInterrupted": "Chat ended by user."
@@ -997,5 +998,53 @@
         "noAvailableAgents": "No available agents",
         "unavailable": "Unavailable",
         "agentUnavailable": "This agent is currently unavailable, please check the tool configuration information or contact the administrator"
+    },
+    "memoryDeleteModal": {
+        "title": "Confirm Clear Memory",
+        "description": "You are about to clear all content of <strong>{{title}}</strong>, this action cannot be undone.",
+        "prompt": "Are you sure you want to continue?",
+        "clear": "Clear"
+    },
+    "useMemory": {
+        "loadConfigError": "Failed to load memory configuration, please check the network connection or contact the administrator",
+        "memoryServiceConnectionError": "Memory service connection failed, please check the configuration or contact the administrator",
+        "loadDataError": "Failed to load memory data, please try again later",
+        "addMemorySuccess": "Memory added successfully",
+        "addMemoryError": "Failed to add memory, please try again later",
+        "clearMemorySuccess": "{{count}} memories under {{groupTitle}} have been cleared",
+        "clearMemoryError": "Failed to clear memory, please try again later",
+        "deleteMemorySuccess": "Memory deleted successfully",
+        "deleteMemoryError": "Failed to delete memory, please try again later",
+        "setMemorySwitchError": "Failed to set memory switch, please try again later",
+        "setMemoryShareOptionError": "Failed to set memory share option, please try again later"
+    },
+    "memoryService": {
+        "loadMemoryError": "Failed to load memories, please try again later",
+        "tenantSharedGroupTitle": "Tenant shared memories",
+        "agentSharedGroupTitle": "Shared memories of all users in {{agentName}}",
+        "agentSharedPlaceholder": "Agent Shared Memories",
+        "userPersonalGroupTitle": "User's personal memories",
+        "userAgentGroupTitle": "User memories in {{agentName}}",
+        "userAgentPlaceholder": "User Agent Memories"
+    },
+    "memoryManageModal": {
+        "title": "Memory Management",
+        "memoryAbility": "Memory Ability",
+        "agentMemoryShare": "Agent Memory Sharing",
+        "shareOption": {
+            "always": "Always share",
+            "ask": "Ask every time",
+            "never": "Never share"
+        },
+        "addMemory": "Add Memory",
+        "clearMemory": "Clear Memory",
+        "deleteMemory": "Delete Memory",
+        "noMemory": "No memories",
+        "baseSettings": "Base Settings",
+        "tenantShareTab": "Tenant Shared",
+        "agentShareTab": "Agent Shared",
+        "userPersonalTab": "User Personal",
+        "userAgentTab": "User Agent",
+        "inputPlaceholder": "Please enter memory content"
     }
 }

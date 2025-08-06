@@ -1,13 +1,12 @@
 import threading
+
 import yaml
 import logging
 from urllib.parse import urljoin
 from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
-
 from services.remote_mcp_service import get_remote_mcp_server_list
 from utils.auth_utils import get_current_user_id
-
 from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents, \
     query_or_create_main_agent_id
 from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
@@ -16,8 +15,13 @@ from utils.prompt_template_utils import get_prompt_template_path
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 from smolagents.agents import populate_template
 from smolagents.utils import BASE_BUILTIN_MODULES
+from services.memory_config_service import build_memory_context
+
+from nexent.memory.memory_service import search_memory_in_levels
+
 
 logger = logging.getLogger("create_agent_info")
+logger.setLevel(logging.DEBUG)
 
 async def create_model_config_list(tenant_id):
      main_model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
@@ -33,7 +37,7 @@ async def create_model_config_list(tenant_id):
                         url=sub_model_config.get("base_url", ""))]
 
 
-async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'):
+async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh', last_user_query: str = None):
     agent_info = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id)
 
     # create sub agent
@@ -46,7 +50,8 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             agent_id=sub_agent_info["agent_id"],
             tenant_id=tenant_id,
             user_id=user_id,
-            language=language)
+            language=language,
+            last_user_query=last_user_query)
         managed_agents.append(sub_agent_config)
 
     tool_list = await create_tool_config_list(agent_id, tenant_id, user_id)
@@ -66,6 +71,30 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     app_name = tenant_config_manager.get_app_config('APP_NAME', tenant_id=tenant_id) or "Nexent"
     app_description = tenant_config_manager.get_app_config('APP_DESCRIPTION', tenant_id=tenant_id) or default_app_description
 
+    # Get memory list
+    memory_context = build_memory_context(user_id, tenant_id, agent_id)
+    if memory_context.user_config.memory_switch:
+        # TODO: 前端展示回忆中组件
+        logger.debug("Retrieving memory list...")
+        memory_levels = ["tenant", "agent", "user", "user_agent"]
+        if memory_context.user_config.agent_share_option == "never":
+            memory_levels.remove("agent")
+        if memory_context.agent_id in memory_context.user_config.disable_agent_ids:
+            memory_levels.remove("agent")
+        if memory_context.agent_id in memory_context.user_config.disable_user_agent_ids:
+            memory_levels.remove("user_agent")
+
+        search_res = await search_memory_in_levels(
+            query_text=last_user_query if last_user_query else agent_info.get("name"),
+            memory_config=memory_context.memory_config,
+            tenant_id=memory_context.tenant_id,
+            user_id=memory_context.user_id,
+            agent_id=memory_context.agent_id,
+            memory_levels=memory_levels,
+        )
+        memory_list = search_res.get("results", [])
+        logger.debug(f"Retrieved memory list: {memory_list}")
+
     # Assemble system_prompt
     system_prompt = populate_template(
         prompt_template["system_prompt"],
@@ -77,7 +106,8 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             "managed_agents": {agent.name: agent for agent in managed_agents},
             "authorized_imports": str(BASE_BUILTIN_MODULES),
             "APP_NAME": app_name,
-            "APP_DESCRIPTION": app_description
+            "APP_DESCRIPTION": app_description,
+            "memory_list": memory_list
         },
     ) if (duty_prompt or constraint_prompt or few_shots_prompt) else agent_info.get("prompt", "")
 
@@ -200,7 +230,7 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
         query=final_query,
         model_config_list= model_list,
         observer=MessageObserver(lang=language),
-        agent_config=await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id, language=language),
+        agent_config=await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id, language=language, last_user_query=final_query),
         mcp_host= mcp_host,
         history=history,
         stop_event=threading.Event()
