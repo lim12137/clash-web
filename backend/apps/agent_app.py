@@ -5,7 +5,7 @@ from fastapi import HTTPException, APIRouter, Header, Request, Body
 from fastapi.responses import StreamingResponse, JSONResponse
 from nexent.core.agents.run_agent import agent_run
 
-from database.agent_db import insert_related_agent, delete_related_agent
+from database.agent_db import delete_related_agent
 from utils.auth_utils import get_current_user_info, get_current_user_id
 from agents.create_agent_info import create_agent_run_info
 from consts.model import AgentRequest, AgentInfoRequest, AgentIDRequest, ConversationResponse, AgentImportRequest
@@ -123,9 +123,7 @@ async def delete_agent_api(request: AgentIDRequest, authorization: Optional[str]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent delete error: {str(e)}")
 
-"""
-导入导出逻辑需要支持多级agent导出
-"""
+
 @router.post("/export")
 async def export_agent_api(request: AgentIDRequest, authorization: Optional[str] = Header(None)):
     """
@@ -144,7 +142,7 @@ async def import_agent_api(request: AgentImportRequest, authorization: Optional[
     import an agent
     """
     try:
-        import_agent_impl(request.agent_info, authorization)
+        await import_agent_impl(request.agent_info, authorization)
         return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent import error: {str(e)}")
@@ -175,7 +173,7 @@ async def related_agent_api(parent_agent_id: int = Body(...),
                                          tenant_id=tenant_id)
     except Exception as e:
         logger.error(f"Agent related info error: {str(e)}")
-        JSONResponse(
+        return JSONResponse(
             status_code=400,
             content={"message": "Failed to insert relation", "status": "error"}
         )

@@ -272,7 +272,7 @@ class ExportAndImportAgentInfo(BaseModel):
     few_shots_prompt: Optional[str] = None
     enabled: bool
     tools: List[ToolConfig]
-    managed_agents: List
+    managed_agents: List[int]
 
 class ExportAndImportDataFormat(BaseModel):
     agent_id: int

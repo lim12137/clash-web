@@ -194,7 +194,7 @@ async def export_agent_by_agent_id(agent_id: int, tenant_id: str, user_id: str)-
     return agent_info
 
 
-def import_agent_impl(agent_info: ExportAndImportDataFormat, authorization: str = Header(None)):
+async def import_agent_impl(agent_info: ExportAndImportDataFormat, authorization: str = Header(None)):
     """
     Import agent using DFS
     """
@@ -214,7 +214,7 @@ def import_agent_impl(agent_info: ExportAndImportDataFormat, authorization: str 
         managed_agents = need_import_agent_info.managed_agents
 
         if agent_id_set.issuperset(managed_agents):
-            new_agent_id = import_agent_by_agent_id(import_agent_info=agent_info.agent_info[str(need_import_agent_id)],
+            new_agent_id = await import_agent_by_agent_id(import_agent_info=agent_info.agent_info[str(need_import_agent_id)],
                                      tenant_id=tenant_id,
                                      user_id=user_id)
             mapping_agent_id[need_import_agent_id] = new_agent_id
@@ -231,7 +231,7 @@ def import_agent_impl(agent_info: ExportAndImportDataFormat, authorization: str 
             agent_stack.extend(managed_agents)
 
 
-def import_agent_by_agent_id(import_agent_info: ExportAndImportAgentInfo, tenant_id: str, user_id: str):
+async def import_agent_by_agent_id(import_agent_info: ExportAndImportAgentInfo, tenant_id: str, user_id: str):
     tool_list = []
 
     # query all tools in the current tenant
@@ -328,7 +328,12 @@ def import_default_agents_to_pg():
                 continue
             else:
                 try:
-                    import_agent_impl(parent_agent_id=main_agent_id, agent_info=agent)
+                    # Create ExportAndImportDataFormat structure for import_agent_impl
+                    agent_data = ExportAndImportDataFormat(
+                        agent_id=main_agent_id,
+                        agent_info={str(main_agent_id): agent}
+                    )
+                    import_agent_impl(agent_info=agent_data)
                 except Exception as e:
                     logger.error(f"agent name: {agent.name}, error: {str(e)}")
                     raise ValueError(f"agent name: {agent.name}, error: {str(e)}")
