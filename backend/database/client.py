@@ -10,7 +10,8 @@ from botocore.exceptions import ClientError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, class_mapper
 
-from consts.const import MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_REGION, MINIO_DEFAULT_BUCKET, POSTGRES_HOST, POSTGRES_USER, NEXENT_POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_PORT
+from consts.const import MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_REGION, MINIO_DEFAULT_BUCKET, \
+    POSTGRES_HOST, POSTGRES_USER, NEXENT_POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_PORT
 from database.db_models import TableBase
 
 logger = logging.getLogger("database.client")
@@ -59,7 +60,6 @@ class PostgresClient:
 
 class MinioClient:
     _instance: Optional['MinioClient'] = None
-    _initialized: bool = False
 
     def __new__(cls):
         if cls._instance is None:
@@ -67,9 +67,6 @@ class MinioClient:
         return cls._instance
 
     def __init__(self):
-        if self._initialized:
-            return
-
         self.endpoint = MINIO_ENDPOINT
         self.access_key = MINIO_ACCESS_KEY
         self.secret_key = MINIO_SECRET_KEY
@@ -77,22 +74,21 @@ class MinioClient:
         self.default_bucket = MINIO_DEFAULT_BUCKET
 
         # Initialize S3 client with proxy settings
-        self.client = boto3.client('s3', 
-            endpoint_url=self.endpoint, 
-            aws_access_key_id=self.access_key,
-            aws_secret_access_key=self.secret_key, 
-            region_name=self.region,
-            config=Config(
-                signature_version='s3v4',
-                proxies={
-                    'http': None,
-                    'https': None
-                }
-            ))
+        self.client = boto3.client('s3',
+                                   endpoint_url=self.endpoint,
+                                   aws_access_key_id=self.access_key,
+                                   aws_secret_access_key=self.secret_key,
+                                   region_name=self.region,
+                                   config=Config(
+                                       signature_version='s3v4',
+                                       proxies={
+                                           'http': None,
+                                           'https': None
+                                       }
+                                   ))
 
         # Ensure default bucket exists
         self._ensure_bucket_exists(self.default_bucket)
-        self._initialized = True
 
     def _ensure_bucket_exists(self, bucket_name: str) -> None:
         """Ensure bucket exists, create if it doesn't"""
@@ -107,12 +103,12 @@ class MinioClient:
         bool, str]:
         """
         Upload local file to MinIO
-        
+
         Args:
             file_path: Local file path
             object_name: Object name, if not specified use filename
             bucket: Bucket name, if not specified use default bucket
-            
+
         Returns:
             Tuple[bool, str]: (Success status, File URL or error message)
         """
@@ -130,12 +126,12 @@ class MinioClient:
     def upload_fileobj(self, file_obj: BinaryIO, object_name: str, bucket: Optional[str] = None) -> Tuple[bool, str]:
         """
         Upload file object to MinIO
-        
+
         Args:
             file_obj: File object
             object_name: Object name
             bucket: Bucket name, if not specified use default bucket
-            
+
         Returns:
             Tuple[bool, str]: (Success status, File URL or error message)
         """
@@ -150,12 +146,12 @@ class MinioClient:
     def download_file(self, object_name: str, file_path: str, bucket: Optional[str] = None) -> Tuple[bool, str]:
         """
         Download file from MinIO to local
-        
+
         Args:
             object_name: Object name
             file_path: Local save path
             bucket: Bucket name, if not specified use default bucket
-            
+
         Returns:
             Tuple[bool, str]: (Success status, Success message or error message)
         """
@@ -169,12 +165,12 @@ class MinioClient:
     def get_file_url(self, object_name: str, bucket: Optional[str] = None, expires: int = 3600) -> Tuple[bool, str]:
         """
         Get presigned URL for file
-        
+
         Args:
             object_name: Object name
             bucket: Bucket name, if not specified use default bucket
             expires: URL expiration time in seconds
-            
+
         Returns:
             Tuple[bool, str]: (Success status, Presigned URL or error message)
         """
@@ -198,11 +194,11 @@ class MinioClient:
     def list_files(self, prefix: str = "", bucket: Optional[str] = None) -> List[dict]:
         """
         List files in bucket
-        
+
         Args:
             prefix: Prefix filter
             bucket: Bucket name, if not specified use default bucket
-            
+
         Returns:
             List[dict]: List of file information
         """
@@ -221,11 +217,11 @@ class MinioClient:
     def delete_file(self, object_name: str, bucket: Optional[str] = None) -> Tuple[bool, str]:
         """
         Delete file
-        
+
         Args:
             object_name: Object name
             bucket: Bucket name, if not specified use default bucket
-            
+
         Returns:
             Tuple[bool, str]: (Success status, Success message or error message)
         """
@@ -239,11 +235,11 @@ class MinioClient:
     def get_file_stream(self, object_name: str, bucket: Optional[str] = None) -> Tuple[bool, Any]:
         """
         Get file binary stream from MinIO
-        
+
         Args:
             object_name: Object name
             bucket: Bucket name, if not specified use default bucket
-            
+
         Returns:
             Tuple[bool, Any]: (Success status, File stream object or error message)
         """
@@ -257,16 +253,11 @@ class MinioClient:
 
 # Create global database and MinIO client instances
 db_client = PostgresClient()
-
-class MinioClientProxy:
-    def __getattr__(self, name):
-        return getattr(MinioClient(), name)
-
-minio_client = MinioClientProxy()
+minio_client = MinioClient()
 
 
 @contextmanager
-def get_db_session(db_session = None):
+def get_db_session(db_session=None):
     """
     param db_session: Optional session to use, if None, a new session will be created.
     Provide a transactional scope around a series of operations.
@@ -285,12 +276,14 @@ def get_db_session(db_session = None):
         if db_session is None:
             session.close()
 
+
 def as_dict(obj):
     if isinstance(obj, TableBase):
         return {c.key: getattr(obj, c.key) for c in class_mapper(obj.__class__).columns}
-    
+
     # noinspection PyProtectedMember
     return dict(obj._mapping)
+
 
 def filter_property(data, model_class):
     """
