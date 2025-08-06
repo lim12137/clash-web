@@ -15,10 +15,10 @@ class KnowledgeBaseSearchTool(Tool):
     """Knowledge base search tool"""
     name = "knowledge_base_search"
     description = "Performs a local knowledge base search based on your query then returns the top search results. " \
-                  "A tool for retrieving internal company documents, policies, processes and proprietary information. Use this tool when users ask questions related to internal company matters, product details, organizational structure, internal processes, or confidential information. " \
-                  "Prioritize for company-specific queries. " \
-                  "Use for proprietary knowledge or restricted information" \
-                  "Avoid for publicly available general knowledge"
+                  "A tool for retrieving domain-specific knowledge, documents, and information stored in the local knowledge base. " \
+                  "Use this tool when users ask questions related to specialized knowledge, technical documentation, " \
+                  "domain expertise, personal notes, or any information that has been indexed in the knowledge base. " \
+                  "Suitable for queries requiring access to stored knowledge that may not be publicly available."
     inputs = {"query": {"type": "string", "description": "The search query to perform."},
               "search_mode": {"type": "string", "description": "the search mode, optional values: hybrid, combining accurate matching and semantic search results across multiple indices.; accurate, Search for documents using fuzzy text matching across multiple indices; semantic, Search for similar documents using vector similarity across multiple indices.",
                               "default": "hybrid", "nullable": True}}
@@ -48,7 +48,7 @@ class KnowledgeBaseSearchTool(Tool):
         self.index_names = [] if index_names is None else index_names
         self.embedding_model = embedding_model
 
-        self.record_ops = 0  # To record serial number
+        self.record_ops = 1  # To record serial number
         self.running_prompt_zh = "知识库检索中..."
         self.running_prompt_en = "Searching the knowledge base..."
 
