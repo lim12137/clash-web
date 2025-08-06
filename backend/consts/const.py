@@ -12,6 +12,8 @@ MODEL_ENGINE_APIKEY = os.getenv('MODEL_ENGINE_APIKEY')
 # Elasticsearch Configuration
 ES_HOST = os.getenv("ELASTICSEARCH_HOST")
 ES_API_KEY = os.getenv("ELASTICSEARCH_API_KEY")
+ES_PASSWORD = os.getenv("ELASTIC_PASSWORD")
+ES_USERNAME = "elastic"
 
 # Data Processing Service Configuration
 DATA_PROCESS_SERVICE = os.getenv("DATA_PROCESS_SERVICE")
@@ -47,3 +49,13 @@ DEFAULT_APP_DESCRIPTION_EN = "Nexent is an open-source agent SDK and platform, w
 
 DEFAULT_APP_NAME_ZH = "Nexent 智能体"
 DEFAULT_APP_NAME_EN = "Nexent Agent"
+
+# ---------------- Memory Feature Keys ----------------
+# Configuration key for enabling/disabling user memory feature (Y/N)
+MEMORY_SWITCH_KEY = "MEMORY_SWITCH"
+# Configuration key for agent memory sharing mode (always/ask/never)
+MEMORY_AGENT_SHARE_KEY = "MEMORY_AGENT_SHARE"
+# Configuration key prefix for disabling memory at agent-level (multi-value list)
+DISABLE_AGENT_ID_KEY = "DISABLE_AGENT_ID"
+# Configuration key prefix for disabling memory at user-agent-level (multi-value list)
+DISABLE_USERAGENT_ID_KEY = "DISABLE_USERAGENT_ID"

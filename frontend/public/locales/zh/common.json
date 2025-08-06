@@ -254,6 +254,7 @@
         "processRemainingDataFailed": "处理剩余数据失败:",
         "thinking": "正在思考中...",
         "connectingMcpServer": "正在连接MCP服务器...",
+        "fetchingMemory": "正在回忆中...",
         "generateTitleFailed": "生成标题失败:",
         "streamResponseError": "处理流式响应时出错:",
         "userInterrupted": "对话主动中止。"
@@ -996,5 +997,53 @@
         "noAvailableAgents": "暂无可用Agent",
         "unavailable": "不可用",
         "agentUnavailable": "此Agent当前不可用，请检查工具配置信息或通知管理员。"
+    },
+    "memoryDeleteModal": {
+        "title": "确认清空记忆",
+        "description": "即将清空 <strong>{{title}}</strong> 的所有内容，且该操作不可恢复。",
+        "prompt": "确定要继续吗？",
+        "clear": "清空"
+    },
+    "useMemory": {
+        "loadConfigError": "加载记忆配置失败，请检查网络连接或联系管理员",
+        "memoryServiceConnectionError": "记忆服务连接失败，请检查配置或联系管理员",
+        "loadDataError": "加载记忆数据失败，请稍后重试",
+        "addMemorySuccess": "记忆添加成功",
+        "addMemoryError": "添加记忆失败，请稍后重试",
+        "clearMemorySuccess": "已清空 {{groupTitle}} 下的 {{count}} 条记忆",
+        "clearMemoryError": "清空记忆失败，请稍后重试",
+        "deleteMemorySuccess": "记忆删除成功",
+        "deleteMemoryError": "删除记忆失败，请稍后重试",
+        "setMemorySwitchError": "设置记忆开关失败，请稍后重试",
+        "setMemoryShareOptionError": "设置记忆共享选项失败，请稍后重试"
+    },
+    "memoryService": {
+        "loadMemoryError": "加载记忆失败，请稍后重试",
+        "tenantSharedGroupTitle": "租户所有用户的共享记忆",
+        "agentSharedGroupTitle": "{{agentName}} 所有用户的共享记忆",
+        "agentSharedPlaceholder": "Agent 共享记忆",
+        "userPersonalGroupTitle": "用户的个性化记忆",
+        "userAgentGroupTitle": "{{agentName}} 中的用户记忆",
+        "userAgentPlaceholder": "用户 Agent 记忆"
+    },
+    "memoryManageModal": {
+        "title": "记忆管理",
+        "memoryAbility": "记忆能力",
+        "agentMemoryShare": "Agent记忆共享",
+        "shareOption": {
+            "always": "总是共享",
+            "ask": "每次询问我",
+            "never": "永不共享"
+        },
+        "addMemory": "添加记忆",
+        "clearMemory": "清空记忆",
+        "deleteMemory": "删除记忆",
+        "noMemory": "暂无记忆",
+        "baseSettings": "基础设置",
+        "tenantShareTab": "租户共享",
+        "agentShareTab": "Agent共享",
+        "userPersonalTab": "用户个性化",
+        "userAgentTab": "用户Agent",
+        "inputPlaceholder": "请输入记忆内容"
     }
 }

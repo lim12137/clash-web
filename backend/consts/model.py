@@ -326,3 +326,24 @@ class ConvertStateRequest(BaseModel):
 class ConvertStateResponse(BaseModel):
     """Response schema for /tasks/convert_state endpoint"""
     state: str
+
+
+# ---------------------------------------------------------------------------
+# Memory Feature Data Models (Missing previously)
+# ---------------------------------------------------------------------------
+
+class MemoryAgentShareMode(str, Enum):
+    """Memory sharing mode for agent-level memory.
+
+    always: Agent memories are always shared with others.
+    ask:    Ask user every time whether to share.
+    never:  Never share agent memories.
+    """
+
+    ALWAYS = "always"
+    ASK = "ask"
+    NEVER = "never"
+
+    @classmethod
+    def default(cls) -> "MemoryAgentShareMode":
+        return cls.NEVER
