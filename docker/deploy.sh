@@ -33,6 +33,69 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# 尝试获取 Docker Compose 版本信息（兼容 V1 和 V2）
+# try get the version of docker compose 
+get_compose_version() {
+    # 优先尝试 V2 命令
+    if command -v docker &> /dev/null; then
+        version_output=$(docker compose version 2>/dev/null)
+        if [[ $version_output =~ (v[0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            echo "v2 ${BASH_REMATCH[1]}"
+            return 0
+        fi
+    fi
+
+    # 如果 V2 失败，尝试 V1 命令
+    if command -v docker-compose &> /dev/null; then
+        version_output=$(docker-compose --version 2>/dev/null)
+        if [[ $version_output =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            echo "v1 ${BASH_REMATCH[1]}"
+            return 0
+        fi
+    fi
+
+    echo "unknown"
+    return 1
+}
+
+# 获取版本信息
+# get docker compose version
+version_info=$(get_compose_version)
+if [[ $version_info == "unknown" ]]; then
+    echo "Error: Docker Compose not found or version detection failed"
+    exit 1
+fi
+
+# 解析版本类型和版本号
+# extract version
+version_type=$(echo "$version_info" | awk '{print $1}')
+version_number=$(echo "$version_info" | awk '{print $2}')
+
+
+# 根据版本类型执行不同操作
+# define docker compose command
+docker_compose_command=""
+case $version_type in
+    "v1")
+        echo "Detected Docker Compose V1, version: $version_number"
+        # 这里添加 V1 版本特定的操作. v1.28.0是明确支持 ${VAR:-default} 这类带默认值的插值语法的最低版本
+        # The version ​​v1.28.0​​ is the minimum requirement in Docker Compose v1 that explicitly supports interpolation syntax with default values like ${VAR:-default}
+        if [[ $version_number < "1.28.0" ]]; then
+            echo "Warning: V1 version is too old, consider upgrading to V2"
+            exit 1
+        fi
+        docker_compose_command="docker-compose"
+        ;;
+    "v2")
+        echo "Detected Docker Compose V2, version: $version_number"
+        docker_compose_command="docker compose"
+        ;;
+    *)
+        echo "Error: Unknown docker compose version type."
+        exit 1
+        ;;
+esac
+
 # Add deployment mode selection function
 select_deployment_mode() {
     echo "🎛️  Please select deployment mode:"
@@ -192,7 +255,7 @@ install() {
     echo "📋 Using profiles: $COMPOSE_PROFILES"
   fi
 
-  if ! docker-compose -p nexent -f "${COMPOSE_FILE}" up -d $INFRA_SERVICES; then
+  if ! ${docker_compose_command} -p nexent -f "${COMPOSE_FILE}" up -d $INFRA_SERVICES; then
     echo "❌ ERROR Failed to start infrastructure services"
     ERROR_OCCURRED=1
     return 1
@@ -203,13 +266,13 @@ install() {
   # Always generate a new ELASTICSEARCH_API_KEY for each deployment.
   echo "🔑 Generating ELASTICSEARCH_API_KEY..."
   # Wait for elasticsearch health check
-  while ! docker-compose -p nexent -f "${COMPOSE_FILE}" ps nexent-elasticsearch | grep -q "healthy"; do
+  while ! ${docker_compose_command} -p nexent -f "${COMPOSE_FILE}" ps nexent-elasticsearch | grep -q "healthy"; do
     echo "⏳ Waiting for Elasticsearch to become healthy..."
     sleep 10
   done
   
   # Generate API key
-  API_KEY_JSON=$(docker-compose -p nexent -f "${COMPOSE_FILE}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"my_api_key","role_descriptors":{"my_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
+  API_KEY_JSON=$(${docker_compose_command} -p nexent -f "${COMPOSE_FILE}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"my_api_key","role_descriptors":{"my_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
   
   # Extract API key and add to .env
   ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
@@ -235,7 +298,7 @@ install() {
   # Start core services
   if [ "$DEPLOYMENT_MODE" != "infrastructure" ]; then
     echo "👀  Starting core services..."
-    if ! docker-compose -p nexent -f "${COMPOSE_FILE}" up -d nexent nexent-web nexent-data-process; then
+    if ! ${docker_compose_command} -p nexent -f "${COMPOSE_FILE}" up -d nexent nexent-web nexent-data-process; then
       echo "❌ ERROR Failed to start core services"
       ERROR_OCCURRED=1
       return 1
