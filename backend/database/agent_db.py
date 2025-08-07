@@ -60,27 +60,6 @@ def query_or_create_main_agent_id(tenant_id: str, user_id: str) -> int:
         else:
             return main_agent.agent_id
 
-def query_sub_agents(main_agent_id: int, tenant_id: str):
-    """
-    Query the TenantAgent list based on the optional tenant_id.
-    Filter out records with delete_flag set to 'Y'.
-
-    :param main_agent_id: Optional main agent ID for filtering
-    :param tenant_id: Optional tenant ID for filtering
-    :return: List of TenantAgent objects that meet the criteria
-    """
-    with get_db_session() as session:
-        query = session.query(AgentInfo).filter(AgentInfo.delete_flag != 'Y',
-                                                AgentInfo.parent_agent_id == main_agent_id,
-                                                AgentInfo.name.isnot(None),
-                                                AgentInfo.description.isnot(None),
-                                                AgentInfo.model_name.isnot(None),
-                                                AgentInfo.tenant_id == tenant_id)
-        
-        # Order by create_time desc
-        agents = query.order_by(AgentInfo.create_time.desc()).all()
-        return [as_dict(agent) for agent in agents]
-
 
 def query_sub_agents_id_list(main_agent_id: int, tenant_id: str):
     """
