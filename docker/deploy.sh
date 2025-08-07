@@ -293,6 +293,7 @@ install() {
       echo "" >> .env
       echo "ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY" >> .env
     fi
+  fi
 
   wait_for_elasticsearch_healthy || {
     echo "❌ ERROR Elasticsearch health check failed"
