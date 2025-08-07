@@ -87,7 +87,13 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     if (!isLoading && !user) {
       // 页面加载完成后，如果没有登录，则触发会话过期事件
       // 只在非首页路径触发，且仅在之前有会话的情况下触发
-      if (pathname && pathname !== '/' && !pathname.startsWith('/?') && shouldCheckSession) {
+      // 修复：添加更严格的路径检查，避免在首页触发
+      if (pathname && 
+          pathname !== '/' && 
+          !pathname.startsWith('/?') && 
+          !pathname.startsWith('/zh') && 
+          !pathname.startsWith('/en') && 
+          shouldCheckSession) {
         window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
           detail: { message: t('auth.sessionExpired') }
         }));
