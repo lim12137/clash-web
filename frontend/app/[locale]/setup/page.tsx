@@ -119,7 +119,7 @@ export default function CreatePage() {
   // Handle completed configuration
   const handleCompleteConfig = async () => {
     if (selectedKey === "3") {
-      // 直接跳转到聊天页面，不进行任何检查
+      // jump to chat page directly, no any check
       router.push("/chat")
     } else if (selectedKey === "2") {
       // Jump from the second page to the third page
@@ -144,14 +144,14 @@ export default function CreatePage() {
           return
         }
 
-        // 检查 embedding 模型
+        // check embedding model
         if (
           !currentConfig.models.embedding.modelName &&
           !currentConfig.models.multiEmbedding?.modelName
         ) {
           setEmbeddingModalOpen(true);
           setPendingJump(true);
-          // 高亮 embedding 下拉框
+          // highlight embedding dropdown
           window.dispatchEvent(new CustomEvent('highlightMissingField', {
             detail: { field: 'embedding.embedding' }
           }))
@@ -202,7 +202,7 @@ export default function CreatePage() {
       <AnimatePresence 
         mode="wait"
         onExitComplete={() => {
-          // 当动画完成且切换到第二页时，确保触发知识库数据更新
+          // when animation is complete and switch to the second page, ensure the knowledge base data is updated
           if (selectedKey === "2") {
             setTimeout(() => {
               window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
@@ -236,7 +236,7 @@ export default function CreatePage() {
           setEmbeddingModalOpen(false);
           if (pendingJump) {
             setPendingJump(false);
-            // 获取当前配置
+            // get current config
             const currentConfig = configStore.getConfig();
             try {
               await configService.saveConfigToBackend(currentConfig);
