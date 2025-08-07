@@ -548,10 +548,10 @@ export function ChatSidebar({
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full hover:bg-slate-100"
+              className="size-10 rounded-full hover:bg-slate-100"
               onClick={onSettingsClick}
             >
-              <Settings className="h-8 w-8" />
+              <Settings className="size-5" />
             </Button>
           </div>
           </div>

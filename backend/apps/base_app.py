@@ -8,6 +8,7 @@ from .agent_app import router as agent_router
 from .config_sync_app import router as config_sync_router
 from .conversation_management_app import router as conversation_management_router
 from .elasticsearch_app import router as elasticsearch_router
+from .memory_config_app import router as memory_router
 from .me_model_managment_app import router as me_model_manager_router
 from .model_managment_app import router as model_manager_router
 from .image_app import router as proxy_router
@@ -33,6 +34,7 @@ app.add_middleware(
 
 app.include_router(me_model_manager_router)
 app.include_router(model_manager_router)
+app.include_router(memory_router)
 app.include_router(config_sync_router)
 app.include_router(agent_router)
 app.include_router(conversation_management_router)

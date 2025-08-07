@@ -28,6 +28,10 @@ def configure_logging(level=logging.INFO):
     root_logger.addHandler(handler)
     root_logger.setLevel(level)
 
+    # --- Silence overly verbose third-party libraries ----------------------
+    for name in ("mem0", "mem0.memory", "mem0.memory.main"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+
 def configure_elasticsearch_logging():
     """Configure logging for Elasticsearch client to reduce verbosity"""
     
