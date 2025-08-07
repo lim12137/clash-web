@@ -219,6 +219,20 @@ update_env_file() {
     echo "REDIS_BACKEND_URL=redis://localhost:6379/1" >> ../.env
   fi
   
+  # POSTGRES_HOST
+  if grep -q "^POSTGRES_HOST=" ../.env; then
+    sed -i.bak "s~^POSTGRES_HOST=.*~POSTGRES_HOST=localhost~" ../.env
+  else
+    echo "POSTGRES_HOST=localhost" >> ../.env
+  fi
+  
+  # POSTGRES_PORT
+  if grep -q "^POSTGRES_PORT=" ../.env; then
+    sed -i.bak "s~^POSTGRES_PORT=.*~POSTGRES_PORT=5434~" ../.env
+  else
+    echo "POSTGRES_PORT=5434" >> ../.env
+  fi
+  
   # Remove backup file
   rm -f ../.env.bak
   
