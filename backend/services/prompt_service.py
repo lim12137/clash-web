@@ -7,13 +7,15 @@ from jinja2 import StrictUndefined, Template
 from smolagents import OpenAIServerModel
 
 from consts.model import AgentInfoRequest
-from database.agent_db import query_sub_agents, update_agent, \
-    query_tools_by_ids
+from database.agent_db import update_agent, \
+    query_tools_by_ids, query_sub_agents_id_list, search_agent_info_by_agent_id
 from services.agent_service import get_enable_tool_id_by_agent_id
 from utils.prompt_template_utils import get_prompt_generate_config_path
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.auth_utils import get_current_user_info
 from fastapi import Header, Request
+
+from utils.str_utils import remove_think_tags, add_no_think_token
 
 # Configure logging
 logger = logging.getLogger("prompt_service")
@@ -41,6 +43,7 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
     )
     messages = [{"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}]
+    add_no_think_token(messages)
     try:
         completion_kwargs = llm._prepare_completion_kwargs(
             messages=messages,
@@ -53,6 +56,7 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
         for chunk in current_request:
             new_token = chunk.choices[0].delta.content
             if new_token is not None:
+                new_token = remove_think_tags(new_token)
                 token_join.append(new_token)
                 current_text = "".join(token_join)
                 if callback is not None:
@@ -212,14 +216,14 @@ def get_enabled_tool_description_for_generate_prompt(agent_id: int, tenant_id: s
 
 def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
     logger.info("Fetching sub-agents information")
-    sub_agent_raw_info_list = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
-    logger.info(f"Found {len(sub_agent_raw_info_list)} sub-agents")
+
+    sub_agent_id_list = query_sub_agents_id_list(main_agent_id=agent_id, tenant_id=tenant_id)
 
     sub_agent_info_list = []
-    for sub_agent_raw_info in sub_agent_raw_info_list:
-        if not sub_agent_raw_info["enabled"]:
-            continue
-        sub_agent_info_list.append(sub_agent_raw_info)
+    for sub_agent_id in sub_agent_id_list:
+        sub_agent_info = search_agent_info_by_agent_id(agent_id=sub_agent_id, tenant_id=tenant_id)
+
+        sub_agent_info_list.append(sub_agent_info)
     return sub_agent_info_list
 
 

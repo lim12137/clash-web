@@ -141,6 +141,94 @@ export const modelService = {
     }
   },
 
+  addProviderModel: async (model: {
+    provider: string
+    type: ModelType
+    apiKey: string
+  }): Promise<any[]> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.customModelCreateProvider, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          provider: model.provider,
+          model_type: model.type,
+          api_key: model.apiKey
+        })
+      })
+      
+      const result: ApiResponse<any[]> = await response.json()
+      
+      if (result.code !== 200) {
+        throw new ModelError(result.message || '添加自定义模型失败', result.code)
+      }
+      return result.data || []
+    } catch (error) {
+      if (error instanceof ModelError) throw error
+      throw new ModelError('添加自定义模型失败', 500)
+    }
+  },
+
+  addBatchCustomModel: async (model: {
+    api_key: string,
+    provider: string,
+    type: ModelType,
+    max_tokens: number,
+    models: any[]
+  }): Promise<any[]> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.customModelBatchCreate, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          api_key: model.api_key,
+          models: model.models,
+          type: model.type,
+          provider: model.provider,
+          max_tokens: model.max_tokens
+        })
+      })
+      const result: ApiResponse<any[]> = await response.json()
+
+      if (result.code !== 200) {
+        throw new ModelError(result.message || '添加自定义模型失败', result.code)
+      }
+      return result.code
+    } catch (error) {
+      if (error instanceof ModelError) throw error
+      throw new ModelError('添加自定义模型失败', 500)
+    }
+  },
+
+  getProviderSelectedModalList: async (model: {
+    provider: string, 
+    type: ModelType, 
+    api_key: string
+  }): Promise<any[]> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.getProviderSelectedModalList, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          provider: model.provider,
+          model_type: model.type,
+          api_key: model.api_key
+        })
+      })
+      console.log('getProviderSelectedModalList response', response)
+      const result: ApiResponse<any[]> = await response.json()
+      console.log('getProviderSelectedModalList result', result)
+      if (result.code !== 200) {
+        throw new ModelError(result.message || '获取模型列表失败', result.code)
+      }
+      return result.data || []
+    } catch (error) {
+      console.log('getProviderSelectedModalList error', error)
+      if (error instanceof ModelError) throw error
+      throw new ModelError('获取模型列表失败', 500)
+    }
+  },
+
   // Delete custom model
   deleteCustomModel: async (displayName: string): Promise<void> => {
     try {

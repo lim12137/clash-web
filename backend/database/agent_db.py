@@ -2,19 +2,14 @@ import re
 import logging
 from typing import List
 
-from fastapi import HTTPException
-
 from database.client import get_db_session, as_dict, filter_property
-from database.db_models import ToolInfo, AgentInfo, ToolInstance
+from database.db_models import ToolInfo, AgentInfo, ToolInstance, AgentRelation
 
 logger = logging.getLogger("agent_db")
 
-
-def search_agent_info_by_agent_id(agent_id: int, tenant_id: str, user_id: str = None):
+def search_agent_info_by_agent_id(agent_id: int, tenant_id: str):
     """
     Search agent info by agent_id
-
-    TODO: now only admin can modify the agent, user_id is not used
     """
     with get_db_session() as session:
         agent = session.query(AgentInfo).filter(
@@ -30,16 +25,15 @@ def search_agent_info_by_agent_id(agent_id: int, tenant_id: str, user_id: str = 
 
         return agent_dict
 
-def search_blank_sub_agent_by_main_agent_id(main_agent_id: int, tenant_id: str):
+def search_blank_sub_agent_by_main_agent_id(tenant_id: str):
     """
     Search blank sub agent by main agent id
     """
     with get_db_session() as session:
         sub_agent = session.query(AgentInfo).filter(
-            AgentInfo.parent_agent_id == main_agent_id,
             AgentInfo.tenant_id == tenant_id,
             AgentInfo.delete_flag != 'Y',
-            AgentInfo.name.is_(None)
+            AgentInfo.enabled == False
         ).first()
         if sub_agent:
             return sub_agent.agent_id
@@ -66,29 +60,18 @@ def query_or_create_main_agent_id(tenant_id: str, user_id: str) -> int:
         else:
             return main_agent.agent_id
 
-def query_sub_agents(main_agent_id: int, tenant_id: str, user_id: str = None):
+
+def query_sub_agents_id_list(main_agent_id: int, tenant_id: str):
     """
-    Query the TenantAgent list based on the optional tenant_id.
-    Filter out records with delete_flag set to 'Y'.
-
-    :param main_agent_id: Optional main agent ID for filtering
-    :param tenant_id: Optional tenant ID for filtering
-    :param user_id: Optional user ID for merging
-    :return: List of TenantAgent objects that meet the criteria
-
-    TODO: now only admin can modify the agent, user_id is not used
+    Query the sub agent id list by main agent id
     """
     with get_db_session() as session:
-        query = session.query(AgentInfo).filter(AgentInfo.delete_flag != 'Y',
-                                                AgentInfo.parent_agent_id == main_agent_id,
-                                                AgentInfo.name.isnot(None),
-                                                AgentInfo.description.isnot(None),
-                                                AgentInfo.model_name.isnot(None),
-                                                AgentInfo.tenant_id == tenant_id)
-        
-        # Order by create_time desc
-        agents = query.order_by(AgentInfo.create_time.desc()).all()
-        return [as_dict(agent) for agent in agents]
+        query = session.query(AgentRelation).filter(AgentRelation.parent_agent_id == main_agent_id,
+                                                    AgentRelation.tenant_id == tenant_id,
+                                                    AgentRelation.delete_flag != 'Y')
+        relations = query.all()
+        return [relation.selected_agent_id for relation in relations]
+
 
 def create_agent(agent_info, tenant_id: str, user_id:str):
     """
@@ -321,15 +304,13 @@ def add_tool_field(tool_info):
         tool_info["is_available"] = tool.is_available
         return tool_info
 
-def search_tools_for_sub_agent(agent_id, tenant_id, user_id: str = None):
+def search_tools_for_sub_agent(agent_id, tenant_id):
     with get_db_session() as session:
         # Query if there is an existing ToolInstance
         query = session.query(ToolInstance).filter(ToolInstance.agent_id == agent_id,
                                                    ToolInstance.tenant_id == tenant_id,
                                                    ToolInstance.delete_flag != 'Y',
                                                    ToolInstance.enabled == True)
-        if user_id:
-            query = query.filter(ToolInstance.user_id == user_id)
 
         tool_instances = query.all()
         tools_list = []
@@ -356,4 +337,42 @@ def query_all_agent_info_by_tenant_id(tenant_id: str):
         agents = session.query(AgentInfo).filter(AgentInfo.tenant_id == tenant_id, 
                                                  AgentInfo.delete_flag != 'Y').order_by(AgentInfo.create_time.desc()).all()
         return [as_dict(agent) for agent in agents]
-    
+
+def insert_related_agent(parent_agent_id: int, child_agent_id: int, tenant_id: str)->bool:
+    try:
+        relation_info = {"parent_agent_id": parent_agent_id,
+                        "selected_agent_id": child_agent_id,
+                        "tenant_id": tenant_id,
+                        "created_by": tenant_id,
+                        "updated_by": tenant_id}
+        with get_db_session() as session:
+            new_relation = AgentRelation(**filter_property(relation_info, AgentRelation))
+            session.add(new_relation)
+            session.flush()
+            return True
+    except Exception as e:
+        logger.error(f"Failed to insert related agent: {str(e)}")
+        return False
+
+def delete_related_agent(parent_agent_id: int, child_agent_id: int, tenant_id: str)->bool:
+    try:
+        with get_db_session() as session:
+            session.query(AgentRelation).filter(AgentRelation.parent_agent_id == parent_agent_id,
+                                                AgentRelation.selected_agent_id == child_agent_id,
+                                                AgentRelation.tenant_id == tenant_id).update(
+                {ToolInstance.delete_flag: 'Y', 'updated_by': tenant_id})
+            return True
+    except Exception as e:
+        logger.error(f"Failed to delete related agent: {str(e)}")
+        return False
+
+def delete_all_related_agent(parent_agent_id: int, tenant_id: str)->bool:
+    try:
+        with get_db_session() as session:
+            session.query(AgentRelation).filter(AgentRelation.parent_agent_id == parent_agent_id,
+                                                AgentRelation.tenant_id == tenant_id).update(
+                {ToolInstance.delete_flag: 'Y', 'updated_by': tenant_id})
+            return True
+    except Exception as e:
+        logger.error(f"Failed to delete related agent: {str(e)}")
+        return False

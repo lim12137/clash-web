@@ -1,6 +1,6 @@
 import { Modal, Select, Input, Button, message, Switch, Tooltip } from 'antd'
-import { InfoCircleFilled, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons'
-import { useState } from 'react'
+import { InfoCircleFilled, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, RightOutlined, DownOutlined } from '@ant-design/icons'
+import { useState, useEffect } from 'react'
 import { ModelType, SingleModelConfig, ModelConnectStatus } from '@/types/config'
 import { modelService } from '@/services/modelService'
 import { useConfig } from '@/hooks/useConfig'
@@ -34,6 +34,9 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     apiKey: "",
     maxTokens: "4096",
     isMultimodal: false,
+    // Whether to import multiple models at once
+    isBatchImport: false,
+    provider: "silicon",
     vectorDimension: "1024"
   })
   const [loading, setLoading] = useState(false)
@@ -46,11 +49,26 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     message: ""
   })
 
-  // Parse the model name, extract the default display name
+  const [modelList, setModelList] = useState<any[]>([])
+  const [selectedModelIds, setSelectedModelIds] = useState<Set<string>>(new Set())
+  const [showModelList, setShowModelList] = useState(false)
+  const [loadingModelList, setLoadingModelList] = useState(false)
+
+  // Debug: log model list when it updates
+  // useEffect(() => {
+  //   console.log('modelList', modelList)
+  //   // whenever modelList changes, select all by default
+  //   setSelectedModelIds(new Set(modelList.map((m: any) => m.id)))
+  // }, [modelList])
+
   const parseModelName = (name: string): string => {
     if (!name) return ""
     const parts = name.split('/')
-    return parts.length > 1 ? parts[parts.length - 1] : name
+    if (parts.length <= 2) {
+      return parts[parts.length - 1]
+    } else {
+      return `${parts[0]}/${parts[parts.length - 1]}`
+    }
   }
 
   // Handle model name change, automatically update the display name
@@ -87,6 +105,10 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
 
   // Check if the form is valid
   const isFormValid = () => {
+    if (form.isBatchImport) {
+      return form.provider.trim() !== "" && 
+             form.apiKey.trim() !== ""
+    }
     if (form.type === "embedding") {
       return form.name.trim() !== "" && 
              form.url.trim() !== "" && 
@@ -179,9 +201,90 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     }
   }
 
+
+  const getModelList = async () => {
+    setShowModelList(true)
+    setLoadingModelList(true)
+    const modelType = form.type === "embedding" && form.isMultimodal ? 
+        "multi_embedding" as ModelType : 
+        form.type;
+    try {
+      const result = await modelService.addProviderModel({
+        provider: form.provider,
+        type: modelType,
+        apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey
+      })
+      setModelList(result)
+      if (!result || result.length === 0) {
+        message.error(t('model.dialog.error.noModelsFetched'))
+      }
+      const selectedModels = await getProviderSelectedModalList() || []
+      // 关键逻辑
+      if (!selectedModels.length) {
+        // 全部不选
+        setSelectedModelIds(new Set())
+      } else {
+        // 只选中 selectedModels
+        setSelectedModelIds(new Set(selectedModels.map((m: any) => m.id)))
+      }
+    } catch (error) {
+      message.error(t('model.dialog.error.addFailed', { error }))
+      console.error(t('model.dialog.error.addFailedLog'), error)
+    } finally {
+      setLoadingModelList(false)
+    }
+  }
+
+  // Handle batch adding models 
+  const handleBatchAddModel = async () => {
+    // Only include models whose id is in selectedModelIds (i.e., switch is ON)
+    const enabledModels = modelList.filter((model: any) => selectedModelIds.has(model.id));
+    const modelType = form.type === "embedding" && form.isMultimodal ? 
+        "multi_embedding" as ModelType : 
+        form.type;
+    try {
+      const result = await modelService.addBatchCustomModel({
+        api_key: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey,
+        provider: form.provider,
+        type: modelType,
+        max_tokens: parseInt(form.maxTokens) || 0,
+        models: enabledModels
+      })
+      if (result === 200) {
+        onSuccess()
+      }
+    } catch (error: any) {
+      message.error(error?.message || '添加模型失败');
+    }
+
+    setForm(prev => ({
+      ...prev,
+      isBatchImport: false
+    }))
+   
+    onClose()
+  }
+
+  const getProviderSelectedModalList = async () => {
+    const modelType = form.type === "embedding" && form.isMultimodal ? 
+        "multi_embedding" as ModelType : 
+        form.type;
+    const result = await modelService.getProviderSelectedModalList({
+      provider: form.provider,
+      type: modelType,
+      api_key: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey
+    })
+    return result
+  }
+
   // Handle adding a model
   const handleAddModel = async () => {
     setLoading(true)
+    if (form.isBatchImport) {
+      await handleBatchAddModel()
+      setLoading(false)
+      return
+    }
     try {
       const modelType = form.type === "embedding" && form.isMultimodal ? 
         "multi_embedding" as ModelType : 
@@ -264,6 +367,8 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         apiKey: "",
         maxTokens: "4096",
         isMultimodal: false,
+        isBatchImport: false,
+        provider: "silicon",
         vectorDimension: "1024"
       })
       
@@ -285,6 +390,13 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
 
   const isEmbeddingModel = form.type === "embedding"
 
+  useEffect(() => {
+    if (form.isBatchImport && modelList.length !=0) {
+      getModelList();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.type]);
+
   return (
     <Modal
       title={t('model.dialog.title')}
@@ -294,6 +406,38 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       destroyOnClose
     >
       <div className="space-y-4">
+        {/* Batch Import Switch */}
+        <div>
+          <div className="flex justify-between items-center">
+            <label className="block text-sm font-medium text-gray-700">
+              {t('model.dialog.label.batchImport')}
+            </label>
+            <Switch
+              checked={form.isBatchImport}
+              onChange={(checked) => handleFormChange("isBatchImport", checked)}
+            />
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {form.isBatchImport ? t('model.dialog.hint.batchImportEnabled') : t('model.dialog.hint.batchImportDisabled')}
+          </div>
+        </div>
+
+        {/* Model Provider (shown only when batch import is enabled) */}
+        {form.isBatchImport && (
+          <div>
+            <label className="block mb-1 text-sm font-medium text-gray-700">
+              {t('model.dialog.label.provider')}<span className="text-red-500">*</span>
+            </label>
+            <Select
+              style={{ width: '100%' }}
+              value={form.provider}
+              onChange={(value) => handleFormChange('provider', value)}
+            >
+              <Option value="silicon">{t('model.provider.silicon')}</Option>
+            </Select>
+          </div>
+        )}
+
         {/* Model Type */}
         <div>
           <label className="block mb-1 text-sm font-medium text-gray-700">
@@ -314,7 +458,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         </div>
 
         {/* Multimodal Switch */}
-        {isEmbeddingModel && (
+        {isEmbeddingModel && !form.isBatchImport && (
           <div>
             <div className="flex justify-between items-center">
               <label className="block text-sm font-medium text-gray-700">
@@ -332,47 +476,53 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         )}
 
         {/* Model Name */}
-        <div>
-          <label htmlFor="name" className="block mb-1 text-sm font-medium text-gray-700">
-            {t('model.dialog.label.name')} <span className="text-red-500">*</span>
-          </label>
-          <Input
-            id="name"
-            placeholder={t('model.dialog.placeholder.name')}
-            value={form.name}
-            onChange={handleModelNameChange}
-          />
-        </div>
+        {!form.isBatchImport && (
+          <div>
+            <label htmlFor="name" className="block mb-1 text-sm font-medium text-gray-700">
+              {t('model.dialog.label.name')} <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="name"
+              placeholder={t('model.dialog.placeholder.name')}
+              value={form.name}
+              onChange={handleModelNameChange}
+            />
+          </div>
+        )}
 
         {/* Display Name */}
-        <div>
-          <label htmlFor="displayName" className="block mb-1 text-sm font-medium text-gray-700">
-            {t('model.dialog.label.displayName')}
-          </label>
-          <Input
-            id="displayName"
-            placeholder={t('model.dialog.placeholder.displayName')}
-            value={form.displayName}
-            onChange={(e) => handleFormChange("displayName", e.target.value)}
-          />
-        </div>
+        {!form.isBatchImport && (
+          <div>
+            <label htmlFor="displayName" className="block mb-1 text-sm font-medium text-gray-700">
+              {t('model.dialog.label.displayName')}
+            </label>
+            <Input
+              id="displayName"
+              placeholder={t('model.dialog.placeholder.displayName')}
+              value={form.displayName}
+              onChange={(e) => handleFormChange("displayName", e.target.value)}
+            />
+          </div>
+        )}
 
         {/* Model URL */}
-        <div>
-          <label htmlFor="url" className="block mb-1 text-sm font-medium text-gray-700">
-            {t('model.dialog.label.url')} <span className="text-red-500">*</span>
-          </label>
-          <Input
-            id="url"
-            placeholder={
-              form.type === "embedding"
-                ? t('model.dialog.placeholder.url.embedding')
-                : t('model.dialog.placeholder.url')
-            }
-            value={form.url}
-            onChange={(e) => handleFormChange("url", e.target.value)}
-          />
-        </div>
+        {!form.isBatchImport && (
+          <div>
+            <label htmlFor="url" className="block mb-1 text-sm font-medium text-gray-700">
+              {t('model.dialog.label.url')} <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="url"
+              placeholder={
+                form.type === "embedding"
+                  ? t('model.dialog.placeholder.url.embedding')
+                  : t('model.dialog.placeholder.url')
+              }
+              value={form.url}
+              onChange={(e) => handleFormChange("url", e.target.value)}
+            />
+          </div>
+        )}
 
         {/* API Key */}
         <div>
@@ -411,6 +561,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         )}
 
         {/* Connectivity verification area */}
+        {!form.isBatchImport && (
         <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center">
@@ -443,6 +594,85 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
             </div>
           )}
         </div>
+        )}
+
+        {/* Model List */}
+        {form.isBatchImport && (
+        <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
+          <div className="flex items-center justify-between mb-1">
+            <button
+              type="button"
+              onClick={() => setShowModelList(!showModelList)}
+              className="flex items-center focus:outline-none"
+            >
+              {showModelList ? (
+                <DownOutlined className="text-sm text-gray-700 mr-1" />
+              ) : (
+                <RightOutlined className="text-sm text-gray-700 mr-1" />
+              )}
+              <span className="text-sm font-medium text-gray-700">
+                {t('model.dialog.modelList.title')}
+              </span>
+            </button>
+            <Button
+              size="small"
+              type="default"
+              onClick={getModelList}
+              disabled={!isFormValid() || loadingModelList}
+            >
+              {loadingModelList ? t('common.loading') : t('model.dialog.button.modelList')}
+            </Button>
+          </div>
+          {showModelList && (
+            <div className="mt-2 space-y-1 max-h-60 overflow-y-auto">
+              {loadingModelList ? (
+                <div className="flex flex-col items-center justify-center py-4 text-xs text-gray-500">
+                  <LoadingOutlined spin style={{ fontSize: 18, color: '#1890ff', marginBottom: 4 }} />
+                  <span>{t('common.loading') || '获取中...'}</span>
+                </div>
+              ) : modelList.length === 0 ? (
+                <div className="text-xs text-gray-500 text-center">{t('model.dialog.message.noModels') || '请先获取模型'}</div>
+              ) : (
+                
+                modelList.map((model: any) => {
+                  const checked = selectedModelIds.has(model.id)
+                  const toggleSelect = (value: boolean) => {
+                    setSelectedModelIds(prev => {
+                      const next = new Set(prev)
+                      if (value) {
+                        next.add(model.id)
+                      } else {
+                        next.delete(model.id)
+                      }
+                      return next
+                    })
+                  }
+                  return (
+                    <div key={model.id} className="p-2 flex justify-between items-center rounded hover:bg-gray-100 text-sm border border-transparent">
+                      <div className="flex items-center min-w-0">
+                        <span className="truncate" title={model.id}>
+                          {model.id}
+                        </span>
+                        {model.model_type && (
+                          <span className="ml-2 px-1.5 py-0.5 text-xs rounded bg-gray-200 text-gray-600 uppercase">
+                            {String(model.model_tag)}
+                          </span>
+                        )}
+                      </div>
+                      <Switch size="small" checked={checked} onChange={toggleSelect} />
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          )}
+          {connectivityStatus.message && !showModelList && (
+            <div className="text-xs text-gray-600">
+              {connectivityStatus.message}
+            </div>
+          )}
+          </div>
+        )}
 
         {/* Help Text */}
         <div className="p-3 bg-blue-50 border border-blue-100 rounded-md text-xs text-blue-700">
@@ -452,11 +682,16 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               <p className="font-bold text-medium">{t('model.dialog.help.title')}</p>
             </div>
             <p className="mt-0.5 ml-6">
-              {t('model.dialog.help.content')}
+              {form.isBatchImport ? t('model.dialog.help.content.batchImport') : t('model.dialog.help.content')}
             </p>
             <div className="mt-2 ml-6 flex items-center">
               <span>{t('model.dialog.label.currentlySupported')}</span>
-              {form.type === 'llm' && (
+              {form.isBatchImport && (
+                <Tooltip title="SiliconCloud">
+                  <img src="/siliconcloud-color.png" alt="SiliconCloud" className="h-4 ml-1.5" />
+                </Tooltip>
+              )}
+              {form.type === 'llm' && !form.isBatchImport && (
                 <>
                   <Tooltip title="OpenAI">
                     <img src="/openai.png" alt="OpenAI" className="h-4 ml-1.5" />
@@ -473,7 +708,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
                   <span className="ml-1.5">...</span>
                 </>
               )}
-              {form.type === 'embedding' && (
+              {form.type === 'embedding' && !form.isBatchImport && (
                 <>
                   <Tooltip title="OpenAI">
                     <img src="/openai.png" alt="OpenAI" className="h-4 ml-1.5" />
@@ -490,7 +725,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
                   <span className="ml-1.5">...</span>
                 </>
               )}
-              {form.type === 'vlm' && (
+              {form.type === 'vlm' && !form.isBatchImport && (
                 <>
                   <Tooltip title="Qwen">
                     <img src="/qwen-color.png" alt="Qwen" className="h-4 ml-1.5" />
