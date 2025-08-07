@@ -269,10 +269,8 @@ def filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_lis
 
 async def create_agent_run_info(agent_id, minio_files, query, history, authorization, language: str = 'zh'):
     user_id, tenant_id = get_current_user_id(authorization)
-    if not agent_id:
-        agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
-    final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
 
+    final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
     model_list = await create_model_config_list(tenant_id)
 
     remote_mcp_list = await get_remote_mcp_server_list(tenant_id=tenant_id)
