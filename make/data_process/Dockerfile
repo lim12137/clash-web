@@ -23,7 +23,7 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN pip install uv $(test -n "$MIRROR" && echo "-i $MIRROR")
+RUN pip install uv --no-cache-dir $(test -n "$MIRROR" && echo "-i $MIRROR")
 # Layer 0: copy model assets
 COPY model-assets/clip-vit-base-patch32 /opt/models/clip-vit-base-patch32
 COPY model-assets/nltk_data /opt/models/nltk_data
@@ -31,7 +31,7 @@ COPY model-assets/nltk_data /opt/models/nltk_data
 WORKDIR /opt/backend
 # Layer 1: install base dependencies
 COPY backend/pyproject.toml /opt/backend/pyproject.toml
-RUN uv sync --extra data-process $(test -n "$MIRROR" && echo "-i $MIRROR")
+RUN uv sync -- no-cache-dir --extra data-process $(test -n "$MIRROR" && echo "-i $MIRROR")
 # Layer 2: install sdk in link mode
 COPY sdk /opt/sdk
 RUN uv pip install /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR") && \
