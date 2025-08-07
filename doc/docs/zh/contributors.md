@@ -45,12 +45,12 @@ Nexent 项目得益于我们核心团队成员的辛勤工作。我们想感谢�
 我们想特别感谢以下开源贡献者，他们为 Nexent 项目做出了宝贵的贡献：
 
 - **kasper1995** - 代码贡献和错误修复
-- **feng384** - 功能开发和改进
-- **Cokefish9527** - 文档和测试
-- **lwsinclair** - 性能优化
-- **4cos90** - UI/UX 改进
-- **xigongdaEricyang** - 后端增强
-- **Jenniebn** - 社区支持和反馈
+- **feng384** - 代码贡献和错误修复
+- **Cokefish9527** - 代码贡献和错误修复
+- **lwsinclair** - 代码贡献和错误修复
+- **4cos90** - 代码贡献和错误修复
+- **xigongdaEricyang** - 代码\Issue 贡献
+- **Jenniebn** - 代码\Issue 贡献
 
 ## 加入我们的团队
 
