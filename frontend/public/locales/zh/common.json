@@ -946,7 +946,8 @@
         "noAgent": "不选择 Agent",
         "noAvailableAgents": "暂无可用Agent",
         "unavailable": "不可用",
-        "agentUnavailable": "此Agent当前不可用，请检查工具配置信息或通知管理员。"
+        "agentUnavailable": "此Agent当前不可用，请检查工具配置信息或通知管理员。",
+        "pleaseSelectAgent": "请先选择一个 Agent"
     },
     "collaborativeAgent": {
         "title": "协作Agent",
