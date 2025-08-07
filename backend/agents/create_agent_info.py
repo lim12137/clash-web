@@ -8,8 +8,8 @@ from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfi
 from services.remote_mcp_service import get_remote_mcp_server_list
 from utils.auth_utils import get_current_user_id
 
-from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents, \
-    query_or_create_main_agent_id
+from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, \
+    query_or_create_main_agent_id, query_sub_agents_id_list
 from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
 from services.tenant_config_service import get_selected_knowledge_list
 from utils.prompt_template_utils import get_prompt_template_path
@@ -41,13 +41,11 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     agent_info = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id)
 
     # create sub agent
-    sub_agents_info = query_sub_agents(agent_id, tenant_id)
+    sub_agent_id_list = query_sub_agents_id_list(main_agent_id=agent_id, tenant_id=tenant_id)
     managed_agents = []
-    for sub_agent_info in sub_agents_info:
-        if not sub_agent_info.get("enabled"):
-            continue
+    for sub_agent_id in sub_agent_id_list:
         sub_agent_config = await create_agent_config(
-            agent_id=sub_agent_info["agent_id"],
+            agent_id=sub_agent_id,
             tenant_id=tenant_id,
             user_id=user_id,
             language=language)
