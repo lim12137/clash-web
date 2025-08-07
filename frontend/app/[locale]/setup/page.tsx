@@ -208,59 +208,8 @@ export default function CreatePage() {
   // Handle completed configuration
   const handleCompleteConfig = async () => {
     if (selectedKey === "3") {
-      // when finish the config in the third step, check if the necessary steps are completed
-      try {
-        // trigger a custom event to get the Agent configuration status
-        const agentConfigData = await new Promise<{businessLogic: string, systemPrompt: string}>((resolve) => {
-          const handleAgentConfigResponse = (event: Event) => {
-            const customEvent = event as CustomEvent;
-            resolve(customEvent.detail);
-            window.removeEventListener('agentConfigDataResponse', handleAgentConfigResponse);
-          };
-          
-          window.addEventListener('agentConfigDataResponse', handleAgentConfigResponse);
-          window.dispatchEvent(new CustomEvent('getAgentConfigData'));
-          
-          // set a timeout to prevent infinite waiting
-          setTimeout(() => {
-            window.removeEventListener('agentConfigDataResponse', handleAgentConfigResponse);
-            resolve({businessLogic: '', systemPrompt: ''});
-          }, 1000);
-        });
-
-        // check if the business description is filled
-        if (!agentConfigData.businessLogic || agentConfigData.businessLogic.trim() === '') {
-          message.error(t('agent.message.businessDescriptionRequired'));
-          return; // prevent continue
-        }
-
-        // check if the system prompt is generated
-        if (!agentConfigData.systemPrompt || agentConfigData.systemPrompt.trim() === '') {
-          message.error(t('systemPrompt.message.empty'));
-          return; // prevent continue
-        }
-
-        // if the check is passed, continue to execute the save configuration logic
-        setIsSavingConfig(true)
-        // Get the current global configuration
-        const currentConfig = configStore.getConfig()
-        
-        // Call the backend save configuration API
-        const saveResult = await configService.saveConfigToBackend(currentConfig)
-        
-        if (saveResult) {
-          message.success(t('setup.page.success.configSaved'))
-          // After saving successfully, redirect to the chat page
-          router.push("/chat")
-        } else {
-          message.error(t('setup.page.error.saveConfig'))
-        }
-      } catch (error) {
-        console.error(t('setup.page.error.systemError'), error)
-        message.error(t('setup.page.error.systemError'))
-      } finally {
-        setIsSavingConfig(false)
-      }
+      // 直接跳转到聊天页面，不进行任何检查
+      router.push("/chat")
     } else if (selectedKey === "2") {
       // If the user is an admin, jump to the third page; if the user is a normal user, complete the configuration directly and jump to the chat page
       if (user?.role === "admin") {

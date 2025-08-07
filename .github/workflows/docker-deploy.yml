@@ -66,9 +66,20 @@ jobs:
       - name: Build web frontend image
         run: docker build --build-arg MIRROR=https://registry.npmmirror.com -t nexent/nexent-web-commercial -f make/web/Dockerfile .
 
+  build-docs:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          retries: 3
+      - name: Build docs image
+        run: docker build --progress=plain -t nexent/nexent-docs -f make/docs/Dockerfile .
+
   deploy:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: [ build-main, build-data-process, build-web ]
+    needs: [ build-main, build-data-process, build-web, build-docs ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -80,6 +91,11 @@ jobs:
           rm -rf $HOME/nexent-commercial
           mkdir -p $HOME/nexent-commercial
           cp -r $GITHUB_WORKSPACE/* $HOME/nexent-commercial/
+      - name: Start docs container
+        run: |
+          docker stop nexent-docs 2>/dev/null || true
+          docker rm nexent-docs 2>/dev/null || true
+          docker run -d --name nexent-docs -p 4173:4173 nexent/nexent-docs
       - name: Ensure deploy.sh is executable
         run: chmod +x $HOME/nexent-commercial/docker/deploy.sh
       - name: Deploy with deploy.sh

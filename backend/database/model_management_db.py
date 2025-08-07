@@ -233,3 +233,14 @@ def get_model_by_model_id(model_id: int, tenant_id: Optional[str] = None) -> Opt
                       if not key.startswith('_')}
 
         return result_dict
+
+
+def get_models_by_tenant_factory_type(tenant_id: str, model_factory: str, model_type: str) -> List[Dict[str, Any]]:
+    """
+    Get all model database records matching tenant_id, model_factory, and model_type.
+    """
+    filters = {
+        "model_factory": model_factory,
+        "model_type": model_type
+    }
+    return get_model_records(filters, tenant_id)
