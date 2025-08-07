@@ -27,3 +27,20 @@ def add_repo_to_name(model_repo: str, model_name: str) -> str:
     if model_repo:
         return f"{model_repo}/{model_name}"
     return model_name
+
+def split_display_name(full_name: str):
+    """
+    Split model_name into a display name.
+    Examples:
+    - 'model' -> 'model'
+    - 'repo/model' -> 'model'
+    - 'pro/repo/model' -> 'pro/model'
+    """
+    parts = full_name.split('/')
+    if not full_name:
+        return ""
+    if len(parts) <= 2:
+        return parts[-1]
+    else:
+        # For names like "Pro/Qwen/Qwen2-7B-Instruct", return "Pro/Qwen2-7B-Instruct"
+        return f"{parts[0]}/{parts[-1]}"

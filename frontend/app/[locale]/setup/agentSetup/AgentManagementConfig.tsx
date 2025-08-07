@@ -1,639 +1,33 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react'
-import { Typography, Input, Button, Switch, Modal, message, Select, InputNumber, Tag, Upload } from 'antd'
-import { SettingOutlined, UploadOutlined, ThunderboltOutlined, LoadingOutlined, ApiOutlined, ReloadOutlined } from '@ant-design/icons'
-import ToolConfigModal from './components/ToolConfigModal'
-import McpConfigModal from './components/McpConfigModal'
-import AgentInfoInput from './components/AgentInfoInput'
-import AgentContextMenu from './components/AgentContextMenu'
-import { Tool, SubAgentPoolProps, ToolPoolProps, BusinessLogicConfigProps, Agent, OpenAIModel } from './ConstInterface'
-import { ScrollArea } from '@/components/ui/scrollArea'
-import { getCreatingSubAgentId, fetchAgentList, updateToolConfig, searchToolConfig, updateAgent, importAgent, exportAgent, deleteAgent, searchAgentInfo, fetchTools } from '@/services/agentConfigService'
-import { updateToolList } from '@/services/mcpService'
-import {generatePromptStream, savePrompt} from '@/services/promptService'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { message, Modal } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { TFunction } from 'i18next'
-import { Tooltip as CustomTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
-const { TextArea } = Input
-
-const ModelOptions = () => {
-  const { t } = useTranslation('common');
-  return [
-    { label: t('model.option.main'), value: OpenAIModel.MainModel },
-    { label: t('model.option.sub'), value: OpenAIModel.SubModel },
-  ]
-}
-
-// 提取公共的 handleToolSelect 逻辑
-const handleToolSelectCommon = async (
-  tool: Tool,
-  isSelected: boolean,
-  mainAgentId: string | null | undefined,
-  t: TFunction,
-  onSuccess?: (tool: Tool, isSelected: boolean) => void
-) => {
-
-  // Only block the action when attempting to select an unavailable tool.
-  if (tool.is_available === false && isSelected) {
-    message.error(t('tool.message.unavailable'));
-    return { shouldProceed: false, params: {} };
-  }
-
-  if (!mainAgentId) {
-    message.error(t('tool.error.noMainAgentId'));
-    return { shouldProceed: false, params: {} };
-  }
-
-  try {
-    // step 1: get tool config from database
-    const searchResult = await searchToolConfig(parseInt(tool.id), parseInt(mainAgentId));
-    if (!searchResult.success) {
-      message.error(t('tool.error.configFetchFailed'));
-      return { shouldProceed: false, params: {} };
-    }
-
-    let params: Record<string, any> = {};
-
-    // use config from database or default config
-    if (searchResult.data?.params) {
-      params = searchResult.data.params || {};
-    } else {
-      // if there is no saved config, use default value
-      params = (tool.initParams || []).reduce((acc, param) => {
-        if (param && param.name) {
-          acc[param.name] = param.value;
-        }
-        return acc;
-      }, {} as Record<string, any>);
-    }
-
-    // step 2: if the tool is enabled, check required fields
-    if (isSelected && tool.initParams && tool.initParams.length > 0) {
-      const missingRequiredFields = tool.initParams
-        .filter(param => param && param.required && (params[param.name] === undefined || params[param.name] === '' || params[param.name] === null))
-        .map(param => param.name);
-
-      if (missingRequiredFields.length > 0) {
-        return { shouldProceed: false, params };
-      }
-    }
-
-    // step 3: if all checks pass, update tool config
-    const updateResult = await updateToolConfig(
-      parseInt(tool.id),
-      parseInt(mainAgentId),
-      params,
-      isSelected
-    );
-
-    if (updateResult.success) {
-      if (onSuccess) {
-        onSuccess(tool, isSelected);
-      }
-      message.success(t('tool.message.statusUpdated', { name: tool.name, status: isSelected ? t('common.enabled') : t('common.disabled') }));
-      return { shouldProceed: true, params };
-    } else {
-      message.error(updateResult.message || t('tool.error.updateFailed'));
-      return { shouldProceed: false, params };
-    }
-  } catch (error) {
-    message.error(t('tool.error.updateRetry'));
-    return { shouldProceed: false, params: {} };
-  }
-};
-
-/**
- * Business Logic Input Component
- */
-function BusinessLogicInput({ 
-  value, 
-  onChange
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const { t } = useTranslation('common');
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center mb-2">
-        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
-          3
-        </div>
-        <h2 className="text-lg font-medium">{t('businessLogic.title')}</h2>
-      </div>
-      <div className="flex-1 flex flex-col">
-        <TextArea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={t('businessLogic.placeholder')}
-          className="w-full h-full resize-none p-3 text-base"
-          style={{ height: '100%' }}
-          autoSize={false}
-        />
-      </div>
-    </div>
-  )
-}
-
-/**
- * Sub Agent Pool Component
- */
-function SubAgentPool({ 
-  selectedAgents, 
-  onSelectAgent, 
-  onEditAgent, 
-  onCreateNewAgent, 
-  onImportAgent,
-  onExportAgent,
-  onDeleteAgent,
-  subAgentList = [],
-  loadingAgents = false,
-  enabledAgentIds = [],
-  isImporting = false
-}: SubAgentPoolProps) {
-  const { t } = useTranslation('common');
-
-  const [contextMenu, setContextMenu] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-    agent: Agent | null;
-  }>({
-    visible: false,
-    x: 0,
-    y: 0,
-    agent: null
-  });
-
-  const handleContextMenu = (e: React.MouseEvent, agent: Agent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    setContextMenu({
-      visible: true,
-      x: e.clientX,
-      y: e.clientY,
-      agent: agent
-    });
-  };
-
-  const handleCloseContextMenu = () => {
-    setContextMenu({
-      visible: false,
-      x: 0,
-      y: 0,
-      agent: null
-    });
-  };
-
-  return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      <div className="flex justify-between items-center mb-2">
-        <div className="flex items-center">
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
-            1
-          </div>
-          <h2 className="text-lg font-medium">{t('subAgentPool.title')}</h2>
-        </div>
-        {loadingAgents && <span className="text-sm text-gray-500">{t('subAgentPool.loading')}</span>}
-      </div>
-      <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
-        <div className="grid grid-cols-1 gap-3 pr-2">
-          <div className="flex gap-2 mb-2">
-            <div 
-              className="flex-1 border rounded-md p-3 flex flex-col justify-center items-center cursor-pointer transition-colors duration-200 h-[80px] hover:border-blue-300 hover:bg-blue-50"
-              onClick={onCreateNewAgent}
-            >
-              <div className="flex items-center justify-center h-full text-blue-500">
-                <span className="text-lg mr-2">+</span>
-                <span className="text-sm">{t('subAgentPool.button.create')}</span>
-              </div>
-            </div>
-
-            <div
-              className={`flex-1 border rounded-md p-3 flex flex-col justify-center items-center transition-colors duration-200 h-[80px] ${
-                isImporting
-                  ? 'opacity-50 cursor-not-allowed border-gray-300'
-                  : 'cursor-pointer hover:border-green-300 hover:bg-green-50'
-              }`}
-              onClick={isImporting ? undefined : onImportAgent}
-            >
-              <div className={`flex items-center justify-center h-full ${isImporting ? 'text-gray-400' : 'text-green-500'}`}>
-                <UploadOutlined className="text-lg mr-2" />
-                <span className="text-sm">{isImporting ? t('subAgentPool.button.importing') : t('subAgentPool.button.import')}</span>
-              </div>
-            </div>
-          </div>
-
-          {subAgentList.map((agent) => {
-            const isEnabled = enabledAgentIds.includes(Number(agent.id));
-            const isAvailable = agent.is_available !== false; // 默认为true，只有明确为false时才不可用
-            return (
-              <div 
-                key={agent.id} 
-                className={`border rounded-md p-3 flex flex-col justify-center transition-colors duration-200 h-[80px] ${
-                  !isAvailable
-                    ? isEnabled
-                      ? 'bg-blue-100 border-blue-400 opacity-60'
-                      : 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
-                    : isEnabled 
-                      ? 'bg-blue-100 border-blue-400' 
-                      : 'hover:border-blue-300'
-                }`}
-                title={!isAvailable 
-                  ? isEnabled 
-                    ? t('subAgentPool.tooltip.disabledAgent')
-                    : t('subAgentPool.tooltip.unavailableAgent')
-                  : undefined}
-                onClick={() => {
-                  if (!isAvailable && !isEnabled) {
-                    message.warning(t('subAgentPool.message.unavailable'));
-                    return;
-                  }
-                  // 如果Agent不可用但已启用，允许禁用它
-                  if (!isAvailable && isEnabled) {
-                    onSelectAgent(agent, false);
-                    return;
-                  }
-                  onSelectAgent(agent, !isEnabled);
-                }}
-                onContextMenu={(e) => handleContextMenu(e, agent)}
-              >
-                <div className="flex items-center h-full">
-                  <div className="flex-1 overflow-hidden">
-                    <div className={`font-medium text-sm truncate ${!isAvailable && !isEnabled ? 'text-gray-400' : ''}`} 
-                         title={!isAvailable 
-                           ? isEnabled 
-                             ? t('subAgentPool.tooltip.disabledAgent')
-                             : t('subAgentPool.tooltip.unavailableAgent')
-                           : agent.name}>
-                      {agent.name}
-                    </div>
-                    <div 
-                      className={`text-xs line-clamp-2 ${!isAvailable && !isEnabled ? 'text-gray-400' : 'text-gray-500'}`}
-                      title={agent.description}
-                    >
-                      {agent.description}
-                    </div>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditAgent(agent);
-                    }}
-                    className={`ml-2 flex-shrink-0 flex items-center justify-center bg-transparent ${
-                      !isAvailable ? 'text-gray-400 hover:text-gray-600' : 'text-gray-500 hover:text-blue-500'
-                    }`}
-                    style={{ border: "none", padding: "4px" }}
-                  >
-                    <SettingOutlined style={{ fontSize: '16px' }} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </ScrollArea>
-
-      {/* Context Menu */}
-      <AgentContextMenu
-        visible={contextMenu.visible}
-        x={contextMenu.x}
-        y={contextMenu.y}
-        agent={contextMenu.agent}
-        onEdit={onEditAgent}
-        onExport={onExportAgent}
-        onDelete={onDeleteAgent}
-        onClose={handleCloseContextMenu}
-      />
-    </div>
-  )
-}
-
-/**
- * Tool Pool Component
- */
-function ToolPool({ 
-  selectedTools, 
-  onSelectTool, 
-  isCreatingNewAgent, 
-  tools = [], 
-  loadingTools = false,
-  mainAgentId,
-  localIsGenerating,
-  onToolsRefresh
-}: ToolPoolProps) {
-  const { t } = useTranslation('common');
-
-  const [isToolModalOpen, setIsToolModalOpen] = useState(false);
-  const [currentTool, setCurrentTool] = useState<Tool | null>(null);
-  const [pendingToolSelection, setPendingToolSelection] = useState<{tool: Tool, isSelected: boolean} | null>(null);
-  const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  // Use useMemo to cache the tool list to avoid unnecessary recalculations
-  const displayTools = useMemo(() => {
-    const toolsToSort = tools || [];
-    // Sort by create_time, earliest created tools first (ascending order)
-    return toolsToSort.sort((a, b) => {
-      // If either tool doesn't have create_time, treat it as newer (sort to bottom)
-      if (!a.create_time && !b.create_time) return 0;
-      if (!a.create_time) return 1;
-      if (!b.create_time) return -1;
-      
-      // Compare create_time strings (ISO format can be compared directly)
-      return a.create_time.localeCompare(b.create_time);
-    });
-  }, [tools]);
-
-  // Use useMemo to cache the selected tool ID set to improve lookup efficiency
-  const selectedToolIds = useMemo(() => {
-    return new Set(selectedTools.map(tool => tool.id));
-  }, [selectedTools]);
-
-  // Use useCallback to cache the tool selection processing function
-  const handleToolSelect = useCallback(async (tool: Tool, isSelected: boolean, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    const { shouldProceed, params } = await handleToolSelectCommon(
-      tool,
-      isSelected,
-      mainAgentId,
-      t,
-      (tool, isSelected) => onSelectTool(tool, isSelected)
-    );
-
-    if (!shouldProceed && params) {
-      setCurrentTool({
-        ...tool,
-        initParams: tool.initParams.map(param => ({
-          ...param,
-          value: params[param.name] || param.value
-        }))
-      });
-      setPendingToolSelection({ tool, isSelected });
-      setIsToolModalOpen(true);
-    }
-  }, [mainAgentId, onSelectTool, t]);
-
-  // Use useCallback to cache the tool configuration click processing function
-  const handleConfigClick = useCallback((tool: Tool, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCurrentTool(tool);
-    setIsToolModalOpen(true);
-  }, []);
-
-  // Use useCallback to cache the tool save processing function
-  const handleToolSave = useCallback((updatedTool: Tool) => {
-    if (pendingToolSelection) {
-      const { tool, isSelected } = pendingToolSelection;
-      const missingRequiredFields = updatedTool.initParams
-        .filter(param => param.required && (param.value === undefined || param.value === '' || param.value === null))
-        .map(param => param.name);
-
-      if (missingRequiredFields.length > 0) {
-        message.error(t('toolPool.error.requiredFields', { fields: missingRequiredFields.join(', ') }));
-        return;
-      }
-
-      const mockEvent = {
-        stopPropagation: () => {},
-        preventDefault: () => {},
-        nativeEvent: new MouseEvent('click'),
-        isDefaultPrevented: () => false,
-        isPropagationStopped: () => false,
-        persist: () => {}
-      } as React.MouseEvent;
-      
-      handleToolSelect(updatedTool, isSelected, mockEvent);
-    }
-    
-    setIsToolModalOpen(false);
-    setPendingToolSelection(null);
-  }, [pendingToolSelection, handleToolSelect, t]);
-
-  // Use useCallback to cache the modal close processing function
-  const handleModalClose = useCallback(() => {
-    setIsToolModalOpen(false);
-    setPendingToolSelection(null);
-  }, []);
-
-  // 刷新工具列表的处理函数
-  const handleRefreshTools = useCallback(async () => {
-    if (isRefreshing || localIsGenerating) return;
-
-    setIsRefreshing(true);
-    try {
-      // 第一步：更新后端工具状态，重新扫描MCP和本地工具
-      const updateResult = await updateToolList();
-      if (!updateResult.success) {
-        message.warning(t('toolManagement.message.updateStatusFailed'));
-      }
-
-      // 第二步：获取最新的工具列表
-      const fetchResult = await fetchTools();
-      if (fetchResult.success) {
-        // 调用父组件的刷新回调，更新工具列表状态
-        if (onToolsRefresh) {
-          onToolsRefresh();
-        }
-      } else {
-        message.error(fetchResult.message || t('toolManagement.message.refreshFailed'));
-      }
-    } catch (error) {
-      console.error(t('debug.console.refreshToolsFailed'), error);
-      message.error(t('toolManagement.message.refreshFailedRetry'));
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [isRefreshing, localIsGenerating, onToolsRefresh, t]);
-
-
-
-  // 监听工具更新事件
-  useEffect(() => {
-    const handleToolsUpdate = async () => {
-      try {
-        // 重新获取最新的工具列表，确保包含新添加的MCP工具
-        const fetchResult = await fetchTools();
-        if (fetchResult.success) {
-          // 调用父组件的刷新回调，更新工具列表状态
-          if (onToolsRefresh) {
-            onToolsRefresh();
-          }
-        } else {
-          console.error('MCP配置后自动刷新工具列表失败:', fetchResult.message);
-        }
-      } catch (error) {
-        console.error('MCP配置后自动刷新工具列表出错:', error);
-      }
-    };
-
-    window.addEventListener('toolsUpdated', handleToolsUpdate);
-    return () => {
-      window.removeEventListener('toolsUpdated', handleToolsUpdate);
-    };
-  }, [onToolsRefresh]);
-
-  // Use memo to optimize the rendering of tool items
-  const ToolItem = memo(({ tool }: { tool: Tool }) => {
-    const isSelected = selectedToolIds.has(tool.id);
-    const isAvailable = tool.is_available !== false; // 默认为true，只有明确为false时才不可用
-    
-    return (
-      <div 
-        className={`border rounded-md p-2 flex items-center transition-colors duration-200 min-h-[45px] ${
-          !isAvailable
-            ? isSelected
-              ? 'bg-blue-100 border-blue-400 opacity-60'
-              : 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
-            : isSelected 
-              ? 'bg-blue-100 border-blue-400' 
-              : 'hover:border-blue-300'
-        } ${localIsGenerating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-        title={!isAvailable 
-          ? isSelected 
-            ? t('toolPool.tooltip.disabledTool')
-            : t('toolPool.tooltip.unavailableTool')
-          : tool.name}
-        onClick={(e) => {
-          if (localIsGenerating) return;
-          if (!isAvailable && !isSelected) {
-            message.warning(t('toolPool.message.unavailable'));
-            return;
-          }
-          handleToolSelect(tool, !isSelected, e);
-        }}
-      >
-        {/* Tool name left */}
-        <div className="flex-1 overflow-hidden">
-          <CustomTooltip>
-            <TooltipTrigger asChild>
-              <div
-                className={`font-medium text-sm truncate ${!isAvailable && !isSelected ? 'text-gray-400' : ''}`}
-                style={{
-                  maxWidth: '300px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  display: 'inline-block',
-                  verticalAlign: 'middle'
-                }}
-              >
-                {tool.name}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              {tool.name}
-            </TooltipContent>
-          </CustomTooltip>
-        </div>
-        {/* Tag and settings button right */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center min-w-[100px] w-[100px] mr-2">
-            <Tag color={tool?.source === 'mcp' ? 'blue' : tool?.source === 'langchain' ? 'orange' : 'green'} 
-                 className={`w-full text-center ${!isAvailable && !isSelected ? 'opacity-50' : ''}`}>
-              {tool?.source === 'mcp' ? t('toolPool.tag.mcp') : tool?.source === 'langchain' ? t('toolPool.tag.langchain') : t('toolPool.tag.local')}
-            </Tag>
-          </div>
-          <button 
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();  // 防止触发父元素的点击事件
-              if (localIsGenerating) return;
-              if (!isAvailable) {
-                if (isSelected) {
-                  handleToolSelect(tool, false, e);
-                } else {
-                  message.warning(t('toolPool.message.unavailable'));
-                }
-                return;
-              }
-              handleConfigClick(tool, e);
-            }}
-            disabled={localIsGenerating}
-            className={`flex-shrink-0 flex items-center justify-center bg-transparent ${
-              localIsGenerating ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-blue-500'
-            }`}
-            style={{ border: "none", padding: "4px" }}
-          >
-            <SettingOutlined style={{ fontSize: '16px' }} />
-          </button>
-        </div>
-      </div>
-    );
-  });
-
-  return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      <div className="flex justify-between items-center mb-2">
-        <div className="flex items-center">
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
-            2
-          </div>
-          <h2 className="text-lg font-medium">{t('toolPool.title')}</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="text"
-            size="small"
-            icon={isRefreshing ? <LoadingOutlined /> : <ReloadOutlined />}
-            onClick={handleRefreshTools}
-            disabled={localIsGenerating || isRefreshing}
-            className="text-green-500 hover:text-green-600 hover:bg-green-50"
-            title={t('toolManagement.refresh.title')}
-          >
-            {isRefreshing ? t('toolManagement.refresh.button.refreshing') : t('toolManagement.refresh.button.refresh')}
-          </Button>
-          <Button
-            type="text"
-            size="small"
-            icon={<ApiOutlined />}
-            onClick={() => setIsMcpModalOpen(true)}
-            disabled={localIsGenerating}
-            className="text-blue-500 hover:text-blue-600 hover:bg-blue-50"
-            title={t('toolManagement.mcp.title')}
-          >
-            {t('toolManagement.mcp.button')}
-          </Button>
-          {loadingTools && <span className="text-sm text-gray-500">{t('toolPool.loading')}</span>}
-        </div>
-      </div>
-      <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
-        {loadingTools ? (
-          <div className="flex items-center justify-center h-full">
-            <span className="text-gray-500">{t('toolPool.loadingTools')}</span>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3 pr-2">
-            {displayTools.map((tool) => (
-              <ToolItem key={tool.id} tool={tool} />
-            ))}
-          </div>
-        )}
-      </ScrollArea>
-
-      <ToolConfigModal
-        isOpen={isToolModalOpen}
-        onCancel={handleModalClose}
-        onSave={handleToolSave}
-        tool={currentTool}
-        mainAgentId={parseInt(mainAgentId || '0')}
-        selectedTools={selectedTools}
-      />
-
-      <McpConfigModal
-        visible={isMcpModalOpen}
-        onCancel={() => setIsMcpModalOpen(false)}
-      />
-    </div>
-  );
-}
-
-// Use memo to optimize the rendering of ToolPool component
-export const MemoizedToolPool = memo(ToolPool);
+import { TooltipProvider } from '@/components/ui/tooltip'
+import SubAgentPool from './components/SubAgentPool'
+import { MemoizedToolPool } from './components/ToolPool'
+import DeleteConfirmModal from './components/DeleteConfirmModal'
+import CollaborativeAgentDisplay from './components/CollaborativeAgentDisplay'
+import SystemPromptDisplay from './components/SystemPromptDisplay'
+// import AgentInfoInput from './components/AgentInfoInput'
+import {
+  BusinessLogicConfigProps,
+  Agent,
+  Tool,
+  OpenAIModel,
+  AgentBasicInfo
+} from './ConstInterface'
+import {
+  getCreatingSubAgentId,
+  fetchAgentList,
+  fetchAgentDetail,
+  updateAgent,
+  importAgent,
+  exportAgent,
+  deleteAgent,
+  searchAgentInfo
+} from '@/services/agentConfigService'
 
 /**
  * Business Logic Configuration Main Component
@@ -676,15 +70,37 @@ export default function BusinessLogicConfig({
   constraintContent,
   setConstraintContent,
   fewShotsContent,
-  setFewShotsContent
+  setFewShotsContent,
+  // Add new props for agent name and description
+  agentName,
+  setAgentName,
+  agentDescription,
+  setAgentDescription,
+  // Add new prop for generating agent state
+  isGeneratingAgent = false,
+  // SystemPromptDisplay related props
+  onDebug,
+  getCurrentAgentId,
+  onModelChange: onModelChangeFromParent,
+  onMaxStepChange: onMaxStepChangeFromParent,
+  onBusinessLogicChange,
+  onGenerateAgent,
+  onSaveAgent,
+  isSavingAgent,
+  canSaveAgent,
+  getButtonTitle,
+  onExportAgent,
+  onDeleteAgent,
+  editingAgent: editingAgentFromParent,
+  onExitCreation
 }: BusinessLogicConfigProps) {
+  console.log('BusinessLogicConfig props received:', { agentName, agentDescription, setAgentName: !!setAgentName, setAgentDescription: !!setAgentDescription });
+
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
-  const [fileList, setFileList] = useState<any[]>([]);
   const [isImporting, setIsImporting] = useState(false);
-  const [isPromptGenerating, setIsPromptGenerating] = useState(false)
-  const [isPromptSaving, setIsPromptSaving] = useState(false)
-  const [localIsGenerating, setLocalIsGenerating] = useState(false)
+  // Use generation state passed from parent component, not local state
+  // const [localIsGenerating, setLocalIsGenerating] = useState(false)
   
   const [generationProgress, setGenerationProgress] = useState({
     duty: false,
@@ -711,8 +127,6 @@ export default function BusinessLogicConfig({
 
   // Common refresh agent list function, moved to the front to avoid hoisting issues
   const refreshAgentList = async (t: TFunction) => {
-    if (!mainAgentId) return;
-    
     setIsLoadingTools(true);
     // Clear the tool selection status when loading starts
     setSelectedTools([]);
@@ -721,39 +135,9 @@ export default function BusinessLogicConfig({
     try {
       const result = await fetchAgentList();
       if (result.success) {
-        // Update all related states
-        setSubAgentList(result.data.subAgentList);
-        setMainAgentId(result.data.mainAgentId);
-        const newEnabledToolIds = result.data.enabledToolIds || [];
-        setEnabledToolIds(newEnabledToolIds);
-        
-        // Update the status of the newly added fields
-        if (result.data.modelName) {
-          setMainAgentModel(result.data.modelName as OpenAIModel);
-        }
-        if (result.data.maxSteps) {
-          setMainAgentMaxStep(result.data.maxSteps);
-        }
-        if (result.data.businessDescription) {
-          setBusinessLogic(result.data.businessDescription);
-        }
-        if (result.data.dutyPrompt) {
-          setDutyContent?.(result.data.dutyPrompt);
-        }
-        if (result.data.constraintPrompt) {
-          setConstraintContent?.(result.data.constraintPrompt);
-        }
-        if (result.data.fewShotsPrompt) {
-          setFewShotsContent?.(result.data.fewShotsPrompt);
-        }
-        
-        // Update the selected tools
-        if (tools && tools.length > 0) {
-          const enabledTools = tools.filter(tool => 
-            newEnabledToolIds.includes(Number(tool.id))
-          );
-          setSelectedTools(enabledTools);
-        }
+        // Update agent list with basic info only
+        setSubAgentList(result.data);
+        message.success(t('businessLogic.config.message.agentListLoaded'));
       } else {
         message.error(result.message || t('businessLogic.config.error.agentListFailed'));
       }
@@ -765,6 +149,118 @@ export default function BusinessLogicConfig({
     }
   };
 
+  // Handle agent selection and load detailed configuration
+  // Remove frontend caching logic, completely rely on backend returned sub_agent_id_list
+  const handleAgentSelectionOnly = (agent: Agent, isSelected: boolean) => {
+    // No longer perform frontend caching, completely rely on backend returned sub_agent_id_list
+    // This function is now just a placeholder, actual state management is controlled by backend
+    console.log('Agent selection changed:', agent.name, isSelected);
+  };
+
+  // Function to refresh agent state
+  const handleRefreshAgentState = async () => {
+    if (isEditingAgent && editingAgent) {
+      try {
+        // Add a small delay to ensure backend operation is completed
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Re-fetch detailed information of currently editing agent
+        const result = await searchAgentInfo(Number(editingAgent.id));
+        if (result.success && result.data) {
+          const agentDetail = result.data;
+
+          // Update enabledAgentIds
+          if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
+            const newEnabledAgentIds = agentDetail.sub_agent_id_list.map((id: any) => Number(id));
+            setEnabledAgentIds(newEnabledAgentIds);
+          } else {
+            setEnabledAgentIds([]);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to refresh agent state:', error);
+      }
+    }
+  };
+
+  // Function to directly update enabledAgentIds
+  const handleUpdateEnabledAgentIds = (newEnabledAgentIds: number[]) => {
+    setEnabledAgentIds(newEnabledAgentIds);
+  };
+
+  const handleAgentSelectAndLoadDetail = async (agent: Agent, isSelected: boolean) => {
+    if (agent.is_available === false && isSelected) {
+      message.error(t('agent.error.disabledAgent'));
+      return;
+    }
+
+    if (isSelected) {
+      // Load detailed agent configuration when selected
+      try {
+        const result = await fetchAgentDetail(Number(agent.id));
+        if (result.success && result.data) {
+          const agentDetail = result.data;
+
+          // Update all related states with detailed configuration
+          setMainAgentId(agentDetail.id);
+          setMainAgentModel(agentDetail.model as OpenAIModel);
+          setMainAgentMaxStep(agentDetail.max_step);
+          setBusinessLogic(agentDetail.business_description || '');
+
+          // Set agent name and description
+          setAgentName?.(agentDetail.name || '');
+          setAgentDescription?.(agentDetail.description || '');
+
+          // Load the segmented prompt content
+          setDutyContent?.(agentDetail.duty_prompt || '');
+          setConstraintContent?.(agentDetail.constraint_prompt || '');
+          setFewShotsContent?.(agentDetail.few_shots_prompt || '');
+
+          // Load agent tools
+          if (agentDetail.tools && agentDetail.tools.length > 0) {
+            setSelectedTools(agentDetail.tools);
+            const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
+            setEnabledToolIds(toolIds);
+          } else {
+            setSelectedTools([]);
+            setEnabledToolIds([]);
+          }
+
+          // Update selected agents list
+          setSelectedAgents([agentDetail]);
+          // Use backend returned sub_agent_id_list to set enabledAgentIds
+          if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
+            setEnabledAgentIds(agentDetail.sub_agent_id_list.map((id: any) => Number(id)));
+          } else {
+            setEnabledAgentIds([]);
+          }
+
+          message.success(t('businessLogic.config.message.agentDetailLoaded'));
+        } else {
+          message.error(result.message || t('businessLogic.config.error.agentDetailFailed'));
+        }
+      } catch (error) {
+        console.error('Failed to load agent details:', error);
+        message.error(t('businessLogic.config.error.agentDetailFailed'));
+      }
+    } else {
+      // Clear configuration when deselected
+      setSelectedAgents([]);
+      // Clear enabledAgentIds
+      setEnabledAgentIds([]);
+      setSelectedTools([]);
+      setEnabledToolIds([]);
+      setMainAgentId(null);
+      setBusinessLogic('');
+      setDutyContent?.('');
+      setConstraintContent?.('');
+      setFewShotsContent?.('');
+      // Clear agent name and description
+      setAgentName?.('');
+      setAgentDescription?.('');
+    }
+  };
+
   const fetchSubAgentIdAndEnableToolList = async (t: TFunction) => {
     setIsLoadingTools(true);
     // Clear the tool selection status when loading starts
@@ -772,14 +268,20 @@ export default function BusinessLogicConfig({
     setEnabledToolIds([]);
     
     try {
-      const result = await getCreatingSubAgentId(mainAgentId);
+      const result = await getCreatingSubAgentId();
       if (result.success && result.data) {
-        const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, dutyPrompt, constraintPrompt, fewShotsPrompt } = result.data;
+        const { agentId, enabledToolIds, modelName, maxSteps, businessDescription, dutyPrompt, constraintPrompt, fewShotsPrompt, sub_agent_id_list } = result.data;
         
         // Update the main agent ID
         setMainAgentId(agentId);
         // Update the enabled tool ID list
         setEnabledToolIds(enabledToolIds);
+        // Update the enabled agent ID list from sub_agent_id_list
+        if (sub_agent_id_list && sub_agent_id_list.length > 0) {
+          setEnabledAgentIds(sub_agent_id_list.map((id: any) => Number(id)));
+        } else {
+          setEnabledAgentIds([]);
+        }
         // Update the model
         if (modelName) {
           setMainAgentModel(modelName as OpenAIModel);
@@ -808,7 +310,7 @@ export default function BusinessLogicConfig({
         message.error(result.message || t('businessLogic.config.error.agentIdFailed'));
       }
     } catch (error) {
-      console.error('创建新Agent失败:', error);
+      console.error('Failed to create new Agent:', error);
       message.error(t('businessLogic.config.error.agentIdFailed'));
     } finally {
       setIsLoadingTools(false);
@@ -836,16 +338,20 @@ export default function BusinessLogicConfig({
         setIsNewAgentInfoValid(true); // Assume data is valid when editing
         console.log('Edit mode useEffect - Do not clear data'); // Debug information
       }
-    } else {
-      // When exiting the creation of a new Agent, reset the main Agent configuration and refresh the list
-      if (!isEditingAgent) {
-        setBusinessLogic('');
-        setSystemPrompt(''); // Also clear the system prompt
-        setMainAgentModel(OpenAIModel.MainModel);
-        setMainAgentMaxStep(5);
-        refreshAgentList(t);
+          } else {
+        // When exiting the creation of a new Agent, reset the main Agent configuration
+        // Only refresh list when exiting creation mode in non-editing mode to avoid flicker when exiting editing mode
+        if (!isEditingAgent) {
+          setBusinessLogic('');
+          setSystemPrompt(''); // Also clear the system prompt
+          setMainAgentModel(OpenAIModel.MainModel);
+          setMainAgentMaxStep(5);
+          // Delay refreshing agent list to avoid jumping
+          setTimeout(() => {
+            refreshAgentList(t);
+          }, 200);
+        }
       }
-    }
   }, [isCreatingNewAgent, isEditingAgent]);
 
   // Listen for changes in the tool status, update the selected tool
@@ -856,13 +362,7 @@ export default function BusinessLogicConfig({
       enabledToolIds.includes(Number(tool.id))
     );
 
-    setSelectedTools(prevTools => {
-      // Only update when the tool list is确实不同时
-      if (JSON.stringify(prevTools) !== JSON.stringify(enabledTools)) {
-        return enabledTools;
-      }
-      return prevTools;
-    });
+    setSelectedTools(enabledTools);
   }, [tools, enabledToolIds, isLoadingTools]);
 
   // Handle the creation of a new Agent
@@ -871,25 +371,84 @@ export default function BusinessLogicConfig({
     setIsEditingAgent(false);
     setEditingAgent(null);
     setIsCreatingNewAgent(true);
+    // Note: Don't clear content here - let the parent component's useEffect handle restoration
+    // The parent component will restore cached content if available
     onEditingStateChange?.(false, null);
   };
 
   // Reset the status when the user cancels the creation of an Agent
   const handleCancelCreating = async () => {
-    setIsCreatingNewAgent(false);
-    setIsEditingAgent(false);
-    setEditingAgent(null);
-    // Reset agent info states
-    setNewAgentName('');
-    setNewAgentDescription('');
-    setNewAgentProvideSummary(true);
-    setIsNewAgentInfoValid(false);
-    // 通知外部编辑状态变化
+    // First notify external editing state change to avoid UI jumping
     onEditingStateChange?.(false, null);
+
+    // Delay resetting state to let UI complete state switching first
+    setTimeout(() => {
+      // Use the parent's exit creation handler to properly clear cache
+      if (onExitCreation) {
+        onExitCreation();
+      } else {
+        setIsCreatingNewAgent(false);
+      }
+      setIsEditingAgent(false);
+      setEditingAgent(null);
+
+      // Reset agent info states
+      setNewAgentName('');
+      setNewAgentDescription('');
+      setNewAgentProvideSummary(true);
+      setIsNewAgentInfoValid(false);
+
+      // Note: Content clearing is handled by onExitCreation above
+
+      // Delay clearing tool and collaborative agent selection to avoid jumping
+      setTimeout(() => {
+        setSelectedTools([]);
+        setEnabledToolIds([]);
+        setEnabledAgentIds([]);
+      }, 200);
+    }, 100);
+  };
+
+  // Handle exit edit mode
+  const handleExitEditMode = async () => {
+    if (isCreatingNewAgent) {
+      // If in creation mode, call cancel creation logic
+      await handleCancelCreating();
+    } else if (isEditingAgent) {
+      // If in editing mode, clear related states first, then update editing state to avoid flickering
+      // First clear tool and agent selection states
+      setSelectedTools([]);
+      setSelectedAgents([]);
+      setEnabledToolIds([]);
+      setEnabledAgentIds([]);
+
+      // Clear right-side name description box
+      setAgentName?.('');
+      setAgentDescription?.('');
+
+      // Clear business logic
+      setBusinessLogic('');
+
+      // Clear segmented prompt content
+      setDutyContent?.('');
+      setConstraintContent?.('');
+      setFewShotsContent?.('');
+
+      // Notify external editing state change
+      onEditingStateChange?.(false, null);
+
+      // Finally update editing state to avoid triggering refresh logic in useEffect
+      setIsEditingAgent(false);
+      setEditingAgent(null);
+      setMainAgentId(null);
+
+      // Ensure tool pool won't show loading state
+      setIsLoadingTools(false);
+    }
   };
 
   // Handle the creation of a new Agent
-  const handleSaveNewAgent = async (name: string, description: string, model: string, max_step: number, provide_run_summary: boolean, prompt: string, business_description: string) => {
+  const handleSaveNewAgent = async (name: string, description: string, model: string, max_step: number, prompt: string, business_description: string) => {
     if (name.trim() && mainAgentId) {
       try {
         let result;
@@ -901,8 +460,8 @@ export default function BusinessLogicConfig({
             description,
             model,
             max_step,
-            provide_run_summary,
-            undefined,
+            false,
+            true,
             business_description,
             dutyContent,
             constraintContent,
@@ -915,8 +474,8 @@ export default function BusinessLogicConfig({
             description,
             model,
             max_step,
-            provide_run_summary,
-            undefined,
+            false,
+            true,
             business_description,
             dutyContent,
             constraintContent,
@@ -935,10 +494,18 @@ export default function BusinessLogicConfig({
 
           setBusinessLogic('');
           setSelectedTools([]);
+          setEnabledToolIds([]);
           setNewAgentName('');
           setNewAgentDescription('');
           setNewAgentProvideSummary(true);
           setSystemPrompt('');
+          // Clear right-side name description box
+          setAgentName?.('');
+          setAgentDescription?.('');
+          // Clear segmented prompt content
+          setDutyContent?.('');
+          setConstraintContent?.('');
+          setFewShotsContent?.('');
 
           refreshAgentList(t);
         } else {
@@ -958,23 +525,26 @@ export default function BusinessLogicConfig({
     }
   };
 
-  const handleSaveAsAgent = () => {
-    if (!isNewAgentInfoValid) {
+  const handleSaveAgent = () => {
+    // The save button's disabled state is controlled by canSaveAgent, which already validates the required fields.
+    // We can still add checks here for better user feedback in case the function is triggered unexpectedly.
+    if (!agentName || agentName.trim() === '') {
       message.warning(t('businessLogic.config.message.completeAgentInfo'));
       return;
     }
-    // Check if any of the prompt parts have content
+
     const hasPromptContent = dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim();
     if (!hasPromptContent) {
       message.warning(t('businessLogic.config.message.generatePromptFirst'));
       return;
     }
+
+    // Always use agentName and agentDescription as they are bound to the inputs in both create and edit modes.
     handleSaveNewAgent(
-      newAgentName, 
-      newAgentDescription, 
+      agentName,
+      agentDescription || '',
       mainAgentModel, 
-      mainAgentMaxStep, 
-      newAgentProvideSummary,
+      mainAgentMaxStep,
       systemPrompt,
       businessLogic
     );
@@ -982,36 +552,39 @@ export default function BusinessLogicConfig({
 
   const handleEditAgent = async (agent: Agent, t: TFunction) => {
     try {
-      // 首先设置为编辑模式，避免useEffect清空数据
-      setIsEditingAgent(true);
-      setEditingAgent(agent); // 先用传入的agent，稍后会用详细数据替换
-      setIsCreatingNewAgent(true);
-      // 通知外部编辑状态变化
-      onEditingStateChange?.(true, agent);
-      
-      // 调用查询接口获取完整的Agent信息
+      // Call query interface to get complete Agent information
       const result = await searchAgentInfo(Number(agent.id));
       
       if (!result.success || !result.data) {
         message.error(result.message || t('businessLogic.config.error.agentDetailFailed'));
-        // 如果获取失败，重置编辑状态
-        setIsEditingAgent(false);
-        setEditingAgent(null);
-        setIsCreatingNewAgent(false);
-        onEditingStateChange?.(false, null);
         return;
       }
       
       const agentDetail = result.data;
       
-      console.log(t('debug.console.loadAgentDetails'), agentDetail); // 调试信息
-      
-      // 更新为完整的Agent数据
+      // Set editing state and highlight after successfully getting information
+      setIsEditingAgent(true);
       setEditingAgent(agentDetail);
-      // 通知外部编辑状态变化（使用完整数据）
+      // Set mainAgentId to current editing Agent ID
+      setMainAgentId(agentDetail.id);
+      // When editing existing agent, ensure exit creation mode
+      // Note: This will be handled by the parent component's handleEditingStateChange
+      // which will cache the current creation content before switching
+      setIsCreatingNewAgent(false);
+
+      // First set right-side name description box data to ensure immediate display
+      console.log('Setting agent name and description in handleEditAgent:', agentDetail.name, agentDetail.description);
+      console.log('setAgentName function exists:', !!setAgentName);
+      console.log('setAgentDescription function exists:', !!setAgentDescription);
+
+      setAgentName?.(agentDetail.name || '');
+      setAgentDescription?.(agentDetail.description || '');
+      console.log('setAgentName and setAgentDescription called');
+
+      // Notify external editing state change (use complete data)
       onEditingStateChange?.(true, agentDetail);
       
-      // 加载Agent数据到界面
+      // Load Agent data to interface
       setNewAgentName(agentDetail.name);
       setNewAgentDescription(agentDetail.description);
       setNewAgentProvideSummary(agentDetail.provide_run_summary);
@@ -1019,19 +592,24 @@ export default function BusinessLogicConfig({
       setMainAgentMaxStep(agentDetail.max_step);
       setBusinessLogic(agentDetail.business_description || '');
       
+      // Use backend returned sub_agent_id_list to set enabled agent list
+      if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
+        setEnabledAgentIds(agentDetail.sub_agent_id_list.map((id: any) => Number(id)));
+      } else {
+        setEnabledAgentIds([]);
+      }
+
       // Load the segmented prompt content
       setDutyContent?.(agentDetail.duty_prompt || '');
       setConstraintContent?.(agentDetail.constraint_prompt || '');
       setFewShotsContent?.(agentDetail.few_shots_prompt || '');
-      
-      console.log(t('debug.console.setBusinessDescription'), agentDetail.business_description); // 调试信息
-      // 加载Agent的工具
+
+      // Load Agent tools
       if (agentDetail.tools && agentDetail.tools.length > 0) {
         setSelectedTools(agentDetail.tools);
-        // 设置已启用的工具ID
+        // Set enabled tool IDs
         const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
         setEnabledToolIds(toolIds);
-        console.log(t('debug.console.loadedTools'), agentDetail.tools); // 调试信息
       } else {
         setSelectedTools([]);
         setEnabledToolIds([]);
@@ -1041,56 +619,15 @@ export default function BusinessLogicConfig({
     } catch (error) {
       console.error(t('debug.console.loadAgentDetailsFailed'), error);
       message.error(t('businessLogic.config.error.agentDetailFailed'));
-      // 如果出错，重置编辑状态
+      // If error occurs, reset editing state
       setIsEditingAgent(false);
       setEditingAgent(null);
-      setIsCreatingNewAgent(false);
+      // Note: Don't reset isCreatingNewAgent, keep agent pool display
       onEditingStateChange?.(false, null);
     }
   };
 
-  // Handle the update of the Agent selection status
-  const handleAgentSelect = async (agent: Agent, isSelected: boolean) => {
-    if (agent.is_available === false && isSelected) {
-      message.error(t('agent.error.disabledAgent'));
-      return;
-    }
 
-    try {
-      const result = await updateAgent(
-        Number(agent.id),
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        isSelected, // enabled
-        undefined, // businessDescription
-        undefined, // dutyPrompt
-        undefined, // constraintPrompt
-        undefined  // fewShotsPrompt
-      );
-
-      if (result.success) {
-        if (isSelected) {
-          setSelectedAgents([...selectedAgents, agent]);
-          setEnabledAgentIds([...enabledAgentIds, Number(agent.id)]);
-        } else {
-          setSelectedAgents(selectedAgents.filter((a) => a.id !== agent.id));
-          setEnabledAgentIds(enabledAgentIds.filter(id => id !== Number(agent.id)));
-        }
-        message.success(t('businessLogic.config.message.agentStatusUpdated', {
-          name: agent.name,
-          status: isSelected ? t('common.enabled') : t('common.disabled')
-        }));
-      } else {
-        message.error(result.message || t('agent.error.statusUpdateFailed'));
-      }
-    } catch (error) {
-      console.error(t('debug.console.updateAgentStatusFailed'), error);
-      message.error(t('agent.error.statusUpdateRetry'));
-    }
-  };
 
   // Handle the update of the model
   const handleModelChange = async (value: OpenAIModel) => {
@@ -1100,29 +637,7 @@ export default function BusinessLogicConfig({
       message.error(t('businessLogic.config.error.noAgentId'));
       return;
     }
-
-    try {
-      const result = await updateAgent(
-        Number(targetAgentId),
-        undefined,
-        undefined,
-        value,
-        undefined,
-        undefined,
-        undefined,
-        undefined
-      );
-
-      if (result.success) {
-        setMainAgentModel(value);
-        message.success(t('businessLogic.config.message.modelUpdateSuccess'));
-      } else {
-        message.error(result.message || t('businessLogic.config.error.modelUpdateFailed'));
-      }
-    } catch (error) {
-      console.error(t('debug.console.updateModelFailed'), error);
-      message.error(t('businessLogic.config.error.modelUpdateRetry'));
-    }
+    setMainAgentModel(value);
   };
 
   // Handle the update of the maximum number of steps
@@ -1135,29 +650,8 @@ export default function BusinessLogicConfig({
     }
 
     const newValue = value ?? 5;
-    
-    try {
-      const result = await updateAgent(
-        Number(targetAgentId),
-        undefined,
-        undefined,
-        undefined,
-        newValue,
-        undefined,
-        undefined,
-        undefined
-      );
 
-      if (result.success) {
-        setMainAgentMaxStep(newValue);
-        message.success(t('businessLogic.config.message.maxStepsUpdateSuccess'));
-      } else {
-        message.error(result.message || t('businessLogic.config.error.maxStepsUpdateFailed'));
-      }
-    } catch (error) {
-      console.error(t('debug.console.updateMaxStepsFailed'), error);
-      message.error(t('businessLogic.config.error.maxStepsUpdateRetry'));
-    }
+    setMainAgentMaxStep(newValue);
   };
 
   // Handle importing agent
@@ -1221,13 +715,13 @@ export default function BusinessLogicConfig({
     try {
       const result = await exportAgent(Number(agent.id));
       if (result.success) {
-        // 处理后端返回的字符串或对象
+        // Handle backend returned string or object
         let exportData = result.data;
         if (typeof exportData === 'string') {
           try {
             exportData = JSON.parse(exportData);
           } catch (e) {
-            // 如果解析失败，说明本身就是字符串，直接导出
+            // If parsing fails, it means it's already a string, export directly
           }
         }
         const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -1282,305 +776,181 @@ export default function BusinessLogicConfig({
     }
   };
 
-  // Generate system prompt
-  const handleGenerateSystemPrompt = async (t: TFunction) => {
-    if (!businessLogic || businessLogic.trim() === '') {
-      message.warning(t('businessLogic.config.error.businessDescriptionRequired'));
-      return;
+  // Handle exit edit mode
+  const handleExitEdit = () => {
+    setIsEditingAgent(false);
+    setEditingAgent(null);
+    // Use the parent's exit creation handler to properly clear cache
+    if (isCreatingNewAgent && onExitCreation) {
+      onExitCreation();
+    } else {
+      setIsCreatingNewAgent(false);
     }
-
-    const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
-    
-    if (!targetAgentId) {
-      message.warning(t('businessLogic.config.error.noAgentIdForPrompt'));
-      return;
-    }
-    
-    try {
-      setIsPromptGenerating(true);
-      setLocalIsGenerating(true);
-      setSystemPrompt('');
-      
-      // Reset content and progress for three sections
-      setDutyContent?.('');
-      setConstraintContent?.('');
-      setFewShotsContent?.('');
-      setGenerationProgress({
-        duty: false,
-        constraint: false,
-        few_shots: false
-      });
-      
-      // Reset ref
-      currentPromptRef.current = {
-        duty: '',
-        constraint: '',
-        few_shots: ''
-      };
-      
-      await generatePromptStream(
-        {
-          agent_id: Number(targetAgentId),
-          task_description: businessLogic
-        },
-        (streamData) => {
-          // Update corresponding content and progress based on type
-          switch (streamData.type) {
-            case 'duty':
-              setDutyContent?.(streamData.content);
-              setGenerationProgress(prev => ({ ...prev, duty: streamData.is_complete }));
-              currentPromptRef.current.duty = streamData.content;
-              break;
-            case 'constraint':
-              setConstraintContent?.(streamData.content);
-              setGenerationProgress(prev => ({ ...prev, constraint: streamData.is_complete }));
-              currentPromptRef.current.constraint = streamData.content;
-              break;
-            case 'few_shots':
-              setFewShotsContent?.(streamData.content);
-              setGenerationProgress(prev => ({ ...prev, few_shots: streamData.is_complete }));
-              currentPromptRef.current.few_shots = streamData.content;
-              break;
-          }
-        },
-        (err) => {
-          message.error(t('businessLogic.config.error.promptGenerateFailed', {
-            error: err instanceof Error ? err.message : t('common.unknownError')
-          }));
-          setIsPromptGenerating(false);
-          setLocalIsGenerating(false);
-        },
-        () => {
-          setIsPromptGenerating(false);
-          setLocalIsGenerating(false);
-          message.success(t('businessLogic.config.message.promptGenerateSuccess'));
-        }
-      );
-    } catch (error) {
-      console.error(t('debug.console.generatePromptFailed'), error);
-      message.error(t('businessLogic.config.error.promptGenerateFailed', {
-        error: error instanceof Error ? error.message : t('common.unknownError')
-      }));
-      setIsPromptGenerating(false);
-      setLocalIsGenerating(false);
-    }
+    setNewAgentName('');
+    setNewAgentDescription('');
+    setNewAgentProvideSummary(true);
+    setIsNewAgentInfoValid(false);
+    setBusinessLogic('');
+    setDutyContent('');
+    setConstraintContent('');
+    setFewShotsContent('');
+    setAgentName?.('');
+    setAgentDescription?.('');
+    // Reset mainAgentId and enabledAgentIds
+    setMainAgentId(null);
+    setEnabledAgentIds([]);
+    // Reset selected tools
+    setSelectedTools([]);
+    setEnabledToolIds([]);
+    // Notify parent component about editing state change
+    onEditingStateChange?.(false, null);
   };
 
-  // Save system prompt
-  const handleSaveSystemPrompt = async () => {
-    const targetAgentId = isEditingAgent && editingAgent ? editingAgent.id : mainAgentId;
-    
-    if (!targetAgentId) {
-      message.warning(t('businessLogic.config.error.noAgentIdForPrompt'));
-      return;
-    }
-    if (!systemPrompt || systemPrompt.trim() === '') {
-      message.warning(t('businessLogic.config.message.promptEmpty'));
-      return;
-    }
-    
-    try {
-      setIsPromptSaving(true);
-      await savePrompt({ agent_id: Number(targetAgentId), prompt: systemPrompt });
-      message.success(t('businessLogic.config.message.promptSaved'));
-    } catch (error) {
-      console.error(t('debug.console.savePromptFailed'), error);
-      message.error(t('businessLogic.config.error.promptSaveFailed'));
-    } finally {
-      setIsPromptSaving(false);
-    }
-  };
-
-  // 刷新工具列表
+  // Refresh tool list
   const handleToolsRefresh = useCallback(async () => {
     if (onToolsRefresh) {
       await onToolsRefresh();
     }
   }, [onToolsRefresh]);
 
-  const canSaveAsAgent = selectedAgents.length === 0 && 
-    ((dutyContent?.trim()?.length || 0) > 0 || (constraintContent?.trim()?.length || 0) > 0 || (fewShotsContent?.trim()?.length || 0) > 0) && 
-    isNewAgentInfoValid;
-
-  // Generate more intelligent prompt information according to conditions
-  const getButtonTitle = () => {
-    if (selectedAgents.length > 0) {
-      return t('businessLogic.config.message.noAgentSelected');
+  // Get button tooltip information
+  const getLocalButtonTitle = () => {
+    if (!businessLogic || businessLogic.trim() === '') {
+      return t('businessLogic.config.message.businessDescriptionRequired')
     }
     if (!(dutyContent?.trim()) && !(constraintContent?.trim()) && !(fewShotsContent?.trim())) {
-      return t('businessLogic.config.message.generatePromptFirst');
+      return t('businessLogic.config.message.generatePromptFirst')
     }
-    if (!isNewAgentInfoValid) {
-      return t('businessLogic.config.message.completeAgentInfo');
+    if (!agentName || agentName.trim() === '') {
+      return t('businessLogic.config.message.completeAgentInfo')
     }
-    return "";
+    return ""
   };
+
+  // Check if agent can be saved
+  const localCanSaveAgent = !!(businessLogic?.trim() && agentName?.trim() && (dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim()));
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-full w-full gap-0 justify-between">
-        {/* Upper part: Agent pool + Tool pool */}
-        <div className="flex gap-4 flex-1 min-h-0 pb-4 pr-4 pl-4">
-          {!isCreatingNewAgent && (
-            <div className="w-[360px] h-full">
-              <SubAgentPool
-                selectedAgents={selectedAgents}
-                onSelectAgent={handleAgentSelect}
-                onEditAgent={(agent) => handleEditAgent(agent, t)}
-                onCreateNewAgent={handleCreateNewAgent}
-                onImportAgent={() => handleImportAgent(t)}
-                onExportAgent={(agent) => handleExportAgent(agent, t)}
-                onDeleteAgent={handleDeleteAgent}
-                subAgentList={subAgentList}
-                loadingAgents={loadingAgents}
-                enabledAgentIds={enabledAgentIds}
-                isImporting={isImporting}
-              />
-            </div>
-          )}
-          
-          {isCreatingNewAgent && (
-            <div className="w-[360px] h-full">
-              <AgentInfoInput
-                name={newAgentName}
-                description={newAgentDescription}
-                provideSummary={newAgentProvideSummary}
-                onNameChange={setNewAgentName}
-                onDescriptionChange={setNewAgentDescription}
-                onProvideSummaryChange={setNewAgentProvideSummary}
-                onValidationChange={setIsNewAgentInfoValid}
-              />
-            </div>
-          )}
-          
-          <div className="flex-1 h-full">
-            <MemoizedToolPool
-              selectedTools={isLoadingTools ? [] : selectedTools}
-              onSelectTool={(tool, isSelected) => {
-                if (isLoadingTools) return;
-                setSelectedTools(prevTools => {
-                  if (isSelected) {
-                    return [...prevTools, tool];
-                  } else {
-                    return prevTools.filter(t => t.id !== tool.id);
-                  }
-                });
-              }}
+      <div className="flex flex-col h-full w-full gap-0 justify-between relative">
+        {/* Lower part: Agent pool + Agent capability configuration + System Prompt */}
+        <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0 pb-4 pr-4 pl-4">
+          {/* Left column: Always show SubAgentPool - 30% width */}
+          <div className="w-full lg:w-[30%] h-full lg:flex-shrink-0">
+            <SubAgentPool
+              onEditAgent={(agent) => handleEditAgent(agent, t)}
+              onCreateNewAgent={handleCreateNewAgent}
+              onExitEditMode={handleExitEditMode}
+              onImportAgent={() => handleImportAgent(t)}
+              onExportAgent={(agent) => handleExportAgent(agent, t)}
+              onDeleteAgent={handleDeleteAgent}
+              subAgentList={subAgentList}
+              loadingAgents={loadingAgents}
+              isImporting={isImporting}
+              isGeneratingAgent={isGeneratingAgent}
+              isEditingAgent={isEditingAgent}
+              editingAgent={editingAgent}
               isCreatingNewAgent={isCreatingNewAgent}
-              tools={tools}
-              loadingTools={isLoadingTools}
-              mainAgentId={isEditingAgent && editingAgent ? editingAgent.id : mainAgentId}
-              localIsGenerating={localIsGenerating}
-              onToolsRefresh={handleToolsRefresh}
+            />
+          </div>
+
+          {/* Middle column: Agent capability configuration - 40% width */}
+          <div className="w-full lg:w-[40%] min-h-0 flex flex-col h-full">
+              {/* Header: Configure Agent Capabilities */}
+            <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
+                    2
+                  </div>
+                  <h2 className="text-lg font-medium">{t('businessLogic.config.title')}</h2>
+                </div>
+              </div>
+
+              {/* Content: ScrollArea with two sections */}
+            <div className="flex-1 min-h-0 overflow-hidden border-t pt-2">
+                <div className="flex flex-col h-full" style={{ gap: '16px' }}>
+                  {/* Upper section: Collaborative Agent Display - fixed area */}
+                  <CollaborativeAgentDisplay
+                    className="h-[148px] lg:h-[168px]"
+                    style={{ flexShrink: 0 }}
+                    availableAgents={subAgentList}
+                    selectedAgentIds={enabledAgentIds}
+                    parentAgentId={isEditingAgent && editingAgent ? Number(editingAgent.id) : (isCreatingNewAgent && mainAgentId ? Number(mainAgentId) : undefined)}
+                    onAgentIdsChange={handleUpdateEnabledAgentIds}
+                    isEditingMode={isEditingAgent || isCreatingNewAgent}
+                    isGeneratingAgent={isGeneratingAgent}
+                  />
+
+                  {/* Lower section: Tool Pool - flexible area */}
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <MemoizedToolPool
+                      selectedTools={isLoadingTools ? [] : selectedTools}
+                      onSelectTool={(tool, isSelected) => {
+                        if (isLoadingTools) return;
+                        if (isSelected) {
+                          setSelectedTools([...selectedTools, tool]);
+                        } else {
+                          setSelectedTools(selectedTools.filter(t => t.id !== tool.id));
+                        }
+                      }}
+                      isCreatingNewAgent={isCreatingNewAgent}
+                      tools={tools}
+                      loadingTools={isLoadingTools}
+                      mainAgentId={isEditingAgent && editingAgent ? editingAgent.id : mainAgentId}
+                      localIsGenerating={isGeneratingAgent}
+                      onToolsRefresh={handleToolsRefresh}
+                      isEditingMode={isEditingAgent || isCreatingNewAgent}
+                      isGeneratingAgent={isGeneratingAgent}
+                    />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right column: System Prompt Display - 30% width */}
+          <div className="w-full lg:w-[30%] h-full lg:flex-shrink-0">
+            <SystemPromptDisplay
+              onDebug={onDebug || (() => {})}
+              agentId={getCurrentAgentId ? getCurrentAgentId() : (isEditingAgent && editingAgent ? Number(editingAgent.id) : (isCreatingNewAgent && mainAgentId ? Number(mainAgentId) : undefined))}
+              businessLogic={businessLogic}
+              dutyContent={dutyContent}
+              constraintContent={constraintContent}
+              fewShotsContent={fewShotsContent}
+              onDutyContentChange={setDutyContent}
+              onConstraintContentChange={setConstraintContent}
+              onFewShotsContentChange={setFewShotsContent}
+              agentName={agentName}
+              agentDescription={agentDescription}
+              onAgentNameChange={setAgentName}
+              onAgentDescriptionChange={setAgentDescription}
+              isEditingMode={isEditingAgent || isCreatingNewAgent}
+              mainAgentModel={mainAgentModel}
+              mainAgentMaxStep={mainAgentMaxStep}
+              onModelChange={(value: string) => handleModelChange(value as OpenAIModel)}
+              onMaxStepChange={handleMaxStepChange}
+              onBusinessLogicChange={(value: string) => setBusinessLogic(value)}
+              onGenerateAgent={onGenerateAgent || (() => {})}
+              onSaveAgent={handleSaveAgent}
+              isGeneratingAgent={isGeneratingAgent}
+              isSavingAgent={isSavingAgent || false}
+              isCreatingNewAgent={isCreatingNewAgent}
+              canSaveAgent={localCanSaveAgent}
+              getButtonTitle={getLocalButtonTitle}
+              onExportAgent={onExportAgent || (() => {})}
+              onDeleteAgent={onDeleteAgent || (() => {})}
+              onDeleteSuccess={handleExitEdit}
+              editingAgent={editingAgentFromParent || editingAgent}
             />
           </div>
         </div>
 
-      {/* The second half: business logic description */}
-      <div className="flex gap-4 flex-shrink-0 pr-4 pl-4 items-start">
-        <div className="flex-1 h-full">
-          <BusinessLogicInput 
-            value={businessLogic} 
-            onChange={setBusinessLogic} 
-          />
-        </div>
-        <div className="w-[280px] flex flex-col self-start">
-          <div className="flex flex-col gap-5 flex-1">
-            <div>
-              <span className="block text-lg font-medium mb-2">{t('businessLogic.config.model')}</span>
-              <Select
-                value={mainAgentModel}
-                onChange={handleModelChange}
-                className="w-full"
-                options={ModelOptions()}
-              />
-            </div>
-            <div>
-              <span className="block text-lg font-medium mb-2">{t('businessLogic.config.maxSteps')}</span>
-              <InputNumber
-                min={1}
-                max={20}
-                value={mainAgentMaxStep}
-                onChange={handleMaxStepChange}
-                className="w-full"
-              />
-            </div>
-            <div className="flex justify-start gap-2 w-full mt-4">
-              <button
-                onClick={() => handleGenerateSystemPrompt(t)}
-                disabled={isPromptGenerating || isPromptSaving}
-                className="px-3.5 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ border: 'none' }}
-              >
-                {isPromptGenerating ? (
-                  <>
-                    <LoadingOutlined spin className="mr-1" />
-                    {t('businessLogic.config.button.generating')}
-                  </>
-                ) : (
-                  <>
-                    <ThunderboltOutlined className="mr-1" />
-                    {t('businessLogic.config.button.generatePrompt')}
-                  </>
-                )}
-              </button>
-              {isCreatingNewAgent && (
-                <>
-                  <button
-                    onClick={handleSaveAsAgent}
-                    disabled={!canSaveAsAgent}
-                    title={getButtonTitle()}
-                    className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ border: "none" }}
-                  >
-                    {isPromptSaving ? t('businessLogic.config.button.saving') : t('businessLogic.config.button.save')}
-                  </button>
-                  <button
-                    onClick={handleCancelCreating}
-                    disabled={isPromptGenerating || isPromptSaving}
-                    className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ border: 'none' }}
-                  >
-                    {t('businessLogic.config.button.cancel')}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Delete confirmation popup */}
-      <Modal
-        title={t('businessLogic.config.modal.deleteTitle')}
-        open={isDeleteConfirmOpen}
+      <DeleteConfirmModal
+        isOpen={isDeleteConfirmOpen}
+        agentToDelete={agentToDelete}
         onCancel={() => setIsDeleteConfirmOpen(false)}
-        footer={
-          <div className="flex justify-end gap-2">
-            <button 
-              onClick={() => setIsDeleteConfirmOpen(false)}
-              className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
-              style={{ border: "none" }}
-            >
-              {t('businessLogic.config.modal.button.cancel')}
-            </button>
-            <button 
-              onClick={() => handleConfirmDelete(t)}
-              className="px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-red-500 text-white hover:bg-red-600"
-              style={{ border: "none" }}
-            >
-              {t('businessLogic.config.modal.button.confirm')}
-            </button>
-          </div>
-        }
-        width={400}
-      >
-        <div className="py-4">
-          <Typography.Text>
-            {t('businessLogic.config.modal.deleteContent', { name: agentToDelete?.name })}
-          </Typography.Text>
-        </div>
-      </Modal>
+        onConfirm={() => handleConfirmDelete(t)}
+      />
     </div>
   </TooltipProvider>
   )

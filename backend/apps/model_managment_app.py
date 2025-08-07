@@ -1,14 +1,18 @@
+import logging
 from typing import Optional
 
 from fastapi import Query, APIRouter, Header, Body
-import logging
 
-from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest
-from database.model_management_db import create_model_record, update_model_record, delete_model_record, \
-    get_model_records, get_model_by_name, get_model_by_display_name
-from services.model_health_service import check_model_connectivity, verify_model_config_connectivity, embedding_dimension_check
-from utils.model_name_utils import split_repo_name, add_repo_to_name
+from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest, ProviderModelRequest, \
+    BatchCreateModelsRequest
+from consts.provider import SILICON_BASE_URL, ProviderEnum
+from database.model_management_db import create_model_record, delete_model_record, \
+    get_model_records, get_model_by_display_name, get_models_by_tenant_factory_type
+from database.model_management_db import update_model_record, get_model_by_name
+from services.model_health_service import check_model_connectivity, embedding_dimension_check
+from services.model_provider_service import SiliconModelProvider, prepare_model_dict
 from utils.auth_utils import get_current_user_id
+from utils.model_name_utils import split_repo_name, add_repo_to_name, split_display_name
 
 router = APIRouter(prefix="/model")
 logger = logging.getLogger("model_management_app")
@@ -20,6 +24,10 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
         user_id, tenant_id = get_current_user_id(authorization)
         logger.info(f"Start to create model, user_id: {user_id}, tenant_id: {tenant_id}")
         model_data = request.model_dump()
+        # Replace localhost with host.docker.internal for local llm
+        model_base_url = model_data.get("base_url", "")
+        if "localhost" in model_base_url or "127.0.0.1" in model_base_url:
+            model_data["base_url"] = model_base_url.replace("localhost", "host.docker.internal").replace("127.0.0.1", "host.docker.internal")
         # Split model_name
         model_repo, model_name = split_repo_name(model_data["model_name"])
         # Ensure model_repo is empty string instead of null
@@ -27,7 +35,7 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
         model_data["model_name"] = model_name
 
         if not model_data.get("display_name"):
-            model_data["display_name"] = model_name
+            model_data["display_name"] = split_display_name(model_data["model_name"])
 
         # Use NOT_DETECTED status as default
         model_data["connect_status"] = model_data.get("connect_status") or ModelConnectStatusEnum.NOT_DETECTED.value
@@ -80,6 +88,96 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
             data=None
         )
 
+@router.post("/create_provider", response_model=ModelResponse)
+async def create_provider_model(request: ProviderModelRequest, authorization: Optional[str] = Header(None)):
+    try:
+        model_data = request.model_dump()
+        model_list=[]
+        if model_data["provider"] == ProviderEnum.SILICON.value:
+            provider = SiliconModelProvider()
+            model_list = await provider.get_models(model_data)
+        return ModelResponse(
+            code=200,
+            message=f"Provider model {model_data['provider']} created successfully",
+            data=model_list
+        )
+    except Exception as e:
+        return ModelResponse(
+            code=500,
+            message=f"Failed to create provider model: {str(e)}",
+            data=None
+        )
+
+
+@router.post("/batch_create_models", response_model=ModelResponse)
+async def batch_create_models(request: BatchCreateModelsRequest, authorization: Optional[str] = Header(None)):
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        model_list = request.models
+        model_api_key = request.api_key
+        max_tokens = request.max_tokens
+        if request.provider == ProviderEnum.SILICON.value:
+            model_url = SILICON_BASE_URL
+        else:
+            model_url = ""
+        existing_model_list = get_models_by_tenant_factory_type(tenant_id, request.provider, request.type)
+        model_list_ids = {model.get('id') for model in model_list} if model_list else set()
+        # delete existing model
+        for model in existing_model_list:
+            model_full_name = model["model_repo"] + "/" + model["model_name"]
+            if model_full_name not in model_list_ids:
+                delete_model_record(model["model_id"], user_id, tenant_id)
+        # create new model
+        for model in model_list:
+            model_repo, model_name = split_repo_name(model["id"])
+            model_display_name = split_display_name(model["id"])
+            if model_name:
+                existing_model_by_display = get_model_by_display_name(request.provider + "/" + model_display_name, tenant_id)
+                if existing_model_by_display:
+                    continue
+
+            model_dict = await prepare_model_dict(
+                provider=request.provider,
+                model=model,
+                model_url=model_url,
+                model_api_key=model_api_key,
+                max_tokens=max_tokens
+            )
+            create_model_record(model_dict, user_id, tenant_id)
+
+        return ModelResponse(
+            code=200,
+            message=f"Batch create models successfully",
+            data=None
+        )
+    except Exception as e:
+        return ModelResponse(
+            code=500,
+            message=f"Failed to batch create models: {str(e)}",
+            data=None
+        )
+
+
+@router.post("/provider/list", response_model=ModelResponse )
+async def get_provider_list(request: ProviderModelRequest, authorization: Optional[str] = Header(None)):
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        provider = request.provider
+        model_type = request.model_type
+        model_list = get_models_by_tenant_factory_type(tenant_id, provider, model_type)
+        for model in model_list:
+            model["id"] = model["model_repo"] + "/" + model["model_name"]
+        return ModelResponse(
+            code=200,
+            message=f"Provider model {provider} created successfully",
+            data=model_list
+        )
+    except Exception as e:
+        return ModelResponse(
+            code=500,
+            message=f"Failed to get provider list: {str(e)}",
+            data=None
+        )
 
 @router.post("/update", response_model=ModelResponse)
 def update_model(request: ModelRequest, authorization: Optional[str] = Header(None)):

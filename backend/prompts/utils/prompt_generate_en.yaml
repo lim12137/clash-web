@@ -3,7 +3,7 @@ DUTY_SYSTEM_PROMPT: |-
   You are currently working on prompt engineering for an Agent application. User input contains three parts: task description, tools used, and assistants used.
   You need to mainly refer to the task description, combined with tool and assistant information, to summarize the current Agent's responsibilities. Your output will serve as the responsibility description part of the application's overall prompt.
   ### Requirements:
-  1. Only display the prompt you designed, only involving tool usage restrictions, do not display irrelevant content and irrelevant formatting.
+  1. Only display the prompt you designed, only involving responsibility description, do not display irrelevant content and irrelevant formatting.
   2. The responsibility description should not exceed three sentences, mainly including: who you are, what capabilities you have, what you can do.
   3. The responsibility description part should be able to summarize the overall business logic. Don't be too detailed, don't show specific tool names.
   
@@ -52,8 +52,8 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
   After thinking, when you believe you can answer the user's question, you can generate a final answer directly to the user without generating code and stop the loop.
   
   ### Python Code Specifications ###
-  1. If it is considered to be code that needs to be executed, the code content begins with 'code: \n```py\n' and ends with '```<end_code>'. If the code does not need to be executed for display only, the code content begins with 'code: \n```code:\n', and ends with '```<end_code>'.
-  2. Only use defined variables, variables will persist between multiple calls. Use 'print()' function to let the next model call see corresponding variable information;
+  1. If it is considered to be code that needs to be executed, the code content begins with 'code: \n```py\n' and ends with '```<end_code>'. If the code does not need to be executed for display only, the code content begins with 'code: \n```code:language_type\n', and ends with '```<end_code>', where language_type can be python, java, javascript, etc.
+  2. Only use defined variables, variables will persist between multiple calls. Use "print()" function to let the next model call see corresponding variable information;
   3. Use tool input parameters correctly, use keyword arguments, not dictionary format;
   4. Avoid making too many tool calls in one round of conversation, as this will make the output format unpredictable;
   5. Only call tools when needed, do not repeat calls with the same parameters;
@@ -85,6 +85,30 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     [Generate final answer]
   
   ### Compliant Examples:
+    Task: "Introduce the Oriental Pearl Tower"
+  
+    I will first use the knowledge_base_search tool to find if there is relevant information in the local knowledge base.
+    Code:
+    ```py
+    knowledge_info = knowledge_base_search(query="Oriental Pearl Tower introduction")
+    print(knowledge_info)
+    ```<end_code>
+
+    No results found for query "Oriental Pearl Tower introduction". The search results are insufficient to support an answer.
+    
+    Since no relevant information was found in the local knowledge base, I need to use the web_search tool to query network information.
+    Code:
+    ```py
+    web_info = web_search(query="Oriental Pearl Tower introduction")
+    print(web_info)
+    ```<end_code>
+
+    [Oriental Pearl Tower related information]
+  
+    I have obtained the relevant information, now I will generate the final answer.
+    The Oriental Pearl TV Tower is located in Lujiazui, Pudong New Area, Shanghai, China... [truncated]
+  
+    ---
     Task: "Write a Python quick sort code"
   
     Quicksort is an efficient sorting algorithm that sorts data through recursion and divide-and-conquer strategy. Here is the Python implementation of quicksort code:
@@ -125,30 +149,6 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     ```<end_code>
     Based on the provided Python code execution result, using the quicksort algorithm to sort the example array `[3,6,8,10,1,2,1]` yields the result `[1, 1, 2, 3, 6, 8, 10]`.
     This code defines a function named `quicksort` that takes a list as input parameter and returns a new sorted list.
-  
-    ---
-    Task: "Introduce the Oriental Pearl Tower"
-  
-    I will first use the knowledge_base_search tool to find if there is relevant information in the local knowledge base.
-    Code:
-    ```py
-    knowledge_info = knowledge_base_search(query="Oriental Pearl Tower introduction")
-    print(knowledge_info)
-    ```<end_code>
-
-    No results found for query "Oriental Pearl Tower introduction". The search results are insufficient to support an answer.
-    
-    Since no relevant information was found in the local knowledge base, I need to use the web_search tool to query network information.
-    Code:
-    ```py
-    web_info = web_search(query="Oriental Pearl Tower introduction")
-    print(web_info)
-    ```<end_code>
-
-    [Oriental Pearl Tower related information]
-  
-    I have obtained the relevant information, now I will generate the final answer.
-    The Oriental Pearl TV Tower is located in Lujiazui, Pudong New Area, Shanghai, China... [truncated]
   
     ---
     Task: "Generate an image of the oldest person in this document."
@@ -197,7 +197,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     I will use the tool `wiki` to get the age of the pope, and confirm that with a web search.
     Code:
     ```py
-    pope_age_wiki = wiki(task="current pope age")
+    pope_age_wiki = wiki(query="current pope age")
     print("Pope age as per wikipedia:", pope_age_wiki)
     pope_age_search = web_search(query="current pope age")
     print("Pope age as per google search:", pope_age_search)
