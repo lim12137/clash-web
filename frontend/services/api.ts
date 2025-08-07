@@ -113,6 +113,26 @@ export const API_ENDPOINTS = {
     delete: `${API_BASE_URL}/mcp/`,
     list: `${API_BASE_URL}/mcp/list`,
     recover: `${API_BASE_URL}/mcp/recover`,
+  },
+  memory: {
+    // ---------------- Memory configuration ----------------
+    config: {
+      load: `${API_BASE_URL}/memory/config/load`,
+      set: `${API_BASE_URL}/memory/config/set`,
+      disableAgentAdd: `${API_BASE_URL}/memory/config/disable_agent`,
+      disableAgentRemove: (agentId: string | number) => `${API_BASE_URL}/memory/config/disable_agent/${agentId}`,
+      disableUserAgentAdd: `${API_BASE_URL}/memory/config/disable_useragent`,
+      disableUserAgentRemove: (agentId: string | number) => `${API_BASE_URL}/memory/config/disable_useragent/${agentId}`,
+    },
+
+    // ---------------- Memory CRUD ----------------
+    entry: {
+      add: `${API_BASE_URL}/memory/add`,
+      search: `${API_BASE_URL}/memory/search`,
+      list: `${API_BASE_URL}/memory/list`,
+      delete: (memoryId: string | number) => `${API_BASE_URL}/memory/delete/${memoryId}`,
+      clear: `${API_BASE_URL}/memory/clear`,
+    },
   }
 };
 
