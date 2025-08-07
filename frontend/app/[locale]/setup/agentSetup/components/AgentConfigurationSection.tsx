@@ -132,19 +132,8 @@ export default function AgentConfigurationSection({
 
   // Optimized click handlers using useCallback
   const handleSegmentClick = useCallback((segment: string) => {
-    // Before switching segments, ensure current local state is synced to parent
-    // This handles cases where user input debouncing might delay the update
-    if (activeSegment === 'duty' && onDutyContentChange) {
-      onDutyContentChange(localDutyContent);
-    } else if (activeSegment === 'constraint' && onConstraintContentChange) {
-      onConstraintContentChange(localConstraintContent);
-    } else if (activeSegment === 'few-shots' && onFewShotsContentChange) {
-      onFewShotsContentChange(localFewShotsContent);
-    }
-    
     setActiveSegment(segment);
-  }, [activeSegment, localDutyContent, localConstraintContent, localFewShotsContent, 
-      onDutyContentChange, onConstraintContentChange, onFewShotsContentChange]);
+  }, []);
 
   // Set default active segment when entering edit mode
   useEffect(() => {
