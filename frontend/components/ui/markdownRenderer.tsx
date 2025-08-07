@@ -24,12 +24,12 @@ interface MarkdownRendererProps {
 // Get background color for different tool signs
 const getBackgroundColor = (toolSign: string) => {
   switch (toolSign) {
-    case 'a': return '#E3F2FD'; // 浅蓝色
-    case 'b': return '#E8F5E9'; // 浅绿色
-    case 'c': return '#FFF3E0'; // 浅橙色
-    case 'd': return '#F3E5F5'; // 浅紫色
-    case 'e': return '#FFEBEE'; // 浅红色
-    default: return '#E5E5E5'; // 默认浅灰色
+    case 'a': return '#E3F2FD'; // Light blue
+    case 'b': return '#E8F5E9'; // Light green
+    case 'c': return '#FFF3E0'; // Light orange
+    case 'd': return '#F3E5F5'; // Light purple
+    case 'e': return '#FFEBEE'; // Light red
+    default: return '#E5E5E5'; // Default light gray
   }
 };
 
@@ -99,13 +99,13 @@ const HoverableText = ({ text, searchResults }: {
     let timeoutId: NodeJS.Timeout | null = null;
     let closeTimeoutId: NodeJS.Timeout | null = null;
 
-    // 更新鼠标位置的处理函数
+    // Function to update mouse position
     const updateMousePosition = (e: MouseEvent) => {
       mousePositionRef.current = { x: e.clientX, y: e.clientY };
     };
 
     const handleMouseEnter = () => {
-      // 清除可能存在的关闭定时器
+      // Clear any existing close timer
       if (closeTimeoutId) {
         clearTimeout(closeTimeoutId);
         closeTimeoutId = null;
@@ -453,7 +453,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           white-space: nowrap;
         }
         
-        /* 全局滚动条样式 */
+        /* Global scrollbar styles */
         .tooltip-content-scroll {
           scrollbar-width: thin;
           scrollbar-color: rgb(209 213 219) transparent;
@@ -603,16 +603,90 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           remarkPlugins={[remarkGfm, remarkMath]}
           rehypePlugins={[rehypeKatex as any]}
           components={{
+            // Heading components
+            h1: ({children}: any) => (
+              <h1>
+                <TextWrapper>{children}</TextWrapper>
+              </h1>
+            ),
+            h2: ({children}: any) => (
+              <h2>
+                <TextWrapper>{children}</TextWrapper>
+              </h2>
+            ),
+            h3: ({children}: any) => (
+              <h3>
+                <TextWrapper>{children}</TextWrapper>
+              </h3>
+            ),
+            h4: ({children}: any) => (
+              <h4>
+                <TextWrapper>{children}</TextWrapper>
+              </h4>
+            ),
+            h5: ({children}: any) => (
+              <h5>
+                <TextWrapper>{children}</TextWrapper>
+              </h5>
+            ),
+            h6: ({children}: any) => (
+              <h6>
+                <TextWrapper>{children}</TextWrapper>
+              </h6>
+            ),
+            // Paragraph
             p: ({children}: any) => (
               <p className={`user-paragraph`}>
                 <TextWrapper>{children}</TextWrapper>
               </p>
             ),
+            // List item
+            li: ({children}: any) => (
+              <li>
+                <TextWrapper>{children}</TextWrapper>
+              </li>
+            ),
+            // Blockquote
             blockquote: ({children}: any) => (
               <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-4 bg-gray-50 italic text-base leading-relaxed">
                 <TextWrapper>{children}</TextWrapper>
               </blockquote>
             ),
+            // Table components
+            td: ({children}: any) => (
+              <td>
+                <TextWrapper>{children}</TextWrapper>
+              </td>
+            ),
+            th: ({children}: any) => (
+              <th>
+                <TextWrapper>{children}</TextWrapper>
+              </th>
+            ),
+            // Emphasis components
+            strong: ({children}: any) => (
+              <strong>
+                <TextWrapper>{children}</TextWrapper>
+              </strong>
+            ),
+            em: ({children}: any) => (
+              <em>
+                <TextWrapper>{children}</TextWrapper>
+              </em>
+            ),
+            // Strikethrough
+            del: ({children}: any) => (
+              <del>
+                <TextWrapper>{children}</TextWrapper>
+              </del>
+            ),
+            // Link
+            a: ({href, children, ...props}: any) => (
+              <a href={href} {...props}>
+                <TextWrapper>{children}</TextWrapper>
+              </a>
+            ),
+            // Code blocks and inline code
             code({node, inline, className, children, ...props}: any) {
               const match = /language-(\w+)/.exec(className || '')
               const codeContent = String(children).replace(/^\n+|\n+$/g, '')
@@ -647,6 +721,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                 </code>
               )
             },
+            // Image
             img: ({src, alt}: any) => (
               <img src={src} alt={alt} />
             )

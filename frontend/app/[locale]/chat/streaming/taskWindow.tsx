@@ -39,7 +39,9 @@ const messageHandlers: MessageHandler[] = [
     canHandle: (message) => 
       message.type === "agent_new_run" || 
       message.type === "generating_code" ||
-      message.type === "executing",
+      message.type === "executing" ||
+      message.type === "model_output_thinking" ||
+      message.type === "model_output_deep_thinking",
     render: (message, _t) => (
         <div style={{
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
@@ -571,7 +573,7 @@ const messageHandlers: MessageHandler[] = [
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
         fontSize: "0.875rem",
         lineHeight: 1.5,
-        color: "#1f2937",
+        color: message.subType === "deep_thinking" ? "#6b7280" : "#1f2937",
         fontWeight: 400
       }}>
         <MarkdownRenderer content={message.content} className="task-message-content" />

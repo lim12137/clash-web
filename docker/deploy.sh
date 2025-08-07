@@ -209,7 +209,7 @@ install() {
     export COMPOSE_PROFILES
     echo "📋 Using profiles: $COMPOSE_PROFILES"
   fi
-  
+
   # Start infrastructure services
   if ! docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES; then
     echo "❌ ERROR Failed to start infrastructure services"

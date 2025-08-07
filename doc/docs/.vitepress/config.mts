@@ -13,10 +13,9 @@ export default defineConfig({
   ],
   
   locales: {
-    root: {
+    en: {
       label: 'English',
       lang: 'en',
-      link: '/en/getting-started/overview',
       themeConfig: {
         nav: [
           { text: 'Home', link: 'http://nexent.tech' },
@@ -99,6 +98,7 @@ export default defineConfig({
             text: 'Community',
             items: [
               { text: 'Contributing', link: '/en/contributing' },
+              { text: 'Open Source Memorial Wall', link: '/en/opensource-memorial-wall' },
               { text: 'Code of Conduct', link: '/en/code-of-conduct' },
               { text: 'Security Policy', link: '/en/security' },
               { text: 'Core Contributors', link: '/en/contributors' },
@@ -117,7 +117,6 @@ export default defineConfig({
     zh: {
       label: '简体中文',
       lang: 'zh-CN',
-      link: '/zh/getting-started/overview',
       themeConfig: {
         nav: [
           { text: '首页', link: 'http://nexent.tech' },
@@ -200,6 +199,7 @@ export default defineConfig({
             text: '社区',
             items: [
               { text: '贡献指南', link: '/zh/contributing' },
+              { text: '开源纪念墙', link: '/zh/opensource-memorial-wall' },
               { text: '行为准则', link: '/zh/code-of-conduct' },
               { text: '安全政策', link: '/zh/security' },
               { text: '核心贡献者', link: '/zh/contributors' },

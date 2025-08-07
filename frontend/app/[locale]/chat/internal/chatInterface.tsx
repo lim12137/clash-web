@@ -33,6 +33,7 @@ import { handleStreamResponse } from "@/app/chat/streaming/chatStreamHandler"
 import { extractUserMsgFromResponse, extractAssistantMsgFromResponse } from "./extractMsgFromHistoryResponse"
 
 import { X } from "lucide-react"
+import { getUrlParam } from "@/lib/utils";
 
 const stepIdCounter = {current: 0};
 

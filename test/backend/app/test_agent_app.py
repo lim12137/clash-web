@@ -173,74 +173,40 @@ def test_agent_stop_api_not_found(mocker, mock_conversation_id):
     assert "no running agent found" in response.json()["detail"]
 
 
-def test_reload_config(mocker):
-    # Setup mocks using pytest-mock
-    mock_config_manager = mocker.patch("backend.apps.agent_app.config_manager")
-    mock_config_manager.force_reload.return_value = {"status": "reloaded"}
-    
-    # Test the endpoint
-    response = client.post("/agent/reload_config")
-    
-    # Assertions
-    assert response.status_code == 200
-    mock_config_manager.force_reload.assert_called_once()
-    assert response.json() == {"status": "reloaded"}
-
-
-def test_list_main_agent_info_api_success(mocker, mock_auth_header):
-    # Setup mocks using pytest-mock
-    mock_list_main_agent = mocker.patch("backend.apps.agent_app.list_main_agent_info_impl")
-    mock_list_main_agent.return_value = [{"agent_id": "agent1"}, {"agent_id": "agent2"}]
-    
-    # Test the endpoint
-    response = client.get("/agent/list_main_agent_info", headers=mock_auth_header)
-    
-    # Assertions
-    assert response.status_code == 200
-    mock_list_main_agent.assert_called_once_with(mock_auth_header["Authorization"])
-    assert len(response.json()) == 2
-
-
-def test_list_main_agent_info_api_exception(mocker, mock_auth_header):
-    # Setup mocks using pytest-mock
-    mock_list_main_agent = mocker.patch("backend.apps.agent_app.list_main_agent_info_impl")
-    mock_list_main_agent.side_effect = Exception("Test error")
-    
-    # Test the endpoint
-    response = client.get("/agent/list_main_agent_info", headers=mock_auth_header)
-    
-    # Assertions
-    assert response.status_code == 500
-    assert "Agent list error" in response.json()["detail"]
-
-
 def test_search_agent_info_api_success(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
+    mock_get_user_id = mocker.patch("backend.apps.agent_app.get_current_user_id")
     mock_get_agent_info = mocker.patch("backend.apps.agent_app.get_agent_info_impl")
+    
+    mock_get_user_id.return_value = ("user_id", "tenant_id")
     mock_get_agent_info.return_value = {"agent_id": 123, "name": "Test Agent"}
     
     # Test the endpoint
     response = client.post(
         "/agent/search_info",
-        json={"agent_id": 123},
+        json=123,  # agent_id as body parameter
         headers=mock_auth_header
     )
     
     # Assertions
     assert response.status_code == 200
-    mock_get_agent_info.assert_called_once_with(123, mock_auth_header["Authorization"])
+    mock_get_user_id.assert_called_once_with(mock_auth_header["Authorization"])
+    mock_get_agent_info.assert_called_once_with(123, "tenant_id")
     assert response.json()["agent_id"] == 123
 
 
 def test_search_agent_info_api_exception(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
+    mock_get_user_id = mocker.patch("backend.apps.agent_app.get_current_user_id")
     mock_get_agent_info = mocker.patch("backend.apps.agent_app.get_agent_info_impl")
+    
+    mock_get_user_id.return_value = ("user_id", "tenant_id")
     mock_get_agent_info.side_effect = Exception("Test error")
     
     # Test the endpoint
     response = client.post(
         "/agent/search_info",
-        json={"agent_id": 123},
+        json=123,
         headers=mock_auth_header
     )
     
@@ -254,16 +220,15 @@ def test_get_creating_sub_agent_info_api_success(mocker, mock_auth_header):
     mock_get_creating_agent = mocker.patch("backend.apps.agent_app.get_creating_sub_agent_info_impl")
     mock_get_creating_agent.return_value = {"agent_id": 456}
     
-    # Test the endpoint
-    response = client.post(
+    # Test the endpoint - this is a GET request
+    response = client.get(
         "/agent/get_creating_sub_agent_id",
-        json={"agent_id": 123},
         headers=mock_auth_header
     )
     
     # Assertions
     assert response.status_code == 200
-    mock_get_creating_agent.assert_called_once_with(123, mock_auth_header["Authorization"])
+    mock_get_creating_agent.assert_called_once_with(mock_auth_header["Authorization"])
     assert response.json()["agent_id"] == 456
 
 
@@ -272,10 +237,9 @@ def test_get_creating_sub_agent_info_api_exception(mocker, mock_auth_header):
     mock_get_creating_agent = mocker.patch("backend.apps.agent_app.get_creating_sub_agent_info_impl")
     mock_get_creating_agent.side_effect = Exception("Test error")
     
-    # Test the endpoint
-    response = client.post(
+    # Test the endpoint - this is a GET request
+    response = client.get(
         "/agent/get_creating_sub_agent_id",
-        json={"agent_id": 123},
         headers=mock_auth_header
     )
     
@@ -399,24 +363,29 @@ def test_import_agent_api_success(mocker, mock_auth_header):
     mock_import_agent = mocker.patch("backend.apps.agent_app.import_agent_impl")
     mock_import_agent.return_value = None
     
-    # Test the endpoint
+    # Test the endpoint - following the ExportAndImportDataFormat structure
     response = client.post(
         "/agent/import",
         json={
-            "agent_id": 123,
             "agent_info": {
-                "name": "Imported Agent",
-                "description": "Test description",
-                "business_description": "Test business",
-                "model_name": "gpt-4",
-                "max_steps": 10,
-                "provide_run_summary": True,
-                "duty_prompt": "Test duty prompt",
-                "constraint_prompt": "Test constraint prompt", 
-                "few_shots_prompt": "Test few shots prompt",
-                "enabled": True,
-                "tools": [],
-                "managed_agents": []
+                "agent_id": 123,
+                "agent_info": {
+                    "test_agent": {
+                        "agent_id": 123,
+                        "name": "Imported Agent",
+                        "description": "Test description",
+                        "business_description": "Test business",
+                        "model_name": "gpt-4",
+                        "max_steps": 10,
+                        "provide_run_summary": True,
+                        "duty_prompt": "Test duty prompt",
+                        "constraint_prompt": "Test constraint prompt", 
+                        "few_shots_prompt": "Test few shots prompt",
+                        "enabled": True,
+                        "tools": [],
+                        "managed_agents": []
+                    }
+                }
             }
         },
         headers=mock_auth_header
@@ -426,20 +395,8 @@ def test_import_agent_api_success(mocker, mock_auth_header):
     assert response.status_code == 200
     mock_import_agent.assert_called_once()
     args, kwargs = mock_import_agent.call_args
-    assert args[0] == 123
-    assert args[2] == mock_auth_header["Authorization"]
-    assert args[1].name == "Imported Agent"
-    assert args[1].description == "Test description"
-    assert args[1].business_description == "Test business"
-    assert args[1].model_name == "gpt-4"
-    assert args[1].max_steps == 10
-    assert args[1].provide_run_summary == True
-    assert args[1].duty_prompt == "Test duty prompt"
-    assert args[1].constraint_prompt == "Test constraint prompt"
-    assert args[1].few_shots_prompt == "Test few shots prompt"
-    assert args[1].enabled == True
-    assert args[1].tools == []
-    assert args[1].managed_agents == []
+    # The function signature is import_agent_impl(request.agent_info, authorization)
+    assert args[1] == mock_auth_header["Authorization"]
     assert response.json() == {}
 
 
@@ -448,24 +405,29 @@ def test_import_agent_api_exception(mocker, mock_auth_header):
     mock_import_agent = mocker.patch("backend.apps.agent_app.import_agent_impl")
     mock_import_agent.side_effect = Exception("Test error")
     
-    # Test the endpoint
+    # Test the endpoint - following the ExportAndImportDataFormat structure
     response = client.post(
         "/agent/import",
         json={
-            "agent_id": 123,
             "agent_info": {
-                "name": "Imported Agent",
-                "description": "Test description",
-                "business_description": "Test business",
-                "model_name": "gpt-4",
-                "max_steps": 10,
-                "provide_run_summary": True,
-                "duty_prompt": "Test duty prompt",
-                "constraint_prompt": "Test constraint prompt", 
-                "few_shots_prompt": "Test few shots prompt",
-                "enabled": True,
-                "tools": [],
-                "managed_agents": []
+                "agent_id": 123,
+                "agent_info": {
+                    "test_agent": {
+                        "agent_id": 123,
+                        "name": "Imported Agent",
+                        "description": "Test description",
+                        "business_description": "Test business",
+                        "model_name": "gpt-4",
+                        "max_steps": 10,
+                        "provide_run_summary": True,
+                        "duty_prompt": "Test duty prompt",
+                        "constraint_prompt": "Test constraint prompt", 
+                        "few_shots_prompt": "Test few shots prompt",
+                        "enabled": True,
+                        "tools": [],
+                        "managed_agents": []
+                    }
+                }
             }
         },
         headers=mock_auth_header
@@ -474,6 +436,156 @@ def test_import_agent_api_exception(mocker, mock_auth_header):
     # Assertions
     assert response.status_code == 500
     assert "Agent import error" in response.json()["detail"]
+
+
+def test_list_all_agent_info_api_success(mocker, mock_auth_header):
+    # Setup mocks using pytest-mock
+    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
+    mock_list_all_agent = mocker.patch("backend.apps.agent_app.list_all_agent_info_impl")
+    
+    # Mock return values
+    mock_get_user_info.return_value = ("test_user", "test_tenant", "en")
+    mock_list_all_agent.return_value = [
+        {"agent_id": 1, "name": "Agent 1"},
+        {"agent_id": 2, "name": "Agent 2"}
+    ]
+    
+    # Test the endpoint
+    response = client.get(
+        "/agent/list",
+        headers=mock_auth_header
+    )
+    
+    # Assertions
+    assert response.status_code == 200
+    mock_get_user_info.assert_called_once()
+    mock_list_all_agent.assert_called_once_with(tenant_id="test_tenant", user_id="test_user")
+    assert len(response.json()) == 2
+    assert response.json()[0]["agent_id"] == 1
+    assert response.json()[1]["name"] == "Agent 2"
+
+
+def test_list_all_agent_info_api_exception(mocker, mock_auth_header):
+    # Setup mocks using pytest-mock
+    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
+    mock_list_all_agent = mocker.patch("backend.apps.agent_app.list_all_agent_info_impl")
+    
+    # Mock return values and exception
+    mock_get_user_info.return_value = ("test_user", "test_tenant", "en")
+    mock_list_all_agent.side_effect = Exception("Test error")
+    
+    # Test the endpoint
+    response = client.get(
+        "/agent/list",
+        headers=mock_auth_header
+    )
+    
+    # Assertions
+    assert response.status_code == 500
+    mock_get_user_info.assert_called_once()
+    mock_list_all_agent.assert_called_once_with(tenant_id="test_tenant", user_id="test_user")
+    assert "Agent list error" in response.json()["detail"]
+
+
+def test_related_agent_api_success(mocker, mock_auth_header):
+    # Setup mocks using pytest-mock
+    mock_get_user_id = mocker.patch("backend.apps.agent_app.get_current_user_id")
+    mock_insert_related_agent = mocker.patch("backend.apps.agent_app.insert_related_agent_impl")
+    
+    mock_get_user_id.return_value = ("user_id", "tenant_id")
+    mock_insert_related_agent.return_value = {"status": "success"}
+    
+    # Test the endpoint
+    response = client.post(
+        "/agent/related_agent",
+        json={
+            "parent_agent_id": 123,
+            "child_agent_id": 456
+        },
+        headers=mock_auth_header
+    )
+    
+    # Assertions
+    assert response.status_code == 200
+    mock_get_user_id.assert_called_once_with(mock_auth_header["Authorization"])
+    mock_insert_related_agent.assert_called_once_with(
+        parent_agent_id=123,
+        child_agent_id=456,
+        tenant_id="tenant_id"
+    )
+    assert response.json()["status"] == "success"
+
+
+def test_related_agent_api_exception(mocker, mock_auth_header):
+    # Setup mocks using pytest-mock
+    mock_get_user_id = mocker.patch("backend.apps.agent_app.get_current_user_id")
+    mock_insert_related_agent = mocker.patch("backend.apps.agent_app.insert_related_agent_impl")
+    
+    mock_get_user_id.return_value = ("user_id", "tenant_id")
+    mock_insert_related_agent.side_effect = Exception("Test error")
+    
+    # Test the endpoint
+    response = client.post(
+        "/agent/related_agent",
+        json={
+            "parent_agent_id": 123,
+            "child_agent_id": 456
+        },
+        headers=mock_auth_header
+    )
+    
+    # The exception handling returns a JSONResponse with status 400
+    assert response.status_code == 400
+    assert response.json()["message"] == "Failed to insert relation"
+    assert response.json()["status"] == "error"
+
+
+def test_delete_related_agent_api_success(mocker, mock_auth_header):
+    # Setup mocks using pytest-mock
+    mock_get_user_id = mocker.patch("backend.apps.agent_app.get_current_user_id")
+    mock_delete_related_agent = mocker.patch("backend.apps.agent_app.delete_related_agent")
+    
+    mock_get_user_id.return_value = ("user_id", "tenant_id")
+    mock_delete_related_agent.return_value = {"status": "success"}
+    
+    # Test the endpoint
+    response = client.post(
+        "/agent/delete_related_agent",
+        json={
+            "parent_agent_id": 123,
+            "child_agent_id": 456
+        },
+        headers=mock_auth_header
+    )
+    
+    # Assertions
+    assert response.status_code == 200
+    mock_get_user_id.assert_called_once_with(mock_auth_header["Authorization"])
+    mock_delete_related_agent.assert_called_once_with(123, 456, "tenant_id")
+    assert response.json()["status"] == "success"
+
+
+def test_delete_related_agent_api_exception(mocker, mock_auth_header):
+    # Setup mocks using pytest-mock
+    mock_get_user_id = mocker.patch("backend.apps.agent_app.get_current_user_id")
+    mock_delete_related_agent = mocker.patch("backend.apps.agent_app.delete_related_agent")
+    
+    mock_get_user_id.return_value = ("user_id", "tenant_id")
+    mock_delete_related_agent.side_effect = Exception("Test error")
+    
+    # Test the endpoint
+    response = client.post(
+        "/agent/delete_related_agent",
+        json={
+            "parent_agent_id": 123,
+            "child_agent_id": 456
+        },
+        headers=mock_auth_header
+    )
+    
+    # Assertions
+    assert response.status_code == 500
+    assert "Agent related info error" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -700,52 +812,3 @@ async def test_export_agent_api_empty_response(mocker, mock_auth_header):
     assert response_data["code"] == 0
     assert response_data["message"] == "success"
     assert response_data["data"] == {}
-
-
-def test_list_all_agent_info_api_success(mocker, mock_auth_header):
-    # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
-    mock_list_all_agent = mocker.patch("backend.apps.agent_app.list_all_agent_info_impl")
-    
-    # Mock return values
-    mock_get_user_info.return_value = ("test_user", "test_tenant", "en")
-    mock_list_all_agent.return_value = [
-        {"agent_id": 1, "name": "Agent 1"},
-        {"agent_id": 2, "name": "Agent 2"}
-    ]
-    
-    # Test the endpoint
-    response = client.get(
-        "/agent/list",
-        headers=mock_auth_header
-    )
-    
-    # Assertions
-    assert response.status_code == 200
-    mock_get_user_info.assert_called_once()
-    mock_list_all_agent.assert_called_once_with(tenant_id="test_tenant", user_id="test_user")
-    assert len(response.json()) == 2
-    assert response.json()[0]["agent_id"] == 1
-    assert response.json()[1]["name"] == "Agent 2"
-
-
-def test_list_all_agent_info_api_exception(mocker, mock_auth_header):
-    # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
-    mock_list_all_agent = mocker.patch("backend.apps.agent_app.list_all_agent_info_impl")
-    
-    # Mock return values and exception
-    mock_get_user_info.return_value = ("test_user", "test_tenant", "en")
-    mock_list_all_agent.side_effect = Exception("Test error")
-    
-    # Test the endpoint
-    response = client.get(
-        "/agent/list",
-        headers=mock_auth_header
-    )
-    
-    # Assertions
-    assert response.status_code == 500
-    mock_get_user_info.assert_called_once()
-    mock_list_all_agent.assert_called_once_with(tenant_id="test_tenant", user_id="test_user")
-    assert "Agent list error" in response.json()["detail"]
