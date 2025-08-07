@@ -14,6 +14,8 @@ MODEL_ENGINE_APIKEY = os.getenv('MODEL_ENGINE_APIKEY')
 # Elasticsearch Configuration
 ES_HOST = os.getenv("ELASTICSEARCH_HOST")
 ES_API_KEY = os.getenv("ELASTICSEARCH_API_KEY")
+ES_PASSWORD = os.getenv("ELASTIC_PASSWORD")
+ES_USERNAME = "elastic"
 ELASTICSEARCH_SERVICE = os.getenv("ELASTICSEARCH_SERVICE")
 
 # Data Processing Service Configuration
@@ -106,3 +108,10 @@ TOKEN = os.getenv("TOKEN", "")
 CLUSTER = os.getenv("CLUSTER", "volcano_tts")
 VOICE_TYPE = os.getenv("VOICE_TYPE", "zh_male_jieshuonansheng_mars_bigtts")
 SPEED_RATIO = float(os.getenv("SPEED_RATIO", "1.3"))
+
+
+# Memory Feature
+MEMORY_SWITCH_KEY = "MEMORY_SWITCH"
+MEMORY_AGENT_SHARE_KEY = "MEMORY_AGENT_SHARE"
+DISABLE_AGENT_ID_KEY = "DISABLE_AGENT_ID"
+DISABLE_USERAGENT_ID_KEY = "DISABLE_USERAGENT_ID"

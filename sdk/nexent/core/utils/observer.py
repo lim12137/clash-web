@@ -233,6 +233,17 @@ class MessageObserver:
         self.message_query = []
         return cached_message
 
+    def get_final_answer(self):
+        for item in self.message_query:
+            if isinstance(item, str):
+                try:
+                    data = json.loads(item)
+                except json.JSONDecodeError:
+                    continue
+                if data.get("type") == ProcessType.FINAL_ANSWER.value:
+                    return data.get("content")
+
+        return None
 
 # fixed MessageObserver output format
 class Message:
