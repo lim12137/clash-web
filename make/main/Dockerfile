@@ -13,15 +13,16 @@ RUN rm -f /etc/apt/sources.list.d/* && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
     apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-RUN pip install uv $(test -n "$MIRROR" && echo "-i $MIRROR")
+RUN pip install uv --no-cache-dir $(test -n "$MIRROR" && echo "-i $MIRROR")
 WORKDIR /opt/backend
 
 # Layer 0: install base dependencies
 COPY backend/pyproject.toml /opt/backend/pyproject.toml
-RUN uv sync $(test -n "$MIRROR" && echo "-i $MIRROR")
+RUN uv sync --no-cache-dir $(test -n "$MIRROR" && echo "-i $MIRROR")
 # Layer 1: install sdk in link mode
 COPY sdk /opt/sdk
-RUN uv pip install -e /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR")
+RUN uv pip install -e /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR") && \
+    uv cache clean
 # Layer 2: copy backend code
 COPY backend /opt/backend
 
