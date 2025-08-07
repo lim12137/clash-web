@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from agents.create_agent_info import create_tool_config_list
 from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest
 from database.agent_db import create_agent, query_all_enabled_tool_instances, \
-    query_or_create_main_agent_id, query_sub_agents, search_blank_sub_agent_by_main_agent_id, \
+     search_blank_sub_agent_by_main_agent_id, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
     create_or_update_tool_by_tool_info, check_tool_is_available, query_all_agent_info_by_tenant_id, \
     query_sub_agents_id_list, insert_related_agent, delete_all_related_agent
@@ -38,21 +38,6 @@ def get_creating_sub_agent_id_service(tenant_id: str, user_id: str = None) -> in
     else:
         return create_agent(agent_info={"enabled": False}, tenant_id=tenant_id, user_id=user_id)["agent_id"]
 
-
-def query_sub_agents_api(main_agent_id: int, tenant_id: str = None, user_id: str = None):
-    sub_agents = query_sub_agents(main_agent_id, tenant_id)
-
-    for sub_agent in sub_agents:
-        # search the tools used by each sub agent, here use the tools configured by admin, not use user_id
-        tool_info = search_tools_for_sub_agent(agent_id=sub_agent["agent_id"], tenant_id=tenant_id)
-        sub_agent["tools"] = tool_info
-
-        tool_id_list = [tool["tool_id"] for tool in tool_info]
-        if all(check_tool_is_available(tool_id_list)):
-            sub_agent["is_available"] = True
-        else:
-            sub_agent["is_available"] = False
-    return sub_agents
 
 def get_agent_info_impl(agent_id: int, tenant_id: str):
     try:    
@@ -282,22 +267,6 @@ async def import_agent_by_agent_id(import_agent_info: ExportAndImportAgentInfo, 
         create_or_update_tool_by_tool_info(tool_info=tool, tenant_id=tenant_id, user_id=user_id)
     return new_agent_id
 
-def search_sub_agents(authorization: str = Header(None)):
-    user_id, tenant_id = get_current_user_id(authorization)
-    logger.info(f"user_id: {user_id}, tenant_id: {tenant_id}")
-    try:
-        main_agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
-    except Exception as e:
-        logger.error(f"Failed to get main agent id: {str(e)}")
-        raise ValueError(f"Failed to get main agent id: {str(e)}")
-
-    try:
-        sub_agent_list = query_sub_agents(main_agent_id, tenant_id)
-    except Exception as e:
-        logger.error(f"Failed to get sub agent list: {str(e)}")
-        raise ValueError(f"Failed to get sub agent list: {str(e)}")
-
-    return main_agent_id, sub_agent_list
 
 def load_default_agents_json_file(default_agent_path):
     # load all json files in the folder
@@ -312,34 +281,6 @@ def load_default_agents_json_file(default_agent_path):
             all_json_files.append(export_agent_info)
     return all_json_files
 
-def import_default_agents_to_pg():
-    try:
-        main_agent_id, sub_agent_list = search_sub_agents()
-        sub_agent_name_list = [sub_agent["name"] for sub_agent in sub_agent_list]
-
-        try:
-            default_agents = load_default_agents_json_file(default_agent_path = "backend/agents/default_agents/")
-        except Exception as e:
-            logger.error(f"Failed to load default agents: {str(e)}")
-            raise ValueError(f"Failed to load default agents: {str(e)}")
-
-        for agent in default_agents:
-            if agent.name in sub_agent_name_list:
-                continue
-            else:
-                try:
-                    # Create ExportAndImportDataFormat structure for import_agent_impl
-                    agent_data = ExportAndImportDataFormat(
-                        agent_id=main_agent_id,
-                        agent_info={str(main_agent_id): agent}
-                    )
-                    import_agent_impl(agent_info=agent_data)
-                except Exception as e:
-                    logger.error(f"agent name: {agent.name}, error: {str(e)}")
-                    raise ValueError(f"agent name: {agent.name}, error: {str(e)}")
-    except Exception as e:
-        logger.error(f"Failed to import default agents: {str(e)}")
-        raise ValueError(f"Failed to import default agents: {str(e)}")
 
 def list_all_agent_info_impl(tenant_id: str, user_id: str) -> list[dict]:
     """
