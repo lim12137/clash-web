@@ -45,6 +45,20 @@ class ModelRequest(BaseModel):
     connect_status: Optional[str] = ''
 
 
+class ProviderModelRequest(BaseModel):
+    provider: str
+    model_type: str
+    api_key: Optional[str] = ''
+
+
+class BatchCreateModelsRequest(BaseModel):
+    api_key: str
+    models: List[Dict]
+    provider: str
+    type: str
+    max_tokens: int
+
+
 # Configuration models
 class ModelApiConfig(BaseModel):
     apiKey: str
@@ -260,6 +274,7 @@ class MessageIdRequest(BaseModel):
 
 
 class ExportAndImportAgentInfo(BaseModel):
+    agent_id: int
     name: str
     description: str
     business_description: str
@@ -271,12 +286,15 @@ class ExportAndImportAgentInfo(BaseModel):
     few_shots_prompt: Optional[str] = None
     enabled: bool
     tools: List[ToolConfig]
-    managed_agents: List
+    managed_agents: List[int]
+
+class ExportAndImportDataFormat(BaseModel):
+    agent_id: int
+    agent_info: Dict[str, ExportAndImportAgentInfo]
 
 
 class AgentImportRequest(BaseModel):
-    agent_id: int
-    agent_info: ExportAndImportAgentInfo
+    agent_info: ExportAndImportDataFormat
 
 
 class ConvertStateRequest(BaseModel):

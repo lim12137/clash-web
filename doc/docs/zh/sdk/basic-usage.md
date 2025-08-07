@@ -2,7 +2,37 @@
 
 本指南提供使用 Nexent SDK 构建智能体的全面介绍。
 
-## 🚀 快速开始
+## 🚀 安装方式
+
+### 用户安装
+如果您想使用 Nexent：
+
+```bash
+# 推荐：从源码安装
+git clone https://github.com/ModelEngine-Group/nexent.git
+cd nexent/sdk
+uv pip install -e .
+
+# 或使用 uv 安装
+uv add nexent
+```
+
+### 开发环境设置
+如果您是第三方 SDK 开发者：
+
+```bash
+# 安装完整开发环境（包括 Nexent）
+cd nexent/sdk
+uv pip install -e ".[dev]"  # 包含所有开发工具（测试、代码质量检查等）
+```
+
+开发环境包含以下额外功能：
+- 代码质量检查工具 (ruff)
+- 测试框架 (pytest)
+- 数据处理依赖 (unstructured)
+- 其他开发依赖
+
+## ⚡ 快速开始
 
 ### 💡 基本导入
 
@@ -91,27 +121,6 @@ custom_tool = CustomTool(observer=observer)
 agent.tools.append(custom_tool)
 ```
 
-### 🎭 多模态智能体设置
-
-```python
-from nexent.core.models import OpenAIVLMModel
-
-# 创建支持视觉的模型
-vision_model = OpenAIVLMModel(
-    observer=observer,
-    model_id="gpt-4-vision-preview",
-    api_key="your-api-key"
-)
-
-# 创建具有视觉能力的智能体
-vision_agent = CoreAgent(
-    observer=observer,
-    tools=[search_tool],
-    model=vision_model,
-    name="vision_agent"
-)
-```
-
 ### 📡 流式输出处理
 
 ```python
@@ -183,62 +192,10 @@ search_tool = ExaSearchTool(
 )
 ```
 
-## 🎭 多模态示例
+## 📚 更多资源
 
-### 💡 图像处理
+有关更高级的使用模式和详细的API文档，请参阅：
 
-```python
-# 使用视觉模型处理图像
-result = vision_agent.run(
-    "描述你在这张图片中看到的内容",
-    image_path="path/to/image.jpg"
-)
-```
-
-### 💡 语音处理
-
-```python
-from nexent.core.tools import SpeechToTextTool, TextToSpeechTool
-
-# 添加语音能力
-stt_tool = SpeechToTextTool(observer=observer)
-tts_tool = TextToSpeechTool(observer=observer)
-
-voice_agent = CoreAgent(
-    observer=observer,
-    tools=[stt_tool, tts_tool, search_tool],
-    model=model,
-    name="voice_agent"
-)
-```
-
-## 🔍 最佳实践
-
-### 💡 性能优化
-
-- **连接池**: 重用连接以获得更好的性能
-- **批量处理**: 在可能的情况下一起处理多个请求
-- **缓存**: 为频繁访问的数据实现缓存
-- **异步操作**: 对I/O密集型操作使用 async/await
-
-### 💡 安全考虑
-
-- **API密钥管理**: 使用环境变量安全存储API密钥
-- **输入验证**: 在处理前验证所有输入
-- **速率限制**: 实现速率限制以防止滥用
-- **错误日志**: 记录错误而不暴露敏感信息
-
-### 💡 监控和调试
-
-```python
-# 启用详细日志
-import logging
-logging.basicConfig(level=logging.DEBUG)
-
-# 监控智能体执行
-for step in agent.execution_steps:
-    print(f"步骤 {step.step_number}: {step.action}")
-    print(f"结果: {step.result}")
-```
-
-有关更高级的使用模式和详细的API文档，请参阅 **[核心组件](./overview)** 和 **[工具开发](./core/tools)** 指南。 
+- **[工具开发指南](./core/tools)** - 详细的工具开发规范和示例
+- **[模型架构指南](./core/models)** - 模型集成和使用文档
+- **[智能体模块](./core/agents)** - 智能体开发的最佳实践和高级模式 

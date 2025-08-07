@@ -3,7 +3,7 @@ DUTY_SYSTEM_PROMPT: |-
   现在正在做一个Agent应用的提示词工程，用户的输入包含三个部分：任务描述、使用工具、使用到的助手。
   需要你主要参考任务描述，结合工具和助手信息，总结出当前Agent的职责。你的输出将作为该应用整体提示词的职责描述部分。
   ### 要求：
-  1.只展示你设计的提示词，仅涉及工具的使用限制这部分内容，不要显示无关内容与无关的格式。
+  1.只展示你设计的提示词，仅涉及职责描述这部分内容，不要显示无关内容与无关的格式。
   2.职责描述不要超过三句话，主要内容包括：你是谁，你有什么能力，你能做什么。
   3.职责描述部分要求能够概括业务整体的逻辑。不要过于细节，不要展示具体工具名。
   
@@ -53,7 +53,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
   
   ### python代码规范 ###
   1. 如果认为是需要执行的代码，代码内容以'代码：\n```py\n'开头，并以'```<end_code>'标识符结尾。如果是不需要执行仅用于展示的代码，代码内容以'代码：\n```code:语言类型\n'开头，并以'```<end_code>'标识符结尾，其中语言类型例如python、java、javascript等；
-  2. 只使用已定义的变量，变量将在多次调用之间持续保持。使用'print()'函数让下一次的模型调用看到对应变量信息；
+  2. 只使用已定义的变量，变量将在多次调用之间持续保持。使用“print()”函数让下一次的模型调用看到对应变量信息；
   3. 正确使用工具的入参，使用关键字参数，不要用字典形式；
   4. 避免在一轮对话中进行过多的工具调用，这会导致输出格式难以预测；
   5. 只在需要时调用工具，不重复相同参数的调用；
@@ -73,7 +73,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
 
     [代码执行结果]
 
-    由于没有获取到足够的信息，我将继续执行。。。
+    由于没有获取到足够的信息，我将继续执行...
     代码:
     ```py
     # Your python code here
@@ -112,15 +112,16 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     任务："Python写一个快排序代码"
   
     快速排序是一种高效的排序算法，通过递归和分治策略对数据进行排序。以下是使用 Python 实现的快速排序代码：
+    代码：
     ```code:python
     def quicksort(arr):
-    if len(arr) <= 1:
-        return arr
-    pivot = arr[len(arr) // 2]  # 选择中间元素作为基准
-    left = [x for x in arr if x < pivot]   # 小于基准的元素
-    middle = [x for x in arr if x == pivot]  # 等于基准的元素
-    right = [x for x in arr if x > pivot]  # 大于基准的元素
-    return quicksort(left) + middle + quicksort(right)  # 递归排序并合并
+        if len(arr) <= 1:
+            return arr
+        pivot = arr[len(arr) // 2]  # 选择中间元素作为基准
+        left = [x for x in arr if x < pivot]   # 小于基准的元素
+        middle = [x for x in arr if x == pivot]  # 等于基准的元素
+        right = [x for x in arr if x > pivot]  # 大于基准的元素
+        return quicksort(left) + middle + quicksort(right)  # 递归排序并合并
 
     example_array = [3,6,8,10,1,2,1]
     result = quicksort(example_array)
@@ -135,13 +136,13 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     以下是使用 Python 实现的快速排序代码：
     ```code:python
     def quicksort(arr):
-    if len(arr) <= 1:
-        return arr
-    pivot = arr[len(arr) // 2]  # 选择中间元素作为基准
-    left = [x for x in arr if x < pivot]   # 小于基准的元素
-    middle = [x for x in arr if x == pivot]  # 等于基准的元素
-    right = [x for x in arr if x > pivot]  # 大于基准的元素
-    return quicksort(left) + middle + quicksort(right)  # 递归排序并合并
+        if len(arr) <= 1:
+            return arr
+        pivot = arr[len(arr) // 2]  # 选择中间元素作为基准
+        left = [x for x in arr if x < pivot]   # 小于基准的元素
+        middle = [x for x in arr if x == pivot]  # 等于基准的元素
+        right = [x for x in arr if x > pivot]  # 大于基准的元素
+        return quicksort(left) + middle + quicksort(right)  # 递归排序并合并
 
     example_array = [3,6,8,10,1,2,1]
     result = quicksort(example_array)
@@ -197,7 +198,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
     I will use the tool `wiki` to get the age of the pope, and confirm that with a web search.
     代码:
     ```py
-    pope_age_wiki = wiki(task="current pope age")
+    pope_age_wiki = wiki(query="current pope age")
     print("Pope age as per wikipedia:", pope_age_wiki)
     pope_age_search = web_search(query="current pope age")
     print("Pope age as per google search:", pope_age_search)
