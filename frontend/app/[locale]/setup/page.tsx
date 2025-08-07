@@ -127,10 +127,48 @@ export default function CreatePage() {
       setSelectedKey("3")
       console.log(t('setup.page.log.selectedKeyUpdated', { key: '3' }));
     } else if (selectedKey === "1") {
-      // 直接跳转到第二步，不进行任何检查
-      console.log(t('setup.page.log.readyToJump', { from: '1', to: '2' }));
-      setSelectedKey("2")
-      console.log(t('setup.page.log.selectedKeyUpdated', { key: '2' }));
+        // Validate required fields when jumping from the first page to the second page
+      try {
+        // Get the current configuration
+        const currentConfig = configStore.getConfig()
+
+        // Check the main model
+        if (!currentConfig.models.llm.modelName) {
+          message.error(t('setup.page.error.selectMainModel'))
+
+          // Trigger a custom event to notify the ModelConfigSection to mark the main model dropdown as an error
+          window.dispatchEvent(new CustomEvent('highlightMissingField', {
+            detail: { field: t('setup.page.error.highlightField.llmMain') }
+          }))
+
+          return
+        }
+
+        // 检查 embedding 模型
+        if (
+          !currentConfig.models.embedding.modelName &&
+          !currentConfig.models.multiEmbedding?.modelName
+        ) {
+          setEmbeddingModalOpen(true);
+          setPendingJump(true);
+          // 高亮 embedding 下拉框
+          window.dispatchEvent(new CustomEvent('highlightMissingField', {
+            detail: { field: 'embedding.embedding' }
+          }))
+          return;
+        }
+
+        // All required fields have been filled, allow the jump to the second page
+        console.log(t('setup.page.log.readyToJump', { from: '1', to: '2' }));
+        setSelectedKey("2")
+        console.log(t('setup.page.log.selectedKeyUpdated', { key: '2' }));
+
+        // Call the backend save configuration API
+        await configService.saveConfigToBackend(currentConfig)
+      } catch (error) {
+        console.error(t('setup.page.error.systemError'), error)
+        message.error(t('setup.page.error.systemError'))
+      }
     }
   }
 
