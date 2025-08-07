@@ -371,62 +371,24 @@ pull_required_images() {
   fi
 }
 
-# Function to setup SSH timeout configuration using custom-init
-setup_ssh_timeout_config() {
-    echo "📝 Setting up SSH timeout configuration..."
-    mkdir -p "openssh-server/config/custom-cont-init.d"
-    if [ ! -f "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config" ]; then
-        cat > "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config" << 'EOF'
-#!/usr/bin/with-contenv bash
 
-# Configure SSH timeout settings for nexent terminal tool
-echo "Configuring SSH timeout settings (60 minutes)..."
 
-# Fix SSH host key permissions (must be 600 for private keys)
-echo "Fixing SSH host key permissions..."
-find /config -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
-find /config/ssh_host_keys -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
-echo "SSH host key permissions fixed"
-
-# Append timeout configuration to sshd_config
-cat >> /config/sshd/sshd_config << 'SSHD_EOF'
-
-# Nexent Terminal Tool - Session timeout configuration (60 minutes = 3600 seconds)
-ClientAliveInterval 300
-ClientAliveCountMax 12
-SSHD_EOF
-
-echo "SSH timeout configuration applied successfully"
-EOF
-        chmod +x "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config"
-        echo "✅ SSH timeout configuration script created"
-    else
-        echo "🔄 SSH timeout configuration script already exists, updating..."
-        # Always recreate the script to ensure it has the latest configuration
-        cat > "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config" << 'EOF'
-#!/usr/bin/with-contenv bash
-
-# Configure SSH timeout settings for nexent terminal tool
-echo "Configuring SSH timeout settings (60 minutes)..."
-
-# Fix SSH host key permissions (must be 600 for private keys)
-echo "Fixing SSH host key permissions..."
-find /config -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
-find /config/ssh_host_keys -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
-echo "SSH host key permissions fixed"
-
-# Append timeout configuration to sshd_config
-cat >> /config/sshd/sshd_config << 'SSHD_EOF'
-
-# Nexent Terminal Tool - Session timeout configuration (60 minutes = 3600 seconds)
-ClientAliveInterval 300
-ClientAliveCountMax 12
-SSHD_EOF
-
-echo "SSH timeout configuration applied successfully"
-EOF
-        chmod +x "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config"
-        echo "✅ SSH timeout configuration script updated"
+# Function to setup package installation script
+setup_package_install_script() {
+    if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
+        echo "📝 Setting up package installation script..."
+        mkdir -p "openssh-server/config/custom-cont-init.d"
+        
+        # Copy the fixed installation script
+        if [ -f "openssh-install-script.sh" ]; then
+            cp "openssh-install-script.sh" "openssh-server/config/custom-cont-init.d/openssh-start-script"
+            chmod +x "openssh-server/config/custom-cont-init.d/openssh-start-script"
+            echo "✅ Package installation script created/updated"
+        else
+            echo "❌ ERROR openssh-install-script.sh not found"
+            ERROR_OCCURRED=1
+            return 1
+        fi
     fi
 }
 
@@ -559,8 +521,8 @@ generate_ssh_keys() {
             cp "openssh-server/ssh-keys/openssh_server_key.pub" "openssh-server/config/authorized_keys"
             chmod 644 "openssh-server/config/authorized_keys"
             
-            # Setup SSH timeout configuration
-            setup_ssh_timeout_config
+            # Setup package installation script
+            setup_package_install_script
             
             # Set SSH key path in environment
             SSH_PRIVATE_KEY_PATH="$(pwd)/openssh-server/ssh-keys/openssh_server_key"
@@ -630,8 +592,8 @@ generate_ssh_keys() {
                 cp "openssh-server/ssh-keys/openssh_server_key.pub" "openssh-server/config/authorized_keys"
                 chmod 644 "openssh-server/config/authorized_keys"
                 
-                # Setup SSH timeout configuration
-                setup_ssh_timeout_config
+                # Setup package installation script
+                setup_package_install_script
                 
                 # Set SSH key path in environment
                 SSH_PRIVATE_KEY_PATH="$(pwd)/openssh-server/ssh-keys/openssh_server_key"
