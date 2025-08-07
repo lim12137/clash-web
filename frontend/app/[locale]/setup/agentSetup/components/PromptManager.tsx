@@ -65,7 +65,7 @@ export function SimplePromptEditor({ value, onChange, height = '100%' }: SimpleP
   , [editorKey]) // 只在editorKey改变时重新创建
 
   return (
-    <div className="milkdown-editor-container" style={{ height, overflow: 'hidden' }}>
+    <div className="milkdown-editor-container" style={{ height }}>
       <Milkdown key={editorKey} />
     </div>
   )
@@ -85,8 +85,21 @@ function ExpandEditModal({ open, title, content, index, onClose, onSave }: Expan
   const { t } = useTranslation('common')
   const [editContent, setEditContent] = useState(content)
 
+  // 当 content 或 open 状态变化时，更新编辑内容
+  useEffect(() => {
+    if (open) {
+      // 当模态框打开时，总是使用最新的 content
+      setEditContent(content)
+    }
+  }, [content, open])
+
   const handleSave = () => {
     onSave(editContent)
+    onClose()
+  }
+
+  const handleClose = () => {
+    // 关闭时不保存更改，直接关闭
     onClose()
   }
 
@@ -128,7 +141,7 @@ function ExpandEditModal({ open, title, content, index, onClose, onSave }: Expan
       }
       open={open}
       closeIcon={null}
-      onCancel={handleSave}
+      onCancel={handleClose}
       footer={null}
       width={1000}
       styles={{
@@ -558,11 +571,7 @@ export default function PromptManager({
 
       {/* 展开编辑模态框 */}
       <ExpandEditModal
-        key={
-          expandIndex === 2 ? dutyContent :
-          expandIndex === 3 ? constraintContent :
-          expandIndex === 4 ? fewShotsContent : 'default'
-        }
+        key={`expand-modal-${expandIndex}-${expandModalOpen ? 'open' : 'closed'}`}
         title={expandIndex === 1 ? t('systemPrompt.expandEdit.backgroundInfo') : expandIndex === 2 ? t('systemPrompt.card.duty.title') : expandIndex === 3 ? t('systemPrompt.card.constraint.title') : t('systemPrompt.card.fewShots.title')}
         open={expandModalOpen}
         content={
