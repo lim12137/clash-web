@@ -15,7 +15,7 @@ import AgentConfigurationSection from './AgentConfigurationSection'
 import NonEditingOverlay from './NonEditingOverlay'
 import './milkdown-nord.css'
 
-// 简化的编辑器组件
+// Simplified editor component
 export interface SimplePromptEditorProps {
   value: string
   onChange: (value: string) => void
@@ -27,18 +27,18 @@ export function SimplePromptEditor({ value, onChange, height = '100%' }: SimpleP
   const [editorKey, setEditorKey] = useState(0)
   const isInternalChange = useRef(false)
   
-  // 当外部value改变时，更新编辑器
+  // Update editor when external value changes
   useEffect(() => {
     if (value !== internalValue) {
-      // 仅当更改源自外部时才强制更新编辑器
+      // Only force update editor when change comes from external source
       if (!isInternalChange.current) {
         setInternalValue(value)
         setEditorKey(prev => prev + 1)
       }
     }
     
-    // 每次value或internalValue变化后，如果标记为内部更改，则重置标记。
-    // 这能确保在内部编辑后，下一次外部更改能被正确识别。
+    // Reset the flag after each value or internalValue change if marked as internal change.
+    // This ensures that the next external change can be correctly identified after internal editing.
     if (isInternalChange.current) {
       isInternalChange.current = false
     }
@@ -62,7 +62,7 @@ export function SimplePromptEditor({ value, onChange, height = '100%' }: SimpleP
           onChange(markdown)
         })
       })
-  , [editorKey]) // 只在editorKey改变时重新创建
+  , [editorKey]) // Only recreate when editorKey changes
 
   return (
     <div className="milkdown-editor-container" style={{ height }}>
@@ -71,7 +71,7 @@ export function SimplePromptEditor({ value, onChange, height = '100%' }: SimpleP
   )
 }
 
-// 展开编辑模态框
+// Expand edit modal
 interface ExpandEditModalProps {
   open: boolean
   title: string
@@ -85,10 +85,10 @@ function ExpandEditModal({ open, title, content, index, onClose, onSave }: Expan
   const { t } = useTranslation('common')
   const [editContent, setEditContent] = useState(content)
 
-  // 当 content 或 open 状态变化时，更新编辑内容
+  // Update edit content when content or open state changes
   useEffect(() => {
     if (open) {
-      // 当模态框打开时，总是使用最新的 content
+      // Always use the latest content when modal opens
       setEditContent(content)
     }
   }, [content, open])
@@ -99,7 +99,7 @@ function ExpandEditModal({ open, title, content, index, onClose, onSave }: Expan
   }
 
   const handleClose = () => {
-    // 关闭时不保存更改，直接关闭
+    // Close without saving changes
     onClose()
   }
 
@@ -166,7 +166,7 @@ function ExpandEditModal({ open, title, content, index, onClose, onSave }: Expan
   )
 }
 
-// 微调模态框
+// Fine-tune modal
 interface FineTuneModalProps {
   open: boolean
   onClose: () => void
@@ -275,29 +275,29 @@ function FineTuneModal({ open, onClose, onFineTune, onSave }: FineTuneModalProps
   )
 }
 
-// 主要的提示词管理器组件
+// Main prompt manager component
 export interface PromptManagerProps {
-  // 基础数据
+  // Basic data
   agentId?: number
   businessLogic?: string
   dutyContent?: string
   constraintContent?: string
   fewShotsContent?: string
   
-  // Agent 信息
+  // Agent information
   agentName?: string
   agentDescription?: string
   mainAgentModel?: string
   mainAgentMaxStep?: number
   
-  // 编辑状态
+  // Edit state
   isEditingMode?: boolean
   isGeneratingAgent?: boolean
   isSavingAgent?: boolean
   isCreatingNewAgent?: boolean
   canSaveAgent?: boolean
   
-  // 回调函数
+  // Callback functions
   onBusinessLogicChange?: (content: string) => void
   onDutyContentChange?: (content: string) => void
   onConstraintContentChange?: (content: string) => void
@@ -314,7 +314,7 @@ export interface PromptManagerProps {
   onDeleteSuccess?: () => void
   getButtonTitle?: () => string
   
-  // 编辑中的agent
+  // Agent being edited
   editingAgent?: any
 }
 
@@ -352,14 +352,14 @@ export default function PromptManager({
 }: PromptManagerProps) {
   const { t } = useTranslation('common')
   
-  // 模态框状态
+  // Modal states
   const [expandModalOpen, setExpandModalOpen] = useState(false)
   const [expandTitle, setExpandTitle] = useState('')
   const [expandContent, setExpandContent] = useState('')
   const [expandIndex, setExpandIndex] = useState(0)
   const [fineTuneModalOpen, setFineTuneModalOpen] = useState(false)
 
-  // 处理展开编辑
+  // Handle expand edit
   const handleExpandCard = (title: string, content: string, index: number) => {
     console.log('handleExpandCard called:', { title, content, index })
     setExpandTitle(title)
@@ -368,7 +368,7 @@ export default function PromptManager({
     setExpandModalOpen(true)
   }
 
-  // 处理展开编辑保存
+  // Handle expand edit save
   const handleExpandSave = (newContent: string) => {
     console.log('handleExpandSave called:', { newContent, expandIndex })
     switch (expandIndex) {
@@ -384,7 +384,7 @@ export default function PromptManager({
     }
   }
 
-  // 处理微调
+  // Handle fine-tuning
   const handleFineTune = async (request: string): Promise<string> => {
     const hasPromptContent = dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim()
     if (!hasPromptContent) {
@@ -404,7 +404,7 @@ export default function PromptManager({
     return result
   }
 
-  // 处理保存微调结果
+  // Handle saving fine-tuned result
   const handleSaveFineTuned = async (prompt: string): Promise<void> => {
     if (!agentId) {
       throw new Error(t('systemPrompt.message.noAgentId'))
@@ -416,7 +416,7 @@ export default function PromptManager({
     })
   }
 
-  // 处理手动保存
+  // Handle manual save
   const handleSavePrompt = async () => {
     if (!agentId) return
     
@@ -471,10 +471,10 @@ export default function PromptManager({
         }
       `}</style>
       
-      {/* 非编辑模式遮罩 */}
+      {/* Non-editing mode overlay */}
       {!isEditingMode && <NonEditingOverlay />}
 
-      {/* 主标题 */}
+      {/* Main title */}
       <div className="flex justify-between items-center mb-2">
         <div className="flex items-center">
           <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-sm font-medium mr-2">
@@ -484,9 +484,9 @@ export default function PromptManager({
         </div>
       </div>
 
-      {/* 主要内容 */}
+      {/* Main content */}
       <div className="flex-1 flex flex-col border-t pt-2 system-prompt-container overflow-hidden">
-        {/* 业务逻辑描述部分 */}
+        {/* Business logic description section */}
         <div className="flex-shrink-0 mb-4">
           <div className="mb-2">
             <h3 className="text-sm font-medium text-gray-700 mb-2">{t('businessLogic.title')}</h3>
@@ -501,7 +501,7 @@ export default function PromptManager({
                 minHeight: '120px',
                 maxHeight: '200px',
                 paddingRight: '12px',
-                paddingBottom: '40px'  // 为按钮预留空间
+                paddingBottom: '40px'  // Reserve space for button
               }}
               autoSize={{ 
                 minRows: 3, 
@@ -509,7 +509,7 @@ export default function PromptManager({
               }}
               disabled={!isEditingMode}
             />
-            {/* 生成按钮 */}
+            {/* Generate button */}
             <div className="absolute bottom-2 right-2">
               <button
                 onClick={onGenerateAgent}
@@ -533,7 +533,7 @@ export default function PromptManager({
           </div>
         </div>
 
-        {/* Agent配置部分 */}
+        {/* Agent configuration section */}
         <div className="flex-1 min-h-0 system-prompt-content">
           <AgentConfigurationSection
             agentId={agentId}
@@ -569,7 +569,7 @@ export default function PromptManager({
         </div>
       </div>
 
-      {/* 展开编辑模态框 */}
+      {/* Expand edit modal */}
       <ExpandEditModal
         key={`expand-modal-${expandIndex}-${expandModalOpen ? 'open' : 'closed'}`}
         title={expandIndex === 1 ? t('systemPrompt.expandEdit.backgroundInfo') : expandIndex === 2 ? t('systemPrompt.card.duty.title') : expandIndex === 3 ? t('systemPrompt.card.constraint.title') : t('systemPrompt.card.fewShots.title')}
@@ -585,7 +585,7 @@ export default function PromptManager({
         onSave={handleExpandSave}
       />
 
-      {/* 微调模态框 */}
+      {/* Fine-tune modal */}
       <FineTuneModal
         open={fineTuneModalOpen}
         onClose={() => setFineTuneModalOpen(false)}
