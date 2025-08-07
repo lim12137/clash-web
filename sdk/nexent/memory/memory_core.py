@@ -27,7 +27,25 @@ logger = logging.getLogger("memory_core")
 
 # In-process cache – {config_hash: Memory}
 _MEMORY_CACHE: dict[str, AsyncMemory] = {}
-_CACHE_LOCK = asyncio.Lock()
+# One asyncio.Lock per event loop to avoid cross-loop errors
+_CACHE_LOCKS: dict[int, asyncio.Lock] = {}
+
+
+def _get_cache_lock() -> asyncio.Lock:
+    """Return an event-loop-local ``asyncio.Lock``.
+
+    Creating locks per-loop prevents the *"is bound to a different event loop"*
+    runtime error when this module is used from multiple independent loops
+    (for example, when calling :pyfunc:`asyncio.run` in different threads or
+    within FastAPI workers).
+    """
+    loop = asyncio.get_event_loop()
+    loop_id = id(loop)
+    lock = _CACHE_LOCKS.get(loop_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _CACHE_LOCKS[loop_id] = lock
+    return lock
 
 
 def _hash_config(config: Dict[str, Any]) -> str:
@@ -86,7 +104,7 @@ async def get_memory_instance(memory_config: Dict[str, Any]) -> AsyncMemory:
 
     cache_key = _hash_config(memory_config)
 
-    async with _CACHE_LOCK:
+    async with _get_cache_lock():
         if cache_key in _MEMORY_CACHE:
             logger.debug("Memory cache hit.")
             return _MEMORY_CACHE[cache_key]
