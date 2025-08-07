@@ -1,15 +1,17 @@
+from threading import Event
 from typing import List
 
-from threading import Event
-from smolagents import ActionStep, TaskStep, AgentText, handle_agent_output_types
+from smolagents import ActionStep, AgentText, TaskStep, handle_agent_output_types
 from smolagents.tools import Tool
-from ..utils.observer import ProcessType
-from .agent_model import ModelConfig, ToolConfig, AgentConfig, AgentHistory
-from ..utils.observer import MessageObserver
+
 from ..models.openai_llm import OpenAIModel
 from ..models.openai_deep_thinking_llm import OpenAIDeepThinkingModel
 from .core_agent import CoreAgent, convert_code_format
 from ..tools import *  # Used for tool creation, do not delete!!!
+from ..utils.observer import MessageObserver, ProcessType
+from .agent_model import AgentConfig, AgentHistory, ModelConfig, ToolConfig
+from .core_agent import CoreAgent, convert_code_format
+
 
 
 class ModelFactory:
@@ -19,12 +21,12 @@ class ModelFactory:
     def create_model(model_config: ModelConfig, observer: MessageObserver, stop_event: Event) -> OpenAIModel:
         """
         Create a model instance based on configuration
-        
+
         Args:
             model_config: Model configuration
             observer: Observer instance
             stop_event: Stop event
-            
+
         Returns:
             OpenAIModel: Created model instance
         """
@@ -230,6 +232,4 @@ class NexentAgent:
             raise ValueError(f"Error in interaction: {str(e)}")
 
     def set_agent(self, agent: CoreAgent):
-        if not isinstance(agent, CoreAgent):
-            raise TypeError(f"agent must be a CoreAgent object, not {type(agent)}")
         self.agent = agent
