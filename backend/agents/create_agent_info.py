@@ -76,7 +76,7 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     # Get memory list
     memory_context = build_memory_context(user_id, tenant_id, agent_id)
     if memory_context.user_config.memory_switch:
-        # TODO: 前端展示回忆中组件
+        # TODO: 前端展示"回忆中..." Tag
         logger.debug("Retrieving memory list...")
         memory_levels = ["tenant", "agent", "user", "user_agent"]
         if memory_context.user_config.agent_share_option == "never":
@@ -96,6 +96,7 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
         )
         memory_list = search_res.get("results", [])
         logger.debug(f"Retrieved memory list: {memory_list}")
+        # TODO: 前端展示"已抽取 xx 条回忆"
 
     # Assemble system_prompt
     system_prompt = populate_template(
