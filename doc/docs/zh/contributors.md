@@ -20,6 +20,10 @@ Nexent 项目得益于我们核心团队成员的辛勤工作。我们想感谢�
 - **Yu Lin** @linsensen222
 - **Wenqi Bai** @Bavichi
 - **Feiyang Xiang** @feixiangkong
+- **Peiling Jiang** @porkpink
+
+### SRE (站点可靠性工程师)
+- **Peiling Jiang** @porkpink
 
 ### 运营经理
 - **Chenxue Jia** @Davina-jcx
@@ -35,6 +39,18 @@ Nexent 项目得益于我们核心团队成员的辛勤工作。我们想感谢�
 - 开发和实施
 - 运营和维护
 - 质量保证和测试
+
+## 开源贡献者
+
+我们想特别感谢以下开源贡献者，他们为 Nexent 项目做出了宝贵的贡献：
+
+- **kasper1995** - 代码贡献和错误修复
+- **feng384** - 代码贡献和错误修复
+- **Cokefish9527** - 代码贡献和错误修复
+- **lwsinclair** - 代码贡献和错误修复
+- **4cos90** - 代码贡献和错误修复
+- **xigongdaEricyang** - 代码\Issue 贡献
+- **Jenniebn** - 代码\Issue 贡献
 
 ## 加入我们的团队
 

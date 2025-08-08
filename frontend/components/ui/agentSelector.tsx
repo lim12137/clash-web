@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { ChevronDown, MousePointerClick } from 'lucide-react'
 import { fetchAllAgents } from '@/services/agentConfigService'
 import { useTranslation } from 'react-i18next'
+import { getUrlParam } from '@/lib/utils'
 
 interface Agent {
   agent_id: number
@@ -25,6 +26,7 @@ export function AgentSelector({ selectedAgentId, onAgentSelect, disabled = false
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, direction: 'down' })
+  const [isAutoSelectInit, setIsAutoSelectInit] = useState(false)
   const { t } = useTranslation('common')
   const buttonRef = useRef<HTMLDivElement>(null)
 
@@ -34,9 +36,38 @@ export function AgentSelector({ selectedAgentId, onAgentSelect, disabled = false
 
   const selectedAgent = agents.find(agent => agent.agent_id === selectedAgentId)
 
+  /**
+   * 处理URL参数自动选择Agent的逻辑
+   */
+  const handleAutoSelectAgent = () => {
+    if (agents.length === 0 || isAutoSelectInit) return
+
+    // 获取URL中的agent_id参数
+    const agentId = getUrlParam('agent_id', null as number | null, str => str ? Number(str) : null)
+    
+    if (agentId === null) return
+
+    // 检查agentId是否为有效的agent
+    const agent = agents.find(a => a.agent_id === agentId)
+    if (agent && agent.is_available) {
+      console.log('自动选择agent:', agent.name, 'ID:', agentId)
+      handleAgentSelect(agentId)
+      setIsAutoSelectInit(true)
+    } else if (agent && !agent.is_available) {
+      console.log('Agent不可用，跳过自动选择:', agent.name, 'ID:', agentId)
+    } else {
+      console.log('未找到对应的agent，ID:', agentId)
+    }
+  }
+
   useEffect(() => {
     loadAgents()
   }, [])
+
+  // 当agents加载完成后执行自动选择逻辑
+  useEffect(() => {
+    handleAutoSelectAgent()
+  }, [agents])
 
   // 计算下拉框位置
   useEffect(() => {
@@ -130,8 +161,28 @@ export function AgentSelector({ selectedAgentId, onAgentSelect, disabled = false
         return // 不可用的Agent不能被选择
       }
     }
+    
     onAgentSelect(agentId)
     setIsOpen(false)
+    
+    // 如果是iframe嵌入页面，发送postMessage给父页面
+    if (window.self !== window.top) {
+      try {
+        const selectedAgent = agents.find(agent => agent.agent_id === agentId)
+        const message = {
+          type: 'agent_selected',
+          agent_id: agentId,
+          agent_name: selectedAgent?.name || null,
+          timestamp: Date.now(),
+          source: 'agent_selector'
+        }
+        
+        // 发送postMessage给父页面
+        window.parent.postMessage(message, '*')
+      } catch (error) {
+        console.error('发送postMessage失败:', error)
+      }
+    }
   }
 
   // 显示所有agents，包括不可用的

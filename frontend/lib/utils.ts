@@ -111,3 +111,34 @@ export function formatUrl(result: SearchResultUrl): string {
     return ""
   }
 }
+
+/**
+ * URL参数获取工具函数
+ * @param paramName 参数名称
+ * @param defaultValue 默认值
+ * @param transform 转换函数（可选）
+ * @returns 参数值
+ */
+export function getUrlParam<T>(
+  paramName: string, 
+  defaultValue: T, 
+  transform?: (value: string) => T
+): T {
+  if (typeof window === 'undefined') return defaultValue
+  
+  try {
+    const url = new URL(window.location.href)
+    const paramValue = url.searchParams.get(paramName)
+    
+    if (paramValue === null) return defaultValue
+    
+    if (transform) {
+      return transform(paramValue)
+    }
+    
+    return paramValue as unknown as T
+  } catch (error) {
+    console.warn(`获取URL参数 ${paramName} 失败:`, error)
+    return defaultValue
+  }
+}

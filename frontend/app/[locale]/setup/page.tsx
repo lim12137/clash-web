@@ -119,96 +119,45 @@ export default function CreatePage() {
   // Handle completed configuration
   const handleCompleteConfig = async () => {
     if (selectedKey === "3") {
-      // when finish the config in the third step, check if the necessary steps are completed
-      try {
-        // trigger a custom event to get the Agent configuration status
-        const agentConfigData = await new Promise<{businessLogic: string, systemPrompt: string}>((resolve) => {
-          const handleAgentConfigResponse = (event: Event) => {
-            const customEvent = event as CustomEvent;
-            resolve(customEvent.detail);
-            window.removeEventListener('agentConfigDataResponse', handleAgentConfigResponse);
-          };
-          
-          window.addEventListener('agentConfigDataResponse', handleAgentConfigResponse);
-          window.dispatchEvent(new CustomEvent('getAgentConfigData'));
-          
-          // set a timeout to prevent infinite waiting
-          setTimeout(() => {
-            window.removeEventListener('agentConfigDataResponse', handleAgentConfigResponse);
-            resolve({businessLogic: '', systemPrompt: ''});
-          }, 1000);
-        });
-
-        // check if the business description is filled
-        if (!agentConfigData.businessLogic || agentConfigData.businessLogic.trim() === '') {
-          message.error(t('agent.message.businessDescriptionRequired'));
-          return; // prevent continue
-        }
-
-        // check if the system prompt is generated
-        if (!agentConfigData.systemPrompt || agentConfigData.systemPrompt.trim() === '') {
-          message.error(t('systemPrompt.message.empty'));
-          return; // prevent continue
-        }
-
-        // if the check is passed, continue to execute the save configuration logic
-        setIsSavingConfig(true)
-        // Get the current global configuration
-        const currentConfig = configStore.getConfig()
-        
-        // Call the backend save configuration API
-        const saveResult = await configService.saveConfigToBackend(currentConfig)
-        
-        if (saveResult) {
-          message.success(t('setup.page.success.configSaved'))
-          // After saving successfully, redirect to the chat page
-          router.push("/chat")
-        } else {
-          message.error(t('setup.page.error.saveConfig'))
-        }
-      } catch (error) {
-        console.error(t('setup.page.error.systemError'), error)
-        message.error(t('setup.page.error.systemError'))
-      } finally {
-        setIsSavingConfig(false)
-      }
+      // jump to chat page directly, no any check
+      router.push("/chat")
     } else if (selectedKey === "2") {
       // Jump from the second page to the third page
       console.log(t('setup.page.log.readyToJump', { from: '2', to: '3' }));
       setSelectedKey("3")
       console.log(t('setup.page.log.selectedKeyUpdated', { key: '3' }));
     } else if (selectedKey === "1") {
-      // Validate required fields when jumping from the first page to the second page
+        // Validate required fields when jumping from the first page to the second page
       try {
         // Get the current configuration
         const currentConfig = configStore.getConfig()
-        
+
         // Check the main model
         if (!currentConfig.models.llm.modelName) {
           message.error(t('setup.page.error.selectMainModel'))
-          
+
           // Trigger a custom event to notify the ModelConfigSection to mark the main model dropdown as an error
           window.dispatchEvent(new CustomEvent('highlightMissingField', {
             detail: { field: t('setup.page.error.highlightField.llmMain') }
           }))
-          
+
           return
         }
-        
-        // 检查 embedding 模型
+
+        // check embedding model
         if (
           !currentConfig.models.embedding.modelName &&
           !currentConfig.models.multiEmbedding?.modelName
         ) {
           setEmbeddingModalOpen(true);
           setPendingJump(true);
-          // 高亮 embedding 下拉框
+          // highlight embedding dropdown
           window.dispatchEvent(new CustomEvent('highlightMissingField', {
             detail: { field: 'embedding.embedding' }
           }))
           return;
         }
-        
+
         // All required fields have been filled, allow the jump to the second page
         console.log(t('setup.page.log.readyToJump', { from: '1', to: '2' }));
         setSelectedKey("2")
@@ -253,7 +202,7 @@ export default function CreatePage() {
       <AnimatePresence 
         mode="wait"
         onExitComplete={() => {
-          // 当动画完成且切换到第二页时，确保触发知识库数据更新
+          // when animation is complete and switch to the second page, ensure the knowledge base data is updated
           if (selectedKey === "2") {
             setTimeout(() => {
               window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
@@ -287,7 +236,7 @@ export default function CreatePage() {
           setEmbeddingModalOpen(false);
           if (pendingJump) {
             setPendingJump(false);
-            // 获取当前配置
+            // get current config
             const currentConfig = configStore.getConfig();
             try {
               await configService.saveConfigToBackend(currentConfig);

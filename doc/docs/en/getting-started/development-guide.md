@@ -47,27 +47,85 @@ nexent/
 - Node.js 18+
 - Docker & Docker Compose
 - uv (Python package manager)
+- pnpm (Node.js package manager)
+
+### Infrastructure Deployment
+Before starting backend development, you need to deploy infrastructure services. These services include databases, caching, file storage, and other core components.
+
+```bash
+cd docker
+./deploy.sh --mode infrastructure
+```
+
+::: info Important Notes
+Infrastructure mode will start PostgreSQL, Redis, Elasticsearch, and MinIO services. The deployment script will automatically generate keys and environment variables needed for development and save them to the `.env` file in the root directory. Generated keys include MinIO access keys and Elasticsearch API keys. All service URLs will be configured as localhost addresses for convenient local development.
+:::
 
 ### Backend Setup
 ```bash
 cd backend
-uv sync && uv pip install -e ../sdk
+uv sync --all-extras
+uv pip install ../sdk
 ```
+
+::: tip Notes
+`--all-extras` will install all optional dependencies, including data processing, testing, and other modules. Then install the local SDK package.
+:::
+
+#### Using Domestic Mirror Sources (Optional)
+If network access is slow, you can use domestic mirror sources to accelerate installation:
+
+```bash
+# Using Tsinghua University mirror source
+uv sync --all-extras --default-index https://pypi.tuna.tsinghua.edu.cn/simple
+uv pip install ../sdk --default-index https://pypi.tuna.tsinghua.edu.cn/simple
+
+# Using Alibaba Cloud mirror source
+uv sync --all-extras --default-index https://mirrors.aliyun.com/pypi/simple/
+uv pip install ../sdk --default-index https://mirrors.aliyun.com/pypi/simple/
+
+# Using multiple mirror sources (recommended)
+uv sync --all-extras --index https://pypi.tuna.tsinghua.edu.cn/simple --index https://mirrors.aliyun.com/pypi/simple/
+uv pip install ../sdk --index https://pypi.tuna.tsinghua.edu.cn/simple --index https://mirrors.aliyun.com/pypi/simple/
+```
+
+::: info Mirror Source Information
+- **Tsinghua University Mirror**: `https://pypi.tuna.tsinghua.edu.cn/simple`
+- **Alibaba Cloud Mirror**: `https://mirrors.aliyun.com/pypi/simple/`
+- **USTC Mirror**: `https://pypi.mirrors.ustc.edu.cn/simple/`
+- **Douban Mirror**: `https://pypi.douban.com/simple/`
+
+It's recommended to use multiple mirror source configurations to improve download success rates.
+:::
 
 ### Frontend Setup
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 ### Service Startup
-Nexent includes three core backend services that need to be started separately:
+Before starting services, you need to activate the virtual environment:
+
 ```bash
-python backend/data_process_service.py   # Data processing service
-python backend/main_service.py           # Main service
-python backend/nexent_mcp_service.py     # MCP service
+# Execute in the project backend directory
+cd backend
+source .venv/bin/activate  # Activate virtual environment
 ```
+
+Nexent includes three core backend services that need to be started separately:
+
+```bash
+# Execute in the project root directory, please follow this order:
+source .env && python backend/nexent_mcp_service.py     # MCP service
+source .env && python backend/data_process_service.py   # Data processing service
+source .env && python backend/main_service.py           # Main service
+```
+
+::: warning Important Notes
+All services must be started from the project root directory. Each Python command should be preceded by `source .env` to load environment variables. Ensure infrastructure services (database, Redis, Elasticsearch, MinIO) are started and running properly.
+:::
 
 ## 🔧 Development Module Guide
 
@@ -84,10 +142,10 @@ python backend/nexent_mcp_service.py     # MCP service
 ### 🤖 AI Agent Development
 - **Framework**: Enterprise agent framework based on smolagents
 - **Core Features**: Agent creation, tool integration, reasoning execution, multi-modal support
-- **Custom Agents**: See [Agent Overview](../agents/overview.md)
+- **Custom Agents**: See [Agents](../sdk/core/agents)
 - **System Prompts**: Located in `backend/prompts/`
 - **Implementation Steps**: Create instance → Configure tools → Set prompts → Test run
-- **Details**: See [Agent Overview](../agents/overview.md)
+- **Details**: See [Agents](../sdk/core/agents)
 
 ### 🛠️ Tool Development
 - **MCP Tool System**: Based on Model Context Protocol
@@ -136,6 +194,8 @@ For detailed build instructions, see [Docker Build Guide](../deployment/docker-b
 2. **Code Changes**: Restart related services after code modifications
 3. **Development Mode**: Use debug mode in development environment
 4. **Prompt Testing**: System prompts need thorough testing
+5. **Environment Variables**: Ensure configuration in `.env` file is correct
+6. **Infrastructure**: Ensure infrastructure services are running properly before development
 
 ## 💡 Getting Help
 

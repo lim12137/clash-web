@@ -20,6 +20,10 @@ The Nexent project is made possible by the dedicated work of our core team membe
 - **Yu Lin** @linsensen222
 - **Wenqi Bai** @Bavichi
 - **Feiyang Xiang** @feixiangkong
+- **Peiling Jiang** @porkpink
+
+### SRE (Site Reliability Engineer)
+- **Peiling Jiang** @porkpink
 
 ### Operations Manager
 - **Chenxue Jia** @Davina-jcx
@@ -35,6 +39,18 @@ Each team member brings unique expertise and perspective to the project, contrib
 - Development and implementation
 - Operations and maintenance
 - Quality assurance and testing
+
+## Open Source Contributors
+
+We would like to express our special thanks to the following open source contributors who have made valuable contributions to the Nexent project:
+
+- **kasper1995** - Code contributions and bug fixes
+- **feng384** - Code contributions and bug fixes
+- **Cokefish9527** - Code contributions and bug fixes
+- **lwsinclair** - Code contributions and bug fixes
+- **4cos90** - Code contributions and bug fixes
+- **xigongdaEricyang** - Community support and feedback
+- **Jenniebn** - Community support and feedback
 
 ## Join Our Team
 
