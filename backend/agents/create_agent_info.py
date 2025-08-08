@@ -292,6 +292,6 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
     )
 
     # 过滤 MCP 服务器和工具
-    filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_list)
+    # filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_list)
 
     return agent_run_info
