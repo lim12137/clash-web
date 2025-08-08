@@ -33,6 +33,11 @@ async def trigger_data_process(files: List[dict], process_params: ProcessParams)
         if not files:
             return None
 
+        # Build headers with authorization
+        headers = {
+            "Authorization": f"Bearer {process_params.authorization}"
+        }
+
         # Build source data list
         if len(files) == 1:
             # Single file request
@@ -47,7 +52,7 @@ async def trigger_data_process(files: List[dict], process_params: ProcessParams)
 
             try:
                 async with httpx.AsyncClient() as client:
-                    response = await client.post(f"{DATA_PROCESS_SERVICE}/tasks", json=payload, timeout=30.0)
+                    response = await client.post(f"{DATA_PROCESS_SERVICE}/tasks", headers=headers, json=payload, timeout=30.0)
 
                 if response.status_code == 201:
                     return response.json()
@@ -79,7 +84,7 @@ async def trigger_data_process(files: List[dict], process_params: ProcessParams)
 
             try:
                 async with httpx.AsyncClient() as client:
-                    response = await client.post(f"{DATA_PROCESS_SERVICE}/tasks/batch", json=payload, timeout=30.0)
+                    response = await client.post(f"{DATA_PROCESS_SERVICE}/tasks/batch", headers=headers, json=payload, timeout=30.0)
 
                 if response.status_code == 201:
                     return response.json()

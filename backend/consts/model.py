@@ -191,6 +191,7 @@ class ProcessParams(BaseModel):
     chunking_strategy: Optional[str] = "basic"
     source_type: str
     index_name: str
+    authorization: Optional[str] = None
 
 
 class OpinionRequest(BaseModel):

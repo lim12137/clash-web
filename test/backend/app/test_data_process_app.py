@@ -8,8 +8,8 @@ import unittest
 from unittest.mock import patch, MagicMock, AsyncMock
 import os
 import sys
-from fastapi import FastAPI, HTTPException, Form, Body
-from typing import Dict, Any
+from fastapi import FastAPI, HTTPException, Form, Body, Header
+from typing import Dict, Any, Optional
 from fastapi.testclient import TestClient
 from PIL import Image
 import pytest
@@ -127,9 +127,16 @@ class TestDataProcessApp(unittest.TestCase):
         """
         @self.app.post("/tasks")
         @pytest.mark.asyncio
-        async def create_task(request: Dict[str, Any] = Body(None)):
-            # Simulate task creation
-            task_result = self.process_and_forward.delay.return_value
+        async def create_task(request: Dict[str, Any] = Body(None), authorization: Optional[str] = Header(None)):
+            # Simulate task creation by actually calling the mock
+            task_result = self.process_and_forward.delay(
+                source=request.get("source"),
+                source_type=request.get("source_type"),
+                chunking_strategy=request.get("chunking_strategy"),
+                index_name=request.get("index_name"),
+                original_filename=request.get("original_filename"),
+                authorization=authorization
+            )
             return {"task_id": task_result.id}
 
         @self.app.post("/tasks/process")
@@ -302,15 +309,66 @@ class TestDataProcessApp(unittest.TestCase):
             "source_type": "file",
             "chunking_strategy": "basic",
             "index_name": self.index_name,
+            "original_filename": "test-file.pdf",
             "additional_params": {"param1": "value1"}
         }
 
-        # Execute request
+        # Execute request with authorization header
+        response = self.client.post(
+            "/tasks", 
+            json=request_data,
+            headers={"Authorization": "Bearer test-token"}
+        )
+
+        # Assert expectations
+        self.assertEqual(response.status_code, 200)  # Mock route defaults to 200
+        self.assertEqual(response.json(), {"task_id": self.task_id})
+
+        # Verify that process_and_forward.delay was called with authorization parameter
+        self.process_and_forward.delay.assert_called_once_with(
+            source=self.source,
+            source_type="file",
+            chunking_strategy="basic",
+            index_name=self.index_name,
+            original_filename="test-file.pdf",
+            authorization="Bearer test-token"
+        )
+
+    def test_create_task_without_authorization(self):
+        """
+        Test creating a new task without authorization header.
+        Verifies that the endpoint works when authorization is not provided.
+        """
+        # Set up mock
+        mock_task = MagicMock()
+        mock_task.id = self.task_id
+        self.process_and_forward.delay.return_value = mock_task
+
+        # Test data
+        request_data = {
+            "source": self.source,
+            "source_type": "file",
+            "chunking_strategy": "basic",
+            "index_name": self.index_name,
+            "original_filename": "test-file.pdf"
+        }
+
+        # Execute request without authorization header
         response = self.client.post("/tasks", json=request_data)
 
         # Assert expectations
-        self.assertEqual(response.status_code, 200)  # FastAPI test client defaults to 200
+        self.assertEqual(response.status_code, 200)  # Mock route defaults to 200
         self.assertEqual(response.json(), {"task_id": self.task_id})
+
+        # Verify that process_and_forward.delay was called with None authorization
+        self.process_and_forward.delay.assert_called_once_with(
+            source=self.source,
+            source_type="file",
+            chunking_strategy="basic",
+            index_name=self.index_name,
+            original_filename="test-file.pdf",
+            authorization=None
+        )
 
     def test_process_sync_endpoint_success(self):
         """
