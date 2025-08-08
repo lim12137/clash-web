@@ -122,20 +122,14 @@ async def test_upload_files_success(mock_files):
         assert len(response.json()["uploaded_filenames"]) == 2
 
 @pytest.mark.asyncio
-async def test_upload_files_processing_error(mock_files):
-    with patch("backend.apps.file_management_app.save_upload_file") as mock_save, \
-         patch("backend.apps.file_management_app.trigger_data_process") as mock_trigger, \
-         patch("backend.apps.file_management_app.upload_dir", Path("test_uploads")):
+async def test_process_files_success(mock_files):
+    with patch("backend.apps.file_management_app.trigger_data_process") as mock_trigger:
         
-        # Configure mocks
-        mock_save.return_value = asyncio.Future()
-        mock_save.return_value.set_result(True)
-        
-        # Use AsyncMock to properly handle async function mocking
-        mock_trigger.side_effect = AsyncMock(return_value={
-            "status": "error",
-            "message": "Processing failed"
-        })
+        # Configure mock for successful processing - return result directly
+        mock_trigger.return_value = {
+            "task_id": "task_123",
+            "status": "processing"
+        }
         
         # Create test client
         with TestClient(app) as client:
@@ -145,15 +139,75 @@ async def test_upload_files_processing_error(mock_files):
                     "files": [
                         {"path_or_url": "/test/path/test.txt", "filename": "test.txt"}
                     ],
-                    "chunking_strategy": "paragraph", 
+                    "chunking_strategy": "basic",
                     "index_name": "test_index",
                     "destination": "local"
-                }
+                },
+                headers={"authorization": "Bearer test_token"}
+            )
+        
+        # Assertions
+        assert response.status_code == 201
+        assert "message" in response.json()
+        assert "process_tasks" in response.json()
+        assert response.json()["message"] == "Files processing triggered successfully"
+
+@pytest.mark.asyncio
+async def test_process_files_processing_error(mock_files):
+    with patch("backend.apps.file_management_app.trigger_data_process") as mock_trigger:
+        
+        # Configure mock for processing error - return result directly
+        mock_trigger.return_value = {
+            "status": "error",
+            "message": "Processing failed"
+        }
+        
+        # Create test client
+        with TestClient(app) as client:
+            response = client.post(
+                "/file/process",
+                json={
+                    "files": [
+                        {"path_or_url": "/test/path/test.txt", "filename": "test.txt"}
+                    ],
+                    "chunking_strategy": "basic",
+                    "index_name": "test_index",
+                    "destination": "local"
+                },
+                headers={"authorization": "Bearer test_token"}
             )
         
         # Assertions
         assert response.status_code == 500
         assert "error" in response.json()
+        assert response.json()["error"] == "Processing failed"
+
+@pytest.mark.asyncio
+async def test_process_files_none_result(mock_files):
+    with patch("backend.apps.file_management_app.trigger_data_process") as mock_trigger:
+        
+        # Configure mock to return None directly
+        mock_trigger.return_value = None
+        
+        # Create test client
+        with TestClient(app) as client:
+            response = client.post(
+                "/file/process",
+                json={
+                    "files": [
+                        {"path_or_url": "/test/path/test.txt", "filename": "test.txt"}
+                    ],
+                    "chunking_strategy": "by_title",
+                    "index_name": "test_index",
+                    "destination": "minio"
+                },
+                headers={"authorization": "Bearer test_token"}
+            )
+        
+        # Assertions
+        assert response.status_code == 500
+        assert "error" in response.json()
+        assert response.json()["error"] == "Data process service failed"
 
 @pytest.mark.asyncio
 async def test_upload_files_no_files(mock_files):

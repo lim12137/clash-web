@@ -1,6 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import HTTPException, APIRouter, Form, File, UploadFile
+from fastapi import HTTPException, APIRouter, Form, File, UploadFile, Header
+from typing import Optional
 import base64
 import io
 import time
@@ -35,10 +36,10 @@ router = APIRouter(
 
 
 @router.post("", response_model=TaskResponse, status_code=201)
-async def create_task(request: TaskRequest):
+async def create_task(request: TaskRequest, authorization: Optional[str] = Header(None)):
     """
     Create a new data processing task (Process → Forward chain)
-    
+
     Returns task ID immediately. Processing happens in the background.
     Tasks are forwarded to Elasticsearch when complete.
     """
@@ -50,7 +51,8 @@ async def create_task(request: TaskRequest):
         source_type=request.source_type,
         chunking_strategy=request.chunking_strategy,
         index_name=request.index_name,
-        original_filename=request.original_filename
+        original_filename=request.original_filename,
+        authorization=authorization
     )
 
     return TaskResponse(task_id=task_result.id)
@@ -114,7 +116,7 @@ async def process_sync_endpoint(
 
 
 @router.post("/batch", response_model=BatchTaskResponse, status_code=201)
-async def create_batch_tasks(request: BatchTaskRequest):
+async def create_batch_tasks(request: BatchTaskRequest, authorization: Optional[str] = Header(None)):
     """
     Create multiple data processing tasks at once (individual Process → Forward chains)
     
@@ -147,7 +149,8 @@ async def create_batch_tasks(request: BatchTaskRequest):
                 source_type=source_type,
                 chunking_strategy=chunking_strategy,
                 index_name=index_name,
-                original_filename=original_filename
+                original_filename=original_filename,
+                authorization=authorization
             )
             
             task_ids.append(task_result.id)
