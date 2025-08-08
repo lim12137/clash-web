@@ -45,11 +45,11 @@ Each team member brings unique expertise and perspective to the project, contrib
 We would like to express our special thanks to the following open source contributors who have made valuable contributions to the Nexent project:
 
 - **kasper1995** - Code contributions and bug fixes
-- **feng384** - Feature development and improvements
-- **Cokefish9527** - Documentation and testing
-- **lwsinclair** - Performance optimizations
-- **4cos90** - UI/UX improvements
-- **xigongdaEricyang** - Backend enhancements
+- **feng384** - Code contributions and bug fixes
+- **Cokefish9527** - Code contributions and bug fixes
+- **lwsinclair** - Code contributions and bug fixes
+- **4cos90** - Code contributions and bug fixes
+- **xigongdaEricyang** - Community support and feedback
 - **Jenniebn** - Community support and feedback
 
 ## Join Our Team

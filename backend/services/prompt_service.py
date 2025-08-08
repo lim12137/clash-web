@@ -7,8 +7,8 @@ from jinja2 import StrictUndefined, Template
 from smolagents import OpenAIServerModel
 
 from consts.model import AgentInfoRequest
-from database.agent_db import query_sub_agents, update_agent, \
-    query_tools_by_ids
+from database.agent_db import update_agent, \
+    query_tools_by_ids, query_sub_agents_id_list, search_agent_info_by_agent_id
 from services.agent_service import get_enable_tool_id_by_agent_id
 from utils.prompt_template_utils import get_prompt_generate_config_path
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
@@ -216,14 +216,14 @@ def get_enabled_tool_description_for_generate_prompt(agent_id: int, tenant_id: s
 
 def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
     logger.info("Fetching sub-agents information")
-    sub_agent_raw_info_list = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id)
-    logger.info(f"Found {len(sub_agent_raw_info_list)} sub-agents")
+
+    sub_agent_id_list = query_sub_agents_id_list(main_agent_id=agent_id, tenant_id=tenant_id)
 
     sub_agent_info_list = []
-    for sub_agent_raw_info in sub_agent_raw_info_list:
-        if not sub_agent_raw_info["enabled"]:
-            continue
-        sub_agent_info_list.append(sub_agent_raw_info)
+    for sub_agent_id in sub_agent_id_list:
+        sub_agent_info = search_agent_info_by_agent_id(agent_id=sub_agent_id, tenant_id=tenant_id)
+
+        sub_agent_info_list.append(sub_agent_info)
     return sub_agent_info_list
 
 
