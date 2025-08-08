@@ -317,6 +317,8 @@
     "agent.description": "Agent描述",
     "agent.descriptionPlaceholder": "请输入Agent描述",
     "agent.detailContent.title": "Agent详细内容",
+    "agent.generating.title": "正在生成提示词",
+    "agent.generating.subtitle": "请稍候，系统正在为您生成智能提示词...",
     "systemPrompt.button.save": "保存",
     "systemPrompt.button.close": "关闭",
     "systemPrompt.button.tune": "微调",
