@@ -1,6 +1,6 @@
 "use client"
 
-import { Button, Modal } from 'antd'
+import { Button, Modal, Spin } from 'antd'
 import { ExpandAltOutlined, SaveOutlined, LoadingOutlined, BugOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -513,6 +513,41 @@ export default function AgentConfigurationSection({
               height: 26px !important;
             }
           }
+
+          /* Generating prompt overlay styles */
+          .generating-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(2px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            border-radius: 8px;
+          }
+
+          .generating-content {
+            text-align: center;
+            color: #1890ff;
+          }
+
+          .generating-text {
+            margin-top: 16px;
+            font-size: 16px;
+            font-weight: 500;
+            color: #1890ff;
+          }
+
+          .generating-subtext {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #666;
+          }
         `}</style>
         
         <div className="content-scroll h-full overflow-y-auto agent-config-content">
@@ -634,6 +669,21 @@ export default function AgentConfigurationSection({
                 {isSavingAgent ? t('businessLogic.config.button.saving') : t('systemPrompt.button.save')}
               </Button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Generating prompt overlay */}
+      {isGeneratingAgent && (
+        <div className="generating-overlay">
+          <div className="generating-content">
+            <Spin size="large" />
+            <div className="generating-text">
+              {t('agent.generating.title')}
+            </div>
+            <div className="generating-subtext">
+              {t('agent.generating.subtitle')}
+            </div>
           </div>
         </div>
       )}
