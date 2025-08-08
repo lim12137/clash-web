@@ -76,7 +76,7 @@ Nexent支持多种文件格式，包括：
 
 完成知识库配置后，建议您继续配置：
 
-1. **[智能体配置](./agent-settings)** - 创建和配置智能体
+1. **[智能体配置](./agent-configuration)** - 创建和配置智能体
 2. **[对话页面](./chat-interface)** - 与智能体进行交互
 
 如果您在知识库配置过程中遇到任何问题，请参考我们的 **[常见问题](../getting-started/faq)** 或加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 获取支持。 
