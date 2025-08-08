@@ -450,6 +450,7 @@ async def agent_preprocess_api(request: Request, query: str = Form(...), files: 
                     yield f"data: {file_message}\n\n"
                     await asyncio.sleep(0.1)
                 except Exception as e:
+                    logger.exception(f"Error parsing file {file_data['filename']}: {str(e)}")
                     error_description = f"Error parsing file {file_data['filename']}: {str(e)}"
                     file_descriptions.append(error_description)
                     error_message = json.dumps({

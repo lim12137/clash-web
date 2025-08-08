@@ -1,5 +1,4 @@
 import threading
-
 import yaml
 import logging
 from urllib.parse import urljoin
@@ -7,8 +6,9 @@ from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
 from services.remote_mcp_service import get_remote_mcp_server_list
 from utils.auth_utils import get_current_user_id
-from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents, \
-    query_or_create_main_agent_id
+
+from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, \
+    query_or_create_main_agent_id, query_sub_agents_id_list
 from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
 from services.tenant_config_service import get_selected_knowledge_list
 from utils.prompt_template_utils import get_prompt_template_path
@@ -45,14 +45,11 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     agent_info = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id)
 
     # create sub agent
-    sub_agents_info = query_sub_agents(agent_id, tenant_id)
-    memory_list = []
+    sub_agent_id_list = query_sub_agents_id_list(main_agent_id=agent_id, tenant_id=tenant_id)
     managed_agents = []
-    for sub_agent_info in sub_agents_info:
-        if not sub_agent_info.get("enabled"):
-            continue
+    for sub_agent_id in sub_agent_id_list:
         sub_agent_config = await create_agent_config(
-            agent_id=sub_agent_info["agent_id"],
+            agent_id=sub_agent_id,
             tenant_id=tenant_id,
             user_id=user_id,
             language=language,
@@ -303,10 +300,8 @@ def filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_lis
 
 async def create_agent_run_info(agent_id, minio_files, query, history, authorization, language: str = 'zh'):
     user_id, tenant_id = get_current_user_id(authorization)
-    if not agent_id:
-        agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
-    final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
 
+    final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
     model_list = await create_model_config_list(tenant_id)
 
     remote_mcp_list = await get_remote_mcp_server_list(tenant_id=tenant_id)
