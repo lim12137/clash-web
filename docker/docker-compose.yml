@@ -225,6 +225,8 @@ services:
       SUDO_ACCESS: "true"
       PASSWORD_ACCESS: "false"
       LOG_STDOUT: "true"
+      DOCKER_MODS: linuxserver/mods:universal-package-install
+      INSTALL_PACKAGES: git|make|curl|vim|wget
     ports:
       - "2222:2222"  # SSH port
     volumes:

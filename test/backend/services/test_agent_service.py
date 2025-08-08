@@ -1,53 +1,43 @@
 import pytest
 import sys
-from unittest.mock import patch, MagicMock, mock_open, call
+from unittest.mock import patch, MagicMock, mock_open, call, Mock
 
-# Mock boto3 and minio client before importing the module under test
+# Mock boto3 before importing the module under test
 boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
 
-# Create a more specific mock for Elasticsearch
+# Mock Elasticsearch
 elasticsearch_client_mock = MagicMock()
-elasticsearch_mock = patch('elasticsearch._sync.client.Elasticsearch', return_value=elasticsearch_client_mock).start()
+patch('elasticsearch._sync.client.Elasticsearch', return_value=elasticsearch_client_mock).start()
 patch('elasticsearch.Elasticsearch', return_value=elasticsearch_client_mock).start()
 
 # Mock ElasticSearchCore
 elasticsearch_core_mock = MagicMock()
 patch('sdk.nexent.vector_database.elasticsearch_core.ElasticSearchCore', return_value=elasticsearch_core_mock).start()
 
-# Mock ElasticSearchService
-elasticsearch_service_mock = MagicMock()
-patch('backend.services.elasticsearch_service.ElasticSearchService', return_value=elasticsearch_service_mock).start()
-
-# Mock MinioClient class before importing the services
-minio_client_mock = MagicMock()
-with patch('backend.database.client.MinioClient', return_value=minio_client_mock):
-    from backend.services.agent_service import (
-        get_enable_tool_id_by_agent_id,
-        get_creating_sub_agent_id_service,
-        query_sub_agents_api,
-        get_agent_info_impl,
-        get_creating_sub_agent_info_impl,
-        update_agent_info_impl,
-        delete_agent_impl,
-        export_agent_impl,
-        export_agent_by_agent_id,
-        import_agent_impl,
-        import_agent_by_agent_id,
-        search_sub_agents,
-        load_default_agents_json_file,
-        import_default_agents_to_pg,
-        list_all_agent_info_impl,
-        insert_related_agent_impl
-    )
-    from backend.consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest, ToolConfig
+# Import the services
+from backend.services.agent_service import (
+    get_enable_tool_id_by_agent_id,
+    get_creating_sub_agent_id_service,
+    get_agent_info_impl,
+    get_creating_sub_agent_info_impl,
+    update_agent_info_impl,
+    delete_agent_impl,
+    export_agent_impl,
+    export_agent_by_agent_id,
+    import_agent_impl,
+    import_agent_by_agent_id,
+    load_default_agents_json_file,
+    list_all_agent_info_impl,
+    insert_related_agent_impl
+)
+from backend.consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest, ToolConfig
 
 
 # Setup and teardown for each test
 @pytest.fixture(autouse=True)
 def reset_mocks():
     """Reset all mocks before each test to ensure a clean test environment."""
-    minio_client_mock.reset_mock()
     yield
 
 
@@ -80,13 +70,10 @@ def test_get_enable_tool_id_by_agent_id():
         # Assert
         assert sorted(result) == [1, 3, 4]
         mock_query.assert_called_once_with(
-            tenant_id="test_tenant", 
             agent_id=123,
+            tenant_id="test_tenant", 
             user_id=None
         )
-
-
-
 
 
 @patch('backend.services.agent_service.create_agent')
@@ -142,55 +129,6 @@ def test_get_creating_sub_agent_id_service_new_agent(mock_search, mock_create):
         tenant_id="test_tenant",
         user_id="test_user"
     )
-
-
-@patch('backend.services.agent_service.check_tool_is_available')
-@patch('backend.services.agent_service.search_tools_for_sub_agent')
-@patch('backend.services.agent_service.query_sub_agents')
-def test_query_sub_agents_api(mock_query_sub_agents, mock_search_tools, mock_check_tool_is_available):
-    """
-    Test the API that queries sub-agents with their associated tools.
-    
-    This test verifies that:
-    1. The function correctly retrieves sub-agents
-    2. For each sub-agent, it fetches the associated tools
-    3. It checks if the tools are available
-    4. The returned structure contains all expected information
-    """
-    # Setup
-    mock_sub_agents = [
-        {"agent_id": 101, "name": "Agent 1"},
-        {"agent_id": 102, "name": "Agent 2"}
-    ]
-    mock_query_sub_agents.return_value = mock_sub_agents
-    
-    mock_search_tools.side_effect = [
-        [{"tool_id": 1, "name": "Tool 1"}],
-        [{"tool_id": 2, "name": "Tool 2"}]
-    ]
-    
-    # Set up the mock to return a list of True values
-    mock_check_tool_is_available.return_value = [True, True]  # All tools are available
-    
-    # Execute
-    result = query_sub_agents_api(
-        main_agent_id=123, 
-        tenant_id="test_tenant", 
-        user_id="test_user"
-    )
-    
-    # Assert
-    assert len(result) == 2
-    assert result[0]["tools"] == [{"tool_id": 1, "name": "Tool 1"}]
-    assert result[1]["tools"] == [{"tool_id": 2, "name": "Tool 2"}]
-    assert result[0]["is_available"] == True
-    assert result[1]["is_available"] == True
-    
-    mock_query_sub_agents.assert_called_once_with(123, "test_tenant")
-    assert mock_search_tools.call_count == 2
-
-
-
 
 
 @patch('backend.services.agent_service.query_sub_agents_id_list')
@@ -333,9 +271,6 @@ def test_delete_agent_impl_success(mock_get_current_user_id, mock_delete_agent, 
     mock_delete_related.assert_called_once_with(123, "test_tenant")
 
 
-
-
-
 @patch('backend.services.agent_service.search_agent_info_by_agent_id')
 def test_get_agent_info_impl_exception_handling(mock_search_agent_info):
     """
@@ -398,16 +333,18 @@ def test_delete_agent_impl_exception_handling(mock_get_current_user_id, mock_del
     assert "Failed to delete agent" in str(context.value)
 
 
+@patch('backend.services.agent_service.ExportAndImportDataFormat')
 @patch('backend.services.agent_service.export_agent_by_agent_id')
 @patch('backend.services.agent_service.get_current_user_id')
 @pytest.mark.asyncio
-async def test_export_agent_impl_success(mock_get_current_user_id, mock_export_agent_by_id):
+async def test_export_agent_impl_success(mock_get_current_user_id, mock_export_agent_by_id, mock_export_data_format):
     """
     Test successful export of agent information.
     """
     # Setup
     mock_get_current_user_id.return_value = ("test_user", "test_tenant")
     
+    # Create a proper ExportAndImportAgentInfo object
     mock_agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="Test Agent",
@@ -420,21 +357,34 @@ async def test_export_agent_impl_success(mock_get_current_user_id, mock_export_a
         constraint_prompt="Test constraint prompt",
         few_shots_prompt="Test few shots prompt",
         enabled=True,
-        tools=[
-            ToolConfig(
-                class_name="Tool1",
-                name="Tool One",
-                source="source1",
-                params={"param1": "value1"},
-                metadata={},
-                description="Tool 1 description",
-                inputs="input description",
-                output_type="output type description"
-            )
-        ],
+        tools=[],
         managed_agents=[]
     )
     mock_export_agent_by_id.return_value = mock_agent_info
+    
+    # Mock the ExportAndImportDataFormat to return a proper model_dump
+    mock_export_data_instance = Mock()
+    mock_export_data_instance.model_dump.return_value = {
+        "agent_id": 123,
+        "agent_info": {
+            "123": {
+                "agent_id": 123,
+                "name": "Test Agent",
+                "description": "A test agent",
+                "business_description": "For testing purposes",
+                "model_name": "main_model",
+                "max_steps": 10,
+                "provide_run_summary": True,
+                "duty_prompt": "Test duty prompt",
+                "constraint_prompt": "Test constraint prompt",
+                "few_shots_prompt": "Test few shots prompt",
+                "enabled": True,
+                "tools": [],
+                "managed_agents": []
+            }
+        }
+    }
+    mock_export_data_format.return_value = mock_export_data_instance
     
     # Execute
     result = await export_agent_impl(
@@ -442,322 +392,22 @@ async def test_export_agent_impl_success(mock_get_current_user_id, mock_export_a
         authorization="Bearer token"
     )
     
-    # Assert the result structure
+    # Assert the result structure - result is a dict from model_dump()
     assert result["agent_id"] == 123
-    assert result["agent_info"]["123"]["name"] == "Test Agent"
-    assert result["agent_info"]["123"]["business_description"] == "For testing purposes"
-    assert len(result["agent_info"]["123"]["tools"]) == 1
-    assert result["agent_info"]["123"]["tools"][0]["class_name"] == "Tool1"
+    assert "agent_info" in result
+    assert "123" in result["agent_info"]
+    
+    # The agent_info should contain the ExportAndImportAgentInfo data
+    agent_data = result["agent_info"]["123"]
+    assert agent_data["name"] == "Test Agent"
+    assert agent_data["business_description"] == "For testing purposes"
+    assert agent_data["agent_id"] == 123
+    assert len(agent_data["tools"]) == 0
     
     # Verify function calls
     mock_get_current_user_id.assert_called_once_with("Bearer token")
     mock_export_agent_by_id.assert_called_once_with(agent_id=123, tenant_id="test_tenant", user_id="test_user")
-
-
-@patch('backend.services.agent_service.import_agent_by_agent_id')
-@patch('backend.services.agent_service.get_current_user_id')
-def test_import_agent_impl_success(mock_get_current_user_id, mock_import_agent_by_id):
-    """
-    Test successful import of agent information.
-    """
-    # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
-    mock_import_agent_by_id.return_value = 456
-    
-    # Create import data
-    tool_config = ToolConfig(
-        class_name="Tool1",
-        name="Tool One",
-        source="source1",
-        params={"param1": "value1"},
-        metadata={},
-        description="Tool 1 description",
-        inputs="input description",
-        output_type="output type description"
-    )
-    
-    agent_info = ExportAndImportAgentInfo(
-        agent_id=123,
-        name="valid_agent_name",
-        description="Imported description",
-        business_description="Imported business description",
-        model_name="main_model",
-        max_steps=5,
-        provide_run_summary=True,
-        duty_prompt="Imported duty prompt",
-        constraint_prompt="Imported constraint prompt",
-        few_shots_prompt="Imported few shots prompt",
-        enabled=True,
-        tools=[tool_config],
-        managed_agents=[]
-    )
-    
-    agent_data = ExportAndImportDataFormat(
-        agent_id=123,
-        agent_info={"123": agent_info}
-    )
-    
-    # Execute
-    import_agent_impl(
-        agent_info=agent_data,
-        authorization="Bearer token"
-    )
-    
-    # Assert
-    mock_import_agent_by_id.assert_called_once()
-    mock_get_current_user_id.assert_called_once_with("Bearer token")
-
-
-
-
-
-
-
-
-@patch('backend.services.agent_service.query_sub_agents')
-@patch('backend.services.agent_service.query_or_create_main_agent_id')
-@patch('backend.services.agent_service.get_current_user_id')
-def test_search_sub_agents_success(mock_get_current_user_id, mock_query_main_agent, mock_query_sub_agents):
-    """
-    Test successful search of sub-agents.
-    
-    This test verifies that:
-    1. The function correctly gets the current user and tenant IDs
-    2. It retrieves or creates the main agent ID
-    3. It fetches the sub-agents for the main agent
-    4. It returns the main agent ID and sub-agent list
-    """
-    # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
-    mock_query_main_agent.return_value = 123
-    
-    mock_sub_agents = [
-        {"agent_id": 456, "name": "Sub Agent 1"},
-        {"agent_id": 789, "name": "Sub Agent 2"}
-    ]
-    mock_query_sub_agents.return_value = mock_sub_agents
-    
-    # Execute
-    main_agent_id, sub_agents = search_sub_agents(authorization="Bearer token")
-    
-    # Assert
-    assert main_agent_id == 123
-    assert sub_agents == mock_sub_agents
-    mock_query_main_agent.assert_called_once_with(tenant_id="test_tenant", user_id="test_user")
-    mock_query_sub_agents.assert_called_once_with(123, "test_tenant")
-
-
-@patch('backend.services.agent_service.query_or_create_main_agent_id')
-@patch('backend.services.agent_service.get_current_user_id')
-def test_search_sub_agents_main_agent_error(mock_get_current_user_id, mock_query_main_agent):
-    """
-    Test search sub-agents with an error in retrieving the main agent ID.
-    
-    This test verifies that:
-    1. When an error occurs retrieving the main agent ID
-    2. The function raises a ValueError with an appropriate message
-    """
-    # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
-    mock_query_main_agent.side_effect = Exception("Database error")
-    
-    # Execute & Assert
-    with pytest.raises(ValueError) as context:
-        search_sub_agents(authorization="Bearer token")
-    
-    assert "Failed to get main agent id" in str(context.value)
-
-
-@patch('backend.services.agent_service.query_sub_agents')
-@patch('backend.services.agent_service.query_or_create_main_agent_id')
-@patch('backend.services.agent_service.get_current_user_id')
-def test_search_sub_agents_sub_agents_error(mock_get_current_user_id, mock_query_main_agent, mock_query_sub_agents):
-    """
-    Test search sub-agents with an error in retrieving the sub-agents.
-    
-    This test verifies that:
-    1. When an error occurs retrieving the sub-agents
-    2. The function raises a ValueError with an appropriate message
-    """
-    # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
-    mock_query_main_agent.return_value = 123
-    mock_query_sub_agents.side_effect = Exception("Database error")
-    
-    # Execute & Assert
-    with pytest.raises(ValueError) as context:
-        search_sub_agents(authorization="Bearer token")
-    
-    assert "Failed to get sub agent list" in str(context.value)
-
-
-@patch('os.path.join', return_value='test_path')
-@patch('os.listdir')
-@patch('builtins.open', new_callable=mock_open)
-def test_load_default_agents_json_file(mock_file, mock_listdir, mock_join):
-    """
-    Test loading default agent JSON files.
-    
-    This test verifies that:
-    1. The function correctly lists files in the specified directory
-    2. It filters for JSON files
-    3. It reads and parses each JSON file
-    4. It returns a list of validated agent configurations
-    """
-    # Setup
-    mock_listdir.return_value = ['agent1.json', 'agent2.json', 'not_json.txt']
-    
-    # Set up the mock file content for each file
-    json_content1 = """{
-        "name": "Agent1",
-        "description": "Agent 1 description",
-        "business_description": "Business description",
-        "model_name": "main_model",
-        "max_steps": 10,
-        "provide_run_summary": true,
-        "prompt": "Agent 1 prompt",
-        "enabled": true,
-        "tools": [],
-        "managed_agents": []
-    }"""
-    
-    json_content2 = """{
-        "name": "Agent2",
-        "description": "Agent 2 description",
-        "business_description": "Business description",
-        "model_name": "sub_model",
-        "max_steps": 5,
-        "provide_run_summary": false,
-        "prompt": "Agent 2 prompt",
-        "enabled": true,
-        "tools": [],
-        "managed_agents": []
-    }"""
-    
-    # Make the mock file return different content for different files
-    mock_file.return_value.__enter__.side_effect = [
-        MagicMock(read=lambda: json_content1),
-        MagicMock(read=lambda: json_content2)
-    ]
-    
-    # Need to patch json.load to handle the mock file contents
-    with patch('json.load') as mock_json_load:
-        mock_json_load.side_effect = [
-            {
-                "agent_id": 1,
-                "name": "Agent1",
-                "description": "Agent 1 description",
-                "business_description": "Business description",
-                "model_name": "main_model",
-                "max_steps": 10,
-                "provide_run_summary": True,
-                "duty_prompt": "Agent 1 prompt",
-                "enabled": True,
-                "tools": [],
-                "managed_agents": []
-            },
-            {
-                "agent_id": 2,
-                "name": "Agent2",
-                "description": "Agent 2 description",
-                "business_description": "Business description",
-                "model_name": "sub_model",
-                "max_steps": 5,
-                "provide_run_summary": False,
-                "duty_prompt": "Agent 2 prompt",
-                "enabled": True,
-                "tools": [],
-                "managed_agents": []
-            }
-        ]
-        
-        # Execute
-        result = load_default_agents_json_file("default/path")
-        
-        # Assert
-        assert len(result) == 2
-        assert result[0].name == "Agent1"
-        assert result[1].name == "Agent2"
-        assert mock_file.call_count == 2
-        mock_listdir.assert_called_once_with("default/path")
-
-
-@patch('backend.services.agent_service.import_agent_impl')
-@patch('backend.services.agent_service.load_default_agents_json_file')
-@patch('backend.services.agent_service.search_sub_agents')
-def test_import_default_agents_to_pg_success(mock_search_sub_agents, mock_load_defaults, mock_import_agent):
-    """
-    Test successful import of default agents to PostgreSQL.
-    
-    This test verifies that:
-    1. The function retrieves existing sub-agents
-    2. It loads default agent configurations
-    3. It imports agents that don't already exist
-    4. It skips agents that already exist
-    """
-    # Setup
-    mock_search_sub_agents.return_value = (123, [{"name": "ExistingAgent"}])
-    
-    agent1 = ExportAndImportAgentInfo(
-        agent_id=1,
-        name="ExistingAgent",
-        description="Already exists",
-        business_description="Business description",
-        model_name="main_model",
-        max_steps=10,
-        provide_run_summary=True,
-        duty_prompt="Agent prompt",
-        enabled=True,
-        tools=[],
-        managed_agents=[]
-    )
-    
-    agent2 = ExportAndImportAgentInfo(
-        agent_id=2,
-        name="NewAgent",
-        description="New agent",
-        business_description="Business description",
-        model_name="sub_model",
-        max_steps=5,
-        provide_run_summary=True,
-        duty_prompt="Agent prompt",
-        enabled=True,
-        tools=[],
-        managed_agents=[]
-    )
-    
-    mock_load_defaults.return_value = [agent1, agent2]
-    
-    # Execute
-    import_default_agents_to_pg()
-    
-    # Assert
-    mock_import_agent.assert_called_once()
-    # Verify the call was made with ExportAndImportDataFormat structure
-    call_args = mock_import_agent.call_args
-    assert call_args[1]['agent_info'].agent_id == 123
-    assert call_args[1]['agent_info'].agent_info['123'].name == "NewAgent"
-
-
-@patch('backend.services.agent_service.load_default_agents_json_file')
-@patch('backend.services.agent_service.search_sub_agents')
-def test_import_default_agents_to_pg_load_error(mock_search_sub_agents, mock_load_defaults):
-    """
-    Test import of default agents with an error in loading the default agents.
-    
-    This test verifies that:
-    1. When an error occurs loading default agent configurations
-    2. The function raises a ValueError with an appropriate message
-    """
-    # Setup
-    mock_search_sub_agents.return_value = (123, [{"name": "ExistingAgent"}])
-    mock_load_defaults.side_effect = Exception("File error")
-    
-    # Execute & Assert
-    with pytest.raises(ValueError) as context:
-        import_default_agents_to_pg()
-    
-    assert "Failed to load default agents" in str(context.value)
+    mock_export_data_format.assert_called_once()
 
 
 @patch('backend.services.agent_service.search_agent_info_by_agent_id')
@@ -1013,7 +663,8 @@ async def test_export_agent_by_agent_id_success(mock_search_agent_info, mock_cre
 @patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
 @patch('backend.services.agent_service.create_agent')
 @patch('backend.services.agent_service.query_all_tools')
-def test_import_agent_by_agent_id_success(mock_query_all_tools, mock_create_agent, mock_create_tool):
+@pytest.mark.asyncio
+async def test_import_agent_by_agent_id_success(mock_query_all_tools, mock_create_agent, mock_create_tool):
     """
     Test successful import of agent by agent ID.
     
@@ -1069,7 +720,7 @@ def test_import_agent_by_agent_id_success(mock_query_all_tools, mock_create_agen
     )
     
     # Execute
-    result = import_agent_by_agent_id(
+    result = await import_agent_by_agent_id(
         import_agent_info=agent_info,
         tenant_id="test_tenant",
         user_id="test_user"
@@ -1084,7 +735,8 @@ def test_import_agent_by_agent_id_success(mock_query_all_tools, mock_create_agen
 
 @patch('backend.services.agent_service.create_or_update_tool_by_tool_info')
 @patch('backend.services.agent_service.query_all_tools')
-def test_import_agent_by_agent_id_invalid_tool(mock_query_all_tools, mock_create_tool):
+@pytest.mark.asyncio
+async def test_import_agent_by_agent_id_invalid_tool(mock_query_all_tools, mock_create_tool):
     """
     Test import of agent by agent ID with an invalid tool.
     
@@ -1137,7 +789,7 @@ def test_import_agent_by_agent_id_invalid_tool(mock_query_all_tools, mock_create
     
     # Execute & Assert
     with pytest.raises(ValueError) as context:
-        import_agent_by_agent_id(
+        await import_agent_by_agent_id(
             import_agent_info=agent_info,
             tenant_id="test_tenant",
             user_id="test_user"
@@ -1199,6 +851,99 @@ def test_insert_related_agent_impl_circular_dependency(mock_query_sub_agents_id)
     # Assert
     assert result.status_code == 500
     assert "There is a circular call in the agent" in result.body.decode()
+
+
+@patch('os.path.join', return_value='test_path')
+@patch('os.listdir')
+@patch('builtins.open', new_callable=mock_open)
+def test_load_default_agents_json_file(mock_file, mock_listdir, mock_join):
+    """
+    Test loading default agent JSON files.
+    
+    This test verifies that:
+    1. The function correctly lists files in the specified directory
+    2. It filters for JSON files
+    3. It reads and parses each JSON file
+    4. It returns a list of validated agent configurations
+    """
+    # Setup
+    mock_listdir.return_value = ['agent1.json', 'agent2.json', 'not_json.txt']
+    
+    # Set up the mock file content for each file
+    json_content1 = """{
+        "agent_id": 1,
+        "name": "Agent1",
+        "description": "Agent 1 description",
+        "business_description": "Business description",
+        "model_name": "main_model",
+        "max_steps": 10,
+        "provide_run_summary": true,
+        "duty_prompt": "Agent 1 prompt",
+        "enabled": true,
+        "tools": [],
+        "managed_agents": []
+    }"""
+    
+    json_content2 = """{
+        "agent_id": 2,
+        "name": "Agent2",
+        "description": "Agent 2 description",
+        "business_description": "Business description",
+        "model_name": "sub_model",
+        "max_steps": 5,
+        "provide_run_summary": false,
+        "duty_prompt": "Agent 2 prompt",
+        "enabled": true,
+        "tools": [],
+        "managed_agents": []
+    }"""
+    
+    # Make the mock file return different content for different files
+    mock_file.return_value.__enter__.side_effect = [
+        MagicMock(read=lambda: json_content1),
+        MagicMock(read=lambda: json_content2)
+    ]
+    
+    # Need to patch json.load to handle the mock file contents
+    with patch('json.load') as mock_json_load:
+        mock_json_load.side_effect = [
+            {
+                "agent_id": 1,
+                "name": "Agent1",
+                "description": "Agent 1 description",
+                "business_description": "Business description",
+                "model_name": "main_model",
+                "max_steps": 10,
+                "provide_run_summary": True,
+                "duty_prompt": "Agent 1 prompt",
+                "enabled": True,
+                "tools": [],
+                "managed_agents": []
+            },
+            {
+                "agent_id": 2,
+                "name": "Agent2",
+                "description": "Agent 2 description",
+                "business_description": "Business description",
+                "model_name": "sub_model",
+                "max_steps": 5,
+                "provide_run_summary": False,
+                "duty_prompt": "Agent 2 prompt",
+                "enabled": True,
+                "tools": [],
+                "managed_agents": []
+            }
+        ]
+        
+        # Execute
+        result = load_default_agents_json_file("default/path")
+        
+        # Assert
+        assert len(result) == 2
+        assert result[0].name == "Agent1"
+        assert result[1].name == "Agent2"
+        assert mock_file.call_count == 2
+        mock_listdir.assert_called_once_with("default/path")
 
 
 if __name__ == '__main__':

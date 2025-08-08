@@ -24,7 +24,8 @@ class OpenAIModel(OpenAIServerModel):
             grammar: Optional[str] = None, tools_to_call_from: Optional[List[Tool]] = None, **kwargs, ) -> ChatMessage:
         try:
             if messages and isinstance(messages[-1], dict) and messages[-1].get("role") == "user":
-                messages[-1]["content"][-1]['text'] += " /no_think"
+                if isinstance(messages[-1]["content"][-1], dict) and messages[-1]["content"][-1].get("text"):
+                    messages[-1]["content"][-1]['text'] += " /no_think"
 
             completion_kwargs = self._prepare_completion_kwargs(messages=messages, stop_sequences=stop_sequences,
                 grammar=grammar, tools_to_call_from=tools_to_call_from, model=self.model_id,
