@@ -75,6 +75,7 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
 
     # Get memory list
     memory_context = build_memory_context(user_id, tenant_id, agent_id)
+    memory_list = []
     if memory_context.user_config.memory_switch:
         # TODO: 前端展示"回忆中..." Tag
         logger.debug("Retrieving memory list...")
