@@ -32,6 +32,7 @@ import { handleStreamResponse } from "@/app/chat/streaming/chatStreamHandler"
 import { extractUserMsgFromResponse, extractAssistantMsgFromResponse } from "./extractMsgFromHistoryResponse"
 
 import { X } from "lucide-react"
+import { getUrlParam } from "@/lib/utils";
 
 const stepIdCounter = {current: 0};
 
@@ -1297,7 +1298,8 @@ export function ChatInterface() {
     }
   };
 
-
+  // hide settings Icon in left sidebar
+  const hideSettings = getUrlParam('hide_settings', false, boolStr => !!boolStr)
 
   return (
     <>
@@ -1319,6 +1321,7 @@ export function ChatInterface() {
           onDropdownOpenChange={(open, id) => setOpenDropdownId(open ? id : null)}
           onToggleSidebar={toggleSidebar}
           expanded={sidebarOpen}
+          hideSettings={hideSettings}
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">

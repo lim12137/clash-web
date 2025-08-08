@@ -150,7 +150,8 @@ async def process_files(
         files: List[dict] = Body(..., description="List of file details to process, including path_or_url and filename"),
         chunking_strategy: Optional[str] = Body("basic"),
         index_name: str = Body(...),
-        destination: str = Body(...)
+        destination: str = Body(...),
+        authorization: Optional[str] = Header(None)
 ):
     """
     Trigger data processing for a list of uploaded files.
@@ -162,7 +163,8 @@ async def process_files(
     process_params = ProcessParams(
         chunking_strategy=chunking_strategy,
         source_type=destination,
-        index_name=index_name
+        index_name=index_name,
+        authorization=authorization
     )
 
     process_result = await trigger_data_process(files, process_params)
@@ -450,6 +452,7 @@ async def agent_preprocess_api(request: Request, query: str = Form(...), files: 
                     yield f"data: {file_message}\n\n"
                     await asyncio.sleep(0.1)
                 except Exception as e:
+                    logger.exception(f"Error parsing file {file_data['filename']}: {str(e)}")
                     error_description = f"Error parsing file {file_data['filename']}: {str(e)}"
                     file_descriptions.append(error_description)
                     error_message = json.dumps({

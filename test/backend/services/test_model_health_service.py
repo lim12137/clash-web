@@ -15,9 +15,11 @@ sys.modules['database.model_management_db'] = MockModule()
 sys.modules['utils'] = MockModule()
 sys.modules['utils.auth_utils'] = MockModule()
 sys.modules['utils.config_utils'] = MockModule()
+sys.modules['utils.model_name_utils'] = MockModule()
 sys.modules['consts'] = MockModule()
 sys.modules['consts.model'] = MockModule()
 sys.modules['consts.const'] = MockModule()
+sys.modules['consts.provider'] = MockModule()
 
 # Mock nexent packages and modules with proper hierarchy
 sys.modules['nexent'] = MockModule()
@@ -45,14 +47,25 @@ class ModelResponse:
         self.data = data or {}
 
 # Now import the module under test
-from backend.services.model_health_service import (
-    _perform_connectivity_check,
-    check_model_connectivity,
-    check_me_model_connectivity,
-    verify_model_config_connectivity,
-    _embedding_dimension_check,
-    embedding_dimension_check,
-)
+try:
+    from backend.services.model_health_service import (
+        _perform_connectivity_check,
+        check_model_connectivity,
+        check_me_model_connectivity,
+        verify_model_config_connectivity,
+        _embedding_dimension_check,
+        embedding_dimension_check,
+        get_models_from_silicon,  # Optional, may not exist in some versions
+    )
+except ImportError:
+    from backend.services.model_health_service import (
+        _perform_connectivity_check,
+        check_model_connectivity,
+        check_me_model_connectivity,
+        verify_model_config_connectivity,
+        _embedding_dimension_check,
+        embedding_dimension_check,
+    )
 
 # Mock imported functions/classes after import
 import httpx
@@ -72,10 +85,12 @@ with mock.patch.dict('sys.modules', {
     'utils': mock.MagicMock(),
     'utils.auth_utils': mock.MagicMock(),
     'utils.config_utils': mock.MagicMock(),
+    'utils.model_name_utils': mock.MagicMock(),
     'apps': mock.MagicMock(),
     'apps.voice_app': mock.MagicMock(),
     'consts.model': mock.MagicMock(),
-    'consts.const': mock.MagicMock()
+    'consts.const': mock.MagicMock(),
+    'consts.provider': mock.MagicMock()
 }):
     # Define the mocked enums and classes
     mock_model_enum = mock.MagicMock()
@@ -84,15 +99,26 @@ with mock.patch.dict('sys.modules', {
     mock_model_enum.DETECTING = "detecting"
     mock.patch('consts.model.ModelConnectStatusEnum', mock_model_enum)
     
-    # Now import the module under test
-    from backend.services.model_health_service import (
-        _perform_connectivity_check,
-        check_model_connectivity,
-        check_me_model_connectivity,
-        verify_model_config_connectivity,
-        _embedding_dimension_check,
-        embedding_dimension_check,
-    )
+    # Now import the module under test (wrapped with fallback for optional symbols)
+    try:
+        from backend.services.model_health_service import (
+            _perform_connectivity_check,
+            check_model_connectivity,
+            check_me_model_connectivity,
+            verify_model_config_connectivity,
+            _embedding_dimension_check,
+            embedding_dimension_check,
+            get_models_from_silicon,  # Optional symbol
+        )
+    except ImportError:
+        from backend.services.model_health_service import (
+            _perform_connectivity_check,
+            check_model_connectivity,
+            check_me_model_connectivity,
+            verify_model_config_connectivity,
+            _embedding_dimension_check,
+            embedding_dimension_check,
+        )
 
 @pytest.mark.asyncio
 async def test_perform_connectivity_check_embedding():
@@ -780,7 +806,7 @@ async def test_save_config_with_error():
 async def test_embedding_dimension_check_embedding_success():
     with mock.patch("backend.services.model_health_service.OpenAICompatibleEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.dimension_check.return_value = [[0.1, 0.2, 0.3]]
+        mock_embedding_instance.dimension_check = mock.AsyncMock(return_value=[[0.1, 0.2, 0.3]])
         mock_embedding.return_value = mock_embedding_instance
 
         dimension = await _embedding_dimension_check(
@@ -798,7 +824,7 @@ async def test_embedding_dimension_check_embedding_success():
 async def test_embedding_dimension_check_multi_embedding_success():
     with mock.patch("backend.services.model_health_service.JinaEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.dimension_check.return_value = [[0.1, 0.2, 0.3, 0.4]]
+        mock_embedding_instance.dimension_check = mock.AsyncMock(return_value=[[0.1, 0.2, 0.3, 0.4]])
         mock_embedding.return_value = mock_embedding_instance
 
         dimension = await _embedding_dimension_check(
@@ -823,7 +849,7 @@ async def test_embedding_dimension_check_unsupported_type():
 async def test_embedding_dimension_check_empty_return():
     with mock.patch("backend.services.model_health_service.OpenAICompatibleEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.dimension_check.return_value = []
+        mock_embedding_instance.dimension_check = mock.AsyncMock(return_value=[])
         mock_embedding.return_value = mock_embedding_instance
 
         dimension = await _embedding_dimension_check(
@@ -869,3 +895,4 @@ async def test_embedding_dimension_check_wrapper_exception():
         assert dimension == 0
         mock_get_name.assert_called_once_with(model_config)
         mock_logger.warning.assert_called_once()
+
