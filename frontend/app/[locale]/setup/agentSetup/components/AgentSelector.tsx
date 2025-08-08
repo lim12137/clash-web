@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, List, Avatar, Typography, Spin, Empty, message } from 'antd'
 import { UserOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
-import { fetchAllAgentsBasicInfo } from '@/services/agentConfigService'
+import { fetchAllAgents } from '@/services/agentConfigService'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 interface AgentBasicInfo {
   agent_id: number
@@ -27,15 +27,15 @@ export default function AgentSelector({ onAgentSelect, selectedAgentId }: AgentS
   const [selectedAgent, setSelectedAgent] = useState<AgentBasicInfo | null>(null)
 
   // Get basic information of all agents
-  const loadAgents = async () => {
+  const loadAgents = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await fetchAllAgentsBasicInfo()
+      const result = await fetchAllAgents()
       if (result.success) {
         setAgents(result.data)
         // If there is a pre-selected agent, set selected state
         if (selectedAgentId) {
-          const preSelectedAgent = result.data.find(agent => agent.agent_id === selectedAgentId)
+          const preSelectedAgent = result.data.find((agent: AgentBasicInfo) => agent.agent_id === selectedAgentId)
           if (preSelectedAgent) {
             setSelectedAgent(preSelectedAgent)
           }
@@ -49,11 +49,11 @@ export default function AgentSelector({ onAgentSelect, selectedAgentId }: AgentS
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedAgentId, t])
 
   useEffect(() => {
     loadAgents()
-  }, [])
+  }, [loadAgents])
 
   const handleAgentClick = (agent: AgentBasicInfo) => {
     setSelectedAgent(agent)
