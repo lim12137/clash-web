@@ -114,7 +114,6 @@ select_deployment_mode() {
     case $mode_choice in
         2)
             export DEPLOYMENT_MODE="infrastructure"
-            export COMPOSE_FILE="docker-compose.yml"
             echo "✅ Selected infrastructure mode 🏗️"
             ;;
         3)
@@ -149,48 +148,6 @@ select_deployment_mode() {
     echo ""
     echo "--------------------------------"
     echo ""
-}
-
-generate_minio_ak_sk() {
-  echo "🔑 Generating MinIO access keys..."
-
-  if [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "mingw" ] || [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "msys" ]; then
-    # Windows
-    ACCESS_KEY=$(powershell -Command "[System.Convert]::ToBase64String([System.Guid]::NewGuid().ToByteArray()) -replace '[^a-zA-Z0-9]', '' -replace '=.+$', '' | Select-Object -First 12")
-    SECRET_KEY=$(powershell -Command '$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create(); $bytes = New-Object byte[] 32; $rng.GetBytes($bytes); [System.Convert]::ToBase64String($bytes)')
-  else
-    # Linux/Mac
-    # Generate a random AK (12-character alphanumeric) and clean it
-    ACCESS_KEY=$(openssl rand -hex 12 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9]//g')
-
-    # Generate a random SK (32-character high-strength random string) and clean it
-    SECRET_KEY=$(openssl rand -base64 32 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9+/=]//g')
-  fi
-
-  if [ -z "$ACCESS_KEY" ] || [ -z "$SECRET_KEY" ]; then
-    echo "❌ ERROR Failed to generate MinIO access keys"
-    ERROR_OCCURRED=1
-    return 1
-  fi
-
-  export MINIO_ACCESS_KEY=$ACCESS_KEY
-  export MINIO_SECRET_KEY=$SECRET_KEY
-
-  if grep -q "^MINIO_ACCESS_KEY=" .env; then
-    sed -i.bak "s~^MINIO_ACCESS_KEY=.*~MINIO_ACCESS_KEY=$ACCESS_KEY~" .env
-    rm .env.bak
-  else
-    echo "MINIO_ACCESS_KEY=$ACCESS_KEY" >> .env
-  fi
-
-  if grep -q "^MINIO_SECRET_KEY=" .env; then
-    sed -i.bak "s~^MINIO_SECRET_KEY=.*~MINIO_SECRET_KEY=$SECRET_KEY~" .env
-    rm .env.bak
-  else
-    echo "MINIO_SECRET_KEY=$SECRET_KEY" >> .env
-  fi
-
-  echo "✅ MinIO access keys generated successfully"
 }
 
 clean() {
@@ -266,7 +223,7 @@ install() {
     INFRA_SERVICES="$INFRA_SERVICES nexent-openssh-server"
     echo "🔧 Terminal tool enabled - openssh-server will be included"
   fi
-  
+
   # Set profiles for docker-compose if any are defined
   if [ -n "$COMPOSE_PROFILES" ]; then
     export COMPOSE_PROFILES
@@ -289,17 +246,17 @@ install() {
   echo ""
   echo "--------------------------------"
   echo ""
-  
+
   # Always generate a new ELASTICSEARCH_API_KEY for each deployment.
   echo "🔑 Generating ELASTICSEARCH_API_KEY..."
   # Wait for elasticsearch health check
-  while ! ${docker_compose_command} -p nexent -f "${COMPOSE_FILE}" ps nexent-elasticsearch | grep -q "healthy"; do
+  while ! ${docker_compose_command} -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" ps nexent-elasticsearch | grep -q "healthy"; do
     echo "⏳ Waiting for Elasticsearch to become healthy..."
     sleep 10
   done
 
   # Generate API key
-  API_KEY_JSON=$(${docker_compose_command} -p nexent -f "${COMPOSE_FILE}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"my_api_key","role_descriptors":{"my_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
+  API_KEY_JSON=$(${docker_compose_command} -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"my_api_key","role_descriptors":{"my_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
 
   # Extract API key and add to .env
   ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
@@ -316,13 +273,6 @@ install() {
 
   wait_for_elasticsearch_healthy || {
     echo "❌ ERROR Elasticsearch health check failed"
-    ERROR_OCCURRED=1
-    return 1
-  }
-
-  # Generate Elasticsearch API key and export to environment
-  generate_elasticsearch_api_key_for_env || {
-    echo "❌ ERROR Failed to generate Elasticsearch API key"
     ERROR_OCCURRED=1
     return 1
   }
@@ -467,28 +417,6 @@ wait_for_elasticsearch_healthy() {
     fi
 }
 
-# Function to generate Elasticsearch API key for environment variables (not file)
-generate_elasticsearch_api_key_for_env() {
-    echo "🔑 Generating ELASTICSEARCH_API_KEY for environment..."
-
-    # Generate API key
-    API_KEY_JSON=$(docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"nexent_deploy_key","role_descriptors":{"nexent_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
-
-    # Extract API key
-    ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
-
-    if [ -n "$ELASTICSEARCH_API_KEY" ]; then
-        # Export to environment for docker-compose
-        export ELASTICSEARCH_API_KEY
-        echo "✅ ELASTICSEARCH_API_KEY generated and exported to environment"
-        return 0
-    else
-        echo "❌ ERROR Failed to generate ELASTICSEARCH_API_KEY"
-        echo "   Response: $API_KEY_JSON"
-        return 1
-    fi
-}
-
 # Function to generate complete environment file for infrastructure mode using generate_env.sh
 generate_env_for_infrastructure() {
     # Wait for Elasticsearch to be healthy first
@@ -508,6 +436,7 @@ generate_env_for_infrastructure() {
 
     # Make sure the script is executable and run it
     chmod +x generate_env.sh
+    ./generate_env.sh
     if ./generate_env.sh; then
         echo "--------------------------------"
         echo ""
@@ -575,10 +504,10 @@ generate_ssh_keys() {
             # Ensure authorized_keys is set up correctly with ONLY our public key
             cp "openssh-server/ssh-keys/openssh_server_key.pub" "openssh-server/config/authorized_keys"
             chmod 644 "openssh-server/config/authorized_keys"
-            
+
             # Setup package installation script
             setup_package_install_script
-            
+
             # Set SSH key path in environment
             SSH_PRIVATE_KEY_PATH="$(pwd)/openssh-server/ssh-keys/openssh_server_key"
             export SSH_PRIVATE_KEY_PATH
@@ -590,7 +519,7 @@ generate_ssh_keys() {
             else
                 echo "SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH" >> .env
             fi
-            
+
             echo ""
             echo "--------------------------------"
             echo ""
@@ -646,10 +575,10 @@ generate_ssh_keys() {
                 # Copy public key to authorized_keys with correct permissions (ensure ONLY our key)
                 cp "openssh-server/ssh-keys/openssh_server_key.pub" "openssh-server/config/authorized_keys"
                 chmod 644 "openssh-server/config/authorized_keys"
-                
+
                 # Setup package installation script
                 setup_package_install_script
-                
+
                 # Set SSH key path in environment
                 SSH_PRIVATE_KEY_PATH="$(pwd)/openssh-server/ssh-keys/openssh_server_key"
                 export SSH_PRIVATE_KEY_PATH
@@ -689,36 +618,12 @@ generate_ssh_keys() {
         if [ "$ERROR_OCCURRED" -eq 0 ]; then
             rm -f "$TEMP_OUTPUT"
         fi
-        
+
         echo ""
         echo "--------------------------------"
         echo ""
     fi
 }
-
-add_jwt_to_env() {
-  echo "Generating and updating Supabase secrets..."
-  # Generate fresh keys on every run for security
-  export JWT_SECRET=$(openssl rand -base64 32 | tr -d '[:space:]')
-  export SECRET_KEY_BASE=$(openssl rand -base64 64 | tr -d '[:space:]')
-  export VAULT_ENC_KEY=$(openssl rand -base64 32 | tr -d '[:space:]')
-
-  # Generate JWT-dependent keys using the new JWT_SECRET
-  local anon_key=$(generate_jwt "anon")
-  local service_role_key=$(generate_jwt "service_role")
-
-  # Update or add all keys to the .env file
-  update_env_var "JWT_SECRET" "$JWT_SECRET"
-  update_env_var "SECRET_KEY_BASE" "$SECRET_KEY_BASE"
-  update_env_var "VAULT_ENC_KEY" "$VAULT_ENC_KEY"
-  update_env_var "ANON_KEY" "$anon_key"
-  update_env_var "SUPABASE_KEY" "$anon_key"
-  update_env_var "SERVICE_ROLE_KEY" "$service_role_key"
-
-  # Reload the environment variables from the updated .env file
-  source .env
-}
-
 
 # Main execution flow
 echo  "🚀  Nexent Deployment Script"
@@ -743,10 +648,6 @@ main_deploy() {
 
   # Add permission
   add_permission || { echo "❌ Permission setup failed"; exit 1; }
-
-  # Generate MinIO keys first to avoid docker-compose warnings
-  echo "🔑 Pre-generating MinIO keys to avoid docker-compose warnings..."
-  generate_minio_ak_sk || { echo "❌ MinIO key generation failed"; exit 1; }
 
   if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
     # Pull required images before using them
@@ -784,24 +685,6 @@ main_deploy() {
     echo "💡  Use 'source .env' to load environment variables in your development shell"
     return 0
   fi
-
-  # Normal deployment flow for other modes
-  select_terminal_tool || { echo "❌ Terminal tool configuration failed"; exit 1; }
-  add_permission || { echo "❌ Permission setup failed"; exit 1; }
-  add_jwt_to_env
-
-  # Choose image environment before generating keys that need Docker images
-  if [ "$DEPLOYMENT_MODE" = "beta" ]; then
-    choose_beta_env || { echo "❌ Beta environment setup failed"; exit 1; }
-  else
-    choose_image_env || { echo "❌ Image environment setup failed"; exit 1; }
-  fi
-
-  # Pull required images before using them
-  pull_required_images || { echo "❌ Required image pull failed"; exit 1; }
-
-  # Generate SSH keys for terminal tool (only needed if terminal tool is enabled)
-  generate_ssh_keys || { echo "❌ SSH key generation failed"; exit 1; }
 
   # Install services and generate environment
   install || { echo "❌ Service installation failed"; exit 1; }
