@@ -1060,7 +1060,8 @@
         "noAgent": "No Agent",
         "noAvailableAgents": "No available agents",
         "unavailable": "Unavailable",
-        "agentUnavailable": "This agent is currently unavailable, please check the tool configuration information or contact the administrator"
+        "agentUnavailable": "This agent is currently unavailable, please check the tool configuration information or contact the administrator",
+        "pleaseSelectAgent": "Please select an agent first"
     },
     "memoryDeleteModal": {
         "title": "Confirm Clear Memory",
