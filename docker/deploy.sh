@@ -290,18 +290,6 @@ install() {
   echo "--------------------------------"
   echo ""
   
-  # Generate environment variables for deployment
-  echo "🔑 Generating environment variables..."
-
-  # Generate MinIO keys if not already set
-  if [ -z "$MINIO_ACCESS_KEY" ] || [ -z "$MINIO_SECRET_KEY" ]; then
-    generate_minio_ak_sk || {
-      echo "❌ ERROR Failed to generate MinIO keys"
-      ERROR_OCCURRED=1
-      return 1
-    }
-    export MINIO_ACCESS_KEY
-    export MINIO_SECRET_KEY
   # Always generate a new ELASTICSEARCH_API_KEY for each deployment.
   echo "🔑 Generating ELASTICSEARCH_API_KEY..."
   # Wait for elasticsearch health check
@@ -428,39 +416,35 @@ choose_beta_env() {
 
 # Function to pull required images
 pull_required_images() {
-  if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
-    echo "🐳 Pulling openssh-server image for Terminal tool..."
-    if ! docker pull "$OPENSSH_SERVER_IMAGE"; then
-      echo "❌ ERROR Failed to pull openssh-server image: $OPENSSH_SERVER_IMAGE"
-      ERROR_OCCURRED=1
-      return 1
-    fi
-    echo "✅ Successfully pulled openssh-server image"
-    echo ""
-    echo "--------------------------------"
-    echo ""
+  echo "🐳 Pulling openssh-server image for Terminal tool..."
+  if ! docker pull "$OPENSSH_SERVER_IMAGE"; then
+    echo "❌ ERROR Failed to pull openssh-server image: $OPENSSH_SERVER_IMAGE"
+    ERROR_OCCURRED=1
+    return 1
   fi
+  echo "✅ Successfully pulled openssh-server image"
+  echo ""
+  echo "--------------------------------"
+  echo ""
 }
 
 
 
 # Function to setup package installation script
 setup_package_install_script() {
-    if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
-        echo "📝 Setting up package installation script..."
-        mkdir -p "openssh-server/config/custom-cont-init.d"
+  echo "📝 Setting up package installation script..."
+  mkdir -p "openssh-server/config/custom-cont-init.d"
 
-        # Copy the fixed installation script
-        if [ -f "openssh-install-script.sh" ]; then
-            cp "openssh-install-script.sh" "openssh-server/config/custom-cont-init.d/openssh-start-script"
-            chmod +x "openssh-server/config/custom-cont-init.d/openssh-start-script"
-            echo "✅ Package installation script created/updated"
-        else
-            echo "❌ ERROR openssh-install-script.sh not found"
-            ERROR_OCCURRED=1
-            return 1
-        fi
-    fi
+  # Copy the fixed installation script
+  if [ -f "openssh-install-script.sh" ]; then
+      cp "openssh-install-script.sh" "openssh-server/config/custom-cont-init.d/openssh-start-script"
+      chmod +x "openssh-server/config/custom-cont-init.d/openssh-start-script"
+      echo "✅ Package installation script created/updated"
+  else
+      echo "❌ ERROR openssh-install-script.sh not found"
+      ERROR_OCCURRED=1
+      return 1
+  fi
 }
 
 # Function to wait for Elasticsearch to become healthy
@@ -745,30 +729,46 @@ echo ""
 # Main deployment function
 main_deploy() {
   # Start deployment
+
+  # Select deployment mode and checks
   select_deployment_mode || { echo "❌ Deployment mode selection failed"; exit 1; }
+  select_terminal_tool || { echo "❌ Terminal tool configuration failed"; exit 1; }
+
+  # Choose image environment before generating keys that need Docker images
+  if [ "$DEPLOYMENT_MODE" = "beta" ]; then
+    choose_beta_env || { echo "❌ Beta environment setup failed"; exit 1; }
+  else
+    choose_image_env || { echo "❌ Image environment setup failed"; exit 1; }
+  fi
+
+  # Add permission
+  add_permission || { echo "❌ Permission setup failed"; exit 1; }
+
+  # Generate MinIO keys first to avoid docker-compose warnings
+  echo "🔑 Pre-generating MinIO keys to avoid docker-compose warnings..."
+  generate_minio_ak_sk || { echo "❌ MinIO key generation failed"; exit 1; }
+
+  if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
+    # Pull required images before using them
+    pull_required_images || { echo "❌ Required image pull failed"; exit 1; }
+
+    # Generate SSH keys for terminal tool (only needed if terminal tool is enabled)
+    generate_ssh_keys || { echo "❌ SSH key generation failed"; exit 1; }
+  fi
 
   # Special handling for infrastructure mode
   if [ "$DEPLOYMENT_MODE" = "infrastructure" ]; then
     echo "🏗️  Infrastructure mode detected - preparing infrastructure services..."
 
-    # Set up basic environment and permissions first
-    add_permission || { echo "❌ Permission setup failed"; exit 1; }
-
-    # Choose image environment (required for Docker images)
-    echo "🌐 Selecting image environment for infrastructure services..."
-    choose_image_env || { echo "❌ Image environment setup failed"; exit 1; }
-
-    # Generate MinIO keys first to avoid docker-compose warnings
-    echo "🔑 Pre-generating MinIO keys to avoid docker-compose warnings..."
-    generate_minio_ak_sk || { echo "❌ MinIO key generation failed"; exit 1; }
-
-    # Export MinIO keys to current environment for docker-compose
-    export MINIO_ACCESS_KEY
-    export MINIO_SECRET_KEY
-
     # Start infrastructure services (basic services only)
     echo "🔧 Starting infrastructure services..."
     INFRA_SERVICES="nexent-elasticsearch nexent-postgresql nexent-minio redis"
+
+    if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
+      INFRA_SERVICES="$INFRA_SERVICES nexent-openssh-server"
+      echo "🔧 Terminal tool enabled - openssh-server will be included"
+    fi
+
     if ! docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES; then
       echo "❌ ERROR Failed to start infrastructure services"
       exit 1
