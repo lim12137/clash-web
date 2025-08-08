@@ -649,8 +649,8 @@ main_deploy() {
 
   # Select deployment mode and checks
   select_deployment_mode || { echo "❌ Deployment mode selection failed"; exit 1; }
-  select_terminal_tool || { echo "❌ Terminal tool configuration failed"; exit 1; }
-
+    select_terminal_tool || { echo "❌ Terminal tool configuration failed"; exit 1; }
+    
   # Choose image environment before generating keys that need Docker images
   if [ "$DEPLOYMENT_MODE" = "beta" ]; then
     choose_beta_env || { echo "❌ Beta environment setup failed"; exit 1; }
@@ -668,7 +668,7 @@ main_deploy() {
   if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
     # Pull required images before using them
     pull_required_images || { echo "❌ Required image pull failed"; exit 1; }
-
+    
     # Generate SSH keys for terminal tool (only needed if terminal tool is enabled)
     generate_ssh_keys || { echo "❌ SSH key generation failed"; exit 1; }
   fi
@@ -676,31 +676,58 @@ main_deploy() {
   # Special handling for infrastructure mode
   if [ "$DEPLOYMENT_MODE" = "infrastructure" ]; then
     echo "🏗️  Infrastructure mode detected - preparing infrastructure services..."
-
+    
     # Start infrastructure services (basic services only)
     echo "🔧 Starting infrastructure services..."
     INFRA_SERVICES="nexent-elasticsearch nexent-postgresql nexent-minio redis"
-
+    
+    # Add openssh-server if Terminal tool is enabled
     if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
       INFRA_SERVICES="$INFRA_SERVICES nexent-openssh-server"
-      echo "🔧 Terminal tool enabled - openssh-server will be included"
+      echo "🔧 Terminal tool enabled - openssh-server will be included in infrastructure"
     fi
-
+    
+    # Set profiles for docker-compose if any are defined
+    if [ -n "$COMPOSE_PROFILES" ]; then
+      export COMPOSE_PROFILES
+      echo "📋 Using profiles: $COMPOSE_PROFILES"
+    fi
+    
     if ! docker-compose -p nexent -f "${COMPOSE_FILE}" up -d $INFRA_SERVICES; then
       echo "❌ ERROR Failed to start infrastructure services"
       exit 1
     fi
-
+    
     # Wait for services to be healthy, then generate complete environment
     echo "🔑 Generating complete environment file with all keys..."
     generate_env_for_infrastructure || { echo "❌ Environment generation failed"; exit 1; }
-
+    
     echo "🎉  Infrastructure deployment completed successfully!"
+    if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
+      echo "🔧 Terminal tool (openssh-server) is now available for AI agents"
+    fi
     echo "📦  You can now start the core services manually using dev containers"
     echo "📁  Environment file available at: $(cd .. && pwd)/.env"
     echo "💡  Use 'source .env' to load environment variables in your development shell"
     return 0
   fi
+  
+  # Normal deployment flow for other modes
+  select_terminal_tool || { echo "❌ Terminal tool configuration failed"; exit 1; }
+  add_permission || { echo "❌ Permission setup failed"; exit 1; }
+
+  # Choose image environment before generating keys that need Docker images
+  if [ "$DEPLOYMENT_MODE" = "beta" ]; then
+    choose_beta_env || { echo "❌ Beta environment setup failed"; exit 1; }
+  else
+    choose_image_env || { echo "❌ Image environment setup failed"; exit 1; }
+  fi
+
+  # Pull required images before using them
+  pull_required_images || { echo "❌ Required image pull failed"; exit 1; }
+
+  # Generate SSH keys for terminal tool (only needed if terminal tool is enabled)
+  generate_ssh_keys || { echo "❌ SSH key generation failed"; exit 1; }
 
   # Install services and generate environment
   install || { echo "❌ Service installation failed"; exit 1; }
