@@ -109,7 +109,7 @@ Nexent即将支持与ModelEngine平台的无缝对接，届时可自动同步并
 ## 🚀 下一步
 
 完成模型配置后，建议您点击“下一步”按钮，继续配置：
-1. **[知识库配置](./knowledge-base)** - 创建和管理知识库。
-2. **[智能体配置](./agent-settings)** - 创建和配置智能体。
+1. **[知识库配置](./knowledge-base-configuration)** - 创建和管理知识库。
+2. **[智能体配置](./agent-configuration)** - 创建和配置智能体。
 
 如在模型配置过程中遇到任何问题，请参考我们的 **[常见问题](../getting-started/faq)** ，或加入我们的 [Discord社区](https://discord.gg/tb5H3S3wyv) 获取支持。 
