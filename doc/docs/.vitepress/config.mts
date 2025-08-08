@@ -35,6 +35,17 @@ export default defineConfig({
             ]
           },
           {
+            text: 'User Guide',
+            items: [
+              { text: 'Quick Start', link: '/en/user-guide/' },
+              { text: 'App Configuration', link: '/en/user-guide/app-configuration' },
+              { text: 'Model Configuration', link: '/en/user-guide/model-configuration' },
+              { text: 'Knowledge Base Configuration', link: '/en/user-guide/knowledge-base-configuration' },
+              { text: 'Agent Configuration', link: '/en/user-guide/agent-configuration' },
+              { text: 'Chat Interface', link: '/en/user-guide/chat-interface' }
+            ]
+          },
+          {
             text: 'SDK Documentation',
             items: [
               { text: 'SDK Overview', link: '/en/sdk/overview' },
@@ -133,6 +144,17 @@ export default defineConfig({
               { text: '软件架构', link: '/zh/getting-started/software-architecture' },
               { text: '开发指南', link: '/zh/getting-started/development-guide' },
               { text: '常见问题', link: '/zh/getting-started/faq' }
+            ]
+          },
+          {
+            text: '用户指南',
+            items: [
+              { text: '快速开始', link: '/zh/user-guide/' },
+              { text: '应用配置', link: '/zh/user-guide/app-configuration' },
+              { text: '模型配置', link: '/zh/user-guide/model-configuration' },
+              { text: '知识库配置', link: '/zh/user-guide/knowledge-base-configuration' },
+              { text: '智能体配置', link: '/zh/user-guide/agent-configuration' },
+              { text: '对话页面', link: '/zh/user-guide/chat-interface' }
             ]
           },
           {
