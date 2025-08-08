@@ -33,6 +33,69 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# 尝试获取 Docker Compose 版本信息（兼容 V1 和 V2）
+# try get the version of docker compose
+get_compose_version() {
+    # 优先尝试 V2 命令
+    if command -v docker &> /dev/null; then
+        version_output=$(docker compose version 2>/dev/null)
+        if [[ $version_output =~ (v[0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            echo "v2 ${BASH_REMATCH[1]}"
+            return 0
+        fi
+    fi
+
+    # 如果 V2 失败，尝试 V1 命令
+    if command -v docker-compose &> /dev/null; then
+        version_output=$(docker-compose --version 2>/dev/null)
+        if [[ $version_output =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            echo "v1 ${BASH_REMATCH[1]}"
+            return 0
+        fi
+    fi
+
+    echo "unknown"
+    return 1
+}
+
+# 获取版本信息
+# get docker compose version
+version_info=$(get_compose_version)
+if [[ $version_info == "unknown" ]]; then
+    echo "Error: Docker Compose not found or version detection failed"
+    exit 1
+fi
+
+# 解析版本类型和版本号
+# extract version
+version_type=$(echo "$version_info" | awk '{print $1}')
+version_number=$(echo "$version_info" | awk '{print $2}')
+
+
+# 根据版本类型执行不同操作
+# define docker compose command
+docker_compose_command=""
+case $version_type in
+    "v1")
+        echo "Detected Docker Compose V1, version: $version_number"
+        # 这里添加 V1 版本特定的操作. v1.28.0是明确支持 ${VAR:-default} 这类带默认值的插值语法的最低版本
+        # The version ​​v1.28.0​​ is the minimum requirement in Docker Compose v1 that explicitly supports interpolation syntax with default values like ${VAR:-default}
+        if [[ $version_number < "1.28.0" ]]; then
+            echo "Warning: V1 version is too old, consider upgrading to V2"
+            exit 1
+        fi
+        docker_compose_command="docker-compose"
+        ;;
+    "v2")
+        echo "Detected Docker Compose V2, version: $version_number"
+        docker_compose_command="docker compose"
+        ;;
+    *)
+        echo "Error: Unknown docker compose version type."
+        exit 1
+        ;;
+esac
+
 # Add deployment mode selection function
 select_deployment_mode() {
     echo "🎛️  Please select deployment mode:"
@@ -239,6 +302,28 @@ install() {
     }
     export MINIO_ACCESS_KEY
     export MINIO_SECRET_KEY
+  # Always generate a new ELASTICSEARCH_API_KEY for each deployment.
+  echo "🔑 Generating ELASTICSEARCH_API_KEY..."
+  # Wait for elasticsearch health check
+  while ! ${docker_compose_command} -p nexent -f "${COMPOSE_FILE}" ps nexent-elasticsearch | grep -q "healthy"; do
+    echo "⏳ Waiting for Elasticsearch to become healthy..."
+    sleep 10
+  done
+
+  # Generate API key
+  API_KEY_JSON=$(${docker_compose_command} -p nexent -f "${COMPOSE_FILE}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"my_api_key","role_descriptors":{"my_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
+
+  # Extract API key and add to .env
+  ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
+  if [ -n "$ELASTICSEARCH_API_KEY" ]; then
+    if grep -q "^ELASTICSEARCH_API_KEY=" .env; then
+      # Use ~ as a separator in sed to avoid conflicts with special characters in the API key.
+      sed -i.bak "s~^ELASTICSEARCH_API_KEY=.*~ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY~" .env
+      rm .env.bak
+    else
+      echo "" >> .env
+      echo "ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY" >> .env
+    fi
   fi
 
   wait_for_elasticsearch_healthy || {
@@ -357,62 +442,24 @@ pull_required_images() {
   fi
 }
 
-# Function to setup SSH timeout configuration using custom-init
-setup_ssh_timeout_config() {
-    echo "📝 Setting up SSH timeout configuration..."
-    mkdir -p "openssh-server/config/custom-cont-init.d"
-    if [ ! -f "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config" ]; then
-        cat > "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config" << 'EOF'
-#!/usr/bin/with-contenv bash
 
-# Configure SSH timeout settings for nexent terminal tool
-echo "Configuring SSH timeout settings (60 minutes)..."
 
-# Fix SSH host key permissions (must be 600 for private keys)
-echo "Fixing SSH host key permissions..."
-find /config -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
-find /config/ssh_host_keys -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
-echo "SSH host key permissions fixed"
+# Function to setup package installation script
+setup_package_install_script() {
+    if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
+        echo "📝 Setting up package installation script..."
+        mkdir -p "openssh-server/config/custom-cont-init.d"
 
-# Append timeout configuration to sshd_config
-cat >> /config/sshd/sshd_config << 'SSHD_EOF'
-
-# Nexent Terminal Tool - Session timeout configuration (60 minutes = 3600 seconds)
-ClientAliveInterval 300
-ClientAliveCountMax 12
-SSHD_EOF
-
-echo "SSH timeout configuration applied successfully"
-EOF
-        chmod +x "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config"
-        echo "✅ SSH timeout configuration script created"
-    else
-        echo "🔄 SSH timeout configuration script already exists, updating..."
-        # Always recreate the script to ensure it has the latest configuration
-        cat > "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config" << 'EOF'
-#!/usr/bin/with-contenv bash
-
-# Configure SSH timeout settings for nexent terminal tool
-echo "Configuring SSH timeout settings (60 minutes)..."
-
-# Fix SSH host key permissions (must be 600 for private keys)
-echo "Fixing SSH host key permissions..."
-find /config -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
-find /config/ssh_host_keys -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
-echo "SSH host key permissions fixed"
-
-# Append timeout configuration to sshd_config
-cat >> /config/sshd/sshd_config << 'SSHD_EOF'
-
-# Nexent Terminal Tool - Session timeout configuration (60 minutes = 3600 seconds)
-ClientAliveInterval 300
-ClientAliveCountMax 12
-SSHD_EOF
-
-echo "SSH timeout configuration applied successfully"
-EOF
-        chmod +x "openssh-server/config/custom-cont-init.d/99-sshd-timeout-config"
-        echo "✅ SSH timeout configuration script updated"
+        # Copy the fixed installation script
+        if [ -f "openssh-install-script.sh" ]; then
+            cp "openssh-install-script.sh" "openssh-server/config/custom-cont-init.d/openssh-start-script"
+            chmod +x "openssh-server/config/custom-cont-init.d/openssh-start-script"
+            echo "✅ Package installation script created/updated"
+        else
+            echo "❌ ERROR openssh-install-script.sh not found"
+            ERROR_OCCURRED=1
+            return 1
+        fi
     fi
 }
 
@@ -544,10 +591,10 @@ generate_ssh_keys() {
             # Ensure authorized_keys is set up correctly with ONLY our public key
             cp "openssh-server/ssh-keys/openssh_server_key.pub" "openssh-server/config/authorized_keys"
             chmod 644 "openssh-server/config/authorized_keys"
-
-            # Setup SSH timeout configuration
-            setup_ssh_timeout_config
-
+            
+            # Setup package installation script
+            setup_package_install_script
+            
             # Set SSH key path in environment
             SSH_PRIVATE_KEY_PATH="$(pwd)/openssh-server/ssh-keys/openssh_server_key"
             export SSH_PRIVATE_KEY_PATH
@@ -615,10 +662,10 @@ generate_ssh_keys() {
                 # Copy public key to authorized_keys with correct permissions (ensure ONLY our key)
                 cp "openssh-server/ssh-keys/openssh_server_key.pub" "openssh-server/config/authorized_keys"
                 chmod 644 "openssh-server/config/authorized_keys"
-
-                # Setup SSH timeout configuration
-                setup_ssh_timeout_config
-
+                
+                # Setup package installation script
+                setup_package_install_script
+                
                 # Set SSH key path in environment
                 SSH_PRIVATE_KEY_PATH="$(pwd)/openssh-server/ssh-keys/openssh_server_key"
                 export SSH_PRIVATE_KEY_PATH

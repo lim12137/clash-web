@@ -18,7 +18,8 @@ WORKDIR /opt/backend
 
 # Layer 0: install base dependencies
 COPY backend/pyproject.toml /opt/backend/pyproject.toml
-RUN uv sync --no-cache-dir $(test -n "$MIRROR" && echo "-i $MIRROR")
+RUN uv sync --no-cache-dir $(test -n "$MIRROR" && echo "-i $MIRROR") && \
+    uv cache clean
 # Layer 1: install sdk in link mode
 COPY sdk /opt/sdk
 RUN uv pip install -e /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR") && \

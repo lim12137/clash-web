@@ -134,6 +134,14 @@ system_prompt: |-
 
 managed_agent:
   task: |-
+      You are an assistant named '{{name}}'.
+      Your manager has submitted this task to you.
+      ---
+      Task:
+      {{task}}
+      ---
+      You are helping your manager solve a larger task: so make sure not to provide a one-line answer, but provide as much information as possible so they can clearly understand the answer.
+      Even if your task solution is unsuccessful, please return as much context as possible so your manager can take action based on this feedback.
 
   report: |-
       {{final_answer}} 
