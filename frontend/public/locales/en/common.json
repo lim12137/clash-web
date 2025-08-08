@@ -281,6 +281,8 @@
     "agent.description": "Agent Description",
     "agent.descriptionPlaceholder": "Please enter agent description",
     "agent.detailContent.title": "Agent Detail Content",
+    "agent.generating.title": "Generating Prompts",
+    "agent.generating.subtitle": "Please wait, the system is generating intelligent prompts for you...",
     "systemPrompt.button.save": "Save",
     "systemPrompt.button.close": "Close",
     "systemPrompt.button.tune": "Tune",
