@@ -135,7 +135,7 @@ def create_index_documents(
 ):
     """
     Index documents with embeddings, creating the index if it doesn't exist.
-    Accepts an document list from data processing.
+    Accepts a document list from data processing.
     """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
