@@ -98,29 +98,6 @@ generate_elasticsearch_api_key() {
   fi
 }
 
-add_jwt_to_env() {
-  echo "Generating and updating Supabase secrets..."
-  # Generate fresh keys on every run for security
-  export JWT_SECRET=$(openssl rand -base64 32 | tr -d '[:space:]')
-  export SECRET_KEY_BASE=$(openssl rand -base64 64 | tr -d '[:space:]')
-  export VAULT_ENC_KEY=$(openssl rand -base64 32 | tr -d '[:space:]')
-
-  # Generate JWT-dependent keys using the new JWT_SECRET
-  local anon_key=$(generate_jwt "anon")
-  local service_role_key=$(generate_jwt "service_role")
-
-  # Update or add all keys to the .env file
-  update_env_var "JWT_SECRET" "$JWT_SECRET"
-  update_env_var "SECRET_KEY_BASE" "$SECRET_KEY_BASE"
-  update_env_var "VAULT_ENC_KEY" "$VAULT_ENC_KEY"
-  update_env_var "ANON_KEY" "$anon_key"
-  update_env_var "SUPABASE_KEY" "$anon_key"
-  update_env_var "SERVICE_ROLE_KEY" "$service_role_key"
-
-  # Reload the environment variables from the updated .env file
-  source .env
-}
-
 # Function to copy and prepare .env file
 prepare_env_file() {
   echo "📝 Preparing .env file..."
@@ -304,8 +281,6 @@ main() {
     echo "   Continuing with MinIO keys only..."
     ERROR_OCCURRED=0  # Reset error flag for optional step
   }
-
-  add_jwt_to_env
   
   # Step 4: Update .env file
   echo ""
