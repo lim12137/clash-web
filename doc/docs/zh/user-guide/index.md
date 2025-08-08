@@ -22,10 +22,10 @@ Nexent是一款面向未来的零代码智能体开发平台，致力于让每�
 
 准备好开始了吗？建议您按照以下顺序进行配置：
 
-1. 首先进行 **[应用配置](./app-settings)**，为您的应用配置基本信息
-2. 然后进行 **[模型配置](./model-settings)**，接入您需要的AI模型
-3. 接着进行 **[知识库配置](./knowledge-base)**，上传您的文档和资料
-4. 最后进行 **[智能体配置](./agent-settings)**，创建您的专属智能体
+1. 首先进行 **[应用配置](./app-configuration)**，为您的应用配置基本信息
+2. 然后进行 **[模型配置](./model-configuration)**，接入您需要的AI模型
+3. 接着进行 **[知识库配置](./knowledge-base-configuration)**，上传您的文档和资料
+4. 最后进行 **[智能体配置](./agent-configuration)**，创建您的专属智能体
 5. 一切就绪后，就可以在 **[对话页面](./chat-interface)** 中与智能体进行交互了
 
 如果您在配置过程中遇到任何问题，请参考我们的 **[常见问题](../getting-started/faq)** 或加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 获取支持。 
