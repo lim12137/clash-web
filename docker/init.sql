@@ -567,7 +567,7 @@ CREATE TABLE IF NOT EXISTS "memory_user_config_t" (
   "update_time" timestamp(6) DEFAULT CURRENT_TIMESTAMP,
   "created_by" varchar(100) COLLATE "pg_catalog"."default",
   "updated_by" varchar(100) COLLATE "pg_catalog"."default",
-  "delete_flag" varchar(1) COLLATE "pg_catalog"."default" DEFAULT 'N'::character varying,
+  "delete_flag" varchar(1) COLLATE "pg_catalog"."default" DEFAULT 'N'
 );
 
 COMMENT ON COLUMN "nexent"."memory_user_config_t"."config_id" IS 'ID';
