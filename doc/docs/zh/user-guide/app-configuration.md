@@ -37,8 +37,8 @@
 
 完成应用配置后，建议您继续配置：
 
-1. **[模型配置](./model-settings)** - 接入您需要的AI模型
-2. **[知识库配置](./knowledge-base)** - 创建和管理知识库
-3. **[智能体配置](./agent-settings)** - 创建和配置智能体
+1. **[模型配置](./model-configuration)** - 接入您需要的AI模型
+2. **[知识库配置](./knowledge-base-configuration)** - 创建和管理知识库
+3. **[智能体配置](./agent-configuration)** - 创建和配置智能体
 
 如果您在配置过程中遇到任何问题，请参考我们的 **[常见问题](../getting-started/faq)** 或加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 获取支持。 
