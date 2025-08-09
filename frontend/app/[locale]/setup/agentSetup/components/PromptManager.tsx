@@ -287,6 +287,7 @@ export interface PromptManagerProps {
   // Agent information
   agentName?: string
   agentDescription?: string
+  agentDisplayName?: string
   mainAgentModel?: string
   mainAgentMaxStep?: number
   
@@ -304,6 +305,7 @@ export interface PromptManagerProps {
   onFewShotsContentChange?: (content: string) => void
   onAgentNameChange?: (name: string) => void
   onAgentDescriptionChange?: (description: string) => void
+  onAgentDisplayNameChange?: (displayName: string) => void
   onModelChange?: (value: string) => void
   onMaxStepChange?: (value: number | null) => void
   onGenerateAgent?: () => void
@@ -326,6 +328,7 @@ export default function PromptManager({
   fewShotsContent = '',
   agentName = '',
   agentDescription = '',
+  agentDisplayName = '',
   mainAgentModel = '',
   mainAgentMaxStep = 5,
   isEditingMode = false,
@@ -339,6 +342,7 @@ export default function PromptManager({
   onFewShotsContentChange,
   onAgentNameChange,
   onAgentDescriptionChange,
+  onAgentDisplayNameChange,
   onModelChange,
   onMaxStepChange,
   onGenerateAgent,
@@ -547,6 +551,8 @@ export default function PromptManager({
             agentDescription={agentDescription}
             onAgentNameChange={onAgentNameChange}
             onAgentDescriptionChange={onAgentDescriptionChange}
+            agentDisplayName={agentDisplayName}
+            onAgentDisplayNameChange={onAgentDisplayNameChange}
             isEditingMode={isEditingMode}
             mainAgentModel={mainAgentModel}
             mainAgentMaxStep={mainAgentMaxStep}

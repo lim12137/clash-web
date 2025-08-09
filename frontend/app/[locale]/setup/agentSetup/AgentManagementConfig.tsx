@@ -76,6 +76,8 @@ export default function BusinessLogicConfig({
   setAgentName,
   agentDescription,
   setAgentDescription,
+  agentDisplayName,
+  setAgentDisplayName,
   // Add new prop for generating agent state
   isGeneratingAgent = false,
   // SystemPromptDisplay related props
@@ -923,6 +925,8 @@ export default function BusinessLogicConfig({
               agentDescription={agentDescription}
               onAgentNameChange={setAgentName}
               onAgentDescriptionChange={setAgentDescription}
+              agentDisplayName={agentDisplayName}
+              onAgentDisplayNameChange={setAgentDisplayName}
               isEditingMode={isEditingAgent || isCreatingNewAgent}
               mainAgentModel={mainAgentModel}
               mainAgentMaxStep={mainAgentMaxStep}
