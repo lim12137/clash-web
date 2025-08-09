@@ -69,6 +69,7 @@ export const fetchAgentList = async () => {
     const formattedAgents = data.map((agent: any) => ({
       id: String(agent.agent_id),
       name: agent.name,
+      display_name: agent.display_name || agent.name,
       description: agent.description,
       is_available: agent.is_available
     }));
@@ -111,6 +112,7 @@ export const fetchAgentDetail = async (agentId: number) => {
     const formattedAgent = {
       id: String(data.agent_id),
       name: data.name,
+      display_name: data.display_name,
       description: data.description,
       model: data.model_name,
       max_step: data.max_steps,
@@ -481,6 +483,7 @@ export const searchAgentInfo = async (agentId: number) => {
     const formattedAgent = {
       id: data.agent_id,
       name: data.name,
+      display_name: data.display_name,
       description: data.description,
       model: data.model_name,
       max_step: data.max_steps,
@@ -545,6 +548,7 @@ export const fetchAllAgents = async () => {
     const formattedAgents = data.map((agent: any) => ({
       agent_id: agent.agent_id,
       name: agent.name,
+      display_name: agent.display_name || agent.name,
       description: agent.description,
       is_available: agent.is_available
     }));

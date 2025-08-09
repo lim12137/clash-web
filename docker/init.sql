@@ -282,6 +282,7 @@ COMMENT ON COLUMN nexent.ag_tool_info_t.delete_flag IS 'Whether it is deleted. O
 CREATE TABLE IF NOT EXISTS nexent.ag_tenant_agent_t (
     agent_id SERIAL PRIMARY KEY NOT NULL,
     name VARCHAR(100),
+    name_zh VARCHAR(100),
     description VARCHAR,
     business_description VARCHAR,
     model_name VARCHAR(100),
@@ -320,6 +321,7 @@ COMMENT ON TABLE nexent.ag_tenant_agent_t IS 'Information table for agents';
 -- Add comments to the columns
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.agent_id IS 'ID';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.name IS 'Agent name';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.display_name IS 'Agent display name';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.description IS 'Description';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.business_description IS 'Manually entered by the user to describe the entire business process';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.model_name IS 'Name of the model used';

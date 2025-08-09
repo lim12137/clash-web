@@ -32,7 +32,7 @@ export interface SavePromptParams {
  * Stream Response Data Structure
  */
 export interface StreamResponseData {
-  type: 'duty' | 'constraint' | 'few_shots';
+  type: 'duty' | 'constraint' | 'few_shots' | 'agent_var_name' | 'agent_description' | 'agent_display_name';
   content: string;
   is_complete: boolean;
 }
