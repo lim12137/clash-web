@@ -12,6 +12,7 @@ source .env
 MODE_CHOICE=""
 IS_MAINLAND=""
 ENABLE_TERMINAL=""
+VERSION_CHOICE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -25,6 +26,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --enable-terminal)
       ENABLE_TERMINAL="$2"
+      shift 2
+      ;;
+    --version)
+      VERSION_CHOICE="$2"
       shift 2
       ;;
     *)
@@ -155,6 +160,7 @@ clean() {
   # export MINIO_SECRET_KEY=
   export DEPLOYMENT_MODE=
   export COMPOSE_FILE_SUFFIX=
+  export DEPLOYMENT_VERSION=
 }
 
 # Function to create a directory and set permissions
@@ -231,16 +237,22 @@ install() {
   fi
 
   # Start infrastructure services
-  if ! docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES; then
+  if ! docker-compose -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES; then
     echo "❌ ERROR Failed to start infrastructure services"
     ERROR_OCCURRED=1
     return 1
   fi
 
-  if ! docker-compose -p nexent-commercial -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d; then
-    echo "❌ ERROR Failed to start supabase services"
-    ERROR_OCCURRED=1
-    return 1
+  # Only install docker-compose-supabase if DEPLOYMENT_VERSION is "full"
+  if [ "$DEPLOYMENT_VERSION" = "full" ]; then
+    echo "🎯 Full version detected - installing Supabase services..."
+    if ! docker-compose -p nexent -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d; then
+      echo "❌ ERROR Failed to start supabase services"
+      ERROR_OCCURRED=1
+      return 1
+    fi
+  else
+    echo "⚡ Speed version detected - skipping Supabase services"
   fi
 
   echo ""
@@ -250,13 +262,13 @@ install() {
   # Always generate a new ELASTICSEARCH_API_KEY for each deployment.
   echo "🔑 Generating ELASTICSEARCH_API_KEY..."
   # Wait for elasticsearch health check
-  while ! ${docker_compose_command} -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" ps nexent-elasticsearch | grep -q "healthy"; do
+  while ! ${docker_compose_command} -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" ps nexent-elasticsearch | grep -q "healthy"; do
     echo "⏳ Waiting for Elasticsearch to become healthy..."
     sleep 10
   done
 
   # Generate API key
-  API_KEY_JSON=$(${docker_compose_command} -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"my_api_key","role_descriptors":{"my_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
+  API_KEY_JSON=$(${docker_compose_command} -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"my_api_key","role_descriptors":{"my_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
 
   # Extract API key and add to .env
   ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
@@ -284,7 +296,7 @@ install() {
   # Start core services
   if [ "$DEPLOYMENT_MODE" != "infrastructure" ]; then
     echo "👀 Starting core services..."
-    if ! docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent nexent-web nexent-data-process; then
+    if ! docker-compose -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent nexent-web nexent-data-process; then
       echo "❌ ERROR Failed to start core services"
       ERROR_OCCURRED=1
       return 1
@@ -334,6 +346,37 @@ update_env_var() {
     echo ""
   fi
 
+}
+
+# Add deployment version selection function
+select_deployment_version() {
+    echo "🚀 Please select deployment version:"
+    echo "1) ⚡ Speed version - Lightweight deployment with essential features"
+    echo "2) 🎯 Full version - Full-featured deployment with all capabilities"
+    if [ -n "$VERSION_CHOICE" ]; then
+      version_choice="$VERSION_CHOICE"
+      echo "👉 Using version_choice from argument: $version_choice"
+    else
+      read -p "👉 Enter your choice [1/2] (default: 1): " version_choice
+    fi
+
+    case $version_choice in
+        2)
+            export DEPLOYMENT_VERSION="full"
+            echo "✅ Selected complete version 🎯"
+            ;;
+        *)
+            export DEPLOYMENT_VERSION="speed"
+            echo "✅ Selected speed version ⚡"
+            ;;
+    esac
+    
+    # Save the version choice to .env file
+    update_env_var "DEPLOYMENT_VERSION" "$DEPLOYMENT_VERSION"
+    
+    echo ""
+    echo "--------------------------------"
+    echo ""
 }
 
 choose_image_env() {
@@ -401,7 +444,7 @@ setup_package_install_script() {
 wait_for_elasticsearch_healthy() {
     local retries=0
     local max_retries=${1:-60}  # Default 10 minutes, can be overridden
-    while ! docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" ps nexent-elasticsearch | grep -q "healthy" && [ $retries -lt $max_retries ]; do
+    while ! docker-compose -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" ps nexent-elasticsearch | grep -q "healthy" && [ $retries -lt $max_retries ]; do
         echo "⏳ Waiting for Elasticsearch to become healthy... (attempt $((retries + 1))/$max_retries)"
         sleep 10
         retries=$((retries + 1))
@@ -436,7 +479,10 @@ generate_env_for_infrastructure() {
 
     # Make sure the script is executable and run it
     chmod +x generate_env.sh
-    ./generate_env.sh
+    
+    # Export DEPLOYMENT_VERSION to ensure generate_env.sh can access it
+    export DEPLOYMENT_VERSION
+    
     if ./generate_env.sh; then
         echo "--------------------------------"
         echo ""
@@ -635,7 +681,8 @@ echo ""
 main_deploy() {
   # Start deployment
 
-  # Select deployment mode and checks
+  # Select deployment version and mode
+  select_deployment_version || { echo "❌ Deployment version selection failed"; exit 1; }
   select_deployment_mode || { echo "❌ Deployment mode selection failed"; exit 1; }
   select_terminal_tool || { echo "❌ Terminal tool configuration failed"; exit 1; }
     
@@ -671,7 +718,7 @@ main_deploy() {
       echo "🔧 Terminal tool enabled - openssh-server will be included in infrastructure"
     fi
 
-    if ! docker-compose -p nexent-commercial -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES; then
+    if ! docker-compose -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES; then
       echo "❌ ERROR Failed to start infrastructure services"
       exit 1
     fi
