@@ -243,10 +243,16 @@ install() {
     return 1
   fi
 
-  if ! docker-compose -p nexent -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d; then
-    echo "❌ ERROR Failed to start supabase services"
-    ERROR_OCCURRED=1
-    return 1
+  # Only install docker-compose-supabase if DEPLOYMENT_VERSION is "full"
+  if [ "$DEPLOYMENT_VERSION" = "full" ]; then
+    echo "🎯 Full version detected - installing Supabase services..."
+    if ! docker-compose -p nexent -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d; then
+      echo "❌ ERROR Failed to start supabase services"
+      ERROR_OCCURRED=1
+      return 1
+    fi
+  else
+    echo "⚡ Speed version detected - skipping Supabase services"
   fi
 
   echo ""
@@ -473,7 +479,10 @@ generate_env_for_infrastructure() {
 
     # Make sure the script is executable and run it
     chmod +x generate_env.sh
-    ./generate_env.sh
+    
+    # Export DEPLOYMENT_VERSION to ensure generate_env.sh can access it
+    export DEPLOYMENT_VERSION
+    
     if ./generate_env.sh; then
         echo "--------------------------------"
         echo ""

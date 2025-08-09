@@ -305,13 +305,19 @@ main() {
     ERROR_OCCURRED=0  # Reset error flag for optional step
   }
 
-  add_jwt_to_env
+  # Step 4: Generate JWT secrets only if DEPLOYMENT_VERSION is "full"
+  if [ "$DEPLOYMENT_VERSION" = "full" ]; then
+    echo "🎯 Full version detected - generating JWT secrets for Supabase..."
+    add_jwt_to_env || { echo "❌ Failed to generate JWT secrets"; exit 1; }
+  else
+    echo "⚡ Speed version detected - skipping JWT secrets generation"
+  fi
 
-  # Step 4: Update .env file
+  # Step 5: Update .env file
   echo ""
   update_env_file || { echo "❌ Failed to update .env file"; exit 1; }
 
-  # Step 5: Show summary
+  # Step 6: Show summary
   show_summary
 }
 
