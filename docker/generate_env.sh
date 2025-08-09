@@ -231,34 +231,6 @@ update_env_file() {
     echo ""
     echo "# Supabase PostgreSQL Configuration" >> ../.env
     
-    # SUPABASE_POSTGRES_HOST
-    if grep -q "^SUPABASE_POSTGRES_HOST=" ../.env; then
-      sed -i.bak "s~^SUPABASE_POSTGRES_HOST=.*~SUPABASE_POSTGRES_HOST=db~" ../.env
-    else
-      echo "SUPABASE_POSTGRES_HOST=db" >> ../.env
-    fi
-    
-    # SUPABASE_POSTGRES_PORT
-    if grep -q "^SUPABASE_POSTGRES_PORT=" ../.env; then
-      sed -i.bak "s~^SUPABASE_POSTGRES_PORT=.*~SUPABASE_POSTGRES_PORT=5436~" ../.env
-    else
-      echo "SUPABASE_POSTGRES_PORT=5436" >> ../.env
-    fi
-    
-    # SUPABASE_POSTGRES_DB
-    if grep -q "^SUPABASE_POSTGRES_DB=" ../.env; then
-      sed -i.bak "s~^SUPABASE_POSTGRES_DB=.*~SUPABASE_POSTGRES_DB=supabase~" ../.env
-    else
-      echo "SUPABASE_POSTGRES_DB=supabase" >> ../.env
-    fi
-    
-    # SUPABASE_POSTGRES_PASSWORD
-    if grep -q "^SUPABASE_POSTGRES_PASSWORD=" ../.env; then
-      sed -i.bak "s~^SUPABASE_POSTGRES_PASSWORD=.*~SUPABASE_POSTGRES_PASSWORD=nexent@4321~" ../.env
-    else
-      echo "SUPABASE_POSTGRES_PASSWORD=nexent@4321" >> ../.env
-    fi
-    
     # Additional Supabase configuration
     if grep -q "^SUPABASE_URL=" ../.env; then
       sed -i.bak "s~^SUPABASE_URL=.*~SUPABASE_URL=http://localhost:8000~" ../.env
@@ -277,60 +249,6 @@ update_env_file() {
       sed -i.bak "s~^SITE_URL=.*~SITE_URL=http://localhost:3011~" ../.env
     else
       echo "SITE_URL=http://localhost:3011" >> ../.env
-    fi
-    
-    if grep -q "^JWT_EXPIRY=" ../.env; then
-      sed -i.bak "s~^JWT_EXPIRY=.*~JWT_EXPIRY=3600~" ../.env
-    else
-      echo "JWT_EXPIRY=3600" >> ../.env
-    fi
-    
-    if grep -q "^DISABLE_SIGNUP=" ../.env; then
-      sed -i.bak "s~^DISABLE_SIGNUP=.*~DISABLE_SIGNUP=false~" ../.env
-    else
-      echo "DISABLE_SIGNUP=false" >> ../.env
-    fi
-    
-    if grep -q "^ENABLE_EMAIL_SIGNUP=" ../.env; then
-      sed -i.bak "s~^ENABLE_EMAIL_SIGNUP=.*~ENABLE_EMAIL_SIGNUP=true~" ../.env
-    else
-      echo "ENABLE_EMAIL_SIGNUP=true" >> ../.env
-    fi
-    
-    if grep -q "^ENABLE_ANONYMOUS_USERS=" ../.env; then
-      sed -i.bak "s~^ENABLE_ANONYMOUS_USERS=.*~ENABLE_ANONYMOUS_USERS=false~" ../.env
-    else
-      echo "ENABLE_ANONYMOUS_USERS=false" >> ../.env
-    fi
-    
-    if grep -q "^ENABLE_EMAIL_AUTOCONFIRM=" ../.env; then
-      sed -i.bak "s~^ENABLE_EMAIL_AUTOCONFIRM=.*~ENABLE_EMAIL_AUTOCONFIRM=true~" ../.env
-    else
-      echo "ENABLE_EMAIL_AUTOCONFIRM=true" >> ../.env
-    fi
-    
-    if grep -q "^ENABLE_PHONE_SIGNUP=" ../.env; then
-      sed -i.bak "s~^ENABLE_PHONE_SIGNUP=.*~ENABLE_PHONE_SIGNUP=false~" ../.env
-    else
-      echo "ENABLE_PHONE_SIGNUP=false" >> ../.env
-    fi
-    
-    if grep -q "^ENABLE_PHONE_AUTOCONFIRM=" ../.env; then
-      sed -i.bak "s~^ENABLE_PHONE_AUTOCONFIRM=.*~ENABLE_PHONE_AUTOCONFIRM=false~" ../.env
-    else
-      echo "ENABLE_PHONE_AUTOCONFIRM=false" >> ../.env
-    fi
-    
-    if grep -q "^DASHBOARD_USERNAME=" ../.env; then
-      sed -i.bak "s~^DASHBOARD_USERNAME=.*~DASHBOARD_USERNAME=supabase~" ../.env
-    else
-      echo "DASHBOARD_USERNAME=supabase" >> ../.env
-    fi
-    
-    if grep -q "^DASHBOARD_PASSWORD=" ../.env; then
-      sed -i.bak "s~^DASHBOARD_PASSWORD=.*~DASHBOARD_PASSWORD=nexent@4321~" ../.env
-    else
-      echo "DASHBOARD_PASSWORD=nexent@4321" >> ../.env
     fi
   fi
 
