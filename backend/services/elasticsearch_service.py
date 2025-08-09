@@ -84,7 +84,6 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
         yield "END"
 
     except Exception as e:
-        # TODO: use logger
         logger.error(f"Error occurred: {str(e)}")
         yield f"Error: {str(e)}"
 
