@@ -26,6 +26,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
   const [shouldCheckSession, setShouldCheckSession] = useState(false)
   const [authServiceUnavailable, setAuthServiceUnavailable] = useState(false)
   const [isSpeedMode, setIsSpeedMode] = useState(false)
+  const [isReady, setIsReady] = useState(false)
   const pathname = usePathname()
 
   // 检查认证服务可用性
@@ -45,6 +46,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
   // Check deployment version and handle speed mode
   const checkDeploymentVersion = async () => {
     try {
+      setIsReady(false);
       const response = await fetch(API_ENDPOINTS.tenantConfig.deploymentVersion);
       if (response.ok) {
         const data = await response.json();
@@ -60,6 +62,8 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     } catch (error) {
       console.error('Failed to check deployment version:', error);
       setIsSpeedMode(false);
+    } finally {
+      setIsReady(true);
     }
   };
 
@@ -116,7 +120,9 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
   }, []);
 
   // 检查部署版本
-  useEffect(() => checkDeploymentVersion(), []); // 当用户状态变化时重新检查
+  useEffect(() => {
+    checkDeploymentVersion();
+  }, []); // 当用户状态变化时重新检查
 
   // 检查用户登录状态
   useEffect(() => {
@@ -328,6 +334,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     isFromSessionExpired,
     authServiceUnavailable,
     isSpeedMode,
+    isReady,
     openLoginModal,
     closeLoginModal,
     openRegisterModal,
