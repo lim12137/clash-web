@@ -18,6 +18,7 @@ docker/postgresql
 docker/redis_data
 docker/uploads
 docker/openssh-server
+docker/volumes/db/data
 docker/.env
 docker/.run
 

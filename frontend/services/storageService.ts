@@ -1,4 +1,7 @@
 import { API_ENDPOINTS } from './api';
+import { fetchWithAuth } from '@/lib/auth';
+// @ts-ignore
+const fetch = fetchWithAuth;
 
 interface StorageUploadResult {
   message: string;

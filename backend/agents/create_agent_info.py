@@ -4,7 +4,6 @@ import logging
 from urllib.parse import urljoin
 from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
-
 from services.remote_mcp_service import get_remote_mcp_server_list
 from utils.auth_utils import get_current_user_id
 
@@ -16,8 +15,13 @@ from utils.prompt_template_utils import get_prompt_template_path
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 from smolagents.agents import populate_template
 from smolagents.utils import BASE_BUILTIN_MODULES
+from services.memory_config_service import build_memory_context
+
+from nexent.memory.memory_service import search_memory_in_levels
+
 
 logger = logging.getLogger("create_agent_info")
+logger.setLevel(logging.DEBUG)
 
 async def create_model_config_list(tenant_id):
     main_model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
@@ -37,7 +41,7 @@ async def create_model_config_list(tenant_id):
                         is_deep_thinking=sub_model_config.get("is_deep_thinking", False))]
 
 
-async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'):
+async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh', last_user_query: str = None):
     agent_info = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id)
 
     # create sub agent
@@ -48,7 +52,8 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             agent_id=sub_agent_id,
             tenant_id=tenant_id,
             user_id=user_id,
-            language=language)
+            language=language,
+            last_user_query=last_user_query)
         managed_agents.append(sub_agent_config)
 
     tool_list = await create_tool_config_list(agent_id, tenant_id, user_id)
@@ -68,6 +73,32 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     app_name = tenant_config_manager.get_app_config('APP_NAME', tenant_id=tenant_id) or "Nexent"
     app_description = tenant_config_manager.get_app_config('APP_DESCRIPTION', tenant_id=tenant_id) or default_app_description
 
+    # Get memory list
+    memory_context = build_memory_context(user_id, tenant_id, agent_id)
+    memory_list = []
+    if memory_context.user_config.memory_switch:
+        # TODO: 前端展示"回忆中..." Tag
+        logger.debug("Retrieving memory list...")
+        memory_levels = ["tenant", "agent", "user", "user_agent"]
+        if memory_context.user_config.agent_share_option == "never":
+            memory_levels.remove("agent")
+        if memory_context.agent_id in memory_context.user_config.disable_agent_ids:
+            memory_levels.remove("agent")
+        if memory_context.agent_id in memory_context.user_config.disable_user_agent_ids:
+            memory_levels.remove("user_agent")
+
+        search_res = await search_memory_in_levels(
+            query_text=last_user_query if last_user_query else agent_info.get("name"),
+            memory_config=memory_context.memory_config,
+            tenant_id=memory_context.tenant_id,
+            user_id=memory_context.user_id,
+            agent_id=memory_context.agent_id,
+            memory_levels=memory_levels,
+        )
+        memory_list = search_res.get("results", [])
+        logger.debug(f"Retrieved memory list: {memory_list}")
+        # TODO: 前端展示"已抽取 xx 条回忆"
+
     # Assemble system_prompt
     system_prompt = populate_template(
         prompt_template["system_prompt"],
@@ -79,7 +110,8 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             "managed_agents": {agent.name: agent for agent in managed_agents},
             "authorized_imports": str(BASE_BUILTIN_MODULES),
             "APP_NAME": app_name,
-            "APP_DESCRIPTION": app_description
+            "APP_DESCRIPTION": app_description,
+            "memory_list": memory_list
         },
     ) if (duty_prompt or constraint_prompt or few_shots_prompt) else agent_info.get("prompt", "")
 
@@ -188,12 +220,12 @@ async def discover_langchain_tools():
 async def prepare_prompt_templates(is_manager: bool, system_prompt: str, language: str = 'zh'):
     """
     Prepare prompt templates, support multiple languages
-    
+
     Args:
         is_manager: Whether it is a manager mode
         system_prompt: System prompt content
         language: Language code ('zh' or 'en')
-        
+
     Returns:
         dict: Prompt template configuration
     """
@@ -223,12 +255,12 @@ def filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_lis
     """
     过滤 MCP 服务器和工具，只保留实际用到的 MCP 服务器
     支持多级 agent，递归检查所有子 agent 的工具
-    
+
     Args:
         agent_run_info: AgentRunInfo 对象
         default_mcp_url: 默认 MCP 服务器 URL
         remote_mcp_list: 远程 MCP 服务器列表
-        
+
     Returns:
         None (直接修改 agent_run_info 对象)
     """
@@ -247,7 +279,7 @@ def filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_lis
                     mcp_server_name = tool.usage
                     # 从远程 MCP 列表中查找对应的 URL
                     for remote_mcp_info in remote_mcp_list:
-                        if (remote_mcp_info["remote_mcp_server_name"] == mcp_server_name and 
+                        if (remote_mcp_info["remote_mcp_server_name"] == mcp_server_name and
                             remote_mcp_info["status"]):
                             used_mcp_urls.add(remote_mcp_info["remote_mcp_server"])
                             break
@@ -285,7 +317,7 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
         model_config_list=model_list,
         observer=MessageObserver(lang=language),
         agent_config=await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id,
-                                               language=language),
+                                               language=language, last_user_query=final_query),
         mcp_host=mcp_host,
         history=history,
         stop_event=threading.Event()

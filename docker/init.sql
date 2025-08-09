@@ -489,6 +489,30 @@ EXECUTE FUNCTION update_mcp_record_update_time();
 -- Add comment to the trigger
 COMMENT ON TRIGGER update_mcp_record_update_time_trigger ON nexent.mcp_record_t IS 'Trigger to call update_mcp_record_update_time function before each update on mcp_record_t table';
 
+-- Create user tenant relationship table
+CREATE TABLE IF NOT EXISTS nexent.user_tenant_t (
+    user_tenant_id SERIAL PRIMARY KEY,
+    user_id VARCHAR(100) NOT NULL,
+    tenant_id VARCHAR(100) NOT NULL,
+    create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+    update_time TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100),
+    delete_flag CHAR(1) DEFAULT 'N',
+    UNIQUE(user_id, tenant_id)
+);
+
+-- Add comment
+COMMENT ON TABLE nexent.user_tenant_t IS 'User tenant relationship table';
+COMMENT ON COLUMN nexent.user_tenant_t.user_tenant_id IS 'User tenant relationship ID, primary key';
+COMMENT ON COLUMN nexent.user_tenant_t.user_id IS 'User ID';
+COMMENT ON COLUMN nexent.user_tenant_t.tenant_id IS 'Tenant ID';
+COMMENT ON COLUMN nexent.user_tenant_t.create_time IS 'Create time';
+COMMENT ON COLUMN nexent.user_tenant_t.update_time IS 'Update time';
+COMMENT ON COLUMN nexent.user_tenant_t.created_by IS 'Created by';
+COMMENT ON COLUMN nexent.user_tenant_t.updated_by IS 'Updated by';
+COMMENT ON COLUMN nexent.user_tenant_t.delete_flag IS 'Delete flag, Y/N';
+
 -- Create the ag_agent_relation_t table in the nexent schema
 CREATE TABLE IF NOT EXISTS nexent.ag_agent_relation_t (
     relation_id SERIAL PRIMARY KEY NOT NULL,
@@ -530,3 +554,45 @@ COMMENT ON COLUMN nexent.ag_agent_relation_t.update_time IS 'Update time, audit 
 COMMENT ON COLUMN nexent.ag_agent_relation_t.created_by IS 'Creator ID, audit field';
 COMMENT ON COLUMN nexent.ag_agent_relation_t.updated_by IS 'Last updater ID, audit field';
 COMMENT ON COLUMN nexent.ag_agent_relation_t.delete_flag IS 'Delete flag, set to Y for soft delete, optional values Y/N';
+
+-- Create user memory config table
+CREATE TABLE IF NOT EXISTS "memory_user_config_t" (
+  "config_id" SERIAL PRIMARY KEY NOT NULL,
+  "tenant_id" varchar(100) COLLATE "pg_catalog"."default",
+  "user_id" varchar(100) COLLATE "pg_catalog"."default",
+  "value_type" varchar(100) COLLATE "pg_catalog"."default",
+  "config_key" varchar(100) COLLATE "pg_catalog"."default",
+  "config_value" varchar(100) COLLATE "pg_catalog"."default",
+  "create_time" timestamp(6) DEFAULT CURRENT_TIMESTAMP,
+  "update_time" timestamp(6) DEFAULT CURRENT_TIMESTAMP,
+  "created_by" varchar(100) COLLATE "pg_catalog"."default",
+  "updated_by" varchar(100) COLLATE "pg_catalog"."default",
+  "delete_flag" varchar(1) COLLATE "pg_catalog"."default" DEFAULT 'N'
+);
+
+COMMENT ON COLUMN "nexent"."memory_user_config_t"."config_id" IS 'ID';
+COMMENT ON COLUMN "nexent"."memory_user_config_t"."tenant_id" IS 'Tenant ID';
+COMMENT ON COLUMN "nexent"."memory_user_config_t"."user_id" IS 'User ID';
+COMMENT ON COLUMN "nexent"."memory_user_config_t"."value_type" IS 'Value type. Optional values: single/multi';
+COMMENT ON COLUMN "nexent"."memory_user_config_t"."config_key" IS 'Config key';
+COMMENT ON COLUMN "nexent"."memory_user_config_t"."config_value" IS 'Config value';
+COMMENT ON COLUMN "nexent"."memory_user_config_t"."create_time" IS 'Creation time';
+COMMENT ON COLUMN "nexent"."memory_user_config_t"."update_time" IS 'Update time';
+COMMENT ON COLUMN "nexent"."memory_user_config_t"."created_by" IS 'Creator';
+COMMENT ON COLUMN "nexent"."memory_user_config_t"."updated_by" IS 'Updater';
+COMMENT ON COLUMN "nexent"."memory_user_config_t"."delete_flag" IS 'Whether it is deleted. Optional values: Y/N';
+
+COMMENT ON TABLE "nexent"."memory_user_config_t" IS 'User configuration of memory setting table';
+
+CREATE OR REPLACE FUNCTION "update_memory_user_config_update_time"()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.update_time = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "update_memory_user_config_update_time_trigger"
+BEFORE UPDATE ON "nexent"."memory_user_config_t"
+FOR EACH ROW
+EXECUTE FUNCTION "update_memory_user_config_update_time"();
