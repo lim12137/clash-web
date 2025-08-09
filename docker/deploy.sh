@@ -346,7 +346,7 @@ update_env_var() {
 select_deployment_version() {
     echo "🚀 Please select deployment version:"
     echo "1) ⚡ Speed version - Lightweight deployment with essential features"
-    echo "2) 🎯 Complete version - Full-featured deployment with all capabilities"
+    echo "2) 🎯 Full version - Full-featured deployment with all capabilities"
     if [ -n "$VERSION_CHOICE" ]; then
       version_choice="$VERSION_CHOICE"
       echo "👉 Using version_choice from argument: $version_choice"
@@ -356,7 +356,7 @@ select_deployment_version() {
 
     case $version_choice in
         2)
-            export DEPLOYMENT_VERSION="complete"
+            export DEPLOYMENT_VERSION="full"
             echo "✅ Selected complete version 🎯"
             ;;
         *)
