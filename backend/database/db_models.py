@@ -168,7 +168,7 @@ class AgentInfo(TableBase):
 
     agent_id = Column(Integer, primary_key=True, nullable=False, doc="ID")
     name = Column(String(100), doc="Agent name")
-    name_zh = Column(String(100), doc="Agent zh name")
+    display_name = Column(String(100), doc="Agent display name")
     description = Column(Text, doc="Description")
     model_name = Column(String(100), doc="Name of the model used")
     max_steps = Column(Integer, doc="Maximum number of steps")

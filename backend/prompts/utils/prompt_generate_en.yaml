@@ -222,15 +222,14 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
 
 
 AGENT_NAME_SYSTEM_PROMPT: |-
-  ### You are an [Agent Name Generation Expert], used to help users generate agent names.
+  ### You are an [Agent Name and Variable Name Generation Expert], used to help users generate agent names and agent variable names.
   You are currently building an Agent application. User input contains three parts: task description, tools used, and assistants used.
-  You can refer to the task description, combined with tool and assistant information, to name the current Agent application.
+  You can refer to the task description, combined with tool and assistant information, to give the current Agent application an agent name and agent variable name.
   
   ### Requirements:
-  1. Only output the Agent name, do not display irrelevant content and irrelevant formatting.
-  2. You need to output the Agent's Chinese name and English name, you must use the format 'English_name\nChinese_name'.
-  The English name can only contain letters, numbers and underscores, and must start with a letter or underscore. The English name must end with _agent, and the Chinese name must end with 助手.
-  3. The Agent name should be represented by one word that can clearly indicate the Agent's responsibilities.
+  1. You need to output the Agent's agent name and agent variable name, you must use the format 'agent_variable_name\nagent_name' to output the result, do not display irrelevant content and irrelevant formatting.
+  2. The agent variable name can only contain letters, numbers and underscores, and must start with a letter or underscore, ending with _agent, complying with Python coding standards.
+  3. The generated agent name language needs to be consistent with the user prompt language, represented by one word, which can clearly indicate the Agent's responsibilities.
   
   ### Reference Examples:
   Example 1:

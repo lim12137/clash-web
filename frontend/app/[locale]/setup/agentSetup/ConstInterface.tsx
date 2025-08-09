@@ -9,6 +9,7 @@ export enum OpenAIModel {
 export interface Agent {
   id: string;
   name: string;
+  display_name?: string;
   description: string;
   model: string;
   max_step: number;
@@ -142,6 +143,8 @@ export interface BusinessLogicConfigProps {
   setAgentName?: (value: string) => void;
   agentDescription?: string;
   setAgentDescription?: (value: string) => void;
+  agentDisplayName?: string;
+  setAgentDisplayName?: (value: string) => void;
   // Add new prop for generating agent state
   isGeneratingAgent?: boolean;
   // SystemPromptDisplay related props

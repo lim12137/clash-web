@@ -321,7 +321,7 @@ COMMENT ON TABLE nexent.ag_tenant_agent_t IS 'Information table for agents';
 -- Add comments to the columns
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.agent_id IS 'ID';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.name IS 'Agent name';
-COMMENT ON COLUMN nexent.ag_tenant_agent_t.name_zh IS 'Agent zh name';
+COMMENT ON COLUMN nexent.ag_tenant_agent_t.display_name IS 'Agent display name';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.description IS 'Description';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.business_description IS 'Manually entered by the user to describe the entire business process';
 COMMENT ON COLUMN nexent.ag_tenant_agent_t.model_name IS 'Name of the model used';
