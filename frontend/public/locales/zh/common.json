@@ -56,7 +56,8 @@
         "stopGenerating": "停止生成",
         "imagePreview": "图片预览",
         "close": "关闭",
-        "errorLabel": "错误:"
+        "errorLabel": "错误:",
+        "failedToUpdateConversationList": "更新对话列表失败:"
     },
     "chatPreprocess": {
         "step": "步骤",
@@ -67,7 +68,8 @@
         "uploadingFile": "上传文件: {{name}}, 类型: {{type}}, 大小: {{size}}",
         "uploadingImage": "上传图片: {{name}}, 类型: {{type}}, 大小: {{size}}",
         "fileUploadFailed": "文件上传失败:",
-        "parsingFile": "正在解析文件..."
+        "parsingFile": "正在解析文件...",
+        "termsOfUse": "使用条款"
     },
     "extractMsg": {
         "unknownTitle": "未知标题",
@@ -126,7 +128,8 @@
         "cancel": "取消",
         "collapseSidebar": "收起侧边栏",
         "running": "正在运行中",
-        "completed": "已完成"
+        "completed": "已完成",
+        "user": "用户"
     },
     "page": {
         "contactUs": "联系我们",
@@ -136,7 +139,7 @@
         "description": "无需编排，无需复杂拖拉拽，将数据、模型和工具整合到一个智能中心中。",
         "startChat": "开始问答",
         "quickConfig": "快速配置",
-        "dataProtection": "安全可靠的个人隐私保护",
+        "dataProtection": "免费试用环境不做数据留存，数据可能随更新丢失，请注意",
         "coreFeatures": "核心功能",
         "features": [
             {
@@ -165,7 +168,38 @@
             }
         ],
         "copyright": "Nexent 智能体 © {{year}}",
-        "termsOfUse": "使用条款"
+        "termsOfUse": "使用条款",
+        "loginPrompt": {
+            "title": "登录账号",
+            "register": "注册",
+            "login": "立即登录",
+            "header": "🚀 准备启航！",
+            "intro": "登录您的账户，开启智能问答之旅~",
+            "benefitsTitle": "✨ 登录后您将获得：",
+            "benefits": [
+                "专属的对话历史记录",
+                "个性化的智能推荐",
+                "企业知识库完整访问权限",
+                "更精准的问答体验"
+            ],
+            "githubSupport": "⭐️ Nexent还在成长中，帮帮我到<1>GitHub</1>加星支持我吧，谢谢你。",
+            "noAccount": "还没有账号？点击\"注册\"按钮创建您的专属账号~"
+        },
+        "adminPrompt": {
+            "title": "啊哦，您不是管理员",
+            "close": "好的",
+            "intro": "只有管理员可以调整配置，请先登录为管理员账号~",
+            "unlockHeader": "🌟 成为管理员，解锁更多能力！",
+            "unlockIntro": "成为管理员后，您可以：",
+            "permissionsTitle": "✨ 管理员专属权限：",
+            "permissions": [
+                "配置和管理自己的模型",
+                "制作和发布专属智能Agent",
+                "集成和配置自有工具"
+            ],
+            "githubSupport": "⭐️ Nexent还在成长中，帮帮我到<1>GitHub</1>加星支持我吧，谢谢你。",
+            "becomeAdmin": "💡 想成为管理员？请访问<1>官网联系页</1>，申请管理员账号。"
+        }
     },
     "chatStreamMessage": {
         "appIconAlt": "应用图标",
@@ -220,6 +254,7 @@
         "processRemainingDataFailed": "处理剩余数据失败:",
         "thinking": "正在思考中...",
         "connectingMcpServer": "正在连接MCP服务器...",
+        "fetchingMemory": "正在回忆中...",
         "generateTitleFailed": "生成标题失败:",
         "streamResponseError": "处理流式响应时出错:",
         "userInterrupted": "对话主动中止。"
@@ -255,6 +290,7 @@
     "agent.info.description": "描述",
     "agent.info.description.placeholder": "请输入Agent描述，此描述用于向主Agent介绍当前Agent的能力",
     "agent.info.description.error.empty": "描述不能为空",
+    "agent.info.description.error.format": "描述不能超过200个字符",
     "agent.info.provideSummary": "提供运行摘要",
     "agent.info.provideSummary.yes": "是",
     "agent.info.provideSummary.no": "否",
@@ -391,6 +427,7 @@
     "agent.error.deleteFailed": "Agent删除失败",
     "agent.error.deleteRetry": "删除Agent失败，请稍后重试",
     "agent.modal.deleteConfirm.title": "确认删除",
+    "agent.modal.deleteConfirm.content": "确定要删除Agent \"{name}\" 吗？此操作不可恢复。",
     "systemPrompt.button.generating": "智能生成提示词中...",
     "systemPrompt.button.generate": "智能生成提示词",
     "systemPrompt.message.generateError": "生成提示词失败：{error}",
@@ -817,6 +854,82 @@
     "model.validation.MODEL_VALIDATION_FAILED": "模型连通性验证失败",
     "model.validation.MODEL_VALIDATION_ERROR": "模型验证错误",
     "model.validation.MODEL_VALIDATION_ERROR_UNKNOWN": "模型验证过程中出现未知错误",
+    "login.expired.title": "登录已过期",
+    "login.expired.content": "您的登录信息已过期，请重新登录以继续使用。",
+    "login.expired.okText": "立即登录",
+    "login.expired.cancelText": "返回首页",
+    "setup.page.error.adminOnly": "只有管理员可以访问模型配置页面",
+      "auth": {
+          "notLoggedIn": "您尚未登录",
+          "login": "登录",
+          "register": "注册",
+          "adminSettings": "管理设置",
+          "logout": "退出登录",
+          "confirmLogout": "确认退出",
+          "confirmLogoutPrompt": "您确定要退出登录吗？",
+          "confirm": "确认",
+          "cancel": "取消",
+          "loginTitle": "登录",
+          "emailLabel": "邮箱地址",
+          "emailRequired": "请输入邮箱地址",
+          "passwordLabel": "密码",
+          "passwordRequired": "请输入密码",
+          "emailPlaceholder": "your@email.com",
+          "authServiceUnavailable": "认证服务当前不可用，请稍后重试",
+          "invalidCredentials": "账号或密码错误，请重新输入",
+          "loggingIn": "登录中...",
+          "noAccount": "还没有账号？",
+          "registerNow": "立即注册",
+          "sessionExpired": "登录已过期，请重新登录",
+          "registerTitle": "注册账号",
+          "passwordMinLength": "密码长度至少为6个字符",
+          "passwordsDoNotMatch": "两次输入的密码不一致",
+          "emailExists": "该邮箱已被注册",
+          "registrationFailed": "注册失败，请稍后重试",
+          "confirmPasswordLabel": "确认密码",
+          "confirmPasswordRequired": "请确认密码",
+          "registering": "注册中...",
+          "registeringAdmin": "注册管理员中...",
+          "hasAccount": "已有账号？",
+          "loginNow": "立即登录",
+          "loginSuccess": "登录成功，欢迎回来！",
+          "registerSuccessAutoLogin": "注册成功，已为您自动登录",
+          "registerSuccessManualLogin": "注册成功，请登录",
+          "adminRegisterSuccessAutoLogin": "管理员账号注册成功！已为您自动登录，您现在拥有系统管理权限",
+          "adminRegisterSuccessManualLogin": "管理员账号注册成功！请登录以获取管理权限",
+          "logoutSuccess": "您已成功退出登录",
+          "logoutFailed": "退出失败，请重试",
+          "adminAccount": "管理员账号",
+          "adminAccountDescription": "管理员拥有更多权限，可以配置模型、创建智能体等",
+          "admin": "管理员",
+          "user": "普通用户",
+          "inviteCodeLabel": "邀请码",
+          "inviteCodeRequired": "请输入管理员邀请码",
+          "registerAdmin": "注册管理员账号",
+          "inviteCodeError": "邀请码错误",
+          "passwordError": "密码设置有误",
+          "emailError": "邮箱格式错误",
+          "inviteCodeNotConfigured": "管理员注册功能暂未开放，请联系系统管理员配置邀请码",
+          "inviteCodeInvalid": "管理员邀请码错误，请检查后重新输入",
+          "emailAlreadyExists": "该邮箱已被注册，请使用其他邮箱地址或尝试登录现有账号",
+          "weakPassword": "密码强度不够，请设置更安全的密码",
+          "invalidEmailFormat": "邮箱格式不正确，请检查后重新输入",
+          "networkError": "网络连接超时，请检查网络后重试",
+          "registrationServiceError": "注册服务暂时不可用，请稍后重试",
+          "unknownError": "注册失败，请稍后重试",
+          "inviteCodeHint": {
+              "title": "如何获取管理员邀请码？",
+              "step1": "前往",
+              "step2": "加入",
+              "step2Action": "获取专属邀请码",
+              "contactPage": "联系页面",
+              "communityLink": "官方技术交流群",
+              "projectLink": "项目地址",
+              "starAction": "为我们点一个 Star"
+          }
+      },
+    "role_admin": "管理员",
+    "role_user": "普通用户",
     "toolManagement.refresh.title": "刷新工具列表",
     "toolManagement.refresh.button.refreshing": "刷新中",
     "toolManagement.refresh.button.refresh": "刷新工具",
@@ -950,6 +1063,54 @@
         "unavailable": "不可用",
         "agentUnavailable": "此Agent当前不可用，请检查工具配置信息或通知管理员。",
         "pleaseSelectAgent": "请先选择一个 Agent"
+    },
+    "memoryDeleteModal": {
+        "title": "确认清空记忆",
+        "description": "即将清空 <strong>{{title}}</strong> 的所有内容，且该操作不可恢复。",
+        "prompt": "确定要继续吗？",
+        "clear": "清空"
+    },
+    "useMemory": {
+        "loadConfigError": "加载记忆配置失败，请检查网络连接或联系管理员",
+        "memoryServiceConnectionError": "记忆服务连接失败，请检查配置或联系管理员",
+        "loadDataError": "加载记忆数据失败，请稍后重试",
+        "addMemorySuccess": "记忆添加成功",
+        "addMemoryError": "添加记忆失败，请稍后重试",
+        "clearMemorySuccess": "已清空 {{groupTitle}} 下的 {{count}} 条记忆",
+        "clearMemoryError": "清空记忆失败，请稍后重试",
+        "deleteMemorySuccess": "记忆删除成功",
+        "deleteMemoryError": "删除记忆失败，请稍后重试",
+        "setMemorySwitchError": "设置记忆开关失败，请稍后重试",
+        "setMemoryShareOptionError": "设置记忆共享选项失败，请稍后重试"
+    },
+    "memoryService": {
+        "loadMemoryError": "加载记忆失败，请稍后重试",
+        "tenantSharedGroupTitle": "租户所有用户的共享记忆",
+        "agentSharedGroupTitle": "{{agentName}} 所有用户的共享记忆",
+        "agentSharedPlaceholder": "Agent 共享记忆",
+        "userPersonalGroupTitle": "用户的个性化记忆",
+        "userAgentGroupTitle": "{{agentName}} 中的用户记忆",
+        "userAgentPlaceholder": "用户 Agent 记忆"
+    },
+    "memoryManageModal": {
+        "title": "记忆管理",
+        "memoryAbility": "记忆能力",
+        "agentMemoryShare": "Agent记忆共享",
+        "shareOption": {
+            "always": "总是共享",
+            "ask": "每次询问我",
+            "never": "永不共享"
+        },
+        "addMemory": "添加记忆",
+        "clearMemory": "清空记忆",
+        "deleteMemory": "删除记忆",
+        "noMemory": "暂无记忆",
+        "baseSettings": "基础设置",
+        "tenantShareTab": "租户共享",
+        "agentShareTab": "Agent共享",
+        "userPersonalTab": "用户个性化",
+        "userAgentTab": "用户Agent",
+        "inputPlaceholder": "请输入记忆内容"
     },
     "collaborativeAgent": {
         "title": "协作Agent",

@@ -1,8 +1,8 @@
-name: nexent
+name: nexent-commercial
 
 services:
   nexent:
-    image: nexent/nexent:latest
+    image: nexent/nexent-commercial:latest
     container_name: nexent
     restart: always
     ports:
@@ -38,7 +38,7 @@ services:
 
 
   nexent-data-process:
-    image: nexent/nexent-data-process:latest
+    image: nexent/nexent-data-process-commercial:latest
     container_name: nexent-data-process
     restart: always
     privileged: true

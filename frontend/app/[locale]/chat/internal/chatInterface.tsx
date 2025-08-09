@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from "uuid"
 import { useConfig } from "@/hooks/useConfig"
 import { conversationService } from '@/services/conversationService';
 import { storageService } from '@/services/storageService';
+import { useAuth } from "@/hooks/useAuth"
 import { useTranslation } from 'react-i18next';
 
 import { ChatSidebar } from "@/app/chat/layout/chatLeftSidebar"
@@ -38,6 +39,7 @@ const stepIdCounter = {current: 0};
 
 export function ChatInterface() {
   const router = useRouter()
+  const { user } = useAuth() // 获取用户信息
   const [input, setInput] = useState("")
   // 替换原有的 messages 状态
   const [sessionMessages, setSessionMessages] = useState<{ [conversationId: number]: ChatMessageType[] }>({});
@@ -52,16 +54,16 @@ export function ChatInterface() {
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null)
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
   const { appConfig } = useConfig()
-  
+
   // 为每个对话维护独立的 SSE 连接和状态
   const [streamingConversations, setStreamingConversations] = useState<Set<number>>(new Set())
   const conversationControllersRef = useRef<Map<number, AbortController>>(new Map())
   const conversationTimeoutsRef = useRef<Map<number, NodeJS.Timeout>>(new Map())
-  
+
   // 将 currentMessages 的声明放在 selectedConversationId 定义之后
   // 如果正在加载历史会话且没有缓存的消息，返回空数组避免显示错误内容
   const currentMessages = selectedConversationId ? (sessionMessages[selectedConversationId] || []) : [];
-  
+
   // 监控 currentMessages 变化
   // 计算当前对话是否正在流式传输
   const isCurrentConversationStreaming = conversationId && conversationId !== -1 ? streamingConversations.has(conversationId) : false;
@@ -82,16 +84,16 @@ export function ChatInterface() {
 
   // Add a new state for new conversation status
   const [isNewConversation, setIsNewConversation] = useState(true)
-  
+
   // Add a state to track if we're loading a historical conversation
   const [isLoadingHistoricalConversation, setIsLoadingHistoricalConversation] = useState(false)
-  
+
   // Add a state to track conversation loading errors
   const [conversationLoadError, setConversationLoadError] = useState<{ [conversationId: number]: string }>({})
-  
+
   // Add a state to track completed conversations that haven't been viewed yet
   const [completedConversations, setCompletedConversations] = useState<Set<number>>(new Set())
-  
+
   // Add a ref to track the currently selected conversation ID for real-time access
   const currentSelectedConversationRef = useRef<number | null>(null)
 
@@ -222,12 +224,12 @@ export function ChatInterface() {
     
     // Get current conversation ID
     let currentConversationId = conversationId;
-    
+
     // 确保 ref 反映当前对话状态
     if (currentConversationId && currentConversationId !== -1) {
       currentSelectedConversationRef.current = currentConversationId;
     }
-    
+
     // Prepare attachment information
     // Handle file upload
     let uploadedFileUrls: Record<string, string> = {};
@@ -281,7 +283,7 @@ export function ChatInterface() {
     // 为当前对话创建独立的 AbortController
     const currentController = new AbortController();
     conversationControllersRef.current.set(currentConversationId, currentController);
-    
+
     // 添加到正在流式传输的对话列表（只有当 conversationId 不是 -1 时）
     if (currentConversationId !== -1) {
       setStreamingConversations(prev => {
@@ -297,7 +299,7 @@ export function ChatInterface() {
         try {
           // Stop agent_run immediately
           currentController.abort(t("chatInterface.requestTimeout"));
-          
+
           // Update frontend state immediately
           setIsLoading(false);
           setIsStreaming(false);
@@ -343,7 +345,7 @@ export function ChatInterface() {
           // 更新 ref 以实时跟踪当前选中的对话
           currentSelectedConversationRef.current = currentConversationId;
           setConversationTitle(createData.conversation_title || t("chatInterface.newConversation"));
-          
+
           // 创建新会话后，将其添加到流式传输列表
           setStreamingConversations(prev => {
             const newSet = new Set(prev).add(currentConversationId);
@@ -586,7 +588,7 @@ export function ChatInterface() {
             try {
               controller.abort(t("chatInterface.requestTimeout"));
               console.log(t('chatInterface.requestTimeoutMessage'));
-              
+
               setSessionMessages(prev => {
                 const newMessages = { ...prev };
                 const lastMsg = newMessages[currentConversationId]?.[newMessages[currentConversationId].length - 1];
@@ -634,7 +636,7 @@ export function ChatInterface() {
       // Reset all related states
       setIsLoading(false);
       setIsStreaming(false);
-      
+
       // 清理当前对话的控制器和定时器
       conversationControllersRef.current.delete(currentConversationId);
       const timeout = conversationTimeoutsRef.current.get(currentConversationId);
@@ -642,7 +644,7 @@ export function ChatInterface() {
         clearTimeout(timeout);
         conversationTimeoutsRef.current.delete(currentConversationId);
       }
-      
+
       // 从流式传输列表中移除（只有当 conversationId 不是 -1 时）
       if (currentConversationId !== -1) {
         setStreamingConversations(prev => {
@@ -650,7 +652,7 @@ export function ChatInterface() {
           newSet.delete(currentConversationId);
           return newSet;
         });
-        
+
         // 当对话完成时，只有当用户不在当前对话界面时才添加到已完成对话列表
         // 使用 ref 来获取用户当前实际所在的对话
         const currentUserConversation = currentSelectedConversationRef.current;
@@ -697,7 +699,7 @@ export function ChatInterface() {
 
       setIsLoading(false);
       setIsStreaming(false);
-      
+
       // 清理当前对话的控制器和定时器
       conversationControllersRef.current.delete(currentConversationId);
       const timeout = conversationTimeoutsRef.current.get(currentConversationId);
@@ -705,7 +707,7 @@ export function ChatInterface() {
         clearTimeout(timeout);
         conversationTimeoutsRef.current.delete(currentConversationId);
       }
-      
+
       // 从流式传输列表中移除（只有当 conversationId 不是 -1 时）
       if (currentConversationId !== -1) {
         setStreamingConversations(prev => {
@@ -713,7 +715,7 @@ export function ChatInterface() {
           newSet.delete(currentConversationId);
           return newSet;
         });
-        
+
         // 当对话完成时，只有当用户不在当前对话界面时才添加到已完成对话列表
         // 使用 ref 来获取用户当前实际所在的对话
         const currentUserConversation = currentSelectedConversationRef.current;
@@ -738,7 +740,7 @@ export function ChatInterface() {
   const handleNewConversation = async () => {
     // 创建新对话时保持所有现有对话的 SSE 连接活跃
     // 不取消任何对话的请求，让它们继续在后台运行
-    
+
     // 记录当前正在运行的对话
     if (streamingConversations.size > 0) {
       // 保持现有对话的 SSE 连接活跃
@@ -751,7 +753,7 @@ export function ChatInterface() {
     setIsSwitchedConversation(false);
     setConversationTitle(t("chatInterface.newConversation"));
     setSelectedConversationId(null);
-    
+
     // 更新 ref 以实时跟踪当前选中的对话
     currentSelectedConversationRef.current = null;
     setIsNewConversation(true); // Ensure set to new conversation state
@@ -804,15 +806,15 @@ export function ChatInterface() {
     setSelectedConversationId(dialog.conversation_id);
     setConversationId(dialog.conversation_id);
     setConversationTitle(dialog.conversation_title);
-    
+
     // 更新 ref 以实时跟踪当前选中的对话
     currentSelectedConversationRef.current = dialog.conversation_id;
     setSelectedMessageId(undefined);
     setShowRightPanel(false);
-    
+
     // 设置不是新建会话状态
     setIsNewConversation(false);
-    
+
     // 当用户查看对话时，清除完成状态
     setCompletedConversations(prev => {
       const newSet = new Set(prev);
@@ -833,7 +835,7 @@ export function ChatInterface() {
       if (cachedMessages && cachedMessages.length === 0) {
         setIsLoadingHistoricalConversation(true);
         setIsLoading(true);
-        
+
         try {
           // Create new AbortController for current request
           const controller = new AbortController();
@@ -954,7 +956,7 @@ export function ChatInterface() {
       // 设置加载历史会话状态
       setIsLoadingHistoricalConversation(true);
       setIsLoading(true);
-      
+
       try {
         // Create new AbortController for current request
         const controller = new AbortController();
@@ -1224,14 +1226,14 @@ export function ChatInterface() {
         }
         return newMessages;
       });
-      
+
       // remove from streaming list
       setStreamingConversations(prev => {
         const newSet = new Set(prev);
         newSet.delete(conversationId);
         return newSet;
       });
-      
+
       // when conversation is stopped, only add to completed conversations list when user is not in current conversation interface
       const currentUserConversation = currentSelectedConversationRef.current;
       if (currentUserConversation !== conversationId) {
@@ -1298,8 +1300,20 @@ export function ChatInterface() {
     }
   };
 
-  // hide settings Icon in left sidebar
-  const hideSettings = getUrlParam('hide_settings', false, boolStr => !!boolStr)
+  // Add event listener for conversation list updates
+  useEffect(() => {
+    const handleConversationListUpdate = () => {
+      fetchConversationList().catch(err => {
+        console.error(t("chatInterface.failedToUpdateConversationList"), err);
+      });
+    };
+
+    window.addEventListener('conversationListUpdated', handleConversationListUpdate);
+
+    return () => {
+      window.removeEventListener('conversationListUpdated', handleConversationListUpdate);
+    };
+  }, []);
 
   return (
     <>
@@ -1315,13 +1329,15 @@ export function ChatInterface() {
           onRename={handleConversationRename}
           onDelete={handleConversationDeleteClick}
           onSettingsClick={() => {
-            localStorage.setItem('show_page', '1');
+            localStorage.setItem('show_page', user?.role === 'admin' ? '1' : '2');
             router.push("/setup");
           }}
           onDropdownOpenChange={(open, id) => setOpenDropdownId(open ? id : null)}
           onToggleSidebar={toggleSidebar}
           expanded={sidebarOpen}
-          hideSettings={hideSettings}
+          userEmail={user?.email}
+          userAvatarUrl={user?.avatar_url}
+          userRole={user?.role}
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">

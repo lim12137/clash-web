@@ -5,15 +5,15 @@
 docker buildx create --name nexent_builder --use
 
 # 🚀 build application for multiple architectures
-docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent -f make/main/Dockerfile . --push
+docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-commercial -f make/main/Dockerfile . --push
 docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t ccr.ccs.tencentyun.com/nexent-hub/nexent -f make/web/Dockerfile . --push
 
 # 📊 build data_process for multiple architectures
-docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-data-process -f make/data_process/Dockerfile . --push
+docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile . --push
 docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t ccr.ccs.tencentyun.com/nexent-hub/nexent-data-process -f make/web/Dockerfile . --push
 
 # 🌐 build web frontend for multiple architectures
-docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-web -f make/web/Dockerfile . --push
+docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t nexent/nexent-web-commercial -f make/web/Dockerfile . --push
 docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t ccr.ccs.tencentyun.com/nexent-hub/nexent-web -f make/web/Dockerfile . --push
 
 # 📚 build documentation for multiple architectures
@@ -25,16 +25,16 @@ docker buildx build --progress=plain --platform linux/amd64,linux/arm64 -t ccr.c
 
 ```bash
 # 🚀 Build application image (current architecture only)
-docker build --progress=plain -t nexent/nexent -f make/main/Dockerfile .
+docker build -t nexent/nexent-commercial -f make/main/Dockerfile .
 
 # 📊 Build data process image (current architecture only)
-docker build --progress=plain -t nexent/nexent-data-process -f make/data_process/Dockerfile .
+docker build -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile .
 
 # 🌐 Build web frontend image (current architecture only)
-docker build --progress=plain -t nexent/nexent-web -f make/web/Dockerfile .
+docker build -t nexent/nexent-web-commercial -f make/web/Dockerfile .
 
 # 📚 Build documentation image (current architecture only)
-docker build --progress=plain -t nexent/nexent-docs -f make/docs/Dockerfile .
+docker build -t nexent/nexent-docs -f make/docs/Dockerfile .
 ```
 
 ### 🧹 Clean up Docker resources

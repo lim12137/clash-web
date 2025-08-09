@@ -4,6 +4,7 @@ import requests
 from fastapi import APIRouter, Header, Body
 from typing import Optional, List
 from services.tenant_config_service import get_selected_knowledge_list, update_selected_knowledge
+from utils.auth_utils import get_current_user_id
 from fastapi.responses import JSONResponse
 
 from utils.auth_utils import get_current_user_id

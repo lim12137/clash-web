@@ -13,6 +13,8 @@ from services.agent_service import get_agent_info_impl, \
     get_creating_sub_agent_info_impl, update_agent_info_impl, delete_agent_impl, export_agent_impl, import_agent_impl, \
     list_all_agent_info_impl, insert_related_agent_impl
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
+from services.memory_config_service import build_memory_context
+from utils.config_utils import config_manager
 from utils.thread_utils import submit
 from agents.agent_run_manager import agent_run_manager
 
@@ -27,7 +29,9 @@ async def agent_run_api(agent_request: AgentRequest, http_request: Request, auth
     """
     Agent execution API endpoint
     """
-    _, _, language = get_current_user_info(authorization, http_request)
+    user_id, tenant_id, language = get_current_user_info(authorization, http_request)
+    memory_context = build_memory_context(user_id, tenant_id, agent_request.agent_id)
+
     agent_run_info = await create_agent_run_info(agent_id=agent_request.agent_id,
                                                  minio_files=agent_request.minio_files,
                                                  query=agent_request.query,
@@ -43,7 +47,7 @@ async def agent_run_api(agent_request: AgentRequest, http_request: Request, auth
     async def generate():
         messages = []
         try:
-            async for chunk in agent_run(agent_run_info):
+            async for chunk in agent_run(agent_run_info, memory_context):
                 messages.append(chunk)
                 yield f"data: {chunk}\n\n"
         except Exception as e:
@@ -160,8 +164,8 @@ async def list_all_agent_info_api(authorization: Optional[str] = Header(None), r
 
 
 @router.post("/related_agent")
-async def related_agent_api(parent_agent_id: int = Body(...), 
-                            child_agent_id: int = Body(...), 
+async def related_agent_api(parent_agent_id: int = Body(...),
+                            child_agent_id: int = Body(...),
                             authorization: Optional[str] = Header(None)):
     """
     get related agent info
@@ -179,8 +183,8 @@ async def related_agent_api(parent_agent_id: int = Body(...),
         )
 
 @router.post("/delete_related_agent")
-async def delete_related_agent_api(parent_agent_id: int = Body(...), 
-                                   child_agent_id: int = Body(...), 
+async def delete_related_agent_api(parent_agent_id: int = Body(...),
+                                   child_agent_id: int = Body(...),
                                    authorization: Optional[str] = Header(None)):
     """
     delete related agent info

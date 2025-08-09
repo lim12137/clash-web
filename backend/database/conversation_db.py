@@ -4,6 +4,8 @@ from typing import Dict, List, Any, Optional, TypedDict
 
 from sqlalchemy import insert, func, select, asc, desc, update
 
+from .utils import add_creation_tracking, add_update_tracking
+
 from .client import get_db_session, as_dict
 from .db_models import ConversationRecord, ConversationMessage, ConversationMessageUnit, ConversationSourceSearch, \
     ConversationSourceImage
@@ -59,6 +61,9 @@ def create_conversation(conversation_title: str, user_id: Optional[str] = None) 
     with get_db_session() as session:
         # Prepare data dictionary
         data = {"conversation_title": conversation_title, "delete_flag": 'N'}
+        if user_id:
+            data = add_creation_tracking(data, user_id)
+
         stmt = insert(ConversationRecord).values(**data).returning(
             ConversationRecord.conversation_id,
             ConversationRecord.conversation_title,
@@ -110,6 +115,8 @@ def create_conversation_message(message_data: Dict[str, Any], user_id: Optional[
         data = {"conversation_id": conversation_id, "message_index": message_idx, "message_role": message_data['role'],
                 "message_content": message_data['content'], "minio_files": minio_files, "opinion_flag": None,
                 "delete_flag": 'N'}
+        if user_id:
+            data = add_creation_tracking(data, user_id)
 
         # insert into conversation_message_t
         stmt = insert(ConversationMessage).values(**data).returning(ConversationMessage.message_id)
@@ -154,7 +161,11 @@ def create_message_units(message_units: List[Dict[str, Any]], message_id: int, c
                 "unit_content": unit['content'],
                 "delete_flag": 'N'
             }
-            
+
+            if user_id:
+                row_data["created_by"] = user_id
+                row_data["updated_by"] = user_id
+
             # Insert and get unit_id
             stmt = insert(ConversationMessageUnit).values(**row_data).returning(ConversationMessageUnit.unit_id)
             result = session.execute(stmt)
@@ -184,6 +195,11 @@ def get_conversation(conversation_id: int, user_id: Optional[str] = None) -> Opt
             ConversationRecord.conversation_id == conversation_id,
             ConversationRecord.delete_flag == 'N'
         )
+
+        if user_id:
+            stmt = stmt.where(
+                ConversationRecord.created_by == user_id
+            )
 
         # Execute the query
         record = session.scalars(stmt).first()
@@ -268,7 +284,8 @@ def get_conversation_list(user_id: Optional[str] = None) -> List[Dict[str, Any]]
         )
 
         # If user_id is provided, additional filter conditions can be added here
-        # Currently, user_id is a reserved parameter, so no additional logic is added
+        if user_id:
+            stmt = stmt.where(ConversationRecord.created_by == user_id)
 
         # Execute the query
         records = session.execute(stmt)
@@ -305,6 +322,8 @@ def rename_conversation(conversation_id: int, new_title: str, user_id: Optional[
             "conversation_title": new_title,
             "update_time": func.current_timestamp()  # Use the database's CURRENT_TIMESTAMP function
         }
+        if user_id:
+            update_data = add_update_tracking(update_data, user_id)
 
         # Build the update statement
         stmt = update(ConversationRecord).where(
@@ -339,6 +358,8 @@ def delete_conversation(conversation_id: int, user_id: Optional[str] = None) -> 
             "delete_flag": 'Y',
             "update_time": func.current_timestamp()
         }
+        if user_id:
+            update_data = add_update_tracking(update_data, user_id)
 
         # 1. Mark conversation as deleted
         conversation_stmt = update(ConversationRecord).where(
@@ -400,6 +421,8 @@ def update_message_opinion(message_id: int, opinion: str, user_id: Optional[str]
             "opinion_flag": opinion,
             "update_time": func.current_timestamp()  # Use the database's CURRENT_TIMESTAMP function
         }
+        if user_id:
+            update_data = add_update_tracking(update_data, user_id)
 
         # Build the update statement
         stmt = update(ConversationMessage).where(
@@ -437,6 +460,9 @@ def get_conversation_history(conversation_id: int, user_id: Optional[str] = None
             ConversationRecord.conversation_id == conversation_id,
             ConversationRecord.delete_flag == 'N'
         )
+        if user_id:
+            check_stmt = check_stmt.where(ConversationRecord.created_by == user_id)
+
         conversation = session.execute(check_stmt).first()
 
         if not conversation:
@@ -545,6 +571,9 @@ def create_source_image(image_data: Dict[str, Any], user_id: Optional[str] = Non
             "create_time": func.current_timestamp()  # Use the database's CURRENT_TIMESTAMP function
         }
 
+        if user_id:
+            data = add_creation_tracking(data, user_id)
+
         # Build the insert statement and return the newly created image ID
         stmt = insert(ConversationSourceImage).values(**data).returning(ConversationSourceImage.image_id)
 
@@ -575,6 +604,9 @@ def delete_source_image(image_id: int, user_id: Optional[str] = None) -> bool:
             "delete_flag": 'Y',
             "update_time": func.current_timestamp()  # Use database's CURRENT_TIMESTAMP function
         }
+
+        if user_id:
+            update_data = add_update_tracking(update_data, user_id)
 
         # Build the update statement
         stmt = update(ConversationSourceImage).where(
@@ -616,6 +648,9 @@ def get_source_images_by_message(message_id: int, user_id: Optional[str] = None)
             ConversationSourceImage.image_id
         )
 
+        if user_id:
+            stmt = stmt.where(ConversationRecord.created_by == user_id)
+
         # Execute the query
         image_records = session.scalars(stmt).all()
 
@@ -648,6 +683,9 @@ def get_source_images_by_conversation(conversation_id: int, user_id: Optional[st
             ConversationSourceImage.image_id
         )
 
+        if user_id:
+            stmt = stmt.where(ConversationRecord.created_by == user_id)
+
         # Execute the query
         image_records = session.scalars(stmt).all()
 
@@ -670,7 +708,7 @@ def create_source_search(search_data: Dict[str, Any], user_id: Optional[str] = N
             - search_type: Source tool
             - tool_sign: Source tool simple identifier, used for summary differentiation
             Optional fields:
-            - unit_id: Message unit ID (integer) 
+            - unit_id: Message unit ID (integer)
             - score_overall: Overall relevance score
             - score_accuracy: Accuracy score
             - score_semantic: Semantic relevance score
@@ -712,6 +750,8 @@ def create_source_search(search_data: Dict[str, Any], user_id: Optional[str] = N
             data["score_semantic"] = search_data['score_semantic']
         if 'published_date' in search_data:
             data["published_date"] = search_data['published_date']
+        if user_id:
+            data = add_creation_tracking(data, user_id)
 
         # Build the insert statement and return the newly created search ID
         stmt = insert(ConversationSourceSearch).values(**data).returning(ConversationSourceSearch.search_id)
@@ -743,6 +783,8 @@ def delete_source_search(search_id: int, user_id: Optional[str] = None) -> bool:
             "delete_flag": 'Y',
             "update_time": func.current_timestamp()  # Use the database's CURRENT_TIMESTAMP function
         }
+        if user_id:
+            update_data = add_update_tracking(update_data, user_id)
 
         # Build the update statement
         stmt = update(ConversationSourceSearch).where(
@@ -784,6 +826,9 @@ def get_source_searches_by_message(message_id: int, user_id: Optional[str] = Non
             ConversationSourceSearch.search_id
         )
 
+        if user_id:
+            stmt = stmt.where(ConversationRecord.created_by == user_id)
+
         # Execute the query
         search_records = session.scalars(stmt).all()
 
@@ -817,6 +862,9 @@ def get_source_searches_by_conversation(conversation_id: int, user_id: Optional[
             ConversationSourceSearch.search_id
         )
 
+        if user_id:
+            stmt = stmt.where(ConversationRecord.created_by == user_id)
+
         # Execute the query and get all results
         search_records = session.scalars(stmt).all()
 
@@ -846,6 +894,9 @@ def get_message(message_id: int, user_id: Optional[str] = None) -> Dict[str, Any
             ConversationMessage.message_id == message_id,
             ConversationMessage.delete_flag == 'N'
         )
+
+        if user_id:
+            stmt = stmt.where(ConversationRecord.created_by == user_id)
 
         # Execute the query and get the first result
         record = session.scalars(stmt).first()

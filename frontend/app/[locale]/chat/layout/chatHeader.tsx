@@ -1,16 +1,33 @@
+'use client'
+
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Share,
   Bookmark,
-  MoreHorizontal
+  MoreHorizontal,
+  BrainCircuit
 } from "lucide-react"
+
+// Gradient definition for BrainCircuit icon
+const GradientDefs = () => (
+  <svg width="0" height="0" className="absolute">
+    <defs>
+      <linearGradient id="brainCogGradient" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#3b82f6" />
+        <stop offset="100%" stopColor="#9333ea" />
+      </linearGradient>
+    </defs>
+  </svg>
+)
+
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdownMenu"
 import { useTranslation } from "react-i18next"
 import { Select } from "antd"
 import { languageOptions } from '@/lib/constants'
 import { useLanguageSwitch } from '@/lib/languageUtils'
+import MemoryManageModal from "../internal/memory/memoryManageModal"
 
 interface ChatHeaderProps {
   title: string
@@ -25,6 +42,7 @@ export function ChatHeader({
 }: ChatHeaderProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
+  const [memoryModalVisible, setMemoryModalVisible] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation('common');
   const { currentLanguage, handleLanguageChange } = useLanguageSwitch();
@@ -70,68 +88,76 @@ export function ChatHeader({
 
 
   return (
-    <header className="border-b border-transparent bg-background z-10">
-      <div className="p-3 pb-1">
-        <div className="relative flex flex-1">
-          <div className="absolute left-0 top-1/2 transform -translate-y-1/2">
-            {/* Left button area */}
-          </div>
+    <>
+      <GradientDefs />
+      <header className="border-b border-transparent bg-background z-10">
+        <div className="p-3 pb-1">
+          <div className="relative flex flex-1">
+            <div className="absolute left-0 top-1/2 transform -translate-y-1/2">
+              {/* Left button area */}
+            </div>
 
-          <div className="w-full flex justify-center">
-            <div className="max-w-3xl w-full flex justify-center mt-2 mb-0">
-              {isEditing ? (
-                <Input
-                  ref={inputRef}
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onBlur={handleSubmit}
-                  className="text-xl font-bold text-center h-9 max-w-xs"
-                  autoFocus
-                />
-              ) : (
-                <h1 
-                  className="text-xl font-bold cursor-pointer px-2 py-1 rounded border border-transparent hover:border-slate-200"
-                  onDoubleClick={handleDoubleClick}
-                  title={t("chatHeader.doubleClickToEdit")}
-                >
-                  {title}
-                </h1>
-              )}
+            <div className="w-full flex justify-center">
+              <div className="max-w-3xl w-full flex justify-center mt-2 mb-0">
+                {isEditing ? (
+                  <Input
+                    ref={inputRef}
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onBlur={handleSubmit}
+                    className="text-xl font-bold text-center h-9 max-w-xs"
+                    autoFocus
+                  />
+                ) : (
+                  <h1
+                    className="text-xl font-bold cursor-pointer px-2 py-1 rounded border border-transparent hover:border-slate-200"
+                    onDoubleClick={handleDoubleClick}
+                    title={t("chatHeader.doubleClickToEdit")}
+                  >
+                    {title}
+                  </h1>
+                )}
+              </div>
+            </div>
+
+            <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center space-x-1 gap-1">
+              {/* Language Switch */}
+              <Select
+                value={currentLanguage}
+                onChange={handleLanguageChange}
+                options={languageOptions}
+                style={{ width: 110, border: 'none' }}
+                variant="borderless"
+                size="small"
+              />
+              {/* Memory Setting */}
+              <Button variant="ghost" className="h-8 w-12 rounded-full" onClick={() => setMemoryModalVisible(true)}>
+                <BrainCircuit className="size-5" stroke="url(#brainCogGradient)" />
+              </Button>
+              {/* Dropdown Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 w-12 rounded-full">
+                    <MoreHorizontal className="size-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Bookmark className="mr-2 h-4 w-4" />
+                    <span>{t("chatHeader.bookmark")}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer" onClick={onShare}>
+                    <Share className="mr-2 h-4 w-4" />
+                    <span>{t("chatHeader.share")}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-          
-          <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-            {/* 语言切换 */}
-            <Select
-              value={currentLanguage}
-              onChange={handleLanguageChange}
-              options={languageOptions}
-              style={{ width: 110, border: 'none' }}
-              variant="borderless"
-              size="small"
-            />
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6 rounded">
-                  <MoreHorizontal className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem className="cursor-pointer">
-                  <Bookmark className="mr-2 h-4 w-4" />
-                  <span>{t("chatHeader.bookmark")}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={onShare}>
-                  <Share className="mr-2 h-4 w-4" />
-                  <span>{t("chatHeader.share")}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </div>
-      </div>
-    </header>
+      </header>
+      <MemoryManageModal visible={memoryModalVisible} onClose={() => setMemoryModalVisible(false)} />
+    </>
   )
 } 

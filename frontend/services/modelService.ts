@@ -80,7 +80,7 @@ export const modelService = {
   getCustomModels: async (): Promise<ModelOption[]> => {
     try {
       const response = await fetch(API_ENDPOINTS.model.customModelList, {
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders()
       })
       const result: ApiResponse<any[]> = await response.json()
       

@@ -190,6 +190,7 @@ export interface DialogRecord {
   reference: DialogReference[]
   update_date: string
   update_time: number
+  user_id: string | null
 }
 
 export interface ConversationListItem {
