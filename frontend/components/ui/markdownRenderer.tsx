@@ -31,7 +31,7 @@ const getBackgroundColor = (toolSign: string) => {
     case 'e': return '#FFEBEE'; // Light red
     default: return '#E5E5E5'; // Default light gray
   }
-}
+};
 
 // Replace the original LinkIcon component
 const CitationBadge = ({ toolSign, citeIndex }: { toolSign: string, citeIndex: number }) => (
@@ -84,9 +84,9 @@ const HoverableText = ({ text, searchResults }: {
       .replace(/^\s+|\s+$/g, '');  // Remove leading and trailing whitespace
   };
 
-  // Find corresponding search result - simplified for numeric-only format
+  // Find corresponding search result
   const toolSign = text.charAt(0);
-  const citeIndex = parseInt(text.slice(1))
+  const citeIndex = parseInt(text.slice(1));
   const matchedResult = searchResults?.find(
     result => result.tool_sign === toolSign && result.cite_index === citeIndex
   );
@@ -212,7 +212,7 @@ const HoverableText = ({ text, searchResults }: {
         >
           <TooltipTrigger asChild>
             <span className="inline-flex items-center cursor-pointer transition-colors">
-                <CitationBadge toolSign={toolSign} citeIndex={citeIndex} />
+              <CitationBadge toolSign={toolSign} citeIndex={citeIndex} />
             </span>
           </TooltipTrigger>
           {/* Force Portal to body */}

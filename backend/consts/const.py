@@ -14,6 +14,8 @@ MODEL_ENGINE_APIKEY = os.getenv('MODEL_ENGINE_APIKEY')
 # Elasticsearch Configuration
 ES_HOST = os.getenv("ELASTICSEARCH_HOST")
 ES_API_KEY = os.getenv("ELASTICSEARCH_API_KEY")
+ES_PASSWORD = os.getenv("ELASTIC_PASSWORD")
+ES_USERNAME = "elastic"
 ELASTICSEARCH_SERVICE = os.getenv("ELASTICSEARCH_SERVICE")
 
 # Data Processing Service Configuration
@@ -25,6 +27,20 @@ MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 MAX_CONCURRENT_UPLOADS = 5
 UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
 
+# Supabase Configuration
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+# ===== To be migrated to frontend configuration =====
+# Email Configuration
+IMAP_SERVER = os.getenv('IMAP_SERVER')
+IMAP_PORT = os.getenv('IMAP_PORT')
+SMTP_SERVER = os.getenv('SMTP_SERVER')
+SMTP_PORT = os.getenv('SMTP_PORT')
+MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+
+# EXASearch Configuration
+EXA_SEARCH_API_KEY = os.getenv('EXA_SEARCH_API_KEY')
 # Image Filter Configuration
 IMAGE_FILTER = os.getenv("IMAGE_FILTER", "false").lower() == "true"
 
@@ -92,3 +108,10 @@ TOKEN = os.getenv("TOKEN", "")
 CLUSTER = os.getenv("CLUSTER", "volcano_tts")
 VOICE_TYPE = os.getenv("VOICE_TYPE", "zh_male_jieshuonansheng_mars_bigtts")
 SPEED_RATIO = float(os.getenv("SPEED_RATIO", "1.3"))
+
+
+# Memory Feature
+MEMORY_SWITCH_KEY = "MEMORY_SWITCH"
+MEMORY_AGENT_SHARE_KEY = "MEMORY_AGENT_SHARE"
+DISABLE_AGENT_ID_KEY = "DISABLE_AGENT_ID"
+DISABLE_USERAGENT_ID_KEY = "DISABLE_USERAGENT_ID"

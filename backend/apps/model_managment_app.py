@@ -1,24 +1,28 @@
+import logging
 from typing import Optional
 
-from fastapi import Query, APIRouter, Header
+from fastapi import Query, APIRouter, Header, Body
 
 from consts.model import ModelConnectStatusEnum, ModelResponse, ModelRequest, ProviderModelRequest, \
     BatchCreateModelsRequest
+from consts.provider import SILICON_BASE_URL, ProviderEnum
 from database.model_management_db import create_model_record, delete_model_record, \
     get_model_records, get_model_by_display_name, get_models_by_tenant_factory_type
+from database.model_management_db import update_model_record, get_model_by_name
 from services.model_health_service import check_model_connectivity, embedding_dimension_check
 from services.model_provider_service import SiliconModelProvider, prepare_model_dict
-from utils.model_name_utils import split_repo_name, add_repo_to_name, split_display_name
 from utils.auth_utils import get_current_user_id
-from consts.provider import SILICON_BASE_URL, ProviderEnum
+from utils.model_name_utils import split_repo_name, add_repo_to_name, split_display_name
 
 router = APIRouter(prefix="/model")
+logger = logging.getLogger("model_management_app")
 
 
 @router.post("/create", response_model=ModelResponse)
 async def create_model(request: ModelRequest, authorization: Optional[str] = Header(None)):
     try:
         user_id, tenant_id = get_current_user_id(authorization)
+        logger.info(f"Start to create model, user_id: {user_id}, tenant_id: {tenant_id}")
         model_data = request.model_dump()
         # Replace localhost with host.docker.internal for local llm
         model_base_url = model_data.get("base_url", "")
@@ -52,13 +56,13 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
         # Check if this is a multimodal embedding model
         is_multimodal = model_data.get("model_type") == "multi_embedding"
 
-        
-        
+
+
         # If it's multi_embedding type, create both embedding and multi_embedding records
         if is_multimodal:
             # Create the multi_embedding record
             create_model_record(model_data, user_id, tenant_id)
-            
+
             # Create the embedding record with the same data but different model_type
             embedding_data = model_data.copy()
             embedding_data["model_type"] = "embedding"
@@ -92,7 +96,7 @@ async def create_provider_model(request: ProviderModelRequest, authorization: Op
         if model_data["provider"] == ProviderEnum.SILICON.value:
             provider = SiliconModelProvider()
             model_list = await provider.get_models(model_data)
-        return ModelResponse(   
+        return ModelResponse(
             code=200,
             message=f"Provider model {model_data['provider']} created successfully",
             data=model_list
@@ -140,7 +144,7 @@ async def batch_create_models(request: BatchCreateModelsRequest, authorization: 
                 max_tokens=max_tokens
             )
             create_model_record(model_dict, user_id, tenant_id)
-        
+
         return ModelResponse(
             code=200,
             message=f"Batch create models successfully",
@@ -167,7 +171,7 @@ async def get_provider_list(request: ProviderModelRequest, authorization: Option
             code=200,
             message=f"Provider model {provider} created successfully",
             data=model_list
-        )   
+        )
     except Exception as e:
         return ModelResponse(
             code=500,
@@ -177,7 +181,50 @@ async def get_provider_list(request: ProviderModelRequest, authorization: Option
 
 @router.post("/update", response_model=ModelResponse)
 def update_model(request: ModelRequest, authorization: Optional[str] = Header(None)):
-    raise Exception("Not implemented")
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        model_data = request.model_dump()
+        # Split model_name
+        model_repo, model_name = split_repo_name(model_data["model_name"])
+        # Ensure model_repo is empty string instead of null
+        model_data["model_repo"] = model_repo if model_repo else ""
+        model_data["model_name"] = model_name
+
+        # Use non-empty status value
+        model_data["connect_status"] = model_data.get("connect_status") or ModelConnectStatusEnum.NOT_DETECTED.value
+
+        # Check if model exists
+        existing_model = get_model_by_name(model_name, model_repo,tenant_id)
+        if not existing_model:
+            return ModelResponse(
+                code=404,
+                message=f"Model not found: {add_repo_to_name(model_repo, model_name)}",
+                data=None
+            )
+
+        # If display name is provided and different from existing, check for duplicates
+        if model_data.get("display_name") and model_data["display_name"] != existing_model.get("display_name"):
+            existing_model_by_display = get_model_by_display_name(model_data["display_name"], tenant_id)
+            if existing_model_by_display and existing_model_by_display["model_id"] != existing_model["model_id"]:
+                return ModelResponse(
+                    code=409,
+                    message=f"Display name {model_data['display_name']} is already in use, please choose another display name",
+                    data=None
+                )
+
+        # Update model record
+        update_model_record(existing_model["model_id"], model_data, user_id)
+        return ModelResponse(
+            code=200,
+            message=f"Model {add_repo_to_name(model_repo, model_name)} updated successfully",
+            data={"model_name": add_repo_to_name(model_repo, model_name)}
+        )
+    except Exception as e:
+        return ModelResponse(
+            code=500,
+            message=f"Failed to update model: {str(e)}",
+            data=None
+        )
 
 
 @router.post("/delete", response_model=ModelResponse)
@@ -192,6 +239,7 @@ async def delete_model(display_name: str = Query(..., embed=True), authorization
     """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
+        logger.info(f"Start to delete model, user_id: {user_id}, tenant_id: {tenant_id}")
         # Find model by display_name
         model = get_model_by_display_name(display_name, tenant_id)
         if not model:
@@ -212,6 +260,7 @@ async def delete_model(display_name: str = Query(..., embed=True), authorization
         else:
             delete_model_record(model["model_id"], user_id, tenant_id)
             deleted_types.append(model.get("model_type", "unknown"))
+
         return ModelResponse(
             code=200,
             message=f"Successfully deleted model(s) in types: {', '.join(deleted_types)}",
@@ -232,6 +281,7 @@ async def get_model_list(authorization: Optional[str] = Header(None)):
     """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
+        logger.info(f"Start to list models, user_id: {user_id}, tenant_id: {tenant_id}")
         records = get_model_records(None, tenant_id)
 
         result = []
@@ -273,6 +323,57 @@ async def check_model_healthcheck(
     return await check_model_connectivity(display_name, authorization)
 
 
+
+@router.post("/update_connect_status", response_model=ModelResponse)
+async def update_model_connect_status(
+        model_name: str = Body(..., embed=True),
+        connect_status: str = Body(..., embed=True),
+        authorization: Optional[str] = Header(None)
+):
+    """
+    Update model connection status
+
+    Args:
+        model_name: Model name, including repository info, e.g. openai/gpt-3.5-turbo
+        connect_status: New connection status
+        authorization: Authorization header
+    """
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        # Split model_name
+        repo, name = split_repo_name(model_name)
+        # Ensure repo is empty string instead of null
+        repo = repo if repo else ""
+
+        # Query model information
+        model = get_model_by_name(name, repo)
+        if not model:
+            return ModelResponse(
+                code=404,
+                message=f"Model not found: {model_name}",
+                data={"connect_status": ""}
+            )
+
+        # Update connection status
+        update_data = {"connect_status": connect_status}
+        update_model_record(model["model_id"], update_data, user_id)
+
+        return ModelResponse(
+            code=200,
+            message=f"Successfully updated connection status for model {model_name}",
+            data={
+                "model_name": model_name,
+                "connect_status": connect_status
+            }
+        )
+    except Exception as e:
+        return ModelResponse(
+            code=500,
+            message=f"Failed to update model connection status: {str(e)}",
+            data={"connect_status": ModelConnectStatusEnum.NOT_DETECTED.value}
+        )
+
+
 @router.post("/verify_config", response_model=ModelResponse)
 async def verify_model_config(request: ModelRequest):
     """
@@ -284,12 +385,12 @@ async def verify_model_config(request: ModelRequest):
     """
     try:
         from services.model_health_service import verify_model_config_connectivity
-        
+
         model_data = request.model_dump()
-        
+
         # Call the verification service directly, do not split model_name
         result = await verify_model_config_connectivity(model_data)
-        
+
         return result
     except Exception as e:
         return ModelResponse(

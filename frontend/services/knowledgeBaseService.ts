@@ -2,7 +2,9 @@
 
 import { Document, KnowledgeBase, KnowledgeBaseCreateParams } from '@/types/knowledgeBase';
 import { API_ENDPOINTS } from './api';
-import { getAuthHeaders } from '@/lib/auth';
+import { getAuthHeaders, fetchWithAuth } from '@/lib/auth';
+// @ts-ignore
+const fetch: typeof fetchWithAuth = fetchWithAuth;
 
 // Knowledge base service class
 class KnowledgeBaseService {
@@ -18,7 +20,9 @@ class KnowledgeBaseService {
       console.log("强制刷新健康检查，不使用缓存");
       this.healthCheckCache = null; // 清除缓存
 
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.health);
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.health, {
+        headers: getAuthHeaders()
+      });
       const data = await response.json();
       
       const isHealthy = data.status === "healthy" && data.elasticsearch === "connected";
@@ -49,7 +53,9 @@ class KnowledgeBaseService {
 
       // Get knowledge bases from Elasticsearch
       try {
-        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=true`);
+        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}?include_stats=true`, {
+          headers: getAuthHeaders()
+        });
         const data = await response.json();
         
         if (data.indices && data.indices_info) {
@@ -101,7 +107,9 @@ class KnowledgeBaseService {
       let knowledgeBases = [];
 
       try{
-        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}`);
+        const response = await fetch(`${API_ENDPOINTS.knowledgeBase.indices}`, {
+          headers: getAuthHeaders()
+        });
         const data = await response.json();
         knowledgeBases = data.indices;
       } catch (error) {
@@ -215,7 +223,9 @@ class KnowledgeBaseService {
   // Get all files from a knowledge base, regardless of the existence of index
   async getAllFiles(kbId: string): Promise<Document[]> {
     try {
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.listFiles(kbId));
+      const response = await fetch(API_ENDPOINTS.knowledgeBase.listFiles(kbId), {
+        headers: getAuthHeaders()
+      });
       const result = await response.json();
 
       if (result.status !== "success") {
@@ -275,12 +285,20 @@ class KnowledgeBaseService {
     try {
       // Create FormData object
       const formData = new FormData();
+      formData.append("index_name", kbId);
       for (let i = 0; i < files.length; i++) {
         formData.append("file", files[i]);
       }
       // Default destination is now Minio
       formData.append("destination", "minio");
       formData.append("folder", "knowledge_base");
+
+
+      // If chunking strategy is provided, add it to the request
+      if (chunkingStrategy) {
+        formData.append("chunking_strategy", chunkingStrategy);
+      }
+
 
       // 1. Upload files
       const uploadResponse = await fetch(API_ENDPOINTS.knowledgeBase.upload, {

@@ -63,9 +63,9 @@ function Header({
       <div className="flex items-center gap-3">
         {/* ModelEngine连通性状态 */}
         <div className="flex items-center px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700">
-          <Badge 
-            status={connectionStatus} 
-            text={getStatusText()} 
+          <Badge
+            status={connectionStatus}
+            text={getStatusText()}
             className="[&>.ant-badge-status-dot]:w-[8px] [&>.ant-badge-status-dot]:h-[8px] [&>.ant-badge-status-text]:text-base [&>.ant-badge-status-text]:ml-2 [&>.ant-badge-status-text]:font-medium"
           />
           <Tooltip title={lastChecked ? t("setup.header.tooltip.lastChecked", { time: lastChecked }) : t("setup.header.tooltip.checkStatus")}>
@@ -101,6 +101,7 @@ interface NavigationProps {
   onBackToFirstPage: () => void;
   onCompleteConfig: () => void;
   isSavingConfig: boolean;
+  userRole?: "user" | "admin";
   showDebugButton?: boolean;
 }
 
@@ -109,6 +110,7 @@ function Navigation({
   onBackToFirstPage,
   onCompleteConfig,
   isSavingConfig,
+  userRole,
   showDebugButton = false,
 }: NavigationProps) {
   const { t } = useTranslation()
@@ -116,7 +118,7 @@ function Navigation({
   return (
     <div className="mt-3 flex justify-between px-6">
       <div className="flex gap-2">
-        {selectedKey !== "1" && (
+        {selectedKey != "1" && userRole === "admin" && (
           <button
             onClick={onBackToFirstPage}
             className={"px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors"}
@@ -131,9 +133,11 @@ function Navigation({
           onClick={onCompleteConfig}
           disabled={isSavingConfig}
           className={"px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-blue-600 dark:bg-blue-600 text-white hover:bg-blue-700 dark:hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"}
-          style={{ border: "none" }}
+          style={{ border: "none", marginLeft: selectedKey === "1" || userRole !== "admin" ? "auto" : undefined }}
         >
-          {selectedKey === "3" ? (isSavingConfig ? t("setup.navigation.button.saving") : t("setup.navigation.button.complete")) : t("setup.navigation.button.next")}
+          {selectedKey === "3" ? (isSavingConfig ? t("setup.navigation.button.saving") : t("setup.navigation.button.complete")) :
+           selectedKey === "2" && userRole !== "admin" ? (isSavingConfig ? t("setup.navigation.button.saving") : t("setup.navigation.button.complete")) :
+           t("setup.navigation.button.next")}
         </button>
       </div>
     </div>
@@ -151,6 +155,7 @@ interface LayoutProps {
   onBackToFirstPage: () => void;
   onCompleteConfig: () => void;
   isSavingConfig: boolean;
+  userRole?: "user" | "admin";
   showDebugButton?: boolean;
 }
 
@@ -164,6 +169,7 @@ function Layout({
   onBackToFirstPage,
   onCompleteConfig,
   isSavingConfig,
+  userRole,
   showDebugButton = false,
 }: LayoutProps) {
   return (
@@ -183,6 +189,7 @@ function Layout({
             onBackToFirstPage={onBackToFirstPage}
             onCompleteConfig={onCompleteConfig}
             isSavingConfig={isSavingConfig}
+            userRole={userRole}
             showDebugButton={showDebugButton}
           />
       </div>

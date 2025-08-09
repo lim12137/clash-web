@@ -324,7 +324,7 @@ class STTModel:
                     logger.info(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')}, seq: {seq}, result: {result}")
 
                     if self.config.streaming:
-                        sleep_time = max(0, (self.config.seg_duration / 1000.0 - (time.time() - start)))
+                        sleep_time = max(0.0, self.config.seg_duration / 1000.0 - (time.time() - start))
                         await asyncio.sleep(sleep_time)
 
             return result
