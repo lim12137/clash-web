@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import Header, Request
-from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID
+from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID, IS_SPEED_MODE
 import jwt
 from supabase import create_client
 from database.user_tenant_db import get_user_tenant_by_user_id
@@ -82,6 +82,11 @@ def get_current_user_id_from_token(authorization: str) -> Optional[str]:
     Returns:
         Optional[str]: User ID, return None if parsing fails
     """
+    # 当IS_SPEED_MODE为True时，直接返回默认用户ID
+    if IS_SPEED_MODE:
+        logging.debug("Speed mode detected - returning default user ID")
+        return DEFAULT_USER_ID
+    
     try:
         # 格式化授权头部
         token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
@@ -108,6 +113,11 @@ def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
     Returns:
         tuple[str, str]: (user_id, tenant_id)
     """
+    # 当IS_SPEED_MODE为True时，直接返回默认值
+    if IS_SPEED_MODE:
+        logging.debug("Speed mode detected - returning default user ID and tenant ID")
+        return DEFAULT_USER_ID, DEFAULT_TENANT_ID
+    
     if authorization is None or authorization == Header(None):
         return DEFAULT_USER_ID, DEFAULT_TENANT_ID
 

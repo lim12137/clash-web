@@ -9,37 +9,7 @@ echo "📁 Target .env location: Root directory (../)"
 echo ""
 
 # Function to generate MinIO access keys
-generate_minio_ak_sk() {
-  # Check if MinIO keys are already set in environment (e.g., from deploy.sh)
-  if [ -n "$MINIO_ACCESS_KEY" ] && [ -n "$MINIO_SECRET_KEY" ]; then
-    echo "🔑 Using existing MinIO access keys from environment..."
-    return 0
-  fi
-
-  echo "🔑 Generating MinIO access keys..."
-
-  if [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "mingw" ] || [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "msys" ]; then
-    # Windows
-    ACCESS_KEY=$(powershell -Command "[System.Convert]::ToBase64String([System.Guid]::NewGuid().ToByteArray()) -replace '[^a-zA-Z0-9]', '' -replace '=.+$', '' | Select-Object -First 12")
-    SECRET_KEY=$(powershell -Command '$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create(); $bytes = New-Object byte[] 32; $rng.GetBytes($bytes); [System.Convert]::ToBase64String($bytes)')
-  else
-    # Linux/Mac
-    # Generate a random AK (12-character alphanumeric) and clean it
-    ACCESS_KEY=$(openssl rand -hex 12 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9]//g')
-
-    # Generate a random SK (32-character high-strength random string) and clean it
-    SECRET_KEY=$(openssl rand -base64 32 | tr -d '\r\n' | sed 's/[^a-zA-Z0-9+/=]//g')
-  fi
-
-  if [ -z "$ACCESS_KEY" ] || [ -z "$SECRET_KEY" ]; then
-    echo "❌ ERROR Failed to generate MinIO access keys"
-    ERROR_OCCURRED=1
-    return 1
-  fi
-
-  export MINIO_ACCESS_KEY=$ACCESS_KEY
-  export MINIO_SECRET_KEY=$SECRET_KEY
-
+echo_minio_ak_sk() {
   echo "✅ MinIO access keys generated successfully"
   echo "   MINIO_ACCESS_KEY: $ACCESS_KEY"
   echo "   MINIO_SECRET_KEY: $SECRET_KEY"
@@ -256,6 +226,114 @@ update_env_file() {
     echo "POSTGRES_PORT=5434" >> ../.env
   fi
 
+  # Supabase PostgreSQL Configuration (only for full version)
+  if [ "$DEPLOYMENT_VERSION" = "full" ]; then
+    echo ""
+    echo "# Supabase PostgreSQL Configuration" >> ../.env
+    
+    # SUPABASE_POSTGRES_HOST
+    if grep -q "^SUPABASE_POSTGRES_HOST=" ../.env; then
+      sed -i.bak "s~^SUPABASE_POSTGRES_HOST=.*~SUPABASE_POSTGRES_HOST=db~" ../.env
+    else
+      echo "SUPABASE_POSTGRES_HOST=db" >> ../.env
+    fi
+    
+    # SUPABASE_POSTGRES_PORT
+    if grep -q "^SUPABASE_POSTGRES_PORT=" ../.env; then
+      sed -i.bak "s~^SUPABASE_POSTGRES_PORT=.*~SUPABASE_POSTGRES_PORT=5436~" ../.env
+    else
+      echo "SUPABASE_POSTGRES_PORT=5436" >> ../.env
+    fi
+    
+    # SUPABASE_POSTGRES_DB
+    if grep -q "^SUPABASE_POSTGRES_DB=" ../.env; then
+      sed -i.bak "s~^SUPABASE_POSTGRES_DB=.*~SUPABASE_POSTGRES_DB=supabase~" ../.env
+    else
+      echo "SUPABASE_POSTGRES_DB=supabase" >> ../.env
+    fi
+    
+    # SUPABASE_POSTGRES_PASSWORD
+    if grep -q "^SUPABASE_POSTGRES_PASSWORD=" ../.env; then
+      sed -i.bak "s~^SUPABASE_POSTGRES_PASSWORD=.*~SUPABASE_POSTGRES_PASSWORD=nexent@4321~" ../.env
+    else
+      echo "SUPABASE_POSTGRES_PASSWORD=nexent@4321" >> ../.env
+    fi
+    
+    # Additional Supabase configuration
+    if grep -q "^SUPABASE_URL=" ../.env; then
+      sed -i.bak "s~^SUPABASE_URL=.*~SUPABASE_URL=http://localhost:8000~" ../.env
+    else
+      echo "SUPABASE_URL=http://localhost:8000" >> ../.env
+    fi
+    
+    # Additional Supabase configuration
+    if grep -q "^API_EXTERNAL_URL=" ../.env; then
+      sed -i.bak "s~^API_EXTERNAL_URL=.*~API_EXTERNAL_URL=http://localhost:8000~" ../.env
+    else
+      echo "API_EXTERNAL_URL=http://localhost:8000" >> ../.env
+    fi
+    
+    if grep -q "^SITE_URL=" ../.env; then
+      sed -i.bak "s~^SITE_URL=.*~SITE_URL=http://localhost:3011~" ../.env
+    else
+      echo "SITE_URL=http://localhost:3011" >> ../.env
+    fi
+    
+    if grep -q "^JWT_EXPIRY=" ../.env; then
+      sed -i.bak "s~^JWT_EXPIRY=.*~JWT_EXPIRY=3600~" ../.env
+    else
+      echo "JWT_EXPIRY=3600" >> ../.env
+    fi
+    
+    if grep -q "^DISABLE_SIGNUP=" ../.env; then
+      sed -i.bak "s~^DISABLE_SIGNUP=.*~DISABLE_SIGNUP=false~" ../.env
+    else
+      echo "DISABLE_SIGNUP=false" >> ../.env
+    fi
+    
+    if grep -q "^ENABLE_EMAIL_SIGNUP=" ../.env; then
+      sed -i.bak "s~^ENABLE_EMAIL_SIGNUP=.*~ENABLE_EMAIL_SIGNUP=true~" ../.env
+    else
+      echo "ENABLE_EMAIL_SIGNUP=true" >> ../.env
+    fi
+    
+    if grep -q "^ENABLE_ANONYMOUS_USERS=" ../.env; then
+      sed -i.bak "s~^ENABLE_ANONYMOUS_USERS=.*~ENABLE_ANONYMOUS_USERS=false~" ../.env
+    else
+      echo "ENABLE_ANONYMOUS_USERS=false" >> ../.env
+    fi
+    
+    if grep -q "^ENABLE_EMAIL_AUTOCONFIRM=" ../.env; then
+      sed -i.bak "s~^ENABLE_EMAIL_AUTOCONFIRM=.*~ENABLE_EMAIL_AUTOCONFIRM=true~" ../.env
+    else
+      echo "ENABLE_EMAIL_AUTOCONFIRM=true" >> ../.env
+    fi
+    
+    if grep -q "^ENABLE_PHONE_SIGNUP=" ../.env; then
+      sed -i.bak "s~^ENABLE_PHONE_SIGNUP=.*~ENABLE_PHONE_SIGNUP=false~" ../.env
+    else
+      echo "ENABLE_PHONE_SIGNUP=false" >> ../.env
+    fi
+    
+    if grep -q "^ENABLE_PHONE_AUTOCONFIRM=" ../.env; then
+      sed -i.bak "s~^ENABLE_PHONE_AUTOCONFIRM=.*~ENABLE_PHONE_AUTOCONFIRM=false~" ../.env
+    else
+      echo "ENABLE_PHONE_AUTOCONFIRM=false" >> ../.env
+    fi
+    
+    if grep -q "^DASHBOARD_USERNAME=" ../.env; then
+      sed -i.bak "s~^DASHBOARD_USERNAME=.*~DASHBOARD_USERNAME=supabase~" ../.env
+    else
+      echo "DASHBOARD_USERNAME=supabase" >> ../.env
+    fi
+    
+    if grep -q "^DASHBOARD_PASSWORD=" ../.env; then
+      sed -i.bak "s~^DASHBOARD_PASSWORD=.*~DASHBOARD_PASSWORD=nexent@4321~" ../.env
+    else
+      echo "DASHBOARD_PASSWORD=nexent@4321" >> ../.env
+    fi
+  fi
+
   # Remove backup file
   rm -f ../.env.bak
 
@@ -294,8 +372,8 @@ main() {
   # Step 1: Prepare .env file
   prepare_env_file || { echo "❌ Failed to prepare .env file"; exit 1; }
 
-  # Step 2: Generate MinIO keys
-  generate_minio_ak_sk || { echo "❌ Failed to generate MinIO keys"; exit 1; }
+  # Step 2: Echo MinIO keys
+  echo_minio_ak_sk || { echo "❌ Failed to echo MinIO keys"; exit 1; }
 
   # Step 3: Try to generate Elasticsearch API key (optional)
   echo ""
