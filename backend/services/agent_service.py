@@ -310,7 +310,7 @@ def list_all_agent_info_impl(tenant_id: str, user_id: str) -> list[dict]:
 
             simple_agent_list.append({
                 "agent_id": agent["agent_id"],
-                "name": agent["name"],
+                "name": agent["name_zh"] if agent["name_zh"] else agent["name"],
                 "description": agent["description"],
                 "is_available": is_available
             })

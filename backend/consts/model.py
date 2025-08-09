@@ -220,6 +220,7 @@ class FineTunePromptRequest(BaseModel):
 class AgentInfoRequest(BaseModel):
     agent_id: int
     name: Optional[str] = None
+    name_zh: Optional[str] = None
     description: Optional[str] = None
     business_description: Optional[str] = None
     model_name: Optional[str] = None
