@@ -105,7 +105,7 @@ jobs:
           cd $HOME/nexent/docker
           cp .env.example .env
           if [ "$DEPLOYMENT_MODE" = "production" ]; then
-            ./deploy.sh --mode 3 --is-mainland N --enable-terminal N
+            ./deploy.sh --mode 3 --is-mainland N --enable-terminal N --version full
           else
-            ./deploy.sh --mode 1 --is-mainland N --enable-terminal N
+            ./deploy.sh --mode 1 --is-mainland N --enable-terminal N --version full
           fi
