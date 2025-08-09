@@ -1,7 +1,9 @@
 import { GlobalConfig } from '@/types/config';
 import { API_ENDPOINTS } from './api';
 import { ConfigStore } from '@/lib/config';
-import { getAuthHeaders } from '@/lib/auth';
+import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
+// @ts-ignore
+const fetch = fetchWithAuth;
 
 export class ConfigService {
   // Save global configuration to backend

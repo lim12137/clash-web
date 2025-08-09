@@ -1,4 +1,4 @@
-name: Deploy Nexent Community
+name: Deploy Nexent Commercial
 
 on:
   workflow_dispatch:
@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 1
           retries: 3
       - name: Build main application image
-        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent -f make/main/Dockerfile .
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-commercial -f make/main/Dockerfile .
 
   build-data-process:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -53,7 +53,7 @@ jobs:
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
           rm -rf .git .gitattributes
       - name: Build data process image
-        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-data-process -f make/data_process/Dockerfile .
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-data-process-commercial -f make/data_process/Dockerfile .
 
   build-web:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -64,7 +64,7 @@ jobs:
           fetch-depth: 1
           retries: 3
       - name: Build web frontend image
-        run: docker build --build-arg MIRROR=https://registry.npmmirror.com -t nexent/nexent-web -f make/web/Dockerfile .
+        run: docker build --build-arg MIRROR=https://registry.npmmirror.com -t nexent/nexent-web-commercial -f make/web/Dockerfile .
 
   build-docs:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -86,23 +86,23 @@ jobs:
         with:
           fetch-depth: 1
           retries: 3
-      - name: Copy project to $HOME/nexent
+      - name: Copy project to $HOME/nexent-commercial
         run: |
-          rm -rf $HOME/nexent
-          mkdir -p $HOME/nexent
-          cp -r $GITHUB_WORKSPACE/* $HOME/nexent/
+          rm -rf $HOME/nexent-commercial
+          mkdir -p $HOME/nexent-commercial
+          cp -r $GITHUB_WORKSPACE/* $HOME/nexent-commercial/
       - name: Start docs container
         run: |
           docker stop nexent-docs 2>/dev/null || true
           docker rm nexent-docs 2>/dev/null || true
           docker run -d --name nexent-docs -p 4173:4173 nexent/nexent-docs
       - name: Ensure deploy.sh is executable
-        run: chmod +x $HOME/nexent/docker/deploy.sh
+        run: chmod +x $HOME/nexent-commercial/docker/deploy.sh
       - name: Deploy with deploy.sh
         env:
           DEPLOYMENT_MODE: ${{ github.event.inputs.deployment_mode }}
         run: |
-          cd $HOME/nexent/docker
+          cd $HOME/nexent-commercial/docker
           cp .env.example .env
           if [ "$DEPLOYMENT_MODE" = "production" ]; then
             ./deploy.sh --mode 3 --is-mainland N --enable-terminal N

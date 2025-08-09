@@ -10,11 +10,11 @@ WORKDIR /opt/frontend
 RUN if [ -n "$MIRROR" ]; then npm config set registry "$MIRROR"; fi && \
     npm install --verbose && \
     NODE_ENV=production npm run build && \
-    mkdir -p ../frontend-dist && \
-    cp -r .next ../frontend-dist/ && \
+    mkdir -p ../frontend-dist
+RUN cp -r .next ../frontend-dist/ && \
     cp -r public ../frontend-dist/ && \
-    cp server.js ../frontend-dist/server.js && \
-    echo '{\
+    cp server.js ../frontend-dist/server.js
+RUN echo '{\
   "name": "nexent",\
   "version": "0.1.0",\
   "private": true,\
