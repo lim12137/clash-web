@@ -13,6 +13,8 @@ logger = logging.getLogger("run_agent")
 logger.setLevel(logging.DEBUG)
 
 def agent_run_thread(agent_run_info: AgentRunInfo, memory_context: MemoryContext):
+    if not isinstance(agent_run_info, AgentRunInfo):
+        raise TypeError("agent_run_info must be a AgentRunInfo object")
     try:
         mcp_host = agent_run_info.mcp_host
         if mcp_host is None or len(mcp_host)==0:

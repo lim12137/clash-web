@@ -232,4 +232,6 @@ class NexentAgent:
             raise ValueError(f"Error in interaction: {str(e)}")
 
     def set_agent(self, agent: CoreAgent):
+        if not isinstance(agent, CoreAgent):
+            raise TypeError(f"agent must be a CoreAgent object, not {type(agent)}")
         self.agent = agent

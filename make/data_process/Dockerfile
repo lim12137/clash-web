@@ -23,7 +23,7 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN pip install uv --no-cache-dir $(test -n "$MIRROR" && echo "-i $MIRROR")
+RUN pip install --no-cache-dir uv $(test -n "$MIRROR" && echo "-i $MIRROR")
 # Layer 0: copy model assets
 COPY model-assets/clip-vit-base-patch32 /opt/models/clip-vit-base-patch32
 COPY model-assets/nltk_data /opt/models/nltk_data
