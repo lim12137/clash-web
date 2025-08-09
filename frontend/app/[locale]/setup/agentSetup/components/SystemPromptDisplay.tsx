@@ -17,6 +17,8 @@ export interface SystemPromptDisplayProps {
   agentDescription?: string;
   onAgentNameChange?: (name: string) => void;
   onAgentDescriptionChange?: (description: string) => void;
+  agentDisplayName?: string;
+  onAgentDisplayNameChange?: (displayName: string) => void;
   isEditingMode?: boolean;
   mainAgentModel?: string;
   mainAgentMaxStep?: number;

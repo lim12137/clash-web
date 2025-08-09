@@ -11,6 +11,7 @@ const { Text } = Typography
 interface AgentBasicInfo {
   agent_id: number
   name: string
+  display_name: string
   description: string
   is_available: boolean
 }
@@ -89,12 +90,19 @@ export default function AgentSelector({ onAgentSelect, selectedAgentId }: AgentS
           }
           title={
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Text strong={isSelected} style={{ color: isAvailable ? '#000' : '#999' }}>
-                {agent.name}
-              </Text>
+              <span style={{ display: 'flex', alignItems: 'baseline' }}>
+                {agent.display_name && (
+                  <Text strong={isSelected} style={{ color: isAvailable ? '#000' : '#999', fontSize: '16px', lineHeight: 1 }}>
+                    {agent.display_name}
+                  </Text>
+                )}
+                <Text style={{ color: isAvailable ? '#000' : '#999', fontSize: agent.display_name ? '14px' : '16px', marginLeft: agent.display_name ? '8px' : '0', lineHeight: 1 }} strong={isSelected && !agent.display_name}>
+                  {agent.name}
+                </Text>
+              </span>
               {!isAvailable && (
                 <Text type="secondary" style={{ fontSize: '12px' }}>
-                  ({t('agent.status.unavailable')})
+                  - {t('agent.status.unavailable')}
                 </Text>
               )}
             </div>

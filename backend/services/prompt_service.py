@@ -80,17 +80,12 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
     )
 
     # 1. Real-time streaming push
-    final_results = {"duty": "", "constraint": "", "few_shots": "", "agent_name": "", "agent_description": ""}
-    name_en, name_zh = '', ''
+    final_results = {"duty": "", "constraint": "", "few_shots": "", "agent_var_name": "", "agent_display_name": "",
+                     "agent_description": ""}
     for result_data in generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id,
                                               language):
         # Update final results
         final_results[result_data["type"]] = result_data["content"]
-        if result_data["type"] == "agent_name":
-            if '\n' in result_data["content"]:
-                name_en = result_data["content"].split("\n")[0]
-                name_zh = result_data["content"].split("\n")[-1]
-                result_data["content"] = name_en
         yield result_data
 
     # 2. Update agent with the final result
@@ -101,8 +96,8 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
         duty_prompt=final_results["duty"],
         constraint_prompt=final_results["constraint"],
         few_shots_prompt=final_results["few_shots"],
-        name=name_en,
-        name_zh=name_zh,
+        name=final_results["agent_var_name"],
+        display_name=final_results["agent_display_name"],
         description=final_results["agent_description"]
     )
     update_agent(
@@ -140,9 +135,10 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
             stop_flags[tag] = True
 
     produce_queue = queue.Queue()
-    latest = {"duty": "", "constraint": "", "few_shots": "", "agent_name": "", "agent_description": ""}
-    stop_flags = {"duty": False, "constraint": False, "few_shots": False, "agent_name": False,
-                  "agent_description": False}
+    latest = {"duty": "", "constraint": "", "few_shots": "", "agent_var_name": "", "agent_display_name": "",
+              "agent_description": ""}
+    stop_flags = {"duty": False, "constraint": False, "few_shots": False, "agent_var_name": False,
+                  "agent_display_name": False, "agent_description": False}
 
     threads = []
     logger.info(f"Generating system prompt")
@@ -150,7 +146,8 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
         ("duty", prompt_for_generate["DUTY_SYSTEM_PROMPT"]),
         ("constraint", prompt_for_generate["CONSTRAINT_SYSTEM_PROMPT"]),
         ("few_shots", prompt_for_generate["FEW_SHOTS_SYSTEM_PROMPT"]),
-        ("agent_name", prompt_for_generate["AGENT_NAME_SYSTEM_PROMPT"]),
+        ("agent_var_name", prompt_for_generate["AGENT_VARIABLE_NAME_SYSTEM_PROMPT"]),
+        ("agent_display_name", prompt_for_generate["AGENT_DISPLAY_NAME_SYSTEM_PROMPT"]),
         ("agent_description", prompt_for_generate["AGENT_DESCRIPTION_SYSTEM_PROMPT"])
     ]:
         t = threading.Thread(target=run_and_flag, args=(tag, sys_prompt))
@@ -158,7 +155,8 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
         threads.append(t)
 
     # Directly stream output of three sections
-    last_results = {"duty": "", "constraint": "", "few_shots": "", "agent_name": "", "agent_description": ""}
+    last_results = {"duty": "", "constraint": "", "few_shots": "", "agent_var_name": "", "agent_display_name": "",
+                    "agent_description": ""}
     while not all(stop_flags.values()):
         try:
             produce_queue.get(timeout=0.5)
@@ -181,7 +179,7 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
     for t in threads:
         t.join(timeout=5)
 
-    for tag in ["duty", "constraint", "few_shots", "agent_name", "agent_description"]:
+    for tag in ["duty", "constraint", "few_shots", "agent_var_name", "agent_display_name", "agent_description"]:
         if stop_flags[tag]:
             result_data = {
                 "type": tag,

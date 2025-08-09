@@ -1,7 +1,6 @@
 import { Tool, convertParamType } from '@/types/agentAndToolConst';
 import { API_ENDPOINTS } from './api';
 import { getAuthHeaders } from '@/lib/auth';
-import { getCurrentLanguage } from '@/lib/languageUtils';
 
 /**
  * get tool list from backend
@@ -67,11 +66,10 @@ export const fetchAgentList = async () => {
     const data = await response.json();
     
     // convert backend data to frontend format (basic info only)
-    const currentLang = getCurrentLanguage();
     const formattedAgents = data.map((agent: any) => ({
       id: String(agent.agent_id),
-      // Use Chinese name if current language is Chinese and name_zh exists, otherwise use default name
-      name: currentLang === 'zh' && agent.name_zh ? agent.name_zh : agent.name,
+      name: agent.name,
+      display_name: agent.display_name || agent.name,
       description: agent.description,
       is_available: agent.is_available
     }));
@@ -111,11 +109,10 @@ export const fetchAgentDetail = async (agentId: number) => {
     const data = await response.json();
     
     // convert backend data to frontend format
-    const currentLang = getCurrentLanguage();
     const formattedAgent = {
       id: String(data.agent_id),
-      // Use Chinese name if current language is Chinese and name_zh exists, otherwise use default name
-      name: currentLang === 'zh' && data.name_zh ? data.name_zh : data.name,
+      name: data.name,
+      display_name: data.display_name,
       description: data.description,
       model: data.model_name,
       max_step: data.max_steps,
@@ -483,11 +480,10 @@ export const searchAgentInfo = async (agentId: number) => {
     const data = await response.json();
     
     // convert backend data to frontend format
-    const currentLang = getCurrentLanguage();
     const formattedAgent = {
       id: data.agent_id,
-      // Use Chinese name if current language is Chinese and name_zh exists, otherwise use default name
-      name: currentLang === 'zh' && data.name_zh ? data.name_zh : data.name,
+      name: data.name,
+      display_name: data.display_name,
       description: data.description,
       model: data.model_name,
       max_step: data.max_steps,
@@ -549,11 +545,10 @@ export const fetchAllAgents = async () => {
     const data = await response.json();
     
     // convert backend data to frontend format
-    const currentLang = getCurrentLanguage();
     const formattedAgents = data.map((agent: any) => ({
       agent_id: agent.agent_id,
-      // Use Chinese name if current language is Chinese and name_zh exists, otherwise use default name
-      name: currentLang === 'zh' && agent.name_zh ? agent.name_zh : agent.name,
+      name: agent.name,
+      display_name: agent.display_name || agent.name,
       description: agent.description,
       is_available: agent.is_available
     }));

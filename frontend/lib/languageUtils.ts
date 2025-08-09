@@ -1,34 +1,5 @@
 import { useRouter, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import i18n from 'i18next';
-
-// Utility function to get current language outside React components
-export const getCurrentLanguage = (): string => {
-  // Try to get from i18n first
-  if (i18n.language) {
-    return i18n.language;
-  }
-  
-  // Fallback: try to get from cookie
-  if (typeof document !== 'undefined') {
-    const cookieMatch = document.cookie.match(/NEXT_LOCALE=([^;]+)/);
-    if (cookieMatch) {
-      return cookieMatch[1];
-    }
-  }
-  
-  // Fallback: try to get from URL if we're in browser
-  if (typeof window !== 'undefined') {
-    const segments = window.location.pathname.split('/').filter(Boolean);
-    const urlLocale = segments[0];
-    if (urlLocale === 'zh' || urlLocale === 'en') {
-      return urlLocale;
-    }
-  }
-  
-  // Default fallback
-  return 'zh';
-};
 
 export const useLanguageSwitch = () => {
   const router = useRouter();

@@ -180,7 +180,12 @@ export default function CollaborativeAgentDisplay({
                   handleAddCollaborativeAgent(agent.id)
                 }}
               >
-                {agent.name}
+                <span>{agent.display_name || agent.name}</span>
+                {agent.display_name && (
+                  <span className="ml-2 text-xs text-gray-400">
+                    ({agent.name})
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -227,7 +232,14 @@ export default function CollaborativeAgentDisplay({
               onClose={() => handleRemoveCollaborativeAgent(Number(agent.id))}
               closeIcon={<CloseOutlined className="text-xs" />}
             >
-              {agent.name}
+              <span className="flex items-baseline">
+                {agent.display_name && (
+                  <span className="text-base leading-none">{agent.display_name}</span>
+                )}
+                <span className={`leading-none ${agent.display_name ? 'ml-2 text-sm' : 'text-base'}`}>
+                  {agent.name}
+                </span>
+              </span>
             </Tag>
           ))}
         </div>

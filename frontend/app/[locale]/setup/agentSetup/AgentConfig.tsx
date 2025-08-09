@@ -62,6 +62,7 @@ export default function AgentConfig() {
   // Add state for agent name and description
   const [agentName, setAgentName] = useState("")
   const [agentDescription, setAgentDescription] = useState("")
+  const [agentDisplayName, setAgentDisplayName] = useState("")
 
   // Add cache for new agent creation to preserve content when switching controllers
   const [newAgentCache, setNewAgentCache] = useState({
@@ -70,7 +71,8 @@ export default function AgentConfig() {
     constraintContent: "",
     fewShotsContent: "",
     agentName: "",
-    agentDescription: ""
+    agentDescription: "",
+    agentDisplayName: ""
   })
 
   // Add state for business logic and action buttons
@@ -122,11 +124,14 @@ export default function AgentConfig() {
             case 'few_shots':
               setFewShotsContent(data.content)
               break
-            case 'agent_name':
+            case 'agent_var_name':
               setAgentName(data.content)
               break
             case 'agent_description':
               setAgentDescription(data.content)
+              break
+            case 'agent_display_name':
+              setAgentDisplayName(data.content)
               break
           }
         },
@@ -466,7 +471,8 @@ export default function AgentConfig() {
           constraintContent,
           fewShotsContent,
           agentName,
-          agentDescription
+          agentDescription,
+          agentDisplayName
         })
         // Clear new creation related content
         setIsCreatingNewAgent(false)
@@ -498,7 +504,8 @@ export default function AgentConfig() {
         constraintContent,
         fewShotsContent,
         agentName,
-        agentDescription
+        agentDescription,
+        agentDisplayName
       })
     }
   }
@@ -514,6 +521,7 @@ export default function AgentConfig() {
       setFewShotsContent(newAgentCache.fewShotsContent)
       setAgentName(newAgentCache.agentName)
       setAgentDescription(newAgentCache.agentDescription)
+      setAgentDisplayName(newAgentCache.agentDisplayName)
     }
   }
 
@@ -524,7 +532,8 @@ export default function AgentConfig() {
       constraintContent: "",
       fewShotsContent: "",
       agentName: "",
-      agentDescription: ""
+      agentDescription: "",
+      agentDisplayName: ""
     })
   }
 
@@ -685,6 +694,13 @@ export default function AgentConfig() {
                       setAgentDescription(value);
                       if (isCreatingNewAgent) {
                         setNewAgentCache(prev => ({ ...prev, agentDescription: value }));
+                      }
+                    }}
+                    agentDisplayName={agentDisplayName}
+                    setAgentDisplayName={(value) => {
+                      setAgentDisplayName(value);
+                      if (isCreatingNewAgent) {
+                        setNewAgentCache(prev => ({ ...prev, agentDisplayName: value }));
                       }
                     }}
                     isGeneratingAgent={isGeneratingAgent}
