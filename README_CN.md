@@ -3,7 +3,7 @@
 [![English](https://img.shields.io/badge/English-README-blue)](README.md)
 [![中文](https://img.shields.io/badge/中文-README-green)](README_CN.md)
 [![Documentation](https://img.shields.io/badge/Nexent-文档-yellow)](https://modelengine-group.github.io/nexent)
-[![codecov](https://codecov.io/gh/ModelEngine-Group/nexent-commercial/branch/develop/graph/badge.svg?token=G6FRRL2M04)](https://codecov.io/gh/ModelEngine-Group/nexent-commercial?branch=develop)
+[![codecov](https://codecov.io/gh/ModelEngine-Group/nexent/branch/develop/graph/badge.svg?token=00JM5YAD5V)](https://codecov.io/gh/ModelEngine-Group/nexent?branch=develop)
 
 Nexent 是一个零代码智能体自动生成平台 —— 无需编排，无需复杂的拖拉拽操作，使用纯语言开发你想要的任何智能体。基于MCP生态，具备丰富的工具集成，同时提供多种自带智能体，满足你的工作、旅行、生活等不同场景的智能服务需要。Nexent 还提供强大的智能体运行控制、多智能体协作、数据处理和知识溯源、多模态对话、批量扩展能力。
 
