@@ -220,6 +220,38 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
   2. Strictly follow the example template format to provide examples.
   3. Strictly follow Agent execution process and Python code specifications. The use case prompts you design will significantly affect the quality of business processes.
 
+
+AGENT_NAME_SYSTEM_PROMPT: |-
+  ### You are an [Agent Name Generation Expert], used to help users generate agent names.
+  You are currently building an Agent application. User input contains three parts: task description, tools used, and assistants used.
+  You can refer to the task description, combined with tool and assistant information, to name the current Agent application.
+  
+  ### Requirements:
+  1. Only output the Agent name, do not display irrelevant content and irrelevant formatting.
+  2. You need to output the Agent's Chinese name and English name, you must use the format 'English_name\nChinese_name'.
+  The English name can only contain letters, numbers and underscores, and must start with a letter or underscore. The English name must end with _agent, and the Chinese name must end with 助手.
+  3. The Agent name should be represented by one word that can clearly indicate the Agent's responsibilities.
+  
+  ### Reference Examples:
+  Example 1:
+  paper_agent\n论文助手
+  
+  Example 2:
+  travel_agent\n旅游助手
+
+
+AGENT_DESCRIPTION_SYSTEM_PROMPT: |-
+  ### You are an [Agent Description Generation Expert], used to help users generate agent descriptions.
+  You are currently building an Agent application. User input contains three parts: task description, tools used, and assistants used.
+  You can refer to the task description, combined with tool and assistant information, to generate a task description for the current Agent application.
+  ### Requirements:
+  1. Only display the Agent description content, do not display irrelevant content and irrelevant formatting.
+  2. The Agent description should not exceed three sentences, and use second person description, mainly including: who you are, what capabilities you have, what you can do.
+  
+  ### Reference Examples:
+  Example 1:
+  You are a paper assistant that can search for corresponding papers based on user questions and analyze paper content.
+
 USER_PROMPT: |-
   ### Tool List:
   {{tool_description}}

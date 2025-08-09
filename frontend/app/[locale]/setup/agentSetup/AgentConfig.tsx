@@ -122,6 +122,12 @@ export default function AgentConfig() {
             case 'few_shots':
               setFewShotsContent(data.content)
               break
+            case 'agent_name':
+              setAgentName(data.content)
+              break
+            case 'agent_description':
+              setAgentDescription(data.content)
+              break
           }
         },
         (error) => {

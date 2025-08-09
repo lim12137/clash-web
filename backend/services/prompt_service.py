@@ -80,11 +80,17 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
     )
 
     # 1. Real-time streaming push
-    final_results = {"duty": "", "constraint": "", "few_shots": ""}
+    final_results = {"duty": "", "constraint": "", "few_shots": "", "agent_name": "", "agent_description": ""}
+    name_en, name_zh = '', ''
     for result_data in generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id,
                                               language):
         # Update final results
         final_results[result_data["type"]] = result_data["content"]
+        if result_data["type"] == "agent_name":
+            if '\n' in result_data["content"]:
+                name_en = result_data["content"].split("\n")[0]
+                name_zh = result_data["content"].split("\n")[-1]
+                result_data["content"] = name_en
         yield result_data
 
     # 2. Update agent with the final result
@@ -94,7 +100,10 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
         business_description=task_description,
         duty_prompt=final_results["duty"],
         constraint_prompt=final_results["constraint"],
-        few_shots_prompt=final_results["few_shots"]
+        few_shots_prompt=final_results["few_shots"],
+        name=name_en,
+        name_zh=name_zh,
+        description=final_results["agent_description"]
     )
     update_agent(
         agent_id=agent_id,
@@ -131,22 +140,25 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
             stop_flags[tag] = True
 
     produce_queue = queue.Queue()
-    latest = {"duty": "", "constraint": "", "few_shots": ""}
-    stop_flags = {"duty": False, "constraint": False, "few_shots": False}
+    latest = {"duty": "", "constraint": "", "few_shots": "", "agent_name": "", "agent_description": ""}
+    stop_flags = {"duty": False, "constraint": False, "few_shots": False, "agent_name": False,
+                  "agent_description": False}
 
     threads = []
     logger.info(f"Generating system prompt")
     for tag, sys_prompt in [
         ("duty", prompt_for_generate["DUTY_SYSTEM_PROMPT"]),
         ("constraint", prompt_for_generate["CONSTRAINT_SYSTEM_PROMPT"]),
-        ("few_shots", prompt_for_generate["FEW_SHOTS_SYSTEM_PROMPT"])
+        ("few_shots", prompt_for_generate["FEW_SHOTS_SYSTEM_PROMPT"]),
+        ("agent_name", prompt_for_generate["AGENT_NAME_SYSTEM_PROMPT"]),
+        ("agent_description", prompt_for_generate["AGENT_DESCRIPTION_SYSTEM_PROMPT"])
     ]:
         t = threading.Thread(target=run_and_flag, args=(tag, sys_prompt))
         t.start()
         threads.append(t)
 
     # Directly stream output of three sections
-    last_results = {"duty": "", "constraint": "", "few_shots": ""}
+    last_results = {"duty": "", "constraint": "", "few_shots": "", "agent_name": "", "agent_description": ""}
     while not all(stop_flags.values()):
         try:
             produce_queue.get(timeout=0.5)
@@ -169,8 +181,8 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
     for t in threads:
         t.join(timeout=5)
 
-    for tag in ["duty", "constraint", "few_shots"]:
-        if stop_flags[tag] and latest[tag] != last_results[tag]:
+    for tag in ["duty", "constraint", "few_shots", "agent_name", "agent_description"]:
+        if stop_flags[tag]:
             result_data = {
                 "type": tag,
                 "content": latest[tag],
@@ -178,13 +190,6 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
             }
             yield result_data
             last_results[tag] = latest[tag]
-        elif stop_flags[tag] and latest[tag] == last_results[tag]:
-            result_data = {
-                "type": tag,
-                "content": latest[tag],
-                "is_complete": True
-            }
-            yield result_data
 
 
 def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description, tool_info_list,
