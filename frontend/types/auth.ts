@@ -65,6 +65,7 @@ export interface AuthContextType {
   isRegisterModalOpen: boolean;
   isFromSessionExpired: boolean;
   authServiceUnavailable: boolean;
+  isSpeedMode: boolean;
   openLoginModal: () => void;
   closeLoginModal: () => void;
   openRegisterModal: () => void;
