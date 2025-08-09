@@ -234,9 +234,6 @@ AGENT_DISPLAY_NAME_SYSTEM_PROMPT: |-
   ### 参考示例：
   示例1：
   论文助手
-  
-  示例2：
-  TravelAgent
 
 
 AGENT_VARIABLE_NAME_SYSTEM_PROMPT: |-
