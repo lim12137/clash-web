@@ -429,8 +429,8 @@ choose_beta_env() {
   echo ""
 }
 
-# Function to pull required images
-pull_required_images() {
+# Function to pull openssh images
+pull_openssh_images() {
   echo "🐳 Pulling openssh-server image for Terminal tool..."
   if ! docker pull "$OPENSSH_SERVER_IMAGE"; then
     echo "❌ ERROR Failed to pull openssh-server image: $OPENSSH_SERVER_IMAGE"
@@ -759,11 +759,11 @@ main_deploy() {
 
   # Add permission
   add_permission || { echo "❌ Permission setup failed"; exit 1; }
+  generate_minio_ak_sk || { echo "❌ MinIO key generation failed"; exit 1; }
 
   if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
     # Pull required images before using them
-    pull_required_images || { echo "❌ Required image pull failed"; exit 1; }
-    
+    pull_openssh_images || { echo "❌ Openssh image pull failed"; exit 1; }
     # Generate SSH keys for terminal tool (only needed if terminal tool is enabled)
     generate_ssh_keys || { echo "❌ SSH key generation failed"; exit 1; }
   fi
