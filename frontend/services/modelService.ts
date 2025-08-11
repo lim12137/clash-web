@@ -230,6 +230,38 @@ export const modelService = {
     }
   },
 
+  updateSingleModel: async (model: {
+    model_id: string,
+    name: string,
+    url: string,
+    apiKey: string,
+    maxTokens?: number,
+    source?: ModelSource
+  }): Promise<ApiResponse> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.updateSingleModel, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          model_id: model.model_id,
+          model_name: model.name,
+          base_url: model.url,
+          api_key: model.apiKey,
+          max_tokens: model.maxTokens || 0,
+          model_factory: model.source || "OpenAI-API-Compatible"
+        })
+      })
+      const result: ApiResponse = await response.json() 
+      if (result.code !== 200) {
+        throw new ModelError(result.message || '更新自定义模型失败', result.code)
+      }
+      return result
+    } catch (error) {
+      if (error instanceof ModelError) throw error
+      throw new ModelError('更新自定义模型失败', 500) 
+    }
+  },
+
   // Delete custom model
   deleteCustomModel: async (displayName: string): Promise<void> => {
     try {

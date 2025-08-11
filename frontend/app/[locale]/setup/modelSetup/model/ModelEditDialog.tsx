@@ -56,21 +56,19 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
     if (!model) return
     setLoading(true)
     try {
-      // 目前后端没有更新接口，采用删除+新增的方式
-      await modelService.deleteCustomModel(model.displayName || model.name)
-      // 计算 modelType
+      // 使用更新接口而不是删除+新增
       const modelType = form.type as ModelType
       // Determine max tokens
       let maxTokensValue = parseInt(form.maxTokens)
       if (isEmbeddingModel) maxTokensValue = 0
-
-      await modelService.addCustomModel({
+      
+      const result = await modelService.updateSingleModel({
+        model_id: model.id, // 使用模型名称作为ID
         name: form.name,
-        type: modelType,
         url: form.url,
         apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey,
         maxTokens: maxTokensValue,
-        displayName: form.displayName || form.name
+        source: model.source
       })
 
       // 更新本地配置（仅当当前编辑模型在配置中被选中时）
@@ -99,9 +97,16 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
       await onSuccess()
       message.success(t('model.dialog.editSuccess'))
       onClose()
-    } catch (error) {
-      console.error(error)
-      message.error(t('model.dialog.error.editFailed'))
+    } catch (error: any) {
+      if (error.code === 409) {
+        message.error(t('model.dialog.error.nameConflict', { name: form.displayName || form.name }))
+      } else if (error.code === 404) {
+        message.error(t('model.dialog.error.modelNotFound'))
+      } else if (error.code === 500) {
+        message.error(t('model.dialog.error.serverError'))
+      } else {
+        message.error(t('model.dialog.error.editFailed'))
+      }
     } finally {
       setLoading(false)
     }
@@ -118,14 +123,14 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
       destroyOnClose
     >
       <div className="space-y-4">
-        {/* Display Name */}
+        {/* Model Name */}
         <div>
           <label className="block mb-1 text-sm font-medium text-gray-700">
-            {t('model.dialog.label.displayName')}
+            {t('model.dialog.label.name')}
           </label>
           <Input
-            value={form.displayName}
-            onChange={(e) => handleFormChange('displayName', e.target.value)}
+            value={form.name}
+            onChange={(e) => handleFormChange('name', e.target.value)}
           />
         </div>
 
@@ -151,8 +156,8 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
           />
         </div>
 
-        {/* Max Tokens / Dimension */}
-        {!isEmbeddingModel ? (
+        {/* maxTokens */}
+        {!isEmbeddingModel && (
           <div>
             <label className="block mb-1 text-sm font-medium text-gray-700">
               {t('model.dialog.label.maxTokens')}
@@ -160,16 +165,6 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
             <Input
               value={form.maxTokens}
               onChange={(e) => handleFormChange('maxTokens', e.target.value)}
-            />
-          </div>
-        ) : (
-          <div>
-            <label className="block mb-1 text-sm font-medium text-gray-700">
-              {t('model.dialog.label.vectorDimension')}
-            </label>
-            <Input
-              value={form.vectorDimension}
-              onChange={(e) => handleFormChange('vectorDimension', e.target.value)}
             />
           </div>
         )}
