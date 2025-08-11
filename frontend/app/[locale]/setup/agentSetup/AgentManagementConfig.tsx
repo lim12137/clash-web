@@ -576,13 +576,12 @@ export default function BusinessLogicConfig({
       setIsCreatingNewAgent(false);
 
       // First set right-side name description box data to ensure immediate display
-      console.log('Setting agent name and description in handleEditAgent:', agentDetail.name, agentDetail.description);
       console.log('setAgentName function exists:', !!setAgentName);
       console.log('setAgentDescription function exists:', !!setAgentDescription);
 
       setAgentName?.(agentDetail.name || '');
       setAgentDescription?.(agentDetail.description || '');
-      console.log('setAgentName and setAgentDescription called');
+      setAgentDisplayName?.(agentDetail.display_name || '');
 
       // Notify external editing state change (use complete data)
       onEditingStateChange?.(true, agentDetail);

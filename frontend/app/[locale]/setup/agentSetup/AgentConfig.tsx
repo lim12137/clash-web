@@ -363,6 +363,7 @@ export default function AgentConfig() {
         if (!isEditingAgent) {
           setAgentName('');
           setAgentDescription('');
+          setAgentDisplayName('');
         }
       } else {
         message.error(result.message || t('agent.error.fetchAgentList'));
@@ -486,6 +487,7 @@ export default function AgentConfig() {
       // When stopping editing, clear name description box
       setAgentName('')
       setAgentDescription('')
+      setAgentDisplayName('')
     }
   }
 
