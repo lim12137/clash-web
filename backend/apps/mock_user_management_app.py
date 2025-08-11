@@ -79,7 +79,7 @@ async def signin(request: UserSignInRequest):
             "user": {
                 "id": MOCK_USER["id"],
                 "email": request.email,
-                "role": "user"
+                "role": MOCK_USER["role"]
             },
             "session": {
                 "access_token": MOCK_SESSION["access_token"],
