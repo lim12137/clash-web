@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/hooks/useAuth"
 import { useAuthForm, AuthFormValues } from "@/hooks/useAuthForm"
-import { Modal, Form, Input, Button, Typography, Space, Alert, Switch, Divider, message } from "antd"
+import { Modal, Form, Input, Button, Typography, Space, Alert, Switch, Divider, App } from "antd"
 import { UserOutlined, LockOutlined, SafetyOutlined, KeyOutlined, CrownOutlined } from "@ant-design/icons"
 import { STATUS_CODES } from "@/types/auth"
 import { useState } from "react"
@@ -24,6 +24,7 @@ export function RegisterModal() {
   const [passwordError, setPasswordError] = useState("")
   const [isAdminMode, setIsAdminMode] = useState(false)
   const { t } = useTranslation('common');
+  const { message } = App.useApp();
 
   const validateEmail = (email: string): boolean => {
     if (!email) return false;

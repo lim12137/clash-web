@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { message } from 'antd'
+import { App } from 'antd'
 import { SettingOutlined, UploadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { ScrollArea } from '@/components/ui/scrollArea'
@@ -42,6 +42,7 @@ export default function SubAgentPool({
   isCreatingNewAgent = false
 }: SubAgentPoolProps) {
   const { t } = useTranslation('common');
+  const { message } = App.useApp();
 
 
 

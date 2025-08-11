@@ -2,7 +2,7 @@
 
 import { ReactNode } from "react"
 import { AuthProvider as AuthContextProvider, AuthContext, useAuth } from "@/hooks/useAuth"
-import { ConfigProvider } from "antd"
+import { ConfigProvider, App } from "antd"
 import { LoginModal, RegisterModal, SessionListeners } from "@/components/auth"
 import { FullScreenLoading } from "@/components/ui/loading"
 
@@ -18,18 +18,20 @@ function AppReadyWrapper({ children }: { children: ReactNode }) {
 export function RootProvider({ children }: { children: ReactNode }) {
   return (
     <ConfigProvider getPopupContainer={() => document.body}>
-      <AuthContextProvider>
-        {(authContextValue) => (
-          <AuthContext.Provider value={authContextValue}>
-            <AppReadyWrapper>
-              {children}
-            </AppReadyWrapper>
-            <LoginModal />
-            <RegisterModal />
-            <SessionListeners />
-          </AuthContext.Provider>
-        )}
-      </AuthContextProvider>
+      <App>
+        <AuthContextProvider>
+          {(authContextValue) => (
+            <AuthContext.Provider value={authContextValue}>
+              <AppReadyWrapper>
+                {children}
+              </AppReadyWrapper>
+              <LoginModal />
+              <RegisterModal />
+              <SessionListeners />
+            </AuthContext.Provider>
+          )}
+        </AuthContextProvider>
+      </App>
     </ConfigProvider>
   )
 } 
