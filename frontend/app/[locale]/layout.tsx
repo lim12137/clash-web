@@ -1,49 +1,52 @@
-import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/providers/themeProvider"
 import "../globals.css"
-import { ReactNode } from 'react';
-import path from 'path';
-import fs from 'fs';
+import { ReactNode } from "react"
+import path from "path"
+import fs from "fs/promises"
 import I18nProviderWrapper from "@/components/providers/I18nProviderWrapper"
 import { RootProvider } from "@/components/providers/rootProvider"
 
 const inter = Inter({ subsets: ["latin"] })
 
-// Dynamic metadata based on locale
-export async function generateMetadata({
-  params: { locale },
-}: {
-  params: { locale: string };
+export async function generateMetadata(props: {
+  params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  let messages: any = {}
-  if (['zh', 'en'].includes(locale)) {
-    const filePath = path.join(process.cwd(), 'public', 'locales', locale, 'common.json');
-    messages = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  const { locale } = await props.params;
+  let messages: any = {};
+
+  if (["zh", "en"].includes(locale)) {
+    try {
+      const filePath = path.join(process.cwd(), "public", "locales", locale, "common.json");
+      const fileContent = await fs.readFile(filePath, "utf8");
+      messages = JSON.parse(fileContent);
+    } catch (error) {
+      console.error(`Failed to load i18n messages for locale: ${locale}`, error);
+    }
   }
 
   return {
     title: {
-      default: messages.layout?.title,
-      template: messages.layout?.titleTemplate,
+      default: messages.layout?.title ?? "Default Title",
+      template: messages.layout?.titleTemplate ?? "%s | Default Site",
     },
-    description: messages.layout?.description,
+    description: messages.layout?.description ?? "Default description",
     icons: {
-      icon: '/modelengine-logo.png',
-      shortcut: '/favicon.ico',
-      apple: '/apple-touch-icon.png',
-    }
-  }
+      icon: "/modelengine-logo.png",
+      shortcut: "/favicon.ico",
+      apple: "/apple-touch-icon.png",
+    },
+  };
 }
 
-export default function RootLayout({
-  children,
-  params: { locale },
-}: {
+export default async function RootLayout(props: {
   children: ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
+  const { children, params } = props;
+  const { locale } = await params;
+
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>

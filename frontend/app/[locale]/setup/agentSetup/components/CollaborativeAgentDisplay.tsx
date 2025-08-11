@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Tag, Button, Select, message } from 'antd'
+import { Tag, Button, Select, App } from 'antd'
 import { PlusOutlined, CloseOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { Agent } from '../ConstInterface'
@@ -31,6 +31,7 @@ export default function CollaborativeAgentDisplay({
   style
 }: CollaborativeAgentDisplayProps) {
   const { t } = useTranslation('common')
+  const { message } = App.useApp()
   const [isDropdownVisible, setIsDropdownVisible] = useState(false)
   const [selectedAgentToAdd, setSelectedAgentToAdd] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)

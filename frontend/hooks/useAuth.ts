@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useContext, createContext, type ReactNode } from "react"
-import { message } from "antd"
 import { authService } from "@/services/authService"
 import { getSessionFromStorage } from "@/lib/auth"
 import { configService } from "@/services/configService"
@@ -203,7 +202,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     setIsRegisterModalOpen(false)
   }
 
-  const login = async (email: string, password: string, showSuccessMessage: boolean = true) => {
+  const login = async (email: string, password: string, showSuccessMessage: boolean = true, message?: any) => {
     try {
       setIsLoading(true)
       
@@ -258,7 +257,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     }
   }
 
-  const register = async (email: string, password: string, isAdmin?: boolean, inviteCode?: string) => {
+  const register = async (email: string, password: string, isAdmin?: boolean, inviteCode?: string, message?: any) => {
     try {
       setIsLoading(true)
       
@@ -309,7 +308,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     }
   }
 
-  const logout = async () => {
+  const logout = async (message?: any) => {
     try {
       setIsLoading(true)
       await authService.signOut()
