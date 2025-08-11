@@ -1,6 +1,6 @@
 "use client"
 
-import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse } from '../types/config'
+import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, ModelSource } from '../types/config'
 import { API_ENDPOINTS } from './api'
 import { getAuthHeaders } from '@/lib/auth'
 
@@ -86,10 +86,11 @@ export const modelService = {
       
       if (result.code === 200 && result.data) {
         return result.data.map(model => ({
+          id: model.model_id,
           name: model.model_name,
           type: model.model_type as ModelType,
           maxTokens: model.max_tokens || 0,
-          source: "custom",
+          source: model.model_factory as ModelSource,
           apiKey: model.api_key,
           apiUrl: model.base_url,
           displayName: model.display_name || model.model_name,
