@@ -1,4 +1,3 @@
-import { message } from 'antd';
 import { Tool } from '../ConstInterface';
 import { searchToolConfig, updateToolConfig } from '@/services/agentConfigService';
 import { useTranslation } from 'react-i18next'
@@ -7,6 +6,7 @@ export const handleToolSelectCommon = async (
   tool: Tool,
   isSelected: boolean,
   mainAgentId: string | null | undefined,
+  message: any,
   onSuccess?: (tool: Tool, isSelected: boolean) => void
 ) => {
 

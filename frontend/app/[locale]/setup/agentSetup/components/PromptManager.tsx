@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Modal, Badge, Input, message } from 'antd'
+import { Modal, Badge, Input, App } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { ThunderboltOutlined, LoadingOutlined } from '@ant-design/icons'
 import { MilkdownProvider, Milkdown, useEditor } from '@milkdown/react'
@@ -355,6 +355,7 @@ export default function PromptManager({
   editingAgent
 }: PromptManagerProps) {
   const { t } = useTranslation('common')
+  const { message } = App.useApp()
   
   // Modal states
   const [expandModalOpen, setExpandModalOpen] = useState(false)

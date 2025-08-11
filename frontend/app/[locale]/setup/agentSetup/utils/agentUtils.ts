@@ -1,4 +1,3 @@
-import { message } from 'antd'
 import { TFunction } from 'i18next'
 import { Tool } from '../ConstInterface'
 import { updateToolConfig, searchToolConfig } from '@/services/agentConfigService'
@@ -9,6 +8,7 @@ export const handleToolSelectCommon = async (
   isSelected: boolean,
   mainAgentId: string | null | undefined,
   t: TFunction,
+  message: any,
   onSuccess?: (tool: Tool, isSelected: boolean) => void
 ) => {
 

@@ -17,7 +17,6 @@ import {
   clearMemory,
   deleteMemory,
 } from "@/services/memoryService"
-import { message } from "antd"
 
 
 interface UseMemoryOptions {
@@ -25,9 +24,10 @@ interface UseMemoryOptions {
   role: "admin" | "user"
   currentUserId: string
   currentTenantId: string
+  message?: any
 }
 
-export function useMemory({ visible, role, currentUserId, currentTenantId }: UseMemoryOptions) {
+export function useMemory({ visible, role, currentUserId, currentTenantId, message }: UseMemoryOptions) {
   const { t } = useTranslation()
   /* ----------------------- 基础设置状态 ----------------------- */
   const [memoryEnabled, setMemoryEnabledState] = useState<boolean>(true)
@@ -73,7 +73,7 @@ export function useMemory({ visible, role, currentUserId, currentTenantId }: Use
       console.error("Failed to load memory config:", e)
       message.error(t('useMemory.loadConfigError'))
     })
-  }, [visible])
+  }, [visible, message])
 
   /* --------------------------- 加载分组数据 --------------------------- */
   useEffect(() => {
@@ -421,7 +421,7 @@ export function useMemory({ visible, role, currentUserId, currentTenantId }: Use
       console.error("setMemoryAgentShare error:", e)
       message.error(t('useMemory.setMemoryShareOptionError'))
     })
-  }, [])
+  }, [message])
 
   return {
     // state & setter
