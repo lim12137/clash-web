@@ -29,6 +29,7 @@ export const ModelDeleteDialog = ({
   const [editModel, setEditModel] = useState<ModelOption | null>(null)
   const [providerModels, setProviderModels] = useState<any[]>([])
   const [pendingSelectedProviderIds, setPendingSelectedProviderIds] = useState<Set<string>>(new Set())
+  const [loadingSource, setLoadingSource] = useState<ModelSource | null>(null)
 
   // 获取模型的颜色方案
   const getModelColorScheme = (type: ModelType): { bg: string; text: string; border: string } => {
@@ -273,7 +274,7 @@ export const ModelDeleteDialog = ({
   return (
     // 重构：风格被嵌入在组件内
     <Modal
-      title={t('model.dialog.delete.title')}
+      title={t('model.dialog.edit.title')}
       open={isOpen}
       onCancel={handleClose}
       footer={[
@@ -322,7 +323,7 @@ export const ModelDeleteDialog = ({
     >
       {!deletingModelType ? (
         <div className="space-y-4">
-          <p className="text-sm text-gray-600 mb-4">{t('model.dialog.delete.selectType')}</p>
+          <p className="text-sm text-gray-600 mb-4">{t('model.dialog.edit.selectType')}</p>
 
           <div className="grid grid-cols-1 gap-2">
             {(["llm", "embedding", "multi_embedding", "rerank", "vlm", "stt", "tts"] as ModelType[]).map((type) => {
@@ -392,20 +393,52 @@ export const ModelDeleteDialog = ({
               const modelsOfSource = customModels.filter((model) => model.type === deletingModelType && model.source === source)
               if (modelsOfSource.length === 0) return null
               const colorScheme = getSourceColorScheme(source)
+              const isLoading = loadingSource === source
               return (
                 <button
                   key={source}
                   onClick={async () => {
                     if (source === 'silicon') {
-                      await prefetchSiliconProviderModels(deletingModelType)
+                      setLoadingSource(source)
+                      try {
+                        await prefetchSiliconProviderModels(deletingModelType)
+                      } finally {
+                        setLoadingSource(null)
+                      }
                     }
                     setSelectedSource(source)
                   }}
-                  className={`p-3 flex justify-between rounded-md border transition-colors ${colorScheme.border} ${colorScheme.bg} hover:bg-opacity-80`}
+                  disabled={isLoading}
+                  className={`p-3 flex justify-between rounded-md border transition-colors ${colorScheme.border} ${colorScheme.bg} hover:bg-opacity-80 ${
+                    isLoading ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
                 >
                   <div className="flex items-center">
                     <div className={`w-8 h-8 rounded-md flex items-center justify-center mr-3 ${colorScheme.text}`}>
-                      {getSourceIcon(source)}
+                      {isLoading ? (
+                        <svg
+                          className="animate-spin h-5 w-5"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                      ) : (
+                        getSourceIcon(source)
+                      )}
                     </div>
                     <div className="flex flex-col text-left">
                       <div className="font-medium">{getSourceName(source)}</div>

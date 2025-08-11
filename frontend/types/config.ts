@@ -96,6 +96,7 @@ export const defaultConfig: GlobalConfig = {
 
 // 模型选项接口
 export interface ModelOption {
+  id: string
   name: string
   type: ModelType
   maxTokens: number

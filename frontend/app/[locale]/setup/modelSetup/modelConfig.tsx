@@ -1,9 +1,9 @@
 import {Button, Card, Col, Row, Space, Modal, App} from 'antd'
 import {
-  DeleteOutlined,
   PlusOutlined,
   SafetyCertificateOutlined,
-  SyncOutlined
+  SyncOutlined,
+  EditOutlined
 } from '@ant-design/icons'
 import {forwardRef, useEffect, useImperativeHandle, useState, useRef, ReactNode} from 'react'
 import {ModelOption, ModelType} from '@/types/config'
@@ -686,8 +686,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
             <Button type="primary" size="middle" icon={<PlusOutlined />} onClick={() => setIsAddModalOpen(true)}>
               {t('modelConfig.button.addCustomModel')}
             </Button>
-            <Button type="primary" size="middle" icon={<DeleteOutlined />} onClick={() => setIsDeleteModalOpen(true)}>
-              {t('modelConfig.button.deleteCustomModel')}
+            <Button type="primary" size="middle" icon={<EditOutlined />} onClick={() => setIsDeleteModalOpen(true)}>
+              {t('modelConfig.button.editCustomModel')}
             </Button>
             <Button type="primary" size="middle" icon={<SafetyCertificateOutlined />} onClick={verifyModels} loading={isVerifying}>
               {t('modelConfig.button.checkConnectivity')}
