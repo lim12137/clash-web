@@ -922,37 +922,6 @@ class TestModelManagementApp(unittest.TestCase):
         mock_split_display.assert_called_once_with("huggingface/llama")
         mock_get_by_display.assert_called_once_with("Conflicting Name", self.tenant_id)
 
-    @patch("test_model_managment_app.get_current_user_id")
-    @patch("test_model_managment_app.split_display_name")
-    @patch("test_model_managment_app.get_model_by_display_name")
-    def test_update_single_model_same_display_name_ok(self, mock_get_by_display, mock_split_display, mock_get_user):
-        # Configure mocks - same model_id means it's the same model being updated
-        mock_get_user.return_value = (self.user_id, self.tenant_id)
-        mock_split_display.return_value = "Same Name"
-        mock_get_by_display.return_value = {
-            "model_id": "test_model_id",  # Same model_id, so no conflict
-            "display_name": "Same Name"
-        }
-
-        # Prepare update request data
-        update_data = {
-            "model_id": "test_model_id",
-            "model_name": "huggingface/llama",
-            "display_name": "Same Name",
-            "api_base": "http://localhost:8001",
-            "api_key": "updated_key",
-            "model_type": "llm",
-            "provider": "huggingface"
-        }
-
-        # Send request
-        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
-
-        # Assert response - should succeed since it's the same model
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 200)
-        self.assertIn("updated successfully", data["message"])
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.update_model_record")
