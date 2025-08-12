@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Any, Optional
 
-from fastapi import HTTPException, APIRouter, Header
+from fastapi import HTTPException, APIRouter, Header, Request
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 
@@ -176,7 +176,9 @@ async def get_sources_endpoint(request: Dict[str, Any], authorization: Optional[
 
 
 @router.post("/generate_title", response_model=ConversationResponse)
-async def generate_conversation_title_endpoint(request: GenerateTitleRequest, authorization: Optional[str] = Header(None)):
+async def generate_conversation_title_endpoint(request: GenerateTitleRequest, 
+                                            http_request: Request,
+                                            authorization: Optional[str] = Header(None)):
     """
     Generate conversation title
 
@@ -190,8 +192,8 @@ async def generate_conversation_title_endpoint(request: GenerateTitleRequest, au
         ConversationResponse object containing generated title
     """
     try:
-        user_id, tenant_id, language = get_current_user_info(authorization=authorization)
-        title = generate_conversation_title_service(request.conversation_id, request.history, user_id,tenant_id=tenant_id)
+        user_id, tenant_id, language = get_current_user_info(authorization=authorization, request=http_request)
+        title = generate_conversation_title_service(request.conversation_id, request.history, user_id, tenant_id=tenant_id, language=language)
         return ConversationResponse(code=0, message="success", data=title)
     except Exception as e:
         logging.error(f"Failed to generate conversation title: {str(e)}")
