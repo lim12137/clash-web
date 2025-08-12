@@ -2,25 +2,12 @@ import yaml
 from typing import Union, BinaryIO
 
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
+from utils.prompt_template_utils import get_analyze_file_prompt_template
 
 from nexent.core.models.openai_vlm import OpenAIVLModel
 from nexent.core.models.openai_long_context_model import OpenAILongContextModel
 from nexent.core import MessageObserver
 
-
-def load_analyze_prompts(language: str = 'zh'):
-    """
-    Load analyze file prompts from yaml file based on language
-    
-    Args:
-        language: Language code ('zh' for Chinese, 'en' for English)
-        
-    Returns:
-        dict: Loaded prompts configuration
-    """
-    template_file = 'backend/prompts/analyze_file.yaml' if language == 'zh' else 'backend/prompts/analyze_file_en.yaml'
-    with open(template_file, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
 
 
 def convert_image_to_text(query: str, image_input: Union[str, BinaryIO], tenant_id: str, language: str = 'zh'):
@@ -49,7 +36,7 @@ def convert_image_to_text(query: str, image_input: Union[str, BinaryIO], tenant_
         )
     
     # Load prompts from yaml file
-    prompts = load_analyze_prompts(language)
+    prompts = get_analyze_file_prompt_template(language)
     system_prompt = prompts['image_analysis']['system_prompt'].format(query=query)
     
     return image_to_text_model.analyze_image(image_input=image_input, system_prompt=system_prompt).content
@@ -77,7 +64,7 @@ def convert_long_text_to_text(query: str, file_context: str, tenant_id: str, lan
     )
     
     # Load prompts from yaml file
-    prompts = load_analyze_prompts(language)
+    prompts = get_analyze_file_prompt_template(language)
     system_prompt = prompts['long_text_analysis']['system_prompt'].format(query=query)
     user_prompt = prompts['long_text_analysis']['user_prompt'].format(file_context=file_context)
 
