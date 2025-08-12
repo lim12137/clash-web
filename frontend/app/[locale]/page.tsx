@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useTranslation, Trans } from 'react-i18next'
-import { Bot, Globe, Database, Zap, Mic, FileSearch, Shield, MessagesSquare, Microchip, Unplug, TextQuote, AlertTriangle } from "lucide-react"
+import { Bot, Globe, Zap, MessagesSquare, Unplug, TextQuote, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
@@ -10,13 +10,13 @@ import { AvatarDropdown } from "@/components/auth/avatarDropdown"
 import { LoginModal } from "@/components/auth/loginModal"
 import { RegisterModal } from "@/components/auth/registerModal"
 import { useAuth } from "@/hooks/useAuth"
-import { Modal, ConfigProvider } from "antd"
+import { Modal, ConfigProvider, Dropdown } from "antd"
 import { useRouter, usePathname } from 'next/navigation';
-import { Select } from "antd"
 import { motion } from 'framer-motion';
 import { languageOptions } from '@/lib/constants';
 import { useLanguageSwitch } from '@/lib/languageUtils';
 import { HEADER_CONFIG, FOOTER_CONFIG } from '@/lib/layoutConstants';
+import { DownOutlined } from '@ant-design/icons'
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
@@ -120,24 +120,20 @@ export default function Home() {
               >
                 ModelEngine
               </Link>
-              <Link
-                  href="http://nexent.tech/contact"
-                  className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
+              <Dropdown
+                menu={{
+                  items: languageOptions.map(opt => ({ key: opt.value, label: opt.label })),
+                  onClick: ({ key }) => handleLanguageChange(key as string),
+                }}
               >
-                {t('page.contactUs')}
-              </Link>
-              <Link
-                  href="http://nexent.tech/about"
-                  className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
-              >
-                {t('page.aboutUs')}
-              </Link>
-              <button
-                  onClick={() => handleLanguageChange(getOppositeLanguage().lang)}
-                  className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
-              >
-                {getOppositeLanguage().label}
-              </button>
+                <a
+                  className="ant-dropdown-link text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors flex items-center gap-2 cursor-pointer w-[100px] border-0 shadow-none bg-transparent text-left"
+                >
+                  <Globe className="h-4 w-4" />
+                  {languageOptions.find(o => o.value === currentLanguage)?.label || currentLanguage}
+                  <DownOutlined className="text-[10px]" />
+                </a>
+              </Dropdown>
               {/* 登录状态切换显示 - 只在完整版显示 */}
               {!isSpeedMode && (
                 <>
@@ -154,7 +150,7 @@ export default function Home() {
                 </>
               )}
             </div>
-            {/* 重构：链接是否合理 */}
+            {/* 右侧汉堡按钮 为移动版预留 */}
             <Button variant="ghost" size="icon" className="md:hidden">
               <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -300,30 +296,29 @@ export default function Home() {
               style={{height: FOOTER_CONFIG.HEIGHT}}>
             <div className="max-w-7xl mx-auto w-full">
               <div className="flex flex-col md:flex-row justify-between items-center h-full">
-                <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-900 dark:text-white">
-                {t('page.copyright', {year: new Date().getFullYear()})}
-              </span>
-                  <Select
-                      value={currentLanguage}
-                      onChange={handleLanguageChange}
-                      options={languageOptions}
-                      style={{width: 98, border: 'none', boxShadow: 'none'}}
-                      variant={'borderless'}
-                  />
+                <div className="flex items-center gap-8">
+                  <span className="text-sm text-slate-900 dark:text-white">
+                    {t('page.copyright', {year: new Date().getFullYear()})}
+                  </span>
                 </div>
                 <div className="flex items-center gap-6">
                   <Link
-                      href="https://github.com/nexent-hub/nexent?tab=License-1-ov-file#readme"
-                      className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                    href="https://github.com/nexent-hub/nexent?tab=License-1-ov-file#readme"
+                    className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                   >
                     {t('page.termsOfUse')}
                   </Link>
                   <Link
-                      href="http://nexent.tech/contact"
-                      className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                    href="http://nexent.tech/contact"
+                    className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
                   >
                     {t('page.contactUs')}
+                  </Link>
+                  <Link
+                    href="http://nexent.tech/about"
+                    className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
+                  >
+                    {t('page.aboutUs')}
                   </Link>
                 </div>
               </div>
