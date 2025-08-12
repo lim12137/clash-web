@@ -38,6 +38,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Normalize interactive input (fix Windows CR issues)
+sanitize_input() {
+  local input="$1"
+  printf "%s" "$input" | tr -d '\r'
+}
+
 # Key generation
 generate_minio_ak_sk() {
   echo "🔑 Generating MinIO access keys..."
@@ -76,7 +82,6 @@ generate_minio_ak_sk() {
     echo "MINIO_SECRET_KEY=$SECRET_KEY" >> .env
   fi
 
-  rm .env.bak
   echo "✅ MinIO access keys generated successfully"
 }
 
@@ -98,7 +103,7 @@ generate_jwt() {
   echo "$header_base64.$payload_base64.$signature"
 }
 
-generate_supabase_secrets() {
+generate_supabase_keys() {
   if [ "$DEPLOYMENT_VERSION" = "full" ]; then
     # Function to generate Supabase secrets
     echo "Generating and updating Supabase secrets..."
@@ -152,7 +157,6 @@ generate_ssh_keys() {
           # Add to .env file
           if grep -q "^SSH_PRIVATE_KEY_PATH=" .env; then
               sed -i.bak "s~^SSH_PRIVATE_KEY_PATH=.*~SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH~" .env
-              rm .env.bak
           else
               echo "SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH" >> .env
           fi
@@ -223,7 +227,6 @@ generate_ssh_keys() {
               # Add to .env file
               if grep -q "^SSH_PRIVATE_KEY_PATH=" .env; then
                   sed -i.bak "s~^SSH_PRIVATE_KEY_PATH=.*~SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH~" .env
-                  rm .env.bak
               else
                   echo "SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH" >> .env
               fi
@@ -281,7 +284,6 @@ generate_elasticsearch_api_key() {
       echo "ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY" >> .env
     fi
   fi
-  rm .env.bak
 }
 
 generate_envs() {
@@ -329,7 +331,6 @@ generate_envs() {
       return 1
   fi
 
-  rm .env.bak
   echo ""
   echo "--------------------------------"
   echo ""
@@ -360,14 +361,12 @@ get_compose_version() {
 disable_dashboard() {
   if grep -q "^DISABLE_RAY_DASHBOARD=" .env; then
     sed -i.bak "s~^DISABLE_RAY_DASHBOARD=.*~DISABLE_RAY_DASHBOARD=true~" .env
-    rm .env.bak
   else
     echo "DISABLE_RAY_DASHBOARD=true" >> .env
   fi
             
   if grep -q "^DISABLE_CELERY_FLOWER=" .env; then
     sed -i.bak "s~^DISABLE_CELERY_FLOWER=.*~DISABLE_CELERY_FLOWER=true~" .env
-    rm .env.bak
   else
     echo "DISABLE_CELERY_FLOWER=true" >> .env
   fi
@@ -386,6 +385,9 @@ select_deployment_mode() {
   else
     read -p "👉 Enter your choice [1/2/3/4] (default: 1): " mode_choice
   fi
+
+  # Sanitize potential Windows CR in input
+  mode_choice=$(sanitize_input "$mode_choice")
 
   # Get ROOT_DIR from user input with default value
   default_root_dir="$HOME/nexent-data"
@@ -429,6 +431,13 @@ clean() {
   export DEPLOYMENT_MODE=
   export COMPOSE_FILE_SUFFIX=
   export DEPLOYMENT_VERSION=
+
+  if [ -f ".env.bak" ]; then
+    rm .env.bak
+  fi
+  if [ -f "../.env.bak" ]; then
+    rm ../.env.bak
+  fi
 }
 
 update_env_var() {
@@ -448,9 +457,6 @@ update_env_var() {
   else
     # Key doesn't exist, so add it
     echo "${key}=\"${value}\"" >> "$env_file"
-    echo ""
-    echo "--------------------------------"
-    echo ""
   fi
 
 }
@@ -583,6 +589,9 @@ select_deployment_version() {
     read -p "👉 Enter your choice [1/2] (default: 1): " version_choice
   fi
 
+  # Sanitize potential Windows CR in input
+  version_choice=$(sanitize_input "$version_choice")
+
   case $version_choice in
       2)
           export DEPLOYMENT_VERSION="full"
@@ -683,6 +692,9 @@ select_terminal_tool() {
         read -p "👉 Do you want to enable Terminal tool? [Y/N] (default: N): " enable_terminal
     fi
 
+    # Sanitize potential Windows CR in input
+    enable_terminal=$(sanitize_input "$enable_terminal")
+
     if [[ "$enable_terminal" =~ ^[Yy]$ ]]; then
         export ENABLE_TERMINAL_TOOL="true"
         export COMPOSE_PROFILES="${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}terminal"
@@ -714,9 +726,9 @@ create_default_admin_user() {
   fi
 
   echo ""
-  echo "   📝 Please save the following credentials carefully, which would ONLY be shown once."
-  echo "   📧 nexent@example.com"
-  echo "   🔏 nexent@4321"
+  echo "      Please save the following credentials carefully, which would ONLY be shown once."
+  echo "   📧 Email:    nexent@example.com"
+  echo "   🔏 Password: nexent@4321"
 
   echo ""
   echo "--------------------------------"
@@ -737,6 +749,9 @@ choose_image_env() {
     else
       read -p "🌏 Is your server network located in mainland China? [Y/N] (default N): " is_mainland
     fi
+
+    # Sanitize potential Windows CR in input
+    is_mainland=$(sanitize_input "$is_mainland")
     if [[ "$is_mainland" =~ ^[Yy]$ ]]; then
       echo "🌐 Detected mainland China network, using .env.mainland for image sources."
       source .env.mainland
@@ -774,7 +789,7 @@ main_deploy() {
   fi
 
   # Generate Supabase secrets
-  generate_supabase_secrets || { echo "❌ Supabase secrets generation failed"; exit 1; }
+  generate_supabase_keys || { echo "❌ Supabase secrets generation failed"; exit 1; }
 
   # Deploy infrastructure services
   deploy_infrastructure || { echo "❌ Infrastructure deployment failed"; exit 1; }
@@ -790,9 +805,10 @@ main_deploy() {
   if [ "$DEPLOYMENT_MODE" = "infrastructure" ]; then
     generate_envs || { echo "❌ Environment generation failed"; exit 1; }
     echo "🎉  Infrastructure deployment completed successfully!"
-    echo "📦  You can now start the core services manually using dev containers"
-    echo "📁  Environment file available at: $(cd .. && pwd)/.env"
+    echo "    You can now start the core services manually using dev containers"
+    echo "    Environment file available at: $(cd .. && pwd)/.env"
     echo "💡  Use 'source .env' to load environment variables in your development shell"
+    clean
     return 0
   fi
 
@@ -804,11 +820,11 @@ main_deploy() {
   echo "--------------------------------"
   echo ""
 
-
   # Create default admin user
   if [ "$DEPLOYMENT_VERSION" = "full" ]; then
     create_default_admin_user || { echo "❌ Default admin user creation failed"; exit 1; }
   fi
+
   clean
 
   echo "🎉  Deployment completed successfully!"

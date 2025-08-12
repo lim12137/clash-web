@@ -146,25 +146,6 @@ update_env_file() {
     echo "MINIO_SECRET_KEY=$MINIO_SECRET_KEY" >> ../.env
   fi
 
-  # Supabase keys: rely on environment variables exported earlier in the flow
-  if [ -n "$SUPABASE_KEY" ]; then
-    if grep -q "^SUPABASE_KEY=" ../.env; then
-      sed -i.bak "s~^SUPABASE_KEY=.*~SUPABASE_KEY=$SUPABASE_KEY~" ../.env
-    else
-      echo "" >> ../.env
-      echo "# Supabase Keys" >> ../.env
-      echo "SUPABASE_KEY=$SUPABASE_KEY" >> ../.env
-    fi
-  fi
-
-  if [ -n "$SERVICE_ROLE_KEY" ]; then
-    if grep -q "^SERVICE_ROLE_KEY=" ../.env; then
-      sed -i.bak "s~^SERVICE_ROLE_KEY=.*~SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY~" ../.env
-    else
-      echo "SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> ../.env
-    fi
-  fi
-
   # Update or add ELASTICSEARCH_API_KEY (only if it was generated successfully)
   if [ -n "$ELASTICSEARCH_API_KEY" ]; then
     if grep -q "^ELASTICSEARCH_API_KEY=" ../.env; then
@@ -244,8 +225,30 @@ update_env_file() {
     echo "POSTGRES_PORT=5434" >> ../.env
   fi
 
-  # Supabase PostgreSQL Configuration (only for full version)
+  # Supabase Configuration (Only for full version)
   if [ "$DEPLOYMENT_VERSION" = "full" ]; then
+    echo ""
+    echo "# Supabase Keys" >> ../.env
+    
+    if [ -n "$SUPABASE_KEY" ]; then      
+      if grep -q "^SUPABASE_KEY=" ../.env; then
+        sed -i.bak "s~^SUPABASE_KEY=.*~SUPABASE_KEY=$SUPABASE_KEY~" ../.env
+      else
+        echo "" >> ../.env
+        echo "# Supabase Keys" >> ../.env
+        echo "SUPABASE_KEY=$SUPABASE_KEY" >> ../.env
+      fi
+    fi
+
+    if [ -n "$SERVICE_ROLE_KEY" ]; then
+      if grep -q "^SERVICE_ROLE_KEY=" ../.env; then
+        sed -i.bak "s~^SERVICE_ROLE_KEY=.*~SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY~" ../.env
+      else
+        echo "SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> ../.env
+      fi
+    fi
+
+    # Supabase PostgreSQL Configuration
     echo ""
     echo "# Supabase PostgreSQL Configuration" >> ../.env
     
@@ -256,7 +259,6 @@ update_env_file() {
       echo "SUPABASE_URL=http://localhost:8000" >> ../.env
     fi
     
-    # Additional Supabase configuration
     if grep -q "^API_EXTERNAL_URL=" ../.env; then
       sed -i.bak "s~^API_EXTERNAL_URL=.*~API_EXTERNAL_URL=http://localhost:8000~" ../.env
     else
