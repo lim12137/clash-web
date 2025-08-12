@@ -6,7 +6,7 @@ export type ModelStatus = "未校验" | "可用" | "不可用" | "可跳过"
 export type ModelConnectStatus = "未检测" | "检测中" | "可用" | "不可用"
 
 // 模型来源类型
-export type ModelSource = "official" | "custom"
+export type ModelSource = "openai" | "custom" | "silicon" | "OpenAI-API-Compatible"
 
 // 模型类型
 export type ModelType = "llm" | "embedding" | "rerank" | "stt" | "tts" | "vlm" | "multi_embedding"
@@ -96,6 +96,7 @@ export const defaultConfig: GlobalConfig = {
 
 // 模型选项接口
 export interface ModelOption {
+  id: string
   name: string
   type: ModelType
   maxTokens: number
