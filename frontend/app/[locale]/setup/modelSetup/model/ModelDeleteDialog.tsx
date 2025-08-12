@@ -98,7 +98,7 @@ export const ModelDeleteDialog = ({
     }
   }
 
-  // 获取来源的显示名称
+  // Get source display name
   const getSourceName = (source: ModelSource): string => {
     switch (source) {
       case 'openai':
@@ -112,7 +112,7 @@ export const ModelDeleteDialog = ({
     }
   }
 
-  // 获取来源的颜色方案
+  // Get source color scheme
   const getSourceColorScheme = (source: ModelSource): { bg: string; text: string; border: string } => {
     switch (source) {
       case 'silicon':
@@ -126,7 +126,7 @@ export const ModelDeleteDialog = ({
     }
   }
 
-  // 获取来源图标
+  // Get source icon
   const getSourceIcon = (source: ModelSource): JSX.Element => {
     switch (source) {
       case 'silicon':
@@ -140,18 +140,18 @@ export const ModelDeleteDialog = ({
     }
   }
 
-  // 从 customModels 中获取 Silicon 的 API Key，优先匹配当前类型
+  // Get API key by model type
   const getApiKeyByType = (type: ModelType | null): string => {
     if (!type) return ''
-    // 先找与当前类型匹配的 silicon 模型
+    // Prioritize silicon models of the current type
     const byType = customModels.find((m) => m.source === 'silicon' && m.type === type && m.apiKey)
     if (byType?.apiKey) return byType.apiKey
-    // 回退到任意 silicon 模型
+    // Fall back to any available silicon model
     const anySilicon = customModels.find((m) => m.source === 'silicon' && m.apiKey)
     return anySilicon?.apiKey || ''
   }
 
-  // 预取 SiliconCloud 提供商的模型列表
+  // Prefetch SiliconCloud provider model list
   const prefetchSiliconProviderModels = async (modelType: ModelType | null): Promise<void> => {
     if (!modelType) return
     try {
@@ -162,7 +162,7 @@ export const ModelDeleteDialog = ({
         apiKey: apiKey && apiKey.trim() !== '' ? apiKey : 'sk-no-api-key'
       })
       setProviderModels(result || [])
-      // 初始化待选中的开关状态（根据 customModels 现状）
+      // Initialize pending selected switch states (based on current customModels status)
       const currentIds = new Set(
         customModels
           .filter(m => m.type === modelType && m.source === 'silicon')
@@ -178,11 +178,24 @@ export const ModelDeleteDialog = ({
     }
   }
 
+  // Handle source selection
+  const handleSourceSelect = async (source: ModelSource) => {
+    if (source === 'silicon') {
+      setLoadingSource(source)
+      try {
+        await prefetchSiliconProviderModels(deletingModelType)
+      } finally {
+        setLoadingSource(null)
+      }
+    }
+    setSelectedSource(source)
+  }
+
   const handleEditModel = (model: ModelOption) => {
     setEditModel(model)
   }
 
-  // 处理删除模型
+  // Handle model deletion
   const handleDeleteModel = async (displayName: string) => {
     setDeletingModels(prev => new Set(prev).add(displayName))
     try {
@@ -272,7 +285,7 @@ export const ModelDeleteDialog = ({
   }
 
   return (
-    // 重构：风格被嵌入在组件内
+    // Refactor: Styles are embedded within the component
     <Modal
       title={t('model.dialog.edit.title')}
       open={isOpen}
@@ -282,17 +295,17 @@ export const ModelDeleteDialog = ({
           {t('common.button.close')}
         </Button>,
         <Button key="confirm" type="primary" onClick={async () => {
-          // 仅当 silicon 来源时应用更改
+          // Only apply changes when silicon source is selected
           if (selectedSource === 'silicon' && deletingModelType) {
             try {
-              // 获取当前所有开启的模型（包括原本已开启的和新开启的）
+              // Get all currently enabled models (including originally enabled and newly enabled ones)
               const allEnabledModels = providerModels.filter((pm: any) =>
                 pendingSelectedProviderIds.has(pm.id)
               )
 
               if (allEnabledModels.length > 0) {
                 const apiKey = getApiKeyByType(deletingModelType)
-                // 传入所有当前开启的模型
+                // Pass all currently enabled models
                 await modelService.addBatchCustomModel({
                   api_key: apiKey && apiKey.trim() !== '' ? apiKey : 'sk-no-api-key',
                   provider: 'silicon',
@@ -302,12 +315,12 @@ export const ModelDeleteDialog = ({
                 })
               }
 
-              // 刷新列表
+              // Refresh list
               await onSuccess()
-              // 重新获取提供商模型并同步开关状态
+              // Re-fetch provider models and sync switch states
               await prefetchSiliconProviderModels(deletingModelType)
-              message.success('更新成功')
-              // 关闭弹窗
+              message.success('Update successful')
+              // Close dialog
               handleClose()
             } catch (e) {
               console.error('Failed to apply model updates', e)
@@ -315,7 +328,7 @@ export const ModelDeleteDialog = ({
             }
           }
         }} disabled={selectedSource !== 'silicon'}>
-          确定
+         {t('common.confirm')}
         </Button>,
       ]}
       width={520}
@@ -397,17 +410,7 @@ export const ModelDeleteDialog = ({
               return (
                 <button
                   key={source}
-                  onClick={async () => {
-                    if (source === 'silicon') {
-                      setLoadingSource(source)
-                      try {
-                        await prefetchSiliconProviderModels(deletingModelType)
-                      } finally {
-                        setLoadingSource(null)
-                      }
-                    }
-                    setSelectedSource(source)
-                  }}
+                  onClick={() => handleSourceSelect(source)}
                   disabled={isLoading}
                   className={`p-3 flex justify-between rounded-md border transition-colors ${colorScheme.border} ${colorScheme.bg} hover:bg-opacity-80 ${
                     isLoading ? 'opacity-60 cursor-not-allowed' : ''
@@ -586,14 +589,14 @@ export const ModelDeleteDialog = ({
           </div>
         </div>
       )}
-      {/* 编辑模型弹窗 */}
+      {/* Edit model dialog */}
       <ModelEditDialog
         isOpen={!!editModel}
         model={editModel}
         onClose={() => setEditModel(null)}
         onSuccess={async () => {
           await onSuccess()
-          // 关闭后如果当前列表类型为空，则返回上一层
+          // After closing, if the current list type is empty, go back one level
           if (editModel && deletingModelType && editModel.type !== deletingModelType) {
             setDeletingModelType(null)
           }

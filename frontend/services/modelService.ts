@@ -253,12 +253,12 @@ export const modelService = {
       })
       const result: ApiResponse = await response.json() 
       if (result.code !== 200) {
-        throw new ModelError(result.message || '更新自定义模型失败', result.code)
+        throw new ModelError(result.message || "Failed to update the custom model", result.code)
       }
       return result
     } catch (error) {
       if (error instanceof ModelError) throw error
-      throw new ModelError('更新自定义模型失败', 500) 
+      throw new ModelError("Failed to update the custom model", 500) 
     }
   },
 
