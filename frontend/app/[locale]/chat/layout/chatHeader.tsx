@@ -7,8 +7,10 @@ import {
   Share,
   Bookmark,
   MoreHorizontal,
-  BrainCircuit
+  BrainCircuit,
+  Globe
 } from "lucide-react"
+import { DownOutlined } from '@ant-design/icons'
 
 // Gradient definition for BrainCircuit icon
 const GradientDefs = () => (
@@ -24,7 +26,7 @@ const GradientDefs = () => (
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdownMenu"
 import { useTranslation } from "react-i18next"
-import { Select } from "antd"
+import { Dropdown } from "antd"
 import { languageOptions } from '@/lib/constants'
 import { useLanguageSwitch } from '@/lib/languageUtils'
 import MemoryManageModal from "../internal/memory/memoryManageModal"
@@ -123,14 +125,22 @@ export function ChatHeader({
 
             <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center space-x-1 gap-1">
               {/* Language Switch */}
-              <Select
-                value={currentLanguage}
-                onChange={handleLanguageChange}
-                options={languageOptions}
-                style={{ width: 110, border: 'none' }}
-                variant="borderless"
-                size="small"
-              />
+              <Dropdown
+                menu={{
+                  items: languageOptions.map(opt => ({ key: opt.value, label: opt.label })),
+                  onClick: ({ key }) => handleLanguageChange(key as string),
+                }}
+              >
+                <a
+                  className="ant-dropdown-link text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors flex items-center gap-2 cursor-pointer"
+                  style={{ width: 100, border: 'none', boxShadow: 'none', background: 'transparent', textAlign: 'left' }}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  <Globe className="h-4 w-4" />
+                  {languageOptions.find(o => o.value === currentLanguage)?.label || currentLanguage}
+                  <DownOutlined style={{ fontSize: 10 }} />
+                </a>
+              </Dropdown>
               {/* Memory Setting */}
               <Button variant="ghost" className="h-8 w-12 rounded-full" onClick={() => setMemoryModalVisible(true)}>
                 <BrainCircuit className="size-5" stroke="url(#brainCogGradient)" />
