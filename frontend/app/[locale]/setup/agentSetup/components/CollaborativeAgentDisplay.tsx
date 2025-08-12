@@ -233,13 +233,8 @@ export default function CollaborativeAgentDisplay({
               onClose={() => handleRemoveCollaborativeAgent(Number(agent.id))}
               closeIcon={<CloseOutlined className="text-xs" />}
             >
-              <span className="flex items-baseline">
-                {agent.display_name && (
-                  <span className="text-base leading-none">{agent.display_name}</span>
-                )}
-                <span className={`leading-none ${agent.display_name ? 'ml-2 text-sm' : 'text-base'}`}>
-                  {agent.name}
-                </span>
+              <span className="text-base leading-none">
+                {agent.display_name || agent.name}
               </span>
             </Tag>
           ))}
