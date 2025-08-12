@@ -381,7 +381,8 @@ export default function BusinessLogicConfig({
             business_description,
             dutyContent,
             constraintContent,
-            fewShotsContent
+            fewShotsContent,
+            agentDisplayName
           );
         } else {
           result = await updateAgent(
@@ -395,7 +396,8 @@ export default function BusinessLogicConfig({
             business_description,
             dutyContent,
             constraintContent,
-            fewShotsContent
+            fewShotsContent,
+            agentDisplayName
           );
         }
 
