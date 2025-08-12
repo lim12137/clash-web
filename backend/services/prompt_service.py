@@ -10,7 +10,7 @@ from consts.model import AgentInfoRequest
 from database.agent_db import update_agent, \
     query_tools_by_ids, query_sub_agents_id_list, search_agent_info_by_agent_id
 from services.agent_service import get_enable_tool_id_by_agent_id
-from utils.prompt_template_utils import get_prompt_generate_config_path
+from utils.prompt_template_utils import get_prompt_generate_prompt_template
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.auth_utils import get_current_user_info
 from fastapi import Header, Request
@@ -110,9 +110,7 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
 
 
 def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id: str, language: str = 'zh'):
-    prompt_config_path = get_prompt_generate_config_path(language)
-    with open(prompt_config_path, "r", encoding="utf-8") as f:
-        prompt_for_generate = yaml.safe_load(f)
+    prompt_for_generate = get_prompt_generate_prompt_template(language)
 
     # Add app information to the template variables
     content = join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description,

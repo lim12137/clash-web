@@ -26,6 +26,7 @@ from fastapi.responses import StreamingResponse
 from consts.const import ES_API_KEY, ES_HOST
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
+from utils.prompt_template_utils import get_knowledge_summary_prompt_template
 from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
 from database.attachment_db import delete_file
 
@@ -49,10 +50,7 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
     load_dotenv()
 
     # Load prompt words based on language
-    template_file = 'backend/prompts/knowledge_summary_agent.yaml' if language == 'zh' else 'backend/prompts/knowledge_summary_agent_en.yaml'
-    with open(template_file, 'r', encoding='utf-8') as f:
-        prompts = yaml.safe_load(f)
-    logger.info(f"Generating knowledge with template: {template_file}")
+    prompts = get_knowledge_summary_prompt_template(language)
     # Build messages
     messages: List[ChatCompletionMessageParam] = [
         {"role": "system", "content": prompts['system_prompt']},
