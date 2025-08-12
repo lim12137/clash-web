@@ -54,10 +54,11 @@ export const modelService = {
         for (const model of result.data) {
           if (typeMap[model.type]) {
             modelOptions.push({
+              id: model.id,
               name: model.id,
               type: typeMap[model.type],
               maxTokens: 0,
-              source: "official",
+              source: "OpenAI-API-Compatible",
               apiKey: model.api_key,
               apiUrl: model.base_url,
               displayName: model.id
@@ -176,7 +177,7 @@ export const modelService = {
     type: ModelType,
     max_tokens: number,
     models: any[]
-  }): Promise<any[]> => {
+  }): Promise<number> => {
     try {
       const response = await fetch(API_ENDPOINTS.model.customModelBatchCreate, {
         method: 'POST',
@@ -261,6 +262,34 @@ export const modelService = {
       throw new ModelError("Failed to update the custom model", 500) 
     }
   },
+
+
+  updateBatchModel: async (models: {
+    model_id: string,
+    apiKey: string,
+    maxTokens?: number,
+  }[]): Promise<ApiResponse> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.updateBatchModel, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(models.map(m => ({
+          model_id: m.model_id,
+          api_key: m.apiKey,
+          max_tokens: m.maxTokens ?? 0,
+        })))
+      })  
+      const result: ApiResponse = await response.json()
+      if (result.code !== 200) {
+        throw new ModelError(result.message || "Failed to update the custom model", result.code)
+      }
+      return result
+    } catch (error) {
+      if (error instanceof ModelError) throw error
+      throw new ModelError("Failed to update the custom model", 500)
+    }
+  },
+    
 
   // Delete custom model
   deleteCustomModel: async (displayName: string): Promise<void> => {
