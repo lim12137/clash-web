@@ -1,7 +1,7 @@
 "use client"
 
 import { useAuth } from "@/hooks/useAuth"
-import { Dropdown, Avatar, Spin, Button, Tag, ConfigProvider, Modal } from "antd"
+import { Dropdown, Avatar, Spin, Button, Tag, ConfigProvider, App } from "antd"
 import { UserOutlined, SettingOutlined, LogoutOutlined, UserSwitchOutlined, LoginOutlined, UserAddOutlined } from "@ant-design/icons"
 import { getRoleColor } from "@/lib/auth"
 import type { ItemType, MenuItemType } from "antd/es/menu/interface"
@@ -13,6 +13,7 @@ export function AvatarDropdown() {
   const { user, isLoading, logout, openLoginModal, openRegisterModal } = useAuth()
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { t } = useTranslation('common');
+  const { modal } = App.useApp();
 
   if (isLoading) {
     return <Spin size="small" />
@@ -114,14 +115,14 @@ export function AvatarDropdown() {
       icon: <LogoutOutlined />,
       label: t('auth.logout'),
       onClick: () => {
-        Modal.confirm({
+        modal.confirm({
           title: t('auth.confirmLogout'),
           content: t('auth.confirmLogoutPrompt'),
           okText: t('auth.confirm'),
           cancelText: t('auth.cancel'),
           onOk: () => {
             logout();
-          }
+          },
         });
       },
     },
