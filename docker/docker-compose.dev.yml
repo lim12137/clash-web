@@ -72,27 +72,27 @@ services:
         echo "Python version: $(python --version)" &&
         python -c "import time; time.sleep(2147483647)"
 
-  # nexent-web:
-  #   image: nexent/nexent-web:latest
-  #   container_name: nexent-web
-  #   restart: always
-  #   networks:
-  #     - nexent
-  #   ports:
-  #     - "3000:3000"
-  #   volumes:
-  #     - ../frontend:/opt/frontend:cached
-  #     - ../frontend/node_modules:/opt/frontend/node_modules:cached
-  #   environment:
-  #     - HTTP_BACKEND=http://nexent:5010
-  #     - WS_BACKEND=ws://nexent:5010
-  #     - MINIO_ENDPOINT=${MINIO_ENDPOINT}
-  #   logging:
-  #     driver: "json-file"
-  #     options:
-  #       max-size: "10m"
-  #       max-file: "3"
-  #   command: ["/bin/sh", "-c", "echo 'Web Service needs to be started manually. Use\nnpm install -g pnpm\npnpm install\npnpm dev\n under /opt/frontend to start.' && tail -f /dev/null"]
+  nexent-web:
+    image: nexent/nexent-web:latest
+    container_name: nexent-web
+    restart: always
+    networks:
+      - nexent
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../frontend:/opt/frontend:cached
+      - ../frontend/node_modules:/opt/frontend/node_modules:cached
+    environment:
+      - HTTP_BACKEND=http://nexent:5010
+      - WS_BACKEND=ws://nexent:5010
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: ["/bin/sh", "-c", "echo 'Web Service needs to be started manually. Use\nnpm install -g pnpm\npnpm install\npnpm dev\n under /opt/frontend to start.' && tail -f /dev/null"]
 
 
 networks:
