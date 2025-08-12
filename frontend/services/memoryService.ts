@@ -1,8 +1,6 @@
 import { MemoryItem, MemoryGroup } from "@/types/memory"
 import i18next from 'i18next'
 import { API_ENDPOINTS, fetchWithErrorHandling } from "./api"
-
-import { message } from "antd"
 import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
 import { fetchAllAgents } from "./agentConfigService"
 
@@ -200,12 +198,9 @@ async function listMemories(memoryLevel: string, agentId?: string): Promise<{ it
   } catch (e) {
     console.error("listMemories error", e)
     if (e instanceof Error) {
-      const msg = e.message || ""
-      message.error(getFriendlyErrorMessage(msg))
-    } else {
-      message.error(i18next.t('memoryService.loadMemoryError'))
+      throw new Error(getFriendlyErrorMessage(e.message || ""))
     }
-    return { items: [], total: 0 }
+    throw new Error(i18next.t('memoryService.loadMemoryError'))
   }
 }
 
@@ -378,8 +373,7 @@ export async function deleteMemory(memoryId: string, memoryLevel: string, agentI
     const url = `${API_ENDPOINTS.memory.entry.delete(memoryId)}?${params.toString()}`
     
     const res = await requestJson(url, { method: "DELETE", headers: getAuthHeaders() })
-    const ok = res?.status === "success"
-    return ok
+    return res?.status === "success"
   } catch (e) {
     console.error("deleteMemory error", e)
     throw e

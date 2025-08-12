@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useContext, createContext, type ReactNode } from "react"
+import { App } from "antd"
 import { authService } from "@/services/authService"
 import { getSessionFromStorage } from "@/lib/auth"
 import { configService } from "@/services/configService"
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 // 认证提供者组件
 export function AuthProvider({ children }: { children: (value: AuthContextType) => ReactNode }) {
   const { t } = useTranslation('common');
+  const { message } = App.useApp();
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
@@ -202,7 +204,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     setIsRegisterModalOpen(false)
   }
 
-  const login = async (email: string, password: string, showSuccessMessage: boolean = true, message?: any) => {
+  const login = async (email: string, password: string, showSuccessMessage: boolean = true) => {
     try {
       setIsLoading(true)
       
@@ -257,7 +259,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     }
   }
 
-  const register = async (email: string, password: string, isAdmin?: boolean, inviteCode?: string, message?: any) => {
+  const register = async (email: string, password: string, isAdmin?: boolean, inviteCode?: string) => {
     try {
       setIsLoading(true)
       
@@ -308,7 +310,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     }
   }
 
-  const logout = async (message?: any) => {
+  const logout = async () => {
     try {
       setIsLoading(true)
       await authService.signOut()
