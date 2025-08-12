@@ -12,9 +12,6 @@ services:
       - /opt/backend/.venv/
       - ${NEXENT_USER_DIR:-$HOME/nexent}:/mnt/nexent
     environment:
-      ELASTICSEARCH_API_KEY: $ELASTICSEARCH_API_KEY
-      MINIO_ACCESS_KEY: $MINIO_ACCESS_KEY
-      MINIO_SECRET_KEY: $MINIO_SECRET_KEY
       skip_proxy: "true"
       UMASK: 0022
     env_file:
