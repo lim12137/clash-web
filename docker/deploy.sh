@@ -85,7 +85,7 @@ install_supabase_services() {
         
         echo "✅ Supabase services started successfully"
     else
-        echo "⚡ Speed version detected - skipping Supabase services"
+        echo "🚧 Speed version detected - skipping Supabase services"
     fi
 }
 
@@ -373,8 +373,8 @@ update_env_var() {
 # Add deployment version selection function
 select_deployment_version() {
     echo "🚀 Please select deployment version:"
-    echo "1) ⚡ Speed version - Lightweight deployment with essential features"
-    echo "2) 🎯 Full version - Full-featured deployment with all capabilities"
+    echo "1) ⚡️  Speed version - Lightweight deployment with essential features"
+    echo "2) 🎯  Full version - Full-featured deployment with all capabilities"
     if [ -n "$VERSION_CHOICE" ]; then
       version_choice="$VERSION_CHOICE"
       echo "👉 Using version_choice from argument: $version_choice"
@@ -389,7 +389,7 @@ select_deployment_version() {
             ;;
         *)
             export DEPLOYMENT_VERSION="speed"
-            echo "✅ Selected speed version ⚡"
+            echo "✅ Selected speed version ⚡️"
             ;;
     esac
     
@@ -483,7 +483,7 @@ wait_for_elasticsearch_healthy() {
 }
 
 # Function to generate complete environment file for infrastructure mode using generate_env.sh
-generate_env_for_infrastructure() {
+generate_envs() {
     # Wait for Elasticsearch to be healthy first
     wait_for_elasticsearch_healthy || {
         echo "⚠️  Elasticsearch is not healthy, but continuing with environment generation..."
@@ -565,7 +565,7 @@ generate_ssh_keys() {
 
         # Check if SSH keys already exist
         if [ -f "openssh-server/ssh-keys/openssh_server_key" ] && [ -f "openssh-server/ssh-keys/openssh_server_key.pub" ]; then
-            echo "🔑 SSH key pair already exists, skipping generation..."
+            echo "🚧 SSH key pair already exists, skipping generation..."
             echo "🔑 Private key: openssh-server/ssh-keys/openssh_server_key"
             echo "🗝️  Public key: openssh-server/ssh-keys/openssh_server_key.pub"
 
@@ -693,6 +693,32 @@ generate_ssh_keys() {
     fi
 }
 
+create_default_admin_user() {
+  echo "🔧 Creating admin user..."
+  RESPONSE=$(docker exec nexent bash -c "curl -X POST http://kong:8000/auth/v1/signup -H \"apikey: ${SUPABASE_KEY}\" -H \"Authorization: Bearer ${SUPABASE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"nexent@example.com\",\"password\":\"nexent@4321\",\"email_confirm\":true,\"options\":{\"data\":{\"role\":\"admin\"}}}'" 2>/dev/null)
+
+  if [ -z "$RESPONSE" ]; then
+    echo "❌ No response received from Supabase."
+    return 1
+  elif echo "$RESPONSE" | grep -q '"access_token"' && echo "$RESPONSE" | grep -q '"user"'; then
+    echo "✅ Default admin user has been successfully created."
+  elif echo "$RESPONSE" | grep -q '"error_code":"user_already_exists"' || echo "$RESPONSE" | grep -q '"code":422'; then
+    echo "🚧 Default admin user already exists. Skipping creation."
+  else
+    echo "❌ Response from Supabase does not contain 'access_token' or 'user'."
+    return 1
+  fi
+
+  echo ""
+  echo "   📝 Please save the following credentials carefully, which would ONLY be shown once."
+  echo "   📧 nexent@example.com"
+  echo "   🔏 nexent@4321"
+
+  echo ""
+  echo "--------------------------------"
+  echo ""
+}
+
 generate_minio_ak_sk() {
   echo "🔑 Generating MinIO access keys..."
 
@@ -787,15 +813,9 @@ main_deploy() {
       exit 1
     fi
     
-    # Install Supabase services based on deployment version
-    install_supabase_services || {
-      echo "❌ ERROR Supabase services installation failed"
-      exit 1
-    }
-    
     # Wait for services to be healthy, then generate complete environment
     echo "🔑 Generating complete environment file with all keys..."
-    generate_env_for_infrastructure || { echo "❌ Environment generation failed"; exit 1; }
+    generate_envs || { echo "❌ Environment generation failed"; exit 1; }
     
     echo "🎉  Infrastructure deployment completed successfully!"
     if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
@@ -807,11 +827,15 @@ main_deploy() {
     return 0
   fi
 
+  generate_envs || { echo "❌ Environment generation failed"; exit 1; }
+
   # Install services and generate environment
   install || { echo "❌ Service installation failed"; exit 1; }
+  # Create default admin user
+  if [ "$DEPLOYMENT_VERSION" = "full" ]; then
+    create_default_admin_user || { echo "❌ Default admin user creation failed"; exit 1; }
+  fi
   clean
-  # echo "Creating admin user..."
-  # docker exec -d nexent bash -c "curl -X POST http://kong:8000/auth/v1/signup -H \"apikey: ${SUPABASE_KEY}\" -H \"Authorization: Bearer ${SUPABASE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"admin@example.com\",\"password\":\"123123\",\"email_confirm\":true,\"data\":{\"role\":\"admin\"}}'"
 
   echo "🎉  Deployment completed successfully!"
   echo "🌐  You can now access the application at http://localhost:3000"
