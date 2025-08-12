@@ -2,102 +2,17 @@
 
 # Exit immediately if a command exits with a non-zero status
 set -e
-
-ERROR_OCCURRED=0
-echo "ℹ️  Script location: docker/generate_env.sh"
-echo "📁 Target .env location: Root directory (../)"
-echo ""
-
-# Function to generate MinIO access keys
-echo_minio_ak_sk() {
-  echo "✅ MinIO access keys generated successfully"
-  echo "   MINIO_ACCESS_KEY: $ACCESS_KEY"
-  echo "   MINIO_SECRET_KEY: $SECRET_KEY"
-}
-
-# Function to generate Elasticsearch API key
-generate_elasticsearch_api_key() {
-  echo "🔑 Generating ELASTICSEARCH_API_KEY..."
-
-  # Check if docker-compose is available
-  if ! command -v docker-compose &> /dev/null; then
-    echo "❌ ERROR docker-compose is not available"
-    ERROR_OCCURRED=1
-    return 1
-  fi
-
-  # Check if Elasticsearch container is running and healthy
-  if ! docker-compose -p nexent ps nexent-elasticsearch | grep -q "healthy"; then
-    echo "⚠️  WARNING: Elasticsearch container is not running or not healthy"
-    echo "   Please make sure Elasticsearch is running first by executing:"
-    echo "   docker-compose -p nexent up -d nexent-elasticsearch"
-    echo "   Then wait for it to become healthy before running this script again."
-    echo ""
-    echo "   Alternatively, you can manually set ELASTICSEARCH_API_KEY in the .env file"
-    echo "   after starting the services."
-    ERROR_OCCURRED=1
-    return 1
-  fi
-
-  # Generate API key - use the same method as in deploy.sh
-  # First, source the .env file to get ELASTIC_PASSWORD
-  if [ -f "../.env" ]; then
-    source ../.env
-  elif [ -f ".env" ]; then
-    source .env
-  else
-    echo "❌ ERROR .env file not found, cannot get ELASTIC_PASSWORD"
-    ERROR_OCCURRED=1
-    return 1
-  fi
-
-  # Generate API key
-  API_KEY_JSON=$(docker-compose -p nexent exec -T nexent-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" "http://localhost:9200/_security/api_key" -H "Content-Type: application/json" -d '{"name":"nexent_api_key","role_descriptors":{"nexent_role":{"cluster":["all"],"index":[{"names":["*"],"privileges":["all"]}]}}}')
-
-  # Extract API key
-  ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
-
-  if [ -n "$ELASTICSEARCH_API_KEY" ]; then
-    export ELASTICSEARCH_API_KEY
-    echo "✅ ELASTICSEARCH_API_KEY generated successfully"
-  else
-    echo "❌ ERROR Failed to generate ELASTICSEARCH_API_KEY"
-    echo "   Response: $API_KEY_JSON"
-    ERROR_OCCURRED=1
-    return 1
-  fi
-}
-
-add_jwt_to_env() {
-  echo "Generating and updating Supabase secrets..."
-  # Generate fresh keys on every run for security
-  export JWT_SECRET=$(openssl rand -base64 32 | tr -d '[:space:]')
-  export SECRET_KEY_BASE=$(openssl rand -base64 64 | tr -d '[:space:]')
-  export VAULT_ENC_KEY=$(openssl rand -base64 32 | tr -d '[:space:]')
-
-  # Generate JWT-dependent keys using the new JWT_SECRET
-  local anon_key=$(generate_jwt "anon")
-  local service_role_key=$(generate_jwt "service_role")
-
-  # Update or add all keys to the .env file
-  update_env_var "JWT_SECRET" "$JWT_SECRET"
-  update_env_var "SECRET_KEY_BASE" "$SECRET_KEY_BASE"
-  update_env_var "VAULT_ENC_KEY" "$VAULT_ENC_KEY"
-  update_env_var "SUPABASE_KEY" "$anon_key"
-  update_env_var "SERVICE_ROLE_KEY" "$service_role_key"
-
-  # Reload the environment variables from the updated .env file
-  source .env
-}
+echo "   📁 Target .env location: Root directory (../)"
 
 # Function to copy and prepare .env file
 prepare_env_file() {
-  echo "📝 Preparing .env file..."
+  echo "   📝 Preparing root .env file..."
 
   # Check if .env already exists in root directory (parent directory)
   if [ -f "../.env" ]; then
-    echo "⚠️  .env file already exists in root directory"
-    read -p "   Do you want to overwrite it? [Y/N] (default: N): " overwrite
+    echo "   ⚠️  .env already exists in root directory"
+    echo ""
+    read -p "👉 Do you want to overwrite it? [Y/N] (default: N): " overwrite
     if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
       echo "   Using existing .env file"
       return 0
@@ -106,15 +21,15 @@ prepare_env_file() {
 
   # Check if .env exists in current docker directory
   if [ -f ".env" ]; then
-    echo "📋 Copying .env to root directory..."
+    echo "   📋 Copying docker/.env to root directory..."
     cp ".env" "../.env"
-    echo "✅ Copied docker/.env to ../.env"
+    echo "   ✅ Copied docker/.env to ../.env"
   elif [ -f ".env.example" ]; then
-    echo "📋 .env not found, copying .env.example to root directory..."
+    echo "   📋 docker/.env not found, copying .env.example to root directory..."
     cp ".env.example" "../.env"
-    echo "✅ Copied docker/.env.example to ../.env"
+    echo "   ✅ Copied docker/.env.example to ../.env"
   else
-    echo "❌ ERROR Neither .env nor .env.example exists in docker directory"
+    echo "   ❌ ERROR Neither docker/.env nor docker/.env.example exists in docker directory"
     ERROR_OCCURRED=1
     return 1
   fi
@@ -122,10 +37,10 @@ prepare_env_file() {
 
 # Function to update .env file with generated keys
 update_env_file() {
-  echo "📝 Updating .env file with generated keys..."
+  echo "   📝 Updating root .env file with generated keys..."
 
   if [ ! -f "../.env" ]; then
-    echo "❌ ERROR .env file does not exist in root directory"
+    echo "   ❌ ERROR .env file does not exist in root directory"
     ERROR_OCCURRED=1
     return 1
   fi
@@ -156,9 +71,10 @@ update_env_file() {
       echo "ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY" >> ../.env
     fi
   fi
+  echo "   ✅ Generated keys updated successfully"
 
   # Force update development environment service URLs for localhost access
-  echo "🔧 Updating service URLs for localhost development environment..."
+  echo "   🔧 Updating service URLs for localhost development environment..."
 
   # ELASTICSEARCH_HOST
   if grep -q "^ELASTICSEARCH_HOST=" ../.env; then
@@ -227,9 +143,6 @@ update_env_file() {
 
   # Supabase Configuration (Only for full version)
   if [ "$DEPLOYMENT_VERSION" = "full" ]; then
-    echo ""
-    echo "# Supabase Keys" >> ../.env
-    
     if [ -n "$SUPABASE_KEY" ]; then      
       if grep -q "^SUPABASE_KEY=" ../.env; then
         sed -i.bak "s~^SUPABASE_KEY=.*~SUPABASE_KEY=$SUPABASE_KEY~" ../.env
@@ -247,10 +160,6 @@ update_env_file() {
         echo "SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> ../.env
       fi
     fi
-
-    # Supabase PostgreSQL Configuration
-    echo ""
-    echo "# Supabase PostgreSQL Configuration" >> ../.env
     
     # Additional Supabase configuration
     if grep -q "^SUPABASE_URL=" ../.env; then
@@ -275,7 +184,7 @@ update_env_file() {
   # Remove backup file
   rm -f ../.env.bak
 
-  echo "✅ .env file updated successfully with localhost development URLs"
+  echo "   ✅ Root .env file updated successfully with localhost development URLs"
 }
 
 # Function to show summary
@@ -286,22 +195,25 @@ show_summary() {
   echo "--------------------------------"
   echo ""
 
-  echo "Generated keys:"
-  echo "  ✅ MINIO_ACCESS_KEY: $MINIO_ACCESS_KEY"
-  echo "  ✅ MINIO_SECRET_KEY: $MINIO_SECRET_KEY"
+  echo "🔣 Generated keys:"
+  echo "  🔑 MINIO_ACCESS_KEY: $MINIO_ACCESS_KEY"
+  echo "  🔑 MINIO_SECRET_KEY: $MINIO_SECRET_KEY"
   if [ -n "$ELASTICSEARCH_API_KEY" ]; then
-    echo "  ✅ ELASTICSEARCH_API_KEY: $ELASTICSEARCH_API_KEY"
+    echo "  🔑 ELASTICSEARCH_API_KEY: $ELASTICSEARCH_API_KEY"
   else
     echo "  ⚠️  ELASTICSEARCH_API_KEY: Not generated (Elasticsearch not available)"
   fi
-  echo ""
-  echo "📁 .env file location: $(cd .. && pwd)/.env"
-  echo ""
+  if [ -n "$SUPABASE_KEY" ]; then
+    echo "  🔑 SUPABASE_KEY: $SUPABASE_KEY"
+  fi
+  if [ -n "$SERVICE_ROLE_KEY" ]; then
+    echo "  🔑 SERVICE_ROLE_KEY: $SERVICE_ROLE_KEY"
+  fi
   if [ -z "$ELASTICSEARCH_API_KEY" ]; then
-    echo "⚠️  Note: To generate ELASTICSEARCH_API_KEY later, please:"
-    echo "   1. Start Elasticsearch: docker-compose -p nexent up -d nexent-elasticsearch"
-    echo "   2. Wait for it to become healthy"
-    echo "   3. Run this script again or manually generate the API key"
+    echo "   ⚠️  Note: To generate ELASTICSEARCH_API_KEY later, please:"
+    echo "      1. Start Elasticsearch: docker-compose -p nexent up -d nexent-elasticsearch"
+    echo "      2. Wait for it to become healthy"
+    echo "      3. Run this script again or manually generate the API key"
   fi
 }
 
@@ -310,30 +222,11 @@ main() {
   # Step 1: Prepare .env file
   prepare_env_file || { echo "❌ Failed to prepare .env file"; exit 1; }
 
-  # Step 2: Echo MinIO keys
-  echo_minio_ak_sk || { echo "❌ Failed to echo MinIO keys"; exit 1; }
-
-  # Step 3: Try to generate Elasticsearch API key (optional)
-  echo ""
-  generate_elasticsearch_api_key || {
-    echo "⚠️  Warning: Elasticsearch API key generation failed"
-    echo "   Continuing with MinIO keys only..."
-    ERROR_OCCURRED=0  # Reset error flag for optional step
-  }
-
-  # Step 4: Generate JWT secrets only if DEPLOYMENT_VERSION is "full"
-  if [ "$DEPLOYMENT_VERSION" = "full" ]; then
-    echo "🎯 Full version detected - generating JWT secrets for Supabase..."
-    add_jwt_to_env || { echo "❌ Failed to generate JWT secrets"; exit 1; }
-  else
-    echo "⚡ Speed version detected - skipping JWT secrets generation"
-  fi
-
-  # Step 5: Update .env file
+  # Step 2: Update .env file
   echo ""
   update_env_file || { echo "❌ Failed to update .env file"; exit 1; }
 
-  # Step 6: Show summary
+  # Step 3: Show summary
   show_summary
 }
 

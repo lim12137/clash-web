@@ -46,7 +46,7 @@ sanitize_input() {
 
 # Key generation
 generate_minio_ak_sk() {
-  echo "🔑 Generating MinIO access keys..."
+  echo "🔑 Generating MinIO keys..."
 
   if [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "mingw" ] || [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "msys" ]; then
     # Windows
@@ -62,7 +62,7 @@ generate_minio_ak_sk() {
   fi
 
   if [ -z "$ACCESS_KEY" ] || [ -z "$SECRET_KEY" ]; then
-    echo "❌ ERROR Failed to generate MinIO access keys"
+    echo "   ❌ ERROR Failed to generate MinIO access keys"
     ERROR_OCCURRED=1
     return 1
   fi
@@ -82,7 +82,7 @@ generate_minio_ak_sk() {
     echo "MINIO_SECRET_KEY=$SECRET_KEY" >> .env
   fi
 
-  echo "✅ MinIO access keys generated successfully"
+  echo "   ✅ MinIO keys generated successfully"
 }
 
 generate_jwt() {
@@ -106,7 +106,7 @@ generate_jwt() {
 generate_supabase_keys() {
   if [ "$DEPLOYMENT_VERSION" = "full" ]; then
     # Function to generate Supabase secrets
-    echo "Generating and updating Supabase secrets..."
+    echo "🔑 Generating Supabase keys..."
 
     # Generate fresh keys on every run for security
     export JWT_SECRET=$(openssl rand -base64 32 | tr -d '[:space:]')
@@ -126,6 +126,7 @@ generate_supabase_keys() {
 
     # Reload the environment variables from the updated .env file
     source .env
+    echo "   ✅ Supabase keys generated successfully"
   fi
 }
 
@@ -170,14 +171,14 @@ generate_ssh_keys() {
       echo "🔑 Generating SSH key pair for Terminal tool..."
 
       # Generate SSH key pair using Docker (cross-platform compatible)
-      echo "🔐 Using Docker to generate SSH key pair..."
+      echo "   🔐 Using Docker to generate SSH key pair..."
 
       # Create temporary file to capture output
       TEMP_OUTPUT="/tmp/ssh_keygen_output_$$.txt"
 
       # Generate ed25519 key pair using the openssh-server container
       if docker run --rm -i --entrypoint //keygen.sh "$OPENSSH_SERVER_IMAGE" <<< "1" > "$TEMP_OUTPUT" 2>&1; then
-          echo "🔍 SSH key generation completed, extracting keys..."
+          echo "   🔍 SSH key generation completed, extracting keys..."
 
           # Extract private key (everything between -----BEGIN and -----END)
           PRIVATE_KEY=$(sed -n '/-----BEGIN OPENSSH PRIVATE KEY-----/,/-----END OPENSSH PRIVATE KEY-----/p' "$TEMP_OUTPUT")
@@ -191,18 +192,18 @@ generate_ssh_keys() {
 
           # Validate extracted keys
           if [ -z "$PRIVATE_KEY" ]; then
-              echo "❌ Failed to extract private key"
+              echo "   ❌ Failed to extract private key"
               ERROR_OCCURRED=1
               return 1
           fi
 
           if [ -z "$PUBLIC_KEY" ]; then
-              echo "❌ Failed to extract public key"
+              echo "   ❌ Failed to extract public key"
               ERROR_OCCURRED=1
               return 1
           fi
 
-          echo "✅ SSH keys extracted successfully"
+          echo "   ✅ SSH keys extracted successfully"
 
           if [ -n "$PRIVATE_KEY" ] && [ -n "$PUBLIC_KEY" ]; then
               # Save private key
@@ -234,18 +235,18 @@ generate_ssh_keys() {
               # Fix SSH host key permissions (must be 600)
               find "openssh-server/config" -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
 
-              echo "✅ SSH key pair generated successfully!"
-              echo "🔑 Private key: openssh-server/ssh-keys/openssh_server_key"
-              echo "🗝️  Public key: openssh-server/ssh-keys/openssh_server_key.pub"
-              echo "⚙️  SSH config: openssh-server/config/sshd_config (60min session timeout)"
+              echo "   ✅ SSH key pair generated successfully!"
+              echo "      🔑 Private key: openssh-server/ssh-keys/openssh_server_key"
+              echo "      🗝️  Public key: openssh-server/ssh-keys/openssh_server_key.pub"
+              echo "      ⚙️  SSH config: openssh-server/config/sshd_config (60min session timeout)"
           else
-              echo "❌ ERROR Failed to extract SSH keys from Docker output"
-              echo "📋 Full output saved to: $TEMP_OUTPUT for debugging"
+              echo "   ❌ ERROR Failed to extract SSH keys from Docker output"
+              echo "   📋 Full output saved to: $TEMP_OUTPUT for debugging"
               ERROR_OCCURRED=1
               return 1
           fi
       else
-          echo "❌ ERROR Docker key generation command failed"
+          echo "   ❌ ERROR Docker key generation command failed"
           if [ -f "$TEMP_OUTPUT" ]; then
               echo "📋 Error output:"
               cat "$TEMP_OUTPUT"
@@ -267,7 +268,7 @@ generate_ssh_keys() {
 
 generate_elasticsearch_api_key() {
   # Function to generate Elasticsearch API key
-  wait_for_elasticsearch_healthy || { echo "❌ Elasticsearch health check failed"; exit 1; }
+  wait_for_elasticsearch_healthy || { echo "   ❌ Elasticsearch health check failed"; exit 1; }
 
   # Generate API key
   echo "🔑 Generating ELASTICSEARCH_API_KEY..."
@@ -286,21 +287,14 @@ generate_elasticsearch_api_key() {
   fi
 }
 
-generate_envs() {
+generate_env_for_infrastructure() {
   # Function to generate complete environment file for infrastructure mode using generate_env.sh
-  echo "🔑 Generating complete environment file with all keys..."
-  # Wait for Elasticsearch to be healthy first
-  wait_for_elasticsearch_healthy || {
-      echo "⚠️  Elasticsearch is not healthy, but continuing with environment generation..."
-  }
-  echo ""
-  echo "--------------------------------"
-  echo ""
-  echo "🚀 Running generate_env.sh to create complete environment..."
+  echo "🔑 Generating complete environment file in root directory..."
+  echo "   🚀 Running generate_env.sh..."
 
   # Check if generate_env.sh exists
   if [ ! -f "generate_env.sh" ]; then
-      echo "❌ ERROR generate_env.sh not found in docker directory"
+      echo "   ❌ ERROR generate_env.sh not found in docker directory"
       return 1
   fi
 
@@ -311,23 +305,20 @@ generate_envs() {
   export DEPLOYMENT_VERSION
   
   if ./generate_env.sh; then
-      echo "--------------------------------"
-      echo ""
-      echo "✅ Environment file generated successfully for infrastructure mode!"
-
+      echo "   ✅ Environment file generated successfully for infrastructure mode!"
       # Source the generated .env file to make variables available
       if [ -f "../.env" ]; then
-          echo "📁 Sourcing generated .env file..."
+          echo "   ⏏️ Sourcing generated root .env file..."
           set -a
           source ../.env
           set +a
-          echo "✅ Environment variables loaded from ../.env"
+          echo "   ✅ Environment variables loaded from ../.env"
       else
-          echo "⚠️  Warning: ../.env file not found after generation"
+          echo "   ⚠️  Warning: ../.env file not found after generation"
           return 1
       fi
   else
-      echo "❌ ERROR Failed to generate environment file"
+      echo "   ❌ ERROR Failed to generate environment file"
       return 1
   fi
 
@@ -374,10 +365,10 @@ disable_dashboard() {
 
 select_deployment_mode() {
   echo "🎛️  Please select deployment mode:"
-  echo "1) 🛠️  Development mode - Expose all service ports for debugging"
-  echo "2) 🏗️  Infrastructure mode - Only start infrastructure services"
-  echo "3) 🚀 Production mode - Only expose port 3000 for security"
-  echo "4) 🧪 Beta mode - Use develop branch images (from .env.beta)"
+  echo "   1) 🛠️  Development mode - Expose all service ports for debugging"
+  echo "   2) 🏗️  Infrastructure mode - Only start infrastructure services"
+  echo "   3) 🚀 Production mode - Only expose port 3000 for security"
+  echo "   4) 🧪 Beta mode - Use develop branch images (from .env.beta)"
 
   if [ -n "$MODE_CHOICE" ]; then
     mode_choice="$MODE_CHOICE"
@@ -388,14 +379,6 @@ select_deployment_mode() {
 
   # Sanitize potential Windows CR in input
   mode_choice=$(sanitize_input "$mode_choice")
-
-  # Get ROOT_DIR from user input with default value
-  default_root_dir="$HOME/nexent-data"
-  read -p "📁 Enter ROOT_DIR path (default: $default_root_dir): " user_root_dir
-  ROOT_DIR="${user_root_dir:-$default_root_dir}"
-  
-  echo "# Root dir" >> .env
-  echo "ROOT_DIR=\"$ROOT_DIR\"" >> .env
   
   case $mode_choice in
       2)
@@ -407,7 +390,7 @@ select_deployment_mode() {
           export DEPLOYMENT_MODE="production"
           export COMPOSE_FILE_SUFFIX=".prod.yml"
           disable_dashboard
-          echo "✅ Selected production mode deployment"
+          echo "✅ Selected production mode 🚀"
           ;;
       4)
           export DEPLOYMENT_MODE="beta"
@@ -417,9 +400,25 @@ select_deployment_mode() {
       *)
           export DEPLOYMENT_MODE="development"
           export COMPOSE_FILE_SUFFIX=".yml"
-          echo "✅ Selected development mode deployment"
+          echo "✅ Selected development mode 🛠️"
           ;;
   esac
+  echo ""
+    # Check if ROOT_DIR already exists in .env
+  if grep -q "^ROOT_DIR=" .env; then
+    # Extract existing ROOT_DIR value from .env
+    env_root_dir=$(grep "^ROOT_DIR=" .env | cut -d'=' -f2 | sed 's/^"//;s/"$//')
+    ROOT_DIR="$env_root_dir"
+    echo "   📁 Use existing ROOT_DIR path: $env_root_dir"
+  else
+    # Get ROOT_DIR from user input with default value
+    default_root_dir="$HOME/nexent-data"
+    read -p "   📁 Enter ROOT_DIR path (default: $default_root_dir): " user_root_dir
+    ROOT_DIR="${user_root_dir:-$default_root_dir}"
+    
+    echo "# Root dir" >> .env
+    echo "ROOT_DIR=\"$ROOT_DIR\"" >> .env
+  fi
   echo ""
   echo "--------------------------------"
   echo ""
@@ -468,7 +467,7 @@ create_dir_with_permission() {
 
   # Check if parameters are provided
   if [ -z "$dir_path" ] || [ -z "$permission" ]; then
-      echo "❌ ERROR Directory path and permission parameters are required." >&2
+      echo "   ❌ ERROR Directory path and permission parameters are required." >&2
       ERROR_OCCURRED=1
       return 1
   fi
@@ -477,7 +476,7 @@ create_dir_with_permission() {
   if [ ! -d "$dir_path" ]; then
       mkdir -p "$dir_path"
       if [ $? -ne 0 ]; then
-          echo "❌ ERROR Failed to create directory $dir_path." >&2
+          echo "   ❌ ERROR Failed to create directory $dir_path." >&2
           ERROR_OCCURRED=1
           return 1
       fi
@@ -486,18 +485,19 @@ create_dir_with_permission() {
   # Set directory permissions
   chmod -R "$permission" "$dir_path"
   if [ $? -ne 0 ]; then
-      echo "❌ ERROR Failed to set permissions $permission for directory $dir_path." >&2
+      echo "   ❌ ERROR Failed to set permissions $permission for directory $dir_path." >&2
       ERROR_OCCURRED=1
       return 1
   fi
 
-  echo "📁 Directory $dir_path has been created and permissions set to $permission."
+  echo "   📁 Directory $dir_path has been created and permissions set to $permission."
 }
 
 add_permission() {
   # Initialize the sql script permission
   chmod 644 "init.sql"
 
+  echo "🔧 Creating directory with permission..."
   create_dir_with_permission "$ROOT_DIR/elasticsearch" 777
   create_dir_with_permission "$ROOT_DIR/postgresql" 777
   create_dir_with_permission "$ROOT_DIR/minio" 777
@@ -507,7 +507,7 @@ add_permission() {
   # Create nexent user workspace directory
   NEXENT_USER_DIR="$HOME/nexent"
   create_dir_with_permission "$NEXENT_USER_DIR" 775
-  echo "📁 Created Nexent user workspace at: $NEXENT_USER_DIR"
+  echo "   🖥️ Nexent user workspace: $NEXENT_USER_DIR"
 
   # Export for docker-compose
   export NEXENT_USER_DIR
@@ -521,18 +521,13 @@ deploy_core_services() {
   # Function to deploy core services
   echo "👀 Starting core services..."
   if ! docker-compose -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent nexent-web nexent-data-process; then
-    echo "❌ ERROR Failed to start core services"
+    echo "   ❌ ERROR Failed to start core services"
     exit 1
   fi
 }
 
 deploy_infrastructure() {
   # Start infrastructure services (basic services only)
-
-  if [ "$DEPLOYMENT_MODE" = "infrastructure" ]; then
-    echo "🏗️  Infrastructure mode detected - preparing infrastructure services..."
-  fi
-
   echo "🔧 Starting infrastructure services..."
   INFRA_SERVICES="nexent-elasticsearch nexent-postgresql nexent-minio redis"
   
@@ -543,7 +538,7 @@ deploy_infrastructure() {
   fi
 
   if ! docker-compose -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES; then
-    echo "❌ ERROR Failed to start infrastructure services"
+    echo "   ❌ ERROR Failed to start infrastructure services"
     exit 1
   fi
 
@@ -553,35 +548,35 @@ deploy_infrastructure() {
 
   # Deploy Supabase services based on DEPLOYMENT_VERSION 
   if [ "$DEPLOYMENT_VERSION" = "full" ]; then
-      echo "🎯 Full version detected - installing Supabase services..."
-      
+      echo ""
+      echo "🔧 Starting Supabase services..."
       # Check if the supabase compose file exists
       if [ ! -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" ]; then
-          echo "❌ ERROR Supabase compose file not found: docker-compose-supabase${COMPOSE_FILE_SUFFIX}"
+          echo "   ❌ ERROR Supabase compose file not found: docker-compose-supabase${COMPOSE_FILE_SUFFIX}"
           ERROR_OCCURRED=1
           return 1
       fi
       
       # Start Supabase services
       if ! docker-compose -p nexent -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d; then
-          echo "❌ ERROR Failed to start supabase services"
+          echo "   ❌ ERROR Failed to start supabase services"
           ERROR_OCCURRED=1
           return 1
       fi
       
-      echo "✅ Supabase services started successfully"
+      echo "   ✅ Supabase services started successfully"
   else
-      echo "🚧 Speed version detected - skipping Supabase services"
+      echo "   🚧 Skipping Supabase services..."
   fi
 
-  echo "✅ Infrastructure services started successfully"  
+  echo "   ✅ Infrastructure services started successfully"  
 }
 
 select_deployment_version() {
   # Function to select deployment version
   echo "🚀 Please select deployment version:"
-  echo "1) ⚡️  Speed version - Lightweight deployment with essential features"
-  echo "2) 🎯  Full version - Full-featured deployment with all capabilities"
+  echo "   1) ⚡️  Speed version - Lightweight deployment with essential features"
+  echo "   2) 🎯  Full version - Full-featured deployment with all capabilities"
   if [ -n "$VERSION_CHOICE" ]; then
     version_choice="$VERSION_CHOICE"
     echo "👉 Using version_choice from argument: $version_choice"
@@ -619,9 +614,6 @@ select_deployment_version() {
   else
     # Key doesn't exist, so add it
     echo "${key}=\"${value}\"" >> "$env_file"
-    echo ""
-    echo "--------------------------------"
-    echo ""
   fi
   
   echo ""
@@ -634,11 +626,11 @@ pull_openssh_images() {
 
   echo "🐳 Pulling openssh-server image for Terminal tool..."
   if ! docker pull "$OPENSSH_SERVER_IMAGE"; then
-    echo "❌ ERROR Failed to pull openssh-server image: $OPENSSH_SERVER_IMAGE"
+    echo "   ❌ ERROR Failed to pull openssh-server image: $OPENSSH_SERVER_IMAGE"
     ERROR_OCCURRED=1
     return 1
   fi
-  echo "✅ Successfully pulled openssh-server image"
+  echo "   ✅ Successfully pulled openssh-server image"
   echo ""
   echo "--------------------------------"
   echo ""
@@ -653,9 +645,9 @@ setup_package_install_script() {
   if [ -f "openssh-install-script.sh" ]; then
       cp "openssh-install-script.sh" "openssh-server/config/custom-cont-init.d/openssh-start-script"
       chmod +x "openssh-server/config/custom-cont-init.d/openssh-start-script"
-      echo "✅ Package installation script created/updated"
+      echo "   ✅ Package installation script created/updated"
   else
-      echo "❌ ERROR openssh-install-script.sh not found"
+      echo "   ❌ ERROR openssh-install-script.sh not found"
       ERROR_OCCURRED=1
       return 1
   fi
@@ -672,11 +664,11 @@ wait_for_elasticsearch_healthy() {
   done
 
   if [ $retries -eq $max_retries ]; then
-      echo "⚠️  Warning: Elasticsearch did not become healthy within expected time"
-      echo "   You may need to check the container logs and try again"
+      echo "   ⚠️  Warning: Elasticsearch did not become healthy within expected time"
+      echo "     You may need to check the container logs and try again"
       return 1
   else
-      echo "✅ Elasticsearch is now healthy!"
+      echo "   ✅ Elasticsearch is now healthy!"
       return 0
   fi
 }
@@ -684,8 +676,8 @@ wait_for_elasticsearch_healthy() {
 select_terminal_tool() {
     # Function to ask if user wants to enable Terminal tool
     echo "🔧 Terminal Tool Configuration:"
-    echo "Terminal tool allows AI agents to execute shell commands via SSH."
-    echo "This creates an openssh-server container for secure command execution."
+    echo "    Terminal tool allows AI agents to execute shell commands via SSH."
+    echo "    This creates an openssh-server container for secure command execution."
     if [ -n "$ENABLE_TERMINAL" ]; then
         enable_terminal="$ENABLE_TERMINAL"
     else
@@ -699,10 +691,10 @@ select_terminal_tool() {
         export ENABLE_TERMINAL_TOOL="true"
         export COMPOSE_PROFILES="${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}terminal"
         echo "✅ Terminal tool enabled 🔧"
-        echo "📝 An openssh-server container will be deployed for secure command execution."
+        echo "   🔧 Deploying an openssh-server container for secure command execution"
     else
         export ENABLE_TERMINAL_TOOL="false"
-        echo "❌ Terminal tool disabled"
+        echo "🚫 Terminal tool disabled"
     fi
     echo ""
     echo "--------------------------------"
@@ -714,14 +706,14 @@ create_default_admin_user() {
   RESPONSE=$(docker exec nexent bash -c "curl -X POST http://kong:8000/auth/v1/signup -H \"apikey: ${SUPABASE_KEY}\" -H \"Authorization: Bearer ${SUPABASE_KEY}\" -H \"Content-Type: application/json\" -d '{\"email\":\"nexent@example.com\",\"password\":\"nexent@4321\",\"email_confirm\":true,\"options\":{\"data\":{\"role\":\"admin\"}}}'" 2>/dev/null)
 
   if [ -z "$RESPONSE" ]; then
-    echo "❌ No response received from Supabase."
+    echo "   ❌ No response received from Supabase."
     return 1
   elif echo "$RESPONSE" | grep -q '"access_token"' && echo "$RESPONSE" | grep -q '"user"'; then
-    echo "✅ Default admin user has been successfully created."
+    echo "   ✅ Default admin user has been successfully created."
   elif echo "$RESPONSE" | grep -q '"error_code":"user_already_exists"' || echo "$RESPONSE" | grep -q '"code":422'; then
-    echo "🚧 Default admin user already exists. Skipping creation."
+    echo "   🚧 Default admin user already exists. Skipping creation."
   else
-    echo "❌ Response from Supabase does not contain 'access_token' or 'user'."
+    echo "   ❌ Response from Supabase does not contain 'access_token' or 'user'."
     return 1
   fi
 
@@ -737,7 +729,7 @@ create_default_admin_user() {
 
 choose_image_env() {
   if [ "$DEPLOYMENT_MODE" = "beta" ]; then
-    echo "🌐 Beta mode selected, using .env.beta for image sources."
+    echo "🌐 Beta Mode: using .env.beta for image sources."
     source .env.beta
     echo ""
     echo "--------------------------------"
@@ -768,7 +760,7 @@ choose_image_env() {
 
 main_deploy() {
   # Main deployment function
-  echo  "🚀  Nexent Deployment Script"
+  echo  "🚀 Nexent Deployment Script 🚀"
   echo ""
   echo "--------------------------------"
   echo ""
@@ -803,11 +795,11 @@ main_deploy() {
 
   # Special handling for infrastructure mode
   if [ "$DEPLOYMENT_MODE" = "infrastructure" ]; then
-    generate_envs || { echo "❌ Environment generation failed"; exit 1; }
-    echo "🎉  Infrastructure deployment completed successfully!"
-    echo "    You can now start the core services manually using dev containers"
-    echo "    Environment file available at: $(cd .. && pwd)/.env"
-    echo "💡  Use 'source .env' to load environment variables in your development shell"
+    generate_env_for_infrastructure || { echo "❌ Environment generation failed"; exit 1; }
+    echo "🎉 Infrastructure deployment completed successfully!"
+    echo "     You can now start the core services manually using dev containers"
+    echo "     Environment file available at: $(cd .. && pwd)/.env"
+    echo "💡 Use 'source .env' to load environment variables in your development shell"
     clean
     return 0
   fi
@@ -815,7 +807,7 @@ main_deploy() {
   # Start core services
   deploy_core_services || { echo "❌ Core services deployment failed"; exit 1; }
 
-  echo "✅ Core services started successfully"
+  echo "   ✅ Core services started successfully"
   echo ""
   echo "--------------------------------"
   echo ""
