@@ -25,4 +25,4 @@ long_text_analysis:
     4. Avoid redundant information, focus on question-relevant content
     
   user_prompt: |
-    Please carefully read and analyze this text: {file_context} 
+    Please carefully read and analyze this text:
