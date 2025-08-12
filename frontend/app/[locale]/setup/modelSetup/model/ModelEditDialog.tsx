@@ -185,6 +185,7 @@ interface ProviderConfigEditDialogProps {
   isOpen: boolean
   initialApiKey?: string
   initialMaxTokens?: string
+  modelType?: ModelType
   onClose: () => void
   onSave: (config: { apiKey: string; maxTokens: number }) => Promise<void> | void
 }
@@ -193,6 +194,7 @@ export const ProviderConfigEditDialog = ({
   isOpen,
   initialApiKey = '',
   initialMaxTokens = '4096',
+  modelType,
   onClose,
   onSave,
 }: ProviderConfigEditDialogProps) => {
@@ -223,6 +225,8 @@ export const ProviderConfigEditDialog = ({
     }
   }
 
+  const isEmbeddingModel = modelType === "embedding" || modelType === "multi_embedding"
+
   return (
     <Modal
       title={t('common.button.editConfig')}
@@ -238,12 +242,14 @@ export const ProviderConfigEditDialog = ({
           </label>
           <Input.Password value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
         </div>
-        <div>
-          <label className="block mb-1 text-sm font-medium text-gray-700">
-            {t('model.dialog.label.maxTokens')}
-          </label>
-          <Input value={maxTokens} onChange={(e) => setMaxTokens(e.target.value)} />
-        </div>
+        {!isEmbeddingModel && (
+          <div>
+            <label className="block mb-1 text-sm font-medium text-gray-700">
+              {t('model.dialog.label.maxTokens')}
+            </label>
+            <Input value={maxTokens} onChange={(e) => setMaxTokens(e.target.value)} />
+          </div>
+        )}
         <div className="flex justify-end space-x-3">
           <Button onClick={onClose}>{t('common.button.cancel')}</Button>
           <Button type="primary" onClick={handleSave} loading={saving} disabled={!valid()}>

@@ -698,6 +698,7 @@ export const ModelDeleteDialog = ({
         onClose={() => setIsProviderConfigOpen(false)}
         initialApiKey={getApiKeyByType(deletingModelType)}
         initialMaxTokens={(customModels.find(m => m.type === deletingModelType && m.source === 'silicon')?.maxTokens || 4096).toString()}
+        modelType={deletingModelType || undefined}
         onSave={handleProviderConfigSave}
       />
     </Modal>
