@@ -73,7 +73,8 @@ def convert_long_text_to_text(query: str, file_context: str, tenant_id: str, lan
         observer=MessageObserver(),
         model_id=get_model_name_from_config(secondary_model_config),
         api_base=secondary_model_config.get("base_url"),
-        api_key=secondary_model_config.get("api_key")
+        api_key=secondary_model_config.get("api_key"),
+        max_context_tokens=secondary_model_config.get("max_tokens")
     )
     
     # Load prompts from yaml file
