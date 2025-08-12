@@ -437,13 +437,15 @@ export default function PromptManager({
         businessLogic,
         dutyContent,
         constraintContent,
-        fewShotsContent
+        fewShotsContent,
+        agentDisplayName
       )
       
       if (result.success) {
         onDutyContentChange?.(dutyContent)
         onConstraintContentChange?.(constraintContent)
         onFewShotsContentChange?.(fewShotsContent)
+        onAgentDisplayNameChange?.(agentDisplayName)
         message.success(t('systemPrompt.message.save.success'))
       } else {
         throw new Error(result.message)

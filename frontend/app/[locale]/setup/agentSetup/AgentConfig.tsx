@@ -179,7 +179,8 @@ export default function AgentConfig() {
         businessLogic,
         dutyContent,
         constraintContent,
-        fewShotsContent
+        fewShotsContent,
+        agentDisplayName
       )
 
       if (result.success) {
@@ -196,6 +197,7 @@ export default function AgentConfig() {
         setFewShotsContent('')
         setAgentName('')
         setAgentDescription('')
+        setAgentDisplayName('')
         setSelectedTools([])
 
         // Clear new agent cache

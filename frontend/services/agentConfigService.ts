@@ -310,7 +310,8 @@ export const updateAgent = async (
   businessDescription?: string,
   dutyPrompt?: string,
   constraintPrompt?: string,
-  fewShotsPrompt?: string
+  fewShotsPrompt?: string,
+  displayName?: string
 ) => {
   try {
     const response = await fetch(API_ENDPOINTS.agent.update, {
@@ -320,6 +321,7 @@ export const updateAgent = async (
         agent_id: agentId,
         name: name,
         description: description,
+        display_name: displayName,
         model_name: modelName,
         max_steps: maxSteps,
         provide_run_summary: provideRunSummary,
