@@ -179,45 +179,28 @@ async def get_provider_list(request: ProviderModelRequest, authorization: Option
             data=None
         )
 
-@router.post("/update", response_model=ModelResponse)
-def update_model(request: ModelRequest, authorization: Optional[str] = Header(None)):
+
+@router.post("/update_single_model", response_model=ModelResponse)
+async def update_single_model(request: dict, authorization: Optional[str] = Header(None)):
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        model_data = request.model_dump()
-        # Split model_name
-        model_repo, model_name = split_repo_name(model_data["model_name"])
-        # Ensure model_repo is empty string instead of null
-        model_data["model_repo"] = model_repo if model_repo else ""
-        model_data["model_name"] = model_name
-
-        # Use non-empty status value
-        model_data["connect_status"] = model_data.get("connect_status") or ModelConnectStatusEnum.NOT_DETECTED.value
-
-        # Check if model exists
-        existing_model = get_model_by_name(model_name, model_repo,tenant_id)
-        if not existing_model:
-            return ModelResponse(
-                code=404,
-                message=f"Model not found: {add_repo_to_name(model_repo, model_name)}",
-                data=None
-            )
-
-        # If display name is provided and different from existing, check for duplicates
-        if model_data.get("display_name") and model_data["display_name"] != existing_model.get("display_name"):
+        model_data = request
+        if not model_data.get("display_name"):
+            model_data["display_name"] = split_display_name(model_data["model_name"])
+            # Check if display_name conflicts
             existing_model_by_display = get_model_by_display_name(model_data["display_name"], tenant_id)
-            if existing_model_by_display and existing_model_by_display["model_id"] != existing_model["model_id"]:
+            if existing_model_by_display and existing_model_by_display["model_id"] != model_data["model_id"]:
                 return ModelResponse(
                     code=409,
-                    message=f"Display name {model_data['display_name']} is already in use, please choose another display name",
+                    message=f"Name {model_data['display_name']} is already in use, please choose another display name",
                     data=None
                 )
-
-        # Update model record
-        update_model_record(existing_model["model_id"], model_data, user_id)
+        model_data["model_repo"], model_data["model_name"] = split_repo_name(model_data["model_name"])
+        update_model_record(model_data["model_id"], model_data, user_id)
         return ModelResponse(
             code=200,
-            message=f"Model {add_repo_to_name(model_repo, model_name)} updated successfully",
-            data={"model_name": add_repo_to_name(model_repo, model_name)}
+            message=f"Model {model_data['model_name']} updated successfully",
+            data=None
         )
     except Exception as e:
         return ModelResponse(

@@ -1,6 +1,6 @@
 import React from "react"
 import { useAuth } from "@/hooks/useAuth"
-import { Modal, Tabs, Collapse, List, Button, Switch, Pagination, Dropdown, Input } from "antd"
+import { Modal, Tabs, Collapse, List, Button, Switch, Pagination, Dropdown, Input, App } from "antd"
 import { CaretRightOutlined, DownOutlined } from "@ant-design/icons"
 import {
   MessageSquarePlus,
@@ -32,13 +32,14 @@ interface MemoryManageModalProps {
 const MemoryManageModal: React.FC<MemoryManageModalProps> = ({ visible, onClose, userRole }) => {
   // 获取认证上下文中的用户角色
   const { user } = useAuth()
+  const { message } = App.useApp()
   const role: "admin" | "user" = (userRole ?? (user?.role === "admin" ? "admin" : "user")) as "admin" | "user"
 
   // 真实业务场景可从其他 hooks / context 中获取
   const currentUserId = "user1"
   const currentTenantId = "tenant1"
 
-  const memory = useMemory({ visible, role, currentUserId, currentTenantId })
+  const memory = useMemory({ visible, role, currentUserId, currentTenantId, message })
   const { t } = useTranslation('common')
 
   // ====================== 清空记忆确认弹框 ======================

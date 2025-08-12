@@ -179,7 +179,8 @@ export default function AgentConfig() {
         businessLogic,
         dutyContent,
         constraintContent,
-        fewShotsContent
+        fewShotsContent,
+        agentDisplayName
       )
 
       if (result.success) {
@@ -196,6 +197,7 @@ export default function AgentConfig() {
         setFewShotsContent('')
         setAgentName('')
         setAgentDescription('')
+        setAgentDisplayName('')
         setSelectedTools([])
 
         // Clear new agent cache
@@ -581,182 +583,184 @@ export default function AgentConfig() {
   }
 
   return (
-    <div className="w-full h-full mx-auto" style={{ 
-      maxWidth: SETUP_PAGE_CONTAINER.MAX_WIDTH,
-      padding: `0 ${SETUP_PAGE_CONTAINER.HORIZONTAL_PADDING}`
-    }}>
-      <div className="w-full h-full">
-        <Row gutter={THREE_COLUMN_LAYOUT.GUTTER} className="h-full">
-          {/* Left Timeline Guide */}
-          <Col xs={24} md={24} lg={4} xl={4} className="h-full">
-            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden h-[300px] lg:h-[82vh]" style={{
-              padding: STANDARD_CARD.PADDING,
-              overflowY: "auto",
-              overflowX: "hidden"
-            }}>
-                <GuideSteps
-                  isCreatingNewAgent={isCreatingNewAgent}
-                  systemPrompt={systemPrompt}
-                  businessLogic={businessLogic}
-                  selectedTools={selectedTools}
-                  selectedAgents={selectedAgents}
-                  mainAgentId={mainAgentId}
-                  currentStep={currentGuideStep}
-                  agentName={newAgentName}
-                  agentDescription={newAgentDescription}
-                  agentProvideSummary={newAgentProvideSummary}
-                  isEditingAgent={isEditingAgent}
-                  dutyContent={dutyContent}
-                  constraintContent={constraintContent}
-                  fewShotsContent={fewShotsContent}
-                  enabledAgentIds={enabledAgentIds}
-                />
-            </div>
-          </Col>
-
-          {/* Middle and Right Panel Container */}
-          <Col xs={24} md={24} lg={20} xl={20}>
-            <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden h-[calc(100vh-200px)] lg:h-[82vh]" style={{
-              overflowY: "auto",
-              overflowX: "hidden"
-            }}>
-                {/* Middle Panel - Business Logic Configuration */}
-                <div className="flex-1 min-h-0" style={{
-                  padding: STANDARD_CARD.PADDING,
-                  overflowY: "auto",
-                  overflowX: "hidden"
-                }}>
-                  <BusinessLogicConfig 
-                    businessLogic={businessLogic}
-                    setBusinessLogic={(value) => {
-                      setBusinessLogic(value);
-                      if (isCreatingNewAgent) {
-                        setNewAgentCache(prev => ({ ...prev, businessLogic: value }));
-                      }
-                    }}
-                    selectedAgents={selectedAgents}
-                    setSelectedAgents={setSelectedAgents}
-                    selectedTools={selectedTools}
-                    setSelectedTools={setSelectedTools}
-                    systemPrompt={systemPrompt}
-                    setSystemPrompt={setSystemPrompt}
+    <App>
+      <div className="w-full h-full mx-auto" style={{ 
+        maxWidth: SETUP_PAGE_CONTAINER.MAX_WIDTH,
+        padding: `0 ${SETUP_PAGE_CONTAINER.HORIZONTAL_PADDING}`
+      }}>
+        <div className="w-full h-full">
+          <Row gutter={THREE_COLUMN_LAYOUT.GUTTER} className="h-full">
+            {/* Left Timeline Guide */}
+            <Col xs={24} md={24} lg={4} xl={4} className="h-full">
+              <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden h-[300px] lg:h-[82vh]" style={{
+                padding: STANDARD_CARD.PADDING,
+                overflowY: "auto",
+                overflowX: "hidden"
+              }}>
+                  <GuideSteps
                     isCreatingNewAgent={isCreatingNewAgent}
-                    setIsCreatingNewAgent={setIsCreatingNewAgent}
-                    mainAgentModel={mainAgentModel}
-                    setMainAgentModel={setMainAgentModel}
-                    mainAgentMaxStep={mainAgentMaxStep}
-                    setMainAgentMaxStep={setMainAgentMaxStep}
-                    tools={tools}
-                    subAgentList={subAgentList}
-                    loadingAgents={loadingAgents}
+                    systemPrompt={systemPrompt}
+                    businessLogic={businessLogic}
+                    selectedTools={selectedTools}
+                    selectedAgents={selectedAgents}
                     mainAgentId={mainAgentId}
-                    setMainAgentId={setMainAgentId}
-                    setSubAgentList={setSubAgentList}
-                    enabledAgentIds={enabledAgentIds}
-                    setEnabledAgentIds={setEnabledAgentIds}
-                    newAgentName={newAgentName}
-                    newAgentDescription={newAgentDescription}
-                    newAgentProvideSummary={newAgentProvideSummary}
-                    setNewAgentName={setNewAgentName}
-                    setNewAgentDescription={setNewAgentDescription}
-                    setNewAgentProvideSummary={setNewAgentProvideSummary}
-                    isNewAgentInfoValid={isNewAgentInfoValid}
-                    setIsNewAgentInfoValid={setIsNewAgentInfoValid}
-                    onEditingStateChange={handleEditingStateChange}
-                    onToolsRefresh={handleToolsRefresh}
+                    currentStep={currentGuideStep}
+                    agentName={newAgentName}
+                    agentDescription={newAgentDescription}
+                    agentProvideSummary={newAgentProvideSummary}
+                    isEditingAgent={isEditingAgent}
                     dutyContent={dutyContent}
-                    setDutyContent={(value) => {
-                      setDutyContent(value);
-                      if (isCreatingNewAgent) {
-                        setNewAgentCache(prev => ({ ...prev, dutyContent: value }));
-                      }
-                    }}
                     constraintContent={constraintContent}
-                    setConstraintContent={(value) => {
-                      setConstraintContent(value);
-                      if (isCreatingNewAgent) {
-                        setNewAgentCache(prev => ({ ...prev, constraintContent: value }));
-                      }
-                    }}
                     fewShotsContent={fewShotsContent}
-                    setFewShotsContent={(value) => {
-                      setFewShotsContent(value);
-                      if (isCreatingNewAgent) {
-                        setNewAgentCache(prev => ({ ...prev, fewShotsContent: value }));
-                      }
-                    }}
-                    agentName={agentName}
-                    setAgentName={(value) => {
-                      setAgentName(value);
-                      if (isCreatingNewAgent) {
-                        setNewAgentCache(prev => ({ ...prev, agentName: value }));
-                      }
-                    }}
-                    agentDescription={agentDescription}
-                    setAgentDescription={(value) => {
-                      setAgentDescription(value);
-                      if (isCreatingNewAgent) {
-                        setNewAgentCache(prev => ({ ...prev, agentDescription: value }));
-                      }
-                    }}
-                    agentDisplayName={agentDisplayName}
-                    setAgentDisplayName={(value) => {
-                      setAgentDisplayName(value);
-                      if (isCreatingNewAgent) {
-                        setNewAgentCache(prev => ({ ...prev, agentDisplayName: value }));
-                      }
-                    }}
-                    isGeneratingAgent={isGeneratingAgent}
-                  // SystemPromptDisplay related props
-                    onDebug={() => {
-                      setIsDebugDrawerOpen(true);
-                      setCurrentGuideStep(isCreatingNewAgent ? 5 : 5);
-                    }}
-                  getCurrentAgentId={getCurrentAgentId}
-                    onModelChange={handleModelChange}
-                    onMaxStepChange={handleMaxStepChange}
-                    onBusinessLogicChange={handleBusinessLogicChange}
-                    onGenerateAgent={handleGenerateAgent}
-                    onSaveAgent={handleSaveAgent}
-                    isSavingAgent={isSavingAgent}
-                    canSaveAgent={canSaveAgent}
-                    getButtonTitle={getButtonTitle}
-                    onExportAgent={handleExportAgent}
-                    onDeleteAgent={handleDeleteAgent}
-                    editingAgent={editingAgent}
-                    onExitCreation={handleExitCreation}
+                    enabledAgentIds={enabledAgentIds}
                   />
               </div>
-            </div>
-          </Col>
-        </Row>
-      </div>
+            </Col>
 
-      {/* Commissioning drawer */}
-      <Drawer
-        title={t('agent.debug.title')}
-        placement="right"
-        onClose={() => setIsDebugDrawerOpen(false)}
-        open={isDebugDrawerOpen}
-        width={LAYOUT_CONFIG.DRAWER_WIDTH}
-        styles={{
-          body: {
-            padding: 0,
-            height: '100%',
-            overflow: 'hidden'
-          }
-        }}
-      >
-        <div className="h-full">
-          <DebugConfig 
-            testQuestion={testQuestion}
-            setTestQuestion={setTestQuestion}
-            testAnswer={testAnswer}
-            setTestAnswer={setTestAnswer}
-            agentId={getCurrentAgentId()}
-          />
+            {/* Middle and Right Panel Container */}
+            <Col xs={24} md={24} lg={20} xl={20}>
+              <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden h-[calc(100vh-200px)] lg:h-[82vh]" style={{
+                overflowY: "auto",
+                overflowX: "hidden"
+              }}>
+                  {/* Middle Panel - Business Logic Configuration */}
+                  <div className="flex-1 min-h-0" style={{
+                    padding: STANDARD_CARD.PADDING,
+                    overflowY: "auto",
+                    overflowX: "hidden"
+                  }}>
+                    <BusinessLogicConfig 
+                      businessLogic={businessLogic}
+                      setBusinessLogic={(value) => {
+                        setBusinessLogic(value);
+                        if (isCreatingNewAgent) {
+                          setNewAgentCache(prev => ({ ...prev, businessLogic: value }));
+                        }
+                      }}
+                      selectedAgents={selectedAgents}
+                      setSelectedAgents={setSelectedAgents}
+                      selectedTools={selectedTools}
+                      setSelectedTools={setSelectedTools}
+                      systemPrompt={systemPrompt}
+                      setSystemPrompt={setSystemPrompt}
+                      isCreatingNewAgent={isCreatingNewAgent}
+                      setIsCreatingNewAgent={setIsCreatingNewAgent}
+                      mainAgentModel={mainAgentModel}
+                      setMainAgentModel={setMainAgentModel}
+                      mainAgentMaxStep={mainAgentMaxStep}
+                      setMainAgentMaxStep={setMainAgentMaxStep}
+                      tools={tools}
+                      subAgentList={subAgentList}
+                      loadingAgents={loadingAgents}
+                      mainAgentId={mainAgentId}
+                      setMainAgentId={setMainAgentId}
+                      setSubAgentList={setSubAgentList}
+                      enabledAgentIds={enabledAgentIds}
+                      setEnabledAgentIds={setEnabledAgentIds}
+                      newAgentName={newAgentName}
+                      newAgentDescription={newAgentDescription}
+                      newAgentProvideSummary={newAgentProvideSummary}
+                      setNewAgentName={setNewAgentName}
+                      setNewAgentDescription={setNewAgentDescription}
+                      setNewAgentProvideSummary={setNewAgentProvideSummary}
+                      isNewAgentInfoValid={isNewAgentInfoValid}
+                      setIsNewAgentInfoValid={setIsNewAgentInfoValid}
+                      onEditingStateChange={handleEditingStateChange}
+                      onToolsRefresh={handleToolsRefresh}
+                      dutyContent={dutyContent}
+                      setDutyContent={(value) => {
+                        setDutyContent(value);
+                        if (isCreatingNewAgent) {
+                          setNewAgentCache(prev => ({ ...prev, dutyContent: value }));
+                        }
+                      }}
+                      constraintContent={constraintContent}
+                      setConstraintContent={(value) => {
+                        setConstraintContent(value);
+                        if (isCreatingNewAgent) {
+                          setNewAgentCache(prev => ({ ...prev, constraintContent: value }));
+                        }
+                      }}
+                      fewShotsContent={fewShotsContent}
+                      setFewShotsContent={(value) => {
+                        setFewShotsContent(value);
+                        if (isCreatingNewAgent) {
+                          setNewAgentCache(prev => ({ ...prev, fewShotsContent: value }));
+                        }
+                      }}
+                      agentName={agentName}
+                      setAgentName={(value) => {
+                        setAgentName(value);
+                        if (isCreatingNewAgent) {
+                          setNewAgentCache(prev => ({ ...prev, agentName: value }));
+                        }
+                      }}
+                      agentDescription={agentDescription}
+                      setAgentDescription={(value) => {
+                        setAgentDescription(value);
+                        if (isCreatingNewAgent) {
+                          setNewAgentCache(prev => ({ ...prev, agentDescription: value }));
+                        }
+                      }}
+                      agentDisplayName={agentDisplayName}
+                      setAgentDisplayName={(value) => {
+                        setAgentDisplayName(value);
+                        if (isCreatingNewAgent) {
+                          setNewAgentCache(prev => ({ ...prev, agentDisplayName: value }));
+                        }
+                      }}
+                      isGeneratingAgent={isGeneratingAgent}
+                    // SystemPromptDisplay related props
+                      onDebug={() => {
+                        setIsDebugDrawerOpen(true);
+                        setCurrentGuideStep(isCreatingNewAgent ? 5 : 5);
+                      }}
+                    getCurrentAgentId={getCurrentAgentId}
+                      onModelChange={handleModelChange}
+                      onMaxStepChange={handleMaxStepChange}
+                      onBusinessLogicChange={handleBusinessLogicChange}
+                      onGenerateAgent={handleGenerateAgent}
+                      onSaveAgent={handleSaveAgent}
+                      isSavingAgent={isSavingAgent}
+                      canSaveAgent={canSaveAgent}
+                      getButtonTitle={getButtonTitle}
+                      onExportAgent={handleExportAgent}
+                      onDeleteAgent={handleDeleteAgent}
+                      editingAgent={editingAgent}
+                      onExitCreation={handleExitCreation}
+                    />
+                </div>
+              </div>
+            </Col>
+          </Row>
         </div>
-      </Drawer>
-    </div>
+
+        {/* Commissioning drawer */}
+        <Drawer
+          title={t('agent.debug.title')}
+          placement="right"
+          onClose={() => setIsDebugDrawerOpen(false)}
+          open={isDebugDrawerOpen}
+          width={LAYOUT_CONFIG.DRAWER_WIDTH}
+          styles={{
+            body: {
+              padding: 0,
+              height: '100%',
+              overflow: 'hidden'
+            }
+          }}
+        >
+          <div className="h-full">
+            <DebugConfig 
+              testQuestion={testQuestion}
+              setTestQuestion={setTestQuestion}
+              testAnswer={testAnswer}
+              setTestAnswer={setTestAnswer}
+              agentId={getCurrentAgentId()}
+            />
+          </div>
+        </Drawer>
+      </div>
+    </App>
   )
 } 

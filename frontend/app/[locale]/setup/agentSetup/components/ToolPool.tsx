@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, memo } from 'react'
-import { Button, Tag, message, Tabs } from 'antd'
+import { Button, Tag, App, Tabs } from 'antd'
 import { SettingOutlined, LoadingOutlined, ApiOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { TFunction } from 'i18next'
@@ -50,6 +50,7 @@ function ToolPool({
   isGeneratingAgent = false // 新增：默认不在生成状态
 }: ToolPoolProps) {
   const { t } = useTranslation('common');
+  const { message } = App.useApp();
 
   const [isToolModalOpen, setIsToolModalOpen] = useState(false);
   const [currentTool, setCurrentTool] = useState<Tool | null>(null);
@@ -150,6 +151,7 @@ function ToolPool({
       isSelected,
       mainAgentId,
       t,
+      message,
       (tool, isSelected) => onSelectTool(tool, isSelected)
     );
 
@@ -164,7 +166,7 @@ function ToolPool({
       setPendingToolSelection({ tool, isSelected });
       setIsToolModalOpen(true);
     }
-  }, [mainAgentId, onSelectTool, t, isGeneratingAgent]);
+  }, [mainAgentId, onSelectTool, t, isGeneratingAgent, message]);
 
   // Use useCallback to cache the tool configuration click processing function
   const handleConfigClick = useCallback((tool: Tool, e: React.MouseEvent) => {
