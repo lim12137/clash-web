@@ -2128,6 +2128,296 @@ class TestModelManagementApp(unittest.TestCase):
         mock_update.assert_any_call("model1_id", batch_update_data[0], self.user_id)
         mock_update.assert_any_call("model2_id", batch_update_data[1], self.user_id)
 
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_special_characters(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Prepare batch update request data with special characters
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                "model_name": "huggingface/llama",
+                "display_name": "LLaMA-Model (v2.0)",  # Special characters
+                "api_base": "http://localhost:8001",
+                "api_key": "key1@#$%",  # Special characters in API key
+                "model_type": "llm",
+                "provider": "huggingface"
+            },
+            {
+                "model_id": "model2_id",
+                "model_name": "openai/clip",
+                "display_name": "CLIP_Model-v1.0",  # Special characters
+                "api_base": "https://api.openai.com/v1",  # HTTPS URL
+                "api_key": "sk-1234567890abcdef",  # OpenAI-style API key
+                "model_type": "embedding",
+                "provider": "openai"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        self.assertEqual(mock_update.call_count, 2)
+        
+        # Verify both models were updated with special characters
+        mock_update.assert_any_call("model1_id", batch_update_data[0], self.user_id)
+        mock_update.assert_any_call("model2_id", batch_update_data[1], self.user_id)
+
+    # 新增测试用例：覆盖batch_update_models函数中缺失的场景
+    
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_none_request(self, mock_update, mock_get_user):
+        """测试传入None作为request参数的情况"""
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Send request with None (this should cause FastAPI validation error)
+        response = client.post("/model/batch_update_models", json=None, headers=self.auth_header)
+
+        # Assert response - FastAPI will return 422 for type validation errors
+        self.assertEqual(response.status_code, 422)
+
+        # Verify mock calls - these should not be called due to FastAPI validation
+        mock_get_user.assert_not_called()
+        mock_update.assert_not_called()
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_string_request(self, mock_update, mock_get_user):
+        """测试传入字符串作为request参数的情况"""
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Send request with string instead of list
+        response = client.post("/model/batch_update_models", json="invalid_request", headers=self.auth_header)
+
+        # Assert response - FastAPI will return 422 for type validation errors
+        self.assertEqual(response.status_code, 422)
+
+        # Verify mock calls - these should not be called due to FastAPI validation
+        mock_get_user.assert_not_called()
+        mock_update.assert_not_called()
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_dict_request(self, mock_update, mock_get_user):
+        """测试传入字典作为request参数的情况"""
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Send request with dict instead of list
+        response = client.post("/model/batch_update_models", json={"invalid": "request"}, headers=self.auth_header)
+
+        # Assert response - FastAPI will return 422 for type validation errors
+        self.assertEqual(response.status_code, 422)
+
+        # Verify mock calls - these should not be called due to FastAPI validation
+        mock_get_user.assert_not_called()
+        mock_update.assert_not_called()
+
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_non_dict_models(self, mock_update, mock_get_user):
+        """测试模型中包含非字典类型的情况"""
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Prepare batch update request data with non-dict models
+        batch_update_data = [
+            "invalid_model_string",  # String instead of dict
+            {
+                "model_id": "valid_model_id",
+                "model_name": "huggingface/llama",
+                "display_name": "Valid Model",
+                "api_base": "http://localhost:8001",
+                "api_key": "test_key",
+                "model_type": "llm",
+                "provider": "huggingface"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response - FastAPI will return 422 for type validation errors
+        self.assertEqual(response.status_code, 422)
+
+        # Verify mock calls - these should not be called due to FastAPI validation
+        mock_get_user.assert_not_called()
+        mock_update.assert_not_called()
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_nested_structure(self, mock_update, mock_get_user):
+        """测试嵌套结构的情况"""
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Prepare batch update request data with nested structure
+        batch_update_data = [
+            {
+                "model_id": "nested_model_id",
+                "model_name": "huggingface/llama",
+                "display_name": "Nested Model",
+                "api_base": "http://localhost:8001",
+                "api_key": "test_key",
+                "model_type": "llm",
+                "provider": "huggingface",
+                "nested_field": {
+                    "sub_field": "sub_value",
+                    "deep_nested": {
+                        "level3": "value3"
+                    }
+                }
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_update.assert_called_once_with("nested_model_id", batch_update_data[0], self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_update_model_record_exception(self, mock_update, mock_get_user):
+        """测试update_model_record抛出异常的情况"""
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_update.side_effect = Exception("Database connection failed")
+
+        # Prepare batch update request data
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                "model_name": "huggingface/llama",
+                "display_name": "Test Model",
+                "api_base": "http://localhost:8001",
+                "api_key": "test_key",
+                "model_type": "llm",
+                "provider": "huggingface"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 500)
+        self.assertIn("Failed to batch update models: Database connection failed", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_update.assert_called_once_with("model1_id", batch_update_data[0], self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_get_user_id_exception(self, mock_update, mock_get_user):
+        """测试get_current_user_id抛出异常的情况"""
+        # Configure mocks
+        mock_get_user.side_effect = Exception("Authentication token expired")
+        mock_update.return_value = None
+
+        # Prepare batch update request data
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                "model_name": "huggingface/llama",
+                "display_name": "Test Model",
+                "api_base": "http://localhost:8001",
+                "api_key": "test_key",
+                "model_type": "llm",
+                "provider": "huggingface"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 500)
+        self.assertIn("Failed to batch update models: Authentication token expired", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_update.assert_not_called()
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_empty_list_edge_case(self, mock_update, mock_get_user):
+        """测试空列表的边界情况"""
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Send request with empty list
+        response = client.post("/model/batch_update_models", json=[], headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_update.assert_not_called()
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_single_item_list(self, mock_update, mock_get_user):
+        """测试只有一个项目的列表情况"""
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Prepare single item list
+        single_item_data = [
+            {
+                "model_id": "single_model_id",
+                "model_name": "huggingface/llama",
+                "display_name": "Single Model",
+                "api_base": "http://localhost:8001",
+                "api_key": "test_key",
+                "model_type": "llm",
+                "provider": "huggingface"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=single_item_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_update.assert_called_once_with("single_model_id", single_item_data[0], self.user_id)
+
 
 if __name__ == "__main__":
     unittest.main()
