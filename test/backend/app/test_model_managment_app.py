@@ -975,6 +975,298 @@ class TestModelManagementApp(unittest.TestCase):
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_get_user_exception(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.side_effect = Exception("Authentication error")
+
+        # Prepare update request data
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "display_name": "Test Model",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 500)
+        self.assertIn("Failed to update model: Authentication error", data["message"])
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_no_model_id(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Test Model"
+        mock_get_by_display.return_value = None
+
+        # Prepare update request data without model_id
+        update_data = {
+            "model_name": "huggingface/llama",
+            "display_name": "Test Model",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 500)
+        self.assertIn("Failed to update model", data["message"])
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_simple_model_name(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Simple Model"
+        mock_get_by_display.return_value = None
+
+        # Prepare update request data with simple model_name (no repo)
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "llama",  # No repo prefix
+            "display_name": "Simple Model",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("updated successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        
+        # The endpoint should handle simple model names correctly
+        expected_data = update_data.copy()
+        expected_data["model_repo"] = ""
+        expected_data["model_name"] = "llama"
+        
+        mock_update.assert_called_once_with("test_model_id", expected_data, self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_empty_display_name_auto_generated(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Auto Generated Name"
+        mock_get_by_display.return_value = None
+
+        # Prepare update request data with empty display_name
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "display_name": "",  # Empty string
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("updated successfully", data["message"])
+
+        # Verify mock calls
+        mock_split_display.assert_called_once_with("huggingface/llama")
+        mock_get_by_display.assert_called_once_with("Auto Generated Name", self.tenant_id)
+        mock_update.assert_called_once()
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_none_display_name_auto_generated(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Auto Generated Name"
+        mock_get_by_display.return_value = None
+
+        # Prepare update request data with None display_name
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "display_name": None,  # None value
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("updated successfully", data["message"])
+
+        # Verify mock calls
+        mock_split_display.assert_called_once_with("huggingface/llama")
+        mock_get_by_display.assert_called_once_with("Auto Generated Name", self.tenant_id)
+        mock_update.assert_called_once()
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_display_name_conflict_same_id(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Same Name"
+        mock_get_by_display.return_value = {
+            "model_id": "test_model_id",  # Same ID, should not conflict
+            "display_name": "Same Name"
+        }
+
+        # Prepare update request data
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "display_name": "Same Name",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("updated successfully", data["message"])
+
+        # Verify mock calls
+        # Since display_name is provided, split_display_name and get_model_by_display_name should NOT be called
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_split_display.assert_not_called()
+        mock_get_by_display.assert_not_called()
+        
+        # The endpoint should still call update_model_record with modified data
+        expected_data = update_data.copy()
+        expected_data["model_repo"] = "huggingface"
+        expected_data["model_name"] = "llama"
+        
+        mock_update.assert_called_once_with("test_model_id", expected_data, self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_complex_repo_name(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Complex Model"
+        mock_get_by_display.return_value = None
+
+        # Prepare update request data with complex repo name
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "org/suborg/model_name",  # Complex repo structure
+            "display_name": "Complex Model",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("updated successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        
+        # The endpoint should handle complex repo names correctly
+        # split_repo_name("org/suborg/model_name") returns ("org", "suborg/model_name")
+        expected_data = update_data.copy()
+        expected_data["model_repo"] = "org"
+        expected_data["model_name"] = "suborg/model_name"
+        
+        mock_update.assert_called_once_with("test_model_id", expected_data, self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_no_slash_in_name(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Simple Model"
+        mock_get_by_display.return_value = None
+
+        # Prepare update request data with no slash in model_name
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "llama",  # No slash, no repo
+            "display_name": "Simple Model",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("updated successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        
+        # split_repo_name("llama") returns ("", "llama")
+        expected_data = update_data.copy()
+        expected_data["model_repo"] = ""
+        expected_data["model_name"] = "llama"
+        
+        mock_update.assert_called_once_with("test_model_id", expected_data, self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
     def test_batch_update_models_success(self, mock_update, mock_get_user):
         # Configure mocks
         mock_get_user.return_value = (self.user_id, self.tenant_id)
@@ -1147,6 +1439,692 @@ class TestModelManagementApp(unittest.TestCase):
         self.assertEqual(mock_update.call_count, 2)
         
         # Verify both models were attempted to be updated
+        mock_update.assert_any_call("model1_id", batch_update_data[0], self.user_id)
+        mock_update.assert_any_call("model2_id", batch_update_data[1], self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    def test_batch_update_models_get_user_exception(self, mock_get_user):
+        # Configure mocks
+        mock_get_user.side_effect = Exception("Authentication error")
+
+        # Prepare batch update request data
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                "model_name": "huggingface/llama",
+                "display_name": "Test Model",
+                "api_base": "http://localhost:8001",
+                "api_key": "test_key",
+                "model_type": "llm",
+                "provider": "huggingface"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 500)
+        self.assertIn("Failed to batch update models: Authentication error", data["message"])
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_large_list(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Prepare batch update request data with many models
+        batch_update_data = []
+        for i in range(10):
+            batch_update_data.append({
+                "model_id": f"model{i}_id",
+                "model_name": f"provider/model{i}",
+                "display_name": f"Model {i}",
+                "api_base": f"http://localhost:800{i}",
+                "api_key": f"key{i}",
+                "model_type": "llm" if i % 2 == 0 else "embedding",
+                "provider": "provider"
+            })
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        self.assertEqual(mock_update.call_count, 10)
+        
+        # Verify each model was updated
+        for i, model_data in enumerate(batch_update_data):
+            mock_update.assert_any_call(f"model{i}_id", model_data, self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_none_values(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Prepare batch update request data with None values
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                "model_name": "huggingface/llama",
+                "display_name": None,  # None value
+                "api_base": None,      # None value
+                "api_key": None,       # None value
+                "model_type": "llm",
+                "provider": "huggingface"
+            },
+            {
+                "model_id": "model2_id",
+                "model_name": "openai/clip",
+                "display_name": "CLIP Model",
+                "api_base": "http://localhost:8002",
+                "api_key": "key2",
+                "model_type": "embedding",
+                "provider": "openai"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        self.assertEqual(mock_update.call_count, 2)
+        
+        # Verify both models were updated with correct parameters
+        mock_update.assert_any_call("model1_id", batch_update_data[0], self.user_id)
+        mock_update.assert_any_call("model2_id", batch_update_data[1], self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_empty_strings(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Prepare batch update request data with empty strings
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                "model_name": "huggingface/llama",
+                "display_name": "",    # Empty string
+                "api_base": "",        # Empty string
+                "api_key": "",         # Empty string
+                "model_type": "llm",
+                "provider": "huggingface"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_update.assert_called_once_with("model1_id", batch_update_data[0], self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_mixed_data_types(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Prepare batch update request data with mixed data types
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                "model_name": "huggingface/llama",
+                "display_name": "LLaMA Model",
+                "api_base": "http://localhost:8001",
+                "api_key": "key1",
+                "model_type": "llm",
+                "provider": "huggingface",
+                "extra_field": "extra_value"  # Extra field
+            },
+            {
+                "model_id": "model2_id",
+                "model_name": "openai/clip",
+                "display_name": "CLIP Model",
+                "api_base": "http://localhost:8002",
+                "api_key": "key2",
+                "model_type": "embedding",
+                "provider": "openai",
+                "nested_field": {      # Nested field
+                    "sub_field": "sub_value"
+                }
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        self.assertEqual(mock_update.call_count, 2)
+        
+        # Verify both models were updated with correct parameters including extra fields
+        mock_update.assert_any_call("model1_id", batch_update_data[0], self.user_id)
+        mock_update.assert_any_call("model2_id", batch_update_data[1], self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_first_model_fails(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        
+        # First call fails, second call succeeds
+        mock_update.side_effect = [Exception("First model update failed"), None]
+
+        # Prepare batch update request data
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                "model_name": "huggingface/llama",
+                "display_name": "First Model",
+                "api_base": "http://localhost:8001",
+                "api_key": "key1",
+                "model_type": "llm",
+                "provider": "huggingface"
+            },
+            {
+                "model_id": "model2_id",
+                "model_name": "openai/clip",
+                "display_name": "Second Model",
+                "api_base": "http://localhost:8002",
+                "api_key": "key2",
+                "model_type": "embedding",
+                "provider": "openai"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 500)
+        self.assertIn("Failed to batch update models: First model update failed", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        self.assertEqual(mock_update.call_count, 1)  # Only first call should be made
+        
+        # Verify first model was attempted to be updated
+        mock_update.assert_called_once_with("model1_id", batch_update_data[0], self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_middle_model_fails(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        
+        # First call succeeds, second call fails, third call should not be reached
+        mock_update.side_effect = [None, Exception("Middle model update failed")]
+
+        # Prepare batch update request data
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                "model_name": "huggingface/llama",
+                "display_name": "First Model",
+                "api_base": "http://localhost:8001",
+                "api_key": "key1",
+                "model_type": "llm",
+                "provider": "huggingface"
+            },
+            {
+                "model_id": "model2_id",
+                "model_name": "openai/clip",
+                "display_name": "Second Model",
+                "api_base": "http://localhost:8002",
+                "api_key": "key2",
+                "model_type": "embedding",
+                "provider": "openai"
+            },
+            {
+                "model_id": "model3_id",
+                "model_name": "anthropic/claude",
+                "display_name": "Third Model",
+                "api_base": "http://localhost:8003",
+                "api_key": "key3",
+                "model_type": "llm",
+                "provider": "anthropic"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 500)
+        self.assertIn("Failed to batch update models: Middle model update failed", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        self.assertEqual(mock_update.call_count, 2)  # First two calls should be made
+        
+        # Verify first two models were attempted to be updated
+        mock_update.assert_any_call("model1_id", batch_update_data[0], self.user_id)
+        mock_update.assert_any_call("model2_id", batch_update_data[1], self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_split_display_name_exception(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.side_effect = Exception("Split display name error")
+        mock_get_by_display.return_value = None
+
+        # Prepare update request data without display_name
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 500)
+        self.assertIn("Failed to update model: Split display name error", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_split_display.assert_called_once_with("huggingface/llama")
+        mock_update.assert_not_called()
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_get_by_display_exception(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Auto Generated Name"
+        mock_get_by_display.side_effect = Exception("Database query error")
+
+        # Prepare update request data without display_name
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 500)
+        self.assertIn("Failed to update model: Database query error", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_split_display.assert_called_once_with("huggingface/llama")
+        mock_get_by_display.assert_called_once_with("Auto Generated Name", self.tenant_id)
+        mock_update.assert_not_called()
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_split_repo_name_exception(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Test Model"
+        mock_get_by_display.return_value = None
+
+        # We need to patch split_repo_name to raise an exception
+        with patch("test_model_managment_app.split_repo_name", side_effect=Exception("Split repo name error")):
+            # Prepare update request data
+            update_data = {
+                "model_id": "test_model_id",
+                "model_name": "huggingface/llama",
+                "display_name": "Test Model",
+                "api_base": "http://localhost:8001",
+                "api_key": "updated_key",
+                "model_type": "llm",
+                "provider": "huggingface"
+            }
+
+            # Send request
+            response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+            # Assert response
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data["code"], 500)
+            self.assertIn("Failed to update model: Split repo name error", data["message"])
+
+            # Verify mock calls
+            # Since display_name is provided, split_display_name and get_model_by_display_name should NOT be called
+            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+            mock_split_display.assert_not_called()
+            mock_get_by_display.assert_not_called()
+            mock_update.assert_not_called()
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_display_name_conflict_different_id(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Conflicting Name"
+        mock_get_by_display.return_value = {
+            "model_id": "other_model_id",  # Different ID, should conflict
+            "display_name": "Conflicting Name"
+        }
+
+        # Prepare update request data without display_name (so it will be auto-generated)
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            # No display_name, will be auto-generated
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 409)
+        self.assertIn("already in use", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_split_display.assert_called_once_with("huggingface/llama")
+        mock_get_by_display.assert_called_once_with("Conflicting Name", self.tenant_id)
+        mock_update.assert_not_called()  # Should not call update due to conflict
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_empty_string_display_name_conflict(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Auto Generated Name"
+        mock_get_by_display.return_value = {
+            "model_id": "other_model_id",  # Different ID, should conflict
+            "display_name": "Auto Generated Name"
+        }
+
+        # Prepare update request data with empty string display_name
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "display_name": "",  # Empty string, should trigger auto-generation
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 409)
+        self.assertIn("already in use", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_split_display.assert_called_once_with("huggingface/llama")
+        mock_get_by_display.assert_called_once_with("Auto Generated Name", self.tenant_id)
+        mock_update.assert_not_called()  # Should not call update due to conflict
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_none_display_name_conflict(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Auto Generated Name"
+        mock_get_by_display.return_value = {
+            "model_id": "other_model_id",  # Different ID, should conflict
+            "display_name": "Auto Generated Name"
+        }
+
+        # Prepare update request data with None display_name
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "display_name": None,  # None value, should trigger auto-generation
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 409)
+        self.assertIn("already in use", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_split_display.assert_called_once_with("huggingface/llama")
+        mock_get_by_display.assert_called_once_with("Auto Generated Name", self.tenant_id)
+        mock_update.assert_not_called()  # Should not call update due to conflict
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_missing_required_fields(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Prepare batch update request data with missing required fields
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                # Missing model_name, display_name, etc.
+                "model_type": "llm",
+                "provider": "huggingface"
+            },
+            {
+                "model_id": "model2_id",
+                "model_name": "openai/clip",
+                "display_name": "CLIP Model",
+                "api_base": "http://localhost:8002",
+                "api_key": "key2",
+                "model_type": "embedding",
+                "provider": "openai"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        self.assertEqual(mock_update.call_count, 2)
+        
+        # Verify both models were updated even with missing fields
+        mock_update.assert_any_call("model1_id", batch_update_data[0], self.user_id)
+        mock_update.assert_any_call("model2_id", batch_update_data[1], self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_very_large_list(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Prepare batch update request data with many models
+        batch_update_data = []
+        for i in range(100):  # Test with 100 models
+            batch_update_data.append({
+                "model_id": f"model{i}_id",
+                "model_name": f"provider/model{i}",
+                "display_name": f"Model {i}",
+                "api_base": f"http://localhost:800{i % 10}",
+                "api_key": f"key{i}",
+                "model_type": "llm" if i % 2 == 0 else "embedding",
+                "provider": "provider"
+            })
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        self.assertEqual(mock_update.call_count, 100)
+        
+        # Verify each model was updated
+        for i, model_data in enumerate(batch_update_data):
+            mock_update.assert_any_call(f"model{i}_id", model_data, self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_unicode_characters(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Prepare batch update request data with unicode characters
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                "model_name": "huggingface/llama",
+                "display_name": "LLaMA模型",  # Chinese characters
+                "api_base": "http://localhost:8001",
+                "api_key": "key1",
+                "model_type": "llm",
+                "provider": "huggingface"
+            },
+            {
+                "model_id": "model2_id",
+                "model_name": "openai/clip",
+                "display_name": "CLIP 모델",  # Korean characters
+                "api_base": "http://localhost:8002",
+                "api_key": "key2",
+                "model_type": "embedding",
+                "provider": "openai"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        self.assertEqual(mock_update.call_count, 2)
+        
+        # Verify both models were updated with unicode characters
+        mock_update.assert_any_call("model1_id", batch_update_data[0], self.user_id)
+        mock_update.assert_any_call("model2_id", batch_update_data[1], self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_batch_update_models_with_special_characters(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+
+        # Prepare batch update request data with special characters
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                "model_name": "huggingface/llama",
+                "display_name": "LLaMA-Model (v2.0)",  # Special characters
+                "api_base": "http://localhost:8001",
+                "api_key": "key1@#$%",  # Special characters in API key
+                "model_type": "llm",
+                "provider": "huggingface"
+            },
+            {
+                "model_id": "model2_id",
+                "model_name": "openai/clip",
+                "display_name": "CLIP_Model-v1.0",  # Special characters
+                "api_base": "https://api.openai.com/v1",  # HTTPS URL
+                "api_key": "sk-1234567890abcdef",  # OpenAI-style API key
+                "model_type": "embedding",
+                "provider": "openai"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        self.assertEqual(mock_update.call_count, 2)
+        
+        # Verify both models were updated with special characters
         mock_update.assert_any_call("model1_id", batch_update_data[0], self.user_id)
         mock_update.assert_any_call("model2_id", batch_update_data[1], self.user_id)
 
