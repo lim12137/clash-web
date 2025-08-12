@@ -195,9 +195,7 @@ async def update_single_model(request: dict, authorization: Optional[str] = Head
                     message=f"Name {model_data['display_name']} is already in use, please choose another display name",
                     data=None
                 )
-        model_repo, model_name = split_repo_name(model_data["model_name"])
-        model_data["model_repo"] = model_repo
-        model_data["model_name"] = model_name
+        model_data["model_repo"], model_data["model_name"] = split_repo_name(model_data["model_name"])
         update_model_record(model_data["model_id"], model_data, user_id)
         return ModelResponse(
             code=200,
