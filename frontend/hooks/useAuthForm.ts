@@ -20,16 +20,6 @@ export function useAuthForm() {
   const resetErrors = () => {
     setEmailError("")
     setPasswordError(false)
-    form.setFields([
-      {
-        name: "email",
-        errors: []
-      },
-      {
-        name: "password",
-        errors: []
-      }
-    ]);
   }
 
   // 处理邮箱输入变化

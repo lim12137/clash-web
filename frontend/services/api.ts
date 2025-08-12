@@ -83,6 +83,7 @@ export const API_ENDPOINTS = {
     customModelHealthcheck: (displayName: string) => `${API_BASE_URL}/model/healthcheck?display_name=${encodeURIComponent(displayName)}`,
     updateConnectStatus: `${API_BASE_URL}/model/update_connect_status`,
     verifyModelConfig: `${API_BASE_URL}/model/verify_config`,
+    updateSingleModel: `${API_BASE_URL}/model/update_single_model`,
   },
   knowledgeBase: {
     // Elasticsearch service

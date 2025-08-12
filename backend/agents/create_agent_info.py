@@ -11,7 +11,7 @@ from database.agent_db import search_agent_info_by_agent_id, search_tools_for_su
     query_or_create_main_agent_id, query_sub_agents_id_list
 from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
 from services.tenant_config_service import get_selected_knowledge_list
-from utils.prompt_template_utils import get_prompt_template_path
+from utils.prompt_template_utils import get_agent_prompt_template
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
 from smolagents.agents import populate_template
 from smolagents.utils import BASE_BUILTIN_MODULES
@@ -63,10 +63,8 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     constraint_prompt = agent_info.get("constraint_prompt", "")
     few_shots_prompt = agent_info.get("few_shots_prompt", "")
     
-    # Get template path
-    prompt_template_path = get_prompt_template_path(is_manager=len(managed_agents) > 0, language=language)
-    with open(prompt_template_path, "r", encoding="utf-8") as file:
-        prompt_template = yaml.safe_load(file)
+    # Get template content
+    prompt_template = get_agent_prompt_template(is_manager=len(managed_agents) > 0, language=language)
 
     # Get app information
     default_app_description = 'Nexent 是一个开源智能体SDK和平台' if language == 'zh' else 'Nexent is an open-source agent SDK and platform'
@@ -229,9 +227,7 @@ async def prepare_prompt_templates(is_manager: bool, system_prompt: str, languag
     Returns:
         dict: Prompt template configuration
     """
-    prompt_template_path = get_prompt_template_path(is_manager, language)
-    with open(prompt_template_path, "r", encoding="utf-8") as f:
-        prompt_templates = yaml.safe_load(f)
+    prompt_templates = get_agent_prompt_template(is_manager, language)
     prompt_templates["system_prompt"] = system_prompt
     return prompt_templates
 
