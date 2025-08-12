@@ -132,13 +132,11 @@ export function ChatHeader({
                 }}
               >
                 <a
-                  className="ant-dropdown-link text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors flex items-center gap-2 cursor-pointer"
-                  style={{ width: 100, border: 'none', boxShadow: 'none', background: 'transparent', textAlign: 'left' }}
-                  onClick={(e) => e.preventDefault()}
+                  className="ant-dropdown-link text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors flex items-center gap-2 cursor-pointer w-[100px] border-0 shadow-none bg-transparent text-left"
                 >
                   <Globe className="h-4 w-4" />
                   {languageOptions.find(o => o.value === currentLanguage)?.label || currentLanguage}
-                  <DownOutlined style={{ fontSize: 10 }} />
+                  <DownOutlined className="text-[10px]" />
                 </a>
               </Dropdown>
               {/* Memory Setting */}
