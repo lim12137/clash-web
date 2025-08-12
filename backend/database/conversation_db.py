@@ -320,7 +320,7 @@ def rename_conversation(conversation_id: int, new_title: str, user_id: Optional[
         # Prepare update data
         update_data = {
             "conversation_title": new_title,
-            "update_time": func.current_timestamp()  # Use the database's CURRENT_TIMESTAMP function
+            "update_time": func.current_timestamp()  
         }
         if user_id:
             update_data = add_update_tracking(update_data, user_id)

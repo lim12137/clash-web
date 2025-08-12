@@ -85,7 +85,7 @@ const categorizeDialogs = (dialogs: ConversationListItem[]) => {
   const olderDialogs: ConversationListItem[] = []
   
   dialogs.forEach(dialog => {
-    const dialogTime = dialog.update_time || dialog.create_time
+    const dialogTime = dialog.create_time
     
     if (dialogTime >= today) {
       todayDialogs.push(dialog)
