@@ -83,7 +83,6 @@ add_jwt_to_env() {
   update_env_var "JWT_SECRET" "$JWT_SECRET"
   update_env_var "SECRET_KEY_BASE" "$SECRET_KEY_BASE"
   update_env_var "VAULT_ENC_KEY" "$VAULT_ENC_KEY"
-  update_env_var "ANON_KEY" "$anon_key"
   update_env_var "SUPABASE_KEY" "$anon_key"
   update_env_var "SERVICE_ROLE_KEY" "$service_role_key"
 
@@ -145,6 +144,25 @@ update_env_file() {
     sed -i.bak "s~^MINIO_SECRET_KEY=.*~MINIO_SECRET_KEY=$MINIO_SECRET_KEY~" ../.env
   else
     echo "MINIO_SECRET_KEY=$MINIO_SECRET_KEY" >> ../.env
+  fi
+
+  # Supabase keys: rely on environment variables exported earlier in the flow
+  if [ -n "$SUPABASE_KEY" ]; then
+    if grep -q "^SUPABASE_KEY=" ../.env; then
+      sed -i.bak "s~^SUPABASE_KEY=.*~SUPABASE_KEY=$SUPABASE_KEY~" ../.env
+    else
+      echo "" >> ../.env
+      echo "# Supabase Keys" >> ../.env
+      echo "SUPABASE_KEY=$SUPABASE_KEY" >> ../.env
+    fi
+  fi
+
+  if [ -n "$SERVICE_ROLE_KEY" ]; then
+    if grep -q "^SERVICE_ROLE_KEY=" ../.env; then
+      sed -i.bak "s~^SERVICE_ROLE_KEY=.*~SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY~" ../.env
+    else
+      echo "SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> ../.env
+    fi
   fi
 
   # Update or add ELASTICSEARCH_API_KEY (only if it was generated successfully)
