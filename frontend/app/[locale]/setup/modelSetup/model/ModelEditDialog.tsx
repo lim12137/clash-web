@@ -1,4 +1,4 @@
-import { Modal, Input, Select, Button, message } from 'antd'
+import { Modal, Input, Select, Button, App } from 'antd'
 import { useState, useEffect } from 'react'
 import { ModelOption, ModelType } from '@/types/config'
 import { modelService } from '@/services/modelService'
@@ -16,6 +16,7 @@ interface ModelEditDialogProps {
 
 export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEditDialogProps) => {
   const { t } = useTranslation()
+  const { message } = App.useApp()
   const { updateModelConfig } = useConfig()
   const [form, setForm] = useState({
     type: "llm" as ModelType,

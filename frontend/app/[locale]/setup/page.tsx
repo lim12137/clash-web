@@ -32,7 +32,7 @@ export default function CreatePage() {
   const [isSavingConfig, setIsSavingConfig] = useState(false)
   const [isFromSecondPage, setIsFromSecondPage] = useState(false)
   const { user, isLoading: userLoading, openLoginModal } = useAuth()
-  const { confirm } = Modal
+  const { modal } = App.useApp()
   const { state: { knowledgeBases, selectedIds }, saveUserSelectedKnowledgeBases } = useKnowledgeBaseContext()
   const { t } = useTranslation()
   const [embeddingModalOpen, setEmbeddingModalOpen] = useState(false);
@@ -47,7 +47,7 @@ export default function CreatePage() {
     if (!userLoading) {
       if (!user) {
         // user not logged in, show login prompt
-        confirm({
+        modal.confirm({
           title: t('login.expired.title'),
           icon: <ExclamationCircleOutlined />,
           content: t('login.expired.content'),
@@ -74,7 +74,7 @@ export default function CreatePage() {
         setSelectedKey("2")
       }
     }
-  }, [user, userLoading, selectedKey, confirm, openLoginModal, router])
+  }, [user, userLoading, selectedKey, modal, openLoginModal, router])
 
   // Check the connection status when the page is initialized
   useEffect(() => {
