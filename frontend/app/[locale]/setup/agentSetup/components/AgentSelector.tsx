@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { Card, List, Avatar, Typography, Spin, Empty, message } from 'antd'
+import { Card, List, Avatar, Typography, Spin, Empty, App } from 'antd'
 import { UserOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { fetchAllAgents } from '@/services/agentConfigService'
@@ -23,6 +23,7 @@ interface AgentSelectorProps {
 
 export default function AgentSelector({ onAgentSelect, selectedAgentId }: AgentSelectorProps) {
   const { t } = useTranslation('common')
+  const { message } = App.useApp()
   const [agents, setAgents] = useState<AgentBasicInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedAgent, setSelectedAgent] = useState<AgentBasicInfo | null>(null)

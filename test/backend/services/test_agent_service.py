@@ -238,7 +238,8 @@ def test_update_agent_info_impl_success(mock_get_current_user_id, mock_update_ag
     request = AgentInfoRequest(
         agent_id=123,
         model_name="gpt-4",
-        business_description="Updated agent"
+        business_description="Updated agent",
+        display_name="Updated Display Name"
     )
     
     # Execute
@@ -303,7 +304,7 @@ def test_update_agent_info_impl_exception_handling(mock_get_current_user_id, moc
     # Setup
     mock_get_current_user_id.return_value = ("test_user", "test_tenant")
     mock_update_agent.side_effect = Exception("Update failed")
-    request = AgentInfoRequest(agent_id=123, model_name="gpt-4")
+    request = AgentInfoRequest(agent_id=123, model_name="gpt-4", display_name="Test Display Name")
     
     # Execute & Assert
     with pytest.raises(ValueError) as context:
@@ -459,11 +460,13 @@ def test_list_all_agent_info_impl_success():
         {
             "agent_id": 1,
             "name": "Agent 1",
+            "display_name": "Display Agent 1",
             "description": "First test agent"
         },
         {
             "agent_id": 2,
             "name": "Agent 2",
+            "display_name": "Display Agent 2",
             "description": "Second test agent"
         }
     ]
@@ -490,9 +493,11 @@ def test_list_all_agent_info_impl_success():
         assert len(result) == 2
         assert result[0]["agent_id"] == 1
         assert result[0]["name"] == "Agent 1"
+        assert result[0]["display_name"] == "Display Agent 1"
         assert result[0]["is_available"] == True
         assert result[1]["agent_id"] == 2
         assert result[1]["name"] == "Agent 2"
+        assert result[1]["display_name"] == "Display Agent 2"
         assert result[1]["is_available"] == True
         
         # Verify mock calls
@@ -521,11 +526,13 @@ def test_list_all_agent_info_impl_with_unavailable_tools():
         {
             "agent_id": 1,
             "name": "Agent 1",
+            "display_name": "Display Agent 1",
             "description": "Agent with available tools"
         },
         {
             "agent_id": 2,
             "name": "Agent 2",
+            "display_name": "Display Agent 2",
             "description": "Agent with unavailable tools"
         }
     ]

@@ -1,4 +1,3 @@
-import { message } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
 import knowledgeBaseService from '@/services/knowledgeBaseService';
 import knowledgeBasePollingService from '@/services/knowledgeBasePollingService';
@@ -52,7 +51,8 @@ export const fetchKnowledgeBaseInfo = async (
   currentKnowledgeBaseRef: React.MutableRefObject<string>,
   onSuccess: () => void,
   onError: (error: unknown) => void,
-  t: TFunction
+  t: TFunction,
+  message: any
 ) => {
   try {
     if (!abortController.signal.aborted && indexName === currentKnowledgeBaseRef.current) {
@@ -69,7 +69,7 @@ export const fetchKnowledgeBaseInfo = async (
 };
 
 // 文件类型验证
-export const validateFileType = (file: File, t: TFunction): boolean => {
+export const validateFileType = (file: File, t: TFunction, message: any): boolean => {
   const validTypes = [
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
