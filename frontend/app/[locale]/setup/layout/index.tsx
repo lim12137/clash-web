@@ -2,13 +2,14 @@
 
 import { ReactNode } from "react"
 import { FiRefreshCw, FiArrowLeft } from "react-icons/fi"
-import { Badge, Button, Tooltip, Select } from "antd"
+import { Badge, Button, Tooltip, Select, Dropdown } from "antd"
 import { useRouter } from "next/navigation"
-import { BugOutlined } from '@ant-design/icons'
+import { BugOutlined, DownOutlined } from '@ant-design/icons'
 import { useTranslation } from "react-i18next"
 import { languageOptions } from '@/lib/constants'
 import { useLanguageSwitch } from '@/lib/languageUtils'
 import { HEADER_CONFIG } from '@/lib/layoutConstants'
+import { Globe } from "lucide-react"
 
 
 // ================ Header 组件 ================
@@ -60,7 +61,22 @@ function Header({
         <div className="mx-2 h-6 border-l border-slate-300 dark:border-slate-600"></div>
         <span className="text-slate-600 dark:text-slate-400 text-sm">{t("setup.header.description")}</span>
       </div>
+      {/* 语言切换 */}
       <div className="flex items-center gap-3">
+        <Dropdown
+          menu={{
+            items: languageOptions.map(opt => ({ key: opt.value, label: opt.label })),
+            onClick: ({ key }) => handleLanguageChange(key as string),
+          }}
+        >
+          <a
+            className="ant-dropdown-link text-sm !font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors flex items-center gap-2 cursor-pointer w-[110px] border-0 shadow-none bg-transparent text-left"
+          >
+            <Globe className="h-4 w-4" />
+            {languageOptions.find(o => o.value === currentLanguage)?.label || currentLanguage}
+            <DownOutlined className="text-[10px]" />
+          </a>
+        </Dropdown>
         {/* ModelEngine连通性状态 */}
         <div className="flex items-center px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700">
           <Badge
@@ -78,17 +94,6 @@ function Header({
               className="ml-2"
             />
           </Tooltip>
-        </div>
-        {/* 语言切换 */}
-        <div className="flex items-center px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700">
-          <Select
-            value={currentLanguage}
-            onChange={handleLanguageChange}
-            options={languageOptions}
-            style={{ width: 110, border: 'none', backgroundColor: 'transparent' }}
-            variant="borderless"
-            size="small"
-          />
         </div>
       </div>
     </header>
