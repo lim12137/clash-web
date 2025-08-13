@@ -161,7 +161,7 @@ async def clear_agent_memory(agent_id: int, tenant_id: str, user_id: str):
         
     except Exception as e:
         logger.error(f"Failed to build memory config for agent {agent_id}: {str(e)}")
-        # 不抛出异常，避免影响agent删除流程
+        # Silently fail to maintain agent deletion process
 
 async def export_agent_impl(agent_id: int, authorization: str = Header(None)) -> str:
     """
