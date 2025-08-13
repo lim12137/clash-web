@@ -39,10 +39,14 @@ RUN if [ -n "$MIRROR" ]; then npm config set registry "$MIRROR"; fi && \
 
 # Production stage
 FROM node:20-alpine
+ARG APK_MIRROR
 LABEL authors="nexent"
 
-RUN echo "https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/main" > /etc/apk/repositories && \
-    echo "https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/community" >> /etc/apk/repositories && \
+# Configure Alpine mirrors if specified
+RUN if [ "$APK_MIRROR" = "tsinghua" ]; then \
+        echo "https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/main" > /etc/apk/repositories && \
+        echo "https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/community" >> /etc/apk/repositories; \
+    fi && \
     apk add --no-cache curl
 
 WORKDIR /opt/frontend-dist

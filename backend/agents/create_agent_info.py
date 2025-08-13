@@ -31,14 +31,12 @@ async def create_model_config_list(tenant_id):
                         api_key=main_model_config.get("api_key", ""),
                         model_name=get_model_name_from_config(main_model_config) if main_model_config.get(
                             "model_name") else "",
-                        url=main_model_config.get("base_url", ""),
-                        is_deep_thinking=main_model_config.get("is_deep_thinking", False)),
+                        url=main_model_config.get("base_url", "")),
             ModelConfig(cite_name="sub_model",
                         api_key=sub_model_config.get("api_key", ""),
                         model_name=get_model_name_from_config(sub_model_config) if sub_model_config.get(
                             "model_name") else "",
-                        url=sub_model_config.get("base_url", ""),
-                        is_deep_thinking=sub_model_config.get("is_deep_thinking", False))]
+                        url=sub_model_config.get("base_url", ""))]
 
 
 async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh', last_user_query: str = None):
@@ -97,6 +95,27 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
         logger.debug(f"Retrieved memory list: {memory_list}")
         # TODO: 前端展示"已抽取 xx 条回忆"
 
+    # Build knowledge base summary
+    knowledge_base_summary = ""
+    try:
+        for tool in tool_list:
+            if "KnowledgeBaseSearchTool" == tool.class_name:
+                knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
+                if knowledge_info_list:
+                    for knowledge_info in knowledge_info_list:
+                        knowledge_name = knowledge_info.get("index_name")
+                        try:
+                            message = ElasticSearchService().get_summary(index_name=knowledge_name)
+                            summary = message.get("summary", "")
+                            knowledge_base_summary += f"**{knowledge_name}**: {summary}\n\n"
+                        except Exception as e:
+                            logger.warning(f"Failed to get summary for knowledge base {knowledge_name}: {e}")
+                else:
+                    knowledge_base_summary = "当前没有可用的知识库索引。\n" if language == 'zh' else "No knowledge base indexes are currently available.\n"
+                break  # Only process the first KnowledgeBaseSearchTool found
+    except Exception as e:
+        logger.error(f"Failed to build knowledge base summary: {e}")
+    
     # Assemble system_prompt
     if (duty_prompt or constraint_prompt or few_shots_prompt):
         system_prompt = Template(prompt_template["system_prompt"], undefined=StrictUndefined).render({
@@ -108,27 +127,12 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             "authorized_imports": str(BASE_BUILTIN_MODULES),
             "APP_NAME": app_name,
             "APP_DESCRIPTION": app_description,
-            "memory_list": memory_list
+            "memory_list": memory_list,
+            "knowledge_base_summary": knowledge_base_summary
         })
     else:
         system_prompt = agent_info.get("prompt", "")
-
-    # special logic
-    try:
-        for tool in tool_list:
-            if "KnowledgeBaseSearchTool" == tool.class_name:
-                # TODO: use prompt template
-                knowledge_base_summary = "\n\n### 本地知识库信息 ###\n" if language == 'zh' else "\n\n### Local Knowledge Base Information ###\n"
-
-                knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
-                for knowledge_info in knowledge_info_list:
-                    knowledge_name = knowledge_info.get("index_name")
-                    message = ElasticSearchService().get_summary(index_name=knowledge_name)
-                    knowledge_base_summary += f"{knowledge_name}:{message['summary']}\n"
-                system_prompt += knowledge_base_summary
-    except Exception as e:
-        logger.error(f"add knowledge base summary to system prompt failed, error: {e}")
-
+    
     agent_config = AgentConfig(
         name="undefined" if agent_info["name"] is None else agent_info["name"],
         description="undefined" if agent_info["description"] is None else agent_info["description"],
