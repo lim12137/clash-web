@@ -437,7 +437,8 @@ USER_PROMPT: "Generate a title for: {{content}}"
         ]
 
         # Execute
-        result = generate_conversation_title_service(123, history, self.user_id, self.tenant_id, "en")
+        import asyncio
+        result = asyncio.run(generate_conversation_title_service(123, history, self.user_id, self.tenant_id, "en"))
 
         # Assert
         self.assertEqual(result, "AI Discussion")

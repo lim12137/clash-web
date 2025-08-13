@@ -193,7 +193,7 @@ async def generate_conversation_title_endpoint(request: GenerateTitleRequest,
     """
     try:
         user_id, tenant_id, language = get_current_user_info(authorization=authorization, request=http_request)
-        title = generate_conversation_title_service(request.conversation_id, request.history, user_id, tenant_id=tenant_id, language=language)
+        title = await generate_conversation_title_service(request.conversation_id, request.history, user_id, tenant_id=tenant_id, language=language)
         return ConversationResponse(code=0, message="success", data=title)
     except Exception as e:
         logging.error(f"Failed to generate conversation title: {str(e)}")

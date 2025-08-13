@@ -3,6 +3,7 @@ from typing import Union, BinaryIO
 
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.prompt_template_utils import get_analyze_file_prompt_template
+from jinja2 import Template, StrictUndefined
 
 from nexent.core.models.openai_vlm import OpenAIVLModel
 from nexent.core.models.openai_long_context_model import OpenAILongContextModel
@@ -37,8 +38,8 @@ def convert_image_to_text(query: str, image_input: Union[str, BinaryIO], tenant_
     
     # Load prompts from yaml file
     prompts = get_analyze_file_prompt_template(language)
-    system_prompt = prompts['image_analysis']['system_prompt'].format(query=query)
-    
+    system_prompt = Template(prompts['image_analysis']['system_prompt'], undefined=StrictUndefined).render({'query': query})
+
     return image_to_text_model.analyze_image(image_input=image_input, system_prompt=system_prompt).content
 
 
@@ -66,7 +67,7 @@ def convert_long_text_to_text(query: str, file_context: str, tenant_id: str, lan
     
     # Load prompts from yaml file
     prompts = get_analyze_file_prompt_template(language)
-    system_prompt = prompts['long_text_analysis']['system_prompt'].format(query=query)
-    user_prompt = prompts['long_text_analysis']['user_prompt'].format(file_context=file_context)
+    system_prompt = Template(prompts['long_text_analysis']['system_prompt'], undefined=StrictUndefined).render({'query': query})
+    user_prompt = Template(prompts['long_text_analysis']['user_prompt'], undefined=StrictUndefined).render({})
 
     return long_text_to_text_model.analyze_long_text(file_context, system_prompt, user_prompt)

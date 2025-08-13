@@ -27,6 +27,7 @@ from consts.const import ES_API_KEY, ES_HOST
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
 from utils.prompt_template_utils import get_knowledge_summary_prompt_template
+from jinja2 import Template, StrictUndefined
 from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, delete_knowledge_record
 from database.attachment_db import delete_file
 
@@ -51,10 +52,15 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
 
     # Load prompt words based on language
     prompts = get_knowledge_summary_prompt_template(language)
+
+    # Render templates using Jinja2
+    system_prompt = Template(prompts['system_prompt'], undefined=StrictUndefined).render({})
+    user_prompt = Template(prompts['user_prompt'], undefined=StrictUndefined).render({'content': keywords})
+
     # Build messages
     messages: List[ChatCompletionMessageParam] = [
-        {"role": "system", "content": prompts['system_prompt']},
-        {"role": "user", "content": prompts['user_prompt'].format(content=keywords)}
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
     ]
 
     # Get model configuration from tenant config manager

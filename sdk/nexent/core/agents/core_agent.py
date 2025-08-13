@@ -7,7 +7,7 @@ from typing import Union, Any, Optional, List, Dict, Generator
 from rich.console import Group
 from rich.text import Text
 
-from smolagents.agents import CodeAgent, populate_template, handle_agent_output_types, AgentError, AgentType
+from smolagents.agents import CodeAgent, handle_agent_output_types, AgentError, AgentType
 from smolagents.local_python_executor import fix_final_answer_code
 from smolagents.memory import ActionStep, ToolCall, TaskStep, SystemPromptStep
 from smolagents.models import ChatMessage
@@ -16,6 +16,7 @@ from smolagents.utils import AgentExecutionError, AgentGenerationError, AgentPar
     truncate_content
 
 from ..utils.observer import MessageObserver, ProcessType
+from jinja2 import Template, StrictUndefined
 
 
 def convert_code_format(text):
@@ -169,8 +170,9 @@ You have been provided with these additional arguments, that you can access usin
         """Adds additional prompting for the managed agent, runs it, and wraps the output.
         This method is called only by a managed agent.
         """
-        full_task = populate_template(self.prompt_templates["managed_agent"]["task"],
-            variables=dict(name=self.name, task=task), )
+        full_task = Template(self.prompt_templates["managed_agent"]["task"], undefined=StrictUndefined).render({
+            "name": self.name, "task": task, **self.state
+        })
         report = self.run(full_task, **kwargs)
 
         # When a sub-agent finishes running, return a marker
@@ -179,8 +181,9 @@ You have been provided with these additional arguments, that you can access usin
         except:
             self.observer.add_message(self.name, ProcessType.AGENT_FINISH, "")
 
-        answer = populate_template(self.prompt_templates["managed_agent"]["report"],
-            variables=dict(name=self.name, final_answer=report))
+        answer = Template(self.prompt_templates["managed_agent"]["report"], undefined=StrictUndefined).render({
+            "name": self.name, "final_answer": report
+        })
         if self.provide_run_summary:
             answer += "\n\nFor more detail, find below a summary of this agent's work:\n<summary_of_work>\n"
             for message in self.write_memory_to_messages(summary_mode=True):

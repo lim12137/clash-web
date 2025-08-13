@@ -13,9 +13,9 @@ from services.elasticsearch_service import ElasticSearchService, elastic_core, g
 from services.tenant_config_service import get_selected_knowledge_list
 from utils.prompt_template_utils import get_agent_prompt_template
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
-from smolagents.agents import populate_template
 from smolagents.utils import BASE_BUILTIN_MODULES
 from services.memory_config_service import build_memory_context
+from jinja2 import Template, StrictUndefined
 
 from nexent.memory.memory_service import search_memory_in_levels
 
@@ -98,9 +98,8 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
         # TODO: 前端展示"已抽取 xx 条回忆"
 
     # Assemble system_prompt
-    system_prompt = populate_template(
-        prompt_template["system_prompt"],
-        variables={
+    if (duty_prompt or constraint_prompt or few_shots_prompt):
+        system_prompt = Template(prompt_template["system_prompt"], undefined=StrictUndefined).render({
             "duty": duty_prompt,
             "constraint": constraint_prompt,
             "few_shots": few_shots_prompt,
@@ -110,8 +109,9 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             "APP_NAME": app_name,
             "APP_DESCRIPTION": app_description,
             "memory_list": memory_list
-        },
-    ) if (duty_prompt or constraint_prompt or few_shots_prompt) else agent_info.get("prompt", "")
+        })
+    else:
+        system_prompt = agent_info.get("prompt", "")
 
     # special logic
     try:
