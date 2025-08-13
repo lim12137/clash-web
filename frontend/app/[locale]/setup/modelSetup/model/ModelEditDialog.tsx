@@ -179,4 +179,85 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
       </div>
     </Modal>
   )
+}
+
+// New: provider config edit dialog (only apiKey and maxTokens)
+interface ProviderConfigEditDialogProps {
+  isOpen: boolean
+  initialApiKey?: string
+  initialMaxTokens?: string
+  modelType?: ModelType
+  onClose: () => void
+  onSave: (config: { apiKey: string; maxTokens: number }) => Promise<void> | void
+}
+
+export const ProviderConfigEditDialog = ({
+  isOpen,
+  initialApiKey = '',
+  initialMaxTokens = '4096',
+  modelType,
+  onClose,
+  onSave,
+}: ProviderConfigEditDialogProps) => {
+  const { t } = useTranslation()
+  const [apiKey, setApiKey] = useState<string>(initialApiKey)
+  const [maxTokens, setMaxTokens] = useState<string>(initialMaxTokens)
+  const [saving, setSaving] = useState<boolean>(false)
+
+  useEffect(() => {
+    setApiKey(initialApiKey)
+    setMaxTokens(initialMaxTokens)
+  }, [initialApiKey, initialMaxTokens])
+
+  const valid = () => {
+    const parsed = parseInt(maxTokens)
+    return !Number.isNaN(parsed) && parsed >= 0
+  }
+
+  const handleSave = async () => {
+    if (!valid()) return
+    try {
+      setSaving(true)
+      await onSave({ apiKey: apiKey.trim() === '' ? 'sk-no-api-key' : apiKey, maxTokens: parseInt(maxTokens) })
+      message.success(t('common.success') || '保存成功')
+      onClose()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isEmbeddingModel = modelType === "embedding" || modelType === "multi_embedding"
+
+  return (
+    <Modal
+      title={t('common.button.editConfig')}
+      open={isOpen}
+      onCancel={onClose}
+      footer={null}
+      destroyOnClose
+    >
+      <div className="space-y-4">
+        <div>
+          <label className="block mb-1 text-sm font-medium text-gray-700">
+            {t('model.dialog.label.apiKey')}
+          </label>
+          <Input.Password value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
+        </div>
+        {!isEmbeddingModel && (
+          <div>
+            <label className="block mb-1 text-sm font-medium text-gray-700">
+              {t('model.dialog.label.maxTokens')}
+            </label>
+            <Input value={maxTokens} onChange={(e) => setMaxTokens(e.target.value)} />
+          </div>
+        )}
+        <div className="flex justify-end space-x-3">
+          <Button onClick={onClose}>{t('common.button.cancel')}</Button>
+          <Button type="primary" onClick={handleSave} loading={saving} disabled={!valid()}>
+            {t('common.button.save')}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
 } 
