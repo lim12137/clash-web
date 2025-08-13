@@ -252,7 +252,8 @@ def test_update_agent_info_impl_success(mock_get_current_user_id, mock_update_ag
 @patch('backend.services.agent_service.delete_all_related_agent')
 @patch('backend.services.agent_service.delete_agent_by_id')
 @patch('backend.services.agent_service.get_current_user_id')
-def test_delete_agent_impl_success(mock_get_current_user_id, mock_delete_agent, mock_delete_related):
+@pytest.mark.asyncio
+async def test_delete_agent_impl_success(mock_get_current_user_id, mock_delete_agent, mock_delete_related):
     """
     Test successful deletion of an agent.
     
@@ -265,7 +266,7 @@ def test_delete_agent_impl_success(mock_get_current_user_id, mock_delete_agent, 
     mock_get_current_user_id.return_value = ("test_user", "test_tenant")
     
     # Execute
-    delete_agent_impl(123, authorization="Bearer token")
+    await delete_agent_impl(123, authorization="Bearer token")
     
     # Assert
     mock_delete_agent.assert_called_once_with(123, "test_tenant", "test_user")
@@ -315,7 +316,8 @@ def test_update_agent_info_impl_exception_handling(mock_get_current_user_id, moc
 
 @patch('backend.services.agent_service.delete_agent_by_id')
 @patch('backend.services.agent_service.get_current_user_id')
-def test_delete_agent_impl_exception_handling(mock_get_current_user_id, mock_delete_agent):
+@pytest.mark.asyncio
+async def test_delete_agent_impl_exception_handling(mock_get_current_user_id, mock_delete_agent):
     """
     Test exception handling in delete_agent_impl function.
     
@@ -329,7 +331,7 @@ def test_delete_agent_impl_exception_handling(mock_get_current_user_id, mock_del
     
     # Execute & Assert
     with pytest.raises(ValueError) as context:
-        delete_agent_impl(123, authorization="Bearer token")
+        await delete_agent_impl(123, authorization="Bearer token")
     
     assert "Failed to delete agent" in str(context.value)
 
