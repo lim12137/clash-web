@@ -1150,6 +1150,37 @@ class TestModelManagementApp(unittest.TestCase):
         mock_update.assert_any_call("model1_id", batch_update_data[0], self.user_id)
         mock_update.assert_any_call("model2_id", batch_update_data[1], self.user_id)
 
+    @patch("test_model_managment_app.get_current_user_id")
+    def test_batch_update_models_get_user_exception(self, mock_get_user):
+        # Configure mock to throw exception when getting user info
+        mock_get_user.side_effect = Exception("Authentication failed")
+
+        # Prepare batch update request data
+        batch_update_data = [
+            {
+                "model_id": "model1_id",
+                "model_name": "huggingface/llama",
+                "display_name": "Test Model",
+                "api_base": "http://localhost:8001",
+                "api_key": "test_key",
+                "model_type": "llm",
+                "provider": "huggingface"
+            }
+        ]
+
+        # Send request
+        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 500)
+        self.assertIn("Failed to batch update models: Authentication failed", data["message"])
+        self.assertIsNone(data["data"])
+
+        # Verify mock call
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+
 
 if __name__ == "__main__":
     unittest.main()
