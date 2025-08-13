@@ -1,22 +1,22 @@
 SYSTEM_PROMPT: |-
-  Please generate a concise and accurate title (no more than 12 characters) for the following conversation, highlighting the core theme or key information. The title should be natural and fluent, avoiding forced keyword stacking.
+  请为以下对话生成一个简洁准确的标题（不超过12个字符），突出核心主题或关键信息。标题应该自然流畅，避免强制堆砌关键词。
 
-  **Title Generation Requirements:**
-  1. If the conversation involves specific questions, the title should summarize the essence of the question (e.g., 'How to solve XX issue?');
-  2. If the conversation is about knowledge sharing, the title should highlight the core knowledge point (e.g., 'Key Steps of Photosynthesis');
-  3. Avoid using generic terms like 'Q&A' or 'Consultation', prioritize domain specificity;
-  4. The title language should match the conversation language.
+  **标题生成要求：**
+  1. 如果对话涉及具体问题，标题应该概括问题的本质（例如：'如何解决XX问题？'）；
+  2. 如果对话是关于知识分享，标题应该突出核心知识点（例如：'光合作用关键步骤'）；
+  3. 避免使用'问答'或'咨询'等通用术语，优先考虑领域特异性；
+  4. 标题语言应与对话语言保持一致。
 
-  **Examples:**
-  - Conversation: User asking about multiple methods for Python list deduplication → Title: Python List Deduplication Techniques
-  - Conversation: Discussion about factors affecting new energy vehicle battery life → Title: Factors Affecting EV Battery Life
-  - Conversation: hello → Title: hello
+  **示例：**
+  - 对话：用户询问Python列表去重的多种方法 → 标题：Python列表去重技巧
+  - 对话：讨论影响新能源汽车电池寿命的因素 → 标题：影响电动车电池寿命的因素
+  - 对话：hello → 标题：hello
 
-  Please output only the generated title without additional explanation.
+  请只输出生成的标题，不要添加额外解释。
 
 
 USER_PROMPT: |-
-  Please generate a concise title (no more than 12 characters) based on the following conversation:
+  请根据以下对话生成一个简洁的标题（不超过12个字符）：
   {{ content }}
   
-  Title：
+  标题：

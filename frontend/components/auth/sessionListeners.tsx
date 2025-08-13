@@ -2,12 +2,12 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Modal } from 'antd';
+import { App } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { authService } from '@/services/authService';
 import { EVENTS } from '@/types/auth';
-import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/hooks/useAuth';
 
 /**
  * 会话管理组件
@@ -18,6 +18,7 @@ export function SessionListeners() {
   const pathname = usePathname();
   const { t } = useTranslation('common');
   const { openLoginModal, setIsFromSessionExpired, logout } = useAuth();
+  const { modal } = App.useApp();
   const modalShownRef = useRef<boolean>(false);
 
   /**
@@ -36,7 +37,7 @@ export function SessionListeners() {
 
     modalShownRef.current = true;
 
-    Modal.confirm({
+    modal.confirm({
       title: t('login.expired.title'),
       icon: <ExclamationCircleOutlined />,
       content: t('login.expired.content'),
@@ -100,7 +101,7 @@ export function SessionListeners() {
       window.removeEventListener(EVENTS.SESSION_EXPIRED, handleSessionExpired as EventListener);
     };
   // 依赖数组中去掉 confirm，避免因函数引用变化导致重复注册
-  }, [router, pathname, openLoginModal, setIsFromSessionExpired]);
+  }, [router, pathname, openLoginModal, setIsFromSessionExpired, modal]);
 
   // 组件初次挂载时，如果发现本地已经没有 session，也立即弹窗
   useEffect(() => {
