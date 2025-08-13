@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/hooks/useAuth"
 import { useAuthForm, AuthFormValues } from "@/hooks/useAuthForm"
-import { Modal, Form, Input, Button, Typography, Space, Alert, Switch, Divider, App } from "antd"
+import { Modal, Form, Input, Button, Typography, Space, Switch, Divider, App } from "antd"
 import { UserOutlined, LockOutlined, SafetyOutlined, KeyOutlined, CrownOutlined } from "@ant-design/icons"
 import { STATUS_CODES } from "@/types/auth"
 import { useState } from "react"
@@ -21,7 +21,7 @@ export function RegisterModal() {
     handleEmailChange,
     resetForm
   } = useAuthForm()
-  const [passwordError, setPasswordError] = useState("")
+  const [passwordError, setPasswordError] = useState<{ target: 'password' | 'confirmPassword' | ''; message: string }>({ target: '', message: '' })
   const [isAdminMode, setIsAdminMode] = useState(false)
   const { t } = useTranslation('common');
   const { message } = App.useApp();
@@ -42,7 +42,7 @@ export function RegisterModal() {
   const handleSubmit = async (values: AuthFormValues) => {
     setIsLoading(true)
     setEmailError("") // Reset error state
-    setPasswordError("") // Reset password error state
+    setPasswordError({ target: '', message: '' }) // Reset password error state
 
     if (!validateEmail(values.email)) {
       const errorMsg = t('auth.invalidEmailFormat')
@@ -55,7 +55,14 @@ export function RegisterModal() {
     if (!validatePassword(values.password)) {
       const errorMsg = t('auth.passwordMinLength')
       message.error(errorMsg)
-      setPasswordError(errorMsg)
+      setPasswordError({ target: 'password', message: errorMsg })
+      form.setFields([
+        {
+          name: "password",
+          errors: [errorMsg],
+          value: values.password,
+        },
+      ])
       setIsLoading(false)
       return;
     }
@@ -91,7 +98,7 @@ export function RegisterModal() {
         if (validationError.loc && validationError.loc.includes('password')) {
           const errorMsg = t('auth.passwordMinLength')
           message.error(errorMsg)
-          setPasswordError(errorMsg)
+          setPasswordError({ target: 'password', message: errorMsg })
           setIsLoading(false)
           return;
         }
@@ -113,7 +120,13 @@ export function RegisterModal() {
       } else if (errorType === "INVITE_CODE_NOT_CONFIGURED") {
         const errorMsg = t('auth.inviteCodeNotConfigured')
         message.error(errorMsg)
-        setEmailError(errorMsg)
+        form.setFields([
+          {
+            name: "inviteCode",
+            errors: [errorMsg],
+            value: values.inviteCode
+          },
+        ]);
       } else if (errorType === "INVITE_CODE_REQUIRED") {
         const errorMsg = t('auth.inviteCodeRequired')
         message.error(errorMsg)
@@ -137,7 +150,14 @@ export function RegisterModal() {
       } else if (errorType === "WEAK_PASSWORD") {
         const errorMsg = t('auth.weakPassword')
         message.error(errorMsg)
-        setPasswordError(errorMsg)
+        setPasswordError({ target: 'password', message: errorMsg })
+        form.setFields([
+          {
+            name: "password",
+            errors: [errorMsg],
+            value: values.password,
+          },
+        ])
       } else if (errorType === "INVALID_EMAIL_FORMAT") {
         const errorMsg = t('auth.invalidEmailFormat')
         message.error(errorMsg)
@@ -170,7 +190,7 @@ export function RegisterModal() {
 
   const handleLoginClick = () => {
     resetForm()
-    setPasswordError("")
+    setPasswordError({ target: '', message: '' })
     setIsAdminMode(false)
     closeRegisterModal()
     openLoginModal()
@@ -178,7 +198,7 @@ export function RegisterModal() {
 
   const handleCancel = () => {
     resetForm()
-    setPasswordError("")
+    setPasswordError({ target: '', message: '' })
     setIsAdminMode(false)
     closeRegisterModal()
   }
@@ -201,15 +221,15 @@ export function RegisterModal() {
     
     // 使用验证函数检查密码强度
     if (value && !validatePassword(value)) {
-      setPasswordError(t('auth.passwordMinLength'))
+      setPasswordError({ target: 'password', message: t('auth.passwordMinLength') })
       return // Exit early if password length is invalid
     }
     
     // Only check password match if length requirement is met
-    setPasswordError("")
+    setPasswordError({ target: '', message: '' })
     const confirmPassword = form.getFieldValue("confirmPassword")
     if (confirmPassword && confirmPassword !== value) {
-      setPasswordError(t('auth.passwordsDoNotMatch'))
+      setPasswordError({ target: 'confirmPassword', message: t('auth.passwordsDoNotMatch') })
     }
   }
 
@@ -220,15 +240,15 @@ export function RegisterModal() {
     
     // First check if original password meets length requirement
     if (password && !validatePassword(password)) {
-      setPasswordError(t('auth.passwordMinLength'))
+      setPasswordError({ target: 'password', message: t('auth.passwordMinLength') })
       return
     }
     
     // Then check password match
     if (value && value !== password) {
-      setPasswordError(t('auth.passwordsDoNotMatch'))
+      setPasswordError({ target: 'confirmPassword', message: t('auth.passwordsDoNotMatch') })
     } else {
-      setPasswordError("")
+      setPasswordError({ target: '', message: '' })
     }
   }
 
@@ -241,27 +261,6 @@ export function RegisterModal() {
       width={400}
       centered
     >
-      {passwordError && (
-        <Alert
-          message={passwordError}
-          type="error"
-          showIcon
-          className="mb-4"
-          closable
-          onClose={() => setPasswordError("")}
-        />
-      )}
-      
-      {emailError && !form.getFieldError("email").length && (
-        <Alert
-          message={emailError}
-          type="error"
-          showIcon
-          className="mb-4"
-          closable
-          onClose={() => setEmailError("")}
-        />
-      )}
       <Form 
         id="register-form"
         form={form} 
@@ -299,7 +298,14 @@ export function RegisterModal() {
         <Form.Item
           name="password"
           label={t('auth.passwordLabel')}
-          help={authServiceUnavailable ? t('auth.authServiceUnavailable') : ""}
+          validateStatus={passwordError.target === 'password' && !form.getFieldError("password").length ? "error" : ""}
+          help={
+            form.getFieldError("password").length
+              ? undefined
+              : (passwordError.target === 'password'
+                  ? passwordError.message
+                  : (authServiceUnavailable ? t('auth.authServiceUnavailable') : undefined))
+          }
           rules={[
             { required: true, message: t('auth.passwordRequired') },
             {
@@ -326,7 +332,14 @@ export function RegisterModal() {
         <Form.Item
           name="confirmPassword"
           label={t('auth.confirmPasswordLabel')}
-          help={authServiceUnavailable ? t('auth.authServiceUnavailable') : ""}
+          validateStatus={passwordError.target === 'confirmPassword' && !form.getFieldError("confirmPassword").length ? "error" : ""}
+          help={
+            form.getFieldError("confirmPassword").length
+              ? undefined
+              : (passwordError.target === 'confirmPassword'
+                  ? passwordError.message
+                  : (authServiceUnavailable ? t('auth.authServiceUnavailable') : undefined))
+          }
           dependencies={["password"]}
           hasFeedback
           rules={[
@@ -336,15 +349,15 @@ export function RegisterModal() {
                 const password = getFieldValue("password")
                 // First check password length using validation function
                 if (password && !validatePassword(password)) {
-                  setPasswordError(t('auth.passwordMinLength'))
+                  setPasswordError({ target: 'password', message: t('auth.passwordMinLength') })
                   return Promise.reject(new Error(t('auth.passwordMinLength')))
                 }
                 // Then check password match
                 if (!value || getFieldValue("password") === value) {
-                  setPasswordError("")
+                  setPasswordError({ target: '', message: '' })
                   return Promise.resolve()
                 }
-                setPasswordError(t('auth.passwordsDoNotMatch'))
+                setPasswordError({ target: 'confirmPassword', message: t('auth.passwordsDoNotMatch') })
                 return Promise.reject(new Error(t('auth.passwordsDoNotMatch')))
               },
             }),
