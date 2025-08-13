@@ -250,8 +250,7 @@ def call_llm_for_title(content: str, tenant_id: str, language: str = 'zh') -> st
         api_key=model_config.get("api_key", ""), temperature=0.7, top_p=0.95)
 
     # Build messages
-    compiled_template = Template(prompt_template["USER_PROMPT"], undefined=StrictUndefined)
-    user_prompt = compiled_template.render({
+    user_prompt = Template(prompt_template["USER_PROMPT"], undefined=StrictUndefined).render({
         "content": content
     })
     messages = [{"role": "system",
