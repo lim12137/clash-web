@@ -14,6 +14,9 @@ IS_MAINLAND=""
 ENABLE_TERMINAL=""
 VERSION_CHOICE=""
 
+# Suppress the orphan warning
+export COMPOSE_IGNORE_ORPHANS=True
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --mode)
@@ -507,7 +510,7 @@ add_permission() {
   # Create nexent user workspace directory
   NEXENT_USER_DIR="$HOME/nexent"
   create_dir_with_permission "$NEXENT_USER_DIR" 775
-  echo "   🖥️ Nexent user workspace: $NEXENT_USER_DIR"
+  echo "   🖥️  Nexent user workspace: $NEXENT_USER_DIR"
 
   # Export for docker-compose
   export NEXENT_USER_DIR
