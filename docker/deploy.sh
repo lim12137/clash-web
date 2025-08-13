@@ -520,7 +520,7 @@ add_permission() {
 deploy_core_services() {
   # Function to deploy core services
   echo "👀 Starting core services..."
-  if ! docker-compose -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent nexent-web nexent-data-process; then
+  if ! ${docker_compose_command} -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d nexent nexent-web nexent-data-process; then
     echo "   ❌ ERROR Failed to start core services"
     exit 1
   fi
@@ -537,7 +537,7 @@ deploy_infrastructure() {
     echo "🔧 Terminal tool enabled - openssh-server will be included in infrastructure"
   fi
 
-  if ! docker-compose -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES; then
+  if ! ${docker_compose_command} -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES; then
     echo "   ❌ ERROR Failed to start infrastructure services"
     exit 1
   fi
@@ -657,7 +657,7 @@ wait_for_elasticsearch_healthy() {
   # Function to wait for Elasticsearch to become healthy
   local retries=0
   local max_retries=${1:-60}  # Default 10 minutes, can be overridden
-  while ! docker-compose -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" ps nexent-elasticsearch | grep -q "healthy" && [ $retries -lt $max_retries ]; do
+  while ! ${docker_compose_command} -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" ps nexent-elasticsearch | grep -q "healthy" && [ $retries -lt $max_retries ]; do
       echo "⏳ Waiting for Elasticsearch to become healthy... (attempt $((retries + 1))/$max_retries)"
       sleep 10
       retries=$((retries + 1))
