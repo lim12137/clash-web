@@ -1,9 +1,9 @@
 import { Modal, Button,Switch, App } from 'antd'
-import { DeleteOutlined, ExclamationCircleFilled, RightOutlined } from '@ant-design/icons'
+import { DeleteOutlined, ExclamationCircleFilled, RightOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useState } from 'react'
 import { ModelOption, ModelType, ModelSource } from '@/types/config'
 import { modelService } from '@/services/modelService'
-import { ModelEditDialog } from './ModelEditDialog'
+import { ModelEditDialog, ProviderConfigEditDialog } from './ModelEditDialog'
 import { useConfig } from '@/hooks/useConfig'
 import { useTranslation } from 'react-i18next'
 
@@ -30,6 +30,8 @@ export const ModelDeleteDialog = ({
   const [providerModels, setProviderModels] = useState<any[]>([])
   const [pendingSelectedProviderIds, setPendingSelectedProviderIds] = useState<Set<string>>(new Set())
   const [loadingSource, setLoadingSource] = useState<ModelSource | null>(null)
+  const [isProviderConfigOpen, setIsProviderConfigOpen] = useState<boolean>(false)
+  const [isConfirmLoading, setIsConfirmLoading] = useState<boolean>(false)
 
   // 获取模型的颜色方案
   const getModelColorScheme = (type: ModelType): { bg: string; text: string; border: string } => {
@@ -187,6 +189,11 @@ export const ModelDeleteDialog = ({
       } finally {
         setLoadingSource(null)
       }
+    } else if (source === 'openai') {
+      // For OpenAI source, just set the selected source without prefetching
+      // TODO: Call the relevant API to fetch OpenAI models
+      setSelectedSource(source)
+      return
     }
     setSelectedSource(source)
   }
@@ -284,6 +291,43 @@ export const ModelDeleteDialog = ({
     onClose()
   }
 
+  // Handle provider config save
+  const handleProviderConfigSave = async ({ apiKey, maxTokens }: { apiKey: string; maxTokens: number }) => {
+    if (selectedSource === 'silicon' && deletingModelType) {
+      try {
+        const currentIds = new Set(
+          customModels
+            .filter(m => m.type === deletingModelType && m.source === 'silicon')
+            .map(m => m.name)
+        )
+        
+        // Build payload items for the current silicon models in required format
+        const currentModelPayloads = customModels
+          .filter(m => m.type === deletingModelType && m.source === 'silicon' && currentIds.has(m.name))
+          .map(m => ({
+            model_id: m.id,
+            apiKey: apiKey || m.apiKey,
+            maxTokens: maxTokens || m.maxTokens,
+          }))
+        
+        const result = await modelService.updateBatchModel(currentModelPayloads)
+
+        if (result.code !== 200) {
+          message.error(t('model.dialog.error.noModelsFetched'))
+        } else {
+          message.success(t('model.dialog.success.updateSuccess'))
+        }
+
+        // Optionally use currentModelPayloads for subsequent API calls if needed
+
+      } catch (e) {
+        message.error(t('model.dialog.error.noModelsFetched'))
+      }
+    }
+    await onSuccess()
+    setIsProviderConfigOpen(false)
+  }
+
   return (
     // Refactor: Styles are embedded within the component
     <Modal
@@ -294,42 +338,60 @@ export const ModelDeleteDialog = ({
         <Button key="close" onClick={handleClose}>
           {t('common.button.close')}
         </Button>,
-        <Button key="confirm" type="primary" onClick={async () => {
-          // Only apply changes when silicon source is selected
-          if (selectedSource === 'silicon' && deletingModelType) {
+        // Only show confirm button for silicon and openai sources, not for OpenAI-API-Compatible
+        (selectedSource !== "OpenAI-API-Compatible") && (
+          <Button key="confirm" type="primary" loading={isConfirmLoading} onClick={async () => {
+            setIsConfirmLoading(true)
             try {
-              // Get all currently enabled models (including originally enabled and newly enabled ones)
-              const allEnabledModels = providerModels.filter((pm: any) =>
-                pendingSelectedProviderIds.has(pm.id)
-              )
+              // Handle changes for both silicon and openai sources
+              if (selectedSource === 'silicon' && deletingModelType) {
+                try {
+                  // Get all currently enabled models (including originally enabled and newly enabled ones)
+                  const allEnabledModels = providerModels.filter((pm: any) =>
+                    pendingSelectedProviderIds.has(pm.id)
+                  )
 
-              if (allEnabledModels.length > 0) {
-                const apiKey = getApiKeyByType(deletingModelType)
-                // Pass all currently enabled models
-                await modelService.addBatchCustomModel({
-                  api_key: apiKey && apiKey.trim() !== '' ? apiKey : 'sk-no-api-key',
-                  provider: 'silicon',
-                  type: deletingModelType,
-                  max_tokens: 0,
-                  models: allEnabledModels
-                })
+                  if (allEnabledModels.length > 0) {
+                    const apiKey = getApiKeyByType(deletingModelType)
+                    // Pass all currently enabled models
+                    await modelService.addBatchCustomModel({
+                      api_key: apiKey && apiKey.trim() !== '' ? apiKey : 'sk-no-api-key',
+                      provider: 'silicon',
+                      type: deletingModelType,
+                      max_tokens: 0,
+                      models: allEnabledModels
+                    })
+                  }
+
+                  // Refresh list
+                  await onSuccess()
+                  // Re-fetch provider models and sync switch states
+                  await prefetchSiliconProviderModels(deletingModelType)
+                  message.success(t('model.dialog.success.updateSuccess'))
+                  // Close dialog
+                  handleClose()
+                } catch (e) {
+                  console.error('Failed to apply model updates', e)
+                  message.error(t('model.dialog.error.addFailed', { error: e as any }))
+                }
+              } else if (selectedSource === 'openai' && deletingModelType) {
+                try {
+                  // For OpenAI source, just refresh the list and close dialog
+                  await onSuccess()
+                  message.success(t('model.dialog.success.updateSuccess'))
+                  handleClose()
+                } catch (e) {
+                  console.error('Failed to apply OpenAI model updates', e)
+                  message.error(t('model.dialog.error.addFailed', { error: e as any }))
+                }
               }
-
-              // Refresh list
-              await onSuccess()
-              // Re-fetch provider models and sync switch states
-              await prefetchSiliconProviderModels(deletingModelType)
-              message.success('Update successful')
-              // Close dialog
-              handleClose()
-            } catch (e) {
-              console.error('Failed to apply model updates', e)
-              message.error(t('model.dialog.error.addFailed', { error: e as any }))
+            } finally {
+              setIsConfirmLoading(false)
             }
-          }
-        }} disabled={selectedSource !== 'silicon'}>
-         {t('common.confirm')}
-        </Button>,
+          }}>
+           {t('common.confirm')}
+          </Button>
+        ),
       ]}
       width={520}
       destroyOnClose
@@ -458,7 +520,7 @@ export const ModelDeleteDialog = ({
         </div>
       ) : (
         <div>
-          <div className="flex items-center mb-4">
+          <div className="flex items-center justify-between mb-4">
             <button
               onClick={() => { setSelectedSource(null); setProviderModels([]) }}
               className="text-blue-500 hover:text-blue-700 flex items-center"
@@ -477,6 +539,30 @@ export const ModelDeleteDialog = ({
               </svg>
               {t('common.back')}
             </button>
+
+            {selectedSource !== 'OpenAI-API-Compatible' && (
+              <div className="flex gap-2">
+                <Button 
+                  size="small" 
+                  icon={<ReloadOutlined className="text-blue-500" />}
+                  onClick={async () => {
+                    if (selectedSource === 'silicon' && deletingModelType) {
+                      try {
+                        await prefetchSiliconProviderModels(deletingModelType)
+                        message.success(t('common.message.refreshSuccess'))
+                      } catch (error) {
+                        message.error(t('common.message.refreshFailed'))
+                      }
+                    }
+                  }}
+                  className="border-none shadow-none hover:bg-blue-50"
+                >
+                </Button>
+                <Button size="small" onClick={() => setIsProviderConfigOpen(true)}>
+                  {t('common.button.editConfig')}
+                </Button>
+              </div>
+            )}
           </div>
 
           {selectedSource === 'silicon' && providerModels.length > 0 ? (
@@ -520,8 +606,10 @@ export const ModelDeleteDialog = ({
                 .filter((model) => model.type === deletingModelType && model.source === selectedSource)
                 .map((model) => (
                   <div key={model.name}
-                  onClick={() => handleEditModel(model)}
-                  className="p-2 flex justify-between items-center hover:bg-gray-50 text-sm cursor-pointer">
+                  onClick={selectedSource === 'OpenAI-API-Compatible' ? () => handleEditModel(model) : undefined}
+                  className={`p-2 flex justify-between items-center hover:bg-gray-50 text-sm ${
+                    selectedSource === 'OpenAI-API-Compatible' ? 'cursor-pointer' : ''
+                  }`}>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate" title={model.name}>
                         {model.displayName || model.name} ({model.name})
@@ -583,7 +671,10 @@ export const ModelDeleteDialog = ({
                 <p className="font-bold text-medium">{t('common.notice')}</p>
               </div>
               <p className="mt-0.5 ml-6">
-                {t('model.dialog.delete.warning')}
+                {selectedSource === 'OpenAI-API-Compatible' 
+                  ? t('model.dialog.delete.warning')
+                  : t('model.dialog.edit.warning')
+                }
               </p>
             </div>
           </div>
@@ -601,6 +692,14 @@ export const ModelDeleteDialog = ({
             setDeletingModelType(null)
           }
         }}
+      />
+      <ProviderConfigEditDialog
+        isOpen={isProviderConfigOpen}
+        onClose={() => setIsProviderConfigOpen(false)}
+        initialApiKey={getApiKeyByType(deletingModelType)}
+        initialMaxTokens={(customModels.find(m => m.type === deletingModelType && m.source === 'silicon')?.maxTokens || 4096).toString()}
+        modelType={deletingModelType || undefined}
+        onSave={handleProviderConfigSave}
       />
     </Modal>
   )
