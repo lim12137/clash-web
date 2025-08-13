@@ -84,6 +84,7 @@ export const API_ENDPOINTS = {
     updateConnectStatus: `${API_BASE_URL}/model/update_connect_status`,
     verifyModelConfig: `${API_BASE_URL}/model/verify_config`,
     updateSingleModel: `${API_BASE_URL}/model/update_single_model`,
+    updateBatchModel: `${API_BASE_URL}/model/batch_update_models`,
   },
   knowledgeBase: {
     // Elasticsearch service

@@ -3,7 +3,7 @@
 
 image_analysis:
   system_prompt: |-
-    The user has asked a question: {query}. Please provide a concise and careful description of this image from the perspective of answering this question, within 200 words.
+    The user has asked a question: {{ query }}. Please provide a concise and careful description of this image from the perspective of answering this question, within 200 words.
     
     **Image Analysis Requirements:**
     1. Focus on image content relevant to the user's question
@@ -16,7 +16,7 @@ image_analysis:
 
 long_text_analysis:
   system_prompt: |-
-    The user has asked a question: {query}. Please provide a concise and careful description of this text from the perspective of answering this question, within 200 words.
+    The user has asked a question: {{ query }}. Please provide a concise and careful description of this text from the perspective of answering this question, within 200 words.
     
     **Text Analysis Requirements:**
     1. Focus on extracting text content relevant to the user's question
