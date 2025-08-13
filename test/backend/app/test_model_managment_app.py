@@ -435,6 +435,130 @@ def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
         ]:
             if m in sys.modules:
                 del sys.modules[m]
+
+        # Inject stub modules required by backend.apps.model_managment_app
+        import types as _types
+        from enum import Enum as _Enum
+        from pydantic import BaseModel as _BaseModel
+
+        # consts.model
+        consts_mod = _types.ModuleType("consts")
+        consts_model_mod = _types.ModuleType("consts.model")
+        class _ModelConnectStatusEnum(_Enum):
+            OPERATIONAL = "operational"
+            NOT_DETECTED = "not_detected"
+            UNAVAILABLE = "unavailable"
+            @staticmethod
+            def get_value(status):
+                return status or _ModelConnectStatusEnum.NOT_DETECTED.value
+        class _ModelResponse(_BaseModel):
+            code: int
+            message: str
+            data: Optional[Any] = None
+        class _ModelRequest(_BaseModel):
+            model_name: str
+            display_name: Optional[str] = None
+            base_url: Optional[str] = None
+            api_key: Optional[str] = None
+            model_type: str
+            provider: str
+            connect_status: Optional[str] = None
+        class _BatchCreateModelsRequest(_BaseModel):
+            models: List[Dict[str, Any]]
+            api_key: Optional[str] = None
+            max_tokens: Optional[int] = None
+            provider: str
+            type: str
+        class _ProviderModelRequest(_BaseModel):
+            provider: str
+            model_type: Optional[str] = None
+            api_key: Optional[str] = None
+        consts_model_mod.ModelConnectStatusEnum = _ModelConnectStatusEnum
+        consts_model_mod.ModelResponse = _ModelResponse
+        consts_model_mod.ModelRequest = _ModelRequest
+        consts_model_mod.BatchCreateModelsRequest = _BatchCreateModelsRequest
+        consts_model_mod.ProviderModelRequest = _ProviderModelRequest
+
+        # consts.provider
+        consts_provider_mod = _types.ModuleType("consts.provider")
+        class _ProviderEnum(_Enum):
+            SILICON = "silicon"
+        consts_provider_mod.ProviderEnum = _ProviderEnum
+        consts_provider_mod.SILICON_BASE_URL = "http://silicon.test"
+
+        sys.modules["consts"] = consts_mod
+        sys.modules["consts.model"] = consts_model_mod
+        sys.modules["consts.provider"] = consts_provider_mod
+
+        # database.model_management_db
+        database_mod = _types.ModuleType("database")
+        database_mm_mod = _types.ModuleType("database.model_management_db")
+        def _noop(*args, **kwargs):
+            return None
+        def _get_model_records(*args, **kwargs):
+            return []
+        def _get_model_by_name(*args, **kwargs):
+            return None
+        database_mm_mod.create_model_record = _noop
+        database_mm_mod.delete_model_record = _noop
+        database_mm_mod.get_model_records = _get_model_records
+        database_mm_mod.get_model_by_display_name = _noop
+        database_mm_mod.get_models_by_tenant_factory_type = _get_model_records
+        database_mm_mod.update_model_record = _noop
+        database_mm_mod.get_model_by_name = _get_model_by_name
+        sys.modules["database"] = database_mod
+        sys.modules["database.model_management_db"] = database_mm_mod
+
+        # services.model_health_service
+        services_mod = _types.ModuleType("services")
+        services_health_mod = _types.ModuleType("services.model_health_service")
+        async def _check_model_connectivity(*args, **kwargs):
+            return {"code": 200, "message": "OK", "data": {}}
+        async def _embedding_dimension_check(model_data):
+            return 0
+        async def _verify_model_config_connectivity(*args, **kwargs):
+            return {"code": 200, "message": "OK", "data": {"connectivity": True}}
+        services_health_mod.check_model_connectivity = _check_model_connectivity
+        services_health_mod.embedding_dimension_check = _embedding_dimension_check
+        services_health_mod.verify_model_config_connectivity = _verify_model_config_connectivity
+
+        # services.model_provider_service
+        services_provider_mod = _types.ModuleType("services.model_provider_service")
+        class _SiliconModelProvider:
+            async def get_models(self, model_data):
+                return []
+        async def _prepare_model_dict(**kwargs):
+            return {}
+        services_provider_mod.SiliconModelProvider = _SiliconModelProvider
+        services_provider_mod.prepare_model_dict = _prepare_model_dict
+
+        sys.modules["services"] = services_mod
+        sys.modules["services.model_health_service"] = services_health_mod
+        sys.modules["services.model_provider_service"] = services_provider_mod
+
+        # utils.auth_utils and utils.model_name_utils
+        utils_mod = _types.ModuleType("utils")
+        utils_auth_mod = _types.ModuleType("utils.auth_utils")
+        utils_name_mod = _types.ModuleType("utils.model_name_utils")
+        def _get_current_user_id(auth_header):
+            return ("default_user_id", "default_tenant_id")
+        def _split_repo_name(model_name: str):
+            parts = model_name.split("/", 1)
+            if len(parts) > 1:
+                return parts[0], parts[1]
+            return "", parts[0]
+        def _add_repo_to_name(model_repo, model_name):
+            return f"{model_repo}/{model_name}" if model_repo else model_name
+        def _split_display_name(model_name):
+            return model_name.split("/")[-1]
+        utils_auth_mod.get_current_user_id = _get_current_user_id
+        utils_name_mod.split_repo_name = _split_repo_name
+        utils_name_mod.add_repo_to_name = _add_repo_to_name
+        utils_name_mod.split_display_name = _split_display_name
+        sys.modules["utils"] = utils_mod
+        sys.modules["utils.auth_utils"] = utils_auth_mod
+        sys.modules["utils.model_name_utils"] = utils_name_mod
+
         backend_model_app = importlib.import_module("backend.apps.model_managment_app")
         backend_app = FastAPI()
         backend_app.include_router(backend_model_app.router)
@@ -1029,6 +1153,20 @@ class TestModelManagementApp(unittest.TestCase):
                 data = response.json()
                 self.assertEqual(data["code"], 500)
                 self.assertIn("Failed to batch update models: Update failed", data["message"]) 
+
+
+    def test_batch_update_models_empty_list_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)) as mock_get_user:
+            with patch.object(backend_model_app, "update_model_record") as mock_update:
+                models = []
+                response = backend_client_local.post("/model/batch_update_models", json=models, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(data["code"], 200)
+                self.assertIn("Batch update models successfully", data["message"]) 
+                mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+                mock_update.assert_not_called()
 
 
 if __name__ == "__main__":
