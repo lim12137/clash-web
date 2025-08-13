@@ -1,6 +1,9 @@
 "use client"
 
-import { API_ENDPOINTS } from './api'
+import { API_ENDPOINTS } from './api';
+import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
+// @ts-ignore
+const fetch = fetchWithAuth;
 
 export type ConnectionStatus = "success" | "error" | "processing";
 

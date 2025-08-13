@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Any, Optional
 
-from fastapi import HTTPException, APIRouter, Header
+from fastapi import HTTPException, APIRouter, Header, Request
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 
@@ -16,8 +16,8 @@ from services.conversation_management_service import (
     generate_conversation_title_service,
     update_message_opinion_service
 )
+from utils.auth_utils import get_current_user_id, get_current_user_info
 from database.conversation_db import get_message_id_by_index
-from utils.auth_utils import get_current_user_info
 
 router = APIRouter(prefix="/conversation")
 
@@ -40,7 +40,8 @@ async def create_new_conversation_endpoint(request: ConversationRequest, authori
             - update_time: Update timestamp (milliseconds)
     """
     try:
-        conversation_data = create_new_conversation(request.title)
+        user_id, tenant_id = get_current_user_id(authorization)
+        conversation_data = create_new_conversation(request.title, user_id)
         return ConversationResponse(code=0, message="success", data=conversation_data)
     except Exception as e:
         logging.error(f"Failed to create conversation: {str(e)}")
@@ -59,8 +60,15 @@ async def list_conversations_endpoint(authorization: Optional[str] = Header(None
         ConversationResponse object containing conversation list
     """
     try:
-        conversations = get_conversation_list_service()
+        user_id, tenant_id = get_current_user_id(authorization)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="未授权访问，请先登录")
+
+        conversations = get_conversation_list_service(user_id)
         return ConversationResponse(code=0, message="success", data=conversations)
+    except HTTPException as he:
+        # Throw HTTP Exception Directly
+        raise he
     except Exception as e:
         logging.error(f"Failed to get conversation list: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -81,7 +89,8 @@ async def rename_conversation_endpoint(request: RenameRequest, authorization: Op
         ConversationResponse object
     """
     try:
-        success = rename_conversation_service(request.conversation_id, request.name)
+        user_id, tenant_id = get_current_user_id(authorization)
+        success = rename_conversation_service(request.conversation_id, request.name, user_id)
         return ConversationResponse(code=0, message="success", data=True)
     except Exception as e:
         logging.error(f"Failed to rename conversation: {str(e)}")
@@ -103,7 +112,8 @@ async def delete_conversation_endpoint(conversation_id: int, authorization: Opti
         ConversationResponse object
     """
     try:
-        success = delete_conversation_service(conversation_id)
+        user_id, tenant_id = get_current_user_id(authorization)
+        success = delete_conversation_service(conversation_id, user_id)
         return ConversationResponse(code=0, message="success", data=True)
     except Exception as e:
         logging.error(f"Failed to delete conversation: {str(e)}")
@@ -125,7 +135,8 @@ async def get_conversation_history_endpoint(conversation_id: int, authorization:
         ConversationResponse object containing conversation history
     """
     try:
-        history_data = get_conversation_history_service(conversation_id)
+        user_id, tenant_id = get_current_user_id(authorization)
+        history_data = get_conversation_history_service(conversation_id, user_id)
         return ConversationResponse(code=0, message="success", data=history_data)
     except Exception as e:
         logging.error(f"Failed to get conversation history: {str(e)}")
@@ -150,10 +161,11 @@ async def get_sources_endpoint(request: Dict[str, Any], authorization: Optional[
         Dict containing source information
     """
     try:
+        user_id, tenant_id = get_current_user_id(authorization)
         conversation_id = request.get("conversation_id")
         message_id = request.get("message_id")
         source_type = request.get("type", "all")
-        return get_sources_service(conversation_id, message_id, source_type)
+        return get_sources_service(conversation_id, message_id, source_type, user_id)
     except Exception as e:
         logging.error(f"Failed to get message sources: {str(e)}")
         return {
@@ -164,7 +176,9 @@ async def get_sources_endpoint(request: Dict[str, Any], authorization: Optional[
 
 
 @router.post("/generate_title", response_model=ConversationResponse)
-async def generate_conversation_title_endpoint(request: GenerateTitleRequest, authorization: Optional[str] = Header(None)):
+async def generate_conversation_title_endpoint(request: GenerateTitleRequest, 
+                                            http_request: Request,
+                                            authorization: Optional[str] = Header(None)):
     """
     Generate conversation title
 
@@ -178,8 +192,8 @@ async def generate_conversation_title_endpoint(request: GenerateTitleRequest, au
         ConversationResponse object containing generated title
     """
     try:
-        user_id, tenant_id, language = get_current_user_info(authorization=authorization)
-        title = generate_conversation_title_service(request.conversation_id, request.history,tenant_id=tenant_id)
+        user_id, tenant_id, language = get_current_user_info(authorization=authorization, request=http_request)
+        title = generate_conversation_title_service(request.conversation_id, request.history, user_id, tenant_id=tenant_id, language=language)
         return ConversationResponse(code=0, message="success", data=title)
     except Exception as e:
         logging.error(f"Failed to generate conversation title: {str(e)}")

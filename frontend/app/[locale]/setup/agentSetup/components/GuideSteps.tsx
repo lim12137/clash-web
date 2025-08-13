@@ -5,60 +5,32 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 // Timeline Step Configuration
-const getGuideSteps = (t: any) => ({
-  normal: [
-    {
-      title: t('guide.steps.normal.selectAgent.title'),
-      description: t('guide.steps.normal.selectAgent.description'),
-    },
-    {
-      title: t('guide.steps.normal.selectTools.title'),
-      description: t('guide.steps.normal.selectTools.description'),
-    },
-    {
-      title: t('guide.steps.normal.describeBusiness.title'),
-      description: t('guide.steps.normal.describeBusiness.description'),
-    },
-    {
-      title: t('guide.steps.normal.generatePrompt.title'),
-      description: t('guide.steps.normal.generatePrompt.description'),
-    },
-    {
-      title: t('guide.steps.normal.debugAgent.title'),
-      description: t('guide.steps.normal.debugAgent.description'),
-    },
-    {
-      title: t('guide.steps.normal.complete.title'),
-      description: t('guide.steps.normal.complete.description'),
-    }
-  ],
-  creating: [
-    {
-      title: t('guide.steps.creating.basicInfo.title'),
-      description: t('guide.steps.creating.basicInfo.description'),
-    },
-    {
-      title: t('guide.steps.creating.selectTools.title'),
-      description: t('guide.steps.creating.selectTools.description'),
-    },
-    {
-      title: t('guide.steps.creating.describeBusiness.title'),
-      description: t('guide.steps.creating.describeBusiness.description'),
-    },
-    {
-      title: t('guide.steps.creating.generatePrompt.title'),
-      description: t('guide.steps.creating.generatePrompt.description'),
-    },
-    {
-      title: t('guide.steps.creating.debugAgent.title'),
-      description: t('guide.steps.creating.debugAgent.description'),
-    },
-    {
-      title: t('guide.steps.creating.saveAgent.title'),
-      description: t('guide.steps.creating.saveAgent.description'),
-    },
-  ]
-});
+const getGuideSteps = (t: any) => [
+  {
+    title: t('guide.steps.createOrEditAgent.title'),
+    description: t('guide.steps.createOrEditAgent.description'),
+  },
+  {
+    title: t('guide.steps.selectCollaborativeAgent.title'),
+    description: t('guide.steps.selectCollaborativeAgent.description'),
+  },
+  {
+    title: t('guide.steps.selectTools.title'),
+    description: t('guide.steps.selectTools.description'),
+  },
+  {
+    title: t('guide.steps.describeBusinessLogic.title'),
+    description: t('guide.steps.describeBusinessLogic.description'),
+  },
+  {
+    title: t('guide.steps.generateAndDebug.title'),
+    description: t('guide.steps.generateAndDebug.description'),
+  },
+  {
+    title: t('guide.steps.completeCreation.title'),
+    description: t('guide.steps.completeCreation.description'),
+  }
+];
 
 interface GuideStepsProps {
   isCreatingNewAgent: boolean;
@@ -71,6 +43,11 @@ interface GuideStepsProps {
   agentName?: string;
   agentDescription?: string;
   agentProvideSummary?: boolean;
+  isEditingAgent?: boolean;
+  dutyContent?: string;
+  constraintContent?: string;
+  fewShotsContent?: string;
+  enabledAgentIds?: number[];
 }
 
 export default function GuideSteps({
@@ -84,31 +61,39 @@ export default function GuideSteps({
   agentName = '',
   agentDescription = '',
   agentProvideSummary = false,
+  isEditingAgent = false,
+  dutyContent = '',
+  constraintContent = '',
+  fewShotsContent = '',
+  enabledAgentIds = [],
 }: GuideStepsProps) {
   const { t } = useTranslation('common');
   const GUIDE_STEPS = getGuideSteps(t);
 
   useEffect(() => {
-    console.log('当前 mainAgentId:', mainAgentId);
+    console.log('Current mainAgentId:', mainAgentId);
   }, [mainAgentId]);
 
   // Get Current Step
   const getCurrentStep = () => {
-    if (isCreatingNewAgent) {
-      // Sub Agent configuration mode step sequence
-      if (systemPrompt) return 4;
-      if (businessLogic) return 3;
-      if (selectedTools.length > 0) return 2;
-      if (agentName.trim() && agentDescription.trim()) return 1;
-      return 0;
-    } else {
-      // Main Agent configuration mode step sequence
-      if (systemPrompt) return 4;
-      if (businessLogic) return 3;
-      if (selectedTools.length > 0) return 2;
-      if (selectedAgents.length > 0) return 1;
-      return 0;
+    // Unified step judgment logic, whether in creation mode or editing mode
+    if (systemPrompt || (dutyContent?.trim()) || (constraintContent?.trim()) || (fewShotsContent?.trim())) {
+      return 4; // Generate agent and debug
     }
+    if (businessLogic && businessLogic.trim() !== '') {
+      return 3; // Describe business logic
+    }
+    if (selectedTools.length > 0) {
+      return 2; // Select tools to use
+    }
+    // Use enabledAgentIds to determine if collaborative agents are selected, as this is the actual state managing collaborative agent selection
+    if (enabledAgentIds.length > 0) {
+      return 1; // Select collaborative agents
+    }
+    if (isCreatingNewAgent || isEditingAgent) {
+      return 0; // Create/modify agent
+    }
+    return 0; // Default first step
   };
 
   // Use external currentStep if provided
@@ -117,13 +102,13 @@ export default function GuideSteps({
   return (
     <div className="h-full flex flex-col">
       <h2 className="text-xl font-bold mb-5 px-2 flex-shrink-0">
-        {isCreatingNewAgent ? t('guide.title.subAgent') : t('guide.title.mainAgent')}
+        {t('guide.title.agentConfig')}
       </h2>
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <Steps
           direction="vertical"
           current={step}
-          items={isCreatingNewAgent ? GUIDE_STEPS.creating : GUIDE_STEPS.normal}
+          items={GUIDE_STEPS}
           className="px-2 custom-guide-steps h-full"
         />
       </div>

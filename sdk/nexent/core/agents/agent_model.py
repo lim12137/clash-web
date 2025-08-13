@@ -1,7 +1,10 @@
 from __future__ import annotations
+
 from threading import Event
-from typing import Optional, List, Dict, Any
-from pydantic import Field, BaseModel
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
 from ..utils.observer import MessageObserver
 
 
@@ -12,6 +15,7 @@ class ModelConfig(BaseModel):
     url: str = Field(description="Model endpoint URL")
     temperature: Optional[float] = Field(description="Temperature", default=0.1)
     top_p: Optional[float] = Field(description="Top P", default=0.95)
+    is_deep_thinking: Optional[bool] = Field(description="Deep thinking", default=False)
 
 
 class ToolConfig(BaseModel):
@@ -51,3 +55,23 @@ class AgentRunInfo(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+
+class MemoryContext(BaseModel):
+    user_config: MemoryUserConfig = Field(description="Memory user configuration")
+    memory_config: Dict[str, Any] = Field(description="Memory llm/embedder/vectorstore configuration")
+    tenant_id: str = Field(description="Tenant id")
+    user_id: str = Field(description="User id")
+    agent_id: str = Field(description="Agent id")
+
+    def __str__(self) -> str:  # pragma: no cover
+        return self.model_dump_json(indent=2, ensure_ascii=False)
+
+
+class MemoryUserConfig(BaseModel):
+    memory_switch: bool = Field(description="Whether to use memory")
+    agent_share_option: str = Field(description="Agent share option")
+    disable_agent_ids: List[str] = Field(description="Disable agent ids")
+    disable_user_agent_ids: List[str] = Field(description="Disable user agent ids")
+
+    def __str__(self) -> str:  # pragma: no cover
+        return self.model_dump_json(indent=2, ensure_ascii=False)

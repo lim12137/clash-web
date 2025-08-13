@@ -1,8 +1,9 @@
-import { Modal, Button, message } from 'antd'
+import { Modal, Button,Switch, App } from 'antd'
 import { DeleteOutlined, ExclamationCircleFilled, RightOutlined } from '@ant-design/icons'
 import { useState } from 'react'
-import { ModelOption, ModelType } from '@/types/config'
+import { ModelOption, ModelType, ModelSource } from '@/types/config'
 import { modelService } from '@/services/modelService'
+import { ModelEditDialog } from './ModelEditDialog'
 import { useConfig } from '@/hooks/useConfig'
 import { useTranslation } from 'react-i18next'
 
@@ -20,9 +21,15 @@ export const ModelDeleteDialog = ({
   customModels 
 }: ModelDeleteDialogProps) => {
   const { t } = useTranslation()
+  const { message } = App.useApp()
   const { modelConfig, updateModelConfig } = useConfig()
   const [deletingModelType, setDeletingModelType] = useState<ModelType | null>(null)
+  const [selectedSource, setSelectedSource] = useState<ModelSource | null>(null)
   const [deletingModels, setDeletingModels] = useState<Set<string>>(new Set())
+  const [editModel, setEditModel] = useState<ModelOption | null>(null)
+  const [providerModels, setProviderModels] = useState<any[]>([])
+  const [pendingSelectedProviderIds, setPendingSelectedProviderIds] = useState<Set<string>>(new Set())
+  const [loadingSource, setLoadingSource] = useState<ModelSource | null>(null)
 
   // 获取模型的颜色方案
   const getModelColorScheme = (type: ModelType): { bg: string; text: string; border: string } => {
@@ -69,7 +76,8 @@ export const ModelDeleteDialog = ({
   }
 
   // 获取模型的显示名称
-  const getModelTypeName = (type: ModelType): string => {
+  const getModelTypeName = (type: ModelType | null): string => {
+    if (!type) return t('model.type.unknown')
     switch (type) {
       case "llm":
         return t('model.type.llm')
@@ -90,7 +98,104 @@ export const ModelDeleteDialog = ({
     }
   }
 
-  // 处理删除模型
+  // Get source display name
+  const getSourceName = (source: ModelSource): string => {
+    switch (source) {
+      case 'openai':
+        return t('model.source.openai')
+      case 'silicon':
+        return t('model.source.silicon')
+      case 'OpenAI-API-Compatible':
+        return t('model.source.custom')
+      default:
+        return t('model.source.unknown')
+    }
+  }
+
+  // Get source color scheme
+  const getSourceColorScheme = (source: ModelSource): { bg: string; text: string; border: string } => {
+    switch (source) {
+      case 'silicon':
+        return { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-100' }
+      case 'openai':
+        return { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100' }
+      case 'OpenAI-API-Compatible':
+        return { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-100' }
+      default:
+        return { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-100' }
+    }
+  }
+
+  // Get source icon
+  const getSourceIcon = (source: ModelSource): JSX.Element => {
+    switch (source) {
+      case 'silicon':
+        return <img src="/siliconcloud-color.png" alt="Silicon" className="w-5 h-5" />
+      case 'openai':
+        return <span role="img" aria-label="openai">🏷️</span>
+      case 'OpenAI-API-Compatible':
+        return <span role="img" aria-label="custom">🛠️</span>
+      default:
+        return <span role="img" aria-label="box">📦</span>
+    }
+  }
+
+  // Get API key by model type
+  const getApiKeyByType = (type: ModelType | null): string => {
+    if (!type) return ''
+    // Prioritize silicon models of the current type
+    const byType = customModels.find((m) => m.source === 'silicon' && m.type === type && m.apiKey)
+    if (byType?.apiKey) return byType.apiKey
+    // Fall back to any available silicon model
+    const anySilicon = customModels.find((m) => m.source === 'silicon' && m.apiKey)
+    return anySilicon?.apiKey || ''
+  }
+
+  // Prefetch SiliconCloud provider model list
+  const prefetchSiliconProviderModels = async (modelType: ModelType | null): Promise<void> => {
+    if (!modelType) return
+    try {
+      const apiKey = getApiKeyByType(modelType)
+      const result = await modelService.addProviderModel({
+        provider: 'silicon',
+        type: modelType,
+        apiKey: apiKey && apiKey.trim() !== '' ? apiKey : 'sk-no-api-key'
+      })
+      setProviderModels(result || [])
+      // Initialize pending selected switch states (based on current customModels status)
+      const currentIds = new Set(
+        customModels
+          .filter(m => m.type === modelType && m.source === 'silicon')
+          .map(m => m.name)
+      )
+      setPendingSelectedProviderIds(new Set((result || []).map((pm: any) => pm.id).filter((id: string) => currentIds.has(id))))
+      if (!result || result.length === 0) {
+        message.error(t('model.dialog.error.noModelsFetched'))
+      }
+    } catch (e) {
+      message.error(t('model.dialog.error.noModelsFetched'))
+      console.error('Failed to prefetch Silicon provider models', e)
+    }
+  }
+
+  // Handle source selection
+  const handleSourceSelect = async (source: ModelSource) => {
+    if (source === 'silicon') {
+      setLoadingSource(source)
+      try {
+        await prefetchSiliconProviderModels(deletingModelType)
+      } finally {
+        setLoadingSource(null)
+      }
+    }
+    setSelectedSource(source)
+  }
+
+  const handleEditModel = (model: ModelOption) => {
+    setEditModel(model)
+  }
+
+  // Handle model deletion
   const handleDeleteModel = async (displayName: string) => {
     setDeletingModels(prev => new Set(prev).add(displayName))
     try {
@@ -142,14 +247,21 @@ export const ModelDeleteDialog = ({
       // 这会触发一次modelService.getCustomModels()调用，避免重复请求
       await onSuccess()
       
-      // 如果当前没有模型了，则返回到模型类型选择界面
-      // 使用从父组件传入的customModels来判断，不再单独获取
-      const currentTypeModels = customModels.filter(model => 
-        model.type === deletingModelType && model.displayName !== displayName
-      )
-      
-      if (currentTypeModels.length === 0) {
-        setDeletingModelType(null)
+      // 删除后根据剩余数量调整层级导航
+      if (deletingModelType) {
+        const remainingByTypeAndSource = customModels.filter(model =>
+          model.type === deletingModelType && (!selectedSource || model.source === selectedSource) && model.displayName !== displayName
+        )
+        if (selectedSource && remainingByTypeAndSource.length === 0) {
+          // 当前来源下已无模型，退回到来源选择
+          setSelectedSource(null)
+        }
+        const remainingByType = customModels.filter(model =>
+          model.type === deletingModelType && model.displayName !== displayName
+        )
+        if (remainingByType.length === 0) {
+          setDeletingModelType(null)
+        }
       }
     } catch (error) {
       console.error(t('model.error.deleteError'), error)
@@ -166,18 +278,57 @@ export const ModelDeleteDialog = ({
   // 处理关闭对话框
   const handleClose = () => {
     setDeletingModelType(null)
+    setSelectedSource(null)
+    setProviderModels([])
+    setPendingSelectedProviderIds(new Set())
     onClose()
   }
 
   return (
-    // 重构：风格被嵌入在组件内
+    // Refactor: Styles are embedded within the component
     <Modal
-      title={t('model.dialog.delete.title')}
+      title={t('model.dialog.edit.title')}
       open={isOpen}
       onCancel={handleClose}
       footer={[
         <Button key="close" onClick={handleClose}>
           {t('common.button.close')}
+        </Button>,
+        <Button key="confirm" type="primary" onClick={async () => {
+          // Only apply changes when silicon source is selected
+          if (selectedSource === 'silicon' && deletingModelType) {
+            try {
+              // Get all currently enabled models (including originally enabled and newly enabled ones)
+              const allEnabledModels = providerModels.filter((pm: any) =>
+                pendingSelectedProviderIds.has(pm.id)
+              )
+
+              if (allEnabledModels.length > 0) {
+                const apiKey = getApiKeyByType(deletingModelType)
+                // Pass all currently enabled models
+                await modelService.addBatchCustomModel({
+                  api_key: apiKey && apiKey.trim() !== '' ? apiKey : 'sk-no-api-key',
+                  provider: 'silicon',
+                  type: deletingModelType,
+                  max_tokens: 0,
+                  models: allEnabledModels
+                })
+              }
+
+              // Refresh list
+              await onSuccess()
+              // Re-fetch provider models and sync switch states
+              await prefetchSiliconProviderModels(deletingModelType)
+              message.success('Update successful')
+              // Close dialog
+              handleClose()
+            } catch (e) {
+              console.error('Failed to apply model updates', e)
+              message.error(t('model.dialog.error.addFailed', { error: e as any }))
+            }
+          }
+        }} disabled={selectedSource !== 'silicon'}>
+         {t('common.confirm')}
         </Button>,
       ]}
       width={520}
@@ -185,7 +336,7 @@ export const ModelDeleteDialog = ({
     >
       {!deletingModelType ? (
         <div className="space-y-4">
-          <p className="text-sm text-gray-600 mb-4">{t('model.dialog.delete.selectType')}</p>
+          <p className="text-sm text-gray-600 mb-4">{t('model.dialog.edit.selectType')}</p>
 
           <div className="grid grid-cols-1 gap-2">
             {(["llm", "embedding", "multi_embedding", "rerank", "vlm", "stt", "tts"] as ModelType[]).map((type) => {
@@ -197,7 +348,7 @@ export const ModelDeleteDialog = ({
               return (
                 <button
                   key={type}
-                  onClick={() => setDeletingModelType(type)}
+                  onClick={() => { setDeletingModelType(type); setSelectedSource(null) }}
                   disabled={type === "stt" || type === "tts"}
                   className={`p-3 flex justify-between rounded-md border transition-colors ${
                     type === "stt" || type === "tts"
@@ -227,9 +378,9 @@ export const ModelDeleteDialog = ({
             <div className="text-center py-8 text-gray-500">{t('model.dialog.delete.noModels')}</div>
           )}
         </div>
-      ) : (
-        <div>
-          <div className="flex items-center mb-4">
+      ) : selectedSource === null ? (
+        <div className="space-y-4">
+          <div className="flex items-center mb-2">
             <button
               onClick={() => setDeletingModelType(null)}
               className="text-blue-500 hover:text-blue-700 flex items-center"
@@ -250,60 +401,180 @@ export const ModelDeleteDialog = ({
             </button>
           </div>
 
-          <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-200">
-            {customModels
-              .filter((model) => model.type === deletingModelType)
-              .map((model) => (
-                <div key={model.name} className="p-2 flex justify-between items-center hover:bg-gray-50 text-sm">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate" title={model.name}>
-                      {model.displayName || model.name} ({model.name})
+          <div className="grid grid-cols-1 gap-2">
+            {(["openai", "silicon", "OpenAI-API-Compatible"] as ModelSource[]).map((source) => {
+              const modelsOfSource = customModels.filter((model) => model.type === deletingModelType && model.source === source)
+              if (modelsOfSource.length === 0) return null
+              const colorScheme = getSourceColorScheme(source)
+              const isLoading = loadingSource === source
+              return (
+                <button
+                  key={source}
+                  onClick={() => handleSourceSelect(source)}
+                  disabled={isLoading}
+                  className={`p-3 flex justify-between rounded-md border transition-colors ${colorScheme.border} ${colorScheme.bg} hover:bg-opacity-80 ${
+                    isLoading ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <div className={`w-8 h-8 rounded-md flex items-center justify-center mr-3 ${colorScheme.text}`}>
+                      {isLoading ? (
+                        <svg
+                          className="animate-spin h-5 w-5"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                      ) : (
+                        getSourceIcon(source)
+                      )}
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <div className="font-medium">{getSourceName(source)}</div>
+                      <div className="text-xs text-gray-500">
+                        {t('model.dialog.delete.customModelCount', { count: modelsOfSource.length })}
+                      </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDeleteModel(model.displayName || model.name)}
-                    disabled={deletingModels.has(model.displayName || model.name) || model.type === "stt" || model.type === "tts"}
-                    className={`p-1 ${
-                      model.type === "stt" || model.type === "tts" 
-                        ? "text-gray-400 cursor-not-allowed" 
-                        : "text-red-500 hover:text-red-700"
-                    }`}
-                    title={model.type === "stt" || model.type === "tts" ? t('model.dialog.delete.unsupportedTypeHint') : t('model.dialog.delete.deleteHint')}
-                  >
-                    {deletingModels.has(model.displayName || model.name) ? (
-                      <svg
-                        className="animate-spin h-5 w-5"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                    ) : (
-                      <DeleteOutlined className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-              ))}
-
-            {customModels.filter((model) => model.type === deletingModelType).length === 0 && (
-              <div className="p-4 text-center text-gray-500">
-                {t('model.dialog.delete.noModelsOfType', { type: getModelTypeName(deletingModelType) })}
-              </div>
-            )}
+                  <RightOutlined className="h-5 w-5" />
+                </button>
+              )
+            })}
           </div>
+        </div>
+      ) : (
+        <div>
+          <div className="flex items-center mb-4">
+            <button
+              onClick={() => { setSelectedSource(null); setProviderModels([]) }}
+              className="text-blue-500 hover:text-blue-700 flex items-center"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 mr-1"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              {t('common.back')}
+            </button>
+          </div>
+
+          {selectedSource === 'silicon' && providerModels.length > 0 ? (
+            <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-200">
+              {providerModels.map((providerModel: any) => {
+                const checked = pendingSelectedProviderIds.has(providerModel.id)
+                return (
+                  <div key={providerModel.id} className="p-2 flex justify-between items-center hover:bg-gray-50 text-sm">
+                    <div className="flex items-center min-w-0">
+                      <span className="truncate" title={providerModel.id}>
+                        {providerModel.id}
+                      </span>
+                      {providerModel.model_type && (
+                        <span className="ml-2 px-1.5 py-0.5 text-xs rounded bg-gray-200 text-gray-600 uppercase">
+                          {String(providerModel.model_tag)}
+                        </span>
+                      )}
+                    </div>
+                    <Switch
+                      size="small"
+                      checked={checked}
+                      onChange={(value) => {
+                        setPendingSelectedProviderIds(prev => {
+                          const next = new Set(prev)
+                          if (value) {
+                            next.add(providerModel.id)
+                          } else {
+                            next.delete(providerModel.id)
+                          }
+                          return next
+                        })
+                      }}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-200">
+              {customModels
+                .filter((model) => model.type === deletingModelType && model.source === selectedSource)
+                .map((model) => (
+                  <div key={model.name}
+                  onClick={() => handleEditModel(model)}
+                  className="p-2 flex justify-between items-center hover:bg-gray-50 text-sm cursor-pointer">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate" title={model.name}>
+                        {model.displayName || model.name} ({model.name})
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteModel(model.displayName || model.name);
+                      }}
+                      disabled={deletingModels.has(model.displayName || model.name) || model.type === "stt" || model.type === "tts"}
+                      className={`p-1 ${
+                        model.type === "stt" || model.type === "tts"
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-red-500 hover:text-red-700"
+                      }`}
+                      title={model.type === "stt" || model.type === "tts" ? t('model.dialog.delete.unsupportedTypeHint') : t('model.dialog.delete.deleteHint')}
+                    >
+                      {deletingModels.has(model.displayName || model.name) ? (
+                        <svg
+                          className="animate-spin h-5 w-5"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                      ) : (
+                        <DeleteOutlined className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                ))}
+
+              {customModels.filter((model) => model.type === deletingModelType && model.source === selectedSource).length === 0 && (
+                <div className="p-4 text-center text-gray-500">
+                  {t('model.dialog.delete.noModelsOfType', { type: getModelTypeName(deletingModelType) })}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-4 p-3 bg-yellow-50 border border-yellow-100 rounded-md text-xs text-yellow-700">
             <div>
@@ -318,6 +589,19 @@ export const ModelDeleteDialog = ({
           </div>
         </div>
       )}
+      {/* Edit model dialog */}
+      <ModelEditDialog
+        isOpen={!!editModel}
+        model={editModel}
+        onClose={() => setEditModel(null)}
+        onSuccess={async () => {
+          await onSuccess()
+          // After closing, if the current list type is empty, go back one level
+          if (editModel && deletingModelType && editModel.type !== deletingModelType) {
+            setDeletingModelType(null)
+          }
+        }}
+      />
     </Modal>
   )
 }

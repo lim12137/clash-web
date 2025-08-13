@@ -68,6 +68,53 @@
   }
 }
 
+/* Ant Design Button Icon with Lucide icons */
+.ant-btn-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.ant-collapse-header {
+  @apply bg-gray-50;
+}
+
+.ant-collapse-collapsible-disabled {
+  cursor: default !important;
+}
+
+.ant-collapse-content-box {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-right: 0 !important;
+}
+
+.ant-collapse-item-active>.ant-collapse-header {
+  @apply shadow-md;
+}
+.ant-collapse-item-disabled>.ant-collapse-header {
+  @apply cursor-default;
+}
+
+/* Styles for the List component inside MemoryManageModal */
+.memory-modal-list .ant-list-item {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 2px;
+}
+
+.memory-modal-list .ant-list-item-action {
+  width: 5%;
+  margin-left: auto !important;
+  display: flex;
+  justify-content: right;
+}
+
+.memory-modal-panel {
+  background: #f9fafb;
+  border-radius: 4px;
+  border: 1px solid #f0f0f0;
+}
+
 /* Scrollbar styles */
 /* For Webkit browsers (Chrome, Safari, Edge, etc.) */
 ::-webkit-scrollbar {
@@ -89,4 +136,60 @@
 /* For Firefox */
 * {
   scrollbar-color: rgba(0, 0, 0, 0.4) transparent;
+}
+
+/* Tool Pool Tabs 滚动修复 */
+.tool-pool-tabs .ant-tabs-content-holder {
+  overflow: hidden;
+  height: 100%;
+}
+
+.tool-pool-tabs .ant-tabs-content {
+  height: 100%;
+}
+
+.tool-pool-tabs .ant-tabs-tabpane {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 确保工具池tabs内容区域可以滚动 */
+.tool-pool-tabs .ant-tabs-content-holder .ant-tabs-content .ant-tabs-tabpane > div {
+  height: 100%;
+  max-height: 100%;
+}
+
+/* 调整tabs内容区域的左右内边距 - 使用更强的选择器 */
+.tool-pool-tabs.ant-tabs.ant-tabs-left > .ant-tabs-content-holder {
+  padding-left: 12px !important;
+  padding-right: 9px !important;
+  margin-left: 0 !important;
+}
+
+.tool-pool-tabs.ant-tabs.ant-tabs-left > .ant-tabs-content-holder > .ant-tabs-content {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+
+.tool-pool-tabs.ant-tabs.ant-tabs-left .ant-tabs-tabpane {
+  padding-left: 0 !important;
+}
+
+/* 缩短标签的内外边距，使标签更紧凑 */
+.tool-pool-tabs .ant-tabs-tab {
+  padding: 12px 6px !important;
+  margin: 4px 2px !important;
+  min-height: auto !important;
+  width: auto !important;
+  max-width: 100px !important;
+}
+
+.tool-pool-tabs .ant-tabs-nav-list {
+  padding: 4px 0 !important;
+  width: auto !important;
+}
+
+.tool-pool-tabs .ant-tabs-tab-btn {
+  padding: 0 !important;
+  line-height: 1.2 !important;
 }

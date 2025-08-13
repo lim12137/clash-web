@@ -17,7 +17,7 @@ on:
         default: '[]'
 
 jobs:
-  build-images:
+  build-main:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
     steps:
       - name: Checkout code
@@ -25,8 +25,17 @@ jobs:
         with:
           fetch-depth: 1
           retries: 3
+      - name: Build main application image
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent -f make/main/Dockerfile .
 
-      # Data process specific cache handling (for data-process build)
+  build-data-process:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          retries: 3
       - name: Check if model is cached locally
         id: check-model
         run: |
@@ -36,7 +45,6 @@ jobs:
           else
             echo "cache-hit=false" >> "$GITHUB_OUTPUT"
           fi
-
       - name: Clone model if not cached
         if: steps.check-model.outputs.cache-hit == 'false'
         run: |
@@ -44,27 +52,34 @@ jobs:
           cd ./model-assets
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
           rm -rf .git .gitattributes
+      - name: Build data process image
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-data-process -f make/data_process/Dockerfile .
 
-      - name: Build all Docker images in parallel
-        run: |
-          set -e
-          echo "Starting parallel Docker builds..."
-          docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent -f make/main/Dockerfile . &
-          PID_MAIN=$!
+  build-web:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          retries: 3
+      - name: Build web frontend image
+        run: docker build --build-arg MIRROR=https://registry.npmmirror.com -t nexent/nexent-web -f make/web/Dockerfile .
 
-          docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-data-process -f make/data_process/Dockerfile . &
-          PID_DATA=$!
-
-          docker build --build-arg MIRROR=https://registry.npmmirror.com -t nexent/nexent-web -f make/web/Dockerfile . &
-          PID_WEB=$!
-
-          # Wait for all builds to finish
-          wait $PID_MAIN $PID_DATA $PID_WEB
-          echo "All Docker images built successfully."
+  build-docs:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          retries: 3
+      - name: Build docs image
+        run: docker build --progress=plain -t nexent/nexent-docs -f make/docs/Dockerfile .
 
   deploy:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
-    needs: build-images
+    needs: [ build-main, build-data-process, build-web, build-docs ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -76,6 +91,11 @@ jobs:
           rm -rf $HOME/nexent
           mkdir -p $HOME/nexent
           cp -r $GITHUB_WORKSPACE/* $HOME/nexent/
+      - name: Start docs container
+        run: |
+          docker stop nexent-docs 2>/dev/null || true
+          docker rm nexent-docs 2>/dev/null || true
+          docker run -d --name nexent-docs -p 4173:4173 nexent/nexent-docs
       - name: Ensure deploy.sh is executable
         run: chmod +x $HOME/nexent/docker/deploy.sh
       - name: Deploy with deploy.sh
@@ -85,7 +105,7 @@ jobs:
           cd $HOME/nexent/docker
           cp .env.example .env
           if [ "$DEPLOYMENT_MODE" = "production" ]; then
-            ./deploy.sh --mode 3 --is-mainland N --enable-terminal N
+            ./deploy.sh --mode 3 --is-mainland N --enable-terminal N --version full
           else
-            ./deploy.sh --mode 1 --is-mainland N --enable-terminal N
+            ./deploy.sh --mode 1 --is-mainland N --enable-terminal N --version full
           fi

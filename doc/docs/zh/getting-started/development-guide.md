@@ -72,26 +72,55 @@ uv pip install ../sdk
 `--all-extras` 会安装所有可选依赖，包括数据处理、测试等模块。然后安装本地 SDK 包。
 :::
 
+#### 使用国内镜像源（可选）
+如果网络访问较慢，可以使用国内镜像源加速安装：
+
+```bash
+# 使用清华大学镜像源
+uv sync --all-extras --default-index https://pypi.tuna.tsinghua.edu.cn/simple
+uv pip install ../sdk --default-index https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 使用阿里云镜像源
+uv sync --all-extras --default-index https://mirrors.aliyun.com/pypi/simple/
+uv pip install ../sdk --default-index https://mirrors.aliyun.com/pypi/simple/
+
+# 使用多个镜像源（推荐）
+uv sync --all-extras --index https://pypi.tuna.tsinghua.edu.cn/simple --index https://mirrors.aliyun.com/pypi/simple/
+uv pip install ../sdk --index https://pypi.tuna.tsinghua.edu.cn/simple --index https://mirrors.aliyun.com/pypi/simple/
+```
+
+::: info 镜像源说明
+- **清华大学镜像源**: `https://pypi.tuna.tsinghua.edu.cn/simple`
+- **阿里云镜像源**: `https://mirrors.aliyun.com/pypi/simple/`
+- **中科大镜像源**: `https://pypi.mirrors.ustc.edu.cn/simple/`
+- **豆瓣镜像源**: `https://pypi.douban.com/simple/`
+
+推荐使用多个镜像源配置，以提高下载成功率。
+:::
+
 ### 前端设置
 ```bash
 cd frontend
 pnpm install
-pnpm dev
+pnpm run dev
 ```
 
 ### 服务启动
 在启动服务之前，需要先激活虚拟环境：
 
 ```bash
-# 在项目根目录下执行
-source venv/bin/activate  # 激活虚拟环境
+# 在项目backend目录下执行
+cd backend
+source .venv/bin/activate  # 激活虚拟环境
 ```
 
 Nexent 包含三个核心后端服务，需要分别启动：
+
 ```bash
+# 在项目根目录下执行，请按以下顺序执行：
+source .env && python backend/nexent_mcp_service.py     # MCP 服务
 source .env && python backend/data_process_service.py   # 数据处理服务
 source .env && python backend/main_service.py           # 主服务
-source .env && python backend/nexent_mcp_service.py     # MCP 服务
 ```
 
 ::: warning 重要提示
