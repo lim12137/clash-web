@@ -282,7 +282,7 @@ COMMENT ON COLUMN nexent.ag_tool_info_t.delete_flag IS 'Whether it is deleted. O
 CREATE TABLE IF NOT EXISTS nexent.ag_tenant_agent_t (
     agent_id SERIAL PRIMARY KEY NOT NULL,
     name VARCHAR(100),
-    name_zh VARCHAR(100),
+    display_name VARCHAR(100),
     description VARCHAR,
     business_description VARCHAR,
     model_name VARCHAR(100),
