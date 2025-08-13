@@ -116,8 +116,8 @@ class ErrorTransformer(MessageTransformer):
 
 
 class MessageObserver:
-    MAX_THINK_BUFFER_SIZE = 6
-    MAX_TOKEN_BUFFER_SIZE = 3
+    # set the maximum buffer size, can be adjusted according to needs
+    MAX_TOKEN_BUFFER_SIZE = 10
     
     def __init__(self, lang="zh"):
         # unified output to the front end string, changed to queue
@@ -184,7 +184,7 @@ class MessageObserver:
                 self.think_buffer.clear()
                 think_content = buffer_text[start_match.end():]
                 if think_content:
-                    self.think_buffer.extend(think_content)
+                    self.think_buffer.append(think_content)
         
         # Check for think end tag
         if self.in_think_mode:
@@ -203,31 +203,22 @@ class MessageObserver:
                 if after_think:
                     self._process_normal_content(after_think)
                 self.think_buffer.clear()
-        
-        # Manage buffer size to prevent memory issues
-        if len(self.think_buffer) > self.MAX_THINK_BUFFER_SIZE:
+
+        while len(self.think_buffer) > self.MAX_TOKEN_BUFFER_SIZE:
+            think_content = self.think_buffer.popleft()
+            # In think mode, output accumulated content as deep thinking
             if self.in_think_mode:
-                # In think mode, output accumulated content as deep thinking
-                think_content = ''.join(list(self.think_buffer)[:self.MAX_TOKEN_BUFFER_SIZE])
                 self.message_query.append(
                     Message(ProcessType.MODEL_OUTPUT_DEEP_THINKING, think_content).to_json())
-                # Remove processed content
-                for _ in range(self.MAX_TOKEN_BUFFER_SIZE):
-                    self.think_buffer.popleft()
             else:
-                # Not in think mode, output accumulated content as normal
-                normal_content = ''.join(list(self.think_buffer)[:self.MAX_TOKEN_BUFFER_SIZE])
-                self._process_normal_content(normal_content)
-                # Remove processed content
-                for _ in range(self.MAX_TOKEN_BUFFER_SIZE):
-                    self.think_buffer.popleft()
+                self._process_normal_content(think_content)
+
 
     def _process_normal_content(self, content):
         """
         Process normal content (non-deep-think content) for code block detection
         """
-        for token in content:
-            self.token_buffer.append(token)
+        self.token_buffer.append(content)
         
         # concatenate the buffer into text for checking code blocks
         buffer_text = ''.join(self.token_buffer)
@@ -264,12 +255,11 @@ class MessageObserver:
             self.token_buffer.clear()
         else:
             # not found the code block marker, pop the first token from the queue (if the buffer length exceeds a certain size)
-            if len(self.token_buffer) >= self.MAX_TOKEN_BUFFER_SIZE:
-                # Send accumulated content when threshold is reached
-                buffer_text = ''.join(self.token_buffer)
+            max_buffer_size = self.MAX_TOKEN_BUFFER_SIZE
+            while len(self.token_buffer) > max_buffer_size:
+                oldest_token = self.token_buffer.popleft()
                 self.message_query.append(
-                    Message(self.current_mode, buffer_text).to_json())
-                self.token_buffer.clear()
+                    Message(self.current_mode, oldest_token).to_json())
 
     def flush_remaining_tokens(self):
         """
