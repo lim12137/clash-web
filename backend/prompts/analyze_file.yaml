@@ -25,4 +25,4 @@ long_text_analysis:
     4. 避免冗余信息，专注于问题相关内容
     
   user_prompt: |
-    请仔细阅读并分析这段文本：{{ file_context }} 
+    请仔细阅读并分析这段文本： 

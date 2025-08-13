@@ -67,6 +67,6 @@ def convert_long_text_to_text(query: str, file_context: str, tenant_id: str, lan
     # Load prompts from yaml file
     prompts = get_analyze_file_prompt_template(language)
     system_prompt = Template(prompts['long_text_analysis']['system_prompt'], undefined=StrictUndefined).render({'query': query})
-    user_prompt = Template(prompts['long_text_analysis']['user_prompt'], undefined=StrictUndefined).render({'file_context': file_context})
+    user_prompt = Template(prompts['long_text_analysis']['user_prompt'], undefined=StrictUndefined).render({})
 
     return long_text_to_text_model.analyze_long_text(file_context, system_prompt, user_prompt)
