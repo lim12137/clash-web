@@ -162,7 +162,8 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
             inputs=tool.get("inputs"),
             output_type=tool.get("output_type"),
             params=param_dict,
-            source=tool.get("source")
+            source=tool.get("source"),
+            usage=tool.get("usage")  # 添加 usage 字段
         )
 
         if tool.get("source") == "langchain":
@@ -265,15 +266,12 @@ def filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_lis
         None (直接修改 agent_run_info 对象)
     """
     used_mcp_urls = set()
-    has_mcp_tools = False
 
     # 递归检查所有 agent 的工具
     def check_agent_tools(agent_config):
-        nonlocal has_mcp_tools
         # 检查当前 agent 的工具
         for tool in getattr(agent_config, "tools", []):
             if hasattr(tool, "source") and tool.source == "mcp":
-                has_mcp_tools = True
                 # 对于 MCP 工具，从 usage 字段获取 MCP 服务器名称
                 if hasattr(tool, "usage") and tool.usage:
                     mcp_server_name = tool.usage
@@ -283,6 +281,9 @@ def filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_lis
                             remote_mcp_info["status"]):
                             used_mcp_urls.add(remote_mcp_info["remote_mcp_server"])
                             break
+                # 如果工具名称是 local_test_tool_name，添加默认服务器
+                if tool.name == "local_test_tool_name":
+                    used_mcp_urls.add(default_mcp_url)
 
         # 递归检查子 agent
         for sub_agent_config in getattr(agent_config, "managed_agents", []):
@@ -290,10 +291,6 @@ def filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_lis
 
     # 检查所有 agent 的工具
     check_agent_tools(agent_run_info.agent_config)
-
-    # 如果有 MCP 工具但没有找到对应的服务器，使用默认服务器
-    if has_mcp_tools and not used_mcp_urls:
-        used_mcp_urls.add(default_mcp_url)
 
     # 直接设置 mcp_host 为找到的 URL 列表
     agent_run_info.mcp_host = list(used_mcp_urls)
@@ -322,5 +319,6 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
         history=history,
         stop_event=threading.Event()
     )
-
+    # # 过滤 MCP 服务器和工具
+    filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_list)
     return agent_run_info
