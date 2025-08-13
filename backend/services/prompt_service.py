@@ -196,8 +196,7 @@ def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_lis
     agent_description = "\n".join(
         [f"- {sub_agent_info['name']}: {sub_agent_info['description']}" for sub_agent_info in sub_agent_info_list])
     # Generate content using template
-    compiled_template = Template(prompt_for_generate["USER_PROMPT"], undefined=StrictUndefined)
-    content = compiled_template.render({
+    content = Template(prompt_for_generate["USER_PROMPT"], undefined=StrictUndefined).render({
         "tool_description": tool_description,
         "agent_description": agent_description,
         "task_description": task_description,
@@ -237,8 +236,7 @@ def fine_tune_prompt(system_prompt: str, command: str, tenant_id: str, language:
         with open(fine_tune_config_path, "r", encoding="utf-8") as f:
             prompt_for_fine_tune = yaml.safe_load(f)
 
-        compiled_template = Template(prompt_for_fine_tune["FINE_TUNE_USER_PROMPT"], undefined=StrictUndefined)
-        content = compiled_template.render({
+        content = Template(prompt_for_fine_tune["FINE_TUNE_USER_PROMPT"], undefined=StrictUndefined).render({
             "prompt": system_prompt,
             "command": command
         })
