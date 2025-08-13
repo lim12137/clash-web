@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import Query, APIRouter, Header, Body
 
@@ -206,6 +206,26 @@ async def update_single_model(request: dict, authorization: Optional[str] = Head
         return ModelResponse(
             code=500,
             message=f"Failed to update model: {str(e)}",
+            data=None
+        )
+
+
+@router.post("/batch_update_models", response_model=ModelResponse)
+async def batch_update_models(request: List[dict], authorization: Optional[str] = Header(None)):
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        model_list = request
+        for model in model_list:
+            update_model_record(model["model_id"], model, user_id)
+        return ModelResponse(
+            code=200,
+            message=f"Batch update models successfully",
+            data=None
+        )
+    except Exception as e:
+        return ModelResponse(
+            code=500,
+            message=f"Failed to batch update models: {str(e)}",
             data=None
         )
 

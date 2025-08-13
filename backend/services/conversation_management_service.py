@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import yaml
@@ -18,6 +19,7 @@ from utils.config_utils import tenant_config_manager,get_model_name_from_config
 from utils.auth_utils import get_current_user_id_from_token
 from nexent.core.utils.observer import ProcessType
 from utils.str_utils import remove_think_tags, add_no_think_token
+from utils.prompt_template_utils import get_generate_title_prompt_template
 
 logger = logging.getLogger("conversation_management_service")
 
@@ -228,18 +230,19 @@ def extract_user_messages(history: List[Dict[str, str]]) -> str:
     return content
 
 
-def call_llm_for_title(content: str, tenant_id: str) -> str:
+def call_llm_for_title(content: str, tenant_id: str, language: str = 'zh') -> str:
     """
     Call LLM to generate a title
 
     Args:
         content: Conversation content
+        tenant_id: Tenant ID
+        language: Language code ('zh' for Chinese, 'en' for English)
 
     Returns:
         str: Generated title
     """
-    with open('backend/prompts/utils/generate_title.yaml', "r", encoding="utf-8") as f:
-        prompt_template = yaml.safe_load(f)
+    prompt_template = get_generate_title_prompt_template(language=language)
 
     model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
 
@@ -248,8 +251,7 @@ def call_llm_for_title(content: str, tenant_id: str) -> str:
         api_key=model_config.get("api_key", ""), temperature=0.7, top_p=0.95)
 
     # Build messages
-    compiled_template = Template(prompt_template["USER_PROMPT"], undefined=StrictUndefined)
-    user_prompt = compiled_template.render({
+    user_prompt = Template(prompt_template["USER_PROMPT"], undefined=StrictUndefined).render({
         "content": content
     })
     messages = [{"role": "system",
@@ -626,7 +628,7 @@ def get_sources_service(conversation_id: Optional[int], message_id: Optional[int
         }
 
 
-def generate_conversation_title_service(conversation_id: int, history: List[Dict[str, str]], user_id: str, tenant_id: str) -> str:
+async def generate_conversation_title_service(conversation_id: int, history: List[Dict[str, str]], user_id: str, tenant_id: str, language: str = 'zh') -> str:
     """
     Generate conversation title
 
@@ -634,6 +636,8 @@ def generate_conversation_title_service(conversation_id: int, history: List[Dict
         conversation_id: Conversation ID
         history: Conversation history list
         user_id: User ID
+        tenant_id: Tenant ID
+        language: Language code ('zh' for Chinese, 'en' for English)
 
     Returns:
         str: Generated title
@@ -642,8 +646,8 @@ def generate_conversation_title_service(conversation_id: int, history: List[Dict
         # Extract user messages
         content = extract_user_messages(history)
 
-        # Call LLM to generate title
-        title = call_llm_for_title(content, tenant_id)
+        # Call LLM to generate title in a separate thread to avoid blocking
+        title = await asyncio.to_thread(call_llm_for_title, content, tenant_id, language)
 
         # Update conversation title
         update_conversation_title(conversation_id, title, user_id)

@@ -517,7 +517,7 @@ async def process_text_file(query, filename, file_content, tenant_id: str, langu
         if response.status_code == 200:
             result = response.json()
             raw_text = result.get("text", "")
-            logger.info(f"File processed successfully: {raw_text[:100]}...")
+            logger.info(f"File processed successfully: {raw_text[:200]}...{raw_text[-200:]}...， length: {len(raw_text)}")
         else:
             error_detail = response.json().get('detail', '未知错误') if response.headers.get('content-type', '').startswith('application/json') else response.text
             logger.error(f"File processing failed (status code: {response.status_code}): {error_detail}")

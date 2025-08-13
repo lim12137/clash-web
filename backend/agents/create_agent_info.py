@@ -11,11 +11,11 @@ from database.agent_db import search_agent_info_by_agent_id, search_tools_for_su
     query_or_create_main_agent_id, query_sub_agents_id_list
 from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
 from services.tenant_config_service import get_selected_knowledge_list
-from utils.prompt_template_utils import get_prompt_template_path
+from utils.prompt_template_utils import get_agent_prompt_template
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
-from smolagents.agents import populate_template
 from smolagents.utils import BASE_BUILTIN_MODULES
 from services.memory_config_service import build_memory_context
+from jinja2 import Template, StrictUndefined
 
 from nexent.memory.memory_service import search_memory_in_levels
 
@@ -63,10 +63,8 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     constraint_prompt = agent_info.get("constraint_prompt", "")
     few_shots_prompt = agent_info.get("few_shots_prompt", "")
     
-    # Get template path
-    prompt_template_path = get_prompt_template_path(is_manager=len(managed_agents) > 0, language=language)
-    with open(prompt_template_path, "r", encoding="utf-8") as file:
-        prompt_template = yaml.safe_load(file)
+    # Get template content
+    prompt_template = get_agent_prompt_template(is_manager=len(managed_agents) > 0, language=language)
 
     # Get app information
     default_app_description = 'Nexent 是一个开源智能体SDK和平台' if language == 'zh' else 'Nexent is an open-source agent SDK and platform'
@@ -99,10 +97,30 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
         logger.debug(f"Retrieved memory list: {memory_list}")
         # TODO: 前端展示"已抽取 xx 条回忆"
 
+    # Build knowledge base summary
+    knowledge_base_summary = ""
+    try:
+        for tool in tool_list:
+            if "KnowledgeBaseSearchTool" == tool.class_name:
+                knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
+                if knowledge_info_list:
+                    for knowledge_info in knowledge_info_list:
+                        knowledge_name = knowledge_info.get("index_name")
+                        try:
+                            message = ElasticSearchService().get_summary(index_name=knowledge_name)
+                            summary = message.get("summary", "")
+                            knowledge_base_summary += f"**{knowledge_name}**: {summary}\n\n"
+                        except Exception as e:
+                            logger.warning(f"Failed to get summary for knowledge base {knowledge_name}: {e}")
+                else:
+                    knowledge_base_summary = "当前没有可用的知识库索引。\n" if language == 'zh' else "No knowledge base indexes are currently available.\n"
+                break  # Only process the first KnowledgeBaseSearchTool found
+    except Exception as e:
+        logger.error(f"Failed to build knowledge base summary: {e}")
+    
     # Assemble system_prompt
-    system_prompt = populate_template(
-        prompt_template["system_prompt"],
-        variables={
+    if (duty_prompt or constraint_prompt or few_shots_prompt):
+        system_prompt = Template(prompt_template["system_prompt"], undefined=StrictUndefined).render({
             "duty": duty_prompt,
             "constraint": constraint_prompt,
             "few_shots": few_shots_prompt,
@@ -111,26 +129,12 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             "authorized_imports": str(BASE_BUILTIN_MODULES),
             "APP_NAME": app_name,
             "APP_DESCRIPTION": app_description,
-            "memory_list": memory_list
-        },
-    ) if (duty_prompt or constraint_prompt or few_shots_prompt) else agent_info.get("prompt", "")
-
-    # special logic
-    try:
-        for tool in tool_list:
-            if "KnowledgeBaseSearchTool" == tool.class_name:
-                # TODO: use prompt template
-                knowledge_base_summary = "\n\n### 本地知识库信息 ###\n" if language == 'zh' else "\n\n### Local Knowledge Base Information ###\n"
-
-                knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
-                for knowledge_info in knowledge_info_list:
-                    knowledge_name = knowledge_info.get("index_name")
-                    message = ElasticSearchService().get_summary(index_name=knowledge_name)
-                    knowledge_base_summary += f"{knowledge_name}:{message['summary']}\n"
-                system_prompt += knowledge_base_summary
-    except Exception as e:
-        logger.error(f"add knowledge base summary to system prompt failed, error: {e}")
-
+            "memory_list": memory_list,
+            "knowledge_base_summary": knowledge_base_summary
+        })
+    else:
+        system_prompt = agent_info.get("prompt", "")
+    
     agent_config = AgentConfig(
         name="undefined" if agent_info["name"] is None else agent_info["name"],
         description="undefined" if agent_info["description"] is None else agent_info["description"],
@@ -230,9 +234,7 @@ async def prepare_prompt_templates(is_manager: bool, system_prompt: str, languag
     Returns:
         dict: Prompt template configuration
     """
-    prompt_template_path = get_prompt_template_path(is_manager, language)
-    with open(prompt_template_path, "r", encoding="utf-8") as f:
-        prompt_templates = yaml.safe_load(f)
+    prompt_templates = get_agent_prompt_template(is_manager, language)
     prompt_templates["system_prompt"] = system_prompt
     return prompt_templates
 
