@@ -12,7 +12,7 @@ export interface StepContent {
   content: string
   expanded: boolean
   timestamp: number
-  subType?: "thinking" | "code"
+  subType?: "thinking" | "code" | "deep_thinking"
   isLoading?: boolean
   _preserve?: boolean
   _messageContainer?: {
@@ -190,6 +190,7 @@ export interface DialogRecord {
   reference: DialogReference[]
   update_date: string
   update_time: number
+  user_id: string | null
 }
 
 export interface ConversationListItem {

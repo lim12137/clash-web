@@ -2,21 +2,28 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { theme, Modal, message } from 'antd';
-import { ExclamationCircleFilled } from '@ant-design/icons';
-import { motion, AnimatePresence } from 'framer-motion';
+import { theme, Modal, App } from "antd"
+import { ExclamationCircleFilled, ExclamationCircleOutlined } from "@ant-design/icons"
+import { motion, AnimatePresence } from "framer-motion"
 import AppModelConfig from "./modelSetup/config"
 import DataConfig from "./knowledgeBaseSetup/KnowledgeBaseManager"
 import AgentConfig from "./agentSetup/AgentConfig"
 import { configStore } from "@/lib/config"
 import { configService } from "@/services/configService"
 import modelEngineService, { ConnectionStatus } from "@/services/modelEngineService"
+import { useAuth } from "@/hooks/useAuth"
 import Layout from "./layout"
 import { useTranslation } from 'react-i18next'
+import { userConfigService } from "@/services/userConfigService"
+import { useKnowledgeBaseContext } from "./knowledgeBaseSetup/knowledgeBase/KnowledgeBaseContext"
+import { KnowledgeBase } from "@/types/knowledgeBase"
+import { API_ENDPOINTS } from "@/services/api"
+import { getAuthHeaders } from '@/lib/auth'
 import { useTheme } from 'next-themes';
 
 
 export default function CreatePage() {
+  const { message } = App.useApp();
   const [selectedKey, setSelectedKey] = useState("1")
   const router = useRouter()
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("processing")
@@ -24,12 +31,50 @@ export default function CreatePage() {
   const [lastChecked, setLastChecked] = useState<string | null>(null)
   const [isSavingConfig, setIsSavingConfig] = useState(false)
   const [isFromSecondPage, setIsFromSecondPage] = useState(false)
+  const { user, isLoading: userLoading, openLoginModal } = useAuth()
+  const { modal } = App.useApp()
+  const { state: { knowledgeBases, selectedIds }, saveUserSelectedKnowledgeBases } = useKnowledgeBaseContext()
   const { t } = useTranslation()
   const [embeddingModalOpen, setEmbeddingModalOpen] = useState(false);
   const [pendingJump, setPendingJump] = useState(false);
   const { token } = theme.useToken ? theme.useToken() : { token: {} };
   const { resolvedTheme } = typeof useTheme === 'function' ? useTheme() : { resolvedTheme: 'light' };
   const isDark = resolvedTheme === 'dark';
+
+
+  // Check login status and permission
+  useEffect(() => {
+    if (!userLoading) {
+      if (!user) {
+        // user not logged in, show login prompt
+        modal.confirm({
+          title: t('login.expired.title'),
+          icon: <ExclamationCircleOutlined />,
+          content: t('login.expired.content'),
+          okText: t('login.expired.okText'),
+          cancelText: t('login.expired.cancelText'),
+          closable: false,
+          onOk() {
+            openLoginModal();
+          },
+          onCancel() {
+            router.push('/');
+          }
+        });
+        return
+      }
+
+      // If the user is not an admin and currently on the first page, automatically jump to the second page
+      if (user.role !== "admin" && selectedKey === "1") {
+        setSelectedKey("2")
+      }
+
+      // If the user is not an admin and currently on the third page, force jump to the second page
+      if (user.role !== "admin" && selectedKey === "3") {
+        setSelectedKey("2")
+      }
+    }
+  }, [user, userLoading, selectedKey, modal, openLoginModal, router])
 
   // Check the connection status when the page is initialized
   useEffect(() => {
@@ -38,13 +83,27 @@ export default function CreatePage() {
       detail: { forceRefresh: true }
     }))
 
+    // Load config for normal user
+    const loadConfigForNormalUser = async () => {
+      if (user && user.role !== "admin") {
+        try {
+          await configService.loadConfigToFrontend()
+          await configStore.reloadFromStorage()
+        } catch (error) {
+          console.error("加载配置失败:", error)
+        }
+      }
+    }
+
+    loadConfigForNormalUser()
+
     // Check if the knowledge base configuration option card needs to be displayed
     const showPageConfig = localStorage.getItem('show_page')
     if (showPageConfig) {
       setSelectedKey(showPageConfig)
       localStorage.removeItem('show_page')
     }
-  }, [])
+  }, [user])
 
   // Listen for changes in selectedKey, refresh knowledge base data when entering the second page
   useEffect(() => {
@@ -81,7 +140,38 @@ export default function CreatePage() {
     }
   }
 
+  // Add a function to display the number of selected knowledge bases
+  const getSelectedKnowledgeBasesInfo = () => {
+    const selectedKbs = knowledgeBases.filter(kb => selectedIds.includes(kb.id));
+    console.log('💾 selectedKbs:', selectedKbs);
+    return `已选择 ${selectedKbs.length} 个知识库`;
+  };
+
+  // Calculate the effective selectedKey, ensure that non-admin users get the correct page status
+  const getEffectiveSelectedKey = () => {
+    if (!user) return selectedKey;
+
+    if (user.role !== "admin") {
+      // If the current page is the first or third page, return the second page
+      if (selectedKey === "1" || selectedKey === "3") {
+        return "2";
+      }
+    }
+
+    return selectedKey;
+  };
+
   const renderContent = () => {
+    // If the user is not an admin and attempts to access the first page, force display the second page content
+    if (user?.role !== "admin" && selectedKey === "1") {
+      return <DataConfig />
+    }
+
+    // If the user is not an admin and attempts to access the third page, force display the second page content
+    if (user?.role !== "admin" && selectedKey === "3") {
+      return <DataConfig />
+    }
+
     switch (selectedKey) {
       case "1":
         return <AppModelConfig skipModelVerification={isFromSecondPage} />
@@ -119,100 +209,73 @@ export default function CreatePage() {
   // Handle completed configuration
   const handleCompleteConfig = async () => {
     if (selectedKey === "3") {
-      // when finish the config in the third step, check if the necessary steps are completed
-      try {
-        // trigger a custom event to get the Agent configuration status
-        const agentConfigData = await new Promise<{businessLogic: string, systemPrompt: string}>((resolve) => {
-          const handleAgentConfigResponse = (event: Event) => {
-            const customEvent = event as CustomEvent;
-            resolve(customEvent.detail);
-            window.removeEventListener('agentConfigDataResponse', handleAgentConfigResponse);
-          };
-          
-          window.addEventListener('agentConfigDataResponse', handleAgentConfigResponse);
-          window.dispatchEvent(new CustomEvent('getAgentConfigData'));
-          
-          // set a timeout to prevent infinite waiting
-          setTimeout(() => {
-            window.removeEventListener('agentConfigDataResponse', handleAgentConfigResponse);
-            resolve({businessLogic: '', systemPrompt: ''});
-          }, 1000);
-        });
-
-        // check if the business description is filled
-        if (!agentConfigData.businessLogic || agentConfigData.businessLogic.trim() === '') {
-          message.error(t('agent.message.businessDescriptionRequired'));
-          return; // prevent continue
-        }
-
-        // check if the system prompt is generated
-        if (!agentConfigData.systemPrompt || agentConfigData.systemPrompt.trim() === '') {
-          message.error(t('systemPrompt.message.empty'));
-          return; // prevent continue
-        }
-
-        // if the check is passed, continue to execute the save configuration logic
-        setIsSavingConfig(true)
-        // Get the current global configuration
-        const currentConfig = configStore.getConfig()
-        
-        // Call the backend save configuration API
-        const saveResult = await configService.saveConfigToBackend(currentConfig)
-        
-        if (saveResult) {
-          message.success(t('setup.page.success.configSaved'))
-          // After saving successfully, redirect to the chat page
-          router.push("/chat")
-        } else {
-          message.error(t('setup.page.error.saveConfig'))
-        }
-      } catch (error) {
-        console.error(t('setup.page.error.systemError'), error)
-        message.error(t('setup.page.error.systemError'))
-      } finally {
-        setIsSavingConfig(false)
-      }
+      // jump to chat page directly, no any check
+      router.push("/chat")
     } else if (selectedKey === "2") {
-      // Jump from the second page to the third page
-      console.log(t('setup.page.log.readyToJump', { from: '2', to: '3' }));
-      setSelectedKey("3")
-      console.log(t('setup.page.log.selectedKeyUpdated', { key: '3' }));
+      // If the user is an admin, jump to the third page; if the user is a normal user, complete the configuration directly and jump to the chat page
+      if (user?.role === "admin") {
+        setSelectedKey("3")
+      } else {
+        // Normal users complete the configuration directly on the second page
+        try {
+          setIsSavingConfig(true)
+
+          // Reload the config for normal user before saving, ensure the latest model config
+          await configService.loadConfigToFrontend()
+          await configStore.reloadFromStorage()
+
+          // Get the current global configuration
+          const currentConfig = configStore.getConfig()
+
+          // Check if the main model is configured
+          if (!currentConfig.models.llm.modelName) {
+            message.error("未找到模型配置，请联系管理员先完成模型配置")
+            return
+          }
+
+          router.push("/chat")
+
+        } catch (error) {
+          console.error("保存配置异常:", error)
+          message.error("系统异常，请稍后重试")
+        } finally {
+          setIsSavingConfig(false)
+        }
+      }
     } else if (selectedKey === "1") {
       // Validate required fields when jumping from the first page to the second page
       try {
         // Get the current configuration
         const currentConfig = configStore.getConfig()
-        
+
         // Check the main model
         if (!currentConfig.models.llm.modelName) {
           message.error(t('setup.page.error.selectMainModel'))
-          
+
           // Trigger a custom event to notify the ModelConfigSection to mark the main model dropdown as an error
           window.dispatchEvent(new CustomEvent('highlightMissingField', {
             detail: { field: t('setup.page.error.highlightField.llmMain') }
           }))
-          
+
           return
         }
-        
-        // 检查 embedding 模型
+
+        // check embedding model
         if (
           !currentConfig.models.embedding.modelName &&
           !currentConfig.models.multiEmbedding?.modelName
         ) {
           setEmbeddingModalOpen(true);
           setPendingJump(true);
-          // 高亮 embedding 下拉框
+          // highlight embedding dropdown
           window.dispatchEvent(new CustomEvent('highlightMissingField', {
             detail: { field: 'embedding.embedding' }
           }))
           return;
         }
-        
+
         // All required fields have been filled, allow the jump to the second page
-        console.log(t('setup.page.log.readyToJump', { from: '1', to: '2' }));
         setSelectedKey("2")
-        console.log(t('setup.page.log.selectedKeyUpdated', { key: '2' }));
 
         // Call the backend save configuration API
         await configService.saveConfigToBackend(currentConfig)
@@ -226,13 +289,14 @@ export default function CreatePage() {
   // Handle the logic of the user switching to the first page
   const handleBackToFirstPage = () => {
     if (selectedKey === "3") {
-      console.log(t('setup.page.log.readyToJump', { from: '3', to: '2' }));
       setSelectedKey("2")
-      console.log(t('setup.page.log.selectedKeyUpdated', { key: '2' }));
     } else if (selectedKey === "2") {
-      console.log(t('setup.page.log.readyToJump', { from: '2', to: '1' }));
+      // Only admins can return to the first page
+      if (user?.role !== "admin") {
+        message.error(t('setup.page.error.adminOnly'))
+        return
+      }
       setSelectedKey("1")
-      console.log(t('setup.page.log.selectedKeyUpdated', { key: '1' }));
       // Set the flag to indicate that the user is returning from the second page to the first page
       setIsFromSecondPage(true)
     }
@@ -244,16 +308,17 @@ export default function CreatePage() {
       lastChecked={lastChecked}
       isCheckingConnection={isCheckingConnection}
       onCheckConnection={checkModelEngineConnection}
-      selectedKey={selectedKey}
+      selectedKey={getEffectiveSelectedKey()}
       onBackToFirstPage={handleBackToFirstPage}
       onCompleteConfig={handleCompleteConfig}
       isSavingConfig={isSavingConfig}
+      userRole={user?.role}
       showDebugButton={selectedKey === "3"}
     >
-      <AnimatePresence 
+      <AnimatePresence
         mode="wait"
         onExitComplete={() => {
-          // 当动画完成且切换到第二页时，确保触发知识库数据更新
+          // when animation is complete and switch to the second page, ensure the knowledge base data is updated
           if (selectedKey === "2") {
             setTimeout(() => {
               window.dispatchEvent(new CustomEvent('knowledgeBaseDataUpdated', {
@@ -287,7 +352,7 @@ export default function CreatePage() {
           setEmbeddingModalOpen(false);
           if (pendingJump) {
             setPendingJump(false);
-            // 获取当前配置
+            // get current config
             const currentConfig = configStore.getConfig();
             try {
               await configService.saveConfigToBackend(currentConfig);
@@ -301,11 +366,13 @@ export default function CreatePage() {
         okText={t('embedding.modal.ok_continue')}
         cancelButtonProps={{ style: { display: 'none' } }}
         centered
-        bodyStyle={{
-          padding: '32px 24px 24px 24px',
-          background: isDark ? '#23272f' : '#fffbe6',
-          borderRadius: 12,
-          color: isDark ? '#eee' : '#333',
+        styles={{
+          body: {
+            padding: '32px 24px 24px 24px',
+            background: isDark ? '#23272f' : '#fffbe6',
+            borderRadius: 12,
+            color: isDark ? '#eee' : '#333',
+          }
         }}
         style={{
           borderRadius: 16,

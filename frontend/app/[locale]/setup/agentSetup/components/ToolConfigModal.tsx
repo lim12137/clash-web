@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Modal, Input, Switch, Select, InputNumber, Tag, message } from 'antd'
+import { Modal, Input, Switch, Select, InputNumber, Tag, App } from 'antd'
 import { Tool, ToolParam, OpenAIModel } from '../ConstInterface'
 import { updateToolConfig, searchToolConfig } from '@/services/agentConfigService'
 import { useTranslation } from 'react-i18next'
@@ -19,6 +19,7 @@ export default function ToolConfigModal({ isOpen, onCancel, onSave, tool, mainAg
   const [currentParams, setCurrentParams] = useState<ToolParam[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { t } = useTranslation('common');
+  const { message } = App.useApp();
 
   // load tool config
   useEffect(() => {

@@ -150,7 +150,8 @@ async def process_files(
         files: List[dict] = Body(..., description="List of file details to process, including path_or_url and filename"),
         chunking_strategy: Optional[str] = Body("basic"),
         index_name: str = Body(...),
-        destination: str = Body(...)
+        destination: str = Body(...),
+        authorization: Optional[str] = Header(None)
 ):
     """
     Trigger data processing for a list of uploaded files.
@@ -162,7 +163,8 @@ async def process_files(
     process_params = ProcessParams(
         chunking_strategy=chunking_strategy,
         source_type=destination,
-        index_name=index_name
+        index_name=index_name,
+        authorization=authorization
     )
 
     process_result = await trigger_data_process(files, process_params)
@@ -450,6 +452,7 @@ async def agent_preprocess_api(request: Request, query: str = Form(...), files: 
                     yield f"data: {file_message}\n\n"
                     await asyncio.sleep(0.1)
                 except Exception as e:
+                    logger.exception(f"Error parsing file {file_data['filename']}: {str(e)}")
                     error_description = f"Error parsing file {file_data['filename']}: {str(e)}"
                     file_descriptions.append(error_description)
                     error_message = json.dumps({
@@ -514,7 +517,7 @@ async def process_text_file(query, filename, file_content, tenant_id: str, langu
         if response.status_code == 200:
             result = response.json()
             raw_text = result.get("text", "")
-            logger.info(f"File processed successfully: {raw_text[:100]}...")
+            logger.info(f"File processed successfully: {raw_text[:200]}...{raw_text[-200:]}...， length: {len(raw_text)}")
         else:
             error_detail = response.json().get('detail', '未知错误') if response.headers.get('content-type', '').startswith('application/json') else response.text
             logger.error(f"File processing failed (status code: {response.status_code}): {error_detail}")

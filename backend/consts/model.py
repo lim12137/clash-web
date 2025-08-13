@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional, Any, List, Dict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 
 from nexent.core.agents.agent_model import ToolConfig
 
@@ -25,6 +25,45 @@ class ModelConnectStatusEnum(Enum):
             return cls.NOT_DETECTED.value
         return status
 
+# Request models for user authentication
+STATUS_CODES = {
+    "SUCCESS": 200,
+    # 客户端错误状态码
+    "USER_EXISTS": 1001,
+    "INVALID_CREDENTIALS": 1002,
+    "TOKEN_EXPIRED": 1003,
+    "UNAUTHORIZED": 1004,
+    "SERVER_ERROR": 1005,
+    "INVALID_INPUT": 1006,
+    "AUTH_SERVICE_UNAVAILABLE": 1007,
+}
+
+# 用户认证相关请求模型
+class UserSignUpRequest(BaseModel):
+    """User registration request model"""
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    is_admin: Optional[bool] = False
+    invite_code: Optional[str] = None
+
+class UserSignInRequest(BaseModel):
+    """User login request model"""
+    email: EmailStr
+    password: str
+
+class UserUpdateRequest(BaseModel):
+    """User information update request model"""
+    email: Optional[EmailStr] = None
+    password: Optional[str] = Field(None, min_length=6)
+    role: Optional[str] = None
+
+
+# Response models for user management
+class ServiceResponse(BaseModel):
+    code: int
+    message: str
+    data: Optional[Any] = None
+
 
 # Response models for model management
 class ModelResponse(BaseModel):
@@ -43,6 +82,20 @@ class ModelRequest(BaseModel):
     used_token: Optional[int] = 0
     display_name: Optional[str] = ''
     connect_status: Optional[str] = ''
+
+
+class ProviderModelRequest(BaseModel):
+    provider: str
+    model_type: str
+    api_key: Optional[str] = ''
+
+
+class BatchCreateModelsRequest(BaseModel):
+    api_key: str
+    models: List[Dict]
+    provider: str
+    type: str
+    max_tokens: int
 
 
 # Configuration models
@@ -177,6 +230,7 @@ class ProcessParams(BaseModel):
     chunking_strategy: Optional[str] = "basic"
     source_type: str
     index_name: str
+    authorization: Optional[str] = None
 
 
 class OpinionRequest(BaseModel):
@@ -205,6 +259,7 @@ class FineTunePromptRequest(BaseModel):
 class AgentInfoRequest(BaseModel):
     agent_id: int
     name: Optional[str] = None
+    display_name: Optional[str] = None
     description: Optional[str] = None
     business_description: Optional[str] = None
     model_name: Optional[str] = None
@@ -260,6 +315,7 @@ class MessageIdRequest(BaseModel):
 
 
 class ExportAndImportAgentInfo(BaseModel):
+    agent_id: int
     name: str
     description: str
     business_description: str
@@ -271,12 +327,15 @@ class ExportAndImportAgentInfo(BaseModel):
     few_shots_prompt: Optional[str] = None
     enabled: bool
     tools: List[ToolConfig]
-    managed_agents: List
+    managed_agents: List[int]
+
+class ExportAndImportDataFormat(BaseModel):
+    agent_id: int
+    agent_info: Dict[str, ExportAndImportAgentInfo]
 
 
 class AgentImportRequest(BaseModel):
-    agent_id: int
-    agent_info: ExportAndImportAgentInfo
+    agent_info: ExportAndImportDataFormat
 
 
 class ConvertStateRequest(BaseModel):
@@ -288,3 +347,24 @@ class ConvertStateRequest(BaseModel):
 class ConvertStateResponse(BaseModel):
     """Response schema for /tasks/convert_state endpoint"""
     state: str
+
+
+# ---------------------------------------------------------------------------
+# Memory Feature Data Models (Missing previously)
+# ---------------------------------------------------------------------------
+
+class MemoryAgentShareMode(str, Enum):
+    """Memory sharing mode for agent-level memory.
+
+    always: Agent memories are always shared with others.
+    ask:    Ask user every time whether to share.
+    never:  Never share agent memories.
+    """
+
+    ALWAYS = "always"
+    ASK = "ask"
+    NEVER = "never"
+
+    @classmethod
+    def default(cls) -> "MemoryAgentShareMode":
+        return cls.NEVER

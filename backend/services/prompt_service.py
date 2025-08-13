@@ -7,13 +7,15 @@ from jinja2 import StrictUndefined, Template
 from smolagents import OpenAIServerModel
 
 from consts.model import AgentInfoRequest
-from database.agent_db import query_sub_agents, update_agent, \
-    query_tools_by_ids
+from database.agent_db import update_agent, \
+    query_tools_by_ids, query_sub_agents_id_list, search_agent_info_by_agent_id
 from services.agent_service import get_enable_tool_id_by_agent_id
-from utils.prompt_template_utils import get_prompt_generate_config_path
+from utils.prompt_template_utils import get_prompt_generate_prompt_template
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.auth_utils import get_current_user_info
 from fastapi import Header, Request
+
+from utils.str_utils import remove_think_tags, add_no_think_token
 
 # Configure logging
 logger = logging.getLogger("prompt_service")
@@ -41,6 +43,7 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
     )
     messages = [{"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}]
+    add_no_think_token(messages)
     try:
         completion_kwargs = llm._prepare_completion_kwargs(
             messages=messages,
@@ -53,6 +56,7 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
         for chunk in current_request:
             new_token = chunk.choices[0].delta.content
             if new_token is not None:
+                new_token = remove_think_tags(new_token)
                 token_join.append(new_token)
                 current_text = "".join(token_join)
                 if callback is not None:
@@ -76,7 +80,8 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
     )
 
     # 1. Real-time streaming push
-    final_results = {"duty": "", "constraint": "", "few_shots": ""}
+    final_results = {"duty": "", "constraint": "", "few_shots": "", "agent_var_name": "", "agent_display_name": "",
+                     "agent_description": ""}
     for result_data in generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id,
                                               language):
         # Update final results
@@ -90,7 +95,10 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
         business_description=task_description,
         duty_prompt=final_results["duty"],
         constraint_prompt=final_results["constraint"],
-        few_shots_prompt=final_results["few_shots"]
+        few_shots_prompt=final_results["few_shots"],
+        name=final_results["agent_var_name"],
+        display_name=final_results["agent_display_name"],
+        description=final_results["agent_description"]
     )
     update_agent(
         agent_id=agent_id,
@@ -102,9 +110,7 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
 
 
 def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id: str, language: str = 'zh'):
-    prompt_config_path = get_prompt_generate_config_path(language)
-    with open(prompt_config_path, "r", encoding="utf-8") as f:
-        prompt_for_generate = yaml.safe_load(f)
+    prompt_for_generate = get_prompt_generate_prompt_template(language)
 
     # Add app information to the template variables
     content = join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description,
@@ -127,22 +133,28 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
             stop_flags[tag] = True
 
     produce_queue = queue.Queue()
-    latest = {"duty": "", "constraint": "", "few_shots": ""}
-    stop_flags = {"duty": False, "constraint": False, "few_shots": False}
+    latest = {"duty": "", "constraint": "", "few_shots": "", "agent_var_name": "", "agent_display_name": "",
+              "agent_description": ""}
+    stop_flags = {"duty": False, "constraint": False, "few_shots": False, "agent_var_name": False,
+                  "agent_display_name": False, "agent_description": False}
 
     threads = []
     logger.info(f"Generating system prompt")
     for tag, sys_prompt in [
         ("duty", prompt_for_generate["DUTY_SYSTEM_PROMPT"]),
         ("constraint", prompt_for_generate["CONSTRAINT_SYSTEM_PROMPT"]),
-        ("few_shots", prompt_for_generate["FEW_SHOTS_SYSTEM_PROMPT"])
+        ("few_shots", prompt_for_generate["FEW_SHOTS_SYSTEM_PROMPT"]),
+        ("agent_var_name", prompt_for_generate["AGENT_VARIABLE_NAME_SYSTEM_PROMPT"]),
+        ("agent_display_name", prompt_for_generate["AGENT_DISPLAY_NAME_SYSTEM_PROMPT"]),
+        ("agent_description", prompt_for_generate["AGENT_DESCRIPTION_SYSTEM_PROMPT"])
     ]:
         t = threading.Thread(target=run_and_flag, args=(tag, sys_prompt))
         t.start()
         threads.append(t)
 
     # Directly stream output of three sections
-    last_results = {"duty": "", "constraint": "", "few_shots": ""}
+    last_results = {"duty": "", "constraint": "", "few_shots": "", "agent_var_name": "", "agent_display_name": "",
+                    "agent_description": ""}
     while not all(stop_flags.values()):
         try:
             produce_queue.get(timeout=0.5)
@@ -165,8 +177,8 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
     for t in threads:
         t.join(timeout=5)
 
-    for tag in ["duty", "constraint", "few_shots"]:
-        if stop_flags[tag] and latest[tag] != last_results[tag]:
+    for tag in ["duty", "constraint", "few_shots", "agent_var_name", "agent_display_name", "agent_description"]:
+        if stop_flags[tag]:
             result_data = {
                 "type": tag,
                 "content": latest[tag],
@@ -174,13 +186,6 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
             }
             yield result_data
             last_results[tag] = latest[tag]
-        elif stop_flags[tag] and latest[tag] == last_results[tag]:
-            result_data = {
-                "type": tag,
-                "content": latest[tag],
-                "is_complete": True
-            }
-            yield result_data
 
 
 def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description, tool_info_list,
@@ -191,8 +196,7 @@ def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_lis
     agent_description = "\n".join(
         [f"- {sub_agent_info['name']}: {sub_agent_info['description']}" for sub_agent_info in sub_agent_info_list])
     # Generate content using template
-    compiled_template = Template(prompt_for_generate["USER_PROMPT"], undefined=StrictUndefined)
-    content = compiled_template.render({
+    content = Template(prompt_for_generate["USER_PROMPT"], undefined=StrictUndefined).render({
         "tool_description": tool_description,
         "agent_description": agent_description,
         "task_description": task_description,
@@ -212,14 +216,14 @@ def get_enabled_tool_description_for_generate_prompt(agent_id: int, tenant_id: s
 
 def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
     logger.info("Fetching sub-agents information")
-    sub_agent_raw_info_list = query_sub_agents(main_agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
-    logger.info(f"Found {len(sub_agent_raw_info_list)} sub-agents")
+
+    sub_agent_id_list = query_sub_agents_id_list(main_agent_id=agent_id, tenant_id=tenant_id)
 
     sub_agent_info_list = []
-    for sub_agent_raw_info in sub_agent_raw_info_list:
-        if not sub_agent_raw_info["enabled"]:
-            continue
-        sub_agent_info_list.append(sub_agent_raw_info)
+    for sub_agent_id in sub_agent_id_list:
+        sub_agent_info = search_agent_info_by_agent_id(agent_id=sub_agent_id, tenant_id=tenant_id)
+
+        sub_agent_info_list.append(sub_agent_info)
     return sub_agent_info_list
 
 
@@ -232,8 +236,7 @@ def fine_tune_prompt(system_prompt: str, command: str, tenant_id: str, language:
         with open(fine_tune_config_path, "r", encoding="utf-8") as f:
             prompt_for_fine_tune = yaml.safe_load(f)
 
-        compiled_template = Template(prompt_for_fine_tune["FINE_TUNE_USER_PROMPT"], undefined=StrictUndefined)
-        content = compiled_template.render({
+        content = Template(prompt_for_fine_tune["FINE_TUNE_USER_PROMPT"], undefined=StrictUndefined).render({
             "prompt": system_prompt,
             "command": command
         })

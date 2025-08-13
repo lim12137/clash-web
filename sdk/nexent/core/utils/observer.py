@@ -7,6 +7,7 @@ from typing import Any
 
 class ProcessType(Enum):
     MODEL_OUTPUT_THINKING = "model_output_thinking"  # model streaming output, thinking content
+    MODEL_OUTPUT_DEEP_THINKING = "model_output_deep_thinking"  # model streaming output, deep thinking content
     MODEL_OUTPUT_CODE = "model_output_code"  # model streaming output, code content
 
     STEP_COUNT = "step_count"  # current step of agent
@@ -232,6 +233,17 @@ class MessageObserver:
         self.message_query = []
         return cached_message
 
+    def get_final_answer(self):
+        for item in self.message_query:
+            if isinstance(item, str):
+                try:
+                    data = json.loads(item)
+                except json.JSONDecodeError:
+                    continue
+                if data.get("type") == ProcessType.FINAL_ANSWER.value:
+                    return data.get("content")
+
+        return None
 
 # fixed MessageObserver output format
 class Message:

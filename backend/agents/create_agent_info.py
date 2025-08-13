@@ -4,49 +4,56 @@ import logging
 from urllib.parse import urljoin
 from nexent.core.utils.observer import MessageObserver
 from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
-
 from services.remote_mcp_service import get_remote_mcp_server_list
 from utils.auth_utils import get_current_user_id
 
-from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, query_sub_agents, \
-    query_or_create_main_agent_id
+from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, \
+    query_or_create_main_agent_id, query_sub_agents_id_list
 from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
 from services.tenant_config_service import get_selected_knowledge_list
-from utils.prompt_template_utils import get_prompt_template_path
+from utils.prompt_template_utils import get_agent_prompt_template
 from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
-from smolagents.agents import populate_template
 from smolagents.utils import BASE_BUILTIN_MODULES
+from services.memory_config_service import build_memory_context
+from jinja2 import Template, StrictUndefined
+
+from nexent.memory.memory_service import search_memory_in_levels
+
 
 logger = logging.getLogger("create_agent_info")
+logger.setLevel(logging.DEBUG)
 
 async def create_model_config_list(tenant_id):
-     main_model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
-     sub_model_config = tenant_config_manager.get_model_config(key="LLM_SECONDARY_ID", tenant_id=tenant_id)
+    main_model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
+    sub_model_config = tenant_config_manager.get_model_config(key="LLM_SECONDARY_ID", tenant_id=tenant_id)
 
-     return [ModelConfig(cite_name="main_model",
-                         api_key=main_model_config.get("api_key", ""),
-                         model_name=get_model_name_from_config(main_model_config) if main_model_config.get("model_name") else "",
-                         url=main_model_config.get("base_url", "")),
+    return [ModelConfig(cite_name="main_model",
+                        api_key=main_model_config.get("api_key", ""),
+                        model_name=get_model_name_from_config(main_model_config) if main_model_config.get(
+                            "model_name") else "",
+                        url=main_model_config.get("base_url", ""),
+                        is_deep_thinking=main_model_config.get("is_deep_thinking", False)),
             ModelConfig(cite_name="sub_model",
                         api_key=sub_model_config.get("api_key", ""),
-                        model_name=get_model_name_from_config(sub_model_config) if sub_model_config.get("model_name") else "",
-                        url=sub_model_config.get("base_url", ""))]
+                        model_name=get_model_name_from_config(sub_model_config) if sub_model_config.get(
+                            "model_name") else "",
+                        url=sub_model_config.get("base_url", ""),
+                        is_deep_thinking=sub_model_config.get("is_deep_thinking", False))]
 
 
-async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'):
-    agent_info = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
+async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh', last_user_query: str = None):
+    agent_info = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id)
 
     # create sub agent
-    sub_agents_info = query_sub_agents(agent_id, tenant_id, user_id)
+    sub_agent_id_list = query_sub_agents_id_list(main_agent_id=agent_id, tenant_id=tenant_id)
     managed_agents = []
-    for sub_agent_info in sub_agents_info:
-        if not sub_agent_info.get("enabled"):
-            continue
+    for sub_agent_id in sub_agent_id_list:
         sub_agent_config = await create_agent_config(
-            agent_id=sub_agent_info["agent_id"],
+            agent_id=sub_agent_id,
             tenant_id=tenant_id,
             user_id=user_id,
-            language=language)
+            language=language,
+            last_user_query=last_user_query)
         managed_agents.append(sub_agent_config)
 
     tool_list = await create_tool_config_list(agent_id, tenant_id, user_id)
@@ -56,20 +63,43 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     constraint_prompt = agent_info.get("constraint_prompt", "")
     few_shots_prompt = agent_info.get("few_shots_prompt", "")
     
-    # Get template path
-    prompt_template_path = get_prompt_template_path(is_manager=len(managed_agents) > 0, language=language)
-    with open(prompt_template_path, "r", encoding="utf-8") as file:
-        prompt_template = yaml.safe_load(file)
+    # Get template content
+    prompt_template = get_agent_prompt_template(is_manager=len(managed_agents) > 0, language=language)
 
     # Get app information
     default_app_description = 'Nexent 是一个开源智能体SDK和平台' if language == 'zh' else 'Nexent is an open-source agent SDK and platform'
     app_name = tenant_config_manager.get_app_config('APP_NAME', tenant_id=tenant_id) or "Nexent"
     app_description = tenant_config_manager.get_app_config('APP_DESCRIPTION', tenant_id=tenant_id) or default_app_description
 
+    # Get memory list
+    memory_context = build_memory_context(user_id, tenant_id, agent_id)
+    memory_list = []
+    if memory_context.user_config.memory_switch:
+        # TODO: 前端展示"回忆中..." Tag
+        logger.debug("Retrieving memory list...")
+        memory_levels = ["tenant", "agent", "user", "user_agent"]
+        if memory_context.user_config.agent_share_option == "never":
+            memory_levels.remove("agent")
+        if memory_context.agent_id in memory_context.user_config.disable_agent_ids:
+            memory_levels.remove("agent")
+        if memory_context.agent_id in memory_context.user_config.disable_user_agent_ids:
+            memory_levels.remove("user_agent")
+
+        search_res = await search_memory_in_levels(
+            query_text=last_user_query if last_user_query else agent_info.get("name"),
+            memory_config=memory_context.memory_config,
+            tenant_id=memory_context.tenant_id,
+            user_id=memory_context.user_id,
+            agent_id=memory_context.agent_id,
+            memory_levels=memory_levels,
+        )
+        memory_list = search_res.get("results", [])
+        logger.debug(f"Retrieved memory list: {memory_list}")
+        # TODO: 前端展示"已抽取 xx 条回忆"
+
     # Assemble system_prompt
-    system_prompt = populate_template(
-        prompt_template["system_prompt"],
-        variables={
+    if (duty_prompt or constraint_prompt or few_shots_prompt):
+        system_prompt = Template(prompt_template["system_prompt"], undefined=StrictUndefined).render({
             "duty": duty_prompt,
             "constraint": constraint_prompt,
             "few_shots": few_shots_prompt,
@@ -77,9 +107,11 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             "managed_agents": {agent.name: agent for agent in managed_agents},
             "authorized_imports": str(BASE_BUILTIN_MODULES),
             "APP_NAME": app_name,
-            "APP_DESCRIPTION": app_description
-        },
-    ) if (duty_prompt or constraint_prompt or few_shots_prompt) else agent_info.get("prompt", "")
+            "APP_DESCRIPTION": app_description,
+            "memory_list": memory_list
+        })
+    else:
+        system_prompt = agent_info.get("prompt", "")
 
     # special logic
     try:
@@ -116,7 +148,7 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
     langchain_tools = await discover_langchain_tools()
 
     # now only admin can modify the agent, user_id is not used
-    tools_list = search_tools_for_sub_agent(agent_id, tenant_id, user_id=None)
+    tools_list = search_tools_for_sub_agent(agent_id, tenant_id)
     for tool in tools_list:
         param_dict = {}
         for param in tool.get("params", []):
@@ -186,24 +218,16 @@ async def discover_langchain_tools():
 async def prepare_prompt_templates(is_manager: bool, system_prompt: str, language: str = 'zh'):
     """
     Prepare prompt templates, support multiple languages
-    
+
     Args:
         is_manager: Whether it is a manager mode
         system_prompt: System prompt content
         language: Language code ('zh' or 'en')
-        
+
     Returns:
         dict: Prompt template configuration
     """
-    def get_template_path(is_manager: bool, language: str) -> str:
-        if language == 'en':
-            return "backend/prompts/manager_system_prompt_template_en.yaml" if is_manager else "backend/prompts/managed_system_prompt_template_en.yaml"
-        else:  # Default to Chinese
-            return "backend/prompts/manager_system_prompt_template.yaml" if is_manager else "backend/prompts/managed_system_prompt_template.yaml"
-
-    prompt_template_path = get_template_path(is_manager, language)
-    with open(prompt_template_path, "r", encoding="utf-8") as f:
-        prompt_templates = yaml.safe_load(f)
+    prompt_templates = get_agent_prompt_template(is_manager, language)
     prompt_templates["system_prompt"] = system_prompt
     return prompt_templates
 
@@ -223,12 +247,58 @@ async def join_minio_file_description_to_query(minio_files, query):
     return final_query
 
 
+def filter_mcp_servers_and_tools(agent_run_info, default_mcp_url, remote_mcp_list):
+    """
+    过滤 MCP 服务器和工具，只保留实际用到的 MCP 服务器
+    支持多级 agent，递归检查所有子 agent 的工具
+
+    Args:
+        agent_run_info: AgentRunInfo 对象
+        default_mcp_url: 默认 MCP 服务器 URL
+        remote_mcp_list: 远程 MCP 服务器列表
+
+    Returns:
+        None (直接修改 agent_run_info 对象)
+    """
+    used_mcp_urls = set()
+    has_mcp_tools = False
+
+    # 递归检查所有 agent 的工具
+    def check_agent_tools(agent_config):
+        nonlocal has_mcp_tools
+        # 检查当前 agent 的工具
+        for tool in getattr(agent_config, "tools", []):
+            if hasattr(tool, "source") and tool.source == "mcp":
+                has_mcp_tools = True
+                # 对于 MCP 工具，从 usage 字段获取 MCP 服务器名称
+                if hasattr(tool, "usage") and tool.usage:
+                    mcp_server_name = tool.usage
+                    # 从远程 MCP 列表中查找对应的 URL
+                    for remote_mcp_info in remote_mcp_list:
+                        if (remote_mcp_info["remote_mcp_server_name"] == mcp_server_name and
+                            remote_mcp_info["status"]):
+                            used_mcp_urls.add(remote_mcp_info["remote_mcp_server"])
+                            break
+
+        # 递归检查子 agent
+        for sub_agent_config in getattr(agent_config, "managed_agents", []):
+            check_agent_tools(sub_agent_config)
+
+    # 检查所有 agent 的工具
+    check_agent_tools(agent_run_info.agent_config)
+
+    # 如果有 MCP 工具但没有找到对应的服务器，使用默认服务器
+    if has_mcp_tools and not used_mcp_urls:
+        used_mcp_urls.add(default_mcp_url)
+
+    # 直接设置 mcp_host 为找到的 URL 列表
+    agent_run_info.mcp_host = list(used_mcp_urls)
+
+
 async def create_agent_run_info(agent_id, minio_files, query, history, authorization, language: str = 'zh'):
     user_id, tenant_id = get_current_user_id(authorization)
-    if not agent_id:
-        agent_id = query_or_create_main_agent_id(tenant_id=tenant_id, user_id=user_id)
-    final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
 
+    final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
     model_list = await create_model_config_list(tenant_id)
 
     remote_mcp_list = await get_remote_mcp_server_list(tenant_id=tenant_id)
@@ -240,11 +310,13 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
 
     agent_run_info = AgentRunInfo(
         query=final_query,
-        model_config_list= model_list,
+        model_config_list=model_list,
         observer=MessageObserver(lang=language),
-        agent_config=await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id, language=language),
-        mcp_host= mcp_host,
+        agent_config=await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id,
+                                               language=language, last_user_query=final_query),
+        mcp_host=mcp_host,
         history=history,
         stop_event=threading.Event()
     )
+
     return agent_run_info

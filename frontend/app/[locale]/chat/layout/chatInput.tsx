@@ -468,6 +468,13 @@ export function ChatInput({
         return;
       }
 
+      // Check if agent is selected
+      if (!selectedAgentId) {
+        setErrorMessage(t('agentSelector.pleaseSelectAgent'));
+        setTimeout(() => setErrorMessage(null), 3000);
+        return;
+      }
+
       // If recording, stop recording first and then send the message
       if (isRecording && mediaRecorderRef.current) {
         mediaRecorderRef.current.stop();
@@ -524,30 +531,61 @@ export function ChatInput({
       setIsRecording(false)
       setRecordingStatus("idle")
     } else {
+      let stream: MediaStream | null = null;
+      let audioContext: AudioContext | null = null;
+      let audioSource: MediaStreamAudioSourceNode | null = null;
+      let processor: ScriptProcessorNode | null = null;
+      
       try {
         setRecordingStatus("connecting")
+        console.log('🎤 Starting voice recording...')
 
+        // 1. Request microphone permission
         const audioConstraints = conversationService.stt.getAudioConstraints()
-        const stream = await navigator.mediaDevices.getUserMedia(audioConstraints)
+        console.log('📋 Audio constraints:', audioConstraints)
+        
+        stream = await navigator.mediaDevices.getUserMedia(audioConstraints)
+        console.log('✅ Microphone access granted')
 
-        const audioContext = new AudioContext(conversationService.stt.getAudioContextOptions())
-        const audioSource = audioContext.createMediaStreamSource(stream)
-        const processor = audioContext.createScriptProcessor(4096, 1, 1)
+        // 2. Create audio processing chain
+        audioContext = new AudioContext(conversationService.stt.getAudioContextOptions())
+        console.log('🔊 AudioContext created, state:', audioContext.state)
+        
+        // Resume AudioContext if suspended (browser policy)
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume()
+          console.log('▶️ AudioContext resumed')
+        }
+
+        audioSource = audioContext.createMediaStreamSource(stream)
+        processor = audioContext.createScriptProcessor(4096, 1, 1)
 
         audioSource.connect(processor)
         processor.connect(audioContext.destination)
+        console.log('🔗 Audio processing chain connected')
 
+        // 3. Create MediaRecorder
         const mediaRecorder = new MediaRecorder(stream)
         mediaRecorderRef.current = mediaRecorder
 
+        // 4. Create WebSocket connection
         const ws = conversationService.stt.createWebSocket()
         socketRef.current = ws
+        console.log('🌐 WebSocket connection initiated')
 
         ws.onopen = () => {
-          console.log(t("chatInput.wsConnectionEstablished"))
+          console.log('✅ WebSocket connected:', t("chatInput.wsConnectionEstablished"))
           setIsRecording(true)
           setRecordingStatus("recording")
-          mediaRecorder.start(250)
+          try {
+            mediaRecorder.start(250)
+            console.log('🎬 Recording started successfully')
+          } catch (error) {
+            console.error('❌ Failed to start MediaRecorder:', error)
+            setRecordingStatus("error")
+            setIsRecording(false)
+            cleanup()
+          }
         }
 
         ws.onmessage = (event) => {
@@ -558,56 +596,115 @@ export function ChatInput({
               onInputChange(response.result.text)
             } else if (response.text) {
               onInputChange(response.text)
+            } else if (response.status === 'ready') {
+              console.log('🎯 STT service ready')
+            } else if (response.error) {
+              console.error('❌ STT service error:', response.error)
+              setRecordingStatus("error")
+              setIsRecording(false)
+              cleanup()
             }
           } catch (error) {
-            console.error(t("chatInput.wsParseError"), error)
+            console.error('⚠️ Failed to parse STT response:', error)
           }
         }
 
         ws.onerror = (error) => {
-          console.error(t("chatInput.wsError"), error)
+          console.error('❌ WebSocket error:', error)
           setRecordingStatus("error")
           setIsRecording(false)
           cleanup()
         }
 
-        ws.onclose = () => {
-          console.log(t("chatInput.wsConnectionClosed"))
+        ws.onclose = (event) => {
+          console.log('🔌 WebSocket closed:', event.code, event.reason)
           setIsRecording(false)
           setRecordingStatus("idle")
           cleanup()
         }
 
         processor.onaudioprocess = (e) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            const inputData = e.inputBuffer.getChannelData(0)
-            const pcmData = conversationService.stt.processAudioData(inputData)
+          try {
+            if (ws.readyState === WebSocket.OPEN) {
+              const inputData = e.inputBuffer.getChannelData(0)
+              const pcmData = conversationService.stt.processAudioData(inputData)
 
-            if (pcmData.length > 0) {
-              ws.send(pcmData.buffer)
+              if (pcmData.length > 0) {
+                ws.send(pcmData.buffer)
+              }
+            } else {
+              console.warn(`⚠️ WebSocket not ready, state: ${ws.readyState}`)
             }
+          } catch (error) {
+            console.error('❌ Error in audio processing:', error)
+            setRecordingStatus("error")
+            setIsRecording(false)
+            cleanup()
           }
         }
 
         mediaRecorder.onstop = () => {
+          console.log('⏹️ Recording stopped')
           cleanup()
           setIsRecording(false)
           setRecordingStatus("idle")
         }
 
         function cleanup() {
-          stream.getTracks().forEach(track => track.stop())
-          audioSource.disconnect()
-          processor.disconnect()
+          console.log('🧹 Cleaning up audio resources...')
+          console.trace('📍 Cleanup called from:')
+          
+          if (stream) {
+            stream.getTracks().forEach(track => {
+              track.stop()
+              console.log('🛑 Audio track stopped')
+            })
+          }
+          
+          if (audioSource) {
+            try {
+              audioSource.disconnect()
+              console.log('🔌 Audio source disconnected')
+            } catch (e) {
+              console.warn('⚠️ Error disconnecting audio source:', e)
+            }
+          }
+          
+          if (processor) {
+            try {
+              processor.disconnect()
+              console.log('🔌 Processor disconnected')
+            } catch (e) {
+              console.warn('⚠️ Error disconnecting processor:', e)
+            }
+          }
+          
+          if (audioContext && audioContext.state !== 'closed') {
+            try {
+              audioContext.close()
+              console.log('🔌 AudioContext closed')
+            } catch (e) {
+              console.warn('⚠️ Error closing AudioContext:', e)
+            }
+          }
 
-          if (ws.readyState === WebSocket.OPEN) {
+          if (ws && ws.readyState === WebSocket.OPEN) {
             ws.close()
+            console.log('🔌 WebSocket closed by cleanup')
           }
         }
 
       } catch (error) {
-        console.error(t("chatInput.micPermissionFailed"), error)
+        console.error('❌ Failed to start recording:', error)
         setRecordingStatus("error")
+        
+        // Manual cleanup in case of initialization failure
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop())
+        }
+        if (audioContext && audioContext.state !== 'closed') {
+          audioContext.close()
+        }
       }
     }
   }
@@ -966,10 +1063,10 @@ export function ChatInput({
         ) : (
           <Button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || !selectedAgentId}
             size="icon"
-            className={`h-10 w-10 ${hasUnsupportedFiles ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-full flex items-center justify-center`}
-            title={hasUnsupportedFiles ? t("chatInput.unsupportedFileTypeSimple") : t("chatInput.send")}
+            className={`h-10 w-10 ${hasUnsupportedFiles || !selectedAgentId ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-full flex items-center justify-center`}
+            title={hasUnsupportedFiles ? t("chatInput.unsupportedFileTypeSimple") : !selectedAgentId ? t('agentSelector.pleaseSelectAgent') : t("chatInput.send")}
           >
             <svg width="14" height="16" viewBox="0 0 14 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" clipRule="evenodd" d="M7 16c-.595 0-1.077-.462-1.077-1.032V1.032C5.923.462 6.405 0 7 0s1.077.462 1.077 1.032v13.936C8.077 15.538 7.595 16 7 16z" fill="currentColor"></path><path fillRule="evenodd" clipRule="evenodd" d="M.315 7.44a1.002 1.002 0 0 1 0-1.46L6.238.302a1.11 1.11 0 0 1 1.523 0c.421.403.421 1.057 0 1.46L1.838 7.44a1.11 1.11 0 0 1-1.523 0z" fill="currentColor"></path><path fillRule="evenodd" clipRule="evenodd" d="M13.685 7.44a1.11 1.11 0 0 1-1.523 0L6.238 1.762a1.002 1.002 0 0 1 0-1.46 1.11 1.11 0 0 1 1.523 0l5.924 5.678c.42.403.42 1.056 0 1.46z" fill="currentColor"></path></svg>
           </Button>
@@ -991,6 +1088,13 @@ export function ChatInput({
 
   // Stop recording before sending a message
   const handleSend = () => {
+    // Check if agent is selected
+    if (!selectedAgentId) {
+      setErrorMessage(t('agentSelector.pleaseSelectAgent'));
+      setTimeout(() => setErrorMessage(null), 3000);
+      return;
+    }
+
     if (isRecording && mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {

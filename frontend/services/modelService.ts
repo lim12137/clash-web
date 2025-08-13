@@ -1,6 +1,6 @@
 "use client"
 
-import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse } from '../types/config'
+import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, ModelSource } from '../types/config'
 import { API_ENDPOINTS } from './api'
 import { getAuthHeaders } from '@/lib/auth'
 
@@ -80,16 +80,17 @@ export const modelService = {
   getCustomModels: async (): Promise<ModelOption[]> => {
     try {
       const response = await fetch(API_ENDPOINTS.model.customModelList, {
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders()
       })
       const result: ApiResponse<any[]> = await response.json()
       
       if (result.code === 200 && result.data) {
         return result.data.map(model => ({
+          id: model.model_id,
           name: model.model_name,
           type: model.model_type as ModelType,
           maxTokens: model.max_tokens || 0,
-          source: "custom",
+          source: model.model_factory as ModelSource,
           apiKey: model.api_key,
           apiUrl: model.base_url,
           displayName: model.display_name || model.model_name,
@@ -138,6 +139,126 @@ export const modelService = {
     } catch (error) {
       if (error instanceof ModelError) throw error
       throw new ModelError('添加自定义模型失败', 500)
+    }
+  },
+
+  addProviderModel: async (model: {
+    provider: string
+    type: ModelType
+    apiKey: string
+  }): Promise<any[]> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.customModelCreateProvider, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          provider: model.provider,
+          model_type: model.type,
+          api_key: model.apiKey
+        })
+      })
+      
+      const result: ApiResponse<any[]> = await response.json()
+      
+      if (result.code !== 200) {
+        throw new ModelError(result.message || '添加自定义模型失败', result.code)
+      }
+      return result.data || []
+    } catch (error) {
+      if (error instanceof ModelError) throw error
+      throw new ModelError('添加自定义模型失败', 500)
+    }
+  },
+
+  addBatchCustomModel: async (model: {
+    api_key: string,
+    provider: string,
+    type: ModelType,
+    max_tokens: number,
+    models: any[]
+  }): Promise<any[]> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.customModelBatchCreate, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          api_key: model.api_key,
+          models: model.models,
+          type: model.type,
+          provider: model.provider,
+          max_tokens: model.max_tokens
+        })
+      })
+      const result: ApiResponse<any[]> = await response.json()
+
+      if (result.code !== 200) {
+        throw new ModelError(result.message || '添加自定义模型失败', result.code)
+      }
+      return result.code
+    } catch (error) {
+      if (error instanceof ModelError) throw error
+      throw new ModelError('添加自定义模型失败', 500)
+    }
+  },
+
+  getProviderSelectedModalList: async (model: {
+    provider: string, 
+    type: ModelType, 
+    api_key: string
+  }): Promise<any[]> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.getProviderSelectedModalList, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          provider: model.provider,
+          model_type: model.type,
+          api_key: model.api_key
+        })
+      })
+      console.log('getProviderSelectedModalList response', response)
+      const result: ApiResponse<any[]> = await response.json()
+      console.log('getProviderSelectedModalList result', result)
+      if (result.code !== 200) {
+        throw new ModelError(result.message || '获取模型列表失败', result.code)
+      }
+      return result.data || []
+    } catch (error) {
+      console.log('getProviderSelectedModalList error', error)
+      if (error instanceof ModelError) throw error
+      throw new ModelError('获取模型列表失败', 500)
+    }
+  },
+
+  updateSingleModel: async (model: {
+    model_id: string,
+    name: string,
+    url: string,
+    apiKey: string,
+    maxTokens?: number,
+    source?: ModelSource
+  }): Promise<ApiResponse> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.updateSingleModel, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          model_id: model.model_id,
+          model_name: model.name,
+          base_url: model.url,
+          api_key: model.apiKey,
+          max_tokens: model.maxTokens || 0,
+          model_factory: model.source || "OpenAI-API-Compatible"
+        })
+      })
+      const result: ApiResponse = await response.json() 
+      if (result.code !== 200) {
+        throw new ModelError(result.message || "Failed to update the custom model", result.code)
+      }
+      return result
+    } catch (error) {
+      if (error instanceof ModelError) throw error
+      throw new ModelError("Failed to update the custom model", 500) 
     }
   },
 
