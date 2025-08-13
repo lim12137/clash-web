@@ -394,11 +394,52 @@ app = FastAPI()
 app.include_router(router)
 client = TestClient(app)
 
-# Create a FastAPI app and client for the real backend router to cover batch_update_models
-from backend.apps import model_managment_app as backend_model_app  # type: ignore
-backend_app = FastAPI()
-backend_app.include_router(backend_model_app.router)
-backend_client = TestClient(backend_app)
+# Remove direct top-level import of backend router to avoid side-effects on import
+# and provide a safe builder that stubs S3 before importing the backend module.
+import sys
+import importlib
+from typing import Tuple
+
+def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
+    class _FakeS3Client:
+        def head_bucket(self, Bucket=None, **kwargs):
+            return None
+        def create_bucket(self, Bucket=None, **kwargs):
+            return None
+        def upload_file(self, *args, **kwargs):
+            return None
+        def upload_fileobj(self, *args, **kwargs):
+            return None
+        def download_file(self, *args, **kwargs):
+            return None
+        def generate_presigned_url(self, *args, **kwargs):
+            return "http://example.com"
+        def head_object(self, *args, **kwargs):
+            return {"ContentLength": "0"}
+        def list_objects_v2(self, *args, **kwargs):
+            return {}
+        def delete_object(self, *args, **kwargs):
+            return None
+        def get_object(self, *args, **kwargs):
+            return {"Body": b""}
+
+    def _fake_boto3_client(service_name, *args, **kwargs):
+        return _FakeS3Client()
+
+    with patch("boto3.client", new=_fake_boto3_client):
+        # Ensure modules are not already imported to avoid side-effects before patching
+        for m in [
+            "backend.apps.model_managment_app",
+            "backend.database.model_management_db",
+            "backend.database.client",
+        ]:
+            if m in sys.modules:
+                del sys.modules[m]
+        backend_model_app = importlib.import_module("backend.apps.model_managment_app")
+        backend_app = FastAPI()
+        backend_app.include_router(backend_model_app.router)
+        backend_client_local = TestClient(backend_app)
+        return backend_client_local, backend_model_app
 
 # Create unit tests
 class TestModelManagementApp(unittest.TestCase):
@@ -959,36 +1000,35 @@ class TestModelManagementApp(unittest.TestCase):
         # Verify mock calls
         mock_update.assert_called_once()
 
-    @patch("backend.apps.model_managment_app.get_current_user_id")
-    @patch("backend.apps.model_managment_app.update_model_record")
-    def test_batch_update_models_success_backend(self, mock_update, mock_get_user):
-        mock_get_user.return_value = (self.user_id, self.tenant_id)
-        models = [
-            {"model_id": "id1", "api_key": "k1", "max_tokens": 100},
-            {"model_id": "id2", "api_key": "k2", "max_tokens": 200},
-        ]
-        response = backend_client.post("/model/batch_update_models", json=models, headers=self.auth_header)
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 200)
-        self.assertIn("Batch update models successfully", data["message"])
-        self.assertEqual(mock_update.call_count, 2)
-        mock_update.assert_any_call("id1", models[0], self.user_id)
-        mock_update.assert_any_call("id2", models[1], self.user_id)
+    def test_batch_update_models_success_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "update_model_record") as mock_update:
+                models = [
+                    {"model_id": "id1", "api_key": "k1", "max_tokens": 100},
+                    {"model_id": "id2", "api_key": "k2", "max_tokens": 200},
+                ]
+                response = backend_client_local.post("/model/batch_update_models", json=models, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(data["code"], 200)
+                self.assertIn("Batch update models successfully", data["message"])
+                self.assertEqual(mock_update.call_count, 2)
+                mock_update.assert_any_call("id1", models[0], self.user_id)
+                mock_update.assert_any_call("id2", models[1], self.user_id)
 
-    @patch("backend.apps.model_managment_app.get_current_user_id")
-    @patch("backend.apps.model_managment_app.update_model_record")
-    def test_batch_update_models_exception_backend(self, mock_update, mock_get_user):
-        mock_get_user.return_value = (self.user_id, self.tenant_id)
-        mock_update.side_effect = Exception("Update failed")
-        models = [
-            {"model_id": "id1", "api_key": "k1"}
-        ]
-        response = backend_client.post("/model/batch_update_models", json=models, headers=self.auth_header)
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 500)
-        self.assertIn("Failed to batch update models: Update failed", data["message"]) 
+    def test_batch_update_models_exception_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "update_model_record", side_effect=Exception("Update failed")) as mock_update:
+                models = [
+                    {"model_id": "id1", "api_key": "k1"}
+                ]
+                response = backend_client_local.post("/model/batch_update_models", json=models, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(data["code"], 500)
+                self.assertIn("Failed to batch update models: Update failed", data["message"]) 
 
 
 if __name__ == "__main__":
