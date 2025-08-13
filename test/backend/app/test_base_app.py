@@ -88,7 +88,6 @@ class TestBaseApp(unittest.TestCase):
         
         # Test that the handler function exists and is callable
         generic_exception_handler = exception_handlers[Exception]
-        self.assertIsNotNone(generic_exception_handler)
         self.assertTrue(callable(generic_exception_handler))
 
     def test_exception_handling_with_client(self):
