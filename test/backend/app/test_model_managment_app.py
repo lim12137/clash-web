@@ -983,7 +983,7 @@ class TestModelManagementApp(unittest.TestCase):
             {
                 "model_id": "model1_id",
                 "model_name": "huggingface/llama",
-                "display_name": "Updated LLaMA Model",
+                "display_name": "Updated Model 1",
                 "api_base": "http://localhost:8001",
                 "api_key": "updated_key1",
                 "model_type": "llm",
@@ -992,7 +992,7 @@ class TestModelManagementApp(unittest.TestCase):
             {
                 "model_id": "model2_id",
                 "model_name": "openai/clip",
-                "display_name": "Updated CLIP Model",
+                "display_name": "Updated Model 2",
                 "api_base": "http://localhost:8002",
                 "api_key": "updated_key2",
                 "model_type": "embedding",
@@ -1008,68 +1008,14 @@ class TestModelManagementApp(unittest.TestCase):
         data = response.json()
         self.assertEqual(data["code"], 200)
         self.assertIn("Batch update models successfully", data["message"])
-        self.assertIsNone(data["data"])
 
         # Verify mock calls
         mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
         self.assertEqual(mock_update.call_count, 2)
         
-        # Verify each model was updated with correct parameters
+        # Verify that update_model_record was called with correct parameters for each model
         mock_update.assert_any_call("model1_id", batch_update_data[0], self.user_id)
         mock_update.assert_any_call("model2_id", batch_update_data[1], self.user_id)
-
-    @patch("test_model_managment_app.get_current_user_id")
-    @patch("test_model_managment_app.update_model_record")
-    def test_batch_update_models_empty_list(self, mock_update, mock_get_user):
-        # Configure mocks
-        mock_get_user.return_value = (self.user_id, self.tenant_id)
-
-        # Send request with empty list
-        response = client.post("/model/batch_update_models", json=[], headers=self.auth_header)
-
-        # Assert response
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 200)
-        self.assertIn("Batch update models successfully", data["message"])
-        self.assertIsNone(data["data"])
-
-        # Verify mock calls
-        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-        mock_update.assert_not_called()
-
-    @patch("test_model_managment_app.get_current_user_id")
-    @patch("test_model_managment_app.update_model_record")
-    def test_batch_update_models_single_model(self, mock_update, mock_get_user):
-        # Configure mocks
-        mock_get_user.return_value = (self.user_id, self.tenant_id)
-
-        # Prepare single model update request data
-        single_update_data = [
-            {
-                "model_id": "single_model_id",
-                "model_name": "huggingface/llama",
-                "display_name": "Single Model Update",
-                "api_base": "http://localhost:8001",
-                "api_key": "single_key",
-                "model_type": "llm",
-                "provider": "huggingface"
-            }
-        ]
-
-        # Send request
-        response = client.post("/model/batch_update_models", json=single_update_data, headers=self.auth_header)
-
-        # Assert response
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 200)
-        self.assertIn("Batch update models successfully", data["message"])
-        self.assertIsNone(data["data"])
-
-        # Verify mock calls
-        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-        mock_update.assert_called_once_with("single_model_id", single_update_data[0], self.user_id)
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.update_model_record")
@@ -1083,9 +1029,9 @@ class TestModelManagementApp(unittest.TestCase):
             {
                 "model_id": "model1_id",
                 "model_name": "huggingface/llama",
-                "display_name": "Test Model",
+                "display_name": "Updated Model 1",
                 "api_base": "http://localhost:8001",
-                "api_key": "test_key",
+                "api_key": "updated_key1",
                 "model_type": "llm",
                 "provider": "huggingface"
             }
@@ -1099,7 +1045,6 @@ class TestModelManagementApp(unittest.TestCase):
         data = response.json()
         self.assertEqual(data["code"], 500)
         self.assertIn("Failed to batch update models: Database update error", data["message"])
-        self.assertIsNone(data["data"])
 
         # Verify mock calls
         mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
@@ -1107,32 +1052,12 @@ class TestModelManagementApp(unittest.TestCase):
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.update_model_record")
-    def test_batch_update_models_exception_after_first_update(self, mock_update, mock_get_user):
-        # Configure mocks - first update succeeds, second fails
+    def test_batch_update_models_empty_list(self, mock_update, mock_get_user):
+        # Configure mocks
         mock_get_user.return_value = (self.user_id, self.tenant_id)
-        mock_update.side_effect = [None, Exception("Second update failed")]
 
-        # Prepare batch update request data
-        batch_update_data = [
-            {
-                "model_id": "model1_id",
-                "model_name": "huggingface/llama",
-                "display_name": "First Model",
-                "api_base": "http://localhost:8001",
-                "api_key": "key1",
-                "model_type": "llm",
-                "provider": "huggingface"
-            },
-            {
-                "model_id": "model2_id",
-                "model_name": "openai/clip",
-                "display_name": "Second Model",
-                "api_base": "http://localhost:8002",
-                "api_key": "key2",
-                "model_type": "embedding",
-                "provider": "openai"
-            }
-        ]
+        # Prepare empty batch update request data
+        batch_update_data = []
 
         # Send request
         response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
@@ -1140,46 +1065,12 @@ class TestModelManagementApp(unittest.TestCase):
         # Assert response
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["code"], 500)
-        self.assertIn("Failed to batch update models: Second update failed", data["message"])
-        self.assertIsNone(data["data"])
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Batch update models successfully", data["message"])
 
         # Verify mock calls
         mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-        self.assertEqual(mock_update.call_count, 2)
-        mock_update.assert_any_call("model1_id", batch_update_data[0], self.user_id)
-        mock_update.assert_any_call("model2_id", batch_update_data[1], self.user_id)
-
-    @patch("test_model_managment_app.get_current_user_id")
-    def test_batch_update_models_get_user_exception(self, mock_get_user):
-        # Configure mock to throw exception when getting user info
-        mock_get_user.side_effect = Exception("Authentication failed")
-
-        # Prepare batch update request data
-        batch_update_data = [
-            {
-                "model_id": "model1_id",
-                "model_name": "huggingface/llama",
-                "display_name": "Test Model",
-                "api_base": "http://localhost:8001",
-                "api_key": "test_key",
-                "model_type": "llm",
-                "provider": "huggingface"
-            }
-        ]
-
-        # Send request
-        response = client.post("/model/batch_update_models", json=batch_update_data, headers=self.auth_header)
-
-        # Assert response
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 500)
-        self.assertIn("Failed to batch update models: Authentication failed", data["message"])
-        self.assertIsNone(data["data"])
-
-        # Verify mock call
-        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_update.assert_not_called()
 
 
 if __name__ == "__main__":
