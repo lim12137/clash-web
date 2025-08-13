@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import yaml
@@ -627,7 +628,7 @@ def get_sources_service(conversation_id: Optional[int], message_id: Optional[int
         }
 
 
-def generate_conversation_title_service(conversation_id: int, history: List[Dict[str, str]], user_id: str, tenant_id: str, language: str = 'zh') -> str:
+async def generate_conversation_title_service(conversation_id: int, history: List[Dict[str, str]], user_id: str, tenant_id: str, language: str = 'zh') -> str:
     """
     Generate conversation title
 
@@ -645,8 +646,8 @@ def generate_conversation_title_service(conversation_id: int, history: List[Dict
         # Extract user messages
         content = extract_user_messages(history)
 
-        # Call LLM to generate title
-        title = call_llm_for_title(content, tenant_id, language)
+        # Call LLM to generate title in a separate thread to avoid blocking
+        title = await asyncio.to_thread(call_llm_for_title, content, tenant_id, language)
 
         # Update conversation title
         update_conversation_title(conversation_id, title, user_id)
