@@ -135,7 +135,7 @@ async def delete_agent_api(request: AgentIDRequest, authorization: Optional[str]
     Delete an agent
     """
     try:
-        delete_agent_impl(request.agent_id, authorization)
+        await delete_agent_impl(request.agent_id, authorization)
         return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent delete error: {str(e)}")
