@@ -13,4 +13,4 @@ system_prompt: |-
   
 user_prompt: |
   Please generate a concise knowledge base summary based on the following keyword content, no more than 150 words:
-  Keyword content: {content} 
+  Keyword content: {{ content }} 
