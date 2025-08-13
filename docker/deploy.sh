@@ -713,17 +713,16 @@ create_default_admin_user() {
     return 1
   elif echo "$RESPONSE" | grep -q '"access_token"' && echo "$RESPONSE" | grep -q '"user"'; then
     echo "   ✅ Default admin user has been successfully created."
+    echo ""
+    echo "      Please save the following credentials carefully, which would ONLY be shown once."
+    echo "   📧 Email:    nexent@example.com"
+    echo "   🔏 Password: nexent@4321"
   elif echo "$RESPONSE" | grep -q '"error_code":"user_already_exists"' || echo "$RESPONSE" | grep -q '"code":422'; then
     echo "   🚧 Default admin user already exists. Skipping creation."
   else
     echo "   ❌ Response from Supabase does not contain 'access_token' or 'user'."
     return 1
   fi
-
-  echo ""
-  echo "      Please save the following credentials carefully, which would ONLY be shown once."
-  echo "   📧 Email:    nexent@example.com"
-  echo "   🔏 Password: nexent@4321"
 
   echo ""
   echo "--------------------------------"
