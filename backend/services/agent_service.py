@@ -134,27 +134,33 @@ async def clear_agent_memory(agent_id: int, tenant_id: str, user_id: str):
         memory_config = build_memory_config(tenant_id)
         
         # Clean up agent-level memory
-        agent_memory_result = await clear_memory(
-            memory_level="agent",
-            memory_config=memory_config,
-            tenant_id=tenant_id,
-            user_id=user_id,
-            agent_id=str(agent_id)
-        )
-        logger.info(f"Cleared agent memory for agent {agent_id}: {agent_memory_result}")
+        try:
+            agent_memory_result = await clear_memory(
+                memory_level="agent",
+                memory_config=memory_config,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                agent_id=str(agent_id)
+            )
+            logger.info(f"Cleared agent memory for agent {agent_id}: {agent_memory_result}")
+        except Exception as e:
+            logger.error(f"Failed to clear agent-level memory for agent {agent_id}: {str(e)}")
         
         # Clean up user_agent-level memory
-        user_agent_memory_result = await clear_memory(
-            memory_level="user_agent", 
-            memory_config=memory_config,
-            tenant_id=tenant_id,
-            user_id=user_id,
-            agent_id=str(agent_id)
-        )
-        logger.info(f"Cleared user_agent memory for agent {agent_id}: {user_agent_memory_result}")
+        try:
+            user_agent_memory_result = await clear_memory(
+                memory_level="user_agent", 
+                memory_config=memory_config,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                agent_id=str(agent_id)
+            )
+            logger.info(f"Cleared user_agent memory for agent {agent_id}: {user_agent_memory_result}")
+        except Exception as e:
+            logger.error(f"Failed to clear user_agent-level memory for agent {agent_id}: {str(e)}")
         
     except Exception as e:
-        logger.error(f"Failed to clear memory for agent {agent_id}: {str(e)}")
+        logger.error(f"Failed to build memory config for agent {agent_id}: {str(e)}")
         # 不抛出异常，避免影响agent删除流程
 
 async def export_agent_impl(agent_id: int, authorization: str = Header(None)) -> str:
