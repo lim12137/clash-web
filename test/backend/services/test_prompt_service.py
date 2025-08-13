@@ -151,16 +151,12 @@ class TestPromptService(unittest.TestCase):
 
     @patch('backend.services.prompt_service.call_llm_for_system_prompt')
     @patch('backend.services.prompt_service.join_info_for_generate_system_prompt')
-    @patch('backend.services.prompt_service.get_prompt_generate_config_path')
-    @patch('backend.services.prompt_service.open', new_callable=mock_open)
-    @patch('backend.services.prompt_service.yaml.safe_load')
+    @patch('backend.services.prompt_service.get_prompt_generate_prompt_template')
     @patch('nexent.vector_database.elasticsearch_core.ElasticSearchCore')
     @patch('elasticsearch.Elasticsearch')
-    def test_generate_system_prompt(self, mock_elasticsearch, mock_es_core, mock_yaml_load, 
-                                   mock_open_file, mock_get_config_path, mock_join_info, mock_call_llm):
+    def test_generate_system_prompt(self, mock_elasticsearch, mock_es_core, mock_get_prompt_template, 
+                                   mock_join_info, mock_call_llm):
         # Setup
-        mock_get_config_path.return_value = "fake/path/prompt_generate.yaml"
-        
         mock_prompt_config = {
             "USER_PROMPT": "Test user prompt template",
             "DUTY_SYSTEM_PROMPT": "Generate duty prompt",
@@ -170,7 +166,7 @@ class TestPromptService(unittest.TestCase):
             "AGENT_DISPLAY_NAME_SYSTEM_PROMPT": "Generate agent display name",
             "AGENT_DESCRIPTION_SYSTEM_PROMPT": "Generate agent description"
         }
-        mock_yaml_load.return_value = mock_prompt_config
+        mock_get_prompt_template.return_value = mock_prompt_config
         
         mock_join_info.return_value = "Joined template content"
         
@@ -228,10 +224,8 @@ class TestPromptService(unittest.TestCase):
             result_list.append(result)
         
         # Assert
-        # Verify file operations
-        mock_get_config_path.assert_called_once_with(mock_language)
-        mock_open_file.assert_called_once_with("fake/path/prompt_generate.yaml", "r", encoding="utf-8")
-        mock_yaml_load.assert_called_once()
+        # Verify template loading
+        mock_get_prompt_template.assert_called_once_with(mock_language)
         
         # Verify template joining
         mock_join_info.assert_called_once_with(
@@ -272,16 +266,12 @@ class TestPromptService(unittest.TestCase):
 
     @patch('backend.services.prompt_service.call_llm_for_system_prompt')
     @patch('backend.services.prompt_service.join_info_for_generate_system_prompt')
-    @patch('backend.services.prompt_service.get_prompt_generate_config_path')
-    @patch('backend.services.prompt_service.open', new_callable=mock_open)
-    @patch('backend.services.prompt_service.yaml.safe_load')
+    @patch('backend.services.prompt_service.get_prompt_generate_prompt_template')
     @patch('nexent.vector_database.elasticsearch_core.ElasticSearchCore')
     @patch('elasticsearch.Elasticsearch')
-    def test_generate_system_prompt_with_exception(self, mock_elasticsearch, mock_es_core, mock_yaml_load,
-                                                  mock_open_file, mock_get_config_path, mock_join_info, mock_call_llm):
+    def test_generate_system_prompt_with_exception(self, mock_elasticsearch, mock_es_core, mock_get_prompt_template,
+                                                  mock_join_info, mock_call_llm):
         # Setup
-        mock_get_config_path.return_value = "fake/path/prompt_generate.yaml"
-        
         mock_prompt_config = {
             "USER_PROMPT": "Test user prompt template",
             "DUTY_SYSTEM_PROMPT": "Generate duty prompt",
@@ -291,7 +281,7 @@ class TestPromptService(unittest.TestCase):
             "AGENT_DISPLAY_NAME_SYSTEM_PROMPT": "Generate agent display name",
             "AGENT_DESCRIPTION_SYSTEM_PROMPT": "Generate agent description"
         }
-        mock_yaml_load.return_value = mock_prompt_config
+        mock_get_prompt_template.return_value = mock_prompt_config
         mock_join_info.return_value = "Joined template content"
         
         # Mock call_llm_for_system_prompt to raise exception for one prompt type
