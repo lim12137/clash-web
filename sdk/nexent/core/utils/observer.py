@@ -116,8 +116,8 @@ class ErrorTransformer(MessageTransformer):
 
 
 class MessageObserver:
-    MAX_THINK_BUFFER_SIZE = 10
-    MAX_TOKEN_BUFFER_SIZE = 5
+    MAX_THINK_BUFFER_SIZE = 6
+    MAX_TOKEN_BUFFER_SIZE = 3
     
     def __init__(self, lang="zh"):
         # unified output to the front end string, changed to queue
