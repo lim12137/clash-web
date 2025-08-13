@@ -1,6 +1,6 @@
 import pytest
 import sys
-from unittest.mock import patch, MagicMock, mock_open, call, Mock
+from unittest.mock import patch, MagicMock, mock_open, call, Mock, AsyncMock
 
 # Mock boto3 before importing the module under test
 boto3_mock = MagicMock()
@@ -15,9 +15,7 @@ patch('elasticsearch.Elasticsearch', return_value=elasticsearch_client_mock).sta
 elasticsearch_core_mock = MagicMock()
 patch('sdk.nexent.vector_database.elasticsearch_core.ElasticSearchCore', return_value=elasticsearch_core_mock).start()
 
-# Mock memory-related modules - these are imported inside clear_agent_memory function
-patch('apps.memory_config_app.build_memory_config').start()
-patch('nexent.memory.memory_service.clear_memory').start()
+# Mock memory-related modules - removed module-level patches to avoid conflicts with test-level patches
 
 # Import the services
 from backend.services.agent_service import (
@@ -961,8 +959,8 @@ def test_load_default_agents_json_file(mock_file, mock_listdir, mock_join):
 
 
 # clear_agent_memory function tests
-@patch('nexent.memory.memory_service.clear_memory')
-@patch('apps.memory_config_app.build_memory_config')
+@patch('backend.services.agent_service.clear_memory', new_callable=AsyncMock)
+@patch('backend.services.agent_service.build_memory_config')
 @pytest.mark.asyncio
 async def test_clear_agent_memory_success(mock_build_config, mock_clear_memory):
     """
@@ -1014,8 +1012,8 @@ async def test_clear_agent_memory_success(mock_build_config, mock_clear_memory):
     assert user_agent_call[1]["agent_id"] == "123"
 
 
-@patch('nexent.memory.memory_service.clear_memory')
-@patch('apps.memory_config_app.build_memory_config')
+@patch('backend.services.agent_service.clear_memory', new_callable=AsyncMock)
+@patch('backend.services.agent_service.build_memory_config')
 @pytest.mark.asyncio
 async def test_clear_agent_memory_build_config_error(mock_build_config, mock_clear_memory):
     """
@@ -1041,8 +1039,8 @@ async def test_clear_agent_memory_build_config_error(mock_build_config, mock_cle
     mock_clear_memory.assert_not_called()
 
 
-@patch('nexent.memory.memory_service.clear_memory')
-@patch('apps.memory_config_app.build_memory_config')
+@patch('backend.services.agent_service.clear_memory', new_callable=AsyncMock)
+@patch('backend.services.agent_service.build_memory_config')
 @pytest.mark.asyncio
 async def test_clear_agent_memory_clear_memory_error(mock_build_config, mock_clear_memory):
     """

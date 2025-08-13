@@ -14,6 +14,8 @@ from database.agent_db import create_agent, query_all_enabled_tool_instances, \
     query_sub_agents_id_list, insert_related_agent, delete_all_related_agent
 
 from utils.auth_utils import get_current_user_id
+from utils.memory_utils import build_memory_config
+from nexent.memory.memory_service import clear_memory
 
 
 logger = logging.getLogger("agent_service")
@@ -127,9 +129,6 @@ async def clear_agent_memory(agent_id: int, tenant_id: str, user_id: str):
         user_id: User ID
     """
     try:
-        from apps.memory_config_app import build_memory_config
-        from nexent.memory.memory_service import clear_memory
-
         # Build memory configuration
         memory_config = build_memory_config(tenant_id)
         
