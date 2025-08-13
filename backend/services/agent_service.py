@@ -119,12 +119,12 @@ async def delete_agent_impl(agent_id: int, authorization: str = Header(None)):
 
 async def clear_agent_memory(agent_id: int, tenant_id: str, user_id: str):
     """
-    清理指定agent的所有memory数据
+    Purge specified agent's memory data
     
     Args:
-        agent_id: agent ID
-        tenant_id: 租户ID
-        user_id: 用户ID
+        agent_id: Agent ID
+        tenant_id: Tenant ID
+        user_id: User ID
     """
     try:
         from apps.memory_config_app import build_memory_config
