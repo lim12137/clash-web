@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Modal, Button, Input, Table, Space, Typography, Card, Divider, Tag, Tooltip, App } from 'antd'
 import { DeleteOutlined, EyeOutlined, PlusOutlined, LoadingOutlined, ExpandAltOutlined, CompressOutlined, RedoOutlined } from '@ant-design/icons'
-import { getMcpServerList, addMcpServer, deleteMcpServer, getMcpTools, updateToolList, recoverMcpServers, McpServer, McpTool } from '@/services/mcpService'
+import { getMcpServerList, addMcpServer, deleteMcpServer, getMcpTools, updateToolList, recoverMcpServers, checkMcpServerHealth, McpServer, McpTool } from '@/services/mcpService'
 import { useTranslation } from 'react-i18next'
 
 const { Text, Title } = Typography
@@ -197,23 +197,15 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
     message.info(t('mcpConfig.message.healthChecking', { name: server.service_name }))
     setHealthCheckLoading((prev) => ({ ...prev, [key]: true }))
     try {
-      const response = await fetch(`/api/mcp/healthcheck?mcp_url=${encodeURIComponent(server.mcp_url)}&service_name=${encodeURIComponent(server.service_name)}`, {
-        headers: { ...((window as any).authHeaders || {}) }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        if (data.status === 'success' || response.status === 200) {
-          message.success(t('mcpConfig.message.healthCheckSuccess'))
-          await loadServerList()
-        } else {
-          message.error(t('mcpConfig.message.healthCheckFailed'))
-          await loadServerList()
-        }
+      const result = await checkMcpServerHealth(server.mcp_url, server.service_name)
+      if (result.success) {
+        message.success(t('mcpConfig.message.healthCheckSuccess'))
+        await loadServerList()
       } else {
-        message.error(t('mcpConfig.message.healthCheckFailed'))
+        message.error(result.message || t('mcpConfig.message.healthCheckFailed'))
         await loadServerList()
       }
-    } catch (e) {
+    } catch (error) {
       message.error(t('mcpConfig.message.healthCheckFailed'))
       await loadServerList()
     } finally {
