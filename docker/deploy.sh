@@ -13,6 +13,7 @@ MODE_CHOICE=""
 IS_MAINLAND=""
 ENABLE_TERMINAL=""
 VERSION_CHOICE=""
+ROOT_DIR_PARAM=""
 
 # Suppress the orphan warning
 export COMPOSE_IGNORE_ORPHANS=True
@@ -33,6 +34,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --version)
       VERSION_CHOICE="$2"
+      shift 2
+      ;;
+    --root-dir)
+      ROOT_DIR_PARAM="$2"
       shift 2
       ;;
     *)
@@ -407,18 +412,32 @@ select_deployment_mode() {
           ;;
   esac
   echo ""
-    # Check if ROOT_DIR already exists in .env
-  if grep -q "^ROOT_DIR=" .env; then
+  # Check if root-dir parameter is provided (highest priority)
+  if [ -n "$ROOT_DIR_PARAM" ]; then
+    ROOT_DIR="$ROOT_DIR_PARAM"
+    echo "   📁 Using ROOT_DIR from parameter: $ROOT_DIR"
+    # Write to .env file
+    if grep -q "^ROOT_DIR=" .env; then
+      # Update existing ROOT_DIR in .env
+      sed -i "s|^ROOT_DIR=.*|ROOT_DIR=\"$ROOT_DIR\"|" .env
+    else
+      # Add new ROOT_DIR to .env
+      echo "# Root dir" >> .env
+      echo "ROOT_DIR=\"$ROOT_DIR\"" >> .env
+    fi
+  # Check if ROOT_DIR already exists in .env (second priority)
+  elif grep -q "^ROOT_DIR=" .env; then
     # Extract existing ROOT_DIR value from .env
     env_root_dir=$(grep "^ROOT_DIR=" .env | cut -d'=' -f2 | sed 's/^"//;s/"$//')
     ROOT_DIR="$env_root_dir"
     echo "   📁 Use existing ROOT_DIR path: $env_root_dir"
+  # Use default value and prompt user input (lowest priority)
   else
     # Get ROOT_DIR from user input with default value
     default_root_dir="$HOME/nexent-data"
     read -p "   📁 Enter ROOT_DIR path (default: $default_root_dir): " user_root_dir
     ROOT_DIR="${user_root_dir:-$default_root_dir}"
-    
+
     echo "# Root dir" >> .env
     echo "ROOT_DIR=\"$ROOT_DIR\"" >> .env
   fi
