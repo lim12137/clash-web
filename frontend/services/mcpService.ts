@@ -367,3 +367,40 @@ export const recoverMcpServers = async () => {
     };
   }
 };
+
+/**
+ * 检查MCP服务器健康状态
+ */
+export const checkMcpServerHealth = async (mcpUrl: string, serviceName: string) => {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.mcp.healthcheck}?mcp_url=${encodeURIComponent(mcpUrl)}&service_name=${encodeURIComponent(serviceName)}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+
+    const data = await response.json();
+    
+    if (response.ok && data.status === 'success') {
+      return {
+        success: true,
+        data: data,
+        message: data.message || t('mcpService.message.healthCheckSuccess')
+      };
+    } else {
+      return {
+        success: false,
+        data: null,
+        message: data.message || t('mcpService.message.healthCheckFailed')
+      };
+    }
+  } catch (error) {
+    console.error(t('mcpService.debug.healthCheckFailed'), error);
+    return {
+      success: false,
+      data: null,
+      message: t('mcpService.message.networkError')
+    };
+  }
+};
