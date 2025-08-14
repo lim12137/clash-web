@@ -116,6 +116,7 @@ export const API_ENDPOINTS = {
     delete: `${API_BASE_URL}/mcp`,
     list: `${API_BASE_URL}/mcp/list`,
     recover: `${API_BASE_URL}/mcp/recover`,
+    healthcheck: `${API_BASE_URL}/mcp/healthcheck`,
   },
   memory: {
     // ---------------- Memory configuration ----------------
