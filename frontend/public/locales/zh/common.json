@@ -30,6 +30,7 @@
         "fileParsed": "文件 {{filename}} 已解析完成",
         "fileParsingComplete": "文件解析完成",
         "fileProcessingFailed": "文件处理失败: {{error}}",
+        "filePreprocessingStopped": "文件解析已停止",
         "userCancelledRequest": "用户取消了请求",
         "conversationStopped": "对话已停止",
         "errorProcessingRequest": "处理请求时发生错误",
