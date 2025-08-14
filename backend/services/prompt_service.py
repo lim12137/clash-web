@@ -180,7 +180,7 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
     for tag in ["duty", "constraint", "few_shots", "agent_var_name", "agent_display_name", "agent_description"]:
         if stop_flags[tag]:
             if tag in {'agent_var_name', 'agent_display_name', 'agent_description'}:
-                latest[tag] = latest[tag].replace('\n', '')
+                latest[tag] = latest[tag].strip().replace('\n', '')
             result_data = {
                 "type": tag,
                 "content": latest[tag],
