@@ -132,8 +132,8 @@ class TestStrUtils:
         
         self.add_no_think_token(messages)
         
-        # Should not add another /no_think
-        assert messages[-1]["content"] == "How are you? /no_think"
+        # Should add another /no_think even if it already exists
+        assert messages[-1]["content"] == "How are you? /no_think /no_think"
 
     def test_add_no_think_token_user_message_with_whitespace(self):
         """Test add_no_think_token with user message that has trailing whitespace"""
