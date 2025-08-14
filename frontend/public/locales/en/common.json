@@ -30,6 +30,7 @@
         "fileParsed": "File {{filename}} has been parsed successfully",
         "fileParsingComplete": "File parsing complete",
         "fileProcessingFailed": "File processing failed: {{error}}",
+        "filePreprocessingStopped": "File parsing stopped",
         "userCancelledRequest": "User canceled the request",
         "conversationStopped": "Conversation stopped",
         "errorProcessingRequest": "An error occurred while processing the request",
