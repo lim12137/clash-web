@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { App } from 'antd';
+import { App, Modal } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { authService } from '@/services/authService';
 import { EVENTS } from '@/types/auth';
@@ -28,13 +28,6 @@ export function SessionListeners() {
   const showSessionExpiredModal = () => {
     // 若已显示过，则直接返回
     if (modalShownRef.current) return;
-    
-    // 修复：在首页不显示过期弹窗
-    if (pathname === '/' || pathname?.startsWith('/?') || 
-        pathname?.startsWith('/zh') || pathname?.startsWith('/en')) {
-      return;
-    }
-
     modalShownRef.current = true;
 
     modal.confirm({
@@ -50,6 +43,7 @@ export function SessionListeners() {
         } finally {
           // Mark the source as session expired
           setIsFromSessionExpired(true);
+          Modal.destroyAll();
           openLoginModal();
           setTimeout(() => (modalShownRef.current = false), 500);
         }
@@ -83,12 +77,6 @@ export function SessionListeners() {
   // 监听会话过期事件
   useEffect(() => {
     const handleSessionExpired = (event: CustomEvent) => {
-      // 修复：在首页不处理会话过期事件
-      if (pathname === '/' || pathname?.startsWith('/?') || 
-          pathname?.startsWith('/zh') || pathname?.startsWith('/en')) {
-        return;
-      }
-
       // 直接调用封装函数
       showSessionExpiredModal();
     };
@@ -106,19 +94,14 @@ export function SessionListeners() {
   // 组件初次挂载时，如果发现本地已经没有 session，也立即弹窗
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const localSession = localStorage.getItem('session');
-      // 修复：只在非首页且没有session时才弹窗
-      if (!localSession && pathname && 
-          pathname !== '/' && 
-          !pathname.startsWith('/?') && 
-          !pathname.startsWith('/zh') && 
-          !pathname.startsWith('/en')) {
+      const localSession = localStorage.getItem('session'); 
+      if (!localSession) {
         showSessionExpiredModal();
       }
     }
     // 该副作用只需在首次渲染时执行一次
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, []);
 
   // 会话状态检查
   useEffect(() => {
@@ -127,8 +110,7 @@ export function SessionListeners() {
       try {
         // 尝试获取当前会话
         const session = await authService.getSession();
-        // 修复：只在chat路径且没有session时才触发过期事件
-        if (!session && pathname?.startsWith('/chat')) {
+        if (!session) {
           window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
             detail: { message: "登录已过期，请重新登录" }
           }));
