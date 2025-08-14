@@ -1,6 +1,13 @@
 import sys
+import os
 import pytest
 from unittest.mock import patch, MagicMock
+
+# Add the project root directory to Python path
+# This ensures that the 'backend' module can be imported correctly
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 # Patch the Minio client (and boto3, which it relies on) *before* importing the
 # module under test.  This prevents any real network calls from being executed
