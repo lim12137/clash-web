@@ -98,6 +98,10 @@ mock_langchain.tools = mock_langchain_tools
 
 mock_openai_chat_completion_message = MagicMock()
 
+# Mock memory_service to avoid importing mem0
+mock_memory_service = MagicMock()
+mock_memory_service.add_memory_in_levels = MagicMock()
+
 module_mocks = {
     "smolagents": mock_smolagents,
     "smolagents.tools": mock_smolagents_tools_mod,
@@ -123,6 +127,8 @@ module_mocks = {
     "openai.types.chat.chat_completion_message_param": MagicMock(),
     # exa_py is imported by sdk.nexent.core.tools – provide dummy to skip real import
     "exa_py": MagicMock(Exa=MagicMock()),
+    # Mock memory_service to avoid importing mem0
+    "sdk.nexent.memory.memory_service": mock_memory_service,
 }
 
 # ---------------------------------------------------------------------------
@@ -149,6 +155,25 @@ def mock_observer():
     observer = MagicMock(spec=MessageObserver)
     observer.lang = "en"
     return observer
+
+
+@pytest.fixture
+def mock_memory_context():
+    """Return a mocked MemoryContext instance for tests."""
+    mock_user_config = MagicMock()
+    mock_user_config.memory_switch = False  # Disable memory by default for tests
+    mock_user_config.agent_share_option = "always"
+    mock_user_config.disable_agent_ids = []
+    mock_user_config.disable_user_agent_ids = []
+    
+    mock_memory_context = MagicMock()
+    mock_memory_context.user_config = mock_user_config
+    mock_memory_context.memory_config = {}
+    mock_memory_context.tenant_id = "test_tenant"
+    mock_memory_context.user_id = "test_user"
+    mock_memory_context.agent_id = "test_agent"
+    
+    return mock_memory_context
 
 
 @pytest.fixture
@@ -184,14 +209,14 @@ def basic_agent_run_info(mock_observer):
 # Tests
 # ---------------------------------------------------------------------------
 
-def test_agent_run_thread_local_flow(basic_agent_run_info, monkeypatch):
+def test_agent_run_thread_local_flow(basic_agent_run_info, mock_memory_context, monkeypatch):
     """Verify local execution path when mcp_host is empty or None."""
     # Patch NexentAgent inside run_agent to a MagicMock instance
     mock_nexent_instance = MagicMock(name="NexentAgentInstance")
     monkeypatch.setattr(run_agent, "NexentAgent", MagicMock(return_value=mock_nexent_instance))
 
     # Call the function under test
-    run_agent.agent_run_thread(basic_agent_run_info)
+    run_agent.agent_run_thread(basic_agent_run_info, mock_memory_context)
 
     # NexentAgent should be instantiated with observer, model_config_list, stop_event
     run_agent.NexentAgent.assert_called_once_with(
@@ -210,7 +235,7 @@ def test_agent_run_thread_local_flow(basic_agent_run_info, monkeypatch):
     basic_agent_run_info.observer.add_message.assert_not_called()
 
 
-def test_agent_run_thread_mcp_flow(basic_agent_run_info, monkeypatch):
+def test_agent_run_thread_mcp_flow(basic_agent_run_info, mock_memory_context, monkeypatch):
     """Verify behaviour when an MCP host list is provided."""
     # Give the AgentRunInfo an MCP host list
     basic_agent_run_info.mcp_host = ["http://mcp.server"]
@@ -225,7 +250,7 @@ def test_agent_run_thread_mcp_flow(basic_agent_run_info, monkeypatch):
     monkeypatch.setattr(run_agent, "NexentAgent", MagicMock(return_value=mock_nexent_instance))
 
     # Execute
-    run_agent.agent_run_thread(basic_agent_run_info)
+    run_agent.agent_run_thread(basic_agent_run_info, mock_memory_context)
 
     # Observer should receive <MCP_START> signal
     basic_agent_run_info.observer.add_message.assert_any_call("", ProcessType.AGENT_NEW_RUN, "<MCP_START>")
@@ -251,11 +276,12 @@ def test_agent_run_thread_mcp_flow(basic_agent_run_info, monkeypatch):
 
 def test_agent_run_thread_invalid_type():
     """Passing a non-AgentRunInfo instance should raise a TypeError."""
+    mock_memory_context = MagicMock()
     with pytest.raises(TypeError):
-        run_agent.agent_run_thread("not_an_agent_run_info")
+        run_agent.agent_run_thread("not_an_agent_run_info", mock_memory_context)
 
 
-def test_agent_run_thread_handles_internal_exception(basic_agent_run_info, monkeypatch):
+def test_agent_run_thread_handles_internal_exception(basic_agent_run_info, mock_memory_context, monkeypatch):
     """If an internal error occurs, the observer should be notified and a ValueError propagated."""
     # Configure NexentAgent.create_single_agent to raise an exception
     failing_nexent_instance = MagicMock(name="NexentAgentInstance")
@@ -265,7 +291,7 @@ def test_agent_run_thread_handles_internal_exception(basic_agent_run_info, monke
 
     # Execute and expect ValueError
     with pytest.raises(ValueError) as exc_info:
-        run_agent.agent_run_thread(basic_agent_run_info)
+        run_agent.agent_run_thread(basic_agent_run_info, mock_memory_context)
 
     # Observer should have been informed of the failure via FINAL_ANSWER
     basic_agent_run_info.observer.add_message.assert_called_with("", ProcessType.FINAL_ANSWER, "Run Agent Error: Boom")
