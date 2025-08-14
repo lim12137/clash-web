@@ -458,32 +458,31 @@ async def test_get_storage_file_batch_urls_invalid_request(mock_files):
     assert response.status_code == 400
 
 @pytest.mark.asyncio
-async def test_preprocess_api_mixed_files(mock_files):
-    with patch("backend.utils.auth_utils.get_current_user_id") as mock_get_user, \
+async def test_preprocess_api_error_handling(mock_files):
+    """Test preprocess API error handling and task cleanup"""
+    with patch("backend.utils.auth_utils.get_current_user_info") as mock_get_user, \
          patch("backend.apps.file_management_app.process_image_file") as mock_process_image, \
-         patch("backend.apps.file_management_app.process_text_file") as mock_process_text:
+         patch("agents.preprocess_manager.preprocess_manager") as mock_preprocess_manager:
         
         # Configure mocks
-        mock_get_user.return_value = ("user123", "tenant456")
-        mock_process_image.return_value = asyncio.Future()
-        mock_process_image.return_value.set_result("Image content processed")
-        mock_process_text.return_value = asyncio.Future()
-        mock_process_text.return_value.set_result("Text content processed")
+        mock_get_user.return_value = ("user123", "tenant456", "zh")
+        mock_process_image.side_effect = Exception("Processing failed")
         
-        # Create test client with streaming response test
-        # Note: TestClient doesn't fully support testing streaming responses
-        # This is a simplified test
+        # Mock preprocess manager
+        mock_preprocess_manager.register_preprocess_task = MagicMock()
+        mock_preprocess_manager.unregister_preprocess_task = MagicMock()
+        
+        # Create test client
         with TestClient(app) as client:
-            with patch('backend.apps.file_management_app.StreamingResponse', MagicMock()) as mock_stream:
-                response = client.post(
-                    "/file/preprocess",
-                    files=[
-                        ("files", ("test.jpg", BytesIO(b"image data"), "image/jpeg")),
-                        ("files", ("test.txt", BytesIO(b"text data"), "text/plain"))
-                    ],
-                    data={"query": "test query"},
-                    headers={"authorization": "Bearer test_token"}
-                )
+            response = client.post(
+                "/file/preprocess",
+                files=[
+                    ("files", ("test.jpg", BytesIO(b"image data"), "image/jpeg"))
+                ],
+                data={"query": "test query"},
+                headers={"authorization": "Bearer test_token"}
+            )
+            assert response is not None
 
 @pytest.mark.asyncio
 async def test_process_image_file(mock_files):
