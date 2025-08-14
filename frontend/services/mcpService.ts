@@ -369,7 +369,7 @@ export const recoverMcpServers = async () => {
 };
 
 /**
- * 检查MCP服务器健康状态
+ * checkMcpServerHealth
  */
 export const checkMcpServerHealth = async (mcpUrl: string, serviceName: string) => {
   try {
