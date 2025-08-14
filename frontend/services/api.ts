@@ -111,9 +111,9 @@ export const API_ENDPOINTS = {
     deploymentVersion: `${API_BASE_URL}/tenant_config/deployment_version`,
   },
   mcp: {
-    tools: `${API_BASE_URL}/mcp/tools/`,
+    tools: `${API_BASE_URL}/mcp/tools`,
     add: `${API_BASE_URL}/mcp/add`,
-    delete: `${API_BASE_URL}/mcp/`,
+    delete: `${API_BASE_URL}/mcp`,
     list: `${API_BASE_URL}/mcp/list`,
     recover: `${API_BASE_URL}/mcp/recover`,
   },
