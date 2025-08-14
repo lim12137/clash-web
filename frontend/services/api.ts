@@ -206,13 +206,6 @@ function handleSessionExpired() {
     return;
   }
 
-  // 修复：在首页不触发会话过期事件
-  const currentPath = window.location.pathname;
-  if (currentPath === '/' || currentPath.startsWith('/?') || 
-      currentPath.startsWith('/zh') || currentPath.startsWith('/en')) {
-    return;
-  }
-
   // 标记正在处理中
   window.__isHandlingSessionExpired = true;
 
