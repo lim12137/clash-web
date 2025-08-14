@@ -28,6 +28,7 @@ class TestRedisService(unittest.TestCase):
         self.env_patcher.stop()
     
     @patch('redis.from_url')
+    @patch('backend.services.redis_service.REDIS_URL', 'redis://localhost:6379/0')
     def test_client_property(self, mock_from_url):
         """Test client property creates and returns Redis client"""
         # Setup
@@ -49,16 +50,22 @@ class TestRedisService(unittest.TestCase):
         mock_from_url.assert_called_once()  # Still only called once
     
     @patch('redis.from_url')
+    @patch('backend.services.redis_service.REDIS_URL', None)
     def test_client_property_no_env_var(self, mock_from_url):
         """Test client property raises error when REDIS_URL is not set"""
         # Setup
         self.env_patcher.stop()
         with patch.dict('os.environ', {}, clear=True):
+            # Create a fresh instance to ensure it uses the new environment
+            from backend.services.redis_service import RedisService
+            redis_service = RedisService()
+            
             # Execute & Verify
             with self.assertRaises(ValueError):
-                _ = self.redis_service.client
+                _ = redis_service.client
     
     @patch('redis.from_url')
+    @patch('backend.services.redis_service.REDIS_BACKEND_URL', 'redis://localhost:6379/1')
     def test_backend_client_property(self, mock_from_url):
         """Test backend_client property creates and returns Redis client"""
         # Setup
@@ -80,14 +87,20 @@ class TestRedisService(unittest.TestCase):
         mock_from_url.assert_called_once()  # Still only called once
     
     @patch('redis.from_url')
+    @patch('backend.services.redis_service.REDIS_BACKEND_URL', None)
+    @patch('backend.services.redis_service.REDIS_URL', 'redis://localhost:6379/0')
     def test_backend_client_fallback(self, mock_from_url):
         """Test backend_client falls back to REDIS_URL when REDIS_BACKEND_URL is not set"""
         # Setup
         mock_from_url.return_value = self.mock_backend_client
         self.env_patcher.stop()
         with patch.dict('os.environ', {'REDIS_URL': 'redis://localhost:6379/0'}):
+            # Create a fresh instance to ensure it uses the new environment
+            from backend.services.redis_service import RedisService
+            redis_service = RedisService()
+            
             # Execute
-            client = self.redis_service.backend_client
+            client = redis_service.backend_client
             
             # Verify
             mock_from_url.assert_called_once_with(
@@ -98,14 +111,20 @@ class TestRedisService(unittest.TestCase):
             self.assertEqual(client, self.mock_backend_client)
     
     @patch('redis.from_url')
+    @patch('backend.services.redis_service.REDIS_BACKEND_URL', None)
+    @patch('backend.services.redis_service.REDIS_URL', None)
     def test_backend_client_no_env_vars(self, mock_from_url):
         """Test backend_client raises error when no Redis URLs are set"""
         # Setup
         self.env_patcher.stop()
         with patch.dict('os.environ', {}, clear=True):
+            # Create a fresh instance to ensure it uses the new environment
+            from backend.services.redis_service import RedisService
+            redis_service = RedisService()
+            
             # Execute & Verify
             with self.assertRaises(ValueError):
-                _ = self.redis_service.backend_client
+                _ = redis_service.backend_client
     
     def test_delete_knowledgebase_records(self):
         """Test delete_knowledgebase_records method"""

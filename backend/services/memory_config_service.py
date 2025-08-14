@@ -2,10 +2,12 @@ import logging
 from typing import Dict, List, Union
 
 from consts.const import (
-    MEMORY_SWITCH_KEY,
-    MEMORY_AGENT_SHARE_KEY,
-    DISABLE_AGENT_ID_KEY,
-    DISABLE_USERAGENT_ID_KEY,
+	MEMORY_SWITCH_KEY,
+	MEMORY_AGENT_SHARE_KEY,
+	DISABLE_AGENT_ID_KEY,
+	DISABLE_USERAGENT_ID_KEY,
+	DEFAULT_MEMORY_SWITCH_KEY,
+	DEFAULT_MEMORY_AGENT_SHARE_KEY,
 )
 from consts.model import MemoryAgentShareMode
 from database.memory_config_db import (
@@ -45,8 +47,20 @@ def _aggregate_records(records: List[Dict[str, Union[str, int]]]) -> Dict[str, U
 # ---------------------------------------------------------------------------
 
 def get_user_configs(user_id: str) -> Dict[str, Union[str, List[str]]]:
-    """Return all config key-values for the user (multi values aggregated into list)."""
-    return _aggregate_records(get_all_configs_by_user_id(user_id))
+	"""Return all config key-values for the user.
+
+	- Aggregate multi values into a list
+	- If single-type keys are absent, fill with defaults from consts
+	"""
+	aggregated = _aggregate_records(get_all_configs_by_user_id(user_id))
+
+	# Ensure defaults for single-type keys when not present in DB
+	if MEMORY_SWITCH_KEY not in aggregated:
+		aggregated[MEMORY_SWITCH_KEY] = DEFAULT_MEMORY_SWITCH_KEY
+	if MEMORY_AGENT_SHARE_KEY not in aggregated:
+		aggregated[MEMORY_AGENT_SHARE_KEY] = DEFAULT_MEMORY_AGENT_SHARE_KEY
+
+	return aggregated
 
 
 def _update_single_config(user_id: str, config_key: str, config_value: str) -> bool:

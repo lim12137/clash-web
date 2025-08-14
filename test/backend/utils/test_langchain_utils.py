@@ -5,55 +5,42 @@ import os
 from unittest.mock import MagicMock, patch, Mock, call
 import pytest
 
-# 创建一个模块模拟函数
-def mock_module(name):
-    mock = MagicMock()
-    sys.modules[name] = mock
-    return mock
+# 添加项目根目录到Python路径
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
 
 # 模拟主要依赖
-mock_module('langchain_core.tools')
+sys.modules['langchain_core.tools'] = MagicMock()
+sys.modules['consts'] = MagicMock()
+sys.modules['consts.model'] = MagicMock()
 
 # 模拟logger
 logger_mock = MagicMock()
 
 
-class TestLangchainUtils:
+class TestLangchainUtils(unittest.TestCase):
     """测试langchain_utils模块的函数"""
 
-    def setup_method(self):
+    def setUp(self):
         """每个测试方法前的设置"""
-        # 为langchain_utils创建一个模拟模块
-        self.langchain_utils_mock = MagicMock()
-        # 添加logger
-        self.langchain_utils_mock.logger = logger_mock
-        
-        # 复制原始函数到模拟对象
+        # 导入原始函数
         from backend.utils.langchain_utils import discover_langchain_modules, _is_langchain_tool
-        self.langchain_utils_mock.discover_langchain_modules = discover_langchain_modules
-        self.langchain_utils_mock._is_langchain_tool = _is_langchain_tool
-        
-        # 将模拟模块设置为系统模块
-        sys.modules['backend.utils.langchain_utils'] = self.langchain_utils_mock
-        
-        # 模拟BaseTool类
-        self.mock_base_tool = MagicMock()
-        sys.modules['langchain_core.tools'].BaseTool = self.mock_base_tool
+        self.discover_langchain_modules = discover_langchain_modules
+        self._is_langchain_tool = _is_langchain_tool
 
     def test_is_langchain_tool(self):
         """测试_is_langchain_tool函数"""
         # 创建一个BaseTool实例的模拟
-        mock_tool = MagicMock(spec=self.mock_base_tool)
+        mock_tool = MagicMock()
         
         # 模拟isinstance返回值
         with patch('backend.utils.langchain_utils.isinstance', return_value=True):
-            result = self.langchain_utils_mock._is_langchain_tool(mock_tool)
-            assert result is True
+            result = self._is_langchain_tool(mock_tool)
+            self.assertTrue(result)
         
         # 测试非BaseTool对象
         with patch('backend.utils.langchain_utils.isinstance', return_value=False):
-            result = self.langchain_utils_mock._is_langchain_tool("not a tool")
-            assert result is False
+            result = self._is_langchain_tool("not a tool")
+            self.assertFalse(result)
 
     def test_discover_langchain_modules_success(self):
         """测试成功发现LangChain工具的情况"""
@@ -69,7 +56,7 @@ class TestLangchainUtils:
             
             # 设置模拟module
             mock_module_obj1 = MagicMock()
-            mock_module_obj1.tool_obj1 = mock_tool1  # 添加属性供 discover_langchain_modules 捕获
+            mock_module_obj1.tool_obj1 = mock_tool1
 
             mock_module_obj2 = MagicMock()
             mock_module_obj2.tool_obj2 = mock_tool2
@@ -91,28 +78,23 @@ class TestLangchainUtils:
                 return obj is mock_tool1 or obj is mock_tool2
                 
             # 执行函数
-            result = self.langchain_utils_mock.discover_langchain_modules(
-                filter_func=mock_filter
-            )
+            result = self.discover_langchain_modules(filter_func=mock_filter)
             
             # 验证loader.exec_module被调用
             mock_loader1.exec_module.assert_called_once_with(mock_module_obj1)
             mock_loader2.exec_module.assert_called_once_with(mock_module_obj2)
             
             # 验证结果
-            assert len(result) == 2
-            # 验证返回的对象是否是我们期望的对象
+            self.assertEqual(len(result), 2)
             discovered_objs = [obj for (obj, _) in result]
-            assert mock_tool1 in discovered_objs
-            assert mock_tool2 in discovered_objs
+            self.assertIn(mock_tool1, discovered_objs)
+            self.assertIn(mock_tool2, discovered_objs)
 
     def test_discover_langchain_modules_directory_not_found(self):
         """测试目录不存在的情况"""
         with patch('os.path.isdir', return_value=False):
-            result = self.langchain_utils_mock.discover_langchain_modules(directory="non_existent_dir")
-            
-            # 验证结果为空列表
-            assert result == []
+            result = self.discover_langchain_modules(directory="non_existent_dir")
+            self.assertEqual(result, [])
 
     def test_discover_langchain_modules_module_exception(self):
         """测试处理模块异常的情况"""
@@ -125,12 +107,12 @@ class TestLangchainUtils:
             mock_spec.side_effect = Exception("Module error")
             
             # 执行函数 - 应该捕获异常并继续
-            result = self.langchain_utils_mock.discover_langchain_modules()
+            result = self.discover_langchain_modules()
             
             # 验证结果为空列表
-            assert result == []
+            self.assertEqual(result, [])
             # 验证错误被记录
-            assert logger_mock.error.called
+            self.assertTrue(logger_mock.error.called)
             # 验证错误消息包含预期内容
             logger_mock.error.assert_called_with("Error processing module error_module.py: Module error")
 
@@ -142,14 +124,16 @@ class TestLangchainUtils:
              patch('backend.utils.langchain_utils.logger', logger_mock):
             
             # 执行函数
-            result = self.langchain_utils_mock.discover_langchain_modules()
+            result = self.discover_langchain_modules()
             
             # 验证结果为空列表
-            assert result == []
+            self.assertEqual(result, [])
             # 验证警告被记录
-            assert logger_mock.warning.called
-            # 验证警告消息
-            logger_mock.warning.assert_called_once()
+            self.assertTrue(logger_mock.warning.called)
+            # 验证警告消息包含预期内容 - 检查是否包含文件名
+            actual_call = logger_mock.warning.call_args[0][0]
+            self.assertIn("Failed to load spec for", actual_call)
+            self.assertIn("invalid_module.py", actual_call)
 
     def test_discover_langchain_modules_custom_filter(self):
         """测试使用自定义过滤函数的情况"""
@@ -179,16 +163,14 @@ class TestLangchainUtils:
                 return obj is obj_pass
             
             # 执行函数
-            result = self.langchain_utils_mock.discover_langchain_modules(
-                filter_func=custom_filter
-            )
+            result = self.discover_langchain_modules(filter_func=custom_filter)
             
             # 验证loader.exec_module被调用
             mock_loader.exec_module.assert_called_once_with(mock_module_obj)
             
             # 验证结果 - 应该只有一个对象通过过滤
-            assert len(result) == 1
-            assert result[0][0] is obj_pass
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0][0], obj_pass)
 
 
 if __name__ == "__main__":
