@@ -37,7 +37,7 @@ class OpenAIModel(OpenAIServerModel):
             self.observer.current_mode = ProcessType.MODEL_OUTPUT_THINKING
             for chunk in current_request:
                 new_token = chunk.choices[0].delta.content
-                reasoning_content = chunk.choices[0].delta.reasoning_content
+                reasoning_content = getattr(chunk.choices[0].delta, 'reasoning_content', None)
 
                 # Handle reasoning_content if it exists and is not null
                 if reasoning_content is not None:
