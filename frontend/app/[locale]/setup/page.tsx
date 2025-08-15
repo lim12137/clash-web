@@ -47,21 +47,7 @@ export default function CreatePage() {
   useEffect(() => {
     if (!userLoading) {
       if (!user) {
-        // user not logged in, show login prompt
-        modal.confirm({
-          title: t('login.expired.title'),
-          icon: <ExclamationCircleOutlined />,
-          content: t('login.expired.content'),
-          okText: t('login.expired.okText'),
-          cancelText: t('login.expired.cancelText'),
-          closable: false,
-          onOk() {
-            openLoginModal();
-          },
-          onCancel() {
-            router.push('/');
-          }
-        });
+        // user not logged in, do nothing
         return
       }
 
