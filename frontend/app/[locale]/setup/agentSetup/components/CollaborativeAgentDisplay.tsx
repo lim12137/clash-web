@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Tag, Button, Select, message } from 'antd'
+import { Tag, Button, Select, App } from 'antd'
 import { PlusOutlined, CloseOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { Agent } from '../ConstInterface'
@@ -31,6 +31,7 @@ export default function CollaborativeAgentDisplay({
   style
 }: CollaborativeAgentDisplayProps) {
   const { t } = useTranslation('common')
+  const { message } = App.useApp()
   const [isDropdownVisible, setIsDropdownVisible] = useState(false)
   const [selectedAgentToAdd, setSelectedAgentToAdd] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -180,7 +181,12 @@ export default function CollaborativeAgentDisplay({
                   handleAddCollaborativeAgent(agent.id)
                 }}
               >
-                {agent.name}
+                <span>{agent.display_name || agent.name}</span>
+                {agent.display_name && (
+                  <span className="ml-2 text-xs text-gray-400">
+                    ({agent.name})
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -227,7 +233,9 @@ export default function CollaborativeAgentDisplay({
               onClose={() => handleRemoveCollaborativeAgent(Number(agent.id))}
               closeIcon={<CloseOutlined className="text-xs" />}
             >
-              {agent.name}
+              <span className="text-base leading-none">
+                {agent.display_name || agent.name}
+              </span>
             </Tag>
           ))}
         </div>

@@ -16,7 +16,6 @@ router = APIRouter(prefix="/config")
 # Get logger instance
 logger = logging.getLogger("config_sync_app")
 
-
 def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id: int, tenant_config_dict: dict) -> None:
     """
     Handle model configuration updates, deletions, and settings operations
@@ -52,6 +51,7 @@ def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id:
 async def save_config(config: GlobalConfig, authorization: Optional[str] = Header(None)):
     try:
         user_id, tenant_id = get_current_user_id(authorization)
+        logger.info(f"Start to save config, user_id: {user_id}, tenant_id: {tenant_id}")
         config_dict = config.model_dump(exclude_none=False)
         env_config = {}
 
@@ -127,7 +127,7 @@ async def load_config(authorization: Optional[str] = Header(None), request: Requ
         # Build configuration object
         # TODO: Clean up the default values
         user_id, tenant_id, language = get_current_user_info(authorization, request)
-        
+
         llm_model_name = tenant_config_manager.get_model_config("LLM_ID", tenant_id=tenant_id)
         llm_secondary_model_name = tenant_config_manager.get_model_config("LLM_SECONDARY_ID", tenant_id=tenant_id)
         embedding_model_name = tenant_config_manager.get_model_config("EMBEDDING_ID", tenant_id=tenant_id)

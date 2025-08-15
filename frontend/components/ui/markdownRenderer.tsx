@@ -31,7 +31,7 @@ const getBackgroundColor = (toolSign: string) => {
     case 'e': return '#FFEBEE'; // Light red
     default: return '#E5E5E5'; // Default light gray
   }
-}
+};
 
 // Replace the original LinkIcon component
 const CitationBadge = ({ toolSign, citeIndex }: { toolSign: string, citeIndex: number }) => (
@@ -68,7 +68,7 @@ const HoverableText = ({ text, searchResults }: {
   searchResults?: SearchResult[]
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
-  const containerRef = React.useRef<HTMLDivElement>(null);
+  const containerRef = React.useRef<HTMLSpanElement>(null);
   const tooltipRef = React.useRef<HTMLDivElement>(null);
   const mousePositionRef = React.useRef({ x: 0, y: 0 });
 
@@ -84,9 +84,9 @@ const HoverableText = ({ text, searchResults }: {
       .replace(/^\s+|\s+$/g, '');  // Remove leading and trailing whitespace
   };
 
-  // Find corresponding search result - simplified for numeric-only format
+  // Find corresponding search result
   const toolSign = text.charAt(0);
-  const citeIndex = parseInt(text.slice(1))
+  const citeIndex = parseInt(text.slice(1));
   const matchedResult = searchResults?.find(
     result => result.tool_sign === toolSign && result.cite_index === citeIndex
   );
@@ -205,14 +205,14 @@ const HoverableText = ({ text, searchResults }: {
   return (
     <TooltipProvider>
       <Tooltip open={isOpen}>
-        <div
+        <span
           ref={containerRef}
           className="inline-flex items-center relative"
           style={{ zIndex: isOpen ? 1000 : 'auto' }}
         >
           <TooltipTrigger asChild>
             <span className="inline-flex items-center cursor-pointer transition-colors">
-                <CitationBadge toolSign={toolSign} citeIndex={citeIndex} />
+              <CitationBadge toolSign={toolSign} citeIndex={citeIndex} />
             </span>
           </TooltipTrigger>
           {/* Force Portal to body */}
@@ -289,7 +289,7 @@ const HoverableText = ({ text, searchResults }: {
               </div>
             </TooltipContent>
           </TooltipPrimitive.Portal>
-        </div>
+        </span>
       </Tooltip>
     </TooltipProvider>
   );

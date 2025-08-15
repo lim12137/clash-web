@@ -22,7 +22,7 @@ RUN if [ -n "$MIRROR" ]; then npm config set registry "$MIRROR"; fi && \
     "start": "NODE_ENV=production HOSTNAME=localhost node server.js"\
   },\
   "dependencies": {\
-    "next": "14.2.5",\
+    "next": "15.4.5",\
     "react": "18.2.0",\
     "react-dom": "18.2.0",\
     "http-proxy": "^1.18.1",\
@@ -39,10 +39,14 @@ RUN if [ -n "$MIRROR" ]; then npm config set registry "$MIRROR"; fi && \
 
 # Production stage
 FROM node:20-alpine
+ARG APK_MIRROR
 LABEL authors="nexent"
 
-RUN echo "https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/main" > /etc/apk/repositories && \
-    echo "https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/community" >> /etc/apk/repositories && \
+# Configure Alpine mirrors if specified
+RUN if [ "$APK_MIRROR" = "tsinghua" ]; then \
+        echo "https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/main" > /etc/apk/repositories && \
+        echo "https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/community" >> /etc/apk/repositories; \
+    fi && \
     apk add --no-cache curl
 
 WORKDIR /opt/frontend-dist

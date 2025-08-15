@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { message, Modal } from 'antd'
+import { Modal, App } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { TFunction } from 'i18next'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -76,6 +76,8 @@ export default function BusinessLogicConfig({
   setAgentName,
   agentDescription,
   setAgentDescription,
+  agentDisplayName,
+  setAgentDisplayName,
   // Add new prop for generating agent state
   isGeneratingAgent = false,
   // SystemPromptDisplay related props
@@ -94,26 +96,11 @@ export default function BusinessLogicConfig({
   editingAgent: editingAgentFromParent,
   onExitCreation
 }: BusinessLogicConfigProps) {
-  console.log('BusinessLogicConfig props received:', { agentName, agentDescription, setAgentName: !!setAgentName, setAgentDescription: !!setAgentDescription });
 
   const [enabledToolIds, setEnabledToolIds] = useState<number[]>([]);
   const [isLoadingTools, setIsLoadingTools] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   // Use generation state passed from parent component, not local state
-  // const [localIsGenerating, setLocalIsGenerating] = useState(false)
-  
-  const [generationProgress, setGenerationProgress] = useState({
-    duty: false,
-    constraint: false,
-    few_shots: false
-  })
-  
-  // Use refs to keep track of the content of the current prompt.
-  const currentPromptRef = useRef({
-    duty: '',
-    constraint: '',
-    few_shots: ''
-  })
   
   // Delete confirmation popup status
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -124,6 +111,7 @@ export default function BusinessLogicConfig({
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
 
   const { t } = useTranslation('common');
+  const { message } = App.useApp();
 
   // Common refresh agent list function, moved to the front to avoid hoisting issues
   const refreshAgentList = async (t: TFunction) => {
@@ -188,78 +176,6 @@ export default function BusinessLogicConfig({
     setEnabledAgentIds(newEnabledAgentIds);
   };
 
-  const handleAgentSelectAndLoadDetail = async (agent: Agent, isSelected: boolean) => {
-    if (agent.is_available === false && isSelected) {
-      message.error(t('agent.error.disabledAgent'));
-      return;
-    }
-
-    if (isSelected) {
-      // Load detailed agent configuration when selected
-      try {
-        const result = await fetchAgentDetail(Number(agent.id));
-        if (result.success && result.data) {
-          const agentDetail = result.data;
-
-          // Update all related states with detailed configuration
-          setMainAgentId(agentDetail.id);
-          setMainAgentModel(agentDetail.model as OpenAIModel);
-          setMainAgentMaxStep(agentDetail.max_step);
-          setBusinessLogic(agentDetail.business_description || '');
-
-          // Set agent name and description
-          setAgentName?.(agentDetail.name || '');
-          setAgentDescription?.(agentDetail.description || '');
-
-          // Load the segmented prompt content
-          setDutyContent?.(agentDetail.duty_prompt || '');
-          setConstraintContent?.(agentDetail.constraint_prompt || '');
-          setFewShotsContent?.(agentDetail.few_shots_prompt || '');
-
-          // Load agent tools
-          if (agentDetail.tools && agentDetail.tools.length > 0) {
-            setSelectedTools(agentDetail.tools);
-            const toolIds = agentDetail.tools.map((tool: any) => Number(tool.id));
-            setEnabledToolIds(toolIds);
-          } else {
-            setSelectedTools([]);
-            setEnabledToolIds([]);
-          }
-
-          // Update selected agents list
-          setSelectedAgents([agentDetail]);
-          // Use backend returned sub_agent_id_list to set enabledAgentIds
-          if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
-            setEnabledAgentIds(agentDetail.sub_agent_id_list.map((id: any) => Number(id)));
-          } else {
-            setEnabledAgentIds([]);
-          }
-
-          message.success(t('businessLogic.config.message.agentDetailLoaded'));
-        } else {
-          message.error(result.message || t('businessLogic.config.error.agentDetailFailed'));
-        }
-      } catch (error) {
-        console.error('Failed to load agent details:', error);
-        message.error(t('businessLogic.config.error.agentDetailFailed'));
-      }
-    } else {
-      // Clear configuration when deselected
-      setSelectedAgents([]);
-      // Clear enabledAgentIds
-      setEnabledAgentIds([]);
-      setSelectedTools([]);
-      setEnabledToolIds([]);
-      setMainAgentId(null);
-      setBusinessLogic('');
-      setDutyContent?.('');
-      setConstraintContent?.('');
-      setFewShotsContent?.('');
-      // Clear agent name and description
-      setAgentName?.('');
-      setAgentDescription?.('');
-    }
-  };
 
   const fetchSubAgentIdAndEnableToolList = async (t: TFunction) => {
     setIsLoadingTools(true);
@@ -465,7 +381,8 @@ export default function BusinessLogicConfig({
             business_description,
             dutyContent,
             constraintContent,
-            fewShotsContent
+            fewShotsContent,
+            agentDisplayName
           );
         } else {
           result = await updateAgent(
@@ -479,7 +396,8 @@ export default function BusinessLogicConfig({
             business_description,
             dutyContent,
             constraintContent,
-            fewShotsContent
+            fewShotsContent,
+            agentDisplayName
           );
         }
 
@@ -573,13 +491,12 @@ export default function BusinessLogicConfig({
       setIsCreatingNewAgent(false);
 
       // First set right-side name description box data to ensure immediate display
-      console.log('Setting agent name and description in handleEditAgent:', agentDetail.name, agentDetail.description);
       console.log('setAgentName function exists:', !!setAgentName);
       console.log('setAgentDescription function exists:', !!setAgentDescription);
 
       setAgentName?.(agentDetail.name || '');
       setAgentDescription?.(agentDetail.description || '');
-      console.log('setAgentName and setAgentDescription called');
+      setAgentDisplayName?.(agentDetail.display_name || '');
 
       // Notify external editing state change (use complete data)
       onEditingStateChange?.(true, agentDetail);
@@ -656,10 +573,6 @@ export default function BusinessLogicConfig({
 
   // Handle importing agent
   const handleImportAgent = (t: TFunction) => {
-    if (!mainAgentId) {
-      message.error(t('businessLogic.config.error.noAgentId'));
-      return;
-    }
 
     // Create a hidden file input element
     const fileInput = document.createElement('input');
@@ -690,7 +603,7 @@ export default function BusinessLogicConfig({
         }
 
         // Call import API
-        const result = await importAgent(mainAgentId, agentInfo);
+        const result = await importAgent(agentInfo);
 
         if (result.success) {
           message.success(t('businessLogic.config.error.agentImportSuccess'));
@@ -923,6 +836,8 @@ export default function BusinessLogicConfig({
               agentDescription={agentDescription}
               onAgentNameChange={setAgentName}
               onAgentDescriptionChange={setAgentDescription}
+              agentDisplayName={agentDisplayName}
+              onAgentDisplayNameChange={setAgentDisplayName}
               isEditingMode={isEditingAgent || isCreatingNewAgent}
               mainAgentModel={mainAgentModel}
               mainAgentMaxStep={mainAgentMaxStep}

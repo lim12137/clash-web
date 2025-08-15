@@ -98,6 +98,14 @@ def delete_model_record(model_id, user_id, tenant_id):
     # This will be mocked in tests
     pass
 
+def update_model_record(model_id, model_data, user_id):
+    # This will be mocked in tests
+    pass
+
+def split_display_name(model_name):
+    # This will be mocked in tests
+    return model_name
+
 # Mock health check functions
 async def check_model_connectivity(display_name, auth_header):
     # This will be mocked in tests
@@ -170,6 +178,37 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
             "data": None
         }
 
+@router.post("/update_single_model", response_model=ModelResponse)
+async def update_single_model(request: dict, authorization: Optional[str] = Header(None)):
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        model_data = request
+        if not model_data.get("display_name"):
+            model_data["display_name"] = split_display_name(model_data["model_name"])
+            # Check if display_name conflicts
+            existing_model_by_display = get_model_by_display_name(model_data["display_name"], tenant_id)
+            if existing_model_by_display and existing_model_by_display["model_id"] != model_data["model_id"]:
+                return ModelResponse(
+                    code=409,
+                    message=f"Name {model_data['display_name']} is already in use, please choose another display name",
+                    data=None
+                )
+        model_repo, model_name = split_repo_name(model_data["model_name"])
+        model_data["model_repo"] = model_repo
+        model_data["model_name"] = model_name
+        update_model_record(model_data["model_id"], model_data, user_id)
+        return ModelResponse(
+            code=200,
+            message=f"Model {model_data['model_name']} updated successfully",
+            data=None
+        )
+    except Exception as e:
+        return ModelResponse(
+            code=500,
+            message=f"Failed to update model: {str(e)}",
+            data=None
+        )
+
 @router.post("/batch_create_models", response_model=ModelResponse)
 @pytest.mark.asyncio
 async def batch_create_models(request: BatchCreateModelsRequest, authorization: Optional[str] = Header(None)):
@@ -238,18 +277,6 @@ async def create_provider_model(request: ProviderModelRequest, authorization: Op
             message=f"Failed to create provider model: {str(e)}",
             data=None
         )
-
-@router.post("/update", response_model=None)
-def update_model(request: ModelRequest, authorization: Optional[str] = Header(None)):
-    # 返回错误响应并设置正确的HTTP状态码
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "code": 500,
-            "message": "Not implemented",
-            "data": None
-        }
-    )
 
 @router.post("/delete", response_model=None)
 @pytest.mark.asyncio
@@ -366,6 +393,177 @@ async def get_provider_list(request: dict, authorization: Optional[str] = Header
 app = FastAPI()
 app.include_router(router)
 client = TestClient(app)
+
+# Remove direct top-level import of backend router to avoid side-effects on import
+# and provide a safe builder that stubs S3 before importing the backend module.
+import sys
+import importlib
+from typing import Tuple
+
+def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
+    class _FakeS3Client:
+        def head_bucket(self, Bucket=None, **kwargs):
+            return None
+        def create_bucket(self, Bucket=None, **kwargs):
+            return None
+        def upload_file(self, *args, **kwargs):
+            return None
+        def upload_fileobj(self, *args, **kwargs):
+            return None
+        def download_file(self, *args, **kwargs):
+            return None
+        def generate_presigned_url(self, *args, **kwargs):
+            return "http://example.com"
+        def head_object(self, *args, **kwargs):
+            return {"ContentLength": "0"}
+        def list_objects_v2(self, *args, **kwargs):
+            return {}
+        def delete_object(self, *args, **kwargs):
+            return None
+        def get_object(self, *args, **kwargs):
+            return {"Body": b""}
+
+    def _fake_boto3_client(service_name, *args, **kwargs):
+        return _FakeS3Client()
+
+    with patch("boto3.client", new=_fake_boto3_client):
+        # Ensure modules are not already imported to avoid side-effects before patching
+        for m in [
+            "backend.apps.model_managment_app",
+            "backend.database.model_management_db",
+            "backend.database.client",
+        ]:
+            if m in sys.modules:
+                del sys.modules[m]
+
+        # Inject stub modules required by backend.apps.model_managment_app
+        import types as _types
+        from enum import Enum as _Enum
+        from pydantic import BaseModel as _BaseModel
+
+        # consts.model
+        consts_mod = _types.ModuleType("consts")
+        consts_model_mod = _types.ModuleType("consts.model")
+        class _ModelConnectStatusEnum(_Enum):
+            OPERATIONAL = "operational"
+            NOT_DETECTED = "not_detected"
+            UNAVAILABLE = "unavailable"
+            @staticmethod
+            def get_value(status):
+                return status or _ModelConnectStatusEnum.NOT_DETECTED.value
+        class _ModelResponse(_BaseModel):
+            code: int
+            message: str
+            data: Optional[Any] = None
+        class _ModelRequest(_BaseModel):
+            model_name: str
+            display_name: Optional[str] = None
+            base_url: Optional[str] = None
+            api_key: Optional[str] = None
+            model_type: str
+            provider: str
+            connect_status: Optional[str] = None
+        class _BatchCreateModelsRequest(_BaseModel):
+            models: List[Dict[str, Any]]
+            api_key: Optional[str] = None
+            max_tokens: Optional[int] = None
+            provider: str
+            type: str
+        class _ProviderModelRequest(_BaseModel):
+            provider: str
+            model_type: Optional[str] = None
+            api_key: Optional[str] = None
+        consts_model_mod.ModelConnectStatusEnum = _ModelConnectStatusEnum
+        consts_model_mod.ModelResponse = _ModelResponse
+        consts_model_mod.ModelRequest = _ModelRequest
+        consts_model_mod.BatchCreateModelsRequest = _BatchCreateModelsRequest
+        consts_model_mod.ProviderModelRequest = _ProviderModelRequest
+
+        # consts.provider
+        consts_provider_mod = _types.ModuleType("consts.provider")
+        class _ProviderEnum(_Enum):
+            SILICON = "silicon"
+        consts_provider_mod.ProviderEnum = _ProviderEnum
+        consts_provider_mod.SILICON_BASE_URL = "http://silicon.test"
+
+        sys.modules["consts"] = consts_mod
+        sys.modules["consts.model"] = consts_model_mod
+        sys.modules["consts.provider"] = consts_provider_mod
+
+        # database.model_management_db
+        database_mod = _types.ModuleType("database")
+        database_mm_mod = _types.ModuleType("database.model_management_db")
+        def _noop(*args, **kwargs):
+            return None
+        def _get_model_records(*args, **kwargs):
+            return []
+        def _get_model_by_name(*args, **kwargs):
+            return None
+        database_mm_mod.create_model_record = _noop
+        database_mm_mod.delete_model_record = _noop
+        database_mm_mod.get_model_records = _get_model_records
+        database_mm_mod.get_model_by_display_name = _noop
+        database_mm_mod.get_models_by_tenant_factory_type = _get_model_records
+        database_mm_mod.update_model_record = _noop
+        database_mm_mod.get_model_by_name = _get_model_by_name
+        sys.modules["database"] = database_mod
+        sys.modules["database.model_management_db"] = database_mm_mod
+
+        # services.model_health_service
+        services_mod = _types.ModuleType("services")
+        services_health_mod = _types.ModuleType("services.model_health_service")
+        async def _check_model_connectivity(*args, **kwargs):
+            return {"code": 200, "message": "OK", "data": {}}
+        async def _embedding_dimension_check(model_data):
+            return 0
+        async def _verify_model_config_connectivity(*args, **kwargs):
+            return {"code": 200, "message": "OK", "data": {"connectivity": True}}
+        services_health_mod.check_model_connectivity = _check_model_connectivity
+        services_health_mod.embedding_dimension_check = _embedding_dimension_check
+        services_health_mod.verify_model_config_connectivity = _verify_model_config_connectivity
+
+        # services.model_provider_service
+        services_provider_mod = _types.ModuleType("services.model_provider_service")
+        class _SiliconModelProvider:
+            async def get_models(self, model_data):
+                return []
+        async def _prepare_model_dict(**kwargs):
+            return {}
+        services_provider_mod.SiliconModelProvider = _SiliconModelProvider
+        services_provider_mod.prepare_model_dict = _prepare_model_dict
+
+        sys.modules["services"] = services_mod
+        sys.modules["services.model_health_service"] = services_health_mod
+        sys.modules["services.model_provider_service"] = services_provider_mod
+
+        # utils.auth_utils and utils.model_name_utils
+        utils_mod = _types.ModuleType("utils")
+        utils_auth_mod = _types.ModuleType("utils.auth_utils")
+        utils_name_mod = _types.ModuleType("utils.model_name_utils")
+        def _get_current_user_id(auth_header):
+            return ("default_user_id", "default_tenant_id")
+        def _split_repo_name(model_name: str):
+            parts = model_name.split("/", 1)
+            if len(parts) > 1:
+                return parts[0], parts[1]
+            return "", parts[0]
+        def _add_repo_to_name(model_repo, model_name):
+            return f"{model_repo}/{model_name}" if model_repo else model_name
+        def _split_display_name(model_name):
+            return model_name.split("/")[-1]
+        utils_auth_mod.get_current_user_id = _get_current_user_id
+        utils_name_mod.split_repo_name = _split_repo_name
+        utils_name_mod.add_repo_to_name = _add_repo_to_name
+        utils_name_mod.split_display_name = _split_display_name
+        sys.modules["utils"] = utils_mod
+        sys.modules["utils.auth_utils"] = utils_auth_mod
+        sys.modules["utils.model_name_utils"] = utils_name_mod
+
+        backend_model_app = importlib.import_module("backend.apps.model_managment_app")
+        backend_app = FastAPI()
+        backend_app.include_router(backend_model_app.router)
+        backend_client_local = TestClient(backend_app)
+        return backend_client_local, backend_model_app
 
 # Create unit tests
 class TestModelManagementApp(unittest.TestCase):
@@ -537,13 +735,28 @@ class TestModelManagementApp(unittest.TestCase):
         self.assertEqual(data["code"], 500)
         self.assertIn("Failed to create provider model: Silicon API error", data["message"])
 
-    def test_update_model_not_implemented(self):
-        # Send request
-        response = client.post("/model/update", json=self.model_data, headers=self.auth_header)
+    def test_create_provider_model_silicon_success_backend_sorted(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        with patch.object(backend_model_app.SiliconModelProvider, "get_models", new=AsyncMock(return_value=[{"id": "b2"}, {"id": "A1"}, {"id": "a0"}, {"id": "c3"}])) as mock_get:
+            request_data = {"provider": "silicon", "api_key": "test_key"}
+            response = backend_client_local.post("/model/create_provider", json=request_data, headers=self.auth_header)
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data["code"], 200)
+            self.assertIn("Provider model silicon created successfully", data["message"])
+            self.assertEqual([m["id"] for m in data["data"]], ["A1", "a0", "b2", "c3"])
+            mock_get.assert_called_once()
 
-        # Assert response
-        self.assertEqual(response.status_code, 500)
-        self.assertIn("Not implemented", response.text)
+    def test_create_provider_model_exception_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        with patch.object(backend_model_app.SiliconModelProvider, "get_models", new=AsyncMock(side_effect=Exception("Silicon API error"))) as mock_get:
+            request_data = {"provider": "silicon", "api_key": "test_key"}
+            response = backend_client_local.post("/model/create_provider", json=request_data, headers=self.auth_header)
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data["code"], 500)
+            self.assertIn("Failed to create provider model: Silicon API error", data["message"])
+            mock_get.assert_called_once()
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_model_by_display_name")
@@ -791,6 +1004,191 @@ class TestModelManagementApp(unittest.TestCase):
         data = response.json()
         self.assertEqual(data["code"], 500)
         self.assertIn("Failed to get provider list", data["message"])
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_success(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Test Model"
+        mock_get_by_display.return_value = None
+
+        # Prepare update request data
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "display_name": "Updated Test Model",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("updated successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        
+        # The endpoint modifies the data by splitting model_name and adding model_repo
+        # So we need to verify the actual modified data that gets passed to update_model_record
+        expected_data = update_data.copy()
+        expected_data["model_repo"] = "huggingface"
+        expected_data["model_name"] = "llama"
+        
+        mock_update.assert_called_once_with("test_model_id", expected_data, self.user_id)
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_without_display_name(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Auto Generated Name"
+        mock_get_by_display.return_value = None
+
+        # Prepare update request data without display_name
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("updated successfully", data["message"])
+
+        # Verify mock calls
+        mock_split_display.assert_called_once_with("huggingface/llama")
+        mock_get_by_display.assert_called_once_with("Auto Generated Name", self.tenant_id)
+        mock_update.assert_called_once()
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.split_display_name")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    def test_update_single_model_display_name_conflict(self, mock_get_by_display, mock_split_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_split_display.return_value = "Conflicting Name"
+        mock_get_by_display.return_value = {
+            "model_id": "other_model_id",
+            "display_name": "Conflicting Name"
+        }
+
+        # Prepare update request data
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 409)
+        self.assertIn("already in use", data["message"])
+
+        # Verify mock calls
+        mock_split_display.assert_called_once_with("huggingface/llama")
+        mock_get_by_display.assert_called_once_with("Conflicting Name", self.tenant_id)
+
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_exception(self, mock_update, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_update.side_effect = Exception("Database update error")
+
+        # Prepare update request data
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "display_name": "Test Model",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 500)
+        self.assertIn("Failed to update model: Database update error", data["message"])
+
+        # Verify mock calls
+        mock_update.assert_called_once()
+
+    def test_batch_update_models_success_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "update_model_record") as mock_update:
+                models = [
+                    {"model_id": "id1", "api_key": "k1", "max_tokens": 100},
+                    {"model_id": "id2", "api_key": "k2", "max_tokens": 200},
+                ]
+                response = backend_client_local.post("/model/batch_update_models", json=models, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(data["code"], 200)
+                self.assertIn("Batch update models successfully", data["message"])
+                self.assertEqual(mock_update.call_count, 2)
+                mock_update.assert_any_call("id1", models[0], self.user_id)
+                mock_update.assert_any_call("id2", models[1], self.user_id)
+
+    def test_batch_update_models_exception_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "update_model_record", side_effect=Exception("Update failed")) as mock_update:
+                models = [
+                    {"model_id": "id1", "api_key": "k1"}
+                ]
+                response = backend_client_local.post("/model/batch_update_models", json=models, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(data["code"], 500)
+                self.assertIn("Failed to batch update models: Update failed", data["message"]) 
+
+
+    def test_batch_update_models_empty_list_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)) as mock_get_user:
+            with patch.object(backend_model_app, "update_model_record") as mock_update:
+                models = []
+                response = backend_client_local.post("/model/batch_update_models", json=models, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(data["code"], 200)
+                self.assertIn("Batch update models successfully", data["message"]) 
+                mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+                mock_update.assert_not_called()
 
 
 if __name__ == "__main__":

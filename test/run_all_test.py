@@ -360,8 +360,15 @@ def run_tests():
                 logger.error("3. Try running tests with absolute imports instead of relative imports")
                 logger.error("4. Add a .coveragerc file with [paths] section to map source paths")
     
-    print("\nAll tests completed")
-    return True
+
+    
+    # Return appropriate exit code based on test results
+    if failed_tests > 0:
+        logger.error(f"\n❌ Test run failed: {failed_tests} tests failed out of {total_tests}")
+        return False
+    else:
+        logger.info(f"\n✅ Test run successful: {passed_tests} tests passed")
+        return True
 
 
 def generate_error_report(test_results):
@@ -429,4 +436,5 @@ def generate_error_report(test_results):
 
 
 if __name__ == "__main__":
-    run_tests()
+    success = run_tests()
+    sys.exit(0 if success else 1)

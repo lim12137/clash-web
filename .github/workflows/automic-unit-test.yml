@@ -37,12 +37,21 @@ jobs:
       - name: Run all tests and collect coverage
         run: |
           source backend/.venv/bin/activate && python test/run_all_test.py
+          TEST_EXIT_CODE=$?
 
           if [ -f "test/coverage.xml" ]; then
             echo "✅ Coverage XML file generated successfully."
           else
             echo "❌ Coverage XML file not found."
             exit 1
+          fi
+
+          # Check if tests actually passed
+          if [ $TEST_EXIT_CODE -ne 0 ]; then
+            echo "❌ Tests failed with exit code $TEST_EXIT_CODE"
+            exit $TEST_EXIT_CODE
+          else
+            echo "✅ All tests passed successfully."
           fi
 
       - name: Upload coverage to Codecov

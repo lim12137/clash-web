@@ -10,6 +10,7 @@ import { getUrlParam } from '@/lib/utils'
 interface Agent {
   agent_id: number
   name: string
+  display_name: string
   description: string
   is_available: boolean
 }
@@ -217,7 +218,7 @@ export function AgentSelector({ selectedAgentId, onAgentSelect, disabled = false
                 </div>
               )
               : selectedAgent 
-                ? selectedAgent.name 
+                ? selectedAgent.display_name 
                 : t('agentSelector.selectAgent')
             }
           </span>
@@ -315,7 +316,12 @@ export function AgentSelector({ selectedAgentId, onAgentSelect, disabled = false
                             : 'text-slate-700 hover:text-slate-900'
                           : 'text-slate-400'
                       }`}>
-                        {agent.name}
+                        {agent.display_name && (
+                          <span className="text-base leading-none">{agent.display_name}</span>
+                        )}
+                        <span className={`text-sm leading-none align-baseline ${agent.display_name ? 'ml-2' : 'text-base'}`}>
+                          {agent.name}
+                        </span>
                       </div>
                       <div className={`text-xs mt-1 leading-relaxed ${
                         agent.is_available 

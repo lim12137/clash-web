@@ -1,46 +1,14 @@
+from threading import Event
 from typing import List
 
-from threading import Event
-from smolagents import ActionStep, TaskStep, AgentText, handle_agent_output_types
+from smolagents import ActionStep, AgentText, TaskStep, handle_agent_output_types
 from smolagents.tools import Tool
-from ..utils.observer import ProcessType
-from .agent_model import ModelConfig, ToolConfig, AgentConfig, AgentHistory
-from ..utils.observer import MessageObserver
+
 from ..models.openai_llm import OpenAIModel
-from ..models.openai_deep_thinking_llm import OpenAIDeepThinkingModel
-from .core_agent import CoreAgent, convert_code_format
 from ..tools import *  # Used for tool creation, do not delete!!!
-
-
-class ModelFactory:
-    """Model factory class responsible for creating different types of models"""
-
-    @staticmethod
-    def create_model(model_config: ModelConfig, observer: MessageObserver, stop_event: Event) -> OpenAIModel:
-        """
-        Create a model instance based on configuration
-        
-        Args:
-            model_config: Model configuration
-            observer: Observer instance
-            stop_event: Stop event
-            
-        Returns:
-            OpenAIModel: Created model instance
-        """
-        base_params = {
-            "observer": observer,
-            "model_id": model_config.model_name,
-            "api_key": model_config.api_key,
-            "api_base": model_config.url,
-            "temperature": model_config.temperature,
-            "top_p": model_config.top_p
-        }
-
-        model_class = OpenAIDeepThinkingModel if model_config.is_deep_thinking else OpenAIModel
-        model = model_class(**base_params)
-        model.stop_event = stop_event
-        return model
+from ..utils.observer import MessageObserver, ProcessType
+from .agent_model import AgentConfig, AgentHistory, ModelConfig, ToolConfig
+from .core_agent import CoreAgent, convert_code_format
 
 
 class NexentAgent:
@@ -76,7 +44,17 @@ class NexentAgent:
         )
         if model_config is None:
             raise ValueError(f"Model {model_cite_name} not found")
-        return ModelFactory.create_model(model_config, self.observer, self.stop_event)
+        model = OpenAIModel(
+            observer=self.observer,
+            model_id=model_config.model_name,
+            api_key=model_config.api_key,
+            api_base=model_config.url,
+            temperature=model_config.temperature,
+            top_p=model_config.top_p
+        )
+        model.stop_event = self.stop_event
+        return model
+
 
     def create_local_tool(self, tool_config: ToolConfig):
         class_name = tool_config.class_name
