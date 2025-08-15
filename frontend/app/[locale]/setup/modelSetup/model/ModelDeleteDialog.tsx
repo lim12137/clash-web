@@ -351,7 +351,7 @@ export const ModelDeleteDialog = ({
                     pendingSelectedProviderIds.has(pm.id)
                   )
 
-                  if (allEnabledModels.length > 0) {
+                  if (allEnabledModels) {
                     const apiKey = getApiKeyByType(deletingModelType)
                     // Pass all currently enabled models
                     await modelService.addBatchCustomModel({
