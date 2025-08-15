@@ -253,10 +253,8 @@ class TestMessageObserver:
     def test_observer_constants(self):
         """Test that buffer size constants are properly defined"""
         observer = MessageObserver()
-        assert hasattr(observer, 'MAX_THINK_BUFFER_SIZE')
-        assert hasattr(observer, 'MAX_TOKEN_BUFFER_SIZE')
-        assert observer.MAX_THINK_BUFFER_SIZE == 10
-        assert observer.MAX_TOKEN_BUFFER_SIZE == 5
+        assert hasattr(MessageObserver, 'MAX_TOKEN_BUFFER_SIZE')
+        assert MessageObserver.MAX_TOKEN_BUFFER_SIZE == 10
 
     def test_add_message(self):
         """Test add_message method with different process types"""
@@ -414,16 +412,17 @@ class TestMessageObserverTokenProcessing:
         """Test add_model_new_token with buffer overflow handling"""
         observer = MessageObserver()
 
-        # Add more tokens than MAX_THINK_BUFFER_SIZE
-        for i in range(15):
+        # Add more tokens than MAX_TOKEN_BUFFER_SIZE to trigger overflow
+        for i in range(25):  # Need more tokens to fill both think_buffer and token_buffer
             observer.add_model_new_token(f"token{i}")
 
         # Should trigger buffer overflow handling
         cached_messages = observer.get_cached_message()
         assert len(cached_messages) > 0
 
-        # Check that buffer was managed
-        assert len(observer.think_buffer) <= observer.MAX_THINK_BUFFER_SIZE
+        # Check that buffers were managed
+        assert len(observer.think_buffer) <= observer.MAX_TOKEN_BUFFER_SIZE
+        assert len(observer.token_buffer) <= observer.MAX_TOKEN_BUFFER_SIZE
 
     def test_process_normal_content_code_detection(self):
         """Test _process_normal_content with code block detection"""

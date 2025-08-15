@@ -116,6 +116,7 @@ export const API_ENDPOINTS = {
     delete: `${API_BASE_URL}/mcp`,
     list: `${API_BASE_URL}/mcp/list`,
     recover: `${API_BASE_URL}/mcp/recover`,
+    healthcheck: `${API_BASE_URL}/mcp/healthcheck`,
   },
   memory: {
     // ---------------- Memory configuration ----------------
@@ -202,13 +203,6 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
 function handleSessionExpired() {
   // 防止重复触发
   if (window.__isHandlingSessionExpired) {
-    return;
-  }
-
-  // 修复：在首页不触发会话过期事件
-  const currentPath = window.location.pathname;
-  if (currentPath === '/' || currentPath.startsWith('/?') || 
-      currentPath.startsWith('/zh') || currentPath.startsWith('/en')) {
     return;
   }
 
