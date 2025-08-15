@@ -735,6 +735,28 @@ class TestModelManagementApp(unittest.TestCase):
         self.assertEqual(data["code"], 500)
         self.assertIn("Failed to create provider model: Silicon API error", data["message"])
 
+    def test_create_provider_model_silicon_success_backend_sorted(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        with patch.object(backend_model_app.SiliconModelProvider, "get_models", new=AsyncMock(return_value=[{"id": "b2"}, {"id": "A1"}, {"id": "a0"}, {"id": "c3"}])) as mock_get:
+            request_data = {"provider": "silicon", "api_key": "test_key"}
+            response = backend_client_local.post("/model/create_provider", json=request_data, headers=self.auth_header)
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data["code"], 200)
+            self.assertIn("Provider model silicon created successfully", data["message"])
+            self.assertEqual([m["id"] for m in data["data"]], ["A1", "a0", "b2", "c3"])
+            mock_get.assert_called_once()
+
+    def test_create_provider_model_exception_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        with patch.object(backend_model_app.SiliconModelProvider, "get_models", new=AsyncMock(side_effect=Exception("Silicon API error"))) as mock_get:
+            request_data = {"provider": "silicon", "api_key": "test_key"}
+            response = backend_client_local.post("/model/create_provider", json=request_data, headers=self.auth_header)
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data["code"], 500)
+            self.assertIn("Failed to create provider model: Silicon API error", data["message"])
+            mock_get.assert_called_once()
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_model_by_display_name")
