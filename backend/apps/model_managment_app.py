@@ -90,23 +90,26 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
 
 @router.post("/create_provider", response_model=ModelResponse)
 async def create_provider_model(request: ProviderModelRequest, authorization: Optional[str] = Header(None)):
-    try:
-        model_data = request.model_dump()
-        model_list=[]
-        if model_data["provider"] == ProviderEnum.SILICON.value:
-            provider = SiliconModelProvider()
-            model_list = await provider.get_models(model_data)
-        return ModelResponse(
-            code=200,
-            message=f"Provider model {model_data['provider']} created successfully",
-            data=model_list
-        )
-    except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Failed to create provider model: {str(e)}",
-            data=None
-        )
+	try:
+		model_data = request.model_dump()
+		model_list=[]
+		if model_data["provider"] == ProviderEnum.SILICON.value:
+			provider = SiliconModelProvider()
+			model_list = await provider.get_models(model_data)
+		# Sort by the first letter of id in descending order
+		if isinstance(model_list, list):
+			model_list.sort(key=lambda m: str((m.get("id") if isinstance(m, dict) else m) or "")[:1].lower(), reverse=False)
+		return ModelResponse(
+			code=200,
+			message=f"Provider model {model_data['provider']} created successfully",
+			data=model_list
+		)
+	except Exception as e:
+		return ModelResponse(
+			code=500,
+			message=f"Failed to create provider model: {str(e)}",
+			data=None
+		)
 
 
 @router.post("/batch_create_models", response_model=ModelResponse)
