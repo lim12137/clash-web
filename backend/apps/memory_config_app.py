@@ -76,8 +76,6 @@ def set_single_config(
 ):
     """Unified endpoint to set single-value configuration items."""
     user_id, _ = get_current_user_id(authorization)
-    if user_id == _c.DEFAULT_USER_ID:
-        return _error("Unauthorized or invalid token")
     ok: bool = False
 
     if key == MEMORY_SWITCH_KEY:
@@ -100,8 +98,6 @@ def add_disable_agent(
     authorization: Optional[str] = Header(None),
 ):
     user_id, _ = get_current_user_id(authorization)
-    if user_id == _c.DEFAULT_USER_ID:
-        return _error("Unauthorized or invalid token")
     ok = add_disabled_agent_id(user_id, agent_id)
     return _success() if ok else _error("Failed to add disable agent id")
 
@@ -112,8 +108,6 @@ def remove_disable_agent(
     authorization: Optional[str] = Header(None),
 ):
     user_id, _ = get_current_user_id(authorization)
-    if user_id == _c.DEFAULT_USER_ID:
-        return _error("Unauthorized or invalid token")
     ok = remove_disabled_agent_id(user_id, agent_id)
     return _success() if ok else _error("Failed to remove disable agent id")
 
@@ -124,8 +118,6 @@ def add_disable_useragent(
     authorization: Optional[str] = Header(None),
 ):
     user_id, _ = get_current_user_id(authorization)
-    if user_id == _c.DEFAULT_USER_ID:
-        return _error("Unauthorized or invalid token")
     ok = add_disabled_useragent_id(user_id, agent_id)
     return _success() if ok else _error("Failed to add disable user-agent id")
 
@@ -136,8 +128,6 @@ def remove_disable_useragent(
     authorization: Optional[str] = Header(None),
 ):
     user_id, _ = get_current_user_id(authorization)
-    if user_id == _c.DEFAULT_USER_ID:
-        return _error("Unauthorized or invalid token")
     ok = remove_disabled_useragent_id(user_id, agent_id)
     return _success() if ok else _error("Failed to remove disable user-agent id")
 

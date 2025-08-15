@@ -168,7 +168,8 @@ class TestCreateToolConfigList:
                     "inputs": "string",
                     "output_type": "string",
                     "params": [{"name": "param1", "default": "value1"}],
-                    "source": "local"
+                    "source": "local",
+                    "usage": None
                 }
             ]
             mock_knowledge.return_value = []
@@ -177,7 +178,16 @@ class TestCreateToolConfigList:
             
             assert len(result) == 1
             # 验证ToolConfig被正确调用
-            mock_tool_config.assert_called_once()
+            mock_tool_config.assert_called_once_with(
+                class_name="TestTool",
+                name="test_tool",
+                description="A test tool",
+                inputs="string",
+                output_type="string",
+                params={"param1": "value1"},
+                source="local",
+                usage=None
+            )
 
     @pytest.mark.asyncio
     async def test_create_tool_config_list_with_knowledge_base_tool(self):
@@ -197,7 +207,8 @@ class TestCreateToolConfigList:
                     "inputs": "string",
                     "output_type": "string",
                     "params": [],
-                    "source": "local"
+                    "source": "local",
+                    "usage": None
                 }
             ]
             mock_knowledge.return_value = [
@@ -210,8 +221,10 @@ class TestCreateToolConfigList:
             result = await create_tool_config_list("agent_1", "tenant_1", "user_1")
             
             assert len(result) == 1
-            # 验证ToolConfig被正确调用
-            mock_tool_config.assert_called()
+            # 验证ToolConfig被正确调用，包含知识库元数据
+            # 检查最后一次调用是否是KnowledgeBaseSearchTool
+            last_call = mock_tool_config.call_args_list[-1]
+            assert last_call[1]['class_name'] == "KnowledgeBaseSearchTool"
 
 
 class TestCreateAgentConfig:
@@ -223,13 +236,11 @@ class TestCreateAgentConfig:
         with patch('backend.agents.create_agent_info.search_agent_info_by_agent_id') as mock_search_agent, \
              patch('backend.agents.create_agent_info.query_sub_agents_id_list') as mock_query_sub, \
              patch('backend.agents.create_agent_info.create_tool_config_list') as mock_create_tools, \
-             patch('backend.agents.create_agent_info.get_prompt_template_path') as mock_get_template_path, \
+             patch('backend.agents.create_agent_info.get_agent_prompt_template') as mock_get_template, \
              patch('backend.agents.create_agent_info.tenant_config_manager') as mock_tenant_config, \
              patch('backend.agents.create_agent_info.build_memory_context') as mock_build_memory, \
              patch('backend.agents.create_agent_info.search_memory_in_levels', new_callable=AsyncMock) as mock_search_memory, \
-             patch('backend.agents.create_agent_info.populate_template') as mock_populate, \
-             patch('builtins.open', mock_open(read_data='system_prompt: "test template"')), \
-             patch('yaml.safe_load') as mock_yaml_load, \
+             patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge, \
              patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates:
             
             # 设置mock返回值
@@ -245,7 +256,7 @@ class TestCreateAgentConfig:
             }
             mock_query_sub.return_value = []
             mock_create_tools.return_value = []
-            mock_get_template_path.return_value = "template_path"
+            mock_get_template.return_value = {"system_prompt": "{{duty}} {{constraint}} {{few_shots}}"}
             mock_tenant_config.get_app_config.side_effect = ["TestApp", "Test Description"]
             mock_build_memory.return_value = Mock(
                 user_config=Mock(memory_switch=False),
@@ -254,8 +265,7 @@ class TestCreateAgentConfig:
                 user_id="user_1",
                 agent_id="agent_1"
             )
-            mock_yaml_load.return_value = {"system_prompt": "test template"}
-            mock_populate.return_value = "populated_system_prompt"
+            mock_knowledge.return_value = []
             mock_prepare_templates.return_value = {"system_prompt": "populated_system_prompt"}
             
             result = await create_agent_config("agent_1", "tenant_1", "user_1", "zh", "test query")
@@ -278,13 +288,11 @@ class TestCreateAgentConfig:
         with patch('backend.agents.create_agent_info.search_agent_info_by_agent_id') as mock_search_agent, \
              patch('backend.agents.create_agent_info.query_sub_agents_id_list') as mock_query_sub, \
              patch('backend.agents.create_agent_info.create_tool_config_list') as mock_create_tools, \
-             patch('backend.agents.create_agent_info.get_prompt_template_path') as mock_get_template_path, \
+             patch('backend.agents.create_agent_info.get_agent_prompt_template') as mock_get_template, \
              patch('backend.agents.create_agent_info.tenant_config_manager') as mock_tenant_config, \
              patch('backend.agents.create_agent_info.build_memory_context') as mock_build_memory, \
              patch('backend.agents.create_agent_info.search_memory_in_levels', new_callable=AsyncMock) as mock_search_memory, \
-             patch('backend.agents.create_agent_info.populate_template') as mock_populate, \
-             patch('builtins.open', mock_open(read_data='system_prompt: "test template"')), \
-             patch('yaml.safe_load') as mock_yaml_load, \
+             patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge, \
              patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates:
             
             # 设置mock返回值
@@ -300,7 +308,7 @@ class TestCreateAgentConfig:
             }
             mock_query_sub.return_value = ["sub_agent_1"]
             mock_create_tools.return_value = []
-            mock_get_template_path.return_value = "template_path"
+            mock_get_template.return_value = {"system_prompt": "{{duty}} {{constraint}} {{few_shots}}"}
             mock_tenant_config.get_app_config.side_effect = ["TestApp", "Test Description"]
             mock_build_memory.return_value = Mock(
                 user_config=Mock(memory_switch=False),
@@ -309,8 +317,7 @@ class TestCreateAgentConfig:
                 user_id="user_1",
                 agent_id="agent_1"
             )
-            mock_yaml_load.return_value = {"system_prompt": "test template"}
-            mock_populate.return_value = "populated_system_prompt"
+            mock_knowledge.return_value = []
             mock_prepare_templates.return_value = {"system_prompt": "populated_system_prompt"}
             
             # Mock子代理配置
@@ -342,13 +349,11 @@ class TestCreateAgentConfig:
         with patch('backend.agents.create_agent_info.search_agent_info_by_agent_id') as mock_search_agent, \
              patch('backend.agents.create_agent_info.query_sub_agents_id_list') as mock_query_sub, \
              patch('backend.agents.create_agent_info.create_tool_config_list') as mock_create_tools, \
-             patch('backend.agents.create_agent_info.get_prompt_template_path') as mock_get_template_path, \
+             patch('backend.agents.create_agent_info.get_agent_prompt_template') as mock_get_template, \
              patch('backend.agents.create_agent_info.tenant_config_manager') as mock_tenant_config, \
              patch('backend.agents.create_agent_info.build_memory_context') as mock_build_memory, \
              patch('backend.agents.create_agent_info.search_memory_in_levels', new_callable=AsyncMock) as mock_search_memory, \
-             patch('backend.agents.create_agent_info.populate_template') as mock_populate, \
-             patch('builtins.open', mock_open(read_data='system_prompt: "test template"')), \
-             patch('yaml.safe_load') as mock_yaml_load, \
+             patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge, \
              patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates:
             
             # 设置mock返回值
@@ -364,7 +369,7 @@ class TestCreateAgentConfig:
             }
             mock_query_sub.return_value = []
             mock_create_tools.return_value = []
-            mock_get_template_path.return_value = "template_path"
+            mock_get_template.return_value = {"system_prompt": "{{duty}} {{constraint}} {{few_shots}}"}
             mock_tenant_config.get_app_config.side_effect = ["TestApp", "Test Description"]
             
             # 设置记忆功能开启
@@ -382,8 +387,7 @@ class TestCreateAgentConfig:
                 agent_id="agent_1"
             )
             mock_search_memory.return_value = {"results": [{"memory": "test"}]}
-            mock_yaml_load.return_value = {"system_prompt": "test template"}
-            mock_populate.return_value = "populated_system_prompt"
+            mock_knowledge.return_value = []
             mock_prepare_templates.return_value = {"system_prompt": "populated_system_prompt"}
             
             result = await create_agent_config("agent_1", "tenant_1", "user_1", "zh", "test query")
@@ -670,32 +674,26 @@ class TestPreparePromptTemplates:
     @pytest.mark.asyncio
     async def test_prepare_prompt_templates_manager_zh(self):
         """测试管理器模式中文提示模板"""
-        with patch('backend.agents.create_agent_info.get_prompt_template_path') as mock_get_path, \
-             patch('builtins.open', mock_open(read_data='test: "template"')), \
-             patch('yaml.safe_load') as mock_yaml_load:
+        with patch('backend.agents.create_agent_info.get_agent_prompt_template') as mock_get_template:
             
-            mock_get_path.return_value = "manager_zh_template.yaml"
-            mock_yaml_load.return_value = {"test": "template"}
+            mock_get_template.return_value = {"test": "template"}
             
             result = await prepare_prompt_templates(True, "test system prompt", "zh")
             
-            mock_get_path.assert_called_once_with(True, "zh")
+            mock_get_template.assert_called_once_with(True, "zh")
             assert result["system_prompt"] == "test system prompt"
             assert result["test"] == "template"
 
     @pytest.mark.asyncio
     async def test_prepare_prompt_templates_worker_en(self):
         """测试工作模式英文提示模板"""
-        with patch('backend.agents.create_agent_info.get_prompt_template_path') as mock_get_path, \
-             patch('builtins.open', mock_open(read_data='test: "template"')), \
-             patch('yaml.safe_load') as mock_yaml_load:
+        with patch('backend.agents.create_agent_info.get_agent_prompt_template') as mock_get_template:
             
-            mock_get_path.return_value = "worker_en_template.yaml"
-            mock_yaml_load.return_value = {"test": "template"}
+            mock_get_template.return_value = {"test": "template"}
             
             result = await prepare_prompt_templates(False, "test system prompt", "en")
             
-            mock_get_path.assert_called_once_with(False, "en")
+            mock_get_template.assert_called_once_with(False, "en")
             assert result["system_prompt"] == "test system prompt"
             assert result["test"] == "template"
 
