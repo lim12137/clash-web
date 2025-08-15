@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 1
           retries: 3
       - name: Build main application image
-        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent -f make/main/Dockerfile .
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple --build-arg APT_MIRROR=tsinghua -t nexent/nexent -f make/main/Dockerfile .
 
   build-data-process:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -53,7 +53,7 @@ jobs:
           GIT_TRACE=1 GIT_CURL_VERBOSE=1 GIT_LFS_LOG=debug git lfs pull
           rm -rf .git .gitattributes
       - name: Build data process image
-        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple -t nexent/nexent-data-process -f make/data_process/Dockerfile .
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple --build-arg APT_MIRROR=tsinghua -t nexent/nexent-data-process -f make/data_process/Dockerfile .
 
   build-web:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -64,7 +64,7 @@ jobs:
           fetch-depth: 1
           retries: 3
       - name: Build web frontend image
-        run: docker build --build-arg MIRROR=https://registry.npmmirror.com -t nexent/nexent-web -f make/web/Dockerfile .
+        run: docker build --build-arg MIRROR=https://registry.npmmirror.com --build-arg APK_MIRROR=tsinghua -t nexent/nexent-web -f make/web/Dockerfile .
 
   build-docs:
     runs-on: ${{ fromJson(inputs.runner_label_json) }}
@@ -105,7 +105,7 @@ jobs:
           cd $HOME/nexent/docker
           cp .env.example .env
           if [ "$DEPLOYMENT_MODE" = "production" ]; then
-            ./deploy.sh --mode 3 --is-mainland N --enable-terminal N
+            ./deploy.sh --mode 3 --is-mainland N --enable-terminal N --version 2 --root-dir "$HOME/nexent-production-data"
           else
-            ./deploy.sh --mode 1 --is-mainland N --enable-terminal N
+            ./deploy.sh --mode 1 --is-mainland N --enable-terminal N --version 2 --root-dir "$HOME/nexent-development-data"
           fi

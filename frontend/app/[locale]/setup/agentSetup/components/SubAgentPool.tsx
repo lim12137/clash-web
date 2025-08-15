@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { message } from 'antd'
+import { App } from 'antd'
 import { SettingOutlined, UploadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { ScrollArea } from '@/components/ui/scrollArea'
@@ -42,6 +42,7 @@ export default function SubAgentPool({
   isCreatingNewAgent = false
 }: SubAgentPoolProps) {
   const { t } = useTranslation('common');
+  const { message } = App.useApp();
 
 
 
@@ -150,7 +151,7 @@ export default function SubAgentPool({
                   ? t('subAgentPool.tooltip.unavailableAgent')
                   : isCurrentlyEditing
                     ? t('subAgentPool.tooltip.exitEditMode')
-                  : `${t('subAgentPool.tooltip.editAgent')} ${agent.name}`}
+                  : `${t('subAgentPool.tooltip.editAgent')} ${agent.display_name || agent.name}`}
                 onClick={async (e) => {
                   // 阻止事件冒泡
                   e.preventDefault();
@@ -176,8 +177,15 @@ export default function SubAgentPool({
                     }`} 
                          title={!isAvailable 
                            ? t('subAgentPool.tooltip.unavailableAgent')
-                           : `${t('subAgentPool.tooltip.editAgent')} ${agent.name}`}>
-                      {agent.name}
+                           : `${t('subAgentPool.tooltip.editAgent')} ${agent.display_name || agent.name}`}>
+                      <span className="flex items-baseline">
+                        {agent.display_name && (
+                          <span className="text-base leading-none">{agent.display_name}</span>
+                        )}
+                        <span className={`leading-none ${agent.display_name ? 'ml-2 text-sm' : 'text-base'}`}>
+                          {agent.name}
+                        </span>
+                      </span>
                     </div>
                     <div 
                       className={`text-xs line-clamp-2 transition-colors duration-300 ${

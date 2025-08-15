@@ -1,9 +1,9 @@
-import {Button, Card, Col, message, Row, Space, Modal} from 'antd'
+import {Button, Card, Col, Row, Space, Modal, App} from 'antd'
 import {
-  DeleteOutlined,
   PlusOutlined,
   SafetyCertificateOutlined,
-  SyncOutlined
+  SyncOutlined,
+  EditOutlined
 } from '@ant-design/icons'
 import {forwardRef, useEffect, useImperativeHandle, useState, useRef, ReactNode} from 'react'
 import {ModelOption, ModelType} from '@/types/config'
@@ -100,6 +100,7 @@ const getModelData = (t: any) => ({
 // 定义组件对外暴露的方法类型
 export interface ModelConfigSectionRef {
   verifyModels: () => Promise<void>;
+  getSelectedModels: () => Record<string, Record<string, string>>;
 }
 
 interface ModelConfigSectionProps {
@@ -108,6 +109,7 @@ interface ModelConfigSectionProps {
 
 export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigSectionProps>((props, ref): ReactNode => {
   const { t } = useTranslation()
+  const { message } = App.useApp();
   const { skipVerification = false } = props;
   const { modelConfig, updateModelConfig } = useConfig()
   const modelData = getModelData(t)
@@ -119,14 +121,14 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
-  
+
   // 错误状态管理
   const [errorFields, setErrorFields] = useState<{[key: string]: boolean}>({
     'llm.main': false,
     'embedding.embedding': false,
     'embedding.multi_embedding': false
   })
-  
+
   // 用于取消API请求的控制器
   const abortControllerRef = useRef<AbortController | null>(null);
   // 节流计时器
@@ -146,9 +148,9 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     // 在组件加载时先从后端加载配置，然后再加载模型列表
     const fetchData = async () => {
       const loadConfigResult = await configService.loadConfigToFrontend();
-      
+
       await configStore.reloadFromStorage();
-      
+
       await loadModelLists(true);
     };
 
@@ -192,7 +194,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
 
   // 暴露方法给父组件
   useImperativeHandle(ref, () => ({
-    verifyModels
+    verifyModels,
+    getSelectedModels: () => selectedModels
   }));
 
   // 加载模型列表
@@ -685,8 +688,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
             <Button type="primary" size="middle" icon={<PlusOutlined />} onClick={() => setIsAddModalOpen(true)}>
               {t('modelConfig.button.addCustomModel')}
             </Button>
-            <Button type="primary" size="middle" icon={<DeleteOutlined />} onClick={() => setIsDeleteModalOpen(true)}>
-              {t('modelConfig.button.deleteCustomModel')}
+            <Button type="primary" size="middle" icon={<EditOutlined />} onClick={() => setIsDeleteModalOpen(true)}>
+              {t('modelConfig.button.editCustomModel')}
             </Button>
             <Button type="primary" size="middle" icon={<SafetyCertificateOutlined />} onClick={verifyModels} loading={isVerifying}>
               {t('modelConfig.button.checkConnectivity')}

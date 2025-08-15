@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import yaml
@@ -15,7 +16,10 @@ from database.conversation_db import create_conversation_message, create_source_
     delete_conversation, get_conversation, create_conversation, update_message_opinion
 
 from utils.config_utils import tenant_config_manager,get_model_name_from_config
+from utils.auth_utils import get_current_user_id_from_token
+from nexent.core.utils.observer import ProcessType
 from utils.str_utils import remove_think_tags, add_no_think_token
+from utils.prompt_template_utils import get_generate_title_prompt_template
 
 logger = logging.getLogger("conversation_management_service")
 
@@ -40,6 +44,7 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
             - message: "success" success message
     """
     try:
+        user_id = get_current_user_id_from_token(authorization)
         message_data = request.model_dump()
 
         # Validate conversation_id
@@ -72,19 +77,19 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
         if string_content is not None:
             message_data_copy = {'conversation_id': conversation_id, 'message_idx': message_data['message_idx'],
                 'role': message_data['role'], 'content': string_content, 'minio_files': minio_files}
-            message_id = create_conversation_message(message_data_copy)
+            message_id = create_conversation_message(message_data_copy, user_id)
 
         # If there are other types of units but no string type, create an empty content message for them
         if other_units and message_id is None:
             message_data_copy = {'conversation_id': conversation_id, 'message_idx': message_data['message_idx'],
                 'role': message_data['role'], 'content': "",  # Empty content
                 'minio_files': minio_files}
-            message_id = create_conversation_message(message_data_copy)
+            message_id = create_conversation_message(message_data_copy, user_id)
 
         # Process other types of units
         filtered_message_units = []
         search_content_units = []
-        
+
         for unit in other_units:
             unit_type = unit['type']
             unit_content = unit['content']
@@ -131,11 +136,11 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
                             placeholder_unit_id = unit_ids[i]
                             break
                         current_index += 1
-                
+
                 if placeholder_unit_id is None:
                     logging.error("Could not find unit_id for search content placeholder")
                     continue
-                
+
                 # Parse search content
                 import json
                 search_results = json.loads(search_content)
@@ -163,10 +168,10 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
                         'cite_index': result.get('cite_index', None) if result.get('cite_index') != '' else None,
                         'search_type': result.get('search_type') if result.get('search_type') and result.get(
                             'search_type') != '' else None, 'tool_sign': result.get('tool_sign', '')}
-                    create_source_search(search_data)
-                
+                    create_source_search(search_data, user_id)
+
                 search_placeholder_index += 1
-                
+
             except Exception as e:
                 logging.error(f"Failed to save search content: {str(e)}")
                 search_placeholder_index += 1
@@ -194,7 +199,9 @@ def save_conversation_assistant(request: AgentRequest, messages: List[str], auth
     message_list = []
     for item in messages:
         message = json.loads(item)
-        if len(message_list) and message.get("type") == message_list[-1].get("type"):
+        if (len(message_list) and
+            message.get("type") in [ProcessType.MODEL_OUTPUT_CODE.value, ProcessType.MODEL_OUTPUT_THINKING.value] and
+            message.get("type") == message_list[-1].get("type")):
             message_list[-1]["content"] += message["content"]
         else:
             message_list.append(message)
@@ -223,18 +230,19 @@ def extract_user_messages(history: List[Dict[str, str]]) -> str:
     return content
 
 
-def call_llm_for_title(content: str, tenant_id: str) -> str:
+def call_llm_for_title(content: str, tenant_id: str, language: str = 'zh') -> str:
     """
     Call LLM to generate a title
 
     Args:
         content: Conversation content
+        tenant_id: Tenant ID
+        language: Language code ('zh' for Chinese, 'en' for English)
 
     Returns:
         str: Generated title
     """
-    with open('backend/prompts/utils/generate_title.yaml', "r", encoding="utf-8") as f:
-        prompt_template = yaml.safe_load(f)
+    prompt_template = get_generate_title_prompt_template(language=language)
 
     model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
 
@@ -243,8 +251,7 @@ def call_llm_for_title(content: str, tenant_id: str) -> str:
         api_key=model_config.get("api_key", ""), temperature=0.7, top_p=0.95)
 
     # Build messages
-    compiled_template = Template(prompt_template["USER_PROMPT"], undefined=StrictUndefined)
-    user_prompt = compiled_template.render({
+    user_prompt = Template(prompt_template["USER_PROMPT"], undefined=StrictUndefined).render({
         "content": content
     })
     messages = [{"role": "system",
@@ -270,31 +277,32 @@ def update_conversation_title(conversation_id: int, title: str, user_id: str = N
     Returns:
         bool: Whether the update was successful
     """
-    success = rename_conversation(conversation_id, title)
+    success = rename_conversation(conversation_id, title, user_id)
     if not success:
         raise HTTPException(status_code=404, detail=f"Conversation {conversation_id} does not exist or has been deleted")
     return success
 
 
-def create_new_conversation(title: str) -> Dict[str, Any]:
+def create_new_conversation(title: str, user_id: str) -> Dict[str, Any]:
     """
     Create a new conversation
 
     Args:
         title: Conversation title
+        user_id: User ID
 
     Returns:
         Dict containing conversation data
     """
     try:
-        conversation_data = create_conversation(title)
+        conversation_data = create_conversation(title, user_id)
         return conversation_data
     except Exception as e:
         logging.error(f"Failed to create conversation: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def get_conversation_list_service() -> List[Dict[str, Any]]:
+def get_conversation_list_service(user_id: str) -> List[Dict[str, Any]]:
     """
     Get all conversation list
 
@@ -302,26 +310,27 @@ def get_conversation_list_service() -> List[Dict[str, Any]]:
         List of conversation data
     """
     try:
-        conversations = get_conversation_list()
+        conversations = get_conversation_list(user_id)
         return conversations
     except Exception as e:
         logging.error(f"Failed to get conversation list: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def rename_conversation_service(conversation_id: int, name: str) -> bool:
+def rename_conversation_service(conversation_id: int, name: str, user_id: str) -> bool:
     """
     Rename a conversation
 
     Args:
         conversation_id: Conversation ID
         name: New conversation title
+        user_id: User ID
 
     Returns:
         bool: Whether the rename was successful
     """
     try:
-        success = rename_conversation(conversation_id, name)
+        success = rename_conversation(conversation_id, name, user_id)
         if not success:
             raise HTTPException(
                 status_code=404,
@@ -335,18 +344,19 @@ def rename_conversation_service(conversation_id: int, name: str) -> bool:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def delete_conversation_service(conversation_id: int) -> bool:
+def delete_conversation_service(conversation_id: int, user_id: str) -> bool:
     """
     Delete specified conversation
 
     Args:
         conversation_id: Conversation ID to delete
+        user_id: User ID
 
     Returns:
         bool: Whether the deletion was successful
     """
     try:
-        success = delete_conversation(conversation_id)
+        success = delete_conversation(conversation_id, user_id)
         if not success:
             raise HTTPException(
                 status_code=404,
@@ -360,19 +370,20 @@ def delete_conversation_service(conversation_id: int) -> bool:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any]]:
+def get_conversation_history_service(conversation_id: int, user_id: str) -> List[Dict[str, Any]]:
     """
     Get complete history of specified conversation
 
     Args:
         conversation_id: Conversation ID
+        user_id: User ID
 
     Returns:
         Dict containing conversation history data
     """
     try:
         # Get original conversation history data
-        history_data = get_conversation_history(conversation_id)
+        history_data = get_conversation_history(conversation_id, user_id)
 
         if not history_data:
             raise HTTPException(
@@ -387,7 +398,7 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
         for record in history_data['search_records']:
             unit_id = record['unit_id']
             message_id = record['message_id']
-            
+
             # Process published_date, ensure it's a datetime object
             published_date = None
             if record['published_date'] is not None:
@@ -456,7 +467,7 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
                     unit_id = unit.get('unit_id')
                     unit_type = unit.get('unit_type')
                     unit_content = unit.get('unit_content')
-                    
+
                     if unit_type == 'search_content_placeholder' and unit_id:
                         placeholder_content = {
                             "placeholder": True,
@@ -471,7 +482,7 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
                             'type': unit_type,
                             'content': unit_content
                         })
-                
+
                 # Add final_answer type message unit
                 processed_units.append({
                     'type': 'final_answer',
@@ -501,7 +512,7 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
                     if unit.get('unit_id') == unit_id:
                         message_unit_search[str(unit_id)] = search_results
                         break
-            
+
             if message_unit_search:
                 message_item['searchByUnitId'] = message_unit_search
 
@@ -522,7 +533,7 @@ def get_conversation_history_service(conversation_id: int) -> List[Dict[str, Any
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def get_sources_service(conversation_id: Optional[int], message_id: Optional[int], source_type: str = "all") -> Dict[str, Any]:
+def get_sources_service(conversation_id: Optional[int], message_id: Optional[int], source_type: str = "all", user_id: str = "") -> Dict[str, Any]:
     """
     Get message source information (images and search results)
 
@@ -530,6 +541,7 @@ def get_sources_service(conversation_id: Optional[int], message_id: Optional[int
         conversation_id: Optional conversation ID
         message_id: Optional message ID
         source_type: Source type, default is "all", options are "image", "search", or "all"
+        user_id: User ID
 
     Returns:
         Dict containing source information
@@ -544,7 +556,7 @@ def get_sources_service(conversation_id: Optional[int], message_id: Optional[int
 
         # If conversation ID is provided
         if conversation_id:
-            conversation = get_conversation(conversation_id)
+            conversation = get_conversation(conversation_id, user_id)
             if not conversation:
                 return {
                     "code": 404,
@@ -558,9 +570,9 @@ def get_sources_service(conversation_id: Optional[int], message_id: Optional[int
         if source_type in ["image", "all"]:
             images = []
             if message_id:
-                image_records = get_source_images_by_message(message_id)
+                image_records = get_source_images_by_message(message_id, user_id)
             elif conversation_id:
-                image_records = get_source_images_by_conversation(conversation_id)
+                image_records = get_source_images_by_conversation(conversation_id, user_id)
 
             for image in image_records:
                 images.append(image["image_url"])
@@ -572,9 +584,9 @@ def get_sources_service(conversation_id: Optional[int], message_id: Optional[int
             searches = []
             search_records = []
             if message_id:
-                search_records = get_source_searches_by_message(message_id)
+                search_records = get_source_searches_by_message(message_id, user_id)
             elif conversation_id:
-                search_records = get_source_searches_by_conversation(conversation_id)
+                search_records = get_source_searches_by_conversation(conversation_id, user_id)
 
             for record in search_records:
                 search_item = {
@@ -616,13 +628,16 @@ def get_sources_service(conversation_id: Optional[int], message_id: Optional[int
         }
 
 
-def generate_conversation_title_service(conversation_id: int, history: List[Dict[str, str]], tenant_id: str) -> str:
+async def generate_conversation_title_service(conversation_id: int, history: List[Dict[str, str]], user_id: str, tenant_id: str, language: str = 'zh') -> str:
     """
     Generate conversation title
 
     Args:
         conversation_id: Conversation ID
         history: Conversation history list
+        user_id: User ID
+        tenant_id: Tenant ID
+        language: Language code ('zh' for Chinese, 'en' for English)
 
     Returns:
         str: Generated title
@@ -631,11 +646,11 @@ def generate_conversation_title_service(conversation_id: int, history: List[Dict
         # Extract user messages
         content = extract_user_messages(history)
 
-        # Call LLM to generate title
-        title = call_llm_for_title(content, tenant_id)
+        # Call LLM to generate title in a separate thread to avoid blocking
+        title = await asyncio.to_thread(call_llm_for_title, content, tenant_id, language)
 
         # Update conversation title
-        update_conversation_title(conversation_id, title)
+        update_conversation_title(conversation_id, title, user_id)
 
         return title
 

@@ -1,9 +1,7 @@
 import React, { useState, forwardRef, useImperativeHandle, useEffect, useCallback, useRef } from 'react';
-import { message } from 'antd';
 import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
+import { App } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { API_ENDPOINTS } from '@/services/api';
-import knowledgeBasePollingService from '@/services/knowledgeBasePollingService';
 import UploadAreaUI from './UploadAreaUI';
 import { 
   checkKnowledgeBaseName,
@@ -47,6 +45,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
   modelMismatch = false
 }, ref) => {
   const { t } = useTranslation('common');
+  const { message } = App.useApp();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [nameStatus, setNameStatus] = useState<string>('available');
   const [isLoading, setIsLoading] = useState(false);
@@ -109,7 +108,8 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
         setIsKnowledgeBaseReady(false);
         setIsLoading(false);
       },
-      t
+      t,
+      message
     );
 
     // 清理函数
@@ -119,7 +119,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
         pendingRequestRef.current = null;
       }
     };
-  }, [indexName, isCreatingMode, resetAllStates, t]);
+  }, [indexName, isCreatingMode, resetAllStates, t, message]);
   
   // 暴露文件列表给父组件
   useImperativeHandle(ref, () => ({
@@ -179,10 +179,10 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
     // 触发文件选择回调, 传递所有文件
     const files = newFileList
       .map(file => file.originFileObj)
-      .filter((file): file is File => !!file);
+      .filter((file): file is RcFile => !!file);
 
     if (files.length > 0) {
-      onFileSelect(files);
+      onFileSelect(files as unknown as File[]);
     }
   }, [indexName, onFileSelect, isCreatingMode, newKnowledgeBaseName, onUpload]);
 
@@ -214,7 +214,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
       size: 3,
       format: (percent?: number) => percent ? `${parseFloat(percent.toFixed(2))}%` : '0%'
     },
-    beforeUpload: (file) => validateFileType(file, t)
+    beforeUpload: (file) => validateFileType(file, t, message)
   };
   
   return (

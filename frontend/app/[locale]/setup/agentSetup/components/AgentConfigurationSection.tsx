@@ -20,6 +20,8 @@ export interface AgentConfigurationSectionProps {
   agentDescription?: string;
   onAgentNameChange?: (name: string) => void;
   onAgentDescriptionChange?: (description: string) => void;
+  agentDisplayName?: string;
+  onAgentDisplayNameChange?: (displayName: string) => void;
   isEditingMode?: boolean;
   mainAgentModel?: string;
   mainAgentMaxStep?: number;
@@ -53,6 +55,8 @@ export default function AgentConfigurationSection({
   agentDescription = '',
   onAgentNameChange,
   onAgentDescriptionChange,
+  agentDisplayName = '',
+  onAgentDisplayNameChange,
   isEditingMode = false,
   mainAgentModel = '',
   mainAgentMaxStep = 5,
@@ -184,6 +188,21 @@ export default function AgentConfigurationSection({
   // Render individual content sections
   const renderAgentInfo = () => (
     <div className="p-4 agent-info-content">
+      {/* Agent Display Name */}
+      <div className="mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {t('agent.displayName')}:
+        </label>
+        <input
+          type="text"
+          value={agentDisplayName}
+          onChange={(e) => onAgentDisplayNameChange?.(e.target.value)}
+          placeholder={t('agent.displayNamePlaceholder')}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 box-border"
+          disabled={!isEditingMode}
+        />
+      </div>
+      
       {/* Agent Name */}
       <div className="mb-2">
         <label className="block text-sm font-medium text-gray-700 mb-1">

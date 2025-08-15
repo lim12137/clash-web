@@ -85,6 +85,12 @@ export default defineConfig({
             ]
           },
           {
+            text: 'Documentation Development',
+            items: [
+              { text: 'Docs Development Guide', link: '/en/docs-development' }
+            ]
+          },
+          {
             text: 'Container Build & Containerized Development',
             items: [
               { text: 'Docker Build', link: '/en/deployment/docker-build' },
@@ -194,6 +200,12 @@ export default defineConfig({
                 ]
               },
               { text: '提示词开发', link: '/zh/backend/prompt-development' }
+            ]
+          },
+          {
+            text: '文档开发',
+            items: [
+              { text: '文档开发指南', link: '/zh/docs-development' }
             ]
           },
           {

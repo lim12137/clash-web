@@ -65,7 +65,7 @@ async def add_remote_proxies(
             content={"message": "Failed to add remote MCP proxy", "status": "error"}
         )
 
-@router.delete("/")
+@router.delete("")
 async def delete_remote_proxies(
     service_name: str,
     mcp_url: str,

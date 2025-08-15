@@ -48,7 +48,7 @@ Most of all, we need visibility. Star ⭐ and watch the repo, share it with frie
 ```bash
 git clone https://github.com/ModelEngine-Group/nexent.git
 cd nexent/docker
-cp .env.example .env # fill only nessasary configs
+cp .env.example .env # fill only necessary configs
 bash deploy.sh
 ```
 
