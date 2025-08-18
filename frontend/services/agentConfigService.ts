@@ -654,12 +654,17 @@ export const deleteRelatedAgent = async (parentAgentId: number, childAgentId: nu
 };
 
 /**
- * Check if agent name exists in the current tenant
- * @param agentName agent name to check
+ * Check if agent field value exists in the current tenant
+ * @param fieldValue value to check
+ * @param fieldName field name to check
  * @param excludeAgentId optional agent id to exclude from the check
  * @returns check result with status
  */
-export const checkAgentName = async (agentName: string, excludeAgentId?: number): Promise<{status: string, action?: string}> => {
+const checkAgentField = async (
+  fieldValue: string, 
+  fieldName: string, 
+  excludeAgentId?: number
+): Promise<{status: string, action?: string}> => {
   try {
     // Get all agents in current tenant
     const response = await fetch(API_ENDPOINTS.agent.list, {
@@ -670,9 +675,9 @@ export const checkAgentName = async (agentName: string, excludeAgentId?: number)
     }
     const data = await response.json();
     
-    // Check if agent name already exists, excluding the specified agent if provided
+    // Check if agent field value already exists, excluding the specified agent if provided
     const existingAgent = data.find((agent: any) => 
-      agent.name === agentName && 
+      agent[fieldName] === fieldValue && 
       (!excludeAgentId || agent.agent_id !== excludeAgentId)
     );
     
@@ -686,33 +691,21 @@ export const checkAgentName = async (agentName: string, excludeAgentId?: number)
 };
 
 /**
+ * Check if agent name exists in the current tenant
+ * @param agentName agent name to check
+ * @param excludeAgentId optional agent id to exclude from the check
+ * @returns check result with status
+ */
+export const checkAgentName = async (agentName: string, excludeAgentId?: number): Promise<{status: string, action?: string}> => {
+  return checkAgentField(agentName, 'name', excludeAgentId);
+};
+
+/**
  * Check if agent display name exists in the current tenant
  * @param displayName agent display name to check
  * @param excludeAgentId optional agent id to exclude from the check
  * @returns check result with status
  */
 export const checkAgentDisplayName = async (displayName: string, excludeAgentId?: number): Promise<{status: string, action?: string}> => {
-  try {
-    // Get all agents in current tenant
-    const response = await fetch(API_ENDPOINTS.agent.list, {
-      headers: getAuthHeaders(),
-    });
-    if (!response.ok) {
-      throw new Error(`request failed: ${response.status}`);
-    }
-    const data = await response.json();
-    
-    // Check if agent display name already exists, excluding the specified agent if provided
-    const existingAgent = data.find((agent: any) => 
-      agent.display_name === displayName && 
-      (!excludeAgentId || agent.agent_id !== excludeAgentId)
-    );
-    
-    if (existingAgent) {
-      return { status: 'exists_in_tenant' };
-    }
-    return { status: 'available' };
-  } catch (error) {
-    return { status: 'check_failed' };
-  }
+  return checkAgentField(displayName, 'display_name', excludeAgentId);
 };
