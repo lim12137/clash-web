@@ -107,7 +107,7 @@ The deployment includes the following components:
 | MinIO API | 9000 | 9010 | Object storage API |
 | MinIO Console | 9001 | 9011 | Storage management UI |
 | Redis | 6379 | 6379 | Cache service |
-| SSH Server | 2222 | 2222 | Terminal tool access |
+| SSH Server | 22 | 2222 | Terminal tool access |
 
 For complete port mapping details, see our [Dev Container Guide](../deployment/devcontainer.md#port-mapping).
 

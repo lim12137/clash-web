@@ -637,20 +637,7 @@ select_deployment_version() {
   echo ""
 }
 
-build_ubuntu_terminal_image() {
-  # Function to build openssh-server image
 
-  echo "🐳 Building openssh-server image for Terminal tool..."
-  if ! docker build -t "$OPENSSH_SERVER_IMAGE" -f ../make/terminal/Dockerfile ..; then
-    echo "   ❌ ERROR Failed to build openssh-server image"
-    ERROR_OCCURRED=1
-    return 1
-  fi
-  echo "   ✅ Successfully built openssh-server image"
-  echo ""
-  echo "--------------------------------"
-  echo ""
-}
 
 setup_package_install_script() {
   # Function to setup package installation script
@@ -816,7 +803,6 @@ main_deploy() {
   generate_minio_ak_sk || { echo "❌ MinIO key generation failed"; exit 1; }
 
   if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
-    build_ubuntu_terminal_image || { echo "❌ Ubuntu terminal image build failed"; exit 1; }
     generate_ssh_keys || { echo "❌ SSH key generation failed"; exit 1; }
   fi
 
