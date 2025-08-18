@@ -425,6 +425,7 @@ async def test_export_agent_impl_success(mock_get_current_user_id, mock_export_a
     mock_agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="Test Agent",
+        display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
         model_name="main_model",
@@ -450,6 +451,7 @@ async def test_export_agent_impl_success(mock_get_current_user_id, mock_export_a
             "123": {
                 "agent_id": 123,
                 "name": "Test Agent",
+                "display_name": "Test Agent Display",
                 "description": "A test agent",
                 "business_description": "For testing purposes",
                 "model_name": "main_model",
@@ -520,6 +522,7 @@ async def test_export_agent_impl_no_mcp_tools(mock_get_current_user_id, mock_exp
     mock_agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="Test Agent",
+        display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
         model_name="main_model",
@@ -542,6 +545,7 @@ async def test_export_agent_impl_no_mcp_tools(mock_get_current_user_id, mock_exp
             "123": {
                 "agent_id": 123,
                 "name": "Test Agent",
+                "display_name": "Test Agent Display",
                 "description": "A test agent",
                 "business_description": "For testing purposes",
                 "model_name": "main_model",
@@ -772,6 +776,7 @@ async def test_export_agent_by_agent_id_success(mock_search_agent_info, mock_cre
     # Setup
     mock_agent_info = {
         "name": "Test Agent",
+        "display_name": "Test Agent Display",
         "description": "A test agent",
         "business_description": "For testing purposes",
         "model_name": "main_model",
@@ -900,6 +905,7 @@ async def test_import_agent_by_agent_id_success(mock_query_all_tools, mock_creat
     agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="valid_agent_name",
+        display_name="Valid Agent Display Name",
         description="Imported description",
         business_description="Imported business description",
         model_name="main_model",
@@ -924,6 +930,7 @@ async def test_import_agent_by_agent_id_success(mock_query_all_tools, mock_creat
     assert result == 456
     mock_create_agent.assert_called_once()
     assert mock_create_agent.call_args[1]["agent_info"]["name"] == "valid_agent_name"
+    assert mock_create_agent.call_args[1]["agent_info"]["display_name"] == "Valid Agent Display Name"
     mock_create_tool.assert_called_once()
 
 
@@ -968,6 +975,7 @@ async def test_import_agent_by_agent_id_invalid_tool(mock_query_all_tools, mock_
     agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="valid_agent_name",
+        display_name="Valid Agent Display Name",
         description="Imported description",
         business_description="Imported business description",
         model_name="main_model",
@@ -1034,6 +1042,7 @@ async def test_import_agent_by_agent_id_with_mcp_tool(mock_query_all_tools, mock
     agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="valid_agent_name",
+        display_name="Valid Agent Display Name",
         description="Imported description",
         business_description="Imported business description",
         model_name="main_model",
@@ -1058,6 +1067,7 @@ async def test_import_agent_by_agent_id_with_mcp_tool(mock_query_all_tools, mock
     assert result == 456
     mock_create_agent.assert_called_once()
     assert mock_create_agent.call_args[1]["agent_info"]["name"] == "valid_agent_name"
+    assert mock_create_agent.call_args[1]["agent_info"]["display_name"] == "Valid Agent Display Name"
     mock_create_tool.assert_called_once()
 
 
@@ -1135,6 +1145,7 @@ def test_load_default_agents_json_file(mock_file, mock_listdir, mock_join):
     json_content1 = """{
         "agent_id": 1,
         "name": "Agent1",
+        "display_name": "Agent 1 Display",
         "description": "Agent 1 description",
         "business_description": "Business description",
         "model_name": "main_model",
@@ -1149,6 +1160,7 @@ def test_load_default_agents_json_file(mock_file, mock_listdir, mock_join):
     json_content2 = """{
         "agent_id": 2,
         "name": "Agent2",
+        "display_name": "Agent 2 Display",
         "description": "Agent 2 description",
         "business_description": "Business description",
         "model_name": "sub_model",
@@ -1172,6 +1184,7 @@ def test_load_default_agents_json_file(mock_file, mock_listdir, mock_join):
             {
                 "agent_id": 1,
                 "name": "Agent1",
+                "display_name": "Agent 1 Display",
                 "description": "Agent 1 description",
                 "business_description": "Business description",
                 "model_name": "main_model",
@@ -1185,6 +1198,7 @@ def test_load_default_agents_json_file(mock_file, mock_listdir, mock_join):
             {
                 "agent_id": 2,
                 "name": "Agent2",
+                "display_name": "Agent 2 Display",
                 "description": "Agent 2 description",
                 "business_description": "Business description",
                 "model_name": "sub_model",
@@ -1359,6 +1373,7 @@ async def test_import_agent_impl_success_with_mcp(mock_get_current_user_id, mock
     agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="Test Agent",
+        display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
         model_name="main_model",
@@ -1430,6 +1445,7 @@ async def test_import_agent_impl_mcp_exists_same_url(mock_get_current_user_id, m
     agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="Test Agent",
+        display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
         model_name="main_model",
@@ -1494,6 +1510,7 @@ async def test_import_agent_impl_mcp_exists_different_url(mock_get_current_user_
     agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="Test Agent",
+        display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
         model_name="main_model",
@@ -1565,6 +1582,7 @@ async def test_import_agent_impl_mcp_add_failure(mock_get_current_user_id, mock_
     agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="Test Agent",
+        display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
         model_name="main_model",
@@ -1613,6 +1631,7 @@ async def test_import_agent_impl_update_tool_list_failure(mock_get_current_user_
     agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="Test Agent",
+        display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
         model_name="main_model",
@@ -1659,6 +1678,7 @@ async def test_import_agent_impl_no_mcp_info(mock_get_current_user_id, mock_upda
     agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="Test Agent",
+        display_name="Test Agent Display",
         description="A test agent",
         business_description="For testing purposes",
         model_name="main_model",
