@@ -329,9 +329,16 @@ class ExportAndImportAgentInfo(BaseModel):
     tools: List[ToolConfig]
     managed_agents: List[int]
 
+
+class MCPInfo(BaseModel):
+    mcp_server_name: str
+    mcp_url: str
+
+
 class ExportAndImportDataFormat(BaseModel):
     agent_id: int
     agent_info: Dict[str, ExportAndImportAgentInfo]
+    mcp_info: List[MCPInfo]
 
 
 class AgentImportRequest(BaseModel):

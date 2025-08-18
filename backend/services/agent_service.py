@@ -6,12 +6,15 @@ from collections import deque
 from fastapi import Header
 from fastapi.responses import JSONResponse
 from agents.create_agent_info import create_tool_config_list
-from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest
+from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest, MCPInfo
 from database.agent_db import create_agent, query_all_enabled_tool_instances, \
      search_blank_sub_agent_by_main_agent_id, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
     create_or_update_tool_by_tool_info, check_tool_is_available, query_all_agent_info_by_tenant_id, \
     query_sub_agents_id_list, insert_related_agent, delete_all_related_agent
+from database.remote_mcp_db import get_mcp_server_by_name_and_tenant
+from services.remote_mcp_service import add_remote_mcp_server_list
+from services.tool_configuration_service import update_tool_list
 
 from utils.auth_utils import get_current_user_id
 from utils.memory_utils import build_memory_config
@@ -186,6 +189,8 @@ async def export_agent_impl(agent_id: int, authorization: str = Header(None)) ->
     search_list = deque([agent_id])
     agent_id_set = set()
 
+    mcp_info_set = set()
+
     while len(search_list):
         left_ele = search_list.popleft()
         if left_ele in agent_id_set:
@@ -193,10 +198,23 @@ async def export_agent_impl(agent_id: int, authorization: str = Header(None)) ->
 
         agent_id_set.add(left_ele)
         agent_info = await export_agent_by_agent_id(agent_id=left_ele, tenant_id=tenant_id, user_id=user_id)
+
+        # collect mcp name
+        for tool in agent_info.tools:
+            if tool.source == "mcp" and tool.usage:
+                mcp_info_set.add(tool.usage)
+
         search_list.extend(agent_info.managed_agents)
         export_agent_dict[str(agent_info.agent_id)] = agent_info
 
-    export_data = ExportAndImportDataFormat(agent_id=agent_id, agent_info=export_agent_dict)
+    # convert mcp info to MCPInfo list
+    mcp_info_list = []
+    for mcp_server_name in mcp_info_set:
+        # get mcp url by mcp_server_name and tenant_id
+        mcp_url = get_mcp_server_by_name_and_tenant(mcp_server_name, tenant_id)
+        mcp_info_list.append(MCPInfo(mcp_server_name=mcp_server_name, mcp_url=mcp_url))
+
+    export_data = ExportAndImportDataFormat(agent_id=agent_id, agent_info=export_agent_dict, mcp_info=mcp_info_list)
     return export_data.model_dump()
 
 async def export_agent_by_agent_id(agent_id: int, tenant_id: str, user_id: str)->ExportAndImportAgentInfo:
@@ -234,6 +252,29 @@ async def import_agent_impl(agent_info: ExportAndImportDataFormat, authorization
     """
     user_id, tenant_id = get_current_user_id(authorization)
     agent_id = agent_info.agent_id
+
+    # First, add MCP servers if any
+    if agent_info.mcp_info:
+        for mcp_info in agent_info.mcp_info:
+            if mcp_info.mcp_server_name and mcp_info.mcp_url:
+                try:
+                    result = await add_remote_mcp_server_list(
+                        tenant_id=tenant_id,
+                        user_id=user_id,
+                        remote_mcp_server=mcp_info.mcp_url,
+                        remote_mcp_server_name=mcp_info.mcp_server_name
+                    )
+                    # Check if the result is a JSONResponse with error status
+                    if hasattr(result, 'status_code') and result.status_code != 200:
+                        raise Exception(f"Failed to add MCP server {mcp_info.mcp_server_name}: {result.body.decode() if hasattr(result, 'body') else 'Unknown error'}")
+                except Exception as e:
+                    raise Exception(f"Failed to add MCP server {mcp_info.mcp_server_name}: {str(e)}")
+
+    # Then, update tool list to include new MCP tools
+    try:
+        await update_tool_list(tenant_id=tenant_id, user_id=user_id)
+    except Exception as e:
+        raise Exception(f"Failed to update tool list: {str(e)}")
 
     agent_stack = deque([agent_id])
     agent_id_set = set()

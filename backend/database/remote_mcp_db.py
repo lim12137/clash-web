@@ -97,3 +97,23 @@ def get_mcp_records_by_tenant(tenant_id: str) -> List[Dict[str, Any]]:
 
         
         return [as_dict(record) for record in mcp_records]
+
+def get_mcp_server_by_name_and_tenant(mcp_name: str, tenant_id: str) -> str:
+    """
+    Get MCP server address by name and tenant ID
+    
+    :param mcp_name: MCP name
+    :param tenant_id: Tenant ID
+    :return: MCP server address, empty string if not found
+    """
+    with get_db_session() as session:
+        try:
+            mcp_record = session.query(McpRecord).filter(
+                McpRecord.mcp_name == mcp_name,
+                McpRecord.tenant_id == tenant_id,
+                McpRecord.delete_flag != 'Y'
+            ).first()
+            
+            return mcp_record.mcp_server if mcp_record else ""
+        except SQLAlchemyError:
+            return ""
