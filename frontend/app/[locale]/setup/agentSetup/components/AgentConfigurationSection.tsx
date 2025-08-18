@@ -612,7 +612,7 @@ export default function AgentConfigurationSection({
               size="middle"
               icon={<BugOutlined />}
               onClick={onDebug}
-              className="bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600 responsive-button"
+              className="bg-blue-500 hover:bg-blue-600 responsive-button"
               title={t('systemPrompt.button.debug')}
             >
               {t('systemPrompt.button.debug')}
@@ -626,7 +626,7 @@ export default function AgentConfigurationSection({
                   size="middle"
                   icon={<UploadOutlined />}
                   onClick={onExportAgent}
-                  className="bg-green-500 hover:bg-green-600 border-green-500 hover:border-green-600 responsive-button"
+                  className="bg-green-500 hover:bg-green-600 responsive-button"
                   title={t('agent.contextMenu.export')}
                 >
                   {t('agent.contextMenu.export')}
@@ -637,7 +637,7 @@ export default function AgentConfigurationSection({
                   size="middle"
                   icon={<DeleteOutlined />}
                   onClick={handleDeleteClick}
-                  className="bg-red-500 hover:bg-red-600 border-red-500 hover:border-red-600 responsive-button"
+                  className="bg-red-500 hover:bg-red-600 responsive-button"
                   title={t('agent.contextMenu.delete')}
                 >
                   {t('agent.contextMenu.delete')}
@@ -653,7 +653,7 @@ export default function AgentConfigurationSection({
                 icon={<SaveOutlined />}
                 onClick={onSaveAgent}
                 disabled={!canActuallySave}
-                className="bg-green-500 hover:bg-green-600 border-green-500 hover:border-green-600 disabled:opacity-50 disabled:cursor-not-allowed responsive-button"
+                className="bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed responsive-button"
                 title={(() => {
                   if (agentNameError) {
                     return agentNameError;
@@ -674,7 +674,7 @@ export default function AgentConfigurationSection({
                 icon={<SaveOutlined />}
                 onClick={onSaveAgent}
                 disabled={!canActuallySave}
-                className="bg-green-500 hover:bg-green-600 border-green-500 hover:border-green-600 disabled:opacity-50 disabled:cursor-not-allowed responsive-button"
+                className="bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed responsive-button"
                 title={(() => {
                   if (agentNameError) {
                     return agentNameError;
