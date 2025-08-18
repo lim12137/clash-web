@@ -138,6 +138,6 @@ docker stop nexent-docs
 docker rm nexent-docs
 ```
 
-##  部署建议
+## 🚀 部署建议
 
 构建完成后，可以使用 `docker/deploy.sh` 脚本进行部署，或者直接使用 `docker-compose` 启动服务。
