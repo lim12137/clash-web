@@ -22,7 +22,7 @@ class TavilySearchTool(Tool):
 
     inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"
-    tool_sign = "b"  # Used to distinguish different index sources in summary
+    tool_sign = "d"  # Used to distinguish different index sources in summary
 
     def __init__(self, tavily_api_key:str=Field(description="Tavily API key"),
                  observer: MessageObserver=Field(description="Message observer", default=None, exclude=True),

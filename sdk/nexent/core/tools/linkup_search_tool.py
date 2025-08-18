@@ -20,7 +20,7 @@ class LinkupSearchTool(Tool):
     )
     inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"
-    tool_sign = "l"  # Used to distinguish different index sources in summary
+    tool_sign = "c"  # Used to distinguish different index sources in summary
 
     def __init__(
         self,
