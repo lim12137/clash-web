@@ -80,7 +80,7 @@ const getSourceTagStyle = (source: string): React.CSSProperties => {
       backgroundColor: '#e6f7ff',
       borderColor: '#91d5ff',
     };
-  } else if (source === "自定义") {
+  } else if (source === "自定义" || source === "Custom") {
     return {
       ...baseStyle,
       color: '#722ed1',
