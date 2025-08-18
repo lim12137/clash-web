@@ -19,8 +19,8 @@ MOCK_USER = {
 MOCK_SESSION = {
     "access_token": "mock_access_token",
     "refresh_token": "mock_refresh_token",
-    "expires_at": int((datetime.now() + timedelta(hours=1)).timestamp()),
-    "expires_in_seconds": 3600
+    "expires_at": int((datetime.now() + timedelta(days=3650)).timestamp()),
+    "expires_in_seconds": 315360000
 }
 
 
@@ -74,7 +74,7 @@ async def signin(request: UserSignInRequest):
     # Return mock success response
     return ServiceResponse(
         code=STATUS_CODES["SUCCESS"],
-        message="Login successful, session validity is 3600 seconds",
+        message="Login successful, session validity is 10 years",
         data={
             "user": {
                 "id": MOCK_USER["id"],
@@ -98,17 +98,19 @@ async def refresh_token(request: Request):
     """
     logger.info("Mock refresh token request")
 
-    # Return mock success response with new tokens
-    new_expires_at = int((datetime.now() + timedelta(hours=1)).timestamp())
+    # In speed/mock mode, extend for a very long time (10 years)
+    new_expires_at = int((datetime.now() + timedelta(days=3650)).timestamp())
 
     return ServiceResponse(
         code=STATUS_CODES["SUCCESS"],
         message="Token refreshed successfully",
         data={
-            "access_token": f"mock_access_token_{new_expires_at}",
-            "refresh_token": f"mock_refresh_token_{new_expires_at}",
-            "expires_at": new_expires_at,
-            "expires_in_seconds": 3600
+            "session": {
+                "access_token": f"mock_access_token_{new_expires_at}",
+                "refresh_token": f"mock_refresh_token_{new_expires_at}",
+                "expires_at": new_expires_at,
+                "expires_in_seconds": 315360000
+            }
         }
     )
 
