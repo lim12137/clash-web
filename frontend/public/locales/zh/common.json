@@ -452,6 +452,8 @@
     "agent.error.importError": "导入Agent失败:",
     "agent.error.exportError": "导出Agent失败:",
     "agent.error.deleteError": "删除Agent失败:",
+    "agent.error.nameExists": "Agent变量名{{name}}已存在，请修改",
+    "agent.error.displayNameExists": "Agent名称{{displayName}}已存在，请修改",
     "systemPrompt.error.generateError": "生成提示词失败:",
     "agent.debug.placeholder": "输入测试问题...",
     "agent.debug.stop": "停止",

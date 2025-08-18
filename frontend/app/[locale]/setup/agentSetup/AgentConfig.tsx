@@ -107,6 +107,9 @@ export default function AgentConfig() {
 
     setIsGeneratingAgent(true)
     try {
+      const currentAgentName = agentName
+      const currentAgentDisplayName = agentDisplayName
+
       // Call backend API to generate agent prompt
       await generatePromptStream(
         {
@@ -126,13 +129,19 @@ export default function AgentConfig() {
               setFewShotsContent(data.content)
               break
             case 'agent_var_name':
-              setAgentName(data.content)
+              // Only update if current agent name is empty
+              if (!currentAgentName || currentAgentName.trim() === '') {
+                setAgentName(data.content)
+              }
               break
             case 'agent_description':
               setAgentDescription(data.content)
               break
             case 'agent_display_name':
-              setAgentDisplayName(data.content)
+              // Only update if current agent display name is empty
+              if (!currentAgentDisplayName || currentAgentDisplayName.trim() === '') {
+                setAgentDisplayName(data.content)
+              }
               break
           }
         },
