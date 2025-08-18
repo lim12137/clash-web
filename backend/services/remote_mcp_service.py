@@ -1,7 +1,7 @@
 import logging
 from fastapi.responses import JSONResponse
 
-from database.remote_mcp_db import create_mcp_record, delete_mcp_record_by_name_and_url, get_mcp_records_by_tenant
+from database.remote_mcp_db import create_mcp_record, delete_mcp_record_by_name_and_url, get_mcp_records_by_tenant, check_mcp_name_exists
 from fastmcp import Client
 logger = logging.getLogger("remote_mcp_service")
 
@@ -33,6 +33,15 @@ async def add_remote_mcp_server_list(tenant_id: str,
                                      user_id: str,
                                      remote_mcp_server: str,
                                      remote_mcp_server_name: str):
+
+    # check if MCP name already exists
+    if check_mcp_name_exists(mcp_name=remote_mcp_server_name, tenant_id=tenant_id):
+        logger.error(
+            f"MCP name already exists, tenant_id: {tenant_id}, remote_mcp_server_name: {remote_mcp_server_name}")
+        return JSONResponse(
+            status_code=400,
+            content={"message": f"MCP server name '{remote_mcp_server_name}' already exists", "status": "error"}
+        )
 
     # check if the address is available
     response = await mcp_server_health(remote_mcp_server=remote_mcp_server)

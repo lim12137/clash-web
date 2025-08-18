@@ -107,7 +107,7 @@ EXA_API_KEY=your_exa_key
 | MinIO API | 9000 | 9010 | 对象存储 API |
 | MinIO 控制台 | 9001 | 9011 | 存储管理 UI |
 | Redis | 6379 | 6379 | 缓存服务 |
-| SSH 服务器 | 2222 | 2222 | 终端工具访问 |
+| SSH 服务器 | 22 | 2222 | 终端工具访问 |
 
 有关完整的端口映射详细信息，请参阅我们的 [开发容器指南](../deployment/devcontainer.md#port-mapping)。
 
