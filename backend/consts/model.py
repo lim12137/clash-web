@@ -317,6 +317,7 @@ class MessageIdRequest(BaseModel):
 class ExportAndImportAgentInfo(BaseModel):
     agent_id: int
     name: str
+    display_name: Optional[str] = None
     description: str
     business_description: str
     model_name: str
@@ -329,9 +330,19 @@ class ExportAndImportAgentInfo(BaseModel):
     tools: List[ToolConfig]
     managed_agents: List[int]
 
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class MCPInfo(BaseModel):
+    mcp_server_name: str
+    mcp_url: str
+
+
 class ExportAndImportDataFormat(BaseModel):
     agent_id: int
     agent_info: Dict[str, ExportAndImportAgentInfo]
+    mcp_info: List[MCPInfo]
 
 
 class AgentImportRequest(BaseModel):
