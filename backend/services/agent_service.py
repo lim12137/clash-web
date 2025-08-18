@@ -12,7 +12,7 @@ from database.agent_db import create_agent, query_all_enabled_tool_instances, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
     create_or_update_tool_by_tool_info, check_tool_is_available, query_all_agent_info_by_tenant_id, \
     query_sub_agents_id_list, insert_related_agent, delete_all_related_agent
-from database.remote_mcp_db import get_mcp_server_by_name_and_tenant
+from database.remote_mcp_db import get_mcp_server_by_name_and_tenant, check_mcp_name_exists
 from services.remote_mcp_service import add_remote_mcp_server_list
 from services.tool_configuration_service import update_tool_list
 
@@ -258,15 +258,32 @@ async def import_agent_impl(agent_info: ExportAndImportDataFormat, authorization
         for mcp_info in agent_info.mcp_info:
             if mcp_info.mcp_server_name and mcp_info.mcp_url:
                 try:
+                    # Check if MCP name already exists
+                    if check_mcp_name_exists(mcp_name=mcp_info.mcp_server_name, tenant_id=tenant_id):
+                        # Get existing MCP server info to compare URLs
+                        existing_mcp = get_mcp_server_by_name_and_tenant(mcp_name=mcp_info.mcp_server_name, tenant_id=tenant_id)
+                        if existing_mcp and existing_mcp == mcp_info.mcp_url:
+                            # Same name and URL, skip
+                            logger.info(f"MCP server {mcp_info.mcp_server_name} with same URL already exists, skipping")
+                            continue
+                        else:
+                            # Same name but different URL, add import prefix
+                            import_mcp_name = f"import_{mcp_info.mcp_server_name}"
+                            logger.info(f"MCP server {mcp_info.mcp_server_name} exists with different URL, using name: {import_mcp_name}")
+                            mcp_server_name = import_mcp_name
+                    else:
+                        # Name doesn't exist, use original name
+                        mcp_server_name = mcp_info.mcp_server_name
+                    
                     result = await add_remote_mcp_server_list(
                         tenant_id=tenant_id,
                         user_id=user_id,
                         remote_mcp_server=mcp_info.mcp_url,
-                        remote_mcp_server_name=mcp_info.mcp_server_name
+                        remote_mcp_server_name=mcp_server_name
                     )
                     # Check if the result is a JSONResponse with error status
                     if hasattr(result, 'status_code') and result.status_code != 200:
-                        raise Exception(f"Failed to add MCP server {mcp_info.mcp_server_name}: {result.body.decode() if hasattr(result, 'body') else 'Unknown error'}")
+                        raise Exception(f"Failed to add MCP server {mcp_server_name}: {result.body.decode() if hasattr(result, 'body') else 'Unknown error'}")
                 except Exception as e:
                     raise Exception(f"Failed to add MCP server {mcp_info.mcp_server_name}: {str(e)}")
 
