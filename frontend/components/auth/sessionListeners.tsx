@@ -17,7 +17,7 @@ export function SessionListeners() {
   const router = useRouter();
   const pathname = usePathname();
   const { t } = useTranslation('common');
-  const { openLoginModal, setIsFromSessionExpired, logout } = useAuth();
+  const { openLoginModal, setIsFromSessionExpired, logout, isSpeedMode } = useAuth();
   const { modal } = App.useApp();
   const modalShownRef = useRef<boolean>(false);
 
@@ -93,18 +93,21 @@ export function SessionListeners() {
 
   // 组件初次挂载时，如果发现本地已经没有 session，也立即弹窗
   useEffect(() => {
+    // Skip in speed mode
+    if (isSpeedMode) return;
     if (typeof window !== 'undefined') {
       const localSession = localStorage.getItem('session'); 
       if (!localSession) {
         showSessionExpiredModal();
       }
     }
-    // 该副作用只需在首次渲染时执行一次
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Only run once on mount
   }, []);
 
   // 会话状态检查
   useEffect(() => {
+    // Skip in speed mode
+    if (isSpeedMode) return;
     // 首次加载时检查会话状态
     const checkSession = async () => {
       try {
