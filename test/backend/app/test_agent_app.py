@@ -25,7 +25,7 @@ sys.modules['services.memory_config_service'] = pytest.importorskip("unittest.mo
 from fastapi.testclient import TestClient
 from fastapi import HTTPException
 from fastapi import FastAPI
-from backend.apps.agent_app import router
+from apps.agent_app import router
 
 # Create FastAPI app for testing
 app = FastAPI()
@@ -46,11 +46,11 @@ def mock_conversation_id():
 @pytest.mark.asyncio
 async def test_agent_run_api_success(mocker, mock_auth_header, mock_conversation_id):
     # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
-    mock_create_run_info = mocker.patch("backend.apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
-    mock_agent_run_manager = mocker.patch("backend.apps.agent_app.agent_run_manager")
-    mock_agent_run = mocker.patch("backend.apps.agent_app.agent_run")
-    mock_submit = mocker.patch("backend.apps.agent_app.submit")
+    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
+    mock_create_run_info = mocker.patch("apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
+    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
+    mock_agent_run = mocker.patch("apps.agent_app.agent_run")
+    mock_submit = mocker.patch("apps.agent_app.submit")
     
     mock_get_user_info.return_value = ("user_id", "email", "en")
     mock_create_run_info.return_value = mocker.MagicMock()
@@ -86,11 +86,11 @@ async def test_agent_run_api_success(mocker, mock_auth_header, mock_conversation
 @pytest.mark.asyncio
 async def test_agent_run_api_debug_mode(mocker, mock_auth_header, mock_conversation_id):
     # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
-    mock_create_run_info = mocker.patch("backend.apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
-    mock_agent_run_manager = mocker.patch("backend.apps.agent_app.agent_run_manager")
-    mock_agent_run = mocker.patch("backend.apps.agent_app.agent_run")
-    mock_submit = mocker.patch("backend.apps.agent_app.submit")
+    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
+    mock_create_run_info = mocker.patch("apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
+    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
+    mock_agent_run = mocker.patch("apps.agent_app.agent_run")
+    mock_submit = mocker.patch("apps.agent_app.submit")
     
     mock_get_user_info.return_value = ("user_id", "email", "en")
     mock_create_run_info.return_value = mocker.MagicMock()
@@ -125,10 +125,10 @@ async def test_agent_run_api_debug_mode(mocker, mock_auth_header, mock_conversat
 @pytest.mark.asyncio
 async def test_agent_run_api_exception(mocker, mock_auth_header, mock_conversation_id):
     # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
-    mock_create_run_info = mocker.patch("backend.apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
-    mock_agent_run_manager = mocker.patch("backend.apps.agent_app.agent_run_manager")
-    mock_agent_run = mocker.patch("backend.apps.agent_app.agent_run")
+    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
+    mock_create_run_info = mocker.patch("apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
+    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
+    mock_agent_run = mocker.patch("apps.agent_app.agent_run")
     
     mock_get_user_info.return_value = ("user_id", "email", "en")
     # Make create_agent_run_info throw exception so exception occurs before streaming response starts
@@ -155,7 +155,7 @@ async def test_agent_run_api_exception(mocker, mock_auth_header, mock_conversati
 
 def test_agent_stop_api_success(mocker, mock_conversation_id):
     # Setup mocks using pytest-mock
-    mock_agent_run_manager = mocker.patch("backend.apps.agent_app.agent_run_manager")
+    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
     mock_agent_run_manager.stop_agent_run.return_value = True
     
     # Test the endpoint
@@ -169,7 +169,7 @@ def test_agent_stop_api_success(mocker, mock_conversation_id):
 
 def test_agent_stop_api_not_found(mocker, mock_conversation_id):
     # Setup mocks using pytest-mock
-    mock_agent_run_manager = mocker.patch("backend.apps.agent_app.agent_run_manager")
+    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
     mock_agent_run_manager.stop_agent_run.return_value = False
     
     # Test the endpoint
@@ -183,8 +183,8 @@ def test_agent_stop_api_not_found(mocker, mock_conversation_id):
 
 def test_search_agent_info_api_success(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_get_user_id = mocker.patch("backend.apps.agent_app.get_current_user_id")
-    mock_get_agent_info = mocker.patch("backend.apps.agent_app.get_agent_info_impl")
+    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_get_agent_info = mocker.patch("apps.agent_app.get_agent_info_impl")
     
     mock_get_user_id.return_value = ("user_id", "tenant_id")
     mock_get_agent_info.return_value = {"agent_id": 123, "name": "Test Agent"}
@@ -205,8 +205,8 @@ def test_search_agent_info_api_success(mocker, mock_auth_header):
 
 def test_search_agent_info_api_exception(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_get_user_id = mocker.patch("backend.apps.agent_app.get_current_user_id")
-    mock_get_agent_info = mocker.patch("backend.apps.agent_app.get_agent_info_impl")
+    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_get_agent_info = mocker.patch("apps.agent_app.get_agent_info_impl")
     
     mock_get_user_id.return_value = ("user_id", "tenant_id")
     mock_get_agent_info.side_effect = Exception("Test error")
@@ -225,7 +225,7 @@ def test_search_agent_info_api_exception(mocker, mock_auth_header):
 
 def test_get_creating_sub_agent_info_api_success(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_get_creating_agent = mocker.patch("backend.apps.agent_app.get_creating_sub_agent_info_impl")
+    mock_get_creating_agent = mocker.patch("apps.agent_app.get_creating_sub_agent_info_impl")
     mock_get_creating_agent.return_value = {"agent_id": 456}
     
     # Test the endpoint - this is a GET request
@@ -242,7 +242,7 @@ def test_get_creating_sub_agent_info_api_success(mocker, mock_auth_header):
 
 def test_get_creating_sub_agent_info_api_exception(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_get_creating_agent = mocker.patch("backend.apps.agent_app.get_creating_sub_agent_info_impl")
+    mock_get_creating_agent = mocker.patch("apps.agent_app.get_creating_sub_agent_info_impl")
     mock_get_creating_agent.side_effect = Exception("Test error")
     
     # Test the endpoint - this is a GET request
@@ -258,7 +258,7 @@ def test_get_creating_sub_agent_info_api_exception(mocker, mock_auth_header):
 
 def test_update_agent_info_api_success(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_update_agent = mocker.patch("backend.apps.agent_app.update_agent_info_impl")
+    mock_update_agent = mocker.patch("apps.agent_app.update_agent_info_impl")
     mock_update_agent.return_value = None
     
     # Test the endpoint
@@ -276,7 +276,7 @@ def test_update_agent_info_api_success(mocker, mock_auth_header):
 
 def test_update_agent_info_api_exception(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_update_agent = mocker.patch("backend.apps.agent_app.update_agent_info_impl")
+    mock_update_agent = mocker.patch("apps.agent_app.update_agent_info_impl")
     mock_update_agent.side_effect = Exception("Test error")
     
     # Test the endpoint
@@ -293,7 +293,7 @@ def test_update_agent_info_api_exception(mocker, mock_auth_header):
 
 def test_delete_agent_api_success(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_delete_agent = mocker.patch("backend.apps.agent_app.delete_agent_impl", new_callable=mocker.AsyncMock)
+    mock_delete_agent = mocker.patch("apps.agent_app.delete_agent_impl", new_callable=mocker.AsyncMock)
     mock_delete_agent.return_value = None
     
     # Test the endpoint
@@ -312,7 +312,7 @@ def test_delete_agent_api_success(mocker, mock_auth_header):
 
 def test_delete_agent_api_exception(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_delete_agent = mocker.patch("backend.apps.agent_app.delete_agent_impl", new_callable=mocker.AsyncMock)
+    mock_delete_agent = mocker.patch("apps.agent_app.delete_agent_impl", new_callable=mocker.AsyncMock)
     mock_delete_agent.side_effect = Exception("Test error")
     
     # Test the endpoint
@@ -331,7 +331,7 @@ def test_delete_agent_api_exception(mocker, mock_auth_header):
 @pytest.mark.asyncio
 async def test_export_agent_api_success(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_export_agent = mocker.patch("backend.apps.agent_app.export_agent_impl", new_callable=mocker.AsyncMock)
+    mock_export_agent = mocker.patch("apps.agent_app.export_agent_impl", new_callable=mocker.AsyncMock)
     mock_export_agent.return_value = '{"agent_id": 123, "name": "Test Agent"}'
     
     # Test the endpoint
@@ -351,7 +351,7 @@ async def test_export_agent_api_success(mocker, mock_auth_header):
 @pytest.mark.asyncio
 async def test_export_agent_api_exception(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_export_agent = mocker.patch("backend.apps.agent_app.export_agent_impl", new_callable=mocker.AsyncMock)
+    mock_export_agent = mocker.patch("apps.agent_app.export_agent_impl", new_callable=mocker.AsyncMock)
     mock_export_agent.side_effect = Exception("Test error")
     
     # Test the endpoint
@@ -368,7 +368,7 @@ async def test_export_agent_api_exception(mocker, mock_auth_header):
 
 def test_import_agent_api_success(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_import_agent = mocker.patch("backend.apps.agent_app.import_agent_impl", new_callable=mocker.AsyncMock)
+    mock_import_agent = mocker.patch("apps.agent_app.import_agent_impl", new_callable=mocker.AsyncMock)
     mock_import_agent.return_value = None
     
     # Test the endpoint - following the ExportAndImportDataFormat structure
@@ -393,7 +393,8 @@ def test_import_agent_api_success(mocker, mock_auth_header):
                         "tools": [],
                         "managed_agents": []
                     }
-                }
+                },
+                "mcp_info": []
             }
         },
         headers=mock_auth_header
@@ -410,7 +411,7 @@ def test_import_agent_api_success(mocker, mock_auth_header):
 
 def test_import_agent_api_exception(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_import_agent = mocker.patch("backend.apps.agent_app.import_agent_impl", new_callable=mocker.AsyncMock)
+    mock_import_agent = mocker.patch("apps.agent_app.import_agent_impl", new_callable=mocker.AsyncMock)
     mock_import_agent.side_effect = Exception("Test error")
     
     # Test the endpoint - following the ExportAndImportDataFormat structure
@@ -435,7 +436,8 @@ def test_import_agent_api_exception(mocker, mock_auth_header):
                         "tools": [],
                         "managed_agents": []
                     }
-                }
+                },
+                "mcp_info": []
             }
         },
         headers=mock_auth_header
@@ -448,8 +450,8 @@ def test_import_agent_api_exception(mocker, mock_auth_header):
 
 def test_list_all_agent_info_api_success(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
-    mock_list_all_agent = mocker.patch("backend.apps.agent_app.list_all_agent_info_impl")
+    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
+    mock_list_all_agent = mocker.patch("apps.agent_app.list_all_agent_info_impl")
     
     # Mock return values
     mock_get_user_info.return_value = ("test_user", "test_tenant", "en")
@@ -477,8 +479,8 @@ def test_list_all_agent_info_api_success(mocker, mock_auth_header):
 
 def test_list_all_agent_info_api_exception(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
-    mock_list_all_agent = mocker.patch("backend.apps.agent_app.list_all_agent_info_impl")
+    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
+    mock_list_all_agent = mocker.patch("apps.agent_app.list_all_agent_info_impl")
     
     # Mock return values and exception
     mock_get_user_info.return_value = ("test_user", "test_tenant", "en")
@@ -499,8 +501,8 @@ def test_list_all_agent_info_api_exception(mocker, mock_auth_header):
 
 def test_related_agent_api_success(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_get_user_id = mocker.patch("backend.apps.agent_app.get_current_user_id")
-    mock_insert_related_agent = mocker.patch("backend.apps.agent_app.insert_related_agent_impl")
+    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_insert_related_agent = mocker.patch("apps.agent_app.insert_related_agent_impl")
     
     mock_get_user_id.return_value = ("user_id", "tenant_id")
     mock_insert_related_agent.return_value = {"status": "success"}
@@ -528,8 +530,8 @@ def test_related_agent_api_success(mocker, mock_auth_header):
 
 def test_related_agent_api_exception(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_get_user_id = mocker.patch("backend.apps.agent_app.get_current_user_id")
-    mock_insert_related_agent = mocker.patch("backend.apps.agent_app.insert_related_agent_impl")
+    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_insert_related_agent = mocker.patch("apps.agent_app.insert_related_agent_impl")
     
     mock_get_user_id.return_value = ("user_id", "tenant_id")
     mock_insert_related_agent.side_effect = Exception("Test error")
@@ -552,8 +554,8 @@ def test_related_agent_api_exception(mocker, mock_auth_header):
 
 def test_delete_related_agent_api_success(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_get_user_id = mocker.patch("backend.apps.agent_app.get_current_user_id")
-    mock_delete_related_agent = mocker.patch("backend.apps.agent_app.delete_related_agent")
+    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_delete_related_agent = mocker.patch("apps.agent_app.delete_related_agent")
     
     mock_get_user_id.return_value = ("user_id", "tenant_id")
     mock_delete_related_agent.return_value = {"status": "success"}
@@ -577,8 +579,8 @@ def test_delete_related_agent_api_success(mocker, mock_auth_header):
 
 def test_delete_related_agent_api_exception(mocker, mock_auth_header):
     # Setup mocks using pytest-mock
-    mock_get_user_id = mocker.patch("backend.apps.agent_app.get_current_user_id")
-    mock_delete_related_agent = mocker.patch("backend.apps.agent_app.delete_related_agent")
+    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_delete_related_agent = mocker.patch("apps.agent_app.delete_related_agent")
     
     mock_get_user_id.return_value = ("user_id", "tenant_id")
     mock_delete_related_agent.side_effect = Exception("Test error")
@@ -602,11 +604,11 @@ def test_delete_related_agent_api_exception(mocker, mock_auth_header):
 async def test_agent_run_api_streaming_response(mocker, mock_auth_header):
     """Detailed testing of agent_run_api function's StreamingResponse and async generation part"""
     # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
-    mock_create_run_info = mocker.patch("backend.apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
-    mock_agent_run_manager = mocker.patch("backend.apps.agent_app.agent_run_manager")
-    mock_agent_run = mocker.patch("backend.apps.agent_app.agent_run")
-    mock_submit = mocker.patch("backend.apps.agent_app.submit")
+    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
+    mock_create_run_info = mocker.patch("apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
+    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
+    mock_agent_run = mocker.patch("apps.agent_app.agent_run")
+    mock_submit = mocker.patch("apps.agent_app.submit")
     
     mock_get_user_info.return_value = ("user_id", "email", "en")
     mock_create_run_info.return_value = mocker.MagicMock()
@@ -663,11 +665,11 @@ async def test_agent_run_api_streaming_response(mocker, mock_auth_header):
 async def test_agent_run_api_streaming_exception(mocker, mock_auth_header):
     """Test exception handling and cleanup logic in agent_run_api function"""
     # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
-    mock_create_run_info = mocker.patch("backend.apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
-    mock_agent_run_manager = mocker.patch("backend.apps.agent_app.agent_run_manager")
-    mock_agent_run = mocker.patch("backend.apps.agent_app.agent_run")
-    mock_submit = mocker.patch("backend.apps.agent_app.submit")
+    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
+    mock_create_run_info = mocker.patch("apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
+    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
+    mock_agent_run = mocker.patch("apps.agent_app.agent_run")
+    mock_submit = mocker.patch("apps.agent_app.submit")
     
     mock_get_user_info.return_value = ("user_id", "email", "en")
     mock_create_run_info.return_value = mocker.MagicMock()
@@ -710,11 +712,11 @@ async def test_agent_run_api_streaming_exception(mocker, mock_auth_header):
 async def test_agent_run_api_chunked_streaming(mocker, mock_auth_header):
     """Detailed testing of agent_run_api function's handling of different sized chunks"""
     # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("backend.apps.agent_app.get_current_user_info")
-    mock_create_run_info = mocker.patch("backend.apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
-    mock_agent_run_manager = mocker.patch("backend.apps.agent_app.agent_run_manager")
-    mock_agent_run = mocker.patch("backend.apps.agent_app.agent_run")
-    mock_submit = mocker.patch("backend.apps.agent_app.submit")
+    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
+    mock_create_run_info = mocker.patch("apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
+    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
+    mock_agent_run = mocker.patch("apps.agent_app.agent_run")
+    mock_submit = mocker.patch("apps.agent_app.submit")
     
     mock_get_user_info.return_value = ("user_id", "email", "en")
     mock_create_run_info.return_value = mocker.MagicMock()
@@ -766,7 +768,7 @@ async def test_agent_run_api_chunked_streaming(mocker, mock_auth_header):
 async def test_export_agent_api_detailed(mocker, mock_auth_header):
     """Detailed testing of export_agent_api function, including ConversationResponse construction"""
     # Setup mocks using pytest-mock
-    mock_export_agent = mocker.patch("backend.apps.agent_app.export_agent_impl", new_callable=mocker.AsyncMock)
+    mock_export_agent = mocker.patch("apps.agent_app.export_agent_impl", new_callable=mocker.AsyncMock)
     
     # Setup mocks - return complex JSON data
     agent_data = {
@@ -801,7 +803,7 @@ async def test_export_agent_api_detailed(mocker, mock_auth_header):
 async def test_export_agent_api_empty_response(mocker, mock_auth_header):
     """Test export_agent_api handling empty response"""
     # Setup mocks using pytest-mock
-    mock_export_agent = mocker.patch("backend.apps.agent_app.export_agent_impl", new_callable=mocker.AsyncMock)
+    mock_export_agent = mocker.patch("apps.agent_app.export_agent_impl", new_callable=mocker.AsyncMock)
     
     # Setup mock to return empty data
     mock_export_agent.return_value = {}

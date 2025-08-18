@@ -129,7 +129,7 @@ export default function AgentConfigurationSection({
     const error = validateAgentName(name);
     setAgentNameError(error);
     onAgentNameChange?.(name);
-    
+
     // Set user typing state to true when user actively changes the name
     setIsUserTyping(true);
   }, [validateAgentName, onAgentNameChange]);
@@ -150,7 +150,7 @@ export default function AgentConfigurationSection({
     const error = validateAgentDisplayName(displayName);
     setAgentDisplayNameError(error);
     onAgentDisplayNameChange?.(displayName);
-    
+
     // Set user typing state to true when user actively changes the display name
     setIsUserTypingDisplayName(true);
   }, [validateAgentDisplayName, onAgentDisplayNameChange]);
@@ -171,7 +171,7 @@ export default function AgentConfigurationSection({
         setAgentNameStatus('check_failed');
       }
     };
-      
+
     const timer = setTimeout(() => {
       checkName();
     }, 300);
@@ -217,7 +217,7 @@ export default function AgentConfigurationSection({
         setAgentDisplayNameStatus('check_failed');
       }
     };
-      
+
     const timer = setTimeout(() => {
       checkDisplayName();
     }, 300);
@@ -321,10 +321,10 @@ export default function AgentConfigurationSection({
   }, [agentDisplayName, isEditingMode, validateAgentDisplayName]);
 
   // Calculate whether save buttons should be enabled
-  const canActuallySave = canSaveAgent && 
-    !agentNameError && 
+  const canActuallySave = canSaveAgent &&
+    !agentNameError &&
     agentNameStatus !== 'exists_in_tenant' &&
-    !agentDisplayNameError && 
+    !agentDisplayNameError &&
     agentDisplayNameStatus !== 'exists_in_tenant';
 
   // Render individual content sections
@@ -732,6 +732,26 @@ export default function AgentConfigurationSection({
             font-size: 14px;
             color: #666;
           }
+
+          /* Fix Ant Design button hover border color issues - ensure consistent color scheme */
+          .responsive-button.ant-btn:hover {
+            border-color: inherit !important;
+          }
+          
+          /* Blue button: hover background blue-600, border should also be blue-600 */
+          .bg-blue-500.hover\\:bg-blue-600.border-blue-500.hover\\:border-blue-600.ant-btn:hover {
+            border-color: #2563eb !important; /* blue-600 */
+          }
+          
+          /* Green button: hover background green-600, border should also be green-600 */
+          .bg-green-500.hover\\:bg-green-600.border-green-500.hover\\:border-green-600.ant-btn:hover {
+            border-color: #16a34a !important; /* green-600 */
+          }
+          
+          /* Red button: hover background red-600, border should also be red-600 */
+          .bg-red-500.hover\\:bg-red-600.border-red-500.hover\\:border-red-600.ant-btn:hover {
+            border-color: #dc2626 !important; /* red-600 */
+          }
         `}</style>
         
         <div className="content-scroll h-full overflow-y-auto agent-config-content">
@@ -906,4 +926,4 @@ export default function AgentConfigurationSection({
        </Modal>
     </div>
   )
-} 
+}
