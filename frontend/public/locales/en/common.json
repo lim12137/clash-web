@@ -452,6 +452,8 @@
     "agent.error.importError": "Failed to import agent:",
     "agent.error.exportError": "Failed to export agent:",
     "agent.error.deleteError": "Failed to delete agent:",
+    "agent.error.nameExists": "Agent var name {{name}} already exists, please modify",
+    "agent.error.displayNameExists": "Agent name {{displayName}} already exists, please modify",
     "systemPrompt.error.generateError": "Failed to generate prompt:",
     "agent.debug.placeholder": "Enter test question...",
     "agent.debug.stop": "Stop",
