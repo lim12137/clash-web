@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { OpenAIModel } from '../ConstInterface'
 import { SimplePromptEditor } from './PromptManager'
+import { checkAgentName, checkAgentDisplayName } from '@/services/agentConfigService'
 
 
 export interface AgentConfigurationSectionProps {
@@ -92,6 +93,17 @@ export default function AgentConfigurationSection({
   
   // Add state for agent name validation error
   const [agentNameError, setAgentNameError] = useState<string>('');
+  // Add state for agent name status check
+  const [agentNameStatus, setAgentNameStatus] = useState<string>('available');
+  // Add state to track if user is actively typing agent name
+  const [isUserTyping, setIsUserTyping] = useState(false);
+
+  // Add state for agent display name validation error
+  const [agentDisplayNameError, setAgentDisplayNameError] = useState<string>('');
+  // Add state for agent display name status check
+  const [agentDisplayNameStatus, setAgentDisplayNameStatus] = useState<string>('available');
+  // Add state to track if user is actively typing agent display name
+  const [isUserTypingDisplayName, setIsUserTypingDisplayName] = useState(false);
 
   // Agent name validation function
   const validateAgentName = useCallback((name: string): string => {
@@ -117,7 +129,123 @@ export default function AgentConfigurationSection({
     const error = validateAgentName(name);
     setAgentNameError(error);
     onAgentNameChange?.(name);
+    
+    // Set user typing state to true when user actively changes the name
+    setIsUserTyping(true);
   }, [validateAgentName, onAgentNameChange]);
+
+  // Agent display name validation function
+  const validateAgentDisplayName = useCallback((displayName: string): string => {
+    if (!displayName.trim()) {
+      return t('agent.info.displayName.error.empty');
+    }
+    if (displayName.length > 50) {
+      return t('agent.info.displayName.error.length');
+    }
+    return '';
+  }, [t]);
+
+  // Handle agent display name change with validation
+  const handleAgentDisplayNameChange = useCallback((displayName: string) => {
+    const error = validateAgentDisplayName(displayName);
+    setAgentDisplayNameError(error);
+    onAgentDisplayNameChange?.(displayName);
+    
+    // Set user typing state to true when user actively changes the display name
+    setIsUserTypingDisplayName(true);
+  }, [validateAgentDisplayName, onAgentDisplayNameChange]);
+
+  // Check agent name existence - only when user is actively typing
+  useEffect(() => {
+    if (!isEditingMode || !agentName || agentNameError) {
+      return;
+    }
+
+    const checkName = async () => {
+      try {
+        // Pass the current agent ID to exclude it from the check when editing
+        const result = await checkAgentName(agentName, agentId);
+        setAgentNameStatus(result.status);
+      } catch (error) {
+        console.error('check agent name failed:', error);
+        setAgentNameStatus('check_failed');
+      }
+    };
+      
+    const timer = setTimeout(() => {
+      checkName();
+    }, 300); // Debounce for 300ms
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isEditingMode, agentName, agentNameError, agentId, t]);
+
+  // Reset user typing state after user stops typing
+  useEffect(() => {
+    if (!isUserTyping) return;
+
+    const timer = setTimeout(() => {
+      setIsUserTyping(false);
+    }, 1000);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isUserTyping, agentName]);
+
+  // Clear name status when agent name is cleared or changed significantly
+  useEffect(() => {
+    if (!agentName || agentName.trim() === '') {
+      setAgentNameStatus('available');
+    }
+  }, [agentName]);
+
+  // Check agent display name existence - only when user is actively typing
+  useEffect(() => {
+    if (!isEditingMode || !agentDisplayName || agentDisplayNameError) {
+      return;
+    }
+
+    const checkDisplayName = async () => {
+      try {
+        // Pass the current agent ID to exclude it from the check when editing
+        const result = await checkAgentDisplayName(agentDisplayName, agentId);
+        setAgentDisplayNameStatus(result.status);
+      } catch (error) {
+        console.error('check agent display name failed:', error);
+        setAgentDisplayNameStatus('check_failed');
+      }
+    };
+      
+    const timer = setTimeout(() => {
+      checkDisplayName();
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isEditingMode, agentDisplayName, agentDisplayNameError, agentId, t]);
+
+  // Reset user typing state for display name after user stops typing
+  useEffect(() => {
+    if (!isUserTypingDisplayName) return;
+
+    const timer = setTimeout(() => {
+      setIsUserTypingDisplayName(false);
+    }, 1000); // Reset after 1 second of no typing
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isUserTypingDisplayName, agentDisplayName]);
+
+  // Clear display name status when agent display name is cleared or changed significantly
+  useEffect(() => {
+    if (!agentDisplayName || agentDisplayName.trim() === '') {
+      setAgentDisplayNameStatus('available');
+    }
+  }, [agentDisplayName]);
 
   // Handle delete confirmation
   const handleDeleteConfirm = useCallback(() => {
@@ -180,10 +308,28 @@ export default function AgentConfigurationSection({
     } else {
       setAgentNameError('');
     }
+    
+    // Don't reset user typing state here - let it be managed by handleAgentNameChange
   }, [agentName, isEditingMode, validateAgentName]);
 
+  // Validate agent display name when it changes externally
+  useEffect(() => {
+    if (agentDisplayName && isEditingMode) {
+      const error = validateAgentDisplayName(agentDisplayName);
+      setAgentDisplayNameError(error);
+    } else {
+      setAgentDisplayNameError('');
+    }
+    
+    // Don't reset user typing state here - let it be managed by handleAgentDisplayNameChange
+  }, [agentDisplayName, isEditingMode, validateAgentDisplayName]);
+
   // Calculate whether save buttons should be enabled
-  const canActuallySave = canSaveAgent && !agentNameError;
+  const canActuallySave = canSaveAgent && 
+    !agentNameError && 
+    agentNameStatus !== 'exists_in_tenant' &&
+    !agentDisplayNameError && 
+    agentDisplayNameStatus !== 'exists_in_tenant';
 
   // Render individual content sections
   const renderAgentInfo = () => (
@@ -196,11 +342,27 @@ export default function AgentConfigurationSection({
         <input
           type="text"
           value={agentDisplayName}
-          onChange={(e) => onAgentDisplayNameChange?.(e.target.value)}
+          onChange={(e) => {
+            handleAgentDisplayNameChange(e.target.value);
+          }}
           placeholder={t('agent.displayNamePlaceholder')}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 box-border"
+          className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 box-border ${
+            agentDisplayNameError || agentDisplayNameStatus === 'exists_in_tenant'
+              ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+          }`}
           disabled={!isEditingMode}
         />
+        {agentDisplayNameError && (
+          <p className="mt-1 text-sm text-red-600">
+            {agentDisplayNameError}
+          </p>
+        )}
+        {!agentDisplayNameError && agentDisplayNameStatus === 'exists_in_tenant' && (
+          <p className="mt-1 text-sm text-red-600">
+            {t('agent.error.displayNameExists', { displayName: agentDisplayName })}
+          </p>
+        )}
       </div>
       
       {/* Agent Name */}
@@ -211,10 +373,12 @@ export default function AgentConfigurationSection({
         <input
           type="text"
           value={agentName}
-          onChange={(e) => handleAgentNameChange(e.target.value)}
+          onChange={(e) => {
+            handleAgentNameChange(e.target.value);
+          }}
           placeholder={t('agent.namePlaceholder')}
           className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 box-border ${
-            agentNameError 
+            agentNameError || agentNameStatus === 'exists_in_tenant'
               ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
               : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
           }`}
@@ -223,6 +387,11 @@ export default function AgentConfigurationSection({
         {agentNameError && (
           <p className="mt-1 text-sm text-red-600">
             {agentNameError}
+          </p>
+        )}
+        {!agentNameError && agentNameStatus === 'exists_in_tenant' && (
+          <p className="mt-1 text-sm text-red-600">
+            {t('agent.error.nameExists', { name: agentName })}
           </p>
         )}
       </div>
@@ -657,6 +826,15 @@ export default function AgentConfigurationSection({
                   if (agentNameError) {
                     return agentNameError;
                   }
+                  if (agentNameStatus === 'exists_in_tenant') {
+                    return t('agent.error.nameExists', { name: agentName });
+                  }
+                  if (agentDisplayNameError) {
+                    return agentDisplayNameError;
+                  }
+                  if (agentDisplayNameStatus === 'exists_in_tenant') {
+                    return t('agent.error.displayNameExists', { displayName: agentDisplayName });
+                  }
                   if (!canSaveAgent && getButtonTitle) {
                     const tooltipText = getButtonTitle();
                     return tooltipText || t('businessLogic.config.button.saveToAgentPool');
@@ -677,6 +855,15 @@ export default function AgentConfigurationSection({
                 title={(() => {
                   if (agentNameError) {
                     return agentNameError;
+                  }
+                  if (agentNameStatus === 'exists_in_tenant') {
+                    return t('agent.error.nameExists', { name: agentName });
+                  }
+                  if (agentDisplayNameError) {
+                    return agentDisplayNameError;
+                  }
+                  if (agentDisplayNameStatus === 'exists_in_tenant') {
+                    return t('agent.error.displayNameExists', { displayName: agentDisplayName });
                   }
                   if (!canSaveAgent && getButtonTitle) {
                     const tooltipText = getButtonTitle();

@@ -652,3 +652,67 @@ export const deleteRelatedAgent = async (parentAgentId: number, childAgentId: nu
     };
   }
 };
+
+/**
+ * Check if agent name exists in the current tenant
+ * @param agentName agent name to check
+ * @param excludeAgentId optional agent id to exclude from the check
+ * @returns check result with status
+ */
+export const checkAgentName = async (agentName: string, excludeAgentId?: number): Promise<{status: string, action?: string}> => {
+  try {
+    // Get all agents in current tenant
+    const response = await fetch(API_ENDPOINTS.agent.list, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`request failed: ${response.status}`);
+    }
+    const data = await response.json();
+    
+    // Check if agent name already exists, excluding the specified agent if provided
+    const existingAgent = data.find((agent: any) => 
+      agent.name === agentName && 
+      (!excludeAgentId || agent.agent_id !== excludeAgentId)
+    );
+    
+    if (existingAgent) {
+      return { status: 'exists_in_tenant' };
+    }
+    return { status: 'available' };
+  } catch (error) {
+    return { status: 'check_failed' };
+  }
+};
+
+/**
+ * Check if agent display name exists in the current tenant
+ * @param displayName agent display name to check
+ * @param excludeAgentId optional agent id to exclude from the check
+ * @returns check result with status
+ */
+export const checkAgentDisplayName = async (displayName: string, excludeAgentId?: number): Promise<{status: string, action?: string}> => {
+  try {
+    // Get all agents in current tenant
+    const response = await fetch(API_ENDPOINTS.agent.list, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`request failed: ${response.status}`);
+    }
+    const data = await response.json();
+    
+    // Check if agent display name already exists, excluding the specified agent if provided
+    const existingAgent = data.find((agent: any) => 
+      agent.display_name === displayName && 
+      (!excludeAgentId || agent.agent_id !== excludeAgentId)
+    );
+    
+    if (existingAgent) {
+      return { status: 'exists_in_tenant' };
+    }
+    return { status: 'available' };
+  } catch (error) {
+    return { status: 'check_failed' };
+  }
+};
