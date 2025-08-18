@@ -317,6 +317,7 @@ class MessageIdRequest(BaseModel):
 class ExportAndImportAgentInfo(BaseModel):
     agent_id: int
     name: str
+    display_name: Optional[str] = None
     description: str
     business_description: str
     model_name: str

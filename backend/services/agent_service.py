@@ -232,6 +232,7 @@ async def export_agent_by_agent_id(agent_id: int, tenant_id: str, user_id: str)-
     
     agent_info = ExportAndImportAgentInfo(agent_id=agent_id,
                                           name=agent_info["name"],
+                                          display_name=agent_info["display_name"],
                                           description=agent_info["description"],
                                           business_description=agent_info["business_description"],
                                           model_name=agent_info["model_name"],
@@ -356,6 +357,7 @@ async def import_agent_by_agent_id(import_agent_info: ExportAndImportAgentInfo, 
         raise ValueError(f"Invalid agent name: {import_agent_info.name}. agent name must be a valid python variable name.")
     # create a new agent
     new_agent = create_agent(agent_info={"name": import_agent_info.name,
+                            "display_name": import_agent_info.display_name,
                             "description": import_agent_info.description,
                             "business_description": import_agent_info.business_description,
                             "model_name": import_agent_info.model_name,
