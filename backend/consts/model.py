@@ -329,6 +329,9 @@ class ExportAndImportAgentInfo(BaseModel):
     tools: List[ToolConfig]
     managed_agents: List[int]
 
+    class Config:
+        arbitrary_types_allowed = True
+
 
 class MCPInfo(BaseModel):
     mcp_server_name: str
