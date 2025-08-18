@@ -157,7 +157,7 @@ export default function AgentConfigurationSection({
 
   // Check agent name existence - only when user is actively typing
   useEffect(() => {
-    if (!isEditingMode || !agentName || agentNameError) {
+    if (!agentName || agentNameError) {
       return;
     }
 
@@ -174,7 +174,7 @@ export default function AgentConfigurationSection({
       
     const timer = setTimeout(() => {
       checkName();
-    }, 300); // Debounce for 300ms
+    }, 300);
 
     return () => {
       clearTimeout(timer);
@@ -203,7 +203,7 @@ export default function AgentConfigurationSection({
 
   // Check agent display name existence - only when user is actively typing
   useEffect(() => {
-    if (!isEditingMode || !agentDisplayName || agentDisplayNameError) {
+    if ((!isEditingMode && !isCreatingNewAgent) || !agentDisplayName || agentDisplayNameError) {
       return;
     }
 
@@ -233,7 +233,7 @@ export default function AgentConfigurationSection({
 
     const timer = setTimeout(() => {
       setIsUserTypingDisplayName(false);
-    }, 1000); // Reset after 1 second of no typing
+    }, 1000);
 
     return () => {
       clearTimeout(timer);
@@ -308,8 +308,6 @@ export default function AgentConfigurationSection({
     } else {
       setAgentNameError('');
     }
-    
-    // Don't reset user typing state here - let it be managed by handleAgentNameChange
   }, [agentName, isEditingMode, validateAgentName]);
 
   // Validate agent display name when it changes externally
@@ -320,8 +318,6 @@ export default function AgentConfigurationSection({
     } else {
       setAgentDisplayNameError('');
     }
-    
-    // Don't reset user typing state here - let it be managed by handleAgentDisplayNameChange
   }, [agentDisplayName, isEditingMode, validateAgentDisplayName]);
 
   // Calculate whether save buttons should be enabled
