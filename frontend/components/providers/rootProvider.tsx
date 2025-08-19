@@ -23,11 +23,13 @@ export function RootProvider({ children }: { children: ReactNode }) {
           {(authContextValue) => (
             <AuthContext.Provider value={authContextValue}>
               <AppReadyWrapper>
-                {children}
+                <>
+                  {children}
+                  <SessionListeners />
+                </>
               </AppReadyWrapper>
               <LoginModal />
               <RegisterModal />
-              <SessionListeners />
             </AuthContext.Provider>
           )}
         </AuthContextProvider>
