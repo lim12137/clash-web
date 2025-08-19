@@ -1,5 +1,26 @@
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
+from enum import Enum
+
+
+class ToolSign(Enum):
+    """Tool identifier enum for distinguishing different search sources in summaries"""
+    KNOWLEDGE_BASE = "a"      # Knowledge base search tool identifier
+    EXA_SEARCH = "b"  # Exa search tool identifier
+    LINKUP_SEARCH = "c"       # Linkup search tool identifier
+    TAVILY_SEARCH = "d"  # Tavily search tool identifier
+
+
+# Tool sign mapping for backward compatibility
+TOOL_SIGN_MAPPING = {
+    "knowledge_base_search": ToolSign.KNOWLEDGE_BASE.value,
+    "tavily_search": ToolSign.TAVILY_SEARCH.value,
+    "linkup_search": ToolSign.LINKUP_SEARCH.value,
+    "exa_search": ToolSign.EXA_SEARCH.value,
+}
+
+# Reverse mapping for lookup
+REVERSE_TOOL_SIGN_MAPPING = {v: k for k, v in TOOL_SIGN_MAPPING.items()}
 
 
 @dataclass
