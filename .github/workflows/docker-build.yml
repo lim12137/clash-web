@@ -50,4 +50,4 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build terminal image
-        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple --progress=plain -t nexent/nexent-ubuntu-terminal -f make/terminal/Dockerfile .
+        run: docker build --progress=plain -t nexent/nexent-ubuntu-terminal -f make/terminal/Dockerfile .
