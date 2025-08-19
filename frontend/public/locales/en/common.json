@@ -988,6 +988,7 @@
     "mcpConfig.serverList.column.url": "URL",
     "mcpConfig.serverList.column.action": "Actions",
     "mcpConfig.serverList.button.viewTools": "View Tools",
+    "mcpConfig.serverList.button.healthCheck": "Health Check",
     "mcpConfig.serverList.button.delete": "Delete",
     "mcpConfig.serverList.statusCheckHint": "Click to check server connectivity",
     "mcpConfig.serverList.statusCheckSuccess": "Server connectivity check succeeded",
