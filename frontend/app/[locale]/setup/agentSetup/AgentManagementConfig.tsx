@@ -110,6 +110,9 @@ export default function BusinessLogicConfig({
   const [isEditingAgent, setIsEditingAgent] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
 
+  // 添加一个标志来跟踪是否已经初始化，避免重复调用
+  const hasInitialized = useRef(false);
+
   const { t } = useTranslation('common');
   const { message } = App.useApp();
 
@@ -254,20 +257,23 @@ export default function BusinessLogicConfig({
         setIsNewAgentInfoValid(true); // Assume data is valid when editing
         console.log('Edit mode useEffect - Do not clear data'); // Debug information
       }
-          } else {
-        // When exiting the creation of a new Agent, reset the main Agent configuration
-        // Only refresh list when exiting creation mode in non-editing mode to avoid flicker when exiting editing mode
-        if (!isEditingAgent) {
-          setBusinessLogic('');
-          setSystemPrompt(''); // Also clear the system prompt
-          setMainAgentModel(OpenAIModel.MainModel);
-          setMainAgentMaxStep(5);
-          // Delay refreshing agent list to avoid jumping
-          setTimeout(() => {
-            refreshAgentList(t);
-          }, 200);
-        }
+    } else {
+      // When exiting the creation of a new Agent, reset the main Agent configuration
+      // Only refresh list when exiting creation mode in non-editing mode to avoid flicker when exiting editing mode
+      // 只有在已经初始化且从创建模式切换到非创建模式时才刷新列表
+      if (!isEditingAgent && hasInitialized.current) {
+        setBusinessLogic('');
+        setSystemPrompt(''); // Also clear the system prompt
+        setMainAgentModel(OpenAIModel.MainModel);
+        setMainAgentMaxStep(5);
+        // Delay refreshing agent list to avoid jumping
+        setTimeout(() => {
+          refreshAgentList(t);
+        }, 200);
       }
+      // 标记为已初始化
+      hasInitialized.current = true;
+    }
   }, [isCreatingNewAgent, isEditingAgent]);
 
   // Listen for changes in the tool status, update the selected tool
