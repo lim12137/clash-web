@@ -8,7 +8,7 @@ from smolagents.tools import Tool
 from pydantic import Field
 
 from ..utils.observer import MessageObserver, ProcessType
-from ..utils.tools_common_message import SearchResultTextMessage
+from ..utils.tools_common_message import SearchResultTextMessage, ToolSign
 
 # Get logger instance
 logger = logging.getLogger("exa_search_tool")
@@ -22,7 +22,7 @@ class ExaSearchTool(Tool):
 
     inputs = {"query": {"type": "string", "description": "The search query to perform."}}
     output_type = "string"
-    tool_sign = "b"  # Used to distinguish different index sources in summary
+    tool_sign = ToolSign.EXA_SEARCH.value  # Used to distinguish different index sources in summary
 
     def __init__(self, exa_api_key:str=Field(description="EXA API key"),
                  observer: MessageObserver=Field(description="Message observer", default=None, exclude=True),
