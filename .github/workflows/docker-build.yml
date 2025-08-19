@@ -42,3 +42,12 @@ jobs:
 
       - name: Build web frontend image
         run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple --progress=plain -t nexent/nexent-web -f make/web/Dockerfile .
+
+  build-terminal:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build terminal image
+        run: docker build --build-arg MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple --progress=plain -t nexent/nexent-ubuntu-terminal -f make/terminal/Dockerfile .
