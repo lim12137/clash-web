@@ -110,7 +110,7 @@ export default function BusinessLogicConfig({
   const [isEditingAgent, setIsEditingAgent] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
 
-  // 添加一个标志来跟踪是否已经初始化，避免重复调用
+  // Add a flag to track if it has been initialized to avoid duplicate calls
   const hasInitialized = useRef(false);
 
   const { t } = useTranslation('common');
@@ -140,45 +140,10 @@ export default function BusinessLogicConfig({
     }
   };
 
-  // Handle agent selection and load detailed configuration
-  // Remove frontend caching logic, completely rely on backend returned sub_agent_id_list
-  const handleAgentSelectionOnly = (agent: Agent, isSelected: boolean) => {
-    // No longer perform frontend caching, completely rely on backend returned sub_agent_id_list
-    // This function is now just a placeholder, actual state management is controlled by backend
-    console.log('Agent selection changed:', agent.name, isSelected);
-  };
-
-  // Function to refresh agent state
-  const handleRefreshAgentState = async () => {
-    if (isEditingAgent && editingAgent) {
-      try {
-        // Add a small delay to ensure backend operation is completed
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Re-fetch detailed information of currently editing agent
-        const result = await searchAgentInfo(Number(editingAgent.id));
-        if (result.success && result.data) {
-          const agentDetail = result.data;
-
-          // Update enabledAgentIds
-          if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
-            const newEnabledAgentIds = agentDetail.sub_agent_id_list.map((id: any) => Number(id));
-            setEnabledAgentIds(newEnabledAgentIds);
-          } else {
-            setEnabledAgentIds([]);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to refresh agent state:', error);
-      }
-    }
-  };
-
   // Function to directly update enabledAgentIds
   const handleUpdateEnabledAgentIds = (newEnabledAgentIds: number[]) => {
     setEnabledAgentIds(newEnabledAgentIds);
   };
-
 
   const fetchSubAgentIdAndEnableToolList = async (t: TFunction) => {
     setIsLoadingTools(true);
@@ -260,7 +225,6 @@ export default function BusinessLogicConfig({
     } else {
       // When exiting the creation of a new Agent, reset the main Agent configuration
       // Only refresh list when exiting creation mode in non-editing mode to avoid flicker when exiting editing mode
-      // 只有在已经初始化且从创建模式切换到非创建模式时才刷新列表
       if (!isEditingAgent && hasInitialized.current) {
         setBusinessLogic('');
         setSystemPrompt(''); // Also clear the system prompt
@@ -271,7 +235,7 @@ export default function BusinessLogicConfig({
           refreshAgentList(t);
         }, 200);
       }
-      // 标记为已初始化
+      // Sign that has been initialized
       hasInitialized.current = true;
     }
   }, [isCreatingNewAgent, isEditingAgent]);
