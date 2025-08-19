@@ -984,6 +984,7 @@
     "mcpConfig.serverList.column.url": "URL",
     "mcpConfig.serverList.column.action": "操作",
     "mcpConfig.serverList.button.viewTools": "查看工具",
+    "mcpConfig.serverList.button.healthCheck": "连通性校验",
     "mcpConfig.serverList.button.delete": "删除",
     "mcpConfig.serverList.statusCheckHint": "点击检测服务器连通性",
     "mcpConfig.serverList.statusCheckSuccess": "mcp服务器连接成功",
