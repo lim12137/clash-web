@@ -9,6 +9,8 @@ class ToolSign(Enum):
     EXA_SEARCH = "b"  # Exa search tool identifier
     LINKUP_SEARCH = "c"       # Linkup search tool identifier
     TAVILY_SEARCH = "d"  # Tavily search tool identifier
+    FILE_OPERATION = "f"      # File operation tool identifier
+    TERMINAL_OPERATION = "t"  # Terminal operation tool identifier
 
 
 # Tool sign mapping for backward compatibility
@@ -17,6 +19,8 @@ TOOL_SIGN_MAPPING = {
     "tavily_search": ToolSign.TAVILY_SEARCH.value,
     "linkup_search": ToolSign.LINKUP_SEARCH.value,
     "exa_search": ToolSign.EXA_SEARCH.value,
+    "file_operation": ToolSign.FILE_OPERATION.value,
+    "terminal_operation": ToolSign.TERMINAL_OPERATION.value,
 }
 
 # Reverse mapping for lookup
