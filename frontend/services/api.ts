@@ -27,7 +27,6 @@ export const API_ENDPOINTS = {
   agent: {
     run: `${API_BASE_URL}/agent/run`,
     update: `${API_BASE_URL}/agent/update`,
-    listMainAgentInfo: `${API_BASE_URL}/agent/list_main_agent_info`,
     list: `${API_BASE_URL}/agent/list`,
     delete: `${API_BASE_URL}/agent`,
     getCreatingSubAgentId: `${API_BASE_URL}/agent/get_creating_sub_agent_id`,
@@ -81,7 +80,6 @@ export const API_ENDPOINTS = {
     getProviderSelectedModalList: `${API_BASE_URL}/model/provider/list`,
     customModelDelete: (displayName: string) => `${API_BASE_URL}/model/delete?display_name=${encodeURIComponent(displayName)}`,
     customModelHealthcheck: (displayName: string) => `${API_BASE_URL}/model/healthcheck?display_name=${encodeURIComponent(displayName)}`,
-    updateConnectStatus: `${API_BASE_URL}/model/update_connect_status`,
     verifyModelConfig: `${API_BASE_URL}/model/verify_config`,
     updateSingleModel: `${API_BASE_URL}/model/update_single_model`,
     updateBatchModel: `${API_BASE_URL}/model/batch_update_models`,
@@ -115,7 +113,6 @@ export const API_ENDPOINTS = {
     add: `${API_BASE_URL}/mcp/add`,
     delete: `${API_BASE_URL}/mcp`,
     list: `${API_BASE_URL}/mcp/list`,
-    recover: `${API_BASE_URL}/mcp/recover`,
     healthcheck: `${API_BASE_URL}/mcp/healthcheck`,
   },
   memory: {

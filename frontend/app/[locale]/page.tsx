@@ -11,7 +11,6 @@ import { LoginModal } from "@/components/auth/loginModal"
 import { RegisterModal } from "@/components/auth/registerModal"
 import { useAuth } from "@/hooks/useAuth"
 import { Modal, ConfigProvider, Dropdown } from "antd"
-import { useRouter, usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { languageOptions } from '@/lib/constants';
 import { useLanguageSwitch } from '@/lib/languageUtils';
@@ -20,8 +19,7 @@ import { DownOutlined } from '@ant-design/icons'
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
-  const {t} = useTranslation('common');
-  const {currentLanguage, handleLanguageChange, getOppositeLanguage} = useLanguageSwitch();
+  const {currentLanguage, handleLanguageChange} = useLanguageSwitch();
 
   // Prevent hydration errors
   useEffect(() => {
@@ -39,10 +37,7 @@ export default function Home() {
   )
 
   function FrontpageContent() {
-    const {t, i18n} = useTranslation('common');
-    const [lang, setLang] = useState(i18n.language || 'zh');
-    const router = useRouter();
-    const pathname = usePathname();
+    const {t} = useTranslation('common');
     const {user, isLoading: userLoading, openLoginModal, openRegisterModal, isSpeedMode} = useAuth()
     const [loginPromptOpen, setLoginPromptOpen] = useState(false)
     const [adminRequiredPromptOpen, setAdminRequiredPromptOpen] = useState(false)

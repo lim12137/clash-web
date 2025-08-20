@@ -2,9 +2,9 @@
 
 import { ReactNode } from "react"
 import { FiRefreshCw, FiArrowLeft } from "react-icons/fi"
-import { Badge, Button, Tooltip, Select, Dropdown } from "antd"
+import { Badge, Button, Tooltip, Dropdown } from "antd"
 import { useRouter } from "next/navigation"
-import { BugOutlined, DownOutlined } from '@ant-design/icons'
+import { DownOutlined } from '@ant-design/icons'
 import { useTranslation } from "react-i18next"
 import { languageOptions } from '@/lib/constants'
 import { useLanguageSwitch } from '@/lib/languageUtils'
@@ -106,7 +106,6 @@ interface NavigationProps {
   onCompleteConfig: () => void;
   isSavingConfig: boolean;
   userRole?: "user" | "admin";
-  showDebugButton?: boolean;
 }
 
 function Navigation({
@@ -115,7 +114,6 @@ function Navigation({
   onCompleteConfig,
   isSavingConfig,
   userRole,
-  showDebugButton = false,
 }: NavigationProps) {
   const { t } = useTranslation()
 
@@ -160,7 +158,6 @@ interface LayoutProps {
   onCompleteConfig: () => void;
   isSavingConfig: boolean;
   userRole?: "user" | "admin";
-  showDebugButton?: boolean;
 }
 
 function Layout({
@@ -174,7 +171,6 @@ function Layout({
   onCompleteConfig,
   isSavingConfig,
   userRole,
-  showDebugButton = false,
 }: LayoutProps) {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans">
@@ -194,7 +190,6 @@ function Layout({
             onCompleteConfig={onCompleteConfig}
             isSavingConfig={isSavingConfig}
             userRole={userRole}
-            showDebugButton={showDebugButton}
           />
       </div>
     </div>
