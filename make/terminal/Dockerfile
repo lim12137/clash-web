@@ -37,7 +37,7 @@ RUN mkdir /var/run/sshd && \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 
 # Install Miniconda
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(echo $TARGETPLATFORM | sed 's/linux\///' | sed 's/amd64/x86_64/' | sed 's/arm64/aarch64/').sh -O /tmp/miniconda.sh && \
     bash /tmp/miniconda.sh -b -p $CONDA_DIR && \
     rm /tmp/miniconda.sh
 
