@@ -400,3 +400,113 @@ def insert_related_agent_impl(parent_agent_id, child_agent_id, tenant_id):
             status_code=400,
             content={"message":"Failed to insert relation", "status": "error"}
         )
+
+
+def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
+    """
+    Get agent call relationship tree including tools and sub-agents
+    
+    Args:
+        agent_id (int): agent id
+        tenant_id (str): tenant id
+        
+    Returns:
+        dict: agent call relationship tree structure
+    """
+    try:
+        # Get main agent info
+        agent_info = search_agent_info_by_agent_id(agent_id, tenant_id)
+        if not agent_info:
+            raise ValueError(f"Agent {agent_id} not found")
+            
+        # Get tools for main agent
+        tool_info = search_tools_for_sub_agent(agent_id=agent_id, tenant_id=tenant_id)
+        tools = []
+        for tool in tool_info:
+            if tool.get("enabled", False):
+                # 尝试获取工具名称，优先使用name字段，然后是tool_name，最后是tool_id
+                tool_name = tool.get("name") or tool.get("tool_name")
+                if not tool_name:
+                    # 如果都没有，使用tool_id作为名称
+                    tool_name = str(tool["tool_id"])
+                
+                # 获取工具类型，优先使用source字段，然后是tool_type
+                tool_type = tool.get("source", "native")
+                if tool_type == "mcp":
+                    tool_type = "MCP"
+                elif tool_type == "langchain":
+                    tool_type = "LangChain"
+                elif tool_type == "local":
+                    tool_type = "Local"
+                
+                tools.append({
+                    "tool_id": tool["tool_id"],
+                    "name": tool_name,
+                    "type": tool_type
+                })
+        
+        # 递归获取子智能体及其工具
+        def get_sub_agents_recursive(parent_agent_id: int, depth: int = 0, max_depth: int = 5) -> list:
+            """递归获取子智能体，支持多层级嵌套"""
+            if depth >= max_depth:  # 防止无限递归
+                return []
+                
+            sub_agent_id_list = query_sub_agents_id_list(main_agent_id=parent_agent_id, tenant_id=tenant_id)
+            sub_agents = []
+            
+            for sub_agent_id in sub_agent_id_list:
+                try:
+                    sub_agent_info = search_agent_info_by_agent_id(sub_agent_id, tenant_id)
+                    if sub_agent_info:
+                        # 获取子智能体的工具
+                        sub_tool_info = search_tools_for_sub_agent(agent_id=sub_agent_id, tenant_id=tenant_id)
+                        sub_tools = []
+                        for tool in sub_tool_info:
+                            if tool.get("enabled", False):
+                                tool_name = tool.get("name") or tool.get("tool_name")
+                                if not tool_name:
+                                    tool_name = str(tool["tool_id"])
+                                
+                                tool_type = tool.get("source", "native")
+                                if tool_type == "mcp":
+                                    tool_type = "MCP"
+                                elif tool_type == "langchain":
+                                    tool_type = "LangChain"
+                                elif tool_type == "local":
+                                    tool_type = "Local"
+                                
+                                sub_tools.append({
+                                    "tool_id": tool["tool_id"],
+                                    "name": tool_name,
+                                    "type": tool_type
+                                })
+                        
+                        # 递归获取更深层的子智能体
+                        deeper_sub_agents = get_sub_agents_recursive(sub_agent_id, depth + 1, max_depth)
+                        
+                        sub_agents.append({
+                            "agent_id": str(sub_agent_id),
+                            "name": sub_agent_info.get("display_name") or sub_agent_info.get("name", f"Agent {sub_agent_id}"),
+                            "tools": sub_tools,
+                            "sub_agents": deeper_sub_agents,  # 递归添加更深层的子智能体
+                            "depth": depth + 1  # 记录层级深度
+                        })
+                except Exception as e:
+                    logger.warning(f"Failed to get sub-agent {sub_agent_id} info: {str(e)}")
+                    continue
+            
+            return sub_agents
+        
+        # 获取所有层级的子智能体
+        sub_agents = get_sub_agents_recursive(agent_id)
+        
+        return {
+            "agent_id": str(agent_id),
+            "name": agent_info.get("display_name") or agent_info.get("name", f"Agent {agent_id}"),
+            "tools": tools,
+            "sub_agents": sub_agents
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get agent call relationship: {str(e)}")
+        raise ValueError(f"Failed to get agent call relationship: {str(e)}")
