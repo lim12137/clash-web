@@ -85,7 +85,6 @@ export default function Home() {
       setAdminRequiredPromptOpen(false)
     }
 
-    // 重构：风格被嵌入在组件内
     return (
         <div
             className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">

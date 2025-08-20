@@ -148,7 +148,6 @@ export class ApiError extends Error {
   }
 }
 
-// 重构：拦截器等是不是需要单独文件管理？
 // API请求拦截器
 export const fetchWithErrorHandling = async (url: string, options: RequestInit = {}) => {
   try {
