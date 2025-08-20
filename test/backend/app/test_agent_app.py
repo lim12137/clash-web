@@ -1,6 +1,11 @@
-import pytest
-import sys
 import os
+import sys
+from unittest.mock import MagicMock
+
+import pytest
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+from fastapi.testclient import TestClient
 
 # Dynamically determine the backend path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -22,9 +27,6 @@ sys.modules['services.conversation_management_service'] = pytest.importorskip("u
 sys.modules['services.memory_config_service'] = pytest.importorskip("unittest.mock").MagicMock()
 
 # Now it's safe to import the modules we need to test
-from fastapi.testclient import TestClient
-from fastapi import HTTPException
-from fastapi import FastAPI
 from apps.agent_app import router
 
 # Create FastAPI app for testing
@@ -44,140 +46,62 @@ def mock_conversation_id():
 
 
 @pytest.mark.asyncio
-async def test_agent_run_api_success(mocker, mock_auth_header, mock_conversation_id):
-    # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
-    mock_create_run_info = mocker.patch("apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
-    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
-    mock_agent_run = mocker.patch("apps.agent_app.agent_run")
-    mock_submit = mocker.patch("apps.agent_app.submit")
+async def test_agent_run_api(mocker, mock_auth_header):
+    """Test agent_run_api endpoint."""
+    mock_run_agent_stream = mocker.patch("apps.agent_app.run_agent_stream", new_callable=mocker.AsyncMock)
     
-    mock_get_user_info.return_value = ("user_id", "email", "en")
-    mock_create_run_info.return_value = mocker.MagicMock()
-    
-    # Create a real async generator to mock agent_run
-    async def mock_async_generator():
-        for chunk in ["chunk1", "chunk2"]:
-            yield chunk
-    
-    mock_agent_run.return_value = mock_async_generator()
-    
-    # Test the endpoint
+    # Mock the streaming response
+    async def mock_stream():
+        yield b"data: chunk1\n\n"
+        yield b"data: chunk2\n\n"
+
+    mock_run_agent_stream.return_value = StreamingResponse(mock_stream(), media_type="text/event-stream")
+
     response = client.post(
         "/agent/run",
         json={
-            "agent_id": 123,
-            "conversation_id": mock_conversation_id,
+            "agent_id": 1,
+            "conversation_id": 123,
             "query": "test query",
             "history": [],
             "minio_files": [],
-            "is_debug": False
+            "is_debug": False,
         },
         headers=mock_auth_header
     )
     
-    # Assertions
     assert response.status_code == 200
-    mock_agent_run_manager.register_agent_run.assert_called_once()
-    mock_submit.assert_called()
-    mock_agent_run_manager.unregister_agent_run.assert_called_once_with(mock_conversation_id)
-
-
-@pytest.mark.asyncio
-async def test_agent_run_api_debug_mode(mocker, mock_auth_header, mock_conversation_id):
-    # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
-    mock_create_run_info = mocker.patch("apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
-    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
-    mock_agent_run = mocker.patch("apps.agent_app.agent_run")
-    mock_submit = mocker.patch("apps.agent_app.submit")
+    mock_run_agent_stream.assert_called_once()
+    assert "text/event-stream" in response.headers["content-type"]
     
-    mock_get_user_info.return_value = ("user_id", "email", "en")
-    mock_create_run_info.return_value = mocker.MagicMock()
-    
-    # Create a real async generator to mock agent_run
-    async def mock_async_generator():
-        for chunk in ["chunk1", "chunk2"]:
-            yield chunk
-    
-    mock_agent_run.return_value = mock_async_generator()
-    
-    # Test the endpoint in debug mode
-    response = client.post(
-        "/agent/run",
-        json={
-            "agent_id": 123,
-            "conversation_id": mock_conversation_id,
-            "query": "test query",
-            "history": [],
-            "minio_files": [],
-            "is_debug": True
-        },
-        headers=mock_auth_header
-    )
-    
-    # Assertions
-    assert response.status_code == 200
-    mock_submit.assert_not_called()
-    mock_agent_run_manager.unregister_agent_run.assert_called_once_with(mock_conversation_id)
-
-
-@pytest.mark.asyncio
-async def test_agent_run_api_exception(mocker, mock_auth_header, mock_conversation_id):
-    # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
-    mock_create_run_info = mocker.patch("apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
-    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
-    mock_agent_run = mocker.patch("apps.agent_app.agent_run")
-    
-    mock_get_user_info.return_value = ("user_id", "email", "en")
-    # Make create_agent_run_info throw exception so exception occurs before streaming response starts
-    mock_create_run_info.side_effect = Exception("Test error")
-    
-    # Test the endpoint with exception - use pytest.raises to catch exception
-    with pytest.raises(Exception) as exc_info:
-        client.post(
-            "/agent/run",
-            json={
-                "agent_id": 123,
-                "conversation_id": mock_conversation_id,
-                "query": "test query",
-                "history": [],
-                "minio_files": [],
-                "is_debug": False
-            },
-            headers=mock_auth_header
-        )
-    
-    # Verify exception message
-    assert "Test error" in str(exc_info.value)
+    # Check streamed content
+    content = response.content.decode()
+    assert "data: chunk1" in content
+    assert "data: chunk2" in content
 
 
 def test_agent_stop_api_success(mocker, mock_conversation_id):
-    # Setup mocks using pytest-mock
-    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
-    mock_agent_run_manager.stop_agent_run.return_value = True
-    
-    # Test the endpoint
+    """Test agent_stop_api success case."""
+    mock_stop_tasks = mocker.patch("apps.agent_app.stop_agent_tasks")
+    mock_stop_tasks.return_value = {"status": "success"}
+
     response = client.get(f"/agent/stop/{mock_conversation_id}")
     
-    # Assertions
     assert response.status_code == 200
-    mock_agent_run_manager.stop_agent_run.assert_called_once_with(mock_conversation_id)
-    assert "success" in response.json()["status"]
+    mock_stop_tasks.assert_called_once_with(mock_conversation_id)
+    assert response.json()["status"] == "success"
 
 
 def test_agent_stop_api_not_found(mocker, mock_conversation_id):
-    # Setup mocks using pytest-mock
-    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
-    mock_agent_run_manager.stop_agent_run.return_value = False
-    
-    # Test the endpoint
+    """Test agent_stop_api not found case."""
+    mock_stop_tasks = mocker.patch("apps.agent_app.stop_agent_tasks")
+    mock_stop_tasks.return_value = {"status": "error"}  # Simulate not found
+
     response = client.get(f"/agent/stop/{mock_conversation_id}")
     
-    # Assertions
+    # The app should raise HTTPException for non-success status
     assert response.status_code == 404
-    mock_agent_run_manager.stop_agent_run.assert_called_once_with(mock_conversation_id)
+    mock_stop_tasks.assert_called_once_with(mock_conversation_id)
     assert "no running agent or preprocess tasks found" in response.json()["detail"]
 
 
@@ -598,170 +522,6 @@ def test_delete_related_agent_api_exception(mocker, mock_auth_header):
     # Assertions
     assert response.status_code == 500
     assert "Agent related info error" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_agent_run_api_streaming_response(mocker, mock_auth_header):
-    """Detailed testing of agent_run_api function's StreamingResponse and async generation part"""
-    # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
-    mock_create_run_info = mocker.patch("apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
-    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
-    mock_agent_run = mocker.patch("apps.agent_app.agent_run")
-    mock_submit = mocker.patch("apps.agent_app.submit")
-    
-    mock_get_user_info.return_value = ("user_id", "email", "en")
-    mock_create_run_info.return_value = mocker.MagicMock()
-    
-    # Mock async generator returning multiple chunks
-    chunks = ["chunk1", "chunk2", "chunk3"]
-    async def mock_async_generator():
-        for chunk in chunks:
-            yield chunk
-            
-    mock_agent_run.return_value = mock_async_generator()
-    
-    # Create test client
-    test_client = TestClient(app)
-    
-    # Send request but don't wait for complete response (because we need to manually iterate streaming response)
-    with test_client.stream("POST", 
-        "/agent/run",
-        json={
-            "agent_id": 123,
-            "conversation_id": 456,
-            "query": "test streaming",
-            "history": [],
-            "minio_files": [],
-            "is_debug": False
-        },
-        headers=mock_auth_header
-    ) as response:
-        # Verify response status code
-        assert response.status_code == 200
-        
-        # Verify response headers
-        assert response.headers["Content-Type"].startswith("text/event-stream")
-        assert response.headers["Cache-Control"] == "no-cache"
-        assert response.headers["Connection"] == "keep-alive"
-        
-        # Collect streaming response content
-        content = ""
-        for line in response.iter_lines():
-            if line:
-                content += line + "\n"
-        
-        # Verify content contains all chunks
-        for chunk in chunks:
-            assert f"data: {chunk}" in content
-    
-    # Verify non-debug mode behavior
-    mock_submit.assert_called()
-    mock_agent_run_manager.register_agent_run.assert_called_once()
-    mock_agent_run_manager.unregister_agent_run.assert_called_once_with(456)
-
-
-@pytest.mark.asyncio
-async def test_agent_run_api_streaming_exception(mocker, mock_auth_header):
-    """Test exception handling and cleanup logic in agent_run_api function"""
-    # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
-    mock_create_run_info = mocker.patch("apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
-    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
-    mock_agent_run = mocker.patch("apps.agent_app.agent_run")
-    mock_submit = mocker.patch("apps.agent_app.submit")
-    
-    mock_get_user_info.return_value = ("user_id", "email", "en")
-    mock_create_run_info.return_value = mocker.MagicMock()
-    
-    # Create an async generator that throws exception
-    async def mock_async_generator_with_exception():
-        yield "chunk1"  # First produce a normal chunk
-        raise Exception("Stream error")  # Then throw exception
-            
-    mock_agent_run.return_value = mock_async_generator_with_exception()
-    
-    # Test streaming response exception handling - exception after streaming starts cannot change HTTP status code
-    # We mainly test whether cleanup logic is executed correctly
-    test_client = TestClient(app)
-    
-    # Due to streaming response characteristics, we use pytest.raises to catch underlying exception
-    with pytest.raises(RuntimeError, match="Caught handled exception, but response already started"):
-        with test_client.stream("POST", 
-            "/agent/run",
-            json={
-                "agent_id": 123,
-                "conversation_id": 789,
-                "query": "test exception",
-                "history": [],
-                "minio_files": [],
-                "is_debug": False
-            },
-            headers=mock_auth_header
-        ) as response:
-            # Trying to read streaming content will trigger exception
-            for line in response.iter_lines():
-                if line:
-                    pass
-    
-    # Verify cleanup logic is called (this is what we really care about)
-    mock_agent_run_manager.unregister_agent_run.assert_called_once_with(789)
-
-
-@pytest.mark.asyncio
-async def test_agent_run_api_chunked_streaming(mocker, mock_auth_header):
-    """Detailed testing of agent_run_api function's handling of different sized chunks"""
-    # Setup mocks using pytest-mock
-    mock_get_user_info = mocker.patch("apps.agent_app.get_current_user_info")
-    mock_create_run_info = mocker.patch("apps.agent_app.create_agent_run_info", new_callable=mocker.AsyncMock)
-    mock_agent_run_manager = mocker.patch("apps.agent_app.agent_run_manager")
-    mock_agent_run = mocker.patch("apps.agent_app.agent_run")
-    mock_submit = mocker.patch("apps.agent_app.submit")
-    
-    mock_get_user_info.return_value = ("user_id", "email", "en")
-    mock_create_run_info.return_value = mocker.MagicMock()
-    
-    # Mock async generator returning different sized chunks
-    chunks = ["small", "medium_sized_chunk", "this_is_a_very_large_chunk_to_test_buffer_handling"*5]
-    async def mock_async_generator():
-        for chunk in chunks:
-            yield chunk
-            
-    mock_agent_run.return_value = mock_async_generator()
-    
-    # Create test client
-    test_client = TestClient(app)
-    
-    # Send request
-    with test_client.stream("POST", 
-        "/agent/run",
-        json={
-            "agent_id": 123,
-            "conversation_id": 101,
-            "query": "test different chunks",
-            "history": [],
-            "minio_files": [],
-            "is_debug": True  # Use debug mode this time
-        },
-        headers=mock_auth_header
-    ) as response:
-        # Verify response status code
-        assert response.status_code == 200
-        
-        # Collect streaming response content
-        content = ""
-        for line in response.iter_lines():
-            if line:
-                content += line + "\n"
-        
-        # Verify content contains all chunks
-        for chunk in chunks:
-            assert f"data: {chunk}" in content
-    
-    # Verify debug mode behavior
-    mock_submit.assert_not_called()  # Don't save conversation in debug mode
-    mock_agent_run_manager.register_agent_run.assert_called_once()
-    mock_agent_run_manager.unregister_agent_run.assert_called_once_with(101)
 
 
 @pytest.mark.asyncio

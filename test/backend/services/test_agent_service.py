@@ -1,6 +1,7 @@
 import pytest
 import sys
 from unittest.mock import patch, MagicMock, mock_open, call, Mock, AsyncMock
+from fastapi.responses import StreamingResponse
 
 # Mock boto3 before importing the module under test
 boto3_mock = MagicMock()
@@ -35,9 +36,15 @@ sys.modules['database.remote_mcp_db'] = MagicMock()
 sys.modules['services'] = MagicMock()
 sys.modules['services.remote_mcp_service'] = MagicMock()
 sys.modules['services.tool_configuration_service'] = MagicMock()
+sys.modules['services.conversation_management_service'] = MagicMock()
+sys.modules['services.memory_config_service'] = MagicMock()
 sys.modules['utils'] = MagicMock()
 sys.modules['utils.auth_utils'] = MagicMock()
 sys.modules['utils.memory_utils'] = MagicMock()
+sys.modules['utils.thread_utils'] = MagicMock()
+sys.modules['agents.agent_run_manager'] = MagicMock()
+sys.modules['agents.preprocess_manager'] = MagicMock()
+sys.modules['nexent.core.agents.run_agent'] = MagicMock()
 
 # Create a simple ToolConfig class for testing
 class ToolConfig:
@@ -89,9 +96,15 @@ from backend.services.agent_service import (
     load_default_agents_json_file,
     list_all_agent_info_impl,
     insert_related_agent_impl,
-    clear_agent_memory
+    clear_agent_memory,
+    run_agent_stream,
+    stop_agent_tasks,
+    get_agent_id_by_name,
+    prepare_agent_run,
+    save_messages,
+    generate_stream
 )
-from backend.consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest, MCPInfo
+from backend.consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
 
 
 # Setup and teardown for each test
@@ -239,8 +252,8 @@ def test_get_agent_info_impl_success(mock_search_agent_info, mock_search_tools, 
 @patch('backend.services.agent_service.get_enable_tool_id_by_agent_id')
 @patch('backend.services.agent_service.search_agent_info_by_agent_id')
 @patch('backend.services.agent_service.get_creating_sub_agent_id_service')
-@patch('backend.services.agent_service.get_current_user_id')
-def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_id, mock_get_creating_sub_agent,
+@patch('backend.services.agent_service.get_current_user_info')
+def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_info, mock_get_creating_sub_agent,
                                                  mock_search_agent_info, mock_get_enable_tools, mock_query_sub_agents_id):
     """
     Test successful retrieval of creating sub-agent information.
@@ -252,7 +265,7 @@ def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_id, mock
     4. It returns a complete data structure with the sub-agent information
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     mock_get_creating_sub_agent.return_value = 456
     mock_search_agent_info.return_value = {
         "model_name": "gpt-4",
@@ -284,8 +297,8 @@ def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_id, mock
 
 
 @patch('backend.services.agent_service.update_agent')
-@patch('backend.services.agent_service.get_current_user_id')
-def test_update_agent_info_impl_success(mock_get_current_user_id, mock_update_agent):
+@patch('backend.services.agent_service.get_current_user_info')
+def test_update_agent_info_impl_success(mock_get_current_user_info, mock_update_agent):
     """
     Test successful update of agent information.
     
@@ -294,7 +307,7 @@ def test_update_agent_info_impl_success(mock_get_current_user_id, mock_update_ag
     2. It calls the update_agent function with the correct parameters
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     request = AgentInfoRequest(
         agent_id=123,
         model_name="gpt-4",
@@ -311,9 +324,9 @@ def test_update_agent_info_impl_success(mock_get_current_user_id, mock_update_ag
 
 @patch('backend.services.agent_service.delete_all_related_agent')
 @patch('backend.services.agent_service.delete_agent_by_id')
-@patch('backend.services.agent_service.get_current_user_id')
+@patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_delete_agent_impl_success(mock_get_current_user_id, mock_delete_agent, mock_delete_related):
+async def test_delete_agent_impl_success(mock_get_current_user_info, mock_delete_agent, mock_delete_related):
     """
     Test successful deletion of an agent.
     
@@ -323,7 +336,7 @@ async def test_delete_agent_impl_success(mock_get_current_user_id, mock_delete_a
     3. It also deletes all related agent relationships
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     
     # Execute
     await delete_agent_impl(123, authorization="Bearer token")
@@ -353,8 +366,8 @@ def test_get_agent_info_impl_exception_handling(mock_search_agent_info):
 
 
 @patch('backend.services.agent_service.update_agent')
-@patch('backend.services.agent_service.get_current_user_id')
-def test_update_agent_info_impl_exception_handling(mock_get_current_user_id, mock_update_agent):
+@patch('backend.services.agent_service.get_current_user_info')
+def test_update_agent_info_impl_exception_handling(mock_get_current_user_info, mock_update_agent):
     """
     Test exception handling in update_agent_info_impl function.
     
@@ -363,7 +376,7 @@ def test_update_agent_info_impl_exception_handling(mock_get_current_user_id, moc
     2. The function raises a ValueError with an appropriate message
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     mock_update_agent.side_effect = Exception("Update failed")
     request = AgentInfoRequest(agent_id=123, model_name="gpt-4", display_name="Test Display Name")
     
@@ -375,9 +388,9 @@ def test_update_agent_info_impl_exception_handling(mock_get_current_user_id, moc
     
 
 @patch('backend.services.agent_service.delete_agent_by_id')
-@patch('backend.services.agent_service.get_current_user_id')
+@patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_delete_agent_impl_exception_handling(mock_get_current_user_id, mock_delete_agent):
+async def test_delete_agent_impl_exception_handling(mock_get_current_user_info, mock_delete_agent):
     """
     Test exception handling in delete_agent_impl function.
     
@@ -386,7 +399,7 @@ async def test_delete_agent_impl_exception_handling(mock_get_current_user_id, mo
     2. The function raises a ValueError with an appropriate message
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     mock_delete_agent.side_effect = Exception("Delete failed")
     
     # Execute & Assert
@@ -399,14 +412,14 @@ async def test_delete_agent_impl_exception_handling(mock_get_current_user_id, mo
 @patch('backend.services.agent_service.get_mcp_server_by_name_and_tenant')
 @patch('backend.services.agent_service.ExportAndImportDataFormat')
 @patch('backend.services.agent_service.export_agent_by_agent_id')
-@patch('backend.services.agent_service.get_current_user_id')
+@patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_export_agent_impl_success(mock_get_current_user_id, mock_export_agent_by_id, mock_export_data_format, mock_get_mcp_server):
+async def test_export_agent_impl_success(mock_get_current_user_info, mock_export_agent_by_id, mock_export_data_format, mock_get_mcp_server):
     """
     Test successful export of agent information with MCP servers.
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     
     # Create tools with MCP source
     mcp_tool = ToolConfig(
@@ -500,7 +513,7 @@ async def test_export_agent_impl_success(mock_get_current_user_id, mock_export_a
     assert mcp_info[0]["mcp_url"] == "http://test-mcp-server.com"
     
     # Verify function calls
-    mock_get_current_user_id.assert_called_once_with("Bearer token")
+    mock_get_current_user_info.assert_called_once_with("Bearer token")
     mock_export_agent_by_id.assert_called_once_with(agent_id=123, tenant_id="test_tenant", user_id="test_user")
     mock_get_mcp_server.assert_called_once_with("test_mcp_server", "test_tenant")
     mock_export_data_format.assert_called_once()
@@ -509,14 +522,14 @@ async def test_export_agent_impl_success(mock_get_current_user_id, mock_export_a
 @patch('backend.services.agent_service.get_mcp_server_by_name_and_tenant')
 @patch('backend.services.agent_service.ExportAndImportDataFormat')
 @patch('backend.services.agent_service.export_agent_by_agent_id')
-@patch('backend.services.agent_service.get_current_user_id')
+@patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_export_agent_impl_no_mcp_tools(mock_get_current_user_id, mock_export_agent_by_id, mock_export_data_format, mock_get_mcp_server):
+async def test_export_agent_impl_no_mcp_tools(mock_get_current_user_info, mock_export_agent_by_id, mock_export_data_format, mock_get_mcp_server):
     """
     Test successful export of agent information without MCP tools.
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     
     # Create a proper ExportAndImportAgentInfo object without MCP tools
     mock_agent_info = ExportAndImportAgentInfo(
@@ -577,7 +590,7 @@ async def test_export_agent_impl_no_mcp_tools(mock_get_current_user_id, mock_exp
     assert len(result["mcp_info"]) == 0  # No MCP tools
     
     # Verify function calls
-    mock_get_current_user_id.assert_called_once_with("Bearer token")
+    mock_get_current_user_info.assert_called_once_with("Bearer token")
     mock_export_agent_by_id.assert_called_once_with(agent_id=123, tenant_id="test_tenant", user_id="test_user")
     mock_get_mcp_server.assert_not_called()  # Should not be called when no MCP tools
     mock_export_data_format.assert_called_once()
@@ -1350,15 +1363,15 @@ async def test_clear_agent_memory_clear_memory_error(mock_build_config, mock_cle
 @patch('backend.services.agent_service.add_remote_mcp_server_list', new_callable=AsyncMock)
 @patch('backend.services.agent_service.get_mcp_server_by_name_and_tenant')
 @patch('backend.services.agent_service.check_mcp_name_exists')
-@patch('backend.services.agent_service.get_current_user_id')
+@patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_import_agent_impl_success_with_mcp(mock_get_current_user_id, mock_check_mcp_exists, mock_get_mcp_server, 
+async def test_import_agent_impl_success_with_mcp(mock_get_current_user_info, mock_check_mcp_exists, mock_get_mcp_server, 
                                                  mock_add_mcp_server, mock_update_tool_list, mock_import_agent, mock_insert_related):
     """
     Test successful import of agent with MCP servers.
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     
     # Mock MCP server checks
     mock_check_mcp_exists.return_value = False  # MCP server doesn't exist
@@ -1401,7 +1414,7 @@ async def test_import_agent_impl_success_with_mcp(mock_get_current_user_id, mock
     await import_agent_impl(export_data, authorization="Bearer token")
     
     # Assert
-    mock_get_current_user_id.assert_called_once_with("Bearer token")
+    mock_get_current_user_info.assert_called_once_with("Bearer token")
     mock_check_mcp_exists.assert_called_once_with(mcp_name="test_mcp_server", tenant_id="test_tenant")
     mock_add_mcp_server.assert_called_once_with(
         tenant_id="test_tenant",
@@ -1423,15 +1436,15 @@ async def test_import_agent_impl_success_with_mcp(mock_get_current_user_id, mock
 @patch('backend.services.agent_service.add_remote_mcp_server_list', new_callable=AsyncMock)
 @patch('backend.services.agent_service.get_mcp_server_by_name_and_tenant')
 @patch('backend.services.agent_service.check_mcp_name_exists')
-@patch('backend.services.agent_service.get_current_user_id')
+@patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_import_agent_impl_mcp_exists_same_url(mock_get_current_user_id, mock_check_mcp_exists, mock_get_mcp_server, 
+async def test_import_agent_impl_mcp_exists_same_url(mock_get_current_user_info, mock_check_mcp_exists, mock_get_mcp_server, 
                                                     mock_add_mcp_server, mock_update_tool_list, mock_import_agent, mock_insert_related):
     """
     Test import of agent when MCP server exists with same URL (should skip).
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     
     # Mock MCP server exists with same URL
     mock_check_mcp_exists.return_value = True
@@ -1473,7 +1486,7 @@ async def test_import_agent_impl_mcp_exists_same_url(mock_get_current_user_id, m
     await import_agent_impl(export_data, authorization="Bearer token")
     
     # Assert
-    mock_get_current_user_id.assert_called_once_with("Bearer token")
+    mock_get_current_user_info.assert_called_once_with("Bearer token")
     mock_check_mcp_exists.assert_called_once_with(mcp_name="test_mcp_server", tenant_id="test_tenant")
     mock_get_mcp_server.assert_called_once_with(mcp_name="test_mcp_server", tenant_id="test_tenant")
     mock_add_mcp_server.assert_not_called()  # Should not add since URL is the same
@@ -1487,15 +1500,15 @@ async def test_import_agent_impl_mcp_exists_same_url(mock_get_current_user_id, m
 @patch('backend.services.agent_service.add_remote_mcp_server_list', new_callable=AsyncMock)
 @patch('backend.services.agent_service.get_mcp_server_by_name_and_tenant')
 @patch('backend.services.agent_service.check_mcp_name_exists')
-@patch('backend.services.agent_service.get_current_user_id')
+@patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_import_agent_impl_mcp_exists_different_url(mock_get_current_user_id, mock_check_mcp_exists, mock_get_mcp_server, 
+async def test_import_agent_impl_mcp_exists_different_url(mock_get_current_user_info, mock_check_mcp_exists, mock_get_mcp_server, 
                                                          mock_add_mcp_server, mock_update_tool_list, mock_import_agent, mock_insert_related):
     """
     Test import of agent when MCP server exists with different URL (should add with import prefix).
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     
     # Mock MCP server exists with different URL
     mock_check_mcp_exists.return_value = True
@@ -1538,7 +1551,7 @@ async def test_import_agent_impl_mcp_exists_different_url(mock_get_current_user_
     await import_agent_impl(export_data, authorization="Bearer token")
     
     # Assert
-    mock_get_current_user_id.assert_called_once_with("Bearer token")
+    mock_get_current_user_info.assert_called_once_with("Bearer token")
     mock_check_mcp_exists.assert_called_once_with(mcp_name="test_mcp_server", tenant_id="test_tenant")
     mock_get_mcp_server.assert_called_once_with(mcp_name="test_mcp_server", tenant_id="test_tenant")
     # Should add with import prefix
@@ -1558,15 +1571,15 @@ async def test_import_agent_impl_mcp_exists_different_url(mock_get_current_user_
 @patch('backend.services.agent_service.add_remote_mcp_server_list', new_callable=AsyncMock)
 @patch('backend.services.agent_service.get_mcp_server_by_name_and_tenant')
 @patch('backend.services.agent_service.check_mcp_name_exists')
-@patch('backend.services.agent_service.get_current_user_id')
+@patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_import_agent_impl_mcp_add_failure(mock_get_current_user_id, mock_check_mcp_exists, mock_get_mcp_server,
+async def test_import_agent_impl_mcp_add_failure(mock_get_current_user_info, mock_check_mcp_exists, mock_get_mcp_server,
                                                 mock_add_mcp_server, mock_update_tool_list, mock_import_agent, mock_insert_related):
     """
     Test import of agent when MCP server addition fails.
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     
     # Mock MCP server checks
     mock_check_mcp_exists.return_value = False  # MCP server doesn't exist
@@ -1614,15 +1627,15 @@ async def test_import_agent_impl_mcp_add_failure(mock_get_current_user_id, mock_
 @patch('backend.services.agent_service.insert_related_agent')
 @patch('backend.services.agent_service.import_agent_by_agent_id')
 @patch('backend.services.agent_service.update_tool_list', new_callable=AsyncMock)
-@patch('backend.services.agent_service.get_current_user_id')
+@patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_import_agent_impl_update_tool_list_failure(mock_get_current_user_id, mock_update_tool_list, 
+async def test_import_agent_impl_update_tool_list_failure(mock_get_current_user_info, mock_update_tool_list, 
                                                          mock_import_agent, mock_insert_related):
     """
     Test import of agent when tool list update fails.
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     
     # Mock tool list update failure
     mock_update_tool_list.side_effect = Exception("Tool list update failed")
@@ -1663,15 +1676,15 @@ async def test_import_agent_impl_update_tool_list_failure(mock_get_current_user_
 @patch('backend.services.agent_service.insert_related_agent')
 @patch('backend.services.agent_service.import_agent_by_agent_id')
 @patch('backend.services.agent_service.update_tool_list', new_callable=AsyncMock)
-@patch('backend.services.agent_service.get_current_user_id')
+@patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_import_agent_impl_no_mcp_info(mock_get_current_user_id, mock_update_tool_list, 
+async def test_import_agent_impl_no_mcp_info(mock_get_current_user_info, mock_update_tool_list, 
                                             mock_import_agent, mock_insert_related):
     """
     Test import of agent without MCP info.
     """
     # Setup
-    mock_get_current_user_id.return_value = ("test_user", "test_tenant")
+    mock_get_current_user_info.return_value = ("test_user", "test_tenant", "en")
     mock_update_tool_list.return_value = None
     
     # Create agent info
@@ -1706,7 +1719,7 @@ async def test_import_agent_impl_no_mcp_info(mock_get_current_user_id, mock_upda
     await import_agent_impl(export_data, authorization="Bearer token")
     
     # Assert
-    mock_get_current_user_id.assert_called_once_with("Bearer token")
+    mock_get_current_user_info.assert_called_once_with("Bearer token")
     mock_update_tool_list.assert_called_once_with(tenant_id="test_tenant", user_id="test_user")
     mock_import_agent.assert_called_once_with(
         import_agent_info=agent_info,
@@ -1717,3 +1730,176 @@ async def test_import_agent_impl_no_mcp_info(mock_get_current_user_id, mock_upda
 
 if __name__ == '__main__':
     pytest.main()
+
+# Agent run tests
+@pytest.fixture
+def mock_agent_request():
+    return AgentRequest(
+        agent_id=1,
+        conversation_id=123,
+        query="test query",
+        history=[],
+        minio_files=[],
+        is_debug=False,
+    )
+
+from fastapi import Request
+@pytest.fixture
+def mock_http_request():
+    return Request(scope={"type": "http", "headers": []})
+
+
+@pytest.mark.asyncio
+@patch('backend.services.agent_service.build_memory_context')
+@patch('backend.services.agent_service.create_agent_run_info', new_callable=AsyncMock)
+@patch('backend.services.agent_service.agent_run_manager')
+@patch('backend.services.agent_service.get_current_user_info')
+async def test_prepare_agent_run(mock_get_user_info, mock_agent_run_manager, mock_create_run_info, mock_build_memory_context, mock_agent_request, mock_http_request):
+    """Test prepare_agent_run function."""
+    # Setup
+    mock_get_user_info.return_value = ("test_user", "test_tenant", "en")
+    mock_run_info = MagicMock()
+    mock_create_run_info.return_value = mock_run_info
+    mock_memory_context = MagicMock()
+    mock_build_memory_context.return_value = mock_memory_context
+
+    # Execute
+    agent_run_info, memory_context = await prepare_agent_run(mock_agent_request, mock_http_request, "Bearer token")
+
+    # Assert
+    assert agent_run_info == mock_run_info
+    assert memory_context == mock_memory_context
+    mock_get_user_info.assert_called_once_with("Bearer token", mock_http_request)
+    mock_build_memory_context.assert_called_once_with("test_user", "test_tenant", 1)
+    mock_create_run_info.assert_called_once()
+    mock_agent_run_manager.register_agent_run.assert_called_once_with(123, mock_run_info)
+
+@patch('backend.services.agent_service.submit')
+def test_save_messages(mock_submit, mock_agent_request):
+    """Test save_messages function."""
+    # Test user message saving
+    save_messages(mock_agent_request, "user", authorization="Bearer token")
+    mock_submit.assert_called_once()
+
+    # Test assistant message saving
+    save_messages(mock_agent_request, "assistant", messages=["test message"], authorization="Bearer token")
+    assert mock_submit.call_count == 2
+    
+    # Test invalid target should not raise according to current implementation; ensure no submit called
+    save_messages(mock_agent_request, "invalid", messages=["test message"], authorization="Bearer token")
+    assert mock_submit.call_count == 2
+
+@pytest.mark.asyncio
+@patch('backend.services.agent_service.agent_run')
+@patch('backend.services.agent_service.save_messages')
+@patch('backend.services.agent_service.agent_run_manager')
+async def test_generate_stream(mock_agent_run_manager, mock_save_messages, mock_agent_run, mock_agent_request):
+    """Test generate_stream function."""
+    # Setup
+    mock_run_info = MagicMock()
+    mock_memory_context = MagicMock()
+    
+    async def mock_streamer():
+        yield "chunk1"
+        yield "chunk2"
+    
+    mock_agent_run.return_value = mock_streamer()
+
+    # Execute and collect results
+    streamed_chunks = [chunk async for chunk in generate_stream(mock_run_info, mock_memory_context, mock_agent_request, "Bearer token")]
+    
+    # Assert
+    assert streamed_chunks == ["data: chunk1\n\n", "data: chunk2\n\n"]
+    mock_save_messages.assert_called_once_with(mock_agent_request, target="assistant", messages=["chunk1", "chunk2"], authorization="Bearer token")
+    mock_agent_run_manager.unregister_agent_run.assert_called_once_with(123)
+
+    # Test debug mode: provide fresh generator
+    mock_agent_request.is_debug = True
+    mock_save_messages.reset_mock()
+    mock_agent_run_manager.unregister_agent_run.reset_mock()
+
+    async def mock_streamer2():
+        yield "chunk1"
+        yield "chunk2"
+    mock_agent_run.return_value = mock_streamer2()
+
+    streamed_chunks = [chunk async for chunk in generate_stream(mock_run_info, mock_memory_context, mock_agent_request, "Bearer token")]
+
+    assert streamed_chunks == ["data: chunk1\n\n", "data: chunk2\n\n"]
+    mock_save_messages.assert_not_called()
+    mock_agent_run_manager.unregister_agent_run.assert_called_once_with(123)
+
+
+@pytest.mark.asyncio
+@patch('backend.services.agent_service.prepare_agent_run', new_callable=AsyncMock)
+@patch('backend.services.agent_service.save_messages')
+@patch('backend.services.agent_service.generate_stream')
+async def test_run_agent_stream(mock_generate_stream, mock_save_messages, mock_prepare_agent_run, mock_agent_request, mock_http_request):
+    """Test run_agent_stream function."""
+    # Setup
+    mock_run_info = MagicMock()
+    mock_memory_context = MagicMock()
+    mock_prepare_agent_run.return_value = (mock_run_info, mock_memory_context)
+    
+    # Execute
+    response = await run_agent_stream(mock_agent_request, mock_http_request, "Bearer token")
+
+    # Assert
+    assert isinstance(response, StreamingResponse)
+    mock_prepare_agent_run.assert_called_once_with(agent_request=mock_agent_request, http_request=mock_http_request, authorization="Bearer token")
+    mock_save_messages.assert_called_once_with(mock_agent_request, target="user", authorization="Bearer token")
+    mock_generate_stream.assert_called_once_with(mock_run_info, mock_memory_context, mock_agent_request, "Bearer token")
+
+    # Test debug mode
+    mock_agent_request.is_debug = True
+    mock_save_messages.reset_mock()
+    
+    await run_agent_stream(mock_agent_request, mock_http_request, "Bearer token")
+    
+    mock_save_messages.assert_not_called()
+
+
+@patch('backend.services.agent_service.agent_run_manager')
+@patch('backend.services.agent_service.preprocess_manager')
+def test_stop_agent_tasks(mock_preprocess_manager, mock_agent_run_manager):
+    """Test stop_agent_tasks function."""
+    # Test both stopped
+    mock_agent_run_manager.stop_agent_run.return_value = True
+    mock_preprocess_manager.stop_preprocess_tasks.return_value = True
+    result = stop_agent_tasks(123)
+    assert result["status"] == "success"
+    assert "successfully stopped agent run and preprocess tasks" in result["message"]
+
+    # Test only agent stopped
+    mock_agent_run_manager.stop_agent_run.return_value = True
+    mock_preprocess_manager.stop_preprocess_tasks.return_value = False
+    result = stop_agent_tasks(123)
+    assert result["status"] == "success"
+    assert "successfully stopped agent run" in result["message"]
+
+    # Test neither stopped
+    mock_agent_run_manager.stop_agent_run.return_value = False
+    mock_preprocess_manager.stop_preprocess_tasks.return_value = False
+    result = stop_agent_tasks(123)
+    assert result["status"] == "error"
+    assert "no running agent or preprocess tasks found" in result["message"]
+
+
+@patch('backend.services.agent_service.search_agent_id_by_agent_name')
+def test_get_agent_id_by_name(mock_search):
+    """Test get_agent_id_by_name function."""
+    # Test success
+    mock_search.return_value = 1
+    result = get_agent_id_by_name("test_agent", "test_tenant")
+    assert result == 1
+
+    # Test not found
+    mock_search.side_effect = Exception("Not found")
+    with pytest.raises(Exception) as excinfo:
+        get_agent_id_by_name("test_agent", "test_tenant")
+    assert "agent not found" in str(excinfo.value)
+    
+    # Test empty agent name
+    with pytest.raises(Exception) as excinfo:
+        get_agent_id_by_name("", "test_tenant")
+    assert "agent_name required" in str(excinfo.value)
