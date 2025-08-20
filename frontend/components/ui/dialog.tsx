@@ -14,7 +14,6 @@ const DialogPortal = DialogPrimitive.Portal
 
 const DialogClose = DialogPrimitive.Close
 
-// 重构：风格嵌入在组件内
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
@@ -30,7 +29,6 @@ const DialogOverlay = React.forwardRef<
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-// 重构：风格嵌入在组件内
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
@@ -55,7 +53,6 @@ const DialogContent = React.forwardRef<
 ))
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
-// 重构：风格嵌入在组件内
 const DialogHeader = ({
   className,
   ...props
@@ -70,7 +67,6 @@ const DialogHeader = ({
 )
 DialogHeader.displayName = "DialogHeader"
 
-// 重构：风格嵌入在组件内
 const DialogFooter = ({
   className,
   ...props
@@ -85,7 +81,6 @@ const DialogFooter = ({
 )
 DialogFooter.displayName = "DialogFooter"
 
-// 重构：风格嵌入在组件内
 const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
@@ -101,7 +96,6 @@ const DialogTitle = React.forwardRef<
 ))
 DialogTitle.displayName = DialogPrimitive.Title.displayName
 
-// 重构：风格嵌入在组件内
 const DialogDescription = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>

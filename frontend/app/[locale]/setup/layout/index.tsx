@@ -46,7 +46,6 @@ function Header({
 
 
 
-  // 重构：风格被嵌入在组件内
   return (
     <header className="w-full py-4 px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm" style={{ height: HEADER_CONFIG.HEIGHT }}>
       <div className="flex items-center">
