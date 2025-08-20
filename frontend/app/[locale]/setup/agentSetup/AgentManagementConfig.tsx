@@ -128,7 +128,7 @@ export default function BusinessLogicConfig({
       if (result.success) {
         // Update agent list with basic info only
         setSubAgentList(result.data);
-        message.success(t('businessLogic.config.message.agentListLoaded'));
+        // Removed success message to avoid duplicate notifications
       } else {
         message.error(result.message || t('businessLogic.config.error.agentListFailed'));
       }
@@ -250,6 +250,19 @@ export default function BusinessLogicConfig({
 
     setSelectedTools(enabledTools);
   }, [tools, enabledToolIds, isLoadingTools]);
+
+  // Listen for refresh agent list events from parent component
+  useEffect(() => {
+    const handleRefreshAgentList = () => {
+      refreshAgentList(t);
+    };
+
+    window.addEventListener('refreshAgentList', handleRefreshAgentList);
+
+    return () => {
+      window.removeEventListener('refreshAgentList', handleRefreshAgentList);
+    };
+  }, [t]);
 
   // Handle the creation of a new Agent
   const handleCreateNewAgent = async () => {

@@ -214,9 +214,6 @@ export default function AgentConfig() {
 
         // Notify parent component of state change
         handleEditingStateChange(false, null)
-
-        // Refresh agent list
-        fetchAgents()
       } else {
         message.error(result.message || t('businessLogic.config.error.saveFailed'))
       }
@@ -290,8 +287,8 @@ export default function AgentConfig() {
         setFewShotsContent("")
         setAgentName("")
         setAgentDescription("")
-        // Refresh agent list
-        fetchAgents()
+        // Notify AgentManagementConfig to refresh agent list
+        window.dispatchEvent(new CustomEvent('refreshAgentList'));
       } else {
         message.error(result.message || t('businessLogic.config.message.agentDeleteFailed'))
       }

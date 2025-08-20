@@ -990,6 +990,7 @@
     "mcpConfig.serverList.statusCheckSuccess": "mcp服务器连接成功",
     "mcpConfig.serverList.statusCheckFailed": "mcp服务器连接失败",
     "mcpConfig.serverList.button.viewToolsDisabledHint": "请先检查MCP服务可用性",
+    "mcpConfig.serverList.empty": "暂无配置的服务器",
     "mcpConfig.toolsList.title": "可用工具",
     "mcpConfig.toolsList.column.name": "工具名称",
     "mcpConfig.toolsList.column.description": "描述",
