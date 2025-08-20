@@ -1,5 +1,3 @@
-// Core Chat Types - Consolidated definitions
-
 // Step related types
 export interface StepSection {
   content: string
@@ -115,17 +113,6 @@ export interface ChatMessageType {
   thinking?: any[]
 }
 
-// API related types
-export interface DialogMessage {
-  content: string
-  role: "user" | "assistant"
-  id?: string
-  doc_ids?: string[]
-  images?: string[]
-  is_deep_search?: boolean
-  is_deep_seek?: boolean
-}
-
 export interface ApiMessageItem {
   type: string
   content: string
@@ -171,54 +158,11 @@ export interface ApiConversationDetail {
   message: ApiMessage[]
 }
 
-export interface ApiConversationResponse {
-  code: number
-  data: ApiConversationDetail[]
-  message: string
-}
-
-export interface DialogReference {
-  chunks: any[]
-}
-
-export interface DialogRecord {
-  id: string
-  create_date: string
-  create_time: number
-  message: DialogMessage[]
-  name: string
-  reference: DialogReference[]
-  update_date: string
-  update_time: number
-  user_id: string | null
-}
-
 export interface ConversationListItem {
   conversation_id: number
   conversation_title: string
   create_time: number
   update_time: number
-}
-
-export interface ConversationListResponse {
-  code: number
-  data: ConversationListItem[]
-  message: string
-}
-
-export interface UserQuestion {
-  message: ChatMessageType
-  index: number
-}
-
-// File preview type
-export interface FilePreview {
-  name: string
-  type: string
-  size: number
-  content?: string
-  url?: string
-  file: File
 }
 
 // Task message type

@@ -1,12 +1,11 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, memo } from 'react'
-import { Button, Tag, App, Tabs } from 'antd'
+import { Button, App, Tabs } from 'antd'
 import { SettingOutlined, LoadingOutlined, ApiOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
-import { TFunction } from 'i18next'
 
-import { Tooltip as CustomTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import { Tooltip as CustomTooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import ToolConfigModal from './ToolConfigModal'
 import McpConfigModal from './McpConfigModal'
 import { Tool } from '../ConstInterface'
@@ -17,7 +16,6 @@ import { handleToolSelectCommon } from '../utils/agentUtils'
 interface ToolPoolProps {
   selectedTools: Tool[];
   onSelectTool: (tool: Tool, isSelected: boolean) => void;
-  isCreatingNewAgent: boolean;
   tools?: Tool[];
   loadingTools?: boolean;
   mainAgentId?: string | null;
@@ -40,7 +38,6 @@ interface ToolGroup {
 function ToolPool({ 
   selectedTools, 
   onSelectTool, 
-  isCreatingNewAgent, 
   tools = [], 
   loadingTools = false,
   mainAgentId,

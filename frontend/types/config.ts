@@ -1,6 +1,3 @@
-// 模型状态类型
-export type ModelStatus = "unchecked" | "available" | "unavailable" | "skippable"
-
 // 模型连接状态类型
 export type ModelConnectStatus = "not_detected" | "detecting" | "available" | "unavailable"
 
