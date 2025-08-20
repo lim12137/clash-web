@@ -9,6 +9,7 @@ from smolagents.tools import Tool
 import paramiko
 
 from ..utils.observer import MessageObserver, ProcessType
+from ..utils.tools_common_message import ToolSign
 
 logger = logging.getLogger("terminal_tool")
 
@@ -28,7 +29,7 @@ class TerminalTool(Tool):
     }
     output_type = "string"
 
-    tool_sign = "t"  # Terminal operation tool identifier
+    tool_sign = ToolSign.TERMINAL_OPERATION.value  # Terminal operation tool identifier
 
     # Class-level session storage
     _sessions: Dict[str, Dict[str, Any]] = {}

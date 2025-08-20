@@ -140,7 +140,7 @@ export default function SubAgentPool({
             return (
               <div 
                 key={agent.id} 
-                className={`py-4 px-2 flex flex-col justify-center transition-colors border-t border-gray-200 ${
+                className={`py-2 px-2 flex flex-col justify-center transition-colors border-t border-gray-200 ${
                   isCurrentlyEditing
                     ? 'bg-blue-50 border-l-4 border-l-blue-500' // 编辑中的agent高亮显示，添加左侧竖线
                     : !isAvailable
@@ -180,9 +180,9 @@ export default function SubAgentPool({
                            : `${t('subAgentPool.tooltip.editAgent')} ${agent.display_name || agent.name}`}>
                       <span className="flex items-baseline">
                         {agent.display_name && (
-                          <span className="text-base leading-none">{agent.display_name}</span>
+                          <span className="text-base leading-normal">{agent.display_name}</span>
                         )}
-                        <span className={`leading-none ${agent.display_name ? 'ml-2 text-sm' : 'text-base'}`}>
+                        <span className={`leading-normal ${agent.display_name ? 'ml-2 text-sm' : 'text-base'}`}>
                           {agent.name}
                         </span>
                       </span>
