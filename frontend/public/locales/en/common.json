@@ -994,6 +994,7 @@
     "mcpConfig.serverList.statusCheckSuccess": "Server connectivity check succeeded",
     "mcpConfig.serverList.statusCheckFailed": "Server connectivity check failed",
     "mcpConfig.serverList.button.viewToolsDisabledHint": "Please check MCP service availability first",
+    "mcpConfig.serverList.empty": "No servers configured",
     "mcpConfig.toolsList.title": "Available Tools",
     "mcpConfig.toolsList.column.name": "Tool Name",
     "mcpConfig.toolsList.column.description": "Description",
