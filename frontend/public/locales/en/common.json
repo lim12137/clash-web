@@ -397,6 +397,7 @@
     "agent.action.modify": "modify",
     "agent.action.importing": "Importing...",
     "agent.action.import": "Import Agent",
+    "agent.action.viewCallRelationship": "View Call Relationship",
     "agent.message.saveSuccess": "Agent \"{name}\" {action} successfully",
     "agent.message.infoLoaded": "Agent information loaded",
     "agent.message.statusUpdated": "Agent \"{name}\" has been {status}",

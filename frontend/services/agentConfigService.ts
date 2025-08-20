@@ -652,3 +652,35 @@ export const deleteRelatedAgent = async (parentAgentId: number, childAgentId: nu
     };
   }
 };
+
+/**
+ * Get agent call relationship tree including tools and sub-agents
+ * @param agentId agent id
+ * @returns agent call relationship tree structure
+ */
+export const fetchAgentCallRelationship = async (agentId: number) => {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.agent.callRelationship}/${agentId}`, {
+      headers: getAuthHeaders(),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    return {
+      success: true,
+      data: data,
+      message: ''
+    };
+  } catch (error) {
+    console.error('获取Agent调用关系失败:', error);
+    return {
+      success: false,
+      data: null,
+      message: '获取Agent调用关系失败，请稍后重试'
+    };
+  }
+};
