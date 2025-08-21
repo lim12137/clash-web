@@ -6,7 +6,7 @@ from collections import deque
 from fastapi import Header
 from fastapi.responses import JSONResponse
 from agents.create_agent_info import create_tool_config_list
-from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest
+from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest, ToolSourceEnum
 from database.agent_db import create_agent, query_all_enabled_tool_instances, \
      search_blank_sub_agent_by_main_agent_id, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
@@ -413,6 +413,13 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
     Returns:
         dict: agent call relationship tree structure
     """
+    # 工具类型映射配置
+    TOOL_TYPE_MAPPING = {
+        ToolSourceEnum.MCP.value: "MCP",
+        ToolSourceEnum.LANGCHAIN.value: "LangChain", 
+        ToolSourceEnum.LOCAL.value: "Local"
+    }
+
     try:
         # Get main agent info
         agent_info = search_agent_info_by_agent_id(agent_id, tenant_id)
@@ -423,27 +430,21 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
         tool_info = search_tools_for_sub_agent(agent_id=agent_id, tenant_id=tenant_id)
         tools = []
         for tool in tool_info:
-            if tool.get("enabled", False):
-                # 尝试获取工具名称，优先使用name字段，然后是tool_name，最后是tool_id
-                tool_name = tool.get("name") or tool.get("tool_name")
-                if not tool_name:
-                    # 如果都没有，使用tool_id作为名称
-                    tool_name = str(tool["tool_id"])
-                
-                # 获取工具类型，优先使用source字段，然后是tool_type
-                tool_type = tool.get("source", "native")
-                if tool_type == "mcp":
-                    tool_type = "MCP"
-                elif tool_type == "langchain":
-                    tool_type = "LangChain"
-                elif tool_type == "local":
-                    tool_type = "Local"
-                
-                tools.append({
-                    "tool_id": tool["tool_id"],
-                    "name": tool_name,
-                    "type": tool_type
-                })
+            # 尝试获取工具名称，优先使用name字段，然后是tool_name，最后是tool_id
+            tool_name = tool.get("name") or tool.get("tool_name")
+            if not tool_name:
+                # 如果都没有，使用tool_id作为名称
+                tool_name = str(tool["tool_id"])
+            
+            # 获取工具类型，使用枚举值，默认使用local
+            tool_source = tool.get("source", ToolSourceEnum.LOCAL.value)
+            tool_type = TOOL_TYPE_MAPPING.get(tool_source, tool_source.title())
+            
+            tools.append({
+                "tool_id": tool["tool_id"],
+                "name": tool_name,
+                "type": tool_type
+            })
         
         # 递归获取子智能体及其工具
         def get_sub_agents_recursive(parent_agent_id: int, depth: int = 0, max_depth: int = 5) -> list:
@@ -462,24 +463,19 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
                         sub_tool_info = search_tools_for_sub_agent(agent_id=sub_agent_id, tenant_id=tenant_id)
                         sub_tools = []
                         for tool in sub_tool_info:
-                            if tool.get("enabled", False):
-                                tool_name = tool.get("name") or tool.get("tool_name")
-                                if not tool_name:
-                                    tool_name = str(tool["tool_id"])
-                                
-                                tool_type = tool.get("source", "native")
-                                if tool_type == "mcp":
-                                    tool_type = "MCP"
-                                elif tool_type == "langchain":
-                                    tool_type = "LangChain"
-                                elif tool_type == "local":
-                                    tool_type = "Local"
-                                
-                                sub_tools.append({
-                                    "tool_id": tool["tool_id"],
-                                    "name": tool_name,
-                                    "type": tool_type
-                                })
+                            tool_name = tool.get("name") or tool.get("tool_name")
+                            if not tool_name:
+                                tool_name = str(tool["tool_id"])
+                            
+                            # 使用枚举值，默认使用local
+                            tool_source = tool.get("source", ToolSourceEnum.LOCAL.value)
+                            tool_type = TOOL_TYPE_MAPPING.get(tool_source, tool_source.title())
+                            
+                            sub_tools.append({
+                                "tool_id": tool["tool_id"],
+                                "name": tool_name,
+                                "type": tool_type
+                            })
                         
                         # 递归获取更深层的子智能体
                         deeper_sub_agents = get_sub_agents_recursive(sub_agent_id, depth + 1, max_depth)
@@ -508,5 +504,5 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
         }
         
     except Exception as e:
-        logger.error(f"Failed to get agent call relationship: {str(e)}")
+        logger.exception(f"Failed to get agent call relationship for agent {agent_id}: {str(e)}")
         raise ValueError(f"Failed to get agent call relationship: {str(e)}")

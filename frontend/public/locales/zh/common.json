@@ -1157,5 +1157,16 @@
     "common.button.editConfig": "修改配置",
     "common.message.refreshSuccess": "刷新成功",
     "common.message.refreshFailed": "刷新失败",
-    "model.dialog.success.updateSuccess": "更新成功"
+    "model.dialog.success.updateSuccess": "更新成功",
+    "agentCallRelationship": {
+        "title": "查看调用关系",
+        "loading": "正在加载调用关系...",
+        "description": "此流程图显示了 {{name}} 及其所有工具和协作Agent的调用关系",
+        "noData": "暂无调用关系数据",
+        "nodeType": {
+            "main": "主代理",
+            "sub": "子代理",
+            "tool": "工具"
+        }
+    }
 }
