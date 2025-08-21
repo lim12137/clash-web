@@ -1,8 +1,8 @@
 import re
 import time
 import threading
-from typing import Union, Any, Optional, List, Dict
-from collections.abc import Callable, Generator
+from typing import Any, Optional, List, Dict
+from collections.abc import Generator
 
 from rich.console import Group
 from rich.text import Text
