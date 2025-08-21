@@ -25,6 +25,20 @@ def search_agent_info_by_agent_id(agent_id: int, tenant_id: str):
 
         return agent_dict
 
+def search_agent_id_by_agent_name(agent_name: str, tenant_id: str):
+    """
+    Search agent id by agent name
+    """
+    with get_db_session() as session:
+        agent = session.query(AgentInfo).filter(
+            AgentInfo.name == agent_name,
+            AgentInfo.tenant_id == tenant_id,
+            AgentInfo.delete_flag != 'Y').first()
+        if not agent:
+            raise ValueError("agent not found")
+        return agent.agent_id
+
+
 def search_blank_sub_agent_by_main_agent_id(tenant_id: str):
     """
     Search blank sub agent by main agent id
