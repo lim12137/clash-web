@@ -11,7 +11,6 @@ import { LoginModal } from "@/components/auth/loginModal"
 import { RegisterModal } from "@/components/auth/registerModal"
 import { useAuth } from "@/hooks/useAuth"
 import { Modal, ConfigProvider, Dropdown } from "antd"
-import { useRouter, usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { languageOptions } from '@/lib/constants';
 import { useLanguageSwitch } from '@/lib/languageUtils';
@@ -20,8 +19,7 @@ import { DownOutlined } from '@ant-design/icons'
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
-  const {t} = useTranslation('common');
-  const {currentLanguage, handleLanguageChange, getOppositeLanguage} = useLanguageSwitch();
+  const {currentLanguage, handleLanguageChange} = useLanguageSwitch();
 
   // Prevent hydration errors
   useEffect(() => {
@@ -39,10 +37,7 @@ export default function Home() {
   )
 
   function FrontpageContent() {
-    const {t, i18n} = useTranslation('common');
-    const [lang, setLang] = useState(i18n.language || 'zh');
-    const router = useRouter();
-    const pathname = usePathname();
+    const {t} = useTranslation('common');
     const {user, isLoading: userLoading, openLoginModal, openRegisterModal, isSpeedMode} = useAuth()
     const [loginPromptOpen, setLoginPromptOpen] = useState(false)
     const [adminRequiredPromptOpen, setAdminRequiredPromptOpen] = useState(false)
@@ -85,7 +80,6 @@ export default function Home() {
       setAdminRequiredPromptOpen(false)
     }
 
-    // 重构：风格被嵌入在组件内
     return (
         <div
             className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">

@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { theme, Modal, App, Button } from "antd"
-import { ExclamationCircleOutlined, ExclamationCircleFilled, WarningFilled } from "@ant-design/icons"
+import { Modal, App, Button } from "antd"
+import { WarningFilled } from "@ant-design/icons"
 import { motion, AnimatePresence } from "framer-motion"
 import AppModelConfig from "./modelSetup/config"
 import DataConfig from "./knowledgeBaseSetup/KnowledgeBaseManager"
@@ -14,12 +14,6 @@ import modelEngineService, { ConnectionStatus } from "@/services/modelEngineServ
 import { useAuth } from "@/hooks/useAuth"
 import Layout from "./layout"
 import { useTranslation } from 'react-i18next'
-import { userConfigService } from "@/services/userConfigService"
-import { useKnowledgeBaseContext } from "./knowledgeBaseSetup/knowledgeBase/KnowledgeBaseContext"
-import { KnowledgeBase } from "@/types/knowledgeBase"
-import { API_ENDPOINTS } from "@/services/api"
-import { getAuthHeaders } from '@/lib/auth'
-import { useTheme } from 'next-themes';
 
 
 export default function CreatePage() {
@@ -33,13 +27,9 @@ export default function CreatePage() {
   const [isFromSecondPage, setIsFromSecondPage] = useState(false)
   const { user, isLoading: userLoading, openLoginModal } = useAuth()
   const { modal } = App.useApp()
-  const { state: { knowledgeBases, selectedIds }, saveUserSelectedKnowledgeBases } = useKnowledgeBaseContext()
   const { t } = useTranslation()
   const [embeddingModalOpen, setEmbeddingModalOpen] = useState(false);
   const [pendingJump, setPendingJump] = useState(false);
-  const { token } = theme.useToken ? theme.useToken() : { token: {} };
-  const { resolvedTheme } = typeof useTheme === 'function' ? useTheme() : { resolvedTheme: 'light' };
-  const isDark = resolvedTheme === 'dark';
   const [liveSelectedModels, setLiveSelectedModels] = useState<Record<string, Record<string, string>> | null>(null);
 
 
@@ -75,7 +65,7 @@ export default function CreatePage() {
       if (user && user.role !== "admin") {
         try {
           await configService.loadConfigToFrontend()
-          await configStore.reloadFromStorage()
+          configStore.reloadFromStorage()
         } catch (error) {
           console.error("加载配置失败:", error)
         }
@@ -126,13 +116,6 @@ export default function CreatePage() {
       setIsCheckingConnection(false)
     }
   }
-
-  // Add a function to display the number of selected knowledge bases
-  const getSelectedKnowledgeBasesInfo = () => {
-    const selectedKbs = knowledgeBases.filter(kb => selectedIds.includes(kb.id));
-    console.log('💾 selectedKbs:', selectedKbs);
-    return `已选择 ${selectedKbs.length} 个知识库`;
-  };
 
   // Calculate the effective selectedKey, ensure that non-admin users get the correct page status
   const getEffectiveSelectedKey = () => {
@@ -214,7 +197,7 @@ export default function CreatePage() {
 
           // Reload the config for normal user before saving, ensure the latest model config
           await configService.loadConfigToFrontend()
-          await configStore.reloadFromStorage()
+          configStore.reloadFromStorage()
 
           // Get the current global configuration
           const currentConfig = configStore.getConfig()
@@ -317,7 +300,6 @@ export default function CreatePage() {
       onCompleteConfig={handleCompleteConfig}
       isSavingConfig={isSavingConfig}
       userRole={user?.role}
-      showDebugButton={selectedKey === "3"}
     >
       <AnimatePresence
         mode="wait"
