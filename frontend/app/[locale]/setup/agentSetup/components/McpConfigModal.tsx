@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Modal, Button, Input, Table, Space, Typography, Card, Divider, Tag, Tooltip, App } from 'antd'
+import { Modal, Button, Input, Table, Space, Typography, Card, Divider, Tooltip, App } from 'antd'
 import { DeleteOutlined, EyeOutlined, PlusOutlined, LoadingOutlined, ExpandAltOutlined, CompressOutlined, RedoOutlined } from '@ant-design/icons'
-import { getMcpServerList, addMcpServer, deleteMcpServer, getMcpTools, updateToolList, recoverMcpServers, checkMcpServerHealth, McpServer, McpTool } from '@/services/mcpService'
+import { getMcpServerList, addMcpServer, deleteMcpServer, getMcpTools, updateToolList, checkMcpServerHealth, McpServer, McpTool } from '@/services/mcpService'
 import { useTranslation } from 'react-i18next'
 
 const { Text, Title } = Typography

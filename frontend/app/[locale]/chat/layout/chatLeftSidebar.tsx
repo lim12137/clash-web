@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdownMenu"
 import {
@@ -28,11 +27,9 @@ import { useTranslation } from "react-i18next"
 
 // conversation status indicator component
 const ConversationStatusIndicator = ({ 
-  conversationId, 
   isStreaming, 
   isCompleted 
 }: { 
-  conversationId: number
   isStreaming: boolean
   isCompleted: boolean 
 }) => {
@@ -263,7 +260,6 @@ export function ChatSidebar({
                         onClick={() => onDialogClick(dialog)}
                       >
                         <ConversationStatusIndicator
-                          conversationId={dialog.conversation_id}
                           isStreaming={streamingConversations.has(dialog.conversation_id)}
                           isCompleted={completedConversations.has(dialog.conversation_id)}
                         />

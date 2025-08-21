@@ -1,7 +1,3 @@
-// 重构：状态可以整合
-// 模型状态类型
-export type ModelStatus = "unchecked" | "available" | "unavailable" | "skippable"
-
 // 模型连接状态类型
 export type ModelConnectStatus = "not_detected" | "detecting" | "available" | "unavailable"
 
@@ -116,7 +112,6 @@ export interface AppConfig {
   avatarUri: string | null
 }
 
-// 重构：整合一下
 // 模型API配置接口
 export interface ModelApiConfig {
   apiKey: string

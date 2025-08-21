@@ -111,7 +111,6 @@ export function ChatStreamMain({
     });
     
     let currentUserMsgId: string | null = null;
-    let lastUserMsgId: string | null = null;
     
     // Process all messages, distinguish user messages, final answers, and task messages
     messages.forEach(message => {
@@ -120,7 +119,6 @@ export function ChatStreamMain({
         finalMsgs.push(message);
         // Record the user message ID, used to associate subsequent tasks
         if (message.id) {
-          lastUserMsgId = currentUserMsgId; // Save the last user message ID
           currentUserMsgId = message.id;
           
           // Save the latest user message ID to the ref
