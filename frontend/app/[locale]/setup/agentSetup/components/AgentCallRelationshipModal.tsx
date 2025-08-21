@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Modal, Spin, message, Typography } from 'antd'
+import { RobotOutlined, ToolOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { fetchAgentCallRelationship } from '@/services/agentConfigService'
 import Tree from 'react-d3-tree';
@@ -41,43 +42,47 @@ const NODE_W = 140;
 const NODE_H = 60;
 
 // 颜色配置
-const levelColors = {
-  main: '#2c3e50',
-  level1: '#3498db',
-  level2: '#9b59b6',
-  level3: '#e74c3c',
-  level4: '#f39c12',
-  tool1: '#e67e22',
-  tool2: '#1abc9c',
-  tool3: '#34495e',
-  tool4: '#f1c40f'
-};
+const themeConfig = {
+  colors: {
+    node: {
+      main: '#2c3e50',
+      levels: {
+        1: '#3498db',
+        2: '#9b59b6', 
+        3: '#e74c3c',
+        4: '#f39c12'
+      },
+      tools: {
+        1: '#e67e22',
+        2: '#1abc9c',
+        3: '#34495e',
+        4: '#f1c40f'
+      }
+    }
+  }
+} as const;
 
 // 获取节点颜色
 const getNodeColor = (type: string, depth: number = 0) => {
-  if (type === 'main') return levelColors.main;
-  if (type === 'sub') {
-    if (depth === 1) return levelColors.level1;
-    if (depth === 2) return levelColors.level2;
-    if (depth === 3) return levelColors.level3;
-    if (depth === 4) return levelColors.level4;
-    return levelColors.level1;
+  const { colors } = themeConfig;
+  
+  switch (type) {
+    case 'main':
+      return colors.node.main;
+    case 'sub':
+      return colors.node.levels[depth as keyof typeof colors.node.levels] || colors.node.levels[1];
+    case 'tool':
+      return colors.node.tools[depth as keyof typeof colors.node.tools] || colors.node.tools[1];
+    default:
+      return colors.node.main;
   }
-  if (type === 'tool') {
-    if (depth === 1) return levelColors.tool1;
-    if (depth === 2) return levelColors.tool2;
-    if (depth === 3) return levelColors.tool3;
-    if (depth === 4) return levelColors.tool4;
-    return levelColors.tool1;
-  }
-  return levelColors.main;
 };
 
 // 自定义节点 —— 居中对齐，统一字体样式
 const CustomNode = ({ nodeDatum }: any) => {
   const isAgent = nodeDatum.type === 'main' || nodeDatum.type === 'sub';
   const color = getNodeColor(nodeDatum.type, nodeDatum.depth);
-  const icon = isAgent ? '🤖' : '🔧';
+  const icon = isAgent ? <RobotOutlined /> : <ToolOutlined />;
 
   // 与 NODE_W/H 协同的小尺寸
   const textLength = nodeDatum.name.length;
@@ -214,22 +219,71 @@ export default function AgentCallRelationshipModal({
     }
   }
 
-  // 生成树形数据（保持你的写法）
-  const generateTreeData = useCallback((data: AgentCallRelationship): TreeNodeDatum => {
+  // 生成树形数据（使用递归方法）
+  const generateTreeData = useCallback((data: AgentCallRelationship, maxDepth: number = 6): TreeNodeDatum => {
     const centerX = 600;
     const startY = 50;
     const levelHeight = 180;
     const agentSpacing = 280;
     const toolSpacing = 180;
 
+    // 递归生成子节点
+    const generateSubNodes = (subAgents: SubAgent[], depth: number, parentX: number, parentY: number): TreeNodeDatum[] => {
+      if (depth > maxDepth) return [];
+      
+      return subAgents.map((subAgent, index) => {
+        const x = parentX + (index - (subAgents.length - 1) / 2) * agentSpacing;
+        const y = parentY + levelHeight;
+        
+        const subAgentNode: TreeNodeDatum = {
+          name: subAgent.name,
+          type: 'sub',
+          depth: subAgent.depth || depth,
+          color: getNodeColor('sub', subAgent.depth || depth),
+          children: []
+        };
+
+        // 添加工具节点
+        if (subAgent.tools && subAgent.tools.length > 0) {
+          const toolsPerRow = Math.min(2, subAgent.tools.length);
+          const toolStartX = x - (toolsPerRow - 1) * toolSpacing / 2;
+
+          subAgent.tools.forEach((tool, toolIndex) => {
+            const row = Math.floor(toolIndex / toolsPerRow);
+            const col = toolIndex % toolsPerRow;
+            const toolX = toolStartX + col * toolSpacing;
+            const toolY = y + levelHeight + row * 60;
+
+            subAgentNode.children!.push({
+              name: tool.name,
+              type: 'tool',
+              depth: (subAgent.depth || depth) + 1,
+              color: getNodeColor('tool', (subAgent.depth || depth) + 1),
+              attributes: { toolType: tool.type },
+              children: []
+            });
+          });
+        }
+
+        // 递归处理更深层的子代理
+        if (subAgent.sub_agents && subAgent.sub_agents.length > 0) {
+          const deepSubNodes = generateSubNodes(subAgent.sub_agents, depth + 1, x, y);
+          subAgentNode.children!.push(...deepSubNodes);
+        }
+
+        return subAgentNode;
+      });
+    };
+
     const treeData: TreeNodeDatum = {
       name: data.name,
       type: 'main',
       depth: 0,
-      color: levelColors.main,
+      color: getNodeColor('main', 0),
       children: []
     };
 
+    // 添加主代理的工具
     if (data.tools && data.tools.length > 0) {
       const toolsPerRow = Math.min(3, data.tools.length);
       const startX2 = centerX - (toolsPerRow - 1) * toolSpacing / 2;
@@ -244,186 +298,17 @@ export default function AgentCallRelationshipModal({
           name: tool.name,
           type: 'tool',
           depth: 1,
-          color: levelColors.tool1,
+          color: getNodeColor('tool', 1),
           attributes: { toolType: tool.type },
           children: []
         });
       });
-    };
+    }
 
+    // 递归添加子代理
     if (data.sub_agents && data.sub_agents.length > 0) {
-      const startX3 = centerX - (data.sub_agents.length - 1) * agentSpacing / 2;
-
-      data.sub_agents.forEach((subAgent, index) => {
-        const x = startX3 + index * agentSpacing;
-        const y = startY + levelHeight;
-
-        const subAgentNode: TreeNodeDatum = {
-          name: subAgent.name,
-          type: 'sub',
-          depth: subAgent.depth || 1,
-          color: getNodeColor('sub', subAgent.depth || 1),
-          children: []
-        };
-
-        if (subAgent.tools && subAgent.tools.length > 0) {
-          const toolsPerRow = Math.min(2, subAgent.tools.length);
-          const toolStartX = x - (toolsPerRow - 1) * toolSpacing / 2;
-
-          subAgent.tools.forEach((tool, toolIndex) => {
-            const row = Math.floor(toolIndex / toolsPerRow);
-            const col = toolIndex % toolsPerRow;
-            const toolX = toolStartX + col * toolSpacing;
-            const toolY = y + levelHeight + row * 60;
-
-            subAgentNode.children!.push({
-              name: tool.name,
-              type: 'tool',
-              depth: (subAgent.depth || 1) + 1,
-              color: getNodeColor('tool', (subAgent.depth || 1) + 1),
-              attributes: { toolType: tool.type },
-              children: []
-            });
-          });
-        }
-
-        if (subAgent.sub_agents && subAgent.sub_agents.length > 0) {
-          subAgent.sub_agents.forEach((deepSubAgent) => {
-            const deepSubAgentNode: TreeNodeDatum = {
-              name: deepSubAgent.name,
-              type: 'sub',
-              depth: deepSubAgent.depth || 2,
-              color: getNodeColor('sub', deepSubAgent.depth || 2),
-              children: []
-            };
-
-            if (deepSubAgent.tools && deepSubAgent.tools.length > 0) {
-              deepSubAgent.tools.forEach((tool) => {
-                deepSubAgentNode.children!.push({
-                  name: tool.name,
-                  type: 'tool',
-                  depth: (deepSubAgent.depth || 2) + 1,
-                  color: getNodeColor('tool', (deepSubAgent.depth || 2) + 1),
-                  attributes: { toolType: tool.type },
-                  children: []
-                });
-              });
-            }
-
-            if (deepSubAgent.sub_agents && deepSubAgent.sub_agents.length > 0) {
-              deepSubAgent.sub_agents.forEach((deeperSubAgent) => {
-                const deeperSubAgentNode: TreeNodeDatum = {
-                  name: deeperSubAgent.name,
-                  type: 'sub',
-                  depth: deeperSubAgent.depth || 3,
-                  color: getNodeColor('sub', deeperSubAgent.depth || 3),
-                  children: []
-                };
-
-                if (deeperSubAgent.tools && deeperSubAgent.tools.length > 0) {
-                  deeperSubAgent.tools.forEach((tool) => {
-                    deeperSubAgentNode.children!.push({
-                      name: tool.name,
-                      type: 'tool',
-                      depth: (deeperSubAgent.depth || 3) + 1,
-                      color: getNodeColor('tool', (deeperSubAgent.depth || 3) + 1),
-                      attributes: { toolType: tool.type },
-                      children: []
-                    });
-                  });
-                }
-
-                if (deeperSubAgent.sub_agents && deeperSubAgent.sub_agents.length > 0) {
-                  deeperSubAgent.sub_agents.forEach((deepestSubAgent) => {
-                    const deepestSubAgentNode: TreeNodeDatum = {
-                      name: deepestSubAgent.name,
-                      type: 'sub',
-                      depth: deepestSubAgent.depth || 4,
-                      color: getNodeColor('sub', deepestSubAgent.depth || 4),
-                      children: []
-                    };
-
-                    if (deepestSubAgent.tools && deepestSubAgent.tools.length > 0) {
-                      deepestSubAgent.tools.forEach((tool) => {
-                        deepestSubAgentNode.children!.push({
-                          name: tool.name,
-                          type: 'tool',
-                          depth: (deepestSubAgent.depth || 4) + 1,
-                          color: getNodeColor('tool', (deepestSubAgent.depth || 4) + 1),
-                          attributes: { toolType: tool.type },
-                          children: []
-                        });
-                      });
-                    }
-
-                    if (deepestSubAgent.sub_agents && deepestSubAgent.sub_agents.length > 0) {
-                      deepestSubAgent.sub_agents.forEach((level5SubAgent) => {
-                        const level5SubAgentNode: TreeNodeDatum = {
-                          name: level5SubAgent.name,
-                          type: 'sub',
-                          depth: level5SubAgent.depth || 5,
-                          color: getNodeColor('sub', level5SubAgent.depth || 5),
-                          children: []
-                        };
-
-                        if (level5SubAgent.tools && level5SubAgent.tools.length > 0) {
-                          level5SubAgent.tools.forEach((tool) => {
-                            level5SubAgentNode.children!.push({
-                              name: tool.name,
-                              type: 'tool',
-                              depth: (level5SubAgent.depth || 5) + 1,
-                              color: getNodeColor('tool', (level5SubAgent.depth || 5) + 1),
-                              attributes: { toolType: tool.type },
-                              children: []
-                            });
-                          });
-                        }
-
-                        if (level5SubAgent.sub_agents && level5SubAgent.sub_agents.length > 0) {
-                          level5SubAgent.sub_agents.forEach((level6SubAgent) => {
-                            const level6SubAgentNode: TreeNodeDatum = {
-                              name: level6SubAgent.name,
-                              type: 'sub',
-                              depth: level6SubAgent.depth || 6,
-                              color: getNodeColor('sub', level6SubAgent.depth || 6),
-                              children: []
-                            };
-
-                            if (level6SubAgent.tools && level6SubAgent.tools.length > 0) {
-                              level6SubAgent.tools.forEach((tool) => {
-                                level6SubAgentNode.children!.push({
-                                  name: tool.name,
-                                  type: 'tool',
-                                  depth: (level6SubAgent.depth || 6) + 1,
-                                  color: getNodeColor('tool', (level6SubAgent.depth || 6) + 1),
-                                  attributes: { toolType: tool.type },
-                                  children: []
-                                });
-                              });
-                            }
-
-                            level5SubAgentNode.children!.push(level6SubAgentNode);
-                          });
-                        }
-
-                        deepestSubAgentNode.children!.push(level5SubAgentNode);
-                      });
-                    }
-
-                    deeperSubAgentNode.children!.push(deepestSubAgentNode);
-                  });
-                }
-
-                deepSubAgentNode.children!.push(deeperSubAgentNode);
-              });
-            }
-
-            subAgentNode.children!.push(deepSubAgentNode);
-          });
-        }
-
-        treeData.children!.push(subAgentNode);
-      });
+      const subNodes = generateSubNodes(data.sub_agents, 1, centerX, startY);
+      treeData.children!.push(...subNodes);
     }
 
     return treeData;
@@ -434,7 +319,7 @@ export default function AgentCallRelationshipModal({
       <Modal
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>🌳 Agent调用关系树</span>
+            <span>{t('agentCallRelationship.title')}</span>
             <Text type="secondary" style={{ fontSize: '14px', fontWeight: 'normal' }}>
               {agentName}
             </Text>
@@ -452,14 +337,14 @@ export default function AgentCallRelationshipModal({
           <div style={{ textAlign: 'center', padding: '40px' }}>
             <Spin size="large" />
             <div style={{ marginTop: '16px' }}>
-              <Text type="secondary">正在加载调用关系...</Text>
+              <Text type="secondary">{t('agentCallRelationship.loading')}</Text>
             </div>
           </div>
         ) : relationshipData ? (
           <div>
             <div style={{ marginBottom: '16px' }}>
               <Text type="secondary">
-                此流程图显示了 {relationshipData.name} 及其所有工具和协作Agent的调用关系
+                {t('agentCallRelationship.description', { name: relationshipData.name })}
               </Text>
             </div>
             <div
@@ -491,18 +376,12 @@ export default function AgentCallRelationshipModal({
                 initialDepth={undefined}
                 enableLegacyTransitions={true}
                 transitionDuration={250}
-                /** 显式替换默认 label 为隐藏组件（确保不再渲染默认文本） */
-                allowForeignObjects={true}
-                nodeLabelComponent={{
-                  render: <div style={{ display: 'none' }} />,
-                  foreignObjectProps: { width: 0, height: 0, x: 0, y: 0 },
-                }}
               />
             </div>
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '40px' }}>
-            <Text type="secondary">暂无调用关系数据</Text>
+            <Text type="secondary">{t('agentCallRelationship.noData')}</Text>
           </div>
         )}
       </Modal>
