@@ -119,7 +119,7 @@ def test_run_normal_execution(core_agent_instance):
         core_agent_instance.step_number = 1
 
         # Execute
-        result = list(core_agent_instance._run(task, max_steps))
+        result = list(core_agent_instance._run_stream(task, max_steps))
 
         # Assertions
         assert len(result) == 2  # Should yield action step and final answer
@@ -142,7 +142,7 @@ def test_run_with_max_steps_reached(core_agent_instance):
         core_agent_instance.step_number = 1
 
         # Execute
-        result = list(core_agent_instance._run(task, max_steps))
+        result = list(core_agent_instance._run_stream(task, max_steps))
 
         # Debug information
         print(f"\nResult length: {len(result)}")
@@ -176,7 +176,7 @@ def test_run_with_stop_event(core_agent_instance):
         with patch.object(core_agent_instance, '_execute_step', side_effect=set_stop_event):
             with patch.object(core_agent_instance, '_finalize_step'):
                 # Execute
-                result = list(core_agent_instance._run(task, max_steps))
+                result = list(core_agent_instance._run_stream(task, max_steps))
 
     # Assertions
     assert len(result) == 2  # Should yield action step and "<user_break>"
@@ -196,7 +196,7 @@ def test_run_with_agent_error(core_agent_instance):
                           side_effect=MockAgentError("test error")) as mock_execute_step, \
                 patch.object(core_agent_instance, '_finalize_step'):
             # Execute
-            result = list(core_agent_instance._run(task, max_steps))
+            result = list(core_agent_instance._run_stream(task, max_steps))
 
     # Assertions
     assert result[0] == mock_step
@@ -218,7 +218,7 @@ def test_run_with_agent_parse_error_branch(core_agent_instance):
             patch.object(core_agent_instance, '_execute_step', side_effect=MockAgentError(f"{parse_hint} - error")), \
             patch.object(core_agent_module, 'convert_code_format', return_value="formatted answer") as mock_convert, \
             patch.object(core_agent_instance, '_finalize_step'):
-        results = list(core_agent_instance._run(task, max_steps))
+        results = list(core_agent_instance._run_stream(task, max_steps))
 
     # _run 应该产出 action step + 处理后的结果
     assert results[0] == mock_step
