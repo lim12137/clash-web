@@ -1,18 +1,6 @@
 import React from 'react'
-import { Modal, App } from 'antd'
-import { useTranslation } from 'react-i18next'
+import { App } from 'antd'
 import i18next from 'i18next'
-
-interface ConfirmModalProps {
-  title: string
-  content: React.ReactNode
-  okText?: string
-  cancelText?: string
-  danger?: boolean
-  visible: boolean
-  onConfirm: () => void
-  onCancel: () => void
-}
 
 interface StaticConfirmProps {
   title: string
@@ -22,34 +10,6 @@ interface StaticConfirmProps {
   danger?: boolean
   onConfirm?: () => void
   onCancel?: () => void
-}
-
-// 组件定义
-const ConfirmModal: React.FC<ConfirmModalProps> = ({ 
-  title,
-  content,
-  okText,
-  cancelText,
-  danger = false,
-  visible,
-  onConfirm,
-  onCancel
-}) => {
-  const { t } = useTranslation()
-
-  return (
-    <Modal
-      title={title}
-      open={visible}
-      onOk={onConfirm}
-      onCancel={onCancel}
-      okText={okText || t('common.confirm')}
-      cancelText={cancelText || t('common.cancel')}
-      okButtonProps={{ danger }}
-    >
-      {content}
-    </Modal>
-  )
 }
 
 // 提供一个 hook 来获取 confirm 方法
@@ -78,5 +38,3 @@ export const useConfirmModal = () => {
   
   return { confirm }
 }
-
-export default ConfirmModal

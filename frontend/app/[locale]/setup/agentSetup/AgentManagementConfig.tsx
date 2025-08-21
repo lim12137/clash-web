@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Modal, App } from 'antd'
+import { App } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { TFunction } from 'i18next'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -9,25 +9,75 @@ import SubAgentPool from './components/SubAgentPool'
 import { MemoizedToolPool } from './components/ToolPool'
 import DeleteConfirmModal from './components/DeleteConfirmModal'
 import CollaborativeAgentDisplay from './components/CollaborativeAgentDisplay'
-import SystemPromptDisplay from './components/SystemPromptDisplay'
-// import AgentInfoInput from './components/AgentInfoInput'
+import PromptManager from './components/PromptManager'
 import {
-  BusinessLogicConfigProps,
   Agent,
-  Tool,
   OpenAIModel,
-  AgentBasicInfo
+  Tool,
 } from './ConstInterface'
 import {
   getCreatingSubAgentId,
   fetchAgentList,
-  fetchAgentDetail,
   updateAgent,
   importAgent,
-  exportAgent,
   deleteAgent,
   searchAgentInfo
 } from '@/services/agentConfigService'
+
+
+// main component props interface
+export interface BusinessLogicConfigProps {
+  businessLogic: string;
+  setBusinessLogic: (value: string) => void;
+  setSelectedAgents: (agents: Agent[]) => void;
+  selectedTools: Tool[];
+  setSelectedTools: (tools: Tool[]) => void;
+  systemPrompt: string;
+  setSystemPrompt: (value: string) => void;
+  isCreatingNewAgent: boolean;
+  setIsCreatingNewAgent: (value: boolean) => void;
+  mainAgentModel: OpenAIModel;
+  setMainAgentModel: (value: OpenAIModel) => void;
+  mainAgentMaxStep: number;
+  setMainAgentMaxStep: (value: number) => void;
+  tools: Tool[];
+  subAgentList?: Agent[];
+  loadingAgents?: boolean;
+  mainAgentId: string | null;
+  setMainAgentId: (value: string | null) => void;
+  setSubAgentList: (agents: Agent[]) => void;
+  enabledAgentIds: number[];
+  setEnabledAgentIds: (ids: number[]) => void;
+  setNewAgentName: (value: string) => void;
+  setNewAgentDescription: (value: string) => void;
+  setNewAgentProvideSummary: (value: boolean) => void;
+  onEditingStateChange?: (isEditing: boolean, agent: any) => void;
+  onToolsRefresh: () => void;
+  dutyContent: string;
+  setDutyContent: (value: string) => void;
+  constraintContent: string;
+  setConstraintContent: (value: string) => void;
+  fewShotsContent: string;
+  setFewShotsContent: (value: string) => void;
+  // Add new props for agent name and description
+  agentName?: string;
+  setAgentName?: (value: string) => void;
+  agentDescription?: string;
+  setAgentDescription?: (value: string) => void;
+  agentDisplayName?: string;
+  setAgentDisplayName?: (value: string) => void;
+  // Add new prop for generating agent state
+  isGeneratingAgent?: boolean;
+  // SystemPromptDisplay related props
+  onDebug?: () => void;
+  getCurrentAgentId?: () => number | undefined;
+  onGenerateAgent?: () => void;
+  onExportAgent?: () => void;
+  onDeleteAgent?: () => void;
+  editingAgent?: any;
+  onExitCreation?: () => void;
+}
+
 
 /**
  * Business Logic Configuration Main Component
@@ -35,7 +85,6 @@ import {
 export default function BusinessLogicConfig({
   businessLogic,
   setBusinessLogic,
-  selectedAgents,
   setSelectedAgents,
   selectedTools,
   setSelectedTools,
@@ -55,14 +104,9 @@ export default function BusinessLogicConfig({
   setSubAgentList,
   enabledAgentIds,
   setEnabledAgentIds,
-  newAgentName,
-  newAgentDescription,
-  newAgentProvideSummary,
   setNewAgentName,
   setNewAgentDescription,
   setNewAgentProvideSummary,
-  isNewAgentInfoValid,
-  setIsNewAgentInfoValid,
   onEditingStateChange,
   onToolsRefresh,
   dutyContent,
@@ -83,14 +127,7 @@ export default function BusinessLogicConfig({
   // SystemPromptDisplay related props
   onDebug,
   getCurrentAgentId,
-  onModelChange: onModelChangeFromParent,
-  onMaxStepChange: onMaxStepChangeFromParent,
-  onBusinessLogicChange,
   onGenerateAgent,
-  onSaveAgent,
-  isSavingAgent,
-  canSaveAgent,
-  getButtonTitle,
   onExportAgent,
   onDeleteAgent,
   editingAgent: editingAgentFromParent,
@@ -110,6 +147,9 @@ export default function BusinessLogicConfig({
   const [isEditingAgent, setIsEditingAgent] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
 
+  // Add a flag to track if it has been initialized to avoid duplicate calls
+  const hasInitialized = useRef(false);
+
   const { t } = useTranslation('common');
   const { message } = App.useApp();
 
@@ -125,7 +165,7 @@ export default function BusinessLogicConfig({
       if (result.success) {
         // Update agent list with basic info only
         setSubAgentList(result.data);
-        message.success(t('businessLogic.config.message.agentListLoaded'));
+        // Removed success message to avoid duplicate notifications
       } else {
         message.error(result.message || t('businessLogic.config.error.agentListFailed'));
       }
@@ -137,45 +177,10 @@ export default function BusinessLogicConfig({
     }
   };
 
-  // Handle agent selection and load detailed configuration
-  // Remove frontend caching logic, completely rely on backend returned sub_agent_id_list
-  const handleAgentSelectionOnly = (agent: Agent, isSelected: boolean) => {
-    // No longer perform frontend caching, completely rely on backend returned sub_agent_id_list
-    // This function is now just a placeholder, actual state management is controlled by backend
-    console.log('Agent selection changed:', agent.name, isSelected);
-  };
-
-  // Function to refresh agent state
-  const handleRefreshAgentState = async () => {
-    if (isEditingAgent && editingAgent) {
-      try {
-        // Add a small delay to ensure backend operation is completed
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Re-fetch detailed information of currently editing agent
-        const result = await searchAgentInfo(Number(editingAgent.id));
-        if (result.success && result.data) {
-          const agentDetail = result.data;
-
-          // Update enabledAgentIds
-          if (agentDetail.sub_agent_id_list && agentDetail.sub_agent_id_list.length > 0) {
-            const newEnabledAgentIds = agentDetail.sub_agent_id_list.map((id: any) => Number(id));
-            setEnabledAgentIds(newEnabledAgentIds);
-          } else {
-            setEnabledAgentIds([]);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to refresh agent state:', error);
-      }
-    }
-  };
-
   // Function to directly update enabledAgentIds
   const handleUpdateEnabledAgentIds = (newEnabledAgentIds: number[]) => {
     setEnabledAgentIds(newEnabledAgentIds);
   };
-
 
   const fetchSubAgentIdAndEnableToolList = async (t: TFunction) => {
     setIsLoadingTools(true);
@@ -248,26 +253,26 @@ export default function BusinessLogicConfig({
         setNewAgentName('');
         setNewAgentDescription('');
         setNewAgentProvideSummary(true);
-        setIsNewAgentInfoValid(false);
       } else {
         // In edit mode, data is loaded in handleEditAgent, here validate the form
-        setIsNewAgentInfoValid(true); // Assume data is valid when editing
         console.log('Edit mode useEffect - Do not clear data'); // Debug information
       }
-          } else {
-        // When exiting the creation of a new Agent, reset the main Agent configuration
-        // Only refresh list when exiting creation mode in non-editing mode to avoid flicker when exiting editing mode
-        if (!isEditingAgent) {
-          setBusinessLogic('');
-          setSystemPrompt(''); // Also clear the system prompt
-          setMainAgentModel(OpenAIModel.MainModel);
-          setMainAgentMaxStep(5);
-          // Delay refreshing agent list to avoid jumping
-          setTimeout(() => {
-            refreshAgentList(t);
-          }, 200);
-        }
+    } else {
+      // When exiting the creation of a new Agent, reset the main Agent configuration
+      // Only refresh list when exiting creation mode in non-editing mode to avoid flicker when exiting editing mode
+      if (!isEditingAgent && hasInitialized.current) {
+        setBusinessLogic('');
+        setSystemPrompt(''); // Also clear the system prompt
+        setMainAgentModel(OpenAIModel.MainModel);
+        setMainAgentMaxStep(5);
+        // Delay refreshing agent list to avoid jumping
+        setTimeout(() => {
+          refreshAgentList(t);
+        }, 200);
       }
+      // Sign that has been initialized
+      hasInitialized.current = true;
+    }
   }, [isCreatingNewAgent, isEditingAgent]);
 
   // Listen for changes in the tool status, update the selected tool
@@ -280,6 +285,19 @@ export default function BusinessLogicConfig({
 
     setSelectedTools(enabledTools);
   }, [tools, enabledToolIds, isLoadingTools]);
+
+  // Listen for refresh agent list events from parent component
+  useEffect(() => {
+    const handleRefreshAgentList = () => {
+      refreshAgentList(t);
+    };
+
+    window.addEventListener('refreshAgentList', handleRefreshAgentList);
+
+    return () => {
+      window.removeEventListener('refreshAgentList', handleRefreshAgentList);
+    };
+  }, [t]);
 
   // Handle the creation of a new Agent
   const handleCreateNewAgent = async () => {
@@ -312,7 +330,6 @@ export default function BusinessLogicConfig({
       setNewAgentName('');
       setNewAgentDescription('');
       setNewAgentProvideSummary(true);
-      setIsNewAgentInfoValid(false);
 
       // Note: Content clearing is handled by onExitCreation above
 
@@ -623,50 +640,6 @@ export default function BusinessLogicConfig({
     fileInput.click();
   };
 
-  // Handle exporting agent
-  const handleExportAgent = async (agent: Agent, t: TFunction) => {
-    try {
-      const result = await exportAgent(Number(agent.id));
-      if (result.success) {
-        // Handle backend returned string or object
-        let exportData = result.data;
-        if (typeof exportData === 'string') {
-          try {
-            exportData = JSON.parse(exportData);
-          } catch (e) {
-            // If parsing fails, it means it's already a string, export directly
-          }
-        }
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-          type: 'application/json'
-        });
-
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${agent.name}_config.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        message.success(t('businessLogic.config.message.agentExportSuccess'));
-      } else {
-        message.error(result.message || t('businessLogic.config.error.agentExportFailed'));
-      }
-    } catch (error) {
-      console.error(t('debug.console.exportAgentFailed'), error);
-      message.error(t('businessLogic.config.error.agentExportFailed'));
-    }
-  };
-
-  // Handle deleting agent
-  const handleDeleteAgent = async (agent: Agent) => {
-    // Show confirmation dialog
-    setAgentToDelete(agent);
-    setIsDeleteConfirmOpen(true);
-  };
-
   // Handle confirmed deletion
   const handleConfirmDelete = async (t: TFunction) => {
     if (!agentToDelete) return;
@@ -702,7 +675,6 @@ export default function BusinessLogicConfig({
     setNewAgentName('');
     setNewAgentDescription('');
     setNewAgentProvideSummary(true);
-    setIsNewAgentInfoValid(false);
     setBusinessLogic('');
     setDutyContent('');
     setConstraintContent('');
@@ -722,7 +694,7 @@ export default function BusinessLogicConfig({
   // Refresh tool list
   const handleToolsRefresh = useCallback(async () => {
     if (onToolsRefresh) {
-      await onToolsRefresh();
+      onToolsRefresh();
     }
   }, [onToolsRefresh]);
 
@@ -755,13 +727,10 @@ export default function BusinessLogicConfig({
               onCreateNewAgent={handleCreateNewAgent}
               onExitEditMode={handleExitEditMode}
               onImportAgent={() => handleImportAgent(t)}
-              onExportAgent={(agent) => handleExportAgent(agent, t)}
-              onDeleteAgent={handleDeleteAgent}
               subAgentList={subAgentList}
               loadingAgents={loadingAgents}
               isImporting={isImporting}
               isGeneratingAgent={isGeneratingAgent}
-              isEditingAgent={isEditingAgent}
               editingAgent={editingAgent}
               isCreatingNewAgent={isCreatingNewAgent}
             />
@@ -806,7 +775,6 @@ export default function BusinessLogicConfig({
                           setSelectedTools(selectedTools.filter(t => t.id !== tool.id));
                         }
                       }}
-                      isCreatingNewAgent={isCreatingNewAgent}
                       tools={tools}
                       loadingTools={isLoadingTools}
                       mainAgentId={isEditingAgent && editingAgent ? editingAgent.id : mainAgentId}
@@ -822,7 +790,7 @@ export default function BusinessLogicConfig({
 
           {/* Right column: System Prompt Display - 30% width */}
           <div className="w-full lg:w-[30%] h-full lg:flex-shrink-0">
-            <SystemPromptDisplay
+            <PromptManager
               onDebug={onDebug || (() => {})}
               agentId={getCurrentAgentId ? getCurrentAgentId() : (isEditingAgent && editingAgent ? Number(editingAgent.id) : (isCreatingNewAgent && mainAgentId ? Number(mainAgentId) : undefined))}
               businessLogic={businessLogic}
@@ -847,7 +815,6 @@ export default function BusinessLogicConfig({
               onGenerateAgent={onGenerateAgent || (() => {})}
               onSaveAgent={handleSaveAgent}
               isGeneratingAgent={isGeneratingAgent}
-              isSavingAgent={isSavingAgent || false}
               isCreatingNewAgent={isCreatingNewAgent}
               canSaveAgent={localCanSaveAgent}
               getButtonTitle={getLocalButtonTitle}

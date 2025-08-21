@@ -223,3 +223,13 @@ def test_truncation_strategies_comparison(long_context_model):
         assert start_result != end_result
         assert start_result != middle_result
         assert end_result != middle_result
+
+
+def test_prepare_long_text_message_insufficient_tokens(long_context_model):
+    """Test that ValueError is raised when there are insufficient tokens available"""
+    # Mock count_tokens to return high values that exceed max_context_tokens
+    long_context_model.count_tokens = MagicMock(side_effect=[50000, 40000, 1000])  # system + user + content
+    long_context_model.max_context_tokens = 80000  # Less than required (50000 + 40000 + 100)
+    
+    with pytest.raises(ValueError, match="Insufficient tokens available"):
+        long_context_model.prepare_long_text_message("content", "system prompt", "user prompt")

@@ -147,6 +147,46 @@ jobs:
       - name: Push web image (arm64) to Tencent Cloud
         run: docker push ccr.ccs.tencentyun.com/nexent-hub/nexent-web:arm64
 
+  build-and-push-terminal-amd64:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    steps:
+      - name: Set up Docker Buildx
+        run: |
+          if ! docker buildx inspect nexent_builder > /dev/null 2>&1; then
+            docker buildx create --name nexent_builder --use
+          else
+            docker buildx use nexent_builder
+          fi
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build terminal image (amd64) and load locally
+        run: |
+          docker buildx build --platform linux/amd64 --load -t ccr.ccs.tencentyun.com/nexent-hub/nexent-ubuntu-terminal:amd64 -f make/terminal/Dockerfile .
+      - name: Login to Tencent Cloud
+        run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
+      - name: Push terminal image (amd64) to Tencent Cloud
+        run: docker push ccr.ccs.tencentyun.com/nexent-hub/nexent-ubuntu-terminal:amd64
+
+  build-and-push-terminal-arm64:
+    runs-on: ${{ fromJson(inputs.runner_label_json) }}
+    steps:
+      - name: Set up Docker Buildx
+        run: |
+          if ! docker buildx inspect nexent_builder > /dev/null 2>&1; then
+            docker buildx create --name nexent_builder --use
+          else
+            docker buildx use nexent_builder
+          fi
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build terminal image (arm64) and load locally
+        run: |
+          docker buildx build --platform linux/arm64 --load -t ccr.ccs.tencentyun.com/nexent-hub/nexent-ubuntu-terminal:arm64 -f make/terminal/Dockerfile .
+      - name: Login to Tencent Cloud
+        run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
+      - name: Push terminal image (arm64) to Tencent Cloud
+        run: docker push ccr.ccs.tencentyun.com/nexent-hub/nexent-ubuntu-terminal:arm64
+
   manifest-push-main:
     runs-on: ubuntu-latest
     needs:
@@ -191,3 +231,18 @@ jobs:
             ccr.ccs.tencentyun.com/nexent-hub/nexent-web:amd64 \
             ccr.ccs.tencentyun.com/nexent-hub/nexent-web:arm64
           docker manifest push ccr.ccs.tencentyun.com/nexent-hub/nexent-web:latest
+
+  manifest-push-terminal:
+    runs-on: ubuntu-latest
+    needs:
+      - build-and-push-terminal-amd64
+      - build-and-push-terminal-arm64
+    steps:
+      - name: Login to Tencent Cloud
+        run: echo ${{ secrets.TCR_PASSWORD }} | docker login ccr.ccs.tencentyun.com --username=${{ secrets.TCR_USERNAME }} --password-stdin
+      - name: Create and push manifest for terminal (Tencent Cloud)
+        run: |
+          docker manifest create ccr.ccs.tencentyun.com/nexent-hub/nexent-ubuntu-terminal:latest \
+            ccr.ccs.tencentyun.com/nexent-hub/nexent-ubuntu-terminal:amd64 \
+            ccr.ccs.tencentyun.com/nexent-hub/nexent-ubuntu-terminal:arm64
+          docker manifest push ccr.ccs.tencentyun.com/nexent-hub/nexent-ubuntu-terminal:latest

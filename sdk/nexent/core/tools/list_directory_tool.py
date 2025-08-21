@@ -6,6 +6,7 @@ from pydantic import Field
 from smolagents.tools import Tool
 
 from ..utils.observer import MessageObserver, ProcessType
+from ..utils.tools_common_message import ToolSign
 
 logger = logging.getLogger("list_directory_tool")
 
@@ -26,7 +27,7 @@ class ListDirectoryTool(Tool):
     }
     output_type = "string"
 
-    tool_sign = "f"  # File operation tool identifier
+    tool_sign = ToolSign.FILE_OPERATION.value  # File operation tool identifier
 
     def __init__(self, 
                  init_path: str = Field(description="Initial workspace path", default="/mnt/nexent"),
