@@ -1,7 +1,7 @@
 "use client"
 
 import { API_ENDPOINTS } from './api';
-import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
+import { fetchWithAuth } from '@/lib/auth';
 // @ts-ignore
 const fetch = fetchWithAuth;
 

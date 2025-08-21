@@ -41,13 +41,3 @@ export interface ApiConversationResponse {
   data: ApiConversationDetail[];
   message: string;
 }
-
-export interface DialogMessage {
-  content: string;
-  role: "user" | "assistant";
-  id?: string;
-  doc_ids?: string[];
-  images?: string[];
-  is_deep_search?: boolean;
-  is_deep_seek?: boolean;
-} 

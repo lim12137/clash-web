@@ -8,10 +8,10 @@ from nexent.core.agents.agent_model import ToolConfig
 
 class ModelConnectStatusEnum(Enum):
     """Enum class for model connection status"""
-    NOT_DETECTED = "未检测"
-    DETECTING = "检测中"
-    AVAILABLE = "可用"
-    UNAVAILABLE = "不可用"
+    NOT_DETECTED = "not_detected"
+    DETECTING = "detecting"
+    AVAILABLE = "available"
+    UNAVAILABLE = "unavailable"
 
     @classmethod
     def get_default(cls) -> str:
@@ -317,6 +317,7 @@ class MessageIdRequest(BaseModel):
 class ExportAndImportAgentInfo(BaseModel):
     agent_id: int
     name: str
+    display_name: Optional[str] = None
     description: str
     business_description: str
     model_name: str
@@ -329,9 +330,19 @@ class ExportAndImportAgentInfo(BaseModel):
     tools: List[ToolConfig]
     managed_agents: List[int]
 
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class MCPInfo(BaseModel):
+    mcp_server_name: str
+    mcp_url: str
+
+
 class ExportAndImportDataFormat(BaseModel):
     agent_id: int
     agent_info: Dict[str, ExportAndImportAgentInfo]
+    mcp_info: List[MCPInfo]
 
 
 class AgentImportRequest(BaseModel):

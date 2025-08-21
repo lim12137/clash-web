@@ -9,6 +9,7 @@ from smolagents.tools import Tool
 import paramiko
 
 from ..utils.observer import MessageObserver, ProcessType
+from ..utils.tools_common_message import ToolSign
 
 logger = logging.getLogger("terminal_tool")
 
@@ -28,7 +29,7 @@ class TerminalTool(Tool):
     }
     output_type = "string"
 
-    tool_sign = "t"  # Terminal operation tool identifier
+    tool_sign = ToolSign.TERMINAL_OPERATION.value  # Terminal operation tool identifier
 
     # Class-level session storage
     _sessions: Dict[str, Dict[str, Any]] = {}
@@ -37,7 +38,7 @@ class TerminalTool(Tool):
                  init_path: str = Field(description="Initial workspace path", default="/mnt/nexent"),
                  observer: MessageObserver = Field(description="Message observer", default=None, exclude=True),
                  ssh_host: str = Field(description="SSH host", default="nexent-openssh-server"),
-                 ssh_port: int = Field(description="SSH port", default=2222),
+                 ssh_port: int = Field(description="SSH port", default=22),
                  ssh_user: str = Field(description="SSH username", default="linuxserver.io"),
                  private_key_path: str = Field(description="Path to private key file", default="/opt/ssh-keys/openssh_server_key")):
         """Initialize the TerminalTool.
@@ -46,7 +47,7 @@ class TerminalTool(Tool):
             init_path (str): Initial workspace path. Defaults to "/mnt/nexent".
             observer (MessageObserver, optional): Message observer instance. Defaults to None.
             ssh_host (str): SSH server host. Defaults to "localhost".
-            ssh_port (int): SSH server port. Defaults to 2222.
+            ssh_port (int): SSH server port. Defaults to 22.
             ssh_user (str): SSH username. Defaults to "root".
             private_key_path (str): Path to SSH private key. Defaults to "~/.ssh/id_rsa".
         """

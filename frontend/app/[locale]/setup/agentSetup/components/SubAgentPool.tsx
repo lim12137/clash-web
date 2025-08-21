@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from 'react'
 import { App } from 'antd'
-import { SettingOutlined, UploadOutlined } from '@ant-design/icons'
+import { UploadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { ScrollArea } from '@/components/ui/scrollArea'
 import { Agent } from '../ConstInterface'
@@ -11,14 +10,11 @@ interface SubAgentPoolProps {
   onEditAgent: (agent: Agent) => void;
   onCreateNewAgent: () => void;
   onImportAgent: () => void;
-  onExportAgent: (agent: Agent) => void;
-  onDeleteAgent: (agent: Agent) => void;
   onExitEditMode?: () => void; // 退出编辑模式的回调
   subAgentList?: Agent[];
   loadingAgents?: boolean;
   isImporting?: boolean;
   isGeneratingAgent?: boolean; // 生成智能体状态
-  isEditingAgent?: boolean; // 是否处于编辑模式
   editingAgent?: Agent | null; // 当前正在编辑的Agent
   isCreatingNewAgent?: boolean; // 是否处于创建模式
 }
@@ -30,14 +26,11 @@ export default function SubAgentPool({
   onEditAgent, 
   onCreateNewAgent, 
   onImportAgent,
-  onExportAgent,
-  onDeleteAgent,
   onExitEditMode,
   subAgentList = [],
   loadingAgents = false,
   isImporting = false,
   isGeneratingAgent = false,
-  isEditingAgent = false,
   editingAgent = null,
   isCreatingNewAgent = false
 }: SubAgentPoolProps) {
@@ -140,7 +133,7 @@ export default function SubAgentPool({
             return (
               <div 
                 key={agent.id} 
-                className={`py-4 px-2 flex flex-col justify-center transition-colors border-t border-gray-200 ${
+                className={`py-2 px-2 flex flex-col justify-center transition-colors border-t border-gray-200 ${
                   isCurrentlyEditing
                     ? 'bg-blue-50 border-l-4 border-l-blue-500' // 编辑中的agent高亮显示，添加左侧竖线
                     : !isAvailable
@@ -180,9 +173,9 @@ export default function SubAgentPool({
                            : `${t('subAgentPool.tooltip.editAgent')} ${agent.display_name || agent.name}`}>
                       <span className="flex items-baseline">
                         {agent.display_name && (
-                          <span className="text-base leading-none">{agent.display_name}</span>
+                          <span className="text-base leading-normal">{agent.display_name}</span>
                         )}
-                        <span className={`leading-none ${agent.display_name ? 'ml-2 text-sm' : 'text-base'}`}>
+                        <span className={`leading-normal ${agent.display_name ? 'ml-2 text-sm' : 'text-base'}`}>
                           {agent.name}
                         </span>
                       </span>

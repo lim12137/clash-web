@@ -52,7 +52,6 @@ interface KnowledgeBaseListProps {
   onKnowledgeBaseChange?: () => void // 新增：知识库切换时的回调函数
 }
 
-// 重构：大量非必要输入与状态 - @wanmingchen
 const KnowledgeBaseList: React.FC<KnowledgeBaseListProps> = ({
   knowledgeBases,
   selectedIds,
