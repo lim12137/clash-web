@@ -1,7 +1,7 @@
 from threading import Event
 from typing import List
 
-from smolagents import ActionStep, AgentText, TaskStep, handle_agent_output_types
+from smolagents import ActionStep, AgentText, TaskStep
 from smolagents.tools import Tool
 
 from ..models.openai_llm import OpenAIModel
