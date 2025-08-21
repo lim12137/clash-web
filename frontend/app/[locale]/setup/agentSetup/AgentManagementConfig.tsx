@@ -502,10 +502,11 @@ export default function BusinessLogicConfig({
       setEditingAgent(agentDetail);
       // Set mainAgentId to current editing Agent ID
       setMainAgentId(agentDetail.id);
-      // When editing existing agent, ensure exit creation mode
-      // Note: This will be handled by the parent component's handleEditingStateChange
-      // which will cache the current creation content before switching
-      setIsCreatingNewAgent(false);
+      // When editing existing agent, ensure exit creation mode AFTER setting all data
+      // Use setTimeout to ensure all data is set before triggering useEffect
+      setTimeout(() => {
+        setIsCreatingNewAgent(false);
+      }, 100); // Increase delay to ensure state updates are processed
 
       // First set right-side name description box data to ensure immediate display
       console.log('setAgentName function exists:', !!setAgentName);

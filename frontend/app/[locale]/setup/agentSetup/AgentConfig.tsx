@@ -336,18 +336,7 @@ export default function AgentConfig() {
     if (isCreatingNewAgent) {
       // When starting to create new agent, try to restore cached content
       restoreNewAgentContent();
-    } else {
-      // When not creating new agent, reset all states to initial values
-      setBusinessLogic('');
-      setDutyContent('');
-      setConstraintContent('');
-      setFewShotsContent('');
-      // Only clear agent name/description if not editing existing agent
-      if (!isEditingAgent) {
-        setAgentName('');
-        setAgentDescription('');
-      }
-    }
+    } 
     
     // Always reset these states regardless of creation mode
     setSystemPrompt('');
@@ -388,7 +377,6 @@ export default function AgentConfig() {
         })
         // Clear new creation related content
         setIsCreatingNewAgent(false)
-        setBusinessLogic('')
         setDutyContent('')
         setConstraintContent('')
         setFewShotsContent('')
