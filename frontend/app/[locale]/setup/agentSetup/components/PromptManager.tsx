@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Modal, Badge, Input, App } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { ThunderboltOutlined, LoadingOutlined } from '@ant-design/icons'
@@ -9,7 +9,6 @@ import { defaultValueCtx, Editor, rootCtx } from '@milkdown/kit/core'
 import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { nord } from '@milkdown/theme-nord'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
-import { fineTunePrompt, savePrompt } from '@/services/promptService'
 import { updateAgent } from '@/services/agentConfigService'
 import AgentConfigurationSection from './AgentConfigurationSection'
 import NonEditingOverlay from './NonEditingOverlay'
@@ -166,115 +165,6 @@ function ExpandEditModal({ open, title, content, index, onClose, onSave }: Expan
   )
 }
 
-// Fine-tune modal
-interface FineTuneModalProps {
-  open: boolean
-  onClose: () => void
-  onFineTune: (request: string) => Promise<string>
-  onSave: (prompt: string) => Promise<void>
-}
-
-function FineTuneModal({ open, onClose, onFineTune, onSave }: FineTuneModalProps) {
-  const { t } = useTranslation('common')
-  const [request, setRequest] = useState('')
-  const [tunedPrompt, setTunedPrompt] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-
-  const handleFineTune = async () => {
-    if (!request.trim()) {
-      message.warning(t('systemPrompt.message.emptyTuning'))
-      return
-    }
-
-    setIsLoading(true)
-    try {
-      const result = await onFineTune(request)
-      setTunedPrompt(result)
-      message.success(t('systemPrompt.message.tune.success'))
-    } catch (error) {
-      console.error('Fine tune error:', error)
-      message.error(`${t('systemPrompt.message.tune.error')} ${error instanceof Error ? error.message : t('error.unknown')}`)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleSave = async () => {
-    try {
-      await onSave(tunedPrompt)
-      setTunedPrompt('')
-      setRequest('')
-      onClose()
-      message.success(t('systemPrompt.message.save.success'))
-    } catch (error) {
-      console.error('Save error:', error)
-      message.error(t('systemPrompt.message.save.error'))
-    }
-  }
-
-  const handleClose = () => {
-    setTunedPrompt('')
-    setRequest('')
-    onClose()
-  }
-
-  return (
-    <Modal
-      title={t('systemPrompt.fineTune.title')}
-      open={open}
-      onCancel={handleClose}
-      footer={null}
-      width={800}
-    >
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-2">
-            {t('systemPrompt.fineTune.requestLabel')}
-          </label>
-          <Input.TextArea
-            value={request}
-            onChange={(e) => setRequest(e.target.value)}
-            placeholder={t('systemPrompt.fineTune.requestPlaceholder')}
-            rows={3}
-          />
-        </div>
-        
-        <button
-          onClick={handleFineTune}
-          disabled={isLoading || !request.trim()}
-          className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
-        >
-          {isLoading ? (
-            <>
-              <LoadingOutlined spin className="mr-2" />
-              {t('systemPrompt.fineTune.processing')}
-            </>
-          ) : (
-            t('systemPrompt.fineTune.submit')
-          )}
-        </button>
-
-        {tunedPrompt && (
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              {t('systemPrompt.fineTune.result')}
-            </label>
-            <div className="border border-gray-200 rounded-md p-4 bg-gray-50 max-h-60 overflow-y-auto">
-              <pre className="whitespace-pre-wrap text-sm">{tunedPrompt}</pre>
-            </div>
-            <button
-              onClick={handleSave}
-              className="mt-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
-            >
-              {t('systemPrompt.fineTune.saveResult')}
-            </button>
-          </div>
-        )}
-      </div>
-    </Modal>
-  )
-}
-
 // Main prompt manager component
 export interface PromptManagerProps {
   // Basic data
@@ -294,7 +184,6 @@ export interface PromptManagerProps {
   // Edit state
   isEditingMode?: boolean
   isGeneratingAgent?: boolean
-  isSavingAgent?: boolean
   isCreatingNewAgent?: boolean
   canSaveAgent?: boolean
   
@@ -333,7 +222,6 @@ export default function PromptManager({
   mainAgentMaxStep = 5,
   isEditingMode = false,
   isGeneratingAgent = false,
-  isSavingAgent = false,
   isCreatingNewAgent = false,
   canSaveAgent = false,
   onBusinessLogicChange,
@@ -359,16 +247,11 @@ export default function PromptManager({
   
   // Modal states
   const [expandModalOpen, setExpandModalOpen] = useState(false)
-  const [expandTitle, setExpandTitle] = useState('')
-  const [expandContent, setExpandContent] = useState('')
   const [expandIndex, setExpandIndex] = useState(0)
-  const [fineTuneModalOpen, setFineTuneModalOpen] = useState(false)
 
   // Handle expand edit
   const handleExpandCard = (title: string, content: string, index: number) => {
     console.log('handleExpandCard called:', { title, content, index })
-    setExpandTitle(title)
-    setExpandContent(content)
     setExpandIndex(index)
     setExpandModalOpen(true)
   }
@@ -387,38 +270,6 @@ export default function PromptManager({
         onFewShotsContentChange?.(newContent)
         break
     }
-  }
-
-  // Handle fine-tuning
-  const handleFineTune = async (request: string): Promise<string> => {
-    const hasPromptContent = dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim()
-    if (!hasPromptContent) {
-      throw new Error(t('systemPrompt.message.empty'))
-    }
-
-    if (!agentId) {
-      throw new Error(t('systemPrompt.message.noAgentId'))
-    }
-
-    const result = await fineTunePrompt({
-      agent_id: agentId,
-      system_prompt: `${dutyContent}\n\n${constraintContent}\n\n${fewShotsContent}`,
-      command: request
-    })
-
-    return result
-  }
-
-  // Handle saving fine-tuned result
-  const handleSaveFineTuned = async (prompt: string): Promise<void> => {
-    if (!agentId) {
-      throw new Error(t('systemPrompt.message.noAgentId'))
-    }
-
-    await savePrompt({
-      agent_id: agentId,
-      prompt: prompt
-    })
   }
 
   // Handle manual save
@@ -520,7 +371,7 @@ export default function PromptManager({
             <div className="absolute bottom-2 right-2">
               <button
                 onClick={onGenerateAgent}
-                disabled={isGeneratingAgent || isSavingAgent}
+                disabled={isGeneratingAgent}
                 className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ border: 'none' }}
               >
@@ -572,7 +423,6 @@ export default function PromptManager({
             isCreatingNewAgent={isCreatingNewAgent}
             editingAgent={editingAgent}
             canSaveAgent={canSaveAgent}
-            isSavingAgent={isSavingAgent}
             getButtonTitle={getButtonTitle}
           />
         </div>
@@ -592,14 +442,6 @@ export default function PromptManager({
         index={expandIndex}
         onClose={() => setExpandModalOpen(false)}
         onSave={handleExpandSave}
-      />
-
-      {/* Fine-tune modal */}
-      <FineTuneModal
-        open={fineTuneModalOpen}
-        onClose={() => setFineTuneModalOpen(false)}
-        onFineTune={handleFineTune}
-        onSave={handleSaveFineTuned}
       />
     </div>
     </MilkdownProvider>

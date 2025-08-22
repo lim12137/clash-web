@@ -23,13 +23,3 @@ export const presetIcons = [
   { icon: "mortarboard", key: "mortarboard" as const },
   { icon: "display", key: "display" as const },
 ] as const;
-
-// 类型定义
-export type PresetIconKey = typeof presetIcons[number]["key"];
-export type ColorOption = typeof colorOptions[number];
-
-// 颜色提取结果接口
-export interface ExtractedColors {
-  mainColor?: string;
-  secondaryColor?: string;
-}

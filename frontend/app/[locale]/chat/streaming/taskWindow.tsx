@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react"
 import { ScrollArea } from "@/components/ui/scrollArea"
 import { ChatMessageType, TaskMessageType } from "@/types/chat"
 import { MarkdownRenderer } from '@/components/ui/markdownRenderer'
-import { Globe, Search, Zap, Bot, Code, FileText, HelpCircle, ChevronRight, Wrench } from "lucide-react"
+import { Globe, Search, Zap, Bot, Code, FileText, ChevronRight, Wrench } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useChatTaskMessage } from "@/hooks/useChatTaskMessage"
 import { useTranslation } from "react-i18next"
@@ -807,7 +807,7 @@ export function TaskWindow({
   };
 
   // Check if a message should display a blinking dot
-  const shouldBlinkDot = (message: any, index: number, messages: any[]) => {
+  const shouldBlinkDot = (index: number, messages: any[]) => {
     // As long as it is the last message and is streaming, it should blink, regardless of the message type
     return isStreaming && isLastMessage(index, messages);
   };
@@ -836,7 +836,7 @@ export function TaskWindow({
 
         {groupedMessages.map((group, groupIndex) => {
           const message = group.message;
-          const isBlinking = shouldBlinkDot(message, groupIndex, groupedMessages.map(g => g.message));
+          const isBlinking = shouldBlinkDot(groupIndex, groupedMessages.map(g => g.message));
           
           return (
             <div key={message.id || groupIndex} className="relative mb-5">

@@ -776,9 +776,6 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting data processing service...")
     
-    # Services should already be started by main()
-    logger.info("Data processing service started successfully")
-    
     yield
     
     # Shutdown
@@ -827,7 +824,7 @@ def main():
         # Create and start FastAPI app
         app = create_app()
         
-        logger.debug(f"🌐 Starting API server on {args.api_host}:{args.api_port}")
+        logger.info(f"🌐 Starting API server on {args.api_host}:{args.api_port}")
         uvicorn.run(
             app, 
             host=args.api_host,

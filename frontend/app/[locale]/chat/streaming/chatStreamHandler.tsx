@@ -60,9 +60,7 @@ export const handleStreamResponse = async (
     output: { content: "", expanded: true }
   };
 
-  let currentContentId = "";
   let lastContentType: "model_output" | "parsing" | "execution" | "agent_new_run" | "generating_code" | "search_content" | "card" | null = null;
-  let currentContentText = "";
   let lastModelOutputIndex = -1;  // Track the index of the last model output in currentStep.contents
   let searchResultsContent: any[] = [];
   let allSearchResults: any[] = [];
@@ -113,8 +111,6 @@ export const handleStreamResponse = async (
                   };
 
                   // Reset status tracking variables
-                  currentContentId = "";
-                  currentContentText = "";
                   lastContentType = null;
                   lastModelOutputIndex = -1;
                   
