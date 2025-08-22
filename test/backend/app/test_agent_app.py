@@ -1,6 +1,6 @@
 import os
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -586,8 +586,8 @@ async def test_export_agent_api_empty_response(mocker, mock_auth_header):
     assert response_data["data"] == {}
 
 # Test for get_agent_call_relationship_api endpoint
-@pytest.patch('backend.apps.agent_app.get_current_user_id')
-@pytest.patch('backend.apps.agent_app.get_agent_call_relationship_impl')
+@patch('backend.apps.agent_app.get_current_user_id')
+@patch('backend.apps.agent_app.get_agent_call_relationship_impl')
 def test_get_agent_call_relationship_api_success(mock_get_agent_call_relationship, mock_get_user_id, mock_auth_header):
     """
     Test successful call to get_agent_call_relationship_api endpoint
@@ -623,8 +623,8 @@ def test_get_agent_call_relationship_api_success(mock_get_agent_call_relationshi
     mock_get_agent_call_relationship.assert_called_once_with(123, "test_tenant")
 
 
-@pytest.patch('backend.apps.agent_app.get_current_user_id')
-@pytest.patch('backend.apps.agent_app.get_agent_call_relationship_impl')
+@patch('backend.apps.agent_app.get_current_user_id')
+@patch('backend.apps.agent_app.get_agent_call_relationship_impl')
 def test_get_agent_call_relationship_api_with_sub_agents(mock_get_agent_call_relationship, mock_get_user_id, mock_auth_header):
     """
     Test get_agent_call_relationship_api with sub-agents
@@ -666,8 +666,8 @@ def test_get_agent_call_relationship_api_with_sub_agents(mock_get_agent_call_rel
     assert sub_agent["tools"][0]["type"] == "Local"
 
 
-@pytest.patch('backend.apps.agent_app.get_current_user_id')
-@pytest.patch('backend.apps.agent_app.get_agent_call_relationship_impl')
+@patch('backend.apps.agent_app.get_current_user_id')
+@patch('backend.apps.agent_app.get_agent_call_relationship_impl')
 def test_get_agent_call_relationship_api_service_error(mock_get_agent_call_relationship, mock_get_user_id, mock_auth_header):
     """
     Test get_agent_call_relationship_api handles service errors
@@ -685,7 +685,7 @@ def test_get_agent_call_relationship_api_service_error(mock_get_agent_call_relat
     assert "Failed to get agent call relationship" in data["detail"]
 
 
-@pytest.patch('backend.apps.agent_app.get_current_user_id')
+@patch('backend.apps.agent_app.get_current_user_id')
 def test_get_agent_call_relationship_api_auth_error(mock_get_user_id, mock_auth_header):
     """
     Test get_agent_call_relationship_api handles authentication errors
@@ -702,8 +702,8 @@ def test_get_agent_call_relationship_api_auth_error(mock_get_user_id, mock_auth_
     assert "Agent call relationship error" in data["detail"]
 
 
-@pytest.patch('backend.apps.agent_app.get_current_user_id')
-@pytest.patch('backend.apps.agent_app.get_agent_call_relationship_impl')
+@patch('backend.apps.agent_app.get_current_user_id')
+@patch('backend.apps.agent_app.get_agent_call_relationship_impl')
 def test_get_agent_call_relationship_api_complex_structure(mock_get_agent_call_relationship, mock_get_user_id, mock_auth_header):
     """
     Test get_agent_call_relationship_api with complex nested structure
