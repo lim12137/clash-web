@@ -4,7 +4,7 @@ import DocumentStatus from './DocumentStatus'
 import { InfoCircleFilled } from '@ant-design/icons'
 import UploadArea from '../components/UploadArea'
 import { formatFileSize, formatDateTime, sortByStatusAndDate } from '@/lib/utils'
-import { Input, Button, Tooltip } from 'antd'
+import { Input, Button } from 'antd'
 import { useKnowledgeBaseContext } from '../knowledgeBase/KnowledgeBaseContext'
 import { useDocumentContext } from './DocumentContext'
 import { App } from 'antd'
@@ -78,7 +78,6 @@ interface DocumentListProps {
   onFileSelect: (files: File[]) => void
   onUpload?: () => void
   isUploading?: boolean
-  uploadUrl?: string
 }
 
 export interface DocumentListRef {
@@ -106,7 +105,6 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
   onFileSelect,
   onUpload,
   isUploading = false,
-  uploadUrl = '/api/upload'
 }, ref) => {
   const { message } = App.useApp();
   const uploadAreaRef = useRef<any>(null);
@@ -437,7 +435,6 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
           isCreatingMode={isCreatingMode}
           indexName={knowledgeBaseName}
           newKnowledgeBaseName={isCreatingMode ? knowledgeBaseName : ''}
-          uploadUrl={uploadUrl}
           modelMismatch={modelMismatch}
         />
       )}

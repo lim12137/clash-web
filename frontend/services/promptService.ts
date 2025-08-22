@@ -12,15 +12,6 @@ export interface GeneratePromptParams {
 }
 
 /**
- * Fine-tuning Prompt Request Parameters
- */
-export interface FineTunePromptParams {
-  agent_id: number;
-  system_prompt: string;
-  command: string;
-}
-
-/**
  * Save Prompt Request Parameters (using agent/update)
  */
 export interface SavePromptParams {
@@ -87,32 +78,6 @@ export const generatePromptStream = async (
   } catch (err) {
     if (onError) onError(err);
     if (onComplete) onComplete();
-  }
-};
-
-/**
- * Fine-tuning System Prompt
- * @param params
- * @returns
- */
-export const fineTunePrompt = async (params: FineTunePromptParams): Promise<string> => {
-  try {
-    const response = await fetch(API_ENDPOINTS.prompt.fineTune, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify(params),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || '微调提示词失败');
-    }
-
-    const data = await response.json();
-    return data.data || '';
-  } catch (error) {
-    console.error('微调提示词失败:', error);
-    throw error;
   }
 };
 

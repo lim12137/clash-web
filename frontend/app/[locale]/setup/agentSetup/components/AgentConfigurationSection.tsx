@@ -40,7 +40,6 @@ export interface AgentConfigurationSectionProps {
   isCreatingNewAgent?: boolean;
   editingAgent?: any;
   canSaveAgent?: boolean;
-  isSavingAgent?: boolean;
   getButtonTitle?: () => string;
 }
 
@@ -63,7 +62,6 @@ export default function AgentConfigurationSection({
   mainAgentMaxStep = 5,
   onModelChange,
   onMaxStepChange,
-  onSavePrompt,
   onExpandCard,
   isGeneratingAgent = false,
   // Add new props for action buttons
@@ -75,7 +73,6 @@ export default function AgentConfigurationSection({
   isCreatingNewAgent = false,
   editingAgent,
   canSaveAgent = false,
-  isSavingAgent = false,
   getButtonTitle
 }: AgentConfigurationSectionProps) {
   const { t } = useTranslation('common')
@@ -858,7 +855,7 @@ export default function AgentConfigurationSection({
                   return t('businessLogic.config.button.saveToAgentPool');
                 })()}
               >
-                {isSavingAgent ? t('businessLogic.config.button.saving') : t('businessLogic.config.button.saveToAgentPool')}
+                {t('businessLogic.config.button.saveToAgentPool')}
               </Button>
             ) : (
               <Button
@@ -888,7 +885,7 @@ export default function AgentConfigurationSection({
                   return t('systemPrompt.button.save');
                 })()}
               >
-                {isSavingAgent ? t('businessLogic.config.button.saving') : t('systemPrompt.button.save')}
+                {t('systemPrompt.button.save')}
               </Button>
             )}
           </div>

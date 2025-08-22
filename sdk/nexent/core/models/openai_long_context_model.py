@@ -161,6 +161,12 @@ class OpenAILongContextModel(OpenAIModel):
         # Reserve tokens for text content
         available_tokens = self.max_context_tokens - system_tokens - user_prompt_tokens - 100  # Reserve 100 tokens as buffer
         
+        # Check if there are sufficient tokens available
+        if available_tokens <= 0:
+            error_msg = f"Insufficient tokens available. Required: {system_tokens + user_prompt_tokens + 100}, Available: {self.max_context_tokens}, Shortage: {abs(available_tokens)}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
         # Truncate the text content
         truncated_text = self.truncate_text(text_content, available_tokens)
         final_content_tokens = self.count_tokens(truncated_text)

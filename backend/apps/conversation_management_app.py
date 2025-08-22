@@ -2,8 +2,6 @@ import logging
 from typing import Dict, Any, Optional
 
 from fastapi import HTTPException, APIRouter, Header, Request
-from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel
 
 from consts.model import ConversationResponse, ConversationRequest, RenameRequest, GenerateTitleRequest, OpinionRequest, MessageIdRequest
 from services.conversation_management_service import (
