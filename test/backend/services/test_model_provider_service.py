@@ -180,9 +180,8 @@ async def test_prepare_model_dict_llm():
         model = {"id": "openai/gpt-4", "model_type": "llm", "max_tokens": 4096}
         base_url = "https://api.openai.com/v1"
         api_key = "test-key"
-        max_tokens = 4096
 
-        result = await prepare_model_dict(provider, model, base_url, api_key, max_tokens)
+        result = await prepare_model_dict(provider, model, base_url, api_key)
 
         mock_split_repo.assert_called_once_with("openai/gpt-4")
         mock_split_display.assert_called_once_with("openai/gpt-4")
@@ -230,9 +229,8 @@ async def test_prepare_model_dict_embedding():
         model = {"id": "openai/text-embedding-ada-002", "model_type": "embedding", "max_tokens": 1024}
         base_url = "https://api.openai.com/v1/"
         api_key = "test-key"
-        max_tokens = 1024
 
-        result = await prepare_model_dict(provider, model, base_url, api_key, max_tokens)
+        result = await prepare_model_dict(provider, model, base_url, api_key)
 
         mock_split_repo.assert_called_once_with("openai/text-embedding-ada-002")
         mock_split_display.assert_called_once_with("openai/text-embedding-ada-002")
