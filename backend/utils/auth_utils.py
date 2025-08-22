@@ -35,6 +35,10 @@ def get_jwt_expiry_seconds(token: str) -> int:
         int: 令牌的有效期（秒），如果解析失败则返回默认值3600
     """
     try:
+        # Speed mode: treat sessions as never expiring
+        if IS_SPEED_MODE:
+            # 10 years in seconds
+            return 10 * 365 * 24 * 60 * 60
         # 确保token是纯JWT，去除可能的Bearer前缀
         jwt_token = token.replace("Bearer ", "") if token.startswith("Bearer ") else token
 
@@ -68,6 +72,10 @@ def calculate_expires_at(token: Optional[str] = None) -> int:
     Returns:
         int: 过期时间的时间戳
     """
+    # Speed mode: far future expiration
+    if IS_SPEED_MODE:
+        return int((datetime.now() + timedelta(days=3650)).timestamp())
+
     expiry_seconds = get_jwt_expiry_seconds(token) if token else 3600
     return int((datetime.now() + timedelta(seconds=expiry_seconds)).timestamp())
 

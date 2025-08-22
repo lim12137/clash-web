@@ -1,4 +1,4 @@
-import {Button, Card, Col, Row, Space, Modal, App} from 'antd'
+import {Button, Card, Col, Row, Space, App} from 'antd'
 import {
   PlusOutlined,
   SafetyCertificateOutlined,
@@ -52,10 +52,10 @@ const cardThemes = {
 
 // 添加ModelConnectStatus的类型定义
 const MODEL_STATUS = {
-  AVAILABLE: "可用",
-  UNAVAILABLE: "不可用",
-  CHECKING: "检测中",
-  UNCHECKED: "未检测"
+  AVAILABLE: "available",
+  UNAVAILABLE: "unavailable",
+  CHECKING: "detecting",
+  UNCHECKED: "not_detected"
 } as const;
 
 type ModelConnectStatus = typeof MODEL_STATUS[keyof typeof MODEL_STATUS];
@@ -147,10 +147,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
   useEffect(() => {
     // 在组件加载时先从后端加载配置，然后再加载模型列表
     const fetchData = async () => {
-      const loadConfigResult = await configService.loadConfigToFrontend();
-
-      await configStore.reloadFromStorage();
-
+      await configService.loadConfigToFrontend();
+      configStore.reloadFromStorage();
       await loadModelLists(true);
     };
 
@@ -172,7 +170,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         setTimeout(() => {
           const fieldParts = field.split('.');
           const cardType = fieldParts[0];
-          const cardId = fieldParts[1];
 
           const selector = cardType === 'embedding'
             ? '.model-card:nth-child(2)'

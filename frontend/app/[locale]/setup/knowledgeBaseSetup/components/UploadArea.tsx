@@ -21,7 +21,6 @@ interface UploadAreaProps {
   disabled?: boolean;
   componentHeight?: string;
   isCreatingMode?: boolean;
-  uploadUrl?: string;
   indexName?: string;
   newKnowledgeBaseName?: string;
   modelMismatch?: boolean;
@@ -38,7 +37,6 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
   disabled = false,
   componentHeight = '300px',
   isCreatingMode = false,
-  uploadUrl = '/api/upload',
   indexName = '',
   newKnowledgeBaseName = '',
   selectedFiles = [],
