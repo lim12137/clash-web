@@ -6,7 +6,7 @@ import BusinessLogicConfig from './AgentManagementConfig'
 import DebugConfig from './DebugConfig'
 import GuideSteps from './components/GuideSteps'
 import { Row, Col, Drawer, App } from 'antd'
-import { fetchTools, fetchAgentList, fetchAgentDetail, exportAgent, deleteAgent, updateAgent } from '@/services/agentConfigService'
+import { fetchTools, fetchAgentList, exportAgent, deleteAgent } from '@/services/agentConfigService'
 import { generatePromptStream } from '@/services/promptService'
 import { OpenAIModel } from '@/app/setup/agentSetup/ConstInterface'
 import { updateToolList } from '@/services/mcpService'
@@ -14,7 +14,6 @@ import {
   SETUP_PAGE_CONTAINER, 
   THREE_COLUMN_LAYOUT,
   STANDARD_CARD,
-  CARD_HEADER 
 } from '@/lib/layoutConstants'
 import '../../i18n'
 
@@ -35,8 +34,6 @@ export default function AgentConfig() {
   const [systemPrompt, setSystemPrompt] = useState("")
   const [selectedAgents, setSelectedAgents] = useState<any[]>([])
   const [selectedTools, setSelectedTools] = useState<any[]>([])
-  const [testQuestion, setTestQuestion] = useState("")
-  const [testAnswer, setTestAnswer] = useState("")
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false)
   const [isCreatingNewAgent, setIsCreatingNewAgent] = useState(false)
   const [mainAgentModel, setMainAgentModel] = useState(OpenAIModel.MainModel)
@@ -51,7 +48,6 @@ export default function AgentConfig() {
   const [newAgentName, setNewAgentName] = useState("")
   const [newAgentDescription, setNewAgentDescription] = useState("")
   const [newAgentProvideSummary, setNewAgentProvideSummary] = useState(false)
-  const [isNewAgentInfoValid, setIsNewAgentInfoValid] = useState(false)
   const [isEditingAgent, setIsEditingAgent] = useState(false)
   const [editingAgent, setEditingAgent] = useState<any>(null)
   
@@ -78,19 +74,9 @@ export default function AgentConfig() {
 
   // Add state for business logic and action buttons
   const [isGeneratingAgent, setIsGeneratingAgent] = useState(false)
-  const [isSavingAgent, setIsSavingAgent] = useState(false)
 
   // Only auto scan once flag
   const hasAutoScanned = useRef(false)
-
-  // Handle business logic change
-  const handleBusinessLogicChange = (value: string) => {
-    setBusinessLogic(value)
-    // Cache the content when creating new agent
-    if (isCreatingNewAgent) {
-      setNewAgentCache(prev => ({ ...prev, businessLogic: value }))
-    }
-  }
 
   // Handle generate agent
   const handleGenerateAgent = async () => {
@@ -158,70 +144,6 @@ export default function AgentConfig() {
       message.error(t('businessLogic.config.message.generateError'))
     } finally {
       setIsGeneratingAgent(false)
-    }
-  }
-
-  // Handle save agent
-  const handleSaveAgent = async () => {
-    if (!canSaveAgent) {
-      message.warning(getButtonTitle())
-      return
-    }
-
-    const currentAgentId = getCurrentAgentId()
-    if (!currentAgentId) {
-      message.error(t('businessLogic.config.error.noAgentId'))
-      return
-    }
-
-    setIsSavingAgent(true)
-    try {
-      // Call the actual save API
-      const result = await updateAgent(
-        Number(currentAgentId),
-        agentName,
-        agentDescription,
-        mainAgentModel,
-        mainAgentMaxStep,
-        false, // provide_run_summary
-        true, // enabled - enable when saving to agent pool
-        businessLogic,
-        dutyContent,
-        constraintContent,
-        fewShotsContent,
-        agentDisplayName
-      )
-
-      if (result.success) {
-        const actionText = isCreatingNewAgent ? t('agent.action.create') : t('agent.action.modify')
-        message.success(t('businessLogic.config.message.agentCreated', { name: agentName, action: actionText }))
-
-        // Reset state
-        setIsCreatingNewAgent(false)
-        setIsEditingAgent(false)
-        setEditingAgent(null)
-        setBusinessLogic('')
-        setDutyContent('')
-        setConstraintContent('')
-        setFewShotsContent('')
-        setAgentName('')
-        setAgentDescription('')
-        setAgentDisplayName('')
-        setSelectedTools([])
-
-        // Clear new agent cache
-        clearNewAgentCache()
-
-        // Notify parent component of state change
-        handleEditingStateChange(false, null)
-      } else {
-        message.error(result.message || t('businessLogic.config.error.saveFailed'))
-      }
-    } catch (error) {
-      console.error('Save agent error:', error)
-      message.error(t('businessLogic.config.error.saveFailed'))
-    } finally {
-      setIsSavingAgent(false)
     }
   }
 
@@ -297,23 +219,6 @@ export default function AgentConfig() {
       message.error(t('businessLogic.config.message.agentDeleteFailed'))
     }
   }
-
-  // Get button title
-  const getButtonTitle = () => {
-    if (!businessLogic || businessLogic.trim() === '') {
-      return t('businessLogic.config.message.businessDescriptionRequired')
-    }
-    if (!(dutyContent?.trim()) && !(constraintContent?.trim()) && !(fewShotsContent?.trim())) {
-      return t('businessLogic.config.message.generatePromptFirst')
-    }
-    if (!agentName || agentName.trim() === '') {
-      return t('businessLogic.config.message.completeAgentInfo')
-    }
-    return ""
-  }
-
-  // Check if can save agent
-  const canSaveAgent = !!(businessLogic?.trim() && agentName?.trim() && (dutyContent?.trim() || constraintContent?.trim() || fewShotsContent?.trim()))
 
   // Load tools when page is loaded
   useEffect(() => {
@@ -431,31 +336,17 @@ export default function AgentConfig() {
     if (isCreatingNewAgent) {
       // When starting to create new agent, try to restore cached content
       restoreNewAgentContent();
-    } else {
-      // When not creating new agent, reset all states to initial values
-      setBusinessLogic('');
-      setDutyContent('');
-      setConstraintContent('');
-      setFewShotsContent('');
-      // Only clear agent name/description if not editing existing agent
-      if (!isEditingAgent) {
-        setAgentName('');
-        setAgentDescription('');
-      }
-    }
+    } 
     
     // Always reset these states regardless of creation mode
     setSystemPrompt('');
     setSelectedAgents([]);
     setSelectedTools([]);
-    setTestQuestion('');
-    setTestAnswer('');
     setCurrentGuideStep(undefined);
     // Reset agent info states
     setNewAgentName('');
     setNewAgentDescription('');
     setNewAgentProvideSummary(true);
-    setIsNewAgentInfoValid(false);
     
     // Reset the main agent configuration related status
     if (!isCreatingNewAgent) {
@@ -486,7 +377,6 @@ export default function AgentConfig() {
         })
         // Clear new creation related content
         setIsCreatingNewAgent(false)
-        setBusinessLogic('')
         setDutyContent('')
         setConstraintContent('')
         setFewShotsContent('')
@@ -505,23 +395,6 @@ export default function AgentConfig() {
     }
     return mainAgentId ? parseInt(mainAgentId) : undefined
   }
-
-  // Handle caching and restoring content for new agent creation
-  const cacheNewAgentContent = () => {
-    if (isCreatingNewAgent) {
-      setNewAgentCache({
-        businessLogic,
-        dutyContent,
-        constraintContent,
-        fewShotsContent,
-        agentName,
-        agentDescription,
-        agentDisplayName
-      })
-    }
-  }
-
-
 
   const restoreNewAgentContent = () => {
     if (newAgentCache.businessLogic || newAgentCache.dutyContent || newAgentCache.constraintContent || 
@@ -558,18 +431,6 @@ export default function AgentConfig() {
     setFewShotsContent('')
     setAgentName('')
     setAgentDescription('')
-  }
-
-  // Handle model change with proper type conversion
-  const handleModelChange = (value: string) => {
-    setMainAgentModel(value as OpenAIModel)
-  }
-
-  // Handle max step change with proper type conversion
-  const handleMaxStepChange = (value: number | null) => {
-    if (value !== null) {
-      setMainAgentMaxStep(value)
-    }
   }
 
   // Refresh tool list
@@ -643,7 +504,6 @@ export default function AgentConfig() {
                           setNewAgentCache(prev => ({ ...prev, businessLogic: value }));
                         }
                       }}
-                      selectedAgents={selectedAgents}
                       setSelectedAgents={setSelectedAgents}
                       selectedTools={selectedTools}
                       setSelectedTools={setSelectedTools}
@@ -663,14 +523,9 @@ export default function AgentConfig() {
                       setSubAgentList={setSubAgentList}
                       enabledAgentIds={enabledAgentIds}
                       setEnabledAgentIds={setEnabledAgentIds}
-                      newAgentName={newAgentName}
-                      newAgentDescription={newAgentDescription}
-                      newAgentProvideSummary={newAgentProvideSummary}
                       setNewAgentName={setNewAgentName}
                       setNewAgentDescription={setNewAgentDescription}
                       setNewAgentProvideSummary={setNewAgentProvideSummary}
-                      isNewAgentInfoValid={isNewAgentInfoValid}
-                      setIsNewAgentInfoValid={setIsNewAgentInfoValid}
                       onEditingStateChange={handleEditingStateChange}
                       onToolsRefresh={handleToolsRefresh}
                       dutyContent={dutyContent}
@@ -722,14 +577,7 @@ export default function AgentConfig() {
                         setCurrentGuideStep(isCreatingNewAgent ? 5 : 5);
                       }}
                     getCurrentAgentId={getCurrentAgentId}
-                      onModelChange={handleModelChange}
-                      onMaxStepChange={handleMaxStepChange}
-                      onBusinessLogicChange={handleBusinessLogicChange}
                       onGenerateAgent={handleGenerateAgent}
-                      onSaveAgent={handleSaveAgent}
-                      isSavingAgent={isSavingAgent}
-                      canSaveAgent={canSaveAgent}
-                      getButtonTitle={getButtonTitle}
                       onExportAgent={handleExportAgent}
                       onDeleteAgent={handleDeleteAgent}
                       editingAgent={editingAgent}
@@ -758,10 +606,6 @@ export default function AgentConfig() {
         >
           <div className="h-full">
             <DebugConfig 
-              testQuestion={testQuestion}
-              setTestQuestion={setTestQuestion}
-              testAnswer={testAnswer}
-              setTestAnswer={setTestAnswer}
               agentId={getCurrentAgentId()}
             />
           </div>

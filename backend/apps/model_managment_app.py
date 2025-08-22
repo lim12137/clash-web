@@ -357,57 +357,6 @@ async def check_model_healthcheck(
     return await check_model_connectivity(display_name, authorization)
 
 
-
-@router.post("/update_connect_status", response_model=ModelResponse)
-async def update_model_connect_status(
-        model_name: str = Body(..., embed=True),
-        connect_status: str = Body(..., embed=True),
-        authorization: Optional[str] = Header(None)
-):
-    """
-    Update model connection status
-
-    Args:
-        model_name: Model name, including repository info, e.g. openai/gpt-3.5-turbo
-        connect_status: New connection status
-        authorization: Authorization header
-    """
-    try:
-        user_id, tenant_id = get_current_user_id(authorization)
-        # Split model_name
-        repo, name = split_repo_name(model_name)
-        # Ensure repo is empty string instead of null
-        repo = repo if repo else ""
-
-        # Query model information
-        model = get_model_by_name(name, repo)
-        if not model:
-            return ModelResponse(
-                code=404,
-                message=f"Model not found: {model_name}",
-                data={"connect_status": ""}
-            )
-
-        # Update connection status
-        update_data = {"connect_status": connect_status}
-        update_model_record(model["model_id"], update_data, user_id)
-
-        return ModelResponse(
-            code=200,
-            message=f"Successfully updated connection status for model {model_name}",
-            data={
-                "model_name": model_name,
-                "connect_status": connect_status
-            }
-        )
-    except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Failed to update model connection status: {str(e)}",
-            data={"connect_status": ModelConnectStatusEnum.NOT_DETECTED.value}
-        )
-
-
 @router.post("/verify_config", response_model=ModelResponse)
 async def verify_model_config(request: ModelRequest):
     """
