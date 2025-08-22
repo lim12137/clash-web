@@ -599,38 +599,34 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
     Returns:
         dict: agent call relationship tree structure
     """
-    # 统一的工具类型标准化：满足测试预期
-    #   mcp       -> MCP
-    #   langchain -> LANGCHAIN
-    #   local     -> Local
-    #   其它       -> UPPERCASE
+    # 工具类型规范：满足测试预期
     _TYPE_MAPPING = {
         "mcp": "MCP",
-        "langchain": "LANGCHAIN",
+        "langchain": "LangChain",
         "local": "Local",
     }
 
     def _normalize_tool_type(source: str) -> str:
+        """将数据库里的 source 规范为测试期望的展示 type。"""
         if not source:
             return "UNKNOWN"
         s = str(source)
         ls = s.lower()
         if ls in _TYPE_MAPPING:
             return _TYPE_MAPPING[ls]
-        # 未知类型保持全大写（符合当前其它用例的期待）
-        return s.upper()
+        # 未知来源：首字母大写，其余保持原样（unknown_source -> Unknown_source）
+        return s[:1].upper() + s[1:]
 
     try:
-        # Get main agent info
+        # 主 Agent 基本信息
         agent_info = search_agent_info_by_agent_id(agent_id, tenant_id)
         if not agent_info:
             raise ValueError(f"Agent {agent_id} not found")
 
-        # Get tools for main agent
+        # 主 Agent 的工具
         tool_info = search_tools_for_sub_agent(agent_id=agent_id, tenant_id=tenant_id)
         tools = []
         for tool in tool_info:
-            # 名称优先 name，其次 tool_name，最后回退 tool_id
             tool_name = tool.get("name") or tool.get("tool_name") or str(tool["tool_id"])
             tool_source = tool.get("source", ToolSourceEnum.LOCAL.value)
             tool_type = _normalize_tool_type(tool_source)
@@ -641,10 +637,9 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
                 "type": tool_type
             })
 
-        # 递归获取子智能体及其工具
+        # 递归收集子 Agent
         def get_sub_agents_recursive(parent_agent_id: int, depth: int = 0, max_depth: int = 5) -> list:
-            """递归获取子智能体，支持多层级嵌套"""
-            if depth >= max_depth:  # 防止无限递归
+            if depth >= max_depth:
                 return []
 
             sub_agent_id_list = query_sub_agents_id_list(main_agent_id=parent_agent_id, tenant_id=tenant_id)
@@ -654,7 +649,7 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
                 try:
                     sub_agent_info = search_agent_info_by_agent_id(sub_agent_id, tenant_id)
                     if sub_agent_info:
-                        # 子 Agent 工具
+                        # 子 Agent 的工具
                         sub_tool_info = search_tools_for_sub_agent(agent_id=sub_agent_id, tenant_id=tenant_id)
                         sub_tools = []
                         for tool in sub_tool_info:
@@ -668,7 +663,7 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
                                 "type": tool_type
                             })
 
-                        # 递归更深层
+                        # 更深层
                         deeper_sub_agents = get_sub_agents_recursive(sub_agent_id, depth + 1, max_depth)
 
                         sub_agents.append({
@@ -684,7 +679,6 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
 
             return sub_agents
 
-        # 获取所有层级的子智能体
         sub_agents = get_sub_agents_recursive(agent_id)
 
         return {
