@@ -90,26 +90,50 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
 
 @router.post("/create_provider", response_model=ModelResponse)
 async def create_provider_model(request: ProviderModelRequest, authorization: Optional[str] = Header(None)):
-	try:
-		model_data = request.model_dump()
-		model_list=[]
-		if model_data["provider"] == ProviderEnum.SILICON.value:
-			provider = SiliconModelProvider()
-			model_list = await provider.get_models(model_data)
-		# Sort by the first letter of id in descending order
-		if isinstance(model_list, list):
-			model_list.sort(key=lambda m: str((m.get("id") if isinstance(m, dict) else m) or "")[:1].lower(), reverse=False)
-		return ModelResponse(
-			code=200,
-			message=f"Provider model {model_data['provider']} created successfully",
-			data=model_list
-		)
-	except Exception as e:
-		return ModelResponse(
-			code=500,
-			message=f"Failed to create provider model: {str(e)}",
-			data=None
-		)
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        model_data = request.model_dump()
+        model_list=[]
+        existing_model_list=[]
+        
+        if model_data["provider"] == ProviderEnum.SILICON.value:
+            provider = SiliconModelProvider()
+            model_list = await provider.get_models(model_data)
+
+        if request.model_type != "embedding" or request.model_type != "multi_embedding":
+            existing_model_list = get_models_by_tenant_factory_type(tenant_id, request.provider, request.model_type)
+            
+            # 检查existing_model_list中的模型是否在model_list中，如果在，就添加max_tokens属性
+            if model_list and existing_model_list:
+                # 创建existing_model_list的模型ID集合，用于快速查找
+                existing_model_ids = set()
+                for existing_model in existing_model_list:
+                    model_full_name = existing_model["model_repo"] + "/" + existing_model["model_name"]
+                    existing_model_ids.add(model_full_name)
+                
+                # 遍历model_list，如果模型在existing_model_list中，添加max_tokens属性
+                for model in model_list:
+                    if model.get("id") in existing_model_ids:
+                        # 找到对应的existing_model，获取其max_tokens值
+                        for existing_model in existing_model_list:
+                            model_full_name = existing_model["model_repo"] + "/" + existing_model["model_name"]
+                            if model.get("id") == model_full_name:
+                                model["max_tokens"] = existing_model.get("max_tokens")
+                                break
+        # Sort by the first letter of id in descending order
+        if isinstance(model_list, list):
+            model_list.sort(key=lambda m: str((m.get("id") if isinstance(m, dict) else m) or "")[:1].lower(), reverse=False)
+        return ModelResponse(
+            code=200,
+            message=f"Provider model {model_data['provider']} created successfully",
+            data=model_list
+        )
+    except Exception as e:
+        return ModelResponse(
+            code=500,
+            message=f"Failed to create provider model: {str(e)}",
+            data=None
+        )
 
 
 @router.post("/batch_create_models", response_model=ModelResponse)
@@ -118,7 +142,6 @@ async def batch_create_models(request: BatchCreateModelsRequest, authorization: 
         user_id, tenant_id = get_current_user_id(authorization)
         model_list = request.models
         model_api_key = request.api_key
-        max_tokens = request.max_tokens
         if request.provider == ProviderEnum.SILICON.value:
             model_url = SILICON_BASE_URL
         else:
@@ -137,14 +160,20 @@ async def batch_create_models(request: BatchCreateModelsRequest, authorization: 
             if model_name:
                 existing_model_by_display = get_model_by_display_name(request.provider + "/" + model_display_name, tenant_id)
                 if existing_model_by_display:
-                    continue
+                    # Check if max_tokens has changed
+                    existing_max_tokens = existing_model_by_display["max_tokens"]
+                    new_max_tokens = model["max_tokens"]
+                    if existing_max_tokens == new_max_tokens:
+                        continue
+                    else:
+                        update_model_record(existing_model_by_display["model_id"], {"max_tokens": new_max_tokens}, user_id)
+                        continue
 
             model_dict = await prepare_model_dict(
                 provider=request.provider,
                 model=model,
                 model_url=model_url,
-                model_api_key=model_api_key,
-                max_tokens=max_tokens
+                model_api_key=model_api_key
             )
             create_model_record(model_dict, user_id, tenant_id)
 
