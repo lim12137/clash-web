@@ -6,7 +6,7 @@ import requests
 from smolagents.tools import Tool
 
 from ..utils.observer import MessageObserver, ProcessType
-from ..utils.tools_common_message import SearchResultTextMessage
+from ..utils.tools_common_message import SearchResultTextMessage, ToolSign
 from pydantic import Field
 from ...vector_database.elasticsearch_core import ElasticSearchCore
 from ..models.embedding_model import BaseEmbedding
@@ -29,7 +29,7 @@ class KnowledgeBaseSearchTool(Tool):
               "index_names": {"type": "array", "description": "The list of knowledge base index names to search. If not provided, will search all available knowledge bases.", "nullable": True}}
     output_type = "string"
 
-    tool_sign = "a"  # Used to distinguish different index sources for summaries
+    tool_sign = ToolSign.KNOWLEDGE_BASE.value  # Used to distinguish different index sources for summaries
 
     def __init__(self, top_k: int = Field(description="Maximum number of search results", default=5),
                        index_names: List[str] = Field(description="The list of index names to search", default=None, exclude=True) ,

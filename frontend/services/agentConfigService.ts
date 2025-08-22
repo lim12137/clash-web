@@ -1,4 +1,4 @@
-import { Tool, convertParamType } from '@/types/agentAndToolConst';
+import { convertParamType } from '@/types/agentAndToolConst';
 import { API_ENDPOINTS } from './api';
 import { getAuthHeaders } from '@/lib/auth';
 
@@ -85,76 +85,6 @@ export const fetchAgentList = async () => {
       success: false,
       data: [],
       message: '获取 agent 列表失败，请稍后重试'
-    };
-  }
-};
-
-/**
- * get detailed agent info by agent id
- * @param agentId agent id
- * @returns detailed agent info including tools, prompts, etc.
- */
-export const fetchAgentDetail = async (agentId: number) => {
-  try {
-    const response = await fetch(API_ENDPOINTS.agent.searchInfo, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(agentId),
-    });
-
-    if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    // convert backend data to frontend format
-    const formattedAgent = {
-      id: String(data.agent_id),
-      name: data.name,
-      display_name: data.display_name,
-      description: data.description,
-      model: data.model_name,
-      max_step: data.max_steps,
-      duty_prompt: data.duty_prompt,
-      constraint_prompt: data.constraint_prompt,
-      few_shots_prompt: data.few_shots_prompt,
-      business_description: data.business_description,
-      provide_run_summary: data.provide_run_summary,
-      enabled: data.enabled,
-      is_available: data.is_available,
-      sub_agent_id_list: data.sub_agent_id_list || [], // 添加sub_agent_id_list字段
-      tools: data.tools ? data.tools.map((tool: any) => {
-        const params = typeof tool.params === 'string' ? JSON.parse(tool.params) : tool.params;
-        return {
-          id: String(tool.tool_id),
-          name: tool.name,
-          description: tool.description,
-          source: tool.source,
-          is_available: tool.is_available,
-          usage: tool.usage, // 新增：处理usage字段
-          initParams: Array.isArray(params) ? params.map((param: any) => ({
-            name: param.name,
-            type: convertParamType(param.type),
-            required: !param.optional,
-            value: param.default,
-            description: param.description
-          })) : []
-        };
-      }) : []
-    };
-
-    return {
-      success: true,
-      data: formattedAgent,
-      message: ''
-    };
-  } catch (error) {
-    console.error('获取Agent详情失败:', error);
-    return {
-      success: false,
-      data: null,
-      message: '获取Agent详情失败，请稍后重试'
     };
   }
 };
@@ -651,4 +581,61 @@ export const deleteRelatedAgent = async (parentAgentId: number, childAgentId: nu
       message: '删除关联Agent失败，请稍后重试'
     };
   }
+};
+
+/**
+ * Check if agent field value exists in the current tenant
+ * @param fieldValue value to check
+ * @param fieldName field name to check
+ * @param excludeAgentId optional agent id to exclude from the check
+ * @returns check result with status
+ */
+const checkAgentField = async (
+  fieldValue: string, 
+  fieldName: string, 
+  excludeAgentId?: number
+): Promise<{status: string, action?: string}> => {
+  try {
+    // Get all agents in current tenant
+    const response = await fetch(API_ENDPOINTS.agent.list, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`request failed: ${response.status}`);
+    }
+    const data = await response.json();
+    
+    // Check if agent field value already exists, excluding the specified agent if provided
+    const existingAgent = data.find((agent: any) => 
+      agent[fieldName] === fieldValue && 
+      (!excludeAgentId || agent.agent_id !== excludeAgentId)
+    );
+    
+    if (existingAgent) {
+      return { status: 'exists_in_tenant' };
+    }
+    return { status: 'available' };
+  } catch (error) {
+    return { status: 'check_failed' };
+  }
+};
+
+/**
+ * Check if agent name exists in the current tenant
+ * @param agentName agent name to check
+ * @param excludeAgentId optional agent id to exclude from the check
+ * @returns check result with status
+ */
+export const checkAgentName = async (agentName: string, excludeAgentId?: number): Promise<{status: string, action?: string}> => {
+  return checkAgentField(agentName, 'name', excludeAgentId);
+};
+
+/**
+ * Check if agent display name exists in the current tenant
+ * @param displayName agent display name to check
+ * @param excludeAgentId optional agent id to exclude from the check
+ * @returns check result with status
+ */
+export const checkAgentDisplayName = async (displayName: string, excludeAgentId?: number): Promise<{status: string, action?: string}> => {
+  return checkAgentField(displayName, 'display_name', excludeAgentId);
 };

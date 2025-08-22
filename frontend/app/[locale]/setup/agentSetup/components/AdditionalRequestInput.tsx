@@ -21,7 +21,7 @@ export default function AdditionalRequestInput({ onSend, isTuning = false }: Add
   const handleSend = async () => {
     if (request.trim()) {
       try {
-        await onSend(request)
+        onSend(request)
       } catch (error) {
         console.error(t("setup.promptTuning.error.send"), error)
       }

@@ -3,19 +3,30 @@ import json
 import logging
 from collections import deque
 
-from fastapi import Header
-from fastapi.responses import JSONResponse
+from fastapi import Header, Request, HTTPException
+from fastapi.responses import JSONResponse, StreamingResponse
+from consts.model import AgentRequest
 from agents.create_agent_info import create_tool_config_list
-from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest
+from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest, MCPInfo
 from database.agent_db import create_agent, query_all_enabled_tool_instances, \
      search_blank_sub_agent_by_main_agent_id, \
     search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
     create_or_update_tool_by_tool_info, check_tool_is_available, query_all_agent_info_by_tenant_id, \
-    query_sub_agents_id_list, insert_related_agent, delete_all_related_agent
+    query_sub_agents_id_list, insert_related_agent, delete_all_related_agent, search_agent_id_by_agent_name
+from database.remote_mcp_db import get_mcp_server_by_name_and_tenant, check_mcp_name_exists
+from services.remote_mcp_service import add_remote_mcp_server_list
+from services.tool_configuration_service import update_tool_list
+from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 
-from utils.auth_utils import get_current_user_id
+from utils.auth_utils import get_current_user_info
 from utils.memory_utils import build_memory_config
+from utils.thread_utils import submit
 from nexent.memory.memory_service import clear_memory
+from nexent.core.agents.run_agent import agent_run
+from services.memory_config_service import build_memory_context
+from agents.create_agent_info import create_agent_run_info
+from agents.agent_run_manager import agent_run_manager
+from agents.preprocess_manager import preprocess_manager
 
 
 logger = logging.getLogger("agent_service")
@@ -66,7 +77,7 @@ def get_agent_info_impl(agent_id: int, tenant_id: str):
 
 
 def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
-    user_id, tenant_id = get_current_user_id(authorization)
+    user_id, tenant_id, _ = get_current_user_info(authorization)
     
     try:
         sub_agent_id = get_creating_sub_agent_id_service(tenant_id, user_id)
@@ -97,7 +108,7 @@ def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
             "sub_agent_id_list": query_sub_agents_id_list(main_agent_id=sub_agent_id, tenant_id=tenant_id)}
 
 def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Header(None)):
-    user_id, tenant_id = get_current_user_id(authorization)
+    user_id, tenant_id, _ = get_current_user_info(authorization)
     
     try:
         update_agent(request.agent_id, request, tenant_id, user_id)
@@ -106,7 +117,7 @@ def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Heade
         raise ValueError(f"Failed to update agent info: {str(e)}")
 
 async def delete_agent_impl(agent_id: int, authorization: str = Header(None)):
-    user_id, tenant_id = get_current_user_id(authorization)
+    user_id, tenant_id, _ = get_current_user_info(authorization)
 
     try:
         delete_agent_by_id(agent_id, tenant_id, user_id)
@@ -180,11 +191,13 @@ async def export_agent_impl(agent_id: int, authorization: str = Header(None)) ->
         This function recursively finds all managed sub-agents and exports the detailed configuration of each agent (including tools, prompts, etc.) as a dictionary, and finally returns it as a formatted JSON string for frontend download and backup.
     """
 
-    user_id, tenant_id = get_current_user_id(authorization)
+    user_id, tenant_id, _ = get_current_user_info(authorization)
 
     export_agent_dict = {}
     search_list = deque([agent_id])
     agent_id_set = set()
+
+    mcp_info_set = set()
 
     while len(search_list):
         left_ele = search_list.popleft()
@@ -193,10 +206,23 @@ async def export_agent_impl(agent_id: int, authorization: str = Header(None)) ->
 
         agent_id_set.add(left_ele)
         agent_info = await export_agent_by_agent_id(agent_id=left_ele, tenant_id=tenant_id, user_id=user_id)
+
+        # collect mcp name
+        for tool in agent_info.tools:
+            if tool.source == "mcp" and tool.usage:
+                mcp_info_set.add(tool.usage)
+
         search_list.extend(agent_info.managed_agents)
         export_agent_dict[str(agent_info.agent_id)] = agent_info
 
-    export_data = ExportAndImportDataFormat(agent_id=agent_id, agent_info=export_agent_dict)
+    # convert mcp info to MCPInfo list
+    mcp_info_list = []
+    for mcp_server_name in mcp_info_set:
+        # get mcp url by mcp_server_name and tenant_id
+        mcp_url = get_mcp_server_by_name_and_tenant(mcp_server_name, tenant_id)
+        mcp_info_list.append(MCPInfo(mcp_server_name=mcp_server_name, mcp_url=mcp_url))
+
+    export_data = ExportAndImportDataFormat(agent_id=agent_id, agent_info=export_agent_dict, mcp_info=mcp_info_list)
     return export_data.model_dump()
 
 async def export_agent_by_agent_id(agent_id: int, tenant_id: str, user_id: str)->ExportAndImportAgentInfo:
@@ -214,6 +240,7 @@ async def export_agent_by_agent_id(agent_id: int, tenant_id: str, user_id: str)-
     
     agent_info = ExportAndImportAgentInfo(agent_id=agent_id,
                                           name=agent_info["name"],
+                                          display_name=agent_info["display_name"],
                                           description=agent_info["description"],
                                           business_description=agent_info["business_description"],
                                           model_name=agent_info["model_name"],
@@ -232,8 +259,48 @@ async def import_agent_impl(agent_info: ExportAndImportDataFormat, authorization
     """
     Import agent using DFS
     """
-    user_id, tenant_id = get_current_user_id(authorization)
+    user_id, tenant_id, _ = get_current_user_info(authorization)
     agent_id = agent_info.agent_id
+
+    # First, add MCP servers if any
+    if agent_info.mcp_info:
+        for mcp_info in agent_info.mcp_info:
+            if mcp_info.mcp_server_name and mcp_info.mcp_url:
+                try:
+                    # Check if MCP name already exists
+                    if check_mcp_name_exists(mcp_name=mcp_info.mcp_server_name, tenant_id=tenant_id):
+                        # Get existing MCP server info to compare URLs
+                        existing_mcp = get_mcp_server_by_name_and_tenant(mcp_name=mcp_info.mcp_server_name, tenant_id=tenant_id)
+                        if existing_mcp and existing_mcp == mcp_info.mcp_url:
+                            # Same name and URL, skip
+                            logger.info(f"MCP server {mcp_info.mcp_server_name} with same URL already exists, skipping")
+                            continue
+                        else:
+                            # Same name but different URL, add import prefix
+                            import_mcp_name = f"import_{mcp_info.mcp_server_name}"
+                            logger.info(f"MCP server {mcp_info.mcp_server_name} exists with different URL, using name: {import_mcp_name}")
+                            mcp_server_name = import_mcp_name
+                    else:
+                        # Name doesn't exist, use original name
+                        mcp_server_name = mcp_info.mcp_server_name
+                    
+                    result = await add_remote_mcp_server_list(
+                        tenant_id=tenant_id,
+                        user_id=user_id,
+                        remote_mcp_server=mcp_info.mcp_url,
+                        remote_mcp_server_name=mcp_server_name
+                    )
+                    # Check if the result is a JSONResponse with error status
+                    if hasattr(result, 'status_code') and result.status_code != 200:
+                        raise Exception(f"Failed to add MCP server {mcp_server_name}: {result.body.decode() if hasattr(result, 'body') else 'Unknown error'}")
+                except Exception as e:
+                    raise Exception(f"Failed to add MCP server {mcp_info.mcp_server_name}: {str(e)}")
+
+    # Then, update tool list to include new MCP tools
+    try:
+        await update_tool_list(tenant_id=tenant_id, user_id=user_id)
+    except Exception as e:
+        raise Exception(f"Failed to update tool list: {str(e)}")
 
     agent_stack = deque([agent_id])
     agent_id_set = set()
@@ -298,6 +365,7 @@ async def import_agent_by_agent_id(import_agent_info: ExportAndImportAgentInfo, 
         raise ValueError(f"Invalid agent name: {import_agent_info.name}. agent name must be a valid python variable name.")
     # create a new agent
     new_agent = create_agent(agent_info={"name": import_agent_info.name,
+                            "display_name": import_agent_info.display_name,
                             "description": import_agent_info.description,
                             "business_description": import_agent_info.business_description,
                             "model_name": import_agent_info.model_name,
@@ -400,3 +468,120 @@ def insert_related_agent_impl(parent_agent_id, child_agent_id, tenant_id):
             status_code=400,
             content={"message":"Failed to insert relation", "status": "error"}
         )
+
+
+# Helper function for run_agent_stream, used to prepare context for an agent run
+async def prepare_agent_run(agent_request: AgentRequest, http_request: Request, authorization: str):
+    """
+    Prepare for an agent run by creating context and run info, and registering the run.
+    """
+    user_id, tenant_id, language = get_current_user_info(authorization, http_request)
+
+    memory_context = build_memory_context(user_id, tenant_id, agent_request.agent_id)
+    agent_run_info = await create_agent_run_info(agent_id=agent_request.agent_id,
+                                                 minio_files=agent_request.minio_files,
+                                                 query=agent_request.query,
+                                                 history=agent_request.history,
+                                                 authorization=authorization,
+                                                 language=language)
+    agent_run_manager.register_agent_run(agent_request.conversation_id, agent_run_info)
+    return agent_run_info, memory_context
+
+
+# Helper function for run_agent_stream, used to save messages for either user or assistant
+def save_messages(agent_request, target:str, messages=None, authorization=None):
+    if target == "user":
+        if messages is not None:
+            raise ValueError("Messages should be None when saving for user.")
+        submit(save_conversation_user, agent_request, authorization)
+    elif target == "assistant":
+        if messages is None:
+            raise ValueError("Messages cannot be None when saving for assistant.")
+        submit(save_conversation_assistant, agent_request, messages, authorization)
+
+
+# Helper function for run_agent_stream, used to generate stream response
+async def generate_stream(agent_run_info, memory_context, agent_request: AgentRequest, authorization: str):
+    messages = []
+    try:
+        async for chunk in agent_run(agent_run_info, memory_context):
+            messages.append(chunk)
+            yield f"data: {chunk}\n\n"
+    except Exception as e:
+        logger.error(f"Agent run error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Agent run error: {str(e)}")
+    finally:
+        # Save assistant message only if not in debug mode
+        if not agent_request.is_debug:
+            save_messages(agent_request, target="assistant", messages=messages, authorization=authorization)
+        # Unregister agent run instance for both debug and non-debug modes
+        agent_run_manager.unregister_agent_run(agent_request.conversation_id)
+
+
+async def run_agent_stream(agent_request: AgentRequest, http_request: Request, authorization: str):
+    """
+    Start an agent run and stream responses, using explicit user/tenant context.
+    Mirrors the logic of agent_app.agent_run_api but reusable by services.
+    """
+    agent_run_info, memory_context = await prepare_agent_run(
+        agent_request=agent_request,
+        http_request=http_request,
+        authorization=authorization
+    )
+
+    # Save user message only if not in debug mode
+    if not agent_request.is_debug:
+        save_messages(
+            agent_request, 
+            target="user", 
+            authorization=authorization
+        )
+
+    return StreamingResponse(
+        generate_stream(agent_run_info, memory_context, agent_request, authorization),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+        }
+    )
+
+
+def stop_agent_tasks(conversation_id: int):
+    """
+    Stop agent run and preprocess tasks for the specified conversation_id.
+    Matches the behavior of agent_app.agent_stop_api.
+    """
+    # Stop agent run
+    agent_stopped = agent_run_manager.stop_agent_run(conversation_id)
+
+    # Stop preprocess tasks
+    preprocess_stopped = preprocess_manager.stop_preprocess_tasks(conversation_id)
+
+    if agent_stopped or preprocess_stopped:
+        message_parts = []
+        if agent_stopped:
+            message_parts.append("agent run")
+        if preprocess_stopped:
+            message_parts.append("preprocess tasks")
+
+        message = f"successfully stopped {' and '.join(message_parts)} for conversation_id {conversation_id}"
+        logging.info(message)
+        return {"status": "success", "message": message}
+    else:
+        message = f"no running agent or preprocess tasks found for conversation_id {conversation_id}"
+        logging.error(message)
+        return {"status": "error", "message": message}
+
+
+def get_agent_id_by_name(agent_name: str, tenant_id: str) -> int:
+    """
+    Resolve unique agent id by its unique name under the same tenant.
+    """
+    if not agent_name:
+        raise HTTPException(status_code=400, detail="agent_name required")
+    try:
+        return search_agent_id_by_agent_name(agent_name, tenant_id)
+    except Exception as _:
+        logger.error(f"Failed to find agent id with '{agent_name}' in tenant {tenant_id}")
+        raise HTTPException(status_code=404, detail="agent not found")

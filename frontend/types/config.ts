@@ -1,9 +1,5 @@
-// 重构：状态可以整合
-// 模型状态类型
-export type ModelStatus = "未校验" | "可用" | "不可用" | "可跳过"
-
 // 模型连接状态类型
-export type ModelConnectStatus = "未检测" | "检测中" | "可用" | "不可用"
+export type ModelConnectStatus = "not_detected" | "detecting" | "available" | "unavailable"
 
 // 模型来源类型
 export type ModelSource = "openai" | "custom" | "silicon" | "OpenAI-API-Compatible"
@@ -116,7 +112,6 @@ export interface AppConfig {
   avatarUri: string | null
 }
 
-// 重构：整合一下
 // 模型API配置接口
 export interface ModelApiConfig {
   apiKey: string
