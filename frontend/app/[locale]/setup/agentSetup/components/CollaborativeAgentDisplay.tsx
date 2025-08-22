@@ -1,13 +1,11 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Tag, Button, Select, App } from 'antd'
+import { Tag, App } from 'antd'
 import { PlusOutlined, CloseOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { Agent } from '../ConstInterface'
 import { addRelatedAgent, deleteRelatedAgent } from '@/services/agentConfigService'
-
-const { Option } = Select
 
 interface CollaborativeAgentDisplayProps {
   availableAgents: Agent[]
@@ -34,7 +32,6 @@ export default function CollaborativeAgentDisplay({
   const { message } = App.useApp()
   const [isDropdownVisible, setIsDropdownVisible] = useState(false)
   const [selectedAgentToAdd, setSelectedAgentToAdd] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 })
 
   // Click outside to close dropdown
@@ -84,7 +81,6 @@ export default function CollaborativeAgentDisplay({
       return
     }
 
-    setIsLoading(true)
     try {
       const result = await addRelatedAgent(parentAgentId, Number(targetAgentId))
       if (result.success) {
@@ -104,8 +100,6 @@ export default function CollaborativeAgentDisplay({
     } catch (error) {
       console.error('Failed to add collaborative agent:', error)
       message.error(t('collaborativeAgent.message.addFailed'))
-    } finally {
-      setIsLoading(false)
     }
   }
 

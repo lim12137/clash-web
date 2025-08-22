@@ -15,19 +15,6 @@ export const updateKnowledgeBaseCache = (forceRefresh: boolean = true) => {
   knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(forceRefresh);
 };
 
-// 检查知识库名称是否存在 (旧方法，保留以便参考)
-// export const checkKnowledgeBaseNameExists = async (
-//   knowledgeBaseName: string,
-//   t: TFunction
-// ): Promise<boolean> => {
-//   try {
-//     return await knowledgeBaseService.checkKnowledgeBaseNameExists(knowledgeBaseName);
-//   } catch (error) {
-//     console.error(t('knowledgeBase.check.nameError'), error);
-//     return false;
-//   }
-// };
-
 // 新的检查知识库名称状态的方法
 export const checkKnowledgeBaseName = async (
   knowledgeBaseName: string,

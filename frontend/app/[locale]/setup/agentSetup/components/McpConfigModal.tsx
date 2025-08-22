@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Modal, Button, Input, Table, Space, Typography, Card, Divider, Tag, Tooltip, App } from 'antd'
+import { Modal, Button, Input, Table, Space, Typography, Card, Divider, Tooltip, App } from 'antd'
 import { DeleteOutlined, EyeOutlined, PlusOutlined, LoadingOutlined, ExpandAltOutlined, CompressOutlined, RedoOutlined } from '@ant-design/icons'
-import { getMcpServerList, addMcpServer, deleteMcpServer, getMcpTools, updateToolList, recoverMcpServers, checkMcpServerHealth, McpServer, McpTool } from '@/services/mcpService'
+import { getMcpServerList, addMcpServer, deleteMcpServer, getMcpTools, updateToolList, checkMcpServerHealth, McpServer, McpTool } from '@/services/mcpService'
 import { useTranslation } from 'react-i18next'
 
 const { Text, Title } = Typography
@@ -235,12 +235,9 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: healthCheckLoading[key] ? 'not-allowed' : 'pointer',
                 border: '1px solid #d9d9d9',
                 boxShadow: '0 0 2px #ccc',
               }}
-              title={t('mcpConfig.serverList.statusCheckHint')}
-              onClick={() => !healthCheckLoading[key] && handleCheckHealth(record)}
             >
               {healthCheckLoading[key] ? <LoadingOutlined style={{ color: record.status ? '#52c41a' : '#ff4d4f' }} /> : null}
             </div>
@@ -253,49 +250,62 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
       title: t('mcpConfig.serverList.column.url'),
       dataIndex: 'mcp_url',
       key: 'mcp_url',
-      width: '45%',
+      width: '40%',
       ellipsis: true,
     },
     {
       title: t('mcpConfig.serverList.column.action'),
       key: 'action',
-      width: '30%',
-      render: (_: any, record: McpServer) => (
-        <Space size="small">
-          {record.status ? (
+      width: '35%',
+      render: (_: any, record: McpServer) => {
+        const key = `${record.service_name}__${record.mcp_url}`
+        return (
+          <Space size="small">
             <Button
               type="link"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewTools(record)}
+              icon={<RedoOutlined />}
+              onClick={() => handleCheckHealth(record)}
               size="small"
+              loading={healthCheckLoading[key]}
               disabled={updatingTools}
             >
-              {t('mcpConfig.serverList.button.viewTools')}
+              {t('mcpConfig.serverList.button.healthCheck')}
             </Button>
-          ) : (
-            <Tooltip title={t('mcpConfig.serverList.button.viewToolsDisabledHint')} placement="top">
+            {record.status ? (
               <Button
                 type="link"
                 icon={<EyeOutlined />}
+                onClick={() => handleViewTools(record)}
                 size="small"
-                disabled
+                disabled={updatingTools}
               >
                 {t('mcpConfig.serverList.button.viewTools')}
               </Button>
-            </Tooltip>
-          )}
-          <Button
-            type="link"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteServer(record)}
-            size="small"
-            disabled={updatingTools}
-          >
-            {t('mcpConfig.serverList.button.delete')}
-          </Button>
-        </Space>
-      ),
+            ) : (
+              <Tooltip title={t('mcpConfig.serverList.button.viewToolsDisabledHint')} placement="top">
+                <Button
+                  type="link"
+                  icon={<EyeOutlined />}
+                  size="small"
+                  disabled
+                >
+                  {t('mcpConfig.serverList.button.viewTools')}
+                </Button>
+              </Tooltip>
+            )}
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteServer(record)}
+              size="small"
+              disabled={updatingTools}
+            >
+              {t('mcpConfig.serverList.button.delete')}
+            </Button>
+          </Space>
+        )
+      },
     },
   ]
 
@@ -354,7 +364,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
         title={t('mcpConfig.modal.title')}
         open={visible}
         onCancel={updatingTools ? undefined : onCancel}
-        width={800}
+        width={1000}
         closable={!updatingTools}
         maskClosable={!updatingTools}
         footer={[

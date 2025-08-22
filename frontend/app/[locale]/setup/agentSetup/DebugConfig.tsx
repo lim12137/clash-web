@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from 'react'
-import { Typography, Input, Button } from 'antd'
+import { Input } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { conversationService } from '@/services/conversationService'
 import { handleStreamResponse } from '@/app/chat/streaming/chatStreamHandler'
@@ -9,26 +9,17 @@ import { ChatMessageType, TaskMessageType } from '@/types/chat'
 import { ChatStreamFinalMessage } from '@/app/chat/streaming/chatStreamFinalMessage'
 import { TaskWindow } from '@/app/chat/streaming/taskWindow'
 
-const { Text } = Typography
 
 // Agent debugging component Props interface
 interface AgentDebuggingProps {
-  question: string;
-  answer: string;
   onAskQuestion: (question: string) => void;
   onStop: () => void;
   isStreaming: boolean;
   messages: ChatMessageType[];
-  taskMessages: TaskMessageType[];
-  conversationGroups: Map<string, TaskMessageType[]>;
 }
 
 // Main component Props interface
 interface DebugConfigProps {
-  testQuestion: string;
-  setTestQuestion: (question: string) => void;
-  testAnswer: string;
-  setTestAnswer: (answer: string) => void;
   agentId?: number; // Make agentId an optional prop
 }
 
@@ -39,14 +30,10 @@ const stepIdCounter = { current: 0 };
  * Agent debugging component
  */
 function AgentDebugging({ 
-  question, 
-  answer, 
   onAskQuestion,
   onStop,
   isStreaming,
-  messages,
-  taskMessages,
-  conversationGroups
+  messages
 }: AgentDebuggingProps) {
   const { t } = useTranslation()
   const [inputQuestion, setInputQuestion] = useState("")
@@ -55,7 +42,7 @@ function AgentDebugging({
     if (!inputQuestion.trim()) return;
     
     try {
-      await onAskQuestion(inputQuestion);
+      onAskQuestion(inputQuestion);
       setInputQuestion("");
     } catch (error) {
       console.error(t('agent.error.loadTools'), error);
@@ -206,17 +193,11 @@ function AgentDebugging({
  * Debug configuration main component
  */
 export default function DebugConfig({
-  testQuestion,
-  setTestQuestion,
-  testAnswer,
-  setTestAnswer,
   agentId
 }: DebugConfigProps) {
   const { t } = useTranslation()
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [taskMessages, setTaskMessages] = useState<TaskMessageType[]>([]);
-  const [conversationGroups] = useState<Map<string, TaskMessageType[]>>(new Map());
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -274,7 +255,6 @@ export default function DebugConfig({
 
   // Process test question
   const handleTestQuestion = async (question: string) => {
-    setTestQuestion(question);
     setIsStreaming(true);
     
     // Create new AbortController for this request
@@ -336,12 +316,6 @@ export default function DebugConfig({
         true, // isDebug: true for debug mode
         t
       );
-
-      // Update final answer
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage && lastMessage.role === "assistant") {
-        setTestAnswer(lastMessage.finalAnswer || lastMessage.content || "");
-      }
     } catch (error) {
       // If user actively canceled, don't show error message
       const err = error as Error;
@@ -370,8 +344,6 @@ export default function DebugConfig({
           }
           return newMessages;
         });
-        
-        setTestAnswer(errorMessage);
       }
     } finally {
       setIsStreaming(false);
@@ -388,14 +360,10 @@ export default function DebugConfig({
   return (
     <div className="w-full h-full bg-white">
       <AgentDebugging 
-        question={testQuestion} 
-        answer={testAnswer} 
         onAskQuestion={handleTestQuestion}
         onStop={handleStop}
         isStreaming={isStreaming}
         messages={messages}
-        taskMessages={taskMessages}
-        conversationGroups={conversationGroups}
       />
     </div>
   )
