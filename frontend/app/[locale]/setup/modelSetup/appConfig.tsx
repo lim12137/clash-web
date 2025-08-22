@@ -277,7 +277,6 @@ export const AppConfigSection: React.FC = () => {
     setTempCustomAvatarUrl(customAvatarUrl);
   };
 
-  // 重构：风格被嵌入在组件内
   return (
     <div style={{ width: "100%", height: "85%" }}>
       <style>{`

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { EditOutlined, ExportOutlined, DeleteOutlined } from '@ant-design/icons'
 import { Agent } from '../ConstInterface'
 import { useTranslation } from 'react-i18next'

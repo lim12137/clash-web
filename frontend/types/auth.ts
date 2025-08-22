@@ -1,7 +1,6 @@
 /*
  * 认证相关类型与常量定义
  */
-
 export const STATUS_CODES = {
   // 成功状态码
   SUCCESS: 200,               // 成功
@@ -17,10 +16,6 @@ export const STATUS_CODES = {
   // 服务器错误状态码
   SERVER_ERROR: 1005,         // 服务器内部错误
 };
-
-
-// 默认的会话有效期（天）
-export const DEFAULT_SESSION_EXPIRY_DAYS = 1;
 
 // 本地存储键
 export const STORAGE_KEYS = {
@@ -85,10 +80,3 @@ export interface SessionResponse {
   };
   error: ErrorResponse | null;
 }
-
-// 登录/注册表单值类型
-export interface AuthFormValues {
-  email: string;
-  password: string;
-  confirmPassword?: string;
-} 

@@ -32,6 +32,7 @@ export const ModelDeleteDialog = ({
   const [loadingSource, setLoadingSource] = useState<ModelSource | null>(null)
   const [isProviderConfigOpen, setIsProviderConfigOpen] = useState<boolean>(false)
   const [isConfirmLoading, setIsConfirmLoading] = useState<boolean>(false)
+  const [maxTokens, setMaxTokens] = useState<number>(0)
 
   // 获取模型的颜色方案
   const getModelColorScheme = (type: ModelType): { bg: string; text: string; border: string } => {
@@ -288,11 +289,13 @@ export const ModelDeleteDialog = ({
     setSelectedSource(null)
     setProviderModels([])
     setPendingSelectedProviderIds(new Set())
+    setMaxTokens(0)
     onClose()
   }
 
   // Handle provider config save
   const handleProviderConfigSave = async ({ apiKey, maxTokens }: { apiKey: string; maxTokens: number }) => {
+    setMaxTokens(maxTokens)
     if (selectedSource === 'silicon' && deletingModelType) {
       try {
         const currentIds = new Set(
@@ -358,7 +361,7 @@ export const ModelDeleteDialog = ({
                       api_key: apiKey && apiKey.trim() !== '' ? apiKey : 'sk-no-api-key',
                       provider: 'silicon',
                       type: deletingModelType,
-                      max_tokens: 0,
+                      max_tokens: maxTokens > 0 ? maxTokens : 4096, // Use default value if maxTokens is 0
                       models: allEnabledModels
                     })
                   }
@@ -410,7 +413,13 @@ export const ModelDeleteDialog = ({
               return (
                 <button
                   key={type}
-                  onClick={() => { setDeletingModelType(type); setSelectedSource(null) }}
+                  onClick={() => { 
+                    setDeletingModelType(type); 
+                    setSelectedSource(null);
+                    // Initialize maxTokens with a value from existing models of this type
+                    const existingModel = customModels.find((model) => model.type === type);
+                    setMaxTokens(existingModel?.maxTokens || 0);
+                  }}
                   disabled={type === "stt" || type === "tts"}
                   className={`p-3 flex justify-between rounded-md border transition-colors ${
                     type === "stt" || type === "tts"

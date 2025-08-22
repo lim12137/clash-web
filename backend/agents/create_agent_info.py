@@ -16,6 +16,7 @@ from utils.config_utils import config_manager, tenant_config_manager, get_model_
 from smolagents.utils import BASE_BUILTIN_MODULES
 from services.memory_config_service import build_memory_context
 from jinja2 import Template, StrictUndefined
+from datetime import datetime
 
 from nexent.memory.memory_service import search_memory_in_levels
 
@@ -128,7 +129,8 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             "APP_NAME": app_name,
             "APP_DESCRIPTION": app_description,
             "memory_list": memory_list,
-            "knowledge_base_summary": knowledge_base_summary
+            "knowledge_base_summary": knowledge_base_summary,
+            "time" : datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
     else:
         system_prompt = agent_info.get("prompt", "")
