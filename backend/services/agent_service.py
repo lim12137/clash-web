@@ -624,7 +624,7 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
 
             # 获取工具类型，使用枚举值，默认使用local
             tool_source = tool.get("source", ToolSourceEnum.LOCAL.value)
-            tool_type = TOOL_TYPE_MAPPING.get(tool_source, tool_source.title())
+            tool_type = TOOL_TYPE_MAPPING.get(tool_source, tool_source.upper())
 
             tools.append({
                 "tool_id": tool["tool_id"],
@@ -655,7 +655,7 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
 
                             # 使用枚举值，默认使用local
                             tool_source = tool.get("source", ToolSourceEnum.LOCAL.value)
-                            tool_type = TOOL_TYPE_MAPPING.get(tool_source, tool_source.title())
+                            tool_type = TOOL_TYPE_MAPPING.get(tool_source, tool_source.upper())
 
                             sub_tools.append({
                                 "tool_id": tool["tool_id"],
