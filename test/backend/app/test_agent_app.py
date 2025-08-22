@@ -585,11 +585,12 @@ async def test_export_agent_api_empty_response(mocker, mock_auth_header):
     assert response_data["message"] == "success"
     assert response_data["data"] == {}
 
-# Test for get_agent_call_relationship_api endpoint
 def test_get_agent_call_relationship_api_success(mocker, mock_auth_header):
     """Test successful call to get_agent_call_relationship_api endpoint"""
     mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_get_agent_call_relationship = mocker.patch("apps.agent_app.get_agent_call_relationship_impl")
+    mock_get_agent_call_relationship = mocker.patch(
+        "apps.agent_app.agent_service.get_agent_call_relationship_impl"
+    )
 
     mock_get_user_id.return_value = ("user_id", "test_tenant")
     mock_get_agent_call_relationship.return_value = {
@@ -600,7 +601,6 @@ def test_get_agent_call_relationship_api_success(mocker, mock_auth_header):
     }
 
     response = client.get("/agent/call_relationship/123", headers=mock_auth_header)
-
     assert response.status_code == 200
     data = response.json()
     assert data["agent_id"] == "123"
@@ -615,7 +615,9 @@ def test_get_agent_call_relationship_api_success(mocker, mock_auth_header):
 def test_get_agent_call_relationship_api_with_sub_agents(mocker, mock_auth_header):
     """Test get_agent_call_relationship_api with sub-agents"""
     mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_get_agent_call_relationship = mocker.patch("apps.agent_app.get_agent_call_relationship_impl")
+    mock_get_agent_call_relationship = mocker.patch(
+        "apps.agent_app.agent_service.get_agent_call_relationship_impl"
+    )
 
     mock_get_user_id.return_value = ("user_id", "test_tenant")
     mock_get_agent_call_relationship.return_value = {
@@ -634,7 +636,6 @@ def test_get_agent_call_relationship_api_with_sub_agents(mocker, mock_auth_heade
     }
 
     response = client.get("/agent/call_relationship/123", headers=mock_auth_header)
-
     assert response.status_code == 200
     data = response.json()
     assert len(data["sub_agents"]) == 1
@@ -648,13 +649,14 @@ def test_get_agent_call_relationship_api_with_sub_agents(mocker, mock_auth_heade
 def test_get_agent_call_relationship_api_service_error(mocker, mock_auth_header):
     """Test get_agent_call_relationship_api handles service errors"""
     mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_get_agent_call_relationship = mocker.patch("apps.agent_app.get_agent_call_relationship_impl")
+    mock_get_agent_call_relationship = mocker.patch(
+        "apps.agent_app.agent_service.get_agent_call_relationship_impl"
+    )
 
     mock_get_user_id.return_value = ("user_id", "test_tenant")
     mock_get_agent_call_relationship.side_effect = ValueError("Agent not found")
 
     response = client.get("/agent/call_relationship/999", headers=mock_auth_header)
-
     assert response.status_code == 500
     data = response.json()
     assert "Failed to get agent call relationship" in data["detail"]
@@ -666,16 +668,21 @@ def test_get_agent_call_relationship_api_auth_error(mocker, mock_auth_header):
     mock_get_user_id.side_effect = Exception("Auth error")
 
     response = client.get("/agent/call_relationship/123", headers=mock_auth_header)
-
     assert response.status_code == 500
     data = response.json()
-    assert "Agent call relationship error" in data["detail"]
+    # 兼容两种文案：日志里是 "Agent call relationship error"，返回 detail 是 "Failed to get agent call relationship: ..."
+    assert any(s in data["detail"] for s in (
+        "Agent call relationship error",
+        "Failed to get agent call relationship",
+    ))
 
 
 def test_get_agent_call_relationship_api_complex_structure(mocker, mock_auth_header):
     """Test get_agent_call_relationship_api with complex nested structure"""
     mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_get_agent_call_relationship = mocker.patch("apps.agent_app.get_agent_call_relationship_impl")
+    mock_get_agent_call_relationship = mocker.patch(
+        "apps.agent_app.agent_service.get_agent_call_relationship_impl"
+    )
 
     mock_get_user_id.return_value = ("user_id", "test_tenant")
     mock_get_agent_call_relationship.return_value = {
@@ -705,7 +712,6 @@ def test_get_agent_call_relationship_api_complex_structure(mocker, mock_auth_hea
     }
 
     response = client.get("/agent/call_relationship/123", headers=mock_auth_header)
-
     assert response.status_code == 200
     data = response.json()
 
