@@ -619,7 +619,7 @@ export const ModelDeleteDialog = ({
                       )}
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Tooltip title={t('model.dialog.modelList.tooltip.settings') || '模型设置'}>
+                      <Tooltip title={t('model.dialog.modelList.tooltip.settings')}>
                         <Button
                           type="text"
                           icon={<SettingOutlined />}
@@ -754,7 +754,7 @@ export const ModelDeleteDialog = ({
 
       {/* Settings Modal */}
       <Modal
-        title={t('model.dialog.settings.title') || '模型设置'}
+        title={t('model.dialog.settings.title')}
         open={settingsModalVisible}
         onCancel={() => setSettingsModalVisible(false)}
         onOk={handleSettingsSave}
@@ -763,13 +763,13 @@ export const ModelDeleteDialog = ({
         <div className="space-y-3">
           <div>
             <label className="block mb-1 text-sm font-medium text-gray-700">
-              {t('model.dialog.settings.label.maxTokens') || '最大Token数'}
+              {t('model.dialog.settings.label.maxTokens')}
             </label>
             <Input
               type="number"
               value={modelMaxTokens}
               onChange={(e) => setModelMaxTokens(e.target.value)}
-              placeholder={t('model.dialog.placeholder.maxTokens') || '请输入最大Token数'}
+              placeholder={t('model.dialog.placeholder.maxTokens')}
             />
           </div>
         </div>
