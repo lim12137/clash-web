@@ -94,7 +94,6 @@ async def create_provider_model(request: ProviderModelRequest, authorization: Op
         user_id, tenant_id = get_current_user_id(authorization)
         model_data = request.model_dump()
         model_list=[]
-        existing_model_list=[]
         
         if model_data["provider"] == ProviderEnum.SILICON.value:
             provider = SiliconModelProvider()
