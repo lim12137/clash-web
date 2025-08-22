@@ -3,7 +3,7 @@ import { Document } from '@/types/knowledgeBase'
 import DocumentStatus from './DocumentStatus'
 import { InfoCircleFilled } from '@ant-design/icons'
 import UploadArea from '../components/UploadArea'
-import { formatFileSize, formatDateTime, sortByStatusAndDate } from '@/lib/utils'
+import { formatFileSize, sortByStatusAndDate } from '@/lib/utils'
 import { Input, Button } from 'antd'
 import { useKnowledgeBaseContext } from '../knowledgeBase/KnowledgeBaseContext'
 import { useDocumentContext } from './DocumentContext'
@@ -394,7 +394,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
                         {formatFileSize(doc.size)}
                       </td>
                       <td className={`${LAYOUT.CELL_PADDING} ${LAYOUT.TEXT_SIZE} text-gray-600`}>
-                        {formatDateTime(doc.create_time)}
+                        {new Date(doc.create_time).toLocaleString()}
                       </td>
                       <td className={LAYOUT.CELL_PADDING}>
                         <button
