@@ -544,7 +544,7 @@ class ElasticSearchService:
                 try:
                     utc_create_timestamp = datetime.strptime(utc_create_time_str, '%Y-%m-%dT%H:%M:%S').replace(
                         tzinfo=timezone.utc).timestamp()
-                except Exception as e:
+                except (ValueError, TypeError):
                     utc_create_timestamp = time.time()
 
                 file_data = {
