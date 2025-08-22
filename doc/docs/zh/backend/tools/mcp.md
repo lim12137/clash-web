@@ -336,6 +336,195 @@ curl -X POST "http://localhost:5010/api/mcp/add?mcp_url=http://external-server:5
   -H "Authorization: Bearer {your_token}"
 ```
 
+## MCP接口文档
+
+### 1. 主服务API接口 (端口5010)
+
+#### 1.1 获取远程MCP工具信息
+```http
+POST /api/mcp/tools
+```
+
+**请求参数**：
+- `service_name` (string, 必需): MCP服务名称
+- `mcp_url` (string, 必需): MCP服务器URL
+- `Authorization` (Header, 必需): Bearer token
+
+**响应示例**：
+```json
+{
+  "tools": [
+    {
+      "name": "tool_name",
+      "description": "tool_description",
+      "parameters": {...}
+    }
+  ],
+  "status": "success"
+}
+```
+
+#### 1.2 添加远程MCP服务器
+```http
+POST /api/mcp/add
+```
+
+**请求参数**：
+- `mcp_url` (string, 必需): MCP服务器URL
+- `service_name` (string, 必需): MCP服务名称
+- `Authorization` (Header, 必需): Bearer token
+
+**响应示例**：
+```json
+{
+  "message": "Successfully added remote MCP proxy",
+  "status": "success"
+}
+```
+
+#### 1.3 删除远程MCP服务器
+```http
+DELETE /api/mcp
+```
+
+**请求参数**：
+- `service_name` (string, 必需): MCP服务名称
+- `mcp_url` (string, 必需): MCP服务器URL
+- `Authorization` (Header, 必需): Bearer token
+
+**响应示例**：
+```json
+{
+  "message": "Successfully deleted remote MCP proxy",
+  "status": "success"
+}
+```
+
+#### 1.4 获取MCP服务器列表
+```http
+GET /api/mcp/list
+```
+
+**请求参数**：
+- `Authorization` (Header, 必需): Bearer token
+
+**响应示例**：
+```json
+{
+  "remote_mcp_server_list": [
+    {
+      "id": 1,
+      "tenant_id": "tenant_123",
+      "user_id": "user_456",
+      "mcp_name": "external_service",
+      "mcp_server": "http://external-server:5012/sse",
+      "status": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "status": "success"
+}
+```
+
+#### 1.5 MCP服务器健康检查
+```http
+GET /api/mcp/healthcheck
+```
+
+**请求参数**：
+- `mcp_url` (string, 必需): MCP服务器URL
+- `service_name` (string, 必需): MCP服务名称
+- `Authorization` (Header, 必需): Bearer token
+
+**响应示例**：
+```json
+{
+  "message": "Successfully connected to remote MCP server",
+  "status": "success"
+}
+```
+
+### 2. 本地MCP服务接口 (端口5011)
+
+#### 2.1 MCP协议接口
+本地MCP服务基于FastMCP框架，提供标准MCP协议支持：
+
+**服务地址**：`http://localhost:5011/sse`
+
+**支持的操作**：
+- `tools/list`: 获取工具列表
+- `tools/call`: 调用工具
+- `resources/list`: 获取资源列表
+- `resources/read`: 读取资源
+
+#### 2.2 本地工具服务
+本地MCP服务挂载了以下本地工具：
+- 文件操作工具
+- 网络请求工具
+- 系统信息工具
+- 其他本地工具
+
+### 3. 错误码说明
+
+| 状态码 | 说明 | 处理建议 |
+|--------|------|----------|
+| 200 | 成功 | 正常处理响应数据 |
+| 400 | 请求参数错误 | 检查请求参数格式和内容 |
+| 401 | 认证失败 | 检查Authorization token是否有效 |
+| 403 | 权限不足 | 确认用户权限 |
+| 404 | 资源不存在 | 检查MCP服务器URL是否正确 |
+| 409 | 服务名已存在 | 使用不同的服务名称 |
+| 503 | 服务不可用 | 检查MCP服务器是否正常运行 |
+| 500 | 服务器内部错误 | 查看服务器日志 |
+
+### 4. 前端API调用示例
+
+#### 4.1 JavaScript/TypeScript调用
+```typescript
+// 获取MCP服务器列表
+const getMcpServerList = async () => {
+  const response = await fetch('/api/mcp/list', {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  return await response.json();
+};
+
+// 添加MCP服务器
+const addMcpServer = async (mcpUrl: string, serviceName: string) => {
+  const response = await fetch(`/api/mcp/add?mcp_url=${mcpUrl}&service_name=${serviceName}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  return await response.json();
+};
+```
+
+#### 4.2 cURL调用示例
+```bash
+# 获取MCP服务器列表
+curl -H "Authorization: Bearer {your_token}" \
+  "http://localhost:5010/api/mcp/list"
+
+# 添加MCP服务器
+curl -X POST "http://localhost:5010/api/mcp/add?mcp_url=http://external-server:5012/sse&service_name=external_service" \
+  -H "Authorization: Bearer {your_token}"
+
+# 删除MCP服务器
+curl -X DELETE "http://localhost:5010/api/mcp/?service_name=external_service&mcp_url=http://external-server:5012/sse" \
+  -H "Authorization: Bearer {your_token}"
+
+# 健康检查
+curl "http://localhost:5010/api/mcp/healthcheck?mcp_url=http://external-server:5012/sse&service_name=external_service" \
+  -H "Authorization: Bearer {your_token}"
+```
+
 ## 性能优化
 
 ### 1. 连接池管理
