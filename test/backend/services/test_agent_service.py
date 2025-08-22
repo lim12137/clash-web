@@ -1858,7 +1858,7 @@ def test_get_agent_call_relationship_impl_with_sub_agents(mock_query_sub_agents,
     assert result["agent_id"] == "123"
     assert result["name"] == "Main Agent Display"
     assert len(result["tools"]) == 1
-    assert result["tools"][0]["type"] == "LangChain"
+    assert result["tools"][0]["type"] == "LANGCHAIN"
 
     assert len(result["sub_agents"]) == 2
     assert result["sub_agents"][0]["agent_id"] == "456"
@@ -2091,7 +2091,7 @@ def test_get_agent_call_relationship_impl_unknown_tool_source(mock_query_sub_age
     result = get_agent_call_relationship_impl(agent_id=123, tenant_id="test_tenant")
 
     # Assert unknown source is handled gracefully
-    assert result["tools"][0]["type"] == "Unknown_source"  # Uses .title() fallback
+    assert result["tools"][0]["type"] == "UNKNOWN_SOURCE"  # Uses .upper() fallback
 
 
 @patch('backend.services.agent_service.search_agent_info_by_agent_id')
