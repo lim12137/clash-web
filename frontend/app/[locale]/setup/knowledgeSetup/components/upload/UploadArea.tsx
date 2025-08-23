@@ -7,7 +7,7 @@ import {
   checkKnowledgeBaseName,
   fetchKnowledgeBaseInfo,
   validateFileType,
-} from './UploadService';
+} from '@/services/UploadService';
 
 interface UploadAreaProps {
   isDragging?: boolean;
