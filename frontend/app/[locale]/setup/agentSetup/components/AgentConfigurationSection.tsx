@@ -4,7 +4,7 @@ import { Button, Modal, Spin } from 'antd'
 import { ExpandAltOutlined, SaveOutlined, LoadingOutlined, BugOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { OpenAIModel } from '../ConstInterface'
+import { OpenAIModel } from '@/types/agent'
 import { SimplePromptEditor } from './PromptManager'
 import { checkAgentName, checkAgentDisplayName } from '@/services/agentConfigService'
 

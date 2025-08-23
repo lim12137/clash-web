@@ -12,7 +12,7 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { updateAgent } from '@/services/agentConfigService'
 import AgentConfigurationSection from './AgentConfigurationSection'
 import NonEditingOverlay from './NonEditingOverlay'
-import './milkdown-nord.css'
+import '@/styles/milkdown-nord.css'
 
 // Simplified editor component
 export interface SimplePromptEditorProps {

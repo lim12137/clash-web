@@ -11,10 +11,10 @@ import { storageService } from '@/services/storageService';
 import { useAuth } from "@/hooks/useAuth"
 import { useTranslation } from 'react-i18next';
 
-import { ChatSidebar } from "@/app/[locale]/chat/components/chatLeftSidebar"
-import { FilePreview } from "@/app/[locale]/chat/components/chatInput"
-import { ChatHeader } from "@/app/[locale]/chat/components/chatHeader"
-import { ChatRightPanel } from "@/app/[locale]/chat/components/chatRightPanel"
+import { ChatSidebar } from "@/app/chat/components/chatLeftSidebar"
+import { FilePreview } from "@/app/chat/components/chatInput"
+import { ChatHeader } from "@/app/chat/components/chatHeader"
+import { ChatRightPanel } from "@/app/chat/components/chatRightPanel"
 import { ChatStreamMain } from "@/app/chat/streaming/chatStreamMain"
 
 import {
@@ -1301,7 +1301,7 @@ export function ChatInterface() {
             localStorage.setItem('show_page', user?.role === 'admin' ? '1' : '2');
             router.push("/setup");
           }}
-          onDropdownOpenChange={(open, id) => setOpenDropdownId(open ? id : null)}
+          onDropdownOpenChange={(open: boolean, id: string | null) => setOpenDropdownId(open ? id : null)}
           onToggleSidebar={toggleSidebar}
           expanded={sidebarOpen}
           userEmail={user?.email}
@@ -1327,7 +1327,7 @@ export function ChatInterface() {
                 isStreaming={isCurrentConversationStreaming}
                 isLoadingHistoricalConversation={isLoadingHistoricalConversation}
                 conversationLoadError={conversationLoadError[selectedConversationId || 0]}
-                onInputChange={(value) => setInput(value)}
+                onInputChange={(value: string) => setInput(value)}
                 onSend={handleSend}
                 onStop={handleStop}
                 onKeyDown={handleKeyDown}

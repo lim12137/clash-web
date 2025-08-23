@@ -1,4 +1,4 @@
-import { convertParamType } from '@/types/agentAndToolConst';
+import { convertParamType } from '@/lib/utils';
 import { API_ENDPOINTS } from './api';
 import { getAuthHeaders } from '@/lib/auth';
 

@@ -1,7 +1,7 @@
 import { AgentStep } from '@/types/chat'
 import { conversationService } from '@/services/conversationService';
 import { storageService } from '@/services/storageService';
-import { FilePreview } from "@/app/[locale]/chat/components/chatInput"
+import { FilePreview } from "@/app/chat/components/chatInput"
 
 // Step ID Counter
 const stepIdCounter = {current: 0};
