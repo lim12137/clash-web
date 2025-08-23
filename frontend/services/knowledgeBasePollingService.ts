@@ -23,7 +23,7 @@ class KnowledgeBasePollingService {
 
   // Start document status polling, only update documents for specified knowledge base
   startDocumentStatusPolling(kbId: string, callback: (documents: Document[]) => void): void {
-    console.log(`Start polling documents status for knowledge base ${kbId}`);
+    console.debug(`Start polling documents status for knowledge base ${kbId}`);
     
     // Clear existing polling first
     this.stopPolling(kbId);

@@ -97,16 +97,6 @@ export function AvatarDropdown() {
         cursor: 'default'
       }
     },
-    // TODO: Admin settings function is not implemented yet, comment out for now
-    // ...(user.role === "admin"
-    //   ? [
-    //       {
-    //         key: 'admin',
-    //         icon: <SettingOutlined />,
-    //         label: t('auth.adminSettings'),
-    //       } as MenuItemType
-    //     ]
-    //   : []),
     {
       type: 'divider',
     },

@@ -130,6 +130,7 @@ class KnowledgeBaseService {
   async checkKnowledgeBaseName(name: string): Promise<{status: string, action?: string}> {
     try {
       const response = await fetch(API_ENDPOINTS.knowledgeBase.checkName(name), {
+        method: "GET",
         headers: getAuthHeaders(),
       });
       if (!response.ok) {
