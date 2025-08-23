@@ -590,8 +590,6 @@
     "setup.header.button.back": "返回首页",
     "setup.header.title": "快速配置",
     "setup.header.description": "智能生成每一种助手，精准解决每一个问题",
-    "setup.header.tooltip.lastChecked": "上次检查: {{time}}",
-    "setup.header.tooltip.checkStatus": "点击检查连接状态",
     "setup.navigation.button.previous": "上一步",
     "setup.navigation.button.next": "下一步",
     "setup.navigation.button.complete": "完成配置",
