@@ -443,74 +443,47 @@ export default function AgentConfigurationSection({
   );
 
   const renderDutyContent = () => (
-    <div className="relative p-4">
-      <button onClick={() => onExpandCard?.(2)}
-        className="absolute top-2 right-4 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
-        style={{ border: "none" }}
-        title={t('systemPrompt.button.expand')}
-      >
-        <ExpandAltOutlined className="text-xs" />
-      </button>
-      <div className="pr-4">
-        <SimplePromptEditor
-          value={localDutyContent}
-          onChange={(value: string) => {
-            setLocalDutyContent(value);
-            // Immediate update to parent component
-            if (onDutyContentChange) {
-              onDutyContentChange(value);
-            }
-          }}
-        />
-      </div>
+    <div className="p-1">
+      <SimplePromptEditor
+        value={localDutyContent}
+        onChange={(value: string) => {
+          setLocalDutyContent(value);
+          // Immediate update to parent component
+          if (onDutyContentChange) {
+            onDutyContentChange(value);
+          }
+        }}
+      />
     </div>
   );
 
   const renderConstraintContent = () => (
-    <div className="relative p-4">
-      <button onClick={() => onExpandCard?.(3)}
-        className="absolute top-2 right-4 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
-        style={{ border: "none" }}
-        title={t('systemPrompt.button.expand')}
-      >
-        <ExpandAltOutlined className="text-xs" />
-      </button>
-      <div className="pr-4">
-        <SimplePromptEditor
-          value={localConstraintContent}
-          onChange={(value: string) => {
-            setLocalConstraintContent(value);
-            // Immediate update to parent component
-            if (onConstraintContentChange) {
-              onConstraintContentChange(value);
-            }
-          }}
-        />
-      </div>
+    <div className="p-1">
+      <SimplePromptEditor
+        value={localConstraintContent}
+        onChange={(value: string) => {
+          setLocalConstraintContent(value);
+          // Immediate update to parent component
+          if (onConstraintContentChange) {
+            onConstraintContentChange(value);
+          }
+        }}
+      />
     </div>
   );
 
   const renderFewShotsContent = () => (
-    <div className="relative p-4">
-      <button onClick={() => onExpandCard?.(4)}
-        className="absolute top-2 right-4 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
-        style={{ border: "none" }}
-        title={t('systemPrompt.button.expand')}
-      >
-        <ExpandAltOutlined className="text-xs" />
-      </button>
-      <div className="pr-4">
-        <SimplePromptEditor
-          value={localFewShotsContent}
-          onChange={(value: string) => {
-            setLocalFewShotsContent(value);
-            // Immediate update to parent component
-                        if (onFewShotsContentChange) {
-              onFewShotsContentChange(value);
-            }
-          }}
-        />
-      </div>
+    <div className="p-1">
+      <SimplePromptEditor
+        value={localFewShotsContent}
+        onChange={(value: string) => {
+          setLocalFewShotsContent(value);
+          // Immediate update to parent component
+          if (onFewShotsContentChange) {
+            onFewShotsContentChange(value);
+          }
+        }}
+      />
     </div>
   );
 
@@ -589,7 +562,23 @@ export default function AgentConfigurationSection({
       </div>
       
       {/* Content area - flexible height */}
-      <div className="flex-1 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden w-full max-w-4xl mx-auto min-h-0">
+      <div className="flex-1 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden w-full max-w-4xl mx-auto min-h-0 relative">
+        {/* Floating expand buttons - positioned outside scrollable content */}
+        {(activeSegment === 'duty' || activeSegment === 'constraint' || activeSegment === 'few-shots') && (
+          <button 
+            onClick={() => {
+              if (activeSegment === 'duty') onExpandCard?.(2);
+              else if (activeSegment === 'constraint') onExpandCard?.(3);
+              else if (activeSegment === 'few-shots') onExpandCard?.(4);
+            }}
+            className="absolute top-2 right-4 z-20 p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
+            style={{ border: "none" }}
+            title={t('systemPrompt.button.expand')}
+          >
+            <ExpandAltOutlined className="text-xs" />
+          </button>
+        )}
+        
         <style jsx global>{`
           /* Custom scrollbar styles for better UX */
           .milkdown-editor-container .milkdown {
@@ -736,7 +725,7 @@ export default function AgentConfigurationSection({
           }
         `}</style>
         
-        <div className="content-scroll h-full overflow-y-auto agent-config-content">
+        <div className="content-scroll h-full w-full overflow-y-auto agent-config-content">
           {/* Agent Info */}
           {activeSegment === 'agent-info' && (
             <div>
