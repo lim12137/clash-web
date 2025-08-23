@@ -1,7 +1,6 @@
 "use client"
 
 import { Steps } from 'antd'
-import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 // Timeline Step Configuration
@@ -37,12 +36,7 @@ interface GuideStepsProps {
   systemPrompt: string;
   businessLogic: string;
   selectedTools: any[];
-  selectedAgents: any[];
-  mainAgentId: string | null;
   currentStep?: number;
-  agentName?: string;
-  agentDescription?: string;
-  agentProvideSummary?: boolean;
   isEditingAgent?: boolean;
   dutyContent?: string;
   constraintContent?: string;
@@ -55,12 +49,7 @@ export default function GuideSteps({
   systemPrompt,
   businessLogic,
   selectedTools,
-  selectedAgents,
-  mainAgentId,
   currentStep,
-  agentName = '',
-  agentDescription = '',
-  agentProvideSummary = false,
   isEditingAgent = false,
   dutyContent = '',
   constraintContent = '',
@@ -69,10 +58,6 @@ export default function GuideSteps({
 }: GuideStepsProps) {
   const { t } = useTranslation('common');
   const GUIDE_STEPS = getGuideSteps(t);
-
-  useEffect(() => {
-    console.log('Current mainAgentId:', mainAgentId);
-  }, [mainAgentId]);
 
   // Get Current Step
   const getCurrentStep = () => {

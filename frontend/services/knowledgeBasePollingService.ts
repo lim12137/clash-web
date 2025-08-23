@@ -265,7 +265,6 @@ class KnowledgeBasePollingService {
   triggerDocumentsUpdate(kbId: string, documents: Document[]): void {
     // If there is an active knowledge base and update knowledge base doesn't match active one, ignore this update
     if (this.activeKnowledgeBaseId !== null && this.activeKnowledgeBaseId !== kbId) {
-      console.log(`Knowledge base ${kbId} is not current active knowledge base, ignoring document update`);
       return;
     }
     

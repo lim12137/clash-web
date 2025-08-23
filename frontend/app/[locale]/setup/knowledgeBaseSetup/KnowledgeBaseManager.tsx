@@ -436,9 +436,7 @@ const getAuthHeaders = () => {
       message.warning(t('document.message.noFiles'));
       return;
     }
-
     const filesToUpload = uploadFiles;
-    console.log("Uploading files:", filesToUpload);
 
     if (isCreatingMode) {
       if (!newKbName || newKbName.trim() === "") {

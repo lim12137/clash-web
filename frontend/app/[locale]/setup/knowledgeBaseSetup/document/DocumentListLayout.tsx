@@ -114,9 +114,6 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(({
   const titleBarHeight = UI_CONFIG.TITLE_BAR_HEIGHT;
   const uploadHeight = UI_CONFIG.UPLOAD_COMPONENT_HEIGHT;
   
-  // 计算文档列表区域高度 = 总高度 - 标题栏高度 - 上传区域高度
-  const contentHeight = `calc(${containerHeight} - ${titleBarHeight} - ${uploadHeight})`;
-
   // 按状态和日期排序的文档列表
   const sortedDocuments = sortByStatusAndDate(documents);
 

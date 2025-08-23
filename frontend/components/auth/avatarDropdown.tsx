@@ -2,9 +2,9 @@
 
 import { useAuth } from "@/hooks/useAuth"
 import { Dropdown, Avatar, Spin, Button, Tag, ConfigProvider, App } from "antd"
-import { UserOutlined, SettingOutlined, LogoutOutlined, UserSwitchOutlined, LoginOutlined, UserAddOutlined } from "@ant-design/icons"
+import { UserOutlined, LogoutOutlined, LoginOutlined, UserAddOutlined } from "@ant-design/icons"
 import { getRoleColor } from "@/lib/auth"
-import type { ItemType, MenuItemType } from "antd/es/menu/interface"
+import type { ItemType } from "antd/es/menu/interface"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import React from "react"

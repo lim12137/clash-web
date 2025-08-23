@@ -509,9 +509,6 @@ export default function BusinessLogicConfig({
       }, 100); // Increase delay to ensure state updates are processed
 
       // First set right-side name description box data to ensure immediate display
-      console.log('setAgentName function exists:', !!setAgentName);
-      console.log('setAgentDescription function exists:', !!setAgentDescription);
-
       setAgentName?.(agentDetail.name || '');
       setAgentDescription?.(agentDetail.description || '');
       setAgentDisplayName?.(agentDetail.display_name || '');
@@ -549,8 +546,6 @@ export default function BusinessLogicConfig({
         setSelectedTools([]);
         setEnabledToolIds([]);
       }
-      
-      message.success(t('businessLogic.config.message.agentInfoLoaded'));
     } catch (error) {
       console.error(t('debug.console.loadAgentDetailsFailed'), error);
       message.error(t('businessLogic.config.error.agentDetailFailed'));

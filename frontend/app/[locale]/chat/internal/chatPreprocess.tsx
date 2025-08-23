@@ -2,7 +2,6 @@ import { AgentStep } from '@/types/chat'
 import { conversationService } from '@/services/conversationService';
 import { storageService } from '@/services/storageService';
 import { FilePreview } from "@/app/chat/layout/chatInput"
-import { useTranslation } from 'react-i18next';
 
 // Step ID Counter
 const stepIdCounter = {current: 0};
