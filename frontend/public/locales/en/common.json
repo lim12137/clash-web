@@ -590,8 +590,6 @@
     "setup.header.button.back": "Back to Home",
     "setup.header.title": "Quick Setup",
     "setup.header.description": "Smartly build any assistant, accurately solve every challenge",
-    "setup.header.tooltip.lastChecked": "Last checked: {{time}}",
-    "setup.header.tooltip.checkStatus": "Click to check connection status",
     "setup.navigation.button.previous": "Previous",
     "setup.navigation.button.next": "Next",
     "setup.navigation.button.complete": "Complete Setup",
