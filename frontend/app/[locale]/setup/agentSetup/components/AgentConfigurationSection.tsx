@@ -758,7 +758,7 @@ export default function AgentConfigurationSection({
       
       {/* Action Buttons - Fixed at bottom - Only show in editing mode */}
       {isEditingMode && (
-        <div className="flex justify-center mt-4 flex-shrink-0 border-t border-gray-200 bg-white agent-config-buttons">
+        <div className="flex justify-center mb-4 flex-shrink-0 agent-config-buttons">
           {/* <div className="flex gap-2 lg:gap-3 flex-wrap justify-center"> */}
           <div className="flex gap-1 sm:gap-2 lg:gap-3 flex-nowrap justify-center w-full">
             {/* Debug Button - Always show in editing mode */}
