@@ -5,11 +5,11 @@ import { App } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { TFunction } from 'i18next'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import SubAgentPool from '../components/SubAgentPool'
-import { MemoizedToolPool } from '../components/ToolPool'
-import DeleteConfirmModal from '../components/DeleteConfirmModal'
-import CollaborativeAgentDisplay from '../components/CollaborativeAgentDisplay'
-import PromptManager from '../components/PromptManager'
+import SubAgentPool from './SubAgentPool'
+import { MemoizedToolPool } from './ToolPool'
+import DeleteConfirmModal from './DeleteConfirmModal'
+import CollaborativeAgentDisplay from './CollaborativeAgentDisplay'
+import PromptManager from './PromptManager'
 import {
   Agent,
   OpenAIModel,
