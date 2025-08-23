@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import BusinessLogicConfig from './contexts/AgentManagementConfig'
+import BusinessLogicConfig from './components/AgentManagementConfig'
 import DebugConfig from './components/DebugConfig'
 import GuideSteps from './components/GuideSteps'
 import { Row, Col, Drawer, App } from 'antd'
