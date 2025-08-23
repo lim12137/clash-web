@@ -28,12 +28,11 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 import { ConversationListItem, ApiConversationDetail } from '@/types/chat'
-import { ChatMessageType, AgentStep } from '@/types/chat'
+import { ChatMessageType } from '@/types/chat'
 import { handleStreamResponse } from "@/app/chat/streaming/chatStreamHandler"
 import { extractUserMsgFromResponse, extractAssistantMsgFromResponse } from "./extractMsgFromHistoryResponse"
 
 import { X } from "lucide-react"
-import { getUrlParam } from "@/lib/utils";
 
 const stepIdCounter = {current: 0};
 
@@ -47,7 +46,6 @@ export function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false)
   const initialized = useRef(false)
   const { t } = useTranslation('common');
-  const [appName, setAppName] = useState(t("chatInterface.newApp"))
   const [conversationTitle, setConversationTitle] = useState(t("chatInterface.newConversation"))
   const [conversationId, setConversationId] = useState<number>(0)
   const [conversationList, setConversationList] = useState<ConversationListItem[]>([])
@@ -157,10 +155,6 @@ export function ChatInterface() {
     if (!initialized.current) {
       initialized.current = true
 
-      if (appConfig.appName) {
-        setAppName(appConfig.appName)
-      }
-
       // Get conversation history list, but don't auto-select the latest conversation
       fetchConversationList()
         .then((dialogData) => {
@@ -234,7 +228,6 @@ export function ChatInterface() {
     // Handle file upload
     let uploadedFileUrls: Record<string, string> = {};
     let objectNames: Record<string, string> = {}; // Add object name mapping
-    let uploadError: string | undefined;
     
     if (attachments.length > 0) {
       // Show loading state
@@ -244,7 +237,6 @@ export function ChatInterface() {
       const uploadResult = await uploadAttachments(attachments, t);
       uploadedFileUrls = uploadResult.uploadedFileUrls;
       objectNames = uploadResult.objectNames; // Get object name mapping
-      uploadError = uploadResult.error;
     }
 
     // Use preprocessing function to create message attachments
@@ -367,7 +359,6 @@ export function ChatInterface() {
 
       // If there are attachment files, preprocess first
       let finalQuery = userMessage.content;
-      let currentStep: AgentStep | null = null;
       // Declare a variable to save file description information
       let fileDescriptionsMap: Record<string, string> = {};
 
@@ -784,7 +775,6 @@ export function ChatInterface() {
     // When user views conversation, clear completed state
     setCompletedConversations(prev => {
       const newSet = new Set(prev);
-      const wasCompleted = newSet.has(dialog.conversation_id);
       newSet.delete(dialog.conversation_id);
       return newSet;
     });
@@ -1272,7 +1262,6 @@ export function ChatInterface() {
       await conversationService.updateOpinion({ message_id: messageId, opinion });
       setSessionMessages((prev) => {
         const newMessages = { ...prev };
-        const lastMsg = newMessages[conversationId]?.[newMessages[conversationId].length - 1];
         return newMessages;
       });
     } catch (error) {

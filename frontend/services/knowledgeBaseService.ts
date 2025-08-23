@@ -8,18 +8,10 @@ const fetch: typeof fetchWithAuth = fetchWithAuth;
 
 // Knowledge base service class
 class KnowledgeBaseService {
-  // 健康检查缓存
-  private healthCheckCache: { isHealthy: boolean; timestamp: number } | null = null;
-  // 健康检查缓存有效期（毫秒）
-  private healthCheckCacheDuration = 60000; // 60秒
-
   // Check Elasticsearch health (force refresh, no caching for setup page)
   async checkHealth(): Promise<boolean> {
     try {
       // 在 setup 页面中强制刷新，不使用缓存
-      console.log("强制刷新健康检查，不使用缓存");
-      this.healthCheckCache = null; // 清除缓存
-
       const response = await fetch(API_ENDPOINTS.knowledgeBase.health, {
         headers: getAuthHeaders()
       });

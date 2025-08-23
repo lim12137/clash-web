@@ -361,7 +361,6 @@ export default function AgentConfig() {
     
     // When starting to edit agent, set agent name and description to the right-side name description box
     if (isEditing && agent) {
-      console.log('Setting agent name and description:', agent.name, agent.description);
       setAgentName(agent.name || '')
       setAgentDescription(agent.description || '')
       // If creating new agent, cache current content first, then clear
@@ -469,12 +468,7 @@ export default function AgentConfig() {
                     systemPrompt={systemPrompt}
                     businessLogic={businessLogic}
                     selectedTools={selectedTools}
-                    selectedAgents={selectedAgents}
-                    mainAgentId={mainAgentId}
                     currentStep={currentGuideStep}
-                    agentName={newAgentName}
-                    agentDescription={newAgentDescription}
-                    agentProvideSummary={newAgentProvideSummary}
                     isEditingAgent={isEditingAgent}
                     dutyContent={dutyContent}
                     constraintContent={constraintContent}

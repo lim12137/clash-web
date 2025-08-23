@@ -29,7 +29,7 @@ export interface AgentConfigurationSectionProps {
   onModelChange?: (value: string) => void;
   onMaxStepChange?: (value: number | null) => void;
   onSavePrompt?: () => void;
-  onExpandCard?: (title: string, content: string, index: number) => void;
+  onExpandCard?: (index: number) => void;
   isGeneratingAgent?: boolean;
   // Add new props for action buttons
   onDebug?: () => void;
@@ -444,12 +444,7 @@ export default function AgentConfigurationSection({
 
   const renderDutyContent = () => (
     <div className="relative p-4">
-      <button
-              onClick={() => {
-        // Use the latest content, prioritize content from props, if not available use local state
-        const currentContent = dutyContent !== undefined ? dutyContent : localDutyContent;
-        onExpandCard?.(t('systemPrompt.card.duty.title'), currentContent, 2);
-      }}
+      <button onClick={() => onExpandCard?.(2)}
         className="absolute top-2 right-4 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
         style={{ border: "none" }}
         title={t('systemPrompt.button.expand')}
@@ -473,12 +468,7 @@ export default function AgentConfigurationSection({
 
   const renderConstraintContent = () => (
     <div className="relative p-4">
-      <button
-              onClick={() => {
-        // Use the latest content, prioritize content from props, if not available use local state
-        const currentContent = constraintContent !== undefined ? constraintContent : localConstraintContent;
-        onExpandCard?.(t('systemPrompt.card.constraint.title'), currentContent, 3);
-      }}
+      <button onClick={() => onExpandCard?.(3)}
         className="absolute top-2 right-4 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
         style={{ border: "none" }}
         title={t('systemPrompt.button.expand')}
@@ -502,12 +492,7 @@ export default function AgentConfigurationSection({
 
   const renderFewShotsContent = () => (
     <div className="relative p-4">
-      <button
-              onClick={() => {
-        // Use the latest content, prioritize content from props, if not available use local state
-        const currentContent = fewShotsContent !== undefined ? fewShotsContent : localFewShotsContent;
-        onExpandCard?.(t('systemPrompt.card.fewShots.title'), currentContent, 4);
-      }}
+      <button onClick={() => onExpandCard?.(4)}
         className="absolute top-2 right-4 z-10 p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
         style={{ border: "none" }}
         title={t('systemPrompt.button.expand')}

@@ -302,7 +302,7 @@
 
     "guide.steps.createOrEditAgent.title": "新建/修改Agent",
     "guide.steps.createOrEditAgent.description": "用于管理所有agent信息",
-    "guide.steps.selectCollaborativeAgent.title": "选择协作Agent（可选）",
+    "guide.steps.selectCollaborativeAgent.title": "选择协作Agent",
     "guide.steps.selectCollaborativeAgent.description": "可以帮助当前agent完成任务",
     "guide.steps.selectTools.title": "选择使用工具",
     "guide.steps.selectTools.description": "agent可以调用工具完成任务",
@@ -398,7 +398,6 @@
     "agent.action.importing": "导入中...",
     "agent.action.import": "导入Agent",
     "agent.message.saveSuccess": "Agent \"{name}\" {action}成功",
-    "agent.message.infoLoaded": "Agent信息已加载",
     "agent.message.statusUpdated": "Agent \"{name}\" {status}",
     "agent.message.modelUpdateSuccess": "模型更新成功",
     "agent.message.maxStepsUpdateSuccess": "最大步骤数更新成功",
@@ -822,7 +821,6 @@
     "businessLogic.config.modal.button.cancel": "取消",
     "businessLogic.config.modal.button.confirm": "确认删除",
     "businessLogic.config.message.agentCreated": "Agent {{name}} {{action}}成功",
-    "businessLogic.config.message.agentInfoLoaded": "Agent信息已加载",
     "businessLogic.config.message.agentStatusUpdated": "Agent {{name}} {{status}}",
     "businessLogic.config.message.modelUpdateSuccess": "模型更新成功",
     "businessLogic.config.message.maxStepsUpdateSuccess": "最大步骤数更新成功",
@@ -1133,7 +1131,7 @@
         "inputPlaceholder": "请输入记忆内容"
     },
     "collaborativeAgent": {
-        "title": "协作Agent",
+        "title": "选择 协作Agent",
         "button": {
             "add": "添加协作Agent"
         },
