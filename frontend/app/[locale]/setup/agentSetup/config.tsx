@@ -4,15 +4,14 @@ import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import BusinessLogicConfig from './components/AgentManagementConfig'
 import DebugConfig from './components/DebugConfig'
-import GuideSteps from './components/GuideSteps'
-import { Row, Col, Drawer, App } from 'antd'
+
+import { Drawer, App } from 'antd'
 import { fetchTools, fetchAgentList, exportAgent, deleteAgent } from '@/services/agentConfigService'
 import { generatePromptStream } from '@/services/promptService'
 import { OpenAIModel } from '@/types/agent'
 import { updateToolList } from '@/services/mcpService'
 import { 
   SETUP_PAGE_CONTAINER, 
-  THREE_COLUMN_LAYOUT,
   STANDARD_CARD,
 } from '@/lib/layoutConstants'
 import '../../i18n'
@@ -26,12 +25,13 @@ const LAYOUT_CONFIG = {
 
 /**
  * Agent configuration main component
+ * Provides a full-width interface for agent business logic configuration
+ * Follows SETUP_PAGE_CONTAINER layout standards for consistent height and spacing
  */
 export default function AgentConfig() {
   const { t } = useTranslation('common')
   const { message } = App.useApp()
   const [businessLogic, setBusinessLogic] = useState("")
-  const [systemPrompt, setSystemPrompt] = useState("")
   const [selectedTools, setSelectedTools] = useState<any[]>([])
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false)
   const [isCreatingNewAgent, setIsCreatingNewAgent] = useState(false)
@@ -43,7 +43,7 @@ export default function AgentConfig() {
   const [loadingAgents, setLoadingAgents] = useState(false)
 
   const [enabledAgentIds, setEnabledAgentIds] = useState<number[]>([])
-  const [currentGuideStep, setCurrentGuideStep] = useState<number | undefined>(undefined)
+
   const [isEditingAgent, setIsEditingAgent] = useState(false)
   const [editingAgent, setEditingAgent] = useState<any>(null)
   
@@ -335,9 +335,7 @@ export default function AgentConfig() {
     } 
     
     // Always reset these states regardless of creation mode
-    setSystemPrompt('');
     setSelectedTools([]);
-    setCurrentGuideStep(undefined);
     
     // Reset the main agent configuration related status
     if (!isCreatingNewAgent) {
@@ -441,47 +439,16 @@ export default function AgentConfig() {
 
   return (
     <App>
-      <div className="w-full h-full mx-auto" style={{ 
+      <div className="w-full mx-auto" style={{ 
         maxWidth: SETUP_PAGE_CONTAINER.MAX_WIDTH,
-        padding: `0 ${SETUP_PAGE_CONTAINER.HORIZONTAL_PADDING}`
+        height: SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT
       }}>
-        <div className="w-full h-full">
-          <Row gutter={THREE_COLUMN_LAYOUT.GUTTER} className="h-full">
-            {/* Left Timeline Guide */}
-            <Col xs={24} md={24} lg={4} xl={4} className="h-full">
-              <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden h-[300px] lg:h-[82vh]" style={{
-                padding: STANDARD_CARD.PADDING,
-                overflowY: "auto",
-                overflowX: "hidden"
-              }}>
-                  <GuideSteps
-                    isCreatingNewAgent={isCreatingNewAgent}
-                    systemPrompt={systemPrompt}
-                    businessLogic={businessLogic}
-                    selectedTools={selectedTools}
-                    currentStep={currentGuideStep}
-                    isEditingAgent={isEditingAgent}
-                    dutyContent={dutyContent}
-                    constraintContent={constraintContent}
-                    fewShotsContent={fewShotsContent}
-                    enabledAgentIds={enabledAgentIds}
-                  />
-              </div>
-            </Col>
-
-            {/* Middle and Right Panel Container */}
-            <Col xs={24} md={24} lg={20} xl={20}>
-              <div className="bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden h-[calc(100vh-200px)] lg:h-[82vh]" style={{
-                overflowY: "auto",
-                overflowX: "hidden"
-              }}>
-                  {/* Middle Panel - Business Logic Configuration */}
-                  <div className="flex-1 min-h-0" style={{
-                    padding: STANDARD_CARD.PADDING,
-                    overflowY: "auto",
-                    overflowX: "hidden"
-                  }}>
-                    <BusinessLogicConfig 
+        <div className={STANDARD_CARD.BASE_CLASSES} style={{
+          height: "100%",
+          ...STANDARD_CARD.CONTENT_SCROLL
+        }}>
+          <div style={{ padding: STANDARD_CARD.PADDING, height: "100%" }}>
+            <BusinessLogicConfig 
                       businessLogic={businessLogic}
                       setBusinessLogic={(value) => {
                         setBusinessLogic(value);
@@ -491,7 +458,6 @@ export default function AgentConfig() {
                       }}
                       selectedTools={selectedTools}
                       setSelectedTools={setSelectedTools}
-                      setSystemPrompt={setSystemPrompt}
                       isCreatingNewAgent={isCreatingNewAgent}
                       setIsCreatingNewAgent={setIsCreatingNewAgent}
                       mainAgentModel={mainAgentModel}
@@ -554,7 +520,6 @@ export default function AgentConfig() {
                     // SystemPromptDisplay related props
                       onDebug={() => {
                         setIsDebugDrawerOpen(true);
-                        setCurrentGuideStep(isCreatingNewAgent ? 5 : 5);
                       }}
                     getCurrentAgentId={getCurrentAgentId}
                       onGenerateAgent={handleGenerateAgent}
@@ -563,34 +528,31 @@ export default function AgentConfig() {
                       editingAgent={editingAgent}
                       onExitCreation={handleExitCreation}
                     />
-                </div>
-              </div>
-            </Col>
-          </Row>
-        </div>
-
-        {/* Commissioning drawer */}
-        <Drawer
-          title={t('agent.debug.title')}
-          placement="right"
-          onClose={() => setIsDebugDrawerOpen(false)}
-          open={isDebugDrawerOpen}
-          width={LAYOUT_CONFIG.DRAWER_WIDTH}
-          styles={{
-            body: {
-              padding: 0,
-              height: '100%',
-              overflow: 'hidden'
-            }
-          }}
-        >
-          <div className="h-full">
-            <DebugConfig 
-              agentId={getCurrentAgentId()}
-            />
           </div>
-        </Drawer>
+        </div>
       </div>
+
+      {/* Commissioning drawer */}
+      <Drawer
+        title={t('agent.debug.title')}
+        placement="right"
+        onClose={() => setIsDebugDrawerOpen(false)}
+        open={isDebugDrawerOpen}
+        width={LAYOUT_CONFIG.DRAWER_WIDTH}
+        styles={{
+          body: {
+            padding: 0,
+            height: '100%',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <div className="h-full">
+          <DebugConfig 
+            agentId={getCurrentAgentId()}
+          />
+        </div>
+      </Drawer>
     </App>
   )
 } 
