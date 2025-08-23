@@ -31,7 +31,6 @@ export interface BusinessLogicConfigProps {
   setBusinessLogic: (value: string) => void;
   selectedTools: Tool[];
   setSelectedTools: (tools: Tool[]) => void;
-  setSystemPrompt: (value: string) => void;
   isCreatingNewAgent: boolean;
   setIsCreatingNewAgent: (value: boolean) => void;
   mainAgentModel: OpenAIModel;
@@ -54,14 +53,12 @@ export interface BusinessLogicConfigProps {
   setConstraintContent: (value: string) => void;
   fewShotsContent: string;
   setFewShotsContent: (value: string) => void;
-  // Add new props for agent name and description
   agentName?: string;
   setAgentName?: (value: string) => void;
   agentDescription?: string;
   setAgentDescription?: (value: string) => void;
   agentDisplayName?: string;
   setAgentDisplayName?: (value: string) => void;
-  // Add new prop for generating agent state
   isGeneratingAgent?: boolean;
   // SystemPromptDisplay related props
   onDebug?: () => void;
@@ -82,7 +79,6 @@ export default function BusinessLogicConfig({
   setBusinessLogic,
   selectedTools,
   setSelectedTools,
-  setSystemPrompt,
   isCreatingNewAgent,
   setIsCreatingNewAgent,
   mainAgentModel,
@@ -105,14 +101,12 @@ export default function BusinessLogicConfig({
   setConstraintContent,
   fewShotsContent,
   setFewShotsContent,
-  // Add new props for agent name and description
   agentName,
   setAgentName,
   agentDescription,
   setAgentDescription,
   agentDisplayName,
   setAgentDisplayName,
-  // Add new prop for generating agent state
   isGeneratingAgent = false,
   // SystemPromptDisplay related props
   onDebug,
@@ -234,7 +228,6 @@ export default function BusinessLogicConfig({
       if (!isEditingAgent) {
         // Only clear and get new Agent configuration in creating mode
         setBusinessLogic('');
-        setSystemPrompt(''); // Also clear the system prompt
         fetchSubAgentIdAndEnableToolList(t);
       } else {
         // In edit mode, data is loaded in handleEditAgent, here validate the form
@@ -245,7 +238,6 @@ export default function BusinessLogicConfig({
       // Only refresh list when exiting creation mode in non-editing mode to avoid flicker when exiting editing mode
       if (!isEditingAgent && hasInitialized.current) {
         setBusinessLogic('');
-        setSystemPrompt(''); // Also clear the system prompt
         setMainAgentModel(OpenAIModel.MainModel);
         setMainAgentMaxStep(5);
         // Delay refreshing agent list to avoid jumping
@@ -406,7 +398,6 @@ export default function BusinessLogicConfig({
           setBusinessLogic('');
           setSelectedTools([]);
           setEnabledToolIds([]);
-          setSystemPrompt('');
           // Clear right-side name description box
           setAgentName?.('');
           setAgentDescription?.('');
@@ -518,8 +509,6 @@ export default function BusinessLogicConfig({
         setSelectedTools([]);
         setEnabledToolIds([]);
       }
-      
-      message.success(t('businessLogic.config.message.agentInfoLoaded'));
     } catch (error) {
       console.error(t('debug.console.loadAgentDetailsFailed'), error);
       message.error(t('businessLogic.config.error.agentDetailFailed'));
@@ -684,11 +673,11 @@ export default function BusinessLogicConfig({
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-full w-full gap-0 justify-between relative">
+      <div className="flex flex-col h-full gap-0 justify-between relative ml-2 mr-2">
         {/* Lower part: Agent pool + Agent capability configuration + System Prompt */}
-        <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0 pb-4 pr-4 pl-4">
-          {/* Left column: Always show SubAgentPool - 30% width */}
-          <div className="w-full lg:w-[30%] h-full lg:flex-shrink-0">
+        <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0 max-w-full">
+          {/* Left column: Always show SubAgentPool - Equal flex width */}
+          <div className="w-full lg:w-auto lg:flex-1 h-full overflow-hidden">
             <SubAgentPool
               onEditAgent={(agent) => handleEditAgent(agent, t)}
               onCreateNewAgent={handleCreateNewAgent}
@@ -703,8 +692,8 @@ export default function BusinessLogicConfig({
             />
           </div>
 
-          {/* Middle column: Agent capability configuration - 40% width */}
-          <div className="w-full lg:w-[40%] min-h-0 flex flex-col h-full">
+          {/* Middle column: Agent capability configuration - Equal flex width */}
+          <div className="w-full lg:w-auto lg:flex-1 h-full flex flex-col overflow-hidden">
               {/* Header: Configure Agent Capabilities */}
             <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center">
@@ -716,7 +705,7 @@ export default function BusinessLogicConfig({
               </div>
 
               {/* Content: ScrollArea with two sections */}
-            <div className="flex-1 min-h-0 overflow-hidden border-t pt-2">
+            <div className="flex-1 overflow-hidden border-t pt-2">
                 <div className="flex flex-col h-full" style={{ gap: '16px' }}>
                   {/* Upper section: Collaborative Agent Display - fixed area */}
                   <CollaborativeAgentDisplay
@@ -731,7 +720,7 @@ export default function BusinessLogicConfig({
                   />
 
                   {/* Lower section: Tool Pool - flexible area */}
-                  <div className="flex-1 min-h-0 overflow-hidden">
+                  <div className="flex-1 overflow-hidden">
                     <MemoizedToolPool
                       selectedTools={isLoadingTools ? [] : selectedTools}
                       onSelectTool={(tool, isSelected) => {
@@ -755,8 +744,8 @@ export default function BusinessLogicConfig({
             </div>
           </div>
 
-          {/* Right column: System Prompt Display - 30% width */}
-          <div className="w-full lg:w-[30%] h-full lg:flex-shrink-0">
+          {/* Right column: System Prompt Display - Equal flex width */}
+          <div className="w-full lg:w-auto lg:flex-1 h-full overflow-hidden">
             <PromptManager
               onDebug={onDebug || (() => {})}
               agentId={getCurrentAgentId ? getCurrentAgentId() : (isEditingAgent && editingAgent ? Number(editingAgent.id) : (isCreatingNewAgent && mainAgentId ? Number(mainAgentId) : undefined))}
