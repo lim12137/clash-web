@@ -581,8 +581,6 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       }
     }))
 
-    console.log(`handleModelChange: ${category}, ${option}, ${displayName}`)
-
     // 如果有值，清除错误状态
     if (displayName) {
       setErrorFields(prev => ({

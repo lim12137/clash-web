@@ -11,10 +11,10 @@ import { storageService } from '@/services/storageService';
 import { useAuth } from "@/hooks/useAuth"
 import { useTranslation } from 'react-i18next';
 
-import { ChatSidebar } from "@/app/chat/layout/chatLeftSidebar"
-import { FilePreview } from "@/app/chat/layout/chatInput"
-import { ChatHeader } from "@/app/chat/layout/chatHeader"
-import { ChatRightPanel } from "@/app/chat/layout/chatRightPanel"
+import { ChatSidebar } from "@/app/[locale]/chat/components/chatLeftSidebar"
+import { FilePreview } from "@/app/[locale]/chat/components/chatInput"
+import { ChatHeader } from "@/app/[locale]/chat/components/chatHeader"
+import { ChatRightPanel } from "@/app/[locale]/chat/components/chatRightPanel"
 import { ChatStreamMain } from "@/app/chat/streaming/chatStreamMain"
 
 import {
