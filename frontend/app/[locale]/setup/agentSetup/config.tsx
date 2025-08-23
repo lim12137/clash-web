@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import BusinessLogicConfig from './AgentManagementConfig'
-import DebugConfig from './DebugConfig'
+import BusinessLogicConfig from './contexts/AgentManagementConfig'
+import DebugConfig from './components/DebugConfig'
 import GuideSteps from './components/GuideSteps'
 import { Row, Col, Drawer, App } from 'antd'
 import { fetchTools, fetchAgentList, exportAgent, deleteAgent } from '@/services/agentConfigService'
 import { generatePromptStream } from '@/services/promptService'
-import { OpenAIModel } from '@/app/setup/agentSetup/ConstInterface'
+import { OpenAIModel } from '@/types/agent'
 import { updateToolList } from '@/services/mcpService'
 import { 
   SETUP_PAGE_CONTAINER, 
@@ -32,7 +32,6 @@ export default function AgentConfig() {
   const { message } = App.useApp()
   const [businessLogic, setBusinessLogic] = useState("")
   const [systemPrompt, setSystemPrompt] = useState("")
-  const [selectedAgents, setSelectedAgents] = useState<any[]>([])
   const [selectedTools, setSelectedTools] = useState<any[]>([])
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false)
   const [isCreatingNewAgent, setIsCreatingNewAgent] = useState(false)
@@ -45,9 +44,6 @@ export default function AgentConfig() {
 
   const [enabledAgentIds, setEnabledAgentIds] = useState<number[]>([])
   const [currentGuideStep, setCurrentGuideStep] = useState<number | undefined>(undefined)
-  const [newAgentName, setNewAgentName] = useState("")
-  const [newAgentDescription, setNewAgentDescription] = useState("")
-  const [newAgentProvideSummary, setNewAgentProvideSummary] = useState(false)
   const [isEditingAgent, setIsEditingAgent] = useState(false)
   const [editingAgent, setEditingAgent] = useState<any>(null)
   
@@ -340,13 +336,8 @@ export default function AgentConfig() {
     
     // Always reset these states regardless of creation mode
     setSystemPrompt('');
-    setSelectedAgents([]);
     setSelectedTools([]);
     setCurrentGuideStep(undefined);
-    // Reset agent info states
-    setNewAgentName('');
-    setNewAgentDescription('');
-    setNewAgentProvideSummary(true);
     
     // Reset the main agent configuration related status
     if (!isCreatingNewAgent) {
@@ -498,10 +489,8 @@ export default function AgentConfig() {
                           setNewAgentCache(prev => ({ ...prev, businessLogic: value }));
                         }
                       }}
-                      setSelectedAgents={setSelectedAgents}
                       selectedTools={selectedTools}
                       setSelectedTools={setSelectedTools}
-                      systemPrompt={systemPrompt}
                       setSystemPrompt={setSystemPrompt}
                       isCreatingNewAgent={isCreatingNewAgent}
                       setIsCreatingNewAgent={setIsCreatingNewAgent}
@@ -517,9 +506,6 @@ export default function AgentConfig() {
                       setSubAgentList={setSubAgentList}
                       enabledAgentIds={enabledAgentIds}
                       setEnabledAgentIds={setEnabledAgentIds}
-                      setNewAgentName={setNewAgentName}
-                      setNewAgentDescription={setNewAgentDescription}
-                      setNewAgentProvideSummary={setNewAgentProvideSummary}
                       onEditingStateChange={handleEditingStateChange}
                       onToolsRefresh={handleToolsRefresh}
                       dutyContent={dutyContent}

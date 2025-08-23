@@ -5,16 +5,16 @@ import { App } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { TFunction } from 'i18next'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import SubAgentPool from './components/SubAgentPool'
-import { MemoizedToolPool } from './components/ToolPool'
-import DeleteConfirmModal from './components/DeleteConfirmModal'
-import CollaborativeAgentDisplay from './components/CollaborativeAgentDisplay'
-import PromptManager from './components/PromptManager'
+import SubAgentPool from '../components/SubAgentPool'
+import { MemoizedToolPool } from '../components/ToolPool'
+import DeleteConfirmModal from '../components/DeleteConfirmModal'
+import CollaborativeAgentDisplay from '../components/CollaborativeAgentDisplay'
+import PromptManager from '../components/PromptManager'
 import {
   Agent,
   OpenAIModel,
   Tool,
-} from './ConstInterface'
+} from '@/types/agent'
 import {
   getCreatingSubAgentId,
   fetchAgentList,
@@ -29,10 +29,8 @@ import {
 export interface BusinessLogicConfigProps {
   businessLogic: string;
   setBusinessLogic: (value: string) => void;
-  setSelectedAgents: (agents: Agent[]) => void;
   selectedTools: Tool[];
   setSelectedTools: (tools: Tool[]) => void;
-  systemPrompt: string;
   setSystemPrompt: (value: string) => void;
   isCreatingNewAgent: boolean;
   setIsCreatingNewAgent: (value: boolean) => void;
@@ -48,9 +46,6 @@ export interface BusinessLogicConfigProps {
   setSubAgentList: (agents: Agent[]) => void;
   enabledAgentIds: number[];
   setEnabledAgentIds: (ids: number[]) => void;
-  setNewAgentName: (value: string) => void;
-  setNewAgentDescription: (value: string) => void;
-  setNewAgentProvideSummary: (value: boolean) => void;
   onEditingStateChange?: (isEditing: boolean, agent: any) => void;
   onToolsRefresh: () => void;
   dutyContent: string;
@@ -85,10 +80,8 @@ export interface BusinessLogicConfigProps {
 export default function BusinessLogicConfig({
   businessLogic,
   setBusinessLogic,
-  setSelectedAgents,
   selectedTools,
   setSelectedTools,
-  systemPrompt,
   setSystemPrompt,
   isCreatingNewAgent,
   setIsCreatingNewAgent,
@@ -104,9 +97,6 @@ export default function BusinessLogicConfig({
   setSubAgentList,
   enabledAgentIds,
   setEnabledAgentIds,
-  setNewAgentName,
-  setNewAgentDescription,
-  setNewAgentProvideSummary,
   onEditingStateChange,
   onToolsRefresh,
   dutyContent,
@@ -241,18 +231,11 @@ export default function BusinessLogicConfig({
   // Listen for changes in the creation of a new Agent
   useEffect(() => {
     if (isCreatingNewAgent) {
-      // When switching to the creation of a new Agent, clear the relevant status
-      setSelectedAgents([]);
-      
       if (!isEditingAgent) {
         // Only clear and get new Agent configuration in creating mode
         setBusinessLogic('');
         setSystemPrompt(''); // Also clear the system prompt
         fetchSubAgentIdAndEnableToolList(t);
-        // Reset new agent info states when entering creating mode
-        setNewAgentName('');
-        setNewAgentDescription('');
-        setNewAgentProvideSummary(true);
       } else {
         // In edit mode, data is loaded in handleEditAgent, here validate the form
         console.log('Edit mode useEffect - Do not clear data'); // Debug information
@@ -326,13 +309,7 @@ export default function BusinessLogicConfig({
       setIsEditingAgent(false);
       setEditingAgent(null);
 
-      // Reset agent info states
-      setNewAgentName('');
-      setNewAgentDescription('');
-      setNewAgentProvideSummary(true);
-
       // Note: Content clearing is handled by onExitCreation above
-
       // Delay clearing tool and collaborative agent selection to avoid jumping
       setTimeout(() => {
         setSelectedTools([]);
@@ -351,7 +328,6 @@ export default function BusinessLogicConfig({
       // If in editing mode, clear related states first, then update editing state to avoid flickering
       // First clear tool and agent selection states
       setSelectedTools([]);
-      setSelectedAgents([]);
       setEnabledToolIds([]);
       setEnabledAgentIds([]);
 
@@ -381,7 +357,7 @@ export default function BusinessLogicConfig({
   };
 
   // Handle the creation of a new Agent
-  const handleSaveNewAgent = async (name: string, description: string, model: string, max_step: number, prompt: string, business_description: string) => {
+  const handleSaveNewAgent = async (name: string, description: string, model: string, max_step: number, business_description: string) => {
     if (name.trim() && mainAgentId) {
       try {
         let result;
@@ -430,9 +406,6 @@ export default function BusinessLogicConfig({
           setBusinessLogic('');
           setSelectedTools([]);
           setEnabledToolIds([]);
-          setNewAgentName('');
-          setNewAgentDescription('');
-          setNewAgentProvideSummary(true);
           setSystemPrompt('');
           // Clear right-side name description box
           setAgentName?.('');
@@ -480,7 +453,6 @@ export default function BusinessLogicConfig({
       agentDescription || '',
       mainAgentModel, 
       mainAgentMaxStep,
-      systemPrompt,
       businessLogic
     );
   };
@@ -509,6 +481,9 @@ export default function BusinessLogicConfig({
       }, 100); // Increase delay to ensure state updates are processed
 
       // First set right-side name description box data to ensure immediate display
+      console.log('setAgentName function exists:', !!setAgentName);
+      console.log('setAgentDescription function exists:', !!setAgentDescription);
+
       setAgentName?.(agentDetail.name || '');
       setAgentDescription?.(agentDetail.description || '');
       setAgentDisplayName?.(agentDetail.display_name || '');
@@ -517,9 +492,6 @@ export default function BusinessLogicConfig({
       onEditingStateChange?.(true, agentDetail);
       
       // Load Agent data to interface
-      setNewAgentName(agentDetail.name);
-      setNewAgentDescription(agentDetail.description);
-      setNewAgentProvideSummary(agentDetail.provide_run_summary);
       setMainAgentModel(agentDetail.model as OpenAIModel);
       setMainAgentMaxStep(agentDetail.max_step);
       setBusinessLogic(agentDetail.business_description || '');
@@ -546,6 +518,8 @@ export default function BusinessLogicConfig({
         setSelectedTools([]);
         setEnabledToolIds([]);
       }
+      
+      message.success(t('businessLogic.config.message.agentInfoLoaded'));
     } catch (error) {
       console.error(t('debug.console.loadAgentDetailsFailed'), error);
       message.error(t('businessLogic.config.error.agentDetailFailed'));
@@ -668,9 +642,6 @@ export default function BusinessLogicConfig({
     } else {
       setIsCreatingNewAgent(false);
     }
-    setNewAgentName('');
-    setNewAgentDescription('');
-    setNewAgentProvideSummary(true);
     setBusinessLogic('');
     setDutyContent('');
     setConstraintContent('');
