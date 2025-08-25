@@ -1,6 +1,7 @@
 "use client";
 
 // model enum class
+// TODO: this enum should not be put here
 export enum OpenAIModel {
   MainModel = 'main_model',
   SubModel = 'sub_model'
@@ -20,7 +21,7 @@ export interface Agent {
   few_shots_prompt?: string;
   business_description?: string;
   is_available?: boolean;
-  sub_agent_id_list?: number[]; // 添加sub_agent_id_list字段
+  sub_agent_id_list?: number[];
 }
 
 export interface Tool {
@@ -31,7 +32,7 @@ export interface Tool {
   initParams: ToolParam[];
   is_available?: boolean;
   create_time?: string;
-  usage?: string; // 用于标注工具来源的usage字段
+  usage?: string;
 }
 
 export interface ToolParam {

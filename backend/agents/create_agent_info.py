@@ -1,5 +1,4 @@
 import threading
-import yaml
 import logging
 from urllib.parse import urljoin
 from nexent.core.utils.observer import MessageObserver

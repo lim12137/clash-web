@@ -18,7 +18,6 @@ export function RegisterModal() {
     setIsLoading,
     emailError,
     setEmailError,
-    handleEmailChange,
     resetForm
   } = useAuthForm()
   const [passwordError, setPasswordError] = useState<{ target: 'password' | 'confirmPassword' | ''; message: string }>({ target: '', message: '' })

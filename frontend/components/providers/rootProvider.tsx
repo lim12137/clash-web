@@ -36,4 +36,4 @@ export function RootProvider({ children }: { children: ReactNode }) {
       </App>
     </ConfigProvider>
   )
-} 
+}
