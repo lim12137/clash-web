@@ -28,7 +28,7 @@ classifiers = [
 dependencies = [
     "aiofiles>=24.1.0",
     "elasticsearch==8.17.2",
-    "exa_py>=1.9.1",
+    "exa_py==1.14.0",
     "httpx[socks]>=0.28.1",
     "numpy>=1.26.4",
     "openai>=1.69.0",
