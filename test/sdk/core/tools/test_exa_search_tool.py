@@ -4,14 +4,10 @@ import json
 import os
 from datetime import datetime
 
-# Create all necessary mocks
+# Create all necessary mocks for non-problematic modules
 mock_tavily_client = MagicMock()
 mock_tavily = MagicMock()
 mock_tavily.TavilyClient = mock_tavily_client
-
-mock_exa = MagicMock()
-mock_exa_client = MagicMock()
-mock_exa.Exa = mock_exa_client
 
 mock_linkup = MagicMock()
 mock_linkup_client = MagicMock()
@@ -22,15 +18,20 @@ mock_linkup.LinkupSearchTextResult = MagicMock()
 mock_aiohttp = MagicMock()
 mock_aiohttp.ClientSession = MagicMock()
 
-# Use module-level mocks
+# Create a mock for exa_py to avoid importing it
+mock_exa_py = MagicMock()
+mock_exa_client = MagicMock()
+mock_exa_py.Exa = mock_exa_client
+
+# Use module-level mocks for all external dependencies
 module_mocks = {
     'tavily': mock_tavily,
-    'exa_py': mock_exa,
+    'exa_py': mock_exa_py,
     'linkup': mock_linkup,
     'aiohttp': mock_aiohttp
 }
 
-# Apply mocks
+# Apply mocks before importing any modules
 with patch.dict('sys.modules', module_mocks):
     # Import all required modules
     from sdk.nexent.core.utils.observer import MessageObserver, ProcessType
@@ -47,20 +48,21 @@ def mock_observer():
 
 @pytest.fixture
 def exa_search_tool(mock_observer):
-    # Reset all mock objects
+    # Reset mock for clean state
     mock_exa_client.reset_mock()
     
     exa_api_key = "test_api_key"
-    with patch('exa_py.Exa', return_value=mock_exa_client):
-        tool = ExaSearchTool(
-            exa_api_key=exa_api_key,
-            observer=mock_observer,
-            max_results=3,
-            image_filter=True
-        )
-        
-        # Directly set a mock object for tool.exa
-        tool.exa = mock_exa_client
+    
+    # Create tool instance - Exa is already mocked at module level
+    tool = ExaSearchTool(
+        exa_api_key=exa_api_key,
+        observer=mock_observer,
+        max_results=3,
+        image_filter=True
+    )
+    
+    # Directly set a mock object for tool.exa
+    tool.exa = mock_exa_client
     
     # Set environment variables
     os.environ["DATA_PROCESS_SERVICE"] = "http://test-service"
@@ -90,7 +92,7 @@ def test_forward_with_results(exa_search_tool, mock_observer):
     """Test forward method with search results"""
     # Configure mock
     mock_results = create_mock_search_result(3)
-    mock_exa_client.search_and_contents.return_value = mock_results
+    exa_search_tool.exa.search_and_contents.return_value = mock_results
     
     # Mock _filter_images method to prevent creating unawaited coroutines
     with patch.object(exa_search_tool, '_filter_images'):
@@ -102,7 +104,7 @@ def test_forward_with_results(exa_search_tool, mock_observer):
     print(f"\nActual search result structure: {json.dumps(search_results[0], indent=2)}")
     
     # Assertions
-    mock_exa_client.search_and_contents.assert_called_once_with(
+    exa_search_tool.exa.search_and_contents.assert_called_once_with(
         "test query",
         text={"max_characters": 2000},
         livecrawl="always",
@@ -140,7 +142,7 @@ def test_forward_no_results(exa_search_tool):
     # Configure empty results mock
     mock_response = MagicMock()
     mock_response.results = []
-    mock_exa_client.search_and_contents.return_value = mock_response
+    exa_search_tool.exa.search_and_contents.return_value = mock_response
     
     # Call method and check for exception
     with pytest.raises(Exception) as excinfo:
@@ -160,7 +162,7 @@ def test_forward_without_observer(exa_search_tool):
         
         # Configure mock and call method
         mock_results = create_mock_search_result(2)
-        mock_exa_client.search_and_contents.return_value = mock_results
+        exa_search_tool.exa.search_and_contents.return_value = mock_results
         
         # Call method with parameters directly
         result = wrapped_forward("test query")
@@ -170,7 +172,7 @@ def test_forward_without_observer(exa_search_tool):
     assert len(search_results) == 2
     
     # Verify Exa search was called
-    mock_exa_client.search_and_contents.assert_called_with(
+    exa_search_tool.exa.search_and_contents.assert_called_with(
         "test query",
         text={"max_characters": 2000},
         livecrawl="always", 
@@ -188,7 +190,7 @@ def test_chinese_language_observer(exa_search_tool, mock_observer):
     with patch.object(exa_search_tool, '_filter_images'):
         # Configure mock
         mock_results = create_mock_search_result(1)
-        mock_exa_client.search_and_contents.return_value = mock_results
+        exa_search_tool.exa.search_and_contents.return_value = mock_results
         
         # Call method
         exa_search_tool.forward("测试查询")
@@ -206,7 +208,7 @@ def test_filter_images_success(exa_search_tool, mock_observer):
     with patch.object(exa_search_tool, '_filter_images') as mock_filter:
         # Configure mock
         mock_results = create_mock_search_result(1)
-        mock_exa_client.search_and_contents.return_value = mock_results
+        exa_search_tool.exa.search_and_contents.return_value = mock_results
         
         # Call forward method, which indirectly calls _filter_images
         exa_search_tool.forward("test query")
@@ -230,7 +232,7 @@ def test_filter_images_api_error(exa_search_tool, mock_observer):
     
     # Configure mock
     mock_results = create_mock_search_result(1)
-    mock_exa_client.search_and_contents.return_value = mock_results
+    exa_search_tool.exa.search_and_contents.return_value = mock_results
     
     # Call method
     exa_search_tool.forward("test query")
@@ -246,7 +248,7 @@ def test_image_filter_disabled(exa_search_tool, mock_observer):
     
     # Configure mock
     mock_results = create_mock_search_result(1)
-    mock_exa_client.search_and_contents.return_value = mock_results
+    exa_search_tool.exa.search_and_contents.return_value = mock_results
     
     # Call method
     exa_search_tool.forward("test query")
