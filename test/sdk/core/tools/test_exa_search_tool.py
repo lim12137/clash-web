@@ -19,14 +19,14 @@ mock_aiohttp = MagicMock()
 mock_aiohttp.ClientSession = MagicMock()
 
 # Create a mock for exa_py to avoid importing it
-mock_exa_py = MagicMock()
+mock_exa = MagicMock()
 mock_exa_client = MagicMock()
-mock_exa_py.Exa = mock_exa_client
+mock_exa.Exa = mock_exa_client
 
 # Use module-level mocks for all external dependencies
 module_mocks = {
     'tavily': mock_tavily,
-    'exa_py': mock_exa_py,
+    'exa_py': mock_exa,
     'linkup': mock_linkup,
     'aiohttp': mock_aiohttp
 }
