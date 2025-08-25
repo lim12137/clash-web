@@ -6,6 +6,7 @@ const t = (key: string, options?: any): string => {
   return i18n.t(key, options) as string;
 };
 
+// TODO: Use fetchWithAuth instead
 // 获取授权头的辅助函数
 const getAuthHeaders = () => {
   const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;

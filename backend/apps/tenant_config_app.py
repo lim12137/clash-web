@@ -1,5 +1,4 @@
 import logging
-import os
 import requests
 from fastapi import APIRouter, Header, Body
 from typing import Optional, List
