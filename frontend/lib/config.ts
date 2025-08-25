@@ -280,6 +280,7 @@ class ConfigStoreClass {
   }
 }
 
+// TODO: Why not use just one singleton pattern?
 // 导出类作为 ConfigStore
 export const ConfigStore = ConfigStoreClass;
 
