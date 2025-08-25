@@ -1,50 +1,50 @@
 /**
- * 统一的Setup页面布局常量
- * 以第一页(config.tsx)的设计为标准
+ * Unified Setup page layout constants
+ * Based on the design of the first page (config.tsx)
  */
 
-// Header配置
+// Header configuration
 export const HEADER_CONFIG = {
-  // Header高度 (包含padding)
+  // Header height (including padding)
   HEIGHT: "64px",
   
-  // 垂直内边距
+  // Vertical padding
   VERTICAL_PADDING: "16px", // py-4
   
-  // 水平内边距
+  // Horizontal padding
   HORIZONTAL_PADDING: "24px", // px-6
 } as const;
 
-// Footer配置
+// Footer configuration
 export const FOOTER_CONFIG = {
-  // Footer高度 (包含padding)
+  // Footer height (including padding)
   HEIGHT: "64px",
   
-  // 垂直内边距
+  // Vertical padding
   VERTICAL_PADDING: "16px", // py-4
   
-  // 水平内边距
+  // Horizontal padding
   HORIZONTAL_PADDING: "16px", // px-4
 } as const;
 
-// 页面级别容器配置
+// Page level container configuration
 export const SETUP_PAGE_CONTAINER = {
-  // 最大宽度约束
+  // Maximum width constraint
   MAX_WIDTH: "1920px",
   
-  // 水平内边距 (对应 px-4)
+  // Horizontal padding (corresponding to px-4)
   HORIZONTAL_PADDING: "16px",
   
-  // 主要内容区域高度
+  // Main content area height
   MAIN_CONTENT_HEIGHT: "83vh",
 } as const;
 
-// 两列布局响应式配置 (基于第一页的设计)
+// Two column layout responsive configuration (based on the first page design)
 export const TWO_COLUMN_LAYOUT = {
-  // Row/Col 间距配置
+  // Row/Col spacing configuration
   GUTTER: [24, 16] as [number, number],
   
-  // 响应式列比例
+  // Responsive column ratio
   LEFT_COLUMN: {
     xs: 24,
     md: 24,
@@ -62,79 +62,41 @@ export const TWO_COLUMN_LAYOUT = {
   },
 } as const;
 
-// 三列布局响应式配置 (基于AgentConfig的设计，但统一高度)
-export const THREE_COLUMN_LAYOUT = {
-  // Row/Col 间距配置
-  GUTTER: [12, 12] as [number, number],
-  
-  // 响应式列比例
-  LEFT_COLUMN: {
-    xs: 24,
-    md: 24,
-    lg: 4,
-    xl: 4,
-  },
-  
-  MIDDLE_COLUMN: {
-    xs: 24,
-    md: 24,
-    lg: 13,
-    xl: 13,
-  },
-  
-  RIGHT_COLUMN: {
-    xs: 24,
-    md: 24,
-    lg: 7,
-    xl: 7,
-  },
-} as const;
-
-// Flex 两列布局配置 (基于KnowledgeBaseManager的设计)
+// Flex two column layout configuration (based on the KnowledgeBaseManager design)
 export const FLEX_TWO_COLUMN_LAYOUT = {
-  // 左侧知识库列表宽度
+  // Left knowledge base list width
   LEFT_WIDTH: "33.333333%", // 1/3
   
-  // 右侧内容区域宽度  
+  // Right content area width  
   RIGHT_WIDTH: "66.666667%", // 2/3
   
-  // 列间距
+  // Column spacing
   GAP: "12px",
 } as const;
 
-// 标准卡片样式配置 (基于第一页的设计)
+// Standard card style configuration (based on the first page design)
 export const STANDARD_CARD = {
-  // 基础样式类名
+  // Base style class name
   BASE_CLASSES: "bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden",
   
-  // 内边距
+  // Padding
   PADDING: "16px", // 对应 p-4
   
-  // 内容区域滚动配置
+  // Content area scroll configuration
   CONTENT_SCROLL: {
     overflowY: "auto" as const,
     overflowX: "hidden" as const,
   },
 } as const;
 
-// 卡片头部配置
+// Card header configuration
 export const CARD_HEADER = {
-  // 头部边距
+  // Header margin
   MARGIN_BOTTOM: "16px", // 对应 mb-4
   
-  // 头部内边距
+  // Header padding
   PADDING: "0 8px", // 对应 px-2
   
-  // 分割线样式
+  // Divider style
   DIVIDER_CLASSES: "h-[1px] bg-gray-200 mt-2",
 } as const;
-
-// 导出所有常量的类型定义
-export type HeaderConfig = typeof HEADER_CONFIG;
-export type FooterConfig = typeof FOOTER_CONFIG;
-export type SetupPageContainer = typeof SETUP_PAGE_CONTAINER;
-export type TwoColumnLayout = typeof TWO_COLUMN_LAYOUT;  
-export type ThreeColumnLayout = typeof THREE_COLUMN_LAYOUT;
-export type FlexTwoColumnLayout = typeof FLEX_TWO_COLUMN_LAYOUT;
-export type StandardCard = typeof STANDARD_CARD;
-export type CardHeader = typeof CARD_HEADER; 

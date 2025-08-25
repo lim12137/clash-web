@@ -709,7 +709,7 @@ export default function BusinessLogicConfig({
                 <div className="flex flex-col h-full" style={{ gap: '16px' }}>
                   {/* Upper section: Collaborative Agent Display - fixed area */}
                   <CollaborativeAgentDisplay
-                    className="h-[148px] lg:h-[168px]"
+                    className="h-[128px] lg:h-[128px]"
                     style={{ flexShrink: 0 }}
                     availableAgents={subAgentList}
                     selectedAgentIds={enabledAgentIds}

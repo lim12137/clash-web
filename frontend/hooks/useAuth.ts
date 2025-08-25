@@ -11,10 +11,10 @@ import { usePathname } from "next/navigation"
 import { useTranslation } from "react-i18next"
 import { API_ENDPOINTS } from "@/services/api"
 
-// 创建认证上下文
+// Create auth context
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// 认证提供者组件
+// Auth provider component
 export function AuthProvider({ children }: { children: (value: AuthContextType) => ReactNode }) {
   const { t } = useTranslation('common');
   const { message } = App.useApp();
@@ -29,14 +29,14 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
   const [isReady, setIsReady] = useState(false)
   const pathname = usePathname()
 
-  // 检查认证服务可用性
+  // Check auth service availability
   const checkAuthService = async () => {
     const isAvailable = await authService.checkAuthServiceAvailable()
     setAuthServiceUnavailable(!isAvailable)
     return isAvailable
   }
 
-  // 当登录或注册弹窗打开时检查认证服务可用性
+  // When login or register modal is opened, check auth service availability
   useEffect(() => {
     if (isLoginModalOpen || isRegisterModalOpen) {
       checkAuthService()
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     }
   };
 
-  // 初始化时检查用户会话（只从本地读取，不主动请求后端）
+  // When initializing, check user session (only read from local storage, not request backend)
   useEffect(() => {
     const syncUserFromLocalStorage = () => {
       const storedSession = typeof window !== "undefined" ? localStorage.getItem("session") : null;
@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
               avatar_url: session.user.avatar_url
             };
             setUser(safeUser);
-            setShouldCheckSession(true); // 有用户时启用会话检查
+            setShouldCheckSession(true); // When there is a user, enable session check
             return;
           }
         } catch (e) {
@@ -100,14 +100,14 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
         }
       }
       setUser(null);
-      setShouldCheckSession(false); // 无用户时禁用会话检查
+      setShouldCheckSession(false); // When there is no user, disable session check
     };
 
     setIsLoading(true);
     syncUserFromLocalStorage();
     setIsLoading(false);
 
-    // 监听本地session变化
+    // Listen to local session change
     const handleStorage = (event: StorageEvent) => {
       if (event.key === "session") {
         syncUserFromLocalStorage();
@@ -119,33 +119,33 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     };
   }, []);
 
-  // 检查部署版本
+  // Check deployment version
   useEffect(() => {
     checkDeploymentVersion();
-  }, []); // 当用户状态变化时重新检查
+  }, []); // When user status changes, check again
 
-  // 检查用户登录状态
+  // Check user login status
   useEffect(() => {
     if (!isLoading && !user) {
-      // 页面加载完成后，如果没有登录，则触发会话过期事件
-      // 只在非首页路径触发，且仅在之前有会话的情况下触发
+      // When page is loaded, if not logged in, trigger session expired event
+      // Only trigger on non-home path, and only when there is a session before
       if (pathname && pathname !== '/' && !pathname.startsWith('/?') && shouldCheckSession) {
         window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
           detail: { message: t('auth.sessionExpired') }
         }));
-        setShouldCheckSession(false); // 触发过期事件后禁用会话检查
+        setShouldCheckSession(false); // After triggering the expired event, disable session check
       }
     }
   }, [user, isLoading, pathname, shouldCheckSession, t]);
 
-  // 会话有效性检查，确保本地存储的会话不是过期的
+  // Session validity check, ensure the session in local storage is not expired
   useEffect(() => {
     if (!user || isLoading || !shouldCheckSession) return;
 
     const verifySession = () => {
       const lastVerifyTime = Number(localStorage.getItem('lastSessionVerifyTime') || 0);
       const now = Date.now();
-      // 如果距离上次验证不足 10 秒，跳过
+      // If the last verification is less than 10 seconds, skip
       if (now - lastVerifyTime < 10000) {
         return;
       }
@@ -153,7 +153,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
       try {
         const sessionObj = getSessionFromStorage();
         if (!sessionObj || sessionObj.expires_at * 1000 <= now) {
-          // 会话不存在或已过期
+          // Session does not exist or has expired
           window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
             detail: { message: t('auth.sessionExpired') }
           }));
@@ -166,10 +166,10 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
       }
     };
 
-    // 立即执行一次
+    // Immediately execute once
     verifySession();
 
-    // 每 10 秒轮询一次
+    // Poll every 10 seconds
     const intervalId = setInterval(verifySession, 10000);
 
     return () => clearInterval(intervalId);
@@ -197,7 +197,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     try {
       setIsLoading(true)
       
-      // 首先检查认证服务可用性
+      // First check auth service availability
       const isAuthServiceAvailable = await authService.checkAuthServiceAvailable()
       if (!isAuthServiceAvailable) {
         const error = new Error(t('auth.authServiceUnavailable'))
@@ -221,9 +221,9 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
           avatar_url: data.session.user.avatar_url
         }
         setUser(safeUser)
-        setShouldCheckSession(true) // 登录成功后启用会话检查
+        setShouldCheckSession(true) // After login, enable session check
         
-        // 添加延迟确保本地存储操作完成
+        // Add delay to ensure local storage operation is completed
         setTimeout(() => {
           configService.loadConfigToFrontend()
           closeLoginModal()
@@ -231,7 +231,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
           if (showSuccessMessage) {
             message.success(t('auth.loginSuccess'))
           }
-          // 主动触发 storage 事件
+          // Manually trigger storage event
           window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: localStorage.getItem("session") }))
           
           // If on the chat page, trigger conversation list update
@@ -252,7 +252,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     try {
       setIsLoading(true)
       
-      // 首先检查认证服务可用性
+      // First check auth service availability
       const isAuthServiceAvailable = await authService.checkAuthServiceAvailable()
       if (!isAuthServiceAvailable) {
         const error = new Error(t('auth.authServiceUnavailable'))
@@ -276,16 +276,16 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
         }
 
         if (data.session) {
-          // 注册并登录成功
+          // Register and login successfully
           setUser(safeUser)
           configService.loadConfigToFrontend()
           closeRegisterModal()
           const successMessage = isAdmin ? t('auth.adminRegisterSuccessAutoLogin') : t('auth.registerSuccessAutoLogin')
           message.success(successMessage)
-          // 主动触发 storage 事件
+          // Manually trigger storage event
           window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: localStorage.getItem("session") }))
         } else {
-          // 注册成功但需要手动登录
+          // Register successfully but need to manually login
           closeRegisterModal()
           openLoginModal()
           const successMessage = isAdmin ? t('auth.adminRegisterSuccessManualLogin') : t('auth.registerSuccessManualLogin')
@@ -304,9 +304,9 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
       setIsLoading(true)
       await authService.signOut()
       setUser(null)
-      setShouldCheckSession(false) // 登出时禁用会话检查
+      setShouldCheckSession(false) // When logging out, disable session check
       message.success(t('auth.logoutSuccess'))
-      // 主动触发 storage 事件
+      // Manually trigger storage event
       window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: null }))
     } catch (error: any) {
       console.error("Logout failed:", error.message)
@@ -338,7 +338,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
   return children(contextValue);
 }
 
-// 自定义钩子用于访问认证上下文
+// Custom hook for accessing auth context
 export function useAuth() {
   const context = useContext(AuthContext)
   if (context === undefined) {
@@ -347,5 +347,5 @@ export function useAuth() {
   return context
 }
 
-// 导出认证上下文供Provider使用
+// Export auth context for Provider use
 export { AuthContext } 

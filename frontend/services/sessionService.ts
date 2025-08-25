@@ -1,18 +1,18 @@
 /**
- * 会话管理服务
+ * Session management service
  */
 
 import { API_ENDPOINTS } from "./api";
 import { STATUS_CODES } from "@/types/auth";
 import { fetchWithAuth, saveSessionToStorage, removeSessionFromStorage, getSessionFromStorage } from "@/lib/auth";
 
-// 上次刷新令牌的时间记录
+// Record the time of the last token refresh
 let lastTokenRefreshTime = 0;
-// 令牌刷新CD（1分钟）
+// Token refresh CD (1 minute)
 const TOKEN_REFRESH_CD = 1 * 60 * 1000;
 
 /**
- * 检查并刷新令牌（如果需要）
+ * Check and refresh token (if needed)
  */
 export const sessionService = {
   checkAndRefreshToken: async (): Promise<boolean> => {
@@ -22,20 +22,20 @@ export const sessionService = {
       
       const now = Date.now();
       
-      // 检查是否处于刷新冷却期
+      // Check if the token is in the refresh cooldown period
       const timeSinceLastRefresh = now - lastTokenRefreshTime;
       if (timeSinceLastRefresh < TOKEN_REFRESH_CD) {
-        return true; // 处于冷却期，默认令牌有效
+        return true; // In cooldown period, default token is valid
       }
       
-      // 检查令牌是否已过期
-      const expiresAt = sessionObj.expires_at * 1000; // 转换为毫秒
+      // Check if the token has expired
+      const expiresAt = sessionObj.expires_at * 1000; // Convert to milliseconds
       if (expiresAt > now) {
-        // 令牌未过期，尝试刷新
-        // 更新最后刷新时间，即使尚未成功，也记录尝试时间以避免频繁请求
+        // Token not expired, try to refresh
+        // Update the last refresh time, even if it hasn't succeeded, record the attempt time to avoid frequent requests
         lastTokenRefreshTime = now;
         
-        // 调用刷新令牌API
+        // Call the refresh token API
         const response = await fetchWithAuth(API_ENDPOINTS.user.refreshToken, {
           method: "POST",
           body: JSON.stringify({
@@ -46,7 +46,7 @@ export const sessionService = {
         const data = await response.json();
         
         if (data.code === STATUS_CODES.SUCCESS && data.data?.session) {
-          // 更新本地存储的会话信息
+          // Update the session information in local storage
           const updatedSession = {
             ...sessionObj,
             access_token: data.data.session.access_token,
@@ -57,9 +57,9 @@ export const sessionService = {
           saveSessionToStorage(updatedSession);
           return true;
         } else {
-          console.warn("令牌刷新失败:", data.message);
+          console.warn("Token refresh failed:", data.message);
           
-          // 如果是TOKEN_EXPIRED错误，清除会话
+          // If it is a TOKEN_EXPIRED error, clear the session
           if (data.code === STATUS_CODES.TOKEN_EXPIRED) {
             removeSessionFromStorage();
           }
@@ -67,13 +67,13 @@ export const sessionService = {
           return false;
         }
       } else {
-        // 令牌已过期，清除会话
-        console.warn("令牌已过期");
+        // Token expired, clear the session
+        console.warn("Token expired");
         removeSessionFromStorage();
         return false;
       }
     } catch (error) {
-      console.error("检查令牌状态失败:", error);
+      console.error("Check token status failed:", error);
       return false;
     }
   }

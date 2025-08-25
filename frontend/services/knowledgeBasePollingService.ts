@@ -16,11 +16,6 @@ class KnowledgeBasePollingService {
     this.activeKnowledgeBaseId = kbId;
   }
 
-  // Get current active knowledge base ID
-  getActiveKnowledgeBase(): string | null {
-    return this.activeKnowledgeBaseId;
-  }
-
   // Start document status polling, only update documents for specified knowledge base
   startDocumentStatusPolling(kbId: string, callback: (documents: Document[]) => void): void {
     console.debug(`Start polling documents status for knowledge base ${kbId}`);

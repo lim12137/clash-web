@@ -52,26 +52,6 @@ def search_blank_sub_agent_by_main_agent_id(tenant_id: str):
         else:
             return None
 
-def query_or_create_main_agent_id(tenant_id: str, user_id: str) -> int:
-    """
-    obtain the main_agent id, create a blank placeholder if it does not exist
-    """
-    with get_db_session() as session:
-        query = session.query(AgentInfo).filter(AgentInfo.delete_flag != 'Y',
-                                                AgentInfo.parent_agent_id.is_(None),
-                                                AgentInfo.tenant_id == tenant_id)
-
-        main_agent = query.first()
-
-        if main_agent is None:
-            main_agent = create_agent(agent_info={"name": "manager_agent",
-                                                  "description": "You are a manager agent capable of invoking other agents and tools.",
-                                                  "enabled": True}, tenant_id=tenant_id, user_id=user_id)
-
-            return main_agent["agent_id"]
-        else:
-            return main_agent.agent_id
-
 
 def query_sub_agents_id_list(main_agent_id: int, tenant_id: str):
     """

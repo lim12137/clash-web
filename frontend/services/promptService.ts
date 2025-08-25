@@ -80,32 +80,3 @@ export const generatePromptStream = async (
     if (onComplete) onComplete();
   }
 };
-
-/**
- * Save System Prompt (using agent/update endpoint)
- * @param params
- * @returns
- */
-export const savePrompt = async (params: SavePromptParams): Promise<any> => {
-  try {
-    const response = await fetch(API_ENDPOINTS.agent.update, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({
-        agent_id: params.agent_id,
-        prompt: params.prompt
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || '保存提示词失败');
-    }
-
-    const data = await response.json();
-    return data.data || null;
-  } catch (error) {
-    console.error('保存提示词失败:', error);
-    throw error;
-  }
-}; 
