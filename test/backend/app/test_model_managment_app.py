@@ -1452,6 +1452,142 @@ class TestModelManagementApp(unittest.TestCase):
             mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
             mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
 
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.get_models_by_tenant_factory_type")
+    def test_create_provider_model_with_existing_models_optimized_lookup(self, mock_get_existing, mock_get_user):
+        """Test the optimized lookup using existing_model_map dictionary"""
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_get_existing.return_value = [
+            {
+                "model_repo": "silicon",
+                "model_name": "model1",
+                "max_tokens": 4096
+            },
+            {
+                "model_repo": "silicon",
+                "model_name": "model2", 
+                "max_tokens": 8192
+            },
+            {
+                "model_repo": "silicon",
+                "model_name": "model3",
+                "max_tokens": 16384
+            }
+        ]
+        
+        # Mock the get_models_from_silicon function
+        with patch("test_model_managment_app.get_models_from_silicon", new_callable=AsyncMock) as mock_get_silicon:
+            mock_get_silicon.return_value = [
+                {"id": "silicon/model1"},
+                {"id": "silicon/model2"},
+                {"id": "silicon/model3"},
+                {"id": "silicon/new_model"}
+            ]
+            
+            request_data = {
+                "provider": "silicon", 
+                "api_key": "test_key",
+                "model_type": "llm"
+            }
+            
+            response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
+            
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data["code"], 200)
+            self.assertIn("Provider model silicon created successfully", data["message"])
+            
+            # Check that all existing models get their max_tokens properly merged
+            result_models = data["data"]
+            self.assertEqual(len(result_models), 4)
+            
+            # Verify the optimized lookup worked correctly
+            model1 = next((m for m in result_models if m["id"] == "silicon/model1"), None)
+            model2 = next((m for m in result_models if m["id"] == "silicon/model2"), None)
+            model3 = next((m for m in result_models if m["id"] == "silicon/model3"), None)
+            new_model = next((m for m in result_models if m["id"] == "silicon/new_model"), None)
+            
+            self.assertIsNotNone(model1)
+            self.assertEqual(model1.get("max_tokens"), 4096)
+            self.assertIsNotNone(model2)
+            self.assertEqual(model2.get("max_tokens"), 8192)
+            self.assertIsNotNone(model3)
+            self.assertEqual(model3.get("max_tokens"), 16384)
+            self.assertIsNotNone(new_model)
+            self.assertNotIn("max_tokens", new_model)
+            
+            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.get_models_by_tenant_factory_type")
+    def test_create_provider_model_with_existing_models_edge_cases(self, mock_get_existing, mock_get_user):
+        """Test edge cases in the existing model lookup logic"""
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_get_existing.return_value = [
+            {
+                "model_repo": "silicon",
+                "model_name": "model_with_special_chars",
+                "max_tokens": 4096
+            },
+            {
+                "model_repo": "silicon",
+                "model_name": "model_with_numbers_123",
+                "max_tokens": 8192
+            },
+            {
+                "model_repo": "silicon",
+                "model_name": "MODEL_WITH_UPPERCASE",
+                "max_tokens": 16384
+            }
+        ]
+        
+        # Mock the get_models_from_silicon function
+        with patch("test_model_managment_app.get_models_from_silicon", new_callable=AsyncMock) as mock_get_silicon:
+            mock_get_silicon.return_value = [
+                {"id": "silicon/model_with_special_chars"},
+                {"id": "silicon/model_with_numbers_123"},
+                {"id": "silicon/MODEL_WITH_UPPERCASE"},
+                {"id": "silicon/unknown_model"}
+            ]
+            
+            request_data = {
+                "provider": "silicon", 
+                "api_key": "test_key",
+                "model_type": "llm"
+            }
+            
+            response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
+            
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(data["code"], 200)
+            self.assertIn("Provider model silicon created successfully", data["message"])
+            
+            # Check that edge cases are handled correctly
+            result_models = data["data"]
+            self.assertEqual(len(result_models), 4)
+            
+            # Verify special characters, numbers, and case sensitivity
+            special_model = next((m for m in result_models if m["id"] == "silicon/model_with_special_chars"), None)
+            number_model = next((m for m in result_models if m["id"] == "silicon/model_with_numbers_123"), None)
+            uppercase_model = next((m for m in result_models if m["id"] == "silicon/MODEL_WITH_UPPERCASE"), None)
+            unknown_model = next((m for m in result_models if m["id"] == "silicon/unknown_model"), None)
+            
+            self.assertIsNotNone(special_model)
+            self.assertEqual(special_model.get("max_tokens"), 4096)
+            self.assertIsNotNone(number_model)
+            self.assertEqual(number_model.get("max_tokens"), 8192)
+            self.assertIsNotNone(uppercase_model)
+            self.assertEqual(uppercase_model.get("max_tokens"), 16384)
+            self.assertIsNotNone(unknown_model)
+            self.assertNotIn("max_tokens", unknown_model)
+            
+            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
     def test_create_provider_model_silicon_success_backend(self):
         backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
         with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):

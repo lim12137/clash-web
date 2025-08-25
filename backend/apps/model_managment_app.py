@@ -102,23 +102,18 @@ async def create_provider_model(request: ProviderModelRequest, authorization: Op
         if request.model_type != "embedding" or request.model_type != "multi_embedding":
             existing_model_list = get_models_by_tenant_factory_type(tenant_id, request.provider, request.model_type)
             
-            # 检查existing_model_list中的模型是否在model_list中，如果在，就添加max_tokens属性
+            # Check if models in existing_model_list exist in model_list, if so, add max_tokens attribute
             if model_list and existing_model_list:
-                # 创建existing_model_list的模型ID集合，用于快速查找
-                existing_model_ids = set()
+                # Create a mapping of model full names to existing models for fast lookup
+                existing_model_map = {}
                 for existing_model in existing_model_list:
                     model_full_name = existing_model["model_repo"] + "/" + existing_model["model_name"]
-                    existing_model_ids.add(model_full_name)
+                    existing_model_map[model_full_name] = existing_model
                 
-                # 遍历model_list，如果模型在existing_model_list中，添加max_tokens属性
+                # Iterate through model_list, if model exists in existing_model_list, add max_tokens attribute
                 for model in model_list:
-                    if model.get("id") in existing_model_ids:
-                        # 找到对应的existing_model，获取其max_tokens值
-                        for existing_model in existing_model_list:
-                            model_full_name = existing_model["model_repo"] + "/" + existing_model["model_name"]
-                            if model.get("id") == model_full_name:
-                                model["max_tokens"] = existing_model.get("max_tokens")
-                                break
+                    if model.get("id") in existing_model_map:
+                        model["max_tokens"] = existing_model_map[model.get("id")].get("max_tokens")
         # Sort by the first letter of id in descending order
         if isinstance(model_list, list):
             model_list.sort(key=lambda m: str((m.get("id") if isinstance(m, dict) else m) or "")[:1].lower(), reverse=False)
@@ -162,11 +157,9 @@ async def batch_create_models(request: BatchCreateModelsRequest, authorization: 
                     # Check if max_tokens has changed
                     existing_max_tokens = existing_model_by_display["max_tokens"]
                     new_max_tokens = model["max_tokens"]
-                    if existing_max_tokens == new_max_tokens:
-                        continue
-                    else:
+                    if existing_max_tokens != new_max_tokens:
                         update_model_record(existing_model_by_display["model_id"], {"max_tokens": new_max_tokens}, user_id)
-                        continue
+                    continue
 
             model_dict = await prepare_model_dict(
                 provider=request.provider,
