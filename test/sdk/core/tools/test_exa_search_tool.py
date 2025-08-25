@@ -155,7 +155,7 @@ def test_forward_without_observer(exa_search_tool):
     """Test forward method without an observer"""
     # Mock _filter_images method to prevent creating unawaited coroutines
     with patch.object(exa_search_tool, '_filter_images'), \
-            patch.object(ExaSearchTool, 'forward', wraps=exa_search_tool.forward) as wrapped_forward:
+        patch.object(ExaSearchTool, 'forward', wraps=exa_search_tool.forward) as wrapped_forward:
         # Directly set observer to None
         # Note: This is not recommended in production code, only for testing
         wrapped_forward.__defaults__ = (None,)
