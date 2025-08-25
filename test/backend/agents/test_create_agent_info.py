@@ -12,7 +12,6 @@ sys.modules['smolagents.utils'] = MagicMock()
 sys.modules['services.remote_mcp_service'] = MagicMock()
 sys.modules['utils.auth_utils'] = MagicMock()
 sys.modules['database.agent_db'] = MagicMock()
-sys.modules['database.tool_db'] = MagicMock()
 sys.modules['services.elasticsearch_service'] = MagicMock()
 sys.modules['services.tenant_config_service'] = MagicMock()
 sys.modules['utils.prompt_template_utils'] = MagicMock()
@@ -21,7 +20,6 @@ sys.modules['utils.langchain_utils'] = MagicMock()
 sys.modules['langchain_core.tools'] = MagicMock()
 sys.modules['services.memory_config_service'] = MagicMock()
 sys.modules['nexent.memory.memory_service'] = MagicMock()
-sys.modules['jinja2'] = MagicMock()
 
 # Create mock classes that might be imported
 mock_agent_config = MagicMock()
@@ -38,42 +36,6 @@ sys.modules['nexent.core.utils.observer'].MessageObserver = mock_message_observe
 
 # Mock BASE_BUILTIN_MODULES
 sys.modules['smolagents.utils'].BASE_BUILTIN_MODULES = ["os", "sys", "json"]
-
-# Mock functions and classes for database modules
-sys.modules['database.agent_db'].search_agent_info_by_agent_id = MagicMock()
-sys.modules['database.agent_db'].query_or_create_main_agent_id = MagicMock()
-sys.modules['database.agent_db'].query_sub_agents_id_list = MagicMock()
-sys.modules['database.tool_db'].search_tools_for_sub_agent = MagicMock()
-
-# Mock functions for services
-sys.modules['services.remote_mcp_service'].get_remote_mcp_server_list = MagicMock()
-sys.modules['services.elasticsearch_service'].ElasticSearchService = MagicMock()
-sys.modules['services.elasticsearch_service'].elastic_core = MagicMock()
-sys.modules['services.elasticsearch_service'].get_embedding_model = MagicMock()
-sys.modules['services.tenant_config_service'].get_selected_knowledge_list = MagicMock()
-sys.modules['services.memory_config_service'].build_memory_context = MagicMock()
-
-# Mock functions for utils
-sys.modules['utils.auth_utils'].get_current_user_id = MagicMock()
-sys.modules['utils.prompt_template_utils'].get_agent_prompt_template = MagicMock()
-sys.modules['utils.config_utils'].config_manager = MagicMock()
-sys.modules['utils.config_utils'].tenant_config_manager = MagicMock()
-sys.modules['utils.config_utils'].get_model_name_from_config = MagicMock()
-sys.modules['utils.langchain_utils'].discover_langchain_modules = MagicMock()
-
-# Mock functions for memory service
-sys.modules['nexent.memory.memory_service'].search_memory_in_levels = MagicMock()
-
-# Mock Jinja2 classes
-sys.modules['jinja2'].Template = MagicMock()
-sys.modules['jinja2'].StrictUndefined = MagicMock()
-
-# Mock other standard library modules
-sys.modules['threading'] = MagicMock()
-sys.modules['yaml'] = MagicMock()
-sys.modules['logging'] = MagicMock()
-sys.modules['urllib.parse'] = MagicMock()
-sys.modules['datetime'] = MagicMock()
 
 # Now import the module under test
 from backend.agents.create_agent_info import (
