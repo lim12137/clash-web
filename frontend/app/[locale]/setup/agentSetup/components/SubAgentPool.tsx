@@ -4,7 +4,7 @@ import { App } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { ScrollArea } from '@/components/ui/scrollArea'
-import { Agent } from '../ConstInterface'
+import { Agent } from '@/types/agent'
 
 interface SubAgentPoolProps {
   onEditAgent: (agent: Agent) => void;
