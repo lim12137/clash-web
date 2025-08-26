@@ -10,7 +10,7 @@ export interface KnowledgeBase {
   description: string | null
   chunkCount: number
   documentCount: number
-  createdAt: string
+  createdAt: any
   embeddingModel: string
   avatar: string
   chunkNum: number
