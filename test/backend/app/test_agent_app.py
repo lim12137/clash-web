@@ -1,6 +1,6 @@
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -585,123 +585,182 @@ async def test_export_agent_api_empty_response(mocker, mock_auth_header):
     assert response_data["message"] == "success"
     assert response_data["data"] == {}
 
-def test_get_agent_call_relationship_api_success(mocker, mock_auth_header):
-    """Test successful call to get_agent_call_relationship_api endpoint"""
-    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_get_agent_call_relationship = mocker.patch(
-        "apps.agent_app.agent_service.get_agent_call_relationship_impl"
-    )
 
-    mock_get_user_id.return_value = ("user_id", "test_tenant")
-    mock_get_agent_call_relationship.return_value = {
-        "agent_id": "123",
+@pytest.mark.asyncio
+async def test_get_agent_call_relationship_api_success(mocker, mock_auth_header):
+    """Test get_agent_call_relationship_api success case."""
+    # Mock the service function
+    mock_service = mocker.patch("apps.agent_app.get_agent_call_relationship_impl")
+    mock_service.return_value = {
+        "agent_id": "1",
         "name": "Test Agent",
-        "tools": [{"tool_id": 1, "name": "Test Tool", "type": "MCP"}],
+        "tools": [
+            {"tool_id": 1, "name": "Test Tool", "type": "Local"}
+        ],
         "sub_agents": []
     }
-
-    response = client.get("/agent/call_relationship/123", headers=mock_auth_header)
+    
+    # Mock the auth function
+    mock_auth = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_auth.return_value = ("test_user", "test_tenant")
+    
+    response = client.get("/agent/call_relationship/1", headers=mock_auth_header)
+    
     assert response.status_code == 200
+    mock_service.assert_called_once_with(agent_id=1, tenant_id="test_tenant")
+    mock_auth.assert_called_once_with("Bearer test_token")
+    
+    # Verify response structure
     data = response.json()
-    assert data["agent_id"] == "123"
+    assert data["agent_id"] == "1"
     assert data["name"] == "Test Agent"
     assert len(data["tools"]) == 1
-    assert data["tools"][0]["type"] == "MCP"
-
-    mock_get_user_id.assert_called_once_with("Bearer test_token")
-    mock_get_agent_call_relationship.assert_called_once_with(123, "test_tenant")
+    assert data["tools"][0]["type"] == "Local"
 
 
-def test_get_agent_call_relationship_api_with_sub_agents(mocker, mock_auth_header):
-    """Test get_agent_call_relationship_api with sub-agents"""
-    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_get_agent_call_relationship = mocker.patch(
-        "apps.agent_app.agent_service.get_agent_call_relationship_impl"
-    )
-
-    mock_get_user_id.return_value = ("user_id", "test_tenant")
-    mock_get_agent_call_relationship.return_value = {
-        "agent_id": "123",
+@pytest.mark.asyncio
+async def test_get_agent_call_relationship_api_with_sub_agents(mocker, mock_auth_header):
+    """Test get_agent_call_relationship_api with sub-agents."""
+    # Mock the service function with sub-agents
+    mock_service = mocker.patch("apps.agent_app.get_agent_call_relationship_impl")
+    mock_service.return_value = {
+        "agent_id": "1",
         "name": "Main Agent",
-        "tools": [],
+        "tools": [
+            {"tool_id": 1, "name": "Main Tool", "type": "Local"}
+        ],
         "sub_agents": [
             {
-                "agent_id": "456",
+                "agent_id": "2",
                 "name": "Sub Agent 1",
-                "tools": [{"tool_id": 2, "name": "Sub Tool", "type": "Local"}],
+                "tools": [
+                    {"tool_id": 2, "name": "Sub Tool", "type": "MCP"}
+                ],
                 "sub_agents": [],
                 "depth": 1
             }
         ]
     }
-
-    response = client.get("/agent/call_relationship/123", headers=mock_auth_header)
+    
+    # Mock the auth function
+    mock_auth = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_auth.return_value = ("test_user", "test_tenant")
+    
+    response = client.get("/agent/call_relationship/1", headers=mock_auth_header)
+    
     assert response.status_code == 200
+    
+    # Verify response structure with sub-agents
     data = response.json()
+    assert data["agent_id"] == "1"
+    assert data["name"] == "Main Agent"
     assert len(data["sub_agents"]) == 1
+    
     sub_agent = data["sub_agents"][0]
-    assert sub_agent["agent_id"] == "456"
+    assert sub_agent["agent_id"] == "2"
+    assert sub_agent["name"] == "Sub Agent 1"
     assert sub_agent["depth"] == 1
     assert len(sub_agent["tools"]) == 1
-    assert sub_agent["tools"][0]["type"] == "Local"
+    assert sub_agent["tools"][0]["type"] == "MCP"
 
 
-def test_get_agent_call_relationship_api_service_error(mocker, mock_auth_header):
-    """Test get_agent_call_relationship_api handles service errors"""
-    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_get_agent_call_relationship = mocker.patch(
-        "apps.agent_app.agent_service.get_agent_call_relationship_impl"
-    )
+@pytest.mark.asyncio
+async def test_get_agent_call_relationship_api_unauthorized(mocker):
+    """Test get_agent_call_relationship_api without authorization header."""
+    response = client.get("/agent/call_relationship/1")
+    
+    # Should return 422 (Unprocessable Entity) due to missing required header
+    assert response.status_code == 422
 
-    mock_get_user_id.return_value = ("user_id", "test_tenant")
-    mock_get_agent_call_relationship.side_effect = ValueError("Agent not found")
 
+@pytest.mark.asyncio
+async def test_get_agent_call_relationship_api_service_error(mocker, mock_auth_header):
+    """Test get_agent_call_relationship_api when service raises an error."""
+    # Mock the service function to raise an error
+    mock_service = mocker.patch("apps.agent_app.get_agent_call_relationship_impl")
+    mock_service.side_effect = ValueError("Agent not found")
+    
+    # Mock the auth function
+    mock_auth = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_auth.return_value = ("test_user", "test_tenant")
+    
     response = client.get("/agent/call_relationship/999", headers=mock_auth_header)
+    
+    assert response.status_code == 500
+    data = response.json()
+    assert "Failed to get agent call relationship" in data["detail"]
+    assert "Agent not found" in data["detail"]
+
+
+@pytest.mark.asyncio
+async def test_get_agent_call_relationship_api_auth_error(mocker, mock_auth_header):
+    """Test get_agent_call_relationship_api when auth fails."""
+    # Mock the auth function to raise an error
+    mock_auth = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_auth.side_effect = Exception("Auth failed")
+    
+    response = client.get("/agent/call_relationship/1", headers=mock_auth_header)
+    
     assert response.status_code == 500
     data = response.json()
     assert "Failed to get agent call relationship" in data["detail"]
 
 
-def test_get_agent_call_relationship_api_auth_error(mocker, mock_auth_header):
-    """Test get_agent_call_relationship_api handles authentication errors"""
-    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_get_user_id.side_effect = Exception("Auth error")
-
-    response = client.get("/agent/call_relationship/123", headers=mock_auth_header)
-    assert response.status_code == 500
-    data = response.json()
-    # 兼容两种文案：日志里是 "Agent call relationship error"，返回 detail 是 "Failed to get agent call relationship: ..."
-    assert any(s in data["detail"] for s in (
-        "Agent call relationship error",
-        "Failed to get agent call relationship",
-    ))
-
-
-def test_get_agent_call_relationship_api_complex_structure(mocker, mock_auth_header):
-    """Test get_agent_call_relationship_api with complex nested structure"""
-    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
-    mock_get_agent_call_relationship = mocker.patch(
-        "apps.agent_app.agent_service.get_agent_call_relationship_impl"
-    )
-
-    mock_get_user_id.return_value = ("user_id", "test_tenant")
-    mock_get_agent_call_relationship.return_value = {
+@pytest.mark.asyncio
+async def test_get_agent_call_relationship_api_different_agent_ids(mocker, mock_auth_header):
+    """Test get_agent_call_relationship_api with different agent IDs."""
+    # Mock the service function
+    mock_service = mocker.patch("apps.agent_app.get_agent_call_relationship_impl")
+    mock_service.return_value = {
         "agent_id": "123",
-        "name": "Complex Agent",
+        "name": "Agent 123",
+        "tools": [],
+        "sub_agents": []
+    }
+    
+    # Mock the auth function
+    mock_auth = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_auth.return_value = ("test_user", "test_tenant")
+    
+    # Test with different agent IDs
+    for agent_id in [123, 456, 789]:
+        response = client.get(f"/agent/call_relationship/{agent_id}", headers=mock_auth_header)
+        assert response.status_code == 200
+        
+        # Update mock return value for next iteration
+        mock_service.return_value["agent_id"] = str(agent_id)
+        mock_service.return_value["name"] = f"Agent {agent_id}"
+        
+        # Verify the service was called with correct agent_id
+        mock_service.assert_called_with(agent_id=agent_id, tenant_id="test_tenant")
+
+
+@pytest.mark.asyncio
+async def test_get_agent_call_relationship_api_complex_structure(mocker, mock_auth_header):
+    """Test get_agent_call_relationship_api with complex nested structure."""
+    # Mock the service function with complex nested structure
+    mock_service = mocker.patch("apps.agent_app.get_agent_call_relationship_impl")
+    mock_service.return_value = {
+        "agent_id": "1",
+        "name": "Root Agent",
         "tools": [
-            {"tool_id": 1, "name": "Main Tool 1", "type": "MCP"},
-            {"tool_id": 2, "name": "Main Tool 2", "type": "LangChain"},
+            {"tool_id": 1, "name": "Root Tool", "type": "Local"},
+            {"tool_id": 2, "name": "Root Tool 2", "type": "MCP"}
         ],
         "sub_agents": [
             {
-                "agent_id": "456",
-                "name": "Sub Agent 1",
-                "tools": [{"tool_id": 3, "name": "Sub Tool 1", "type": "Local"}],
+                "agent_id": "2",
+                "name": "Level 1 Agent",
+                "tools": [
+                    {"tool_id": 3, "name": "Level 1 Tool", "type": "LangChain"}
+                ],
                 "sub_agents": [
                     {
-                        "agent_id": "789",
-                        "name": "Deep Sub Agent",
-                        "tools": [{"tool_id": 4, "name": "Deep Tool", "type": "MCP"}],
+                        "agent_id": "3",
+                        "name": "Level 2 Agent",
+                        "tools": [
+                            {"tool_id": 4, "name": "Level 2 Tool", "type": "Local"}
+                        ],
                         "sub_agents": [],
                         "depth": 2
                     }
@@ -710,25 +769,34 @@ def test_get_agent_call_relationship_api_complex_structure(mocker, mock_auth_hea
             }
         ]
     }
-
-    response = client.get("/agent/call_relationship/123", headers=mock_auth_header)
+    
+    # Mock the auth function
+    mock_auth = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_auth.return_value = ("test_user", "test_tenant")
+    
+    response = client.get("/agent/call_relationship/1", headers=mock_auth_header)
+    
     assert response.status_code == 200
+    
+    # Verify complex nested structure
     data = response.json()
-
-    assert data["agent_id"] == "123"
+    assert data["agent_id"] == "1"
+    assert data["name"] == "Root Agent"
     assert len(data["tools"]) == 2
-    assert data["tools"][0]["type"] == "MCP"
-    assert data["tools"][1]["type"] == "LangChain"
-
     assert len(data["sub_agents"]) == 1
-    sub_agent = data["sub_agents"][0]
-    assert sub_agent["agent_id"] == "456"
-    assert sub_agent["depth"] == 1
-    assert len(sub_agent["tools"]) == 1
-    assert sub_agent["tools"][0]["type"] == "Local"
-
-    assert len(sub_agent["sub_agents"]) == 1
-    deep_sub_agent = sub_agent["sub_agents"][0]
-    assert deep_sub_agent["agent_id"] == "789"
-    assert deep_sub_agent["depth"] == 2
-    assert deep_sub_agent["tools"][0]["type"] == "MCP"
+    
+    # Level 1
+    level1 = data["sub_agents"][0]
+    assert level1["agent_id"] == "2"
+    assert level1["name"] == "Level 1 Agent"
+    assert level1["depth"] == 1
+    assert len(level1["tools"]) == 1
+    assert level1["tools"][0]["type"] == "LangChain"
+    
+    # Level 2
+    level2 = level1["sub_agents"][0]
+    assert level2["agent_id"] == "3"
+    assert level2["name"] == "Level 2 Agent"
+    assert level2["depth"] == 2
+    assert len(level2["tools"]) == 1
+    assert level2["tools"][0]["type"] == "Local"
