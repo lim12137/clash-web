@@ -206,17 +206,10 @@ export default function DebugConfig({
     setMessages([]);
     // Reset step ID counter
     stepIdCounter.current.current = 0;
-    // Stop any ongoing debug run
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    // Reset streaming state
-    setIsStreaming(false);
-    // Clear timeout timer
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
+    // Stop both frontend and backend when switching agent (debug mode)
+    const hasActiveStream = isStreaming || abortControllerRef.current !== null;
+    if (hasActiveStream) {
+      handleStop();
     }
   }, [agentId]);
 
