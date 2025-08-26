@@ -73,12 +73,8 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
     user_id, tenant_id, language = get_current_user_info(authorization, request)
 
     # Get description of tool and agent
-    tool_info_list = get_enabled_tool_description_for_generate_prompt(
-        tenant_id=tenant_id, agent_id=agent_id, user_id=user_id
-    )
-    sub_agent_info_list = get_enabled_sub_agent_description_for_generate_prompt(
-        tenant_id=tenant_id, agent_id=agent_id, user_id=user_id
-    )
+    tool_info_list = get_enabled_tool_description_for_generate_prompt(tenant_id=tenant_id, agent_id=agent_id)
+    sub_agent_info_list = get_enabled_sub_agent_description_for_generate_prompt(tenant_id=tenant_id, agent_id=agent_id)
 
     # 1. Real-time streaming push
     final_results = {"duty": "", "constraint": "", "few_shots": "", "agent_var_name": "", "agent_display_name": "",
@@ -209,15 +205,15 @@ def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_lis
     return content
 
 
-def get_enabled_tool_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
+def get_enabled_tool_description_for_generate_prompt(agent_id: int, tenant_id: str):
     # Get tool information
     logger.info("Fetching tool instances")
-    tool_id_list = get_enable_tool_id_by_agent_id(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
+    tool_id_list = get_enable_tool_id_by_agent_id(agent_id=agent_id, tenant_id=tenant_id)
     tool_info_list = query_tools_by_ids(tool_id_list)
     return tool_info_list
 
 
-def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
+def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_id: str):
     logger.info("Fetching sub-agents information")
 
     sub_agent_id_list = query_sub_agents_id_list(main_agent_id=agent_id, tenant_id=tenant_id)

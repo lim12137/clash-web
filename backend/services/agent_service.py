@@ -31,9 +31,8 @@ from agents.preprocess_manager import preprocess_manager
 
 logger = logging.getLogger("agent_service")
 
-def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str, user_id: str = None):
-    # now only admin can modify the tool, user_id is not used
-    all_tool_instance = query_all_enabled_tool_instances(agent_id=agent_id, tenant_id=tenant_id, user_id=None)
+def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str):
+    all_tool_instance = query_all_enabled_tool_instances(agent_id=agent_id, tenant_id=tenant_id)
     enable_tool_id_set = set()
     for tool_instance in all_tool_instance:
         if tool_instance["enabled"]:
@@ -92,7 +91,7 @@ def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
         raise ValueError(f"Failed to get sub agent info: {str(e)}")
     
     try:
-        enable_tool_id_list = get_enable_tool_id_by_agent_id(sub_agent_id, tenant_id, user_id)
+        enable_tool_id_list = get_enable_tool_id_by_agent_id(sub_agent_id, tenant_id)
     except Exception as e:
         logger.error(f"Failed to get sub agent enable tool id list: {str(e)}")
         raise ValueError(f"Failed to get sub agent enable tool id list: {str(e)}")

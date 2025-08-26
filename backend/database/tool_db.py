@@ -70,13 +70,12 @@ def query_all_tools(tenant_id: str):
         return [as_dict(tool) for tool in tools]
 
 
-def query_tool_instances_by_id(agent_id: int, tool_id: int, tenant_id: str, user_id: str = None):
+def query_tool_instances_by_id(agent_id: int, tool_id: int, tenant_id: str):
     """
     Query ToolInstance in the database based on tenant_id and agent_id, optional user_id.
     :param agent_id: Agent ID for filtering, mandatory
     :param tool_id: Tool ID for filtering, mandatory
     :param tenant_id: Tenant ID for filtering, mandatory
-    :param user_id: Optional user ID for filtering
     :return: List of ToolInstance objects
     """
     with get_db_session() as session:
@@ -85,8 +84,6 @@ def query_tool_instances_by_id(agent_id: int, tool_id: int, tenant_id: str, user
             ToolInstance.agent_id == agent_id,
             ToolInstance.tool_id == tool_id,
             ToolInstance.delete_flag != 'Y')
-        if user_id:
-            query = query.filter(ToolInstance.user_id == user_id)
         tool_instance = query.first()
         if tool_instance:
             return as_dict(tool_instance)
@@ -105,11 +102,10 @@ def query_tools_by_ids(tool_id_list: List[int]):
         return [as_dict(tool) for tool in tools]
 
 
-def query_all_enabled_tool_instances(agent_id: int, tenant_id: str, user_id: str = None):
+def query_all_enabled_tool_instances(agent_id: int, tenant_id: str):
     """
     Query ToolInstance in the database based on tenant_id and agent_id, optional user_id.
     :param tenant_id: Tenant ID for filtering, mandatory
-    :param user_id: Optional user ID for filtering
     :param agent_id: Optional agent ID for filtering
     :return: List of ToolInstance objects
     """
@@ -119,9 +115,6 @@ def query_all_enabled_tool_instances(agent_id: int, tenant_id: str, user_id: str
             ToolInstance.delete_flag != 'Y',
             ToolInstance.enabled,
             ToolInstance.agent_id == agent_id)
-        if user_id:
-            query = query.filter(ToolInstance.user_id == user_id)
-
         tools = query.all()
         return [as_dict(tool) for tool in tools]
 

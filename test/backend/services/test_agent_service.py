@@ -137,16 +137,14 @@ def test_get_enable_tool_id_by_agent_id():
         # Execute
         result = get_enable_tool_id_by_agent_id(
             agent_id=123, 
-            tenant_id="test_tenant", 
-            user_id="test_user"
+            tenant_id="test_tenant"
         )
         
         # Assert
         assert sorted(result) == [1, 3, 4]
         mock_query.assert_called_once_with(
             agent_id=123,
-            tenant_id="test_tenant", 
-            user_id=None
+            tenant_id="test_tenant"
         )
 
 
