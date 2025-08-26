@@ -499,14 +499,9 @@ create_dir_with_permission() {
   fi
 
   # Set directory permissions
-  chmod -R "$permission" "$dir_path"
-  if [ $? -ne 0 ]; then
-      echo "   ❌ ERROR Failed to set permissions $permission for directory $dir_path." >&2
-      ERROR_OCCURRED=1
-      return 1
+  if chmod -R "$permission" "$dir_path" 2>/dev/null; then
+      echo "   📁 Directory $dir_path has been created and permissions set to $permission."
   fi
-
-  echo "   📁 Directory $dir_path has been created and permissions set to $permission."
 }
 
 prepare_directory_and_data() {
