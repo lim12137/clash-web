@@ -5,8 +5,8 @@ import { App, Button, Tooltip } from 'antd'
 import { SettingOutlined, UploadOutlined, LinkOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { ScrollArea } from '@/components/ui/scrollArea'
-import { Agent } from '../ConstInterface'
 import AgentCallRelationshipModal from './AgentCallRelationshipModal'
+import { Agent } from '@/types/agent'
 
 interface SubAgentPoolProps {
   onEditAgent: (agent: Agent) => void;
