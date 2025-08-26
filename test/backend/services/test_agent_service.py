@@ -343,7 +343,7 @@ async def test_delete_agent_impl_success(mock_get_current_user_info, mock_delete
     
     # Assert
     mock_delete_agent.assert_called_once_with(123, "test_tenant", "test_user")
-    mock_delete_related.assert_called_once_with(123, "test_tenant")
+    mock_delete_related.assert_called_once_with(123, "test_tenant", "test_user")
     mock_delete_tools.assert_called_once_with(123, "test_tenant", "test_user")
 
 
