@@ -1,5 +1,4 @@
 import threading
-import yaml
 import logging
 from urllib.parse import urljoin
 from nexent.core.utils.observer import MessageObserver
@@ -8,7 +7,7 @@ from services.remote_mcp_service import get_remote_mcp_server_list
 from utils.auth_utils import get_current_user_id
 
 from database.agent_db import search_agent_info_by_agent_id, search_tools_for_sub_agent, \
-    query_or_create_main_agent_id, query_sub_agents_id_list
+    query_sub_agents_id_list
 from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
 from services.tenant_config_service import get_selected_knowledge_list
 from utils.prompt_template_utils import get_agent_prompt_template

@@ -16,7 +16,7 @@ import modelEngineService, { ConnectionStatus } from "@/services/modelEngineServ
 import { useAuth } from "@/hooks/useAuth"
 import { useTranslation } from 'react-i18next'
 import { languageOptions } from '@/lib/constants'
-import { useLanguageSwitch } from '@/lib/languageUtils'
+import { useLanguageSwitch } from '@/lib/language'
 import { HEADER_CONFIG } from '@/lib/layoutConstants'
 
 
