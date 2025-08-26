@@ -1,7 +1,4 @@
-import type { UploadFile } from 'antd/es/upload/interface';
 import knowledgeBaseService from '@/services/knowledgeBaseService';
-import knowledgeBasePollingService from '@/services/knowledgeBasePollingService';
-import { useTranslation } from 'react-i18next';
 import '../app/[locale]/i18n';
 import { TFunction } from 'i18next';
 
@@ -9,11 +6,6 @@ import { TFunction } from 'i18next';
 export interface AbortableError extends Error {
   name: string;
 }
-
-// 简化更新缓存的通用函数
-export const updateKnowledgeBaseCache = (forceRefresh: boolean = true) => {
-  knowledgeBasePollingService.triggerKnowledgeBaseListUpdate(forceRefresh);
-};
 
 // 新的检查知识库名称状态的方法
 export const checkKnowledgeBaseName = async (
@@ -90,30 +82,3 @@ export const validateFileType = (file: File, t: TFunction, message: any): boolea
 
   return true;
 };
-
-// 创建模拟的文件选择事件
-export const createMockFileSelectEvent = (
-  file: UploadFile<any>
-): React.ChangeEvent<HTMLInputElement> => {
-  const { t } = useTranslation('common');
-  if (!file.originFileObj) {
-    throw new Error(t('knowledgeBase.upload.noFileObject'));
-  }
-  
-  return {
-    target: {
-      files: [file.originFileObj]
-    },
-    preventDefault: () => {},
-    stopPropagation: () => {},
-    nativeEvent: new Event('change'),
-    currentTarget: null,
-    bubbles: true,
-    cancelable: true,
-    defaultPrevented: false,
-    eventPhase: 0,
-    isTrusted: true,
-    timeStamp: Date.now(),
-    type: 'change'
-  } as unknown as React.ChangeEvent<HTMLInputElement>;
-}; 

@@ -1132,7 +1132,7 @@
         "inputPlaceholder": "请输入记忆内容"
     },
     "collaborativeAgent": {
-        "title": "选择 协作Agent",
+        "title": "选择协作的 Agent",
         "button": {
             "add": "添加协作Agent"
         },

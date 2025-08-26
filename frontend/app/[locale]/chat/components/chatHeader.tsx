@@ -1,16 +1,10 @@
-'use client'
+"use client";
 
-import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Share,
-  Bookmark,
-  MoreHorizontal,
-  BrainCircuit,
-  Globe
-} from "lucide-react"
-import { DownOutlined } from '@ant-design/icons'
+import { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { BrainCircuit, Globe } from "lucide-react";
+import { DownOutlined } from "@ant-design/icons";
 
 // Gradient definition for BrainCircuit icon
 const GradientDefs = () => (
@@ -22,31 +16,25 @@ const GradientDefs = () => (
       </linearGradient>
     </defs>
   </svg>
-)
+);
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdownMenu"
-import { useTranslation } from "react-i18next"
-import { Dropdown } from "antd"
-import { languageOptions } from '@/lib/constants'
-import { useLanguageSwitch } from '@/lib/languageUtils'
-import MemoryManageModal from "../internal/memory/memoryManageModal"
+import { useTranslation } from "react-i18next";
+import { Dropdown } from "antd";
+import { languageOptions } from "@/lib/constants";
+import { useLanguageSwitch } from "@/lib/language";
+import MemoryManageModal from "../internal/memory/memoryManageModal";
 
 interface ChatHeaderProps {
-  title: string
-  onShare?: () => void
-  onRename?: (newTitle: string) => void
+  title: string;
+  onRename?: (newTitle: string) => void;
 }
 
-export function ChatHeader({
-  title,
-  onShare,
-  onRename
-}: ChatHeaderProps) {
+export function ChatHeader({ title, onRename }: ChatHeaderProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
   const [memoryModalVisible, setMemoryModalVisible] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { t } = useTranslation('common');
+  const { t } = useTranslation("common");
   const { currentLanguage, handleLanguageChange } = useLanguageSwitch();
 
   // Update editTitle when the title attribute changes
@@ -87,8 +75,6 @@ export function ChatHeader({
     }
   };
 
-
-
   return (
     <>
       <GradientDefs />
@@ -127,27 +113,39 @@ export function ChatHeader({
               {/* Language Switch */}
               <Dropdown
                 menu={{
-                  items: languageOptions.map(opt => ({ key: opt.value, label: opt.label })),
+                  items: languageOptions.map((opt) => ({
+                    key: opt.value,
+                    label: opt.label,
+                  })),
                   onClick: ({ key }) => handleLanguageChange(key as string),
                 }}
               >
-                <a
-                  className="ant-dropdown-link text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors flex items-center gap-2 cursor-pointer w-[100px] border-0 shadow-none bg-transparent text-left"
-                >
+                <a className="ant-dropdown-link text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors flex items-center gap-2 cursor-pointer w-[100px] border-0 shadow-none bg-transparent text-left">
                   <Globe className="h-4 w-4" />
-                  {languageOptions.find(o => o.value === currentLanguage)?.label || currentLanguage}
+                  {languageOptions.find((o) => o.value === currentLanguage)
+                    ?.label || currentLanguage}
                   <DownOutlined className="text-[10px]" />
                 </a>
               </Dropdown>
               {/* Memory Setting */}
-              <Button variant="ghost" className="h-8 w-12 rounded-full" onClick={() => setMemoryModalVisible(true)}>
-                <BrainCircuit className="size-5" stroke="url(#brainCogGradient)" />
+              <Button
+                variant="ghost"
+                className="h-8 w-12 rounded-full"
+                onClick={() => setMemoryModalVisible(true)}
+              >
+                <BrainCircuit
+                  className="size-5"
+                  stroke="url(#brainCogGradient)"
+                />
               </Button>
             </div>
           </div>
         </div>
       </header>
-      <MemoryManageModal visible={memoryModalVisible} onClose={() => setMemoryModalVisible(false)} />
+      <MemoryManageModal
+        visible={memoryModalVisible}
+        onClose={() => setMemoryModalVisible(false)}
+      />
     </>
-  )
-} 
+  );
+}

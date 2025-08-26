@@ -1,7 +1,6 @@
 """
 Celery application configuration for data processing tasks
 """
-import os
 import logging
 from celery import Celery
 from consts.const import REDIS_URL, REDIS_BACKEND_URL, ELASTICSEARCH_SERVICE
