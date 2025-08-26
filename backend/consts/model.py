@@ -379,3 +379,15 @@ class MemoryAgentShareMode(str, Enum):
     @classmethod
     def default(cls) -> "MemoryAgentShareMode":
         return cls.NEVER
+
+# Northbound customize error class
+class LimitExceededError(Exception):
+    pass
+
+class UnauthorizedError(Exception):
+    pass
+
+# Custom error raised when HMAC signature validation fails in northbound requests
+class SignatureValidationError(Exception):
+    """Raised when X-Signature header is missing or does not match the expected HMAC value."""
+    pass

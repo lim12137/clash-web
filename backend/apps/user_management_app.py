@@ -550,8 +550,8 @@ async def get_user_id(request: Request):
 
     # If the token is invalid, try to parse the user ID from the token
     try:
-        from utils.auth_utils import get_current_user_id_from_token
-        user_id = get_current_user_id_from_token(authorization)
+        from utils.auth_utils import get_current_user_id
+        user_id, _ = get_current_user_id(authorization)
         if user_id:
             logging.info(f"Successfully parsed user ID from token: {user_id}")
             return ServiceResponse(

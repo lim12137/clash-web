@@ -306,3 +306,23 @@ class AgentRelation(TableBase):
     created_by = Column(String(100), doc="Creator ID, audit field")
     updated_by = Column(String(100), doc="Last updater ID, audit field")
     delete_flag = Column(String(1), default="N", doc="Delete flag, set to Y for soft delete, optional values Y/N")
+
+
+class PartnerMappingId(TableBase):
+    """
+    External-Internal ID mapping table for partners
+    """
+    __tablename__ = "partner_mapping_id_t"
+    __table_args__ = {"schema": SCHEMA}
+
+    mapping_id = Column(Integer, Sequence("partner_mapping_id_t_mapping_id_seq", schema=SCHEMA), primary_key=True, nullable=False, doc="ID")
+    external_id = Column(String(100), doc="The external id given by the outer partner")
+    internal_id = Column(Integer, doc="The internal id of the other database table")
+    mapping_type = Column(String(30), doc="Type of the external - internal mapping, value set: CONVERSATION")
+    tenant_id = Column(String(100), doc="Tenant ID")
+    user_id = Column(String(100), doc="User ID")
+    create_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Creation time, audit field")
+    update_time = Column(TIMESTAMP(timezone=False), server_default=func.now(), doc="Update time, audit field")
+    created_by = Column(String(100), doc="Creator ID, audit field")
+    updated_by = Column(String(100), doc="Last updater ID, audit field")
+    delete_flag = Column(String(1), default="N", doc="Delete flag, set to Y for soft delete, optional values Y/N")
