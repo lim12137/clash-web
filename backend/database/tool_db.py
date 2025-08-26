@@ -208,13 +208,8 @@ def check_tool_is_available(tool_id_list: List[int]):
 
 
 def delete_tools_by_agent_id(agent_id, tenant_id, user_id):
-    try:
-        with get_db_session() as session:
-            session.query(ToolInstance).filter(ToolInstance.agent_id == agent_id,
-                                                ToolInstance.tenant_id == tenant_id).update(
-                {ToolInstance.delete_flag: 'Y', 'updated_by': user_id})
-        session.flush()
-        return True
-    except Exception as e:
-        logger.error(f"Failed to delete tools by agent_id: {str(e)}")
-        return False
+    with get_db_session() as session:
+        session.query(ToolInstance).filter(ToolInstance.agent_id == agent_id,
+                                            ToolInstance.tenant_id == tenant_id).update(
+            {ToolInstance.delete_flag: 'Y', 'updated_by': user_id})
+        session.commit()
