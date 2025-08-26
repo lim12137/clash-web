@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
     detail: (id: number) => `${API_BASE_URL}/conversation/${id}`,
     delete: (id: number) => `${API_BASE_URL}/conversation/${id}`,
     generateTitle: `${API_BASE_URL}/conversation/generate_title`,
+    // TODO: Remove this endpoint
     sources: `${API_BASE_URL}/conversation/sources`,
     opinion: `${API_BASE_URL}/conversation/message/update_opinion`,
     messageId: `${API_BASE_URL}/conversation/message/id`,

@@ -55,26 +55,6 @@ export const storageService = {
   },
   
   /**
-   * Get file list
-   * @param prefix Optional file prefix
-   * @param limit Maximum number of files to return
-   * @returns File list
-   */
-  async getFiles(prefix: string = '', limit: number = 100): Promise<any> {
-    const url = new URL(API_ENDPOINTS.storage.files, window.location.origin);
-    url.searchParams.append('prefix', prefix);
-    url.searchParams.append('limit', limit.toString());
-    
-    const response = await fetch(url.toString());
-    
-    if (!response.ok) {
-      throw new Error(`Failed to get file list from Minio: ${response.statusText}`);
-    }
-    
-    return await response.json();
-  },
-  
-  /**
    * Get the URL of a single file
    * @param objectName File object name
    * @returns File URL
@@ -88,22 +68,5 @@ export const storageService = {
     
     const data = await response.json();
     return data.url;
-  },
-  
-  /**
-   * Delete file
-   * @param objectName File object name
-   * @returns Delete result
-   */
-  async deleteFile(objectName: string): Promise<any> {
-    const response = await fetch(API_ENDPOINTS.storage.delete(objectName), {
-      method: 'DELETE',
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to delete file from Minio: ${response.statusText}`);
-    }
-    
-    return await response.json();
   }
 }; 

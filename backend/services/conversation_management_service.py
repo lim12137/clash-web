@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import yaml
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from jinja2 import StrictUndefined, Template
