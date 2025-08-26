@@ -599,7 +599,7 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
     Returns:
         dict: agent call relationship tree structure
     """
-    # 工具类型规范：满足测试预期
+    # Tool type specification: meets test expectations
     _TYPE_MAPPING = {
         "mcp": "MCP",
         "langchain": "LangChain",
@@ -607,14 +607,14 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
     }
 
     def _normalize_tool_type(source: str) -> str:
-        """将数据库里的 source 规范为测试期望的展示 type。"""
+        """Normalize the source from database to the expected display type for testing."""
         if not source:
             return "UNKNOWN"
         s = str(source)
         ls = s.lower()
         if ls in _TYPE_MAPPING:
             return _TYPE_MAPPING[ls]
-        # 未知来源：首字母大写，其余保持原样（unknown_source -> Unknown_source）
+        # Unknown source: capitalize first letter, keep the rest unchanged (unknown_source -> Unknown_source)
         return s[:1].upper() + s[1:]
 
     try:
