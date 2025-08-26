@@ -2,85 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
-
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 210 100% 50%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 210 100% 50%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 100% 50%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 210 100% 50%;
   }
 }
 
@@ -93,192 +58,138 @@ body {
   }
 }
 
-/* 调整markdown内容的字体大小 */
-.markdown-content {
-  @apply text-sm;
+@layer utilities {
+  .bg-grid-slate-200 {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgb(226 232 240 / 0.8)'%3e%3cpath d='M0 .5H31.5V32'/%3e%3c/svg%3e");
+  }
+
+  .bg-grid-slate-800 {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgb(30 41 59 / 0.8)'%3e%3cpath d='M0 .5H31.5V32'/%3e%3c/svg%3e");
+  }
 }
 
-/* 用户气泡内的markdown内容右对齐 */
-.text-right.markdown-content p,
-.text-right.markdown-content h1,
-.text-right.markdown-content h2,
-.text-right.markdown-content h3,
-.text-right.markdown-content h4,
-.text-right.markdown-content h5,
-.text-right.markdown-content h6,
-.text-right.markdown-content ul,
-.text-right.markdown-content ol {
-  @apply text-right;
+/* Ant Design Button Icon with Lucide icons */
+.ant-btn-icon {
+  display: inline-flex !important;
+  align-items: center !important;
 }
 
-/* 层级边框样式 */
-.step-box {
-  @apply border border-gray-200 rounded-lg mb-2;
+.ant-collapse-header {
+  @apply bg-gray-50;
 }
 
-.output-box {
-  @apply border border-gray-100 rounded-md mb-2;
+.ant-collapse-collapsible-disabled {
+  cursor: default !important;
 }
 
-/* 调整markdown内容的字体大小 */
-.markdown-content h1 {
-  @apply text-base font-bold mt-3 mb-2;
+.ant-collapse-content-box {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-right: 0 !important;
 }
 
-.markdown-content h2 {
-  @apply text-sm font-semibold mt-2 mb-1;
+.ant-collapse-item-active>.ant-collapse-header {
+  @apply shadow-md;
+}
+.ant-collapse-item-disabled>.ant-collapse-header {
+  @apply cursor-default;
 }
 
-.markdown-content h3,
-.markdown-content h4,
-.markdown-content h5,
-.markdown-content h6 {
-  @apply text-sm font-medium mt-2 mb-1;
+/* Styles for the List component inside MemoryManageModal */
+.memory-modal-list .ant-list-item {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 2px;
 }
 
-.markdown-content p {
-  @apply my-1 text-sm;
+.memory-modal-list .ant-list-item-action {
+  width: 5%;
+  margin-left: auto !important;
+  display: flex;
+  justify-content: right;
 }
 
-/* 代码块样式 */
-.markdown-content pre {
-  @apply my-2 rounded-md overflow-auto;
-  background-color: #f5f5f5 !important;
+.memory-modal-panel {
+  background: #f9fafb;
+  border-radius: 4px;
+  border: 1px solid #f0f0f0;
 }
 
-.markdown-content code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+/* Scrollbar styles */
+/* For Webkit browsers (Chrome, Safari, Edge, etc.) */
+::-webkit-scrollbar {
+  width: 16px;
+  background-color: transparent;
 }
 
-/* 行内代码样式 */
-.markdown-content :not(pre) > code {
-  @apply bg-gray-100 px-1.5 py-0.5 rounded text-blue-700 font-mono text-sm;
+::-webkit-scrollbar-track {
+  background-color: transparent;
 }
 
-/* Agent运行信息的样式 */
-.agent-run-info {
-  @apply text-sm leading-relaxed;
+::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.4);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
-.agent-run-info .markdown-content p {
-  @apply text-sm my-1.5;
+/* For Firefox */
+* {
+  scrollbar-color: rgba(0, 0, 0, 0.4) transparent;
 }
 
-.agent-run-info .markdown-content pre {
-  @apply my-3;
+/* Tool Pool Tabs 滚动修复 */
+.tool-pool-tabs .ant-tabs-content-holder {
+  overflow: hidden;
+  height: 100%;
 }
 
-/* 搜索结果样式 */
-.search-result {
-  @apply p-3 rounded-lg border border-gray-200 text-xs hover:bg-gray-50 transition-colors;
+.tool-pool-tabs .ant-tabs-content {
+  height: 100%;
 }
 
-.search-result-title {
-  @apply font-medium text-blue-600 hover:underline truncate block;
-}
-
-.search-result-date {
-  @apply text-gray-500 mt-1 text-xs;
-}
-
-.search-result-text {
-  @apply text-gray-700 mt-1;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+.tool-pool-tabs .ant-tabs-tabpane {
+  height: 100%;
   overflow: hidden;
 }
 
-.search-result-url {
-  @apply text-gray-500 hover:text-gray-700 truncate text-xs mt-2;
+/* 确保工具池tabs内容区域可以滚动 */
+.tool-pool-tabs .ant-tabs-content-holder .ant-tabs-content .ant-tabs-tabpane > div {
+  height: 100%;
+  max-height: 100%;
 }
 
-/* 最终回答内容的样式 */
-.final-answer-content {
-  @apply text-sm leading-relaxed; /* 基础字体大小和行高 */
+/* 调整tabs内容区域的左右内边距 - 使用更强的选择器 */
+.tool-pool-tabs.ant-tabs.ant-tabs-left > .ant-tabs-content-holder {
+  padding-left: 12px !important;
+  padding-right: 9px !important;
+  margin-left: 0 !important;
 }
 
-/* 最终回答中的Markdown元素样式 */
-.final-answer-content p {
-  @apply my-2 text-sm; /* 段落字体大小 */
+.tool-pool-tabs.ant-tabs.ant-tabs-left > .ant-tabs-content-holder > .ant-tabs-content {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
 }
 
-.final-answer-content h1,
-.final-answer-content h2,
-.final-answer-content h3 {
-  @apply font-bold; /* 标题加粗 */
+.tool-pool-tabs.ant-tabs.ant-tabs-left .ant-tabs-tabpane {
+  padding-left: 0 !important;
 }
 
-.final-answer-content h1 {
-  @apply text-lg my-3; /* 一级标题字体大小 */
+/* 缩短标签的内外边距，使标签更紧凑 */
+.tool-pool-tabs .ant-tabs-tab {
+  padding: 12px 6px !important;
+  margin: 4px 2px !important;
+  min-height: auto !important;
+  width: auto !important;
+  max-width: 100px !important;
 }
 
-.final-answer-content h2 {
-  @apply text-base my-2; /* 二级标题字体大小 */
+.tool-pool-tabs .ant-tabs-nav-list {
+  padding: 4px 0 !important;
+  width: auto !important;
 }
 
-.final-answer-content h3 {
-  @apply text-sm my-2; /* 三级标题字体大小 */
-}
-
-.final-answer-content ul,
-.final-answer-content ol {
-  @apply my-2 pl-5; /* 列表缩进和间距 */
-}
-
-.final-answer-content li {
-  @apply my-1 text-sm; /* 列表项字体大小和间距 */
-}
-
-/* 确保最终回答中的代码块保持可读性 */
-.final-answer-content pre {
-  @apply my-3 text-xs; /* 代码块字体可以稍小一些以保持格式 */
-}
-
-/* 用户消息容器 - 自适应宽度 */
-.user-message-container {
-  display: inline-block;
-  max-width: 85%;
-  text-align: right;
-}
-
-/* 用户消息内容 - 处理换行对齐 */
-.user-message-content p {
-  text-align: right;
-  word-break: break-word;
-}
-
-/* 对于多行内容，保持第一行靠右，后续行靠左 */
-.user-message-content p {
-  display: inline-block;
-  text-align: left;
-}
-
-/* 使用伪元素实现用户消息换行后靠左对齐的效果 */
-.user-message-container {
-  position: relative;
-  width: auto;
-}
-
-/* 确保用户消息框内的链接和代码也正确换行 */
-.user-message-content a,
-.user-message-content code {
-  word-break: break-all;
-}
-
-/* 用户消息段落的特殊样式 */
-.user-paragraph {
-  text-align: left; /* 段落内容左对齐 */
-  display: inline-block; /* 允许容器宽度收缩到内容宽度 */
-  max-width: 100%; /* 但不超过容器 */
-}
-
-/* 当内容超过一行时确保正确换行 */
-.user-message-container {
-  text-align: right; /* 容器整体右对齐 */
-}
-
-/* 增强易读性的间距 */
-.user-message-content p {
-  margin: 0; /* 移除默认边距 */
+.tool-pool-tabs .ant-tabs-tab-btn {
+  padding: 0 !important;
+  line-height: 1.2 !important;
 }

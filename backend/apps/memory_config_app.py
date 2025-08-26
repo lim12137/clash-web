@@ -5,7 +5,6 @@ from typing import Optional, Any, List, Dict
 from fastapi import APIRouter, Header, Body, Path, Query
 from fastapi.responses import JSONResponse
 
-from consts import const as _c
 from consts.model import MemoryAgentShareMode
 from utils.auth_utils import get_current_user_id
 from utils.memory_utils import build_memory_config
