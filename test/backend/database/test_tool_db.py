@@ -344,6 +344,7 @@ def test_add_tool_field(monkeypatch, mock_session):
     mock_ctx.__enter__.return_value = session
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
+    monkeypatch.setattr("backend.database.tool_db.as_dict", lambda obj: obj.__dict__)
     
     tool_info = {"tool_id": 1, "params": {"param1": "value1"}}
     result = add_tool_field(tool_info)
