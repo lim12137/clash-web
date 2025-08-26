@@ -121,10 +121,11 @@ def delete_agent_by_id(agent_id, tenant_id: str, user_id: str):
     with get_db_session() as session:
         session.query(AgentInfo).filter(AgentInfo.agent_id == agent_id,
                                         AgentInfo.tenant_id == tenant_id).update(
-            {'delete_flag': 'Y', 'updated_by': user_id})
+            {AgentInfo.delete_flag: 'Y', 'updated_by': user_id})
         session.query(ToolInstance).filter(ToolInstance.agent_id == agent_id,
-                                           AgentInfo.tenant_id == tenant_id).update(
+                                           ToolInstance.tenant_id == tenant_id).update(
             {ToolInstance.delete_flag: 'Y', 'updated_by': user_id})
+        session.commit()
 
 def query_all_agent_info_by_tenant_id(tenant_id: str):
     """
@@ -163,16 +164,12 @@ def delete_related_agent(parent_agent_id: int, child_agent_id: int, tenant_id: s
         logger.error(f"Failed to delete related agent: {str(e)}")
         return False
 
-def delete_agent_relationship(agent_id: int, tenant_id: str, user_id: str)->bool:
-    try:
-        with get_db_session() as session:
-            session.query(AgentRelation).filter(AgentRelation.parent_agent_id == agent_id,
-                                                AgentRelation.tenant_id == tenant_id).update(
-                {AgentRelation.delete_flag: 'Y', 'updated_by': user_id})
-            session.query(AgentRelation).filter(AgentRelation.selected_agent_id == agent_id,
-                                                AgentRelation.tenant_id == tenant_id).update(
-                {AgentRelation.delete_flag: 'Y', 'updated_by': user_id})
-            return True
-    except Exception as e:
-        logger.error(f"Failed to delete related agent: {str(e)}")
-        return False
+def delete_agent_relationship(agent_id: int, tenant_id: str, user_id: str):
+    with get_db_session() as session:
+        session.query(AgentRelation).filter(AgentRelation.parent_agent_id == agent_id,
+                                            AgentRelation.tenant_id == tenant_id).update(
+            {AgentRelation.delete_flag: 'Y', 'updated_by': user_id})
+        session.query(AgentRelation).filter(AgentRelation.selected_agent_id == agent_id,
+                                            AgentRelation.tenant_id == tenant_id).update(
+            {AgentRelation.delete_flag: 'Y', 'updated_by': user_id})
+        session.commit()

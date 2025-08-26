@@ -402,18 +402,15 @@ def test_delete_tools_by_agent_id_success(monkeypatch, mock_session):
     mock_filter.update = mock_update
     query.filter.return_value = mock_filter
     
-    session.flush = MagicMock()
-    
     mock_ctx = MagicMock()
     mock_ctx.__enter__.return_value = session
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
     
-    result = delete_tools_by_agent_id(1, "tenant1", "user1")
+    # 函数不返回任何值，只验证执行成功
+    delete_tools_by_agent_id(1, "tenant1", "user1")
     
-    assert result is True
     mock_update.assert_called_once()
-    session.flush.assert_called_once()
 
 def test_delete_tools_by_agent_id_failure(monkeypatch, mock_session):
     """测试删除agent的工具失败"""
@@ -428,6 +425,6 @@ def test_delete_tools_by_agent_id_failure(monkeypatch, mock_session):
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
     
-    result = delete_tools_by_agent_id(1, "tenant1", "user1")
-    
-    assert result is False 
+    # 函数应该抛出异常，因为数据库操作失败
+    with pytest.raises(Exception, match="Database error"):
+        delete_tools_by_agent_id(1, "tenant1", "user1") 

@@ -423,9 +423,9 @@ def test_delete_agent_relationship_success(monkeypatch, mock_session):
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.agent_db.get_db_session", lambda: mock_ctx)
     
-    result = delete_agent_relationship(1, "tenant1", "user1")
+    # 函数不返回任何值，只验证执行成功
+    delete_agent_relationship(1, "tenant1", "user1")
     
-    assert result is True
     # 验证调用了两次update（一次删除父关系，一次删除子关系）
     assert mock_update.call_count == 2
 
@@ -442,6 +442,6 @@ def test_delete_agent_relationship_failure(monkeypatch, mock_session):
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.agent_db.get_db_session", lambda: mock_ctx)
     
-    result = delete_agent_relationship(1, "tenant1", "user1")
-    
-    assert result is False 
+    # 函数应该抛出异常，因为数据库操作失败
+    with pytest.raises(Exception, match="Database error"):
+        delete_agent_relationship(1, "tenant1", "user1") 
