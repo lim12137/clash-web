@@ -49,28 +49,6 @@ export interface SearchResult {
   cite_index?: number
 }
 
-// History adapter related types
-export interface HistoryApiMessageItem {
-  type: string
-  content: string
-}
-
-export interface HistorySearchResult {
-  title: string
-  text: string
-  url: string
-  published_date: string | null
-}
-
-export interface HistoryApiMessage {
-  role: "user" | "assistant"
-  message: HistoryApiMessageItem[]
-  message_id: number
-  opinion_flag?: string
-  picture?: string[]
-  search?: HistorySearchResult[]
-}
-
 // File attachment type
 export interface FileAttachment {
   name: string

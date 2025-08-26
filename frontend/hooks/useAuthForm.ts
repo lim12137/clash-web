@@ -6,7 +6,7 @@ import { Form } from "antd"
 export interface AuthFormValues {
   email: string;
   password: string;
-  confirmPassword: string;  // 移除可选标记，因为注册表单需要这个字段
+  confirmPassword: string;
   inviteCode?: string;
 }
 
@@ -16,13 +16,13 @@ export function useAuthForm() {
   const [emailError, setEmailError] = useState("")
   const [passwordError, setPasswordError] = useState(false)
 
-  // 重置所有错误
+  // Reset all errors
   const resetErrors = () => {
     setEmailError("")
     setPasswordError(false)
   }
 
-  // 处理邮箱输入变化
+  // Handle email input change
   const handleEmailChange = () => {
     if (emailError) {
       setEmailError("") 
@@ -35,14 +35,14 @@ export function useAuthForm() {
     }
   }
 
-  // 处理密码输入变化  
+  // Handle password input change  
   const handlePasswordChange = () => {
     if (passwordError) {
       setPasswordError(false)
     }
   }
 
-  // 重置表单
+  // Reset form
   const resetForm = () => {
     resetErrors()
     form.resetFields()

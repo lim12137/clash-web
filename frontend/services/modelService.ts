@@ -4,14 +4,14 @@ import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, Mo
 import { API_ENDPOINTS } from './api'
 import { getAuthHeaders } from '@/lib/auth'
 
-// API响应类型
+// API response type
 interface ApiResponse<T = any> {
   code: number
   message?: string
   data?: T
 }
 
-// 错误类
+// Error class
 export class ModelError extends Error {
   constructor(message: string, public code?: number) {
     super(message)
@@ -238,7 +238,7 @@ export const modelService = {
     apiKey: string,
     maxTokens?: number,
     source?: ModelSource
-  }): Promise<ApiResponse> => {
+  }): Promise<void> => {
     try {
       const response = await fetch(API_ENDPOINTS.model.updateSingleModel, {
         method: 'POST',
@@ -256,7 +256,6 @@ export const modelService = {
       if (result.code !== 200) {
         throw new ModelError(result.message || "Failed to update the custom model", result.code)
       }
-      return result
     } catch (error) {
       if (error instanceof ModelError) throw error
       throw new ModelError("Failed to update the custom model", 500) 
