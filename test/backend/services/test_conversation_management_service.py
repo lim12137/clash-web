@@ -1,7 +1,7 @@
 import unittest
 import json
 from datetime import datetime
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 
 # Mock boto3 and minio client before importing the module under test
 import sys
@@ -213,14 +213,9 @@ class TestConversationManagementService(unittest.TestCase):
         self.assertIn("AI stands for Artificial Intelligence.", result)
 
     @patch('backend.services.conversation_management_service.OpenAIServerModel')
-    @patch('backend.services.conversation_management_service.open', new_callable=mock_open, read_data="""
-SYSTEM_PROMPT: "Generate a short title"
-USER_PROMPT: "Generate a title for: {{content}}"
-""")
-    @patch('backend.services.conversation_management_service.yaml.safe_load')
-    @patch('os.getenv')
+    @patch('backend.services.conversation_management_service.get_generate_title_prompt_template')
     @patch('backend.services.conversation_management_service.tenant_config_manager.get_model_config')
-    def test_call_llm_for_title(self, mock_get_model_config, mock_getenv, mock_yaml_load, mock_open_file, mock_openai):
+    def test_call_llm_for_title(self, mock_get_model_config, mock_get_prompt_template, mock_openai):
         # Setup
         mock_get_model_config.return_value = {
             "model_name": "gpt-4",
@@ -229,17 +224,11 @@ USER_PROMPT: "Generate a title for: {{content}}"
             "api_key": "fake-key"
         }
 
-        mock_getenv.side_effect = lambda key: {
-            'LLM_MODEL_NAME': 'gpt-4',
-            'LLM_MODEL_URL': 'http://example.com',
-            'LLM_API_KEY': 'fake-key'
-        }.get(key)
-
-        mock_yaml_data = {
+        mock_prompt_template = {
             "SYSTEM_PROMPT": "Generate a short title",
             "USER_PROMPT": "Generate a title for: {{content}}"
         }
-        mock_yaml_load.return_value = mock_yaml_data
+        mock_get_prompt_template.return_value = mock_prompt_template
 
         mock_llm_instance = mock_openai.return_value
         mock_response = MagicMock()
@@ -253,6 +242,7 @@ USER_PROMPT: "Generate a title for: {{content}}"
         self.assertEqual(result, "AI Discussion")
         mock_openai.assert_called_once()
         mock_llm_instance.assert_called_once()
+        mock_get_prompt_template.assert_called_once_with(language='zh')
 
     @patch('backend.services.conversation_management_service.rename_conversation')
     def test_update_conversation_title(self, mock_rename_conversation):

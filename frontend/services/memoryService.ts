@@ -1,10 +1,8 @@
 import { MemoryItem, MemoryGroup } from "@/types/memory"
 import i18next from 'i18next'
 import { API_ENDPOINTS, fetchWithErrorHandling } from "./api"
-import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
+import { getAuthHeaders } from '@/lib/auth';
 import { fetchAllAgents } from "./agentConfigService"
-
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // ---------------------------------------------------------------------------
 // Error message translation helper

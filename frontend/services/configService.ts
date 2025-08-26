@@ -21,6 +21,7 @@ export class ConfigService {
         return false;
       }
 
+      // TODO: What is this await for?
       const result = await response.json();
       return true;
     } catch (error) {
