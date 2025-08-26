@@ -604,17 +604,12 @@ def _alias_services_for_tests():
 
 
 def test_get_agent_call_relationship_api_success(mocker, mock_auth_header):
-    """
-    /agent/call_relationship/{agent_id} 成功返回
-    """
-    _alias_services_for_tests()
-
     # patch 鉴权
     mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
     mock_get_user_id.return_value = ("user_id_x", "tenant_abc")
 
-    # patch 实现函数（注意路径仍然用 services.agent_service，与路由内部一致）
-    mock_impl = mocker.patch("services.agent_service.get_agent_call_relationship_impl")
+    # 现在改 patch 这里：指向 apps.agent_app 命名空间的顶层符号
+    mock_impl = mocker.patch("apps.agent_app.get_agent_call_relationship_impl")
     mock_impl.return_value = {
         "agent_id": 1,
         "tree": {"tools": [], "sub_agents": []}
@@ -625,22 +620,17 @@ def test_get_agent_call_relationship_api_success(mocker, mock_auth_header):
     assert resp.status_code == 200
     mock_get_user_id.assert_called_once_with(mock_auth_header["Authorization"])
     mock_impl.assert_called_once_with(1, "tenant_abc")
-
     data = resp.json()
     assert data["agent_id"] == 1
     assert "tree" in data and "tools" in data["tree"] and "sub_agents" in data["tree"]
 
 
 def test_get_agent_call_relationship_api_exception(mocker, mock_auth_header):
-    """
-    /agent/call_relationship/{agent_id} 异常分支（实现抛错）
-    """
-    _alias_services_for_tests()
-
     mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
     mock_get_user_id.return_value = ("user_id_x", "tenant_abc")
 
-    mock_impl = mocker.patch("services.agent_service.get_agent_call_relationship_impl")
+    # 同样改这里
+    mock_impl = mocker.patch("apps.agent_app.get_agent_call_relationship_impl")
     mock_impl.side_effect = Exception("boom")
 
     resp = client.get("/agent/call_relationship/999", headers=mock_auth_header)
