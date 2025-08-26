@@ -46,7 +46,7 @@ export const fetchTools = async () => {
     return {
       success: false,
       data: [],
-      message: "获取工具列表失败，请稍后重试",
+      message: "agentConfig.error.fetchToolsFailed",
     };
   }
 };
@@ -84,7 +84,7 @@ export const fetchAgentList = async () => {
     return {
       success: false,
       data: [],
-      message: "获取 agent 列表失败，请稍后重试",
+      message: "agentConfig.error.fetchAgentListFailed",
     };
   }
 };
@@ -126,7 +126,7 @@ export const getCreatingSubAgentId = async () => {
     return {
       success: false,
       data: null,
-      message: "获取创建子代理ID失败，请稍后重试",
+      message: "agentConfig.error.fetchCreatingSubAgentIdFailed",
     };
   }
 };
@@ -461,7 +461,7 @@ export const searchAgentInfo = async (agentId: number) => {
     return {
       success: false,
       data: null,
-      message: "获取Agent详情失败，请稍后重试",
+      message: "agentConfig.error.fetchAgentDetailsFailed",
     };
   }
 };
@@ -499,7 +499,7 @@ export const fetchAllAgents = async () => {
     return {
       success: false,
       data: [],
-      message: "获取Agent列表失败，请稍后重试",
+      message: "agentConfig.error.fetchAgentListFailed",
     };
   }
 };
@@ -622,7 +622,7 @@ export const fetchAgentCallRelationship = async (agentId: number) => {
     return {
       success: false,
       data: null,
-      message: '获取Agent调用关系失败，请稍后重试'
+      message: 'agentConfig.error.fetchAgentCallRelationshipFailed'
     };
   }
 };
