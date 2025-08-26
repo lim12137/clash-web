@@ -120,7 +120,7 @@ async def delete_agent_impl(agent_id: int, authorization: str = Header(None)):
 
     try:
         delete_agent_by_id(agent_id, tenant_id, user_id)
-        delete_agent_relationship(agent_id, tenant_id)
+        delete_agent_relationship(agent_id, tenant_id, user_id)
         delete_tools_by_agent_id(agent_id, tenant_id, user_id)
 
         # Clean up all memory data related to the agent

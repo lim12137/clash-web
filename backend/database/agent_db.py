@@ -163,15 +163,15 @@ def delete_related_agent(parent_agent_id: int, child_agent_id: int, tenant_id: s
         logger.error(f"Failed to delete related agent: {str(e)}")
         return False
 
-def delete_agent_relationship(agent_id: int, tenant_id: str)->bool:
+def delete_agent_relationship(agent_id: int, tenant_id: str, user_id: str)->bool:
     try:
         with get_db_session() as session:
             session.query(AgentRelation).filter(AgentRelation.parent_agent_id == agent_id,
                                                 AgentRelation.tenant_id == tenant_id).update(
-                {ToolInstance.delete_flag: 'Y', 'updated_by': tenant_id})
+                {AgentRelation.delete_flag: 'Y', 'updated_by': user_id})
             session.query(AgentRelation).filter(AgentRelation.selected_agent_id == agent_id,
                                                 AgentRelation.tenant_id == tenant_id).update(
-                {ToolInstance.delete_flag: 'Y', 'updated_by': tenant_id})
+                {AgentRelation.delete_flag: 'Y', 'updated_by': user_id})
             return True
     except Exception as e:
         logger.error(f"Failed to delete related agent: {str(e)}")
