@@ -1,17 +1,17 @@
-// 模型连接状态类型
+// Model connection status type
 export type ModelConnectStatus = "not_detected" | "detecting" | "available" | "unavailable"
 
-// 模型来源类型
+// Model source type
 export type ModelSource = "openai" | "custom" | "silicon" | "OpenAI-API-Compatible"
 
-// 模型类型
+// Model type
 export type ModelType = "llm" | "embedding" | "rerank" | "stt" | "tts" | "vlm" | "multi_embedding"
 
-// 配置存储键名
+// Configuration storage key name
 export const APP_CONFIG_KEY = 'app';
 export const MODEL_CONFIG_KEY = 'model';
 
-// 默认配置
+// Default configuration
 export const defaultConfig: GlobalConfig = {
   app: {
     appName: "",
@@ -90,7 +90,7 @@ export const defaultConfig: GlobalConfig = {
   }
 };
 
-// 模型选项接口
+// Model option interface
 export interface ModelOption {
   id: string
   name: string
@@ -103,7 +103,7 @@ export interface ModelOption {
   connect_status?: ModelConnectStatus
 }
 
-// 应用配置接口
+// Application configuration interface
 export interface AppConfig {
   appName: string
   appDescription: string
@@ -112,21 +112,21 @@ export interface AppConfig {
   avatarUri: string | null
 }
 
-// 模型API配置接口
+// Model API configuration interface
 export interface ModelApiConfig {
   apiKey: string
   modelUrl: string
 }
 
-// 单个模型配置接口
+// Single model configuration interface
 export interface SingleModelConfig {
   modelName: string
   displayName: string
   apiConfig: ModelApiConfig
-  dimension?: number  // 只用于 embedding 和 multiEmbedding 模型
+  dimension?: number  // Only used for embedding and multiEmbedding models
 }
 
-// 模型配置接口
+// Model configuration interface
 export interface ModelConfig {
   llm: SingleModelConfig
   llmSecondary: SingleModelConfig
@@ -138,7 +138,7 @@ export interface ModelConfig {
   tts: SingleModelConfig
 }
 
-// 全局配置接口
+// Global configuration interface
 export interface GlobalConfig {
   app: AppConfig
   models: ModelConfig
