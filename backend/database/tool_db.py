@@ -168,15 +168,11 @@ def add_tool_field(tool_info):
         for ele in tool_params:
             ele["default"] = tool_info["params"][ele["name"]]
 
-        tool_info["params"] =tool_params
-        tool_info["name"] = tool.name
-        tool_info["description"] = tool.description
-        tool_info["source"] = tool.source
-        tool_info["class_name"] = tool.class_name
-        tool_info["is_available"] = tool.is_available
-        tool_info["usage"] = tool.usage
-        tool_info["inputs"] = tool.inputs
-        tool_info["output_type"] = tool.output_type
+        tool_dict = as_dict(tool)
+        tool_dict["params"] = tool_params
+        
+        # 合并tool_info和tool_dict
+        tool_info.update(tool_dict)
         return tool_info
 
 
