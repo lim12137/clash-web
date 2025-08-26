@@ -219,7 +219,7 @@ def search_tool_info_impl(agent_id: int, tool_id: int, authorization: str = Head
     _, tenant_id = get_current_user_id(authorization)
     try:
         # now only admin can modify the tool, user_id is not used
-        tool_instance = query_tool_instances_by_id(agent_id, tool_id, tenant_id, user_id=None)
+        tool_instance = query_tool_instances_by_id(agent_id, tool_id, tenant_id)
     except Exception as e:
         logger.error(f"search_tool_info_impl error in query_tool_instances_by_id, detail: {e}")
         raise ValueError(f"search_tool_info_impl error in query_tool_instances_by_id, detail: {e}")
