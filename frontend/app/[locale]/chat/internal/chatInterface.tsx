@@ -1314,9 +1314,6 @@ export function ChatInterface() {
             <div className="flex-1 flex flex-col">
               <ChatHeader
                 title={conversationTitle}
-                onShare={() => {
-                  console.log("Share clicked")
-                }}
                 onRename={handleTitleRename}
               />
 

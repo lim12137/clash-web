@@ -279,9 +279,11 @@
     "setup.promptTuning.button.tuning": "Tuning...",
     "setup.promptTuning.button.send": "Send",
     "setup.promptTuning.error.send": "Failed to send tuning instruction:",
+
     "agent.contextMenu.edit": "Edit",
     "agent.contextMenu.export": "Export",
     "agent.contextMenu.delete": "Delete",
+
     "agent.info.title": "Agent Information",
     "agent.info.name": "Name",
     "agent.info.name.placeholder": "Please enter agent name",
@@ -296,6 +298,7 @@
     "agent.info.provideSummary.yes": "Yes",
     "agent.info.provideSummary.no": "No",
     "agent.info.provideSummary.hint": "When enabled, the agent will provide an execution summary upon completion",
+    
     "guide.title.mainAgent": "Main Agent Configuration",
     "guide.title.subAgent": "Sub-Agent Configuration",
     "guide.title.agentConfig": "Agent Configuration Guide",

@@ -4,3 +4,4 @@
 
 export * from './rootProvider'; 
 export * from './themeProvider';
+export * from './I18nProviderWrapper';

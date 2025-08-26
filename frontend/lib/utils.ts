@@ -72,6 +72,7 @@ export function formatDate(dateString: string): string {
 }
 
 // Format URL display
+// TODO: Type should not be defined here
 export interface SearchResultUrl {
   source_type?: string;
   url?: string;
