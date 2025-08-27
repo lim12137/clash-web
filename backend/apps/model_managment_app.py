@@ -10,9 +10,9 @@ from database.model_management_db import create_model_record, delete_model_recor
     get_model_records, get_model_by_display_name, get_models_by_tenant_factory_type
 from database.model_management_db import update_model_record
 from services.model_health_service import check_model_connectivity, embedding_dimension_check
-from services.model_provider_service import SiliconModelProvider, prepare_model_dict
+from services.model_provider_service import prepare_model_dict, merge_existing_model_tokens, get_provider_models
 from utils.auth_utils import get_current_user_id
-from utils.model_name_utils import split_repo_name, add_repo_to_name, split_display_name
+from utils.model_name_utils import split_repo_name, add_repo_to_name, split_display_name, sort_models_by_id
 
 router = APIRouter(prefix="/model")
 logger = logging.getLogger("model_management_app")
@@ -93,30 +93,16 @@ async def create_provider_model(request: ProviderModelRequest, authorization: Op
     try:
         user_id, tenant_id = get_current_user_id(authorization)
         model_data = request.model_dump()
-        model_list=[]
         
-        if model_data["provider"] == ProviderEnum.SILICON.value:
-            provider = SiliconModelProvider()
-            model_list = await provider.get_models(model_data)
-
-        if request.model_type != "embedding" or request.model_type != "multi_embedding":
-            existing_model_list = get_models_by_tenant_factory_type(tenant_id, request.provider, request.model_type)
-            
-            # Check if models in existing_model_list exist in model_list, if so, add max_tokens attribute
-            if model_list and existing_model_list:
-                # Create a mapping of model full names to existing models for fast lookup
-                existing_model_map = {}
-                for existing_model in existing_model_list:
-                    model_full_name = existing_model["model_repo"] + "/" + existing_model["model_name"]
-                    existing_model_map[model_full_name] = existing_model
-                
-                # Iterate through model_list, if model exists in existing_model_list, add max_tokens attribute
-                for model in model_list:
-                    if model.get("id") in existing_model_map:
-                        model["max_tokens"] = existing_model_map[model.get("id")].get("max_tokens")
-        # Sort by the first letter of id in descending order
-        if isinstance(model_list, list):
-            model_list.sort(key=lambda m: str((m.get("id") if isinstance(m, dict) else m) or "")[:1].lower(), reverse=False)
+        # Get provider model list
+        model_list = await get_provider_models(model_data)
+        
+        # Merge existing model's max_tokens attribute
+        model_list = merge_existing_model_tokens(model_list, tenant_id, request.provider, request.model_type)
+        
+        # Sort model list by ID
+        model_list = sort_models_by_id(model_list)
+        
         return ModelResponse(
             code=200,
             message=f"Provider model {model_data['provider']} created successfully",
