@@ -37,11 +37,11 @@ interface AgentCallRelationshipModalProps {
   agentName: string
 }
 
-/** 与自定义节点视觉尺寸一致（方便连线在边缘收尾） */
+/** Consistent with custom node visual dimensions (convenient for line endings at edges) */
 const NODE_W = 140;
 const NODE_H = 60;
 
-// 颜色配置
+// Color configuration
 const themeConfig = {
   colors: {
     node: {
@@ -62,7 +62,7 @@ const themeConfig = {
   }
 } as const;
 
-// 获取节点颜色
+// Get node color
 const getNodeColor = (type: string, depth: number = 0) => {
   const { colors } = themeConfig;
   
@@ -78,13 +78,13 @@ const getNodeColor = (type: string, depth: number = 0) => {
   }
 };
 
-// 自定义节点 —— 居中对齐，统一字体样式
+// Custom node - center aligned, unified font style
 const CustomNode = ({ nodeDatum }: any) => {
   const isAgent = nodeDatum.type === 'main' || nodeDatum.type === 'sub';
   const color = getNodeColor(nodeDatum.type, nodeDatum.depth);
   const icon = isAgent ? <RobotOutlined /> : <ToolOutlined />;
 
-  // 与 NODE_W/H 协同的小尺寸
+  // Small size coordinated with NODE_W/H
   const textLength = nodeDatum.name.length;
   const nodeWidth  = Math.max(isAgent ? 110 : 92, Math.min(textLength * 8 + 36, NODE_W));
   const nodeHeight = isAgent ? 54 : 46;
@@ -139,7 +139,7 @@ const CustomNode = ({ nodeDatum }: any) => {
   );
 };
 
-/** 让连线在节点边缘收尾：从父矩形下边缘到子矩形上边缘（纵向布局） */
+/** Make lines end at node edges: from parent rectangle bottom edge to child rectangle top edge (vertical layout) */
 const customPathFunc = (linkData: any, orientation: 'vertical' | 'horizontal') => {
   const { source, target } = linkData;
 
@@ -152,7 +152,7 @@ const customPathFunc = (linkData: any, orientation: 'vertical' | 'horizontal') =
     return `M ${srcX} ${srcY} L ${midX} ${srcY} L ${midX} ${tgtY} L ${tgtX} ${tgtY}`;
   }
 
-  // 垂直布局：从父节点底边 -> 中折点 -> 子节点顶边
+  // Vertical layout: from parent node bottom edge -> middle break point -> child node top edge
   const srcX = source.x;
   const srcY = source.y + NODE_H / 2;
   const tgtX = target.x;
@@ -161,7 +161,7 @@ const customPathFunc = (linkData: any, orientation: 'vertical' | 'horizontal') =
   return `M ${srcX} ${srcY} L ${srcX} ${midY} L ${tgtX} ${midY} L ${tgtX} ${tgtY}`;
 };
 
-// 类型定义
+// Type definition
 interface TreeNodeDatum {
   name: string;
   type?: string;
@@ -219,7 +219,7 @@ export default function AgentCallRelationshipModal({
     }
   }
 
-  // 生成树形数据（使用递归方法）
+  // Generate tree data (using recursive method)
   const generateTreeData = useCallback((data: AgentCallRelationship, maxDepth: number = 6): TreeNodeDatum => {
     const centerX = 600;
     const startY = 50;
@@ -227,7 +227,7 @@ export default function AgentCallRelationshipModal({
     const agentSpacing = 280;
     const toolSpacing = 180;
 
-    // 递归生成子节点
+    // Recursively generate child nodes
     const generateSubNodes = (subAgents: SubAgent[], depth: number, parentX: number, parentY: number): TreeNodeDatum[] => {
       if (depth > maxDepth) return [];
       
@@ -243,7 +243,7 @@ export default function AgentCallRelationshipModal({
           children: []
         };
 
-        // 添加工具节点
+        // Add tool nodes
         if (subAgent.tools && subAgent.tools.length > 0) {
           const toolsPerRow = Math.min(2, subAgent.tools.length);
           const toolStartX = x - (toolsPerRow - 1) * toolSpacing / 2;
@@ -265,7 +265,7 @@ export default function AgentCallRelationshipModal({
           });
         }
 
-        // 递归处理更深层的子代理
+        // Recursively process deeper sub-agents
         if (subAgent.sub_agents && subAgent.sub_agents.length > 0) {
           const deepSubNodes = generateSubNodes(subAgent.sub_agents, depth + 1, x, y);
           subAgentNode.children!.push(...deepSubNodes);
@@ -283,7 +283,7 @@ export default function AgentCallRelationshipModal({
       children: []
     };
 
-    // 添加主代理的工具
+    // Add main agent tools
     if (data.tools && data.tools.length > 0) {
       const toolsPerRow = Math.min(3, data.tools.length);
       const startX2 = centerX - (toolsPerRow - 1) * toolSpacing / 2;
@@ -305,7 +305,7 @@ export default function AgentCallRelationshipModal({
       });
     }
 
-    // 递归添加子代理
+    // Recursively add sub-agents
     if (data.sub_agents && data.sub_agents.length > 0) {
       const subNodes = generateSubNodes(data.sub_agents, 1, centerX, startY);
       treeData.children!.push(...subNodes);
@@ -362,7 +362,7 @@ export default function AgentCallRelationshipModal({
               <Tree
                 data={generateTreeData(relationshipData)}
                 orientation="vertical"
-                /** 自定义路径：线条在节点边缘结束，不再插到内部 */
+                /** Custom path: lines end at node edges, no longer insert into interior */
                 pathFunc={(linkData: any) => customPathFunc(linkData, 'vertical')}
                 translate={translate}
                 renderCustomNodeElement={CustomNode}
@@ -400,7 +400,7 @@ export default function AgentCallRelationshipModal({
           stroke-opacity: 1;
           stroke-width: 2;
         }
-        /* 双保险：强制隐藏库自带 label（不同版本类名可能不同） */
+        /* Double insurance: force hide library's built-in labels (class names may differ between versions) */
         :global(.rd3t-label),
         :global(.rd3t-label__title),
         :global(.rd3t-label__attributes) {
@@ -409,7 +409,7 @@ export default function AgentCallRelationshipModal({
           visibility: hidden !important;
         }
         
-        /* 确保SVG文本渲染一致 */
+        /* Ensure consistent SVG text rendering */
         :global(svg text) {
           text-rendering: optimizeSpeed !important;
         }
