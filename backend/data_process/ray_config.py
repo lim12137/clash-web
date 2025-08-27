@@ -2,13 +2,20 @@
 Ray configuration management module
 """
 
-import os
 import logging
-import ray
-from typing import Dict, Any, Optional
-from consts.const import RAY_PLASMA_DIRECTORY, RAY_OBJECT_STORE_MEMORY_GB, RAY_TEMP_DIR, RAY_NUM_CPUS
+import os
+from typing import Any, Dict, Optional
 
-logger = logging.getLogger(__name__)
+import ray
+
+from consts.const import (
+    RAY_NUM_CPUS,
+    RAY_OBJECT_STORE_MEMORY_GB,
+    RAY_PLASMA_DIRECTORY,
+    RAY_TEMP_DIR,
+)
+
+logger = logging.getLogger("data_process.ray_config")
 
 # Forward declaration variable so runtime references succeed before instantiation
 ray_config: Optional["RayConfig"] = None
@@ -16,18 +23,20 @@ ray_config: Optional["RayConfig"] = None
 
 class RayConfig:
     """Ray configuration manager"""
-    
+
     def __init__(self):
         self.plasma_directory = RAY_PLASMA_DIRECTORY
         self.object_store_memory_gb = RAY_OBJECT_STORE_MEMORY_GB
         self.temp_dir = RAY_TEMP_DIR
-    
-    def get_init_params(self, 
-                       address: Optional[str] = None,
-                       num_cpus: Optional[int] = None,
-                       include_dashboard: bool = False,
-                       dashboard_host: str = "0.0.0.0",
-                       dashboard_port: int = 8265) -> Dict[str, Any]:
+
+    def get_init_params(
+            self,
+            address: Optional[str] = None,
+            num_cpus: Optional[int] = None,
+            include_dashboard: bool = False,
+            dashboard_host: str = "0.0.0.0",
+            dashboard_port: int = 8265
+    ) -> Dict[str, Any]:
         """
         Get Ray initialization parameters
         
@@ -45,29 +54,29 @@ class RayConfig:
             "ignore_reinit_error": True,
             "_plasma_directory": self.plasma_directory,
         }
-        
+
         if address:
             params["address"] = address
         else:
             # Local cluster configuration
             if num_cpus:
                 params["num_cpus"] = num_cpus
-            
+
             # Object store memory configuration (convert to bytes)
             object_store_memory = int(self.object_store_memory_gb * 1024 * 1024 * 1024)
             params["object_store_memory"] = object_store_memory
-            
+
             # Temp directory configuration
             params["_temp_dir"] = self.temp_dir
-            
+
             # Dashboard configuration
             if include_dashboard:
                 params["include_dashboard"] = True
                 params["dashboard_host"] = dashboard_host
                 params["dashboard_port"] = dashboard_port
-        
+
         return params
-    
+
     def init_ray(self, **kwargs) -> bool:
         """
         Initialize Ray
@@ -82,11 +91,8 @@ class RayConfig:
             if ray.is_initialized():
                 logger.info("Ray already initialized, skipping...")
                 return True
-            
+
             params = self.get_init_params(**kwargs)
-            
-            # Get Ray configuration from environment
-            num_cpus = int(RAY_NUM_CPUS) if RAY_NUM_CPUS else None  # None lets Ray decide
 
             # Log the attempt to initialize
             logger.debug("Initializing Ray cluster...")
@@ -95,13 +101,13 @@ class RayConfig:
                 if key.startswith('_'):
                     logger.debug(f"  {key}: {value}")
                 elif key == 'object_store_memory':
-                    logger.debug(f"  {key}: {value / (1024**3):.1f} GB")
+                    logger.debug(f"  {key}: {value / (1024 ** 3):.1f} GB")
                 else:
                     logger.debug(f"  {key}: {value}")
-            
+
             ray.init(**params)
             logger.info("✅ Ray initialization successful")
-            
+
             # Display cluster information
             try:
                 if hasattr(ray, 'cluster_resources'):
@@ -109,13 +115,13 @@ class RayConfig:
                     logger.debug(f"Ray cluster resources: {resources}")
             except Exception as e:
                 logger.error(f"Failed to get cluster resources information: {e}")
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(f"❌ Ray initialization failed: {str(e)}")
             return False
-    
+
     def connect_to_cluster(self, address: str = "auto") -> bool:
         """
         Connect to existing Ray cluster
@@ -130,23 +136,25 @@ class RayConfig:
             if ray.is_initialized():
                 logger.debug("Ray already initialized, skipping...")
                 return True
-            
+
             params = self.get_init_params(address=address)
-            
+
             logger.debug(f"Connecting to Ray cluster: {address}")
             ray.init(**params)
             logger.info("✅ Successfully connected to Ray cluster")
-            
+
             return True
-            
+
         except Exception as e:
             logger.info(f"Cannot connect to Ray cluster: {str(e)}")
             return False
-    
-    def start_local_cluster(self, 
-                          num_cpus: Optional[int] = None,
-                          include_dashboard: bool = True,
-                          dashboard_port: int = 8265) -> bool:
+
+    def start_local_cluster(
+            self,
+            num_cpus: Optional[int] = None,
+            include_dashboard: bool = True,
+            dashboard_port: int = 8265
+    ) -> bool:
         """
         Start local Ray cluster
         
@@ -160,13 +168,13 @@ class RayConfig:
         """
         if num_cpus is None:
             num_cpus = os.cpu_count()
-        
+
         return self.init_ray(
             num_cpus=num_cpus,
             include_dashboard=include_dashboard,
             dashboard_port=dashboard_port
         )
-    
+
     def log_configuration(self):
         """Log current configuration information"""
         logger.debug("Ray Configuration:")
@@ -182,11 +190,13 @@ class RayConfig:
         return ray_config.connect_to_cluster(address)
 
     @classmethod
-    def init_ray_for_service(cls,
-                             num_cpus: Optional[int] = None,
-                             dashboard_port: int = 8265,
-                             try_connect_first: bool = True,
-                             include_dashboard: bool = True) -> bool:
+    def init_ray_for_service(
+            cls,
+            num_cpus: Optional[int] = None,
+            dashboard_port: int = 8265,
+            try_connect_first: bool = True,
+            include_dashboard: bool = True
+    ) -> bool:
         """Initialize Ray for data processing service (class method wrapper)."""
         ray_config.log_configuration()
 
@@ -203,7 +213,3 @@ class RayConfig:
             include_dashboard=include_dashboard,
             dashboard_port=dashboard_port
         )
-
-# Create a global RayConfig instance accessible throughout the module
-ray_config = RayConfig()
-    

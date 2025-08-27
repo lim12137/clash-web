@@ -17,24 +17,36 @@ Usage:
     QUEUES=forward_q WORKER_CONCURRENCY=2 python worker.py
 """
 
-import os
 import logging
+import os
 import sys
 import time
 import traceback
+
 import ray
 from celery.signals import (
-    worker_init,
-    worker_ready, 
-    worker_process_init,
-    worker_shutting_down,
-    task_prerun,
+    task_failure,
     task_postrun,
-    task_failure
+    task_prerun,
+    worker_init,
+    worker_process_init,
+    worker_ready,
+    worker_shutting_down,
+)
+
+from consts.const import (
+    CELERY_TASK_TIME_LIMIT,
+    CELERY_WORKER_PREFETCH_MULTIPLIER,
+    ELASTICSEARCH_SERVICE,
+    QUEUES,
+    RAY_ADDRESS,
+    RAY_PLASMA_DIRECTORY,
+    REDIS_URL,
+    WORKER_CONCURRENCY,
+    WORKER_NAME,
 )
 
 from .app import app
-from consts.const import REDIS_URL, ELASTICSEARCH_SERVICE, RAY_PLASMA_DIRECTORY, CELERY_TASK_TIME_LIMIT, CELERY_WORKER_PREFETCH_MULTIPLIER, RAY_ADDRESS, QUEUES, WORKER_NAME, WORKER_CONCURRENCY
 from .ray_config import RayConfig
 
 # Global worker state for monitoring and debugging
@@ -51,10 +63,10 @@ worker_state = {
 
 logger = logging.getLogger("data_process.worker")
 
+
 # ============================================================================
 # WORKER INITIALIZATION SIGNALS
 # ============================================================================
-
 @worker_init.connect
 def setup_worker_environment(**kwargs):
     """
@@ -122,6 +134,7 @@ def setup_worker_environment(**kwargs):
         # Do not exit here, let Celery handle the error
         raise
 
+
 @worker_process_init.connect
 def setup_worker_process_resources(**kwargs):
     """
@@ -151,6 +164,7 @@ def setup_worker_process_resources(**kwargs):
         logger.error(f"❌ Worker process {process_id} initialization failed: {str(e)}")
         raise
 
+
 @worker_ready.connect
 def worker_ready_handler(**kwargs):
     """
@@ -177,6 +191,7 @@ def worker_ready_handler(**kwargs):
     # Register health check endpoints, start monitoring, etc.
     logger.debug("🔍 Worker is ready to receive tasks")
 
+
 @worker_shutting_down.connect
 def worker_shutdown_handler(**kwargs):
     """Cleanup operations when the worker shuts down"""
@@ -191,10 +206,12 @@ def worker_shutdown_handler(**kwargs):
     logger.info(f"🛑 Failed tasks: {worker_state.get('tasks_failed', 0)}")
     logger.debug("🛑 " + "="*50)
 
+
 @task_prerun.connect
 def task_prerun_handler(sender=None, task_id=None, task=None, args=None, kwargs=None, **kwds):
     """Handler before task execution"""
     logger.debug(f"📋 Task started: {task.name}[{task_id}]")
+
 
 @task_postrun.connect
 def task_postrun_handler(sender=None, task_id=None, task=None, args=None, kwargs=None, retval=None, state=None, **kwds):
@@ -206,16 +223,17 @@ def task_postrun_handler(sender=None, task_id=None, task=None, args=None, kwargs
     else:
         logger.debug(f"⚠️ Task ended: {task.name}[{task_id}] - State: {state}")
 
+
 @task_failure.connect
 def task_failure_handler(sender=None, task_id=None, exception=None, einfo=None, **kwds):
     """Handler when task fails"""
     worker_state['tasks_failed'] += 1
     logger.error(f"❌ Task failed: {sender.name}[{task_id}] - Exception: {str(exception)}")
 
+
 # ============================================================================
 # Service validation functions
 # ============================================================================
-
 def validate_service_connections() -> bool:
     """Validate critical service connections"""
     try:
@@ -231,6 +249,7 @@ def validate_service_connections() -> bool:
         # Decide whether to raise an exception based on business requirements
         # Here we choose to log the error but not prevent the worker from starting
         return False
+
 
 def validate_redis_connection() -> bool:
     """Validate Redis connection"""
@@ -252,10 +271,10 @@ def validate_redis_connection() -> bool:
         logger.error(f"Redis connection failed: {str(e)}")
         raise
 
+
 # ============================================================================
 # Worker startup function
 # ============================================================================
-
 def start_worker():
     """Start Celery worker with appropriate settings"""
     
@@ -302,6 +321,7 @@ def start_worker():
         logger.error(f"❌ Error starting worker '{worker_name}': {str(e)}")
         logger.error(f"Error details: {traceback.format_exc()}")
         sys.exit(1)
+
 
 if __name__ == '__main__':
     start_worker()
