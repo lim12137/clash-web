@@ -80,7 +80,6 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
     try {
       const result = await addMcpServer(newServerUrl.trim(), serverName)
       if (result.success) {
-        message.success(t('mcpConfig.message.addServerSuccess'))
         setNewServerName('')
         setNewServerUrl('')
         await loadServerList() // 重新加载列表
@@ -90,11 +89,8 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
         try {
           const updateResult = await updateToolList()
           if (updateResult.success) {
-            message.success(t('mcpConfig.message.addServerSuccessToolsUpdated'))
             // 通知父组件更新工具列表
             window.dispatchEvent(new CustomEvent('toolsUpdated'))
-          } else {
-            message.warning(t('mcpConfig.message.addServerSuccessToolsFailed'))
           }
         } catch (updateError) {
           console.log(t('mcpConfig.debug.autoUpdateToolsFailed'), updateError)
@@ -124,21 +120,16 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
         try {
           const result = await deleteMcpServer(server.mcp_url, server.service_name)
           if (result.success) {
-            message.success(t('mcpConfig.message.deleteServerSuccess'))
             await loadServerList() // 重新加载列表
             
             // 删除成功后立即关闭确认弹窗，然后异步更新工具列表
             setTimeout(async () => {
-              message.info(t('mcpConfig.message.updatingToolsList'))
               setUpdatingTools(true)
               try {
                 const updateResult = await updateToolList()
                 if (updateResult.success) {
-                  message.success(t('mcpConfig.message.toolsListUpdated'))
                   // 通知父组件更新工具列表
                   window.dispatchEvent(new CustomEvent('toolsUpdated'))
-                } else {
-                  message.warning(t('mcpConfig.message.toolsListUpdateFailed'))
                 }
               } catch (updateError) {
                 console.log(t('mcpConfig.debug.autoUpdateToolsFailed'), updateError)
