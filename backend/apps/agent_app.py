@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from consts.model import AgentRequest, AgentInfoRequest, AgentIDRequest, ConversationResponse, AgentImportRequest
 from services.agent_service import get_agent_info_impl, \
     get_creating_sub_agent_info_impl, update_agent_info_impl, delete_agent_impl, export_agent_impl, import_agent_impl, \
-    list_all_agent_info_impl, insert_related_agent_impl, run_agent_stream, stop_agent_tasks
+    list_all_agent_info_impl, insert_related_agent_impl, run_agent_stream, stop_agent_tasks, get_agent_call_relationship_impl
 from database.agent_db import delete_related_agent
 from utils.auth_utils import get_current_user_info, get_current_user_id
 
@@ -152,3 +152,16 @@ async def delete_related_agent_api(parent_agent_id: int = Body(...),
         return delete_related_agent(parent_agent_id, child_agent_id, tenant_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent related info error: {str(e)}")
+
+
+@router.get("/call_relationship/{agent_id}")
+async def get_agent_call_relationship_api(agent_id: int, authorization: Optional[str] = Header(None)):
+    """
+    Get agent call relationship tree including tools and sub-agents
+    """
+    try:
+        _, tenant_id = get_current_user_id(authorization)
+        return get_agent_call_relationship_impl(agent_id, tenant_id)
+    except Exception as e:
+        logger.error(f"Agent call relationship error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get agent call relationship: {str(e)}")

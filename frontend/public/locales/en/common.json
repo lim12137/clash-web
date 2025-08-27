@@ -400,6 +400,7 @@
     "agent.action.modify": "modify",
     "agent.action.importing": "Importing...",
     "agent.action.import": "Import Agent",
+    "agent.action.viewCallRelationship": "View Call Relationship",
     "agent.message.saveSuccess": "Agent \"{name}\" {action} successfully",
     "agent.message.statusUpdated": "Agent \"{name}\" has been {status}",
     "agent.message.modelUpdateSuccess": "Model updated successfully",
@@ -1006,15 +1007,8 @@
     "mcpConfig.message.invalidServerName": "Server name can only contain letters and numbers",
     "mcpConfig.message.serverNameTooLong": "Server name cannot exceed 20 characters",
     "mcpConfig.message.serverExists": "Server name or URL already exists",
-    "mcpConfig.message.addServerSuccess": "MCP server added successfully, automatically updating tools list...",
-    "mcpConfig.message.addServerSuccessToolsUpdated": "MCP server added successfully, tools list updated",
-    "mcpConfig.message.addServerSuccessToolsFailed": "MCP server added successfully, but tools list update failed",
     "mcpConfig.message.addServerFailed": "Failed to add server",
-    "mcpConfig.message.deleteServerSuccess": "MCP server deleted successfully",
     "mcpConfig.message.deleteServerFailed": "Failed to delete server",
-    "mcpConfig.message.updatingToolsList": "Automatically updating tools list...",
-    "mcpConfig.message.toolsListUpdated": "Tools list updated",
-    "mcpConfig.message.toolsListUpdateFailed": "Tools list update failed",
     "mcpConfig.message.getToolsFailed": "Failed to get tools list",
     "mcpConfig.message.remountSuccess": "MCP servers remounted successfully",
     "mcpConfig.message.remountFailed": "Failed to remount MCP servers",
@@ -1161,5 +1155,7 @@
         }
     },
     "model.dialog.success.addBatchModel": "Batch add models succeeded!",
-    "model.dialog.error.addBatchModel": "Batch add models failed: {{message}}"
+    "model.dialog.error.addBatchModel": "Batch add models failed: {{message}}",
+    "agentCallRelationship": {"title": "View Call Relationship", "loading": "Loading call relationship...", "description": "This flowchart shows the call relationship of {{name}} and all its tools and collaborative agents", "noData": "No call relationship data available", "nodeType": {"main": "Main Agent", "sub": "Sub Agent", "tool": "Tool"}},
+    "agentConfig": {"error": {"fetchToolsFailed": "Failed to fetch tools list, please try again later", "fetchAgentListFailed": "Failed to fetch agent list, please try again later", "fetchCreatingSubAgentIdFailed": "Failed to fetch creating sub agent ID, please try again later", "fetchAgentDetailsFailed": "Failed to fetch agent details, please try again later", "fetchAgentCallRelationshipFailed": "Failed to fetch agent call relationship, please try again later"}}
 }
