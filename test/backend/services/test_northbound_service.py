@@ -12,15 +12,28 @@ from unittest.mock import AsyncMock, MagicMock
 
 # consts.model stubs used by northbound_service
 consts_mod = types.ModuleType("consts")
+consts_mod.__path__ = []  # Mark as namespace package so that submodule imports work
 consts_model_mod = types.ModuleType("consts.model")
+consts_exceptions_mod = types.ModuleType("consts.exceptions")
 
 
+# Define the custom exception classes expected by northbound_service
 class LimitExceededError(Exception):
-    pass
+    """Raised when the rate limit or similar guard is violated."""
 
 
 class UnauthorizedError(Exception):
-    pass
+    """Raised when authentication or authorization fails."""
+
+
+class SignatureValidationError(Exception):
+    """Raised when request signature header is missing or invalid."""
+
+
+# Attach them to the stub module so that `from consts.exceptions import ...` works
+consts_exceptions_mod.LimitExceededError = LimitExceededError
+consts_exceptions_mod.UnauthorizedError = UnauthorizedError
+consts_exceptions_mod.SignatureValidationError = SignatureValidationError
 
 
 class AgentRequest:
@@ -34,10 +47,10 @@ class AgentRequest:
 
 
 consts_model_mod.AgentRequest = AgentRequest
-consts_model_mod.LimitExceededError = LimitExceededError
-consts_model_mod.UnauthorizedError = UnauthorizedError
 sys.modules['consts'] = consts_mod
+# Register stubs
 sys.modules['consts.model'] = consts_model_mod
+sys.modules['consts.exceptions'] = consts_exceptions_mod
 
 # database.* stubs
 database_mod = types.ModuleType('database')
@@ -145,8 +158,8 @@ async def test_to_external_and_internal_conversation_id_success():
 @pytest.mark.asyncio
 async def test_to_external_conversation_id_not_found():
     partner_db_mod.get_external_id_by_internal.return_value = None
-    with pytest.raises(Exception):
-        await ns.to_external_conversation_id(123)
+    result = await ns.to_external_conversation_id(123)
+    assert result is None
 
 
 @pytest.mark.asyncio
@@ -230,14 +243,14 @@ async def test_start_streaming_chat_creates_new_conversation(ctx, monkeypatch):
 async def test_rate_limit_exceeded(monkeypatch):
     monkeypatch.setattr(ns, "_RATE_LIMIT_PER_MINUTE", 1)
     await ns.check_and_consume_rate_limit("tenant-x")
-    with pytest.raises(LimitExceededError):
+    with pytest.raises(consts_exceptions_mod.LimitExceededError):
         await ns.check_and_consume_rate_limit("tenant-x")
 
 
 @pytest.mark.asyncio
 async def test_idempotency_prevents_duplicates():
     await ns.idempotency_start("dup-key")
-    with pytest.raises(LimitExceededError):
+    with pytest.raises(consts_exceptions_mod.LimitExceededError):
         await ns.idempotency_start("dup-key")
     await ns.idempotency_end("dup-key")
 
@@ -298,7 +311,7 @@ async def test_update_conversation_title_success_and_idempotency(ctx):
     assert res["message"] == "success"
     assert res["data"] == "ext-10"
     # duplicate should raise until released
-    with pytest.raises(LimitExceededError):
+    with pytest.raises(consts_exceptions_mod.LimitExceededError):
         await ns.update_conversation_title(ctx, "ext-10", "Title", idempotency_key="title-key")
     # cleanup manually to avoid bleed between tests
     await ns.idempotency_end("title-key")

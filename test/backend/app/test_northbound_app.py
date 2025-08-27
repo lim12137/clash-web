@@ -16,6 +16,42 @@ sys.path.append(backend_dir)
 # Pre-mock heavy dependencies before importing router
 sys.modules['consts'] = MagicMock()
 sys.modules['consts.model'] = MagicMock()
+# Provide stub for consts.exceptions with expected exception classes
+# so that imports in application code succeed during tests.
+# We intentionally use real classes (not MagicMock) so that isinstance checks work if present.
+
+import types
+
+consts_exceptions_mod = types.ModuleType("consts.exceptions")
+
+
+class LimitExceededError(Exception):
+    pass
+
+
+class UnauthorizedError(Exception):
+    pass
+
+
+class SignatureValidationError(Exception):
+    pass
+
+
+consts_exceptions_mod.LimitExceededError = LimitExceededError
+consts_exceptions_mod.UnauthorizedError = UnauthorizedError
+consts_exceptions_mod.SignatureValidationError = SignatureValidationError
+
+# Ensure the parent 'consts' is a module (could be MagicMock) and register submodule.
+import sys as _sys
+if 'consts' not in _sys.modules or not isinstance(_sys.modules['consts'], types.ModuleType):
+    consts_root = types.ModuleType("consts")
+    consts_root.__path__ = []
+    _sys.modules['consts'] = consts_root
+else:
+    consts_root = _sys.modules['consts']
+
+consts_root.exceptions = consts_exceptions_mod
+_sys.modules['consts.exceptions'] = consts_exceptions_mod
 sys.modules['services'] = MagicMock()
 sys.modules['services.northbound_service'] = MagicMock()
 sys.modules['utils'] = MagicMock()

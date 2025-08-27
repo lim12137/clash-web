@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import APIRouter, Body, Header, Request
 
-from consts.model import UnauthorizedError
+from consts.exceptions import UnauthorizedError
 from services.northbound_service import (
     NorthboundContext,
     get_conversation_history,

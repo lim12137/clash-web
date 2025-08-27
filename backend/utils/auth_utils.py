@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 
 from fastapi import Request, HTTPException
 from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID, IS_SPEED_MODE
-from consts.model import SignatureValidationError, UnauthorizedError
+from consts.exceptions import SignatureValidationError, UnauthorizedError
 import jwt
 from supabase import create_client
 from database.user_tenant_db import get_user_tenant_by_user_id

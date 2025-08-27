@@ -67,6 +67,16 @@ consts_model_module.SignatureValidationError = SignatureValidationError
 consts_module.model = consts_model_module
 sys.modules['consts'] = consts_module
 sys.modules['consts.model'] = consts_model_module
+# ---------------------------------------------------------------------------
+# Provide 'consts.exceptions' stub so that northbound_base_app import succeeds
+# ---------------------------------------------------------------------------
+consts_exceptions_module = types.ModuleType("consts.exceptions")
+consts_exceptions_module.LimitExceededError = LimitExceededError
+consts_exceptions_module.UnauthorizedError = UnauthorizedError
+consts_exceptions_module.SignatureValidationError = SignatureValidationError
+
+# Register the stub so that `from consts.exceptions import ...` works seamlessly
+sys.modules['consts.exceptions'] = consts_exceptions_module
 
 # ---------------------------------------------------------------------------
 # SAFE TO IMPORT THE TARGET MODULE UNDER TEST NOW
