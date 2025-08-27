@@ -102,7 +102,8 @@ from backend.services.agent_service import (
     get_agent_id_by_name,
     prepare_agent_run,
     save_messages,
-    generate_stream
+    generate_stream,
+    get_agent_call_relationship_impl
 )
 from backend.consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
 
@@ -1903,3 +1904,316 @@ def test_get_agent_id_by_name(mock_search):
     with pytest.raises(Exception) as excinfo:
         get_agent_id_by_name("", "test_tenant")
     assert "agent_name required" in str(excinfo.value)
+
+
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+def test_get_agent_call_relationship_impl_success(mock_query_sub_agents, mock_search_tools, mock_search_agent_info):
+    """
+    Test successful retrieval of agent call relationship tree.
+    
+    This test verifies that:
+    1. The function correctly retrieves agent information
+    2. Tools are properly normalized and formatted
+    3. Sub-agents are recursively collected with their tools
+    4. The response structure matches expected format
+    """
+    # Setup mock data
+    mock_agent_info = {
+        "agent_id": 1,
+        "name": "Test Agent",
+        "display_name": "Test Display Name",
+        "description": "Test Description"
+    }
+    
+    mock_tools = [
+        {
+            "tool_id": 1,
+            "name": "Test Tool 1",
+            "source": "local",
+            "tool_name": "Local Tool"
+        },
+        {
+            "tool_id": 2,
+            "name": "Test Tool 2", 
+            "source": "mcp",
+            "tool_name": "MCP Tool"
+        },
+        {
+            "tool_id": 3,
+            "name": "Test Tool 3",
+            "source": "langchain",
+            "tool_name": "LangChain Tool"
+        }
+    ]
+    
+    mock_sub_agent_ids = [2, 3]
+    
+    # Setup sub-agent info
+    mock_sub_agent_info = {
+        "agent_id": 2,
+        "name": "Sub Agent 1",
+        "display_name": "Sub Display 1"
+    }
+    
+    mock_sub_tools = [
+        {
+            "tool_id": 4,
+            "name": "Sub Tool 1",
+            "source": "local"
+        }
+    ]
+    
+    # Setup mocks
+    mock_search_agent_info.side_effect = [mock_agent_info, mock_sub_agent_info]
+    mock_search_tools.side_effect = [mock_tools, mock_sub_tools]
+    mock_query_sub_agents.return_value = mock_sub_agent_ids
+    
+    # Execute
+    result = get_agent_call_relationship_impl(agent_id=1, tenant_id="test_tenant")
+    
+    # Assert
+    assert result["agent_id"] == "1"
+    assert result["name"] == "Test Display Name"
+    assert len(result["tools"]) == 3
+    assert len(result["sub_agents"]) == 1
+    
+    # Check tool normalization
+    assert result["tools"][0]["type"] == "Local"
+    assert result["tools"][1]["type"] == "MCP"
+    assert result["tools"][2]["type"] == "LangChain"
+    
+    # Check sub-agent structure
+    sub_agent = result["sub_agents"][0]
+    assert sub_agent["agent_id"] == "2"
+    assert sub_agent["name"] == "Sub Display 1"
+    assert sub_agent["depth"] == 1
+    assert len(sub_agent["tools"]) == 1
+    assert sub_agent["tools"][0]["type"] == "Local"
+    
+    # Verify mock calls
+    mock_search_agent_info.assert_called()
+    mock_search_tools.assert_called()
+    mock_query_sub_agents.assert_called()
+
+
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+def test_get_agent_call_relationship_impl_with_unknown_source(mock_query_sub_agents, mock_search_tools, mock_search_agent_info):
+    """
+    Test agent call relationship with unknown tool source.
+    
+    This test verifies that:
+    1. Unknown tool sources are handled gracefully
+    2. Tool types are properly formatted for unknown sources
+    """
+    # Setup mock data
+    mock_agent_info = {
+        "agent_id": 1,
+        "name": "Test Agent",
+        "display_name": "Test Display Name"
+    }
+    
+    mock_tools = [
+        {
+            "tool_id": 1,
+            "name": "Unknown Tool",
+            "source": "unknown_source",
+            "tool_name": "Unknown Source Tool"
+        }
+    ]
+    
+    # Setup mocks
+    mock_search_agent_info.return_value = mock_agent_info
+    mock_search_tools.return_value = mock_tools
+    mock_query_sub_agents.return_value = []
+    
+    # Execute
+    result = get_agent_call_relationship_impl(agent_id=1, tenant_id="test_tenant")
+    
+    # Assert
+    assert result["tools"][0]["type"] == "Unknown_source"
+    assert len(result["sub_agents"]) == 0
+
+
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+def test_get_agent_call_relationship_impl_with_none_source(mock_query_sub_agents, mock_search_tools, mock_search_agent_info):
+    """
+    Test agent call relationship with None tool source.
+    
+    This test verifies that:
+    1. None tool sources are handled gracefully
+    2. Tool types default to "UNKNOWN" for None sources
+    """
+    # Setup mock data
+    mock_agent_info = {
+        "agent_id": 1,
+        "name": "Test Agent",
+        "display_name": "Test Display Name"
+    }
+    
+    mock_tools = [
+        {
+            "tool_id": 1,
+            "name": "None Source Tool",
+            "source": None,
+            "tool_name": "None Source Tool"
+        }
+    ]
+    
+    # Setup mocks
+    mock_search_agent_info.return_value = mock_agent_info
+    mock_search_tools.return_value = mock_tools
+    mock_query_sub_agents.return_value = []
+    
+    # Execute
+    result = get_agent_call_relationship_impl(agent_id=1, tenant_id="test_tenant")
+    
+    # Assert
+    assert result["tools"][0]["type"] == "UNKNOWN"
+    assert len(result["sub_agents"]) == 0
+
+
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+def test_get_agent_call_relationship_impl_with_empty_tools(mock_query_sub_agents, mock_search_tools, mock_search_agent_info):
+    """
+    Test agent call relationship with no tools.
+    
+    This test verifies that:
+    1. Agents without tools are handled correctly
+    2. Empty tool lists don't cause errors
+    """
+    # Setup mock data
+    mock_agent_info = {
+        "agent_id": 1,
+        "name": "Test Agent",
+        "display_name": "Test Display Name"
+    }
+    
+    # Setup mocks
+    mock_search_agent_info.return_value = mock_agent_info
+    mock_search_tools.return_value = []
+    mock_query_sub_agents.return_value = []
+    
+    # Execute
+    result = get_agent_call_relationship_impl(agent_id=1, tenant_id="test_tenant")
+    
+    # Assert
+    assert result["tools"] == []
+    assert len(result["sub_agents"]) == 0
+
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+def test_get_agent_call_relationship_impl_agent_not_found(mock_search_agent_info):
+    """
+    Test agent call relationship when agent is not found.
+    
+    This test verifies that:
+    1. Appropriate error is raised when agent doesn't exist
+    2. Error message is descriptive
+    """
+    # Setup mock to return None (agent not found)
+    mock_search_agent_info.return_value = None
+    
+    # Execute and assert
+    with pytest.raises(ValueError, match="Agent 999 not found"):
+        get_agent_call_relationship_impl(agent_id=999, tenant_id="test_tenant")
+    
+    mock_search_agent_info.assert_called_once_with(999, "test_tenant")
+
+
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+def test_get_agent_call_relationship_impl_sub_agent_error_handling(mock_query_sub_agents, mock_search_tools, mock_search_agent_info):
+    """
+    Test agent call relationship with sub-agent errors.
+    
+    This test verifies that:
+    1. Errors in sub-agent processing don't crash the entire function
+    2. Failed sub-agents are logged and skipped
+    3. Other sub-agents continue to be processed
+    """
+    # Setup mock data
+    mock_agent_info = {
+        "agent_id": 1,
+        "name": "Test Agent",
+        "display_name": "Test Agent"
+    }
+    
+    # Setup mocks - one sub-agent will fail, one will succeed
+    mock_search_agent_info.side_effect = [
+        mock_agent_info,  # Main agent
+        {"agent_id": 2, "name": "Sub Agent 1"},  # First sub-agent (success)
+        ValueError("Sub-agent 3 not found")  # Second sub-agent (failure)
+    ]
+    
+    mock_search_tools.return_value = []
+    mock_query_sub_agents.return_value = [2, 3]  # Two sub-agents
+    
+    # Execute
+    result = get_agent_call_relationship_impl(agent_id=1, tenant_id="test_tenant")
+    
+    # Assert - should only include the successful sub-agent
+    assert len(result["sub_agents"]) == 1
+    assert result["sub_agents"][0]["agent_id"] == "2"
+    
+    # Verify mock calls
+    mock_search_agent_info.assert_called()
+    assert mock_search_agent_info.call_count >= 2  # At least main agent + one sub-agent
+
+
+@patch('backend.services.agent_service.search_agent_info_by_agent_id')
+@patch('backend.services.agent_service.search_tools_for_sub_agent')
+@patch('backend.services.agent_service.query_sub_agents_id_list')
+def test_get_agent_call_relationship_impl_tool_name_fallback(mock_query_sub_agents, mock_search_tools, mock_search_agent_info):
+    """
+    Test agent call relationship tool name fallback logic.
+    
+    This test verifies that:
+    1. Tool names fall back to tool_name if name is not available
+    2. Tool names fall back to tool_id if neither name nor tool_name is available
+    """
+    # Setup mock data
+    mock_agent_info = {
+        "agent_id": 1,
+        "name": "Test Agent",
+        "display_name": "Test Agent"
+    }
+    
+    mock_tools = [
+        {
+            "tool_id": 1,
+            "source": "local"
+            # No name or tool_name
+        },
+        {
+            "tool_id": 2,
+            "name": "Explicit Name",
+            "source": "local"
+        },
+        {
+            "tool_id": 3,
+            "tool_name": "Tool Name",
+            "source": "local"
+            # No name
+        }
+    ]
+    
+    # Setup mocks
+    mock_search_agent_info.return_value = mock_agent_info
+    mock_search_tools.return_value = mock_tools
+    mock_query_sub_agents.return_value = []
+    
+    # Execute
+    result = get_agent_call_relationship_impl(agent_id=1, tenant_id="test_tenant")
+    
+    # Assert
+    assert result["tools"][0]["name"] == "1"  # Fallback to tool_id
+    assert result["tools"][1]["name"] == "Explicit Name"  # Use explicit name
+    assert result["tools"][2]["name"] == "Tool Name"  # Use tool_name
