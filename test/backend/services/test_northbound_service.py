@@ -158,8 +158,8 @@ async def test_to_external_and_internal_conversation_id_success():
 @pytest.mark.asyncio
 async def test_to_external_conversation_id_not_found():
     partner_db_mod.get_external_id_by_internal.return_value = None
-    result = await ns.to_external_conversation_id(123)
-    assert result is None
+    with pytest.raises(Exception):
+        await ns.to_external_conversation_id(123)
 
 
 @pytest.mark.asyncio

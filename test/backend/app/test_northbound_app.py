@@ -5,7 +5,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
-
+import types
+import sys as _sys
 
 # Dynamically determine the backend path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,11 +17,6 @@ sys.path.append(backend_dir)
 # Pre-mock heavy dependencies before importing router
 sys.modules['consts'] = MagicMock()
 sys.modules['consts.model'] = MagicMock()
-# Provide stub for consts.exceptions with expected exception classes
-# so that imports in application code succeed during tests.
-# We intentionally use real classes (not MagicMock) so that isinstance checks work if present.
-
-import types
 
 consts_exceptions_mod = types.ModuleType("consts.exceptions")
 
@@ -35,8 +31,7 @@ consts_exceptions_mod.LimitExceededError = LimitExceededError
 consts_exceptions_mod.UnauthorizedError = UnauthorizedError
 consts_exceptions_mod.SignatureValidationError = SignatureValidationError
 
-# Ensure the parent 'consts' is a module (could be MagicMock) and register submodule.
-import sys as _sys
+# Ensure the parent 'consts' is a module
 if 'consts' not in _sys.modules or not isinstance(_sys.modules['consts'], types.ModuleType):
     consts_root = types.ModuleType("consts")
     consts_root.__path__ = []

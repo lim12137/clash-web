@@ -27,8 +27,8 @@ def add_mapping_id(
                 updated_by=user_id,
             ))
             session.commit()
-    except SQLAlchemyError:
-        return None
+    except Exception as e:
+        raise e
 
 
 def get_internal_id_by_external(
@@ -55,8 +55,8 @@ def get_internal_id_by_external(
 
             record = query.first()
             return int(record.internal_id) if record and record.internal_id is not None else None
-    except SQLAlchemyError:
-        return None
+    except Exception as e:
+        raise e
 
 
 def get_external_id_by_internal(
@@ -83,6 +83,6 @@ def get_external_id_by_internal(
 
             record = query.first()
             return str(record.external_id) if record and record.external_id is not None else None
-    except SQLAlchemyError:
-        return None
+    except Exception as e:
+        raise e
 

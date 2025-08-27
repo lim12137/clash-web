@@ -1,5 +1,6 @@
 import sys
 from unittest.mock import MagicMock
+import pytest
 
 # ---------------------------------------------------------------------------
 # Prepare stub modules and objects BEFORE importing the module under test.
@@ -118,13 +119,19 @@ def test_add_mapping_id_success(monkeypatch):
 
 def test_add_mapping_id_exception(monkeypatch):
     # get_db_session will raise _SQLAlchemyError to simulate DB failure.
-    def _boom():
-        raise _SQLAlchemyError("DB down")
+    # Simulate that entering the context raises SQLAlchemyError
+    class _CM:
+        def __enter__(self):
+            raise _SQLAlchemyError("DB down")
 
-    monkeypatch.setattr(partner_db, 'get_db_session', _boom)
+        def __exit__(self, exc_type, exc, tb):
+            return False
 
-    # Function should catch the error and simply return None without raising.
-    assert partner_db.add_mapping_id(1, 'e', 't', 'u') is None
+    monkeypatch.setattr(partner_db, 'get_db_session', lambda: _CM())
+
+    # Function should propagate the exception; verify it raises.
+    with pytest.raises(_SQLAlchemyError):
+        partner_db.add_mapping_id(1, 'e', 't', 'u')
 
 
 # ---------------------------------------------------------------------------
@@ -164,11 +171,17 @@ def test_get_internal_id_by_external_not_found(monkeypatch):
 
 
 def test_get_internal_id_by_external_exception(monkeypatch):
-    def _boom():
-        raise _SQLAlchemyError("fail")
+    # Prepare context manager that raises inside __enter__
+    class _CM:
+        def __enter__(self):
+            raise _SQLAlchemyError("fail")
 
-    monkeypatch.setattr(partner_db, 'get_db_session', _boom)
-    assert partner_db.get_internal_id_by_external('any') is None
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(partner_db, 'get_db_session', lambda: _CM())
+    with pytest.raises(_SQLAlchemyError):
+        partner_db.get_internal_id_by_external('any')
 
 
 # ---------------------------------------------------------------------------
@@ -206,5 +219,13 @@ def test_get_external_id_by_internal_not_found(monkeypatch):
 
 
 def test_get_external_id_by_internal_exception(monkeypatch):
-    monkeypatch.setattr(partner_db, 'get_db_session', lambda: (_ for _ in ()).throw(_SQLAlchemyError()))
-    assert partner_db.get_external_id_by_internal(1) is None
+    class _CM:
+        def __enter__(self):
+            raise _SQLAlchemyError()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(partner_db, 'get_db_session', lambda: _CM())
+    with pytest.raises(_SQLAlchemyError):
+        partner_db.get_external_id_by_internal(1)
