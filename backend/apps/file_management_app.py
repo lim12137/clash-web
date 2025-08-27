@@ -1,25 +1,30 @@
 import asyncio
-import os
 import json
+import logging
+import os
+from io import BytesIO
 from pathlib import Path
 from typing import List, Optional
-from io import BytesIO
-import requests
-import logging
-import httpx
 
-from utils.auth_utils import get_current_user_info
-from fastapi import UploadFile, File, HTTPException, Form, APIRouter, Query, Path as PathParam, Body, Header, Request
+import httpx
+import requests
+from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Path as PathParam, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
-from consts.model import ProcessParams
-from consts.const import MAX_CONCURRENT_UPLOADS, UPLOAD_FOLDER, DATA_PROCESS_SERVICE
-from utils.file_management_utils import save_upload_file, trigger_data_process
-from utils.attachment_utils import convert_image_to_text, convert_long_text_to_text
-from database.attachment_db import (
-    upload_fileobj, delete_file, get_file_url, list_files, get_file_stream, get_content_type
-)
 from agents.preprocess_manager import preprocess_manager
+from consts.const import DATA_PROCESS_SERVICE, MAX_CONCURRENT_UPLOADS, UPLOAD_FOLDER
+from consts.model import ProcessParams
+from database.attachment_db import (
+    delete_file,
+    get_content_type,
+    get_file_stream,
+    get_file_url,
+    list_files,
+    upload_fileobj,
+)
+from utils.attachment_utils import convert_image_to_text, convert_long_text_to_text
+from utils.auth_utils import get_current_user_info
+from utils.file_management_utils import save_upload_file, trigger_data_process
 
 logger = logging.getLogger("file_management_app")
 
@@ -124,7 +129,6 @@ async def upload_files(
                 errors.append(f"Failed to upload {file_name}: {error_msg}")
     else:
         raise HTTPException(status_code=400, detail="Invalid destination. Must be 'local' or 'minio'.")
-
 
     if uploaded_file_paths:
         return JSONResponse(
@@ -395,7 +399,11 @@ async def get_storage_file_batch_urls(
 
 
 @router.post("/preprocess")
-async def agent_preprocess_api(request: Request, query: str = Form(...), files: List[UploadFile] = File(...), authorization: Optional[str] = Header(None)):
+async def agent_preprocess_api(
+        request: Request, query: str = Form(...),
+        files: List[UploadFile] = File(...),
+        authorization: Optional[str] = Header(None)
+):
     """
     Preprocess uploaded files and return streaming response
     """
@@ -459,9 +467,13 @@ async def agent_preprocess_api(request: Request, query: str = Form(...), files: 
                             raise Exception(file_data["error"])
 
                         if file_data["ext"] in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
-                            description = await process_image_file(query, file_data["filename"], file_data["content"], tenant_id, language)
+                            description = await process_image_file(
+                                query, file_data["filename"], file_data["content"], tenant_id, language
+                            )
                         else:
-                            description = await process_text_file(query, file_data["filename"], file_data["content"], tenant_id, language)
+                            description = await process_text_file(
+                                query, file_data["filename"], file_data["content"], tenant_id, language
+                            )
                         file_descriptions.append(description)
 
                         # Send processing result for each file

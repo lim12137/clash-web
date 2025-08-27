@@ -1,9 +1,11 @@
 import logging
 import threading
 from typing import Dict
+
 from nexent.core.agents.agent_model import AgentRunInfo
 
 logger = logging.getLogger("agent_run_manager")
+
 
 class AgentRunManager:
     _instance = None

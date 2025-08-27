@@ -6,6 +6,7 @@ from threading import Event
 
 logger = logging.getLogger("preprocess_manager")
 
+
 class PreprocessTask:
     def __init__(self, task_id: str, conversation_id: int):
         self.task_id = task_id
@@ -13,6 +14,7 @@ class PreprocessTask:
         self.stop_event = Event()
         self.is_running = True
         self.task = None  # asyncio.Task reference
+
 
 class PreprocessManager:
     _instance = None
@@ -124,5 +126,6 @@ class PreprocessManager:
                 "tasks": running_tasks
             }
 
+
 # Create singleton instance
-preprocess_manager = PreprocessManager() 
+preprocess_manager = PreprocessManager()

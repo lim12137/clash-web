@@ -1,27 +1,27 @@
 import threading
 import logging
 from urllib.parse import urljoin
-from nexent.core.utils.observer import MessageObserver
-from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
-from services.remote_mcp_service import get_remote_mcp_server_list
-from utils.auth_utils import get_current_user_id
-
-from database.agent_db import search_agent_info_by_agent_id, query_sub_agents_id_list
-from database.tool_db import search_tools_for_sub_agent
-from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
-from services.tenant_config_service import get_selected_knowledge_list
-from utils.prompt_template_utils import get_agent_prompt_template
-from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
-from smolagents.utils import BASE_BUILTIN_MODULES
-from services.memory_config_service import build_memory_context
-from jinja2 import Template, StrictUndefined
 from datetime import datetime
 
+from jinja2 import Template, StrictUndefined
+from smolagents.utils import BASE_BUILTIN_MODULES
+from nexent.core.utils.observer import MessageObserver
+from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
 from nexent.memory.memory_service import search_memory_in_levels
 
+from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
+from services.tenant_config_service import get_selected_knowledge_list
+from services.remote_mcp_service import get_remote_mcp_server_list
+from services.memory_config_service import build_memory_context
+from database.agent_db import search_agent_info_by_agent_id, query_sub_agents_id_list
+from database.tool_db import search_tools_for_sub_agent
+from utils.prompt_template_utils import get_agent_prompt_template
+from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
+from utils.auth_utils import get_current_user_id
 
 logger = logging.getLogger("create_agent_info")
 logger.setLevel(logging.DEBUG)
+
 
 async def create_model_config_list(tenant_id):
     main_model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
@@ -117,7 +117,7 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
         logger.error(f"Failed to build knowledge base summary: {e}")
     
     # Assemble system_prompt
-    if (duty_prompt or constraint_prompt or few_shots_prompt):
+    if duty_prompt or constraint_prompt or few_shots_prompt:
         system_prompt = Template(prompt_template["system_prompt"], undefined=StrictUndefined).render({
             "duty": duty_prompt,
             "constraint": constraint_prompt,
@@ -129,7 +129,7 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             "APP_DESCRIPTION": app_description,
             "memory_list": memory_list,
             "knowledge_base_summary": knowledge_base_summary,
-            "time" : datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
     else:
         system_prompt = agent_info.get("prompt", "")
@@ -137,7 +137,11 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     agent_config = AgentConfig(
         name="undefined" if agent_info["name"] is None else agent_info["name"],
         description="undefined" if agent_info["description"] is None else agent_info["description"],
-        prompt_templates=await prepare_prompt_templates(is_manager=len(managed_agents)>0, system_prompt=system_prompt, language=language),
+        prompt_templates=await prepare_prompt_templates(
+            is_manager=len(managed_agents) > 0,
+            system_prompt=system_prompt,
+            language=language
+        ),
         tools=tool_list,
         max_steps=agent_info.get("max_steps", 10),
         model_name=agent_info.get("model_name"),
@@ -253,7 +257,7 @@ async def join_minio_file_description_to_query(minio_files, query):
     return final_query
 
 
-def filter_mcp_servers_and_tools(input_agent_config: AgentConfig, mcp_info_dict)->list:
+def filter_mcp_servers_and_tools(input_agent_config: AgentConfig, mcp_info_dict) -> list:
     """
     Filter mcp servers and tools, only keep the actual used mcp servers
     Support multi-level agent, recursively check all sub-agent tools
@@ -282,8 +286,13 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
 
     final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
     model_list = await create_model_config_list(tenant_id)
-    agent_config = await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id,
-                              language=language, last_user_query=final_query)
+    agent_config = await create_agent_config(
+        agent_id=agent_id,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        language=language,
+        last_user_query=final_query
+    )
 
     remote_mcp_list = await get_remote_mcp_server_list(tenant_id=tenant_id)
     default_mcp_url = urljoin(config_manager.get_config("NEXENT_MCP_SERVER"), "sse")
@@ -296,7 +305,6 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
 
     # Filter MCP servers and tools
     mcp_host = filter_mcp_servers_and_tools(agent_config, remote_mcp_dict)
-
 
     agent_run_info = AgentRunInfo(
         query=final_query,
