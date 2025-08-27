@@ -9,8 +9,8 @@ from typing import Any, Dict, Optional
 from fastapi.responses import StreamingResponse
 
 from database.conversation_db import get_conversation_messages
-from consts.model import (
-    AgentRequest,
+from consts.model import AgentRequest
+from consts.exceptions import (
     LimitExceededError,
     UnauthorizedError,
 )
@@ -122,7 +122,7 @@ async def to_external_conversation_id(internal_id: int) -> str:
         raise Exception("invalid internal conversation id")
     external_id = get_external_id_by_internal(internal_id=internal_id, mapping_type="CONVERSATION")
     if not external_id:
-        raise Exception(f"cannot find external id for conversation_id: {internal_id}")
+        logger.warning(f"cannot find external id for conversation_id: {internal_id}")
     return external_id
 
 
@@ -197,7 +197,7 @@ async def start_streaming_chat(
         )
     finally:
         if composed_key:
-            asyncio.create_task(_release_idempotency_after_delay(composed_key, 3))
+            asyncio.create_task(_release_idempotency_after_delay(composed_key))
 
     # Attach request id header
     response.headers["X-Request-Id"] = ctx.request_id
@@ -219,10 +219,7 @@ async def list_conversations(ctx: NorthboundContext) -> Dict[str, Any]:
     conversations = get_conversation_list_service(ctx.user_id)
     # get_conversation_list_service is sync
     for item in conversations:
-        try:
-            item["conversation_id"] = await to_external_conversation_id(int(item["conversation_id"]))
-        except Exception:
-            pass
+        item["conversation_id"] = await to_external_conversation_id(int(item["conversation_id"]))
     return {"message": "success", "data": conversations, "requestId": ctx.request_id}
 
 
@@ -280,4 +277,4 @@ async def update_conversation_title(ctx: NorthboundContext, external_conversatio
         raise Exception(f"Failed to update conversation title for external conversation id {external_conversation_id}: {str(e)}")
     finally:
         if composed_key:
-            asyncio.create_task(_release_idempotency_after_delay(composed_key, 3))
+            asyncio.create_task(_release_idempotency_after_delay(composed_key))

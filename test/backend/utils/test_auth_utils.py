@@ -1,15 +1,38 @@
 import time
 import sys
 from unittest.mock import MagicMock
+import types
 import pytest
 
-from backend.utils import auth_utils as au
-from backend.consts.model import SignatureValidationError, UnauthorizedError
+# ---------------------------------------------------------------------------
+# Pre-mock heavy dependencies BEFORE importing the module under test.
+# This avoids side-effects such as Minio/S3 network calls that are triggered
+# during import time of database.client when auth_utils is imported.
+# ---------------------------------------------------------------------------
+
+# Stub out the database package hierarchy expected by auth_utils
+sys.modules['database'] = MagicMock()
+
+# Provide a lightweight module for database.client with the attributes used
+# by auth_utils so that any direct attribute access works as expected.
+db_client_stub = types.ModuleType("database.client")
+db_client_stub.MinioClient = MagicMock()
+db_client_stub.get_db_session = MagicMock()
+db_client_stub.as_dict = MagicMock()
+sys.modules['database.client'] = db_client_stub
+
+# Stub database.user_tenant_db to avoid real DB interactions
+sys.modules['database.user_tenant_db'] = MagicMock(get_user_tenant_by_user_id=MagicMock(return_value=None))
+
+from utils import auth_utils as au
+
+# After auth_utils import succeeds, bring in real exception classes for clarity.
+from backend.consts.exceptions import UnauthorizedError, SignatureValidationError
 
 # Pre-mock nexent core dependency pulled by consts.model
 sys.modules['consts'] = MagicMock()
 sys.modules['consts.const'] = MagicMock()
-sys.modules['consts.model'] = MagicMock()
+sys.modules['consts.exceptions'] = MagicMock()
 sys.modules['nexent'] = MagicMock()
 sys.modules['nexent.core'] = MagicMock()
 sys.modules['nexent.core.agents'] = MagicMock()
@@ -21,6 +44,7 @@ sys.modules['psycopg2.extras'] = MagicMock()
 sys.modules['botocore'] = MagicMock()
 sys.modules['botocore.client'] = MagicMock()
 sys.modules['botocore.exceptions'] = MagicMock()
+
 
 # Ensure exceptions in module under test are real exception classes, not mocks
 au.UnauthorizedError = UnauthorizedError

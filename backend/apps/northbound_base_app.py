@@ -4,14 +4,14 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .northbound_app import router as northbound_router
-from consts.model import LimitExceededError, UnauthorizedError, SignatureValidationError
+from consts.exceptions import LimitExceededError, UnauthorizedError, SignatureValidationError
 
 logger = logging.getLogger("northbound_base_app")
 
 
 northbound_app = FastAPI(
     title="Nexent Northbound API",
-    description="北向接口 - 面向合作伙伴的外部API",
+    description="Northbound APIs for partners",
     version="1.0.0",
     root_path="/api"
 )
