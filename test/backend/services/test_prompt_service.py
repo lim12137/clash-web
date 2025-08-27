@@ -82,7 +82,7 @@ class TestPromptService(unittest.TestCase):
     @patch('backend.services.prompt_service.update_agent')
     @patch('nexent.vector_database.elasticsearch_core.ElasticSearchCore')
     @patch('elasticsearch.Elasticsearch')
-    async def test_generate_and_save_system_prompt_impl(self, mock_elasticsearch, mock_es_core, mock_update_agent, mock_get_user_info,
+    async def test_generate_and_save_system_prompt_impl(self, mock_update_agent, mock_get_user_info,
                                          mock_get_tool_desc, mock_get_agent_desc, 
                                          mock_generate_system_prompt):
         # Setup
@@ -124,8 +124,8 @@ class TestPromptService(unittest.TestCase):
         this.assertEqual(result, expected_results)
         
         mock_get_user_info.assert_called_once_with("fake-auth-token", None)
-        mock_get_tool_desc.assert_called_once_with(agent_id=123, tenant_id="tenant456", user_id="user123")
-        mock_get_agent_desc.assert_called_once_with(agent_id=123, tenant_id="tenant456", user_id="user123")
+        mock_get_tool_desc.assert_called_once_with(agent_id=123, tenant_id="tenant456")
+        mock_get_agent_desc.assert_called_once_with(agent_id=123, tenant_id="tenant456")
         
         mock_generate_system_prompt.assert_called_once_with(
             mock_get_agent_desc.return_value,
@@ -372,7 +372,7 @@ class TestPromptService(unittest.TestCase):
     @patch('backend.services.prompt_service.query_tools_by_ids')
     @patch('nexent.vector_database.elasticsearch_core.ElasticSearchCore')
     @patch('elasticsearch.Elasticsearch')
-    async def test_get_enabled_tool_description_for_generate_prompt(self, mock_elasticsearch, mock_es_core, mock_query_tools, mock_get_tool_ids):
+    async def test_get_enabled_tool_description_for_generate_prompt(self, mock_query_tools, mock_get_tool_ids):
         # Setup
         mock_get_tool_ids.return_value = [1, 2, 3]
         mock_tools = [{"id": 1, "name": "tool1"}, {"id": 2, "name": "tool2"}, {"id": 3, "name": "tool3"}]
@@ -381,13 +381,12 @@ class TestPromptService(unittest.TestCase):
         # Execute
         result = await get_enabled_tool_description_for_generate_prompt(
             agent_id=123, 
-            tenant_id="tenant456", 
-            user_id="user123"
+            tenant_id="tenant456"
         )
         
         # Assert
         self.assertEqual(result, mock_tools)
-        mock_get_tool_ids.assert_called_once_with(agent_id=123, tenant_id="tenant456", user_id="user123")
+        mock_get_tool_ids.assert_called_once_with(agent_id=123, tenant_id="tenant456")
         mock_query_tools.assert_called_once_with([1, 2, 3])
         
     @patch('backend.services.prompt_service.search_agent_info_by_agent_id')
@@ -412,8 +411,7 @@ class TestPromptService(unittest.TestCase):
         # Execute
         result = get_enabled_sub_agent_description_for_generate_prompt(
             agent_id=123, 
-            tenant_id="tenant456", 
-            user_id="user123"
+            tenant_id="tenant456"
         )
         
         # Assert
