@@ -12,13 +12,13 @@ interface SubAgentPoolProps {
   onEditAgent: (agent: Agent) => void;
   onCreateNewAgent: () => void;
   onImportAgent: () => void;
-  onExitEditMode?: () => void; // 退出编辑模式的回调
+  onExitEditMode?: () => void; // Callback to exit edit mode
   subAgentList?: Agent[];
   loadingAgents?: boolean;
   isImporting?: boolean;
-  isGeneratingAgent?: boolean; // 生成智能体状态
-  editingAgent?: Agent | null; // 当前正在编辑的Agent
-  isCreatingNewAgent?: boolean; // 是否处于创建模式
+  isGeneratingAgent?: boolean; // Agent generation state
+  editingAgent?: Agent | null; // Currently editing Agent
+  isCreatingNewAgent?: boolean; // Whether in creation mode
 }
 
 /**
@@ -39,17 +39,17 @@ export default function SubAgentPool({
   const { t } = useTranslation('common');
   const { message } = App.useApp();
 
-  // 查看调用关系相关状态
+  // Call relationship related state
   const [callRelationshipModalVisible, setCallRelationshipModalVisible] = useState(false);
   const [selectedAgentForRelationship, setSelectedAgentForRelationship] = useState<Agent | null>(null);
 
-  // 打开查看调用关系弹窗
+  // Open call relationship modal
   const handleViewCallRelationship = (agent: Agent) => {
     setSelectedAgentForRelationship(agent);
     setCallRelationshipModalVisible(true);
   };
 
-  // 关闭查看调用关系弹窗
+  // Close call relationship modal
   const handleCloseCallRelationshipModal = () => {
     setCallRelationshipModalVisible(false);
     setSelectedAgentForRelationship(null);
@@ -71,22 +71,22 @@ export default function SubAgentPool({
       </div>
       <ScrollArea className="flex-1 min-h-0 border-t pt-2 pb-2">
         <div className="flex flex-col pr-2">
-          {/* 功能操作区块 */}
+          {/* Function operation block */}
           <div className="mb-4">
               <div className="flex gap-3">
                 <div 
                   className={`flex-1 rounded-md p-2 flex items-center cursor-pointer transition-all duration-200 min-h-[70px] ${
                     isCreatingNewAgent
-                      ? 'bg-blue-100 border border-blue-200 shadow-sm' // 创建模式下高亮显示
+                      ? 'bg-blue-100 border border-blue-200 shadow-sm' // Highlight in creation mode
                       : 'bg-white hover:bg-blue-50 hover:shadow-sm'
                   }`}
                   title={isCreatingNewAgent ? t('subAgentPool.tooltip.exitCreateMode') : t('subAgentPool.tooltip.createNewAgent')}
                   onClick={() => {
                     if (isCreatingNewAgent) {
-                      // 如果当前处于创建模式，点击退出创建模式
+                      // If currently in creation mode, click to exit creation mode
                       onExitEditMode?.();
                     } else {
-                      // 否则进入创建模式
+                      // Otherwise enter creation mode
                       onCreateNewAgent();
                     }
                   }}
@@ -111,13 +111,13 @@ export default function SubAgentPool({
                 <div
                   className={`flex-1 rounded-md p-2 flex items-center transition-all duration-200 min-h-[70px] ${
                     isImporting
-                      ? 'bg-gray-100 cursor-not-allowed' // 导入中：禁用状态
-                      : 'bg-white cursor-pointer hover:bg-green-50 hover:shadow-sm' // 正常状态：可点击
+                      ? 'bg-gray-100 cursor-not-allowed' // Importing: disabled state
+                      : 'bg-white cursor-pointer hover:bg-green-50 hover:shadow-sm' // Normal state: clickable
                   }`}
                   onClick={isImporting ? undefined : onImportAgent}
                 >
                   <div className={`flex items-center w-full ${
-                    isImporting ? 'text-gray-400' : 'text-green-600' // 导入中使用灰色
+                    isImporting ? 'text-gray-400' : 'text-green-600' // Use gray when importing
                   }`}>
                     <div className={`flex items-center justify-center w-8 h-8 rounded-full mr-3 flex-shrink-0 ${
                       isImporting ? 'bg-gray-100' : 'bg-green-100'
@@ -137,22 +137,22 @@ export default function SubAgentPool({
               </div>
           </div>
 
-          {/* Agent列表区块 */}
+          {/* Agent list block */}
           <div>
             <div className="text-sm font-medium text-gray-600 mb-2 px-1">
               {t('subAgentPool.section.agentList')} ({subAgentList.length})
             </div>
             <div className="space-y-0">
               {subAgentList.map((agent) => {
-            const isAvailable = agent.is_available !== false; // 默认为true，只有明确为false时才不可用
-            const isCurrentlyEditing = editingAgent && String(editingAgent.id) === String(agent.id); // 确保类型匹配
+            const isAvailable = agent.is_available !== false; // Default is true, only unavailable when explicitly false
+            const isCurrentlyEditing = editingAgent && String(editingAgent.id) === String(agent.id); // Ensure type matching
             
             return (
               <div 
                 key={agent.id} 
                 className={`py-2 px-2 flex flex-col justify-center transition-colors border-t border-gray-200 ${
                   isCurrentlyEditing
-                    ? 'bg-blue-50 border-l-4 border-l-blue-500' // 编辑中的agent高亮显示，添加左侧竖线
+                                         ? 'bg-blue-50 border-l-4 border-l-blue-500' // Highlight editing agent, add left vertical line
                     : !isAvailable
                       ? 'bg-gray-50 opacity-60 cursor-not-allowed'
                       : 'hover:bg-gray-50 cursor-pointer'
@@ -162,23 +162,23 @@ export default function SubAgentPool({
                   : isCurrentlyEditing
                     ? t('subAgentPool.tooltip.exitEditMode')
                   : `${t('subAgentPool.tooltip.editAgent')} ${agent.display_name || agent.name}`}
-                onClick={async (e) => {
-                  // 阻止事件冒泡
-                  e.preventDefault();
-                  e.stopPropagation();
-                  
-                  if (!isGeneratingAgent && isAvailable) {
-                    if (isCurrentlyEditing) {
-                      // 如果当前正在编辑这个Agent，点击退出编辑模式
-                      onExitEditMode?.();
-                    } else {
-                      // 否则进入编辑模式（或切换到这个Agent）
-                    onEditAgent(agent);
-                    }
-                  } else if (!isAvailable) {
-                    message.warning(t('subAgentPool.message.unavailable'));
-                  }
-                }}
+                                 onClick={async (e) => {
+                   // Prevent event bubbling
+                   e.preventDefault();
+                   e.stopPropagation();
+                    
+                   if (!isGeneratingAgent && isAvailable) {
+                     if (isCurrentlyEditing) {
+                       // If currently editing this Agent, click to exit edit mode
+                       onExitEditMode?.();
+                     } else {
+                       // Otherwise enter edit mode (or switch to this Agent)
+                     onEditAgent(agent);
+                     }
+                   } else if (!isAvailable) {
+                     message.warning(t('subAgentPool.message.unavailable'));
+                   }
+                 }}
               >
                 <div className="flex items-center h-full">
                   <div className="flex-1 overflow-hidden">
@@ -207,9 +207,9 @@ export default function SubAgentPool({
                     </div>
                   </div>
 
-                  {/* 操作按钮区域 */}
+                                     {/* Operation button area */}
                   <div className="flex items-center gap-1 ml-2">
-                    {/* 查看调用关系按钮 */}
+                                         {/* View call relationship button */}
                     <Tooltip title={t('agent.action.viewCallRelationship')}>
                       <Button
                         type="text"
@@ -236,7 +236,7 @@ export default function SubAgentPool({
         </div>
       </ScrollArea>
 
-      {/* Agent调用关系弹窗 */}
+             {/* Agent call relationship modal */}
       {selectedAgentForRelationship && (
         <AgentCallRelationshipModal
           visible={callRelationshipModalVisible}

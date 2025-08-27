@@ -618,12 +618,12 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
         return s[:1].upper() + s[1:]
 
     try:
-        # 主 Agent 基本信息
+
         agent_info = search_agent_info_by_agent_id(agent_id, tenant_id)
         if not agent_info:
             raise ValueError(f"Agent {agent_id} not found")
 
-        # 主 Agent 的工具
+
         tool_info = search_tools_for_sub_agent(agent_id=agent_id, tenant_id=tenant_id)
         tools = []
         for tool in tool_info:
@@ -637,7 +637,7 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
                 "type": tool_type
             })
 
-        # 递归收集子 Agent
+
         def get_sub_agents_recursive(parent_agent_id: int, depth: int = 0, max_depth: int = 5) -> list:
             if depth >= max_depth:
                 return []
@@ -649,7 +649,7 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
                 try:
                     sub_agent_info = search_agent_info_by_agent_id(sub_agent_id, tenant_id)
                     if sub_agent_info:
-                        # 子 Agent 的工具
+
                         sub_tool_info = search_tools_for_sub_agent(agent_id=sub_agent_id, tenant_id=tenant_id)
                         sub_tools = []
                         for tool in sub_tool_info:
@@ -663,7 +663,7 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
                                 "type": tool_type
                             })
 
-                        # 更深层
+
                         deeper_sub_agents = get_sub_agents_recursive(sub_agent_id, depth + 1, max_depth)
 
                         sub_agents.append({

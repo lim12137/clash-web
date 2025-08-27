@@ -607,7 +607,7 @@ export const fetchAgentCallRelationship = async (agentId: number) => {
     });
 
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
 
     const data = await response.json();
@@ -618,7 +618,7 @@ export const fetchAgentCallRelationship = async (agentId: number) => {
       message: ''
     };
   } catch (error) {
-    console.error('获取Agent调用关系失败:', error);
+    console.error('Failed to fetch agent call relationship:', error);
     return {
       success: false,
       data: null,
