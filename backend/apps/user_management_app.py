@@ -2,25 +2,19 @@ import logging
 from typing import Optional, Any, Tuple
 from fastapi import APIRouter, HTTPException, Header, Request
 from dotenv import load_dotenv
-from supabase import create_client, Client
+from supabase import Client
 import requests
 import os
 
-from consts.const import SUPABASE_URL, SUPABASE_KEY
 from consts.model import STATUS_CODES, ServiceResponse, UserSignUpRequest, UserSignInRequest
 from database.model_management_db import create_model_record
-from utils.auth_utils import get_jwt_expiry_seconds, calculate_expires_at
+from utils.auth_utils import get_jwt_expiry_seconds, calculate_expires_at, get_supabase_client
 from database.user_tenant_db import insert_user_tenant
 from utils.config_utils import config_manager
 
 load_dotenv()
 logging.getLogger("httpx").setLevel(logging.WARNING)
 router = APIRouter(prefix="/user", tags=["user"])
-
-
-# Create base supabase client
-def get_supabase_client() -> Client:
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 # Set token to client
