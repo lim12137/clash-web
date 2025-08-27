@@ -115,14 +115,15 @@ def _build_idempotency_key(*parts: Any) -> str:
 
 
 # -----------------------------
-# ID mapping helpers (placeholders for DB-backed mapping)
+# ID mapping helpers
 # -----------------------------
 async def to_external_conversation_id(internal_id: int) -> str:
     if not internal_id:
         raise Exception("invalid internal conversation id")
     external_id = get_external_id_by_internal(internal_id=internal_id, mapping_type="CONVERSATION")
     if not external_id:
-        logger.warning(f"cannot find external id for conversation_id: {internal_id}")
+        logger.error(f"cannot find external id for conversation_id: {internal_id}")
+        raise Exception("cannot find external id")
     return external_id
 
 

@@ -5,6 +5,7 @@ from typing import Optional, Dict
 import uuid
 
 from fastapi import APIRouter, Body, Header, Request
+from fastapi.responses import JSONResponse
 
 from consts.exceptions import UnauthorizedError, LimitExceededError, SignatureValidationError
 from services.northbound_service import (
@@ -194,8 +195,6 @@ async def update_convs_title(
             title=title,
             idempotency_key=idempotency_key,
         )
-        from fastapi.responses import JSONResponse
-
         headers_out = {"Idempotency-Key": result.get("idempotency_key", ""), "X-Request-Id": ctx.request_id}
         return JSONResponse(content=result, headers=headers_out)
 

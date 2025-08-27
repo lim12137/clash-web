@@ -6,9 +6,9 @@ import time
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
-from fastapi import Request, HTTPException
+from fastapi import Request
 from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID, IS_SPEED_MODE
-from consts.exceptions import SignatureValidationError, UnauthorizedError
+from consts.exceptions import LimitExceededError, SignatureValidationError, UnauthorizedError
 import jwt
 from supabase import create_client
 from database.user_tenant_db import get_user_tenant_by_user_id
@@ -193,8 +193,8 @@ def validate_aksk_authentication(headers: dict, request_body: str = "") -> bool:
             raise SignatureValidationError("Invalid signature")
 
         return True
-    except (UnauthorizedError, SignatureValidationError):
-        raise
+    except (UnauthorizedError, SignatureValidationError, LimitExceededError) as e:
+        raise e
     except Exception as e:
         logger.error(f"Unexpected error during AK/SK authentication: {e}")
         raise UnauthorizedError("Authentication failed")
@@ -287,7 +287,7 @@ def _extract_user_id_from_jwt_token(authorization: str) -> Optional[str]:
         return user_id
     except Exception as e:
         logging.error(f"Failed to extract user ID from token: {str(e)}")
-        raise HTTPException(status_code=401, detail="Invalid or expired authentication token")
+        raise UnauthorizedError("Invalid or expired authentication token")
 
 
 def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
@@ -308,7 +308,7 @@ def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
     try:
         user_id = _extract_user_id_from_jwt_token(authorization)
         if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid or expired authentication token")
+            raise UnauthorizedError("Invalid or expired authentication token")
 
         user_tenant_record = get_user_tenant_by_user_id(user_id)
         if user_tenant_record and user_tenant_record.get('tenant_id'):
@@ -322,7 +322,7 @@ def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
 
     except Exception as e:
         logging.error(f"Failed to get user ID and tanent ID: {str(e)}")
-        raise HTTPException(status_code=401, detail="Invalid or expired authentication token")
+        raise UnauthorizedError("Invalid or expired authentication token")
 
 
 def get_user_language(request: Request = None) -> str:
