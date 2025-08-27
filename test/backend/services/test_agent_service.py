@@ -32,6 +32,7 @@ sys.modules['consts'] = MagicMock()
 sys.modules['consts.model'] = MagicMock()
 sys.modules['database'] = MagicMock()
 sys.modules['database.agent_db'] = MagicMock()
+sys.modules['database.tool_db'] = MagicMock()
 sys.modules['database.remote_mcp_db'] = MagicMock()
 sys.modules['services'] = MagicMock()
 sys.modules['services.remote_mcp_service'] = MagicMock()
@@ -137,16 +138,14 @@ def test_get_enable_tool_id_by_agent_id():
         # Execute
         result = get_enable_tool_id_by_agent_id(
             agent_id=123, 
-            tenant_id="test_tenant", 
-            user_id="test_user"
+            tenant_id="test_tenant"
         )
         
         # Assert
         assert sorted(result) == [1, 3, 4]
         mock_query.assert_called_once_with(
             agent_id=123,
-            tenant_id="test_tenant", 
-            user_id=None
+            tenant_id="test_tenant"
         )
 
 
@@ -323,11 +322,12 @@ def test_update_agent_info_impl_success(mock_get_current_user_info, mock_update_
     mock_update_agent.assert_called_once_with(123, request, "test_tenant", "test_user")
 
 
-@patch('backend.services.agent_service.delete_all_related_agent')
+@patch('backend.services.agent_service.delete_tools_by_agent_id')
+@patch('backend.services.agent_service.delete_agent_relationship')
 @patch('backend.services.agent_service.delete_agent_by_id')
 @patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_delete_agent_impl_success(mock_get_current_user_info, mock_delete_agent, mock_delete_related):
+async def test_delete_agent_impl_success(mock_get_current_user_info, mock_delete_agent, mock_delete_related, mock_delete_tools):
     """
     Test successful deletion of an agent.
     
@@ -344,7 +344,8 @@ async def test_delete_agent_impl_success(mock_get_current_user_info, mock_delete
     
     # Assert
     mock_delete_agent.assert_called_once_with(123, "test_tenant", "test_user")
-    mock_delete_related.assert_called_once_with(123, "test_tenant")
+    mock_delete_related.assert_called_once_with(123, "test_tenant", "test_user")
+    mock_delete_tools.assert_called_once_with(123, "test_tenant", "test_user")
 
 
 @patch('backend.services.agent_service.search_agent_info_by_agent_id')
