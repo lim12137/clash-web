@@ -362,7 +362,7 @@ class TestPromptService(unittest.TestCase):
         # Check template variables
         template_vars = mock_template_instance.render.call_args[0][0]
         self.assertTrue("tool_description" in template_vars)
-        self.assertTrue("agent_description" in template_vars)
+        self.assertTrue("assistant_description" in template_vars)
         self.assertEqual(template_vars["task_description"], mock_task_description)
         
     @patch('backend.services.prompt_service.get_enable_tool_id_by_agent_id')
