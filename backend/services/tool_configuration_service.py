@@ -10,11 +10,8 @@ from fastmcp import Client
 import jsonref
 from mcpadapt.smolagents_adapter import _sanitize_function_name
 
-from database.agent_db import (
-    query_tool_instances_by_id,
-    create_or_update_tool_by_tool_info,
+from database.tool_db import create_or_update_tool_by_tool_info, query_tool_instances_by_id, \
     update_tool_table_from_scan_tool_list
-)
 from consts.model import ToolInstanceInfoRequest, ToolInfo, ToolSourceEnum
 from database.remote_mcp_db import get_mcp_records_by_tenant
 from utils.auth_utils import get_current_user_id
@@ -222,7 +219,7 @@ def search_tool_info_impl(agent_id: int, tool_id: int, authorization: str = Head
     _, tenant_id = get_current_user_id(authorization)
     try:
         # now only admin can modify the tool, user_id is not used
-        tool_instance = query_tool_instances_by_id(agent_id, tool_id, tenant_id, user_id=None)
+        tool_instance = query_tool_instances_by_id(agent_id, tool_id, tenant_id)
     except Exception as e:
         logger.error(f"search_tool_info_impl error in query_tool_instances_by_id, detail: {e}")
         raise ValueError(f"search_tool_info_impl error in query_tool_instances_by_id, detail: {e}")
