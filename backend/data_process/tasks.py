@@ -1,27 +1,29 @@
 """
 Celery tasks for data processing and vector storage
 """
+import asyncio
+import json
 import logging
 import os
-import json
-import time
-import aiohttp
-import asyncio
-import ray
-from typing import Dict, Any, Optional
-from celery import chain, Task, states
 import threading
+import time
+from typing import Any, Dict, Optional
 
-from .ray_actors import DataProcessorRayActor
-from .app import app
-from utils.file_management_utils import get_file_size
+import aiohttp
+import ray
+from celery import Task, chain, states
+
 from consts.const import ELASTICSEARCH_SERVICE
+from utils.file_management_utils import get_file_size
+from .app import app
+from .ray_actors import DataProcessorRayActor
 
-# Configure logging
+
 logger = logging.getLogger("data_process.tasks")
 
 # Thread lock for initializing Ray to prevent race conditions
 ray_init_lock = threading.Lock()
+
 
 def init_ray_in_worker():
     """
@@ -108,6 +110,7 @@ def get_ray_actor() -> Any:
     logger.debug("Successfully created a new DataProcessorRayActor for a task.")
     return actor
 
+
 class LoggingTask(Task):
     """Base task class with enhanced logging"""
     
@@ -134,9 +137,14 @@ class LoggingTask(Task):
 
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process', queue='process_q')
-def process(self, source: str, source_type: str, 
-            chunking_strategy: str = "basic", index_name: Optional[str] = None, 
-            original_filename: Optional[str] = None, **params) -> Dict:
+def process(
+        self,
+        source: str,
+        source_type: str,
+        chunking_strategy: str = "basic",
+        index_name: Optional[str] = None,
+        original_filename: Optional[str] = None, **params
+) -> Dict:
     """
     Process a file and extract text/chunks
     
@@ -277,10 +285,17 @@ def process(self, source: str, source_type: str,
             )
             raise
 
+
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.forward', queue='forward_q')
-def forward(self, processed_data: Dict, index_name: str, 
-            source: str, source_type: str = 'minio', 
-            original_filename: Optional[str] = None, authorization: Optional[str] = None) -> Dict:
+def forward(
+        self,
+        processed_data: Dict,
+        index_name: str,
+        source: str,
+        source_type: str = 'minio',
+        original_filename: Optional[str] = None,
+        authorization: Optional[str] = None
+) -> Dict:
     """
     Vectorize and store processed chunks in Elasticsearch
     
@@ -369,6 +384,7 @@ def forward(self, processed_data: Dict, index_name: str,
                 "source": original_source,
                 "original_filename": original_filename
             }, ensure_ascii=False))
+
         async def index_documents():
             elasticsearch_url = ELASTICSEARCH_SERVICE
             if not elasticsearch_url:
@@ -532,7 +548,7 @@ def forward(self, processed_data: Dict, index_name: str,
                     'stage': 'forward_task_failed'
                 }
             )
-        except Exception:
+        except Exception as e:
             logger.error(f"Error forwarding chunks: {str(e)}")
             self.update_state(
                 meta={
@@ -542,10 +558,17 @@ def forward(self, processed_data: Dict, index_name: str,
             )
         raise
 
+
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process_and_forward')
-def process_and_forward(self, source: str, source_type: str,
-                        chunking_strategy: str, index_name: Optional[str] = None,
-                        original_filename: Optional[str] = None, authorization: Optional[str] = None) -> str:
+def process_and_forward(
+        self,
+        source: str,
+        source_type: str,
+        chunking_strategy: str,
+        index_name: Optional[str] = None,
+        original_filename: Optional[str] = None,
+        authorization: Optional[str] = None
+) -> str:
     """
     Combined task that chains processing and forwarding
     
@@ -558,7 +581,6 @@ def process_and_forward(self, source: str, source_type: str,
         index_name: Name of the index to store documents
         original_filename: The original name of the file
         authorization: Authorization header for API calls
-        **params: Additional parameters
         
     Returns:
         Task ID of the chain
@@ -594,8 +616,14 @@ def process_and_forward(self, source: str, source_type: str,
 
 
 @app.task(bind=True, base=LoggingTask, name='data_process.tasks.process_sync')
-def process_sync(self, source: str, source_type: str, 
-                 chunking_strategy: str = "basic", timeout: int = 30, **params) -> Dict:
+def process_sync(
+        self,
+        source: str,
+        source_type: str,
+        chunking_strategy: str = "basic",
+        timeout: int = 30,
+        **params
+) -> Dict:
     """
     Synchronous process task that returns text directly (for real-time API)
     

@@ -1,12 +1,13 @@
 import logging
+from typing import Any, Dict, List, Optional
+
 import ray
-from typing import List, Dict, Any, Optional
 
-from nexent.data_process import DataProcessCore
-from database.attachment_db import get_file_stream
 from consts.const import RAY_ACTOR_NUM_CPUS
+from database.attachment_db import get_file_stream
+from nexent.data_process import DataProcessCore
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("data_process.ray_actors")
 # This now controls the number of CPUs requested by each DataProcessorRayActor instance.
 # It allows a single file processing task to potentially use more than one core if the
 # underlying processing library (e.g., unstructured) can leverage it.
@@ -22,7 +23,14 @@ class DataProcessorRayActor:
         logger.info(f"Ray actor initialized using {RAY_ACTOR_NUM_CPUS} CPU cores...")
         self._processor = DataProcessCore()
 
-    def process_file(self, source: str, chunking_strategy: str, destination: str, task_id: Optional[str] = None, **params) -> List[Dict[str, Any]]:
+    def process_file(
+        self,
+        source: str,
+        chunking_strategy: str,
+        destination: str,
+        task_id: Optional[str] = None,
+        **params
+    ) -> List[Dict[str, Any]]:
         """
         Process a file, auto-detecting its type using DataProcessCore.file_process.
 
@@ -62,4 +70,4 @@ class DataProcessorRayActor:
             return []
 
         logger.debug(f"[RayActor] file_process returned {len(chunks)} chunks, returning as is.")
-        return chunks 
+        return chunks

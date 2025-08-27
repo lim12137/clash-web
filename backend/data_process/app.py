@@ -2,9 +2,11 @@
 Celery application configuration for data processing tasks
 """
 import logging
+
 from celery import Celery
-from consts.const import REDIS_URL, REDIS_BACKEND_URL, ELASTICSEARCH_SERVICE
 from celery.backends.base import DisabledBackend
+
+from consts.const import ELASTICSEARCH_SERVICE, REDIS_BACKEND_URL, REDIS_URL
 
 # Configure logging
 logger = logging.getLogger("data_process.app")

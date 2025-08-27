@@ -1,16 +1,17 @@
 """
 Utility functions for Celery tasks
 """
-import logging
-import time
-import redis
-from typing import Dict, Any, Optional, List
-from celery.result import AsyncResult
-from .app import app as celery_app
 import asyncio
 import json
+import logging
+import time
+from typing import Any, Dict, List, Optional
 
-# Configure logging
+import redis
+from celery.result import AsyncResult
+
+from .app import app as celery_app
+
 logger = logging.getLogger("data_process.utils")
 
 
@@ -54,6 +55,7 @@ async def get_task_info(task_id: str) -> Dict[str, Any]:
         Task status information
     """
     loop = asyncio.get_running_loop()
+
     def sync_get():
         result = AsyncResult(task_id, app=celery_app)
         
@@ -208,6 +210,7 @@ async def get_task_info(task_id: str) -> Dict[str, Any]:
             'original_filename': '',
         }
 
+
 async def get_task_details(task_id: str) -> Optional[Dict[str, Any]]:
     """
     Get detailed task information
@@ -220,6 +223,7 @@ async def get_task_details(task_id: str) -> Optional[Dict[str, Any]]:
     """
     task_info = await get_task_info(task_id)
     loop = asyncio.get_running_loop()
+
     def sync_result():
         result = AsyncResult(task_id, app=celery_app)
         if result.successful() and result.result:
