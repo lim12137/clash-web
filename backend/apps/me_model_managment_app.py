@@ -1,6 +1,7 @@
-import aiohttp
 import asyncio
-from fastapi import Query, APIRouter
+
+import aiohttp
+from fastapi import APIRouter, Query
 
 from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
 from consts.model import ModelConnectStatusEnum, ModelResponse

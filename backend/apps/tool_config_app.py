@@ -1,16 +1,19 @@
-from fastapi import HTTPException, APIRouter
-from fastapi.responses import JSONResponse
 import logging
-from database.tool_db import query_all_tools
-from consts.model import ToolInstanceInfoRequest, ToolInstanceSearchRequest
-from services.tool_configuration_service import search_tool_info_impl, update_tool_info_impl, update_tool_list
-from fastapi import Header
 from typing import Optional
+
+from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import JSONResponse
+
+from consts.model import ToolInstanceInfoRequest, ToolInstanceSearchRequest
+from database.tool_db import query_all_tools
+from services.tool_configuration_service import (
+    search_tool_info_impl,
+    update_tool_info_impl,
+    update_tool_list,
+)
 from utils.auth_utils import get_current_user_id
 
 router = APIRouter(prefix="/tool")
-
-# Configure logging
 logger = logging.getLogger("tool_config_app")
 
 
@@ -26,6 +29,7 @@ async def list_tools_api(authorization: Optional[str] = Header(None)):
     except Exception as e:
         logging.error(f"Failed to get tool info, error in: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get tool info, error in: {str(e)}")
+
 
 @router.post("/search")
 async def search_tool_info_api(request: ToolInstanceSearchRequest, authorization: Optional[str] = Header(None)):
@@ -47,6 +51,7 @@ async def update_tool_info_api(request: ToolInstanceInfoRequest, authorization: 
         logging.error(f"Failed to update tool, error in: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to update tool, error in: {str(e)}")
 
+
 @router.get("/scan_tool")
 async def scan_and_update_tool(
     authorization: Optional[str] = Header(None)
@@ -54,8 +59,7 @@ async def scan_and_update_tool(
     """ Used to update the tool list and status """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        await update_tool_list(tenant_id=tenant_id,
-                         user_id=user_id)
+        await update_tool_list(tenant_id=tenant_id, user_id=user_id)
         return JSONResponse(
             status_code=200,
             content={"message": "Successfully update tool", "status": "success"}

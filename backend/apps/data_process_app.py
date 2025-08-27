@@ -1,23 +1,32 @@
-import logging
-from contextlib import asynccontextmanager
-from fastapi import HTTPException, APIRouter, Form, File, UploadFile, Header
-from typing import Optional
 import base64
 import io
+import logging
 import time
+from contextlib import asynccontextmanager
+from typing import Optional
 
-from consts.model import TaskResponse, TaskRequest, BatchTaskResponse, BatchTaskRequest, SimpleTaskStatusResponse, \
-    SimpleTasksListResponse, ConvertStateRequest, ConvertStateResponse
-from data_process.utils import get_task_info
-from data_process.tasks import process_and_forward, process_sync
-from services.data_process_service import get_data_process_service
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from nexent.data_process.core import DataProcessCore
 
-# Configure logging
+from consts.model import (
+    BatchTaskRequest,
+    BatchTaskResponse,
+    ConvertStateRequest,
+    ConvertStateResponse,
+    SimpleTaskStatusResponse,
+    SimpleTasksListResponse,
+    TaskRequest,
+    TaskResponse,
+)
+from data_process.tasks import process_and_forward, process_sync
+from data_process.utils import get_task_info
+from services.data_process_service import get_data_process_service
+
 logger = logging.getLogger("data_process.app")
 
 # Use shared service instance
 service = get_data_process_service()
+
 
 @asynccontextmanager
 async def lifespan(app: APIRouter):
@@ -297,19 +306,17 @@ async def filter_important_image(
 @router.post("/process_text_file", response_model=dict, status_code=200)
 async def process_text_file(
     file: UploadFile = File(...),
-    chunking_strategy: str = Form("basic"),
-    timeout: int = Form(60)
+    chunking_strategy: str = Form("basic")
 ):
     """
     Transfer the uploaded file to text content using SDK DataProcessCore
     
     This interface is specifically used for file-to-text conversion, supporting multiple file formats including PDF, Word, Excel, etc.
-    Uses SDK's DataProcessCore for direct in-memory processing.
+    Uses DataProcessCore from SDK for direct in-memory processing.
     
     Parameters:
         file: Uploaded file object
         chunking_strategy: Chunking strategy, default is "basic"
-        timeout: Processing timeout (seconds), default is 60 seconds
     
     Returns:
         JSON object, containing the extracted full text content and processing metadata
@@ -366,6 +373,7 @@ async def process_text_file(
             status_code=500, 
             detail=f"An error occurred while processing the file: {str(e)}"
         )
+
 
 @router.post("/convert_state", response_model=ConvertStateResponse, status_code=200)
 async def convert_state(request: ConvertStateRequest):

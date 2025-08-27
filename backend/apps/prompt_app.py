@@ -1,23 +1,24 @@
 import json
 import logging
-
-from fastapi import HTTPException, APIRouter, Header, Request
-from fastapi.responses import StreamingResponse
 from typing import Optional
 
-from consts.model import GeneratePromptRequest, FineTunePromptRequest
-from services.prompt_service import generate_and_save_system_prompt_impl, fine_tune_prompt
+from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi.responses import StreamingResponse
+
+from consts.model import FineTunePromptRequest, GeneratePromptRequest
+from services.prompt_service import fine_tune_prompt, generate_and_save_system_prompt_impl
 from utils.auth_utils import get_current_user_info
 
 router = APIRouter(prefix="/prompt")
-
-# Configure logging
 logger = logging.getLogger("prompt_app")
 
 
 @router.post("/generate")
-async def generate_and_save_system_prompt_api(prompt_request: GeneratePromptRequest, http_request: Request, 
-                                            authorization: Optional[str] = Header(None)):
+async def generate_and_save_system_prompt_api(
+        prompt_request: GeneratePromptRequest,
+        http_request: Request,
+        authorization: Optional[str] = Header(None)
+):
     try:
         def gen_system_prompt():
             for system_prompt in generate_and_save_system_prompt_impl(
@@ -36,8 +37,11 @@ async def generate_and_save_system_prompt_api(prompt_request: GeneratePromptRequ
 
 
 @router.post("/fine_tune")
-async def fine_tune_prompt_api(prompt_request: FineTunePromptRequest, http_request: Request,
-                              authorization: Optional[str] = Header(None)):
+async def fine_tune_prompt_api(
+        prompt_request: FineTunePromptRequest,
+        http_request: Request,
+        authorization: Optional[str] = Header(None)
+):
     try:
         _, tenant_id, language = get_current_user_info(authorization, http_request)
         

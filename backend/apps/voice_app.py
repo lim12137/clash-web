@@ -1,12 +1,14 @@
-import logging
 import asyncio
+import logging
 
-from nexent.core.models.stt_model import STTModel, STTConfig
-from nexent.core.models.tts_model import TTSModel, TTSConfig
-from fastapi import WebSocket, APIRouter
-from consts.const import APPID, TOKEN, CLUSTER, VOICE_TYPE, SPEED_RATIO, TEST_VOICE_PATH
+from fastapi import APIRouter, WebSocket
+from nexent.core.models.stt_model import STTConfig, STTModel
+from nexent.core.models.tts_model import TTSConfig, TTSModel
+
+from consts.const import APPID, CLUSTER, SPEED_RATIO, TEST_VOICE_PATH, TOKEN, VOICE_TYPE
 
 logger = logging.getLogger("voice_app")
+
 
 class VoiceService:
     """Unified voice service that hosts both STT and TTS on a single FastAPI application"""
