@@ -24,18 +24,12 @@ import types
 
 consts_exceptions_mod = types.ModuleType("consts.exceptions")
 
-
 class LimitExceededError(Exception):
     pass
-
-
 class UnauthorizedError(Exception):
     pass
-
-
 class SignatureValidationError(Exception):
     pass
-
 
 consts_exceptions_mod.LimitExceededError = LimitExceededError
 consts_exceptions_mod.UnauthorizedError = UnauthorizedError
