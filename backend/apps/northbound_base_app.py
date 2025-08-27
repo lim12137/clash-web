@@ -1,3 +1,4 @@
+from http import HTTPStatus
 import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
@@ -36,34 +37,10 @@ async def northbound_http_exception_handler(request, exc):
         content={"message": exc.detail},
     )
 
-@northbound_app.exception_handler(LimitExceededError)
-async def northbound_limit_exceeded_handler(request, exc):
-    logger.warning(f"Northbound rate limit exceeded: {exc}")
-    return JSONResponse(
-        status_code=429,
-        content={"message": f"Rate limit exceeded: {str(exc)}"},
-    )
-
-@northbound_app.exception_handler(UnauthorizedError)
-async def northbound_unauthorized_handler(request, exc):
-    logger.warning(f"Northbound unauthorized: {exc}")
-    return JSONResponse(
-        status_code=401,
-        content={"message": f"Unauthorized: {str(exc)}"},
-    )
-
-@northbound_app.exception_handler(SignatureValidationError)
-async def northbound_signature_error_handler(request, exc):
-    logger.warning(f"Northbound signature error: {exc}")
-    return JSONResponse(
-        status_code=498,
-        content={"message": f"Signature validation failed: {str(exc)}"},
-    )
-
 @northbound_app.exception_handler(Exception)
 async def northbound_generic_exception_handler(request, exc):
     logger.error(f"Northbound Generic Exception: {exc}")
     return JSONResponse(
-        status_code=500,
+        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         content={"message": "Internal server error, please try again later."},
     ) 

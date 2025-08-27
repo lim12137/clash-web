@@ -127,9 +127,8 @@ class TestNorthboundBaseApp(unittest.TestCase):
         self.assertTrue(callable(app.exception_handlers[HTTPException]))
 
     def test_custom_exception_handlers_registration(self):
-        for exc in (LimitExceededError, UnauthorizedError, SignatureValidationError, Exception):
-            self.assertIn(exc, app.exception_handlers)
-            self.assertTrue(callable(app.exception_handlers[exc]))
+        self.assertIn(Exception, app.exception_handlers)
+        self.assertTrue(callable(app.exception_handlers[Exception]))
 
     # -------------------------------------------------------------------
     # End-to-end sanity for health (dummy) endpoint – relies on router stub

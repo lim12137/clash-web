@@ -1,8 +1,10 @@
 # Northbound customize error class
 class LimitExceededError(Exception):
+    """Raised when an outer platform calling too frequently"""
     pass
 
 class UnauthorizedError(Exception):
+    """Raised when a user from outer platform is unauthorized."""
     pass
 
 class SignatureValidationError(Exception):
