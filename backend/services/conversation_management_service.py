@@ -57,8 +57,7 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
         # Validate conversation_id
         conversation_id = message_data.get('conversation_id')
         if not conversation_id:
-            raise Exception(status_code=HTTPStatus.BAD_REQUEST,
-                            detail="conversation_id is required, please call /conversation/create to create a conversation first")
+            raise Exception("conversation_id is required, please call /conversation/create to create a conversation first")
 
         # Process different types of message units
         message_units = message_data['message']
@@ -193,7 +192,7 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
 
     except Exception as e:
         logging.error(f"Failed to save message: {str(e)}")
-        raise Exception(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
+        raise Exception(str(e))
 
 
 def save_conversation_user(request: AgentRequest, authorization: Optional[str] = None):
@@ -293,8 +292,7 @@ def update_conversation_title(conversation_id: int, title: str, user_id: str = N
     """
     success = rename_conversation(conversation_id, title, user_id)
     if not success:
-        raise Exception(status_code=HTTPStatus.NOT_FOUND,
-                        detail=f"Conversation {conversation_id} does not exist or has been deleted")
+        raise Exception(f"Conversation {conversation_id} does not exist or has been deleted")
     return success
 
 
@@ -694,8 +692,7 @@ def update_message_opinion_service(message_id: int, opinion: Optional[str]) -> b
     try:
         success = update_message_opinion(message_id, opinion)
         if not success:
-            raise Exception(status_code=HTTPStatus.NOT_FOUND,
-                            detail="Message does not exist or has been deleted")
+            raise Exception("Message does not exist or has been deleted")
         return True
     except Exception as e:
         logging.error(f"Failed to update message like/dislike: {str(e)}")
