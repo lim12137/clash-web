@@ -312,8 +312,7 @@ def create_new_conversation(title: str, user_id: str) -> Dict[str, Any]:
         return conversation_data
     except Exception as e:
         logging.error(f"Failed to create conversation: {str(e)}")
-        raise Exception(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
+        raise Exception(str(e))
 
 
 def get_conversation_list_service(user_id: str) -> List[Dict[str, Any]]:
@@ -328,8 +327,7 @@ def get_conversation_list_service(user_id: str) -> List[Dict[str, Any]]:
         return conversations
     except Exception as e:
         logging.error(f"Failed to get conversation list: {str(e)}")
-        raise Exception(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
+        raise Exception(str(e))
 
 
 def rename_conversation_service(conversation_id: int, name: str, user_id: str) -> bool:
@@ -347,15 +345,11 @@ def rename_conversation_service(conversation_id: int, name: str, user_id: str) -
     try:
         success = rename_conversation(conversation_id, name, user_id)
         if not success:
-            raise Exception(
-                status_code=HTTPStatus.NOT_FOUND,
-                detail=f"Conversation {conversation_id} does not exist or has been deleted"
-            )
+            raise Exception(f"Conversation {conversation_id} does not exist or has been deleted")
         return True
     except Exception as e:
         logging.error(f"Failed to rename conversation: {str(e)}")
-        raise Exception(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
+        raise Exception(str(e))
 
 
 def delete_conversation_service(conversation_id: int, user_id: str) -> bool:
@@ -372,15 +366,11 @@ def delete_conversation_service(conversation_id: int, user_id: str) -> bool:
     try:
         success = delete_conversation(conversation_id, user_id)
         if not success:
-            raise Exception(
-                status_code=HTTPStatus.NOT_FOUND,
-                detail=f"Conversation {conversation_id} does not exist or has been deleted"
-            )
+            raise Exception(f"Conversation {conversation_id} does not exist or has been deleted")
         return True
     except Exception as e:
         logging.error(f"Failed to delete conversation: {str(e)}")
-        raise Exception(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
+        raise Exception(str(e))
 
 
 def get_conversation_history_service(conversation_id: int, user_id: str) -> List[Dict[str, Any]]:
@@ -543,8 +533,7 @@ def get_conversation_history_service(conversation_id: int, user_id: str) -> List
 
     except Exception as e:
         logging.error(f"Failed to get conversation history: {str(e)}")
-        raise Exception(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
+        raise Exception(str(e))
 
 
 def get_sources_service(conversation_id: Optional[int], message_id: Optional[int], source_type: str = "all", user_id: str = "") -> Dict[str, Any]:
@@ -674,8 +663,7 @@ async def generate_conversation_title_service(conversation_id: int, history: Lis
 
     except Exception as e:
         logging.error(f"Failed to generate conversation title: {str(e)}")
-        raise Exception(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
+        raise Exception(str(e))
 
 
 def update_message_opinion_service(message_id: int, opinion: Optional[str]) -> bool:
@@ -696,5 +684,4 @@ def update_message_opinion_service(message_id: int, opinion: Optional[str]) -> b
         return True
     except Exception as e:
         logging.error(f"Failed to update message like/dislike: {str(e)}")
-        raise Exception(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
+        raise Exception(str(e))
