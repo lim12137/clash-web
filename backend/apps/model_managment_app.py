@@ -32,7 +32,8 @@ logger = logging.getLogger("model_management_app")
 async def create_model(request: ModelRequest, authorization: Optional[str] = Header(None)):
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        logger.info(f"Start to create model, user_id: {user_id}, tenant_id: {tenant_id}")
+        logger.info(
+            f"Start to create model, user_id: {user_id}, tenant_id: {tenant_id}")
         model_data = request.model_dump()
         # Replace localhost with host.docker.internal for local llm
         model_base_url = model_data.get("base_url", "")
@@ -48,14 +49,17 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
         model_data["model_name"] = model_name
 
         if not model_data.get("display_name"):
-            model_data["display_name"] = split_display_name(model_data["model_name"])
+            model_data["display_name"] = split_display_name(
+                model_data["model_name"])
 
         # Use NOT_DETECTED status as default
-        model_data["connect_status"] = model_data.get("connect_status") or ModelConnectStatusEnum.NOT_DETECTED.value
+        model_data["connect_status"] = model_data.get(
+            "connect_status") or ModelConnectStatusEnum.NOT_DETECTED.value
 
         # Check if display_name conflicts
         if model_data.get("display_name"):
-            existing_model_by_display = get_model_by_display_name(model_data["display_name"], tenant_id)
+            existing_model_by_display = get_model_by_display_name(
+                model_data["display_name"], tenant_id)
             if existing_model_by_display:
                 return ModelResponse(
                     code=409,
@@ -78,7 +82,7 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
             embedding_data = model_data.copy()
             embedding_data["model_type"] = "embedding"
             create_model_record(embedding_data, user_id, tenant_id)
-            
+
             return ModelResponse(
                 code=200,
                 message=f"Multimodal embedding model {add_repo_to_name(model_repo, model_name)} created successfully",
@@ -110,7 +114,8 @@ async def create_provider_model(request: ProviderModelRequest, authorization: Op
             model_list = await provider.get_models(model_data)
         # Sort by the first letter of id in descending order
         if isinstance(model_list, list):
-            model_list.sort(key=lambda m: str((m.get("id") if isinstance(m, dict) else m) or "")[:1].lower(), reverse=False)
+            model_list.sort(key=lambda m: str((m.get("id") if isinstance(
+                m, dict) else m) or "")[:1].lower(), reverse=False)
         return ModelResponse(
             code=200,
             message=f"Provider model {model_data['provider']} created successfully",
@@ -135,8 +140,10 @@ async def batch_create_models(request: BatchCreateModelsRequest, authorization: 
             model_url = SILICON_BASE_URL
         else:
             model_url = ""
-        existing_model_list = get_models_by_tenant_factory_type(tenant_id, request.provider, request.type)
-        model_list_ids = {model.get('id') for model in model_list} if model_list else set()
+        existing_model_list = get_models_by_tenant_factory_type(
+            tenant_id, request.provider, request.type)
+        model_list_ids = {model.get('id')
+                          for model in model_list} if model_list else set()
         # delete existing model
         for model in existing_model_list:
             model_full_name = model["model_repo"] + "/" + model["model_name"]
@@ -147,7 +154,8 @@ async def batch_create_models(request: BatchCreateModelsRequest, authorization: 
             model_repo, model_name = split_repo_name(model["id"])
             model_display_name = split_display_name(model["id"])
             if model_name:
-                existing_model_by_display = get_model_by_display_name(request.provider + "/" + model_display_name, tenant_id)
+                existing_model_by_display = get_model_by_display_name(
+                    request.provider + "/" + model_display_name, tenant_id)
                 if existing_model_by_display:
                     continue
 
@@ -179,7 +187,8 @@ async def get_provider_list(request: ProviderModelRequest, authorization: Option
         user_id, tenant_id = get_current_user_id(authorization)
         provider = request.provider
         model_type = request.model_type
-        model_list = get_models_by_tenant_factory_type(tenant_id, provider, model_type)
+        model_list = get_models_by_tenant_factory_type(
+            tenant_id, provider, model_type)
         for model in model_list:
             model["id"] = model["model_repo"] + "/" + model["model_name"]
         return ModelResponse(
@@ -201,16 +210,19 @@ async def update_single_model(request: dict, authorization: Optional[str] = Head
         user_id, tenant_id = get_current_user_id(authorization)
         model_data = request
         if not model_data.get("display_name"):
-            model_data["display_name"] = split_display_name(model_data["model_name"])
+            model_data["display_name"] = split_display_name(
+                model_data["model_name"])
             # Check if display_name conflicts
-            existing_model_by_display = get_model_by_display_name(model_data["display_name"], tenant_id)
+            existing_model_by_display = get_model_by_display_name(
+                model_data["display_name"], tenant_id)
             if existing_model_by_display and existing_model_by_display["model_id"] != model_data["model_id"]:
                 return ModelResponse(
                     code=409,
                     message=f"Name {model_data['display_name']} is already in use, please choose another display name",
                     data=None
                 )
-        model_data["model_repo"], model_data["model_name"] = split_repo_name(model_data["model_name"])
+        model_data["model_repo"], model_data["model_name"] = split_repo_name(
+            model_data["model_name"])
         update_model_record(model_data["model_id"], model_data, user_id)
         return ModelResponse(
             code=200,
@@ -257,7 +269,8 @@ async def delete_model(display_name: str = Query(..., embed=True), authorization
     """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        logger.info(f"Start to delete model, user_id: {user_id}, tenant_id: {tenant_id}")
+        logger.info(
+            f"Start to delete model, user_id: {user_id}, tenant_id: {tenant_id}")
         # Find model by display_name
         model = get_model_by_display_name(display_name, tenant_id)
         if not model:
@@ -299,7 +312,8 @@ async def get_model_list(authorization: Optional[str] = Header(None)):
     """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        logger.info(f"Start to list models, user_id: {user_id}, tenant_id: {tenant_id}")
+        logger.info(
+            f"Start to list models, user_id: {user_id}, tenant_id: {tenant_id}")
         records = get_model_records(None, tenant_id)
 
         result = []
@@ -310,7 +324,8 @@ async def get_model_list(authorization: Optional[str] = Header(None)):
                 model_name=record["model_name"]
             )
             # Handle connect_status, use default value "Not Detected" if empty
-            record["connect_status"] = ModelConnectStatusEnum.get_value(record.get("connect_status"))
+            record["connect_status"] = ModelConnectStatusEnum.get_value(
+                record.get("connect_status"))
             result.append(record)
 
         return ModelResponse(

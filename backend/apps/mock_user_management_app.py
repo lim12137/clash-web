@@ -41,7 +41,8 @@ async def signup(request: UserSignUpRequest):
     """
     Mock user registration endpoint
     """
-    logger.info(f"Mock signup request: email={request.email}, is_admin={request.is_admin}")
+    logger.info(
+        f"Mock signup request: email={request.email}, is_admin={request.is_admin}")
 
     # Return mock success response
     return ServiceResponse(

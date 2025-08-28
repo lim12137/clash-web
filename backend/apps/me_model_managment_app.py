@@ -12,8 +12,10 @@ router = APIRouter(prefix="/me")
 
 @router.get("/model/list", response_model=ModelResponse)
 async def get_me_models(
-        type: str = Query(default="", description="Model type: embed/chat/rerank"),
-        timeout: int = Query(default=2, description="Request timeout in seconds")
+        type: str = Query(
+            default="", description="Model type: embed/chat/rerank"),
+        timeout: int = Query(
+            default=2, description="Request timeout in seconds")
 ):
     try:
         headers = {

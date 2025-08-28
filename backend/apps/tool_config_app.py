@@ -28,16 +28,18 @@ async def list_tools_api(authorization: Optional[str] = Header(None)):
         return query_all_tools(tenant_id=tenant_id)
     except Exception as e:
         logging.error(f"Failed to get tool info, error in: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to get tool info, error in: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get tool info, error in: {str(e)}")
 
 
 @router.post("/search")
 async def search_tool_info_api(request: ToolInstanceSearchRequest, authorization: Optional[str] = Header(None)):
     try:
         return search_tool_info_impl(request.agent_id, request.tool_id, authorization)
-    except Exception as e: 
+    except Exception as e:
         logging.error(f"Failed to update tool, error in: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to update tool, error in: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update tool, error in: {str(e)}")
 
 
 @router.post("/update")
@@ -49,7 +51,8 @@ async def update_tool_info_api(request: ToolInstanceInfoRequest, authorization: 
         return update_tool_info_impl(request, authorization)
     except Exception as e:
         logging.error(f"Failed to update tool, error in: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to update tool, error in: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update tool, error in: {str(e)}")
 
 
 @router.get("/scan_tool")

@@ -95,7 +95,8 @@ async def rename_conversation_endpoint(request: RenameRequest, authorization: Op
     """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        rename_conversation_service(request.conversation_id, request.name, user_id)
+        rename_conversation_service(
+            request.conversation_id, request.name, user_id)
         return ConversationResponse(code=0, message="success", data=True)
     except Exception as e:
         logging.error(f"Failed to rename conversation: {str(e)}")
@@ -141,7 +142,8 @@ async def get_conversation_history_endpoint(conversation_id: int, authorization:
     """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        history_data = get_conversation_history_service(conversation_id, user_id)
+        history_data = get_conversation_history_service(
+            conversation_id, user_id)
         return ConversationResponse(code=0, message="success", data=history_data)
     except Exception as e:
         logging.error(f"Failed to get conversation history: {str(e)}")
@@ -200,7 +202,8 @@ async def generate_conversation_title_endpoint(
         ConversationResponse object containing generated title
     """
     try:
-        user_id, tenant_id, language = get_current_user_info(authorization=authorization, request=http_request)
+        user_id, tenant_id, language = get_current_user_info(
+            authorization=authorization, request=http_request)
         title = await generate_conversation_title_service(request.conversation_id, request.history, user_id, tenant_id=tenant_id, language=language)
         return ConversationResponse(code=0, message="success", data=title)
     except Exception as e:
@@ -246,7 +249,8 @@ async def get_message_id_endpoint(request: MessageIdRequest):
         ConversationResponse object containing message_id
     """
     try:
-        message_id = get_message_id_by_index(request.conversation_id, request.message_index)
+        message_id = get_message_id_by_index(
+            request.conversation_id, request.message_index)
         if message_id is None:
             raise HTTPException(status_code=404, detail="Message not found")
 
