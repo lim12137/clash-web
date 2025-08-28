@@ -1,4 +1,3 @@
-from apps.agent_app import router
 import os
 import sys
 import types
@@ -29,14 +28,10 @@ sys.modules['nexent'] = types.ModuleType('nexent')
 sys.modules['nexent.core'] = types.ModuleType('nexent.core')
 sys.modules['nexent.core.agents'] = types.ModuleType('nexent.core.agents')
 sys.modules['nexent.core.agents.agent_model'] = agent_model_stub
-sys.modules['database.client'] = pytest.importorskip(
-    "unittest.mock").MagicMock()
-sys.modules['database.agent_db'] = pytest.importorskip(
-    "unittest.mock").MagicMock()
-sys.modules['agents.create_agent_info'] = pytest.importorskip(
-    "unittest.mock").MagicMock()
-sys.modules['nexent.core.agents.run_agent'] = pytest.importorskip(
-    "unittest.mock").MagicMock()
+sys.modules['database.client'] = pytest.importorskip("unittest.mock").MagicMock()
+sys.modules['database.agent_db'] = pytest.importorskip("unittest.mock").MagicMock()
+sys.modules['agents.create_agent_info'] = pytest.importorskip("unittest.mock").MagicMock()
+sys.modules['nexent.core.agents.run_agent'] = pytest.importorskip("unittest.mock").MagicMock()
 sys.modules['supabase'] = pytest.importorskip("unittest.mock").MagicMock()
 sys.modules['utils.auth_utils'] = pytest.importorskip(
     "unittest.mock").MagicMock()
@@ -53,7 +48,7 @@ sys.modules['services.conversation_management_service'] = pytest.importorskip(
 sys.modules['services.memory_config_service'] = pytest.importorskip(
     "unittest.mock").MagicMock()
 
-# Now it's safe to import the modules we need to test
+from apps.agent_app import router
 
 # Create FastAPI app for testing
 app = FastAPI()
