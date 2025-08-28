@@ -3,7 +3,7 @@ import json
 import logging
 from collections import deque
 
-from fastapi import Header, Request, HTTPException
+from fastapi import Header, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from consts.model import AgentRequest
 from agents.create_agent_info import create_tool_config_list
@@ -18,7 +18,7 @@ from services.remote_mcp_service import add_remote_mcp_server_list
 from services.tool_configuration_service import update_tool_list
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 
-from utils.auth_utils import get_current_user_info
+from utils.auth_utils import get_current_user_info, get_user_language
 from utils.memory_utils import build_memory_config
 from utils.thread_utils import submit
 from nexent.memory.memory_service import clear_memory
@@ -39,7 +39,7 @@ def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str):
             enable_tool_id_set.add(tool_instance["tool_id"])
     return list(enable_tool_id_set)
 
-def get_creating_sub_agent_id_service(tenant_id: str, user_id: str = None) -> int:
+async def get_creating_sub_agent_id_service(tenant_id: str, user_id: str = None) -> int:
     """
         first find the blank sub agent, if it exists, it means the agent was created before, but exited prematurely;
                                   if it does not exist, create a new one
@@ -51,7 +51,7 @@ def get_creating_sub_agent_id_service(tenant_id: str, user_id: str = None) -> in
         return create_agent(agent_info={"enabled": False}, tenant_id=tenant_id, user_id=user_id)["agent_id"]
 
 
-def get_agent_info_impl(agent_id: int, tenant_id: str):
+async def get_agent_info_impl(agent_id: int, tenant_id: str):
     try:    
         agent_info = search_agent_info_by_agent_id(agent_id, tenant_id)
     except Exception as e:
@@ -75,11 +75,11 @@ def get_agent_info_impl(agent_id: int, tenant_id: str):
     return agent_info
 
 
-def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
+async def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
     user_id, tenant_id, _ = get_current_user_info(authorization)
     
     try:
-        sub_agent_id = get_creating_sub_agent_id_service(tenant_id, user_id)
+        sub_agent_id = await get_creating_sub_agent_id_service(tenant_id, user_id)
     except Exception as e:
         logger.error(f"Failed to get creating sub agent id: {str(e)}")
         raise ValueError(f"Failed to get creating sub agent id: {str(e)}")
@@ -106,7 +106,7 @@ def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
             "few_shots_prompt": agent_info.get("few_shots_prompt"),
             "sub_agent_id_list": query_sub_agents_id_list(main_agent_id=sub_agent_id, tenant_id=tenant_id)}
 
-def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Header(None)):
+async def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Header(None)):
     user_id, tenant_id, _ = get_current_user_info(authorization)
     
     try:
@@ -398,7 +398,7 @@ def load_default_agents_json_file(default_agent_path):
     return all_json_files
 
 
-def list_all_agent_info_impl(tenant_id: str, user_id: str) -> list[dict]:
+async def list_all_agent_info_impl(tenant_id: str) -> list[dict]:
     """
     list all agent info
 
@@ -470,11 +470,14 @@ def insert_related_agent_impl(parent_agent_id, child_agent_id, tenant_id):
 
 
 # Helper function for run_agent_stream, used to prepare context for an agent run
-async def prepare_agent_run(agent_request: AgentRequest, http_request: Request, authorization: str):
+async def prepare_agent_run(agent_request: AgentRequest, http_request: Request, authorization: str, user_id: str=None, tenant_id: str=None):
     """
     Prepare for an agent run by creating context and run info, and registering the run.
     """
-    user_id, tenant_id, language = get_current_user_info(authorization, http_request)
+    if user_id is None or tenant_id is None:
+        user_id, tenant_id, language = get_current_user_info(authorization, http_request)
+    else:
+        language = get_user_language()
 
     memory_context = build_memory_context(user_id, tenant_id, agent_request.agent_id)
     agent_run_info = await create_agent_run_info(agent_id=agent_request.agent_id,
@@ -488,7 +491,7 @@ async def prepare_agent_run(agent_request: AgentRequest, http_request: Request, 
 
 
 # Helper function for run_agent_stream, used to save messages for either user or assistant
-def save_messages(agent_request, target:str, messages=None, authorization=None):
+def save_messages(agent_request, target: str, messages=None, authorization=None):
     if target == "user":
         if messages is not None:
             raise ValueError("Messages should be None when saving for user.")
@@ -508,7 +511,7 @@ async def generate_stream(agent_run_info, memory_context, agent_request: AgentRe
             yield f"data: {chunk}\n\n"
     except Exception as e:
         logger.error(f"Agent run error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Agent run error: {str(e)}")
+        raise Exception("Agent run error")
     finally:
         # Save assistant message only if not in debug mode
         if not agent_request.is_debug:
@@ -517,15 +520,17 @@ async def generate_stream(agent_run_info, memory_context, agent_request: AgentRe
         agent_run_manager.unregister_agent_run(agent_request.conversation_id)
 
 
-async def run_agent_stream(agent_request: AgentRequest, http_request: Request, authorization: str):
+async def run_agent_stream(agent_request: AgentRequest, http_request: Request, authorization: str, user_id: str=None, tenant_id: str=None):
     """
-    Start an agent run and stream responses, using explicit user/tenant context.
+    Start an agent run and stream responses.
     Mirrors the logic of agent_app.agent_run_api but reusable by services.
     """
     agent_run_info, memory_context = await prepare_agent_run(
         agent_request=agent_request,
         http_request=http_request,
-        authorization=authorization
+        authorization=authorization,
+        user_id=user_id,
+        tenant_id=tenant_id
     )
 
     # Save user message only if not in debug mode
@@ -573,17 +578,17 @@ def stop_agent_tasks(conversation_id: int):
         return {"status": "error", "message": message}
 
 
-def get_agent_id_by_name(agent_name: str, tenant_id: str) -> int:
+async def get_agent_id_by_name(agent_name: str, tenant_id: str) -> int:
     """
     Resolve unique agent id by its unique name under the same tenant.
     """
     if not agent_name:
-        raise HTTPException(status_code=400, detail="agent_name required")
+        raise Exception("agent_name required")
     try:
         return search_agent_id_by_agent_name(agent_name, tenant_id)
     except Exception as _:
         logger.error(f"Failed to find agent id with '{agent_name}' in tenant {tenant_id}")
-        raise HTTPException(status_code=404, detail="agent not found")
+        raise Exception("agent not found")
 
 
 
