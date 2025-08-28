@@ -13,7 +13,6 @@ import logging
 import os
 import time
 from datetime import datetime, timezone
-from http import HTTPStatus
 from typing import Optional, Generator, List, Dict, Any
 
 from dotenv import load_dotenv
@@ -254,21 +253,18 @@ class ElasticSearchService:
     ):
         try:
             if es_core.client.indices.exists(index=index_name):
-                raise Exception(status_code=HTTPStatus.BAD_REQUEST,
-                                detail=f"Index {index_name} already exists")
+                raise Exception(f"Index {index_name} already exists")
             embedding_model = get_embedding_model(tenant_id)
             success = es_core.create_vector_index(index_name, embedding_dim=embedding_dim or (
                 embedding_model.embedding_dim if embedding_model else 1024))
             if not success:
-                raise Exception(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                                detail=f"Failed to create index {index_name}")
+                raise Exception(f"Failed to create index {index_name}")
             knowledge_data = {'index_name': index_name,
                               'created_by': user_id, "tenant_id": tenant_id}
             create_knowledge_record(knowledge_data)
             return {"status": "success", "message": f"Index {index_name} created successfully"}
         except Exception as e:
-            raise Exception(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail=f"Error creating index: {str(e)}")
+            raise Exception(f"Error creating index: {str(e)}")
 
     @staticmethod
     async def delete_index(
@@ -310,13 +306,11 @@ class ElasticSearchService:
             }
             success = delete_knowledge_record(update_data)
             if not success:
-                raise Exception(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                                detail=f"Error deleting knowledge record for index {index_name}")
+                raise Exception(f"Error deleting knowledge record for index {index_name}")
 
             return {"status": "success", "message": f"Index {index_name} and associated files deleted successfully"}
         except Exception as e:
-            raise Exception(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail=f"Error deleting index: {str(e)}")
+            raise Exception(f"Error deleting index: {str(e)}")
 
     @staticmethod
     def list_indices(
@@ -438,14 +432,11 @@ class ElasticSearchService:
             error_msg = str(e)
             # Check if it's an ElasticSearch connection issue
             if "503" in error_msg or "search_phase_execution_exception" in error_msg:
-                raise Exception(
-                    status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail=f"ElasticSearch service unavailable for index {index_name}: {error_msg}")
+                raise Exception(f"ElasticSearch service unavailable for index {index_name}: {error_msg}")
             elif "ApiError" in error_msg:
-                raise Exception(
-                    status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail=f"ElasticSearch API error for index {index_name}: {error_msg}")
+                raise Exception(f"ElasticSearch API error for index {index_name}: {error_msg}")
             else:
-                raise Exception(
-                    status_code=HTTPStatus.NOT_FOUND, detail=f"Error getting info for index {index_name}: {error_msg}")
+                raise Exception(f"Error getting info for index {index_name}: {error_msg}")
 
     @staticmethod
     def index_documents(
@@ -469,8 +460,7 @@ class ElasticSearchService:
         """
         try:
             if not index_name:
-                raise Exception(status_code=HTTPStatus.BAD_REQUEST,
-                                detail="Index name is required")
+                raise Exception("Index name is required")
 
             # Create index if needed (ElasticSearchCore will handle embedding_dim automatically)
             if not es_core.client.indices.exists(index=index_name):
@@ -479,8 +469,7 @@ class ElasticSearchService:
                         index_name, es_core=es_core)
                     logger.info(f"Created new index {index_name}")
                 except Exception as create_error:
-                    raise Exception(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                                    detail=f"Failed to create index {index_name}: {str(create_error)}")
+                    raise Exception(f"Failed to create index {index_name}: {str(create_error)}")
 
             # Transform indexing request results to documents
             documents = []
@@ -560,14 +549,12 @@ class ElasticSearchService:
             except Exception as e:
                 error_msg = str(e)
                 logger.error(f"Error during indexing: {error_msg}")
-                raise Exception(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                                detail=f"Error during indexing: {error_msg}")
+                raise Exception(f"Error during indexing: {error_msg}")
 
         except Exception as e:
             error_msg = str(e)
             logger.error(f"Error indexing documents: {error_msg}")
-            raise Exception(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail=f"Error indexing documents: {error_msg}")
+            raise Exception(f"Error indexing documents: {error_msg}")
 
     @staticmethod
     async def list_files(
@@ -714,8 +701,7 @@ class ElasticSearchService:
             return {"files": files}
 
         except Exception as e:
-            raise Exception(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail=f"Error getting file list for index {index_name}: {str(e)}")
+            raise Exception(f"Error getting file list for index {index_name}: {str(e)}")
 
     @staticmethod
     def delete_documents(
@@ -751,8 +737,7 @@ class ElasticSearchService:
                 "indices_count": len(indices)
             }
         except Exception as e:
-            raise Exception(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail=f"Health check failed: {str(e)}")
+            raise Exception(f"Health check failed: {str(e)}")
 
     async def summary_index_name(self,
                                  index_name: str = Path(
@@ -784,8 +769,7 @@ class ElasticSearchService:
         try:
             # Get all documents
             if not tenant_id:
-                raise Exception(
-                    status_code=HTTPStatus.BAD_REQUEST, detail="Tenant ID is required for summary generation.")
+                raise Exception("Tenant ID is required for summary generation.")
             all_documents = ElasticSearchService.get_random_documents(
                 index_name, batch_size, es_core)
             all_chunks = self._clean_chunks_for_summary(all_documents)
@@ -814,8 +798,7 @@ class ElasticSearchService:
             )
 
         except Exception as e:
-            raise Exception(
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"{str(e)}")
+            raise Exception(f"{str(e)}")
 
     @staticmethod
     def _clean_chunks_for_summary(all_documents):
@@ -885,10 +868,7 @@ class ElasticSearchService:
             }
 
         except Exception as e:
-            raise Exception(
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail=f"Error retrieving random documents from index {index_name}: {str(e)}"
-            )
+            raise Exception(f"Error retrieving random documents from index {index_name}: {str(e)}")
 
     def change_summary(self,
                        index_name: str = Path(
@@ -918,8 +898,7 @@ class ElasticSearchService:
             update_knowledge_record(update_data)
             return {"status": "success", "message": f"Index {index_name} summary updated successfully", "summary": summary_result}
         except Exception as e:
-            raise Exception(
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"{str(e)}")
+            raise Exception(f"{str(e)}")
 
     def get_summary(self,
                     index_name: str = Path(
@@ -943,11 +922,7 @@ class ElasticSearchService:
                 success_msg = f"Index {index_name} summary retrieved successfully"
                 return {"status": "success", "message": success_msg, "summary": summary_result}
             error_detail = f"Unable to get summary for index {index_name}"
-            raise Exception(
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail=error_detail
-            )
+            raise Exception(error_detail)
         except Exception as e:
             error_msg = f"Failed to get summary: {str(e)}"
-            raise Exception(
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=error_msg)
+            raise Exception(error_msg)
