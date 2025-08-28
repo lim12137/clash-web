@@ -1,28 +1,19 @@
 FROM ubuntu:24.04
 
 # Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=Asia/Shanghai
 ENV CONDA_DIR=/opt/conda
-ENV PATH=$CONDA_DIR/bin:$PATH
 
 # Install base tools and dependencies
 RUN apt-get update && apt-get install -y \
     openssh-server \
-    sudo \
     curl \
     wget \
     git \
     vim \
-    nano \
     build-essential \
     python3 \
     python3-pip \
     python3-venv \
-    ca-certificates \
-    gnupg \
-    lsb-release \
-    software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
 # Create development user
@@ -62,4 +53,4 @@ COPY make/terminal/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 22
-ENTRYPOINT ["/entrypoint.sh"] 
+ENTRYPOINT ["/entrypoint.sh"]
