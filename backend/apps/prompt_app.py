@@ -33,7 +33,8 @@ async def generate_and_save_system_prompt_api(
         return StreamingResponse(gen_system_prompt(), media_type="text/event-stream")
     except Exception as e:
         logger.exception(f"Error occurred while generating system prompt: {e}")
-        raise HTTPException(status_code=500, detail=f"Error occurred while generating system prompt: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error occurred while generating system prompt: {str(e)}")
 
 
 @router.post("/fine_tune")
@@ -43,8 +44,9 @@ async def fine_tune_prompt_api(
         authorization: Optional[str] = Header(None)
 ):
     try:
-        _, tenant_id, language = get_current_user_info(authorization, http_request)
-        
+        _, tenant_id, language = get_current_user_info(
+            authorization, http_request)
+
         result = fine_tune_prompt(
             system_prompt=prompt_request.system_prompt,
             command=prompt_request.command,
@@ -54,4 +56,5 @@ async def fine_tune_prompt_api(
         return {"success": True, "data": result}
     except Exception as e:
         logger.exception(f"Error occurred while fine-tuning prompt: {e}")
-        raise HTTPException(status_code=500, detail=f"Error occurred while fine-tuning prompt: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error occurred while fine-tuning prompt: {str(e)}")

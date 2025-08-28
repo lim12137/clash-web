@@ -144,7 +144,8 @@ class AgentRequest(BaseModel):
     conversation_id: Optional[int] = None
     is_set: Optional[bool] = False
     history: Optional[List[Dict]] = None
-    minio_files: Optional[List[Dict[str, Any]]] = None  # Complete list of attachment information
+    # Complete list of attachment information
+    minio_files: Optional[List[Dict[str, Any]]] = None
     agent_id: Optional[int] = None
     is_debug: Optional[bool] = False
 
@@ -159,7 +160,8 @@ class MessageRequest(BaseModel):
     message_idx: int  # Modified to integer type
     role: str
     message: List[MessageUnit]
-    minio_files: Optional[List[Dict[str, Any]]] = None  # Complete list of attachment information
+    # Complete list of attachment information
+    minio_files: Optional[List[Dict[str, Any]]] = None
 
 
 class ConversationRequest(BaseModel):
@@ -188,7 +190,8 @@ class TaskRequest(BaseModel):
 
 
 class BatchTaskRequest(BaseModel):
-    sources: List[Dict[str, Any]] = Field(..., description="List of source objects to process")
+    sources: List[Dict[str, Any]
+                  ] = Field(..., description="List of source objects to process")
 
 
 class TaskResponse(BaseModel):

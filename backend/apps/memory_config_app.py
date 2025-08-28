@@ -75,7 +75,8 @@ def set_single_config(
     user_id, _ = get_current_user_id(authorization)
 
     if key == MEMORY_SWITCH_KEY:
-        enabled = bool(value) if isinstance(value, bool) else str(value).lower() in {"true", "1", "y", "yes", "on"}
+        enabled = bool(value) if isinstance(value, bool) else str(
+            value).lower() in {"true", "1", "y", "yes", "on"}
         ok = set_memory_switch(user_id, enabled)
     elif key == MEMORY_AGENT_SHARE_KEY:
         try:
@@ -134,10 +135,13 @@ def remove_disable_useragent(
 # ---------------------------------------------------------------------------
 @router.post("/add")
 def add_memory(
-    messages: List[Dict[str, Any]] = Body(..., description="Chat messages list"),
-    memory_level: str = Body(..., embed=True, description="Memory level: tenant/agent/user/user_agent"),
+    messages: List[Dict[str, Any]
+                   ] = Body(..., description="Chat messages list"),
+    memory_level: str = Body(..., embed=True,
+                             description="Memory level: tenant/agent/user/user_agent"),
     agent_id: Optional[str] = Body(None, embed=True),
-    infer: bool = Body(True, embed=True, description="Whether to run LLM inference during add"),
+    infer: bool = Body(
+        True, embed=True, description="Whether to run LLM inference during add"),
     authorization: Optional[str] = Header(None),
 ):
     user_id, tenant_id = get_current_user_id(authorization)
@@ -184,8 +188,10 @@ def search_memory(
 
 @router.get("/list")
 def list_memory(
-    memory_level: str = Query(..., description="Memory level: tenant/agent/user/user_agent"),
-    agent_id: Optional[str] = Query(None, description="Filter by agent id if applicable"),
+    memory_level: str = Query(...,
+                              description="Memory level: tenant/agent/user/user_agent"),
+    agent_id: Optional[str] = Query(
+        None, description="Filter by agent id if applicable"),
     authorization: Optional[str] = Header(None),
 ):
     user_id, tenant_id = get_current_user_id(authorization)
@@ -210,7 +216,8 @@ def delete_memory(
 ):
     _user_id, tenant_id = get_current_user_id(authorization)
     try:
-        result = asyncio.run(svc_delete_memory(memory_id=memory_id, memory_config=build_memory_config(tenant_id)))
+        result = asyncio.run(svc_delete_memory(
+            memory_id=memory_id, memory_config=build_memory_config(tenant_id)))
         return _success(content=result)
     except Exception as e:
         logger.error("delete_memory error: %s", e, exc_info=True)
@@ -219,8 +226,10 @@ def delete_memory(
 
 @router.delete("/clear")
 def clear_memory(
-    memory_level: str = Query(..., description="Memory level: tenant/agent/user/user_agent"),
-    agent_id: Optional[str] = Query(None, description="Filter by agent id if applicable"),
+    memory_level: str = Query(...,
+                              description="Memory level: tenant/agent/user/user_agent"),
+    agent_id: Optional[str] = Query(
+        None, description="Filter by agent id if applicable"),
     authorization: Optional[str] = Header(None),
 ):
     user_id, tenant_id = get_current_user_id(authorization)

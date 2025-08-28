@@ -39,14 +39,14 @@ class RayConfig:
     ) -> Dict[str, Any]:
         """
         Get Ray initialization parameters
-        
+
         Args:
             address: Ray cluster address, None means start local cluster
             num_cpus: Number of CPU cores
             include_dashboard: Whether to include dashboard
             dashboard_host: Dashboard host address
             dashboard_port: Dashboard port
-            
+
         Returns:
             Ray initialization parameters dictionary
         """
@@ -63,7 +63,8 @@ class RayConfig:
                 params["num_cpus"] = num_cpus
 
             # Object store memory configuration (convert to bytes)
-            object_store_memory = int(self.object_store_memory_gb * 1024 * 1024 * 1024)
+            object_store_memory = int(
+                self.object_store_memory_gb * 1024 * 1024 * 1024)
             params["object_store_memory"] = object_store_memory
 
             # Temp directory configuration
@@ -80,10 +81,10 @@ class RayConfig:
     def init_ray(self, **kwargs) -> bool:
         """
         Initialize Ray
-        
+
         Args:
             **kwargs: Parameters passed to get_init_params
-            
+
         Returns:
             Whether initialization is successful
         """
@@ -114,7 +115,8 @@ class RayConfig:
                     resources = ray.cluster_resources()
                     logger.debug(f"Ray cluster resources: {resources}")
             except Exception as e:
-                logger.error(f"Failed to get cluster resources information: {e}")
+                logger.error(
+                    f"Failed to get cluster resources information: {e}")
 
             return True
 
@@ -125,10 +127,10 @@ class RayConfig:
     def connect_to_cluster(self, address: str = "auto") -> bool:
         """
         Connect to existing Ray cluster
-        
+
         Args:
             address: Cluster address, 'auto' means auto-discovery
-            
+
         Returns:
             Whether connection is successful
         """
@@ -157,12 +159,12 @@ class RayConfig:
     ) -> bool:
         """
         Start local Ray cluster
-        
+
         Args:
             num_cpus: Number of CPU cores, None means using all available cores
             include_dashboard: Whether to start dashboard
             dashboard_port: Dashboard port
-            
+
         Returns:
             Whether initialization is successful
         """

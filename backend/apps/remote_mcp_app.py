@@ -29,13 +29,15 @@ async def get_tools_from_remote_mcp(
         tools_info = await get_tool_from_remote_mcp_server(mcp_server_name=service_name, remote_mcp_server=mcp_url)
         return JSONResponse(
             status_code=200,
-            content={"tools": [tool.__dict__ for tool in tools_info], "status": "success"}
+            content={
+                "tools": [tool.__dict__ for tool in tools_info], "status": "success"}
         )
     except Exception as e:
         logger.error(f"get tools from remote MCP server failed, error: {e}")
         return JSONResponse(
             status_code=400,
-            content={"message": "Failed to get tools from remote MCP server", "status": "error"}
+            content={
+                "message": "Failed to get tools from remote MCP server", "status": "error"}
         )
 
 
@@ -55,17 +57,19 @@ async def add_remote_proxies(
         # If result is already a JSONResponse, return it directly
         if isinstance(result, JSONResponse):
             return result
-        
+
         # Otherwise, return a success result
         return JSONResponse(
             status_code=200,
-            content={"message": "Successfully added remote MCP proxy", "status": "success"}
+            content={"message": "Successfully added remote MCP proxy",
+                     "status": "success"}
         )
     except Exception as e:
         logger.error(f"Failed to add remote MCP proxy: {e}")
         return JSONResponse(
             status_code=400,
-            content={"message": "Failed to add remote MCP proxy", "status": "error"}
+            content={"message": "Failed to add remote MCP proxy",
+                     "status": "error"}
         )
 
 
@@ -85,17 +89,19 @@ async def delete_remote_proxies(
         # If result is already a JSONResponse, return it directly
         if isinstance(result, JSONResponse):
             return result
-        
+
         # Otherwise, return a success result
         return JSONResponse(
             status_code=200,
-            content={"message": "Successfully deleted remote MCP proxy", "status": "success"}
+            content={"message": "Successfully deleted remote MCP proxy",
+                     "status": "success"}
         )
     except Exception as e:
         logger.error(f"Failed to delete remote MCP proxy: {e}")
         return JSONResponse(
             status_code=400,
-            content={"message": "Failed to delete remote MCP proxy", "status": "error"}
+            content={"message": "Failed to delete remote MCP proxy",
+                     "status": "error"}
         )
 
 
@@ -109,13 +115,15 @@ async def get_remote_proxies(
         remote_mcp_server_list = await get_remote_mcp_server_list(tenant_id=tenant_id)
         return JSONResponse(
             status_code=200,
-            content={"remote_mcp_server_list": remote_mcp_server_list, "status": "success"}
+            content={"remote_mcp_server_list": remote_mcp_server_list,
+                     "status": "success"}
         )
     except Exception as e:
         logger.error(f"Failed to get remote MCP proxy: {e}")
         return JSONResponse(
             status_code=400,
-            content={"message": "Failed to get remote MCP proxy", "status": "error"}
+            content={"message": "Failed to get remote MCP proxy",
+                     "status": "error"}
         )
 
 

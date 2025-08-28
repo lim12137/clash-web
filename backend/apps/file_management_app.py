@@ -63,12 +63,7 @@ async def _upload_to_minio(files: List[UploadFile], folder: str) -> List[dict]:
             result = upload_fileobj(
                 file_obj=file_obj,
                 file_name=f.filename or "",
-                prefix=folder,
-                metadata={
-                    "original-filename": str(f.filename or ""),
-                    "content-type": str(f.content_type or "application/octet-stream"),
-                    "folder": str(folder)
-                }
+                prefix=folder
             )
 
             # Reset file pointer for potential re-reading
@@ -77,7 +72,8 @@ async def _upload_to_minio(files: List[UploadFile], folder: str) -> List[dict]:
 
         except Exception as e:
             # Log single file upload failure but continue processing other files
-            logger.error(f"Failed to upload file {f.filename}: {e}", exc_info=True)
+            logger.error(
+                f"Failed to upload file {f.filename}: {e}", exc_info=True)
             results.append({
                 "success": False,
                 "file_name": f.filename,
@@ -89,8 +85,10 @@ async def _upload_to_minio(files: List[UploadFile], folder: str) -> List[dict]:
 @router.post("/upload")
 async def upload_files(
         file: List[UploadFile] = File(..., alias="file"),
-        destination: str = Form(..., description="Upload destination: 'local' or 'minio'"),
-        folder: str = Form("attachments", description="Storage folder path for MinIO (optional)")
+        destination: str = Form(...,
+                                description="Upload destination: 'local' or 'minio'"),
+        folder: str = Form(
+            "attachments", description="Storage folder path for MinIO (optional)")
 ):
     if not file:
         raise HTTPException(status_code=400, detail="No files in the request")
@@ -128,7 +126,8 @@ async def upload_files(
                 error_msg = result.get('error', 'Unknown error')
                 errors.append(f"Failed to upload {file_name}: {error_msg}")
     else:
-        raise HTTPException(status_code=400, detail="Invalid destination. Must be 'local' or 'minio'.")
+        raise HTTPException(
+            status_code=400, detail="Invalid destination. Must be 'local' or 'minio'.")
 
     if uploaded_file_paths:
         return JSONResponse(
@@ -152,7 +151,8 @@ async def upload_files(
 
 @router.post("/process")
 async def process_files(
-        files: List[dict] = Body(..., description="List of file details to process, including path_or_url and filename"),
+        files: List[dict] = Body(
+            ..., description="List of file details to process, including path_or_url and filename"),
         chunking_strategy: Optional[str] = Body("basic"),
         index_name: str = Body(...),
         destination: str = Body(...),
@@ -197,7 +197,8 @@ async def process_files(
 @router.post("/storage")
 async def storage_upload_files(
     files: List[UploadFile] = File(..., description="List of files to upload"),
-    folder: str = Form("attachments", description="Storage folder path (optional)")
+    folder: str = Form(
+        "attachments", description="Storage folder path (optional)")
 ):
     """
     Upload one or more files to MinIO storage
@@ -222,7 +223,8 @@ async def storage_upload_files(
 async def get_storage_files(
     prefix: str = Query("", description="File prefix filter"),
     limit: int = Query(100, description="Maximum number of files to return"),
-    include_urls: bool = Query(True, description="Whether to include presigned URLs")
+    include_urls: bool = Query(
+        True, description="Whether to include presigned URLs")
 ):
     """
     Get list of files from MinIO storage
@@ -355,7 +357,8 @@ async def remove_storage_file(
 
 @router.post("/storage/batch-urls")
 async def get_storage_file_batch_urls(
-    request_data: dict = Body(..., description="JSON containing list of file object names"),
+    request_data: dict = Body(...,
+                              description="JSON containing list of file object names"),
     expires: int = Query(3600, description="URL validity period (seconds)")
 ):
     """
@@ -369,8 +372,9 @@ async def get_storage_file_batch_urls(
     # Extract object_names from request body
     object_names = request_data.get("object_names", [])
     if not object_names or not isinstance(object_names, list):
-        raise HTTPException(status_code=400, detail="Request body must contain object_names array")
-    
+        raise HTTPException(
+            status_code=400, detail="Request body must contain object_names array")
+
     results = []
 
     for object_name in object_names:
@@ -409,7 +413,8 @@ async def agent_preprocess_api(
     """
     try:
         # Pre-read and cache all file contents
-        user_id, tenant_id, language = get_current_user_info(authorization, request)
+        user_id, tenant_id, language = get_current_user_info(
+            authorization, request)
         file_cache = []
         for file in files:
             import time
@@ -442,7 +447,8 @@ async def agent_preprocess_api(
             # Create and register the preprocess task
             task = asyncio.current_task()
             if task:
-                preprocess_manager.register_preprocess_task(task_id, conversation_id, task)
+                preprocess_manager.register_preprocess_task(
+                    task_id, conversation_id, task)
 
             try:
                 for index, file_data in enumerate(file_cache):
@@ -485,7 +491,8 @@ async def agent_preprocess_api(
                         yield f"data: {file_message}\n\n"
                         await asyncio.sleep(0.1)
                     except Exception as e:
-                        logger.exception(f"Error parsing file {file_data['filename']}: {str(e)}")
+                        logger.exception(
+                            f"Error parsing file {file_data['filename']}: {str(e)}")
                         error_description = f"Error parsing file {file_data['filename']}: {str(e)}"
                         file_descriptions.append(error_description)
                         error_message = json.dumps({
@@ -516,7 +523,8 @@ async def agent_preprocess_api(
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"File preprocessing error: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"File preprocessing error: {str(e)}")
 
 
 async def process_image_file(query, filename, file_content, tenant_id: str, language: str = 'zh') -> str:
@@ -553,16 +561,21 @@ async def process_text_file(query, filename, file_content, tenant_id: str, langu
         if response.status_code == 200:
             result = response.json()
             raw_text = result.get("text", "")
-            logger.info(f"File processed successfully: {raw_text[:200]}...{raw_text[-200:]}...， length: {len(raw_text)}")
+            logger.info(
+                f"File processed successfully: {raw_text[:200]}...{raw_text[-200:]}...， length: {len(raw_text)}")
         else:
-            error_detail = response.json().get('detail', '未知错误') if response.headers.get('content-type', '').startswith('application/json') else response.text
-            logger.error(f"File processing failed (status code: {response.status_code}): {error_detail}")
-            raise Exception(f"File processing failed (status code: {response.status_code}): {error_detail}")
+            error_detail = response.json().get('detail', '未知错误') if response.headers.get(
+                'content-type', '').startswith('application/json') else response.text
+            logger.error(
+                f"File processing failed (status code: {response.status_code}): {error_detail}")
+            raise Exception(
+                f"File processing failed (status code: {response.status_code}): {error_detail}")
 
     except requests.exceptions.Timeout:
         raise Exception("API call timeout")
     except requests.exceptions.ConnectionError:
-        raise Exception(f"Cannot connect to data processing service: {api_url}")
+        raise Exception(
+            f"Cannot connect to data processing service: {api_url}")
     except Exception as e:
         raise Exception(f"Error processing file: {str(e)}")
 

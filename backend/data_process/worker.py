@@ -76,12 +76,12 @@ def setup_worker_environment(**kwargs):
     start_time = time.time()
     worker_state['start_time'] = start_time
     worker_state['process_id'] = os.getpid()
-    
+
     logger.info("="*60)
     logger.info("🚀 Celery Worker initialization started")
     logger.info(f"Process ID: {os.getpid()}")
     logger.info("="*60)
-    
+
     try:
         # Disable verbose Celery task success logging
         logging.getLogger('celery.worker.strategy').setLevel(logging.WARNING)
@@ -89,10 +89,10 @@ def setup_worker_environment(**kwargs):
         # Initialize Ray - connect to existing cluster
         if not ray.is_initialized():
             logger.info("🔮 Ray connecting to existing cluster...")
-            
+
             # Get Ray address from environment
             ray_address = RAY_ADDRESS
-            
+
             try:
                 # Initialize Ray using the centralized RayConfig helper
                 if not RayConfig.init_ray_for_worker(ray_address):
@@ -102,14 +102,18 @@ def setup_worker_environment(**kwargs):
                         ignore_reinit_error=True,
                         _plasma_directory=RAY_PLASMA_DIRECTORY
                     )
-                
-                logger.info(f"✅ Ray connected to cluster at {ray_address} successfully.")
-                    
+
+                logger.info(
+                    f"✅ Ray connected to cluster at {ray_address} successfully.")
+
             except Exception as e:
                 logger.error(f"❌ Failed to connect to Ray cluster: {str(e)}")
-                logger.error("💡 Please make sure Ray cluster is started before workers!")
-                logger.error("💡 You can start it via: python data_process_service.py")
-                raise ConnectionError(f"Cannot connect to Ray cluster: {str(e)}")
+                logger.error(
+                    "💡 Please make sure Ray cluster is started before workers!")
+                logger.error(
+                    "💡 You can start it via: python data_process_service.py")
+                raise ConnectionError(
+                    f"Cannot connect to Ray cluster: {str(e)}")
 
         # Check environment variables
         logger.info("🔍 Check sensitive variables")
@@ -117,17 +121,18 @@ def setup_worker_environment(**kwargs):
             'REDIS_URL': REDIS_URL,
             'ELASTICSEARCH_SERVICE': ELASTICSEARCH_SERVICE
         }
-        
+
         for var_name, var_value in sensitive_vars.items():
             if var_value:
                 logger.debug(f"  ✅ {var_name}: SET")
             else:
                 logger.error(f"  ❌ {var_name}: NOT SET")
-        
+
         worker_state['initialized'] = True
         elapsed = time.time() - start_time
-        logger.debug(f"✅ Worker environment initialized (time: {elapsed:.2f} s)")
-        
+        logger.debug(
+            f"✅ Worker environment initialized (time: {elapsed:.2f} s)")
+
     except Exception as e:
         logger.error(f"❌ Worker environment initialization failed: {str(e)}")
         logger.error(f"Error details: {traceback.format_exc()}")
@@ -143,25 +148,26 @@ def setup_worker_process_resources(**kwargs):
     """
     process_id = os.getpid()
     logger.info(f"⚙️ Initialize worker process {process_id}")
-    
+
     try:
         # Initialize process-specific resources
         # e.g. database connection pool, cache client, etc.
-        
+
         # Validate critical service connections
         logger.debug("🔍 Validate service connections")
         validate_service_connections()
         worker_state['services_validated'] = True
         logger.debug("✅ Service connections validated")
-        
+
         # Initialize heavy objects like DataProcessCore
         logger.debug("⚙️ Initialize data processing components")
         # Here we can pre-initialize global objects to avoid delays on the first task
-        
+
         logger.debug(f"✅ Worker process {process_id} initialized")
-        
+
     except Exception as e:
-        logger.error(f"❌ Worker process {process_id} initialization failed: {str(e)}")
+        logger.error(
+            f"❌ Worker process {process_id} initialization failed: {str(e)}")
         raise
 
 
@@ -174,20 +180,20 @@ def worker_ready_handler(**kwargs):
     process_id = os.getpid()
     start_time = worker_state.get('start_time')
     total_startup_time = time.time() - start_time if start_time else 0
-    
+
     worker_state['ready'] = True
-    
+
     logger.debug("✅ " + "="*50)
     logger.info("✅ Celery Worker is fully ready!")
     logger.debug(f"Process ID: {process_id}")
     logger.debug(f"Total startup time: {total_startup_time:.2f} s")
     logger.debug("✅ " + "="*50)
-    
+
     # Display worker status summary
     logger.debug("📊 Worker status summary:")
     for key, value in worker_state.items():
         logger.debug(f"  {key}: {value}")
-    
+
     # Register health check endpoints, start monitoring, etc.
     logger.debug("🔍 Worker is ready to receive tasks")
 
@@ -197,7 +203,7 @@ def worker_shutdown_handler(**kwargs):
     """Cleanup operations when the worker shuts down"""
     process_id = worker_state.get('process_id', os.getpid())
     uptime = time.time() - worker_state.get('start_time', time.time())
-    
+
     logger.debug("🛑 " + "="*50)
     logger.info("🛑 Celery Worker is shutting down...")
     logger.debug(f"🛑 Process ID: {process_id}")
@@ -228,7 +234,8 @@ def task_postrun_handler(sender=None, task_id=None, task=None, args=None, kwargs
 def task_failure_handler(sender=None, task_id=None, exception=None, einfo=None, **kwds):
     """Handler when task fails"""
     worker_state['tasks_failed'] += 1
-    logger.error(f"❌ Task failed: {sender.name}[{task_id}] - Exception: {str(exception)}")
+    logger.error(
+        f"❌ Task failed: {sender.name}[{task_id}] - Exception: {str(exception)}")
 
 
 # ============================================================================
@@ -241,9 +248,9 @@ def validate_service_connections() -> bool:
         logger.debug("🔍 Validate Redis connection")
         validate_redis_connection()
         logger.debug("✅ Redis connection is valid")
-        
+
         return True
-        
+
     except Exception as e:
         logger.error(f"❌ Service connection validation failed: {str(e)}")
         # Decide whether to raise an exception based on business requirements
@@ -256,16 +263,17 @@ def validate_redis_connection() -> bool:
     try:
         import redis
         redis_connection_url = REDIS_URL
-        
+
         # Parse Redis URL and create connection
         redis_client = redis.from_url(redis_connection_url, socket_timeout=5)
-        
+
         # Test connection
         redis_client.ping()
         return True
-        
+
     except ImportError:
-        logger.warning("⚠️ Redis client not installed, skipping Redis connection validation")
+        logger.warning(
+            "⚠️ Redis client not installed, skipping Redis connection validation")
         return False
     except Exception as e:
         logger.error(f"Redis connection failed: {str(e)}")
@@ -277,23 +285,24 @@ def validate_redis_connection() -> bool:
 # ============================================================================
 def start_worker():
     """Start Celery worker with appropriate settings"""
-    
+
     # Get configuration parameters
     queues = QUEUES
     worker_name = WORKER_NAME or f'worker-{os.getpid()}'
     concurrency = WORKER_CONCURRENCY
-    
+
     logger.info(f"Start Celery worker '{worker_name}' with queues: {queues}")
     logger.info(f"Worker concurrency: {concurrency}")
-    
+
     # Display Celery configuration information
     logger.debug("📋 Celery configuration information:")
     logger.debug(f"  Broker URL: {app.conf.broker_url}")
     logger.debug(f"  Backend URL: {app.conf.result_backend}")
     logger.debug(f"  Task routes: {app.conf.task_routes}")
     logger.debug(f"  Task time limit: {CELERY_TASK_TIME_LIMIT} s")
-    logger.debug(f"  Worker prefetch multiplier: {CELERY_WORKER_PREFETCH_MULTIPLIER}")
-    
+    logger.debug(
+        f"  Worker prefetch multiplier: {CELERY_WORKER_PREFETCH_MULTIPLIER}")
+
     # Worker startup parameters
     worker_args = [
         'worker',
@@ -304,16 +313,16 @@ def start_worker():
         '--pool=threads',
         '--task-events'
     ]
-    
+
     try:
         logger.info(f"⚙️ Starting worker '{worker_name}'...")
-        
+
         # Flush stdout to ensure immediate output
         sys.stdout.flush()
-        
+
         # Start worker - signal handlers will be executed at appropriate times
         app.worker_main(worker_args)
-        
+
     except KeyboardInterrupt:
         logger.info(f"🛑 Worker '{worker_name}' was interrupted by user")
         sys.exit(0)

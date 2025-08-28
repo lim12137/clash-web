@@ -19,8 +19,10 @@ class DataProcessorRayActor:
     Ray actor for handling data processing tasks.
     Encapsulates the DataProcessCore to be used in a Ray cluster.
     """
+
     def __init__(self):
-        logger.info(f"Ray actor initialized using {RAY_ACTOR_NUM_CPUS} CPU cores...")
+        logger.info(
+            f"Ray actor initialized using {RAY_ACTOR_NUM_CPUS} CPU cores...")
         self._processor = DataProcessCore()
 
     def process_file(
@@ -44,15 +46,17 @@ class DataProcessorRayActor:
         Returns:
             List[Dict[str, Any]]: A list of dictionaries representing the processed chunks.
         """
-        logger.info(f"[RayActor] Processing file: {source}, destination: {destination}")
-        
+        logger.info(
+            f"[RayActor] Processing file: {source}, destination: {destination}")
+
         if task_id:
             params['task_id'] = task_id
-        
+
         try:
             file_stream = get_file_stream(source)
             if file_stream is None:
-                raise FileNotFoundError(f"Unable to fetch file from URL: {source}")
+                raise FileNotFoundError(
+                    f"Unable to fetch file from URL: {source}")
             file_data = file_stream.read()
         except Exception as e:
             logger.error(f"Failed to fetch file from {source}: {e}")
@@ -66,8 +70,10 @@ class DataProcessorRayActor:
         )
 
         if not chunks:
-            logger.warning(f"[RayActor] file_process returned no chunks for {source}")
+            logger.warning(
+                f"[RayActor] file_process returned no chunks for {source}")
             return []
 
-        logger.debug(f"[RayActor] file_process returned {len(chunks)} chunks, returning as is.")
+        logger.debug(
+            f"[RayActor] file_process returned {len(chunks)} chunks, returning as is.")
         return chunks
