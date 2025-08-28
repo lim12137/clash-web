@@ -1,32 +1,13 @@
 from fastapi import Request
-from backend.services.agent_service import (
-    get_enable_tool_id_by_agent_id,
-    get_creating_sub_agent_id_service,
-    get_agent_info_impl,
-    get_creating_sub_agent_info_impl,
-    update_agent_info_impl,
-    delete_agent_impl,
-    export_agent_impl,
-    import_agent_impl,
-    import_agent_by_agent_id,
-    load_default_agents_json_file,
-    list_all_agent_info_impl,
-    insert_related_agent_impl,
-    clear_agent_memory,
-    run_agent_stream,
-    stop_agent_tasks,
-    get_agent_id_by_name,
-    prepare_agent_run,
-    save_messages,
-    generate_stream,
-    get_agent_call_relationship_impl, export_agent_by_agent_id
-)
 from consts.model import ExportAndImportAgentInfo, ExportAndImportDataFormat, MCPInfo, AgentRequest
 import sys
 from unittest.mock import patch, MagicMock, mock_open, call, Mock, AsyncMock
 
 import pytest
 from fastapi.responses import StreamingResponse
+
+# Import the actual ToolConfig model for testing before any mocking
+from nexent.core.agents.agent_model import ToolConfig
 
 # Mock boto3 before importing the module under test
 boto3_mock = MagicMock()
@@ -74,36 +55,18 @@ sys.modules['agents.agent_run_manager'] = MagicMock()
 sys.modules['agents.preprocess_manager'] = MagicMock()
 sys.modules['nexent.core.agents.run_agent'] = MagicMock()
 
+from backend.services.agent_service import get_agent_call_relationship_impl, delete_agent_impl, export_agent_impl, \
+    export_agent_by_agent_id, import_agent_by_agent_id, insert_related_agent_impl, load_default_agents_json_file, \
+    clear_agent_memory, import_agent_impl, get_agent_id_by_name, save_messages, generate_stream, prepare_agent_run, \
+    run_agent_stream, stop_agent_tasks
+from backend.services.agent_service import get_enable_tool_id_by_agent_id
+from backend.services.agent_service import get_creating_sub_agent_id_service
+from backend.services.agent_service import get_agent_info_impl
+from backend.services.agent_service import list_all_agent_info_impl
+from backend.services.agent_service import get_creating_sub_agent_info_impl
+from backend.services.agent_service import update_agent_info_impl
 
-# Create a simple ToolConfig class for testing
-class ToolConfig:
-    def __init__(self, class_name="", name="", description="", inputs="", output_type="", params=None, source="",
-                 usage=None, metadata=None):
-        self.class_name = class_name
-        self.name = name
-        self.description = description
-        self.inputs = inputs
-        self.output_type = output_type
-        self.params = params or {}
-        self.source = source
-        self.usage = usage
-        self.metadata = metadata or {}
-
-    def model_dump(self):
-        return {
-            "class_name": self.class_name,
-            "name": self.name,
-            "description": self.description,
-            "inputs": self.inputs,
-            "output_type": self.output_type,
-            "params": self.params,
-            "source": self.source,
-            "usage": self.usage,
-            "metadata": self.metadata
-        }
-
-
-# Now mock the agent_model module
+original_agent_model = sys.modules['nexent.core.agents.agent_model']
 sys.modules['nexent.core.agents.agent_model'] = MagicMock()
 
 # Mock specific classes that might be imported
@@ -111,8 +74,7 @@ MemoryContext = MagicMock()
 MemoryUserConfig = MagicMock()
 sys.modules['nexent.core.agents.agent_model'].MemoryContext = MemoryContext
 sys.modules['nexent.core.agents.agent_model'].MemoryUserConfig = MemoryUserConfig
-
-# Import the services
+sys.modules['nexent.core.agents.agent_model'].ToolConfig = ToolConfig
 
 
 # Setup and teardown for each test
@@ -472,6 +434,7 @@ async def test_export_agent_impl_success(mock_get_current_user_info, mock_export
     )
 
     # Create a proper ExportAndImportAgentInfo object with MCP tools
+    mcp_tool_dict = mcp_tool.model_dump()
     mock_agent_info = ExportAndImportAgentInfo(
         agent_id=123,
         name="Test Agent",
@@ -485,7 +448,7 @@ async def test_export_agent_impl_success(mock_get_current_user_info, mock_export
         constraint_prompt="Test constraint prompt",
         few_shots_prompt="Test few shots prompt",
         enabled=True,
-        tools=[mcp_tool],
+        tools=[mcp_tool_dict],
         managed_agents=[]
     )
     mock_export_agent_by_id.return_value = mock_agent_info
