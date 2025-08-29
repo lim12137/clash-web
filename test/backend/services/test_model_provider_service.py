@@ -13,7 +13,7 @@ class MockModule(mock.MagicMock):
 # without its real heavy dependencies being present during unit-testing.
 # ---------------------------------------------------------------------------
 for module_path in [
-    "consts", "consts.provider", "consts.model",
+    "consts", "consts.provider", "consts.model", "consts.const",
     "utils", "utils.model_name_utils",
     "services", "services.model_health_service",
     "database", "database.model_management_db",
@@ -22,6 +22,9 @@ for module_path in [
 
 # Provide concrete attributes required by the module under test
 sys.modules["consts.provider"].SILICON_GET_URL = "https://silicon.com"
+
+# Mock DEFAULT_LLM_MAX_TOKENS constant
+sys.modules["consts.const"].DEFAULT_LLM_MAX_TOKENS = 4096
 
 # Mock ProviderEnum for get_provider_models tests
 class _ProviderEnumStub:
@@ -78,7 +81,7 @@ async def test_get_models_llm_success():
         result = await SiliconModelProvider().get_models(provider_config)
 
         # Assert returned value & correct HTTP call
-        assert result == [{"id": "gpt-4", "model_tag": "chat", "model_type": "llm", "max_tokens": 4096}]
+        assert result == [{"id": "gpt-4", "model_tag": "chat", "model_type": "llm", "max_tokens": sys.modules["consts.const"].DEFAULT_LLM_MAX_TOKENS}]
         mock_client_instance.get.assert_called_once_with(
             "https://silicon.com?sub_type=chat",
             headers={"Authorization": "Bearer test-key"},
@@ -181,7 +184,7 @@ async def test_prepare_model_dict_llm():
             "model_name": "gpt-4",
             "model_type": "llm",
             "api_key": "test-key",
-            "max_tokens": 4096,
+            "max_tokens": sys.modules["consts.const"].DEFAULT_LLM_MAX_TOKENS,
             "display_name": "openai/gpt-4",
         }
         mock_model_req_instance.model_dump.return_value = dump_dict
@@ -189,7 +192,7 @@ async def test_prepare_model_dict_llm():
         mock_enum.NOT_DETECTED.value = "not_detected"
 
         provider = "openai"
-        model = {"id": "openai/gpt-4", "model_type": "llm", "max_tokens": 4096}
+        model = {"id": "openai/gpt-4", "model_type": "llm", "max_tokens": sys.modules["consts.const"].DEFAULT_LLM_MAX_TOKENS}
         base_url = "https://api.openai.com/v1"
         api_key = "test-key"
 
@@ -202,7 +205,7 @@ async def test_prepare_model_dict_llm():
             model_name="gpt-4",
             model_type="llm",
             api_key="test-key",
-            max_tokens=4096,
+            max_tokens=sys.modules["consts.const"].DEFAULT_LLM_MAX_TOKENS,
             display_name="openai/gpt-4",
         )
         mock_emb_dim_check.assert_not_called()
@@ -328,7 +331,7 @@ def test_merge_existing_model_tokens_successful_merge():
         {
             "model_repo": "openai", 
             "model_name": "gpt-3.5-turbo",
-            "max_tokens": 4096
+            "max_tokens": sys.modules["consts.const"].DEFAULT_LLM_MAX_TOKENS
         }
         # Note: claude-3 is not in existing models, so it won't get max_tokens
     ]
@@ -338,7 +341,7 @@ def test_merge_existing_model_tokens_successful_merge():
         
         # Check that max_tokens were merged correctly
         assert result[0]["max_tokens"] == 8192  # gpt-4
-        assert result[1]["max_tokens"] == 4096  # gpt-3.5-turbo
+        assert result[1]["max_tokens"] == sys.modules["consts.const"].DEFAULT_LLM_MAX_TOKENS  # gpt-3.5-turbo
         assert "max_tokens" not in result[2]    # claude-3 (no existing model)
         
         # Verify original model_list was not modified
@@ -420,7 +423,7 @@ async def test_get_provider_models_silicon_success():
     }
     
     expected_models = [
-        {"id": "gpt-4", "model_tag": "chat", "model_type": "llm", "max_tokens": 4096}
+        {"id": "gpt-4", "model_tag": "chat", "model_type": "llm", "max_tokens": sys.modules["consts.const"].DEFAULT_LLM_MAX_TOKENS}
     ]
     
     with mock.patch("backend.services.model_provider_service.SiliconModelProvider") as mock_provider_class:
