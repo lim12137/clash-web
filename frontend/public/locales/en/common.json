@@ -69,14 +69,20 @@
     "chatInput.fileCountExceedsLimit": "File count exceeds limit. Maximum {{count}} files allowed",
     "chatInput.fileSizeExceedsLimit": "File \"{{name}}\" exceeds size limit. Maximum 10MB per file",
     "chatInput.unsupportedFileType": "File \"{{name}}\" is not a supported file type. Supported formats: images, documents (PDF, Word, Excel, PPT), text files, CSV/TSV, Markdown",
+    "chatInput.unsupportedFileTypeSimple": "Unsupported file type",
     "chatInput.dragAndDropFilesHere": "Drag and drop files here to upload",
     "chatInput.supportedFileFormats": "Supported formats: images, documents (PDF, Word, Excel, PPT), text files, CSV/TSV, Markdown",
     "chatInput.sendMessageTo": "Send message to {{appName}}",
     "chatInput.stopRecording": "Stop Recording",
     "chatInput.startRecording": "Start Recording",
+    "chatInput.uploadFiles": "Upload Files",
+    "chatInput.stopGenerating": "Stop Generating",
+    "chatInput.recording": "Recording...",
+    "chatInput.recordingError": "Recording error, please try again",
     "chatInput.helloIm": "Hello, I'm {{appName}}",
     "chatInput.introMessage": "I can help you with coding, reading, searching, and comprehensive tasks. Feel free to ask!",
     "chatInput.close": "Close",
+    "chatInput.send": "Send",
     "chatInput.remove": "Remove",
     "chatInput.wsConnectionEstablished": "WebSocket connection established",
 
@@ -116,12 +122,7 @@
     "page.loginPrompt.header": "🚀 Ready to Go!",
     "page.loginPrompt.intro": "Log in to your account and start your intelligent Q&A journey~",
     "page.loginPrompt.benefitsTitle": "✨ After logging in, you will get:",
-    "page.loginPrompt.benefits": [
-        "Exclusive conversation history",
-        "Personalized smart recommendations",
-        "Full access to enterprise knowledge base",
-        "More accurate Q&A experience"
-    ],
+    "page.loginPrompt.benefits": ["Exclusive conversation history", "Personalized smart recommendations", "Full access to enterprise knowledge base", "More accurate Q&A experience"],
     "page.loginPrompt.githubSupport": "⭐️ Nexent is still growing, please help me by starring on <1>GitHub</1>, thank you.",
     "page.loginPrompt.noAccount": "Don't have an account yet? Click the \"Register\" button to create your exclusive account~",
     "page.adminPrompt.title": "Oh, you are not an administrator",
@@ -130,11 +131,7 @@
     "page.adminPrompt.unlockHeader": "🌟 Become an administrator and unlock more capabilities!",
     "page.adminPrompt.unlockIntro": "After becoming an administrator, you can:",
     "page.adminPrompt.permissionsTitle": "✨ Administrator exclusive permissions:",
-    "page.adminPrompt.permissions": [
-        "Configure and manage your own models",
-        "Create and publish exclusive smart Agents",
-        "Integrate and configure your own tools"
-    ],
+    "page.adminPrompt.permissions": ["Configure and manage your own models", "Create and publish exclusive smart Agents", "Integrate and configure your own tools"],
     "page.adminPrompt.githubSupport": "⭐️ Nexent is still growing, please help me by starring on <1>GitHub</1>, thank you.",
     "page.adminPrompt.becomeAdmin": "💡 Want to become an administrator? Please visit the <1>official contact page</1> to apply for an administrator account.",
 
@@ -688,6 +685,10 @@
     "auth.inviteCodeHint.communityLink": "technical community",
     "auth.inviteCodeHint.projectLink": "project page",
     "auth.inviteCodeHint.starAction": " and give us a Star",
+
+    "role_admin": "Admin",
+
+    "role_user": "User",
 
     "toolManagement.refresh.title": "Refresh Tools List",
     "toolManagement.refresh.button.refreshing": "Refreshing",
