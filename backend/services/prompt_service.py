@@ -8,7 +8,8 @@ from smolagents import OpenAIServerModel
 
 from consts.model import AgentInfoRequest
 from database.agent_db import update_agent, \
-    query_tools_by_ids, query_sub_agents_id_list, search_agent_info_by_agent_id
+    query_sub_agents_id_list, search_agent_info_by_agent_id
+from database.tool_db import query_tools_by_ids
 from services.agent_service import get_enable_tool_id_by_agent_id
 from utils.prompt_template_utils import get_prompt_generate_prompt_template
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
@@ -72,12 +73,8 @@ def generate_and_save_system_prompt_impl(agent_id: int, task_description: str, a
     user_id, tenant_id, language = get_current_user_info(authorization, request)
 
     # Get description of tool and agent
-    tool_info_list = get_enabled_tool_description_for_generate_prompt(
-        tenant_id=tenant_id, agent_id=agent_id, user_id=user_id
-    )
-    sub_agent_info_list = get_enabled_sub_agent_description_for_generate_prompt(
-        tenant_id=tenant_id, agent_id=agent_id, user_id=user_id
-    )
+    tool_info_list = get_enabled_tool_description_for_generate_prompt(tenant_id=tenant_id, agent_id=agent_id)
+    sub_agent_info_list = get_enabled_sub_agent_description_for_generate_prompt(tenant_id=tenant_id, agent_id=agent_id)
 
     # 1. Real-time streaming push
     final_results = {"duty": "", "constraint": "", "few_shots": "", "agent_var_name": "", "agent_display_name": "",
@@ -139,7 +136,7 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
                   "agent_display_name": False, "agent_description": False}
 
     threads = []
-    logger.info(f"Generating system prompt")
+    logger.info("Generating system prompt")
     for tag, sys_prompt in [
         ("duty", prompt_for_generate["DUTY_SYSTEM_PROMPT"]),
         ("constraint", prompt_for_generate["CONSTRAINT_SYSTEM_PROMPT"]),
@@ -190,33 +187,30 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
             last_results[tag] = latest[tag]
 
 
-def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description, tool_info_list,
-                                         app_name=None, app_description=None):
+def join_info_for_generate_system_prompt(prompt_for_generate, sub_agent_info_list, task_description, tool_info_list):
     tool_description = "\n".join(
         [f"- {tool['name']}: {tool['description']} \n 接受输入: {tool['inputs']}\n 返回输出类型: {tool['output_type']}"
          for tool in tool_info_list])
-    agent_description = "\n".join(
+    assistant_description = "\n".join(
         [f"- {sub_agent_info['name']}: {sub_agent_info['description']}" for sub_agent_info in sub_agent_info_list])
     # Generate content using template
     content = Template(prompt_for_generate["USER_PROMPT"], undefined=StrictUndefined).render({
-        "tool_description": tool_description,
-        "agent_description": agent_description,
         "task_description": task_description,
-        "APP_NAME": app_name,
-        "APP_DESCRIPTION": app_description
+        "tool_description": tool_description,
+        "assistant_description": assistant_description
     })
     return content
 
 
-def get_enabled_tool_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
+def get_enabled_tool_description_for_generate_prompt(agent_id: int, tenant_id: str):
     # Get tool information
     logger.info("Fetching tool instances")
-    tool_id_list = get_enable_tool_id_by_agent_id(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id)
+    tool_id_list = get_enable_tool_id_by_agent_id(agent_id=agent_id, tenant_id=tenant_id)
     tool_info_list = query_tools_by_ids(tool_id_list)
     return tool_info_list
 
 
-def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_id: str, user_id: str = None):
+def get_enabled_sub_agent_description_for_generate_prompt(agent_id: int, tenant_id: str):
     logger.info("Fetching sub-agents information")
 
     sub_agent_id_list = query_sub_agents_id_list(main_agent_id=agent_id, tenant_id=tenant_id)
