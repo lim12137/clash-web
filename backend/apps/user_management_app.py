@@ -9,7 +9,7 @@ import os
 from consts.const import SUPABASE_URL, SUPABASE_KEY
 from consts.model import STATUS_CODES, ServiceResponse, UserSignUpRequest, UserSignInRequest
 from database.model_management_db import create_model_record
-from utils.auth_utils import get_jwt_expiry_seconds, calculate_expires_at
+from utils.auth_utils import get_jwt_expiry_seconds, calculate_expires_at, get_current_user_id
 from database.user_tenant_db import insert_user_tenant
 from utils.config_utils import config_manager
 
@@ -550,8 +550,7 @@ async def get_user_id(request: Request):
 
     # If the token is invalid, try to parse the user ID from the token
     try:
-        from utils.auth_utils import get_current_user_id_from_token
-        user_id = get_current_user_id_from_token(authorization)
+        user_id, _ = get_current_user_id(authorization)
         if user_id:
             logging.info(f"Successfully parsed user ID from token: {user_id}")
             return ServiceResponse(

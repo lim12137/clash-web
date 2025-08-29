@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Input } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { conversationService } from '@/services/conversationService'
@@ -22,9 +22,6 @@ interface AgentDebuggingProps {
 interface DebugConfigProps {
   agentId?: number; // Make agentId an optional prop
 }
-
-// Counter for generating unique IDs
-const stepIdCounter = { current: 0 };
 
 /**
  * Agent debugging component
@@ -200,6 +197,21 @@ export default function DebugConfig({
   const [isStreaming, setIsStreaming] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Maintain an independent step ID counter per Agent
+  const stepIdCounter = useRef<{ current: number }>({ current: 0 });
+
+  // Reset debug state when agentId changes
+  useEffect(() => {
+    // Clear debug history
+    setMessages([]);
+    // Reset step ID counter
+    stepIdCounter.current.current = 0;
+    // Stop both frontend and backend when switching agent (debug mode)
+    const hasActiveStream = isStreaming || abortControllerRef.current !== null;
+    if (hasActiveStream) {
+      handleStop();
+    }
+  }, [agentId]);
 
   // Reset timeout timer
   const resetTimeout = () => {
@@ -306,7 +318,7 @@ export default function DebugConfig({
         reader,
         setMessages,
         resetTimeout,
-        stepIdCounter,
+        stepIdCounter.current,
         () => {}, // setIsSwitchedConversation - Debug mode does not need
         false, // isNewConversation - Debug mode does not need
         () => {}, // setConversationTitle - Debug mode does not need
@@ -359,7 +371,8 @@ export default function DebugConfig({
 
   return (
     <div className="w-full h-full bg-white">
-      <AgentDebugging 
+      <AgentDebugging
+        key={agentId} // Re-render when agentId changes to ensure state resets
         onAskQuestion={handleTestQuestion}
         onStop={handleStop}
         isStreaming={isStreaming}

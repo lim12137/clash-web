@@ -190,7 +190,7 @@ class TestSearchToolInfoImpl:
         
         assert result["params"] == {"param1": "value1"}
         assert result["enabled"] is True
-        mock_query.assert_called_once_with(1, 1, 1, user_id=None)
+        mock_query.assert_called_once_with(1, 1, 1)
 
     @patch('backend.services.tool_configuration_service.get_current_user_id')
     @patch('backend.services.tool_configuration_service.query_tool_instances_by_id')
