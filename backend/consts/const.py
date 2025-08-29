@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Test voice file path
-TEST_VOICE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'test.wav')
+TEST_VOICE_PATH = os.path.join(os.path.dirname(
+    os.path.dirname(__file__)), 'assets', 'test.wav')
 
 # ModelEngine Configuration
 MODEL_ENGINE_HOST = os.getenv('MODEL_ENGINE_HOST')
@@ -86,24 +87,30 @@ RAY_DASHBOARD_PORT = int(os.getenv("RAY_DASHBOARD_PORT", "8265"))
 RAY_DASHBOARD_HOST = os.getenv("RAY_DASHBOARD_HOST", "0.0.0.0")
 RAY_NUM_CPUS = os.getenv("RAY_NUM_CPUS")
 RAY_PLASMA_DIRECTORY = os.getenv("RAY_PLASMA_DIRECTORY", "/tmp")
-RAY_OBJECT_STORE_MEMORY_GB = float(os.getenv("RAY_OBJECT_STORE_MEMORY_GB", "2.0"))
+RAY_OBJECT_STORE_MEMORY_GB = float(
+    os.getenv("RAY_OBJECT_STORE_MEMORY_GB", "2.0"))
 RAY_TEMP_DIR = os.getenv("RAY_TEMP_DIR", "/tmp/ray")
 RAY_LOG_LEVEL = os.getenv("RAY_LOG_LEVEL", "INFO").upper()
 
 # Service Control Flags
-DISABLE_RAY_DASHBOARD = os.getenv("DISABLE_RAY_DASHBOARD", "false").lower() == "true"
-DISABLE_CELERY_FLOWER = os.getenv("DISABLE_CELERY_FLOWER", "false").lower() == "true"
+DISABLE_RAY_DASHBOARD = os.getenv(
+    "DISABLE_RAY_DASHBOARD", "false").lower() == "true"
+DISABLE_CELERY_FLOWER = os.getenv(
+    "DISABLE_CELERY_FLOWER", "false").lower() == "true"
 DOCKER_ENVIRONMENT = os.getenv("DOCKER_ENVIRONMENT", "false").lower() == "true"
 
 # Celery Configuration
-CELERY_WORKER_PREFETCH_MULTIPLIER = int(os.getenv("CELERY_WORKER_PREFETCH_MULTIPLIER", "1"))
+CELERY_WORKER_PREFETCH_MULTIPLIER = int(
+    os.getenv("CELERY_WORKER_PREFETCH_MULTIPLIER", "1"))
 CELERY_TASK_TIME_LIMIT = int(os.getenv("CELERY_TASK_TIME_LIMIT", "3600"))
-ELASTICSEARCH_REQUEST_TIMEOUT = int(os.getenv("ELASTICSEARCH_REQUEST_TIMEOUT", "30"))
+ELASTICSEARCH_REQUEST_TIMEOUT = int(
+    os.getenv("ELASTICSEARCH_REQUEST_TIMEOUT", "30"))
 
 # Worker Configuration
 RAY_ADDRESS = os.getenv("RAY_ADDRESS", "auto")
 QUEUES = os.getenv("QUEUES", "process_q,forward_q")
-WORKER_NAME = os.getenv("WORKER_NAME")  # Will be dynamically set based on PID if not provided
+# Will be dynamically set based on PID if not provided
+WORKER_NAME = os.getenv("WORKER_NAME")
 WORKER_CONCURRENCY = int(os.getenv("WORKER_CONCURRENCY", "4"))
 
 # Voice Service Configuration
@@ -122,3 +129,9 @@ DISABLE_USERAGENT_ID_KEY = "DISABLE_USERAGENT_ID"
 
 DEFAULT_MEMORY_SWITCH_KEY = "Y"
 DEFAULT_MEMORY_AGENT_SHARE_KEY = "always"
+
+# MCP Server
+LOCAL_MCP_SERVER = os.getenv("NEXENT_MCP_SERVER", "http://localhost:5011")
+
+# Invite code
+INVITE_CODE = os.getenv("INVITE_CODE", "nexent2025")
