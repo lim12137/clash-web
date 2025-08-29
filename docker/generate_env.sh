@@ -106,6 +106,13 @@ update_env_file() {
     echo "DATA_PROCESS_SERVICE=http://localhost:5012/api" >> ../.env
   fi
 
+  # NORTHBOUND_API_SERVER
+  if grep -q "^NORTHBOUND_API_SERVER=" ../.env; then
+    sed -i.bak "s~^NORTHBOUND_API_SERVER=.*~NORTHBOUND_API_SERVER=http://localhost:5013/api~" ../.env
+  else
+    echo "NORTHBOUND_API_SERVER=http://localhost:5013/api" >> ../.env
+  fi
+
   # MINIO_ENDPOINT
   if grep -q "^MINIO_ENDPOINT=" ../.env; then
     sed -i.bak "s~^MINIO_ENDPOINT=.*~MINIO_ENDPOINT=http://localhost:9010~" ../.env

@@ -136,7 +136,7 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
                   "agent_display_name": False, "agent_description": False}
 
     threads = []
-    logger.info(f"Generating system prompt")
+    logger.info("Generating system prompt")
     for tag, sys_prompt in [
         ("duty", prompt_for_generate["DUTY_SYSTEM_PROMPT"]),
         ("constraint", prompt_for_generate["CONSTRAINT_SYSTEM_PROMPT"]),

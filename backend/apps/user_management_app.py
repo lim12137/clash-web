@@ -1,15 +1,16 @@
 import logging
-from typing import Optional, Any, Tuple
-from fastapi import APIRouter, HTTPException, Header, Request
-from dotenv import load_dotenv
-from supabase import Client
-import requests
 import os
+from typing import Any, Optional, Tuple
 
-from consts.model import STATUS_CODES, ServiceResponse, UserSignUpRequest, UserSignInRequest
+import requests
+from dotenv import load_dotenv
+from fastapi import APIRouter, Header, HTTPException, Request
+from supabase import Client
+
+from consts.model import ServiceResponse, STATUS_CODES, UserSignInRequest, UserSignUpRequest
 from database.model_management_db import create_model_record
-from utils.auth_utils import get_jwt_expiry_seconds, calculate_expires_at, get_supabase_client
 from database.user_tenant_db import insert_user_tenant
+from utils.auth_utils import calculate_expires_at, get_current_user_id, get_jwt_expiry_seconds, get_supabase_client
 from consts.const import INVITE_CODE
 
 load_dotenv()
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/user", tags=["user"])
 
 # Set token to client
 def set_auth_token_to_client(client: Client, token: str) -> None:
+    """Set token to client"""
     jwt_token = token.replace(
         "Bearer ", "") if token.startswith("Bearer ") else token
 
@@ -29,8 +31,8 @@ def set_auth_token_to_client(client: Client, token: str) -> None:
         logging.error(f"设置访问令牌失败: {str(e)}")
 
 
-# Get token from authorization header and create authorized supabase client
 def get_authorized_client(authorization: Optional[str] = Header(None)) -> Client:
+    """Get token from authorization header and create authorized supabase client"""
     client = get_supabase_client()
     if authorization:
         token = authorization.replace("Bearer ", "") if authorization.startswith(
@@ -39,8 +41,8 @@ def get_authorized_client(authorization: Optional[str] = Header(None)) -> Client
     return client
 
 
-# Get current user from client, return user object or None
 def get_current_user_from_client(client: Client) -> Optional[Any]:
+    """Get current user from client, return user object or None"""
     try:
         user_response = client.auth.get_user()
         if user_response and user_response.user:
@@ -51,8 +53,8 @@ def get_current_user_from_client(client: Client) -> Optional[Any]:
         return None
 
 
-# Validate token function, return (is valid, user object)
 def validate_token(token: str) -> Tuple[bool, Optional[Any]]:
+    """Validate token function, return (is valid, user object)"""
     client = get_supabase_client()
     set_auth_token_to_client(client, token)
     try:
@@ -65,8 +67,8 @@ def validate_token(token: str) -> Tuple[bool, Optional[Any]]:
         return False, None
 
 
-# Get current user as dependency
 async def get_current_user(request: Request) -> Any:
+    """Get current user as dependency"""
     authorization = request.headers.get("Authorization")
     if not authorization:
         raise HTTPException(status_code=401, detail="未提供授权令牌")
@@ -78,8 +80,8 @@ async def get_current_user(request: Request) -> Any:
     return user
 
 
-# Try to extend session validity, return new session information or None
 def extend_session(client: Client, refresh_token: str) -> Optional[dict]:
+    """Try to extend session validity, return new session information or None"""
     try:
         response = client.auth.refresh_session(refresh_token)
         if response and response.session:
@@ -95,12 +97,12 @@ def extend_session(client: Client, refresh_token: str) -> Optional[dict]:
         return None
 
 
-# Service health check
 @router.get("/service_health", response_model=ServiceResponse)
 async def service_health():
+    """Service health check"""
     try:
-        SUPABASE_URL = os.getenv("SUPABASE_URL")
-        response = requests.get(f'{SUPABASE_URL}/auth/v1/health', headers={
+        supabase_url = os.getenv("SUPABASE_URL")
+        response = requests.get(f'{supabase_url}/auth/v1/health', headers={
             'apikey': os.getenv("SUPABASE_KEY")
         })
 
@@ -129,11 +131,10 @@ async def service_health():
             data=False
         )
 
-# User registration
-
 
 @router.post("/signup", response_model=ServiceResponse)
 async def signup(request: UserSignUpRequest):
+    """User registration"""
     client = get_supabase_client()
 
     # Record basic information of the registration request
@@ -228,9 +229,9 @@ async def signup(request: UserSignUpRequest):
             )
 
             if not user_tenant_created:
+                # Registration successful but tenant relationship creation failed, continue to return success, but record the error
                 logging.error(
                     f"Failed to create user tenant relationship: user_id={user_id}, tenant_id={tenant_id}")
-                # Registration successful but tenant relationship creation failed, continue to return success, but record the error
 
             logging.info(
                 f"User {request.email} registered successfully, role: {user_role}, tenant: {tenant_id}")
@@ -352,9 +353,9 @@ async def signup(request: UserSignUpRequest):
         )
 
 
-# User login
 @router.post("/signin", response_model=ServiceResponse)
 async def signin(request: UserSignInRequest):
+    """User login"""
     client = get_supabase_client()
     try:
         response = client.auth.sign_in_with_password({
@@ -409,9 +410,9 @@ async def signin(request: UserSignInRequest):
         )
 
 
-# Refresh token
 @router.post("/refresh_token", response_model=ServiceResponse)
 async def refresh_token(request: Request):
+    """Refresh token"""
     authorization = request.headers.get("Authorization")
     if not authorization:
         return ServiceResponse(
@@ -466,9 +467,9 @@ async def refresh_token(request: Request):
         )
 
 
-# User logout
 @router.post("/logout", response_model=ServiceResponse)
 async def logout(request: Request):
+    """User logout"""
     authorization = request.headers.get("Authorization")
     if not authorization:
         return ServiceResponse(
@@ -494,9 +495,9 @@ async def logout(request: Request):
         )
 
 
-# Get current user session
 @router.get("/session", response_model=ServiceResponse)
 async def get_session(request: Request):
+    """Get current user session"""
     authorization = request.headers.get("Authorization")
     if not authorization:
         return ServiceResponse(
@@ -533,9 +534,9 @@ async def get_session(request: Request):
         )
 
 
-# Get current user ID, return None if not logged in
 @router.get("/current_user_id", response_model=ServiceResponse)
 async def get_user_id(request: Request):
+    """Get current user ID, return None if not logged in"""
     authorization = request.headers.get("Authorization")
     if not authorization:
         return ServiceResponse(
@@ -556,8 +557,7 @@ async def get_user_id(request: Request):
 
     # If the token is invalid, try to parse the user ID from the token
     try:
-        from utils.auth_utils import get_current_user_id_from_token
-        user_id = get_current_user_id_from_token(authorization)
+        user_id, _ = get_current_user_id(authorization)
         if user_id:
             logging.info(f"Successfully parsed user ID from token: {user_id}")
             return ServiceResponse(
