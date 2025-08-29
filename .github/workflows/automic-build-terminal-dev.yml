@@ -1,7 +1,7 @@
 name: Docker Build Terminal Images
 
 concurrency:
-  group: docker-build-dev-${{ github.ref }}
+  group: docker-build-terminal-dev-${{ github.ref }}
   cancel-in-progress: true
 
 on:
