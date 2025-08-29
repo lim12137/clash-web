@@ -1,5 +1,6 @@
 import logging
 import httpx
+from consts.const import DEFAULT_LLM_MAX_TOKENS
 from consts.provider import SILICON_GET_URL, ProviderEnum
 from consts.model import ModelConnectStatusEnum, ModelRequest
 from utils.model_name_utils import split_repo_name, split_display_name
@@ -49,7 +50,7 @@ class SiliconModelProvider(AbstractModelProvider):
                 for item in model_list:
                     item["model_tag"] = "chat"
                     item["model_type"] = model_type
-                    item["max_tokens"] = 4096
+                    item["max_tokens"] = DEFAULT_LLM_MAX_TOKENS
             elif model_type in ("embedding", "multi_embedding"):
                 for item in model_list:
                     item["model_tag"] = "embedding"
