@@ -3,18 +3,21 @@ FROM ubuntu:24.04
 # Set environment variables
 ENV CONDA_DIR=/opt/conda
 
-# Install base tools and dependencies
-RUN apt-get update && apt-get install -y \
-    openssh-server \
-    curl \
-    wget \
-    git \
-    vim \
-    build-essential \
-    python3 \
-    python3-pip \
-    python3-venv \
-    && rm -rf /var/lib/apt/lists/*
+# Install base tools and dependencies with retry mechanism and network optimization
+RUN apt-get clean && \
+    apt-get update --fix-missing && \
+    apt-get install -y --no-install-recommends \
+        openssh-server \
+        curl \
+        wget \
+        git \
+        vim \
+        build-essential \
+        python3 \
+        python3-pip \
+        python3-venv \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Create development user
 ARG DEV_USER=linuxserver.io
@@ -35,6 +38,10 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-$(if [ "$TA
 
 # Set conda permissions
 RUN chown -R $DEV_USER:$DEV_USER $CONDA_DIR
+
+# Add conda to PATH and initialize
+ENV PATH="$CONDA_DIR/bin:$PATH"
+RUN conda init
 
 # Create .ssh directory
 RUN mkdir -p /home/$DEV_USER/.ssh && \
