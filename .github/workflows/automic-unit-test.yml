@@ -1,5 +1,9 @@
 name: Run Automated Unit Tests
 
+concurrency:
+  group: automated-unit-test-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
     inputs:

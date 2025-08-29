@@ -1,7 +1,7 @@
 name: Docker Build Web Images
 
 concurrency:
-  group: docker-build-dev-${{ github.ref }}
+  group: docker-build-web-dev-${{ github.ref }}
   cancel-in-progress: true
 
 on:

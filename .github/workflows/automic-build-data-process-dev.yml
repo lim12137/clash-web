@@ -1,7 +1,7 @@
 name: Docker Build Data-Process Images
 
 concurrency:
-  group: docker-build-dev-${{ github.ref }}
+  group: docker-build-data-process-dev-${{ github.ref }}
   cancel-in-progress: true
 
 on:
