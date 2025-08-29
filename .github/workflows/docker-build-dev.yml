@@ -17,7 +17,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       contains(toJSON(github.event.head_commit), 'backend/') ||
-      contains(toJSON(github.event.head_commit), 'sdk/')
+      contains(toJSON(github.event.head_commit), 'sdk/') ||
+      contains(toJSON(github.event.head_commit), 'make/main/')
     steps:
       - name: Set up Docker Buildx
         run: |
@@ -37,7 +38,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       contains(toJSON(github.event.head_commit), 'backend/') ||
-      contains(toJSON(github.event.head_commit), 'sdk/')
+      contains(toJSON(github.event.head_commit), 'sdk/') ||
+      contains(toJSON(github.event.head_commit), 'make/main/')
     steps:
       - name: Set up Docker Buildx
         run: |
@@ -54,6 +56,11 @@ jobs:
 
   build-data-process-amd64:
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(toJSON(github.event.head_commit), 'backend/') ||
+      contains(toJSON(github.event.head_commit), 'sdk/') ||
+      contains(toJSON(github.event.head_commit), 'make/data_process/')
     steps:
       - name: Free up disk space on GitHub runner
         run: |
@@ -79,6 +86,11 @@ jobs:
 
   build-data-process-arm64:
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(toJSON(github.event.head_commit), 'backend/') ||
+      contains(toJSON(github.event.head_commit), 'sdk/') ||
+      contains(toJSON(github.event.head_commit), 'make/data_process/')
     steps:
       - name: Free up disk space on GitHub runner
         run: |
@@ -104,6 +116,10 @@ jobs:
 
   build-web-amd64:
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(toJSON(github.event.head_commit), 'frontend/') ||
+      contains(toJSON(github.event.head_commit), 'make/web/')
     steps:
       - name: Set up Docker Buildx
         run: |
@@ -120,6 +136,10 @@ jobs:
 
   build-web-arm64:
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(toJSON(github.event.head_commit), 'frontend/') ||
+      contains(toJSON(github.event.head_commit), 'make/web/')
     steps:
       - name: Set up Docker Buildx
         run: |
@@ -136,6 +156,9 @@ jobs:
 
   build-terminal-amd64:
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(toJSON(github.event.head_commit), 'make/terminal/')
     steps:
       - name: Set up Docker Buildx
         run: |
@@ -152,6 +175,9 @@ jobs:
 
   build-terminal-arm64:
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(toJSON(github.event.head_commit), 'make/terminal/')
     steps:
       - name: Set up Docker Buildx
         run: |
