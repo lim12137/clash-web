@@ -679,7 +679,10 @@ const getAuthHeaders = () => {
                 knowledgeBaseModel={kbState.activeKnowledgeBase.embeddingModel}
                 embeddingModelInfo={
                   !isKnowledgeBaseSelectable(kbState.activeKnowledgeBase) ?
-                  `当前模型${kbState.currentEmbeddingModel || ''}与知识库模型${kbState.activeKnowledgeBase.embeddingModel}不匹配，无法使用` :
+                  t('document.modelMismatch.withModels', {
+                    currentModel: kbState.currentEmbeddingModel || '',
+                    knowledgeBaseModel: kbState.activeKnowledgeBase.embeddingModel
+                  }) :
                   undefined
                 }
                 containerHeight={SETUP_PAGE_CONTAINER.MAIN_CONTENT_HEIGHT}
