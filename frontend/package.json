@@ -6,7 +6,9 @@
     "dev": "node server.js",
     "build": "next build",
     "start": "NODE_ENV=production node server.js",
-    "lint": "next lint"
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "check-all": "npm run type-check && npm run lint && npm run build"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
@@ -65,6 +67,7 @@
     "next-i18next": "^15.4.2",
     "next-themes": "^0.4.4",
     "react": "18.2.0",
+    "react-d3-tree": "^3.6.6",
     "react-day-picker": "^9.6.7",
     "react-dom": "18.2.0",
     "react-hook-form": "^7.54.1",
@@ -72,8 +75,10 @@
     "react-icons": "^5.5.0",
     "react-katex": "^3.0.1",
     "react-markdown": "^8.0.7",
+    "react-organizational-chart": "^2.2.1",
     "react-resizable-panels": "^2.1.7",
     "react-syntax-highlighter": "^15.5.0",
+    "reactflow": "^11.11.4",
     "recharts": "2.15.0",
     "rehype-katex": "^7.0.1",
     "rehype-raw": "^7.0.0",
@@ -90,6 +95,8 @@
     "@types/node": "22.15.16",
     "@types/react": "18.3.20",
     "@types/react-dom": "18.3.6",
+    "eslint": "^9.34.0",
+    "eslint-config-next": "15.5.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
     "typescript": "5.8.3"

@@ -14,7 +14,7 @@ export interface ChatTaskMessageResult {
 }
 
 export function useChatTaskMessage(messages: ChatMessageType[]): ChatTaskMessageResult {
-  // 过滤可见消息
+  // Filter visible messages
   const visibleMessages = useMemo(() => 
     messages.filter(message => 
       (message as TaskMessageType).type !== "final_answer" && 
@@ -23,24 +23,24 @@ export function useChatTaskMessage(messages: ChatMessageType[]): ChatTaskMessage
     [messages]
   );
 
-  // 将消息分组
+  // Group messages
   const groupedMessages = useMemo(() => {
     const groups: MessageGroup[] = [];
     let cardMessages: TaskMessageType[] = [];
     
     visibleMessages.forEach(message => {
       if (message.type === "card") {
-        // 收集卡片消息
+        // Collect card messages
         cardMessages.push(message);
       } else {
-        // 如果之前有非卡片消息，将其与卡片一起推入分组
+        // If there is a non-card message before, push it together with the card
         if (groups.length > 0) {
           const lastGroup = groups[groups.length - 1];
           lastGroup.cards = [...cardMessages];
-          cardMessages = []; // 重置卡片收集器
+          cardMessages = []; // Reset card collector
         }
         
-        // 添加新的非卡片消息
+        // Add new non-card message
         groups.push({
           message,
           cards: []
@@ -48,14 +48,14 @@ export function useChatTaskMessage(messages: ChatMessageType[]): ChatTaskMessage
       }
     });
     
-    // 处理循环结束后剩余的卡片
+    // Handle remaining cards after the loop
     if (cardMessages.length > 0) {
       if (groups.length > 0) {
-        // 如果有其他消息，将卡片附加到最后一个消息
+        // If there are other messages, append the card to the last message
         const lastGroup = groups[groups.length - 1];
         lastGroup.cards = [...cardMessages];
       } else {
-        // 如果只有卡片消息，创建一个虚拟消息组
+        // If there is only card message, create a virtual message group
         groups.push({
           message: {
             id: `virtual-${Date.now()}`,

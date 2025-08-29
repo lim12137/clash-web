@@ -10,7 +10,7 @@ const configStore = ConfigStore.getInstance();
 export function useConfig() {
   const [config, setConfig] = useState<GlobalConfig>(configStore.getConfig);
 
-  // 监听配置变化事件
+  // Listen to config change event
   useEffect(() => {
     const handleConfigChanged = () => {
       const newConfig = configStore.getConfig();

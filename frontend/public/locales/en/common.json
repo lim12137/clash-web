@@ -279,9 +279,11 @@
     "setup.promptTuning.button.tuning": "Tuning...",
     "setup.promptTuning.button.send": "Send",
     "setup.promptTuning.error.send": "Failed to send tuning instruction:",
+
     "agent.contextMenu.edit": "Edit",
     "agent.contextMenu.export": "Export",
     "agent.contextMenu.delete": "Delete",
+
     "agent.info.title": "Agent Information",
     "agent.info.name": "Name",
     "agent.info.name.placeholder": "Please enter agent name",
@@ -296,13 +298,14 @@
     "agent.info.provideSummary.yes": "Yes",
     "agent.info.provideSummary.no": "No",
     "agent.info.provideSummary.hint": "When enabled, the agent will provide an execution summary upon completion",
+    
     "guide.title.mainAgent": "Main Agent Configuration",
     "guide.title.subAgent": "Sub-Agent Configuration",
     "guide.title.agentConfig": "Agent Configuration Guide",
 
     "guide.steps.createOrEditAgent.title": "Create/Edit Agent",
     "guide.steps.createOrEditAgent.description": "Used to manage all agent information",
-    "guide.steps.selectCollaborativeAgent.title": "Select Collaborative Agent (optional)",
+    "guide.steps.selectCollaborativeAgent.title": "Select Collaborative Agent",
     "guide.steps.selectCollaborativeAgent.description": "Can help the current agent complete tasks",
     "guide.steps.selectTools.title": "Select Tools",
     "guide.steps.selectTools.description": "Agent can call tools to complete tasks",
@@ -397,8 +400,8 @@
     "agent.action.modify": "modify",
     "agent.action.importing": "Importing...",
     "agent.action.import": "Import Agent",
+    "agent.action.viewCallRelationship": "View Call Relationship",
     "agent.message.saveSuccess": "Agent \"{name}\" {action} successfully",
-    "agent.message.infoLoaded": "Agent information loaded",
     "agent.message.statusUpdated": "Agent \"{name}\" has been {status}",
     "agent.message.modelUpdateSuccess": "Model updated successfully",
     "agent.message.maxStepsUpdateSuccess": "Maximum steps updated successfully",
@@ -591,8 +594,6 @@
     "setup.header.button.back": "Back to Home",
     "setup.header.title": "Quick Setup",
     "setup.header.description": "Smartly build any assistant, accurately solve every challenge",
-    "setup.header.tooltip.lastChecked": "Last checked: {{time}}",
-    "setup.header.tooltip.checkStatus": "Click to check connection status",
     "setup.navigation.button.previous": "Previous",
     "setup.navigation.button.next": "Next",
     "setup.navigation.button.complete": "Complete Setup",
@@ -826,7 +827,6 @@
     "businessLogic.config.modal.button.cancel": "Cancel",
     "businessLogic.config.modal.button.confirm": "Confirm Delete",
     "businessLogic.config.message.agentCreated": "Agent {{name}} {{action}} successfully",
-    "businessLogic.config.message.agentInfoLoaded": "Agent information loaded",
     "businessLogic.config.message.agentStatusUpdated": "Agent {{name}} {{status}}",
     "businessLogic.config.message.modelUpdateSuccess": "Model updated successfully",
     "businessLogic.config.message.maxStepsUpdateSuccess": "Max steps updated successfully",
@@ -1007,15 +1007,8 @@
     "mcpConfig.message.invalidServerName": "Server name can only contain letters and numbers",
     "mcpConfig.message.serverNameTooLong": "Server name cannot exceed 20 characters",
     "mcpConfig.message.serverExists": "Server name or URL already exists",
-    "mcpConfig.message.addServerSuccess": "MCP server added successfully, automatically updating tools list...",
-    "mcpConfig.message.addServerSuccessToolsUpdated": "MCP server added successfully, tools list updated",
-    "mcpConfig.message.addServerSuccessToolsFailed": "MCP server added successfully, but tools list update failed",
     "mcpConfig.message.addServerFailed": "Failed to add server",
-    "mcpConfig.message.deleteServerSuccess": "MCP server deleted successfully",
     "mcpConfig.message.deleteServerFailed": "Failed to delete server",
-    "mcpConfig.message.updatingToolsList": "Automatically updating tools list...",
-    "mcpConfig.message.toolsListUpdated": "Tools list updated",
-    "mcpConfig.message.toolsListUpdateFailed": "Tools list update failed",
     "mcpConfig.message.getToolsFailed": "Failed to get tools list",
     "mcpConfig.message.remountSuccess": "MCP servers remounted successfully",
     "mcpConfig.message.remountFailed": "Failed to remount MCP servers",
@@ -1137,7 +1130,7 @@
         "inputPlaceholder": "Please enter memory content"
     },
     "collaborativeAgent": {
-        "title": "Collaborative Agent",
+        "title": "Select Collaborative Agent",
         "button": {
             "add": "Add Collaborative Agent"
         },
@@ -1162,5 +1155,7 @@
         }
     },
     "model.dialog.success.addBatchModel": "Batch add models succeeded!",
-    "model.dialog.error.addBatchModel": "Batch add models failed: {{message}}"
+    "model.dialog.error.addBatchModel": "Batch add models failed: {{message}}",
+    "agentCallRelationship": {"title": "View Call Relationship", "loading": "Loading call relationship...", "description": "This flowchart shows the call relationship of {{name}} and all its tools and collaborative agents", "noData": "No call relationship data available", "nodeType": {"main": "Main Agent", "sub": "Sub Agent", "tool": "Tool"}},
+    "agentConfig": {"error": {"fetchToolsFailed": "Failed to fetch tools list, please try again later", "fetchAgentListFailed": "Failed to fetch agent list, please try again later", "fetchCreatingSubAgentIdFailed": "Failed to fetch creating sub agent ID, please try again later", "fetchAgentDetailsFailed": "Failed to fetch agent details, please try again later", "fetchAgentCallRelationshipFailed": "Failed to fetch agent call relationship, please try again later"}}
 }

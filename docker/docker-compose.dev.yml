@@ -7,6 +7,7 @@ services:
     restart: always
     ports:
       - "5010:5010"
+      - "5013:5013"
     volumes:
       - ../:/opt/
       - /opt/backend/.venv/

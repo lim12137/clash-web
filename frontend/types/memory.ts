@@ -13,12 +13,10 @@ export interface MemoryGroup {
   items: MemoryItem[]
 }
 
-// ======================= 常量 =======================
-
-// 分页大小
+// Page size
 export const pageSize = 4
 
-// 共享策略下拉标签
+// Share strategy dropdown label
 export const shareLabels: Record<"always" | "ask" | "never", string> = {
   always: "总是共享",
   ask: "每次询问我",

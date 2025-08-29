@@ -8,13 +8,6 @@ import { getAuthHeaders, fetchWithAuth } from '@/lib/auth';
 // @ts-ignore
 const fetch = fetchWithAuth;
 
-export interface STTResponse {
-  result?: {
-    text: string;
-  };
-  text?: string;
-}
-
 // This helper function now ALWAYS connects through the current host and port.
 // This relies on our custom `server.js` to handle the proxying in all environments.
 const getWebSocketUrl = (endpoint: string): string => {
@@ -184,6 +177,7 @@ export const conversationService = {
   // Add TTS related functionality
   tts: {
     // Create WebSocket connection
+    // TODO: explain why we need to create a WebSocket connection for TTS
     createWebSocket(): WebSocket {
       return new WebSocket(getWebSocketUrl(API_ENDPOINTS.tts.ws));
     },
@@ -784,32 +778,6 @@ export const conversationService = {
     }
   },
 
-  // Get message source (image and search)
-  async getSources(params: {
-    conversation_id?: number;
-    message_id?: number;
-    type?: 'all' | 'image' | 'search';
-  }) {
-    try {
-      const response = await fetch(API_ENDPOINTS.conversation.sources, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(params),
-      });
-
-      const data = await response.json();
-
-      if (data.code === 0) {
-        return data.data;
-      }
-
-      throw new ApiError(data.code, data.message);
-    } catch (error: any) {
-      console.error('获取消息来源失败:', error);
-      throw error;
-    }
-  },
-
   // Generate conversation title
   async generateTitle(params: {
     conversation_id: number;
@@ -827,35 +795,6 @@ export const conversationService = {
       return data.data;
     }
 
-    throw new ApiError(data.code, data.message);
-  },
-
-  // Save message
-  async saveMessage(params: {
-    conversation_id: number;
-    message_idx: string;
-    role: "user" | "assistant";
-    message: any[];
-    minio_files?: Array<{
-      object_name: string;
-      name: string;
-      type: string;
-      size: number;
-      url?: string;
-    }>;
-  }) {
-    const response = await fetch(API_ENDPOINTS.conversation.save, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(params),
-    });
-
-    const data = await response.json();
-    
-    if (data.code === 0) {
-      return data.data;
-    }
-    
     throw new ApiError(data.code, data.message);
   },
 
