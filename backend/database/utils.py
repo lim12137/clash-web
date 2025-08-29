@@ -1,8 +1,4 @@
-from typing import Dict, Any, Optional, List, Tuple
-
-from fastapi import Header
-
-from utils.auth_utils import get_current_user_id_from_token
+from typing import Dict, Any
 
 
 # 全局追踪字段管理方法

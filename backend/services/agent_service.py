@@ -3,22 +3,22 @@ import json
 import logging
 from collections import deque
 
-from fastapi import Header, Request, HTTPException
+from fastapi import Header, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from consts.model import AgentRequest
 from agents.create_agent_info import create_tool_config_list
-from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest, MCPInfo
-from database.agent_db import create_agent, query_all_enabled_tool_instances, \
-     search_blank_sub_agent_by_main_agent_id, \
-    search_tools_for_sub_agent, search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_tools, \
-    create_or_update_tool_by_tool_info, check_tool_is_available, query_all_agent_info_by_tenant_id, \
-    query_sub_agents_id_list, insert_related_agent, delete_all_related_agent, search_agent_id_by_agent_name
+from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest, ToolSourceEnum, MCPInfo
+from database.agent_db import create_agent, search_blank_sub_agent_by_main_agent_id, \
+    search_agent_info_by_agent_id, update_agent, delete_agent_by_id, query_all_agent_info_by_tenant_id, \
+    query_sub_agents_id_list, insert_related_agent, delete_agent_relationship, search_agent_id_by_agent_name
+from database.tool_db import create_or_update_tool_by_tool_info, query_all_tools, query_all_enabled_tool_instances, \
+    search_tools_for_sub_agent, check_tool_is_available, delete_tools_by_agent_id
 from database.remote_mcp_db import get_mcp_server_by_name_and_tenant, check_mcp_name_exists
 from services.remote_mcp_service import add_remote_mcp_server_list
 from services.tool_configuration_service import update_tool_list
 from services.conversation_management_service import save_conversation_user, save_conversation_assistant
 
-from utils.auth_utils import get_current_user_info
+from utils.auth_utils import get_current_user_info, get_user_language
 from utils.memory_utils import build_memory_config
 from utils.thread_utils import submit
 from nexent.memory.memory_service import clear_memory
@@ -31,16 +31,15 @@ from agents.preprocess_manager import preprocess_manager
 
 logger = logging.getLogger("agent_service")
 
-def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str, user_id: str = None):
-    # now only admin can modify the tool, user_id is not used
-    all_tool_instance = query_all_enabled_tool_instances(agent_id=agent_id, tenant_id=tenant_id, user_id=None)
+def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str):
+    all_tool_instance = query_all_enabled_tool_instances(agent_id=agent_id, tenant_id=tenant_id)
     enable_tool_id_set = set()
     for tool_instance in all_tool_instance:
         if tool_instance["enabled"]:
             enable_tool_id_set.add(tool_instance["tool_id"])
     return list(enable_tool_id_set)
 
-def get_creating_sub_agent_id_service(tenant_id: str, user_id: str = None) -> int:
+async def get_creating_sub_agent_id_service(tenant_id: str, user_id: str = None) -> int:
     """
         first find the blank sub agent, if it exists, it means the agent was created before, but exited prematurely;
                                   if it does not exist, create a new one
@@ -52,7 +51,7 @@ def get_creating_sub_agent_id_service(tenant_id: str, user_id: str = None) -> in
         return create_agent(agent_info={"enabled": False}, tenant_id=tenant_id, user_id=user_id)["agent_id"]
 
 
-def get_agent_info_impl(agent_id: int, tenant_id: str):
+async def get_agent_info_impl(agent_id: int, tenant_id: str):
     try:    
         agent_info = search_agent_info_by_agent_id(agent_id, tenant_id)
     except Exception as e:
@@ -76,11 +75,11 @@ def get_agent_info_impl(agent_id: int, tenant_id: str):
     return agent_info
 
 
-def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
+async def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
     user_id, tenant_id, _ = get_current_user_info(authorization)
     
     try:
-        sub_agent_id = get_creating_sub_agent_id_service(tenant_id, user_id)
+        sub_agent_id = await get_creating_sub_agent_id_service(tenant_id, user_id)
     except Exception as e:
         logger.error(f"Failed to get creating sub agent id: {str(e)}")
         raise ValueError(f"Failed to get creating sub agent id: {str(e)}")
@@ -92,7 +91,7 @@ def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
         raise ValueError(f"Failed to get sub agent info: {str(e)}")
     
     try:
-        enable_tool_id_list = get_enable_tool_id_by_agent_id(sub_agent_id, tenant_id, user_id)
+        enable_tool_id_list = get_enable_tool_id_by_agent_id(sub_agent_id, tenant_id)
     except Exception as e:
         logger.error(f"Failed to get sub agent enable tool id list: {str(e)}")
         raise ValueError(f"Failed to get sub agent enable tool id list: {str(e)}")
@@ -107,7 +106,7 @@ def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
             "few_shots_prompt": agent_info.get("few_shots_prompt"),
             "sub_agent_id_list": query_sub_agents_id_list(main_agent_id=sub_agent_id, tenant_id=tenant_id)}
 
-def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Header(None)):
+async def update_agent_info_impl(request: AgentInfoRequest, authorization: str = Header(None)):
     user_id, tenant_id, _ = get_current_user_info(authorization)
     
     try:
@@ -121,14 +120,14 @@ async def delete_agent_impl(agent_id: int, authorization: str = Header(None)):
 
     try:
         delete_agent_by_id(agent_id, tenant_id, user_id)
-        delete_all_related_agent(agent_id, tenant_id)
-        
+        delete_agent_relationship(agent_id, tenant_id, user_id)
+        delete_tools_by_agent_id(agent_id, tenant_id, user_id)
+
         # Clean up all memory data related to the agent
         await clear_agent_memory(agent_id, tenant_id, user_id)
     except Exception as e:
         logger.error(f"Failed to delete agent: {str(e)}")
         raise ValueError(f"Failed to delete agent: {str(e)}")
-
 
 async def clear_agent_memory(agent_id: int, tenant_id: str, user_id: str):
     """
@@ -283,7 +282,7 @@ async def import_agent_impl(agent_info: ExportAndImportDataFormat, authorization
                     else:
                         # Name doesn't exist, use original name
                         mcp_server_name = mcp_info.mcp_server_name
-                    
+
                     result = await add_remote_mcp_server_list(
                         tenant_id=tenant_id,
                         user_id=user_id,
@@ -399,7 +398,7 @@ def load_default_agents_json_file(default_agent_path):
     return all_json_files
 
 
-def list_all_agent_info_impl(tenant_id: str, user_id: str) -> list[dict]:
+async def list_all_agent_info_impl(tenant_id: str) -> list[dict]:
     """
     list all agent info
 
@@ -471,11 +470,14 @@ def insert_related_agent_impl(parent_agent_id, child_agent_id, tenant_id):
 
 
 # Helper function for run_agent_stream, used to prepare context for an agent run
-async def prepare_agent_run(agent_request: AgentRequest, http_request: Request, authorization: str):
+async def prepare_agent_run(agent_request: AgentRequest, http_request: Request, authorization: str, user_id: str=None, tenant_id: str=None):
     """
     Prepare for an agent run by creating context and run info, and registering the run.
     """
-    user_id, tenant_id, language = get_current_user_info(authorization, http_request)
+    if user_id is None or tenant_id is None:
+        user_id, tenant_id, language = get_current_user_info(authorization, http_request)
+    else:
+        language = get_user_language()
 
     memory_context = build_memory_context(user_id, tenant_id, agent_request.agent_id)
     agent_run_info = await create_agent_run_info(agent_id=agent_request.agent_id,
@@ -489,7 +491,7 @@ async def prepare_agent_run(agent_request: AgentRequest, http_request: Request, 
 
 
 # Helper function for run_agent_stream, used to save messages for either user or assistant
-def save_messages(agent_request, target:str, messages=None, authorization=None):
+def save_messages(agent_request, target: str, messages=None, authorization=None):
     if target == "user":
         if messages is not None:
             raise ValueError("Messages should be None when saving for user.")
@@ -509,7 +511,7 @@ async def generate_stream(agent_run_info, memory_context, agent_request: AgentRe
             yield f"data: {chunk}\n\n"
     except Exception as e:
         logger.error(f"Agent run error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Agent run error: {str(e)}")
+        raise Exception("Agent run error")
     finally:
         # Save assistant message only if not in debug mode
         if not agent_request.is_debug:
@@ -518,22 +520,24 @@ async def generate_stream(agent_run_info, memory_context, agent_request: AgentRe
         agent_run_manager.unregister_agent_run(agent_request.conversation_id)
 
 
-async def run_agent_stream(agent_request: AgentRequest, http_request: Request, authorization: str):
+async def run_agent_stream(agent_request: AgentRequest, http_request: Request, authorization: str, user_id: str=None, tenant_id: str=None):
     """
-    Start an agent run and stream responses, using explicit user/tenant context.
+    Start an agent run and stream responses.
     Mirrors the logic of agent_app.agent_run_api but reusable by services.
     """
     agent_run_info, memory_context = await prepare_agent_run(
         agent_request=agent_request,
         http_request=http_request,
-        authorization=authorization
+        authorization=authorization,
+        user_id=user_id,
+        tenant_id=tenant_id
     )
 
     # Save user message only if not in debug mode
     if not agent_request.is_debug:
         save_messages(
-            agent_request, 
-            target="user", 
+            agent_request,
+            target="user",
             authorization=authorization
         )
 
@@ -574,14 +578,120 @@ def stop_agent_tasks(conversation_id: int):
         return {"status": "error", "message": message}
 
 
-def get_agent_id_by_name(agent_name: str, tenant_id: str) -> int:
+async def get_agent_id_by_name(agent_name: str, tenant_id: str) -> int:
     """
     Resolve unique agent id by its unique name under the same tenant.
     """
     if not agent_name:
-        raise HTTPException(status_code=400, detail="agent_name required")
+        raise Exception("agent_name required")
     try:
         return search_agent_id_by_agent_name(agent_name, tenant_id)
     except Exception as _:
         logger.error(f"Failed to find agent id with '{agent_name}' in tenant {tenant_id}")
-        raise HTTPException(status_code=404, detail="agent not found")
+        raise Exception("agent not found")
+
+
+
+def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
+    """
+    Get agent call relationship tree including tools and sub-agents
+
+    Args:
+        agent_id (int): agent id
+        tenant_id (str): tenant id
+
+    Returns:
+        dict: agent call relationship tree structure
+    """
+    # Tool type specification: meets test expectations
+    _TYPE_MAPPING = {
+        "mcp": "MCP",
+        "langchain": "LangChain",
+        "local": "Local",
+    }
+
+    def _normalize_tool_type(source: str) -> str:
+        """Normalize the source from database to the expected display type for testing."""
+        if not source:
+            return "UNKNOWN"
+        s = str(source)
+        ls = s.lower()
+        if ls in _TYPE_MAPPING:
+            return _TYPE_MAPPING[ls]
+        # Unknown source: capitalize first letter, keep the rest unchanged (unknown_source -> Unknown_source)
+        return s[:1].upper() + s[1:]
+
+    try:
+
+        agent_info = search_agent_info_by_agent_id(agent_id, tenant_id)
+        if not agent_info:
+            raise ValueError(f"Agent {agent_id} not found")
+
+
+        tool_info = search_tools_for_sub_agent(agent_id=agent_id, tenant_id=tenant_id)
+        tools = []
+        for tool in tool_info:
+            tool_name = tool.get("name") or tool.get("tool_name") or str(tool["tool_id"])
+            tool_source = tool.get("source", ToolSourceEnum.LOCAL.value)
+            tool_type = _normalize_tool_type(tool_source)
+
+            tools.append({
+                "tool_id": tool["tool_id"],
+                "name": tool_name,
+                "type": tool_type
+            })
+
+
+        def get_sub_agents_recursive(parent_agent_id: int, depth: int = 0, max_depth: int = 5) -> list:
+            if depth >= max_depth:
+                return []
+
+            sub_agent_id_list = query_sub_agents_id_list(main_agent_id=parent_agent_id, tenant_id=tenant_id)
+            sub_agents = []
+
+            for sub_agent_id in sub_agent_id_list:
+                try:
+                    sub_agent_info = search_agent_info_by_agent_id(sub_agent_id, tenant_id)
+                    if sub_agent_info:
+
+                        sub_tool_info = search_tools_for_sub_agent(agent_id=sub_agent_id, tenant_id=tenant_id)
+                        sub_tools = []
+                        for tool in sub_tool_info:
+                            tool_name = tool.get("name") or tool.get("tool_name") or str(tool["tool_id"])
+                            tool_source = tool.get("source", ToolSourceEnum.LOCAL.value)
+                            tool_type = _normalize_tool_type(tool_source)
+
+                            sub_tools.append({
+                                "tool_id": tool["tool_id"],
+                                "name": tool_name,
+                                "type": tool_type
+                            })
+
+
+                        deeper_sub_agents = get_sub_agents_recursive(sub_agent_id, depth + 1, max_depth)
+
+                        sub_agents.append({
+                            "agent_id": str(sub_agent_id),
+                            "name": sub_agent_info.get("display_name") or sub_agent_info.get("name", f"Agent {sub_agent_id}"),
+                            "tools": sub_tools,
+                            "sub_agents": deeper_sub_agents,
+                            "depth": depth + 1
+                        })
+                except Exception as e:
+                    logger.warning(f"Failed to get sub-agent {sub_agent_id} info: {str(e)}")
+                    continue
+
+            return sub_agents
+
+        sub_agents = get_sub_agents_recursive(agent_id)
+
+        return {
+            "agent_id": str(agent_id),
+            "name": agent_info.get("display_name") or agent_info.get("name", f"Agent {agent_id}"),
+            "tools": tools,
+            "sub_agents": sub_agents
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to get agent call relationship for agent {agent_id}: {str(e)}")
+        raise ValueError(f"Failed to get agent call relationship: {str(e)}")

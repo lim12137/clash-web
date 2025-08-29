@@ -1,16 +1,16 @@
-// 知识库相关类型定义
+// Knowledge base related type definitions
 
-// 文档状态常量
+// Document status constants
 export const NON_TERMINAL_STATUSES = ["WAIT_FOR_PROCESSING", "PROCESSING", "WAIT_FOR_FORWARDING", "FORWARDING"];
 
-// 知识库基本类型
+// Knowledge base basic type
 export interface KnowledgeBase {
   id: string
   name: string
   description: string | null
   chunkCount: number
   documentCount: number
-  createdAt: string
+  createdAt: any
   embeddingModel: string
   avatar: string
   chunkNum: number
@@ -19,10 +19,10 @@ export interface KnowledgeBase {
   parserId: string
   permission: string
   tokenNum: number
-  source: string // 来自deepdoc还是modelengine
+  source: string
 }
 
-// 创建知识库的参数类型
+// Create knowledge base parameter type
 export interface KnowledgeBaseCreateParams {
   name: string;
   description: string;
@@ -30,7 +30,7 @@ export interface KnowledgeBaseCreateParams {
   embeddingModel?: string;
 }
 
-// 文档类型
+// Document type
 export interface Document {
   id: string
   kb_id: string
@@ -41,6 +41,6 @@ export interface Document {
   chunk_num: number
   token_num: number
   status: string
-  selected?: boolean // 用于UI选择状态
-  latest_task_id: string //用于标记对应的最新celery任务
+  selected?: boolean // For UI selection status
+  latest_task_id: string // For marking the latest celery task
 }

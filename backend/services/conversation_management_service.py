@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import yaml
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from jinja2 import StrictUndefined, Template
@@ -16,7 +15,7 @@ from database.conversation_db import create_conversation_message, create_source_
     delete_conversation, get_conversation, create_conversation, update_message_opinion
 
 from utils.config_utils import tenant_config_manager,get_model_name_from_config
-from utils.auth_utils import get_current_user_id_from_token
+from utils.auth_utils import get_current_user_id
 from nexent.core.utils.observer import ProcessType
 from utils.str_utils import remove_think_tags, add_no_think_token
 from utils.prompt_template_utils import get_generate_title_prompt_template
@@ -44,7 +43,13 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
             - message: "success" success message
     """
     try:
-        user_id = get_current_user_id_from_token(authorization)
+        # Authorization may be a FastAPI Header object or None when called outside a request
+        user_id = None
+        if isinstance(authorization, str) and authorization:
+            try:
+                user_id = get_current_user_id(authorization)
+            except Exception as auth_error:
+                logging.warning(f"Ignoring authorization during save_message: {auth_error}")
         message_data = request.model_dump()
 
         # Validate conversation_id
@@ -386,10 +391,8 @@ def get_conversation_history_service(conversation_id: int, user_id: str) -> List
         history_data = get_conversation_history(conversation_id, user_id)
 
         if not history_data:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Conversation {conversation_id} does not exist or has been deleted"
-            )
+            logging.debug(f"No history data found for conversation_id: {conversation_id}")
+            return []
 
         # Collect search content, grouped by unit_id
         search_by_unit_id = {}

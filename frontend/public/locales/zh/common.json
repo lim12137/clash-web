@@ -302,7 +302,7 @@
 
     "guide.steps.createOrEditAgent.title": "新建/修改Agent",
     "guide.steps.createOrEditAgent.description": "用于管理所有agent信息",
-    "guide.steps.selectCollaborativeAgent.title": "选择协作Agent（可选）",
+    "guide.steps.selectCollaborativeAgent.title": "选择协作Agent",
     "guide.steps.selectCollaborativeAgent.description": "可以帮助当前agent完成任务",
     "guide.steps.selectTools.title": "选择使用工具",
     "guide.steps.selectTools.description": "agent可以调用工具完成任务",
@@ -393,12 +393,12 @@
     "common.enabled": "已启用",
     "common.disabled": "已禁用",
     "common.unknownError": "未知错误",
-    "agent.action.create": "新建Agent",
+    "agent.action.create": "创建Agent",
     "agent.action.modify": "修改",
     "agent.action.importing": "导入中...",
     "agent.action.import": "导入Agent",
+    "agent.action.viewCallRelationship": "查看调用关系",
     "agent.message.saveSuccess": "Agent \"{name}\" {action}成功",
-    "agent.message.infoLoaded": "Agent信息已加载",
     "agent.message.statusUpdated": "Agent \"{name}\" {status}",
     "agent.message.modelUpdateSuccess": "模型更新成功",
     "agent.message.maxStepsUpdateSuccess": "最大步骤数更新成功",
@@ -591,8 +591,6 @@
     "setup.header.button.back": "返回首页",
     "setup.header.title": "快速配置",
     "setup.header.description": "智能生成每一种助手，精准解决每一个问题",
-    "setup.header.tooltip.lastChecked": "上次检查: {{time}}",
-    "setup.header.tooltip.checkStatus": "点击检查连接状态",
     "setup.navigation.button.previous": "上一步",
     "setup.navigation.button.next": "下一步",
     "setup.navigation.button.complete": "完成配置",
@@ -822,7 +820,6 @@
     "businessLogic.config.modal.button.cancel": "取消",
     "businessLogic.config.modal.button.confirm": "确认删除",
     "businessLogic.config.message.agentCreated": "Agent {{name}} {{action}}成功",
-    "businessLogic.config.message.agentInfoLoaded": "Agent信息已加载",
     "businessLogic.config.message.agentStatusUpdated": "Agent {{name}} {{status}}",
     "businessLogic.config.message.modelUpdateSuccess": "模型更新成功",
     "businessLogic.config.message.maxStepsUpdateSuccess": "最大步骤数更新成功",
@@ -1003,15 +1000,8 @@
     "mcpConfig.message.invalidServerName": "服务器名称只能包含英文字母和数字",
     "mcpConfig.message.serverNameTooLong": "服务器名称长度不能超过20个字符",
     "mcpConfig.message.serverExists": "服务器名称或URL已存在",
-    "mcpConfig.message.addServerSuccess": "添加MCP服务器成功，正在自动更新工具列表...",
-    "mcpConfig.message.addServerSuccessToolsUpdated": "MCP服务器添加成功，工具列表已更新",
-    "mcpConfig.message.addServerSuccessToolsFailed": "MCP服务器添加成功，但工具列表更新失败",
     "mcpConfig.message.addServerFailed": "添加服务器失败",
-    "mcpConfig.message.deleteServerSuccess": "删除MCP服务器成功",
     "mcpConfig.message.deleteServerFailed": "删除服务器失败",
-    "mcpConfig.message.updatingToolsList": "正在自动更新工具列表...",
-    "mcpConfig.message.toolsListUpdated": "工具列表已更新",
-    "mcpConfig.message.toolsListUpdateFailed": "工具列表更新失败",
     "mcpConfig.message.getToolsFailed": "获取工具列表失败",
     "mcpConfig.message.remountSuccess": "重新挂载MCP服务器成功",
     "mcpConfig.message.remountFailed": "重新挂载MCP服务器失败",
@@ -1133,7 +1123,7 @@
         "inputPlaceholder": "请输入记忆内容"
     },
     "collaborativeAgent": {
-        "title": "协作Agent",
+        "title": "选择协作的 Agent",
         "button": {
             "add": "添加协作Agent"
         },
@@ -1162,5 +1152,7 @@
     "common.button.editConfig": "修改配置",
     "common.message.refreshSuccess": "刷新成功",
     "common.message.refreshFailed": "刷新失败",
-    "model.dialog.success.updateSuccess": "更新成功"
+    "model.dialog.success.updateSuccess": "更新成功",
+    "agentCallRelationship": {"title": "查看调用关系", "loading": "正在加载调用关系...", "description": "此流程图显示了 {{name}} 及其所有工具和协作Agent的调用关系", "noData": "暂无调用关系数据", "nodeType": {"main": "主代理", "sub": "子代理", "tool": "工具"}},
+    "agentConfig": {"error": {"fetchToolsFailed": "获取工具列表失败，请稍后重试", "fetchAgentListFailed": "获取Agent列表失败，请稍后重试", "fetchCreatingSubAgentIdFailed": "获取创建子Agent ID失败，请稍后重试", "fetchAgentDetailsFailed": "获取Agent详情失败，请稍后重试", "fetchAgentCallRelationshipFailed": "获取Agent调用关系失败，请稍后重试"}}
 }

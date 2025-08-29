@@ -27,6 +27,13 @@ else
     echo "⚠️ Unable to connect to container via SSH"
 fi
 
+# Configure conda auto-activation for development user
+echo "Configuring conda auto-activation for user $DEV_USER..."
+echo 'export PATH="/opt/conda/bin:$PATH"' >> "$USER_HOME/.bashrc"
+echo 'source /opt/conda/etc/profile.d/conda.sh' >> "$USER_HOME/.bashrc"
+echo 'conda activate base' >> "$USER_HOME/.bashrc"
+chown $DEV_USER:$DEV_USER "$USER_HOME/.bashrc"
+
 # Configure SSH timeout settings
 echo "Configuring SSH timeout settings (60 minutes)..."
 cat >> /etc/ssh/sshd_config << 'SSHD_EOF'

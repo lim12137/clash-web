@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Tag, App } from 'antd'
 import { PlusOutlined, CloseOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
-import { Agent } from '../ConstInterface'
+import { Agent } from '@/types/agent'
 import { addRelatedAgent, deleteRelatedAgent } from '@/services/agentConfigService'
 
 interface CollaborativeAgentDisplayProps {
@@ -196,7 +196,7 @@ export default function CollaborativeAgentDisplay({
       </div>
       
       {/* Tag display area - fixed height to avoid layout jumping */}
-      <div className="bg-gray-50 rounded-md border-2 border-gray-200 p-4 overflow-y-auto relative shadow-sm h-[100px] lg:h-[120px] w-[98%]">
+      <div className="bg-gray-50 rounded-md border-2 border-gray-200 p-4 overflow-y-auto relative shadow-sm h-[80px] lg:h-[90px] w-[98%]">
         <div className={`flex flex-wrap gap-2 min-h-[32px] transition-opacity duration-300 ${
           isEditingMode ? 'opacity-100' : 'opacity-0'
         }`}>

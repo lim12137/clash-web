@@ -32,8 +32,6 @@ services:
       cluster.routing.allocation.disk.watermark.low: "5gb"
       cluster.routing.allocation.disk.watermark.high: "3gb"
       cluster.routing.allocation.disk.watermark.flood_stage: "2gb"
-      # Timezone setting
-      TZ: "Asia/Shanghai"
     volumes:
       - ${ROOT_DIR}/elasticsearch:/usr/share/elasticsearch/data
     networks:
@@ -57,7 +55,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${NEXENT_POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      TZ: "Asia/Shanghai"
     volumes:
       - ${ROOT_DIR}/postgresql/data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -96,7 +93,9 @@ services:
         max-file: "3"    # Maximum number of log files to keep
     networks:
       - nexent
-    entrypoint: ["/bin/bash", "-c", "python backend/nexent_mcp_service.py & python backend/main_service.py"]
+    ports:
+      - "5013:5013"  # Northbound service port
+    entrypoint: ["/bin/bash", "-c", "python backend/nexent_mcp_service.py & python backend/northbound_service.py & python backend/main_service.py"]
 
   nexent-web:
     image: ${NEXENT_WEB_IMAGE}
@@ -155,7 +154,7 @@ services:
     container_name: nexent-redis
     command: redis-server --appendonly yes --appendfsync everysec --save "900 1" --save "300 10" --save "60 10000" --dir /data --maxmemory-policy allkeys-lru
     volumes:
-      - ${ROOT_DIR}/redis_data:/data
+      - ${ROOT_DIR}/redis:/data
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
@@ -173,7 +172,6 @@ services:
       <<: [*minio-vars, *proxy-vars]
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      TZ: "Asia/Shanghai"
     volumes:
       - ${ROOT_DIR}/minio/data:/data
     networks:
@@ -202,7 +200,6 @@ services:
     container_name: nexent-openssh-server
     hostname: nexent-openssh-server
     environment:
-      - TZ=Asia/Shanghai
       - DEV_USER=linuxserver.io
     volumes:
       - ${TERMINAL_MOUNT_DIR:-./workspace}:/opt/terminal

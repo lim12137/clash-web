@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
     detail: (id: number) => `${API_BASE_URL}/conversation/${id}`,
     delete: (id: number) => `${API_BASE_URL}/conversation/${id}`,
     generateTitle: `${API_BASE_URL}/conversation/generate_title`,
+    // TODO: Remove this endpoint
     sources: `${API_BASE_URL}/conversation/sources`,
     opinion: `${API_BASE_URL}/conversation/message/update_opinion`,
     messageId: `${API_BASE_URL}/conversation/message/id`,
@@ -36,6 +37,7 @@ export const API_ENDPOINTS = {
     searchInfo: `${API_BASE_URL}/agent/search_info`,
     relatedAgent: `${API_BASE_URL}/agent/related_agent`,
     deleteRelatedAgent: `${API_BASE_URL}/agent/delete_related_agent`,
+    callRelationship: `${API_BASE_URL}/agent/call_relationship`,
   },
   tool: {
     list: `${API_BASE_URL}/tool/list`,
