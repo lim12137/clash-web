@@ -25,7 +25,7 @@ sys.modules['consts.const'] = consts_mock.const
 # 模拟utils模块
 utils_mock = MagicMock()
 utils_mock.auth_utils = MagicMock()
-utils_mock.auth_utils.get_current_user_id_from_token = MagicMock(return_value="test_user_id")
+utils_mock.auth_utils.get_current_user_id = MagicMock(return_value=("test_user_id", "test_tenant_id"))
 
 # 将模拟的utils模块添加到sys.modules中
 sys.modules['utils'] = utils_mock

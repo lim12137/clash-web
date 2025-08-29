@@ -80,7 +80,9 @@ class TestPromptService(unittest.TestCase):
     @patch('backend.services.prompt_service.get_enabled_tool_description_for_generate_prompt')
     @patch('backend.services.prompt_service.get_current_user_info')
     @patch('backend.services.prompt_service.update_agent')
-    def test_generate_and_save_system_prompt_impl(self, mock_update_agent, mock_get_user_info,
+    @patch('nexent.vector_database.elasticsearch_core.ElasticSearchCore')
+    @patch('elasticsearch.Elasticsearch')
+    async def test_generate_and_save_system_prompt_impl(self, mock_update_agent, mock_get_user_info,
                                          mock_get_tool_desc, mock_get_agent_desc, 
                                          mock_generate_system_prompt):
         # Setup
@@ -106,7 +108,7 @@ class TestPromptService(unittest.TestCase):
         mock_generate_system_prompt.side_effect = mock_generator
         
         # Execute - test as a generator
-        result_gen = generate_and_save_system_prompt_impl(123, "Test task", "fake-auth-token")
+        result_gen = await generate_and_save_system_prompt_impl(123, "Test task", "fake-auth-token")
         result = list(result_gen)  # Convert generator to list for assertion
         
         # Assert
@@ -118,7 +120,8 @@ class TestPromptService(unittest.TestCase):
             {"type": "constraint", "content": "Final constraint prompt", "is_complete": True},
             {"type": "few_shots", "content": "Final few shots prompt", "is_complete": True}
         ]
-        self.assertEqual(result, expected_results)
+        this = self  # keep consistent context
+        this.assertEqual(result, expected_results)
         
         mock_get_user_info.assert_called_once_with("fake-auth-token", None)
         mock_get_tool_desc.assert_called_once_with(agent_id=123, tenant_id="tenant456")
@@ -367,14 +370,16 @@ class TestPromptService(unittest.TestCase):
         
     @patch('backend.services.prompt_service.get_enable_tool_id_by_agent_id')
     @patch('backend.services.prompt_service.query_tools_by_ids')
-    def test_get_enabled_tool_description_for_generate_prompt(self, mock_query_tools, mock_get_tool_ids):
+    @patch('nexent.vector_database.elasticsearch_core.ElasticSearchCore')
+    @patch('elasticsearch.Elasticsearch')
+    async def test_get_enabled_tool_description_for_generate_prompt(self, mock_query_tools, mock_get_tool_ids):
         # Setup
         mock_get_tool_ids.return_value = [1, 2, 3]
         mock_tools = [{"id": 1, "name": "tool1"}, {"id": 2, "name": "tool2"}, {"id": 3, "name": "tool3"}]
         mock_query_tools.return_value = mock_tools
         
         # Execute
-        result = get_enabled_tool_description_for_generate_prompt(
+        result = await get_enabled_tool_description_for_generate_prompt(
             agent_id=123, 
             tenant_id="tenant456"
         )

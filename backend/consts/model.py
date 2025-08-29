@@ -2,7 +2,6 @@ from enum import Enum
 from typing import Optional, Any, List, Dict
 
 from pydantic import BaseModel, Field, EmailStr
-
 from nexent.core.agents.agent_model import ToolConfig
 
 
@@ -25,6 +24,7 @@ class ModelConnectStatusEnum(Enum):
             return cls.NOT_DETECTED.value
         return status
 
+
 # Request models for user authentication
 STATUS_CODES = {
     "SUCCESS": 200,
@@ -38,6 +38,7 @@ STATUS_CODES = {
     "AUTH_SERVICE_UNAVAILABLE": 1007,
 }
 
+
 # 用户认证相关请求模型
 class UserSignUpRequest(BaseModel):
     """User registration request model"""
@@ -46,10 +47,12 @@ class UserSignUpRequest(BaseModel):
     is_admin: Optional[bool] = False
     invite_code: Optional[str] = None
 
+
 class UserSignInRequest(BaseModel):
     """User login request model"""
     email: EmailStr
     password: str
+
 
 class UserUpdateRequest(BaseModel):
     """User information update request model"""
@@ -141,7 +144,8 @@ class AgentRequest(BaseModel):
     conversation_id: Optional[int] = None
     is_set: Optional[bool] = False
     history: Optional[List[Dict]] = None
-    minio_files: Optional[List[Dict[str, Any]]] = None  # Complete list of attachment information
+    # Complete list of attachment information
+    minio_files: Optional[List[Dict[str, Any]]] = None
     agent_id: Optional[int] = None
     is_debug: Optional[bool] = False
 
@@ -156,7 +160,8 @@ class MessageRequest(BaseModel):
     message_idx: int  # Modified to integer type
     role: str
     message: List[MessageUnit]
-    minio_files: Optional[List[Dict[str, Any]]] = None  # Complete list of attachment information
+    # Complete list of attachment information
+    minio_files: Optional[List[Dict[str, Any]]] = None
 
 
 class ConversationRequest(BaseModel):
@@ -174,11 +179,6 @@ class RenameRequest(BaseModel):
     name: str
 
 
-class GenerateTitleRequest(BaseModel):
-    conversation_id: int
-    history: List[Dict[str, str]]
-
-
 # Pydantic models for API
 class TaskRequest(BaseModel):
     source: str
@@ -189,9 +189,9 @@ class TaskRequest(BaseModel):
     additional_params: Dict[str, Any] = Field(default_factory=dict)
 
 
-
 class BatchTaskRequest(BaseModel):
-    sources: List[Dict[str, Any]] = Field(..., description="List of source objects to process")
+    sources: List[Dict[str, Any]
+                  ] = Field(..., description="List of source objects to process")
 
 
 class TaskResponse(BaseModel):
@@ -254,6 +254,7 @@ class FineTunePromptRequest(BaseModel):
     agent_id: int
     system_prompt: str
     command: str
+
 
 # used in agent/search agent/update for save agent info
 class AgentInfoRequest(BaseModel):
@@ -363,7 +364,6 @@ class ConvertStateResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Memory Feature Data Models (Missing previously)
 # ---------------------------------------------------------------------------
-
 class MemoryAgentShareMode(str, Enum):
     """Memory sharing mode for agent-level memory.
 
