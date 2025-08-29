@@ -9,8 +9,16 @@ on:
         default: '["ubuntu-latest"]'
   pull_request:
     branches: [develop]
+    paths:
+      - 'backend/**'
+      - 'sdk/**'
+      - 'test/**'
   push:
     branches: [develop]
+    paths:
+      - 'backend/**'
+      - 'sdk/**'
+      - 'test/**'
 
 jobs:
   test:
