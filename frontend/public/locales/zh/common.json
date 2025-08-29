@@ -69,14 +69,20 @@
     "chatInput.fileCountExceedsLimit": "文件数量超过限制，最多只能上传{{count}}个文件",
     "chatInput.fileSizeExceedsLimit": "文件\"{{name}}\"超过大小限制，单个文件最大10MB",
     "chatInput.unsupportedFileType": "文件\"{{name}}\"不是支持的文件类型，支持的格式包括：图片、文档（PDF、Word、Excel、PPT）、纯文本、CSV/TSV、Markdown",
+    "chatInput.unsupportedFileTypeSimple": "不支持的文件类型",
     "chatInput.dragAndDropFilesHere": "文件拖动到此处即可上传",
     "chatInput.supportedFileFormats": "支持的格式包括：图片、文档（PDF、Word、Excel、PPT）、纯文本、CSV/TSV、Markdown",
     "chatInput.sendMessageTo": "给 {{appName}} 发送消息",
     "chatInput.stopRecording": "停止录音",
     "chatInput.startRecording": "开始录音",
+    "chatInput.uploadFiles": "上传文件",
+    "chatInput.stopGenerating": "停止生成",
+    "chatInput.recording": "正在录音...",
+    "chatInput.recordingError": "录音出错，请重试",
     "chatInput.helloIm": "你好，我是{{appName}}",
     "chatInput.introMessage": "我可以帮你写代码、读文件、查资料各种创意内容，请把你的任务交给我吧~",
     "chatInput.close": "关闭",
+    "chatInput.send": "发送",
     "chatInput.remove": "移除",
     "chatInput.wsConnectionEstablished": "WebSocket 连接已建立",
 
@@ -116,12 +122,7 @@
     "page.loginPrompt.header": "🚀 准备启航！",
     "page.loginPrompt.intro": "登录您的账户，开启智能问答之旅~",
     "page.loginPrompt.benefitsTitle": "✨ 登录后您将获得：",
-    "page.loginPrompt.benefits": [
-        "专属的对话历史记录",
-        "个性化的智能推荐",
-        "企业知识库完整访问权限",
-        "更精准的问答体验"
-    ],
+    "page.loginPrompt.benefits": ["专属的对话历史记录", "个性化的智能推荐", "企业知识库完整访问权限", "更精准的问答体验"],
     "page.loginPrompt.githubSupport": "⭐️ Nexent还在成长中，帮帮我到<1>GitHub</1>加星支持我吧，谢谢你。",
     "page.loginPrompt.noAccount": "还没有账号？点击\"注册\"按钮创建您的专属账号~",
     "page.adminPrompt.title": "啊哦，您不是管理员",
@@ -130,11 +131,7 @@
     "page.adminPrompt.unlockHeader": "🌟 成为管理员，解锁更多能力！",
     "page.adminPrompt.unlockIntro": "成为管理员后，您可以：",
     "page.adminPrompt.permissionsTitle": "✨ 管理员专属权限：",
-    "page.adminPrompt.permissions": [
-        "配置和管理自己的模型",
-        "制作和发布专属智能Agent",
-        "集成和配置自有工具"
-    ],
+    "page.adminPrompt.permissions": ["配置和管理自己的模型", "制作和发布专属智能Agent", "集成和配置自有工具"],
     "page.adminPrompt.githubSupport": "⭐️ Nexent还在成长中，帮帮我到<1>GitHub</1>加星支持我吧，谢谢你。",
     "page.adminPrompt.becomeAdmin": "💡 想成为管理员？请访问<1>官网联系页</1>，申请管理员账号。",
 
@@ -688,6 +685,10 @@
     "auth.inviteCodeHint.communityLink": "官方技术交流群",
     "auth.inviteCodeHint.projectLink": "项目地址",
     "auth.inviteCodeHint.starAction": "为我们点一个 Star",
+
+    "role_admin": "管理员",
+
+    "role_user": "普通用户",
 
     "toolManagement.refresh.title": "刷新工具列表",
     "toolManagement.refresh.button.refreshing": "刷新中",
