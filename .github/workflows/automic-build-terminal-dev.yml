@@ -18,9 +18,6 @@ on:
 jobs:
   build-terminal-amd64:
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      contains(toJSON(github.event.head_commit), 'make/terminal/')
     steps:
       - name: Set up Docker Buildx
         run: |
@@ -37,9 +34,6 @@ jobs:
 
   build-terminal-arm64:
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      contains(toJSON(github.event.head_commit), 'make/terminal/')
     steps:
       - name: Set up Docker Buildx
         run: |
