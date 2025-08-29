@@ -572,7 +572,7 @@ deploy_infrastructure() {
       fi
       
       # Start Supabase services
-      if ! docker-compose -p nexent -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d; then
+      if ! ${docker_compose_command} -p nexent -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d; then
           echo "   ❌ ERROR Failed to start supabase services"
           ERROR_OCCURRED=1
           return 1
