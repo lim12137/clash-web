@@ -1,7 +1,8 @@
 """
 Elasticsearch Application Interface Module
 
-This module provides REST API interfaces for interacting with Elasticsearch, including index management, document operations, and search functionality.
+This module provides REST API interfaces for interacting with Elasticsearch, including index management, document
+operations, and search functionality.
 Main features include:
 1. Index creation, deletion, and querying
 2. Document indexing, deletion, and searching
@@ -13,22 +14,26 @@ import logging
 import os
 import time
 from datetime import datetime, timezone
-from typing import Optional, Generator, List, Dict, Any
+from typing import Any, Dict, Generator, List, Optional
 
 from dotenv import load_dotenv
-from fastapi import Query, Body, Path, Depends
+from fastapi import Body, Depends, Path, Query
 from fastapi.responses import StreamingResponse
 from jinja2 import Template, StrictUndefined
+from nexent.core.models.embedding_model import OpenAICompatibleEmbedding, JinaEmbedding, BaseEmbedding
+from nexent.core.nlp.tokenizer import calculate_term_weights
+from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
 from consts.const import ES_API_KEY, ES_HOST
 from database.attachment_db import delete_file
-from database.knowledge_db import create_knowledge_record, get_knowledge_record, update_knowledge_record, \
-    delete_knowledge_record
-from nexent.core.models.embedding_model import OpenAICompatibleEmbedding, JinaEmbedding, BaseEmbedding
-from nexent.core.nlp.tokenizer import calculate_term_weights
-from nexent.vector_database.elasticsearch_core import ElasticSearchCore
+from database.knowledge_db import (
+    create_knowledge_record,
+    delete_knowledge_record,
+    get_knowledge_record,
+    update_knowledge_record,
+)
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
 from utils.prompt_template_utils import get_knowledge_summary_prompt_template
@@ -130,7 +135,7 @@ def get_embedding_model(tenant_id: str):
 
 class ElasticSearchService:
     @staticmethod
-    async def full_delete_knowledge_base(index_name: str, es_core: ElasticSearchCore, user_id: str, tenant_id: str):
+    async def full_delete_knowledge_base(index_name: str, es_core: ElasticSearchCore, user_id: str):
         """
         Completely delete a knowledge base, including its index, associated files in MinIO,
         and all related records in Redis and PostgreSQL.
@@ -142,7 +147,8 @@ class ElasticSearchService:
             logger.debug(
                 f"Step 1/4: Retrieving file list for index: {index_name}")
             try:
-                file_list_result = await ElasticSearchService.list_files(index_name, include_chunks=False, es_core=es_core)
+                file_list_result = await ElasticSearchService.list_files(index_name, include_chunks=False,
+                                                                         es_core=es_core)
                 files_to_delete = file_list_result.get("files", [])
                 logger.debug(
                     f"Found {len(files_to_delete)} files to delete from MinIO for index '{index_name}'.")
@@ -215,9 +221,11 @@ class ElasticSearchService:
             # Construct final result
             result = {
                 "status": "success",
-                "message": (f"Index {index_name} deleted successfully. "
-                            f"MinIO: {minio_deletion_success_count} files deleted, {minio_deletion_failure_count} failed. "
-                            f"Redis: Cleaned up {redis_cleanup_result.get('total_deleted', 0)} records."),
+                "message": (
+                    f"Index {index_name} deleted successfully. "
+                    f"MinIO: {minio_deletion_success_count} files deleted, {minio_deletion_failure_count} failed. "
+                    f"Redis: Cleaned up {redis_cleanup_result.get('total_deleted', 0)} records."
+                ),
                 "es_delete_result": delete_index_result,
                 "minio_cleanup": {
                     "total_files_found": len(files_to_delete),
@@ -330,7 +338,6 @@ class ElasticSearchService:
         Args:
             pattern: Pattern to match index names
             include_stats: Whether to include index stats
-            user_id: ID of the user listing the knowledge base
             tenant_id: ID of the tenant listing the knowledge base
             es_core: ElasticSearchCore instance
 
@@ -378,7 +385,8 @@ class ElasticSearchService:
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
-        Get detailed information about the index, including statistics, field mappings, file list, and processing information
+        Get detailed information about the index, including statistics, field mappings, file list, and processing
+        information
 
         Args:
             index_name: Index name
@@ -393,14 +401,12 @@ class ElasticSearchService:
             mappings = es_core.get_index_mapping([index_name])
 
             # Check if stats and mappings are valid
-            index_stats = None
             if stats and index_name in stats:
                 index_stats = stats[index_name]
             else:
                 logger.error(f"404: Index {index_name} not found in stats")
                 index_stats = {}
 
-            fields = None
             if mappings and index_name in mappings:
                 fields = mappings[index_name]
             else:
@@ -408,7 +414,6 @@ class ElasticSearchService:
                 fields = []
 
             # Check if base_info exists in stats
-            base_info = None
             search_performance = {}
             if index_stats and "base_info" in index_stats:
                 base_info = index_stats["base_info"]
@@ -759,7 +764,6 @@ class ElasticSearchService:
             index_name: Name of the index to summarize
             batch_size: Number of documents to process per batch
             es_core: ElasticSearchCore instance
-            user_id: ID of the user requesting the summary
             tenant_id: ID of the tenant
             language: Language of the summary (default: 'zh')
 
@@ -870,14 +874,15 @@ class ElasticSearchService:
         except Exception as e:
             raise Exception(f"Error retrieving random documents from index {index_name}: {str(e)}")
 
-    def change_summary(self,
-                       index_name: str = Path(
-                           ..., description="Name of the index to get documents from"),
-                       summary_result: Optional[str] = Body(
-                           description="knowledge base summary"),
-                       user_id: Optional[str] = Body(
-                           None, description="ID of the user delete the knowledge base")
-                       ):
+    @staticmethod
+    def change_summary(
+            index_name: str = Path(...,
+                                   description="Name of the index to get documents from"),
+            summary_result: Optional[str] = Body(
+                description="knowledge base summary"),
+            user_id: Optional[str] = Body(
+                None, description="ID of the user delete the knowledge base")
+    ):
         """
         Update the summary for the specified Elasticsearch index
 
@@ -896,21 +901,18 @@ class ElasticSearchService:
                 "index_name": index_name
             }
             update_knowledge_record(update_data)
-            return {"status": "success", "message": f"Index {index_name} summary updated successfully", "summary": summary_result}
+            return {"status": "success", "message": f"Index {index_name} summary updated successfully",
+                    "summary": summary_result}
         except Exception as e:
             raise Exception(f"{str(e)}")
 
-    def get_summary(self,
-                    index_name: str = Path(
-                        ..., description="Name of the index to get documents from"),
-                    language: str = 'zh'
-                    ):
+    @staticmethod
+    def get_summary(index_name: str = Path(..., description="Name of the index to get documents from")):
         """
         Get the summary for the specified Elasticsearch index
 
         Args:
             index_name: Name of the index to get summary from
-            language: Language of the summary (default: 'zh')
 
         Returns:
             Dictionary containing status and summary information

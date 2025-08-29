@@ -382,10 +382,8 @@ class TestElasticSearchService(unittest.TestCase):
         # Assert
         self.assertEqual(result["base_info"]["doc_count"], 10)
         self.assertEqual(len(result["fields"]), 2)
-        self.mock_es_core.get_index_stats.assert_called_once_with([
-                                                                  "test_index"])
-        self.mock_es_core.get_index_mapping.assert_called_once_with([
-                                                                    "test_index"])
+        self.mock_es_core.get_index_stats.assert_called_once_with(["test_index"])
+        self.mock_es_core.get_index_mapping.assert_called_once_with(["test_index"])
 
     def test_index_documents_success(self):
         """
@@ -1050,10 +1048,7 @@ class TestElasticSearchService(unittest.TestCase):
         }
 
         # Execute
-        result = self.es_service.get_summary(
-            index_name="test_index",
-            language='en'
-        )
+        result = self.es_service.get_summary(index_name="test_index")
 
         # Assert
         self.assertEqual(result["status"], "success")
@@ -1075,10 +1070,7 @@ class TestElasticSearchService(unittest.TestCase):
 
         # Execute and Assert
         with self.assertRaises(Exception) as context:
-            self.es_service.get_summary(
-                index_name="test_index",
-                language='en'
-            )
+            self.es_service.get_summary(index_name="test_index")
 
         self.assertIn("Unable to get summary", str(context.exception))
 
@@ -1305,10 +1297,7 @@ class TestElasticSearchService(unittest.TestCase):
         }
 
         # Execute
-        result = self.es_service.get_summary(
-            index_name="test_index",
-            language='en'
-        )
+        result = self.es_service.get_summary(index_name="test_index")
 
         # Assert
         self.assertEqual(result["status"], "success")
