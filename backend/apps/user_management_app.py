@@ -144,22 +144,13 @@ async def signup(request: UserSignUpRequest):
     if request.is_admin:
         logging.info("检测到管理员注册请求，开始验证邀请码")
 
-        # Try to get the invite code configuration from different sources
-        invite_code = INVITE_CODE
-        logging.info(f"从config_manager获取的INVITE_CODE: {invite_code}")
+        # Get the invite code from consts.const (which reads from environment variable)
+        logging.info(f"从consts.const获取的INVITE_CODE: {INVITE_CODE}")
 
-        # If config_manager does not get the invite code, try to get it directly from the environment variable
-        if not invite_code:
-            invite_code = os.getenv("INVITE_CODE")
-            logging.info(
-                f"INVITE_CODE from environment variable: {invite_code}")
-
-        if not invite_code:
+        if not INVITE_CODE:
             logging.error(
-                "Admin invite code not found in any configuration source")
-            logging.error("Please check the following configuration sources:")
-            logging.error("1. INVITE_CODE configuration in config_manager")
-            logging.error("2. INVITE_CODE environment variable")
+                "Admin invite code not found in configuration")
+            logging.error("Please check the INVITE_CODE environment variable")
             return ServiceResponse(
                 code=STATUS_CODES["SERVER_ERROR"],
                 message="Admin registration feature is not available, please contact the system administrator to configure the invite code",
@@ -182,9 +173,9 @@ async def signup(request: UserSignUpRequest):
                 }
             )
 
-        if request.invite_code != invite_code:
+        if request.invite_code != INVITE_CODE:
             logging.warning(
-                f"Admin invite code verification failed: user provided='{request.invite_code}', system configured='{invite_code}'")
+                f"Admin invite code verification failed: user provided='{request.invite_code}', system configured='{INVITE_CODE}'")
             return ServiceResponse(
                 code=STATUS_CODES["INVALID_INPUT"],
                 message="Admin invite code error, please check and re-enter",
