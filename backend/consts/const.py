@@ -153,4 +153,4 @@ LOCAL_MCP_SERVER = os.getenv("NEXENT_MCP_SERVER", "http://localhost:5011")
 
 
 # Invite code
-INVITE_CODE = os.getenv("INVITE_CODE", "nexent2025")
+INVITE_CODE = os.getenv("INVITE_CODE")
