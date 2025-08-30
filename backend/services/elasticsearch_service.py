@@ -326,8 +326,6 @@ class ElasticSearchService:
                 "*", description="Pattern to match index names"),
             include_stats: bool = Query(
                 False, description="Whether to include index stats"),
-            user_id: Optional[str] = Body(
-                None, description="ID of the user listing the knowledge base"),
             tenant_id: Optional[str] = Body(
                 None, description="ID of the tenant listing the knowledge base"),
             es_core: ElasticSearchCore = Depends(get_es_core)
@@ -437,11 +435,14 @@ class ElasticSearchService:
             error_msg = str(e)
             # Check if it's an ElasticSearch connection issue
             if "503" in error_msg or "search_phase_execution_exception" in error_msg:
-                raise Exception(f"ElasticSearch service unavailable for index {index_name}: {error_msg}")
+                raise Exception(
+                    f"ElasticSearch service unavailable for index {index_name}: {error_msg}")
             elif "ApiError" in error_msg:
-                raise Exception(f"ElasticSearch API error for index {index_name}: {error_msg}")
+                raise Exception(
+                    f"ElasticSearch API error for index {index_name}: {error_msg}")
             else:
-                raise Exception(f"Error getting info for index {index_name}: {error_msg}")
+                raise Exception(
+                    f"Error getting info for index {index_name}: {error_msg}")
 
     @staticmethod
     def index_documents(
@@ -474,7 +475,8 @@ class ElasticSearchService:
                         index_name, es_core=es_core)
                     logger.info(f"Created new index {index_name}")
                 except Exception as create_error:
-                    raise Exception(f"Failed to create index {index_name}: {str(create_error)}")
+                    raise Exception(
+                        f"Failed to create index {index_name}: {str(create_error)}")
 
             # Transform indexing request results to documents
             documents = []
@@ -706,7 +708,8 @@ class ElasticSearchService:
             return {"files": files}
 
         except Exception as e:
-            raise Exception(f"Error getting file list for index {index_name}: {str(e)}")
+            raise Exception(
+                f"Error getting file list for index {index_name}: {str(e)}")
 
     @staticmethod
     def delete_documents(
@@ -773,7 +776,8 @@ class ElasticSearchService:
         try:
             # Get all documents
             if not tenant_id:
-                raise Exception("Tenant ID is required for summary generation.")
+                raise Exception(
+                    "Tenant ID is required for summary generation.")
             all_documents = ElasticSearchService.get_random_documents(
                 index_name, batch_size, es_core)
             all_chunks = self._clean_chunks_for_summary(all_documents)
@@ -872,7 +876,8 @@ class ElasticSearchService:
             }
 
         except Exception as e:
-            raise Exception(f"Error retrieving random documents from index {index_name}: {str(e)}")
+            raise Exception(
+                f"Error retrieving random documents from index {index_name}: {str(e)}")
 
     @staticmethod
     def change_summary(
