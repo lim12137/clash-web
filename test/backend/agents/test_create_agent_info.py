@@ -20,6 +20,7 @@ sys.modules['utils.langchain_utils'] = MagicMock()
 sys.modules['langchain_core.tools'] = MagicMock()
 sys.modules['services.memory_config_service'] = MagicMock()
 sys.modules['nexent.memory.memory_service'] = MagicMock()
+sys.modules['consts.const'] = MagicMock()
 
 # Create mock classes that might be imported
 mock_agent_config = MagicMock()
@@ -36,6 +37,9 @@ sys.modules['nexent.core.utils.observer'].MessageObserver = mock_message_observe
 
 # Mock BASE_BUILTIN_MODULES
 sys.modules['smolagents.utils'].BASE_BUILTIN_MODULES = ["os", "sys", "json"]
+
+# Mock LOCAL_MCP_SERVER constant
+sys.modules['consts.const'].LOCAL_MCP_SERVER = "http://localhost:5011"
 
 # Now import the module under test
 from backend.agents.create_agent_info import (
