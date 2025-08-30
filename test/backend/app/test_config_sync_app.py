@@ -1,7 +1,13 @@
 import pytest
 from unittest.mock import patch, MagicMock
 import sys
+import os
 
+
+# Dynamically determine the backend path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
+sys.path.append(backend_dir)
 
 # Patch boto3 and other dependencies before importing anything from backend
 boto3_mock = MagicMock()
