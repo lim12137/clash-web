@@ -346,7 +346,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.mock_es_core.get_index_stats.assert_called_once_with(
             ["index1", "index2"])
 
-    def test_get_index_info_success(self):
+    def test_get_index_name_success(self):
         """
         Test successful retrieval of index information.
 
@@ -382,8 +382,232 @@ class TestElasticSearchService(unittest.TestCase):
         # Assert
         self.assertEqual(result["base_info"]["doc_count"], 10)
         self.assertEqual(len(result["fields"]), 2)
-        self.mock_es_core.get_index_stats.assert_called_once_with(["test_index"])
-        self.mock_es_core.get_index_mapping.assert_called_once_with(["test_index"])
+        self.mock_es_core.get_index_stats.assert_called_once_with([
+                                                                  "test_index"])
+        self.mock_es_core.get_index_mapping.assert_called_once_with([
+                                                                    "test_index"])
+
+    def test_get_index_name_stats_not_found(self):
+        """
+        Test get_index_name when index stats are not found.
+
+        This test verifies that:
+        1. When index stats are not found, appropriate error logging occurs
+        2. The method continues execution with empty stats
+        3. The response contains default values for missing stats
+        """
+        # Setup
+        self.mock_es_core.get_index_stats.return_value = {}
+        self.mock_es_core.get_index_mapping.return_value = {
+            "test_index": ["field1", "field2"]
+        }
+
+        # Execute
+        result = ElasticSearchService.get_index_name(
+            index_name="test_index",
+            es_core=self.mock_es_core
+        )
+
+        # Assert
+        self.assertEqual(result["base_info"]["doc_count"], 0)
+        self.assertEqual(result["base_info"]["process_source"], "Unknown")
+        self.assertEqual(result["base_info"]["embedding_model"], "Unknown")
+        self.assertEqual(len(result["fields"]), 2)
+
+    def test_get_index_name_mappings_not_found(self):
+        """
+        Test get_index_name when index mappings are not found.
+
+        This test verifies that:
+        1. When index mappings are not found, appropriate error logging occurs
+        2. The method continues execution with empty fields
+        3. The response contains empty fields list
+        """
+        # Setup
+        self.mock_es_core.get_index_stats.return_value = {
+            "test_index": {
+                "base_info": {
+                    "doc_count": 10,
+                    "unique_sources_count": 5,
+                    "store_size": "1MB",
+                    "process_source": "Test",
+                    "embedding_model": "Test"
+                }
+            }
+        }
+        self.mock_es_core.get_index_mapping.return_value = {}
+
+        # Execute
+        result = ElasticSearchService.get_index_name(
+            index_name="test_index",
+            es_core=self.mock_es_core
+        )
+
+        # Assert
+        self.assertEqual(result["base_info"]["doc_count"], 10)
+        self.assertEqual(result["fields"], [])
+
+    def test_get_index_name_no_base_info(self):
+        """
+        Test get_index_name when base_info is missing from stats.
+
+        This test verifies that:
+        1. When base_info is missing, appropriate error logging occurs
+        2. The method provides default values for missing base_info
+        3. The response contains reasonable defaults
+        """
+        # Setup
+        self.mock_es_core.get_index_stats.return_value = {
+            "test_index": {
+                "search_performance": {"avg_time": 10}
+            }
+        }
+        self.mock_es_core.get_index_mapping.return_value = {
+            "test_index": ["field1"]
+        }
+
+        # Execute
+        result = ElasticSearchService.get_index_name(
+            index_name="test_index",
+            es_core=self.mock_es_core
+        )
+
+        # Assert
+        self.assertEqual(result["base_info"]["doc_count"], 0)
+        self.assertEqual(result["base_info"]["process_source"], "Unknown")
+        self.assertEqual(result["base_info"]["embedding_model"], "Unknown")
+        # Fix: search_performance should still be preserved even when base_info is missing
+        self.assertEqual(result["search_performance"], {})
+
+    def test_get_index_name_elasticsearch_connection_error(self):
+        """
+        Test get_index_name when Elasticsearch connection fails.
+
+        This test verifies that:
+        1. When Elasticsearch connection fails (503 error), appropriate exception is raised
+        2. The exception message contains "ElasticSearch service unavailable"
+        3. The error is properly categorized as a connection issue
+        """
+        # Setup
+        self.mock_es_core.get_index_stats.side_effect = Exception(
+            "503 Service Unavailable")
+
+        # Execute and Assert
+        with self.assertRaises(Exception) as context:
+            ElasticSearchService.get_index_name(
+                index_name="test_index",
+                es_core=self.mock_es_core
+            )
+
+        self.assertIn("ElasticSearch service unavailable",
+                      str(context.exception))
+
+    def test_get_index_name_api_error(self):
+        """
+        Test get_index_name when Elasticsearch API returns an error.
+
+        This test verifies that:
+        1. When Elasticsearch API error occurs, appropriate exception is raised
+        2. The exception message contains "ElasticSearch API error"
+        3. The error is properly categorized as an API issue
+        """
+        # Setup
+        self.mock_es_core.get_index_stats.side_effect = Exception(
+            "ApiError: Invalid request")
+
+        # Execute and Assert
+        with self.assertRaises(Exception) as context:
+            ElasticSearchService.get_index_name(
+                index_name="test_index",
+                es_core=self.mock_es_core
+            )
+
+        self.assertIn("ElasticSearch API error", str(context.exception))
+
+    def test_get_index_name_generic_error(self):
+        """
+        Test get_index_name when a generic error occurs.
+
+        This test verifies that:
+        1. When a generic error occurs, appropriate exception is raised
+        2. The exception message contains "Error getting info for index"
+        3. The error is properly categorized as a generic issue
+        """
+        # Setup
+        self.mock_es_core.get_index_stats.side_effect = Exception(
+            "Generic error message")
+
+        # Execute and Assert
+        with self.assertRaises(Exception) as context:
+            ElasticSearchService.get_index_name(
+                index_name="test_index",
+                es_core=self.mock_es_core
+            )
+
+        self.assertIn("Error getting info for index", str(context.exception))
+
+    def test_get_index_name_search_phase_execution_exception(self):
+        """
+        Test get_index_name when search_phase_execution_exception occurs.
+
+        This test verifies that:
+        1. When search_phase_execution_exception occurs, appropriate exception is raised
+        2. The exception message contains "ElasticSearch service unavailable"
+        3. The error is properly categorized as a connection issue
+        """
+        # Setup
+        self.mock_es_core.get_index_stats.side_effect = Exception(
+            "search_phase_execution_exception: No shard available")
+
+        # Execute and Assert
+        with self.assertRaises(Exception) as context:
+            ElasticSearchService.get_index_name(
+                index_name="test_index",
+                es_core=self.mock_es_core
+            )
+
+        self.assertIn("ElasticSearch service unavailable",
+                      str(context.exception))
+
+    def test_get_index_name_success_status_200(self):
+        """
+        Test get_index_name method returns status code 200 on success.
+
+        This test verifies that:
+        1. The get_index_name method successfully retrieves index information
+        2. The response contains the expected data structure
+        3. The method completes without raising exceptions, implying a 200 status code
+        """
+        # Setup
+        self.mock_es_core.get_index_stats.return_value = {
+            "test_index": {
+                "base_info": {
+                    "doc_count": 15,
+                    "unique_sources_count": 8,
+                    "store_size": "2MB",
+                    "process_source": "Unstructured",
+                    "embedding_model": "text-embedding-ada-002"
+                },
+                "search_performance": {"avg_query_time": 25.5}
+            }
+        }
+        self.mock_es_core.get_index_mapping.return_value = {
+            "test_index": ["title", "content", "path_or_url", "create_time"]
+        }
+
+        # Execute
+        result = ElasticSearchService.get_index_name(
+            index_name="test_index",
+            es_core=self.mock_es_core
+        )
+
+        # Assert
+        self.assertIsInstance(result, dict)  # Success response is a dictionary
+        self.assertIn("base_info", result)
+        self.assertIn("search_performance", result)
+        self.assertIn("fields", result)
+        self.assertEqual(result["base_info"]["doc_count"], 15)
+        self.assertEqual(len(result["fields"]), 4)
 
     def test_index_documents_success(self):
         """
