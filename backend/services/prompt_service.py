@@ -78,11 +78,11 @@ def gen_system_prompt_streamable(agent_id: int, task_description: str, authoriza
     user_id, tenant_id, language = get_current_user_info(
         authorization, request)
     for system_prompt in generate_and_save_system_prompt_impl(
-            agent_id=agent_id,
-            task_description=task_description,
-            user_id=user_id,
-            tenant_id=tenant_id,
-            language=language
+        agent_id=agent_id,
+        task_description=task_description,
+        user_id=user_id,
+        tenant_id=tenant_id,
+        language=language
     ):
         # SSE format, each message ends with \n\n
         yield f"data: {json.dumps({'success': True, 'data': system_prompt}, ensure_ascii=False)}\n\n"
