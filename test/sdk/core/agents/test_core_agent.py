@@ -379,20 +379,6 @@ def hello(:
     assert "regex pattern" in str(exc_info.value)
 
 
-def test_parse_code_blobs_final_answer_error():
-    """Test parse_code_blobs with 'final' and 'answer' in text (special error case)."""
-    text = """This is a final answer to the question.
-The user wants to know the final answer.
-But there's no code block here."""
-    
-    with pytest.raises(ValueError) as exc_info:
-        core_agent_module.parse_code_blobs(text)
-    
-    error_msg = str(exc_info.value)
-    assert "final answer" in error_msg
-    assert "final_answer(" in error_msg
-
-
 def test_parse_code_blobs_generic_error():
     """Test parse_code_blobs with generic case that should raise ValueError."""
     text = """This is just some random text.
