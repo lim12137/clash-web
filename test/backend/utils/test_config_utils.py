@@ -1,6 +1,11 @@
 import pytest
 import json
-from unittest.mock import patch
+import sys
+from unittest.mock import patch, MagicMock
+
+# Mock the database modules that config_utils uses
+sys.modules['database.tenant_config_db'] = MagicMock()
+sys.modules['database.model_management_db'] = MagicMock()
 
 from backend.utils.config_utils import (
     safe_value,
