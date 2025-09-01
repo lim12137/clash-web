@@ -1,6 +1,6 @@
 import logging
+from http import HTTPStatus
 from typing import Optional
-
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
@@ -31,4 +31,4 @@ async def generate_and_save_system_prompt_api(
     except Exception as e:
         logger.exception(f"Error occurred while generating system prompt: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Error occurred while generating system prompt: {str(e)}")
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Error occurred while generating system prompt.")
