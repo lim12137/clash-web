@@ -50,21 +50,6 @@ def parse_code_blobs(text: str) -> str:
     except SyntaxError:
         pass
 
-    if "final" in text and "answer" in text:
-        raise ValueError(
-            dedent(
-                f"""
-                Your code snippet is invalid, because the regex pattern {pattern} was not found in it.
-                Here is your code snippet:
-                {text}
-                It seems like you're trying to return the final answer, you can do it as follows:
-                Code:
-                ```py
-                final_answer("YOUR FINAL ANSWER HERE")
-                ```<end_code>
-                """
-            ).strip()
-        )
     raise ValueError(
         dedent(
             f"""
