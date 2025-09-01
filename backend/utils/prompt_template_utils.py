@@ -14,7 +14,6 @@ def get_prompt_template(template_type: str, language: str = 'zh', **kwargs) -> D
             - 'agent': Agent template including manager and managed agents
             - 'knowledge_summary': Knowledge summary template
             - 'analyze_file': File analysis template
-            - 'prompt_fine_tune': Prompt fine-tuning template
             - 'generate_title': Title generation template
         language: Language code ('zh' or 'en')
         **kwargs: Additional parameters, for agent type need to pass is_manager parameter
@@ -47,10 +46,6 @@ def get_prompt_template(template_type: str, language: str = 'zh', **kwargs) -> D
         'analyze_file': {
             'zh': 'backend/prompts/analyze_file.yaml',
             'en': 'backend/prompts/analyze_file_en.yaml'
-        },
-        'prompt_fine_tune': {
-            'zh': 'backend/prompts/utils/prompt_fine_tune.yaml',
-            'en': 'backend/prompts/utils/prompt_fine_tune_en.yaml'
         },
         'generate_title': {
             'zh': 'backend/prompts/utils/generate_title.yaml',
@@ -126,19 +121,6 @@ def get_analyze_file_prompt_template(language: str = 'zh') -> Dict[str, Any]:
         dict: Loaded prompt template configuration
     """
     return get_prompt_template('analyze_file', language)
-
-
-def get_prompt_fine_tune_prompt_template(language: str = 'zh') -> Dict[str, Any]:
-    """
-    Get prompt fine-tuning template
-    
-    Args:
-        language: Language code ('zh' or 'en')
-        
-    Returns:
-        dict: Loaded prompt template configuration
-    """
-    return get_prompt_template('prompt_fine_tune', language)
 
 
 def get_generate_title_prompt_template(language: str = 'zh') -> Dict[str, Any]:
