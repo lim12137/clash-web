@@ -77,8 +77,8 @@ interface ChatSidebarProps {
   conversationList: ConversationListItem[];
   selectedConversationId: number | null;
   openDropdownId: string | null;
-  streamingConversations: Set<number>; // 正在运行的对话ID集合
-  completedConversations: Set<number>; // 已完成但未查看的对话ID集合
+  streamingConversations: Set<number>;
+  completedConversations: Set<number>;
   onNewConversation: () => void;
   onDialogClick: (dialog: ConversationListItem) => void;
   onRename: (dialogId: number, title: string) => void;

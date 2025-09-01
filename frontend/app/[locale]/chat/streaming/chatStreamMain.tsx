@@ -521,7 +521,6 @@ export function ChatStreamMain({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log("Scroll button clicked");
             scrollToBottom(true);
           }}
         >

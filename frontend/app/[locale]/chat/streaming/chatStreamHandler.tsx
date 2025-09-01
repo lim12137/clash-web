@@ -489,9 +489,6 @@ export const handleStreamResponse = async (
 
                       // Check if lastMsg exists before accessing its properties
                       if (!lastMsg) {
-                        console.warn(
-                          "No last message found when processing search results"
-                        );
                         return recordMessages;
                       }
 
@@ -533,9 +530,6 @@ export const handleStreamResponse = async (
 
                         // Check if lastMsg exists before accessing its properties
                         if (!lastMsg) {
-                          console.warn(
-                            "No last message found when processing images"
-                          );
                           return newMessages;
                         }
 
@@ -718,9 +712,7 @@ export const handleStreamResponse = async (
                 return newMessages;
               });
             }
-          } catch (parseError) {
-            console.warn(t("chatStreamHandler.parseSSEFailed"), parseError);
-          }
+          } catch (parseError) {}
         }
       }
     }

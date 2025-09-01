@@ -221,7 +221,7 @@ export function ChatInterface() {
         try {
           abortControllerRef.current.abort(t("chatInterface.componentUnmount"));
         } catch (error) {
-          console.log(t("chatInterface.errorCancelingRequest"), error);
+          console.error(t("chatInterface.errorCancelingRequest"), error);
         }
         abortControllerRef.current = null;
       }
@@ -637,7 +637,6 @@ export function ChatInterface() {
           if (controller && !controller.signal.aborted) {
             try {
               controller.abort(t("chatInterface.requestTimeout"));
-              console.log(t("chatInterface.requestTimeoutMessage"));
 
               setSessionMessages((prev) => {
                 const newMessages = { ...prev };
@@ -664,7 +663,7 @@ export function ChatInterface() {
                 }
               }
             } catch (error) {
-              console.log(t("chatInterface.errorCancelingRequest"), error);
+              console.error(t("chatInterface.errorCancelingRequest"), error);
             }
           }
           conversationTimeoutsRef.current.delete(currentConversationId);
@@ -731,7 +730,6 @@ export function ChatInterface() {
       // If user actively canceled, don't show error message
       const err = error as Error;
       if (err.name === "AbortError") {
-        console.log(t("chatInterface.userCancelledRequest"));
         setSessionMessages((prev) => {
           const newMessages = { ...prev };
           const lastMsg =
@@ -941,7 +939,6 @@ export function ChatInterface() {
 
           // Don't process result if request was canceled
           if (controller.signal.aborted) {
-            console.warn("强制重新加载请求被取消");
             return;
           }
 
@@ -1012,7 +1009,6 @@ export function ChatInterface() {
               [dialog.conversation_id]:
                 t("chatStreamMain.noHistory") || "该会话无历史消息",
             }));
-            console.warn("强制重新加载 data.code 非0或无消息", { data });
           }
         } catch (error) {
           console.error(
@@ -1021,9 +1017,7 @@ export function ChatInterface() {
           );
           // if error, don't set empty array, keep existing state to avoid showing new conversation interface
           // Instead, we can show an error message or retry mechanism
-          console.warn(
-            `Failed to load conversation ${dialog.conversation_id}, keeping existing state`
-          );
+
           setConversationLoadError((prev) => ({
             ...prev,
             [dialog.conversation_id]:
@@ -1088,7 +1082,6 @@ export function ChatInterface() {
 
         // Don't process result if request was canceled
         if (controller.signal.aborted) {
-          console.warn("请求被取消");
           return;
         }
 
@@ -1159,7 +1152,6 @@ export function ChatInterface() {
             [dialog.conversation_id]:
               t("chatStreamMain.noHistory") || "该会话无历史消息",
           }));
-          console.warn("data.code 非0或无消息", { data });
         }
       } catch (error) {
         console.error(
@@ -1168,9 +1160,7 @@ export function ChatInterface() {
         );
         // if error, don't set empty array, keep existing state to avoid showing new conversation interface
         // Instead, we can show an error message or retry mechanism
-        console.warn(
-          `Failed to load conversation ${dialog.conversation_id}, keeping existing state`
-        );
+
         setConversationLoadError((prev) => ({
           ...prev,
           [dialog.conversation_id]:
@@ -1262,7 +1252,7 @@ export function ChatInterface() {
               t("chatInterface.deleteConversation")
             );
           } catch (error) {
-            console.log(t("chatInterface.errorCancelingRequest"), error);
+            console.error(t("chatInterface.errorCancelingRequest"), error);
           }
           abortControllerRef.current = null;
         }
@@ -1277,10 +1267,6 @@ export function ChatInterface() {
         setIsLoading(false);
 
         try {
-          console.log(
-            t("chatInterface.stoppingCurrentConversationBeforeDeleting"),
-            dialogId
-          );
           await conversationService.stop(dialogId);
         } catch (error) {
           console.error(
@@ -1339,7 +1325,7 @@ export function ChatInterface() {
       try {
         currentController.abort(t("chatInterface.userManuallyStopped"));
       } catch (error) {
-        console.log(t("chatInterface.errorCancelingRequest"), error);
+        console.error(t("chatInterface.errorCancelingRequest"), error);
       }
       conversationControllersRef.current.delete(conversationId);
     }

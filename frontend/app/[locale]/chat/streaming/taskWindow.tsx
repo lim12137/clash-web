@@ -890,9 +890,7 @@ export function TaskWindow({ messages, isStreaming = false }: TaskWindowProps) {
     }
 
     // Fallback processing, normally not executed here
-    console.warn("No processor found:", {
-      messageType: message.type,
-    });
+
     return (
       <div className="text-sm text-gray-500">
         {t("taskWindow.unknownMessageType", { type: message.type })}

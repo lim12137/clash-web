@@ -602,25 +602,20 @@ export function ChatInput({
 
       try {
         setRecordingStatus("connecting");
-        console.log("🎤 Starting voice recording...");
 
         // 1. Request microphone permission
         const audioConstraints = conversationService.stt.getAudioConstraints();
-        console.log("📋 Audio constraints:", audioConstraints);
 
         stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
-        console.log("✅ Microphone access granted");
 
         // 2. Create audio processing chain
         audioContext = new AudioContext(
           conversationService.stt.getAudioContextOptions()
         );
-        console.log("🔊 AudioContext created, state:", audioContext.state);
 
         // Resume AudioContext if suspended (browser policy)
         if (audioContext.state === "suspended") {
           await audioContext.resume();
-          console.log("▶️ AudioContext resumed");
         }
 
         audioSource = audioContext.createMediaStreamSource(stream);
@@ -628,7 +623,6 @@ export function ChatInput({
 
         audioSource.connect(processor);
         processor.connect(audioContext.destination);
-        console.log("🔗 Audio processing chain connected");
 
         // 3. Create MediaRecorder
         const mediaRecorder = new MediaRecorder(stream);
@@ -637,18 +631,12 @@ export function ChatInput({
         // 4. Create WebSocket connection
         const ws = conversationService.stt.createWebSocket();
         socketRef.current = ws;
-        console.log("🌐 WebSocket connection initiated");
 
         ws.onopen = () => {
-          console.log(
-            "✅ WebSocket connected:",
-            t("chatInput.wsConnectionEstablished")
-          );
           setIsRecording(true);
           setRecordingStatus("recording");
           try {
             mediaRecorder.start(250);
-            console.log("🎬 Recording started successfully");
           } catch (error) {
             console.error("❌ Failed to start MediaRecorder:", error);
             setRecordingStatus("error");
@@ -666,7 +654,6 @@ export function ChatInput({
             } else if (response.text) {
               onInputChange(response.text);
             } else if (response.status === "ready") {
-              console.log("🎯 STT service ready");
             } else if (response.error) {
               console.error("❌ STT service error:", response.error);
               setRecordingStatus("error");
@@ -686,7 +673,6 @@ export function ChatInput({
         };
 
         ws.onclose = (event) => {
-          console.log("🔌 WebSocket closed:", event.code, event.reason);
           setIsRecording(false);
           setRecordingStatus("idle");
           cleanup();
@@ -702,8 +688,6 @@ export function ChatInput({
               if (pcmData.length > 0) {
                 ws.send(pcmData.buffer);
               }
-            } else {
-              console.warn(`⚠️ WebSocket not ready, state: ${ws.readyState}`);
             }
           } catch (error) {
             console.error("❌ Error in audio processing:", error);
@@ -714,53 +698,38 @@ export function ChatInput({
         };
 
         mediaRecorder.onstop = () => {
-          console.log("⏹️ Recording stopped");
           cleanup();
           setIsRecording(false);
           setRecordingStatus("idle");
         };
 
         function cleanup() {
-          console.log("🧹 Cleaning up audio resources...");
-          console.trace("📍 Cleanup called from:");
-
           if (stream) {
             stream.getTracks().forEach((track) => {
               track.stop();
-              console.log("🛑 Audio track stopped");
             });
           }
 
           if (audioSource) {
             try {
               audioSource.disconnect();
-              console.log("🔌 Audio source disconnected");
-            } catch (e) {
-              console.warn("⚠️ Error disconnecting audio source:", e);
-            }
+            } catch (e) {}
           }
 
           if (processor) {
             try {
               processor.disconnect();
-              console.log("🔌 Processor disconnected");
-            } catch (e) {
-              console.warn("⚠️ Error disconnecting processor:", e);
-            }
+            } catch (e) {}
           }
 
           if (audioContext && audioContext.state !== "closed") {
             try {
               audioContext.close();
-              console.log("🔌 AudioContext closed");
-            } catch (e) {
-              console.warn("⚠️ Error closing AudioContext:", e);
-            }
+            } catch (e) {}
           }
 
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.close();
-            console.log("🔌 WebSocket closed by cleanup");
           }
         }
       } catch (error) {

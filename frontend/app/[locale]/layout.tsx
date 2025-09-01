@@ -10,12 +10,10 @@ import "@/styles/globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export async function generateMetadata({
-  params,
-}: {
+export async function generateMetadata(props: {
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const { locale } = await params;
+  const { locale } = await props.params;
   let messages: any = {};
 
   if (["zh", "en"].includes(locale)) {
@@ -51,13 +49,11 @@ export async function generateMetadata({
   };
 }
 
-export default async function RootLayout({
-  children,
-  params,
-}: {
+export default async function RootLayout(props: {
   children: ReactNode;
   params: Promise<{ locale: string }>;
 }) {
+  const { children, params } = props;
   const { locale } = await params;
 
   return (
