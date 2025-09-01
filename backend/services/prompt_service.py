@@ -12,8 +12,6 @@ from database.tool_db import query_tools_by_ids
 from services.agent_service import get_enable_tool_id_by_agent_id
 from utils.prompt_template_utils import get_prompt_generate_prompt_template
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
-from utils.auth_utils import get_current_user_info
-from fastapi import Header, Request
 
 from utils.str_utils import remove_think_tags, add_no_think_token
 
@@ -72,11 +70,7 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
         raise e
 
 
-def gen_system_prompt_streamable(agent_id: int, task_description: str, authorization: str = Header(None),
-                                 request: Request = None):
-
-    user_id, tenant_id, language = get_current_user_info(
-        authorization, request)
+def gen_system_prompt_streamable(agent_id: int, task_description: str, user_id: str, tenant_id: str, language: str):
     for system_prompt in generate_and_save_system_prompt_impl(
         agent_id=agent_id,
         task_description=task_description,

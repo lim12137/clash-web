@@ -1,3 +1,4 @@
+import json
 import unittest
 from unittest.mock import patch, MagicMock
 
@@ -20,6 +21,7 @@ with patch('backend.database.client.MinioClient', return_value=minio_client_mock
             from backend.services.prompt_service import (
                 call_llm_for_system_prompt,
                 generate_and_save_system_prompt_impl,
+                gen_system_prompt_streamable,
                 get_enabled_tool_description_for_generate_prompt,
                 get_enabled_sub_agent_description_for_generate_prompt,
                 generate_system_prompt,
@@ -142,6 +144,45 @@ class TestPromptService(unittest.TestCase):
         agent_info = call_args[1]['agent_info']
         self.assertEqual(agent_info.agent_id, 123)
         self.assertEqual(agent_info.business_description, "Test task")
+
+    @patch('backend.services.prompt_service.generate_and_save_system_prompt_impl')
+    def test_gen_system_prompt_streamable(self, mock_generate_impl):
+        """Test gen_system_prompt_streamable function"""
+        # Setup mock data
+        test_data = [
+            {"type": "duty", "content": "Test duty prompt", "is_complete": False},
+            {"type": "constraint", "content": "Test constraint prompt",
+                "is_complete": False},
+            {"type": "few_shots", "content": "Test few shots prompt", "is_complete": True},
+        ]
+        mock_generate_impl.return_value = iter(test_data)
+
+        # Execute - collect results from the generator
+        result_list = []
+        for result in gen_system_prompt_streamable(
+            agent_id=123,
+            task_description="Test task",
+            user_id="user123",
+            tenant_id="tenant456",
+            language="zh"
+        ):
+            result_list.append(result)
+
+        # Assert
+        # Verify generate_and_save_system_prompt_impl was called with correct parameters
+        mock_generate_impl.assert_called_once_with(
+            agent_id=123,
+            task_description="Test task",
+            user_id="user123",
+            tenant_id="tenant456",
+            language="zh"
+        )
+
+        # Verify output format - should be SSE format
+        self.assertEqual(len(result_list), 3)
+        for i, result in enumerate(result_list):
+            expected_data = f"data: {json.dumps({'success': True, 'data': test_data[i]}, ensure_ascii=False)}\n\n"
+            self.assertEqual(result, expected_data)
 
     @patch('backend.services.prompt_service.call_llm_for_system_prompt')
     @patch('backend.services.prompt_service.join_info_for_generate_system_prompt')
