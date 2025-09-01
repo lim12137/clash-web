@@ -326,8 +326,6 @@ class ElasticSearchService:
                 "*", description="Pattern to match index names"),
             include_stats: bool = Query(
                 False, description="Whether to include index stats"),
-            user_id: Optional[str] = Body(
-                None, description="ID of the user listing the knowledge base"),
             tenant_id: Optional[str] = Body(
                 None, description="ID of the tenant listing the knowledge base"),
             es_core: ElasticSearchCore = Depends(get_es_core)
