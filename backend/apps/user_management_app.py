@@ -145,7 +145,7 @@ async def signup(request: UserSignUpRequest):
         logging.info("检测到管理员注册请求，开始验证邀请码")
 
         # Get the invite code from consts.const (which reads from environment variable)
-        logging.info(f"从consts.const获取的INVITE_CODE: {INVITE_CODE}")
+        logging.info(f"The INVITE_CODE obtained from consts.const: {INVITE_CODE}")
 
         if not INVITE_CODE:
             logging.error(
