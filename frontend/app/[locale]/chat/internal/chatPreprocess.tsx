@@ -195,13 +195,6 @@ export const handleFileUpload = (
     setFileUrls((prev) => ({ ...prev, [fileId]: fileUrl }));
   }
 
-  console.log(
-    t("chatPreprocess.uploadingFile", {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-    })
-  );
   return fileId;
 };
 
@@ -209,15 +202,7 @@ export const handleFileUpload = (
  * Handle image upload
  * @param file Uploaded image file
  */
-export const handleImageUpload = (file: File, t: any): void => {
-  console.log(
-    t("chatPreprocess.uploadingImage", {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-    })
-  );
-};
+export const handleImageUpload = (file: File, t: any): void => {};
 
 /**
  * Upload attachments to storage service
