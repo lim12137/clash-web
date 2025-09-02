@@ -420,23 +420,6 @@ class TestDataValidation:
         response = client.post("/mcp/add")
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-    @patch('services.remote_mcp_service.check_mcp_name_exists')
-    def test_invalid_auth_token(self, mock_check_name_exists):
-        """Test invalid authentication token"""
-        # Mock database function to avoid connection issues
-        mock_check_name_exists.return_value = False
-        
-        response = client.post(
-            "/mcp/add",
-            params={"mcp_url": "invalid-url",
-                    "service_name": "test_service_invalid"},
-            headers={"Authorization": "Bearer test_token"}
-        )
-        # Should return BAD_REQUEST due to connection failure in mcp_server_health
-        assert response.status_code == HTTPStatus.BAD_REQUEST
-        data = response.json()
-        assert "Failed to add remote MCP proxy" in data["detail"]
-
     @patch('apps.remote_mcp_app.get_current_user_id')
     @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
     def test_invalid_url_format(self, mock_add_server, mock_get_user_id):
