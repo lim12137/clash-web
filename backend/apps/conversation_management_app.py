@@ -231,7 +231,7 @@ async def get_message_id_endpoint(request: MessageIdRequest):
         ConversationResponse object containing message_id
     """
     try:
-        message_id = await get_message_id_by_index_impl(request)
+        message_id = await get_message_id_by_index_impl(request.conversation_id, request.message_index)
         return ConversationResponse(code=0, message="success", data=message_id)
     except Exception as e:
         logging.error(f"Failed to get message ID: {str(e)}")
