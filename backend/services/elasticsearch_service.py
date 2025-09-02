@@ -32,7 +32,7 @@ from database.knowledge_db import (
     create_knowledge_record,
     delete_knowledge_record,
     get_knowledge_record,
-    update_knowledge_record,
+    update_knowledge_record, get_knowledge_info_by_tenant_id, update_model_name_by_index_name,
 )
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
@@ -267,8 +267,10 @@ class ElasticSearchService:
                 embedding_model.embedding_dim if embedding_model else 1024))
             if not success:
                 raise Exception(f"Failed to create index {index_name}")
-            knowledge_data = {'index_name': index_name,
-                              'created_by': user_id, "tenant_id": tenant_id}
+            knowledge_data = {"index_name": index_name,
+                              "created_by": user_id,
+                              "tenant_id": tenant_id,
+                              "embedding_model_name": embedding_model.model}
             create_knowledge_record(knowledge_data)
             return {"status": "success", "message": f"Index {index_name} created successfully"}
         except Exception as e:
@@ -326,17 +328,19 @@ class ElasticSearchService:
                 "*", description="Pattern to match index names"),
             include_stats: bool = Query(
                 False, description="Whether to include index stats"),
-            tenant_id: Optional[str] = Body(
-                None, description="ID of the tenant listing the knowledge base"),
+            tenant_id: str = Body(description="ID of the tenant listing the knowledge base"),
+            user_id: str = Body(description="ID of the user listing the knowledge base"),
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
         List all indices that the current user has permissions to access.
+        async PG database to sync ES, remove the data that is not in ES
 
         Args:
             pattern: Pattern to match index names
             include_stats: Whether to include index stats
             tenant_id: ID of the tenant listing the knowledge base
+            user_id: ID of the user listing the knowledge base
             es_core: ElasticSearchCore instance
 
         Returns:
@@ -344,16 +348,18 @@ class ElasticSearchService:
         """
         all_indices_list = es_core.get_user_indices(pattern)
 
+        db_record = get_knowledge_info_by_tenant_id(tenant_id=tenant_id)
+
         filtered_indices_list = []
-        if tenant_id:
-            for index_name in all_indices_list:
-                # Search in the Postgres database to get the tenant_id
-                knowledge_record = get_knowledge_record(
-                    query={"index_name": index_name})
-                if knowledge_record and knowledge_record.get("tenant_id") == tenant_id:
-                    filtered_indices_list.append(index_name)
-        else:
-            filtered_indices_list = all_indices_list
+        model_name_is_none_list = []
+        for record in db_record:
+            # async PG database to sync ES, remove the data that is not in ES
+            if record["index_name"] not in all_indices_list:
+                delete_knowledge_record({"index_name": record["index_name"], "user_id": user_id})
+                continue
+            if record["embedding_model_name"] is None:
+                model_name_is_none_list.append(record["index_name"])
+            filtered_indices_list.append(record["index_name"])
 
         indices = [info.get("index") if isinstance(
             info, dict) else info for info in filtered_indices_list]
@@ -373,6 +379,10 @@ class ElasticSearchService:
                         "name": index_name,
                         "stats": index_stats
                     })
+                    if index_name in model_name_is_none_list:
+                        update_model_name_by_index_name(index_name, 
+                                                        index_stats.get("base_info", {}).get("embedding_model", ""), 
+                                                        tenant_id, user_id)
             response["indices_info"] = stats_info
 
         return response
