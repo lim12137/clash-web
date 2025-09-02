@@ -26,7 +26,7 @@ def get_deployment_version():
         )
     except Exception as e:
         logger.error(f"Failed to get deployment version, error: {e}")
-        return HTTPException(
+        raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail="Failed to get deployment version"
         )
@@ -51,7 +51,7 @@ def load_knowledge_list(
         )
     except Exception as e:
         logger.error(f"load knowledge list failed, error: {e}")
-        return HTTPException(
+        raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail="Failed to load configuration"
         )
@@ -72,13 +72,13 @@ def update_knowledge_list(
                 content={"message": "update success", "status": "success"}
             )
         else:
-            return HTTPException(
+            raise HTTPException(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                 detail="Failed to update configuration"
             )
     except Exception as e:
         logger.error(f"update knowledge list failed, error: {e}")
-        return HTTPException(
+        raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail="Failed to update configuration"
         )
