@@ -149,3 +149,11 @@ DEFAULT_MEMORY_AGENT_SHARE_KEY = "always"
 
 
 DEFAULT_LLM_MAX_TOKENS = 4096
+
+
+# MCP Server
+LOCAL_MCP_SERVER = os.getenv("NEXENT_MCP_SERVER")
+
+
+# Invite code
+INVITE_CODE = os.getenv("INVITE_CODE")
