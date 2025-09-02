@@ -110,7 +110,7 @@ def sort_models_by_id(model_list):
         )
     return model_list
 
-SILICON_BASE_URL = "http://silicon.test"
+SILICON_BASE_URL = "http://silicon.test"                                                                                                                                                                                                                                                                                 
 
 async def prepare_model_dict(**kwargs):
     # Mocked function
@@ -235,23 +235,19 @@ async def update_single_model(request: dict, authorization: Optional[str] = Head
     try:
         user_id, tenant_id = get_current_user_id(authorization)
         model_data = request
-        if not model_data.get("display_name"):
-            model_data["display_name"] = split_display_name(model_data["model_name"])
-            # Check if display_name conflicts
-            existing_model_by_display = get_model_by_display_name(model_data["display_name"], tenant_id)
-            if existing_model_by_display and existing_model_by_display["model_id"] != model_data["model_id"]:
-                return ModelResponse(
-                    code=409,
-                    message=f"Name {model_data['display_name']} is already in use, please choose another display name",
-                    data=None
-                )
-        model_repo, model_name = split_repo_name(model_data["model_name"])
-        model_data["model_repo"] = model_repo
-        model_data["model_name"] = model_name
+        existing_model_by_display = get_model_by_display_name(
+            model_data["display_name"], tenant_id)
+        if existing_model_by_display and existing_model_by_display["model_id"] != model_data["model_id"]:
+            return ModelResponse(
+                code=409,
+                message=f"Name {model_data['display_name']} is already in use, please choose another display name",
+                data=None
+            )
+        # model_data["model_repo"], model_data["model_name"] = split_repo_name(model_data["model_name"])
         update_model_record(model_data["model_id"], model_data, user_id)
         return ModelResponse(
             code=200,
-            message=f"Model {model_data['model_name']} updated successfully",
+            message=f"Model {model_data['display_name']} updated successfully",
             data=None
         )
     except Exception as e:
@@ -2010,13 +2006,11 @@ class TestModelManagementApp(unittest.TestCase):
         self.assertIn("Failed to get provider list", data["message"])
 
     @patch("test_model_managment_app.get_current_user_id")
-    @patch("test_model_managment_app.split_display_name")
     @patch("test_model_managment_app.get_model_by_display_name")
     @patch("test_model_managment_app.update_model_record")
-    def test_update_single_model_success(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+    def test_update_single_model_success(self, mock_update, mock_get_by_display, mock_get_user):
         # Configure mocks
         mock_get_user.return_value = (self.user_id, self.tenant_id)
-        mock_split_display.return_value = "Test Model"
         mock_get_by_display.return_value = None
 
         # Prepare update request data
@@ -2037,60 +2031,18 @@ class TestModelManagementApp(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["code"], 200)
-        self.assertIn("updated successfully", data["message"])
+        self.assertIn("Updated Test Model updated successfully", data["message"])
 
         # Verify mock calls
         mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-        
-        # The endpoint modifies the data by splitting model_name and adding model_repo
-        # So we need to verify the actual modified data that gets passed to update_model_record
-        expected_data = update_data.copy()
-        expected_data["model_repo"] = "huggingface"
-        expected_data["model_name"] = "llama"
-        
-        mock_update.assert_called_once_with("test_model_id", expected_data, self.user_id)
+        mock_get_by_display.assert_called_once_with("Updated Test Model", self.tenant_id)
+        mock_update.assert_called_once_with("test_model_id", update_data, self.user_id)
 
     @patch("test_model_managment_app.get_current_user_id")
-    @patch("test_model_managment_app.split_display_name")
     @patch("test_model_managment_app.get_model_by_display_name")
-    @patch("test_model_managment_app.update_model_record")
-    def test_update_single_model_without_display_name(self, mock_update, mock_get_by_display, mock_split_display, mock_get_user):
+    def test_update_single_model_display_name_conflict(self, mock_get_by_display, mock_get_user):
         # Configure mocks
         mock_get_user.return_value = (self.user_id, self.tenant_id)
-        mock_split_display.return_value = "Auto Generated Name"
-        mock_get_by_display.return_value = None
-
-        # Prepare update request data without display_name
-        update_data = {
-            "model_id": "test_model_id",
-            "model_name": "huggingface/llama",
-            "api_base": "http://localhost:8001",
-            "api_key": "updated_key",
-            "model_type": "llm",
-            "provider": "huggingface"
-        }
-
-        # Send request
-        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
-
-        # Assert response
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 200)
-        self.assertIn("updated successfully", data["message"])
-
-        # Verify mock calls
-        mock_split_display.assert_called_once_with("huggingface/llama")
-        mock_get_by_display.assert_called_once_with("Auto Generated Name", self.tenant_id)
-        mock_update.assert_called_once()
-
-    @patch("test_model_managment_app.get_current_user_id")
-    @patch("test_model_managment_app.split_display_name")
-    @patch("test_model_managment_app.get_model_by_display_name")
-    def test_update_single_model_display_name_conflict(self, mock_get_by_display, mock_split_display, mock_get_user):
-        # Configure mocks
-        mock_get_user.return_value = (self.user_id, self.tenant_id)
-        mock_split_display.return_value = "Conflicting Name"
         mock_get_by_display.return_value = {
             "model_id": "other_model_id",
             "display_name": "Conflicting Name"
@@ -2100,6 +2052,7 @@ class TestModelManagementApp(unittest.TestCase):
         update_data = {
             "model_id": "test_model_id",
             "model_name": "huggingface/llama",
+            "display_name": "Conflicting Name",
             "api_base": "http://localhost:8001",
             "api_key": "updated_key",
             "model_type": "llm",
@@ -2116,9 +2069,42 @@ class TestModelManagementApp(unittest.TestCase):
         self.assertIn("already in use", data["message"])
 
         # Verify mock calls
-        mock_split_display.assert_called_once_with("huggingface/llama")
         mock_get_by_display.assert_called_once_with("Conflicting Name", self.tenant_id)
 
+    @patch("test_model_managment_app.get_current_user_id")
+    @patch("test_model_managment_app.get_model_by_display_name")
+    @patch("test_model_managment_app.update_model_record")
+    def test_update_single_model_same_model_id_no_conflict(self, mock_update, mock_get_by_display, mock_get_user):
+        # Configure mocks
+        mock_get_user.return_value = (self.user_id, self.tenant_id)
+        mock_get_by_display.return_value = {
+            "model_id": "test_model_id",  # Same model_id, should not conflict
+            "display_name": "Same Display Name"
+        }
+
+        # Prepare update request data
+        update_data = {
+            "model_id": "test_model_id",
+            "model_name": "huggingface/llama",
+            "display_name": "Same Display Name",
+            "api_base": "http://localhost:8001",
+            "api_key": "updated_key",
+            "model_type": "llm",
+            "provider": "huggingface"
+        }
+
+        # Send request
+        response = client.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+
+        # Assert response
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["code"], 200)
+        self.assertIn("Same Display Name updated successfully", data["message"])
+
+        # Verify mock calls
+        mock_get_by_display.assert_called_once_with("Same Display Name", self.tenant_id)
+        mock_update.assert_called_once_with("test_model_id", update_data, self.user_id)
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.update_model_record")

@@ -231,7 +231,7 @@ export const modelService = {
 
   updateSingleModel: async (model: {
     model_id: string,
-    name: string,
+    displayName: string,
     url: string,
     apiKey: string,
     maxTokens?: number,
@@ -243,7 +243,7 @@ export const modelService = {
         headers: getAuthHeaders(),
         body: JSON.stringify({
           model_id: model.model_id,
-          model_name: model.name,
+          display_name: model.displayName,
           base_url: model.url,
           api_key: model.apiKey,
           max_tokens: model.maxTokens || 0,
