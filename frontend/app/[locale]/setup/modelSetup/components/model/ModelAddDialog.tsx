@@ -1,10 +1,11 @@
 import { Modal, Select, Input, Button, Switch, Tooltip, App } from 'antd'
-import { InfoCircleFilled, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, RightOutlined, DownOutlined, SettingOutlined } from '@ant-design/icons'
+import { InfoCircleFilled, LoadingOutlined, RightOutlined, DownOutlined, SettingOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import { ModelType, SingleModelConfig } from '@/types/config'
 import { modelService } from '@/services/modelService'
 import { useConfig } from '@/hooks/useConfig'
 import { useTranslation } from 'react-i18next'
+import { getConnectivityIcon, getConnectivityColor, ConnectivityStatusType } from '@/lib/utils'
 
 const { Option } = Select
 
@@ -20,8 +21,7 @@ interface ModelAddDialogProps {
   onSuccess: (model?: AddedModel) => Promise<void>
 }
 
-// Add type definition for connectivity status
-type ConnectivityStatusType = "checking" | "available" | "unavailable" | null;
+// Connectivity status type comes from utils
 
 export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogProps) => {
   const { t } = useTranslation()
@@ -180,35 +180,6 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       setVerifyingConnectivity(false)
     }
   }
-
-  // Get the connectivity status icon
-  const getConnectivityIcon = () => {
-    switch (connectivityStatus.status) {
-      case "checking":
-        return <LoadingOutlined style={{ color: '#1890ff' }} />
-      case "available":
-        return <CheckCircleOutlined style={{ color: '#52c41a' }} />
-      case "unavailable":
-        return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
-      default:
-        return null
-    }
-  }
-
-  // Get the connectivity status color
-  const getConnectivityColor = () => {
-    switch (connectivityStatus.status) {
-      case "checking":
-        return '#1890ff'
-      case "available":
-        return '#52c41a'
-      case "unavailable":
-        return '#ff4d4f'
-      default:
-        return '#d9d9d9'
-    }
-  }
-
 
   const getModelList = async () => {
     setShowModelList(true)
@@ -604,10 +575,10 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               <span className="text-sm font-medium text-gray-700">{t('model.dialog.connectivity.title')}</span>
               {connectivityStatus.status && (
                 <div className="ml-2 flex items-center">
-                  {getConnectivityIcon()}
+                  {getConnectivityIcon(connectivityStatus.status)}
                   <span 
                     className="ml-1 text-xs"
-                    style={{ color: getConnectivityColor() }}
+                    style={{ color: getConnectivityColor(connectivityStatus.status) }}
                   >
                     {t(`model.dialog.connectivity.status.${connectivityStatus.status}`)}
                   </span>
