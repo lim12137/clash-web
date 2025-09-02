@@ -154,8 +154,10 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       // Set connectivity status
       setConnectivityStatus({
         status: result.connectivity ? "available" : "unavailable",
-        // Use translated error code if available
-        message: result.error_code ? t(`model.validation.${result.error_code}`) : (result.message || '')
+        // Use translated error code if available, with displayName for success case
+        message: result.error_code 
+          ? t(`model.validation.${result.error_code}`, { displayName: form.displayName || form.name })
+          : (result.message || '')
       })
 
       // Display appropriate message based on result
