@@ -2,7 +2,7 @@ import logging
 from http import HTTPStatus
 from typing import List, Optional
 
-from fastapi import APIRouter, Body, Header
+from fastapi import APIRouter, Body, Header, HTTPException
 from fastapi.responses import JSONResponse
 
 from consts.const import DEPLOYMENT_VERSION
@@ -26,10 +26,9 @@ def get_deployment_version():
         )
     except Exception as e:
         logger.error(f"Failed to get deployment version, error: {e}")
-        return JSONResponse(
+        return HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            content={"message": "Failed to get deployment version",
-                     "status": "error"}
+            detail="Failed to get deployment version"
         )
 
 
@@ -52,9 +51,9 @@ def load_knowledge_list(
         )
     except Exception as e:
         logger.error(f"load knowledge list failed, error: {e}")
-        return JSONResponse(
+        return HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            content={"message": "Failed to load configuration", "status": "error"}
+            detail="Failed to load configuration"
         )
 
 
@@ -73,14 +72,13 @@ def update_knowledge_list(
                 content={"message": "update success", "status": "success"}
             )
         else:
-            return JSONResponse(
+            return HTTPException(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                content={"message": "update failed", "status": "error"}
+                detail="Failed to update configuration"
             )
     except Exception as e:
         logger.error(f"update knowledge list failed, error: {e}")
-        return JSONResponse(
+        return HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            content={"message": "Failed to update configuration",
-                     "status": "error"}
+            detail="Failed to update configuration"
         )
