@@ -357,7 +357,7 @@ class ElasticSearchService:
             if record["index_name"] not in all_indices_list:
                 delete_knowledge_record({"index_name": record["index_name"], "user_id": user_id})
                 continue
-            if record["model_name"] is None:
+            if record["embedding_model_name"] is None:
                 model_name_is_none_list.append(record["index_name"])
             filtered_indices_list.append(record["index_name"])
 

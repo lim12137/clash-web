@@ -166,7 +166,7 @@ def get_knowledge_info_by_knowledge_ids(knowledge_ids: List[str]) -> List[Dict[s
                     "knowledge_id": item.knowledge_id,
                     "index_name": item.index_name,
                     "knowledge_sources": item.knowledge_sources,
-                    "model_name": item.model_name
+                    "embedding_model_name": item.embedding_model_name
                 })
             return knowledge_info
     except SQLAlchemyError as e:
