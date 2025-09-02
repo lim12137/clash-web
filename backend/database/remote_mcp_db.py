@@ -7,7 +7,7 @@ from consts.exceptions import MCPDatabaseError
 from database.client import as_dict, filter_property, get_db_session
 from database.db_models import McpRecord
 
-logger = logging.getLogger("agent_db")
+logger = logging.getLogger("remote_mcp_db")
 
 
 def create_mcp_record(mcp_data: Dict[str, Any], tenant_id: str, user_id: str) -> bool:
