@@ -1,80 +1,34 @@
+import unittest
+from unittest.mock import patch, MagicMock, AsyncMock
 import sys
 import os
+
+# Add path for correct imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
+sys.modules['boto3'] = MagicMock()
 
-# Setup all mocks first - BEFORE any imports
-from unittest.mock import patch, MagicMock
+# Import exception classes
+from consts.exceptions import MCPConnectionError, MCPNameIllegal, MCPDatabaseError
 
-# Mock consts module to provide required constants
-consts_mock = MagicMock()
-consts_mock.const = MagicMock()
-consts_mock.const.MINIO_ENDPOINT = "http://localhost:9000"
-consts_mock.const.MINIO_ACCESS_KEY = "test_access_key"
-consts_mock.const.MINIO_SECRET_KEY = "test_secret_key"
-consts_mock.const.MINIO_REGION = "us-east-1"
-consts_mock.const.MINIO_DEFAULT_BUCKET = "test-bucket"
+# Import the modules we need with MinioClient mocked  
+with patch('database.client.MinioClient', MagicMock()):
+    import pytest
+    from fastapi.testclient import TestClient
+    from http import HTTPStatus
+    
+    # Create a test client with a fresh FastAPI app
+    from apps.remote_mcp_app import router
+    from fastapi import FastAPI
+    
+    # Patch exception classes to ensure tests use correct exceptions
+    import apps.remote_mcp_app as remote_app
+    remote_app.MCPConnectionError = MCPConnectionError
+    remote_app.MCPNameIllegal = MCPNameIllegal
+    remote_app.MCPDatabaseError = MCPDatabaseError
 
-# Mock consts.exceptions module
-exceptions_mock = MagicMock()
-# Create actual exception classes for testing
-class MCPConnectionError(Exception):
-    pass
-
-class MCPNameIllegal(Exception):
-    pass
-
-class MCPDatabaseError(Exception):
-    pass
-
-exceptions_mock.MCPConnectionError = MCPConnectionError
-exceptions_mock.MCPNameIllegal = MCPNameIllegal
-exceptions_mock.MCPDatabaseError = MCPDatabaseError
-consts_mock.exceptions = exceptions_mock
-
-# Mock consts.model module
-model_mock = MagicMock()
-# Create mock classes for model
-class ToolInstanceInfoRequest:
-    pass
-
-class ToolInfo:
-    pass
-
-class ToolSourceEnum:
-    pass
-
-model_mock.ToolInstanceInfoRequest = ToolInstanceInfoRequest
-model_mock.ToolInfo = ToolInfo
-model_mock.ToolSourceEnum = ToolSourceEnum
-consts_mock.model = model_mock
-
-sys.modules['consts'] = consts_mock
-sys.modules['consts.const'] = consts_mock.const
-sys.modules['consts.exceptions'] = exceptions_mock
-sys.modules['consts.model'] = model_mock
-
-# Mock boto3 module
-boto3_mock = MagicMock()
-sys.modules['boto3'] = boto3_mock
-
-# Mock the entire client module
-client_mock = MagicMock()
-client_mock.MinioClient = MagicMock()
-client_mock.PostgresClient = MagicMock()
-client_mock.db_client = MagicMock()
-client_mock.get_db_session = MagicMock()
-client_mock.as_dict = MagicMock()
-client_mock.filter_property = MagicMock()
-client_mock.minio_client = MagicMock()
-
-# Add the mocked client module to sys.modules
-sys.modules['database.client'] = client_mock
-sys.modules['backend.database.client'] = client_mock
-
-# Now we can safely import - the exceptions are already defined above
-import pytest
-from fastapi.testclient import TestClient
-from http import HTTPStatus
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
 
 
 class MockToolInfo:
@@ -92,15 +46,6 @@ class MockToolInfo:
             "description": self.description,
             "params": self.params
         }
-
-
-# Create a test client with a fresh FastAPI app
-from apps.remote_mcp_app import router
-from fastapi import FastAPI
-
-app = FastAPI()
-app.include_router(router)
-client = TestClient(app)
 
 
 class TestGetToolsFromRemoteMCP:
