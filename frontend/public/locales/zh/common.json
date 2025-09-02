@@ -1,6 +1,10 @@
 {
     "assistant.name": "Nexent",
 
+    "mainPage.layout.title": "Nexent | 智能问答",
+    "mainPage.layout.titleTemplate": "%s | Nexent 智能问答",
+    "mainPage.layout.description": "创建和配置您自己的AI Agent智能体",
+
     "chatAttachment.imagePreview": "图片预览",
     "chatAttachment.previewNotSupported": "此文件类型暂不支持在线预览",
     "chatAttachment.downloadToView": "请下载文件后查看",
@@ -181,6 +185,9 @@
     "chatStreamHandler.processRemainingDataFailed": "处理剩余数据失败:",
     "chatStreamHandler.thinking": "正在思考中...",
     "chatStreamHandler.connectingMcpServer": "正在连接MCP服务器...",
+    "chatStreamHandler.memoryRetrieving": "正在回忆中...",
+    "chatStreamHandler.memoryRetrieved": "回忆已完成。",
+    "chatStreamHandler.memoryFailed": "回忆失败。已跳过...",
     "chatStreamHandler.generateTitleFailed": "生成标题失败:",
     "chatStreamHandler.streamResponseError": "处理流式响应时出错:",
     "chatStreamHandler.userInterrupted": "对话主动中止。",
@@ -486,6 +493,10 @@
     "model.provider.silicon": "硅基流动",
     "model.dialog.modelList.title": "显示模型",
     "model.dialog.connectivity.title": "连通性验证",
+    "model.dialog.connectivity.status.checking": "检测中",
+    "model.dialog.connectivity.status.available": "可用",
+    "model.dialog.connectivity.status.unavailable": "不可用",
+    "model.dialog.connectivity.status.not_detected": "未检测",
     "model.dialog.button.modelList": "获取模型",
     "model.dialog.button.verify": "点击验证",
     "model.dialog.button.verifying": "验证中...",
