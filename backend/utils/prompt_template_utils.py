@@ -14,7 +14,6 @@ def get_prompt_template(template_type: str, language: str = 'zh', **kwargs) -> D
             - 'agent': Agent template including manager and managed agents
             - 'knowledge_summary': Knowledge summary template
             - 'analyze_file': File analysis template
-            - 'prompt_fine_tune': Prompt fine-tuning template
             - 'generate_title': Title generation template
         language: Language code ('zh' or 'en')
         **kwargs: Additional parameters, for agent type need to pass is_manager parameter
@@ -48,10 +47,6 @@ def get_prompt_template(template_type: str, language: str = 'zh', **kwargs) -> D
         'analyze_file': {
             'zh': 'backend/prompts/analyze_file.yaml',
             'en': 'backend/prompts/analyze_file_en.yaml'
-        },
-        'prompt_fine_tune': {
-            'zh': 'backend/prompts/utils/prompt_fine_tune.yaml',
-            'en': 'backend/prompts/utils/prompt_fine_tune_en.yaml'
         },
         'generate_title': {
             'zh': 'backend/prompts/utils/generate_title.yaml',

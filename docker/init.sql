@@ -202,6 +202,7 @@ CREATE TABLE IF NOT EXISTS "knowledge_record_t" (
   "knowledge_describe" varchar(3000) COLLATE "pg_catalog"."default",
   "tenant_id" varchar(100) COLLATE "pg_catalog"."default",
   "knowledge_sources" varchar(100) COLLATE "pg_catalog"."default",
+  "embedding_model_name" varchar(200) COLLATE "pg_catalog"."default",
   "create_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "update_time" timestamp(0) DEFAULT CURRENT_TIMESTAMP,
   "delete_flag" varchar(1) COLLATE "pg_catalog"."default" DEFAULT 'N'::character varying,
@@ -215,6 +216,7 @@ COMMENT ON COLUMN "knowledge_record_t"."index_name" IS 'Knowledge base name';
 COMMENT ON COLUMN "knowledge_record_t"."knowledge_describe" IS 'Knowledge base description';
 COMMENT ON COLUMN "knowledge_record_t"."tenant_id" IS 'Tenant ID';
 COMMENT ON COLUMN "knowledge_record_t"."knowledge_sources" IS 'Knowledge base sources';
+COMMENT ON COLUMN "knowledge_record_t"."embedding_model_name" IS 'Embedding model name, used to record the embedding model used by the knowledge base';
 COMMENT ON COLUMN "knowledge_record_t"."create_time" IS 'Creation time, audit field';
 COMMENT ON COLUMN "knowledge_record_t"."update_time" IS 'Update time, audit field';
 COMMENT ON COLUMN "knowledge_record_t"."delete_flag" IS 'When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N';
