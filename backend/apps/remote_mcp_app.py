@@ -1,15 +1,16 @@
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import JSONResponse
+from http import HTTPStatus
 
-from database.remote_mcp_db import update_mcp_status_by_name_and_url
+from consts.exceptions import MCPConnectionError, MCPNameIllegal, MCPDatabaseError
 from services.remote_mcp_service import (
     add_remote_mcp_server_list,
     delete_remote_mcp_server_list,
     get_remote_mcp_server_list,
-    mcp_server_health,
+    check_mcp_health_and_update_db,
 )
 from services.tool_configuration_service import get_tool_from_remote_mcp_server
 from utils.auth_utils import get_current_user_id
@@ -28,17 +29,14 @@ async def get_tools_from_remote_mcp(
     try:
         tools_info = await get_tool_from_remote_mcp_server(mcp_server_name=service_name, remote_mcp_server=mcp_url)
         return JSONResponse(
-            status_code=200,
+            status_code=HTTPStatus.OK,
             content={
                 "tools": [tool.__dict__ for tool in tools_info], "status": "success"}
         )
     except Exception as e:
         logger.error(f"get tools from remote MCP server failed, error: {e}")
-        return JSONResponse(
-            status_code=400,
-            content={
-                "message": "Failed to get tools from remote MCP server", "status": "error"}
-        )
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+                            detail="Failed to get tools from remote MCP server.")
 
 
 @router.post("/add")
@@ -50,27 +48,32 @@ async def add_remote_proxies(
     """ Used to add a remote MCP server """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        result = await add_remote_mcp_server_list(tenant_id=tenant_id,
-                                                  user_id=user_id,
-                                                  remote_mcp_server=mcp_url,
-                                                  remote_mcp_server_name=service_name)
-        # If result is already a JSONResponse, return it directly
-        if isinstance(result, JSONResponse):
-            return result
-
-        # Otherwise, return a success result
+        await add_remote_mcp_server_list(tenant_id=tenant_id,
+                                         user_id=user_id,
+                                         remote_mcp_server=mcp_url,
+                                         remote_mcp_server_name=service_name)
         return JSONResponse(
-            status_code=200,
+            status_code=HTTPStatus.OK,
             content={"message": "Successfully added remote MCP proxy",
                      "status": "success"}
         )
+
+    except MCPNameIllegal as e:
+        logger.error(f"Failed to add remote MCP proxy: {e}")
+        raise HTTPException(status_code=HTTPStatus.CONFLICT,
+                            detail="MCP name already exists")
+    except MCPConnectionError as e:
+        logger.error(f"Failed to add remote MCP proxy: {e}")
+        raise HTTPException(status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                            detail="MCP connection failed")
+    except MCPDatabaseError as e:
+        logger.error(f"Failed to add remote MCP proxy: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Failed to add remote MCP proxy, database error")
     except Exception as e:
         logger.error(f"Failed to add remote MCP proxy: {e}")
-        return JSONResponse(
-            status_code=400,
-            content={"message": "Failed to add remote MCP proxy",
-                     "status": "error"}
-        )
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+                            detail="Failed to add remote MCP proxy")
 
 
 @router.delete("")
@@ -82,27 +85,23 @@ async def delete_remote_proxies(
     """ Used to delete a remote MCP server """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        result = await delete_remote_mcp_server_list(tenant_id=tenant_id,
-                                                     user_id=user_id,
-                                                     remote_mcp_server=mcp_url,
-                                                     remote_mcp_server_name=service_name)
-        # If result is already a JSONResponse, return it directly
-        if isinstance(result, JSONResponse):
-            return result
-
-        # Otherwise, return a success result
+        await delete_remote_mcp_server_list(tenant_id=tenant_id,
+                                            user_id=user_id,
+                                            remote_mcp_server=mcp_url,
+                                            remote_mcp_server_name=service_name)
         return JSONResponse(
-            status_code=200,
+            status_code=HTTPStatus.OK,
             content={"message": "Successfully deleted remote MCP proxy",
                      "status": "success"}
         )
+    except MCPDatabaseError as e:
+        logger.error(f"Failed to delete remote MCP proxy: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Failed to delete remote MCP proxy, database error")
     except Exception as e:
         logger.error(f"Failed to delete remote MCP proxy: {e}")
-        return JSONResponse(
-            status_code=400,
-            content={"message": "Failed to delete remote MCP proxy",
-                     "status": "error"}
-        )
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+                            detail="Failed to delete remote MCP proxy")
 
 
 @router.get("/list")
@@ -114,35 +113,32 @@ async def get_remote_proxies(
         _, tenant_id = get_current_user_id(authorization)
         remote_mcp_server_list = await get_remote_mcp_server_list(tenant_id=tenant_id)
         return JSONResponse(
-            status_code=200,
+            status_code=HTTPStatus.OK,
             content={"remote_mcp_server_list": remote_mcp_server_list,
                      "status": "success"}
         )
     except Exception as e:
         logger.error(f"Failed to get remote MCP proxy: {e}")
-        return JSONResponse(
-            status_code=400,
-            content={"message": "Failed to get remote MCP proxy",
-                     "status": "error"}
-        )
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+                            detail="Failed to get remote MCP proxy")
 
 
 @router.get("/healthcheck")
 async def check_mcp_health(mcp_url: str, service_name: str, authorization: Optional[str] = Header(None)):
     """ Used to check the health of the MCP server, the front end can call it,
     and automatically update the database status """
-    user_id, tenant_id = get_current_user_id(authorization)
-
-    # check the health of the MCP server
-    response = await mcp_server_health(remote_mcp_server=mcp_url)
-    # update the status of the MCP server in the database
-
-    status = response.status_code == 200
-    update_mcp_status_by_name_and_url(
-        mcp_name=service_name,
-        mcp_server=mcp_url,
-        tenant_id=tenant_id,
-        user_id=user_id,
-        status=status
-    )
-    return response
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        await check_mcp_health_and_update_db(mcp_url, service_name, tenant_id, user_id)
+        return JSONResponse(
+            status_code=HTTPStatus.OK,
+            content={"status": "success"}
+        )
+    except MCPDatabaseError as e:
+        logger.error(f"Failed to check the health of the MCP server: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Failed to check the health of the MCP server, database error")
+    except Exception as e:
+        logger.error(f"Failed to check the health of the MCP server: {e}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+                            detail="Failed to check the health of the MCP server")
