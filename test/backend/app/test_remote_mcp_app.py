@@ -376,21 +376,28 @@ class TestErrorHandling:
     """Error handling tests"""
 
     @patch('apps.remote_mcp_app.get_current_user_id')
-    def test_authorization_header_handling(self, mock_get_user_id):
+    @patch('apps.remote_mcp_app.get_remote_mcp_server_list')
+    def test_authorization_header_handling(self, mock_get_list, mock_get_user_id):
         """Test authorization header handling"""
         mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_get_list.return_value = []  # Mock empty list
 
         # Test case without Authorization header
         response = client.get("/mcp/list")
-        # Should be able to handle any result
+        # Should return OK with empty list
         assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert data["status"] == "success"
+        assert "remote_mcp_server_list" in data
 
     @patch('apps.remote_mcp_app.get_current_user_id')
     @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
-    def test_unexpected_error_handling(self, mock_add_server, mock_get_user_id):
+    @patch('services.remote_mcp_service.check_mcp_name_exists')
+    def test_unexpected_error_handling(self, mock_check_name_exists, mock_add_server, mock_get_user_id):
         """Test unexpected error handling"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_add_server.side_effect = Exception("Unexpected error")
+        mock_check_name_exists.return_value = False # Mock check_mcp_name_exists to avoid connection issues
 
         response = client.post(
             "/mcp/add",
@@ -413,15 +420,22 @@ class TestDataValidation:
         response = client.post("/mcp/add")
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-    def test_invalid_auth_token(self):
+    @patch('services.remote_mcp_service.check_mcp_name_exists')
+    def test_invalid_auth_token(self, mock_check_name_exists):
         """Test invalid authentication token"""
+        # Mock database function to avoid connection issues
+        mock_check_name_exists.return_value = False
+        
         response = client.post(
             "/mcp/add",
             params={"mcp_url": "invalid-url",
                     "service_name": "test_service_invalid"},
             headers={"Authorization": "Bearer test_token"}
         )
+        # Should return BAD_REQUEST due to connection failure in mcp_server_health
         assert response.status_code == HTTPStatus.BAD_REQUEST
+        data = response.json()
+        assert "Failed to add remote MCP proxy" in data["detail"]
 
     @patch('apps.remote_mcp_app.get_current_user_id')
     @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
