@@ -157,3 +157,14 @@ LOCAL_MCP_SERVER = os.getenv("NEXENT_MCP_SERVER")
 
 # Invite code
 INVITE_CODE = os.getenv("INVITE_CODE")
+
+MODEL_CONFIG_MAPPING = {
+    "llm": "LLM_ID",
+    "llmSecondary": "LLM_SECONDARY_ID",
+    "embedding": "EMBEDDING_ID",
+    "multiEmbedding": "MULTI_EMBEDDING_ID",
+    "rerank": "RERANK_ID",
+    "vlm": "VLM_ID",
+    "stt": "STT_ID",
+    "tts": "TTS_ID"
+}

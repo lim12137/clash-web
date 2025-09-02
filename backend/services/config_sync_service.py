@@ -1,23 +1,12 @@
 import logging
 
 from consts.const import DEFAULT_APP_NAME_ZH, DEFAULT_APP_NAME_EN, DEFAULT_APP_DESCRIPTION_ZH, \
-    DEFAULT_APP_DESCRIPTION_EN, DEFAULT_APP_ICON_URL
+    DEFAULT_APP_DESCRIPTION_EN, DEFAULT_APP_ICON_URL, MODEL_CONFIG_MAPPING
 from database.model_management_db import get_model_id_by_display_name
 from utils.config_utils import tenant_config_manager, get_env_key, safe_value, \
     get_model_name_from_config
 
 logger = logging.getLogger("config_sync_service")
-
-MODEL_CONFIG_MAPPING = {
-    "llm": "LLM_ID",
-    "llmSecondary": "LLM_SECONDARY_ID",
-    "embedding": "EMBEDDING_ID",
-    "multiEmbedding": "MULTI_EMBEDDING_ID",
-    "rerank": "RERANK_ID",
-    "vlm": "VLM_ID",
-    "stt": "STT_ID",
-    "tts": "TTS_ID"
-}
 
 
 def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id: int, tenant_config_dict: dict) -> None:
