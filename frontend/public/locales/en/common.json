@@ -1,6 +1,10 @@
 {
     "assistant.name": "Nexent",
 
+    "mainPage.layout.title": "Nexent | AI Agents",
+    "mainPage.layout.titleTemplate": "%s | Nexent AI Agents",
+    "mainPage.layout.description": "Create and configure your own AI Agents",
+
     "chatAttachment.imagePreview": "Image Preview",
     "chatAttachment.previewNotSupported": "Preview not supported for this file type",
     "chatAttachment.downloadToView": "Please download the file to view",
@@ -181,6 +185,9 @@
     "chatStreamHandler.processRemainingDataFailed": "Failed to process remaining data:",
     "chatStreamHandler.thinking": "Thinking...",
     "chatStreamHandler.connectingMcpServer": "Connecting to MCP server...",
+    "chatStreamHandler.memoryRetrieving": "Retrieving memories...",
+    "chatStreamHandler.memoryRetrieved": "Memories retrieved.",
+    "chatStreamHandler.memoryFailed": "Memory retrieval failed. Continuing...",
     "chatStreamHandler.generateTitleFailed": "Failed to generate title:",
     "chatStreamHandler.streamResponseError": "Error processing streaming response:",
     "chatStreamHandler.userInterrupted": "Chat ended by user.",
@@ -486,6 +493,10 @@
     "model.provider.silicon": "SiliconFlow",
     "model.dialog.modelList.title": "Show Models",
     "model.dialog.connectivity.title": "Connectivity Verification",
+    "model.dialog.connectivity.status.checking": "Checking",
+    "model.dialog.connectivity.status.available": "Available",
+    "model.dialog.connectivity.status.unavailable": "Unavailable",
+    "model.dialog.connectivity.status.not_detected": "Not Detected",
     "model.dialog.button.modelList": "Get Models",
     "model.dialog.button.verify": "Verify",
     "model.dialog.button.verifying": "Verifying...",

@@ -37,10 +37,10 @@ export async function generateMetadata(props: {
 
   return {
     title: {
-      default: messages.layout?.title ?? "Default Title",
-      template: messages.layout?.titleTemplate ?? "%s | Default Site",
+      default: messages["mainPage.layout.title"],
+      template: messages["mainPage.layout.titleTemplate"],
     },
-    description: messages.layout?.description ?? "Default description",
+    description: messages["mainPage.layout.description"],
     icons: {
       icon: "/modelengine-logo.png",
       shortcut: "/favicon.ico",
