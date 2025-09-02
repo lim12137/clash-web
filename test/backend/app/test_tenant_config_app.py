@@ -141,8 +141,7 @@ class TestTenantConfigApp(unittest.TestCase):
         
         self.assertEqual(response.status_code, HTTPStatus.INTERNAL_SERVER_ERROR)
         data = response.json()
-        self.assertEqual(data["status"], "error")
-        self.assertIn("Failed to load configuration", data["message"])
+        self.assertIn("Failed to load configuration", data["detail"])
 
     def test_load_knowledge_list_service_error(self):
         """Test knowledge list loading with service error"""
@@ -155,8 +154,7 @@ class TestTenantConfigApp(unittest.TestCase):
         
         self.assertEqual(response.status_code, HTTPStatus.INTERNAL_SERVER_ERROR)
         data = response.json()
-        self.assertEqual(data["status"], "error")
-        self.assertIn("Failed to load configuration", data["message"])
+        self.assertIn("Failed to load configuration", data["detail"])
 
     def test_load_knowledge_list_empty(self):
         """Test loading empty knowledge list"""
@@ -194,8 +192,7 @@ class TestTenantConfigApp(unittest.TestCase):
         
         self.assertEqual(response.status_code, HTTPStatus.INTERNAL_SERVER_ERROR)
         data = response.json()
-        self.assertEqual(data["status"], "error")
-        self.assertIn("Failed to load configuration", data["message"])
+        self.assertIn("Failed to load configuration", data["detail"])
 
     def test_update_knowledge_list_success(self):
         """Test successful knowledge list update"""
@@ -232,8 +229,7 @@ class TestTenantConfigApp(unittest.TestCase):
         
         self.assertEqual(response.status_code, HTTPStatus.INTERNAL_SERVER_ERROR)
         data = response.json()
-        self.assertEqual(data["status"], "error")
-        self.assertEqual(data["message"], "update failed")
+        self.assertIn("Failed to update configuration", data["detail"])
 
     def test_update_knowledge_list_auth_error(self):
         """Test knowledge list update with authentication error"""
@@ -248,8 +244,7 @@ class TestTenantConfigApp(unittest.TestCase):
         
         self.assertEqual(response.status_code, HTTPStatus.INTERNAL_SERVER_ERROR)
         data = response.json()
-        self.assertEqual(data["status"], "error")
-        self.assertIn("Failed to update configuration", data["message"])
+        self.assertIn("Failed to update configuration", data["detail"])
 
     def test_update_knowledge_list_service_error(self):
         """Test knowledge list update with service error"""
@@ -264,8 +259,7 @@ class TestTenantConfigApp(unittest.TestCase):
         
         self.assertEqual(response.status_code, HTTPStatus.INTERNAL_SERVER_ERROR)
         data = response.json()
-        self.assertEqual(data["status"], "error")
-        self.assertIn("Failed to update configuration", data["message"])
+        self.assertIn("Failed to update configuration", data["detail"])
 
     def test_update_knowledge_list_empty_list(self):
         """Test updating with empty knowledge list"""

@@ -76,7 +76,7 @@ class MockKnowledgeRecord:
         self.updated_by = kwargs.get('updated_by', 'test_user')
         self.knowledge_sources = kwargs.get('knowledge_sources', 'elasticsearch')
         self.tenant_id = kwargs.get('tenant_id', 'test_tenant')
-        self.model_name = kwargs.get('model_name', 'test_model')
+        self.embedding_model_name = kwargs.get('embedding_model_name', 'test_model')
         self.delete_flag = kwargs.get('delete_flag', 'N')
         self.update_time = kwargs.get('update_time', "2023-01-01 00:00:00")
         
@@ -88,7 +88,7 @@ class MockKnowledgeRecord:
     updated_by = MagicMock(name="updated_by_column")
     knowledge_sources = MagicMock(name="knowledge_sources_column")
     tenant_id = MagicMock(name="tenant_id_column")
-    model_name = MagicMock(name="model_name_column")
+    embedding_model_name = MagicMock(name="embedding_model_name_column")
     delete_flag = MagicMock(name="delete_flag_column")
     update_time = MagicMock(name="update_time_column")
 
@@ -140,7 +140,7 @@ def test_create_knowledge_record_success(monkeypatch, mock_session):
         "knowledge_describe": "Test knowledge description",
         "user_id": "test_user",
         "tenant_id": "test_tenant",
-        "model_name": "test_model"
+        "embedding_model_name": "test_model"
     }
     
     # Mock KnowledgeRecord constructor
@@ -168,7 +168,7 @@ def test_create_knowledge_record_exception(monkeypatch, mock_session):
         "knowledge_describe": "Test knowledge description",
         "user_id": "test_user",
         "tenant_id": "test_tenant",
-        "model_name": "test_model"
+        "embedding_model_name": "test_model"
     }
     
     mock_record = MockKnowledgeRecord()
@@ -186,7 +186,7 @@ def test_update_knowledge_record_success(monkeypatch, mock_session):
     # Create mock knowledge record
     mock_record = MockKnowledgeRecord()
     mock_record.knowledge_describe = "old description"
-    mock_record.model_name = "old_model"
+    mock_record.embedding_model_name = "old_model"
     
     mock_filter = MagicMock()
     mock_filter.first.return_value = mock_record
@@ -200,7 +200,6 @@ def test_update_knowledge_record_success(monkeypatch, mock_session):
     test_query = {
         "index_name": "test_knowledge",
         "knowledge_describe": "Updated description",
-        "model_name": "new_model",
         "user_id": "test_user"
     }
     
@@ -208,7 +207,6 @@ def test_update_knowledge_record_success(monkeypatch, mock_session):
     
     assert result is True
     assert mock_record.knowledge_describe == "Updated description"
-    assert mock_record.model_name == "new_model"
     assert mock_record.updated_by == "test_user"
     session.flush.assert_called_once()
     session.commit.assert_called_once()
@@ -457,13 +455,13 @@ def test_get_knowledge_info_by_knowledge_ids_success(monkeypatch, mock_session):
     mock_record1.knowledge_id = 1
     mock_record1.index_name = "knowledge1"
     mock_record1.knowledge_sources = "elasticsearch"
-    mock_record1.model_name = "model1"
+    mock_record1.embedding_model_name = "model1"
     
     mock_record2 = MockKnowledgeRecord()
     mock_record2.knowledge_id = 2
     mock_record2.index_name = "knowledge2"
     mock_record2.knowledge_sources = "vectordb"
-    mock_record2.model_name = "model2"
+    mock_record2.embedding_model_name = "model2"
     
     mock_filter = MagicMock()
     mock_filter.all.return_value = [mock_record1, mock_record2]
@@ -482,13 +480,13 @@ def test_get_knowledge_info_by_knowledge_ids_success(monkeypatch, mock_session):
             "knowledge_id": 1,
             "index_name": "knowledge1",
             "knowledge_sources": "elasticsearch",
-            "model_name": "model1"
+            "embedding_model_name": "model1"
         },
         {
             "knowledge_id": 2,
             "index_name": "knowledge2",
             "knowledge_sources": "vectordb",
-            "model_name": "model2"
+            "embedding_model_name": "model2"
         }
     ]
     
@@ -632,7 +630,7 @@ def test_update_model_name_by_index_name_success(monkeypatch, mock_session):
     result = update_model_name_by_index_name("test_index", "new_model", "tenant1", "user1")
     
     assert result is True
-    mock_update.assert_called_once_with({"model_name": "new_model", "updated_by": "user1"})
+    mock_update.assert_called_once_with({"embedding_model_name": "new_model", "updated_by": "user1"})
     session.commit.assert_called_once()
 
 
