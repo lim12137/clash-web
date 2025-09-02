@@ -18,7 +18,7 @@ def create_knowledge_record(query: Dict[str, Any]) -> int:
             - knowledge_status: Knowledge base status
             - user_id: Optional user ID for created_by and updated_by fields
             - tenant_id: Optional tenant ID for created_by and updated_by fields
-            - model_name: embedding model name for the knowledge base
+            - embedding_model_name: embedding model name for the knowledge base
 
     Returns:
         int: Newly created knowledge base ID
@@ -33,7 +33,7 @@ def create_knowledge_record(query: Dict[str, Any]) -> int:
                 "updated_by": query.get("user_id"),
                 "knowledge_sources": query.get("knowledge_sources", "elasticsearch"),
                 "tenant_id": query.get("tenant_id"),
-                "model_name": query.get("model_name")
+                "embedding_model_name": query.get("embedding_model_name")
             }
 
             # Create new record
