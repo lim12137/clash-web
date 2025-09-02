@@ -1,5 +1,4 @@
-import unittest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 import sys
 import os
 
@@ -384,7 +383,7 @@ class TestErrorHandling:
         # Test case without Authorization header
         response = client.get("/mcp/list")
         # Should be able to handle any result
-        assert response.status_code in [HTTPStatus.OK, HTTPStatus.BAD_REQUEST]
+        assert response.status_code == HTTPStatus.OK
 
     @patch('apps.remote_mcp_app.get_current_user_id')
     @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
@@ -414,17 +413,30 @@ class TestDataValidation:
         response = client.post("/mcp/add")
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-    def test_invalid_url_format(self):
-        """Test invalid URL format"""
+    def test_invalid_auth_token(self):
+        """Test invalid authentication token"""
         response = client.post(
             "/mcp/add",
             params={"mcp_url": "invalid-url",
                     "service_name": "test_service_invalid"},
             headers={"Authorization": "Bearer test_token"}
         )
-        # URL validation is done at application layer, mainly testing parameter acceptance here
-        # 409 CONFLICT can also be returned if service name conflicts
-        assert response.status_code in [HTTPStatus.BAD_REQUEST, HTTPStatus.OK, HTTPStatus.UNPROCESSABLE_ENTITY, HTTPStatus.CONFLICT]
+        assert response.status_code == HTTPStatus.BAD_REQUEST
+
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
+    def test_invalid_url_format(self, mock_add_server, mock_get_user_id):
+        """Test invalid URL format with valid authentication"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_add_server.side_effect = MCPConnectionError("Invalid URL format")
+
+        response = client.post(
+            "/mcp/add",
+            params={"mcp_url": "invalid-url",
+                    "service_name": "test_service_invalid"},
+            headers={"Authorization": "Bearer valid_token"}
+        )
+        assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
 
 
 if __name__ == "__main__":
