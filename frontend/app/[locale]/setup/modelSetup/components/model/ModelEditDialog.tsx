@@ -1,13 +1,10 @@
 import { Modal, Input, Button, App } from 'antd'
-import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import { ModelOption, ModelType } from '@/types/config'
 import { modelService } from '@/services/modelService'
 import { useConfig } from '@/hooks/useConfig'
 import { useTranslation } from 'react-i18next'
-
-// Add type definition for connectivity status
-type ConnectivityStatusType = "checking" | "available" | "unavailable" | null;
+import { getConnectivityIcon, getConnectivityColor, ConnectivityStatusType } from '@/lib/utils'
 
 interface ModelEditDialogProps {
   isOpen: boolean
@@ -120,34 +117,6 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
       message.error(t('model.dialog.error.verificationError', { error }))
     } finally {
       setVerifyingConnectivity(false)
-    }
-  }
-
-  // Get the connectivity status icon
-  const getConnectivityIcon = () => {
-    switch (connectivityStatus.status) {
-      case "checking":
-        return <LoadingOutlined style={{ color: '#1890ff' }} />
-      case "available":
-        return <CheckCircleOutlined style={{ color: '#52c41a' }} />
-      case "unavailable":
-        return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
-      default:
-        return null
-    }
-  }
-
-  // Get the connectivity status color
-  const getConnectivityColor = () => {
-    switch (connectivityStatus.status) {
-      case "checking":
-        return '#1890ff'
-      case "available":
-        return '#52c41a'
-      case "unavailable":
-        return '#ff4d4f'
-      default:
-        return '#d9d9d9'
     }
   }
 
@@ -275,10 +244,10 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
               <span className="text-sm font-medium text-gray-700">{t('model.dialog.connectivity.title')}</span>
               {connectivityStatus.status && (
                 <div className="ml-2 flex items-center">
-                  {getConnectivityIcon()}
+                  {getConnectivityIcon(connectivityStatus.status)}
                   <span 
                     className="ml-1 text-xs"
-                    style={{ color: getConnectivityColor() }}
+                    style={{ color: getConnectivityColor(connectivityStatus.status) }}
                   >
                     {t(`model.dialog.connectivity.status.${connectivityStatus.status}`)}
                   </span>
