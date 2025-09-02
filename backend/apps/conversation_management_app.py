@@ -67,7 +67,7 @@ async def list_conversations_endpoint(authorization: Optional[str] = Header(None
     try:
         user_id, tenant_id = get_current_user_id(authorization)
         if not user_id:
-            raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Unauthorized access, please login first")
+            raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Unauthorized access, Please login first")
         conversations = get_conversation_list_service(user_id)
         return ConversationResponse(code=0, message="success", data=conversations)
     except Exception as e:

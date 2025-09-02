@@ -134,7 +134,7 @@ async def create_batch_tasks(request: BatchTaskRequest, authorization: Optional[
     Processing happens in the background for each file independently.
     """
     try:
-        task_ids = await service.create_batch_tasks_impl(authorization, request)
+        task_ids = await service.create_batch_tasks_impl(authorization=authorization, request=request)
         return BatchTaskResponse(task_ids=task_ids)
 
     except Exception as e:
