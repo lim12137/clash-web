@@ -13,6 +13,7 @@ from mcpadapt.smolagents_adapter import _sanitize_function_name
 from database.tool_db import create_or_update_tool_by_tool_info, query_tool_instances_by_id, \
     update_tool_table_from_scan_tool_list
 from consts.model import ToolInstanceInfoRequest, ToolInfo, ToolSourceEnum
+from consts.const import LOCAL_MCP_SERVER
 from database.remote_mcp_db import get_mcp_records_by_tenant
 from utils.auth_utils import get_current_user_id
 from fastapi import Header
@@ -22,7 +23,6 @@ from utils.config_utils import config_manager
 from consts.exceptions import MCPConnectionError
 
 logger = logging.getLogger("tool_configuration_service")
-
 
 def python_type_to_json_schema(annotation: Any) -> str:
     """
@@ -58,7 +58,6 @@ def python_type_to_json_schema(annotation: Any) -> str:
 
     # Return mapped type, or original type name if no mapping exists
     return type_mapping.get(type_name, type_name)
-
 
 def get_local_tools() -> List[ToolInfo]:
     """
@@ -204,8 +203,7 @@ async def get_all_mcp_tools(tenant_id: str) -> List[ToolInfo]:
             except Exception as e:
                 logger.error(f"mcp connection error: {str(e)}")
 
-    default_mcp_url = urljoin(
-        config_manager.get_config("NEXENT_MCP_SERVER"), "sse")
+    default_mcp_url = urljoin(LOCAL_MCP_SERVER, "sse")
     tools_info.extend(await get_tool_from_remote_mcp_server(mcp_server_name="nexent",
                                                             remote_mcp_server=default_mcp_url))
     return tools_info
@@ -315,6 +313,7 @@ async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_serve
         logger.error(f"failed to get tool from remote MCP server, detail: {e}")
         raise MCPConnectionError(
             f"failed to get tool from remote MCP server, detail: {e}")
+
 
 
 async def update_tool_list(tenant_id: str, user_id: str):
