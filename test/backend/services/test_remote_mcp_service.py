@@ -1,192 +1,246 @@
 import unittest
 from unittest.mock import patch, MagicMock, AsyncMock
-from fastapi.responses import JSONResponse
-
 import sys
+import os
+
+# Add path for correct imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 sys.modules['boto3'] = MagicMock()
 
-# 需要测试的四个方法
+# Import exception classes
+from backend.consts.exceptions import MCPConnectionError, MCPNameIllegal, MCPDatabaseError
+
+# Functions to test
 with patch('backend.database.client.MinioClient', MagicMock()):
     from backend.services.remote_mcp_service import (
         mcp_server_health,
         add_remote_mcp_server_list,
         delete_remote_mcp_server_list,
-        get_remote_mcp_server_list
+        get_remote_mcp_server_list,
+        check_mcp_health_and_update_db
     )
+    # Patch exception classes to ensure tests use correct exceptions
+    import backend.services.remote_mcp_service as remote_service
+    remote_service.MCPConnectionError = MCPConnectionError
+    remote_service.MCPNameIllegal = MCPNameIllegal
+    remote_service.MCPDatabaseError = MCPDatabaseError
 
 class TestMcpServerHealth(unittest.IsolatedAsyncioTestCase):
-    """测试 mcp_server_health"""
+    """Test mcp_server_health"""
+    
     @patch('backend.services.remote_mcp_service.Client')
     async def test_health_success(self, mock_client_cls):
+        """Test successful health check"""
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.is_connected.return_value = True
+        mock_client.is_connected = MagicMock(return_value=True)  # Sync mock
         mock_client_cls.return_value = mock_client
-        resp = await mcp_server_health('http://test-server')
-        self.assertIsInstance(resp, JSONResponse)
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.body, b'{"message":"Successfully connected to remote MCP server","status":"success"}')
+        
+        result = await mcp_server_health('http://test-server')
+        self.assertTrue(result)
 
     @patch('backend.services.remote_mcp_service.Client')
-    async def test_health_fail(self, mock_client_cls):
-        mock_client = MagicMock()
+    async def test_health_fail_connection(self, mock_client_cls):
+        """Test connection failure"""
+        mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.is_connected.return_value = False
+        mock_client.is_connected = MagicMock(return_value=False)  # Sync mock
         mock_client_cls.return_value = mock_client
-        resp = await mcp_server_health('http://test-server')
-        self.assertEqual(resp.status_code, 503)
-        self.assertIn(b'Cannot connect to remote MCP server', resp.body)
+        
+        result = await mcp_server_health('http://test-server')
+        self.assertFalse(result)
 
-    @patch('backend.services.remote_mcp_service.Client', side_effect=Exception('fail'))
+    @patch('backend.services.remote_mcp_service.Client')
     async def test_health_exception(self, mock_client_cls):
-        resp = await mcp_server_health('http://test-server')
-        self.assertEqual(resp.status_code, 400)
-        self.assertIn(b'Failed to add remote MCP proxy', resp.body)
+        """Test exception case"""
+        mock_client_cls.side_effect = Exception('Connection failed')
+        
+        with self.assertRaises(MCPConnectionError) as context:
+            await mcp_server_health('http://test-server')
+        self.assertEqual(str(context.exception), "MCP connection failed")
 
     @patch('backend.services.remote_mcp_service.Client')
     async def test_health_with_https_url(self, mock_client_cls):
-        """测试 HTTPS URL 的健康检查"""
+        """Test health check with HTTPS URL"""
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.is_connected.return_value = True
+        mock_client.is_connected = MagicMock(return_value=True)  # Sync mock
         mock_client_cls.return_value = mock_client
-        resp = await mcp_server_health('https://secure-server.com')
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'Successfully connected', resp.body)
+        
+        result = await mcp_server_health('https://secure-server.com')
+        self.assertTrue(result)
 
     @patch('backend.services.remote_mcp_service.Client')
     async def test_health_with_port(self, mock_client_cls):
-        """测试带端口的 URL 健康检查"""
+        """Test health check with URL containing port"""
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
-        mock_client.is_connected.return_value = True
+        mock_client.is_connected = MagicMock(return_value=True)  # Sync mock
         mock_client_cls.return_value = mock_client
-        resp = await mcp_server_health('http://test-server:8080')
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'Successfully connected', resp.body)
+        
+        result = await mcp_server_health('http://test-server:8080')
+        self.assertTrue(result)
 
 class TestAddRemoteMcpServerList(unittest.IsolatedAsyncioTestCase):
-    """测试 add_remote_mcp_server_list"""
+    """Test add_remote_mcp_server_list"""
+    
     @patch('backend.services.remote_mcp_service.create_mcp_record')
     @patch('backend.services.remote_mcp_service.mcp_server_health')
-    async def test_add_success(self, mock_health, mock_create):
-        mock_health.return_value = JSONResponse(status_code=200, content={"message": "mock"})
-        mock_create.return_value = True
-        resp = await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
-        self.assertIsInstance(resp, JSONResponse)
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'Successfully added remote MCP proxy', resp.body)
+    @patch('backend.services.remote_mcp_service.check_mcp_name_exists')
+    async def test_add_success(self, mock_check_name, mock_health, mock_create):
+        """Test successful MCP server addition"""
+        mock_check_name.return_value = False  # Name doesn't exist
+        mock_health.return_value = True  # Health check passes
+        mock_create.return_value = True  # Creation successful
+        
+        # Should execute successfully without exception
+        await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
+        
+        # Verify calls
+        mock_check_name.assert_called_once_with(mcp_name='name', tenant_id='tid')
+        mock_health.assert_called_once_with(remote_mcp_server='http://srv')
+        mock_create.assert_called_once()
+
+    @patch('backend.services.remote_mcp_service.check_mcp_name_exists')
+    async def test_add_name_exists(self, mock_check_name):
+        """Test MCP name already exists"""
+        mock_check_name.return_value = True
+        
+        with self.assertRaises(MCPNameIllegal) as context:
+            await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
+        self.assertEqual(str(context.exception), "MCP name already exists")
+
+    @patch('backend.services.remote_mcp_service.mcp_server_health')
+    @patch('backend.services.remote_mcp_service.check_mcp_name_exists')
+    async def test_add_health_fail(self, mock_check_name, mock_health):
+        """Test health check failure"""
+        mock_check_name.return_value = False
+        mock_health.side_effect = MCPConnectionError("MCP connection failed")
+        
+        with self.assertRaises(MCPConnectionError):
+            await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
 
     @patch('backend.services.remote_mcp_service.create_mcp_record')
     @patch('backend.services.remote_mcp_service.mcp_server_health')
-    async def test_add_health_fail(self, mock_health, mock_create):
-        mock_health.return_value = JSONResponse(status_code=503, content={"message": "mock"})
-        resp = await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
-        self.assertEqual(resp.status_code, 503)
-
-    @patch('backend.services.remote_mcp_service.create_mcp_record')
-    @patch('backend.services.remote_mcp_service.mcp_server_health')
-    async def test_add_db_fail(self, mock_health, mock_create):
-        mock_health.return_value = JSONResponse(status_code=200, content={"message": "mock"})
+    @patch('backend.services.remote_mcp_service.check_mcp_name_exists')
+    async def test_add_db_fail(self, mock_check_name, mock_health, mock_create):
+        """Test database operation failure"""
+        mock_check_name.return_value = False
+        mock_health.return_value = True
         mock_create.return_value = False
-        resp = await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
-        self.assertEqual(resp.status_code, 400)
-        self.assertIn(b'database error', resp.body)
+        
+        with self.assertRaises(MCPDatabaseError) as context:
+            await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
+        self.assertEqual(str(context.exception), "Failed to add remote MCP proxy, database error")
 
     @patch('backend.services.remote_mcp_service.create_mcp_record')
     @patch('backend.services.remote_mcp_service.mcp_server_health')
-    async def test_add_with_special_characters(self, mock_health, mock_create):
-        """测试包含特殊字符的服务器名称"""
-        mock_health.return_value = JSONResponse(status_code=200, content={"message": "mock"})
+    @patch('backend.services.remote_mcp_service.check_mcp_name_exists')
+    async def test_add_with_special_characters(self, mock_check_name, mock_health, mock_create):
+        """Test server name with special characters"""
+        mock_check_name.return_value = False
+        mock_health.return_value = True
         mock_create.return_value = True
-        resp = await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'test-server_123')
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'Successfully added', resp.body)
-
-    @patch('backend.services.remote_mcp_service.create_mcp_record')
-    @patch('backend.services.remote_mcp_service.mcp_server_health')
-    async def test_add_with_long_url(self, mock_health, mock_create):
-        """测试长 URL"""
-        long_url = 'http://' + 'a' * 100 + '.com'
-        mock_health.return_value = JSONResponse(status_code=200, content={"message": "mock"})
-        mock_create.return_value = True
-        resp = await add_remote_mcp_server_list('tid', 'uid', long_url, 'name')
-        self.assertEqual(resp.status_code, 200)
+        
+        await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'test-server_123')
+        # Verify successful execution without exception
 
 class TestDeleteRemoteMcpServerList(unittest.IsolatedAsyncioTestCase):
-    """测试 delete_remote_mcp_server_list"""
+    """Test delete_remote_mcp_server_list"""
+    
     @patch('backend.services.remote_mcp_service.delete_mcp_record_by_name_and_url')
     async def test_delete_success(self, mock_delete):
+        """Test successful deletion"""
         mock_delete.return_value = True
-        resp = await delete_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
-        self.assertIsInstance(resp, JSONResponse)
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'Successfully deleted remote MCP proxy', resp.body)
+        
+        # Should execute successfully without exception
+        await delete_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
+        
+        mock_delete.assert_called_once_with(
+            mcp_name='name',
+            mcp_server='http://srv',
+            tenant_id='tid',
+            user_id='uid'
+        )
 
     @patch('backend.services.remote_mcp_service.delete_mcp_record_by_name_and_url')
     async def test_delete_fail(self, mock_delete):
+        """Test deletion failure"""
         mock_delete.return_value = False
-        resp = await delete_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
-        self.assertEqual(resp.status_code, 400)
-        self.assertIn(b'Failed to delete remote MCP server', resp.body)
+        
+        with self.assertRaises(MCPDatabaseError) as context:
+            await delete_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
+        self.assertEqual(str(context.exception), "Failed to delete remote MCP server")
 
     @patch('backend.services.remote_mcp_service.delete_mcp_record_by_name_and_url')
     async def test_delete_nonexistent_server(self, mock_delete):
-        """测试删除不存在的服务器"""
+        """Test deletion of non-existent server"""
         mock_delete.return_value = False
-        resp = await delete_remote_mcp_server_list('tid', 'uid', 'http://nonexistent', 'nonexistent')
-        self.assertEqual(resp.status_code, 400)
-        self.assertIn(b'server not record', resp.body)
+        
+        with self.assertRaises(MCPDatabaseError):
+            await delete_remote_mcp_server_list('tid', 'uid', 'http://nonexistent', 'nonexistent')
 
     @patch('backend.services.remote_mcp_service.delete_mcp_record_by_name_and_url')
     async def test_delete_with_special_characters(self, mock_delete):
-        """测试删除包含特殊字符的服务器"""
+        """Test deletion of server with special characters"""
         mock_delete.return_value = True
-        resp = await delete_remote_mcp_server_list('tid', 'uid', 'http://srv', 'test-server_123')
-        self.assertEqual(resp.status_code, 200)
+        
+        await delete_remote_mcp_server_list('tid', 'uid', 'http://srv', 'test-server_123')
+        # Verify successful execution
 
 class TestGetRemoteMcpServerList(unittest.IsolatedAsyncioTestCase):
-    """测试 get_remote_mcp_server_list"""
+    """Test get_remote_mcp_server_list"""
+    
     @patch('backend.services.remote_mcp_service.get_mcp_records_by_tenant')
     async def test_get_list(self, mock_get):
+        """Test getting server list"""
         mock_get.return_value = [
             {"mcp_name": "n1", "mcp_server": "u1", "status": True},
             {"mcp_name": "n2", "mcp_server": "u2", "status": False}
         ]
+        
         result = await get_remote_mcp_server_list('tid')
+        
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0]["remote_mcp_server_name"], "n1")
-        self.assertEqual(result[1]["status"], False)
+        self.assertEqual(result[0]["remote_mcp_server"], "u1")
+        self.assertTrue(result[0]["status"])
+        self.assertEqual(result[1]["remote_mcp_server_name"], "n2")
+        self.assertFalse(result[1]["status"])
 
     @patch('backend.services.remote_mcp_service.get_mcp_records_by_tenant')
     async def test_get_empty(self, mock_get):
+        """Test getting empty list"""
         mock_get.return_value = []
+        
         result = await get_remote_mcp_server_list('tid')
         self.assertEqual(result, [])
 
     @patch('backend.services.remote_mcp_service.get_mcp_records_by_tenant')
     async def test_get_single_record(self, mock_get):
-        """测试获取单个记录"""
+        """Test getting single record"""
         mock_get.return_value = [
             {"mcp_name": "single_server", "mcp_server": "http://single.com", "status": True}
         ]
+        
         result = await get_remote_mcp_server_list('tid')
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["remote_mcp_server_name"], "single_server")
         self.assertEqual(result[0]["remote_mcp_server"], "http://single.com")
-        self.assertEqual(result[0]["status"], True)
+        self.assertTrue(result[0]["status"])
 
     @patch('backend.services.remote_mcp_service.get_mcp_records_by_tenant')
     async def test_get_large_list(self, mock_get):
-        """测试获取大量记录"""
+        """Test getting large list of records"""
         large_list = []
         for i in range(100):
             large_list.append({
                 "mcp_name": f"server_{i}",
                 "mcp_server": f"http://server_{i}.com",
-                "status": i % 2 == 0  # 交替状态
+                "status": i % 2 == 0  # Alternating status
             })
         mock_get.return_value = large_list
+        
         result = await get_remote_mcp_server_list('tid')
         self.assertEqual(len(result), 100)
         self.assertEqual(result[0]["remote_mcp_server_name"], "server_0")
@@ -194,41 +248,112 @@ class TestGetRemoteMcpServerList(unittest.IsolatedAsyncioTestCase):
 
     @patch('backend.services.remote_mcp_service.get_mcp_records_by_tenant')
     async def test_get_with_special_characters(self, mock_get):
-        """测试包含特殊字符的记录"""
+        """Test records with special characters"""
         mock_get.return_value = [
             {"mcp_name": "test-server_123", "mcp_server": "http://test-server.com:8080", "status": True}
         ]
+        
         result = await get_remote_mcp_server_list('tid')
         self.assertEqual(result[0]["remote_mcp_server_name"], "test-server_123")
         self.assertEqual(result[0]["remote_mcp_server"], "http://test-server.com:8080")
 
+class TestCheckMcpHealthAndUpdateDb(unittest.IsolatedAsyncioTestCase):
+    """Test check_mcp_health_and_update_db"""
+    
+    @patch('backend.services.remote_mcp_service.update_mcp_status_by_name_and_url')
+    @patch('backend.services.remote_mcp_service.mcp_server_health')
+    async def test_check_health_success(self, mock_health, mock_update):
+        """Test successful health check and update"""
+        mock_health.return_value = True
+        mock_update.return_value = True
+        
+        # Should execute successfully without exception
+        await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
+        
+        mock_health.assert_called_once_with(remote_mcp_server='http://srv')
+        mock_update.assert_called_once_with(
+            mcp_name='name',
+            mcp_server='http://srv',
+            tenant_id='tid',
+            user_id='uid',
+            status=True
+        )
+
+    @patch('backend.services.remote_mcp_service.update_mcp_status_by_name_and_url')
+    @patch('backend.services.remote_mcp_service.mcp_server_health')
+    async def test_check_health_false(self, mock_health, mock_update):
+        """Test health check failure"""
+        mock_health.return_value = False
+        mock_update.return_value = True
+        
+        await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
+        
+        mock_update.assert_called_once_with(
+            mcp_name='name',
+            mcp_server='http://srv',
+            tenant_id='tid',
+            user_id='uid',
+            status=False
+        )
+
+    @patch('backend.services.remote_mcp_service.update_mcp_status_by_name_and_url')
+    @patch('backend.services.remote_mcp_service.mcp_server_health')
+    async def test_update_db_fail(self, mock_health, mock_update):
+        """Test database update failure"""
+        mock_health.return_value = True
+        mock_update.return_value = False
+        
+        with self.assertRaises(MCPDatabaseError) as context:
+            await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
+        self.assertEqual(str(context.exception), "Failed to update the status of the MCP server in the database")
+
+    @patch('backend.services.remote_mcp_service.mcp_server_health')
+    async def test_health_check_exception(self, mock_health):
+        """Test health check exception"""
+        mock_health.side_effect = MCPConnectionError("Connection failed")
+        
+        with self.assertRaises(MCPConnectionError):
+            await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
+
 class TestIntegrationScenarios(unittest.IsolatedAsyncioTestCase):
-    """集成测试场景"""
+    """Integration test scenarios"""
     
     @patch('backend.services.remote_mcp_service.create_mcp_record')
     @patch('backend.services.remote_mcp_service.delete_mcp_record_by_name_and_url')
     @patch('backend.services.remote_mcp_service.get_mcp_records_by_tenant')
     @patch('backend.services.remote_mcp_service.mcp_server_health')
-    async def test_full_lifecycle(self, mock_health, mock_get, mock_delete, mock_create):
-        """测试完整的 MCP 服务器生命周期"""
-        # 1. 健康检查成功
-        mock_health.return_value = JSONResponse(status_code=200, content={"message": "mock"})
+    @patch('backend.services.remote_mcp_service.check_mcp_name_exists')
+    async def test_full_lifecycle(self, mock_check_name, mock_health, mock_get, mock_delete, mock_create):
+        """Test complete MCP server lifecycle"""
+        # 1. Add server
+        mock_check_name.return_value = False
+        mock_health.return_value = True
         mock_create.return_value = True
         
-        # 2. 添加服务器
-        add_resp = await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
-        self.assertEqual(add_resp.status_code, 200)
+        # Add server - should succeed without exception
+        await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
         
-        # 3. 获取服务器列表
+        # 2. Get server list
         mock_get.return_value = [{"mcp_name": "name", "mcp_server": "http://srv", "status": True}]
         list_result = await get_remote_mcp_server_list('tid')
         self.assertEqual(len(list_result), 1)
         self.assertEqual(list_result[0]["remote_mcp_server_name"], "name")
         
-        # 4. 删除服务器
+        # 3. Delete server
         mock_delete.return_value = True
-        delete_resp = await delete_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
-        self.assertEqual(delete_resp.status_code, 200)
+        # Delete server - should succeed without exception
+        await delete_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
+
+    @patch('backend.services.remote_mcp_service.check_mcp_name_exists')
+    async def test_duplicate_name_scenario(self, mock_check_name):
+        """Test duplicate name scenario"""
+        mock_check_name.return_value = True
+        
+        with self.assertRaises(MCPNameIllegal):
+            await add_remote_mcp_server_list('tid', 'uid', 'http://srv1', 'duplicate_name')
+        
+        with self.assertRaises(MCPNameIllegal):
+            await add_remote_mcp_server_list('tid', 'uid', 'http://srv2', 'duplicate_name')
 
 if __name__ == '__main__':
     unittest.main()

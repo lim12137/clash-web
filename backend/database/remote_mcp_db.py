@@ -1,9 +1,13 @@
+import logging
 from typing import Any, Dict, List
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from .client import as_dict, filter_property, get_db_session
-from .db_models import McpRecord
+from consts.exceptions import MCPDatabaseError
+from database.client import as_dict, filter_property, get_db_session
+from database.db_models import McpRecord
+
+logger = logging.getLogger("remote_mcp_db")
 
 
 def create_mcp_record(mcp_data: Dict[str, Any], tenant_id: str, user_id: str) -> bool:
@@ -63,7 +67,7 @@ def delete_mcp_record_by_name_and_url(mcp_name: str, mcp_server: str, tenant_id:
 
 def update_mcp_status_by_name_and_url(mcp_name: str, mcp_server: str, tenant_id: str, user_id: str, status: bool) -> bool:
     """
-    Update the status of a MCP record by name and URL
+    Update the status of MCP record by name and URL
     :param mcp_name: MCP name
     :param mcp_server: MCP server URL
     :param tenant_id: Tenant ID
@@ -119,8 +123,9 @@ def get_mcp_server_by_name_and_tenant(mcp_name: str, tenant_id: str) -> str:
             ).first()
 
             return mcp_record.mcp_server if mcp_record else ""
-        except SQLAlchemyError:
-            return ""
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting MCP server by name and tenant: {str(e)}")
+            raise MCPDatabaseError("Error getting MCP server by name and tenant")
 
 
 def check_mcp_name_exists(mcp_name: str, tenant_id: str) -> bool:
@@ -140,5 +145,6 @@ def check_mcp_name_exists(mcp_name: str, tenant_id: str) -> bool:
             ).first()
 
             return mcp_record is not None
-        except SQLAlchemyError:
-            return False
+        except SQLAlchemyError as e:
+            logger.error(f"Error checking if MCP name exists: {str(e)}")
+            raise MCPDatabaseError("Error checking if MCP name exists")

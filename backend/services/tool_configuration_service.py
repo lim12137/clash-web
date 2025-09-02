@@ -18,8 +18,9 @@ from database.remote_mcp_db import get_mcp_records_by_tenant
 from utils.auth_utils import get_current_user_id
 from fastapi import Header
 
-logger = logging.getLogger("tool_configuration_service")
+from consts.exceptions import MCPConnectionError
 
+logger = logging.getLogger("tool_configuration_service")
 
 def python_type_to_json_schema(annotation: Any) -> str:
     """
@@ -55,7 +56,6 @@ def python_type_to_json_schema(annotation: Any) -> str:
 
     # Return mapped type, or original type name if no mapping exists
     return type_mapping.get(type_name, type_name)
-
 
 def get_local_tools() -> List[ToolInfo]:
     """
@@ -276,35 +276,42 @@ def update_tool_info_impl(request: ToolInstanceInfoRequest, authorization: str =
 async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_server: str):
     """get the tool information from the remote MCP server, avoid blocking the event loop"""
     tools_info = []
-    client = Client(remote_mcp_server, timeout=10)
-    async with client:
-        # List available operations
-        tools = await client.list_tools()
 
-        for tool in tools:
-            input_schema = {
-                k: v
-                for k, v in jsonref.replace_refs(tool.inputSchema).items()
-                if k != "$defs"
-            }
-            # make sure mandatory `description` and `type` is provided for each argument:
-            for k, v in input_schema["properties"].items():
-                if "description" not in v:
-                    input_schema["properties"][k]["description"] = "see tool description"
-                if "type" not in v:
-                    input_schema["properties"][k]["type"] = "string"
+    try:
+        client = Client(remote_mcp_server, timeout=10)
+        async with client:
+            # List available operations
+            tools = await client.list_tools()
 
-            sanitized_tool_name = _sanitize_function_name(tool.name)
-            tool_info = ToolInfo(name=sanitized_tool_name,
-                                 description=tool.description,
-                                 params=[],
-                                 source=ToolSourceEnum.MCP.value,
-                                 inputs=str(input_schema["properties"]),
-                                 output_type="string",
-                                 class_name=sanitized_tool_name,
-                                 usage=mcp_server_name)
-            tools_info.append(tool_info)
-        return tools_info
+            for tool in tools:
+                input_schema = {
+                    k: v
+                    for k, v in jsonref.replace_refs(tool.inputSchema).items()
+                    if k != "$defs"
+                }
+                # make sure mandatory `description` and `type` is provided for each argument:
+                for k, v in input_schema["properties"].items():
+                    if "description" not in v:
+                        input_schema["properties"][k]["description"] = "see tool description"
+                    if "type" not in v:
+                        input_schema["properties"][k]["type"] = "string"
+
+                sanitized_tool_name = _sanitize_function_name(tool.name)
+                tool_info = ToolInfo(name=sanitized_tool_name,
+                                     description=tool.description,
+                                     params=[],
+                                     source=ToolSourceEnum.MCP.value,
+                                     inputs=str(input_schema["properties"]),
+                                     output_type="string",
+                                     class_name=sanitized_tool_name,
+                                     usage=mcp_server_name)
+                tools_info.append(tool_info)
+            return tools_info
+    except Exception as e:
+        logger.error(f"failed to get tool from remote MCP server, detail: {e}")
+        raise MCPConnectionError(
+            f"failed to get tool from remote MCP server, detail: {e}")
+
 
 
 async def update_tool_list(tenant_id: str, user_id: str):

@@ -1,15 +1,36 @@
 // Model connection status type
-export type ModelConnectStatus = "not_detected" | "detecting" | "available" | "unavailable"
+export type ModelConnectStatus =
+  | "not_detected"
+  | "detecting"
+  | "available"
+  | "unavailable";
 
 // Model source type
-export type ModelSource = "openai" | "custom" | "silicon" | "OpenAI-API-Compatible"
+export type ModelSource =
+  | "openai"
+  | "custom"
+  | "silicon"
+  | "OpenAI-API-Compatible";
 
 // Model type
-export type ModelType = "llm" | "embedding" | "rerank" | "stt" | "tts" | "vlm" | "multi_embedding"
+export type ModelType =
+  | "llm"
+  | "embedding"
+  | "rerank"
+  | "stt"
+  | "tts"
+  | "vlm"
+  | "multi_embedding";
+
+// OpenAI Model enum for agent configuration
+export enum OpenAIModel {
+  MainModel = "main_model",
+  SubModel = "sub_model",
+}
 
 // Configuration storage key name
-export const APP_CONFIG_KEY = 'app';
-export const MODEL_CONFIG_KEY = 'model';
+export const APP_CONFIG_KEY = "app";
+export const MODEL_CONFIG_KEY = "model";
 
 // Default configuration
 export const defaultConfig: GlobalConfig = {
@@ -18,7 +39,7 @@ export const defaultConfig: GlobalConfig = {
     appDescription: "",
     iconType: "preset",
     customIconUrl: "",
-    avatarUri: ""
+    avatarUri: "",
   },
   models: {
     llm: {
@@ -26,16 +47,16 @@ export const defaultConfig: GlobalConfig = {
       displayName: "",
       apiConfig: {
         apiKey: "",
-        modelUrl: ""
-      }
+        modelUrl: "",
+      },
     },
     llmSecondary: {
       modelName: "",
       displayName: "",
       apiConfig: {
         apiKey: "",
-        modelUrl: ""
-      }
+        modelUrl: "",
+      },
     },
     embedding: {
       modelName: "",
@@ -44,7 +65,7 @@ export const defaultConfig: GlobalConfig = {
         apiKey: "",
         modelUrl: "",
       },
-      dimension: 0
+      dimension: 0,
     },
     multiEmbedding: {
       modelName: "",
@@ -53,95 +74,95 @@ export const defaultConfig: GlobalConfig = {
         apiKey: "",
         modelUrl: "",
       },
-      dimension: 0
+      dimension: 0,
     },
     rerank: {
       modelName: "",
       displayName: "",
       apiConfig: {
         apiKey: "",
-        modelUrl: ""
-      }
+        modelUrl: "",
+      },
     },
     vlm: {
       modelName: "",
       displayName: "",
       apiConfig: {
         apiKey: "",
-        modelUrl: ""
-      }
+        modelUrl: "",
+      },
     },
     stt: {
       modelName: "",
       displayName: "",
       apiConfig: {
         apiKey: "",
-        modelUrl: ""
-      }
+        modelUrl: "",
+      },
     },
     tts: {
       modelName: "",
       displayName: "",
       apiConfig: {
         apiKey: "",
-        modelUrl: ""
-      }
-    }
-  }
+        modelUrl: "",
+      },
+    },
+  },
 };
 
 // Model option interface
 export interface ModelOption {
-  id: string
-  name: string
-  type: ModelType
-  maxTokens: number
-  source: ModelSource
-  apiKey: string
-  apiUrl: string
-  displayName: string
-  connect_status?: ModelConnectStatus
+  id: string;
+  name: string;
+  type: ModelType;
+  maxTokens: number;
+  source: ModelSource;
+  apiKey: string;
+  apiUrl: string;
+  displayName: string;
+  connect_status?: ModelConnectStatus;
 }
 
 // Application configuration interface
 export interface AppConfig {
-  appName: string
-  appDescription: string
-  iconType: "preset" | "custom"
-  customIconUrl: string | null
-  avatarUri: string | null
+  appName: string;
+  appDescription: string;
+  iconType: "preset" | "custom";
+  customIconUrl: string | null;
+  avatarUri: string | null;
 }
 
 // Model API configuration interface
 export interface ModelApiConfig {
-  apiKey: string
-  modelUrl: string
+  apiKey: string;
+  modelUrl: string;
 }
 
 // Single model configuration interface
 export interface SingleModelConfig {
-  modelName: string
-  displayName: string
-  apiConfig: ModelApiConfig
-  dimension?: number  // Only used for embedding and multiEmbedding models
+  modelName: string;
+  displayName: string;
+  apiConfig: ModelApiConfig;
+  dimension?: number; // Only used for embedding and multiEmbedding models
 }
 
 // Model configuration interface
 export interface ModelConfig {
-  llm: SingleModelConfig
-  llmSecondary: SingleModelConfig
-  embedding: SingleModelConfig
-  multiEmbedding: SingleModelConfig
-  rerank: SingleModelConfig
-  vlm: SingleModelConfig
-  stt: SingleModelConfig
-  tts: SingleModelConfig
+  llm: SingleModelConfig;
+  llmSecondary: SingleModelConfig;
+  embedding: SingleModelConfig;
+  multiEmbedding: SingleModelConfig;
+  rerank: SingleModelConfig;
+  vlm: SingleModelConfig;
+  stt: SingleModelConfig;
+  tts: SingleModelConfig;
 }
 
 // Global configuration interface
 export interface GlobalConfig {
-  app: AppConfig
-  models: ModelConfig
+  app: AppConfig;
+  models: ModelConfig;
 }
 
 // Add the type for model validation response with error_code
@@ -152,4 +173,4 @@ export interface ModelValidationResponse {
   error_details?: string;
   model_name?: string;
   connect_status: string;
-} 
+}
