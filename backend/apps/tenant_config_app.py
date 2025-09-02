@@ -42,7 +42,7 @@ def load_knowledge_list(
             tenant_id=tenant_id, user_id=user_id)
 
         content = {"selectedKbNames": [item["index_name"] for item in selected_knowledge_info],
-                   "selectedKbModels": [item["model_name"] for item in selected_knowledge_info],
+                   "selectedKbModels": [item["embedding_model_name"] for item in selected_knowledge_info],
                    "selectedKbSources": [item["knowledge_sources"] for item in selected_knowledge_info]}
 
         return JSONResponse(
