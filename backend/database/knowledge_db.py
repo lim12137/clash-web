@@ -18,6 +18,7 @@ def create_knowledge_record(query: Dict[str, Any]) -> int:
             - knowledge_status: Knowledge base status
             - user_id: Optional user ID for created_by and updated_by fields
             - tenant_id: Optional tenant ID for created_by and updated_by fields
+            - model_name: embedding model name for the knowledge base
 
     Returns:
         int: Newly created knowledge base ID
@@ -31,7 +32,8 @@ def create_knowledge_record(query: Dict[str, Any]) -> int:
                 "created_by": query.get("user_id"),
                 "updated_by": query.get("user_id"),
                 "knowledge_sources": query.get("knowledge_sources", "elasticsearch"),
-                "tenant_id": query.get("tenant_id")
+                "tenant_id": query.get("tenant_id"),
+                "model_name": query.get("model_name")
             }
 
             # Create new record
@@ -54,6 +56,7 @@ def update_knowledge_record(query: Dict[str, Any]) -> bool:
             - knowledge_id: Knowledge base ID
             - update_data: Dictionary containing fields to update
             - user_id: Optional user ID for updated_by field
+            - model_name: Optional embedding model name to update
 
     Returns:
         bool: Whether the operation was successful
@@ -69,6 +72,8 @@ def update_knowledge_record(query: Dict[str, Any]) -> bool:
                 return False
 
             record.knowledge_describe = query["knowledge_describe"]
+            if query.get("model_name") is not None:
+                record.model_name = query["model_name"]
             record.update_time = func.current_timestamp()
             if query.get("user_id"):
                 record.updated_by = query["user_id"]
@@ -163,7 +168,8 @@ def get_knowledge_info_by_knowledge_ids(knowledge_ids: List[str]) -> List[Dict[s
                 knowledge_info.append({
                     "knowledge_id": item.knowledge_id,
                     "index_name": item.index_name,
-                    "knowledge_sources": item.knowledge_sources
+                    "knowledge_sources": item.knowledge_sources,
+                    "model_name": item.model_name
                 })
             return knowledge_info
     except SQLAlchemyError as e:
@@ -178,5 +184,31 @@ def get_knowledge_ids_by_index_names(index_names: List[str]) -> List[str]:
                 KnowledgeRecord.delete_flag != 'Y'
             ).all()
             return [item.knowledge_id for item in result]
+    except SQLAlchemyError as e:
+        raise e
+
+
+def get_knowledge_info_by_tenant_id(tenant_id: str) -> List[Dict[str, Any]]:
+    try:
+        with get_db_session() as session:
+            result = session.query(KnowledgeRecord).filter(
+                KnowledgeRecord.tenant_id == tenant_id,
+                KnowledgeRecord.delete_flag != 'Y'
+            ).all()
+            return [as_dict(item) for item in result]
+    except SQLAlchemyError as e:
+        raise e
+
+
+def update_model_name_by_index_name(index_name: str, model_name: str, tenant_id: str, user_id: str) -> bool:
+    try:
+        with get_db_session() as session:
+            session.query(KnowledgeRecord).filter(
+                KnowledgeRecord.index_name == index_name,
+                KnowledgeRecord.delete_flag != 'Y',
+                KnowledgeRecord.tenant_id == tenant_id
+            ).update({"model_name": model_name, "updated_by": user_id})
+            session.commit()
+            return True
     except SQLAlchemyError as e:
         raise e
