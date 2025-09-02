@@ -34,6 +34,7 @@ from database.knowledge_db import (
     get_knowledge_record,
     update_knowledge_record,
 )
+from services.redis_service import get_redis_service
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
 from utils.prompt_template_utils import get_knowledge_summary_prompt_template
@@ -110,6 +111,74 @@ elastic_core = ElasticSearchCore(
     verify_certs=False,
     ssl_show_warn=False,
 )
+
+
+def check_knowledge_base_exist_impl(index_name: str, es_core, user_id: str, tenant_id: str) -> dict:
+    """
+    Check knowledge base existence and handle orphan cases
+
+    Args:
+        index_name: Name of the index to check
+        es_core: Elasticsearch core instance
+        user_id: Current user ID
+        tenant_id: Current tenant ID
+
+    Returns:
+        dict: Status information about the knowledge base
+    """
+    # 1. Check index existence in ES and corresponding record in PG
+    es_exists = es_core.client.indices.exists(index=index_name)
+    pg_record = get_knowledge_record({"index_name": index_name})
+
+    # Case A: Orphan in ES only (exists in ES, missing in PG)
+    if es_exists and not pg_record:
+        logger.warning(
+            f"Detected orphan knowledge base '{index_name}' – present in ES, absent in PG. Deleting ES index only.")
+        try:
+            es_core.delete_index(index_name)
+            # Clean up Redis records related to this index to avoid stale tasks
+            try:
+                redis_service = get_redis_service()
+                redis_cleanup = redis_service.delete_knowledgebase_records(
+                    index_name)
+                logger.debug(
+                    f"Redis cleanup for orphan index '{index_name}': {redis_cleanup['total_deleted']} records removed")
+            except Exception as redis_error:
+                logger.warning(
+                    f"Redis cleanup failed for orphan index '{index_name}': {str(redis_error)}")
+            return {
+                "status": "error_cleaning_orphans",
+                "action": "cleaned_es"
+            }
+        except Exception as e:
+            logger.error(
+                f"Failed to delete orphan ES index '{index_name}': {str(e)}")
+            # Still return orphan status so frontend knows it requires attention
+            return {"status": "error_cleaning_orphans", "error": True}
+
+    # Case B: Orphan in PG only (missing in ES, present in PG)
+    if not es_exists and pg_record:
+        logger.warning(
+            f"Detected orphan knowledge base '{index_name}' – present in PG, absent in ES. Deleting PG record only.")
+        try:
+            delete_knowledge_record(
+                {"index_name": index_name, "user_id": user_id})
+            return {"status": "error_cleaning_orphans", "action": "cleaned_pg"}
+        except Exception as e:
+            logger.error(
+                f"Failed to delete orphan PG record for '{index_name}': {str(e)}")
+            return {"status": "error_cleaning_orphans", "error": True}
+
+    # Case C: Index/record both absent -> name is available
+    if not es_exists and not pg_record:
+        return {"status": "available"}
+
+    # Case D: Index and record both exist – check tenant ownership
+    record_tenant_id = pg_record.get('tenant_id') if pg_record else None
+    if str(record_tenant_id) == str(tenant_id):
+        return {"status": "exists_in_tenant"}
+    else:
+        return {"status": "exists_in_other_tenant"}
 
 
 def get_es_core():
