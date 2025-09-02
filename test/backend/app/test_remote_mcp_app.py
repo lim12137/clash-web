@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 
-from backend.consts.exceptions import MCPConnectionError, MCPNameIllegal, MCPDatabaseError
+from consts.exceptions import MCPConnectionError, MCPNameIllegal, MCPDatabaseError
 import pytest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
@@ -26,26 +26,20 @@ class MockToolInfo:
         }
 
 
-@pytest.fixture
-def client():
-    """Create a test client with a fresh FastAPI app"""
-    # Import and patch the exceptions in remote_mcp_app to use our test exceptions
-    import backend.apps.remote_mcp_app as remote_app
-    remote_app.MCPConnectionError = MCPConnectionError
-    remote_app.MCPNameIllegal = MCPNameIllegal  
-    remote_app.MCPDatabaseError = MCPDatabaseError
-    
-    from fastapi import FastAPI
-    app = FastAPI()
-    app.include_router(remote_app.router)
-    return TestClient(app)
+# Create a test client with a fresh FastAPI app
+from apps.remote_mcp_app import router
+from fastapi import FastAPI
+
+app = FastAPI()
+app.include_router(router)
+client = TestClient(app)
 
 
 class TestGetToolsFromRemoteMCP:
     """Test endpoint for getting tools from remote MCP server"""
 
-    @patch('backend.apps.remote_mcp_app.get_tool_from_remote_mcp_server')
-    def test_get_tools_success(self, mock_get_tools, client):
+    @patch('apps.remote_mcp_app.get_tool_from_remote_mcp_server')
+    def test_get_tools_success(self, mock_get_tools):
         """Test successful retrieval of tool information"""
         # Mock tool information
         mock_tools = [
@@ -71,8 +65,8 @@ class TestGetToolsFromRemoteMCP:
             remote_mcp_server="http://test.com"
         )
 
-    @patch('backend.apps.remote_mcp_app.get_tool_from_remote_mcp_server')
-    def test_get_tools_failure(self, mock_get_tools, client):
+    @patch('apps.remote_mcp_app.get_tool_from_remote_mcp_server')
+    def test_get_tools_failure(self, mock_get_tools):
         """Test failure to retrieve tool information"""
         mock_get_tools.side_effect = Exception("Connection failed")
 
@@ -90,9 +84,9 @@ class TestGetToolsFromRemoteMCP:
 class TestAddRemoteProxies:
     """Test endpoint for adding remote MCP servers"""
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    @patch('backend.apps.remote_mcp_app.add_remote_mcp_server_list')
-    def test_add_remote_proxy_success(self, mock_add_server, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
+    def test_add_remote_proxy_success(self, mock_add_server, mock_get_user_id):
         """Test successful addition of remote MCP proxy"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_add_server.return_value = None  # No exception means success
@@ -117,9 +111,9 @@ class TestAddRemoteProxies:
             remote_mcp_server_name="test_service"
         )
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    @patch('backend.apps.remote_mcp_app.add_remote_mcp_server_list')
-    def test_add_remote_proxy_name_exists(self, mock_add_server, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
+    def test_add_remote_proxy_name_exists(self, mock_add_server, mock_get_user_id):
         """Test adding MCP server with existing name"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_add_server.side_effect = MCPNameIllegal("MCP name already exists")
@@ -135,9 +129,9 @@ class TestAddRemoteProxies:
         data = response.json()
         assert "MCP name already exists" in data["detail"]
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    @patch('backend.apps.remote_mcp_app.add_remote_mcp_server_list')
-    def test_add_remote_proxy_connection_failed(self, mock_add_server, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
+    def test_add_remote_proxy_connection_failed(self, mock_add_server, mock_get_user_id):
         """Test MCP connection failure"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_add_server.side_effect = MCPConnectionError(
@@ -154,9 +148,9 @@ class TestAddRemoteProxies:
         data = response.json()
         assert "MCP connection failed" in data["detail"]
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    @patch('backend.apps.remote_mcp_app.add_remote_mcp_server_list')
-    def test_add_remote_proxy_database_error(self, mock_add_server, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
+    def test_add_remote_proxy_database_error(self, mock_add_server, mock_get_user_id):
         """Test database error"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_add_server.side_effect = MCPDatabaseError("Database error")
@@ -176,9 +170,9 @@ class TestAddRemoteProxies:
 class TestDeleteRemoteProxies:
     """Test endpoint for deleting remote MCP servers"""
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    @patch('backend.apps.remote_mcp_app.delete_remote_mcp_server_list')
-    def test_delete_remote_proxy_success(self, mock_delete_server, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.delete_remote_mcp_server_list')
+    def test_delete_remote_proxy_success(self, mock_delete_server, mock_get_user_id):
         """Test successful deletion of remote MCP proxy"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_delete_server.return_value = None  # No exception means success
@@ -203,9 +197,9 @@ class TestDeleteRemoteProxies:
             remote_mcp_server_name="test_service"
         )
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    @patch('backend.apps.remote_mcp_app.delete_remote_mcp_server_list')
-    def test_delete_remote_proxy_database_error(self, mock_delete_server, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.delete_remote_mcp_server_list')
+    def test_delete_remote_proxy_database_error(self, mock_delete_server, mock_get_user_id):
         """Test database error during deletion"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_delete_server.side_effect = MCPDatabaseError("Database error")
@@ -225,9 +219,9 @@ class TestDeleteRemoteProxies:
 class TestGetRemoteProxies:
     """Test endpoint for getting remote MCP server list"""
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    @patch('backend.apps.remote_mcp_app.get_remote_mcp_server_list')
-    def test_get_remote_proxies_success(self, mock_get_list, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.get_remote_mcp_server_list')
+    def test_get_remote_proxies_success(self, mock_get_list, mock_get_user_id):
         """Test successful retrieval of remote MCP proxy list"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_server_list = [
@@ -258,9 +252,9 @@ class TestGetRemoteProxies:
         mock_get_user_id.assert_called_once_with("Bearer test_token")
         mock_get_list.assert_called_once_with(tenant_id="tenant456")
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    @patch('backend.apps.remote_mcp_app.get_remote_mcp_server_list')
-    def test_get_remote_proxies_error(self, mock_get_list, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.get_remote_mcp_server_list')
+    def test_get_remote_proxies_error(self, mock_get_list, mock_get_user_id):
         """Test error when getting list"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_get_list.side_effect = Exception("Database connection failed")
@@ -278,9 +272,9 @@ class TestGetRemoteProxies:
 class TestCheckMCPHealth:
     """Test MCP health check endpoint"""
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    @patch('backend.apps.remote_mcp_app.check_mcp_health_and_update_db')
-    def test_check_mcp_health_success(self, mock_health_check, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.check_mcp_health_and_update_db')
+    def test_check_mcp_health_success(self, mock_health_check, mock_get_user_id):
         """Test successful health check"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_health_check.return_value = None  # No exception means success
@@ -301,9 +295,9 @@ class TestCheckMCPHealth:
             "http://test.com", "test_service", "tenant456", "user123"
         )
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    @patch('backend.apps.remote_mcp_app.check_mcp_health_and_update_db')
-    def test_check_mcp_health_database_error(self, mock_health_check, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.check_mcp_health_and_update_db')
+    def test_check_mcp_health_database_error(self, mock_health_check, mock_get_user_id):
         """Test database error during health check"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_health_check.side_effect = MCPDatabaseError("Database error")
@@ -323,11 +317,11 @@ class TestCheckMCPHealth:
 class TestIntegration:
     """Integration tests"""
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    @patch('backend.apps.remote_mcp_app.add_remote_mcp_server_list')
-    @patch('backend.apps.remote_mcp_app.get_remote_mcp_server_list')
-    @patch('backend.apps.remote_mcp_app.delete_remote_mcp_server_list')
-    def test_full_lifecycle(self, mock_delete, mock_get_list, mock_add, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
+    @patch('apps.remote_mcp_app.get_remote_mcp_server_list')
+    @patch('apps.remote_mcp_app.delete_remote_mcp_server_list')
+    def test_full_lifecycle(self, mock_delete, mock_get_list, mock_add, mock_get_user_id):
         """Test complete MCP server lifecycle"""
         mock_get_user_id.return_value = ("user123", "tenant456")
 
@@ -369,8 +363,8 @@ class TestIntegration:
 class TestErrorHandling:
     """Error handling tests"""
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    def test_authorization_header_handling(self, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    def test_authorization_header_handling(self, mock_get_user_id):
         """Test authorization header handling"""
         mock_get_user_id.return_value = ("user123", "tenant456")
 
@@ -379,9 +373,9 @@ class TestErrorHandling:
         # Should be able to handle any result
         assert response.status_code in [HTTPStatus.OK, HTTPStatus.BAD_REQUEST]
 
-    @patch('backend.apps.remote_mcp_app.get_current_user_id')
-    @patch('backend.apps.remote_mcp_app.add_remote_mcp_server_list')
-    def test_unexpected_error_handling(self, mock_add_server, mock_get_user_id, client):
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
+    def test_unexpected_error_handling(self, mock_add_server, mock_get_user_id):
         """Test unexpected error handling"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_add_server.side_effect = Exception("Unexpected error")
@@ -401,13 +395,13 @@ class TestErrorHandling:
 class TestDataValidation:
     """Data validation tests"""
 
-    def test_missing_parameters(self, client):
+    def test_missing_parameters(self):
         """Test missing required parameters"""
         # Test missing parameters
         response = client.post("/mcp/add")
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-    def test_invalid_url_format(self, client):
+    def test_invalid_url_format(self):
         """Test invalid URL format"""
         response = client.post(
             "/mcp/add",
