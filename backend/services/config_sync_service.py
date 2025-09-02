@@ -1,7 +1,8 @@
 import logging
 
 from consts.const import DEFAULT_APP_NAME_ZH, DEFAULT_APP_NAME_EN, DEFAULT_APP_DESCRIPTION_ZH, \
-    DEFAULT_APP_DESCRIPTION_EN, DEFAULT_APP_ICON_URL, MODEL_CONFIG_MAPPING
+    DEFAULT_APP_DESCRIPTION_EN, DEFAULT_APP_ICON_URL, MODEL_CONFIG_MAPPING, APP_NAME, APP_DESCRIPTION, ICON_TYPE, \
+    AVATAR_URI, CUSTOM_ICON_URL
 from database.model_management_db import get_model_id_by_display_name
 from utils.config_utils import tenant_config_manager, get_env_key, safe_value, \
     get_model_name_from_config
@@ -115,14 +116,14 @@ def build_app_config(language: str, tenant_id: str) -> dict:
     default_app_description = DEFAULT_APP_DESCRIPTION_ZH if language == "zh" else DEFAULT_APP_DESCRIPTION_EN
 
     return {
-        "name": tenant_config_manager.get_app_config("APP_NAME", tenant_id=tenant_id) or default_app_name,
-        "description": tenant_config_manager.get_app_config("APP_DESCRIPTION",
+        "name": tenant_config_manager.get_app_config(APP_NAME, tenant_id=tenant_id) or default_app_name,
+        "description": tenant_config_manager.get_app_config(APP_DESCRIPTION,
                                                             tenant_id=tenant_id) or default_app_description,
         "icon": {
-            "type": tenant_config_manager.get_app_config("ICON_TYPE", tenant_id=tenant_id) or "preset",
-            "avatarUri": tenant_config_manager.get_app_config("AVATAR_URI",
+            "type": tenant_config_manager.get_app_config(ICON_TYPE, tenant_id=tenant_id) or "preset",
+            "avatarUri": tenant_config_manager.get_app_config(AVATAR_URI,
                                                               tenant_id=tenant_id) or DEFAULT_APP_ICON_URL,
-            "customUrl": tenant_config_manager.get_app_config("CUSTOM_ICON_URL", tenant_id=tenant_id) or ""
+            "customUrl": tenant_config_manager.get_app_config(CUSTOM_ICON_URL, tenant_id=tenant_id) or ""
         }
     }
 
