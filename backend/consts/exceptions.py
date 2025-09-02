@@ -25,5 +25,4 @@ class SignatureValidationError(Exception):
 
 class MemoryPreparationException(Exception):
     """Raised when memory preprocessing or retrieval fails prior to agent run."""
-
     pass

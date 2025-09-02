@@ -54,7 +54,7 @@ def _resolve_user_tenant_language(
     if user_id is None or tenant_id is None:
         return get_current_user_info(authorization, http_request)
     else:
-        return user_id, tenant_id, get_user_language()
+        return user_id, tenant_id, get_user_language(http_request)
 
 
 async def _stream_agent_chunks(
