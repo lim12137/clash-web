@@ -74,12 +74,12 @@ class TestTenantConfigApp(unittest.TestCase):
         cls.mock_get_knowledge_list.return_value = [
             {
                 "index_name": "kb1",
-                "model_name": "embedding-model-1", 
+                "embedding_model_name": "embedding-model-1",
                 "knowledge_sources": ["source1", "source2"]
             },
             {
                 "index_name": "kb2",
-                "model_name": "embedding-model-2",
+                "embedding_model_name": "embedding-model-2",
                 "knowledge_sources": ["source3"]
             }
         ]
@@ -102,12 +102,12 @@ class TestTenantConfigApp(unittest.TestCase):
         self.mock_get_knowledge_list.return_value = [
             {
                 "index_name": "kb1",
-                "model_name": "embedding-model-1",
+                "embedding_model_name": "embedding-model-1",
                 "knowledge_sources": ["source1", "source2"]
             },
             {
                 "index_name": "kb2", 
-                "model_name": "embedding-model-2",
+                "embedding_model_name": "embedding-model-2",
                 "knowledge_sources": ["source3"]
             }
         ]
@@ -181,7 +181,7 @@ class TestTenantConfigApp(unittest.TestCase):
             {
                 "index_name": "kb1",
                 "knowledge_sources": ["source1"]
-                # Missing model_name field
+                # Missing embedding_model_name field
             }
         ]
         
