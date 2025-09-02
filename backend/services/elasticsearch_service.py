@@ -270,7 +270,7 @@ class ElasticSearchService:
             knowledge_data = {"index_name": index_name,
                               "created_by": user_id,
                               "tenant_id": tenant_id,
-                              "model_name": embedding_model.model}
+                              "embedding_model_name": embedding_model.model}
             create_knowledge_record(knowledge_data)
             return {"status": "success", "message": f"Index {index_name} created successfully"}
         except Exception as e:
