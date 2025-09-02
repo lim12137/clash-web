@@ -248,13 +248,6 @@ class GenerateTitleRequest(BaseModel):
     history: List[Dict[str, str]]
 
 
-# used in prompt/finetune request
-class FineTunePromptRequest(BaseModel):
-    agent_id: int
-    system_prompt: str
-    command: str
-
-
 # used in agent/search agent/update for save agent info
 class AgentInfoRequest(BaseModel):
     agent_id: int
