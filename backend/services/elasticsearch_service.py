@@ -334,6 +334,7 @@ class ElasticSearchService:
     ):
         """
         List all indices that the current user has permissions to access.
+        async PG database to sync ES, remove the data that is not in ES
 
         Args:
             pattern: Pattern to match index names
