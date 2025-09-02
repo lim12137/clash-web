@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from http import HTTPStatus
 from typing import List, Optional, Dict, Any
 
 from fastapi import Header
@@ -14,7 +13,7 @@ from database.conversation_db import create_conversation_message, create_source_
     create_source_image, rename_conversation, get_conversation_list, get_conversation_history, \
     get_source_images_by_message, \
     get_source_images_by_conversation, get_source_searches_by_message, get_source_searches_by_conversation, \
-    delete_conversation, get_conversation, create_conversation, update_message_opinion
+    delete_conversation, get_conversation, create_conversation, update_message_opinion, get_message_id_by_index
 from nexent.core.utils.observer import ProcessType
 from utils.auth_utils import get_current_user_id
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
@@ -115,7 +114,6 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
                 # Process image content, save as source_image, do not add to filtered_message_units
                 try:
                     # Parse image URL list
-                    import json
                     content_json = json.loads(unit_content)
                     if isinstance(content_json, dict) and 'images_url' in content_json:
                         for image_url in content_json['images_url']:
@@ -154,7 +152,6 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
                     continue
 
                 # Parse search content
-                import json
                 search_results = json.loads(search_content)
 
                 # Ensure search_results is a list
@@ -685,3 +682,10 @@ def update_message_opinion_service(message_id: int, opinion: Optional[str]) -> b
     except Exception as e:
         logging.error(f"Failed to update message like/dislike: {str(e)}")
         raise Exception(str(e))
+
+
+async def get_message_id_by_index_impl(request) -> Optional[int]:
+    message_id = get_message_id_by_index(request.conversation_id, request.message_index)
+    if message_id is None:
+        raise Exception("Message not found.")
+    return message_id
