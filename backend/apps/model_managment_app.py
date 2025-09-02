@@ -215,24 +215,19 @@ async def update_single_model(request: dict, authorization: Optional[str] = Head
     try:
         user_id, tenant_id = get_current_user_id(authorization)
         model_data = request
-        if not model_data.get("display_name"):
-            model_data["display_name"] = split_display_name(
-                model_data["model_name"])
-            # Check if display_name conflicts
-            existing_model_by_display = get_model_by_display_name(
-                model_data["display_name"], tenant_id)
-            if existing_model_by_display and existing_model_by_display["model_id"] != model_data["model_id"]:
-                return ModelResponse(
-                    code=409,
-                    message=f"Name {model_data['display_name']} is already in use, please choose another display name",
-                    data=None
-                )
-        model_data["model_repo"], model_data["model_name"] = split_repo_name(
-            model_data["model_name"])
+        existing_model_by_display = get_model_by_display_name(
+            model_data["display_name"], tenant_id)
+        if existing_model_by_display and existing_model_by_display["model_id"] != model_data["model_id"]:
+            return ModelResponse(
+                code=409,
+                message=f"Name {model_data['display_name']} is already in use, please choose another display name",
+                data=None
+            )
+        # model_data["model_repo"], model_data["model_name"] = split_repo_name(model_data["model_name"])
         update_model_record(model_data["model_id"], model_data, user_id)
         return ModelResponse(
             code=200,
-            message=f"Model {model_data['model_name']} updated successfully",
+            message=f"Model {model_data['display_name']} updated successfully",
             data=None
         )
     except Exception as e:
