@@ -108,7 +108,7 @@ export default function AgentConfigurationSection({
       return t('agent.info.name.error.empty');
     }
     
-    if (name.length > 30) {
+    if (name.length > 50) {
       return t('agent.info.name.error.length');
     }
     
