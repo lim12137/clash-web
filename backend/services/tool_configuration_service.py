@@ -18,8 +18,6 @@ from database.remote_mcp_db import get_mcp_records_by_tenant
 from utils.auth_utils import get_current_user_id
 from fastapi import Header
 
-from utils.config_utils import config_manager
-
 from consts.exceptions import MCPConnectionError
 
 logger = logging.getLogger("tool_configuration_service")
