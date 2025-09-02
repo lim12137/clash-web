@@ -297,8 +297,8 @@ class TestElasticSearchService(unittest.TestCase):
         # Setup
         self.mock_es_core.get_user_indices.return_value = ["index1", "index2"]
         mock_get_knowledge.return_value = [
-            {"index_name": "index1", "model_name": "test-model"},
-            {"index_name": "index2", "model_name": "test-model"}
+            {"index_name": "index1", "embedding_model_name": "test-model"},
+            {"index_name": "index2", "embedding_model_name": "test-model"}
         ]
 
         # Execute
@@ -333,8 +333,8 @@ class TestElasticSearchService(unittest.TestCase):
             "index2": {"base_info": {"doc_count": 20, "embedding_model": "test-model"}}
         }
         mock_get_knowledge.return_value = [
-            {"index_name": "index1", "model_name": "test-model"},
-            {"index_name": "index2", "model_name": "test-model"}
+            {"index_name": "index1", "embedding_model_name": "test-model"},
+            {"index_name": "index2", "embedding_model_name": "test-model"}
         ]
 
         # Execute
@@ -1322,8 +1322,8 @@ class TestElasticSearchService(unittest.TestCase):
         self.mock_es_core.get_user_indices.return_value = ["index1", "index2"]
         mock_response.status_code = 200
         mock_get_knowledge.return_value = [
-            {"index_name": "index1", "model_name": "test-model"},
-            {"index_name": "index2", "model_name": "test-model"}
+            {"index_name": "index1", "embedding_model_name": "test-model"},
+            {"index_name": "index2", "embedding_model_name": "test-model"}
         ]
 
         # Execute
