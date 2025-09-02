@@ -26,7 +26,8 @@ with patch('backend.database.client.MinioClient', return_value=minio_client_mock
         get_conversation_history_service,
         get_sources_service,
         generate_conversation_title_service,
-        update_message_opinion_service
+        update_message_opinion_service,
+        get_message_id_by_index_impl
     )
 
 
@@ -140,6 +141,56 @@ class TestConversationManagementService(unittest.TestCase):
         units = mock_create_message_units.call_args[0][0]
         self.assertEqual(len(units), 1)
         self.assertEqual(units[0]['type'], 'search_content_placeholder')
+
+    @patch('backend.services.conversation_management_service.create_conversation_message')
+    @patch('backend.services.conversation_management_service.create_source_image')
+    @patch('backend.services.conversation_management_service.create_message_units')
+    def test_save_message_with_picture_web(self, mock_create_message_units, mock_create_source_image, mock_create_conversation_message):
+        """Ensure picture_web units trigger create_source_image and not message_units creation."""
+        # Setup
+        mock_create_conversation_message.return_value = 789  # message_id
+
+        images_payload = json.dumps({
+            "images_url": [
+                "https://example.com/img1.jpg",
+                "https://example.com/img2.jpg"
+            ]
+        })
+
+        message_request = MessageRequest(
+            conversation_id=456,
+            message_idx=3,
+            role="assistant",
+            message=[
+                MessageUnit(type="string", content="Here are some images"),
+                MessageUnit(type="picture_web", content=images_payload)
+            ],
+            minio_files=[]
+        )
+
+        # Execute
+        result = save_message(message_request)
+
+        # Assert base result
+        self.assertEqual(result.code, 0)
+        self.assertTrue(result.data)
+
+        # create_conversation_message called once
+        mock_create_conversation_message.assert_called_once()
+        # create_source_image called twice for two images
+        self.assertEqual(mock_create_source_image.call_count, 2)
+        calls = mock_create_source_image.call_args_list
+        called_urls = [call.args[0]['image_url'] for call in calls]
+        self.assertIn("https://example.com/img1.jpg", called_urls)
+        self.assertIn("https://example.com/img2.jpg", called_urls)
+        # ensure conversation_id and message_id in payload
+        for call in calls:
+            payload = call.args[0]
+            self.assertEqual(payload['conversation_id'], 456)
+            self.assertEqual(payload['message_id'], 789)
+
+        # create_message_units should not be called for picture_web
+        mock_create_message_units.assert_not_called()
 
     @patch('backend.services.conversation_management_service.save_message')
     def test_save_conversation_user(self, mock_save_message):
@@ -465,6 +516,37 @@ class TestConversationManagementService(unittest.TestCase):
 
         # Assert
         mock_update_opinion.assert_called_once_with(123, "Y")
+
+    @patch('backend.services.conversation_management_service.update_message_opinion')
+    def test_update_message_opinion_service_failure(self, mock_update_opinion):
+        """Ensure service raises exception when DB update fails (returns False)."""
+        # Setup failure
+        mock_update_opinion.return_value = False
+
+        # Execute & Assert
+        with self.assertRaises(Exception) as context:
+            update_message_opinion_service(123, "Y")
+        self.assertIn("Message does not exist", str(context.exception))
+        mock_update_opinion.assert_called_once_with(123, "Y")
+
+    @patch('backend.services.conversation_management_service.get_message_id_by_index')
+    def test_get_message_id_by_index_impl_success(self, mock_get_message):
+        """Should return message_id when found."""
+        mock_get_message.return_value = 999
+        import asyncio
+        result = asyncio.run(get_message_id_by_index_impl(123, 2))
+        self.assertEqual(result, 999)
+        mock_get_message.assert_called_once_with(123, 2)
+
+    @patch('backend.services.conversation_management_service.get_message_id_by_index')
+    def test_get_message_id_by_index_impl_not_found(self, mock_get_message):
+        """Should raise Exception when message_id not found."""
+        mock_get_message.return_value = None
+        import asyncio
+        with self.assertRaises(Exception) as ctx:
+            asyncio.run(get_message_id_by_index_impl(123, 2))
+        self.assertIn("Message not found", str(ctx.exception))
+        mock_get_message.assert_called_once_with(123, 2)
 
 
 if __name__ == '__main__':
