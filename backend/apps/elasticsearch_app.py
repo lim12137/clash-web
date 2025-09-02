@@ -135,7 +135,7 @@ def get_list_indices(
     """List all user indices with optional stats"""
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        return ElasticSearchService.list_indices(pattern, include_stats, tenant_id, es_core)
+        return ElasticSearchService.list_indices(pattern, include_stats, tenant_id, user_id, es_core)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error get index: {str(e)}")

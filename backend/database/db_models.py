@@ -282,6 +282,7 @@ class KnowledgeRecord(TableBase):
     index_name = Column(String(100), doc="Knowledge base name")
     knowledge_describe = Column(String(3000), doc="Knowledge base description")
     knowledge_sources = Column(String(300), doc="Knowledge base sources")
+    model_name = Column(String(100), doc="Embedding model name, used to record the embedding model used by the knowledge base")
     tenant_id = Column(String(100), doc="Tenant ID")
     delete_flag = Column(String(
         1), default="N", doc="Knowledge base status. Currently defaults to 1, if knowledge base status is 0, then this knowledge base is unavailable")
