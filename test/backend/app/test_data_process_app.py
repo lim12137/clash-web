@@ -4,20 +4,16 @@ These tests verify the behavior of the data processing API without actual databa
 All external services and dependencies are mocked to isolate the tests.
 """
 
-import unittest
-from unittest.mock import patch, MagicMock, AsyncMock
 import os
 import sys
-from fastapi import FastAPI, HTTPException, Form, Body, Header
+import unittest
 from typing import Dict, Any, Optional
-from fastapi.testclient import TestClient
-from PIL import Image
-import pytest
+from unittest.mock import MagicMock, AsyncMock
 
-# Dynamically determine the backend path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
-sys.path.append(backend_dir)
+import pytest
+from PIL import Image
+from fastapi import FastAPI, HTTPException, Form, Body, Header
+from fastapi.testclient import TestClient
 
 # Set necessary environment variables before importing application modules
 os.environ['REDIS_URL'] = 'redis://localhost:6379/0'
