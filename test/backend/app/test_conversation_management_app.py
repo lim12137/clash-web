@@ -5,6 +5,10 @@ from unittest.mock import patch, MagicMock
 import pytest
 from fastapi import HTTPException
 
+# Dynamically determine the backend path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
+sys.path.append(backend_dir)
 
 # Patch boto3 before importing backend modules (some services may rely on it)
 boto3_mock = MagicMock()
@@ -434,7 +438,7 @@ async def test_get_message_id_success(conversation_mocks):
 
     assert result.code == 0 and result.data == 99
     conversation_mocks['get_message_id_impl'].assert_called_once_with(
-        request_obj)
+        request_obj.conversation_id, request_obj.message_index)
 
 
 @pytest.mark.asyncio

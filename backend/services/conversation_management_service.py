@@ -684,8 +684,8 @@ def update_message_opinion_service(message_id: int, opinion: Optional[str]) -> b
         raise Exception(str(e))
 
 
-async def get_message_id_by_index_impl(request) -> Optional[int]:
-    message_id = get_message_id_by_index(request.conversation_id, request.message_index)
+async def get_message_id_by_index_impl(conversation_id: int, message_index: int) -> Optional[int]:
+    message_id = get_message_id_by_index(conversation_id, message_index)
     if message_id is None:
         raise Exception("Message not found.")
     return message_id
