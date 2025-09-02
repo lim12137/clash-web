@@ -325,7 +325,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
       _rollbackRemoveItem(removedItem, removedIndex, groupKey)
 
       console.error("Delete memory error:", e)
-      const errorMessage = e instanceof Error ? e.message : "删除记忆失败"
+      const errorMessage = e instanceof Error ? e.message : "memory delete failed"
       if (errorMessage.includes("Authentication") || errorMessage.includes("ElasticSearch")) {
         message.error(t('useMemory.memoryServiceConnectionError'))
       } else {

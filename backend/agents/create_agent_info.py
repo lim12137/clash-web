@@ -101,9 +101,7 @@ async def create_agent_config(
 
         try:
             search_res = await search_memory_in_levels(
-                query_text=last_user_query
-                if last_user_query
-                else agent_info.get("name"),
+                query_text=last_user_query,
                 memory_config=memory_context.memory_config,
                 tenant_id=memory_context.tenant_id,
                 user_id=memory_context.user_id,

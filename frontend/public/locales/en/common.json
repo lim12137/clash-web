@@ -493,7 +493,7 @@
     "model.provider.silicon": "SiliconFlow",
     "model.dialog.modelList.title": "Show Models",
     "model.dialog.connectivity.title": "Connectivity Verification",
-    "model.dialog.connectivity.status.checking": "Checking",
+    "model.dialog.connectivity.status.checking": "Detecting",
     "model.dialog.connectivity.status.available": "Available",
     "model.dialog.connectivity.status.unavailable": "Unavailable",
     "model.dialog.connectivity.status.not_detected": "Not Detected",

@@ -420,6 +420,172 @@ class TestCreateAgentConfig:
                 memory_levels=["tenant", "agent", "user", "user_agent"]
             )
 
+    @pytest.mark.asyncio
+    async def test_create_agent_config_memory_disabled_no_search(self):
+        with (
+            patch(
+                "backend.agents.create_agent_info.search_agent_info_by_agent_id"
+            ) as mock_search_agent,
+            patch(
+                "backend.agents.create_agent_info.query_sub_agents_id_list"
+            ) as mock_query_sub,
+            patch(
+                "backend.agents.create_agent_info.create_tool_config_list"
+            ) as mock_create_tools,
+            patch(
+                "backend.agents.create_agent_info.get_agent_prompt_template"
+            ) as mock_get_template,
+            patch(
+                "backend.agents.create_agent_info.tenant_config_manager"
+            ) as mock_tenant_config,
+            patch(
+                "backend.agents.create_agent_info.build_memory_context"
+            ) as mock_build_memory,
+            patch(
+                "backend.agents.create_agent_info.search_memory_in_levels",
+                new_callable=AsyncMock,
+            ) as mock_search_memory,
+            patch(
+                "backend.agents.create_agent_info.get_selected_knowledge_list"
+            ) as mock_knowledge,
+            patch(
+                "backend.agents.create_agent_info.prepare_prompt_templates"
+            ) as mock_prepare_templates,
+        ):
+            mock_search_agent.return_value = {
+                "name": "test_agent",
+                "description": "test description",
+                "duty_prompt": "test duty",
+                "constraint_prompt": "test constraint",
+                "few_shots_prompt": "test few shots",
+                "max_steps": 5,
+                "model_name": "test_model",
+                "provide_run_summary": True,
+            }
+            mock_query_sub.return_value = []
+            mock_create_tools.return_value = []
+            mock_get_template.return_value = {
+                "system_prompt": "{{duty}} {{constraint}} {{few_shots}}"
+            }
+            mock_tenant_config.get_app_config.side_effect = [
+                "TestApp",
+                "Test Description",
+            ]
+
+            # memory_switch 打开，但禁止搜索
+            mock_user_config = Mock()
+            mock_user_config.memory_switch = True
+            mock_user_config.agent_share_option = "always"
+            mock_user_config.disable_agent_ids = []
+            mock_user_config.disable_user_agent_ids = []
+            mock_build_memory.return_value = Mock(
+                user_config=mock_user_config,
+                memory_config={"test": "config"},
+                tenant_id="tenant_1",
+                user_id="user_1",
+                agent_id="agent_1",
+            )
+
+            mock_knowledge.return_value = []
+            mock_prepare_templates.return_value = {
+                "system_prompt": "populated_system_prompt"
+            }
+
+            await create_agent_config(
+                "agent_1",
+                "tenant_1",
+                "user_1",
+                "zh",
+                "test query",
+                allow_memory_search=False,
+            )
+
+            mock_search_memory.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_create_agent_config_memory_exception(self):
+        """raise when search_memory_in_levels raises an exception"""
+        with (
+            patch(
+                "backend.agents.create_agent_info.search_agent_info_by_agent_id"
+            ) as mock_search_agent,
+            patch(
+                "backend.agents.create_agent_info.query_sub_agents_id_list"
+            ) as mock_query_sub,
+            patch(
+                "backend.agents.create_agent_info.create_tool_config_list"
+            ) as mock_create_tools,
+            patch(
+                "backend.agents.create_agent_info.get_agent_prompt_template"
+            ) as mock_get_template,
+            patch(
+                "backend.agents.create_agent_info.tenant_config_manager"
+            ) as mock_tenant_config,
+            patch(
+                "backend.agents.create_agent_info.build_memory_context"
+            ) as mock_build_memory,
+            patch(
+                "backend.agents.create_agent_info.search_memory_in_levels",
+                new_callable=AsyncMock,
+            ) as mock_search_memory,
+            patch(
+                "backend.agents.create_agent_info.get_selected_knowledge_list"
+            ) as mock_knowledge,
+            patch(
+                "backend.agents.create_agent_info.prepare_prompt_templates"
+            ) as mock_prepare_templates,
+        ):
+            mock_search_agent.return_value = {
+                "name": "test_agent",
+                "description": "test description",
+                "duty_prompt": "test duty",
+                "constraint_prompt": "test constraint",
+                "few_shots_prompt": "test few shots",
+                "max_steps": 5,
+                "model_name": "test_model",
+                "provide_run_summary": True,
+            }
+            mock_query_sub.return_value = []
+            mock_create_tools.return_value = []
+            mock_get_template.return_value = {
+                "system_prompt": "{{duty}} {{constraint}} {{few_shots}}"
+            }
+            mock_tenant_config.get_app_config.side_effect = [
+                "TestApp",
+                "Test Description",
+            ]
+
+            mock_user_config = Mock()
+            mock_user_config.memory_switch = True
+            mock_user_config.agent_share_option = "always"
+            mock_user_config.disable_agent_ids = []
+            mock_user_config.disable_user_agent_ids = []
+            mock_build_memory.return_value = Mock(
+                user_config=mock_user_config,
+                memory_config={"test": "config"},
+                tenant_id="tenant_1",
+                user_id="user_1",
+                agent_id="agent_1",
+            )
+
+            mock_search_memory.side_effect = Exception("boom")
+            mock_knowledge.return_value = []
+            mock_prepare_templates.return_value = {
+                "system_prompt": "populated_system_prompt"
+            }
+
+            with pytest.raises(Exception) as excinfo:
+                await create_agent_config(
+                    "agent_1",
+                    "tenant_1",
+                    "user_1",
+                    "zh",
+                    "test query",
+                    allow_memory_search=True,
+                )
+
+            assert "Failed to retrieve memory list: boom" in str(excinfo.value)
+
 
 class TestCreateModelConfigList:
     """测试create_model_config_list函数"""
@@ -617,7 +783,8 @@ class TestCreateAgentRunInfo:
                 tenant_id="tenant_1",
                 user_id="user_1",
                 language="zh",
-                last_user_query="processed_query"
+                last_user_query="processed_query",
+                allow_memory_search=True,
             )
             mock_get_mcp.assert_called_once_with(tenant_id="tenant_1")
             mock_filter.assert_called_once_with("agent_config", {
@@ -632,6 +799,59 @@ class TestCreateAgentRunInfo:
                     "status": True
                 }
             })
+
+    @pytest.mark.asyncio
+    async def test_create_agent_run_info_forwards_allow_memory_false(self):
+        with (
+            patch(
+                "backend.agents.create_agent_info.get_current_user_id"
+            ) as mock_get_user,
+            patch(
+                "backend.agents.create_agent_info.join_minio_file_description_to_query"
+            ) as mock_join_query,
+            patch(
+                "backend.agents.create_agent_info.create_model_config_list"
+            ) as mock_create_models,
+            patch(
+                "backend.agents.create_agent_info.get_remote_mcp_server_list",
+                new_callable=AsyncMock,
+            ) as mock_get_mcp,
+            patch(
+                "backend.agents.create_agent_info.create_agent_config"
+            ) as mock_create_agent,
+            patch(
+                "backend.agents.create_agent_info.filter_mcp_servers_and_tools"
+            ) as mock_filter,
+            patch("backend.agents.create_agent_info.urljoin") as mock_urljoin,
+            patch("backend.agents.create_agent_info.threading") as mock_threading,
+        ):
+            mock_get_user.return_value = ("user_1", "tenant_1")
+            mock_join_query.return_value = "processed_query"
+            mock_create_models.return_value = ["model_config"]
+            mock_get_mcp.return_value = []
+            mock_create_agent.return_value = "agent_config"
+            mock_urljoin.return_value = "http://nexent.mcp/sse"
+            mock_filter.return_value = []
+            mock_threading.Event.return_value = "stop_event"
+
+            await create_agent_run_info(
+                agent_id="agent_1",
+                minio_files=[],
+                query="test query",
+                history=[],
+                authorization="Bearer token",
+                language="zh",
+                allow_memory_search=False,
+            )
+
+            mock_create_agent.assert_called_once_with(
+                agent_id="agent_1",
+                tenant_id="tenant_1",
+                user_id="user_1",
+                language="zh",
+                last_user_query="processed_query",
+                allow_memory_search=False,
+            )
 
 
 class TestJoinMinioFileDescriptionToQuery:
