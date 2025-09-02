@@ -56,7 +56,6 @@ def update_knowledge_record(query: Dict[str, Any]) -> bool:
             - knowledge_id: Knowledge base ID
             - update_data: Dictionary containing fields to update
             - user_id: Optional user ID for updated_by field
-            - model_name: Optional embedding model name to update
 
     Returns:
         bool: Whether the operation was successful
@@ -72,8 +71,6 @@ def update_knowledge_record(query: Dict[str, Any]) -> bool:
                 return False
 
             record.knowledge_describe = query["knowledge_describe"]
-            if query.get("model_name") is not None:
-                record.model_name = query["model_name"]
             record.update_time = func.current_timestamp()
             if query.get("user_id"):
                 record.updated_by = query["user_id"]
@@ -200,14 +197,14 @@ def get_knowledge_info_by_tenant_id(tenant_id: str) -> List[Dict[str, Any]]:
         raise e
 
 
-def update_model_name_by_index_name(index_name: str, model_name: str, tenant_id: str, user_id: str) -> bool:
+def update_model_name_by_index_name(index_name: str, embedding_model_name: str, tenant_id: str, user_id: str) -> bool:
     try:
         with get_db_session() as session:
             session.query(KnowledgeRecord).filter(
                 KnowledgeRecord.index_name == index_name,
                 KnowledgeRecord.delete_flag != 'Y',
                 KnowledgeRecord.tenant_id == tenant_id
-            ).update({"model_name": model_name, "updated_by": user_id})
+            ).update({"embedding_model_name": embedding_model_name, "updated_by": user_id})
             session.commit()
             return True
     except SQLAlchemyError as e:
