@@ -26,7 +26,7 @@ import {
 } from "react-icons/ai";
 import { extractColorsFromUri } from "@/lib/avatar";
 import { useTranslation } from "react-i18next";
-import { AgentSelector } from "@/components/ui/agentSelector";
+import { ChatAgentSelector } from "./chatAgentSelector";
 
 // Image viewer component
 function ImageViewer({
@@ -1061,7 +1061,7 @@ export function ChatInput({
       <div className="h-12 bg-slate-100 relative">
         {/* Agent selector on the left */}
         <div className="absolute left-5 top-[40%] -translate-y-1/2">
-          <AgentSelector
+          <ChatAgentSelector
             selectedAgentId={selectedAgentId}
             onAgentSelect={onAgentSelect || (() => {})}
             disabled={isLoading || isStreaming}
