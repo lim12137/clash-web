@@ -6,6 +6,8 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from fastapi.responses import StreamingResponse
+import backend.services.elasticsearch_service as es_service_module
+
 
 # Apply the patches before importing the module being tested
 with patch('botocore.client.BaseClient._make_api_call'), \
@@ -1531,6 +1533,188 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(result["status"], "success")
         mock_get_record.assert_called_once_with({'index_name': 'test_index'})
+
+    @patch('backend.services.elasticsearch_service.get_redis_service')
+    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    def test_check_kb_exist_orphan_in_es(self, mock_get_knowledge, mock_get_redis_service):
+        """Test handling of orphaned knowledge base existing only in Elasticsearch."""
+        # Setup: ES index exists, PG record missing
+        self.mock_es_core.client.indices.exists.return_value = True
+        mock_get_knowledge.return_value = None
+
+        # Mock Redis service
+        mock_redis_service = MagicMock()
+        mock_redis_service.delete_knowledgebase_records.return_value = {
+            "total_deleted": 1}
+        mock_get_redis_service.return_value = mock_redis_service
+
+        # Execute
+        result = es_service_module.check_knowledge_base_exist_impl(
+            index_name="test_index",
+            es_core=self.mock_es_core,
+            user_id="test_user",
+            tenant_id="tenant1"
+        )
+
+        # Assert
+        self.mock_es_core.delete_index.assert_called_once_with("test_index")
+        mock_redis_service.delete_knowledgebase_records.assert_called_once_with(
+            "test_index")
+        self.assertEqual(result["status"], "error_cleaning_orphans")
+        self.assertEqual(result["action"], "cleaned_es")
+
+    @patch('backend.services.elasticsearch_service.delete_knowledge_record')
+    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    def test_check_kb_exist_orphan_in_pg(self, mock_get_knowledge, mock_delete_record):
+        """Test handling of orphaned knowledge base existing only in PostgreSQL."""
+        # Setup: ES index missing, PG record exists
+        self.mock_es_core.client.indices.exists.return_value = False
+        mock_get_knowledge.return_value = {
+            "index_name": "test_index", "tenant_id": "tenant1"}
+        mock_delete_record.return_value = True
+
+        # Execute
+        result = es_service_module.check_knowledge_base_exist_impl(
+            index_name="test_index",
+            es_core=self.mock_es_core,
+            user_id="test_user",
+            tenant_id="tenant1"
+        )
+
+        # Assert
+        mock_delete_record.assert_called_once()
+        self.assertEqual(result["status"], "error_cleaning_orphans")
+        self.assertEqual(result["action"], "cleaned_pg")
+
+    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    def test_check_kb_exist_available(self, mock_get_knowledge):
+        """Test knowledge base name availability when neither ES nor PG has the record."""
+        # Setup: ES index missing, PG record missing
+        self.mock_es_core.client.indices.exists.return_value = False
+        mock_get_knowledge.return_value = None
+
+        # Execute
+        result = es_service_module.check_knowledge_base_exist_impl(
+            index_name="test_index",
+            es_core=self.mock_es_core,
+            user_id="test_user",
+            tenant_id="tenant1"
+        )
+
+        # Assert
+        self.assertEqual(result["status"], "available")
+
+    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    def test_check_kb_exist_exists_in_tenant(self, mock_get_knowledge):
+        """Test detection when knowledge base exists within the same tenant."""
+        # Setup: ES index exists, PG record exists with same tenant_id
+        self.mock_es_core.client.indices.exists.return_value = True
+        mock_get_knowledge.return_value = {
+            "index_name": "test_index", "tenant_id": "tenant1"}
+
+        # Execute
+        result = es_service_module.check_knowledge_base_exist_impl(
+            index_name="test_index",
+            es_core=self.mock_es_core,
+            user_id="test_user",
+            tenant_id="tenant1"
+        )
+
+        # Assert
+        self.assertEqual(result["status"], "exists_in_tenant")
+
+    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    def test_check_kb_exist_exists_in_other_tenant(self, mock_get_knowledge):
+        """Test detection when knowledge base exists in a different tenant."""
+        # Setup: ES index exists, PG record exists with different tenant_id
+        self.mock_es_core.client.indices.exists.return_value = True
+        mock_get_knowledge.return_value = {
+            "index_name": "test_index", "tenant_id": "other_tenant"}
+
+        # Execute
+        result = es_service_module.check_knowledge_base_exist_impl(
+            index_name="test_index",
+            es_core=self.mock_es_core,
+            user_id="test_user",
+            tenant_id="tenant1"
+        )
+
+        # Assert
+        self.assertEqual(result["status"], "exists_in_other_tenant")
+
+    @patch('backend.services.elasticsearch_service.get_redis_service')
+    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    def test_check_kb_exist_orphan_in_es_redis_failure(self, mock_get_knowledge, mock_get_redis_service):
+        """Test orphan ES case when Redis cleanup raises an exception."""
+        # Setup: ES index exists, PG record missing
+        self.mock_es_core.client.indices.exists.return_value = True
+        mock_get_knowledge.return_value = None
+
+        # Mock Redis service that raises an exception
+        mock_redis_service = MagicMock()
+        mock_redis_service.delete_knowledgebase_records.side_effect = Exception(
+            "Redis error")
+        mock_get_redis_service.return_value = mock_redis_service
+
+        # Execute
+        result = es_service_module.check_knowledge_base_exist_impl(
+            index_name="test_index",
+            es_core=self.mock_es_core,
+            user_id="test_user",
+            tenant_id="tenant1"
+        )
+
+        # Assert: ES index deletion attempted, Redis cleanup attempted and exception handled
+        self.mock_es_core.delete_index.assert_called_once_with("test_index")
+        mock_redis_service.delete_knowledgebase_records.assert_called_once_with(
+            "test_index")
+        self.assertEqual(result["status"], "error_cleaning_orphans")
+        self.assertEqual(result["action"], "cleaned_es")
+
+    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    def test_check_kb_exist_orphan_in_es_delete_failure(self, mock_get_knowledge):
+        """Test failure when deleting orphan ES index raises an exception."""
+        # Setup: ES index exists, PG record missing, delete_index raises
+        self.mock_es_core.client.indices.exists.return_value = True
+        mock_get_knowledge.return_value = None
+        self.mock_es_core.delete_index.side_effect = Exception(
+            "Delete index failed")
+
+        # Execute
+        result = es_service_module.check_knowledge_base_exist_impl(
+            index_name="test_index",
+            es_core=self.mock_es_core,
+            user_id="test_user",
+            tenant_id="tenant1"
+        )
+
+        # Assert
+        self.mock_es_core.delete_index.assert_called_once_with("test_index")
+        self.assertEqual(result["status"], "error_cleaning_orphans")
+        self.assertTrue(result.get("error"))
+
+    @patch('backend.services.elasticsearch_service.delete_knowledge_record')
+    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    def test_check_kb_exist_orphan_in_pg_delete_failure(self, mock_get_knowledge, mock_delete_record):
+        """Test failure when deleting orphan PG record raises an exception."""
+        # Setup: ES index missing, PG record exists, deletion raises
+        self.mock_es_core.client.indices.exists.return_value = False
+        mock_get_knowledge.return_value = {
+            "index_name": "test_index", "tenant_id": "tenant1"}
+        mock_delete_record.side_effect = Exception("Delete PG record failed")
+
+        # Execute
+        result = es_service_module.check_knowledge_base_exist_impl(
+            index_name="test_index",
+            es_core=self.mock_es_core,
+            user_id="test_user",
+            tenant_id="tenant1"
+        )
+
+        # Assert
+        mock_delete_record.assert_called_once()
+        self.assertEqual(result["status"], "error_cleaning_orphans")
+        self.assertTrue(result.get("error"))
 
 
 if __name__ == '__main__':
