@@ -5,21 +5,29 @@ All external services and dependencies are mocked to isolate the tests.
 """
 import os
 import sys
+import pytest
+from unittest.mock import patch, MagicMock, ANY
+from fastapi.testclient import TestClient
+from fastapi import FastAPI
+
+from typing import List
+from pydantic import BaseModel
 
 # Dynamically determine the backend path and add it to sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
 sys.path.insert(0, backend_dir)
 
-from fastapi.testclient import TestClient
-from fastapi import FastAPI
-from backend.apps.elasticsearch_app import router
-from nexent.vector_database.elasticsearch_core import ElasticSearchCore
+# Patch boto3 and other dependencies before importing anything from backend
+boto3_mock = MagicMock()
+sys.modules['boto3'] = boto3_mock
 
-import pytest
-from unittest.mock import patch, MagicMock, ANY
-from typing import List
-from pydantic import BaseModel
+# Mock MinioClient before importing backend modules
+with patch('backend.database.client.MinioClient') as minio_mock:
+    minio_mock.return_value = MagicMock()
+    # Now we can safely import the function to test
+    from backend.apps.elasticsearch_app import router
+    from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 
 
 class SearchRequest(BaseModel):
