@@ -3,11 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
+
 import { App, Modal, Typography } from "antd";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { OpenAIModel } from "@/types/config";
-import { Agent, AgentSetupOrchestratorProps } from "@/types/agentConfig";
 import {
   getCreatingSubAgentId,
   fetchAgentList,
@@ -16,6 +15,8 @@ import {
   deleteAgent,
   searchAgentInfo,
 } from "@/services/agentConfigService";
+import { OpenAIModel } from "@/types/config";
+import { Agent, AgentSetupOrchestratorProps } from "@/types/agentConfig";
 
 import SubAgentPool from "./agent/SubAgentPool";
 import CollaborativeAgentDisplay from "./agent/CollaborativeAgentDisplay";

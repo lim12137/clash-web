@@ -1,8 +1,10 @@
-import { MemoryItem, MemoryGroup } from "@/types/memory"
 import i18next from 'i18next'
+
 import { API_ENDPOINTS, fetchWithErrorHandling } from "./api"
-import { getAuthHeaders } from '@/lib/auth';
 import { fetchAllAgents } from "./agentConfigService"
+
+import { MemoryItem, MemoryGroup } from "@/types/memory"
+import { getAuthHeaders } from '@/lib/auth';
 
 // ---------------------------------------------------------------------------
 // Error message translation helper
