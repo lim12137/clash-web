@@ -682,6 +682,51 @@ const messageHandlers: MessageHandler[] = [
     render: (_message, _t) => null,
   },
 
+  // memory_search type processor - memory fetching status
+  {
+    canHandle: (message) => message.type === "memory_search",
+    render: (message, t) => {
+      let memoryData: any = {};
+      
+      try {
+        // Parse the memory search content
+        memoryData = JSON.parse(message.content);
+      } catch (error) {
+        console.error('Failed to parse memory search content:', error);
+        return null;
+      }
+      
+      let messageText = memoryData.message || '';
+      // Map backend placeholders to translated text
+      switch (messageText) {
+        case '<MEM_START>':
+          messageText = t('chatStreamHandler.memoryRetrieving');
+          break;
+        case '<MEM_DONE>':
+          messageText = t('chatStreamHandler.memoryRetrieved');
+          break;
+        case '<MEM_FAILED>':
+          messageText = t('chatStreamHandler.memoryFailed');
+          break;
+        default:
+          break;
+      }
+      
+      return (
+        <div style={{
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+          fontSize: "0.875rem",
+          lineHeight: 1.5,
+          color: "#6b7280",
+          fontWeight: 500,
+          paddingTop: "0.5rem"
+        }}>
+          <span>{messageText}</span>
+        </div>
+      );
+    }
+  },
+
   // default processor - should be placed at the end
   {
     canHandle: () => true,

@@ -242,8 +242,6 @@ export async function fetchAgentSharedGroups(): Promise<MemoryGroup[]> {
     })
   })
 
-  // TODO: Agent删除接口改进后，同步删除所有记忆
-
   // 若依然没有任何 Agent 信息，则返回占位分组
   if (groups.length === 0) {
     return [
