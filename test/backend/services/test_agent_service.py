@@ -55,10 +55,22 @@ sys.modules['agents.agent_run_manager'] = MagicMock()
 sys.modules['agents.preprocess_manager'] = MagicMock()
 sys.modules['nexent.core.agents.run_agent'] = MagicMock()
 
-from backend.services.agent_service import get_agent_call_relationship_impl, delete_agent_impl, export_agent_impl, \
-    export_agent_by_agent_id, import_agent_by_agent_id, insert_related_agent_impl, load_default_agents_json_file, \
-    clear_agent_memory, import_agent_impl, get_agent_id_by_name, save_messages, generate_stream, prepare_agent_run, \
-    run_agent_stream, stop_agent_tasks
+from backend.services.agent_service import (
+    get_agent_call_relationship_impl,
+    delete_agent_impl,
+    export_agent_impl,
+    export_agent_by_agent_id,
+    import_agent_by_agent_id,
+    insert_related_agent_impl,
+    load_default_agents_json_file,
+    clear_agent_memory,
+    import_agent_impl,
+    get_agent_id_by_name,
+    save_messages,
+    prepare_agent_run,
+    run_agent_stream,
+    stop_agent_tasks,
+)
 from backend.services.agent_service import get_enable_tool_id_by_agent_id
 from backend.services.agent_service import get_creating_sub_agent_id_service
 from backend.services.agent_service import get_agent_info_impl
@@ -1782,12 +1794,23 @@ def mock_http_request():
 
 
 @pytest.mark.asyncio
+@patch(
+    "backend.services.agent_service._resolve_user_tenant_language",
+    return_value=("test_user", "test_tenant", "en"),
+)
 @patch('backend.services.agent_service.build_memory_context')
 @patch('backend.services.agent_service.create_agent_run_info', new_callable=AsyncMock)
 @patch('backend.services.agent_service.agent_run_manager')
 @patch('backend.services.agent_service.get_current_user_info')
-async def test_prepare_agent_run(mock_get_user_info, mock_agent_run_manager, mock_create_run_info,
-                                 mock_build_memory_context, mock_agent_request, mock_http_request):
+async def test_prepare_agent_run(
+    mock_get_user_info,
+    mock_agent_run_manager,
+    mock_create_run_info,
+    mock_build_memory_context,
+    mock_resolve,
+    mock_agent_request,
+    mock_http_request,
+):
     """Test prepare_agent_run function."""
     # Setup
     mock_get_user_info.return_value = ("test_user", "test_tenant", "en")
@@ -1802,8 +1825,13 @@ async def test_prepare_agent_run(mock_get_user_info, mock_agent_run_manager, moc
     # Assert
     assert agent_run_info == mock_run_info
     assert memory_context == mock_memory_context
-    mock_get_user_info.assert_called_once_with(
-        "Bearer token", mock_http_request)
+    # Should resolve user/tenant via helper
+    mock_resolve.assert_called_once_with(
+        authorization="Bearer token",
+        http_request=mock_http_request,
+        user_id=None,
+        tenant_id=None,
+    )
     mock_build_memory_context.assert_called_once_with(
         "test_user", "test_tenant", 1)
     mock_create_run_info.assert_called_once()
@@ -1830,73 +1858,44 @@ def test_save_messages(mock_submit, mock_agent_request):
 
 
 @pytest.mark.asyncio
-@patch('backend.services.agent_service.agent_run')
+@patch(
+    "backend.services.agent_service._resolve_user_tenant_language",
+    return_value=(None, None, "en"),
+)
+@patch("backend.services.agent_service.build_memory_context")
 @patch('backend.services.agent_service.save_messages')
-@patch('backend.services.agent_service.agent_run_manager')
-async def test_generate_stream(mock_agent_run_manager, mock_save_messages, mock_agent_run, mock_agent_request):
-    """Test generate_stream function."""
-    # Setup
-    mock_run_info = MagicMock()
-    mock_memory_context = MagicMock()
+@patch("backend.services.agent_service.generate_stream_with_memory")
+async def test_run_agent_stream(
+    mock_generate_stream,
+    mock_save_messages,
+    mock_build_mem_ctx,
+    mock_resolve,
+    mock_agent_request,
+    mock_http_request,
+):
+    """Test run_agent_stream function."""
 
+    # Setup
     async def mock_streamer():
         yield "chunk1"
         yield "chunk2"
 
-    mock_agent_run.return_value = mock_streamer()
-
-    # Execute and collect results
-    streamed_chunks = [chunk async for chunk in
-                       generate_stream(mock_run_info, mock_memory_context, mock_agent_request, "Bearer token")]
-
-    # Assert
-    assert streamed_chunks == ["data: chunk1\n\n", "data: chunk2\n\n"]
-    mock_save_messages.assert_called_once_with(mock_agent_request, target="assistant", messages=["chunk1", "chunk2"],
-                                               authorization="Bearer token")
-    mock_agent_run_manager.unregister_agent_run.assert_called_once_with(123)
-
-    # Test debug mode: provide fresh generator
-    mock_agent_request.is_debug = True
-    mock_save_messages.reset_mock()
-    mock_agent_run_manager.unregister_agent_run.reset_mock()
-
-    async def mock_streamer2():
-        yield "chunk1"
-        yield "chunk2"
-
-    mock_agent_run.return_value = mock_streamer2()
-
-    streamed_chunks = [chunk async for chunk in
-                       generate_stream(mock_run_info, mock_memory_context, mock_agent_request, "Bearer token")]
-
-    assert streamed_chunks == ["data: chunk1\n\n", "data: chunk2\n\n"]
-    mock_save_messages.assert_not_called()
-    mock_agent_run_manager.unregister_agent_run.assert_called_once_with(123)
-
-
-@pytest.mark.asyncio
-@patch('backend.services.agent_service.prepare_agent_run', new_callable=AsyncMock)
-@patch('backend.services.agent_service.save_messages')
-@patch('backend.services.agent_service.generate_stream')
-async def test_run_agent_stream(mock_generate_stream, mock_save_messages, mock_prepare_agent_run, mock_agent_request,
-                                mock_http_request):
-    """Test run_agent_stream function."""
-    # Setup
-    mock_run_info = MagicMock()
-    mock_memory_context = MagicMock()
-    mock_prepare_agent_run.return_value = (mock_run_info, mock_memory_context)
+    mock_generate_stream.return_value = mock_streamer()
 
     # Execute
     response = await run_agent_stream(mock_agent_request, mock_http_request, "Bearer token")
 
     # Assert
     assert isinstance(response, StreamingResponse)
-    mock_prepare_agent_run.assert_called_once_with(agent_request=mock_agent_request, http_request=mock_http_request,
-                                                   authorization="Bearer token", user_id=None, tenant_id=None)
     mock_save_messages.assert_called_once_with(
         mock_agent_request, target="user", authorization="Bearer token")
     mock_generate_stream.assert_called_once_with(
-        mock_run_info, mock_memory_context, mock_agent_request, "Bearer token")
+        mock_agent_request,
+        mock_http_request,
+        "Bearer token",
+        user_id=None,
+        tenant_id=None,
+    )
 
     # Test debug mode
     mock_agent_request.is_debug = True
@@ -1905,6 +1904,11 @@ async def test_run_agent_stream(mock_generate_stream, mock_save_messages, mock_p
     await run_agent_stream(mock_agent_request, mock_http_request, "Bearer token")
 
     mock_save_messages.assert_not_called()
+
+    # Memory switch should be True to trigger generate_stream_with_memory path
+    mock_build_mem_ctx.return_value = MagicMock(
+        user_config=MagicMock(memory_switch=True)
+    )
 
 
 @patch('backend.services.agent_service.agent_run_manager')
@@ -2277,3 +2281,325 @@ def test_get_agent_call_relationship_impl_tool_name_fallback(mock_query_sub_agen
     assert result["tools"][0]["name"] == "1"  # Fallback to tool_id
     assert result["tools"][1]["name"] == "Explicit Name"  # Use explicit name
     assert result["tools"][2]["name"] == "Tool Name"  # Use tool_name
+
+
+#############################
+# Additional tests for newer logic in agent_service.py
+#############################
+
+import backend.services.agent_service as agent_service
+
+
+@pytest.mark.asyncio
+async def test__stream_agent_chunks_persists_and_unregisters(monkeypatch):
+    """Ensure _stream_agent_chunks yields chunks, saves assistant messages (when not debug) and always unregisters the run regardless of errors."""
+    # Prepare fake AgentRequest
+    agent_request = AgentRequest(
+        agent_id=1,
+        conversation_id=999,
+        query="hello",
+        history=[],
+        minio_files=[],
+        is_debug=False,
+    )
+
+    # Mock agent_run to yield two chunks
+    async def fake_agent_run(*_, **__):
+        yield "chunk1"
+        yield "chunk2"
+
+    monkeypatch.setitem(sys.modules, "nexent.core.agents.run_agent", MagicMock())
+    monkeypatch.setattr(
+        "backend.services.agent_service.agent_run", fake_agent_run, raising=False
+    )
+
+    # Track calls
+    save_calls = []
+
+    def fake_save_messages(*args, **kwargs):
+        save_calls.append((args, kwargs))
+
+    monkeypatch.setattr(
+        "backend.services.agent_service.save_messages",
+        fake_save_messages,
+        raising=False,
+    )
+
+    # Mock unregister
+    unregister_called = {}
+
+    def fake_unregister(conv_id):
+        unregister_called["conv_id"] = conv_id
+
+    monkeypatch.setattr(
+        "backend.services.agent_service.agent_run_manager.unregister_agent_run",
+        fake_unregister,
+        raising=False,
+    )
+
+    # Collect streamed chunks
+    collected = []
+    async for out in agent_service._stream_agent_chunks(
+        agent_request, "Bearer token", MagicMock(), MagicMock()
+    ):
+        collected.append(out)
+
+    assert collected == [
+        "data: chunk1\n\n",
+        "data: chunk2\n\n",
+    ]  # Prefix added in helper
+    assert save_calls, "save_messages should have been called for assistant messages"
+    assert unregister_called.get("conv_id") == 999
+
+
+@pytest.mark.asyncio
+async def test_generate_stream_no_memory_registers_and_streams(monkeypatch):
+    """generate_stream_no_memory should prepare run info, register it and stream data without memory tokens."""
+    # Prepare AgentRequest & Request
+    agent_request = AgentRequest(
+        agent_id=2,
+        conversation_id=555,
+        query="test",
+        history=[],
+        minio_files=[],
+        is_debug=False,
+    )
+    http_request = Request(scope={"type": "http", "headers": []})
+
+    # Monkeypatch helpers
+    monkeypatch.setattr(
+        "backend.services.agent_service.get_current_user_info",
+        MagicMock(return_value=("u", "t", "en")),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "backend.services.agent_service.build_memory_context",
+        MagicMock(return_value=MagicMock()),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "backend.services.agent_service.create_agent_run_info",
+        AsyncMock(return_value=MagicMock()),
+        raising=False,
+    )
+
+    # Capture register
+    registered = {}
+
+    def fake_register(conv_id, run_info):
+        registered["conv_id"] = conv_id
+        registered["run_info"] = run_info
+
+    monkeypatch.setattr(
+        "backend.services.agent_service.agent_run_manager.register_agent_run",
+        fake_register,
+        raising=False,
+    )
+
+    # Stream helper will yield chunks
+    async def fake_stream_chunks(*_, **__):
+        yield "data: body1\n\n"
+        yield "data: body2\n\n"
+
+    monkeypatch.setattr(
+        "backend.services.agent_service._stream_agent_chunks",
+        fake_stream_chunks,
+        raising=False,
+    )
+
+    # Collect output
+    collected = []
+    async for d in agent_service.generate_stream_no_memory(
+        agent_request, http_request, "Bearer"
+    ):
+        collected.append(d)
+
+    assert registered.get("conv_id") == 555
+    assert collected == ["data: body1\n\n", "data: body2\n\n"]
+
+
+@pytest.mark.asyncio
+@patch(
+    "backend.services.agent_service._resolve_user_tenant_language",
+    return_value=(None, None, "en"),
+)
+@patch("backend.services.agent_service.build_memory_context")
+@patch("backend.services.agent_service.save_messages")
+@patch("backend.services.agent_service.generate_stream_no_memory")
+async def test_run_agent_stream_no_memory(
+    mock_gen_no_mem,
+    mock_save_messages,
+    mock_build_mem_ctx,
+    mock_resolve,
+    mock_agent_request,
+    mock_http_request,
+):
+    async def mock_stream():
+        yield "c1"
+
+    mock_gen_no_mem.return_value = mock_stream()
+    mock_build_mem_ctx.return_value = MagicMock(
+        user_config=MagicMock(memory_switch=False)
+    )
+
+    resp = await run_agent_stream(mock_agent_request, mock_http_request, "Bearer token")
+    assert isinstance(resp, StreamingResponse)
+    mock_gen_no_mem.assert_called_once_with(
+        mock_agent_request,
+        mock_http_request,
+        "Bearer token",
+        user_id=None,
+        tenant_id=None,
+    )
+
+
+@pytest.mark.asyncio
+async def test_generate_stream_with_memory_emits_tokens_and_unregisters(monkeypatch):
+    """generate_stream_with_memory emits start/done tokens and unregisters preprocess task."""
+    # Prepare AgentRequest & Request
+    agent_request = AgentRequest(
+        agent_id=7,
+        conversation_id=777,
+        query="q",
+        history=[],
+        minio_files=[],
+        is_debug=False,
+    )
+    http_request = Request(scope={"type": "http", "headers": []})
+
+    # Resolve to concrete user/tenant
+    monkeypatch.setattr(
+        "backend.services.agent_service._resolve_user_tenant_language",
+        MagicMock(return_value=("u", "t", "en")),
+        raising=False,
+    )
+
+    # Enable memory switch in preview
+    monkeypatch.setattr(
+        "backend.services.agent_service.build_memory_context",
+        MagicMock(return_value=MagicMock(user_config=MagicMock(memory_switch=True))),
+        raising=False,
+    )
+
+    # Prepare run returned values
+    monkeypatch.setattr(
+        "backend.services.agent_service.prepare_agent_run",
+        AsyncMock(return_value=(MagicMock(), MagicMock())),
+        raising=False,
+    )
+
+    # Stream chunks from helper
+    async def fake_chunks(*_, **__):
+        yield "data: bodyA\n\n"
+        yield "data: bodyB\n\n"
+
+    monkeypatch.setattr(
+        "backend.services.agent_service._stream_agent_chunks",
+        fake_chunks,
+        raising=False,
+    )
+
+    # Track preprocess register/unregister
+    calls = {"registered": None, "unregistered": None}
+
+    def fake_register(task_id, conv_id, task):
+        calls["registered"] = (task_id, conv_id, bool(task))
+
+    def fake_unregister(task_id):
+        calls["unregistered"] = task_id
+
+    monkeypatch.setattr(
+        "backend.services.agent_service.preprocess_manager.register_preprocess_task",
+        fake_register,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "backend.services.agent_service.preprocess_manager.unregister_preprocess_task",
+        fake_unregister,
+        raising=False,
+    )
+
+    # Collect output
+    out = []
+    async for d in agent_service.generate_stream_with_memory(
+        agent_request, http_request, "Bearer"
+    ):
+        out.append(d)
+
+    # Expect start and done memory tokens then body chunks
+    assert any("memory_search" in s and "<MEM_START>" in s for s in out)
+    assert any("memory_search" in s and "<MEM_DONE>" in s for s in out)
+    assert "data: bodyA\n\n" in out and "data: bodyB\n\n" in out
+    # Unregister must be called
+    assert calls["registered"] is not None
+    assert calls["unregistered"] is not None
+
+
+@pytest.mark.asyncio
+async def test_generate_stream_with_memory_fallback_on_failure(monkeypatch):
+    """generate_stream_with_memory should emit fail token and fall back when memory prep fails."""
+    agent_request = AgentRequest(
+        agent_id=8,
+        conversation_id=888,
+        query="q2",
+        history=[],
+        minio_files=[],
+        is_debug=False,
+    )
+    http_request = Request(scope={"type": "http", "headers": []})
+
+    # Resolve ids
+    monkeypatch.setattr(
+        "backend.services.agent_service._resolve_user_tenant_language",
+        MagicMock(return_value=("u", "t", "en")),
+        raising=False,
+    )
+
+    # Enable memory
+    monkeypatch.setattr(
+        "backend.services.agent_service.build_memory_context",
+        MagicMock(return_value=MagicMock(user_config=MagicMock(memory_switch=True))),
+        raising=False,
+    )
+
+    # Force prepare_agent_run to raise, which will be normalized
+    async def raise_prepare(*_, **__):
+        raise Exception("prep failed")
+
+    monkeypatch.setattr(
+        "backend.services.agent_service.prepare_agent_run",
+        raise_prepare,
+        raising=False,
+    )
+
+    # Fallback generator
+    async def fallback_gen(*_, **__):
+        yield "data: fb1\n\n"
+
+    monkeypatch.setattr(
+        "backend.services.agent_service.generate_stream_no_memory",
+        fallback_gen,
+        raising=False,
+    )
+
+    # Track preprocess unregister
+    called = {"unregistered": False}
+
+    def fake_unregister(task_id):
+        called["unregistered"] = True
+
+    monkeypatch.setattr(
+        "backend.services.agent_service.preprocess_manager.unregister_preprocess_task",
+        fake_unregister,
+        raising=False,
+    )
+
+    out = []
+    async for d in agent_service.generate_stream_with_memory(
+        agent_request, http_request, "Bearer"
+    ):
+        out.append(d)
+
+    assert any("memory_search" in s and "<MEM_FAILED>" in s for s in out)
+    assert "data: fb1\n\n" in out
+    assert called["unregistered"]

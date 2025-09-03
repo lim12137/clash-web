@@ -172,6 +172,25 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     }
   }
 
+  /**
+   * Compute memoryLevel and agentId according to current tab & group key.
+   * Abstracted to avoid duplication.
+   */
+  const _computeMemoryParams = (tabKey: string, key: string): { memoryLevel: string; agentId?: string } => {
+    switch (tabKey) {
+      case "tenant":
+        return { memoryLevel: "tenant" }
+      case "agentShared":
+        return { memoryLevel: "agent", agentId: key.replace(/^agent-/, "") }
+      case "userPersonal":
+        return { memoryLevel: "user" }
+      case "userAgent":
+        return { memoryLevel: "user_agent", agentId: key.replace(/^user-agent-/, "") }
+      default:
+        return { memoryLevel: "" }
+    }
+  }
+
   // 延迟工具：等待后端索引刷新后再重新拉取数据
   const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
@@ -253,22 +272,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
   /* ------------------------------ 清空记忆相关方法 ------------------------------ */
   const handleClearMemory = useCallback(async (groupKey: string, groupTitle: string) => {
     try {
-      // 根据当前页签和分组确定memory_level和agent_id
-      let memoryLevel = ""
-      let agentId: string | undefined
-
-      if (activeTabKey === "tenant") {
-        memoryLevel = "tenant"
-      } else if (activeTabKey === "agentShared") {
-        memoryLevel = "agent"
-        agentId = groupKey.replace(/^agent-/, "")
-      } else if (activeTabKey === "userPersonal") {
-        memoryLevel = "user"
-      } else if (activeTabKey === "userAgent") {
-        memoryLevel = "user_agent"
-        agentId = groupKey.replace(/^user-agent-/, "")
-      }
-
+      const { memoryLevel, agentId } = _computeMemoryParams(activeTabKey, groupKey)
       const result = await clearMemory(memoryLevel, agentId)
       await delay(300);
       message.success(t('useMemory.clearMemorySuccess', { groupTitle, count: result.deleted_count }))
@@ -306,54 +310,22 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     }
   }, [activeTabKey, currentTenantId, currentUserId])
 
-  /* ------------------------------ 删除单条记忆方法 ------------------------------ */
+  /* ------------------- Delete Memory With Optimistic Update ------------------- */
   const handleDeleteMemory = useCallback(async (memoryId: string, groupKey: string) => {
+    const { memoryLevel, agentId } = _computeMemoryParams(activeTabKey, groupKey)
+
+    // Local optimistic removal
+    const { removedItem, removedIndex } = _optimisticRemoveItem(memoryId, groupKey)
+
+    // Call the backend to delete, if failed, rollback
     try {
-      // 根据当前页签和分组确定memory_level和agent_id
-      let memoryLevel = ""
-      let agentId: string | undefined
-
-      if (activeTabKey === "tenant") {
-        memoryLevel = "tenant"
-      } else if (activeTabKey === "agentShared") {
-        memoryLevel = "agent"
-        agentId = groupKey.replace(/^agent-/, "")
-      } else if (activeTabKey === "userPersonal") {
-        memoryLevel = "user"
-      } else if (activeTabKey === "userAgent") {
-        memoryLevel = "user_agent"
-        agentId = groupKey.replace(/^user-agent-/, "")
-      }
-
       await deleteMemory(memoryId, memoryLevel, agentId)
-      await delay(300);
       message.success(t('useMemory.deleteMemorySuccess'))
-
-      // 重新加载当前页签数据
-      const loadGroupsForActiveTab = async () => {
-        try {
-          if (activeTabKey === "tenant") {
-            const tenantGrp = await fetchTenantSharedGroup()
-            setTenantSharedGroup(tenantGrp)
-          } else if (activeTabKey === "agentShared") {
-            const agentGrps = await fetchAgentSharedGroups()
-            setAgentSharedGroups(agentGrps)
-          } else if (activeTabKey === "userPersonal") {
-            const userGrp = await fetchUserPersonalGroup()
-            setUserPersonalGroup(userGrp)
-          } else if (activeTabKey === "userAgent") {
-            const userAgentGrps = await fetchUserAgentGroups()
-            setUserAgentGroups(userAgentGrps)
-          }
-        } catch (e) {
-          console.error("Reload groups error:", e)
-        }
-      }
-
-      await loadGroupsForActiveTab()
     } catch (e) {
+      _rollbackRemoveItem(removedItem, removedIndex, groupKey)
+
       console.error("Delete memory error:", e)
-      const errorMessage = e instanceof Error ? e.message : "删除记忆失败"
+      const errorMessage = e instanceof Error ? e.message : "memory delete failed"
       if (errorMessage.includes("Authentication") || errorMessage.includes("ElasticSearch")) {
         message.error(t('useMemory.memoryServiceConnectionError'))
       } else {
@@ -421,6 +393,65 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
       message.error(t('useMemory.setMemoryShareOptionError'))
     })
   }, [message])
+
+  /**
+   * Optimistically remove a memory item from local state.
+   * Returns the removed item and its index for rollback.
+   */
+  const _optimisticRemoveItem = (
+    id: string,
+    groupKey: string,
+  ): { removedItem?: any; removedIndex: number } => {
+    let removedItem: any | undefined
+    let removedIndex = -1
+
+    const process = (items: any[]): any[] => {
+      const idx = items.findIndex((it: any) => it.id === id)
+      if (idx !== -1) {
+        removedItem = items[idx]
+        removedIndex = idx
+        return items.filter((it: any) => it.id !== id)
+      }
+      return items
+    }
+
+    if (activeTabKey === "tenant") {
+      setTenantSharedGroup((prev) => ({ ...prev, items: process(prev.items) }))
+    } else if (activeTabKey === "agentShared") {
+      setAgentSharedGroups((prev) => prev.map((g) => (g.key === groupKey ? { ...g, items: process(g.items) } : g)))
+    } else if (activeTabKey === "userPersonal") {
+      setUserPersonalGroup((prev) => ({ ...prev, items: process(prev.items) }))
+    } else if (activeTabKey === "userAgent") {
+      setUserAgentGroups((prev) => prev.map((g) => (g.key === groupKey ? { ...g, items: process(g.items) } : g)))
+    }
+
+    return { removedItem, removedIndex }
+  }
+
+  /**
+   * Rollback by re-inserting item at original index when optimistic update fails.
+   */
+  const _rollbackRemoveItem = (
+    item: any,
+    index: number,
+    groupKey: string,
+  ) => {
+    if (!item || index < 0) return
+
+    const insert = (items: any[]): any[] => {
+      return [...items.slice(0, index), item, ...items.slice(index)]
+    }
+
+    if (activeTabKey === "tenant") {
+      setTenantSharedGroup((prev) => ({ ...prev, items: insert(prev.items) }))
+    } else if (activeTabKey === "agentShared") {
+      setAgentSharedGroups((prev) => prev.map((g) => (g.key === groupKey ? { ...g, items: insert(g.items) } : g)))
+    } else if (activeTabKey === "userPersonal") {
+      setUserPersonalGroup((prev) => ({ ...prev, items: insert(prev.items) }))
+    } else if (activeTabKey === "userAgent") {
+      setUserAgentGroups((prev) => prev.map((g) => (g.key === groupKey ? { ...g, items: insert(g.items) } : g)))
+    }
+  }
 
   return {
     // state & setter
