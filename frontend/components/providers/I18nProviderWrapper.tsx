@@ -1,9 +1,10 @@
 "use client";
 
-import i18n from "@/app/i18n";
-import { I18nextProvider } from "react-i18next";
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { I18nextProvider } from "react-i18next";
+
+import i18n from "@/app/i18n";
 
 export default function I18nProviderWrapper({
   children,

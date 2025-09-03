@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -7,16 +8,18 @@ import rehypeKatex from "rehype-katex";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 // @ts-ignore
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+
+import { SearchResult } from "@/types/chat";
+
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { SearchResult } from "@/types/chat";
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { CopyButton } from "@/components/ui/copyButton";
-import { useTranslation } from "react-i18next";
+
 import "katex/dist/katex.min.css";
 import "github-markdown-css/github-markdown.css";
 

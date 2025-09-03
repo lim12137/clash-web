@@ -1,7 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { ScrollArea } from "@/components/ui/scrollArea";
-import { ChatMessageType, TaskMessageType } from "@/types/chat";
-import { MarkdownRenderer } from "@/components/ui/markdownRenderer";
+import { useTranslation } from "react-i18next";
 import {
   Globe,
   Search,
@@ -12,9 +10,12 @@ import {
   ChevronRight,
   Wrench,
 } from "lucide-react";
+
+import { ScrollArea } from "@/components/ui/scrollArea";
 import { Button } from "@/components/ui/button";
+import { MarkdownRenderer } from "@/components/ui/markdownRenderer";
+import { ChatMessageType, TaskMessageType } from "@/types/chat";
 import { useChatTaskMessage } from "@/hooks/useChatTaskMessage";
-import { useTranslation } from "react-i18next";
 
 // Icon mapping dictionary - map strings to corresponding icon components
 const iconMap: Record<string, React.ReactNode> = {

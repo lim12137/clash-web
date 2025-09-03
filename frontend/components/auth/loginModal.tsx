@@ -1,13 +1,14 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/hooks/useAuth"
-import { useAuthForm } from "@/hooks/useAuthForm"
-import { Modal, Form, Input, Button, Typography, Space } from "antd"
-import { UserOutlined, LockOutlined } from "@ant-design/icons"
-import { EVENTS, STATUS_CODES } from "@/types/auth"
-import { useTranslation } from "react-i18next"
+import { useTranslation } from "react-i18next";
+import { Modal, Form, Input, Button, Typography, Space } from "antd";
+import { UserOutlined, LockOutlined } from "@ant-design/icons";
 
-const { Text } = Typography
+import { useAuth } from "@/hooks/useAuth";
+import { useAuthForm } from "@/hooks/useAuthForm";
+import { EVENTS, STATUS_CODES } from "@/types/auth";
+
+const { Text } = Typography;
 
 /**
  * LoginModal Component
@@ -16,8 +17,16 @@ const { Text } = Typography
  */
 export function LoginModal() {
   // Authentication state and methods from useAuth hook
-  const { isLoginModalOpen, closeLoginModal, openRegisterModal, login, isFromSessionExpired, setIsFromSessionExpired, authServiceUnavailable } = useAuth()
-  
+  const {
+    isLoginModalOpen,
+    closeLoginModal,
+    openRegisterModal,
+    login,
+    isFromSessionExpired,
+    setIsFromSessionExpired,
+    authServiceUnavailable,
+  } = useAuth();
+
   // Form state and validation methods from useAuthForm hook
   const {
     form,
@@ -29,11 +38,11 @@ export function LoginModal() {
     setPasswordError,
     handleEmailChange,
     handlePasswordChange,
-    resetForm
-  } = useAuthForm()
-  
+    resetForm,
+  } = useAuthForm();
+
   // Internationalization hook for multi-language support
-  const { t } = useTranslation('common');
+  const { t } = useTranslation("common");
 
   /**
    * Handles form submission for user login
@@ -41,36 +50,39 @@ export function LoginModal() {
    */
   const handleSubmit = async (values: { email: string; password: string }) => {
     // Clear previous error states
-    setEmailError("")
-    setPasswordError(false)
-    setIsLoading(true)
+    setEmailError("");
+    setPasswordError(false);
+    setIsLoading(true);
 
     try {
       // Attempt to login with provided credentials
-      await login(values.email, values.password)
-      
+      await login(values.email, values.password);
+
       // Reset session expired flag after successful login
-      setIsFromSessionExpired(false)
-      
+      setIsFromSessionExpired(false);
+
       // Reset modal control state to prevent session expired modal from triggering again
       // Small delay ensures proper state synchronization
       setTimeout(() => {
-        document.dispatchEvent(new CustomEvent('modalClosed'))
-      }, 200)
+        document.dispatchEvent(new CustomEvent("modalClosed"));
+      }, 200);
     } catch (error: any) {
       // Clear email error and set password error flag
-      setEmailError("")
-      setPasswordError(true)
+      setEmailError("");
+      setPasswordError(true);
 
       // Check if error is due to server timeout or auth service unavailability
-      if (error?.code === STATUS_CODES.SERVER_ERROR || error?.code === STATUS_CODES.AUTH_SERVICE_UNAVAILABLE) {
+      if (
+        error?.code === STATUS_CODES.SERVER_ERROR ||
+        error?.code === STATUS_CODES.AUTH_SERVICE_UNAVAILABLE
+      ) {
         // Display server error message in password field
         form.setFields([
           {
             name: "password",
-            errors: [t('auth.authServiceUnavailable')],
-            value: values.password
-          }
+            errors: [t("auth.authServiceUnavailable")],
+            value: values.password,
+          },
         ]);
       } else {
         // Display invalid credentials error in both fields
@@ -78,53 +90,59 @@ export function LoginModal() {
           {
             name: "email",
             errors: [""],
-            value: values.email
+            value: values.email,
           },
           {
             name: "password",
-            errors: [t('auth.invalidCredentials')],
-            value: values.password
-          }
+            errors: [t("auth.invalidCredentials")],
+            value: values.password,
+          },
         ]);
       }
     } finally {
       // Always reset loading state
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   /**
    * Handles transition from login to registration modal
    * Resets form and opens registration modal
    */
   const handleRegisterClick = () => {
-    resetForm()
-    closeLoginModal()
-    openRegisterModal()
-  }
+    resetForm();
+    closeLoginModal();
+    openRegisterModal();
+  };
 
   /**
    * Handles modal cancellation
    * Resets form and handles session expiration scenarios
    */
   const handleCancel = () => {
-    resetForm()
-    closeLoginModal()
+    resetForm();
+    closeLoginModal();
 
-    // If login modal was opened due to session expiration, 
+    // If login modal was opened due to session expiration,
     // re-trigger the session expired event
     if (isFromSessionExpired) {
       setTimeout(() => {
-        window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
-          detail: { message: t('auth.sessionExpired') }
-        }));
+        window.dispatchEvent(
+          new CustomEvent(EVENTS.SESSION_EXPIRED, {
+            detail: { message: t("auth.sessionExpired") },
+          })
+        );
       }, 100);
     }
-  }
+  };
 
   return (
     <Modal
-      title={<div className="text-center text-xl font-bold">{t('auth.loginTitle')}</div>}
+      title={
+        <div className="text-center text-xl font-bold">
+          {t("auth.loginTitle")}
+        </div>
+      }
       open={isLoginModalOpen}
       onCancel={handleCancel}
       footer={null}
@@ -134,27 +152,25 @@ export function LoginModal() {
       maskClosable={!isFromSessionExpired}
       closable={!isFromSessionExpired}
     >
-      <Form 
+      <Form
         id="login-form"
-        form={form} 
-        layout="vertical" 
-        onFinish={handleSubmit} 
-        className="mt-6" 
+        form={form}
+        layout="vertical"
+        onFinish={handleSubmit}
+        className="mt-6"
         autoComplete="off"
       >
         {/* Email input field */}
         <Form.Item
           name="email"
-          label={t('auth.emailLabel')}
+          label={t("auth.emailLabel")}
           validateStatus={emailError ? "error" : ""}
           help={emailError}
-          rules={[
-            { required: true, message: t('auth.emailRequired') }
-          ]}
+          rules={[{ required: true, message: t("auth.emailRequired") }]}
         >
           <Input
             prefix={<UserOutlined className="text-gray-400" />}
-            placeholder={t('auth.emailPlaceholder')}
+            placeholder={t("auth.emailPlaceholder")}
             onChange={handleEmailChange}
             size="large"
           />
@@ -163,14 +179,20 @@ export function LoginModal() {
         {/* Password input field */}
         <Form.Item
           name="password"
-          label={t('auth.passwordLabel')}
+          label={t("auth.passwordLabel")}
           validateStatus={passwordError ? "error" : ""}
-          help={passwordError || authServiceUnavailable ? (authServiceUnavailable ? t('auth.authServiceUnavailable') : t('auth.invalidCredentials')) : ""}
-          rules={[{ required: true, message: t('auth.passwordRequired') }]}
+          help={
+            passwordError || authServiceUnavailable
+              ? authServiceUnavailable
+                ? t("auth.authServiceUnavailable")
+                : t("auth.invalidCredentials")
+              : ""
+          }
+          rules={[{ required: true, message: t("auth.passwordRequired") }]}
         >
           <Input.Password
             prefix={<LockOutlined className="text-gray-400" />}
-            placeholder={t('auth.passwordRequired')}
+            placeholder={t("auth.passwordRequired")}
             onChange={handlePasswordChange}
             size="large"
             status={passwordError ? "error" : ""}
@@ -179,29 +201,29 @@ export function LoginModal() {
 
         {/* Submit button */}
         <Form.Item>
-          <Button 
-            type="primary" 
-            htmlType="submit" 
-            loading={isLoading} 
-            block 
-            size="large" 
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={isLoading}
+            block
+            size="large"
             className="mt-2"
             disabled={authServiceUnavailable}
           >
-            {isLoading ? t('auth.loggingIn') : t('auth.login')}
+            {isLoading ? t("auth.loggingIn") : t("auth.login")}
           </Button>
         </Form.Item>
 
         {/* Registration link section */}
         <div className="text-center">
           <Space>
-            <Text type="secondary">{t('auth.noAccount')}</Text>
+            <Text type="secondary">{t("auth.noAccount")}</Text>
             <Button type="link" onClick={handleRegisterClick} className="p-0">
-              {t('auth.registerNow')}
+              {t("auth.registerNow")}
             </Button>
           </Space>
         </div>
       </Form>
     </Modal>
-  )
-} 
+  );
+}
