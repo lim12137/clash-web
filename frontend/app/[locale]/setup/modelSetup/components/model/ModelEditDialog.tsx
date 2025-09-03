@@ -127,7 +127,7 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
         displayName: form.displayName,
         url: form.url,
         apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey,
-        maxTokens: maxTokensValue,
+        ...(maxTokensValue !== 0 ? { maxTokens: maxTokensValue } : {}),
         source: model.source
       })
 
