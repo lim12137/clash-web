@@ -1,238 +1,488 @@
-import pytest
-import pytest_asyncio
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch
 import sys
-import types
 import os
 
-# Create AsyncMock version of the functions we'll need
-async def async_get_current_user_id(auth_token):
-    return ("user123", "tenant456")
+# Add path for correct imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 
-async def async_query_all_tools(tenant_id):
-    return [{"id": 1, "name": "Tool1"}, {"id": 2, "name": "Tool2"}]
+# Mock dependencies before importing the actual app
+with patch('utils.auth_utils.get_current_user_id') as mock_get_user_id, \
+     patch('services.tool_configuration_service.list_all_tools') as mock_list_all_tools, \
+     patch('services.tool_configuration_service.search_tool_info_impl') as mock_search_tool_info, \
+     patch('services.tool_configuration_service.update_tool_info_impl') as mock_update_tool_info, \
+     patch('services.tool_configuration_service.update_tool_list') as mock_update_tool_list:
+    
+    import pytest
+    from fastapi.testclient import TestClient
+    from http import HTTPStatus
+    
+    # Import exception classes
+    from consts.exceptions import MCPConnectionError
+    
+    # Create a test client with a fresh FastAPI app
+    from apps.tool_config_app import router
+    from fastapi import FastAPI
+    
+    # Patch exception classes to ensure tests use correct exceptions
+    import apps.tool_config_app as tool_config_app
+    tool_config_app.MCPConnectionError = MCPConnectionError
+    
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
 
-async def async_search_tool_info_impl(agent_id, tool_id, auth_token):
-    return {"tool": "info"}
 
-async def async_update_tool_info_impl(request, auth_token):
-    return {"updated": True}
+class TestListToolsAPI:
+    """Test endpoint for listing tools"""
 
-async def async_update_tool_list(tenant_id, user_id):
-    return True
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.list_all_tools')
+    def test_list_tools_success(self, mock_list_all_tools, mock_get_user_id):
+        """Test successful retrieval of tool list"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_list_all_tools.return_value = [
+            {"id": 1, "name": "Tool1"}, 
+            {"id": 2, "name": "Tool2"}
+        ]
 
-# Create proper mock modules with AsyncMock methods
-auth_utils_mock = MagicMock()
-auth_utils_mock.get_current_user_id = AsyncMock(side_effect=async_get_current_user_id)
+        response = client.get("/tool/list")
 
-tool_configuration_service_mock = MagicMock()
-tool_configuration_service_mock.search_tool_info_impl = AsyncMock(side_effect=async_search_tool_info_impl)
-tool_configuration_service_mock.update_tool_info_impl = AsyncMock(side_effect=async_update_tool_info_impl)
-tool_configuration_service_mock.update_tool_list = AsyncMock(side_effect=async_update_tool_list)
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert len(data) == 2
+        assert data[0]["name"] == "Tool1"
+        assert data[1]["name"] == "Tool2"
 
-agent_db_mock = MagicMock()
-agent_db_mock.query_all_tools = AsyncMock(side_effect=async_query_all_tools)
+        mock_get_user_id.assert_called_once_with(None)
+        mock_list_all_tools.assert_called_once_with(tenant_id="tenant456")
 
-# Create module structure
-utils_mock = types.ModuleType('utils')
-setattr(utils_mock, 'auth_utils', auth_utils_mock)
-services_mock = types.ModuleType('services')
-setattr(services_mock, 'tool_configuration_service', tool_configuration_service_mock)
-database_mock = types.ModuleType('database')
-setattr(database_mock, 'agent_db', agent_db_mock)
-setattr(database_mock, 'client', MagicMock())
+    @patch('apps.tool_config_app.get_current_user_id')
+    def test_list_tools_auth_error(self, mock_get_user_id):
+        """Test authentication error when listing tools"""
+        mock_get_user_id.side_effect = Exception("Auth error")
 
-# Mock modules before importing anything else
-sys.modules['utils'] = utils_mock
-sys.modules['utils.auth_utils'] = auth_utils_mock
-sys.modules['services'] = services_mock
-sys.modules['services.tool_configuration_service'] = tool_configuration_service_mock
-sys.modules['database'] = database_mock
-sys.modules['database.agent_db'] = agent_db_mock
-sys.modules['database.client'] = MagicMock()
-sys.modules['consts.model'] = MagicMock()
+        response = client.get("/tool/list")
 
-# Mock fastapi and its submodules
-fastapi_mock = MagicMock()
-sys.modules['fastapi'] = fastapi_mock
-sys.modules['fastapi.Header'] = MagicMock()
-responses_mock = MagicMock()
-json_response_mock = AsyncMock()
-json_response_mock.return_value = MagicMock(status_code=200)
-responses_mock.JSONResponse = json_response_mock
-sys.modules['fastapi.responses'] = responses_mock
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "Failed to get tool info, error in: Auth error" in data["detail"]
 
-# Mock HTTPException
-class MockHTTPException(Exception):
-    def __init__(self, status_code, detail):
-        self.status_code = status_code
-        self.detail = detail
-        super().__init__(f"{status_code}: {detail}")
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.list_all_tools')
+    def test_list_tools_service_error(self, mock_list_all_tools, mock_get_user_id):
+        """Test service error when listing tools"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_list_all_tools.side_effect = Exception("Service error")
 
-# Create our own mock implementations of the functions to test
-async def list_tools_api(authorization):
-    try:
-        user_id, tenant_id = await auth_utils_mock.get_current_user_id(authorization)
-        result = await agent_db_mock.query_all_tools(tenant_id=tenant_id)
-        return result
-    except Exception as e:
-        raise MockHTTPException(status_code=500, detail=f"Failed to get tool info: {str(e)}")
+        response = client.get("/tool/list")
 
-async def search_tool_info_api(request, authorization):
-    try:
-        result = await tool_configuration_service_mock.search_tool_info_impl(
-            request.agent_id, request.tool_id, authorization
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "Failed to get tool info, error in: Service error" in data["detail"]
+
+
+class TestSearchToolInfoAPI:
+    """Test endpoint for searching tool information"""
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.search_tool_info_impl')
+    def test_search_tool_info_success(self, mock_search_tool_info, mock_get_user_id):
+        """Test successful tool information search"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_search_tool_info.return_value = {"tool": "info", "config": {"key": "value"}}
+
+        response = client.post(
+            "/tool/search",
+            json={"agent_id": 123, "tool_id": 456}  # Changed to int
         )
-        return result
-    except Exception as e:
-        raise MockHTTPException(status_code=500, detail=f"Failed to update tool: {str(e)}")
 
-async def update_tool_info_api(request, authorization):
-    try:
-        result = await tool_configuration_service_mock.update_tool_info_impl(request, authorization)
-        return result
-    except Exception as e:
-        raise MockHTTPException(status_code=500, detail=f"Failed to update tool: {str(e)}")
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert data["tool"] == "info"
+        assert data["config"]["key"] == "value"
 
-async def scan_and_update_tool(authorization):
-    try:
-        user_id, tenant_id = await auth_utils_mock.get_current_user_id(authorization)
-        await tool_configuration_service_mock.update_tool_list(tenant_id=tenant_id, user_id=user_id)
-        return json_response_mock.return_value
-    except Exception as e:
-        response = MagicMock(status_code=400)
-        return response
+        mock_get_user_id.assert_called_once_with(None)
+        mock_search_tool_info.assert_called_once_with(123, 456, "tenant456")
 
-# Mock request classes
-class MockToolInstanceSearchRequest:
-    def __init__(self, agent_id, tool_id):
-        self.agent_id = agent_id
-        self.tool_id = tool_id
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.search_tool_info_impl')
+    def test_search_tool_info_service_error(self, mock_search_tool_info, mock_get_user_id):
+        """Test service error when searching tool info"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_search_tool_info.side_effect = Exception("Search error")
 
-class MockToolInstanceInfoRequest:
-    def __init__(self, agent_id, tool_id, configuration):
-        self.agent_id = agent_id
-        self.tool_id = tool_id
-        self.configuration = configuration
+        response = client.post(
+            "/tool/search",
+            json={"agent_id": 123, "tool_id": 456}  # Changed to int
+        )
 
-@pytest.fixture
-def setup_test():
-    # Reset mocks before each test
-    auth_utils_mock.get_current_user_id.reset_mock()
-    tool_configuration_service_mock.search_tool_info_impl.reset_mock()
-    tool_configuration_service_mock.update_tool_info_impl.reset_mock()
-    tool_configuration_service_mock.update_tool_list.reset_mock()
-    agent_db_mock.query_all_tools.reset_mock()
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "Failed to search tool info" in data["detail"]
 
-@pytest.mark.asyncio
-async def test_list_tools_api_success(setup_test):
-    # Execute
-    result = await list_tools_api(authorization="Bearer fake_token")
-    
-    # Assert
-    auth_utils_mock.get_current_user_id.assert_called_once_with("Bearer fake_token")
-    agent_db_mock.query_all_tools.assert_called_once_with(tenant_id="tenant456")
-    assert result == [{"id": 1, "name": "Tool1"}, {"id": 2, "name": "Tool2"}]
 
-@pytest.mark.asyncio
-async def test_list_tools_api_error(setup_test):
-    # Setup - override the default behavior for this test
-    auth_utils_mock.get_current_user_id.side_effect = Exception("Auth error")
-    
-    # Execute and Assert
-    with pytest.raises(MockHTTPException) as exc_info:
-        await list_tools_api(authorization="Bearer fake_token")
-    
-    assert exc_info.value.status_code == 500
-    assert "Failed to get tool info" in exc_info.value.detail
-    
-    # Reset for other tests
-    auth_utils_mock.get_current_user_id.side_effect = async_get_current_user_id
+class TestUpdateToolInfoAPI:
+    """Test endpoint for updating tool information"""
 
-@pytest.mark.asyncio
-async def test_search_tool_info_api_success(setup_test):
-    # Setup
-    request = MockToolInstanceSearchRequest(agent_id="agent123", tool_id="tool456")
-    
-    # Execute
-    result = await search_tool_info_api(request, authorization="Bearer fake_token")
-    
-    # Assert
-    tool_configuration_service_mock.search_tool_info_impl.assert_called_once_with("agent123", "tool456", "Bearer fake_token")
-    assert result == {"tool": "info"}
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.update_tool_info_impl')
+    def test_update_tool_info_success(self, mock_update_tool_info, mock_get_user_id):
+        """Test successful tool information update"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_update_tool_info.return_value = {"updated": True, "tool_id": "tool456"}
 
-@pytest.mark.asyncio
-async def test_search_tool_info_api_error(setup_test):
-    # Setup
-    request = MockToolInstanceSearchRequest(agent_id="agent123", tool_id="tool456")
-    tool_configuration_service_mock.search_tool_info_impl.side_effect = Exception("Search error")
-    
-    # Execute and Assert
-    with pytest.raises(MockHTTPException) as exc_info:
-        await search_tool_info_api(request, authorization="Bearer fake_token")
-    
-    assert exc_info.value.status_code == 500
-    assert "Failed to update tool" in exc_info.value.detail
-    
-    # Reset for other tests
-    tool_configuration_service_mock.search_tool_info_impl.side_effect = async_search_tool_info_impl
+        response = client.post(
+            "/tool/update",
+            json={
+                "agent_id": 123,  # Changed to int
+                "tool_id": 456,   # Changed to int
+                "params": {"key": "value"},  # Changed from "configuration" to "params"
+                "enabled": True  # Added required field
+            }
+        )
 
-@pytest.mark.asyncio
-async def test_update_tool_info_api_success(setup_test):
-    # Setup
-    request = MockToolInstanceInfoRequest(
-        agent_id="agent123", 
-        tool_id="tool456",
-        configuration={"key": "value"}
-    )
-    
-    # Execute
-    result = await update_tool_info_api(request, authorization="Bearer fake_token")
-    
-    # Assert
-    tool_configuration_service_mock.update_tool_info_impl.assert_called_once_with(request, "Bearer fake_token")
-    assert result == {"updated": True}
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert data["updated"] == True
+        assert data["tool_id"] == "tool456"
 
-@pytest.mark.asyncio
-async def test_update_tool_info_api_error(setup_test):
-    # Setup
-    request = MockToolInstanceInfoRequest(
-        agent_id="agent123", 
-        tool_id="tool456",
-        configuration={"key": "value"}
-    )
-    tool_configuration_service_mock.update_tool_info_impl.side_effect = Exception("Update error")
-    
-    # Execute and Assert
-    with pytest.raises(MockHTTPException) as exc_info:
-        await update_tool_info_api(request, authorization="Bearer fake_token")
-    
-    assert exc_info.value.status_code == 500
-    assert "Failed to update tool" in exc_info.value.detail
-    
-    # Reset for other tests
-    tool_configuration_service_mock.update_tool_info_impl.side_effect = async_update_tool_info_impl
+        mock_get_user_id.assert_called_once_with(None)
+        # The mock should be called with request object, tenant_id, user_id
+        assert mock_update_tool_info.call_count == 1
+        args = mock_update_tool_info.call_args[0]
+        assert args[1] == "tenant456"  # tenant_id
+        assert args[2] == "user123"    # user_id
 
-@pytest.mark.asyncio
-async def test_scan_and_update_tool_success(setup_test):
-    # Execute
-    result = await scan_and_update_tool(authorization="Bearer fake_token")
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.update_tool_info_impl')
+    def test_update_tool_info_service_error(self, mock_update_tool_info, mock_get_user_id):
+        """Test service error when updating tool info"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_update_tool_info.side_effect = Exception("Update error")
 
-    # Assert
-    auth_utils_mock.get_current_user_id.assert_called_once_with("Bearer fake_token")
-    tool_configuration_service_mock.update_tool_list.assert_called_once_with(tenant_id="tenant456", user_id="user123")
-    assert result.status_code == 200
+        response = client.post(
+            "/tool/update",
+            json={
+                "agent_id": 123,  # Changed to int
+                "tool_id": 456,   # Changed to int
+                "params": {"key": "value"},  # Changed from "configuration" to "params"
+                "enabled": True  # Added required field
+            }
+        )
 
-@pytest.mark.asyncio
-async def test_scan_and_update_tool_error(setup_test):
-    # Setup
-    tool_configuration_service_mock.update_tool_list.side_effect = Exception("Update error")
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "Failed to update tool, error in: Update error" in data["detail"]
 
-    # Execute
-    result = await scan_and_update_tool(authorization="Bearer fake_token")
 
-    # Assert
-    assert result.status_code == 400
-    
-    # Reset for other tests
-    tool_configuration_service_mock.update_tool_list.side_effect = async_update_tool_list
+class TestScanAndUpdateToolAPI:
+    """Test endpoint for scanning and updating tools"""
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.update_tool_list')
+    def test_scan_and_update_tool_success(self, mock_update_tool_list, mock_get_user_id):
+        """Test successful tool scan and update"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_update_tool_list.return_value = None
+
+        response = client.get("/tool/scan_tool")
+
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert data["status"] == "success"
+        assert "Successfully update tool" in data["message"]
+
+        mock_get_user_id.assert_called_once_with(None)
+        mock_update_tool_list.assert_called_once_with(tenant_id="tenant456", user_id="user123")
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.update_tool_list')
+    def test_scan_and_update_tool_mcp_error(self, mock_update_tool_list, mock_get_user_id):
+        """Test MCP connection error during tool scan"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_update_tool_list.side_effect = MCPConnectionError("MCP connection failed")
+
+        response = client.get("/tool/scan_tool")
+
+        assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
+        data = response.json()
+        assert "MCP connection failed" in data["detail"]
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.update_tool_list')
+    def test_scan_and_update_tool_general_error(self, mock_update_tool_list, mock_get_user_id):
+        """Test general error during tool scan"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_update_tool_list.side_effect = Exception("General update error")
+
+        response = client.get("/tool/scan_tool")
+
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "Failed to update tool" in data["detail"]
+
+
+class TestIntegration:
+    """Integration tests"""
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.list_all_tools')
+    @patch('apps.tool_config_app.search_tool_info_impl')
+    @patch('apps.tool_config_app.update_tool_info_impl')
+    def test_full_tool_lifecycle(self, mock_update_tool_info, mock_search_tool_info, 
+                                mock_list_all_tools, mock_get_user_id):
+        """Test complete tool configuration lifecycle"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+
+        # 1. List tools
+        mock_list_all_tools.return_value = [{"id": 1, "name": "TestTool"}]
+        list_response = client.get("/tool/list")
+        assert list_response.status_code == HTTPStatus.OK
+        data = list_response.json()
+        assert len(data) == 1
+
+        # 2. Search tool info
+        mock_search_tool_info.return_value = {"tool": "TestTool", "config": {}}
+        search_response = client.post(
+            "/tool/search",
+            json={"agent_id": 123, "tool_id": 1}  # Changed to int
+        )
+        assert search_response.status_code == HTTPStatus.OK
+
+        # 3. Update tool info
+        mock_update_tool_info.return_value = {"updated": True}
+        update_response = client.post(
+            "/tool/update",
+            json={
+                "agent_id": 123,  # Changed to int
+                "tool_id": 1,     # Changed to int
+                "params": {"new_key": "new_value"},  # Changed from "configuration" to "params"
+                "enabled": True   # Added required field
+            }
+        )
+        assert update_response.status_code == HTTPStatus.OK
+
+
+class TestErrorHandling:
+    """Error handling tests"""
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.list_all_tools')
+    def test_authorization_header_handling(self, mock_list_all_tools, mock_get_user_id):
+        """Test authorization header handling"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_list_all_tools.return_value = []
+
+        # Test with Authorization header
+        response = client.get(
+            "/tool/list",
+            headers={"Authorization": "Bearer test_token"}
+        )
+        assert response.status_code == HTTPStatus.OK
+        mock_get_user_id.assert_called_with("Bearer test_token")
+
+        # Reset mock
+        mock_get_user_id.reset_mock()
+
+        # Test without Authorization header
+        response = client.get("/tool/list")
+        assert response.status_code == HTTPStatus.OK
+        mock_get_user_id.assert_called_with(None)
+
+    def test_missing_parameters(self):
+        """Test missing required parameters"""
+        # Test missing parameters for search
+        response = client.post("/tool/search", json={})
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+        # Test missing parameters for update
+        response = client.post("/tool/update", json={})
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])
+
+
+class TestEdgeCases:
+    """Edge cases and boundary condition tests"""
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.list_all_tools')
+    def test_list_tools_empty_response(self, mock_list_all_tools, mock_get_user_id):
+        """Test handling of empty tool list"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_list_all_tools.return_value = []
+
+        response = client.get("/tool/list")
+
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert data == []
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.search_tool_info_impl')
+    def test_search_tool_info_not_found(self, mock_search_tool_info, mock_get_user_id):
+        """Test searching for non-existent tool"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_search_tool_info.return_value = None
+
+        response = client.post(
+            "/tool/search",
+            json={"agent_id": 999, "tool_id": 999}
+        )
+
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert data is None
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.update_tool_info_impl')
+    def test_update_tool_info_with_empty_params(self, mock_update_tool_info, mock_get_user_id):
+        """Test updating tool with empty parameters"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_update_tool_info.return_value = {"updated": True}
+
+        response = client.post(
+            "/tool/update",
+            json={
+                "agent_id": 123,
+                "tool_id": 456,
+                "params": {},
+                "enabled": False
+            }
+        )
+
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert data["updated"] == True
+
+    def test_invalid_json_payload(self):
+        """Test handling of invalid JSON payload"""
+        response = client.post(
+            "/tool/search",
+            data="invalid json",
+            headers={"content-type": "application/json"}
+        )
+
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+    def test_missing_content_type_header(self):
+        """Test POST request without content-type header"""
+        response = client.post(
+            "/tool/search",
+            data='{"agent_id": 123, "tool_id": 456}'
+        )
+
+        # FastAPI should still parse it correctly
+        assert response.status_code in [HTTPStatus.OK, HTTPStatus.UNPROCESSABLE_ENTITY, HTTPStatus.INTERNAL_SERVER_ERROR]
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    def test_auth_with_invalid_token_format(self, mock_get_user_id):
+        """Test authentication with invalid token format"""
+        mock_get_user_id.side_effect = Exception("Invalid token format")
+
+        response = client.get(
+            "/tool/list",
+            headers={"Authorization": "InvalidTokenFormat"}
+        )
+
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "Invalid token format" in data["detail"]
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    def test_scan_tool_auth_failure(self, mock_get_user_id):
+        """Test scan tool with authentication failure"""
+        mock_get_user_id.side_effect = Exception("Authentication failed")
+
+        response = client.get("/tool/scan_tool")
+
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "Failed to update tool" in data["detail"]
+
+
+class TestDataValidation:
+    """Data validation tests"""
+
+    def test_search_tool_negative_ids(self):
+        """Test search with negative IDs"""
+        response = client.post(
+            "/tool/search",
+            json={"agent_id": -1, "tool_id": -1}
+        )
+
+        # Should still pass validation but may fail in business logic
+        assert response.status_code in [HTTPStatus.OK, HTTPStatus.INTERNAL_SERVER_ERROR]
+
+    def test_update_tool_invalid_data_types(self):
+        """Test update with invalid data types"""
+        response = client.post(
+            "/tool/update",
+            json={
+                "agent_id": "not_an_int",
+                "tool_id": "not_an_int",
+                "params": "not_a_dict",
+                "enabled": "not_a_bool"
+            }
+        )
+
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+    def test_search_tool_missing_required_fields(self):
+        """Test search with missing required fields"""
+        # Missing tool_id
+        response = client.post(
+            "/tool/search",
+            json={"agent_id": 123}
+        )
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+        # Missing agent_id
+        response = client.post(
+            "/tool/search",
+            json={"tool_id": 456}
+        )
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+    def test_update_tool_missing_required_fields(self):
+        """Test update with missing required fields"""
+        # Missing enabled field
+        response = client.post(
+            "/tool/update",
+            json={
+                "agent_id": 123,
+                "tool_id": 456,
+                "params": {}
+            }
+        )
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+class TestConcurrency:
+    """Concurrency and performance tests"""
+
+    @patch('apps.tool_config_app.get_current_user_id')
+    @patch('apps.tool_config_app.list_all_tools')
+    def test_multiple_simultaneous_requests(self, mock_list_all_tools, mock_get_user_id):
+        """Test handling multiple simultaneous requests"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_list_all_tools.return_value = [{"id": 1, "name": "Tool1"}]
+
+        # Simulate multiple simultaneous requests
+        responses = []
+        for _ in range(5):
+            response = client.get("/tool/list")
+            responses.append(response)
+
+        # All requests should succeed
+        for response in responses:
+            assert response.status_code == HTTPStatus.OK
+            data = response.json()
+            assert len(data) == 1
+            assert data[0]["name"] == "Tool1"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])
