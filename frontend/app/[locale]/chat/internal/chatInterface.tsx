@@ -5,17 +5,18 @@ import type React from "react";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
-import { useConfig } from "@/hooks/useConfig";
-import { conversationService } from "@/services/conversationService";
-import { storageService } from "@/services/storageService";
-import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "react-i18next";
 
-import { ChatSidebar } from "@/app/chat/components/chatLeftSidebar";
-import { FilePreview } from "@/app/chat/components/chatInput";
-import { ChatHeader } from "@/app/chat/components/chatHeader";
-import { ChatRightPanel } from "@/app/chat/components/chatRightPanel";
-import { ChatStreamMain } from "@/app/chat/streaming/chatStreamMain";
+import { useConfig } from "@/hooks/useConfig";
+import { useAuth } from "@/hooks/useAuth";
+import { conversationService } from "@/services/conversationService";
+import { storageService } from "@/services/storageService";
+
+import { ChatSidebar } from "../components/chatLeftSidebar";
+import { FilePreview } from "../components/chatInput";
+import { ChatHeader } from "../components/chatHeader";
+import { ChatRightPanel } from "../components/chatRightPanel";
+import { ChatStreamMain } from "../streaming/chatStreamMain";
 
 import {
   preprocessAttachments,

@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Tag, App } from "antd";
 import { PlusOutlined, CloseOutlined } from "@ant-design/icons";
-import { useTranslation } from "react-i18next";
+
+import { CollaborativeAgentDisplayProps } from "@/types/agentConfig";
 import {
   addRelatedAgent,
   deleteRelatedAgent,
 } from "@/services/agentConfigService";
-import { CollaborativeAgentDisplayProps } from "@/types/agentConfig";
 
 export default function CollaborativeAgentDisplay({
   availableAgents,

@@ -1,11 +1,14 @@
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { Modal, Button,Switch, App, Tooltip, Input } from 'antd'
 import { DeleteOutlined, ExclamationCircleFilled, RightOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons'
-import { useState } from 'react'
-import { ModelOption, ModelType, ModelSource } from '@/types/config'
-import { modelService } from '@/services/modelService'
-import { ModelEditDialog, ProviderConfigEditDialog } from './ModelEditDialog'
+
 import { useConfig } from '@/hooks/useConfig'
-import { useTranslation } from 'react-i18next'
+import { modelService } from '@/services/modelService'
+import { ModelOption, ModelType, ModelSource } from '@/types/config'
+
+import { ModelEditDialog, ProviderConfigEditDialog } from './ModelEditDialog'
 
 interface ModelDeleteDialogProps {
   isOpen: boolean

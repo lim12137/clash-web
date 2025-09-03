@@ -1,5 +1,9 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Copy } from "lucide-react";
+
+import { copyToClipboard } from "@/lib/clipboard";
+
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -7,8 +11,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { copyToClipboard } from "@/lib/clipboard";
-import { useTranslation } from "react-i18next";
 
 interface CopyButtonProps {
   content: string;

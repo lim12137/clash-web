@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Modal, Input, Switch, Select, InputNumber, Tag, App } from "antd";
-import { ToolParam } from "@/types/agentConfig";
+
 import { OpenAIModel } from "@/types/config";
+import { ToolParam, ToolConfigModalProps } from "@/types/agentConfig";
 import {
   updateToolConfig,
   searchToolConfig,
 } from "@/services/agentConfigService";
-import { useTranslation } from "react-i18next";
-import { ToolConfigModalProps } from "@/types/agentConfig";
 
 export default function ToolConfigModal({
   isOpen,

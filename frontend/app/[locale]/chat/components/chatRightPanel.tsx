@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { ExternalLink, Database, X } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StaticScrollArea } from "@/components/ui/scrollArea";
-import { ExternalLink, Database, X } from "lucide-react";
 import { ChatMessageType } from "@/types/chat";
 import { API_ENDPOINTS } from "@/services/api";
 import { formatDate, formatUrl } from "@/lib/utils";
-import { useTranslation } from "react-i18next";
 
 interface ImageItem {
   base64Data: string;

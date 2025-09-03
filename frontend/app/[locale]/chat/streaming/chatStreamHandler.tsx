@@ -1,6 +1,7 @@
 // Tool function for processing chat streaming response
 
 import { ChatMessageType, AgentStep } from "@/types/chat";
+
 import {
   deduplicateImages,
   deduplicateSearchResults,

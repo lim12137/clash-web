@@ -1,14 +1,15 @@
 import { useRef, useEffect, useState } from "react";
-import { ScrollArea } from "@/components/ui/scrollArea";
-import { ChatInput } from "@/app/chat/components/chatInput";
-import { ChatMessageType } from "@/types/chat";
-import { FilePreview } from "@/app/chat/components/chatInput";
-import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+import { ScrollArea } from "@/components/ui/scrollArea";
+import { Button } from "@/components/ui/button";
+import { ChatMessageType } from "@/types/chat";
+
+import { ChatInput, FilePreview } from "../components/chatInput";
 import { ChatStreamFinalMessage } from "./chatStreamFinalMessage";
 import { TaskWindow } from "./taskWindow";
-import { useTranslation } from "react-i18next";
 
 // Define a new message processing structure
 interface ProcessedMessages {

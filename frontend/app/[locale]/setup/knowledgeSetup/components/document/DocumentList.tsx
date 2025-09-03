@@ -4,17 +4,19 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { Document } from "@/types/knowledgeBase";
-import DocumentStatus from "./DocumentStatus";
+import { useTranslation } from "react-i18next";
+
+import { Input, Button, App } from "antd";
 import { InfoCircleFilled } from "@ant-design/icons";
-import UploadArea from "../upload/UploadArea";
+
+import knowledgeBaseService from "@/services/knowledgeBaseService";
+import { Document } from "@/types/knowledgeBase";
 import { formatFileSize, sortByStatusAndDate } from "@/lib/utils";
-import { Input, Button } from "antd";
+
+import DocumentStatus from "./DocumentStatus";
+import UploadArea from "../upload/UploadArea";
 import { useKnowledgeBaseContext } from "../../contexts/KnowledgeBaseContext";
 import { useDocumentContext } from "../../contexts/DocumentContext";
-import { App } from "antd";
-import knowledgeBaseService from "@/services/knowledgeBaseService";
-import { useTranslation } from "react-i18next";
 
 // UI layout configuration, internally manages height ratios of each section
 export const UI_CONFIG = {

@@ -1,13 +1,26 @@
 "use client";
 
 import type React from "react";
-import { useTranslation } from "react-i18next";
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 import { App } from "antd";
 import { InfoCircleFilled } from "@ant-design/icons";
 
-// Import hooks and providers
+import { useConfirmModal } from "@/hooks/useConfirmModal";
+
+import knowledgeBaseService from "@/services/knowledgeBaseService";
+import knowledgeBasePollingService from "@/services/knowledgeBasePollingService";
+import { API_ENDPOINTS } from "@/services/api";
+import { KnowledgeBase } from "@/types/knowledgeBase";
+import {
+  SETUP_PAGE_CONTAINER,
+  FLEX_TWO_COLUMN_LAYOUT,
+  STANDARD_CARD,
+} from "@/lib/layoutConstants";
+
+import KnowledgeBaseList from "./components/knowledge/KnowledgeBaseList";
+import DocumentList from "./components/document/DocumentList";
 import {
   useKnowledgeBaseContext,
   KnowledgeBaseProvider,
@@ -17,20 +30,6 @@ import {
   DocumentProvider,
 } from "./contexts/DocumentContext";
 import { useUIContext, UIProvider } from "./contexts/UIStateContext";
-import { KnowledgeBase } from "@/types/knowledgeBase";
-import knowledgeBaseService from "@/services/knowledgeBaseService";
-import knowledgeBasePollingService from "@/services/knowledgeBasePollingService";
-import { API_ENDPOINTS } from "@/services/api";
-import {
-  SETUP_PAGE_CONTAINER,
-  FLEX_TWO_COLUMN_LAYOUT,
-  STANDARD_CARD,
-} from "@/lib/layoutConstants";
-
-// Import components
-import KnowledgeBaseList from "./components/knowledge/KnowledgeBaseList";
-import DocumentList from "./components/document/DocumentList";
-import { useConfirmModal } from "@/hooks/useConfirmModal";
 
 // EmptyState component defined directly in this file
 interface EmptyStateProps {

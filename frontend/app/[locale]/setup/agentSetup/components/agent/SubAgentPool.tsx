@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import { App, Button, Tooltip } from "antd";
 import { UploadOutlined, LinkOutlined } from "@ant-design/icons";
-import { useTranslation } from "react-i18next";
+
 import { ScrollArea } from "@/components/ui/scrollArea";
+import { Agent, SubAgentPoolProps } from "@/types/agentConfig";
+
 import AgentCallRelationshipModal from "./AgentCallRelationshipModal";
-import { Agent } from "@/types/agentConfig";
-import { SubAgentPoolProps } from "@/types/agentConfig";
 
 /**
  * Sub Agent Pool Component
