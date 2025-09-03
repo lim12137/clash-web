@@ -1,5 +1,6 @@
-import { App } from "antd";
 import i18next from "i18next";
+
+import { App } from "antd";
 
 interface StaticConfirmProps {
   title: string;

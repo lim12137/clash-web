@@ -4,6 +4,7 @@
 
 import { createAvatar } from '@dicebear/core';
 import * as initialsStyle from '@dicebear/initials';
+
 import { fetchWithErrorHandling } from "@/services/api";
 import { Session, STORAGE_KEYS } from "@/types/auth";
 

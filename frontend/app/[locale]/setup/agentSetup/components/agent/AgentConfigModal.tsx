@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Modal, Spin } from "antd";
 import {
   ExpandAltOutlined,
@@ -9,14 +11,14 @@ import {
   UploadOutlined,
   DeleteOutlined,
 } from "@ant-design/icons";
-import { useState, useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
+
 import { OpenAIModel } from "@/types/config";
-import { SimplePromptEditor } from "../PromptManager";
 import {
   checkAgentName,
   checkAgentDisplayName,
 } from "@/services/agentConfigService";
+
+import { SimplePromptEditor } from "../PromptManager";
 
 export interface AgentConfigModalProps {
   agentId?: number;

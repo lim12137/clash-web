@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, memo } from "react";
+import { useTranslation } from "react-i18next";
+
 import { Button, App, Tabs } from "antd";
 import {
   SettingOutlined,
@@ -8,23 +10,22 @@ import {
   ApiOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
-import { useTranslation } from "react-i18next";
 
 import {
   Tooltip as CustomTooltip,
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import ToolConfigModal from "./ToolConfigModal";
-import McpConfigModal from "../McpConfigModal";
-import { Tool } from "@/types/agentConfig";
-import { ToolPoolProps, ToolGroup } from "@/types/agentConfig";
+import { Tool, ToolPoolProps, ToolGroup } from "@/types/agentConfig";
 import {
   fetchTools,
   searchToolConfig,
   updateToolConfig,
 } from "@/services/agentConfigService";
 import { updateToolList } from "@/services/mcpService";
+
+import ToolConfigModal from "./ToolConfigModal";
+import McpConfigModal from "../McpConfigModal";
 
 /**
  * Tool Pool Component

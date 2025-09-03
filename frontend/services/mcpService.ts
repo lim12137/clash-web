@@ -1,5 +1,6 @@
-import { API_ENDPOINTS } from './api';
 import i18n from 'i18next';
+
+import { API_ENDPOINTS } from './api';
 
 // 翻译函数
 const t = (key: string, options?: any): string => {

@@ -1,11 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdownMenu";
 import {
   Clock,
   Settings,
@@ -17,7 +10,14 @@ import {
   ChevronRight,
   User,
 } from "lucide-react";
-import { ConversationListItem } from "@/types/chat";
+
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdownMenu";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -41,6 +41,7 @@ import { getRoleColor } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { extractColorsFromUri } from "@/lib/avatar";
 import { useTranslation } from "react-i18next";
+import { ConversationListItem } from "@/types/chat";
 
 // conversation status indicator component
 const ConversationStatusIndicator = ({

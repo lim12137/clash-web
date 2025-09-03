@@ -1,6 +1,8 @@
-import knowledgeBaseService from '@/services/knowledgeBaseService';
-import '../app/[locale]/i18n';
 import { TFunction } from 'i18next';
+
+import knowledgeBaseService from '@/services/knowledgeBaseService';
+
+import '../app/[locale]/i18n';
 
 // 添加类型定义
 export interface AbortableError extends Error {
