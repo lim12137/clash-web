@@ -1,23 +1,21 @@
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import sys
 import os
 
 # Add path for correct imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 
-# Mock dependencies before importing the actual app
-with patch('utils.auth_utils.get_current_user_id') as mock_get_user_id, \
-     patch('services.tool_configuration_service.list_all_tools') as mock_list_all_tools, \
-     patch('services.tool_configuration_service.search_tool_info_impl') as mock_search_tool_info, \
-     patch('services.tool_configuration_service.update_tool_info_impl') as mock_update_tool_info, \
-     patch('services.tool_configuration_service.update_tool_list') as mock_update_tool_list:
-    
+# Mock boto3 to avoid dependency issues
+sys.modules['boto3'] = MagicMock()
+
+# Import exception classes
+from consts.exceptions import MCPConnectionError
+
+# Mock dependencies before importing the actual app - using the same pattern as test_remote_mcp_app.py
+with patch('database.client.MinioClient', MagicMock()):
     import pytest
     from fastapi.testclient import TestClient
     from http import HTTPStatus
-    
-    # Import exception classes
-    from consts.exceptions import MCPConnectionError
     
     # Create a test client with a fresh FastAPI app
     from apps.tool_config_app import router
@@ -26,7 +24,7 @@ with patch('utils.auth_utils.get_current_user_id') as mock_get_user_id, \
     # Patch exception classes to ensure tests use correct exceptions
     import apps.tool_config_app as tool_config_app
     tool_config_app.MCPConnectionError = MCPConnectionError
-    
+
     app = FastAPI()
     app.include_router(router)
     client = TestClient(app)
