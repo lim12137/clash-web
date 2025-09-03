@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ExternalLink } from "lucide-react";
 import {
   AiFillFileImage,
@@ -13,14 +14,14 @@ import {
   AiFillCode,
   AiFillFileUnknown,
 } from "react-icons/ai";
-import { cn } from "@/lib/utils";
+
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 // Interface for attachment items
 export interface AttachmentItem {

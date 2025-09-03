@@ -1,9 +1,11 @@
 "use strict";
-import { Select, Tooltip, Tag } from 'antd'
-import { CloseOutlined } from '@ant-design/icons'
-import { ModelConnectStatus, ModelOption, ModelSource, ModelType } from '@/types/config'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+
+import { Select, Tooltip, Tag } from 'antd'
+import { CloseOutlined } from '@ant-design/icons'
+
+import { ModelConnectStatus, ModelOption, ModelSource, ModelType } from '@/types/config'
 
 // 统一管理模型连接状态颜色
 const CONNECT_STATUS_COLORS: Record<ModelConnectStatus | 'default', string> = {
@@ -145,7 +147,7 @@ export const ModelListCard = ({
   }, []);
 
   // 获取模型列表时需要考虑具体的选项类型
-  const getModelsBySource = (): Record<ModelSource, ModelOption[]> => {
+  const getModelsBySource = (): { official: ModelOption[]; custom: ModelOption[] } => {
     // 每种类型只显示对应类型的模型
     return {
       official: modelsData.official.filter(model => model.type === type),

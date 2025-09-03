@@ -1,18 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { App, Modal, Typography } from "antd";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import SubAgentPool from "./agent/SubAgentPool";
-import { MemoizedToolPool } from "./tool/ToolPool";
 
-import CollaborativeAgentDisplay from "./agent/CollaborativeAgentDisplay";
-import PromptManager from "./PromptManager";
-import { Agent } from "@/types/agentConfig";
-import { OpenAIModel } from "@/types/config";
-import { AgentSetupOrchestratorProps } from "@/types/agentConfig";
+import { App, Modal, Typography } from "antd";
+
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   getCreatingSubAgentId,
   fetchAgentList,
@@ -21,6 +15,13 @@ import {
   deleteAgent,
   searchAgentInfo,
 } from "@/services/agentConfigService";
+import { OpenAIModel } from "@/types/config";
+import { Agent, AgentSetupOrchestratorProps } from "@/types/agentConfig";
+
+import SubAgentPool from "./agent/SubAgentPool";
+import CollaborativeAgentDisplay from "./agent/CollaborativeAgentDisplay";
+import { MemoizedToolPool } from "./tool/ToolPool";
+import PromptManager from "./PromptManager";
 
 /**
  * Agent Setup Orchestrator - Main coordination component for agent setup workflow

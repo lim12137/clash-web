@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, MousePointerClick } from "lucide-react";
-import { fetchAllAgents } from "@/services/agentConfigService";
 import { useTranslation } from "react-i18next";
+import { ChevronDown, MousePointerClick } from "lucide-react";
+
+import { fetchAllAgents } from "@/services/agentConfigService";
 import { getUrlParam } from "@/lib/utils";
 
 interface Agent {

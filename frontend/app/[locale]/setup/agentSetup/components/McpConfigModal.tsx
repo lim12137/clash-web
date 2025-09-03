@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Modal,
   Button,
@@ -22,6 +23,8 @@ import {
   CompressOutlined,
   RedoOutlined,
 } from "@ant-design/icons";
+
+import { McpConfigModalProps } from "@/types/agentConfig";
 import {
   getMcpServerList,
   addMcpServer,
@@ -32,8 +35,6 @@ import {
   McpServer,
   McpTool,
 } from "@/services/mcpService";
-import { useTranslation } from "react-i18next";
-import { McpConfigModalProps } from "@/types/agentConfig";
 
 const { Text, Title } = Typography;
 
