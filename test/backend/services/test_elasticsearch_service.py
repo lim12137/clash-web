@@ -284,7 +284,7 @@ class TestElasticSearchService(unittest.TestCase):
 
         asyncio.run(run_test())
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.elasticsearch_service.get_knowledge_info_by_tenant_id')
     def test_list_indices_without_stats(self, mock_get_knowledge):
         """
         Test listing indices without including statistics.
@@ -296,13 +296,17 @@ class TestElasticSearchService(unittest.TestCase):
         """
         # Setup
         self.mock_es_core.get_user_indices.return_value = ["index1", "index2"]
-        mock_get_knowledge.return_value = None  # Or appropriate mock data if needed
+        mock_get_knowledge.return_value = [
+            {"index_name": "index1", "embedding_model_name": "test-model"},
+            {"index_name": "index2", "embedding_model_name": "test-model"}
+        ]
 
         # Execute
         result = ElasticSearchService.list_indices(
             pattern="*",
             include_stats=False,
-            tenant_id=None,  # Explicitly set tenant_id to None
+            tenant_id="test_tenant",  # Now required parameter
+            user_id="test_user",      # New required parameter
             es_core=self.mock_es_core
         )
 
@@ -310,9 +314,9 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(len(result["indices"]), 2)
         self.assertEqual(result["count"], 2)
         self.mock_es_core.get_user_indices.assert_called_once_with("*")
-        self.mock_es_core.get_all_indices_stats.assert_not_called()
+        mock_get_knowledge.assert_called_once_with(tenant_id="test_tenant")
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.elasticsearch_service.get_knowledge_info_by_tenant_id')
     def test_list_indices_with_stats(self, mock_get_knowledge):
         """
         Test listing indices with statistics included.
@@ -325,16 +329,20 @@ class TestElasticSearchService(unittest.TestCase):
         # Setup
         self.mock_es_core.get_user_indices.return_value = ["index1", "index2"]
         self.mock_es_core.get_index_stats.return_value = {
-            "index1": {"doc_count": 10},
-            "index2": {"doc_count": 20}
+            "index1": {"base_info": {"doc_count": 10, "embedding_model": "test-model"}},
+            "index2": {"base_info": {"doc_count": 20, "embedding_model": "test-model"}}
         }
-        mock_get_knowledge.return_value = None  # Or appropriate mock data if needed
+        mock_get_knowledge.return_value = [
+            {"index_name": "index1", "embedding_model_name": "test-model"},
+            {"index_name": "index2", "embedding_model_name": "test-model"}
+        ]
 
         # Execute
         result = ElasticSearchService.list_indices(
             pattern="*",
             include_stats=True,
-            tenant_id=None,  # Explicitly set tenant_id to None
+            tenant_id="test_tenant",  # Now required parameter
+            user_id="test_user",      # New required parameter
             es_core=self.mock_es_core
         )
 
@@ -345,6 +353,7 @@ class TestElasticSearchService(unittest.TestCase):
         self.mock_es_core.get_user_indices.assert_called_once_with("*")
         self.mock_es_core.get_index_stats.assert_called_once_with(
             ["index1", "index2"])
+        mock_get_knowledge.assert_called_once_with(tenant_id="test_tenant")
 
     def test_get_index_name_success(self):
         """
@@ -1298,7 +1307,7 @@ class TestElasticSearchService(unittest.TestCase):
 
         self.assertIn("Unable to get summary", str(context.exception))
 
-    @patch('backend.services.elasticsearch_service.get_knowledge_record')
+    @patch('backend.services.elasticsearch_service.get_knowledge_info_by_tenant_id')
     @patch('fastapi.Response')
     def test_list_indices_success_status_200(self, mock_response, mock_get_knowledge):
         """
@@ -1312,13 +1321,17 @@ class TestElasticSearchService(unittest.TestCase):
         # Setup
         self.mock_es_core.get_user_indices.return_value = ["index1", "index2"]
         mock_response.status_code = 200
-        mock_get_knowledge.return_value = None  # Or appropriate mock data if needed
+        mock_get_knowledge.return_value = [
+            {"index_name": "index1", "embedding_model_name": "test-model"},
+            {"index_name": "index2", "embedding_model_name": "test-model"}
+        ]
 
         # Execute
         result = ElasticSearchService.list_indices(
             pattern="*",
             include_stats=False,
-            tenant_id=None,  # Explicitly set tenant_id to None
+            tenant_id="test_tenant",  # Now required parameter
+            user_id="test_user",      # New required parameter
             es_core=self.mock_es_core
         )
 
@@ -1328,6 +1341,7 @@ class TestElasticSearchService(unittest.TestCase):
         # Verify no exception is raised, implying 200 status code
         self.assertIsInstance(result, dict)  # Success response is a dictionary
         self.mock_es_core.get_user_indices.assert_called_once_with("*")
+        mock_get_knowledge.assert_called_once_with(tenant_id="test_tenant")
 
     def test_health_check_success_status_200(self):
         """
