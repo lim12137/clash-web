@@ -8,6 +8,9 @@ from unittest.mock import patch
 from fastapi.responses import StreamingResponse
 import backend.services.elasticsearch_service as es_service_module
 
+# Mock boto3 before importing the module under test
+boto3_mock = MagicMock()
+sys.modules['boto3'] = boto3_mock
 
 # Apply the patches before importing the module being tested
 with patch('botocore.client.BaseClient._make_api_call'), \
