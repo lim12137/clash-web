@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 sys.modules['boto3'] = MagicMock()
 
 # Import exception classes
-from consts.exceptions import MCPConnectionError, MCPNameIllegal, MCPDatabaseError
+from consts.exceptions import MCPConnectionError, MCPNameIllegal
 
 # Import the modules we need with MinioClient mocked  
 with patch('database.client.MinioClient', MagicMock()):
@@ -23,7 +23,6 @@ with patch('database.client.MinioClient', MagicMock()):
     import apps.remote_mcp_app as remote_app
     remote_app.MCPConnectionError = MCPConnectionError
     remote_app.MCPNameIllegal = MCPNameIllegal
-    remote_app.MCPDatabaseError = MCPDatabaseError
 
     app = FastAPI()
     app.include_router(router)
@@ -78,9 +77,24 @@ class TestGetToolsFromRemoteMCP:
         )
 
     @patch('apps.remote_mcp_app.get_tool_from_remote_mcp_server')
-    def test_get_tools_failure(self, mock_get_tools):
-        """Test failure to retrieve tool information"""
-        mock_get_tools.side_effect = Exception("Connection failed")
+    def test_get_tools_connection_error(self, mock_get_tools):
+        """Test MCP connection error when retrieving tool information"""
+        mock_get_tools.side_effect = MCPConnectionError("MCP connection failed")
+
+        response = client.post(
+            "/mcp/tools",
+            params={"service_name": "test_service",
+                    "mcp_url": "http://unreachable.com"}
+        )
+
+        assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
+        data = response.json()
+        assert "MCP connection failed" in data["detail"]
+
+    @patch('apps.remote_mcp_app.get_tool_from_remote_mcp_server')
+    def test_get_tools_general_failure(self, mock_get_tools):
+        """Test general failure to retrieve tool information"""
+        mock_get_tools.side_effect = Exception("Unexpected error")
 
         response = client.post(
             "/mcp/tools",
@@ -88,7 +102,7 @@ class TestGetToolsFromRemoteMCP:
                     "mcp_url": "http://test.com"}
         )
 
-        assert response.status_code == HTTPStatus.BAD_REQUEST
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
         assert "Failed to get tools from remote MCP server" in data["detail"]
 
@@ -163,9 +177,11 @@ class TestAddRemoteProxies:
     @patch('apps.remote_mcp_app.get_current_user_id')
     @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
     def test_add_remote_proxy_database_error(self, mock_add_server, mock_get_user_id):
-        """Test database error"""
+        """Test database error - should be handled as general exception"""
+        from sqlalchemy.exc import SQLAlchemyError
+        
         mock_get_user_id.return_value = ("user123", "tenant456")
-        mock_add_server.side_effect = MCPDatabaseError("Database error")
+        mock_add_server.side_effect = SQLAlchemyError("Database error")
 
         response = client.post(
             "/mcp/add",
@@ -176,7 +192,7 @@ class TestAddRemoteProxies:
 
         assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
-        assert "database error" in data["detail"]
+        assert "Failed to add remote MCP proxy" in data["detail"]
 
 
 class TestDeleteRemoteProxies:
@@ -212,9 +228,11 @@ class TestDeleteRemoteProxies:
     @patch('apps.remote_mcp_app.get_current_user_id')
     @patch('apps.remote_mcp_app.delete_remote_mcp_server_list')
     def test_delete_remote_proxy_database_error(self, mock_delete_server, mock_get_user_id):
-        """Test database error during deletion"""
+        """Test database error during deletion - should be handled as general exception"""
+        from sqlalchemy.exc import SQLAlchemyError
+        
         mock_get_user_id.return_value = ("user123", "tenant456")
-        mock_delete_server.side_effect = MCPDatabaseError("Database error")
+        mock_delete_server.side_effect = SQLAlchemyError("Database error")
 
         response = client.delete(
             "/mcp/",
@@ -225,7 +243,7 @@ class TestDeleteRemoteProxies:
 
         assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
-        assert "database error" in data["detail"]
+        assert "Failed to delete remote MCP proxy" in data["detail"]
 
 
 class TestGetRemoteProxies:
@@ -276,7 +294,7 @@ class TestGetRemoteProxies:
             headers={"Authorization": "Bearer test_token"}
         )
 
-        assert response.status_code == HTTPStatus.BAD_REQUEST
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
         assert "Failed to get remote MCP proxy" in data["detail"]
 
@@ -309,10 +327,35 @@ class TestCheckMCPHealth:
 
     @patch('apps.remote_mcp_app.get_current_user_id')
     @patch('apps.remote_mcp_app.check_mcp_health_and_update_db')
-    def test_check_mcp_health_database_error(self, mock_health_check, mock_get_user_id):
-        """Test database error during health check"""
+    def test_check_mcp_health_connection_error(self, mock_health_check, mock_get_user_id):
+        """Test MCP connection error during health check"""
         mock_get_user_id.return_value = ("user123", "tenant456")
-        mock_health_check.side_effect = MCPDatabaseError("Database error")
+        mock_health_check.side_effect = MCPConnectionError("MCP connection failed")
+
+        response = client.get(
+            "/mcp/healthcheck",
+            params={"mcp_url": "http://unreachable.com",
+                    "service_name": "test_service"},
+            headers={"Authorization": "Bearer test_token"}
+        )
+
+        assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
+        data = response.json()
+        assert "MCP connection failed" in data["detail"]
+
+        mock_get_user_id.assert_called_once_with("Bearer test_token")
+        mock_health_check.assert_called_once_with(
+            "http://unreachable.com", "test_service", "tenant456", "user123"
+        )
+
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.check_mcp_health_and_update_db')
+    def test_check_mcp_health_database_error(self, mock_health_check, mock_get_user_id):
+        """Test database error during health check - should be handled as general exception"""
+        from sqlalchemy.exc import SQLAlchemyError
+        
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_health_check.side_effect = SQLAlchemyError("Database error")
 
         response = client.get(
             "/mcp/healthcheck",
@@ -323,7 +366,7 @@ class TestCheckMCPHealth:
 
         assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
-        assert "database error" in data["detail"]
+        assert "Failed to check the health of the MCP server" in data["detail"]
 
 
 class TestIntegration:
@@ -392,12 +435,10 @@ class TestErrorHandling:
 
     @patch('apps.remote_mcp_app.get_current_user_id')
     @patch('apps.remote_mcp_app.add_remote_mcp_server_list')
-    @patch('services.remote_mcp_service.check_mcp_name_exists')
-    def test_unexpected_error_handling(self, mock_check_name_exists, mock_add_server, mock_get_user_id):
+    def test_unexpected_error_handling(self, mock_add_server, mock_get_user_id):
         """Test unexpected error handling"""
         mock_get_user_id.return_value = ("user123", "tenant456")
         mock_add_server.side_effect = Exception("Unexpected error")
-        mock_check_name_exists.return_value = False # Mock check_mcp_name_exists to avoid connection issues
 
         response = client.post(
             "/mcp/add",
@@ -406,7 +447,7 @@ class TestErrorHandling:
             headers={"Authorization": "Bearer test_token"}
         )
 
-        assert response.status_code == HTTPStatus.BAD_REQUEST
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
         assert "Failed to add remote MCP proxy" in data["detail"]
 
