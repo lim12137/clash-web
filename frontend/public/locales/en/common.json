@@ -231,7 +231,7 @@
     "agent.info.title": "Agent Information",
     "agent.info.name.error.empty": "Name cannot be empty",
     "agent.info.name.error.format": "Name can only contain letters, numbers and underscores, and must start with a letter or underscore",
-    "agent.info.name.error.length": "Name length cannot exceed 30 characters",
+    "agent.info.name.error.length": "Name length cannot exceed 50 characters",
     "agent.name": "Agent Variable Name",
     "agent.namePlaceholder": "Please enter agent variable name",
     "agent.displayName": "Agent Name",

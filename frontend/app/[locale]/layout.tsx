@@ -3,7 +3,8 @@ import { Inter } from "next/font/google";
 import { ReactNode } from "react";
 import path from "path";
 import fs from "fs/promises";
-import { ThemeProvider, RootProvider } from "@/components/providers";
+import { RootProvider } from "@/components/providers";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
 import I18nProviderWrapper from "@/components/providers/I18nProviderWrapper";
 
 import "@/styles/globals.css";
@@ -62,7 +63,7 @@ export default async function RootLayout(props: {
         <link rel="icon" href="/modelengine-logo.png" sizes="any" />
       </head>
       <body className={inter.className}>
-        <ThemeProvider
+        <NextThemesProvider
           attribute="class"
           defaultTheme="light"
           enableSystem
@@ -71,7 +72,7 @@ export default async function RootLayout(props: {
           <I18nProviderWrapper>
             <RootProvider>{children}</RootProvider>
           </I18nProviderWrapper>
-        </ThemeProvider>
+        </NextThemesProvider>
       </body>
     </html>
   );

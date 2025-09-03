@@ -1381,7 +1381,6 @@ async def test_clear_agent_memory_clear_memory_error(mock_build_config, mock_cle
 
 
 # Import agent tests
-@patch('backend.services.agent_service.insert_related_agent')
 @patch('backend.services.agent_service.import_agent_by_agent_id')
 @patch('backend.services.agent_service.update_tool_list', new_callable=AsyncMock)
 @patch('backend.services.agent_service.add_remote_mcp_server_list', new_callable=AsyncMock)
@@ -1391,8 +1390,7 @@ async def test_clear_agent_memory_clear_memory_error(mock_build_config, mock_cle
 @pytest.mark.asyncio
 async def test_import_agent_impl_success_with_mcp(mock_get_current_user_info, mock_check_mcp_exists,
                                                   mock_get_mcp_server,
-                                                  mock_add_mcp_server, mock_update_tool_list, mock_import_agent,
-                                                  mock_insert_related):
+                                                  mock_add_mcp_server, mock_update_tool_list, mock_import_agent):
     """
     Test successful import of agent with MCP servers.
     """
@@ -1403,7 +1401,7 @@ async def test_import_agent_impl_success_with_mcp(mock_get_current_user_info, mo
     # Mock MCP server checks
     mock_check_mcp_exists.return_value = False  # MCP server doesn't exist
     mock_get_mcp_server.return_value = "http://existing-mcp-server.com"
-    mock_add_mcp_server.return_value = Mock(status_code=200)
+    mock_add_mcp_server.return_value = None  # Function returns None on success
     mock_update_tool_list.return_value = None
 
     # Create MCP info
@@ -1460,7 +1458,6 @@ async def test_import_agent_impl_success_with_mcp(mock_get_current_user_info, mo
     )
 
 
-@patch('backend.services.agent_service.insert_related_agent')
 @patch('backend.services.agent_service.import_agent_by_agent_id')
 @patch('backend.services.agent_service.update_tool_list', new_callable=AsyncMock)
 @patch('backend.services.agent_service.add_remote_mcp_server_list', new_callable=AsyncMock)
@@ -1470,8 +1467,7 @@ async def test_import_agent_impl_success_with_mcp(mock_get_current_user_info, mo
 @pytest.mark.asyncio
 async def test_import_agent_impl_mcp_exists_same_url(mock_get_current_user_info, mock_check_mcp_exists,
                                                      mock_get_mcp_server,
-                                                     mock_add_mcp_server, mock_update_tool_list, mock_import_agent,
-                                                     mock_insert_related):
+                                                     mock_add_mcp_server, mock_update_tool_list, mock_import_agent):
     """
     Test import of agent when MCP server exists with same URL (should skip).
     """
@@ -1531,7 +1527,6 @@ async def test_import_agent_impl_mcp_exists_same_url(mock_get_current_user_info,
     mock_import_agent.assert_called_once()
 
 
-@patch('backend.services.agent_service.insert_related_agent')
 @patch('backend.services.agent_service.import_agent_by_agent_id')
 @patch('backend.services.agent_service.update_tool_list', new_callable=AsyncMock)
 @patch('backend.services.agent_service.add_remote_mcp_server_list', new_callable=AsyncMock)
@@ -1541,8 +1536,7 @@ async def test_import_agent_impl_mcp_exists_same_url(mock_get_current_user_info,
 @pytest.mark.asyncio
 async def test_import_agent_impl_mcp_exists_different_url(mock_get_current_user_info, mock_check_mcp_exists,
                                                           mock_get_mcp_server,
-                                                          mock_add_mcp_server, mock_update_tool_list, mock_import_agent,
-                                                          mock_insert_related):
+                                                          mock_add_mcp_server, mock_update_tool_list, mock_import_agent):
     """
     Test import of agent when MCP server exists with different URL (should add with import prefix).
     """
@@ -1553,7 +1547,7 @@ async def test_import_agent_impl_mcp_exists_different_url(mock_get_current_user_
     # Mock MCP server exists with different URL
     mock_check_mcp_exists.return_value = True
     mock_get_mcp_server.return_value = "http://different-mcp-server.com"  # Different URL
-    mock_add_mcp_server.return_value = Mock(status_code=200)
+    mock_add_mcp_server.return_value = None  # Function returns None on success
     mock_update_tool_list.return_value = None
 
     # Create MCP info
@@ -1609,17 +1603,14 @@ async def test_import_agent_impl_mcp_exists_different_url(mock_get_current_user_
     mock_import_agent.assert_called_once()
 
 
-@patch('backend.services.agent_service.insert_related_agent')
-@patch('backend.services.agent_service.import_agent_by_agent_id')
-@patch('backend.services.agent_service.update_tool_list', new_callable=AsyncMock)
+
 @patch('backend.services.agent_service.add_remote_mcp_server_list', new_callable=AsyncMock)
 @patch('backend.services.agent_service.get_mcp_server_by_name_and_tenant')
 @patch('backend.services.agent_service.check_mcp_name_exists')
 @patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
 async def test_import_agent_impl_mcp_add_failure(mock_get_current_user_info, mock_check_mcp_exists, mock_get_mcp_server,
-                                                 mock_add_mcp_server, mock_update_tool_list, mock_import_agent,
-                                                 mock_insert_related):
+                                                 mock_add_mcp_server):
     """
     Test import of agent when MCP server addition fails.
     """
@@ -1631,9 +1622,8 @@ async def test_import_agent_impl_mcp_add_failure(mock_get_current_user_info, moc
     mock_check_mcp_exists.return_value = False  # MCP server doesn't exist
     mock_get_mcp_server.return_value = "http://existing-mcp-server.com"
 
-    # Mock MCP server addition failure
-    mock_add_mcp_server.return_value = Mock(
-        status_code=400, body=b"Error adding MCP server")
+    # Mock MCP server addition failure - the function raises an exception
+    mock_add_mcp_server.side_effect = Exception("MCP server connection failed")
 
     # Create MCP info
     mcp_info = MCPInfo(mcp_server_name="test_mcp_server",
@@ -1669,16 +1659,18 @@ async def test_import_agent_impl_mcp_add_failure(mock_get_current_user_info, moc
         await import_agent_impl(export_data, authorization="Bearer token")
 
     assert "Failed to add MCP server test_mcp_server" in str(context.value)
-    mock_add_mcp_server.assert_called_once()
+    mock_add_mcp_server.assert_called_once_with(
+        tenant_id="test_tenant",
+        user_id="test_user",
+        remote_mcp_server="http://test-mcp-server.com",
+        remote_mcp_server_name="test_mcp_server"
+    )
 
 
-@patch('backend.services.agent_service.insert_related_agent')
-@patch('backend.services.agent_service.import_agent_by_agent_id')
 @patch('backend.services.agent_service.update_tool_list', new_callable=AsyncMock)
 @patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
-async def test_import_agent_impl_update_tool_list_failure(mock_get_current_user_info, mock_update_tool_list,
-                                                          mock_import_agent, mock_insert_related):
+async def test_import_agent_impl_update_tool_list_failure(mock_get_current_user_info, mock_update_tool_list):
     """
     Test import of agent when tool list update fails.
     """
@@ -1723,13 +1715,12 @@ async def test_import_agent_impl_update_tool_list_failure(mock_get_current_user_
         tenant_id="test_tenant", user_id="test_user")
 
 
-@patch('backend.services.agent_service.insert_related_agent')
 @patch('backend.services.agent_service.import_agent_by_agent_id')
 @patch('backend.services.agent_service.update_tool_list', new_callable=AsyncMock)
 @patch('backend.services.agent_service.get_current_user_info')
 @pytest.mark.asyncio
 async def test_import_agent_impl_no_mcp_info(mock_get_current_user_info, mock_update_tool_list,
-                                             mock_import_agent, mock_insert_related):
+                                             mock_import_agent):
     """
     Test import of agent without MCP info.
     """

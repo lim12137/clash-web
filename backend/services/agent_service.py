@@ -370,16 +370,12 @@ async def import_agent_impl(agent_info: ExportAndImportDataFormat, authorization
                         # Name doesn't exist, use original name
                         mcp_server_name = mcp_info.mcp_server_name
 
-                    result = await add_remote_mcp_server_list(
+                    await add_remote_mcp_server_list(
                         tenant_id=tenant_id,
                         user_id=user_id,
                         remote_mcp_server=mcp_info.mcp_url,
                         remote_mcp_server_name=mcp_server_name
                     )
-                    # Check if the result is a JSONResponse with error status
-                    if hasattr(result, 'status_code') and result.status_code != 200:
-                        raise Exception(
-                            f"Failed to add MCP server {mcp_server_name}: {result.body.decode() if hasattr(result, 'body') else 'Unknown error'}")
                 except Exception as e:
                     raise Exception(
                         f"Failed to add MCP server {mcp_info.mcp_server_name}: {str(e)}")
