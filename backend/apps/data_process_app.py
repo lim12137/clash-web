@@ -3,6 +3,7 @@ import io
 import logging
 import time
 from contextlib import asynccontextmanager
+from http import HTTPStatus
 from typing import Optional
 
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
@@ -119,7 +120,7 @@ async def process_sync_endpoint(
     except Exception as e:
         logger.error(f"Error in synchronous processing: {str(e)}")
         raise HTTPException(
-            status_code=500,
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f"Error processing file: {str(e)}"
         )
 
@@ -133,48 +134,13 @@ async def create_batch_tasks(request: BatchTaskRequest, authorization: Optional[
     Processing happens in the background for each file independently.
     """
     try:
-        task_ids = []
-
-        # Create individual tasks for each source
-        for source_config in request.sources:
-            # Extract parameters
-            source = source_config.get('source')
-            source_type = source_config.get('source_type')
-            chunking_strategy = source_config.get('chunking_strategy')
-            index_name = source_config.get('index_name')
-            original_filename = source_config.get('original_filename')
-
-            # Validate required fields
-            if not source:
-                logger.error(
-                    f"Missing required field 'source' in source config: {source_config}")
-                continue
-            if not index_name:
-                logger.error(
-                    f"Missing required field 'index_name' in source config: {source_config}")
-                continue
-
-            # Create individual task for this source
-            task_result = process_and_forward.delay(
-                source=source,
-                source_type=source_type,
-                chunking_strategy=chunking_strategy,
-                index_name=index_name,
-                original_filename=original_filename,
-                authorization=authorization
-            )
-
-            task_ids.append(task_result.id)
-            logger.debug(f"Created task {task_result.id} for source: {source}")
-
-        logger.info(
-            f"Created {len(task_ids)} individual tasks for batch processing")
+        task_ids = await service.create_batch_tasks_impl(authorization=authorization, request=request)
         return BatchTaskResponse(task_ids=task_ids)
 
     except Exception as e:
         logger.error(f"Error creating batch tasks: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to create batch tasks: {str(e)}")
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Failed to create batch tasks: {str(e)}")
 
 
 @router.get("/load_image")
@@ -194,7 +160,7 @@ async def load_image(url: str):
 
         if image is None:
             raise HTTPException(
-                status_code=404, detail="Failed to load image or image format not supported")
+                status_code=HTTPStatus.NOT_FOUND, detail="Failed to load image or image format not supported")
 
         # Convert PIL image to base64
         img_byte_arr = io.BytesIO()
@@ -214,7 +180,7 @@ async def load_image(url: str):
     except Exception as e:
         logger.error(f"Error loading image: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error loading image: {str(e)}")
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Error loading image: {str(e)}")
 
 
 @router.get("/{task_id}", response_model=SimpleTaskStatusResponse)
@@ -224,7 +190,7 @@ async def get_task(task_id: str):
 
     if not task:
         raise HTTPException(
-            status_code=404, detail=f"Task with ID {task_id} not found")
+            status_code=HTTPStatus.NOT_FOUND, detail=f"Task with ID {task_id} not found")
     return SimpleTaskStatusResponse(
         id=task["id"],
         task_name=task["task_name"],
@@ -272,7 +238,7 @@ async def get_index_tasks(index_name: str):
     try:
         return await service.get_index_tasks(index_name)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("/{task_id}/details")
@@ -281,7 +247,7 @@ async def get_task_details(task_id: str):
     from data_process.utils import get_task_details as utils_get_task_details
     task = await utils_get_task_details(task_id)
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Task not found")
     return task
 
 
@@ -307,7 +273,7 @@ async def filter_important_image(
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error processing image: {str(e)}")
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Error processing image: {str(e)}")
 
 
 @router.post("/process_text_file", response_model=dict, status_code=200)
@@ -380,7 +346,7 @@ async def process_text_file(
         logger.exception(
             f"Error processing uploaded file {file.filename}: {str(e)}")
         raise HTTPException(
-            status_code=500,
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while processing the file: {str(e)}"
         )
 

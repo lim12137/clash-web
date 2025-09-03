@@ -1,4 +1,5 @@
 import logging
+from http import HTTPStatus
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -11,7 +12,6 @@ from consts.model import (
     OpinionRequest,
     RenameRequest,
 )
-from database.conversation_db import get_message_id_by_index
 from services.conversation_management_service import (
     create_new_conversation,
     delete_conversation_service,
@@ -20,7 +20,7 @@ from services.conversation_management_service import (
     get_conversation_list_service,
     get_sources_service,
     rename_conversation_service,
-    update_message_opinion_service,
+    update_message_opinion_service, get_message_id_by_index_impl,
 )
 from utils.auth_utils import get_current_user_id, get_current_user_info
 
@@ -50,7 +50,7 @@ async def create_new_conversation_endpoint(request: ConversationRequest, authori
         return ConversationResponse(code=0, message="success", data=conversation_data)
     except Exception as e:
         logging.error(f"Failed to create conversation: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("/list", response_model=ConversationResponse)
@@ -67,16 +67,12 @@ async def list_conversations_endpoint(authorization: Optional[str] = Header(None
     try:
         user_id, tenant_id = get_current_user_id(authorization)
         if not user_id:
-            raise HTTPException(status_code=401, detail="未授权访问，请先登录")
-
+            raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Unauthorized access, Please login first")
         conversations = get_conversation_list_service(user_id)
         return ConversationResponse(code=0, message="success", data=conversations)
-    except HTTPException as he:
-        # Throw HTTP Exception Directly
-        raise he
     except Exception as e:
         logging.error(f"Failed to get conversation list: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.post("/rename", response_model=ConversationResponse)
@@ -100,9 +96,7 @@ async def rename_conversation_endpoint(request: RenameRequest, authorization: Op
         return ConversationResponse(code=0, message="success", data=True)
     except Exception as e:
         logging.error(f"Failed to rename conversation: {str(e)}")
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.delete("/{conversation_id}", response_model=ConversationResponse)
@@ -123,9 +117,7 @@ async def delete_conversation_endpoint(conversation_id: int, authorization: Opti
         return ConversationResponse(code=0, message="success", data=True)
     except Exception as e:
         logging.error(f"Failed to delete conversation: {str(e)}")
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("/{conversation_id}", response_model=ConversationResponse)
@@ -147,9 +139,7 @@ async def get_conversation_history_endpoint(conversation_id: int, authorization:
         return ConversationResponse(code=0, message="success", data=history_data)
     except Exception as e:
         logging.error(f"Failed to get conversation history: {str(e)}")
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.post("/sources", response_model=Dict[str, Any])
@@ -175,11 +165,7 @@ async def get_sources_endpoint(request: Dict[str, Any], authorization: Optional[
         return get_sources_service(conversation_id, message_id, source_type, user_id)
     except Exception as e:
         logging.error(f"Failed to get message sources: {str(e)}")
-        return {
-            "code": 500,
-            "message": str(e),
-            "data": None
-        }
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.post("/generate_title", response_model=ConversationResponse)
@@ -208,9 +194,7 @@ async def generate_conversation_title_endpoint(
         return ConversationResponse(code=0, message="success", data=title)
     except Exception as e:
         logging.error(f"Failed to generate conversation title: {str(e)}")
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.post("/message/update_opinion", response_model=ConversationResponse)
@@ -230,9 +214,7 @@ async def update_opinion_endpoint(request: OpinionRequest, authorization: Option
         return ConversationResponse(code=0, message="success", data=True)
     except Exception as e:
         logging.error(f"Failed to update message like/dislike: {str(e)}")
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.post("/message/id", response_model=ConversationResponse)
@@ -249,14 +231,8 @@ async def get_message_id_endpoint(request: MessageIdRequest):
         ConversationResponse object containing message_id
     """
     try:
-        message_id = get_message_id_by_index(
-            request.conversation_id, request.message_index)
-        if message_id is None:
-            raise HTTPException(status_code=404, detail="Message not found")
-
+        message_id = await get_message_id_by_index_impl(request.conversation_id, request.message_index)
         return ConversationResponse(code=0, message="success", data=message_id)
     except Exception as e:
         logging.error(f"Failed to get message ID: {str(e)}")
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
