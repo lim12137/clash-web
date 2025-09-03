@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useTranslation } from "react-i18next"
-import { pageSize, shareLabels, MemoryGroup } from "@/types/memory"
+
 import {
   loadMemoryConfig,
   setMemorySwitch,
@@ -18,6 +18,7 @@ import {
   deleteMemory,
 } from "@/services/memoryService"
 
+import { pageSize, shareLabels, MemoryGroup } from "@/types/memory"
 
 interface UseMemoryOptions {
   visible: boolean

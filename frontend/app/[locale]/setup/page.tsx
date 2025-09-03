@@ -2,24 +2,27 @@
 
 import React, { useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
+
 import { Modal, App, Button, Badge, Dropdown } from "antd";
 import { WarningFilled, DownOutlined } from "@ant-design/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiRefreshCw, FiArrowLeft } from "react-icons/fi";
 import { Globe } from "lucide-react";
-import AppModelConfig from "./modelSetup/config";
-import DataConfig from "./knowledgeSetup/config";
-import AgentConfig from "./agentSetup/config";
-import { configStore } from "@/lib/config";
+
+import { useAuth } from "@/hooks/useAuth";
 import { configService } from "@/services/configService";
 import modelEngineService, {
   ConnectionStatus,
 } from "@/services/modelEngineService";
-import { useAuth } from "@/hooks/useAuth";
-import { useTranslation } from "react-i18next";
+import { configStore } from "@/lib/config";
 import { languageOptions } from "@/lib/constants";
 import { useLanguageSwitch } from "@/lib/language";
 import { HEADER_CONFIG } from "@/lib/layoutConstants";
+
+import AppModelConfig from "./modelSetup/config";
+import DataConfig from "./knowledgeSetup/config";
+import AgentConfig from "./agentSetup/config";
 
 // ================ Header ================
 interface HeaderProps {

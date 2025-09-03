@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+
 import { Input } from "antd";
 
-import { ChatMessageType, TaskMessageType } from "@/types/chat";
 import { conversationService } from "@/services/conversationService";
-
+import { ChatMessageType, TaskMessageType } from "@/types/chat";
 import { handleStreamResponse } from "@/app/chat/streaming/chatStreamHandler";
 import { ChatStreamFinalMessage } from "@/app/chat/streaming/chatStreamFinalMessage";
 import { TaskWindow } from "@/app/chat/streaming/taskWindow";

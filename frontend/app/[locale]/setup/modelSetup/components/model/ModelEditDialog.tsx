@@ -1,9 +1,11 @@
-import { Modal, Input, Button, App } from 'antd'
 import { useState, useEffect } from 'react'
-import { ModelOption, ModelType } from '@/types/config'
-import { modelService } from '@/services/modelService'
-import { useConfig } from '@/hooks/useConfig'
 import { useTranslation } from 'react-i18next'
+
+import { Modal, Input, Button, App } from 'antd'
+
+import { useConfig } from '@/hooks/useConfig'
+import { modelService } from '@/services/modelService'
+import { ModelOption, ModelType } from '@/types/config'
 
 
 interface ModelEditDialogProps {

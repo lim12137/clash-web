@@ -1,7 +1,9 @@
 "use client"
 
-import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, ModelSource } from '../types/config'
 import { API_ENDPOINTS } from './api'
+
+import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, ModelSource } from '../types/config'
+
 import { getAuthHeaders } from '@/lib/auth'
 
 // API response type

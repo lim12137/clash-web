@@ -1,9 +1,10 @@
 "use client"
 
-import { createContext, useReducer, useContext, ReactNode, useCallback, useEffect } from "react"
-import { Document } from "@/types/knowledgeBase"
-import knowledgeBaseService from "@/services/knowledgeBaseService"
+import { createContext, useReducer, useContext, ReactNode, useCallback, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
+
+import knowledgeBaseService from "@/services/knowledgeBaseService";
+import { Document } from "@/types/knowledgeBase";
 
 // Document state interface
 interface DocumentState {
