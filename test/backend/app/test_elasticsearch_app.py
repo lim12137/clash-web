@@ -388,6 +388,137 @@ async def test_create_index_documents_success(es_core_mock, auth_data):
 
 
 @pytest.mark.asyncio
+async def test_create_index_documents_exception(es_core_mock, auth_data):
+    """
+    Test indexing documents with exception.
+    Verifies that the endpoint returns an appropriate error response when an exception occurs during indexing.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.index_documents") as mock_index, \
+            patch("backend.apps.elasticsearch_app.get_embedding_model", return_value=MagicMock()):
+
+        index_name = "test_index"
+        documents = [{"id": 1, "text": "test doc"}]
+
+        # Setup the mock to raise an exception
+        mock_index.side_effect = Exception("Elasticsearch indexing failed")
+
+        # Execute request
+        response = client.post(
+            f"/indices/{index_name}/documents", json=documents, headers=auth_data["auth_header"])
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Error indexing documents: Elasticsearch indexing failed"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify index_documents was called
+        mock_index.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_create_index_documents_auth_exception(es_core_mock, auth_data):
+    """
+    Test indexing documents with authentication exception.
+    Verifies that the endpoint returns an appropriate error response when authentication fails.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.get_current_user_id") as mock_get_user, \
+            patch("backend.apps.elasticsearch_app.get_embedding_model", return_value=MagicMock()):
+
+        index_name = "test_index"
+        documents = [{"id": 1, "text": "test doc"}]
+
+        # Setup the mock to raise an authentication exception
+        mock_get_user.side_effect = Exception("Invalid authorization token")
+
+        # Execute request
+        response = client.post(
+            f"/indices/{index_name}/documents", json=documents, headers=auth_data["auth_header"])
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Error indexing documents: Invalid authorization token"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify get_current_user_id was called
+        mock_get_user.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_create_index_documents_embedding_model_exception(es_core_mock, auth_data):
+    """
+    Test indexing documents with embedding model exception.
+    Verifies that the endpoint returns an appropriate error response when embedding model fails.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.elasticsearch_app.get_embedding_model") as mock_get_embedding:
+
+        index_name = "test_index"
+        documents = [{"id": 1, "text": "test doc"}]
+
+        # Setup the mock to raise an exception when getting embedding model
+        mock_get_embedding.side_effect = Exception(
+            "Embedding model not available")
+
+        # Execute request
+        response = client.post(
+            f"/indices/{index_name}/documents", json=documents, headers=auth_data["auth_header"])
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Error indexing documents: Embedding model not available"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify get_embedding_model was called
+        mock_get_embedding.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_create_index_documents_validation_exception(es_core_mock, auth_data):
+    """
+    Test indexing documents with validation exception.
+    Verifies that the endpoint returns an appropriate error response when document validation fails.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.index_documents") as mock_index, \
+            patch("backend.apps.elasticsearch_app.get_embedding_model", return_value=MagicMock()):
+
+        index_name = "test_index"
+        documents = [{"id": 1, "text": "test doc"}]
+
+        # Setup the mock to raise a validation exception
+        mock_index.side_effect = ValueError("Invalid document format")
+
+        # Execute request
+        response = client.post(
+            f"/indices/{index_name}/documents", json=documents, headers=auth_data["auth_header"])
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Error indexing documents: Invalid document format"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify index_documents was called
+        mock_index.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_get_index_files_success(es_core_mock):
     """
     Test listing index files successfully.
@@ -417,6 +548,125 @@ async def test_get_index_files_success(es_core_mock):
         else:
             # Just verify the mock was called with right parameters
             assert mock_list_files.called
+
+
+@pytest.mark.asyncio
+async def test_get_index_files_exception(es_core_mock):
+    """
+    Test listing index files with exception.
+    Verifies that the endpoint returns an appropriate error response when an exception occurs during file listing.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files") as mock_list_files:
+
+        index_name = "test_index"
+
+        # Setup the mock to raise an exception
+        mock_list_files.side_effect = Exception(
+            "Elasticsearch connection failed")
+
+        # Execute request
+        response = client.get(f"/indices/{index_name}/files")
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Error indexing documents: Elasticsearch connection failed"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify list_files was called with correct parameters
+        # Use ANY for the es_core parameter because the actual object may differ
+        mock_list_files.assert_called_once_with(
+            index_name, include_chunks=False, es_core=ANY)
+
+
+@pytest.mark.asyncio
+async def test_get_index_files_validation_exception(es_core_mock):
+    """
+    Test listing index files with validation exception.
+    Verifies that the endpoint returns an appropriate error response when index validation fails.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files") as mock_list_files:
+
+        index_name = "test_index"
+
+        # Setup the mock to raise a validation exception
+        mock_list_files.side_effect = ValueError("Invalid index name format")
+
+        # Execute request
+        response = client.get(f"/indices/{index_name}/files")
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Error indexing documents: Invalid index name format"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify list_files was called
+        mock_list_files.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_index_files_timeout_exception(es_core_mock):
+    """
+    Test listing index files with timeout exception.
+    Verifies that the endpoint returns an appropriate error response when operation times out.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files") as mock_list_files:
+
+        index_name = "test_index"
+
+        # Setup the mock to raise a timeout exception
+        mock_list_files.side_effect = TimeoutError("Operation timed out")
+
+        # Execute request
+        response = client.get(f"/indices/{index_name}/files")
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Error indexing documents: Operation timed out"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify list_files was called
+        mock_list_files.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_index_files_permission_exception(es_core_mock):
+    """
+    Test listing index files with permission exception.
+    Verifies that the endpoint returns an appropriate error response when permission is denied.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.list_files") as mock_list_files:
+
+        index_name = "test_index"
+
+        # Setup the mock to raise a permission exception
+        mock_list_files.side_effect = PermissionError("Access denied to index")
+
+        # Execute request
+        response = client.get(f"/indices/{index_name}/files")
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Error indexing documents: Access denied to index"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify list_files was called
+        mock_list_files.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -476,3 +726,443 @@ async def test_check_knowledge_base_exist_error(es_core_mock, auth_data):
         assert response.status_code == 500
         assert response.json() == {
             "detail": f"Error checking existence for index: Test error"}
+
+
+@pytest.mark.asyncio
+async def test_delete_index_exception(es_core_mock, auth_data):
+    """
+    Test deleting an index with exception.
+    Verifies that the endpoint returns an appropriate error response when an exception occurs during deletion.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.get_current_user_id", return_value=(auth_data["user_id"], auth_data["tenant_id"])), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.full_delete_knowledge_base") as mock_full_delete:
+
+        # Setup the mock to raise an exception
+        mock_full_delete.side_effect = Exception("Database connection failed")
+
+        # Execute request
+        response = client.delete(
+            f"/indices/{auth_data['index_name']}", headers=auth_data["auth_header"])
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = f"Error deleting index: Database connection failed"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify full_delete_knowledge_base was called with the correct parameters
+        mock_full_delete.assert_called_once_with(
+            auth_data["index_name"],
+            ANY,  # Use ANY instead of es_core_mock to ignore object identity
+            auth_data["user_id"]
+        )
+
+
+@pytest.mark.asyncio
+async def test_delete_index_auth_exception(es_core_mock, auth_data):
+    """
+    Test deleting an index with authentication exception.
+    Verifies that the endpoint returns an appropriate error response when authentication fails.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.get_current_user_id") as mock_get_user:
+
+        # Setup the mock to raise an authentication exception
+        mock_get_user.side_effect = Exception("Invalid authorization token")
+
+        # Execute request
+        response = client.delete(
+            f"/indices/{auth_data['index_name']}", headers=auth_data["auth_header"])
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = f"Error deleting index: Invalid authorization token"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify get_current_user_id was called
+        mock_get_user.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_delete_documents_success(es_core_mock, redis_service_mock):
+    """
+    Test deleting documents successfully.
+    Verifies that the endpoint returns the expected response and performs Redis cleanup.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.get_redis_service", return_value=redis_service_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_documents") as mock_delete_docs:
+
+        index_name = "test_index"
+        path_or_url = "test_document.pdf"
+
+        # Setup the return value for delete_documents
+        es_result = {
+            "status": "success",
+            "message": "Documents deleted successfully",
+            "deleted_count": 5
+        }
+        mock_delete_docs.return_value = es_result
+
+        # Setup the mock for delete_document_records
+        redis_result = {
+            "index_name": index_name,
+            "path_or_url": path_or_url,
+            "total_deleted": 3,
+            "celery_tasks_deleted": 2,
+            "cache_keys_deleted": 1
+        }
+        redis_service_mock.delete_document_records.return_value = redis_result
+
+        # Execute request
+        response = client.delete(
+            f"/indices/{index_name}/documents", params={"path_or_url": path_or_url})
+
+        # Verify expected 200 status code
+        assert response.status_code == 200
+
+        # Get the actual response
+        actual_response = response.json()
+
+        # Verify essential response elements
+        assert actual_response["status"] == "success"
+        assert "Documents deleted successfully" in actual_response["message"]
+        assert "Cleaned up 3 Redis records" in actual_response["message"]
+        assert "2 tasks" in actual_response["message"]
+        assert "1 cache keys" in actual_response["message"]
+
+        # Verify structure contains expected keys
+        assert "redis_cleanup" in actual_response
+        assert actual_response["redis_cleanup"] == redis_result
+
+        # Verify delete_documents was called with the correct parameters
+        # Use ANY for the es_core parameter because the actual object may differ
+        mock_delete_docs.assert_called_once_with(index_name, path_or_url, ANY)
+        redis_service_mock.delete_document_records.assert_called_once_with(
+            index_name, path_or_url)
+
+
+@pytest.mark.asyncio
+async def test_delete_documents_redis_error(es_core_mock, redis_service_mock):
+    """
+    Test deleting documents with Redis error.
+    Verifies that the endpoint still succeeds with ES but reports Redis cleanup error.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.get_redis_service", return_value=redis_service_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_documents") as mock_delete_docs:
+
+        index_name = "test_index"
+        path_or_url = "test_document.pdf"
+
+        # Setup the return value for delete_documents
+        es_result = {
+            "status": "success",
+            "message": "Documents deleted successfully",
+            "deleted_count": 5
+        }
+        mock_delete_docs.return_value = es_result
+
+        # Setup redis error
+        redis_error_message = "Redis connection failed"
+        redis_service_mock.delete_document_records.side_effect = Exception(
+            redis_error_message)
+
+        # Execute request
+        response = client.delete(
+            f"/indices/{index_name}/documents", params={"path_or_url": path_or_url})
+
+        # Verify expected 200 status code (the operation should still succeed even with Redis errors)
+        assert response.status_code == 200
+
+        # Get the actual response
+        actual_response = response.json()
+
+        # Verify essential response elements
+        assert actual_response["status"] == "success"
+        assert "Documents deleted successfully" in actual_response["message"]
+        assert "Redis cleanup encountered an error" in actual_response["message"]
+        assert redis_error_message in actual_response["message"]
+
+        # Verify structure contains expected keys
+        assert "redis_cleanup_error" in actual_response
+        assert actual_response["redis_cleanup_error"] == redis_error_message
+
+        # Verify delete_documents was called
+        # Use ANY for the es_core parameter because the actual object may differ
+        mock_delete_docs.assert_called_once_with(index_name, path_or_url, ANY)
+        redis_service_mock.delete_document_records.assert_called_once_with(
+            index_name, path_or_url)
+
+
+@pytest.mark.asyncio
+async def test_delete_documents_es_exception(es_core_mock):
+    """
+    Test deleting documents with Elasticsearch exception.
+    Verifies that the endpoint returns an appropriate error response when ES deletion fails.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_documents") as mock_delete_docs:
+
+        index_name = "test_index"
+        path_or_url = "test_document.pdf"
+
+        # Setup the mock to raise an exception
+        mock_delete_docs.side_effect = Exception(
+            "Elasticsearch deletion failed")
+
+        # Execute request
+        response = client.delete(
+            f"/indices/{index_name}/documents", params={"path_or_url": path_or_url})
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Error delete indexing documents: Elasticsearch deletion failed"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify delete_documents was called
+        # Use ANY for the es_core parameter because the actual object may differ
+        mock_delete_docs.assert_called_once_with(index_name, path_or_url, ANY)
+
+
+@pytest.mark.asyncio
+async def test_delete_documents_redis_warnings(es_core_mock, redis_service_mock):
+    """
+    Test deleting documents with Redis warnings.
+    Verifies that the endpoint handles Redis warnings properly.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.get_redis_service", return_value=redis_service_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_documents") as mock_delete_docs:
+
+        index_name = "test_index"
+        path_or_url = "test_document.pdf"
+
+        # Setup the return value for delete_documents
+        es_result = {
+            "status": "success",
+            "message": "Documents deleted successfully",
+            "deleted_count": 5
+        }
+        mock_delete_docs.return_value = es_result
+
+        # Setup the mock for delete_document_records with warnings
+        redis_result = {
+            "index_name": index_name,
+            "path_or_url": path_or_url,
+            "total_deleted": 2,
+            "celery_tasks_deleted": 1,
+            "cache_keys_deleted": 1,
+            "errors": ["Some cache keys could not be deleted"]
+        }
+        redis_service_mock.delete_document_records.return_value = redis_result
+
+        # Execute request
+        response = client.delete(
+            f"/indices/{index_name}/documents", params={"path_or_url": path_or_url})
+
+        # Verify expected 200 status code
+        assert response.status_code == 200
+
+        # Get the actual response
+        actual_response = response.json()
+
+        # Verify essential response elements
+        assert actual_response["status"] == "success"
+        assert "Documents deleted successfully" in actual_response["message"]
+        assert "Cleaned up 2 Redis records" in actual_response["message"]
+
+        # Verify structure contains expected keys
+        assert "redis_cleanup" in actual_response
+        assert "redis_warnings" in actual_response
+        assert actual_response["redis_warnings"] == [
+            "Some cache keys could not be deleted"]
+
+        # Verify delete_documents was called
+        # Use ANY for the es_core parameter because the actual object may differ
+        mock_delete_docs.assert_called_once_with(index_name, path_or_url, ANY)
+        redis_service_mock.delete_document_records.assert_called_once_with(
+            index_name, path_or_url)
+
+
+@pytest.mark.asyncio
+async def test_delete_documents_validation_exception(es_core_mock):
+    """
+    Test deleting documents with validation exception.
+    Verifies that the endpoint returns an appropriate error response when validation fails.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.delete_documents") as mock_delete_docs:
+
+        index_name = "test_index"
+        path_or_url = "test_document.pdf"
+
+        # Setup the mock to raise a validation exception
+        mock_delete_docs.side_effect = ValueError(
+            "Invalid document path format")
+
+        # Execute request
+        response = client.delete(
+            f"/indices/{index_name}/documents", params={"path_or_url": path_or_url})
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Error delete indexing documents: Invalid document path format"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify delete_documents was called
+        # Use ANY for the es_core parameter because the actual object may differ
+        mock_delete_docs.assert_called_once_with(index_name, path_or_url, ANY)
+
+
+@pytest.mark.asyncio
+async def test_health_check_exception(es_core_mock):
+    """
+    Test health check endpoint with exception.
+    Verifies that the endpoint returns an appropriate error response when an exception occurs during health check.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.health_check") as mock_health:
+        # Setup the mock to raise an exception
+        mock_health.side_effect = Exception("Elasticsearch connection failed")
+
+        # Execute request
+        response = client.get("/indices/health")
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Elasticsearch connection failed"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify health_check was called
+        # Use ANY for the es_core parameter because the actual object may differ
+        mock_health.assert_called_once_with(ANY)
+
+
+@pytest.mark.asyncio
+async def test_health_check_timeout_exception(es_core_mock):
+    """
+    Test health check endpoint with timeout exception.
+    Verifies that the endpoint returns an appropriate error response when operation times out.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.health_check") as mock_health:
+
+        # Setup the mock to raise a timeout exception
+        mock_health.side_effect = TimeoutError("Health check timed out")
+
+        # Execute request
+        response = client.get("/indices/health")
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Health check timed out"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify health_check was called
+        mock_health.assert_called_once_with(ANY)
+
+
+@pytest.mark.asyncio
+async def test_health_check_connection_exception(es_core_mock):
+    """
+    Test health check endpoint with connection exception.
+    Verifies that the endpoint returns an appropriate error response when connection fails.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.health_check") as mock_health:
+
+        # Setup the mock to raise a connection exception
+        mock_health.side_effect = ConnectionError(
+            "Unable to connect to Elasticsearch")
+
+        # Execute request
+        response = client.get("/indices/health")
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Unable to connect to Elasticsearch"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify health_check was called
+        mock_health.assert_called_once_with(ANY)
+
+
+@pytest.mark.asyncio
+async def test_health_check_permission_exception(es_core_mock):
+    """
+    Test health check endpoint with permission exception.
+    Verifies that the endpoint returns an appropriate error response when permission is denied.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.health_check") as mock_health:
+
+        # Setup the mock to raise a permission exception
+        mock_health.side_effect = PermissionError(
+            "Access denied to Elasticsearch")
+
+        # Execute request
+        response = client.get("/indices/health")
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Access denied to Elasticsearch"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify health_check was called
+        mock_health.assert_called_once_with(ANY)
+
+
+@pytest.mark.asyncio
+async def test_health_check_validation_exception(es_core_mock):
+    """
+    Test health check endpoint with validation exception.
+    Verifies that the endpoint returns an appropriate error response when validation fails.
+    """
+    # Setup mocks
+    with patch("backend.apps.elasticsearch_app.get_es_core", return_value=es_core_mock), \
+            patch("backend.apps.elasticsearch_app.ElasticSearchService.health_check") as mock_health:
+
+        # Setup the mock to raise a validation exception
+        mock_health.side_effect = ValueError(
+            "Invalid Elasticsearch configuration")
+
+        # Execute request
+        response = client.get("/indices/health")
+
+        # Verify expected 500 status code
+        assert response.status_code == 500
+
+        # Verify error response
+        expected_error_detail = "Invalid Elasticsearch configuration"
+        assert response.json() == {"detail": expected_error_detail}
+
+        # Verify health_check was called
+        mock_health.assert_called_once_with(ANY)
