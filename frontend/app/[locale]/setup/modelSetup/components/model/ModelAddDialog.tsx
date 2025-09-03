@@ -155,27 +155,14 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       setConnectivityStatus({
         status: result.connectivity ? "available" : "unavailable",
         // Use translated error code if available, with displayName for success case
-        message: result.error_code 
-          ? t(`model.validation.${result.error_code}`, { displayName: form.displayName || form.name })
-          : (result.message || '')
+        message: t(`model.dialog.connectivity.status.${result.connectivity ? "available" : "unavailable"}`)
       })
 
-      // Display appropriate message based on result
-      if (result.connectivity) {
-        message.success(t('model.dialog.success.connectivityVerified'))
-      } else {
-        message.error(
-          result.error_code 
-            ? t(`model.validation.${result.error_code}`)
-            : t('model.dialog.error.connectivityFailed', { message: result.message })
-        )
-      }
     } catch (error) {
       setConnectivityStatus({
         status: "unavailable",
-        message: t('model.dialog.error.verificationFailed', { error })
+        message: t('model.dialog.connectivity.status.unavailable')
       })
-      message.error(t('model.dialog.error.verificationError', { error }))
     } finally {
       setVerifyingConnectivity(false)
     }
@@ -595,11 +582,6 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               {verifyingConnectivity ? t('model.dialog.button.verifying') : t('model.dialog.button.verify')}
             </Button>
           </div>
-          {connectivityStatus.message && (
-            <div className="text-xs text-gray-600">
-              {connectivityStatus.message}
-            </div>
-          )}
         </div>
         )}
 

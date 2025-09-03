@@ -1,5 +1,6 @@
 import logging
 from typing import List, Optional
+from http import HTTPStatus
 
 from fastapi import APIRouter, Header, Query
 
@@ -219,20 +220,20 @@ async def update_single_model(request: dict, authorization: Optional[str] = Head
             model_data["display_name"], tenant_id)
         if existing_model_by_display and existing_model_by_display["model_id"] != model_data["model_id"]:
             return ModelResponse(
-                code=409,
+                code=HTTPStatus.CONFLICT,
                 message=f"Name {model_data['display_name']} is already in use, please choose another display name",
                 data=None
             )
         # model_data["model_repo"], model_data["model_name"] = split_repo_name(model_data["model_name"])
         update_model_record(model_data["model_id"], model_data, user_id)
         return ModelResponse(
-            code=200,
+            code=HTTPStatus.OK,
             message=f"Model {model_data['display_name']} updated successfully",
             data=None
         )
     except Exception as e:
         return ModelResponse(
-            code=500,
+            code=HTTPStatus.INTERNAL_SERVER_ERROR,
             message=f"Failed to update model: {str(e)}",
             data=None
         )
