@@ -8,7 +8,6 @@ import warnings
 from typing import Optional, List, Dict, Any
 
 import aiohttp
-import importlib
 import redis
 import torch
 from PIL import Image
@@ -180,22 +179,10 @@ class DataProcessService:
                 for task_id in redis_task_ids:
                     # Add to the set, duplicates will be handled
                     task_ids.add(task_id)
-
             except Exception as redis_error:
-                logger.warning(
-                    f"Failed to query Redis for stored task IDs: {str(redis_error)}")
-            logger.debug(
-                f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
-            # Dynamically import get_task_info each time to ensure that any runtime
-            # patches (e.g., in unit tests) are picked up. This avoids issues
-            # with early binding when using "from module import func" at import
-            # time, which would otherwise hold a stale reference that tests
-            # cannot override.
-            get_task_info_func = importlib.import_module(
-                'data_process.utils').get_task_info
-
-            # Concurrently retrieve all task information
-            tasks = [get_task_info_func(task_id) for task_id in task_ids]
+                logger.warning(f"Failed to query Redis for stored task IDs: {str(redis_error)}")
+            logger.debug(f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
+            tasks = [get_task_info(task_id) for task_id in task_ids]
             all_task_infos = await asyncio.gather(*tasks, return_exceptions=True)
             for task_info in all_task_infos:
                 if isinstance(task_info, Exception):
