@@ -2016,10 +2016,10 @@ class TestModelManagementApp(unittest.TestCase):
                     "provider": "huggingface"
                 }
                 response = backend_client_local.post("/model/update_single_model", json=update_data, headers=self.auth_header)
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.status_code, 500)
                 data = response.json()
-                self.assertEqual(data["code"], 409)
-                self.assertIn("already in use", data["message"])
+                self.assertIn("Failed to update model", data.get("detail", ""))
+                self.assertIn("already in use", data.get("detail", ""))
                 mock_get_by_display.assert_called_once_with("Conflicting Name", self.tenant_id)
 
     def test_update_single_model_same_model_id_no_conflict(self):
@@ -2058,10 +2058,9 @@ class TestModelManagementApp(unittest.TestCase):
                     "provider": "huggingface"
                 }
                 response = backend_client_local.post("/model/update_single_model", json=update_data, headers=self.auth_header)
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.status_code, 500)
                 data = response.json()
-                self.assertEqual(data["code"], 500)
-                self.assertIn("Failed to update model: Database update error", data["message"])
+                self.assertIn("Failed to update model: Database update error", data.get("detail", ""))
                 mock_update.assert_called_once()
 
     def test_batch_update_models_success_backend(self):

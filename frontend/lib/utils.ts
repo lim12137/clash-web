@@ -188,3 +188,33 @@ export const getConnectivityColor = (status: ConnectivityStatusType): string => 
       return '#d9d9d9'
   }
 }
+
+export type ConnectivityMeta = {
+  icon: React.ReactNode
+  color: string
+}
+
+export const getConnectivityMeta = (status: ConnectivityStatusType): ConnectivityMeta => {
+  switch (status) {
+    case "checking":
+      return {
+        icon: React.createElement(LoadingOutlined, { style: { color: '#1890ff' } }),
+        color: '#1890ff'
+      }
+    case "available":
+      return {
+        icon: React.createElement(CheckCircleOutlined, { style: { color: '#52c41a' } }),
+        color: '#52c41a'
+      }
+    case "unavailable":
+      return {
+        icon: React.createElement(CloseCircleOutlined, { style: { color: '#ff4d4f' } }),
+        color: '#ff4d4f'
+      }
+    default:
+      return {
+        icon: null,
+        color: '#d9d9d9'
+      }
+  }
+}

@@ -5,7 +5,7 @@ import { ModelType, SingleModelConfig } from '@/types/config'
 import { modelService } from '@/services/modelService'
 import { useConfig } from '@/hooks/useConfig'
 import { useTranslation } from 'react-i18next'
-import { getConnectivityIcon, getConnectivityColor, ConnectivityStatusType } from '@/lib/utils'
+import { getConnectivityIcon, getConnectivityColor, getConnectivityMeta, ConnectivityStatusType } from '@/lib/utils'
 
 const { Option } = Select
 
@@ -152,10 +152,15 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       const result = await modelService.verifyModelConfigConnectivity(config)
       
       // Set connectivity status
+      let connectivityMessage = ''
+      if (result.connectivity) {
+        connectivityMessage = t('model.dialog.connectivity.status.available')
+      } else {
+        connectivityMessage = t('model.dialog.connectivity.status.unavailable')
+      }
       setConnectivityStatus({
         status: result.connectivity ? "available" : "unavailable",
-        // Use translated error code if available, with displayName for success case
-        message: t(`model.dialog.connectivity.status.${result.connectivity ? "available" : "unavailable"}`)
+        message: connectivityMessage
       })
 
     } catch (error) {
@@ -562,12 +567,14 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               <span className="text-sm font-medium text-gray-700">{t('model.dialog.connectivity.title')}</span>
               {connectivityStatus.status && (
                 <div className="ml-2 flex items-center">
-                  {getConnectivityIcon(connectivityStatus.status)}
+                  {getConnectivityMeta(connectivityStatus.status).icon}
                   <span 
                     className="ml-1 text-xs"
-                    style={{ color: getConnectivityColor(connectivityStatus.status) }}
+                    style={{ color: getConnectivityMeta(connectivityStatus.status).color }}
                   >
-                    {t(`model.dialog.connectivity.status.${connectivityStatus.status}`)}
+                    {connectivityStatus.status === 'available' && t('model.dialog.connectivity.status.available')}
+                    {connectivityStatus.status === 'unavailable' && t('model.dialog.connectivity.status.unavailable')}
+                    {connectivityStatus.status === 'checking' && t('model.dialog.status.verifying')}
                   </span>
                 </div>
               )}
