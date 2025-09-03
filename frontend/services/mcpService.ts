@@ -318,10 +318,14 @@ export const checkMcpServerHealth = async (mcpUrl: string, serviceName: string) 
         message: data.message || t('mcpService.message.healthCheckSuccess')
       };
     } else {
+      let errorMessage = data.message || t('mcpService.message.healthCheckFailed');
+      if (response.status === 503) {
+        errorMessage = t('mcpService.message.cannotConnectToServer');
+      }
       return {
         success: false,
         data: null,
-        message: data.message || t('mcpService.message.healthCheckFailed')
+        message: errorMessage
       };
     }
   } catch (error) {

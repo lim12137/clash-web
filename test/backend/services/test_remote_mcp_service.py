@@ -280,11 +280,13 @@ class TestCheckMcpHealthAndUpdateDb(unittest.IsolatedAsyncioTestCase):
     @patch('backend.services.remote_mcp_service.update_mcp_status_by_name_and_url')
     @patch('backend.services.remote_mcp_service.mcp_server_health')
     async def test_check_health_false(self, mock_health, mock_update):
-        """Test health check failure"""
+        """Test health check failure - should raise MCPConnectionError when status is False"""
         mock_health.return_value = False
         
-        await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
+        with self.assertRaises(MCPConnectionError) as context:
+            await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
         
+        self.assertEqual(str(context.exception), "MCP connection failed")
         mock_update.assert_called_once_with(
             mcp_name='name',
             mcp_server='http://srv',
@@ -308,12 +310,14 @@ class TestCheckMcpHealthAndUpdateDb(unittest.IsolatedAsyncioTestCase):
     @patch('backend.services.remote_mcp_service.update_mcp_status_by_name_and_url')
     @patch('backend.services.remote_mcp_service.mcp_server_health')
     async def test_health_check_exception(self, mock_health, mock_update):
-        """Test health check exception - should catch exception and set status to False"""
+        """Test health check exception - should catch exception, set status to False, and raise MCPConnectionError"""
         mock_health.side_effect = MCPConnectionError("Connection failed")
         
-        # Should not raise exception, but should set status to False
-        await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
+        # Should catch the exception from mcp_server_health, set status to False, and then raise MCPConnectionError
+        with self.assertRaises(MCPConnectionError) as context:
+            await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
         
+        self.assertEqual(str(context.exception), "MCP connection failed")
         mock_health.assert_called_once_with(remote_mcp_server='http://srv')
         mock_update.assert_called_once_with(
             mcp_name='name',
