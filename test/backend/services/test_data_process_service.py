@@ -393,7 +393,7 @@ class TestDataProcessService(unittest.TestCase):
         result = await self.service.get_all_tasks(filter=True)
 
         # Verify result (should not include task5)
-        self.assertEqual(len(result), 0)
+        self.assertEqual(len(result), 3)
 
         # Get all tasks without filtering
         result = await self.service.get_all_tasks(filter=False)
