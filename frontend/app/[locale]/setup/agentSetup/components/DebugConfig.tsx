@@ -1,16 +1,28 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Input } from "antd";
 import { useTranslation } from "react-i18next";
-import { conversationService } from "@/services/conversationService";
-import { handleStreamResponse } from "@/app/chat/streaming/chatStreamHandler";
+import { Input } from "antd";
+
 import { ChatMessageType, TaskMessageType } from "@/types/chat";
+import { conversationService } from "@/services/conversationService";
+
+import { handleStreamResponse } from "@/app/chat/streaming/chatStreamHandler";
 import { ChatStreamFinalMessage } from "@/app/chat/streaming/chatStreamFinalMessage";
 import { TaskWindow } from "@/app/chat/streaming/taskWindow";
-import { AgentDebuggingProps, DebugConfigProps } from "@/types/agentConfig";
 
 // Agent debugging component Props interface
+interface AgentDebuggingProps {
+  onAskQuestion: (question: string) => void;
+  onStop: () => void;
+  isStreaming: boolean;
+  messages: ChatMessageType[];
+}
+
+// Main component Props interface
+interface DebugConfigProps {
+  agentId?: number; // Make agentId an optional prop
+}
 
 /**
  * Agent debugging component

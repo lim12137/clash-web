@@ -1,12 +1,14 @@
 "use client";
 
 import { ReactNode } from "react";
+import { ConfigProvider, App } from "antd";
+
 import {
   AuthProvider as AuthContextProvider,
   AuthContext,
   useAuth,
 } from "@/hooks/useAuth";
-import { ConfigProvider, App } from "antd";
+
 import { LoginModal, RegisterModal, SessionListeners } from "@/components/auth";
 import { FullScreenLoading } from "@/components/ui/loading";
 

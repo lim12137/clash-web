@@ -1,21 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Modal, Spin, message, Typography } from "antd";
 import { RobotOutlined, ToolOutlined } from "@ant-design/icons";
-import { useTranslation } from "react-i18next";
-import { fetchAgentCallRelationship } from "@/services/agentConfigService";
+import Tree from "react-d3-tree";
+
 import {
   AgentCallRelationship,
   AgentCallRelationshipSubAgent,
   AgentCallRelationshipModalProps,
   TreeNodeDatum,
-} from "@/types/agentConfig";
-import Tree from "react-d3-tree";
-import {
   AGENT_CALL_RELATIONSHIP_NODE_SIZE,
   AGENT_CALL_RELATIONSHIP_THEME,
 } from "@/types/agentConfig";
+import { fetchAgentCallRelationship } from "@/services/agentConfigService";
 
 const { Text } = Typography;
 

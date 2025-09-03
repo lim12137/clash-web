@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { MarkdownRenderer } from "@/components/ui/markdownRenderer";
-import { ChatMessageType } from "@/types/chat";
+import { useTranslation } from "react-i18next";
 import { Copy, Volume2, ChevronRight, Square, Loader2 } from "lucide-react";
+import { FaRegThumbsDown, FaRegThumbsUp } from "react-icons/fa";
+
+import { MarkdownRenderer } from "@/components/ui/markdownRenderer";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -9,14 +11,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { FaRegThumbsDown, FaRegThumbsUp } from "react-icons/fa";
-import {
-  ChatAttachment,
-  AttachmentItem,
-} from "@/app/chat/internal/chatAttachment";
+import { ChatMessageType } from "@/types/chat";
 import { conversationService } from "@/services/conversationService";
-import { useTranslation } from "react-i18next";
 import { copyToClipboard } from "@/lib/clipboard";
+
+import { ChatAttachment, AttachmentItem } from "../internal/chatAttachment";
 
 interface FinalMessageProps {
   message: ChatMessageType;

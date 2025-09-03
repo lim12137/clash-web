@@ -2,20 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import AgentSetupOrchestrator from "./components/AgentSetupOrchestrator";
-import DebugConfig from "./components/DebugConfig";
-
 import { Drawer, App } from "antd";
-import {
-  fetchTools,
-  fetchAgentList,
-  exportAgent,
-  deleteAgent,
-} from "@/services/agentConfigService";
-import { generatePromptStream } from "@/services/promptService";
-import { OpenAIModel } from "@/types/config";
-import { updateToolList } from "@/services/mcpService";
+
 import { SETUP_PAGE_CONTAINER, STANDARD_CARD } from "@/lib/layoutConstants";
+import { OpenAIModel } from "@/types/config";
 import {
   NewAgentCache,
   LayoutConfig,
@@ -24,6 +14,18 @@ import {
   AgentRefreshEvent,
   AGENT_SETUP_LAYOUT_DEFAULT,
 } from "@/types/agentConfig";
+import {
+  fetchTools,
+  fetchAgentList,
+  exportAgent,
+  deleteAgent,
+} from "@/services/agentConfigService";
+import { generatePromptStream } from "@/services/promptService";
+import { updateToolList } from "@/services/mcpService";
+
+import AgentSetupOrchestrator from "./components/AgentSetupOrchestrator";
+import DebugConfig from "./components/DebugConfig";
+
 import "../../i18n";
 
 // Layout Height Constant Configuration
