@@ -340,6 +340,102 @@ def test_update_tool_table_from_scan_tool_list_success(monkeypatch, mock_session
     
     # Function executes successfully without throwing exceptions
 
+def test_update_tool_table_from_scan_tool_list_create_new_tool(monkeypatch, mock_session):
+    """Test creating new tool when tool doesn't exist in database"""
+    session, query = mock_session
+    
+    # Mock existing tools with different name&source combination
+    existing_tool = MockToolInfo()
+    existing_tool.name = "existing_tool"
+    existing_tool.source = "existing_source"
+    
+    mock_all = MagicMock()
+    mock_all.return_value = [existing_tool]
+    mock_filter = MagicMock()
+    mock_filter.all = mock_all
+    query.filter.return_value = mock_filter
+    
+    session.add = MagicMock()
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
+    monkeypatch.setattr("backend.database.tool_db.filter_property", lambda data, model: data)
+    
+    # Create a mock for ToolInfo class constructor
+    mock_tool_info_instance = MagicMock()
+    mock_tool_info_class = MagicMock(return_value=mock_tool_info_instance)
+    monkeypatch.setattr("backend.database.tool_db.ToolInfo", mock_tool_info_class)
+    
+    # Create a new tool with different name&source that doesn't exist in database
+    new_tool = MockToolInfo()
+    new_tool.name = "new_tool"
+    new_tool.source = "new_source"
+    tool_list = [new_tool]
+    
+    update_tool_table_from_scan_tool_list("tenant1", "user1", tool_list)
+    
+    # Verify that session.add was called to add the new tool
+    session.add.assert_called_once_with(mock_tool_info_instance)
+    # Verify that ToolInfo constructor was called with correct parameters
+    expected_call_args = new_tool.__dict__.copy()
+    expected_call_args.update({
+        "created_by": "user1",
+        "updated_by": "user1", 
+        "author": "tenant1",
+        "is_available": True
+    })
+    mock_tool_info_class.assert_called_once_with(**expected_call_args)
+
+def test_update_tool_table_from_scan_tool_list_create_new_tool_invalid_name(monkeypatch, mock_session):
+    """Test creating new tool with invalid name (is_available=False)"""
+    session, query = mock_session
+    
+    # Mock existing tools with different name&source combination
+    existing_tool = MockToolInfo()
+    existing_tool.name = "existing_tool"
+    existing_tool.source = "existing_source"
+    
+    mock_all = MagicMock()
+    mock_all.return_value = [existing_tool]
+    mock_filter = MagicMock()
+    mock_filter.all = mock_all
+    query.filter.return_value = mock_filter
+    
+    session.add = MagicMock()
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
+    monkeypatch.setattr("backend.database.tool_db.filter_property", lambda data, model: data)
+    
+    # Create a mock for ToolInfo class constructor
+    mock_tool_info_instance = MagicMock()
+    mock_tool_info_class = MagicMock(return_value=mock_tool_info_instance)
+    monkeypatch.setattr("backend.database.tool_db.ToolInfo", mock_tool_info_class)
+    
+    # Create a new tool with invalid name (contains special characters)
+    new_tool = MockToolInfo()
+    new_tool.name = "invalid-tool-name!"  # Contains dash and exclamation mark
+    new_tool.source = "new_source"
+    tool_list = [new_tool]
+    
+    update_tool_table_from_scan_tool_list("tenant1", "user1", tool_list)
+    
+    # Verify that session.add was called to add the new tool
+    session.add.assert_called_once_with(mock_tool_info_instance)
+    # Verify that ToolInfo constructor was called with is_available=False for invalid name
+    expected_call_args = new_tool.__dict__.copy()
+    expected_call_args.update({
+        "created_by": "user1",
+        "updated_by": "user1", 
+        "author": "tenant1",
+        "is_available": False  # Should be False for invalid tool name
+    })
+    mock_tool_info_class.assert_called_once_with(**expected_call_args)
+
 def test_add_tool_field(monkeypatch, mock_session):
     """Test adding tool field"""
     session, query = mock_session
