@@ -327,6 +327,29 @@ class TestCheckMCPHealth:
 
     @patch('apps.remote_mcp_app.get_current_user_id')
     @patch('apps.remote_mcp_app.check_mcp_health_and_update_db')
+    def test_check_mcp_health_connection_error(self, mock_health_check, mock_get_user_id):
+        """Test MCP connection error during health check"""
+        mock_get_user_id.return_value = ("user123", "tenant456")
+        mock_health_check.side_effect = MCPConnectionError("MCP connection failed")
+
+        response = client.get(
+            "/mcp/healthcheck",
+            params={"mcp_url": "http://unreachable.com",
+                    "service_name": "test_service"},
+            headers={"Authorization": "Bearer test_token"}
+        )
+
+        assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
+        data = response.json()
+        assert "MCP connection failed" in data["detail"]
+
+        mock_get_user_id.assert_called_once_with("Bearer test_token")
+        mock_health_check.assert_called_once_with(
+            "http://unreachable.com", "test_service", "tenant456", "user123"
+        )
+
+    @patch('apps.remote_mcp_app.get_current_user_id')
+    @patch('apps.remote_mcp_app.check_mcp_health_and_update_db')
     def test_check_mcp_health_database_error(self, mock_health_check, mock_get_user_id):
         """Test database error during health check - should be handled as general exception"""
         from sqlalchemy.exc import SQLAlchemyError

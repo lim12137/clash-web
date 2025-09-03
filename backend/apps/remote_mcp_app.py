@@ -130,6 +130,10 @@ async def check_mcp_health(mcp_url: str, service_name: str, authorization: Optio
             status_code=HTTPStatus.OK,
             content={"status": "success"}
         )
+    except MCPConnectionError as e:
+        logger.error(f"MCP connection failed: {e}")
+        raise HTTPException(status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                            detail="MCP connection failed")
     except Exception as e:
         logger.error(f"Failed to check the health of the MCP server: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,

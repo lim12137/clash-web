@@ -79,3 +79,5 @@ async def check_mcp_health_and_update_db(mcp_url, service_name, tenant_id, user_
         tenant_id=tenant_id,
         user_id=user_id,
         status=status)
+    if not status:
+        raise MCPConnectionError("MCP connection failed")
