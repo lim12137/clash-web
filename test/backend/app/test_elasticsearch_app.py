@@ -3,24 +3,23 @@ Unit tests for the Elasticsearch application endpoints.
 These tests verify the behavior of the Elasticsearch API without actual database connections.
 All external services and dependencies are mocked to isolate the tests.
 """
-
-from fastapi.testclient import TestClient
-from fastapi import HTTPException, FastAPI
-from backend.apps.elasticsearch_app import router
-from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 import os
 import sys
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock, ANY
-from typing import List, Optional, Union, Dict, Any
-from pydantic import BaseModel
 
 # Dynamically determine the backend path and add it to sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
 sys.path.insert(0, backend_dir)
 
-# Define necessary Pydantic models before importing any backend code
+from fastapi.testclient import TestClient
+from fastapi import FastAPI
+from backend.apps.elasticsearch_app import router
+from nexent.vector_database.elasticsearch_core import ElasticSearchCore
+
+import pytest
+from unittest.mock import patch, MagicMock, ANY
+from typing import List
+from pydantic import BaseModel
 
 
 class SearchRequest(BaseModel):
