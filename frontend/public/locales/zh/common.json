@@ -224,7 +224,7 @@
     "agent.info.title": "Agent信息",
     "agent.info.name.error.empty": "名称不能为空",
     "agent.info.name.error.format": "名称只能包含字母、数字和下划线，且必须以字母或下划线开头",
-    "agent.info.name.error.length": "名称长度不能超过30个字符",
+    "agent.info.name.error.length": "名称长度不能超过50个字符",
     "agent.name": "Agent变量名",
     "agent.namePlaceholder": "请输入Agent变量名",
     "agent.displayName": "Agent名称",

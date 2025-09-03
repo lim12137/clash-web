@@ -15,6 +15,7 @@ def get_selected_knowledge_list(tenant_id: str, user_id: str):
     knowledge_info = get_knowledge_info_by_knowledge_ids(knowledge_id_list)
     return knowledge_info
 
+
 def update_selected_knowledge(tenant_id: str, user_id: str, index_name_list: List[str]):
     knowledge_ids = get_knowledge_ids_by_index_names(index_name_list)
     record_list = get_tenant_config_info(tenant_id=tenant_id, user_id=user_id, select_key="selected_knowledge_id")
