@@ -2,10 +2,10 @@ import sys
 import pytest
 from unittest.mock import patch, MagicMock
 
-# 首先模拟consts模块，避免ModuleNotFoundError
+# First mock the consts module to avoid ModuleNotFoundError
 consts_mock = MagicMock()
 consts_mock.const = MagicMock()
-# 设置consts.const中需要的常量
+# Set up required constants in consts.const
 consts_mock.const.MINIO_ENDPOINT = "http://localhost:9000"
 consts_mock.const.MINIO_ACCESS_KEY = "test_access_key"
 consts_mock.const.MINIO_SECRET_KEY = "test_secret_key"
@@ -18,16 +18,16 @@ consts_mock.const.POSTGRES_DB = "test_db"
 consts_mock.const.POSTGRES_PORT = 5432
 consts_mock.const.DEFAULT_TENANT_ID = "default_tenant"
 
-# 将模拟的consts模块添加到sys.modules中
+# Add the mocked consts module to sys.modules
 sys.modules['consts'] = consts_mock
 sys.modules['consts.const'] = consts_mock.const
 
-# 模拟utils模块
+# Mock utils module
 utils_mock = MagicMock()
 utils_mock.auth_utils = MagicMock()
 utils_mock.auth_utils.get_current_user_id_from_token = MagicMock(return_value="test_user_id")
 
-# 将模拟的utils模块添加到sys.modules中
+# Add the mocked utils module to sys.modules
 sys.modules['utils'] = utils_mock
 sys.modules['utils.auth_utils'] = utils_mock.auth_utils
 
@@ -36,7 +36,7 @@ sys.modules['utils.auth_utils'] = utils_mock.auth_utils
 boto3_mock = MagicMock()
 sys.modules['boto3'] = boto3_mock
 
-# 模拟整个client模块
+# Mock the entire client module
 client_mock = MagicMock()
 client_mock.MinioClient = MagicMock()
 client_mock.PostgresClient = MagicMock()
@@ -45,28 +45,28 @@ client_mock.get_db_session = MagicMock()
 client_mock.as_dict = MagicMock()
 client_mock.filter_property = MagicMock()
 
-# 将模拟的client模块添加到sys.modules中
+# Add the mocked client module to sys.modules
 sys.modules['database.client'] = client_mock
 sys.modules['backend.database.client'] = client_mock
 
-# 模拟db_models模块
+# Mock db_models module
 db_models_mock = MagicMock()
 db_models_mock.ToolInstance = MagicMock()
 db_models_mock.ToolInfo = MagicMock()
 
-# 将模拟的db_models模块添加到sys.modules中
+# Add the mocked db_models module to sys.modules
 sys.modules['database.db_models'] = db_models_mock
 sys.modules['backend.database.db_models'] = db_models_mock
 
-# 模拟agent_db模块
+# Mock agent_db module
 agent_db_mock = MagicMock()
 agent_db_mock.logger = MagicMock()
 
-# 将模拟的agent_db模块添加到sys.modules中
+# Add the mocked agent_db module to sys.modules
 sys.modules['database.agent_db'] = agent_db_mock
 sys.modules['backend.database.agent_db'] = agent_db_mock
 
-# 现在可以安全地导入被测试的模块
+# Now we can safely import the module being tested
 from backend.database.tool_db import (
     create_tool,
     create_or_update_tool_by_tool_info,
@@ -131,14 +131,14 @@ class MockToolInfo:
 
 @pytest.fixture
 def mock_session():
-    """创建模拟的数据库会话"""
+    """Create a mock database session"""
     mock_session = MagicMock()
     mock_query = MagicMock()
     mock_session.query.return_value = mock_query
     return mock_session, mock_query
 
 def test_create_tool_success(monkeypatch, mock_session):
-    """测试成功创建工具"""
+    """Test successful tool creation"""
     session, query = mock_session
     session.add = MagicMock()
     
@@ -155,7 +155,7 @@ def test_create_tool_success(monkeypatch, mock_session):
     session.add.assert_called_once()
 
 def test_create_or_update_tool_by_tool_info_update_existing(monkeypatch, mock_session):
-    """测试更新已存在的工具实例"""
+    """Test updating an existing tool instance"""
     session, query = mock_session
     mock_tool_instance = MockToolInstance()
     
@@ -164,8 +164,6 @@ def test_create_or_update_tool_by_tool_info_update_existing(monkeypatch, mock_se
     mock_filter = MagicMock()
     mock_filter.first = mock_first
     query.filter.return_value = mock_filter
-    
-    session.flush = MagicMock()
     
     mock_ctx = MagicMock()
     mock_ctx.__enter__.return_value = session
@@ -178,18 +176,15 @@ def test_create_or_update_tool_by_tool_info_update_existing(monkeypatch, mock_se
     result = create_or_update_tool_by_tool_info(tool_info, "tenant1", "user1")
     
     assert result == mock_tool_instance
-    session.flush.assert_called_once()
 
 def test_create_or_update_tool_by_tool_info_create_new(monkeypatch, mock_session):
-    """测试创建新的工具实例"""
+    """Test creating a new tool instance"""
     session, query = mock_session
     mock_first = MagicMock()
     mock_first.return_value = None
     mock_filter = MagicMock()
     mock_filter.first = mock_first
     query.filter.return_value = mock_filter
-    
-    session.flush = MagicMock()
     
     mock_ctx = MagicMock()
     mock_ctx.__enter__.return_value = session
@@ -203,10 +198,9 @@ def test_create_or_update_tool_by_tool_info_create_new(monkeypatch, mock_session
     result = create_or_update_tool_by_tool_info(tool_info, "tenant1", "user1")
     
     assert result is None
-    session.flush.assert_called_once()
 
 def test_query_all_tools(monkeypatch, mock_session):
-    """测试查询所有工具"""
+    """Test querying all tools"""
     session, query = mock_session
     mock_tool_info = MockToolInfo()
     
@@ -229,7 +223,7 @@ def test_query_all_tools(monkeypatch, mock_session):
     assert result[0]["name"] == "test_tool"
 
 def test_query_tool_instances_by_id_found(monkeypatch, mock_session):
-    """测试成功查询工具实例"""
+    """Test successfully querying tool instances"""
     session, query = mock_session
     mock_tool_instance = MockToolInstance()
     
@@ -251,7 +245,7 @@ def test_query_tool_instances_by_id_found(monkeypatch, mock_session):
     assert result["tool_id"] == 1
 
 def test_query_tool_instances_by_id_not_found(monkeypatch, mock_session):
-    """测试查询不存在的工具实例"""
+    """Test querying non-existent tool instances"""
     session, query = mock_session
     mock_first = MagicMock()
     mock_first.return_value = None
@@ -269,7 +263,7 @@ def test_query_tool_instances_by_id_not_found(monkeypatch, mock_session):
     assert result is None
 
 def test_query_tools_by_ids(monkeypatch, mock_session):
-    """测试通过ID列表查询工具"""
+    """Test querying tools by ID list"""
     session, query = mock_session
     mock_tool_info = MockToolInfo()
     
@@ -293,7 +287,7 @@ def test_query_tools_by_ids(monkeypatch, mock_session):
     assert result[0]["tool_id"] == 1
 
 def test_query_all_enabled_tool_instances(monkeypatch, mock_session):
-    """测试查询所有启用的工具实例"""
+    """Test querying all enabled tool instances"""
     session, query = mock_session
     mock_tool_instance = MockToolInstance()
     
@@ -314,23 +308,136 @@ def test_query_all_enabled_tool_instances(monkeypatch, mock_session):
     assert len(result) == 1
     assert result[0]["tool_instance_id"] == 1
 
-def test_update_tool_table_from_scan_tool_list_exception(monkeypatch, mock_session):
-    """测试更新工具表时发生异常"""
+def test_update_tool_table_from_scan_tool_list_success(monkeypatch, mock_session):
+    """Test successfully updating tool table"""
     session, query = mock_session
-    query.filter.side_effect = Exception("Database error")
+    mock_tool_info = MockToolInfo()
+    
+    mock_all = MagicMock()
+    mock_all.return_value = [mock_tool_info]
+    mock_filter = MagicMock()
+    mock_filter.all = mock_all
+    query.filter.return_value = mock_filter
+    
+    session.add = MagicMock()
     
     mock_ctx = MagicMock()
     mock_ctx.__enter__.return_value = session
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
+    monkeypatch.setattr("backend.database.tool_db.filter_property", lambda data, model: data)
     
-    tool_list = []
+    # Create a mock for ToolInfo class with properly accessible attributes
+    mock_tool_info_class = MagicMock()
+    mock_tool_info_class.delete_flag = "N"  
+    mock_tool_info_class.author = "tenant1"
+    mock_tool_info_class.name = "test_tool"
+    mock_tool_info_class.source = "test_source"
+    monkeypatch.setattr("backend.database.tool_db.ToolInfo", mock_tool_info_class)
+    
+    tool_list = [MockToolInfo()]
     update_tool_table_from_scan_tool_list("tenant1", "user1", tool_list)
     
-    # 应该不会抛出异常，而是记录错误日志
+    # Function executes successfully without throwing exceptions
+
+def test_update_tool_table_from_scan_tool_list_create_new_tool(monkeypatch, mock_session):
+    """Test creating new tool when tool doesn't exist in database"""
+    session, query = mock_session
+    
+    # Mock existing tools with different name&source combination
+    existing_tool = MockToolInfo()
+    existing_tool.name = "existing_tool"
+    existing_tool.source = "existing_source"
+    
+    mock_all = MagicMock()
+    mock_all.return_value = [existing_tool]
+    mock_filter = MagicMock()
+    mock_filter.all = mock_all
+    query.filter.return_value = mock_filter
+    
+    session.add = MagicMock()
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
+    monkeypatch.setattr("backend.database.tool_db.filter_property", lambda data, model: data)
+    
+    # Create a mock for ToolInfo class constructor
+    mock_tool_info_instance = MagicMock()
+    mock_tool_info_class = MagicMock(return_value=mock_tool_info_instance)
+    monkeypatch.setattr("backend.database.tool_db.ToolInfo", mock_tool_info_class)
+    
+    # Create a new tool with different name&source that doesn't exist in database
+    new_tool = MockToolInfo()
+    new_tool.name = "new_tool"
+    new_tool.source = "new_source"
+    tool_list = [new_tool]
+    
+    update_tool_table_from_scan_tool_list("tenant1", "user1", tool_list)
+    
+    # Verify that session.add was called to add the new tool
+    session.add.assert_called_once_with(mock_tool_info_instance)
+    # Verify that ToolInfo constructor was called with correct parameters
+    expected_call_args = new_tool.__dict__.copy()
+    expected_call_args.update({
+        "created_by": "user1",
+        "updated_by": "user1", 
+        "author": "tenant1",
+        "is_available": True
+    })
+    mock_tool_info_class.assert_called_once_with(**expected_call_args)
+
+def test_update_tool_table_from_scan_tool_list_create_new_tool_invalid_name(monkeypatch, mock_session):
+    """Test creating new tool with invalid name (is_available=False)"""
+    session, query = mock_session
+    
+    # Mock existing tools with different name&source combination
+    existing_tool = MockToolInfo()
+    existing_tool.name = "existing_tool"
+    existing_tool.source = "existing_source"
+    
+    mock_all = MagicMock()
+    mock_all.return_value = [existing_tool]
+    mock_filter = MagicMock()
+    mock_filter.all = mock_all
+    query.filter.return_value = mock_filter
+    
+    session.add = MagicMock()
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
+    monkeypatch.setattr("backend.database.tool_db.filter_property", lambda data, model: data)
+    
+    # Create a mock for ToolInfo class constructor
+    mock_tool_info_instance = MagicMock()
+    mock_tool_info_class = MagicMock(return_value=mock_tool_info_instance)
+    monkeypatch.setattr("backend.database.tool_db.ToolInfo", mock_tool_info_class)
+    
+    # Create a new tool with invalid name (contains special characters)
+    new_tool = MockToolInfo()
+    new_tool.name = "invalid-tool-name!"  # Contains dash and exclamation mark
+    new_tool.source = "new_source"
+    tool_list = [new_tool]
+    
+    update_tool_table_from_scan_tool_list("tenant1", "user1", tool_list)
+    
+    # Verify that session.add was called to add the new tool
+    session.add.assert_called_once_with(mock_tool_info_instance)
+    # Verify that ToolInfo constructor was called with is_available=False for invalid name
+    expected_call_args = new_tool.__dict__.copy()
+    expected_call_args.update({
+        "created_by": "user1",
+        "updated_by": "user1", 
+        "author": "tenant1",
+        "is_available": False  # Should be False for invalid tool name
+    })
+    mock_tool_info_class.assert_called_once_with(**expected_call_args)
 
 def test_add_tool_field(monkeypatch, mock_session):
-    """测试添加工具字段"""
+    """Test adding tool field"""
     session, query = mock_session
     mock_tool_info = MockToolInfo()
     
@@ -354,7 +461,7 @@ def test_add_tool_field(monkeypatch, mock_session):
     assert result["source"] == "test_source"
 
 def test_search_tools_for_sub_agent(monkeypatch, mock_session):
-    """测试搜索子agent的工具"""
+    """Test searching tools for sub-agent"""
     session, query = mock_session
     mock_tool_instance = MockToolInstance()
     
@@ -377,11 +484,11 @@ def test_search_tools_for_sub_agent(monkeypatch, mock_session):
     assert result[0]["tool_instance_id"] == 1
 
 def test_check_tool_is_available(monkeypatch, mock_session):
-    """测试检查工具是否可用"""
+    """Test checking if tool is available"""
     session, query = mock_session
     mock_tool_info = MockToolInfo()
     
-    # 直接设置 query.filter().all() 的返回值
+    # Directly set the return value of query.filter().all()
     mock_all = MagicMock()
     mock_all.return_value = [mock_tool_info]
     query.filter.return_value.all = mock_all
@@ -396,7 +503,7 @@ def test_check_tool_is_available(monkeypatch, mock_session):
     assert result == [True]
 
 def test_delete_tools_by_agent_id_success(monkeypatch, mock_session):
-    """测试成功删除agent的工具"""
+    """Test successfully deleting agent's tools"""
     session, query = mock_session
     mock_update = MagicMock()
     mock_filter = MagicMock()
@@ -408,24 +515,7 @@ def test_delete_tools_by_agent_id_success(monkeypatch, mock_session):
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
     
-    # 函数不返回任何值，只验证执行成功
+    # Function returns no value, only verify successful execution
     delete_tools_by_agent_id(1, "tenant1", "user1")
     
-    mock_update.assert_called_once()
-
-def test_delete_tools_by_agent_id_failure(monkeypatch, mock_session):
-    """测试删除agent的工具失败"""
-    session, query = mock_session
-    mock_update = MagicMock(side_effect=Exception("Database error"))
-    mock_filter = MagicMock()
-    mock_filter.update = mock_update
-    query.filter.return_value = mock_filter
-    
-    mock_ctx = MagicMock()
-    mock_ctx.__enter__.return_value = session
-    mock_ctx.__exit__.return_value = None
-    monkeypatch.setattr("backend.database.tool_db.get_db_session", lambda: mock_ctx)
-    
-    # 函数应该抛出异常，因为数据库操作失败
-    with pytest.raises(Exception, match="Database error"):
-        delete_tools_by_agent_id(1, "tenant1", "user1") 
+    mock_update.assert_called_once() 

@@ -11,12 +11,10 @@ import jsonref
 from mcpadapt.smolagents_adapter import _sanitize_function_name
 
 from database.tool_db import create_or_update_tool_by_tool_info, query_tool_instances_by_id, \
-    update_tool_table_from_scan_tool_list
+    update_tool_table_from_scan_tool_list, query_all_tools
 from consts.model import ToolInstanceInfoRequest, ToolInfo, ToolSourceEnum
 from consts.const import LOCAL_MCP_SERVER
 from database.remote_mcp_db import get_mcp_records_by_tenant
-from utils.auth_utils import get_current_user_id
-from fastapi import Header
 
 from consts.exceptions import MCPConnectionError
 
@@ -207,14 +205,14 @@ async def get_all_mcp_tools(tenant_id: str) -> List[ToolInfo]:
     return tools_info
 
 
-def search_tool_info_impl(agent_id: int, tool_id: int, authorization: str = Header(None)):
+def search_tool_info_impl(agent_id: int, tool_id: int, tenant_id: str):
     """
     Search for tool configuration information by agent ID and tool ID
 
     Args:
         agent_id: Agent ID
         tool_id: Tool ID
-        authorization:
+        tenant_id: Tenant ID
 
     Returns:
         Dictionary containing tool parameters and enabled status
@@ -222,16 +220,8 @@ def search_tool_info_impl(agent_id: int, tool_id: int, authorization: str = Head
     Raises:
         ValueError: If database query fails
     """
-    _, tenant_id = get_current_user_id(authorization)
-    try:
-        # now only admin can modify the tool, user_id is not used
-        tool_instance = query_tool_instances_by_id(
-            agent_id, tool_id, tenant_id)
-    except Exception as e:
-        logger.error(
-            f"search_tool_info_impl error in query_tool_instances_by_id, detail: {e}")
-        raise ValueError(
-            f"search_tool_info_impl error in query_tool_instances_by_id, detail: {e}")
+    tool_instance = query_tool_instances_by_id(
+        agent_id, tool_id, tenant_id)
 
     if tool_instance:
         return {
@@ -245,12 +235,12 @@ def search_tool_info_impl(agent_id: int, tool_id: int, authorization: str = Head
         }
 
 
-def update_tool_info_impl(request: ToolInstanceInfoRequest, authorization: str = Header(None)):
+def update_tool_info_impl(tool_info: ToolInstanceInfoRequest, tenant_id: str, user_id: str):
     """
     Update tool configuration information
 
     Args:
-        request: ToolInstanceInfoRequest containing tool configuration data
+        tool_info: ToolInstanceInfoRequest containing tool configuration data
 
     Returns:
         Dictionary containing the updated tool instance
@@ -258,16 +248,8 @@ def update_tool_info_impl(request: ToolInstanceInfoRequest, authorization: str =
     Raises:
         ValueError: If database update fails
     """
-    user_id, tenant_id = get_current_user_id(authorization)
-    try:
-        tool_instance = create_or_update_tool_by_tool_info(
-            request, tenant_id, user_id)
-    except Exception as e:
-        logger.error(
-            f"update_tool_info_impl error in create_or_update_tool, detail: {e}")
-        raise ValueError(
-            f"update_tool_info_impl error in create_or_update_tool, detail: {e}")
-
+    tool_instance = create_or_update_tool_by_tool_info(
+        tool_info, tenant_id, user_id)
     return {
         "tool_instance": tool_instance
     }
@@ -313,7 +295,6 @@ async def get_tool_from_remote_mcp_server(mcp_server_name: str, remote_mcp_serve
             f"failed to get tool from remote MCP server, detail: {e}")
 
 
-
 async def update_tool_list(tenant_id: str, user_id: str):
     """
         Scan and gather all available tools from both local and MCP sources
@@ -326,21 +307,38 @@ async def update_tool_list(tenant_id: str, user_id: str):
             List of ToolInfo objects containing tool metadata
         """
     local_tools = get_local_tools()
-
     # Discover LangChain tools (decorated functions) and include them in the
-    # unified tool list.
     langchain_tools = get_langchain_tools()
 
     try:
         mcp_tools = await get_all_mcp_tools(tenant_id)
     except Exception as e:
         logger.error(f"failed to get all mcp tools, detail: {e}")
-        raise Exception(f"failed to get all mcp tools, detail: {e}")
+        raise MCPConnectionError(f"failed to get all mcp tools, detail: {e}")
 
-    try:
-        update_tool_table_from_scan_tool_list(tenant_id=tenant_id,
-                                              user_id=user_id,
-                                              tool_list=local_tools+mcp_tools+langchain_tools)
-    except Exception as e:
-        logger.error(f"failed to update tool list to PG, detail: {e}")
-        raise Exception(f"failed to update tool list to PG, detail: {e}")
+    update_tool_table_from_scan_tool_list(tenant_id=tenant_id,
+                                          user_id=user_id,
+                                          tool_list=local_tools+mcp_tools+langchain_tools)
+
+
+async def list_all_tools(tenant_id: str):
+    """
+    List all tools for a given tenant
+    """
+    tools_info = query_all_tools(tenant_id)
+    # only return the fields needed
+    formatted_tools = []
+    for tool in tools_info:
+        formatted_tool = {
+            "tool_id": tool.get("tool_id"),
+            "name": tool.get("name"),
+            "description": tool.get("description"),
+            "source": tool.get("source"),
+            "is_available": tool.get("is_available"),
+            "create_time": tool.get("create_time"),
+            "usage": tool.get("usage"),
+            "params": tool.get("params", [])
+        }
+        formatted_tools.append(formatted_tool)
+    
+    return formatted_tools
