@@ -25,9 +25,6 @@ sys.modules['boto3'] = boto3_mock
 # Mock MinioClient before importing backend modules
 with patch('backend.database.client.MinioClient') as minio_mock:
     minio_mock.return_value = MagicMock()
-    # Now we can safely import the function to test
-    from backend.apps.elasticsearch_app import router
-    from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 
 
 class SearchRequest(BaseModel):
@@ -67,11 +64,13 @@ consts_model_mock.IndexingResponse = IndexingResponse
 # Patch the module import before importing backend modules
 sys.modules['consts.model'] = consts_model_mock
 
-# Now import the modules that depend on consts.model
-
 # Create mocks for these services if they can't be imported
 ElasticSearchService = MagicMock()
 RedisService = MagicMock()
+
+# Import routes and services
+from backend.apps.elasticsearch_app import router
+from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 
 # Create test client
 app = FastAPI()
@@ -85,8 +84,6 @@ for route in router.routes:
 
 app.include_router(router)
 client = TestClient(app)
-
-# Fixtures to provide mocked objects
 
 
 @pytest.fixture
