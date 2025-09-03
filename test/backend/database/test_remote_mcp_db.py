@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 
 from backend.consts.exceptions import MCPDatabaseError
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 # First mock the consts module to avoid ModuleNotFoundError
 consts_mock = MagicMock()
@@ -106,7 +106,6 @@ def test_create_mcp_record_success(monkeypatch, mock_session):
     """Test successful creation of MCP record"""
     session, _ = mock_session
     session.add = MagicMock()
-    session.flush = MagicMock()
     
     mock_ctx = MagicMock()
     mock_ctx.__enter__.return_value = session
@@ -121,19 +120,17 @@ def test_create_mcp_record_success(monkeypatch, mock_session):
         "status": True
     }
     
-    result = create_mcp_record(mcp_data, "tenant1", "user1")
+    # Should not raise any exception
+    create_mcp_record(mcp_data, "tenant1", "user1")
     
-    assert result is True
     session.add.assert_called_once()
-    session.flush.assert_called_once()
 
 def test_create_mcp_record_failure(monkeypatch, mock_session):
-    """Test failure of MCP record creation"""
+    """Test failure of MCP record creation - exception should propagate"""
     from sqlalchemy.exc import SQLAlchemyError
     
     session, _ = mock_session
     session.add = MagicMock(side_effect=SQLAlchemyError("Database error"))
-    session.rollback = MagicMock()
     
     mock_ctx = MagicMock()
     mock_ctx.__enter__.return_value = session
@@ -148,10 +145,9 @@ def test_create_mcp_record_failure(monkeypatch, mock_session):
         "status": True
     }
     
-    result = create_mcp_record(mcp_data, "tenant1", "user1")
-    
-    assert result is False
-    session.rollback.assert_called_once()
+    # Should raise SQLAlchemyError
+    with pytest.raises(SQLAlchemyError):
+        create_mcp_record(mcp_data, "tenant1", "user1")
 
 def test_delete_mcp_record_by_name_and_url_success(monkeypatch, mock_session):
     """Test successful deletion of MCP record"""
@@ -160,36 +156,32 @@ def test_delete_mcp_record_by_name_and_url_success(monkeypatch, mock_session):
     mock_filter = MagicMock()
     mock_filter.update = mock_update
     query.filter.return_value = mock_filter
-    session.commit = MagicMock()
     
     mock_ctx = MagicMock()
     mock_ctx.__enter__.return_value = session
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.remote_mcp_db.get_db_session", lambda: mock_ctx)
     
-    result = delete_mcp_record_by_name_and_url("test_mcp", "http://test.server.com", "tenant1", "user1")
+    # Should not raise any exception
+    delete_mcp_record_by_name_and_url("test_mcp", "http://test.server.com", "tenant1", "user1")
     
-    assert result is True
     mock_update.assert_called_once_with({"delete_flag": "Y", "updated_by": "user1"})
-    session.commit.assert_called_once()
 
 def test_delete_mcp_record_by_name_and_url_failure(monkeypatch, mock_session):
-    """Test failure of MCP record deletion"""
+    """Test failure of MCP record deletion - exception should propagate"""
     from sqlalchemy.exc import SQLAlchemyError
     
     session, query = mock_session
     query.filter.side_effect = SQLAlchemyError("Database error")
-    session.rollback = MagicMock()
     
     mock_ctx = MagicMock()
     mock_ctx.__enter__.return_value = session
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.remote_mcp_db.get_db_session", lambda: mock_ctx)
     
-    result = delete_mcp_record_by_name_and_url("test_mcp", "http://test.server.com", "tenant1", "user1")
-    
-    assert result is False
-    session.rollback.assert_called_once()
+    # Should raise SQLAlchemyError
+    with pytest.raises(SQLAlchemyError):
+        delete_mcp_record_by_name_and_url("test_mcp", "http://test.server.com", "tenant1", "user1")
 
 def test_update_mcp_status_by_name_and_url_success(monkeypatch, mock_session):
     """Test successful update of MCP status"""
@@ -198,36 +190,32 @@ def test_update_mcp_status_by_name_and_url_success(monkeypatch, mock_session):
     mock_filter = MagicMock()
     mock_filter.update = mock_update
     query.filter.return_value = mock_filter
-    session.commit = MagicMock()
     
     mock_ctx = MagicMock()
     mock_ctx.__enter__.return_value = session
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.remote_mcp_db.get_db_session", lambda: mock_ctx)
     
-    result = update_mcp_status_by_name_and_url("test_mcp", "http://test.server.com", "tenant1", "user1", False)
+    # Should not raise any exception
+    update_mcp_status_by_name_and_url("test_mcp", "http://test.server.com", "tenant1", "user1", False)
     
-    assert result is True
     mock_update.assert_called_once_with({"status": False, "updated_by": "user1"})
-    session.commit.assert_called_once()
 
 def test_update_mcp_status_by_name_and_url_failure(monkeypatch, mock_session):
-    """Test failure of MCP status update"""
+    """Test failure of MCP status update - exception should propagate"""
     from sqlalchemy.exc import SQLAlchemyError
     
     session, query = mock_session
     query.filter.side_effect = SQLAlchemyError("Database error")
-    session.rollback = MagicMock()
     
     mock_ctx = MagicMock()
     mock_ctx.__enter__.return_value = session
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.remote_mcp_db.get_db_session", lambda: mock_ctx)
     
-    result = update_mcp_status_by_name_and_url("test_mcp", "http://test.server.com", "tenant1", "user1", True)
-    
-    assert result is False
-    session.rollback.assert_called_once()
+    # Should raise SQLAlchemyError
+    with pytest.raises(SQLAlchemyError):
+        update_mcp_status_by_name_and_url("test_mcp", "http://test.server.com", "tenant1", "user1", True)
 
 def test_get_mcp_records_by_tenant_success(monkeypatch, mock_session):
     """Test successful retrieval of MCP records list by tenant"""
@@ -295,7 +283,7 @@ def test_get_mcp_server_by_name_and_tenant_not_found(monkeypatch, mock_session):
     assert result == ""
 
 def test_get_mcp_server_by_name_and_tenant_database_error(monkeypatch, mock_session):
-    """Test database error when retrieving MCP server address"""
+    """Test database error when retrieving MCP server address - exception should propagate"""
     from sqlalchemy.exc import SQLAlchemyError
     
     session, query = mock_session
@@ -306,7 +294,8 @@ def test_get_mcp_server_by_name_and_tenant_database_error(monkeypatch, mock_sess
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.remote_mcp_db.get_db_session", lambda: mock_ctx)
     
-    with pytest.raises(MCPDatabaseError, match="Error getting MCP server by name and tenant"):
+    # Should raise SQLAlchemyError, not MCPDatabaseError
+    with pytest.raises(SQLAlchemyError):
         get_mcp_server_by_name_and_tenant("test_mcp", "tenant1")
 
 def test_check_mcp_name_exists_true(monkeypatch, mock_session):
@@ -349,7 +338,7 @@ def test_check_mcp_name_exists_false(monkeypatch, mock_session):
     assert result is False
 
 def test_check_mcp_name_exists_database_error(monkeypatch, mock_session):
-    """Test database error when checking if MCP name exists"""
+    """Test database error when checking if MCP name exists - exception should propagate"""
     from sqlalchemy.exc import SQLAlchemyError
     
     session, query = mock_session
@@ -360,7 +349,8 @@ def test_check_mcp_name_exists_database_error(monkeypatch, mock_session):
     mock_ctx.__exit__.return_value = None
     monkeypatch.setattr("backend.database.remote_mcp_db.get_db_session", lambda: mock_ctx)
     
-    with pytest.raises(MCPDatabaseError, match="Error checking if MCP name exists"):
+    # Should raise SQLAlchemyError, not MCPDatabaseError
+    with pytest.raises(SQLAlchemyError):
         check_mcp_name_exists("test_mcp", "tenant1")
 
 # Integration test
@@ -370,8 +360,6 @@ def test_mcp_record_lifecycle(monkeypatch, mock_session):
     
     # Mock database operations
     session.add = MagicMock()
-    session.flush = MagicMock()
-    session.commit = MagicMock()
     
     mock_mcp = MockMcpRecord()
     mock_first = MagicMock()
@@ -395,14 +383,13 @@ def test_mcp_record_lifecycle(monkeypatch, mock_session):
     monkeypatch.setattr("backend.database.remote_mcp_db.filter_property", lambda data, model: data)
     monkeypatch.setattr("backend.database.remote_mcp_db.McpRecord", mock_mcp_record_class)
     
-    # 1. Create MCP record
+    # 1. Create MCP record - should not raise exception
     mcp_data = {
         "mcp_name": "test_mcp",
         "mcp_server": "http://test.server.com",
         "status": True
     }
-    create_result = create_mcp_record(mcp_data, "tenant1", "user1")
-    assert create_result is True
+    create_mcp_record(mcp_data, "tenant1", "user1")
     
     # 2. Check if MCP name exists
     exists_result = check_mcp_name_exists("test_mcp", "tenant1")
@@ -412,10 +399,8 @@ def test_mcp_record_lifecycle(monkeypatch, mock_session):
     server_result = get_mcp_server_by_name_and_tenant("test_mcp", "tenant1")
     assert server_result == "http://test.server.com"
     
-    # 4. Update MCP status
-    update_result = update_mcp_status_by_name_and_url("test_mcp", "http://test.server.com", "tenant1", "user1", False)
-    assert update_result is True
+    # 4. Update MCP status - should not raise exception
+    update_mcp_status_by_name_and_url("test_mcp", "http://test.server.com", "tenant1", "user1", False)
     
-    # 5. Delete MCP record
-    delete_result = delete_mcp_record_by_name_and_url("test_mcp", "http://test.server.com", "tenant1", "user1")
-    assert delete_result is True 
+    # 5. Delete MCP record - should not raise exception
+    delete_mcp_record_by_name_and_url("test_mcp", "http://test.server.com", "tenant1", "user1") 

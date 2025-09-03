@@ -5,7 +5,7 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import JSONResponse
 from http import HTTPStatus
 
-from consts.exceptions import MCPConnectionError, MCPNameIllegal, MCPDatabaseError
+from consts.exceptions import MCPConnectionError, MCPNameIllegal
 from services.remote_mcp_service import (
     add_remote_mcp_server_list,
     delete_remote_mcp_server_list,
@@ -33,9 +33,13 @@ async def get_tools_from_remote_mcp(
             content={
                 "tools": [tool.__dict__ for tool in tools_info], "status": "success"}
         )
+    except MCPConnectionError as e:
+        logger.error(f"Failed to get tools from remote MCP server: {e}")
+        raise HTTPException(status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                            detail="MCP connection failed")
     except Exception as e:
         logger.error(f"get tools from remote MCP server failed, error: {e}")
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                             detail="Failed to get tools from remote MCP server.")
 
 
@@ -66,13 +70,9 @@ async def add_remote_proxies(
         logger.error(f"Failed to add remote MCP proxy: {e}")
         raise HTTPException(status_code=HTTPStatus.SERVICE_UNAVAILABLE,
                             detail="MCP connection failed")
-    except MCPDatabaseError as e:
-        logger.error(f"Failed to add remote MCP proxy: {e}")
-        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to add remote MCP proxy, database error")
     except Exception as e:
         logger.error(f"Failed to add remote MCP proxy: {e}")
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                             detail="Failed to add remote MCP proxy")
 
 
@@ -94,13 +94,9 @@ async def delete_remote_proxies(
             content={"message": "Successfully deleted remote MCP proxy",
                      "status": "success"}
         )
-    except MCPDatabaseError as e:
-        logger.error(f"Failed to delete remote MCP proxy: {e}")
-        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to delete remote MCP proxy, database error")
     except Exception as e:
         logger.error(f"Failed to delete remote MCP proxy: {e}")
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                             detail="Failed to delete remote MCP proxy")
 
 
@@ -119,7 +115,7 @@ async def get_remote_proxies(
         )
     except Exception as e:
         logger.error(f"Failed to get remote MCP proxy: {e}")
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                             detail="Failed to get remote MCP proxy")
 
 
@@ -134,11 +130,7 @@ async def check_mcp_health(mcp_url: str, service_name: str, authorization: Optio
             status_code=HTTPStatus.OK,
             content={"status": "success"}
         )
-    except MCPDatabaseError as e:
-        logger.error(f"Failed to check the health of the MCP server: {e}")
-        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            detail="Failed to check the health of the MCP server, database error")
     except Exception as e:
         logger.error(f"Failed to check the health of the MCP server: {e}")
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                             detail="Failed to check the health of the MCP server")
