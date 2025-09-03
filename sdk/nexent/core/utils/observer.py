@@ -25,6 +25,7 @@ class ProcessType(Enum):
 
     CARD = "card"  # content that needs to be rendered by the front end using cards
     TOOL = "tool"  # tool name
+    MEMORY_SEARCH = "memory_search"  # memory search status
 
 
 # message transformer base class
@@ -161,7 +162,8 @@ class MessageObserver:
             ProcessType.PICTURE_WEB: default_transformer,
             ProcessType.AGENT_FINISH: default_transformer,
             ProcessType.CARD: default_transformer,
-            ProcessType.TOOL: default_transformer
+            ProcessType.TOOL: default_transformer,
+            ProcessType.MEMORY_SEARCH: default_transformer
         }
 
     def add_model_new_token(self, new_token):

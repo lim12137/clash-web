@@ -23,6 +23,12 @@ class SignatureValidationError(Exception):
     pass
 
 
+
+class MemoryPreparationException(Exception):
+    """Raised when memory preprocessing or retrieval fails prior to agent run."""
+    pass
+
+  
 class MCPConnectionError(Exception):
     """Raised when MCP connection fails."""
     pass
