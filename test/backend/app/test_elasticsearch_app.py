@@ -4,25 +4,23 @@ These tests verify the behavior of the Elasticsearch API without actual database
 All external services and dependencies are mocked to isolate the tests.
 """
 
-from nexent.vector_database.elasticsearch_core import ElasticSearchCore
-from backend.apps.elasticsearch_app import router
-from fastapi import HTTPException, FastAPI
 from fastapi.testclient import TestClient
-from typing import List, Optional, Union, Dict, Any
-from pydantic import BaseModel
+from fastapi import HTTPException, FastAPI
+from backend.apps.elasticsearch_app import router
+from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 import os
 import sys
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock, ANY
+from typing import List, Optional, Union, Dict, Any
+from pydantic import BaseModel
 
-# Dynamically determine the backend path
+# Dynamically determine the backend path and add it to sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
-sys.path.append(backend_dir)
+sys.path.insert(0, backend_dir)
 
 # Define necessary Pydantic models before importing any backend code
-
-# Define custom Pydantic models to ensure they exist before backend code imports
 
 
 class SearchRequest(BaseModel):
@@ -53,18 +51,16 @@ patch('backend.database.client.db_client').start()
 # Mock Elasticsearch to prevent connection errors
 patch('elasticsearch.Elasticsearch', return_value=MagicMock()).start()
 
-# Create a mock for consts.model
+# Create a mock for consts.model and patch it before any imports
 consts_model_mock = MagicMock()
 consts_model_mock.SearchRequest = SearchRequest
 consts_model_mock.HybridSearchRequest = HybridSearchRequest
 consts_model_mock.IndexingResponse = IndexingResponse
 
-# Patch the module import
+# Patch the module import before importing backend modules
 sys.modules['consts.model'] = consts_model_mock
 
 # Now import the modules that depend on consts.model
-
-# Import routes and services
 
 # Create mocks for these services if they can't be imported
 ElasticSearchService = MagicMock()
