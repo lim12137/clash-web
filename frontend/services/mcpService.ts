@@ -266,14 +266,8 @@ export const updateToolList = async () => {
       let errorMessage = data.message || t('mcpService.message.updateToolListFailed');
       
       switch (response.status) {
-        case 400:
-          errorMessage = t('mcpService.message.updateToolListBadRequest');
-          break;
-        case 404:
-          errorMessage = t('mcpService.message.resourceNotFound');
-          break;
         case 500:
-          errorMessage = t('mcpService.message.serverInternalError');
+          errorMessage = t('mcpService.message.updateToolListBadRequest');
           break;
         case 503:
           errorMessage = t('mcpService.message.serviceUnavailable');
