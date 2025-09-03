@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import time
 import unittest
 from unittest.mock import MagicMock
@@ -6,7 +7,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from fastapi.responses import StreamingResponse
-import backend.services.elasticsearch_service as es_service_module
 
 # Mock boto3 before importing the module under test
 boto3_mock = MagicMock()
@@ -16,7 +16,7 @@ sys.modules['boto3'] = boto3_mock
 with patch('botocore.client.BaseClient._make_api_call'), \
         patch('backend.database.client.MinioClient'), \
         patch('elasticsearch.Elasticsearch', return_value=MagicMock()):
-    from backend.services.elasticsearch_service import ElasticSearchService
+    from backend.services.elasticsearch_service import ElasticSearchService, check_knowledge_base_exist_impl
 
 
 def _accurate_search_impl(request, es_core):
@@ -1552,7 +1552,7 @@ class TestElasticSearchService(unittest.TestCase):
         mock_get_redis_service.return_value = mock_redis_service
 
         # Execute
-        result = es_service_module.check_knowledge_base_exist_impl(
+        result = check_knowledge_base_exist_impl(
             index_name="test_index",
             es_core=self.mock_es_core,
             user_id="test_user",
@@ -1577,7 +1577,7 @@ class TestElasticSearchService(unittest.TestCase):
         mock_delete_record.return_value = True
 
         # Execute
-        result = es_service_module.check_knowledge_base_exist_impl(
+        result = check_knowledge_base_exist_impl(
             index_name="test_index",
             es_core=self.mock_es_core,
             user_id="test_user",
@@ -1597,7 +1597,7 @@ class TestElasticSearchService(unittest.TestCase):
         mock_get_knowledge.return_value = None
 
         # Execute
-        result = es_service_module.check_knowledge_base_exist_impl(
+        result = check_knowledge_base_exist_impl(
             index_name="test_index",
             es_core=self.mock_es_core,
             user_id="test_user",
@@ -1616,7 +1616,7 @@ class TestElasticSearchService(unittest.TestCase):
             "index_name": "test_index", "tenant_id": "tenant1"}
 
         # Execute
-        result = es_service_module.check_knowledge_base_exist_impl(
+        result = check_knowledge_base_exist_impl(
             index_name="test_index",
             es_core=self.mock_es_core,
             user_id="test_user",
@@ -1635,7 +1635,7 @@ class TestElasticSearchService(unittest.TestCase):
             "index_name": "test_index", "tenant_id": "other_tenant"}
 
         # Execute
-        result = es_service_module.check_knowledge_base_exist_impl(
+        result = check_knowledge_base_exist_impl(
             index_name="test_index",
             es_core=self.mock_es_core,
             user_id="test_user",
@@ -1660,7 +1660,7 @@ class TestElasticSearchService(unittest.TestCase):
         mock_get_redis_service.return_value = mock_redis_service
 
         # Execute
-        result = es_service_module.check_knowledge_base_exist_impl(
+        result = check_knowledge_base_exist_impl(
             index_name="test_index",
             es_core=self.mock_es_core,
             user_id="test_user",
@@ -1684,7 +1684,7 @@ class TestElasticSearchService(unittest.TestCase):
             "Delete index failed")
 
         # Execute
-        result = es_service_module.check_knowledge_base_exist_impl(
+        result = check_knowledge_base_exist_impl(
             index_name="test_index",
             es_core=self.mock_es_core,
             user_id="test_user",
@@ -1707,7 +1707,7 @@ class TestElasticSearchService(unittest.TestCase):
         mock_delete_record.side_effect = Exception("Delete PG record failed")
 
         # Execute
-        result = es_service_module.check_knowledge_base_exist_impl(
+        result = check_knowledge_base_exist_impl(
             index_name="test_index",
             es_core=self.mock_es_core,
             user_id="test_user",
