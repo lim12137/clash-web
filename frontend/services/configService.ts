@@ -1,7 +1,9 @@
-import { GlobalConfig } from '@/types/config';
 import { API_ENDPOINTS } from './api';
-import { ConfigStore } from '@/lib/config';
+
+import { GlobalConfig } from '@/types/config';
+
 import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
+import { ConfigStore } from '@/lib/config';
 // @ts-ignore
 const fetch = fetchWithAuth;
 

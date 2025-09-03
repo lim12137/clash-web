@@ -1,16 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useTranslation } from "react-i18next";
 import { Paperclip, Mic, MicOff, Square, X, AlertCircle } from "lucide-react";
-import { conversationService } from "@/services/conversationService";
-import { Textarea } from "@/components/ui/textarea";
-import { useConfig } from "@/hooks/useConfig";
 import {
   AiFillFileImage,
   AiFillFilePdf,
@@ -24,8 +14,20 @@ import {
   AiFillFileUnknown,
   AiOutlineUpload,
 } from "react-icons/ai";
+
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Textarea } from "@/components/ui/textarea";
+import { conversationService } from "@/services/conversationService";
+import { useConfig } from "@/hooks/useConfig";
 import { extractColorsFromUri } from "@/lib/avatar";
-import { useTranslation } from "react-i18next";
+
 import { ChatAgentSelector } from "./chatAgentSelector";
 
 // Image viewer component

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Modal, Badge, Input, App } from "antd";
 import { useTranslation } from "react-i18next";
+import { Modal, Badge, Input, App } from "antd";
 import {
   ThunderboltOutlined,
   LoadingOutlined,
@@ -13,12 +13,15 @@ import { defaultValueCtx, Editor, rootCtx } from "@milkdown/kit/core";
 import { commonmark } from "@milkdown/kit/preset/commonmark";
 import { nord } from "@milkdown/theme-nord";
 import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
-import { updateAgent } from "@/services/agentConfigService";
-import AgentConfigModal from "./agent/AgentConfigModal";
+
 import {
   SimplePromptEditorProps,
   ExpandEditModalProps,
 } from "@/types/agentConfig";
+import { updateAgent } from "@/services/agentConfigService";
+
+import AgentConfigModal from "./agent/AgentConfigModal";
+
 import "@/styles/milkdown-nord.css";
 
 export function SimplePromptEditor({

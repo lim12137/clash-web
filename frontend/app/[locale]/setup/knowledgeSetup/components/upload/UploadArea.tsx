@@ -1,13 +1,16 @@
 import React, { useState, forwardRef, useImperativeHandle, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+
 import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
 import { App } from 'antd';
-import { useTranslation } from 'react-i18next';
-import UploadAreaUI from './UploadAreaUI';
+
 import { 
   checkKnowledgeBaseName,
   fetchKnowledgeBaseInfo,
   validateFileType,
 } from '@/services/uploadService';
+
+import UploadAreaUI from './UploadAreaUI';
 
 interface UploadAreaProps {
   isDragging?: boolean;

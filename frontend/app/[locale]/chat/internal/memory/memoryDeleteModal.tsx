@@ -1,7 +1,7 @@
 import React from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { Modal } from "antd";
 import { WarningFilled } from "@ant-design/icons";
-import { useTranslation, Trans } from "react-i18next";
 
 interface MemoryDeleteModalProps {
   visible: boolean;

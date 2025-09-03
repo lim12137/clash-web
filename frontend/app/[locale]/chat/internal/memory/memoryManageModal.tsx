@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from "react-i18next";
 import {
   Modal,
   Tabs,
@@ -26,9 +26,11 @@ import {
   Check,
   X,
 } from "lucide-react";
+
+import { useAuth } from "@/hooks/useAuth";
 import { useMemory } from "@/hooks/useMemory";
+
 import MemoryDeleteModal from "./memoryDeleteModal";
-import { useTranslation } from "react-i18next";
 
 interface MemoryManageModalProps {
   visible: boolean;
