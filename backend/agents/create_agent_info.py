@@ -42,7 +42,14 @@ async def create_model_config_list(tenant_id):
                         url=sub_model_config.get("base_url", ""))]
 
 
-async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh', last_user_query: str = None):
+async def create_agent_config(
+    agent_id,
+    tenant_id,
+    user_id,
+    language: str = "zh",
+    last_user_query: str = None,
+    allow_memory_search: bool = True,
+):
     agent_info = search_agent_info_by_agent_id(
         agent_id=agent_id, tenant_id=tenant_id)
 
@@ -56,7 +63,9 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             tenant_id=tenant_id,
             user_id=user_id,
             language=language,
-            last_user_query=last_user_query)
+            last_user_query=last_user_query,
+            allow_memory_search=allow_memory_search,
+        )
         managed_agents.append(sub_agent_config)
 
     tool_list = await create_tool_config_list(agent_id, tenant_id, user_id)
@@ -80,8 +89,7 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
     # Get memory list
     memory_context = build_memory_context(user_id, tenant_id, agent_id)
     memory_list = []
-    if memory_context.user_config.memory_switch:
-        # TODO: 前端展示"回忆中..." Tag
+    if allow_memory_search and memory_context.user_config.memory_switch:
         logger.debug("Retrieving memory list...")
         memory_levels = ["tenant", "agent", "user", "user_agent"]
         if memory_context.user_config.agent_share_option == "never":
@@ -91,18 +99,20 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
         if memory_context.agent_id in memory_context.user_config.disable_user_agent_ids:
             memory_levels.remove("user_agent")
 
-        search_res = await search_memory_in_levels(
-            query_text=last_user_query if last_user_query else agent_info.get(
-                "name"),
-            memory_config=memory_context.memory_config,
-            tenant_id=memory_context.tenant_id,
-            user_id=memory_context.user_id,
-            agent_id=memory_context.agent_id,
-            memory_levels=memory_levels,
-        )
-        memory_list = search_res.get("results", [])
-        logger.debug(f"Retrieved memory list: {memory_list}")
-        # TODO: 前端展示"已抽取 xx 条回忆"
+        try:
+            search_res = await search_memory_in_levels(
+                query_text=last_user_query,
+                memory_config=memory_context.memory_config,
+                tenant_id=memory_context.tenant_id,
+                user_id=memory_context.user_id,
+                agent_id=memory_context.agent_id,
+                memory_levels=memory_levels,
+            )
+            memory_list = search_res.get("results", [])
+            logger.debug(f"Retrieved memory list: {memory_list}")
+        except Exception as e:
+            # Bubble up to streaming layer so it can emit <MEM_FAILED> and fall back
+            raise Exception(f"Failed to retrieve memory list: {e}")
 
     # Build knowledge base summary
     knowledge_base_summary = ""
@@ -298,7 +308,15 @@ def filter_mcp_servers_and_tools(input_agent_config: AgentConfig, mcp_info_dict)
     return list(used_mcp_urls)
 
 
-async def create_agent_run_info(agent_id, minio_files, query, history, authorization, language: str = 'zh'):
+async def create_agent_run_info(
+    agent_id,
+    minio_files,
+    query,
+    history,
+    authorization,
+    language: str = "zh",
+    allow_memory_search: bool = True,
+):
     user_id, tenant_id = get_current_user_id(authorization)
 
     final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
@@ -308,7 +326,8 @@ async def create_agent_run_info(agent_id, minio_files, query, history, authoriza
         tenant_id=tenant_id,
         user_id=user_id,
         language=language,
-        last_user_query=final_query
+        last_user_query=final_query,
+        allow_memory_search=allow_memory_search,
     )
 
     remote_mcp_list = await get_remote_mcp_server_list(tenant_id=tenant_id)
