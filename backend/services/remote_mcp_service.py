@@ -1,6 +1,6 @@
 import logging
 from fastmcp import Client
-from consts.exceptions import MCPConnectionError, MCPNameIllegal, MCPDatabaseError
+from consts.exceptions import MCPConnectionError, MCPNameIllegal
 
 from database.remote_mcp_db import create_mcp_record, delete_mcp_record_by_name_and_url, get_mcp_records_by_tenant, \
     check_mcp_name_exists, update_mcp_status_by_name_and_url
@@ -38,14 +38,8 @@ async def add_remote_mcp_server_list(tenant_id: str,
     insert_mcp_data = {"mcp_name": remote_mcp_server_name,
                        "mcp_server": remote_mcp_server,
                        "status": True}
-    create_result = create_mcp_record(
+    create_mcp_record(
         mcp_data=insert_mcp_data, tenant_id=tenant_id, user_id=user_id)
-
-    if not create_result:
-        logger.error(
-            f"add_remote_mcp_server_list failed, tenant_id: {tenant_id}, user_id: {user_id}, remote_mcp_server: {remote_mcp_server}, remote_mcp_server_name: {remote_mcp_server_name}")
-        raise MCPDatabaseError(
-            "Failed to add remote MCP proxy, database error")
 
 
 async def delete_remote_mcp_server_list(tenant_id: str,
@@ -53,15 +47,10 @@ async def delete_remote_mcp_server_list(tenant_id: str,
                                         remote_mcp_server: str,
                                         remote_mcp_server_name: str):
     # delete the record in the PG database
-    delete_result = delete_mcp_record_by_name_and_url(mcp_name=remote_mcp_server_name,
-                                                      mcp_server=remote_mcp_server,
-                                                      tenant_id=tenant_id,
-                                                      user_id=user_id)
-    if not delete_result:
-        logger.error(
-            f"delete_remote_mcp_server_list failed, tenant_id: {tenant_id}, user_id: {user_id}, remote_mcp_server: {remote_mcp_server}, remote_mcp_server_name: {remote_mcp_server_name}")
-        raise MCPDatabaseError(
-            "Failed to delete remote MCP server")
+    delete_mcp_record_by_name_and_url(mcp_name=remote_mcp_server_name,
+                                      mcp_server=remote_mcp_server,
+                                      tenant_id=tenant_id,
+                                      user_id=user_id)
 
 
 async def get_remote_mcp_server_list(tenant_id: str):
@@ -79,14 +68,16 @@ async def get_remote_mcp_server_list(tenant_id: str):
 
 async def check_mcp_health_and_update_db(mcp_url, service_name, tenant_id, user_id):
     # check the health of the MCP server
-    status = await mcp_server_health(remote_mcp_server=mcp_url)
+    try:
+        status = await mcp_server_health(remote_mcp_server=mcp_url)
+    except Exception:
+        status = False
     # update the status of the MCP server in the database
-    if not update_mcp_status_by_name_and_url(
+    update_mcp_status_by_name_and_url(
         mcp_name=service_name,
         mcp_server=mcp_url,
         tenant_id=tenant_id,
         user_id=user_id,
-        status=status
-    ):
-        raise MCPDatabaseError(
-            "Failed to update the status of the MCP server in the database")
+        status=status)
+    if not status:
+        raise MCPConnectionError("MCP connection failed")

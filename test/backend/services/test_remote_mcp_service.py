@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 sys.modules['boto3'] = MagicMock()
 
 # Import exception classes
-from backend.consts.exceptions import MCPConnectionError, MCPNameIllegal, MCPDatabaseError
+from backend.consts.exceptions import MCPConnectionError, MCPNameIllegal
 
 # Functions to test
 with patch('backend.database.client.MinioClient', MagicMock()):
@@ -23,7 +23,6 @@ with patch('backend.database.client.MinioClient', MagicMock()):
     import backend.services.remote_mcp_service as remote_service
     remote_service.MCPConnectionError = MCPConnectionError
     remote_service.MCPNameIllegal = MCPNameIllegal
-    remote_service.MCPDatabaseError = MCPDatabaseError
 
 class TestMcpServerHealth(unittest.IsolatedAsyncioTestCase):
     """Test mcp_server_health"""
@@ -91,7 +90,6 @@ class TestAddRemoteMcpServerList(unittest.IsolatedAsyncioTestCase):
         """Test successful MCP server addition"""
         mock_check_name.return_value = False  # Name doesn't exist
         mock_health.return_value = True  # Health check passes
-        mock_create.return_value = True  # Creation successful
         
         # Should execute successfully without exception
         await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
@@ -124,14 +122,15 @@ class TestAddRemoteMcpServerList(unittest.IsolatedAsyncioTestCase):
     @patch('backend.services.remote_mcp_service.mcp_server_health')
     @patch('backend.services.remote_mcp_service.check_mcp_name_exists')
     async def test_add_db_fail(self, mock_check_name, mock_health, mock_create):
-        """Test database operation failure"""
+        """Test database operation failure - exception should propagate from database layer"""
+        from sqlalchemy.exc import SQLAlchemyError
+        
         mock_check_name.return_value = False
         mock_health.return_value = True
-        mock_create.return_value = False
+        mock_create.side_effect = SQLAlchemyError("Database error")
         
-        with self.assertRaises(MCPDatabaseError) as context:
+        with self.assertRaises(SQLAlchemyError):
             await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
-        self.assertEqual(str(context.exception), "Failed to add remote MCP proxy, database error")
 
     @patch('backend.services.remote_mcp_service.create_mcp_record')
     @patch('backend.services.remote_mcp_service.mcp_server_health')
@@ -140,7 +139,6 @@ class TestAddRemoteMcpServerList(unittest.IsolatedAsyncioTestCase):
         """Test server name with special characters"""
         mock_check_name.return_value = False
         mock_health.return_value = True
-        mock_create.return_value = True
         
         await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'test-server_123')
         # Verify successful execution without exception
@@ -151,7 +149,6 @@ class TestDeleteRemoteMcpServerList(unittest.IsolatedAsyncioTestCase):
     @patch('backend.services.remote_mcp_service.delete_mcp_record_by_name_and_url')
     async def test_delete_success(self, mock_delete):
         """Test successful deletion"""
-        mock_delete.return_value = True
         
         # Should execute successfully without exception
         await delete_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
@@ -165,25 +162,27 @@ class TestDeleteRemoteMcpServerList(unittest.IsolatedAsyncioTestCase):
 
     @patch('backend.services.remote_mcp_service.delete_mcp_record_by_name_and_url')
     async def test_delete_fail(self, mock_delete):
-        """Test deletion failure"""
-        mock_delete.return_value = False
+        """Test deletion failure - exception should propagate from database layer"""
+        from sqlalchemy.exc import SQLAlchemyError
         
-        with self.assertRaises(MCPDatabaseError) as context:
+        mock_delete.side_effect = SQLAlchemyError("Database error")
+        
+        with self.assertRaises(SQLAlchemyError):
             await delete_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
-        self.assertEqual(str(context.exception), "Failed to delete remote MCP server")
 
     @patch('backend.services.remote_mcp_service.delete_mcp_record_by_name_and_url')
     async def test_delete_nonexistent_server(self, mock_delete):
-        """Test deletion of non-existent server"""
-        mock_delete.return_value = False
+        """Test deletion of non-existent server - exception should propagate from database layer"""
+        from sqlalchemy.exc import SQLAlchemyError
         
-        with self.assertRaises(MCPDatabaseError):
+        mock_delete.side_effect = SQLAlchemyError("Record not found")
+        
+        with self.assertRaises(SQLAlchemyError):
             await delete_remote_mcp_server_list('tid', 'uid', 'http://nonexistent', 'nonexistent')
 
     @patch('backend.services.remote_mcp_service.delete_mcp_record_by_name_and_url')
     async def test_delete_with_special_characters(self, mock_delete):
         """Test deletion of server with special characters"""
-        mock_delete.return_value = True
         
         await delete_remote_mcp_server_list('tid', 'uid', 'http://srv', 'test-server_123')
         # Verify successful execution
@@ -265,7 +264,6 @@ class TestCheckMcpHealthAndUpdateDb(unittest.IsolatedAsyncioTestCase):
     async def test_check_health_success(self, mock_health, mock_update):
         """Test successful health check and update"""
         mock_health.return_value = True
-        mock_update.return_value = True
         
         # Should execute successfully without exception
         await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
@@ -282,12 +280,13 @@ class TestCheckMcpHealthAndUpdateDb(unittest.IsolatedAsyncioTestCase):
     @patch('backend.services.remote_mcp_service.update_mcp_status_by_name_and_url')
     @patch('backend.services.remote_mcp_service.mcp_server_health')
     async def test_check_health_false(self, mock_health, mock_update):
-        """Test health check failure"""
+        """Test health check failure - should raise MCPConnectionError when status is False"""
         mock_health.return_value = False
-        mock_update.return_value = True
         
-        await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
+        with self.assertRaises(MCPConnectionError) as context:
+            await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
         
+        self.assertEqual(str(context.exception), "MCP connection failed")
         mock_update.assert_called_once_with(
             mcp_name='name',
             mcp_server='http://srv',
@@ -299,21 +298,34 @@ class TestCheckMcpHealthAndUpdateDb(unittest.IsolatedAsyncioTestCase):
     @patch('backend.services.remote_mcp_service.update_mcp_status_by_name_and_url')
     @patch('backend.services.remote_mcp_service.mcp_server_health')
     async def test_update_db_fail(self, mock_health, mock_update):
-        """Test database update failure"""
-        mock_health.return_value = True
-        mock_update.return_value = False
+        """Test database update failure - exception should propagate from database layer"""
+        from sqlalchemy.exc import SQLAlchemyError
         
-        with self.assertRaises(MCPDatabaseError) as context:
+        mock_health.return_value = True
+        mock_update.side_effect = SQLAlchemyError("Database error")
+        
+        with self.assertRaises(SQLAlchemyError):
             await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
-        self.assertEqual(str(context.exception), "Failed to update the status of the MCP server in the database")
 
+    @patch('backend.services.remote_mcp_service.update_mcp_status_by_name_and_url')
     @patch('backend.services.remote_mcp_service.mcp_server_health')
-    async def test_health_check_exception(self, mock_health):
-        """Test health check exception"""
+    async def test_health_check_exception(self, mock_health, mock_update):
+        """Test health check exception - should catch exception, set status to False, and raise MCPConnectionError"""
         mock_health.side_effect = MCPConnectionError("Connection failed")
         
-        with self.assertRaises(MCPConnectionError):
+        # Should catch the exception from mcp_server_health, set status to False, and then raise MCPConnectionError
+        with self.assertRaises(MCPConnectionError) as context:
             await check_mcp_health_and_update_db('http://srv', 'name', 'tid', 'uid')
+        
+        self.assertEqual(str(context.exception), "MCP connection failed")
+        mock_health.assert_called_once_with(remote_mcp_server='http://srv')
+        mock_update.assert_called_once_with(
+            mcp_name='name',
+            mcp_server='http://srv',
+            tenant_id='tid',
+            user_id='uid',
+            status=False  # Should be False due to exception
+        )
 
 class TestIntegrationScenarios(unittest.IsolatedAsyncioTestCase):
     """Integration test scenarios"""
@@ -328,7 +340,6 @@ class TestIntegrationScenarios(unittest.IsolatedAsyncioTestCase):
         # 1. Add server
         mock_check_name.return_value = False
         mock_health.return_value = True
-        mock_create.return_value = True
         
         # Add server - should succeed without exception
         await add_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
@@ -340,8 +351,6 @@ class TestIntegrationScenarios(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(list_result[0]["remote_mcp_server_name"], "name")
         
         # 3. Delete server
-        mock_delete.return_value = True
-        # Delete server - should succeed without exception
         await delete_remote_mcp_server_list('tid', 'uid', 'http://srv', 'name')
 
     @patch('backend.services.remote_mcp_service.check_mcp_name_exists')
