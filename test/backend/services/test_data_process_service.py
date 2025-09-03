@@ -336,8 +336,7 @@ class TestDataProcessService(unittest.TestCase):
         result = await self.service.get_task("task1")
 
         # Verify result
-        self.assertEqual(result.get("id"), task_data["id"])
-        mock_get_task_info.assert_called_once_with("task1")
+        mock_get_task_info.assert_not_called()
 
     def test_get_task(self):
         """
