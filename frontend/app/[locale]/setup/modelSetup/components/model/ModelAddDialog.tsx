@@ -185,44 +185,6 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     }
   }
 
-  const getModelList = async () => {
-    setShowModelList(true)
-    setLoadingModelList(true)
-    const modelType = form.type === "embedding" && form.isMultimodal ? 
-        "multi_embedding" as ModelType : 
-        form.type;
-    try {
-      const result = await modelService.addProviderModel({
-        provider: form.provider,
-        type: modelType,
-        apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey
-      })
-      // Ensure each model has a default max_tokens value
-      const modelsWithDefaults = result.map((model: any) => ({
-        ...model,
-        max_tokens: model.max_tokens || parseInt(form.maxTokens) || 4096
-      }))
-      setModelList(modelsWithDefaults)
-      if (!result || result.length === 0) {
-        message.error(t('model.dialog.error.noModelsFetched'))
-      }
-      const selectedModels = await getProviderSelectedModalList() || []
-      // 关键逻辑
-      if (!selectedModels.length) {
-        // 全部不选
-        setSelectedModelIds(new Set())
-      } else {
-        // 只选中 selectedModels
-        setSelectedModelIds(new Set(selectedModels.map((m: any) => m.id)))
-      }
-    } catch (error) {
-      message.error(t('model.dialog.error.addFailed', { error }))
-      console.error(t('model.dialog.error.addFailedLog'), error)
-    } finally {
-      setLoadingModelList(false)
-    }
-  }
-
   // Handle batch adding models 
   const handleBatchAddModel = async () => {
     // Only include models whose id is in selectedModelIds (i.e., switch is ON)
