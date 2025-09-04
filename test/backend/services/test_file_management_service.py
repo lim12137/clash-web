@@ -117,14 +117,19 @@ class TestUploadFilesImpl:
         mock_file = MagicMock()
         mock_file.filename = None
 
-        # Execute
-        errors, uploaded_paths, uploaded_names = await upload_files_impl(
-            destination="local", file=[mock_file])
+        with patch('backend.services.file_management_service.save_upload_file', AsyncMock(return_value=True)) as mock_save:
+            # Execute
+            errors, uploaded_paths, uploaded_names = await upload_files_impl(
+                destination="local", file=[mock_file])
 
-        # Assertions
-        assert errors == []
-        assert uploaded_paths == []
-        assert uploaded_names == []
+            # Assertions
+            assert errors == []
+            assert len(uploaded_paths) == 1
+            assert len(uploaded_names) == 1
+            assert uploaded_names[0] == ""
+            # Path ends with uploads directory
+            assert uploaded_paths[0].endswith("uploads")
+            mock_save.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_upload_files_impl_minio_success(self):
