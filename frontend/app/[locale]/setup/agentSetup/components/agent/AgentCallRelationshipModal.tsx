@@ -41,20 +41,20 @@ interface AgentCallRelationshipModalProps {
 const NODE_W = 140;
 const NODE_H = 60;
 
-/* ================== 新增/调整：统一尺寸与紧凑布局（最小改动） ================== */
-const AGENT_W = 160;                   // Agent 统一宽
-const AGENT_H = 56;                    // Agent 统一高
-const TOOL_SIZE = 86;                  // Tool 齿轮统一直径
-const TOOL_TEETH = 10;                 // 齿数（更圆润）
-const TOOL_TEETH_DEPTH_RATIO = 0.085;  // 齿深比例
+/* ================== New/Adjusted: Unified dimensions and compact layout (minimal changes) ================== */
+const AGENT_W = 160;                   // Agent unified width
+const AGENT_H = 56;                    // Agent unified height
+const TOOL_SIZE = 86;                  // Tool gear unified diameter
+const TOOL_TEETH = 10;                 // Number of teeth (more rounded)
+const TOOL_TEETH_DEPTH_RATIO = 0.085;  // Teeth depth ratio
 
-const MAX_TOOL_NAME_CHARS = 10;        // 工具名最大展示字符数
+const MAX_TOOL_NAME_CHARS = 10;        // Maximum display characters for tool names
 
-const TREE_DEPTH_FACTOR = 120;         // 更紧凑的层距
+const TREE_DEPTH_FACTOR = 120;         // More compact layer spacing
 const TREE_SEP_SIB = 1.15;
 const TREE_SEP_NON = 1.35;
 
-/* 简单且稳定的 code point 截断（兼容 emoji 基本场景） */
+/* Simple and stable code point truncation (compatible with basic emoji scenarios) */
 function truncateByCodePoints(s: string, max: number) {
   const arr = Array.from(s);
   return arr.length > max ? arr.slice(0, max).join('') + '…' : s;
@@ -103,17 +103,17 @@ const CustomNode = ({ nodeDatum }: any) => {
   const color = getNodeColor(nodeDatum.type, nodeDatum.depth);
   const icon = isAgent ? <RobotOutlined /> : <ToolOutlined />;
 
-  // 工具名按最大字符数截断（避免过长）
+  // Truncate tool names by maximum character count (avoid too long)
   const rawName: string = nodeDatum.name || '';
   const displayName: string = !isAgent
     ? truncateByCodePoints(rawName, MAX_TOOL_NAME_CHARS)
     : rawName;
 
-  // 统一字体
+  // Unified font
   const fontSize = isAgent ? '14px' : '12px';
   const fontWeight = isAgent ? '600' : '500';
 
-  // —— 尺寸统一：Agent 矩形、Tool 齿轮固定大小 ——
+  // —— Unified dimensions: Agent rectangles, Tool gears fixed size ——
   const nodeWidth  = isAgent ? AGENT_W : TOOL_SIZE;
   const nodeHeight = isAgent ? AGENT_H : TOOL_SIZE;
 
@@ -137,7 +137,7 @@ const CustomNode = ({ nodeDatum }: any) => {
         />
       );
     } else {
-      // Tool nodes use gear shape (仅外轮廓)，统一尺寸
+      // Tool nodes use gear shape (outer contour only), unified size
       const cx = nodeWidth / 2;
       const cy = nodeHeight / 2;
       const outerRadius = nodeWidth / 2 - 2;
@@ -145,7 +145,7 @@ const CustomNode = ({ nodeDatum }: any) => {
 
       const d: string[] = [];
       for (let i = 0; i < TOOL_TEETH * 2; i++) {
-        const angle = (i * Math.PI) / TOOL_TEETH; // 每半齿
+        const angle = (i * Math.PI) / TOOL_TEETH; // Each half tooth
         const r = i % 2 === 0 ? outerRadius : outerRadius - teethDepth;
         const x = cx + r * Math.cos(angle);
         const y = cy + r * Math.sin(angle);
@@ -297,11 +297,11 @@ export default function AgentCallRelationshipModal({
       if (result.success) {
         setRelationshipData(result.data)
       } else {
-        message.error(result.message || '获取调用关系失败')
+        message.error(result.message || 'Failed to fetch call relationship')
       }
     } catch (error) {
-      console.error('获取Agent调用关系失败:', error)
-      message.error('获取Agent调用关系失败，请稍后重试')
+      console.error('Failed to fetch Agent call relationship:', error)
+      message.error('Failed to fetch Agent call relationship, please try again later')
     } finally {
       setLoading(false)
     }
