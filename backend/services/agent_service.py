@@ -1,7 +1,9 @@
+import asyncio
 import json
 import logging
 import os
 from collections import deque
+import uuid
 
 from fastapi import Header, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -10,7 +12,7 @@ from agents.agent_run_manager import agent_run_manager
 from agents.create_agent_info import create_agent_run_info
 from agents.create_agent_info import create_tool_config_list
 from agents.preprocess_manager import preprocess_manager
-from consts.exceptions import AgentRunException
+from consts.exceptions import AgentRunException, MemoryPreparationException
 from consts.model import AgentInfoRequest, ExportAndImportAgentInfo, ExportAndImportDataFormat, ToolInstanceInfoRequest, \
     ToolSourceEnum, MCPInfo
 from consts.model import AgentRequest
@@ -31,7 +33,62 @@ from utils.auth_utils import get_current_user_info, get_user_language
 from utils.memory_utils import build_memory_config
 from utils.thread_utils import submit
 
-logger = logging.getLogger("agent_service")
+logger = logging.getLogger(__name__)
+
+
+# -------------------------------------------------------------
+# Internal helper functions
+# -------------------------------------------------------------
+
+
+def _resolve_user_tenant_language(
+    authorization: str,
+    http_request: Request | None = None,
+    user_id: str | None = None,
+    tenant_id: str | None = None,
+):
+    """Resolve user_id, tenant_id, language with optional overrides.
+
+    If user_id and tenant_id are provided, do not parse from authorization again.
+    """
+    if user_id is None or tenant_id is None:
+        return get_current_user_info(authorization, http_request)
+    else:
+        return user_id, tenant_id, get_user_language(http_request)
+
+
+async def _stream_agent_chunks(
+    agent_request: "AgentRequest",
+    authorization: str,
+    agent_run_info,
+    memory_ctx,
+):
+    """Yield SSE chunks from agent_run while persisting messages & cleanup.
+
+    This utility centralizes the common streaming logic used by both
+    generate_stream_with_memory and generate_stream_no_memory so that the code
+    is easier to maintain and less error-prone.
+    """
+
+    local_messages = []
+    try:
+        async for chunk in agent_run(agent_run_info, memory_ctx):
+            local_messages.append(chunk)
+            yield f"data: {chunk}\n\n"
+    except Exception as run_exc:
+        logger.error(f"Agent run error: {str(run_exc)}")
+        raise AgentRunException(f"Agent run error: {str(run_exc)}")
+    finally:
+        # Persist assistant messages for non-debug runs
+        if not agent_request.is_debug:
+            save_messages(
+                agent_request,
+                target="assistant",
+                messages=local_messages,
+                authorization=authorization,
+            )
+        # Always unregister the run to release resources
+        agent_run_manager.unregister_agent_run(agent_request.conversation_id)
 
 
 def get_enable_tool_id_by_agent_id(agent_id: int, tenant_id: str):
@@ -313,16 +370,12 @@ async def import_agent_impl(agent_info: ExportAndImportDataFormat, authorization
                         # Name doesn't exist, use original name
                         mcp_server_name = mcp_info.mcp_server_name
 
-                    result = await add_remote_mcp_server_list(
+                    await add_remote_mcp_server_list(
                         tenant_id=tenant_id,
                         user_id=user_id,
                         remote_mcp_server=mcp_info.mcp_url,
                         remote_mcp_server_name=mcp_server_name
                     )
-                    # Check if the result is a JSONResponse with error status
-                    if hasattr(result, 'status_code') and result.status_code != 200:
-                        raise Exception(
-                            f"Failed to add MCP server {mcp_server_name}: {result.body.decode() if hasattr(result, 'body') else 'Unknown error'}")
                 except Exception as e:
                     raise Exception(
                         f"Failed to add MCP server {mcp_info.mcp_server_name}: {str(e)}")
@@ -449,7 +502,6 @@ async def list_all_agent_info_impl(tenant_id: str) -> list[dict]:
 
     Args:
         tenant_id (str): tenant id
-        user_id (str): user id
 
     Raises:
         ValueError: failed to query all agent info
@@ -518,25 +570,35 @@ def insert_related_agent_impl(parent_agent_id, child_agent_id, tenant_id):
 
 
 # Helper function for run_agent_stream, used to prepare context for an agent run
-async def prepare_agent_run(agent_request: AgentRequest, http_request: Request, authorization: str, user_id: str = None,
-                            tenant_id: str = None):
+async def prepare_agent_run(
+    agent_request: AgentRequest,
+    http_request: Request,
+    authorization: str,
+    user_id: str = None,
+    tenant_id: str = None,
+    allow_memory_search: bool = True,
+):
     """
     Prepare for an agent run by creating context and run info, and registering the run.
     """
-    if user_id is None or tenant_id is None:
-        user_id, tenant_id, language = get_current_user_info(
-            authorization, http_request)
-    else:
-        language = get_user_language()
+    user_id, tenant_id, language = _resolve_user_tenant_language(
+        authorization=authorization,
+        http_request=http_request,
+        user_id=user_id,
+        tenant_id=tenant_id,
+    )
 
     memory_context = build_memory_context(
         user_id, tenant_id, agent_request.agent_id)
-    agent_run_info = await create_agent_run_info(agent_id=agent_request.agent_id,
-                                                 minio_files=agent_request.minio_files,
-                                                 query=agent_request.query,
-                                                 history=agent_request.history,
-                                                 authorization=authorization,
-                                                 language=language)
+    agent_run_info = await create_agent_run_info(
+        agent_id=agent_request.agent_id,
+        minio_files=agent_request.minio_files,
+        query=agent_request.query,
+        history=agent_request.history,
+        authorization=authorization,
+        language=language,
+        allow_memory_search=allow_memory_search,
+    )
     agent_run_manager.register_agent_run(
         agent_request.conversation_id, agent_run_info)
     return agent_run_info, memory_context
@@ -556,55 +618,180 @@ def save_messages(agent_request, target: str, messages=None, authorization=None)
                agent_request, messages, authorization)
 
 
-# Helper function for run_agent_stream, used to generate stream response
-async def generate_stream(agent_run_info, memory_context, agent_request: AgentRequest, authorization: str):
-    messages = []
+# Helper function for run_agent_stream, used to generate stream response with memory preprocess tokens
+async def generate_stream_with_memory(
+    agent_request: AgentRequest,
+    http_request: Request,
+    authorization: str,
+    user_id: str = None,
+    tenant_id: str = None,
+):
+    # Prepare preprocess task tracking (simulate preprocess flow)
+    task_id = str(uuid.uuid4())
+    conversation_id = agent_request.conversation_id
+    current_task = asyncio.current_task()
+    if current_task:
+        preprocess_manager.register_preprocess_task(
+            task_id, conversation_id, current_task
+        )
+
+    # Helper to emit memory_search token
+    def _memory_token(message_text: str) -> str:
+        payload = {
+            "type": "memory_search",
+            "content": json.dumps({"message": message_text}, ensure_ascii=False),
+        }
+        return json.dumps(payload, ensure_ascii=False)
+
+    # Placeholder messages handled by frontend for i18n
+    msg_start = "<MEM_START>"
+    msg_done = "<MEM_DONE>"
+    msg_fail = "<MEM_FAILED>"
+
+    # ------------------------------------------------------------------
+    # Note: the actual streaming happens via `_stream_agent_chunks` helper
+    # ------------------------------------------------------------------
+
+    memory_enabled = False
     try:
-        async for chunk in agent_run(agent_run_info, memory_context):
-            messages.append(chunk)
-            yield f"data: {chunk}\n\n"
+        # Decide whether to emit memory tokens based on user's memory switch
+        user_id_preview, tenant_id_preview, _ = _resolve_user_tenant_language(
+            authorization=authorization,
+            http_request=http_request,
+            user_id=user_id,
+            tenant_id=tenant_id,
+        )
+        memory_context_preview = build_memory_context(
+            user_id_preview, tenant_id_preview, agent_request.agent_id
+        )
+        memory_enabled = bool(memory_context_preview.user_config.memory_switch)
+
+        if memory_enabled:
+            # Emit start token before memory retrieval
+            yield f"data: {_memory_token(msg_start)}\n\n"
+
+        # Prepare run (will execute memory retrieval inside create_agent_run_info)
+        try:
+            agent_run_info, memory_context = await prepare_agent_run(
+                agent_request=agent_request,
+                http_request=http_request,
+                authorization=authorization,
+                user_id=user_id,
+                tenant_id=tenant_id,
+                allow_memory_search=True,
+            )
+        except Exception as prep_err:
+            # Normalize any preparation error to MemoryPreparationException
+            raise MemoryPreparationException(str(prep_err)) from prep_err
+
+        if memory_enabled:
+            # Emit completion token once memory is ready
+            yield f"data: {_memory_token(msg_done)}\n\n"
+
+        async for data_chunk in _stream_agent_chunks(
+            agent_request, authorization, agent_run_info, memory_context
+        ):
+            yield data_chunk
+
+    except MemoryPreparationException:
+        # Memory retrieval failure: emit failure token when memory is enabled, and continue without blocking
+        if memory_enabled:
+            yield f"data: {_memory_token(msg_fail)}\n\n"
+
+        try:
+            # Fallback to the no-memory streaming path, which internally handles
+            async for data_chunk in generate_stream_no_memory(
+                agent_request,
+                http_request,
+                authorization,
+                user_id=user_id,
+                tenant_id=tenant_id,
+            ):
+                yield data_chunk
+        except Exception as run_exc:
+            logger.error(f"Agent run error after memory failure: {str(run_exc)}")
+            raise AgentRunException(f"Agent run error: {str(run_exc)}")
     except Exception as e:
-        logger.error(f"Agent run error: {str(e)}")
-        raise AgentRunException(f"Agent run error: {str(e)}")
+        logger.error(f"Generate stream with memory error: {str(e)}")
+        raise AgentRunException(f"Generate stream with memory error: {str(e)}")
     finally:
-        # Save assistant message only if not in debug mode
-        if not agent_request.is_debug:
-            save_messages(agent_request, target="assistant",
-                          messages=messages, authorization=authorization)
-        # Unregister agent run instance for both debug and non-debug modes
-        agent_run_manager.unregister_agent_run(agent_request.conversation_id)
+        # Always unregister preprocess task
+        preprocess_manager.unregister_preprocess_task(task_id)
 
 
-async def run_agent_stream(agent_request: AgentRequest, http_request: Request, authorization: str, user_id: str = None,
-                           tenant_id: str = None):
-    """
-    Start an agent run and stream responses.
-    Mirrors the logic of agent_app.agent_run_api but reusable by services.
-    """
+# Helper function for run_agent_stream, used when user memory is disabled (no memory tokens)
+async def generate_stream_no_memory(
+    agent_request: AgentRequest,
+    http_request: Request,
+    authorization: str,
+    user_id: str = None,
+    tenant_id: str = None,
+):
+    """Stream agent responses without any memory preprocessing tokens or fallback logic."""
+
+    # Prepare run info respecting memory disabled (honor provided user_id/tenant_id)
     agent_run_info, memory_context = await prepare_agent_run(
         agent_request=agent_request,
         http_request=http_request,
         authorization=authorization,
         user_id=user_id,
-        tenant_id=tenant_id
+        tenant_id=tenant_id,
+        allow_memory_search=False,
     )
 
-    # Save user message only if not in debug mode
+    async for data_chunk in _stream_agent_chunks(
+        agent_request, authorization, agent_run_info, memory_context
+    ):
+        yield data_chunk
+
+
+async def run_agent_stream(
+    agent_request: AgentRequest,
+    http_request: Request,
+    authorization: str,
+    user_id: str = None,
+    tenant_id: str = None,
+):
+    """
+    Start an agent run and stream responses.
+    If user_id or tenant_id is provided, authorization will be overridden. (Useful in northbound apis)
+    """
+    # Save user message only if not in debug mode (before streaming starts)
     if not agent_request.is_debug:
-        save_messages(
+        save_messages(agent_request, target="user", authorization=authorization)
+
+    # Choose streaming strategy based on user's memory switch
+    resolved_user_id, resolved_tenant_id, _ = _resolve_user_tenant_language(
+        authorization=authorization,
+        http_request=http_request,
+        user_id=user_id,
+        tenant_id=tenant_id,
+    )
+    memory_ctx_preview = build_memory_context(
+        resolved_user_id, resolved_tenant_id, agent_request.agent_id
+    )
+
+    if memory_ctx_preview.user_config.memory_switch:
+        stream_gen = generate_stream_with_memory(
             agent_request,
-            target="user",
-            authorization=authorization
+            http_request,
+            authorization,
+            user_id=resolved_user_id,
+            tenant_id=resolved_tenant_id,
+        )
+    else:
+        stream_gen = generate_stream_no_memory(
+            agent_request,
+            http_request,
+            authorization,
+            user_id=resolved_user_id,
+            tenant_id=resolved_tenant_id,
         )
 
     return StreamingResponse(
-        generate_stream(agent_run_info, memory_context,
-                        agent_request, authorization),
+        stream_gen,
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive"
-        }
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
 
 

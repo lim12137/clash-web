@@ -1,10 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { Dropdown } from "antd";
+import { DownOutlined } from "@ant-design/icons";
+import { BrainCircuit, Globe } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BrainCircuit, Globe } from "lucide-react";
-import { DownOutlined } from "@ant-design/icons";
+import { languageOptions } from "@/lib/constants";
+import { useLanguageSwitch } from "@/lib/language";
+
+import MemoryManageModal from "../internal/memory/memoryManageModal";
 
 // Gradient definition for BrainCircuit icon
 const GradientDefs = () => (
@@ -17,12 +24,6 @@ const GradientDefs = () => (
     </defs>
   </svg>
 );
-
-import { useTranslation } from "react-i18next";
-import { Dropdown } from "antd";
-import { languageOptions } from "@/lib/constants";
-import { useLanguageSwitch } from "@/lib/language";
-import MemoryManageModal from "../internal/memory/memoryManageModal";
 
 interface ChatHeaderProps {
   title: string;

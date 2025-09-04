@@ -1,14 +1,20 @@
-"use client"
+"use client";
 
-import { ReactNode } from "react"
-import { AuthProvider as AuthContextProvider, AuthContext, useAuth } from "@/hooks/useAuth"
-import { ConfigProvider, App } from "antd"
-import { LoginModal, RegisterModal, SessionListeners } from "@/components/auth"
-import { FullScreenLoading } from "@/components/ui/loading"
+import { ReactNode } from "react";
+import { ConfigProvider, App } from "antd";
+
+import {
+  AuthProvider as AuthContextProvider,
+  AuthContext,
+  useAuth,
+} from "@/hooks/useAuth";
+
+import { LoginModal, RegisterModal, SessionListeners } from "@/components/auth";
+import { FullScreenLoading } from "@/components/ui/loading";
 
 function AppReadyWrapper({ children }: { children: ReactNode }) {
-  const { isReady } = useAuth()
-  return isReady ? <>{children}</> : <FullScreenLoading />
+  const { isReady } = useAuth();
+  return isReady ? <>{children}</> : <FullScreenLoading />;
 }
 
 /**
@@ -35,5 +41,5 @@ export function RootProvider({ children }: { children: ReactNode }) {
         </AuthContextProvider>
       </App>
     </ConfigProvider>
-  )
+  );
 }

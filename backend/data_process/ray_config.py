@@ -215,3 +215,7 @@ class RayConfig:
             include_dashboard=include_dashboard,
             dashboard_port=dashboard_port
         )
+
+
+# Create a global RayConfig instance accessible throughout the module
+ray_config = RayConfig()

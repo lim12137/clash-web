@@ -1,11 +1,14 @@
 "use client"
 
 import { createContext, useReducer, useEffect, useContext, ReactNode, useCallback, useMemo } from "react"
-import { configStore } from "@/lib/config"
+import { useTranslation } from 'react-i18next'
+
 import knowledgeBaseService from "@/services/knowledgeBaseService"
 import { userConfigService } from "@/services/userConfigService"
+
 import { KnowledgeBase } from "@/types/knowledgeBase"
-import { useTranslation } from 'react-i18next'
+
+import { configStore } from "@/lib/config"
 
 // State type definition
 interface KnowledgeBaseState {

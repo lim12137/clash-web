@@ -7,8 +7,9 @@ DUTY_SYSTEM_PROMPT: |-
   1. Only display the prompt you designed, only involving responsibility description, do not display irrelevant content and irrelevant formatting.
   2. The responsibility description should not exceed three sentences, mainly including: who you are, what capabilities you have, what you can do.
   3. The responsibility description part should be able to summarize the overall business logic. Don't be too detailed, don't show specific tool names.
+  4. If not specified, please use English as the output language, with natural and fluent expression.
   
-  ### Reference Examples:
+  ### Reference Examples: 
   Example 1:
   You are a manager responsible for coordinating and scheduling various assistants and tools to efficiently solve any complex tasks.
   You have problem decomposition and information integration capabilities, able to break down complex problems into executable subtasks and reasonably assign them to the most suitable assistants or tools.
@@ -28,6 +29,7 @@ CONSTRAINT_SYSTEM_PROMPT: |-
   ### Requirements:
   1. Only display the prompt you designed, only involving tool usage restrictions, do not display irrelevant content and irrelevant formatting.
   2. List usage restrictions starting from number 1, one by one.
+  3. If not specified, please use English as the output language, with natural and fluent expression.
 
 
 FEW_SHOTS_SYSTEM_PROMPT: |-
@@ -38,6 +40,7 @@ FEW_SHOTS_SYSTEM_PROMPT: |-
   ### Requirements:
   1. Examples must be specific content, hypothetical user questions.
   2. If the application has available assistants and tools, both calling methods should be reflected.
+  3. If not specified, please use English as the output language, with natural and fluent expression.
 
   ### Agent Execution Process:
   To solve tasks, you must plan forward through a series of steps in a loop of 'Think:', 'Code:', and 'Observe Results:' sequences:
@@ -184,7 +187,7 @@ AGENT_DISPLAY_NAME_SYSTEM_PROMPT: |-
   
   ### Requirements:
   1. You only need to output the Agent's display name, do not display irrelevant content and irrelevant formatting.
-  2. The generated agent display name language needs to be consistent with the user prompt language, represented by one word, ending with "Assistant", which can clearly indicate the Agent's responsibilities.
+  2. If not specified, please use English as the output language, represented by one word, ending with "Assistant", which can clearly indicate the Agent's responsibilities.
   3. The display name should not be too long, keeping it within 30 characters.
   
   ### Reference Examples:
@@ -220,6 +223,7 @@ AGENT_DESCRIPTION_SYSTEM_PROMPT: |-
   ### Requirements:
   1. Only display the Agent description content, do not display irrelevant content or irrelevant formatting.
   2. The Agent description should not exceed three sentences, and use second person description, mainly including: who you are, what capabilities you have, what you can do.
+  3. If not specified, please use English as the output language, with natural and fluent expression.
   
   ### Reference Examples:
   Example 1:

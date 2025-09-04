@@ -1,21 +1,22 @@
 // Tool function for processing chat streaming response
 
-import { ChatMessageType, AgentStep } from '@/types/chat';
+import { ChatMessageType, AgentStep } from "@/types/chat";
+
 import {
   deduplicateImages,
-  deduplicateSearchResults
-} from '../internal/chatHelpers';
+  deduplicateSearchResults,
+} from "../internal/chatHelpers";
 
 // function: process the user break tag
 const processUserBreakTag = (content: string, t: any): string => {
-  if (!content || typeof content !== 'string') {
+  if (!content || typeof content !== "string") {
     return content;
   }
 
   // check if the content is equal to <user_break> tag
-  if (content == '<user_break>') {
+  if (content == "<user_break>") {
     // replace the content with the corresponding natural language according to the current language environment
-    const userBreakMessage = t('chatStreamHandler.userInterrupted');
+    const userBreakMessage = t("chatStreamHandler.userInterrupted");
     return userBreakMessage;
   }
 
@@ -58,15 +59,23 @@ export const handleStreamResponse = async (
     metrics: "",
     thinking: { content: "", expanded: true },
     code: { content: "", expanded: true },
-    output: { content: "", expanded: true }
+    output: { content: "", expanded: true },
   };
 
-  let lastContentType: "model_output" | "parsing" | "execution" | "agent_new_run" | "generating_code" | "search_content" | "card" | null = null;
-  let lastModelOutputIndex = -1;  // Track the index of the last model output in currentStep.contents
+  let lastContentType:
+    | "model_output"
+    | "parsing"
+    | "execution"
+    | "agent_new_run"
+    | "generating_code"
+    | "search_content"
+    | "card"
+    | "memory_search"
+    | null = null;
+  let lastModelOutputIndex = -1; // Track the index of the last model output in currentStep.contents
   let searchResultsContent: any[] = [];
   let allSearchResults: any[] = [];
   let finalAnswer = "";
-
 
   try {
     while (true) {
@@ -91,7 +100,6 @@ export const handleStreamResponse = async (
               const messageType = jsonData.type;
               const messageContent = jsonData.content;
 
-
               // Process different types of messages
               switch (messageType) {
                 case "step_count":
@@ -100,7 +108,11 @@ export const handleStreamResponse = async (
 
                   // Create a new step - use the counter and UUID combination to generate a unique ID
                   currentStep = {
-                    id: `step-${stepIdCounter.current}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                    id: `step-${
+                      stepIdCounter.current
+                    }-${Date.now()}-${Math.random()
+                      .toString(36)
+                      .substring(2, 9)}`,
                     title: messageContent.trim(),
                     content: "",
                     expanded: true,
@@ -108,27 +120,29 @@ export const handleStreamResponse = async (
                     metrics: "",
                     thinking: { content: "", expanded: true },
                     code: { content: "", expanded: true },
-                    output: { content: "", expanded: true }
+                    output: { content: "", expanded: true },
                   };
 
                   // Reset status tracking variables
                   lastContentType = null;
                   lastModelOutputIndex = -1;
-                  
+
                   break;
-                  
+
                 case "token_count":
                   // Process token counting logic
                   currentStep.metrics = messageContent;
                   break;
-                  
+
                 case "model_output":
                   // Process main model output content
 
                   // If there's no currentStep, create one for simple responses
                   if (!currentStep) {
                     currentStep = {
-                      id: `step-simple-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      id: `step-simple-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 9)}`,
                       title: "AI Response",
                       content: "",
                       expanded: true,
@@ -136,22 +150,28 @@ export const handleStreamResponse = async (
                       metrics: "",
                       thinking: { content: "", expanded: true },
                       code: { content: "", expanded: true },
-                      output: { content: "", expanded: true }
+                      output: { content: "", expanded: true },
                     };
                   }
 
                   // If the last streaming output is model output, append
-                  if (lastContentType === "model_output" && lastModelOutputIndex >= 0) {
-                    const modelOutput = currentStep.contents[lastModelOutputIndex];
+                  if (
+                    lastContentType === "model_output" &&
+                    lastModelOutputIndex >= 0
+                  ) {
+                    const modelOutput =
+                      currentStep.contents[lastModelOutputIndex];
                     modelOutput.content = modelOutput.content + messageContent;
                   } else {
                     // Otherwise, create new model output content
                     currentStep.contents.push({
-                      id: `model-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                      id: `model-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 7)}`,
                       type: "model_output",
                       content: messageContent,
                       expanded: true,
-                      timestamp: Date.now()
+                      timestamp: Date.now(),
                     });
                     lastModelOutputIndex = currentStep.contents.length - 1;
                   }
@@ -164,7 +184,9 @@ export const handleStreamResponse = async (
                   // Merge consecutive thinking chunks; create new group only when previous subType is not "thinking"
                   if (!currentStep) {
                     currentStep = {
-                      id: `step-thinking-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      id: `step-thinking-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 9)}`,
                       title: "AI Thinking",
                       content: "",
                       expanded: true,
@@ -172,7 +194,7 @@ export const handleStreamResponse = async (
                       metrics: "",
                       thinking: { content: "", expanded: true },
                       code: { content: "", expanded: true },
-                      output: { content: "", expanded: true }
+                      output: { content: "", expanded: true },
                     };
                   }
 
@@ -180,20 +202,24 @@ export const handleStreamResponse = async (
                     lastContentType === "model_output" &&
                     lastModelOutputIndex >= 0 &&
                     currentStep.contents[lastModelOutputIndex] &&
-                    currentStep.contents[lastModelOutputIndex].subType === "thinking";
+                    currentStep.contents[lastModelOutputIndex].subType ===
+                      "thinking";
 
                   if (shouldAppendThinking) {
                     // Append to existing thinking content
-                    currentStep.contents[lastModelOutputIndex].content += messageContent;
+                    currentStep.contents[lastModelOutputIndex].content +=
+                      messageContent;
                   } else {
                     // Create a new thinking content group
                     currentStep.contents.push({
-                      id: `thinking-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                      id: `thinking-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 7)}`,
                       type: "model_output",
                       subType: "thinking",
                       content: messageContent,
                       expanded: true,
-                      timestamp: Date.now()
+                      timestamp: Date.now(),
                     });
                     lastModelOutputIndex = currentStep.contents.length - 1;
                   }
@@ -205,7 +231,9 @@ export const handleStreamResponse = async (
                   // Consecutive deep_thinking chunks should be combined until a thinking chunk arrives
                   if (!currentStep) {
                     currentStep = {
-                      id: `step-thinking-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      id: `step-thinking-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 9)}`,
                       title: "AI Thinking",
                       content: "",
                       expanded: true,
@@ -213,7 +241,7 @@ export const handleStreamResponse = async (
                       metrics: "",
                       thinking: { content: "", expanded: true },
                       code: { content: "", expanded: true },
-                      output: { content: "", expanded: true }
+                      output: { content: "", expanded: true },
                     };
                   }
 
@@ -221,33 +249,39 @@ export const handleStreamResponse = async (
                     lastContentType === "model_output" &&
                     lastModelOutputIndex >= 0 &&
                     currentStep.contents[lastModelOutputIndex] &&
-                    currentStep.contents[lastModelOutputIndex].subType === "deep_thinking";
+                    currentStep.contents[lastModelOutputIndex].subType ===
+                      "deep_thinking";
 
                   if (shouldAppendDeep) {
                     // Append to existing deep_thinking content
-                    currentStep.contents[lastModelOutputIndex].content += messageContent;
+                    currentStep.contents[lastModelOutputIndex].content +=
+                      messageContent;
                   } else {
                     // Create a new deep_thinking content group
                     currentStep.contents.push({
-                      id: `deep-thinking-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                      id: `deep-thinking-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 7)}`,
                       type: "model_output",
                       subType: "deep_thinking",
                       content: messageContent,
                       expanded: true,
-                      timestamp: Date.now()
+                      timestamp: Date.now(),
                     });
                     lastModelOutputIndex = currentStep.contents.length - 1;
                   }
 
                   lastContentType = "model_output";
                   break;
-                
+
                 case "model_output_code":
                   // Process code generation
                   // If there's no currentStep, create one
                   if (!currentStep) {
                     currentStep = {
-                      id: `step-code-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      id: `step-code-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 9)}`,
                       title: "Code Generation",
                       content: "",
                       expanded: true,
@@ -255,7 +289,7 @@ export const handleStreamResponse = async (
                       metrics: "",
                       thinking: { content: "", expanded: true },
                       code: { content: "", expanded: true },
-                      output: { content: "", expanded: true }
+                      output: { content: "", expanded: true },
                     };
                   }
 
@@ -265,19 +299,28 @@ export const handleStreamResponse = async (
                     let processedContent = messageContent;
 
                     // Check if we should append to existing content or create new
-                    const shouldAppend = lastContentType === "model_output" &&
-                                       lastModelOutputIndex >= 0 &&
-                                       currentStep.contents[lastModelOutputIndex] &&
-                                       currentStep.contents[lastModelOutputIndex].subType === "code";
+                    const shouldAppend =
+                      lastContentType === "model_output" &&
+                      lastModelOutputIndex >= 0 &&
+                      currentStep.contents[lastModelOutputIndex] &&
+                      currentStep.contents[lastModelOutputIndex].subType ===
+                        "code";
 
                     if (shouldAppend) {
-                      const modelOutput = currentStep.contents[lastModelOutputIndex];
-                      const codePrefix = t('chatStreamHandler.codePrefix');
+                      const modelOutput =
+                        currentStep.contents[lastModelOutputIndex];
+                      const codePrefix = t("chatStreamHandler.codePrefix");
 
                       // In append mode, also check for prefix in case it wasn't removed before
-                      if (modelOutput.content.includes(codePrefix) && processedContent.trim()) {
+                      if (
+                        modelOutput.content.includes(codePrefix) &&
+                        processedContent.trim()
+                      ) {
                         // Clean existing content
-                        modelOutput.content = modelOutput.content.replace(new RegExp(codePrefix + `\\s*`), "");
+                        modelOutput.content = modelOutput.content.replace(
+                          new RegExp(codePrefix + `\\s*`),
+                          ""
+                        );
                       }
 
                       // Directly append without prefix processing (prefix should have been removed when first created)
@@ -290,21 +333,25 @@ export const handleStreamResponse = async (
                     } else {
                       // Otherwise, create new code content
                       // Remove "代码：" prefix if present at the start of first content
-                      const codePrefix = t('chatStreamHandler.codePrefix');
+                      const codePrefix = t("chatStreamHandler.codePrefix");
                       if (processedContent.startsWith(codePrefix)) {
-                        processedContent = processedContent.substring(codePrefix.length);
+                        processedContent = processedContent.substring(
+                          codePrefix.length
+                        );
                       }
                       // Remove "<end" suffix if present
                       if (processedContent.endsWith("<end")) {
                         processedContent = processedContent.slice(0, -4);
                       }
                       currentStep.contents.push({
-                        id: `model-code-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                        id: `model-code-${Date.now()}-${Math.random()
+                          .toString(36)
+                          .substring(2, 7)}`,
                         type: "model_output",
                         subType: "code",
                         content: processedContent,
                         expanded: true,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
                       });
                       lastModelOutputIndex = currentStep.contents.length - 1;
                     }
@@ -317,29 +364,31 @@ export const handleStreamResponse = async (
                     if (lastContentType === "generating_code") {
                       break;
                     }
-                    
+
                     // If it does not exist, add one
                     const newGeneratingItem = {
                       id: `generating-code-${stepIdCounter.current}`,
                       type: "generating_code" as const,
-                      content: t('chatStreamHandler.callingTool'),
+                      content: t("chatStreamHandler.callingTool"),
                       expanded: true,
                       timestamp: Date.now(),
                       isLoading: true,
                     };
-                    
+
                     currentStep.contents.push(newGeneratingItem);
-                    
+
                     // Mark as code generation type
                     lastContentType = "generating_code";
                   }
                   break;
-                
+
                 case "card":
                   // If there's no currentStep, create one
                   if (!currentStep) {
                     currentStep = {
-                      id: `step-card-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      id: `step-card-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 9)}`,
                       title: "Card Content",
                       content: "",
                       expanded: true,
@@ -347,50 +396,67 @@ export const handleStreamResponse = async (
                       metrics: "",
                       thinking: { content: "", expanded: true },
                       code: { content: "", expanded: true },
-                      output: { content: "", expanded: true }
+                      output: { content: "", expanded: true },
                     };
                   }
 
                   // Process card content
                   currentStep.contents.push({
-                    id: `card-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    id: `card-${Date.now()}-${Math.random()
+                      .toString(36)
+                      .substring(2, 7)}`,
                     type: "card",
                     content: messageContent,
                     expanded: true,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
                   });
-                  
+
                   // Update the last processed content type
                   lastContentType = "card";
                   break;
-                  
+
                 case "search_content":
                   try {
                     // Parse search result content
                     const searchResults = JSON.parse(messageContent);
                     if (Array.isArray(searchResults)) {
                       // Modify mapping to match the SearchResult type at the component level
-                      const newSearchResults = searchResults.map(item => ({
-                        title: item.title || t('chatRightPanel.unknownTitle'),
+                      const newSearchResults = searchResults.map((item) => ({
+                        title: item.title || t("chatRightPanel.unknownTitle"),
                         url: item.url || "#",
-                        text: item.text || t('chatRightPanel.noContentDescription'),
+                        text:
+                          item.text || t("chatRightPanel.noContentDescription"),
                         published_date: item.published_date || "",
                         source_type: item.source_type || "",
                         filename: item.filename || "",
-                        score: typeof item.score === 'number' ? item.score : undefined,
+                        score:
+                          typeof item.score === "number"
+                            ? item.score
+                            : undefined,
                         score_details: item.score_details || {},
                         tool_sign: item.tool_sign || "",
-                        cite_index: typeof item.cite_index === 'number' ? item.cite_index : -1
+                        cite_index:
+                          typeof item.cite_index === "number"
+                            ? item.cite_index
+                            : -1,
                       }));
 
                       // Accumulate search results
-                      searchResultsContent = [...searchResultsContent, ...newSearchResults];
-                      allSearchResults = [...allSearchResults, ...newSearchResults];
-                      
+                      searchResultsContent = [
+                        ...searchResultsContent,
+                        ...newSearchResults,
+                      ];
+                      allSearchResults = [
+                        ...allSearchResults,
+                        ...newSearchResults,
+                      ];
+
                       // If there's no currentStep, create one
                       if (!currentStep) {
                         currentStep = {
-                          id: `step-search-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                          id: `step-search-${Date.now()}-${Math.random()
+                            .toString(36)
+                            .substring(2, 9)}`,
                           title: "Search Results",
                           content: "",
                           expanded: true,
@@ -398,24 +464,26 @@ export const handleStreamResponse = async (
                           metrics: "",
                           thinking: { content: "", expanded: true },
                           code: { content: "", expanded: true },
-                          output: { content: "", expanded: true }
+                          output: { content: "", expanded: true },
                         };
                       }
 
                       // Add to the current step's contents array
                       // Add as a search_content type message
                       currentStep.contents.push({
-                        id: `search-content-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                        id: `search-content-${Date.now()}-${Math.random()
+                          .toString(36)
+                          .substring(2, 7)}`,
                         type: "search_content",
                         content: messageContent, // Keep the original JSON string
                         expanded: true,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
                       });
 
                       // Update the last processed content type
                       lastContentType = "search_content";
                     }
-                    
+
                     // Update the search results of the current message
                     setMessages((prev) => {
                       const recordMessages = [...prev];
@@ -423,7 +491,6 @@ export const handleStreamResponse = async (
 
                       // Check if lastMsg exists before accessing its properties
                       if (!lastMsg) {
-                        console.warn('No last message found when processing search results');
                         return recordMessages;
                       }
 
@@ -432,7 +499,10 @@ export const handleStreamResponse = async (
                       }
 
                       // Use the public deduplication function to process search results
-                      if (searchResultsContent && searchResultsContent.length > 0) {
+                      if (
+                        searchResultsContent &&
+                        searchResultsContent.length > 0
+                      ) {
                         lastMsg.searchResults = deduplicateSearchResults(
                           lastMsg.searchResults,
                           searchResultsContent
@@ -441,11 +511,14 @@ export const handleStreamResponse = async (
 
                       return recordMessages;
                     });
-                  } catch(e) {
-                    console.error(t('chatStreamHandler.parseSearchContentFailed'), e);
+                  } catch (e) {
+                    console.error(
+                      t("chatStreamHandler.parseSearchContentFailed"),
+                      e
+                    );
                   }
                   break;
-                  
+
                 case "picture_web":
                   try {
                     // Parse the image data structure
@@ -459,7 +532,6 @@ export const handleStreamResponse = async (
 
                         // Check if lastMsg exists before accessing its properties
                         if (!lastMsg) {
-                          console.warn('No last message found when processing images');
                           return newMessages;
                         }
 
@@ -477,19 +549,22 @@ export const handleStreamResponse = async (
                       });
                     }
                   } catch (error) {
-                    console.error(t('chatStreamHandler.processImageDataFailed'), error);
+                    console.error(
+                      t("chatStreamHandler.processImageDataFailed"),
+                      error
+                    );
                   }
                   break;
-                  
+
                 case "final_answer":
                   // Accumulate final answer content and process user break tag
                   finalAnswer += processUserBreakTag(messageContent, t);
                   break;
-                
+
                 case "parse":
                   // Code display message, skip
                   break;
-                
+
                 case "tool":
                   // Only create a new execution prompt if the previous type is not executing
                   // This keeps the animation effect continuous
@@ -500,7 +575,9 @@ export const handleStreamResponse = async (
                   // If there's no currentStep, create one
                   if (!currentStep) {
                     currentStep = {
-                      id: `step-tool-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      id: `step-tool-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 9)}`,
                       title: "Tool Execution",
                       content: "",
                       expanded: true,
@@ -508,18 +585,20 @@ export const handleStreamResponse = async (
                       metrics: "",
                       thinking: { content: "", expanded: true },
                       code: { content: "", expanded: true },
-                      output: { content: "", expanded: true }
+                      output: { content: "", expanded: true },
                     };
                   }
 
                   // Add temporary content for executing code
                   currentStep.contents.push({
-                    id: `executing-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    id: `executing-${Date.now()}-${Math.random()
+                      .toString(36)
+                      .substring(2, 7)}`,
                     type: "executing",
                     content: messageContent,
                     expanded: true,
                     timestamp: Date.now(),
-                    isLoading: true
+                    isLoading: true,
                   });
 
                   // Save the original parsing content, but do not display it in the frontend
@@ -528,16 +607,18 @@ export const handleStreamResponse = async (
                   // Update the last processed content type
                   lastContentType = "execution";
                   break;
-                
+
                 case "execution_logs":
                   // Execution result message, skip
                   break;
-                  
+
                 case "agent_new_run":
                   // If there's no currentStep, create one
                   if (!currentStep) {
                     currentStep = {
-                      id: `step-agent-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      id: `step-agent-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 9)}`,
                       title: "Agent Run",
                       content: "",
                       expanded: true,
@@ -545,28 +626,61 @@ export const handleStreamResponse = async (
                       metrics: "",
                       thinking: { content: "", expanded: true },
                       code: { content: "", expanded: true },
-                      output: { content: "", expanded: true }
+                      output: { content: "", expanded: true },
                     };
                   }
-                  const content = messageContent === "<MCP_START>"
-                                    ? t('chatStreamHandler.connectingMcpServer')
-                                    : t('chatStreamHandler.thinking');
+                  const content =
+                    messageContent === "<MCP_START>"
+                      ? t("chatStreamHandler.connectingMcpServer")
+                      : t("chatStreamHandler.thinking");
                   // Add a "Thinking..." content
                   currentStep.contents.push({
-                    id: `agent-run-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    id: `agent-run-${Date.now()}-${Math.random()
+                      .toString(36)
+                      .substring(2, 7)}`,
                     type: "agent_new_run",
                     content: content,
                     expanded: true,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
                   });
                   break;
-                  
+
                 case "error":
                   // If there's no currentStep, create one
                   if (!currentStep) {
                     currentStep = {
-                      id: `step-error-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      id: `step-error-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 9)}`,
                       title: "Error",
+                      content: "",
+                      expanded: true,
+                      contents: [],
+                      metrics: "",
+                      thinking: { content: "", expanded: true },
+                      code: { content: "", expanded: true },
+                      output: { content: "", expanded: true },
+                    };
+                  }
+
+                  // Add error content to the current step's contents array
+                  currentStep.contents.push({
+                    id: `error-${Date.now()}-${Math.random()
+                      .toString(36)
+                      .substring(2, 7)}`,
+                    type: "error",
+                    content: messageContent,
+                    expanded: true,
+                    timestamp: Date.now(),
+                  });
+                  break;
+
+                case "memory_search":
+                  // If there's no currentStep, create one
+                  if (!currentStep) {
+                    currentStep = {
+                      id: `step-memory-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      title: "Memory Search",
                       content: "",
                       expanded: true,
                       contents: [],
@@ -577,14 +691,47 @@ export const handleStreamResponse = async (
                     };
                   }
 
-                  // Add error content to the current step's contents array
-                  currentStep.contents.push({
-                    id: `error-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                    type: "error",
-                    content: messageContent,
-                    expanded: true,
-                    timestamp: Date.now()
-                  });
+                  // Check if there's already a memory_search message to update
+                  const existingMemoryIndex = currentStep.contents.findIndex(item => item.type === "memory_search");
+
+                  if (existingMemoryIndex >= 0) {
+                    // Update existing memory search message
+                    currentStep.contents[existingMemoryIndex].content = messageContent;
+                    currentStep.contents[existingMemoryIndex].timestamp = Date.now();
+                  } else {
+                    // Add new memory search content to the current step's contents array
+                    let memMsg = "";
+                    try {
+                      const m = JSON.parse(messageContent);
+                      let txt = m.message || "";
+                      switch (txt) {
+                        case '<MEM_START>':
+                          m.message = t('chatStreamHandler.memoryRetrieving');
+                          break;
+                        case '<MEM_DONE>':
+                          m.message = t('chatStreamHandler.memoryRetrieved');
+                          break;
+                        case '<MEM_FAILED>':
+                          m.message = t('chatStreamHandler.memoryFailed');
+                          break;
+                        default:
+                          break;
+                      }
+                      memMsg = JSON.stringify(m);
+                    } catch (_) {
+                      memMsg = messageContent;
+                    }
+                    currentStep.contents.push({
+                      id: `memory-search-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                      type: "memory_search",
+                      content: memMsg, // translated JSON string
+                      expanded: true,
+                      timestamp: Date.now()
+                    });
+                  }
+
+                  // Update the last processed content type
+                  lastContentType = "memory_search";
                   break;
 
                 default:
@@ -603,12 +750,17 @@ export const handleStreamResponse = async (
                     if (!lastMsg.steps) lastMsg.steps = [];
 
                     // Find and update existing steps
-                    const stepIndex = lastMsg.steps.findIndex(s => s.id === currentStep?.id);
+                    const stepIndex = lastMsg.steps.findIndex(
+                      (s) => s.id === currentStep?.id
+                    );
                     if (stepIndex >= 0) {
                       lastMsg.steps[stepIndex] = currentStep;
                     } else {
                       // Only add new steps when there is content
-                      if (currentStep.contents && currentStep.contents.length > 0) {
+                      if (
+                        currentStep.contents &&
+                        currentStep.contents.length > 0
+                      ) {
                         lastMsg.steps.push(currentStep);
                       }
                     }
@@ -621,9 +773,7 @@ export const handleStreamResponse = async (
                 return newMessages;
               });
             }
-          } catch (parseError) {
-            console.warn(t('chatStreamHandler.parseSSEFailed'), parseError);
-          }
+          } catch (parseError) {}
         }
       }
     }
@@ -646,7 +796,7 @@ export const handleStreamResponse = async (
           }
         }
       } catch (error) {
-        console.error(t('chatStreamHandler.processRemainingDataFailed'), error);
+        console.error(t("chatStreamHandler.processRemainingDataFailed"), error);
       }
     }
 
@@ -687,15 +837,18 @@ export const handleStreamResponse = async (
           setTimeout(async () => {
             try {
               // Prepare conversation history
-              const history = newMessages.map(msg => ({
-                role: msg.role as 'user' | 'assistant',
-                content: msg.role === 'assistant' ? (msg.finalAnswer || msg.content || '') : (msg.content || '')
+              const history = newMessages.map((msg) => ({
+                role: msg.role as "user" | "assistant",
+                content:
+                  msg.role === "assistant"
+                    ? msg.finalAnswer || msg.content || ""
+                    : msg.content || "",
               }));
 
               // Call the generate title interface
               const title = await conversationService.generateTitle({
                 conversation_id: currentConversationId,
-                history
+                history,
               });
               // Update the title above the conversation
               if (title) {
@@ -704,7 +857,7 @@ export const handleStreamResponse = async (
               // Update the list
               await fetchConversationList();
             } catch (error) {
-              console.error(t('chatStreamHandler.generateTitleFailed'), error);
+              console.error(t("chatStreamHandler.generateTitleFailed"), error);
             }
           }, 100); // Add a delay to ensure the state has been updated
         }
@@ -715,11 +868,10 @@ export const handleStreamResponse = async (
 
     // Reset the conversation switch status
     setIsSwitchedConversation(false);
-    
   } catch (error) {
-    console.error(t('chatStreamHandler.streamResponseError'), error);
+    console.error(t("chatStreamHandler.streamResponseError"), error);
     throw error; // Pass the error back to the original function for processing
   }
-  
+
   return { finalAnswer };
-}; 
+};

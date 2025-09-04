@@ -1,16 +1,18 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Typography, Row, Col } from "antd"
-import { AppConfigSection } from './components/appConfig'
-import { ModelConfigSection, ModelConfigSectionRef } from './components/modelConfig'
 import { useTranslation } from 'react-i18next'
+import { Typography, Row, Col } from "antd"
+
 import { 
   SETUP_PAGE_CONTAINER, 
   TWO_COLUMN_LAYOUT, 
   STANDARD_CARD,
   CARD_HEADER 
 } from '@/lib/layoutConstants'
+
+import { AppConfigSection } from './components/appConfig'
+import { ModelConfigSection, ModelConfigSectionRef } from './components/modelConfig'
 
 const { Title } = Typography
 

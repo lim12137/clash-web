@@ -42,7 +42,8 @@ export default defineConfig({
               { text: 'Model Configuration', link: '/en/user-guide/model-configuration' },
               { text: 'Knowledge Base Configuration', link: '/en/user-guide/knowledge-base-configuration' },
               { text: 'Agent Configuration', link: '/en/user-guide/agent-configuration' },
-              { text: 'Chat Interface', link: '/en/user-guide/chat-interface' }
+              { text: 'Chat Interface', link: '/en/user-guide/chat-interface' },
+              { text: 'Memory Configuration', link: '/en/user-guide/memory' }
             ]
           },
           {
@@ -160,7 +161,8 @@ export default defineConfig({
               { text: '模型配置', link: '/zh/user-guide/model-configuration' },
               { text: '知识库配置', link: '/zh/user-guide/knowledge-base-configuration' },
               { text: '智能体配置', link: '/zh/user-guide/agent-configuration' },
-              { text: '对话页面', link: '/zh/user-guide/chat-interface' }
+              { text: '对话页面', link: '/zh/user-guide/chat-interface' },
+              { text: '记忆配置', link: '/zh/user-guide/memory' }
             ]
           },
           {

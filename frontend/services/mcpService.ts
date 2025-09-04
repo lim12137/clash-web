@@ -1,5 +1,6 @@
-import { API_ENDPOINTS } from './api';
 import i18n from 'i18next';
+
+import { API_ENDPOINTS } from './api';
 
 // 翻译函数
 const t = (key: string, options?: any): string => {
@@ -67,14 +68,8 @@ export const getMcpServerList = async () => {
       let errorMessage = data.message || t('mcpService.message.getServerListFailed');
       
       switch (response.status) {
-        case 400:
-          errorMessage = t('mcpService.message.getRemoteProxyFailed');
-          break;
-        case 404:
-          errorMessage = t('mcpService.message.resourceNotFound');
-          break;
         case 500:
-          errorMessage = t('mcpService.message.serverInternalError');
+          errorMessage = t('mcpService.message.getRemoteProxyFailed');
           break;
         case 503:
           errorMessage = t('mcpService.message.serviceUnavailable');
@@ -174,14 +169,8 @@ export const deleteMcpServer = async (mcpUrl: string, serviceName: string) => {
       let errorMessage = data.message || t('mcpService.message.deleteServerFailed');
       
       switch (response.status) {
-        case 400:
-          errorMessage = t('mcpService.message.deleteProxyFailed');
-          break;
-        case 404:
-          errorMessage = t('mcpService.message.serverNotFound');
-          break;
         case 500:
-          errorMessage = t('mcpService.message.serverInternalError');
+          errorMessage = t('mcpService.message.deleteProxyFailed');
           break;
         default:
           errorMessage = data.message || t('mcpService.message.deleteServerFailed');
@@ -229,14 +218,8 @@ export const getMcpTools = async (serviceName: string, mcpUrl: string) => {
       let errorMessage = data.message || t('mcpService.message.getToolsFailed');
       
       switch (response.status) {
-        case 400:
-          errorMessage = t('mcpService.message.getToolsFromServerFailed');
-          break;
-        case 404:
-          errorMessage = t('mcpService.message.serverNotFound');
-          break;
         case 500:
-          errorMessage = t('mcpService.message.serverInternalError');
+          errorMessage = t('mcpService.message.getToolsFromServerFailed');
           break;
         case 503:
           errorMessage = t('mcpService.message.cannotConnectToServer');
@@ -283,14 +266,8 @@ export const updateToolList = async () => {
       let errorMessage = data.message || t('mcpService.message.updateToolListFailed');
       
       switch (response.status) {
-        case 400:
-          errorMessage = t('mcpService.message.updateToolListBadRequest');
-          break;
-        case 404:
-          errorMessage = t('mcpService.message.resourceNotFound');
-          break;
         case 500:
-          errorMessage = t('mcpService.message.serverInternalError');
+          errorMessage = t('mcpService.message.updateToolListBadRequest');
           break;
         case 503:
           errorMessage = t('mcpService.message.serviceUnavailable');
@@ -336,10 +313,14 @@ export const checkMcpServerHealth = async (mcpUrl: string, serviceName: string) 
         message: data.message || t('mcpService.message.healthCheckSuccess')
       };
     } else {
+      let errorMessage = data.message || t('mcpService.message.healthCheckFailed');
+      if (response.status === 503) {
+        errorMessage = t('mcpService.message.cannotConnectToServer');
+      }
       return {
         success: false,
         data: null,
-        message: data.message || t('mcpService.message.healthCheckFailed')
+        message: errorMessage
       };
     }
   } catch (error) {
