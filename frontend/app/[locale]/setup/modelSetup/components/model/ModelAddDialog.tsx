@@ -8,7 +8,7 @@ import { useConfig } from '@/hooks/useConfig'
 import { getConnectivityIcon, getConnectivityColor, getConnectivityMeta, ConnectivityStatusType } from '@/lib/utils'
 import { modelService } from '@/services/modelService'
 import { ModelType, SingleModelConfig } from '@/types/config'
-
+import { useSiliconModelList } from '@/hooks/model/useSiliconModelList'
 
 const { Option } = Select
 
@@ -62,6 +62,15 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
   const [settingsModalVisible, setSettingsModalVisible] = useState(false)
   const [selectedModelForSettings, setSelectedModelForSettings] = useState<any>(null)
   const [modelMaxTokens, setModelMaxTokens] = useState("4096")
+
+  // Use the silicon model list hook
+  const { getModelList, getProviderSelectedModalList } = useSiliconModelList({
+    form,
+    setModelList,
+    setSelectedModelIds,
+    setShowModelList,
+    setLoadingModelList
+  })
 
   // Debug: log model list when it updates
   // useEffect(() => {
@@ -176,44 +185,6 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     }
   }
 
-  const getModelList = async () => {
-    setShowModelList(true)
-    setLoadingModelList(true)
-    const modelType = form.type === "embedding" && form.isMultimodal ? 
-        "multi_embedding" as ModelType : 
-        form.type;
-    try {
-      const result = await modelService.addProviderModel({
-        provider: form.provider,
-        type: modelType,
-        apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey
-      })
-      // Ensure each model has a default max_tokens value
-      const modelsWithDefaults = result.map((model: any) => ({
-        ...model,
-        max_tokens: model.max_tokens || parseInt(form.maxTokens) || 4096
-      }))
-      setModelList(modelsWithDefaults)
-      if (!result || result.length === 0) {
-        message.error(t('model.dialog.error.noModelsFetched'))
-      }
-      const selectedModels = await getProviderSelectedModalList() || []
-      // 关键逻辑
-      if (!selectedModels.length) {
-        // 全部不选
-        setSelectedModelIds(new Set())
-      } else {
-        // 只选中 selectedModels
-        setSelectedModelIds(new Set(selectedModels.map((m: any) => m.id)))
-      }
-    } catch (error) {
-      message.error(t('model.dialog.error.addFailed', { error }))
-      console.error(t('model.dialog.error.addFailedLog'), error)
-    } finally {
-      setLoadingModelList(false)
-    }
-  }
-
   // Handle batch adding models 
   const handleBatchAddModel = async () => {
     // Only include models whose id is in selectedModelIds (i.e., switch is ON)
@@ -246,17 +217,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     onClose()
   }
 
-  const getProviderSelectedModalList = async () => {
-    const modelType = form.type === "embedding" && form.isMultimodal ? 
-        "multi_embedding" as ModelType : 
-        form.type;
-    const result = await modelService.getProviderSelectedModalList({
-      provider: form.provider,
-      type: modelType,
-      api_key: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey
-    })
-    return result
-  }
+
 
   // Handle settings button click
   const handleSettingsClick = (model: any) => {
@@ -392,12 +353,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
 
   const isEmbeddingModel = form.type === "embedding"
 
-  useEffect(() => {
-    if (form.isBatchImport && modelList.length !=0) {
-      getModelList();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.type]);
+
 
   return (
     <Modal
@@ -659,17 +615,19 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
                         )}
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Tooltip title={t('model.dialog.modelList.tooltip.settings')}>
-                          <Button
-                            type="text"
-                            icon={<SettingOutlined />}
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent switch toggle
-                              handleSettingsClick(model);
-                            }}
-                          />
-                        </Tooltip>
+                        {!isEmbeddingModel && (
+                          <Tooltip title={t('model.dialog.modelList.tooltip.settings')}>
+                            <Button
+                              type="text"
+                              icon={<SettingOutlined />}
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent switch toggle
+                                handleSettingsClick(model);
+                              }}
+                            />
+                          </Tooltip>
+                        )}
                         <Switch size="small" checked={checked} onChange={toggleSelect} />
                       </div>
                     </div>
