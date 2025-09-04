@@ -1,8 +1,11 @@
+import asyncio
 import base64
+import concurrent.futures
 import io
 import logging
 import os
 import tempfile
+import threading
 import time
 import warnings
 from typing import Optional, List, Dict, Any
@@ -13,14 +16,11 @@ import torch
 from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
 
-from consts.model import BatchTaskRequest
-from data_process.utils import get_task_info, get_all_task_ids_from_redis
-import concurrent.futures
-import asyncio
-
 from consts.const import CLIP_MODEL_PATH, IMAGE_FILTER, REDIS_BACKEND_URL, REDIS_URL
+from consts.model import BatchTaskRequest
 from data_process.app import app as celery_app
 from data_process.tasks import process_and_forward
+from data_process.utils import get_task_info, get_all_task_ids_from_redis
 
 # Configure logging
 logger = logging.getLogger("data_process.service")
@@ -45,9 +45,8 @@ class DataProcessService:
 
         self._inspector = None
         self._inspector_last_time = 0
-        self._inspector_ttl = 60  # inspector缓存时间，秒
+        self._inspector_ttl = 60  # Inspector cache time in seconds
         self._inspector_lock = None
-        import threading
         self._inspector_lock = threading.Lock()
 
     def _init_redis_client(self):
@@ -180,8 +179,10 @@ class DataProcessService:
                     # Add to the set, duplicates will be handled
                     task_ids.add(task_id)
             except Exception as redis_error:
-                logger.warning(f"Failed to query Redis for stored task IDs: {str(redis_error)}")
-            logger.debug(f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
+                logger.warning(
+                    f"Failed to query Redis for stored task IDs: {str(redis_error)}")
+            logger.debug(
+                f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
             tasks = [get_task_info(task_id) for task_id in task_ids]
             all_task_infos = await asyncio.gather(*tasks, return_exceptions=True)
             for task_info in all_task_infos:

@@ -5,19 +5,18 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-
 from fastapi.responses import StreamingResponse
 
-from database.conversation_db import get_conversation_messages
-from consts.model import AgentRequest
 from consts.exceptions import (
     LimitExceededError,
     UnauthorizedError,
 )
-from services.conversation_management_service import (
-    get_conversation_list_service,
-    create_new_conversation,
-    update_conversation_title as update_conversation_title_service,
+from consts.model import AgentRequest
+from database.conversation_db import get_conversation_messages
+from database.partner_db import (
+    add_mapping_id,
+    get_external_id_by_internal,
+    get_internal_id_by_external
 )
 from services.agent_service import (
     run_agent_stream,
@@ -25,10 +24,10 @@ from services.agent_service import (
     list_all_agent_info_impl,
     get_agent_id_by_name
 )
-from database.partner_db import (
-    add_mapping_id, 
-    get_external_id_by_internal, 
-    get_internal_id_by_external
+from services.conversation_management_service import (
+    get_conversation_list_service,
+    create_new_conversation,
+    update_conversation_title as update_conversation_title_service,
 )
 
 
@@ -41,6 +40,7 @@ class NorthboundContext:
     tenant_id: str
     user_id: str
     authorization: str
+
 
 # -----------------------------
 # In-memory idempotency and rate limit placeholders
@@ -67,11 +67,13 @@ async def idempotency_start(key: str, ttl_seconds: Optional[int] = None) -> None
     async with _IDEMPOTENCY_LOCK:
         # purge expired
         now = _now_seconds()
-        expired = [k for k, v in _IDEMPOTENCY_RUNNING.items() if now - v > (ttl_seconds or _IDEMPOTENCY_TTL_SECONDS_DEFAULT)]
+        expired = [k for k, v in _IDEMPOTENCY_RUNNING.items(
+        ) if now - v > (ttl_seconds or _IDEMPOTENCY_TTL_SECONDS_DEFAULT)]
         for k in expired:
             _IDEMPOTENCY_RUNNING.pop(k, None)
         if key in _IDEMPOTENCY_RUNNING:
-            raise LimitExceededError("Duplicate request is still running, please wait.")
+            raise LimitExceededError(
+                "Duplicate request is still running, please wait.")
         _IDEMPOTENCY_RUNNING[key] = now
 
 
@@ -91,7 +93,8 @@ async def check_and_consume_rate_limit(tenant_id: str) -> None:
         state = _RATE_STATE.setdefault(tenant_id, {})
         count = state.get(bucket, 0)
         if count >= _RATE_LIMIT_PER_MINUTE:
-            raise LimitExceededError("Query rate exceeded limit. Please try again later")
+            raise LimitExceededError(
+                "Query rate exceeded limit. Please try again later")
         state[bucket] = count + 1
         # cleanup old buckets, keep only current
         for b in list(state.keys()):
@@ -120,9 +123,11 @@ def _build_idempotency_key(*parts: Any) -> str:
 async def to_external_conversation_id(internal_id: int) -> str:
     if not internal_id:
         raise Exception("invalid internal conversation id")
-    external_id = get_external_id_by_internal(internal_id=internal_id, mapping_type="CONVERSATION")
+    external_id = get_external_id_by_internal(
+        internal_id=internal_id, mapping_type="CONVERSATION")
     if not external_id:
-        logger.error(f"cannot find external id for conversation_id: {internal_id}")
+        logger.error(
+            f"cannot find external id for conversation_id: {internal_id}")
         raise Exception("cannot find external id")
     return external_id
 
@@ -130,7 +135,8 @@ async def to_external_conversation_id(internal_id: int) -> str:
 async def to_internal_conversation_id(external_id: str) -> int:
     if not external_id:
         raise Exception("invalid external conversation id")
-    internal_id = get_internal_id_by_external(external_id=external_id, mapping_type="CONVERSATION")
+    internal_id = get_internal_id_by_external(
+        external_id=external_id, mapping_type="CONVERSATION")
     return internal_id
 
 
@@ -141,7 +147,8 @@ async def get_agent_info_by_name(agent_name: str, tenant_id: str) -> int:
     try:
         return await get_agent_id_by_name(agent_name=agent_name, tenant_id=tenant_id)
     except Exception as _:
-        raise Exception(f"Failed to get agent id for agent_name: {agent_name} in tenant_id: {tenant_id}")
+        raise Exception(
+            f"Failed to get agent id for agent_name: {agent_name} in tenant_id: {tenant_id}")
 
 
 async def start_streaming_chat(
@@ -159,18 +166,22 @@ async def start_streaming_chat(
         internal_conversation_id = await to_internal_conversation_id(external_conversation_id)
         # Add mapping to postgres database
         if internal_conversation_id is None:
-            logging.info(f"Conversation {external_conversation_id} not found, creating a new conversation")
+            logging.info(
+                f"Conversation {external_conversation_id} not found, creating a new conversation")
             # Create a new conversation and get its internal ID
-            new_conversation = create_new_conversation(title="New Conversation", user_id=ctx.user_id)
+            new_conversation = create_new_conversation(
+                title="New Conversation", user_id=ctx.user_id)
             internal_conversation_id = new_conversation["conversation_id"]
             # Add the new mapping to the database
-            add_mapping_id(internal_id=internal_conversation_id, external_id=external_conversation_id, tenant_id=ctx.tenant_id, user_id=ctx.user_id)
+            add_mapping_id(internal_id=internal_conversation_id,
+                           external_id=external_conversation_id, tenant_id=ctx.tenant_id, user_id=ctx.user_id)
 
         # Get history according to internal_conversation_id
         history = await get_conversation_history(ctx, external_conversation_id)
         agent_id = await get_agent_id_by_name(agent_name=agent_name, tenant_id=ctx.tenant_id)
         # Idempotency: only prevent concurrent duplicate starts
-        composed_key = idempotency_key or _build_idempotency_key(ctx.tenant_id, external_conversation_id, agent_id, query)
+        composed_key = idempotency_key or _build_idempotency_key(
+            ctx.tenant_id, external_conversation_id, agent_id, query)
         await idempotency_start(composed_key)
         agent_request = AgentRequest(
             conversation_id=internal_conversation_id,
@@ -182,11 +193,13 @@ async def start_streaming_chat(
         )
 
     except LimitExceededError as _:
-        raise LimitExceededError("Query rate exceeded limit. Please try again later.")
+        raise LimitExceededError(
+            "Query rate exceeded limit. Please try again later.")
     except UnauthorizedError as _:
         raise UnauthorizedError("Cannot authenticate.")
     except Exception as e:
-        raise Exception(f"Failed to start streaming chat for external conversation id {external_conversation_id}: {str(e)}")
+        raise Exception(
+            f"Failed to start streaming chat for external conversation id {external_conversation_id}: {str(e)}")
 
     try:
         response = await run_agent_stream(
@@ -213,7 +226,8 @@ async def stop_chat(ctx: NorthboundContext, external_conversation_id: str) -> Di
         stop_result = stop_agent_tasks(internal_id)
         return {"message": stop_result.get("message", "success"), "data": external_conversation_id, "requestId": ctx.request_id}
     except Exception as e:
-        raise Exception(f"Failed to stop chat for external conversation id {external_conversation_id}: {str(e)}")
+        raise Exception(
+            f"Failed to stop chat for external conversation id {external_conversation_id}: {str(e)}")
 
 
 async def list_conversations(ctx: NorthboundContext) -> Dict[str, Any]:
@@ -226,7 +240,7 @@ async def list_conversations(ctx: NorthboundContext) -> Dict[str, Any]:
 
 async def get_conversation_history(ctx: NorthboundContext, external_conversation_id: str) -> Dict[str, Any]:
     internal_id = await to_internal_conversation_id(external_conversation_id)
-    
+
     history = get_conversation_messages(internal_id)
     # Remove unnecessary fields
     result = []
@@ -235,7 +249,6 @@ async def get_conversation_history(ctx: NorthboundContext, external_conversation
             "role": message["message_role"],
             "content": message["message_content"]
         })
-
 
     response = {
         "conversation_id": external_conversation_id,
@@ -253,7 +266,8 @@ async def get_agent_info_list(ctx: NorthboundContext) -> Dict[str, Any]:
             agent_info.pop("agent_id", None)
         return {"message": "success", "data": agent_info_list, "requestId": ctx.request_id}
     except Exception as e:
-        raise Exception(f"Failed to get agent info list for tenant {ctx.tenant_id}: {str(e)}")
+        raise Exception(
+            f"Failed to get agent info list for tenant {ctx.tenant_id}: {str(e)}")
 
 
 async def update_conversation_title(ctx: NorthboundContext, external_conversation_id: str, title: str, idempotency_key: Optional[str] = None) -> Dict[str, Any]:
@@ -262,7 +276,8 @@ async def update_conversation_title(ctx: NorthboundContext, external_conversatio
         internal_id = await to_internal_conversation_id(external_conversation_id)
 
         # Idempotency: avoid concurrent duplicate title update for same conversation
-        composed_key = idempotency_key or _build_idempotency_key(ctx.tenant_id, external_conversation_id, title)
+        composed_key = idempotency_key or _build_idempotency_key(
+            ctx.tenant_id, external_conversation_id, title)
         await idempotency_start(composed_key)
 
         update_conversation_title_service(internal_id, title, ctx.user_id)
@@ -273,9 +288,11 @@ async def update_conversation_title(ctx: NorthboundContext, external_conversatio
             "idempotency_key": composed_key,
         }
     except LimitExceededError as _:
-        raise LimitExceededError("Duplicate request is still running, please wait.")
+        raise LimitExceededError(
+            "Duplicate request is still running, please wait.")
     except Exception as e:
-        raise Exception(f"Failed to update conversation title for external conversation id {external_conversation_id}: {str(e)}")
+        raise Exception(
+            f"Failed to update conversation title for external conversation id {external_conversation_id}: {str(e)}")
     finally:
         if composed_key:
             asyncio.create_task(_release_idempotency_after_delay(composed_key))
