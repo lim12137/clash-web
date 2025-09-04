@@ -12,6 +12,7 @@ import {
   AgentCallRelationshipTool,
   AgentCallRelationshipModalProps,
   AgentCallRelationshipTreeNodeDatum,
+  AGENT_CALL_RELATIONSHIP_THEME_CONFIG,
 } from "@/types/agentConfig";
 
 const { Text } = Typography;
@@ -39,30 +40,9 @@ function truncateByCodePoints(s: string, max: number) {
   return arr.length > max ? arr.slice(0, max).join("") + "…" : s;
 }
 
-// Enhanced color configuration with modern palette
-const themeConfig = {
-  colors: {
-    node: {
-      main: "#1a1a2e",
-      levels: {
-        1: "#16213e",
-        2: "#0f3460",
-        3: "#533483",
-        4: "#7209b7",
-      },
-      tools: {
-        1: "#ff6b6b",
-        2: "#4ecdc4",
-        3: "#45b7d1",
-        4: "#96ceb4",
-      },
-    },
-  },
-} as const;
-
 // Get node color
 const getNodeColor = (type: string, depth: number = 0) => {
-  const { colors } = themeConfig;
+  const { colors } = AGENT_CALL_RELATIONSHIP_THEME_CONFIG;
 
   switch (type) {
     case "main":
