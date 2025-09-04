@@ -246,6 +246,17 @@ export interface AgentCallRelationshipModalProps {
   agentName: string;
 }
 
+// Agent call relationship tree node data
+export interface AgentCallRelationshipTreeNodeDatum {
+  name: string;
+  type?: string;
+  color?: string;
+  count?: string;
+  children?: AgentCallRelationshipTreeNodeDatum[];
+  depth?: number;
+  attributes?: { toolType?: string };
+}
+
 // ========== Layout and Configuration Interfaces ==========
 
 // Layout configuration interface
