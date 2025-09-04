@@ -39,10 +39,10 @@ async def upload_files_impl(destination: str, file: List[UploadFile], folder: st
     if destination == "local":
         async with upload_semaphore:
             for f in file:
-                if not f or not f.filename:
+                if not f:
                     continue
 
-                safe_filename = os.path.basename(f.filename)
+                safe_filename = os.path.basename(f.filename or "")
                 upload_path = upload_dir / safe_filename
                 absolute_path = upload_path.absolute()
 
