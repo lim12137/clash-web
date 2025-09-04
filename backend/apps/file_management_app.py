@@ -44,7 +44,8 @@ async def upload_files(
             "attachments", description="Storage folder path for MinIO (optional)")
 ):
     if not file:
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="No files in the request")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+                            detail="No files in the request")
 
     errors, uploaded_file_paths, uploaded_filenames = await upload_files_impl(destination, file, folder)
 
@@ -59,7 +60,8 @@ async def upload_files(
             }
         )
     else:
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="No valid files uploaded")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+                            detail="No valid files uploaded")
 
 
 @router.post("/process")
@@ -91,7 +93,8 @@ async def process_files(
         error_message = "Data process service failed"
         if isinstance(process_result, dict) and "message" in process_result:
             error_message = process_result["message"]
-        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=error_message)
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=error_message)
 
     return JSONResponse(
         status_code=HTTPStatus.CREATED,
@@ -180,7 +183,7 @@ async def get_storage_file(
     try:
         if download == "redirect":
             # return a redirect download URL
-            result =  await get_file_url_impl(object_name=object_name, expires=expires)
+            result = await get_file_url_impl(object_name=object_name, expires=expires)
             return RedirectResponse(url=result["url"])
         elif download == "stream":
             # return a readable file stream
@@ -251,7 +254,8 @@ async def get_storage_file_batch_urls(
     for object_name in object_names:
         try:
             # Get file URL
-            result = get_file_url_impl(object_name=object_name, expires=expires)
+            result = get_file_url_impl(
+                object_name=object_name, expires=expires)
             results.append({
                 "object_name": object_name,
                 "success": result["success"],
