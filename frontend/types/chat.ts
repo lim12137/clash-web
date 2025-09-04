@@ -6,7 +6,7 @@ export interface StepSection {
 
 export interface StepContent {
   id: string
-  type: "model_output" | "parsing" | "execution" | "error" | "agent_new_run" | "executing" | "generating_code" | "search_content" | "card" | "search_content_placeholder" | "virtual"
+  type: "model_output" | "parsing" | "execution" | "error" | "agent_new_run" | "executing" | "generating_code" | "search_content" | "card" | "search_content_placeholder" | "virtual" | "memory_search"
   content: string
   expanded: boolean
   timestamp: number

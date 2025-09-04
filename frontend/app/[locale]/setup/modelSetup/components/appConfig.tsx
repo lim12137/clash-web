@@ -1,12 +1,14 @@
 import React, { useRef, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { useTranslation } from 'react-i18next';
+
 import { Input, Radio, ColorPicker, Button, Typography, Card, Col, Row, App } from 'antd';
-import { useConfig } from '@/hooks/useConfig';
 import { PlusOutlined } from '@ant-design/icons';
 import { Pencil } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { generateAvatarUri } from '@/lib/avatar';
+
+import { useConfig } from '@/hooks/useConfig';
 import { presetIcons, colorOptions } from "@/types/avatar"
+import { generateAvatarUri } from '@/lib/avatar';
 
 import 'bootstrap-icons/font/bootstrap-icons.css';
 

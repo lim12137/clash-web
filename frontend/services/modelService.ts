@@ -1,7 +1,9 @@
 "use client"
 
-import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, ModelSource } from '../types/config'
 import { API_ENDPOINTS } from './api'
+
+import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, ModelSource } from '../types/config'
+
 import { getAuthHeaders } from '@/lib/auth'
 
 // API response type
@@ -231,7 +233,7 @@ export const modelService = {
 
   updateSingleModel: async (model: {
     model_id: string,
-    name: string,
+    displayName: string,
     url: string,
     apiKey: string,
     maxTokens?: number,
@@ -243,10 +245,10 @@ export const modelService = {
         headers: getAuthHeaders(),
         body: JSON.stringify({
           model_id: model.model_id,
-          model_name: model.name,
+          display_name: model.displayName,
           base_url: model.url,
           api_key: model.apiKey,
-          max_tokens: model.maxTokens || 0,
+          ...(model.maxTokens !== undefined ? { max_tokens: model.maxTokens } : {}),
           model_factory: model.source || "OpenAI-API-Compatible"
         })
       })
@@ -273,7 +275,7 @@ export const modelService = {
         body: JSON.stringify(models.map(m => ({
           model_id: m.model_id,
           api_key: m.apiKey,
-          max_tokens: m.maxTokens ?? 0,
+          ...(m.maxTokens !== undefined ? { max_tokens: m.maxTokens } : {}),
         })))
       })  
       const result: ApiResponse = await response.json()

@@ -1,8 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+
 import { Upload, Progress } from 'antd';
 import { InboxOutlined, WarningFilled } from '@ant-design/icons';
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
-import { useTranslation } from 'react-i18next';
+
 const { Dragger } = Upload;
 
 interface UploadAreaUIProps {

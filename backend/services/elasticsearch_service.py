@@ -32,8 +32,9 @@ from database.knowledge_db import (
     create_knowledge_record,
     delete_knowledge_record,
     get_knowledge_record,
-    update_knowledge_record,
+    update_knowledge_record, get_knowledge_info_by_tenant_id, update_model_name_by_index_name,
 )
+from services.redis_service import get_redis_service
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
 from utils.file_management_utils import get_all_files_status, get_file_size
 from utils.prompt_template_utils import get_knowledge_summary_prompt_template
@@ -110,6 +111,74 @@ elastic_core = ElasticSearchCore(
     verify_certs=False,
     ssl_show_warn=False,
 )
+
+
+def check_knowledge_base_exist_impl(index_name: str, es_core, user_id: str, tenant_id: str) -> dict:
+    """
+    Check knowledge base existence and handle orphan cases
+
+    Args:
+        index_name: Name of the index to check
+        es_core: Elasticsearch core instance
+        user_id: Current user ID
+        tenant_id: Current tenant ID
+
+    Returns:
+        dict: Status information about the knowledge base
+    """
+    # 1. Check index existence in ES and corresponding record in PG
+    es_exists = es_core.client.indices.exists(index=index_name)
+    pg_record = get_knowledge_record({"index_name": index_name})
+
+    # Case A: Orphan in ES only (exists in ES, missing in PG)
+    if es_exists and not pg_record:
+        logger.warning(
+            f"Detected orphan knowledge base '{index_name}' – present in ES, absent in PG. Deleting ES index only.")
+        try:
+            es_core.delete_index(index_name)
+            # Clean up Redis records related to this index to avoid stale tasks
+            try:
+                redis_service = get_redis_service()
+                redis_cleanup = redis_service.delete_knowledgebase_records(
+                    index_name)
+                logger.debug(
+                    f"Redis cleanup for orphan index '{index_name}': {redis_cleanup['total_deleted']} records removed")
+            except Exception as redis_error:
+                logger.warning(
+                    f"Redis cleanup failed for orphan index '{index_name}': {str(redis_error)}")
+            return {
+                "status": "error_cleaning_orphans",
+                "action": "cleaned_es"
+            }
+        except Exception as e:
+            logger.error(
+                f"Failed to delete orphan ES index '{index_name}': {str(e)}")
+            # Still return orphan status so frontend knows it requires attention
+            return {"status": "error_cleaning_orphans", "error": True}
+
+    # Case B: Orphan in PG only (missing in ES, present in PG)
+    if not es_exists and pg_record:
+        logger.warning(
+            f"Detected orphan knowledge base '{index_name}' – present in PG, absent in ES. Deleting PG record only.")
+        try:
+            delete_knowledge_record(
+                {"index_name": index_name, "user_id": user_id})
+            return {"status": "error_cleaning_orphans", "action": "cleaned_pg"}
+        except Exception as e:
+            logger.error(
+                f"Failed to delete orphan PG record for '{index_name}': {str(e)}")
+            return {"status": "error_cleaning_orphans", "error": True}
+
+    # Case C: Index/record both absent -> name is available
+    if not es_exists and not pg_record:
+        return {"status": "available"}
+
+    # Case D: Index and record both exist – check tenant ownership
+    record_tenant_id = pg_record.get('tenant_id') if pg_record else None
+    if str(record_tenant_id) == str(tenant_id):
+        return {"status": "exists_in_tenant"}
+    else:
+        return {"status": "exists_in_other_tenant"}
 
 
 def get_es_core():
@@ -267,8 +336,10 @@ class ElasticSearchService:
                 embedding_model.embedding_dim if embedding_model else 1024))
             if not success:
                 raise Exception(f"Failed to create index {index_name}")
-            knowledge_data = {'index_name': index_name,
-                              'created_by': user_id, "tenant_id": tenant_id}
+            knowledge_data = {"index_name": index_name,
+                              "created_by": user_id,
+                              "tenant_id": tenant_id,
+                              "embedding_model_name": embedding_model.model}
             create_knowledge_record(knowledge_data)
             return {"status": "success", "message": f"Index {index_name} created successfully"}
         except Exception as e:
@@ -326,17 +397,19 @@ class ElasticSearchService:
                 "*", description="Pattern to match index names"),
             include_stats: bool = Query(
                 False, description="Whether to include index stats"),
-            tenant_id: Optional[str] = Body(
-                None, description="ID of the tenant listing the knowledge base"),
+            tenant_id: str = Body(description="ID of the tenant listing the knowledge base"),
+            user_id: str = Body(description="ID of the user listing the knowledge base"),
             es_core: ElasticSearchCore = Depends(get_es_core)
     ):
         """
         List all indices that the current user has permissions to access.
+        async PG database to sync ES, remove the data that is not in ES
 
         Args:
             pattern: Pattern to match index names
             include_stats: Whether to include index stats
             tenant_id: ID of the tenant listing the knowledge base
+            user_id: ID of the user listing the knowledge base
             es_core: ElasticSearchCore instance
 
         Returns:
@@ -344,16 +417,18 @@ class ElasticSearchService:
         """
         all_indices_list = es_core.get_user_indices(pattern)
 
+        db_record = get_knowledge_info_by_tenant_id(tenant_id=tenant_id)
+
         filtered_indices_list = []
-        if tenant_id:
-            for index_name in all_indices_list:
-                # Search in the Postgres database to get the tenant_id
-                knowledge_record = get_knowledge_record(
-                    query={"index_name": index_name})
-                if knowledge_record and knowledge_record.get("tenant_id") == tenant_id:
-                    filtered_indices_list.append(index_name)
-        else:
-            filtered_indices_list = all_indices_list
+        model_name_is_none_list = []
+        for record in db_record:
+            # async PG database to sync ES, remove the data that is not in ES
+            if record["index_name"] not in all_indices_list:
+                delete_knowledge_record({"index_name": record["index_name"], "user_id": user_id})
+                continue
+            if record["embedding_model_name"] is None:
+                model_name_is_none_list.append(record["index_name"])
+            filtered_indices_list.append(record["index_name"])
 
         indices = [info.get("index") if isinstance(
             info, dict) else info for info in filtered_indices_list]
@@ -373,6 +448,10 @@ class ElasticSearchService:
                         "name": index_name,
                         "stats": index_stats
                     })
+                    if index_name in model_name_is_none_list:
+                        update_model_name_by_index_name(index_name, 
+                                                        index_stats.get("base_info", {}).get("embedding_model", ""), 
+                                                        tenant_id, user_id)
             response["indices_info"] = stats_info
 
         return response

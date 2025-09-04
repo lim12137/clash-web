@@ -27,4 +27,10 @@ Ready to get started? We recommend configuring in the following order:
 4. After that, configure **[Agent Configuration](./agent-configuration)** to create your own agent.
 5. Once everything is set, you can interact with your agent on the **[Chat Interface](./chat-interface)**.
 
+## 🧠 Advanced Features
+
+Beyond basic configuration, Nexent also provides powerful advanced features:
+
+- **[Memory Configuration](./memory)**: Learn about Nexent's four-layer memory architecture for cross-conversation knowledge accumulation and retrieval
+
 If you encounter any issues during configuration, please refer to our **[FAQ](../getting-started/faq)** or join our [Discord community](https://discord.gg/tb5H3S3wyv) for support. 

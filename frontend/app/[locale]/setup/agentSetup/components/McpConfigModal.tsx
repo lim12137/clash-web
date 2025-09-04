@@ -1,255 +1,305 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Modal, Button, Input, Table, Space, Typography, Card, Divider, Tooltip, App } from 'antd'
-import { DeleteOutlined, EyeOutlined, PlusOutlined, LoadingOutlined, ExpandAltOutlined, CompressOutlined, RedoOutlined } from '@ant-design/icons'
-import { getMcpServerList, addMcpServer, deleteMcpServer, getMcpTools, updateToolList, checkMcpServerHealth, McpServer, McpTool } from '@/services/mcpService'
-import { useTranslation } from 'react-i18next'
+import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Modal,
+  Button,
+  Input,
+  Table,
+  Space,
+  Typography,
+  Card,
+  Divider,
+  Tooltip,
+  App,
+} from "antd";
+import {
+  DeleteOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  LoadingOutlined,
+  ExpandAltOutlined,
+  CompressOutlined,
+  RedoOutlined,
+} from "@ant-design/icons";
 
-const { Text, Title } = Typography
+import { McpConfigModalProps } from "@/types/agentConfig";
+import {
+  getMcpServerList,
+  addMcpServer,
+  deleteMcpServer,
+  getMcpTools,
+  updateToolList,
+  checkMcpServerHealth,
+  McpServer,
+  McpTool,
+} from "@/services/mcpService";
 
-interface McpConfigModalProps {
-  visible: boolean
-  onCancel: () => void
-}
+const { Text, Title } = Typography;
 
-export default function McpConfigModal({ visible, onCancel }: McpConfigModalProps) {
-  const { t } = useTranslation('common')
-  const { message, modal } = App.useApp()
-  const [serverList, setServerList] = useState<McpServer[]>([])
-  const [loading, setLoading] = useState(false)
-  const [addingServer, setAddingServer] = useState(false)
-  const [newServerName, setNewServerName] = useState('')
-  const [newServerUrl, setNewServerUrl] = useState('')
-  const [toolsModalVisible, setToolsModalVisible] = useState(false)
-  const [currentServerTools, setCurrentServerTools] = useState<McpTool[]>([])
-  const [currentServerName, setCurrentServerName] = useState('')
-  const [loadingTools, setLoadingTools] = useState(false)
-  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
-  const [updatingTools, setUpdatingTools] = useState(false)
-  const [healthCheckLoading, setHealthCheckLoading] = useState<{ [key: string]: boolean }>({})
+export default function McpConfigModal({
+  visible,
+  onCancel,
+}: McpConfigModalProps) {
+  const { t } = useTranslation("common");
+  const { message, modal } = App.useApp();
+  const [serverList, setServerList] = useState<McpServer[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [addingServer, setAddingServer] = useState(false);
+  const [newServerName, setNewServerName] = useState("");
+  const [newServerUrl, setNewServerUrl] = useState("");
+  const [toolsModalVisible, setToolsModalVisible] = useState(false);
+  const [currentServerTools, setCurrentServerTools] = useState<McpTool[]>([]);
+  const [currentServerName, setCurrentServerName] = useState("");
+  const [loadingTools, setLoadingTools] = useState(false);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(
+    new Set()
+  );
+  const [updatingTools, setUpdatingTools] = useState(false);
+  const [healthCheckLoading, setHealthCheckLoading] = useState<{
+    [key: string]: boolean;
+  }>({});
 
-  // 加载MCP服务器列表
+  // Load MCP server list
   const loadServerList = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const result = await getMcpServerList()
+      const result = await getMcpServerList();
       if (result.success) {
-        setServerList(result.data)
+        setServerList(result.data);
       } else {
-        message.error(result.message)
+        message.error(result.message);
       }
     } catch (error) {
-      message.error(t('mcpConfig.message.loadServerListFailed'))
+      message.error(t("mcpConfig.message.loadServerListFailed"));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  // 添加MCP服务器
+  // Add MCP server
   const handleAddServer = async () => {
     if (!newServerName.trim() || !newServerUrl.trim()) {
-      message.error(t('mcpConfig.message.completeServerInfo'))
-      return
+      message.error(t("mcpConfig.message.completeServerInfo"));
+      return;
     }
 
-    // 验证服务器名称格式
-    const serverName = newServerName.trim()
-    const nameRegex = /^[a-zA-Z0-9]+$/
-    
+    // Validate server name format
+    const serverName = newServerName.trim();
+    const nameRegex = /^[a-zA-Z0-9]+$/;
+
     if (!nameRegex.test(serverName)) {
-      message.error(t('mcpConfig.message.invalidServerName'))
-      return
+      message.error(t("mcpConfig.message.invalidServerName"));
+      return;
     }
-    
+
     if (serverName.length > 20) {
-      message.error(t('mcpConfig.message.serverNameTooLong'))
-      return
+      message.error(t("mcpConfig.message.serverNameTooLong"));
+      return;
     }
 
-    // 检查是否已存在相同的服务器
+    // Check if server with same name already exists
     const exists = serverList.some(
-      server => server.service_name === serverName || server.mcp_url === newServerUrl.trim()
-    )
+      (server) =>
+        server.service_name === serverName ||
+        server.mcp_url === newServerUrl.trim()
+    );
     if (exists) {
-      message.error(t('mcpConfig.message.serverExists'))
-      return
+      message.error(t("mcpConfig.message.serverExists"));
+      return;
     }
 
-    setAddingServer(true)
+    setAddingServer(true);
     try {
-      const result = await addMcpServer(newServerUrl.trim(), serverName)
+      const result = await addMcpServer(newServerUrl.trim(), serverName);
       if (result.success) {
-        setNewServerName('')
-        setNewServerUrl('')
-        await loadServerList() // 重新加载列表
-        
-        // 设置工具更新状态并自动刷新工具列表
-        setUpdatingTools(true)
+        setNewServerName("");
+        setNewServerUrl("");
+        await loadServerList(); // Reload list
+
+        // Set tool update status and auto refresh tool list
+        setUpdatingTools(true);
         try {
-          const updateResult = await updateToolList()
+          const updateResult = await updateToolList();
           if (updateResult.success) {
-            // 通知父组件更新工具列表
-            window.dispatchEvent(new CustomEvent('toolsUpdated'))
+            // Notify parent component to update tool list
+            window.dispatchEvent(new CustomEvent("toolsUpdated"));
           }
         } catch (updateError) {
-          console.log(t('mcpConfig.debug.autoUpdateToolsFailed'), updateError)
-          message.warning(t('mcpConfig.message.addServerSuccessToolsFailed'))
+          message.warning(t("mcpConfig.message.addServerSuccessToolsFailed"));
         } finally {
-          setUpdatingTools(false)
+          setUpdatingTools(false);
         }
       } else {
-        message.error(result.message)
+        message.error(result.message);
       }
     } catch (error) {
-      message.error(t('mcpConfig.message.addServerFailed'))
+      message.error(t("mcpConfig.message.addServerFailed"));
     } finally {
-      setAddingServer(false)
+      setAddingServer(false);
     }
-  }
+  };
 
-  // 删除MCP服务器
+  // Delete MCP server
   const handleDeleteServer = async (server: McpServer) => {
     modal.confirm({
-      title: t('mcpConfig.delete.confirmTitle'),
-      content: t('mcpConfig.delete.confirmContent', { name: server.service_name }),
-      okType: 'danger',
+      title: t("mcpConfig.delete.confirmTitle"),
+      content: t("mcpConfig.delete.confirmContent", {
+        name: server.service_name,
+      }),
+      okType: "danger",
       cancelButtonProps: { disabled: updatingTools },
       okButtonProps: { disabled: updatingTools, loading: updatingTools },
       onOk: async () => {
         try {
-          const result = await deleteMcpServer(server.mcp_url, server.service_name)
+          const result = await deleteMcpServer(
+            server.mcp_url,
+            server.service_name
+          );
           if (result.success) {
-            await loadServerList() // 重新加载列表
-            
-            // 删除成功后立即关闭确认弹窗，然后异步更新工具列表
+            await loadServerList(); // Reload list
+
+            // After successful deletion, immediately close confirmation modal, then async update tool list
             setTimeout(async () => {
-              setUpdatingTools(true)
+              setUpdatingTools(true);
               try {
-                const updateResult = await updateToolList()
+                const updateResult = await updateToolList();
                 if (updateResult.success) {
-                  // 通知父组件更新工具列表
-                  window.dispatchEvent(new CustomEvent('toolsUpdated'))
+                  // Notify parent component to update tool list
+                  window.dispatchEvent(new CustomEvent("toolsUpdated"));
                 }
               } catch (updateError) {
-                console.log(t('mcpConfig.debug.autoUpdateToolsFailed'), updateError)
-                message.warning(t('mcpConfig.message.toolsListUpdateFailed'))
+                message.warning(t("mcpConfig.message.toolsListUpdateFailed"));
               } finally {
-                setUpdatingTools(false)
+                setUpdatingTools(false);
               }
-            }, 100) // 给确认弹窗关闭一点时间
+            }, 100); // Give confirmation modal some time to close
           } else {
-            message.error(result.message)
+            message.error(result.message);
           }
         } catch (error) {
-          message.error(t('mcpConfig.message.deleteServerFailed'))
+          message.error(t("mcpConfig.message.deleteServerFailed"));
         }
-      }
-    })
-  }
+      },
+    });
+  };
 
-  // 查看服务器工具
+  // View server tools
   const handleViewTools = async (server: McpServer) => {
-    setCurrentServerName(server.service_name)
-    setLoadingTools(true)
-    setToolsModalVisible(true)
-    setExpandedDescriptions(new Set()) // 重置展开状态
-    
+    setCurrentServerName(server.service_name);
+    setLoadingTools(true);
+    setToolsModalVisible(true);
+    setExpandedDescriptions(new Set()); // Reset expand state
+
     try {
-      const result = await getMcpTools(server.service_name, server.mcp_url)
+      const result = await getMcpTools(server.service_name, server.mcp_url);
       if (result.success) {
-        setCurrentServerTools(result.data)
+        setCurrentServerTools(result.data);
       } else {
-        message.error(result.message)
-        setCurrentServerTools([])
+        message.error(result.message);
+        setCurrentServerTools([]);
       }
     } catch (error) {
-      message.error(t('mcpConfig.message.getToolsFailed'))
-      setCurrentServerTools([])
+      message.error(t("mcpConfig.message.getToolsFailed"));
+      setCurrentServerTools([]);
     } finally {
-      setLoadingTools(false)
+      setLoadingTools(false);
     }
-  }
+  };
 
-  // 切换描述展开状态
+  // Toggle description expand state
   const toggleDescription = (toolName: string) => {
-    const newExpanded = new Set(expandedDescriptions)
+    const newExpanded = new Set(expandedDescriptions);
     if (newExpanded.has(toolName)) {
-      newExpanded.delete(toolName)
+      newExpanded.delete(toolName);
     } else {
-      newExpanded.add(toolName)
+      newExpanded.add(toolName);
     }
-    setExpandedDescriptions(newExpanded)
-  }
+    setExpandedDescriptions(newExpanded);
+  };
 
-  // 校验服务器连通性
+  // Validate server connectivity
   const handleCheckHealth = async (server: McpServer) => {
-    const key = `${server.service_name}__${server.mcp_url}`
-    message.info(t('mcpConfig.message.healthChecking', { name: server.service_name }))
-    setHealthCheckLoading((prev) => ({ ...prev, [key]: true }))
+    const key = `${server.service_name}__${server.mcp_url}`;
+    message.info(
+      t("mcpConfig.message.healthChecking", { name: server.service_name })
+    );
+    setHealthCheckLoading((prev) => ({ ...prev, [key]: true }));
     try {
-      const result = await checkMcpServerHealth(server.mcp_url, server.service_name)
+      const result = await checkMcpServerHealth(
+        server.mcp_url,
+        server.service_name
+      );
       if (result.success) {
-        message.success(t('mcpConfig.message.healthCheckSuccess'))
-        await loadServerList()
+        message.success(t("mcpConfig.message.healthCheckSuccess"));
+        await loadServerList();
       } else {
-        message.error(result.message || t('mcpConfig.message.healthCheckFailed'))
-        await loadServerList()
+        message.error(
+          result.message || t("mcpConfig.message.healthCheckFailed")
+        );
+        await loadServerList();
       }
     } catch (error) {
-      message.error(t('mcpConfig.message.healthCheckFailed'))
-      await loadServerList()
+      message.error(t("mcpConfig.message.healthCheckFailed"));
+      await loadServerList();
     } finally {
-      setHealthCheckLoading((prev) => ({ ...prev, [key]: false }))
+      setHealthCheckLoading((prev) => ({ ...prev, [key]: false }));
     }
-  }
+  };
 
-  // 服务器列表表格列定义
+  // Server list table column definitions
   const columns = [
     {
-      title: t('mcpConfig.serverList.column.name'),
-      dataIndex: 'service_name',
-      key: 'service_name',
-      width: '25%',
+      title: t("mcpConfig.serverList.column.name"),
+      dataIndex: "service_name",
+      key: "service_name",
+      width: "25%",
       ellipsis: true,
       render: (text: string, record: McpServer) => {
-        const key = `${record.service_name}__${record.mcp_url}`
+        const key = `${record.service_name}__${record.mcp_url}`;
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div
               style={{
                 width: 16,
                 height: 16,
-                borderRadius: '50%',
-                backgroundColor: record.status ? '#52c41a' : '#ff4d4f',
+                borderRadius: "50%",
+                backgroundColor: record.status ? "#52c41a" : "#ff4d4f",
                 flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '1px solid #d9d9d9',
-                boxShadow: '0 0 2px #ccc',
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "1px solid #d9d9d9",
+                boxShadow: "0 0 2px #ccc",
               }}
             >
-              {healthCheckLoading[key] ? <LoadingOutlined style={{ color: record.status ? '#52c41a' : '#ff4d4f' }} /> : null}
+              {healthCheckLoading[key] ? (
+                <LoadingOutlined
+                  style={{ color: record.status ? "#52c41a" : "#ff4d4f" }}
+                />
+              ) : null}
             </div>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+              {text}
+            </span>
           </div>
-        )
+        );
       },
     },
     {
-      title: t('mcpConfig.serverList.column.url'),
-      dataIndex: 'mcp_url',
-      key: 'mcp_url',
-      width: '40%',
+      title: t("mcpConfig.serverList.column.url"),
+      dataIndex: "mcp_url",
+      key: "mcp_url",
+      width: "40%",
       ellipsis: true,
     },
     {
-      title: t('mcpConfig.serverList.column.action'),
-      key: 'action',
-      width: '35%',
+      title: t("mcpConfig.serverList.column.action"),
+      key: "action",
+      width: "35%",
       render: (_: any, record: McpServer) => {
-        const key = `${record.service_name}__${record.mcp_url}`
+        const key = `${record.service_name}__${record.mcp_url}`;
         return (
           <Space size="small">
             <Button
@@ -260,7 +310,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
               loading={healthCheckLoading[key]}
               disabled={updatingTools}
             >
-              {t('mcpConfig.serverList.button.healthCheck')}
+              {t("mcpConfig.serverList.button.healthCheck")}
             </Button>
             {record.status ? (
               <Button
@@ -270,17 +320,20 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
                 size="small"
                 disabled={updatingTools}
               >
-                {t('mcpConfig.serverList.button.viewTools')}
+                {t("mcpConfig.serverList.button.viewTools")}
               </Button>
             ) : (
-              <Tooltip title={t('mcpConfig.serverList.button.viewToolsDisabledHint')} placement="top">
+              <Tooltip
+                title={t("mcpConfig.serverList.button.viewToolsDisabledHint")}
+                placement="top"
+              >
                 <Button
                   type="link"
                   icon={<EyeOutlined />}
                   size="small"
                   disabled
                 >
-                  {t('mcpConfig.serverList.button.viewTools')}
+                  {t("mcpConfig.serverList.button.viewTools")}
                 </Button>
               </Tooltip>
             )}
@@ -292,37 +345,37 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
               size="small"
               disabled={updatingTools}
             >
-              {t('mcpConfig.serverList.button.delete')}
+              {t("mcpConfig.serverList.button.delete")}
             </Button>
           </Space>
-        )
+        );
       },
     },
-  ]
+  ];
 
-  // 工具列表表格列定义
+  // Tool list table column definitions
   const toolColumns = [
     {
-      title: t('mcpConfig.toolsList.column.name'),
-      dataIndex: 'name',
-      key: 'name',
-      width: '30%',
+      title: t("mcpConfig.toolsList.column.name"),
+      dataIndex: "name",
+      key: "name",
+      width: "30%",
     },
     {
-      title: t('mcpConfig.toolsList.column.description'),
-      dataIndex: 'description',
-      key: 'description',
-      width: '70%',
+      title: t("mcpConfig.toolsList.column.description"),
+      dataIndex: "description",
+      key: "description",
+      width: "70%",
       render: (text: string, record: McpTool) => {
-        const isExpanded = expandedDescriptions.has(record.name)
-        const maxLength = 100 // 描述超过100字符时显示展开按钮
-        const needsExpansion = text && text.length > maxLength
-        
+        const isExpanded = expandedDescriptions.has(record.name);
+        const maxLength = 100; // Show expand button when description exceeds 100 characters
+        const needsExpansion = text && text.length > maxLength;
+
         return (
           <div>
             <div style={{ marginBottom: needsExpansion ? 8 : 0 }}>
-              {needsExpansion && !isExpanded 
-                ? `${text.substring(0, maxLength)}...` 
+              {needsExpansion && !isExpanded
+                ? `${text.substring(0, maxLength)}...`
                 : text}
             </div>
             {needsExpansion && (
@@ -331,28 +384,30 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
                 size="small"
                 icon={isExpanded ? <CompressOutlined /> : <ExpandAltOutlined />}
                 onClick={() => toggleDescription(record.name)}
-                style={{ padding: 0, height: 'auto' }}
+                style={{ padding: 0, height: "auto" }}
               >
-                {isExpanded ? t('mcpConfig.toolsList.button.collapse') : t('mcpConfig.toolsList.button.expand')}
+                {isExpanded
+                  ? t("mcpConfig.toolsList.button.collapse")
+                  : t("mcpConfig.toolsList.button.expand")}
               </Button>
             )}
           </div>
-        )
+        );
       },
     },
-  ]
+  ];
 
-  // 打开弹窗时加载数据
+  // Load data when modal opens
   useEffect(() => {
     if (visible) {
-      loadServerList()
+      loadServerList();
     }
-  }, [visible])
+  }, [visible]);
 
   return (
     <>
       <Modal
-        title={t('mcpConfig.modal.title')}
+        title={t("mcpConfig.modal.title")}
         open={visible}
         onCancel={updatingTools ? undefined : onCancel}
         width={1000}
@@ -360,36 +415,42 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
         maskClosable={!updatingTools}
         footer={[
           <Button key="cancel" onClick={onCancel} disabled={updatingTools}>
-            {updatingTools ? t('mcpConfig.modal.updatingTools') : t('mcpConfig.modal.close')}
-          </Button>
+            {updatingTools
+              ? t("mcpConfig.modal.updatingTools")
+              : t("mcpConfig.modal.close")}
+          </Button>,
         ]}
       >
-        <div style={{ padding: '0 0 16px 0' }}>
-          {/* 工具更新状态提示 */}
+        <div style={{ padding: "0 0 16px 0" }}>
+          {/* Tool update status hint */}
           {updatingTools && (
-            <div style={{ 
-              marginBottom: 16, 
-              padding: 12, 
-              backgroundColor: '#f6ffed', 
-              border: '1px solid #b7eb8f', 
-              borderRadius: 6,
-              display: 'flex',
-              alignItems: 'center'
-            }}>
-              <LoadingOutlined style={{ marginRight: 8, color: '#52c41a' }} />
-              <Text style={{ color: '#52c41a' }}>{t('mcpConfig.status.updatingToolsHint')}</Text>
+            <div
+              style={{
+                marginBottom: 16,
+                padding: 12,
+                backgroundColor: "#f6ffed",
+                border: "1px solid #b7eb8f",
+                borderRadius: 6,
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <LoadingOutlined style={{ marginRight: 8, color: "#52c41a" }} />
+              <Text style={{ color: "#52c41a" }}>
+                {t("mcpConfig.status.updatingToolsHint")}
+              </Text>
             </div>
           )}
-          {/* 添加服务器区域 */}
+          {/* Add server section */}
           <Card size="small" style={{ marginBottom: 16 }}>
-            <Title level={5} style={{ margin: '0 0 12px 0' }}>
+            <Title level={5} style={{ margin: "0 0 12px 0" }}>
               <PlusOutlined style={{ marginRight: 8 }} />
-              {t('mcpConfig.addServer.title')}
+              {t("mcpConfig.addServer.title")}
             </Title>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div style={{ display: 'flex', gap: 8 }}>
+            <Space direction="vertical" style={{ width: "100%" }}>
+              <div style={{ display: "flex", gap: 8 }}>
                 <Input
-                  placeholder={t('mcpConfig.addServer.namePlaceholder')}
+                  placeholder={t("mcpConfig.addServer.namePlaceholder")}
                   value={newServerName}
                   onChange={(e) => setNewServerName(e.target.value)}
                   style={{ flex: 1 }}
@@ -397,7 +458,7 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
                   disabled={updatingTools || addingServer}
                 />
                 <Input
-                  placeholder={t('mcpConfig.addServer.urlPlaceholder')}
+                  placeholder={t("mcpConfig.addServer.urlPlaceholder")}
                   value={newServerUrl}
                   onChange={(e) => setNewServerUrl(e.target.value)}
                   style={{ flex: 2 }}
@@ -407,22 +468,37 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
                   type="primary"
                   onClick={handleAddServer}
                   loading={addingServer || updatingTools}
-                  icon={(addingServer || updatingTools) ? <LoadingOutlined /> : <PlusOutlined />}
+                  icon={
+                    addingServer || updatingTools ? (
+                      <LoadingOutlined />
+                    ) : (
+                      <PlusOutlined />
+                    )
+                  }
                   disabled={updatingTools}
                 >
-                  {updatingTools ? t('mcpConfig.addServer.button.updating') : t('mcpConfig.addServer.button.add')}
+                  {updatingTools
+                    ? t("mcpConfig.addServer.button.updating")
+                    : t("mcpConfig.addServer.button.add")}
                 </Button>
               </div>
             </Space>
           </Card>
 
-          <Divider style={{ margin: '16px 0' }} />
+          <Divider style={{ margin: "16px 0" }} />
 
-          {/* 服务器列表 */}
+          {/* Server list */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 12,
+              }}
+            >
               <Title level={5} style={{ margin: 0 }}>
-                {t('mcpConfig.serverList.title')}
+                {t("mcpConfig.serverList.title")}
               </Title>
             </div>
             <Table
@@ -432,31 +508,31 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
               loading={loading}
               size="small"
               pagination={false}
-              locale={{ emptyText: t('mcpConfig.serverList.empty') }}
+              locale={{ emptyText: t("mcpConfig.serverList.empty") }}
               scroll={{ y: 300 }}
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
             />
           </div>
         </div>
       </Modal>
 
-      {/* 工具列表弹窗 */}
+      {/* Tool list modal */}
       <Modal
-        title={`${currentServerName} - ${t('mcpConfig.toolsList.title')}`}
+        title={`${currentServerName} - ${t("mcpConfig.toolsList.title")}`}
         open={toolsModalVisible}
         onCancel={() => setToolsModalVisible(false)}
         width={1000}
         footer={[
           <Button key="close" onClick={() => setToolsModalVisible(false)}>
-            {t('mcpConfig.modal.close')}
-          </Button>
+            {t("mcpConfig.modal.close")}
+          </Button>,
         ]}
       >
-        <div style={{ padding: '0 0 16px 0' }}>
+        <div style={{ padding: "0 0 16px 0" }}>
           {loadingTools ? (
-            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <div style={{ textAlign: "center", padding: "40px 0" }}>
               <LoadingOutlined style={{ fontSize: 24, marginRight: 8 }} />
-              <Text>{t('mcpConfig.toolsList.loading')}</Text>
+              <Text>{t("mcpConfig.toolsList.loading")}</Text>
             </div>
           ) : (
             <Table
@@ -465,13 +541,13 @@ export default function McpConfigModal({ visible, onCancel }: McpConfigModalProp
               rowKey="name"
               size="small"
               pagination={false}
-              locale={{ emptyText: t('mcpConfig.toolsList.empty') }}
+              locale={{ emptyText: t("mcpConfig.toolsList.empty") }}
               scroll={{ y: 500 }}
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
             />
           )}
         </div>
       </Modal>
     </>
-  )
+  );
 }

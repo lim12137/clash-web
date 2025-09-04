@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True)
 
 
 # Test voice file path
@@ -149,3 +149,28 @@ DEFAULT_MEMORY_AGENT_SHARE_KEY = "always"
 
 
 DEFAULT_LLM_MAX_TOKENS = 4096
+
+
+# MCP Server
+LOCAL_MCP_SERVER = os.getenv("NEXENT_MCP_SERVER")
+
+
+# Invite code
+INVITE_CODE = os.getenv("INVITE_CODE")
+
+MODEL_CONFIG_MAPPING = {
+    "llm": "LLM_ID",
+    "llmSecondary": "LLM_SECONDARY_ID",
+    "embedding": "EMBEDDING_ID",
+    "multiEmbedding": "MULTI_EMBEDDING_ID",
+    "rerank": "RERANK_ID",
+    "vlm": "VLM_ID",
+    "stt": "STT_ID",
+    "tts": "TTS_ID"
+}
+
+APP_NAME = "APP_NAME"
+APP_DESCRIPTION = "APP_DESCRIPTION"
+ICON_TYPE = "ICON_TYPE"
+AVATAR_URI = "AVATAR_URI"
+CUSTOM_ICON_URL = "CUSTOM_ICON_URL"
