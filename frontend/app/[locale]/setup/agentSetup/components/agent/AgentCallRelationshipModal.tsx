@@ -1,41 +1,20 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Modal, Spin, message, Typography } from 'antd'
-import { RobotOutlined, ToolOutlined } from '@ant-design/icons'
-import { useTranslation } from 'react-i18next'
-import { fetchAgentCallRelationship } from '@/services/agentConfigService'
-import Tree from 'react-d3-tree';
+import React, { useState, useEffect, useCallback, useRef } from "react"
+import { Modal, Spin, message, Typography } from "antd"
+import { RobotOutlined, ToolOutlined } from "@ant-design/icons"
+import { useTranslation } from "react-i18next"
+import { fetchAgentCallRelationship } from "@/services/agentConfigService"
+import Tree from "react-d3-tree"
+import {
+  AgentCallRelationship,
+  AgentCallRelationshipSubAgent,
+  AgentCallRelationshipTool,
+  AgentCallRelationshipModalProps,
+  AgentCallRelationshipTreeNodeDatum
+} from "@/types/agentConfig"
 
 const { Text } = Typography
-
-interface Tool {
-  tool_id: string
-  name: string
-  type: string
-}
-
-interface SubAgent {
-  agent_id: string
-  name: string
-  tools: Tool[]
-  sub_agents: SubAgent[]
-  depth?: number
-}
-
-interface AgentCallRelationship {
-  agent_id: string
-  name: string
-  tools: Tool[]
-  sub_agents: SubAgent[]
-}
-
-interface AgentCallRelationshipModalProps {
-  visible: boolean
-  onClose: () => void
-  agentId: number
-  agentName: string
-}
 
 /** Consistent with custom node visual dimensions (convenient for line endings at edges) */
 const NODE_W = 140;
@@ -99,19 +78,19 @@ const getNodeColor = (type: string, depth: number = 0) => {
 
 // Custom node - center aligned, unified font style
 const CustomNode = ({ nodeDatum }: any) => {
-  const isAgent = nodeDatum.type === 'main' || nodeDatum.type === 'sub';
+  const isAgent = nodeDatum.type === "main" || nodeDatum.type === "sub";
   const color = getNodeColor(nodeDatum.type, nodeDatum.depth);
   const icon = isAgent ? <RobotOutlined /> : <ToolOutlined />;
 
   // Truncate tool names by maximum character count (avoid too long)
-  const rawName: string = nodeDatum.name || '';
+  const rawName: string = nodeDatum.name || "";
   const displayName: string = !isAgent
     ? truncateByCodePoints(rawName, MAX_TOOL_NAME_CHARS)
     : rawName;
 
   // Unified font
-  const fontSize = isAgent ? '14px' : '12px';
-  const fontWeight = isAgent ? '600' : '500';
+  const fontSize = isAgent ? "14px" : "12px";
+  const fontWeight = isAgent ? "600" : "500";
 
   // —— Unified dimensions: Agent rectangles, Tool gears fixed size ——
   const nodeWidth  = isAgent ? AGENT_W : TOOL_SIZE;
@@ -131,8 +110,8 @@ const CustomNode = ({ nodeDatum }: any) => {
           stroke={`${color}80`}
           strokeWidth={1.5}
           style={{
-            transition: 'all 0.3s ease',
-            filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.12))'
+            transition: "all 0.3s ease",
+            filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.12))"
           }}
         />
       );
@@ -149,19 +128,19 @@ const CustomNode = ({ nodeDatum }: any) => {
         const r = i % 2 === 0 ? outerRadius : outerRadius - teethDepth;
         const x = cx + r * Math.cos(angle);
         const y = cy + r * Math.sin(angle);
-        d.push(`${i === 0 ? 'M' : 'L'} ${x} ${y}`);
+        d.push(`${i === 0 ? "M" : "L"} ${x} ${y}`);
       }
-      d.push('Z');
+      d.push("Z");
 
       return (
         <path
-          d={d.join(' ')}
+          d={d.join(" ")}
           fill={color}
           stroke={`${color}80`}
           strokeWidth={1.5}
           style={{
-            transition: 'all 0.3s ease',
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.10))'
+            transition: "all 0.3s ease",
+            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.10))"
           }}
         />
       );
@@ -177,45 +156,45 @@ const CustomNode = ({ nodeDatum }: any) => {
         y={0}
         width={nodeWidth}
         height={nodeHeight}
-        style={{ overflow: 'hidden', borderRadius: isAgent ? 14 : nodeWidth / 2 }}
+        style={{ overflow: "hidden", borderRadius: isAgent ? 14 : nodeWidth / 2 }}
       >
         <div
           style={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            padding: isAgent ? '0 16px' : '0 12px',
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
+            padding: isAgent ? "0 16px" : "0 12px",
             fontSize,
-            color: isAgent ? '#ffffff' : '#1e293b',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            color: isAgent ? "#ffffff" : "#1e293b",
+            fontFamily: "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
             fontWeight,
-            textAlign: 'center',
+            textAlign: "center",
             lineHeight: 1,
-            userSelect: 'none',
-            letterSpacing: '0.02em',
-            whiteSpace: 'nowrap',
+            userSelect: "none",
+            letterSpacing: "0.02em",
+            whiteSpace: "nowrap",
           }}
         >
           <span style={{
-            display: 'inline-flex',
-            width: isAgent ? '18px' : '16px',
-            height: isAgent ? '18px' : '16px',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transform: 'translateY(-0.5px)',
-            flex: '0 0 auto'
+            display: "inline-flex",
+            width: isAgent ? "18px" : "16px",
+            height: isAgent ? "18px" : "16px",
+            alignItems: "center",
+            justifyContent: "center",
+            transform: "translateY(-0.5px)",
+            flex: "0 0 auto"
           }}>
             {icon}
           </span>
           <span
             style={{
-              display: 'inline-block',
-              maxWidth: '100%',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              display: "inline-block",
+              maxWidth: "100%",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
             title={rawName}
           >
@@ -249,18 +228,7 @@ const customPathFunc = (linkData: any, orientation: 'vertical' | 'horizontal') =
   return `M ${srcX} ${srcY} L ${srcX} ${midY} L ${tgtX} ${midY} L ${tgtX} ${tgtY}`;
 };
 
-// Type definition
-interface TreeNodeDatum {
-  name: string;
-  type?: string;
-  color?: string;
-  count?: string;
-  children?: TreeNodeDatum[];
-  depth?: number;
-  attributes?: { toolType?: string };
-}
-
-declare module 'react-d3-tree';
+declare module "react-d3-tree"
 
 export default function AgentCallRelationshipModal({
   visible,
@@ -297,18 +265,18 @@ export default function AgentCallRelationshipModal({
       if (result.success) {
         setRelationshipData(result.data)
       } else {
-        message.error(result.message || 'Failed to fetch call relationship')
+        message.error(result.message || "Failed to fetch call relationship")
       }
     } catch (error) {
-      console.error('Failed to fetch Agent call relationship:', error)
-      message.error('Failed to fetch Agent call relationship, please try again later')
+      console.error("Failed to fetch Agent call relationship:", error)
+      message.error("Failed to fetch Agent call relationship, please try again later")
     } finally {
       setLoading(false)
     }
   }
 
   // Generate tree data (using recursive method)
-  const generateTreeData = useCallback((data: AgentCallRelationship): TreeNodeDatum => {
+  const generateTreeData = useCallback((data: AgentCallRelationship): AgentCallRelationshipTreeNodeDatum => {
     const centerX = 600;
     const startY = 50;
     const levelHeight = 160;
@@ -316,17 +284,17 @@ export default function AgentCallRelationshipModal({
     const toolSpacing = 160;
 
     // Recursively generate child nodes
-    const generateSubNodes = (subAgents: SubAgent[], depth: number, parentX: number, parentY: number): TreeNodeDatum[] => {
+    const generateSubNodes = (subAgents: AgentCallRelationshipSubAgent[], depth: number, parentX: number, parentY: number): AgentCallRelationshipTreeNodeDatum[] => {
 
       return subAgents.map((subAgent, index) => {
         const x = parentX + (index - (subAgents.length - 1) / 2) * agentSpacing;
         const y = parentY + levelHeight;
 
-        const subAgentNode: TreeNodeDatum = {
+        const subAgentNode: AgentCallRelationshipTreeNodeDatum = {
           name: subAgent.name,
-          type: 'sub',
+          type: "sub",
           depth: subAgent.depth || depth,
-          color: getNodeColor('sub', subAgent.depth || depth),
+          color: getNodeColor("sub", subAgent.depth || depth),
           children: []
         };
 
@@ -343,9 +311,9 @@ export default function AgentCallRelationshipModal({
 
             subAgentNode.children!.push({
               name: tool.name,
-              type: 'tool',
+              type: "tool",
               depth: (subAgent.depth || depth) + 1,
-              color: getNodeColor('tool', (subAgent.depth || depth) + 1),
+              color: getNodeColor("tool", (subAgent.depth || depth) + 1),
               attributes: { toolType: tool.type },
               children: []
             });
@@ -362,11 +330,11 @@ export default function AgentCallRelationshipModal({
       });
     };
 
-    const treeData: TreeNodeDatum = {
+    const treeData: AgentCallRelationshipTreeNodeDatum = {
       name: data.name,
-      type: 'main',
+      type: "main",
       depth: 0,
-      color: getNodeColor('main', 0),
+      color: getNodeColor("main", 0),
       children: []
     };
 
@@ -383,9 +351,9 @@ export default function AgentCallRelationshipModal({
 
         treeData.children!.push({
           name: tool.name,
-          type: 'tool',
+          type: "tool",
           depth: 1,
-          color: getNodeColor('tool', 1),
+          color: getNodeColor("tool", 1),
           attributes: { toolType: tool.type },
           children: []
         });
@@ -405,9 +373,9 @@ export default function AgentCallRelationshipModal({
     <>
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>{t('agentCallRelationship.title')}</span>
-            <Text type="secondary" style={{ fontSize: '14px', fontWeight: 'normal' }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>{t("agentCallRelationship.title")}</span>
+            <Text type="secondary" style={{ fontSize: "14px", fontWeight: "normal" }}>
               {agentName}
             </Text>
           </div>
@@ -421,43 +389,43 @@ export default function AgentCallRelationshipModal({
         style={{ top: 20 }}
       >
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
+          <div style={{ textAlign: "center", padding: "40px" }}>
             <Spin size="large" />
-            <div style={{ marginTop: '16px' }}>
-              <Text type="secondary">{t('agentCallRelationship.loading')}</Text>
+            <div style={{ marginTop: "16px" }}>
+              <Text type="secondary">{t("agentCallRelationship.loading")}</Text>
             </div>
           </div>
         ) : relationshipData ? (
           <div>
-            <div style={{ marginBottom: '16px' }}>
+            <div style={{ marginBottom: "16px" }}>
               <Text type="secondary">
-                {t('agentCallRelationship.description', { name: relationshipData.name })}
+                {t("agentCallRelationship.description", { name: relationshipData.name })}
               </Text>
             </div>
             <div
               ref={treeWrapRef}
               style={{
-                height: '820px',
-                width: '100%',
-                background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%)',
+                height: "820px",
+                width: "100%",
+                background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%)",
                 borderRadius: 20,
-                overflow: 'hidden',
+                overflow: "hidden",
                 padding: 0,
-                boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 8px 25px rgba(0,0,0,0.1)',
-                position: 'relative'
+                boxShadow: "0 20px 60px rgba(0,0,0,0.15), 0 8px 25px rgba(0,0,0,0.1)",
+                position: "relative"
               }}
             >
               <Tree
                 data={generateTreeData(relationshipData)}
                 orientation="vertical"
                 /** Custom path: lines end at node edges, no longer insert into interior */
-                pathFunc={(linkData: any) => customPathFunc(linkData, 'vertical')}
+                pathFunc={(linkData: any) => customPathFunc(linkData, "vertical")}
                 translate={translate}
                 renderCustomNodeElement={CustomNode}
                 depthFactor={TREE_DEPTH_FACTOR}
                 separation={{ siblings: TREE_SEP_SIB, nonSiblings: TREE_SEP_NON }}
                 nodeSize={{ x: NODE_W, y: NODE_H }}
-                pathClassFunc={() => 'connection'}
+                pathClassFunc={() => "connection"}
                 zoomable={true}
                 scaleExtent={{ min: 0.8, max: 1.4 }}
                 collapsible={false}
@@ -468,8 +436,8 @@ export default function AgentCallRelationshipModal({
             </div>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <Text type="secondary">{t('agentCallRelationship.noData')}</Text>
+          <div style={{ textAlign: "center", padding: "40px" }}>
+            <Text type="secondary">{t("agentCallRelationship.noData")}</Text>
           </div>
         )}
       </Modal>
