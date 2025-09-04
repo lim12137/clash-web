@@ -91,7 +91,7 @@ services:
     container_name: supabase-db-mini
     image: ${SUPABASE_DB}
     restart: unless-stopped
-    # 暴露数据库端口，以便直连管理
+    # Expose the database port for direct connection management
     ports:
       - ${SUPABASE_POSTGRES_PORT}:${SUPABASE_POSTGRES_PORT}
     volumes:
