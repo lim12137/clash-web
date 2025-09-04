@@ -246,6 +246,17 @@ export interface AgentCallRelationshipModalProps {
   agentName: string;
 }
 
+// Agent call relationship tree node data
+export interface AgentCallRelationshipTreeNodeDatum {
+  name: string;
+  type?: string;
+  color?: string;
+  count?: string;
+  children?: AgentCallRelationshipTreeNodeDatum[];
+  depth?: number;
+  attributes?: { toolType?: string };
+}
+
 // ========== Layout and Configuration Interfaces ==========
 
 // Layout configuration interface
@@ -270,21 +281,21 @@ export interface AgentRefreshEvent extends CustomEvent {
 // ========== Constants ==========
 
 // Agent call relationship graph theme/colors
-export const AGENT_CALL_RELATIONSHIP_THEME = {
+export const AGENT_CALL_RELATIONSHIP_THEME_CONFIG = {
   colors: {
     node: {
-      main: "#2c3e50",
+      main: "#1a1a2e",
       levels: {
-        1: "#3498db",
-        2: "#9b59b6",
-        3: "#e74c3c",
-        4: "#f39c12",
+        1: "#16213e",
+        2: "#0f3460",
+        3: "#533483",
+        4: "#7209b7",
       },
       tools: {
-        1: "#e67e22",
-        2: "#1abc9c",
-        3: "#34495e",
-        4: "#f1c40f",
+        1: "#ff6b6b",
+        2: "#4ecdc4",
+        3: "#45b7d1",
+        4: "#96ceb4",
       },
     },
   },
