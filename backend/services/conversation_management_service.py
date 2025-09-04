@@ -69,8 +69,7 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
         # Validate conversation_id
         conversation_id = message_data.get('conversation_id')
         if not conversation_id:
-            raise Exception(
-                "conversation_id is required, please call /conversation/create to create a conversation first")
+            raise Exception("conversation_id is required, please call /conversation/create to create a conversation first")
 
         # Process different types of message units
         message_units = message_data['message']
@@ -303,8 +302,7 @@ def update_conversation_title(conversation_id: int, title: str, user_id: str = N
     """
     success = rename_conversation(conversation_id, title, user_id)
     if not success:
-        raise Exception(
-            f"Conversation {conversation_id} does not exist or has been deleted")
+        raise Exception(f"Conversation {conversation_id} does not exist or has been deleted")
     return success
 
 
@@ -357,8 +355,7 @@ def rename_conversation_service(conversation_id: int, name: str, user_id: str) -
     try:
         success = rename_conversation(conversation_id, name, user_id)
         if not success:
-            raise Exception(
-                f"Conversation {conversation_id} does not exist or has been deleted")
+            raise Exception(f"Conversation {conversation_id} does not exist or has been deleted")
         return True
     except Exception as e:
         logging.error(f"Failed to rename conversation: {str(e)}")
@@ -379,8 +376,7 @@ def delete_conversation_service(conversation_id: int, user_id: str) -> bool:
     try:
         success = delete_conversation(conversation_id, user_id)
         if not success:
-            raise Exception(
-                f"Conversation {conversation_id} does not exist or has been deleted")
+            raise Exception(f"Conversation {conversation_id} does not exist or has been deleted")
         return True
     except Exception as e:
         logging.error(f"Failed to delete conversation: {str(e)}")

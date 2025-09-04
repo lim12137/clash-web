@@ -729,8 +729,7 @@ async def generate_stream_with_memory(
             ):
                 yield data_chunk
         except Exception as run_exc:
-            logger.error(
-                f"Agent run error after memory failure: {str(run_exc)}")
+            logger.error(f"Agent run error after memory failure: {str(run_exc)}")
             raise AgentRunException(f"Agent run error: {str(run_exc)}")
     except Exception as e:
         logger.error(f"Generate stream with memory error: {str(e)}")

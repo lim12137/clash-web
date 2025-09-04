@@ -65,8 +65,7 @@ class DataProcessService:
                     connection_pool=self.redis_pool)
                 logger.info("Redis client initialized successfully.")
             else:
-                logger.warning(
-                    "REDIS_BACKEND_URL not set, Redis client not initialized.")
+                logger.warning("REDIS_BACKEND_URL not set, Redis client not initialized.")
         except Exception as e:
             logger.error(f"Failed to initialize Redis client: {str(e)}")
 
@@ -83,8 +82,7 @@ class DataProcessService:
             self.clip_available = True
             logger.info("CLIP model loaded successfully")
         except Exception as e:
-            logger.warning(
-                f"Failed to load CLIP model, size-only filtering will be used: {str(e)}")
+            logger.warning(f"Failed to load CLIP model, size-only filtering will be used: {str(e)}")
             self.clip_available = False
 
     async def start(self):
@@ -104,8 +102,7 @@ class DataProcessService:
             if not celery_app.conf.broker_url or not celery_app.conf.result_backend:
                 celery_app.conf.broker_url = REDIS_URL
                 celery_app.conf.result_backend = REDIS_BACKEND_URL
-                logger.warning(
-                    f"Celery broker URL is not configured properly, reconfiguring to {celery_app.conf.broker_url}")
+                logger.warning(f"Celery broker URL is not configured properly, reconfiguring to {celery_app.conf.broker_url}")
             try:
                 inspector = celery_app.control.inspect()
                 inspector.ping()
@@ -179,10 +176,8 @@ class DataProcessService:
                     # Add to the set, duplicates will be handled
                     task_ids.add(task_id)
             except Exception as redis_error:
-                logger.warning(
-                    f"Failed to query Redis for stored task IDs: {str(redis_error)}")
-            logger.debug(
-                f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
+                logger.warning(f"Failed to query Redis for stored task IDs: {str(redis_error)}")
+            logger.debug(f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
             tasks = [get_task_info(task_id) for task_id in task_ids]
             all_task_infos = await asyncio.gather(*tasks, return_exceptions=True)
             for task_info in all_task_infos:
