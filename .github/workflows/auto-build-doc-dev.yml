@@ -31,12 +31,12 @@ jobs:
       
       - name: Install dependencies
         run: |
-          cd nexent/doc
+          cd doc
           npm install
       
       - name: Build doc
         run: |
-          cd nexent/doc
+          cd doc
           npm run docs:build
           BUILD_EXIT_CODE=$?
           
