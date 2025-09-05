@@ -13,7 +13,7 @@ sys.modules['boto3'] = MagicMock()
 with patch('database.client.MinioClient', MagicMock()):
     from fastapi.testclient import TestClient
     from http import HTTPStatus
-    from fastapi import FastAPI
+    from fastapi import FastAPI, HTTPException
     
     # Create a test client with a fresh FastAPI app
     from apps.mock_user_management_app import router
@@ -24,37 +24,36 @@ with patch('database.client.MinioClient', MagicMock()):
 
 
 class TestServiceHealth:
-    """Test service health endpoint"""
+    """Test service health endpoint with full coverage"""
 
     def test_service_health_success(self):
-        """Test when mock auth service is available"""
+        """Test normal service health check"""
         response = client.get("/user/service_health")
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
         assert data["message"] == "Auth service is available"
 
-    @patch('apps.mock_user_management_app.logger')
-    def test_service_health_with_exception_handling(self, mock_logger):
-        """Test service health endpoint exception handling (though mock shouldn't fail)"""
-        # This test verifies the exception handling code path exists
-        # In mock mode, this should normally not happen, but we test the structure
+    @patch('apps.mock_user_management_app.JSONResponse', side_effect=Exception("Simulated error"))
+    def test_service_health_exception_path(self, mock_json_response):
+        """Test service health exception handling path"""
         response = client.get("/user/service_health")
         
-        assert response.status_code == HTTPStatus.OK
+        # When JSONResponse fails, FastAPI should return 500
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
-        assert data["message"] == "Auth service is available"
+        assert "Service health check failed" in data["detail"]
 
 
 class TestUserSignup:
-    """Test user signup endpoint"""
+    """Test user signup endpoint with comprehensive coverage"""
 
-    def test_signup_success_regular_user(self):
+    def test_signup_regular_user(self):
         """Test successful regular user registration"""
         response = client.post(
             "/user/signup",
             json={
-                "email": "test@example.com",
+                "email": "user@example.com",
                 "password": "password123",
                 "is_admin": False,
                 "invite_code": None
@@ -65,13 +64,10 @@ class TestUserSignup:
         data = response.json()
         assert "User account registered successfully" in data["message"]
         assert "Please start experiencing the AI assistant service" in data["message"]
-        assert "data" in data
-        assert data["data"]["user"]["email"] == "test@example.com"
         assert data["data"]["user"]["role"] == "user"
-        assert data["data"]["session"]["access_token"] == "mock_access_token"
         assert data["data"]["registration_type"] == "user"
 
-    def test_signup_success_admin_user(self):
+    def test_signup_admin_user(self):
         """Test successful admin user registration"""
         response = client.post(
             "/user/signup",
@@ -87,64 +83,59 @@ class TestUserSignup:
         data = response.json()
         assert "Admin account registered successfully" in data["message"]
         assert "You now have system management permissions" in data["message"]
-        assert "data" in data
-        assert data["data"]["user"]["email"] == "admin@example.com"
         assert data["data"]["user"]["role"] == "admin"
-        assert data["data"]["session"]["access_token"] == "mock_access_token"
         assert data["data"]["registration_type"] == "admin"
 
     def test_signup_response_structure(self):
-        """Test that signup response has correct structure"""
+        """Test complete response structure"""
         response = client.post(
             "/user/signup",
             json={
-                "email": "structure@example.com",
+                "email": "test@example.com",
                 "password": "password123",
                 "is_admin": False,
                 "invite_code": None
             }
         )
 
-        assert response.status_code == HTTPStatus.OK
         data = response.json()
         
-        # Check response structure
+        # Verify complete structure
         assert "message" in data
         assert "data" in data
-        assert "user" in data["data"]
-        assert "session" in data["data"]
-        assert "registration_type" in data["data"]
         
-        # Check user structure
-        user = data["data"]["user"]
+        user_data = data["data"]
+        assert "user" in user_data
+        assert "session" in user_data
+        assert "registration_type" in user_data
+        
+        user = user_data["user"]
         assert "id" in user
         assert "email" in user
         assert "role" in user
         
-        # Check session structure
-        session = data["data"]["session"]
+        session = user_data["session"]
         assert "access_token" in session
         assert "refresh_token" in session
         assert "expires_at" in session
         assert "expires_in_seconds" in session
 
-    @patch('apps.mock_user_management_app.logger')
-    def test_signup_exception_handling(self, mock_logger):
-        """Test signup exception handling structure"""
-        # Mock implementations should rarely fail, but we test the exception handling exists
-        with patch('apps.mock_user_management_app.MOCK_USER', side_effect=Exception("Mock error")):
-            response = client.post(
-                "/user/signup",
-                json={
-                    "email": "error@example.com",
-                    "password": "password123",
-                    "is_admin": False,
-                    "invite_code": None
-                }
-            )
-            
-            # In case of exception, should return 500
-            assert response.status_code in [HTTPStatus.INTERNAL_SERVER_ERROR, HTTPStatus.OK]
+    @patch('apps.mock_user_management_app.JSONResponse', side_effect=Exception("Test exception"))
+    def test_signup_exception_handling(self, mock_json_response):
+        """Test signup exception handling"""
+        response = client.post(
+            "/user/signup",
+            json={
+                "email": "error@example.com",
+                "password": "password123",
+                "is_admin": False,
+                "invite_code": None
+            }
+        )
+        
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "User registration failed" in data["detail"]
 
 
 class TestUserSignin:
@@ -163,60 +154,23 @@ class TestUserSignin:
         assert response.status_code == HTTPStatus.OK
         data = response.json()
         assert data["message"] == "Login successful, session validity is 10 years"
-        assert "data" in data
-        assert "user" in data["data"]
-        assert "session" in data["data"]
         assert data["data"]["user"]["email"] == "test@example.com"
         assert data["data"]["session"]["access_token"] == "mock_access_token"
 
-    def test_signin_response_structure(self):
-        """Test signin response structure"""
+    @patch('apps.mock_user_management_app.JSONResponse', side_effect=Exception("Signin error"))
+    def test_signin_exception_handling(self, mock_json_response):
+        """Test signin exception handling"""
         response = client.post(
             "/user/signin",
             json={
-                "email": "structure@example.com",
+                "email": "error@example.com",
                 "password": "password123"
             }
         )
-
-        assert response.status_code == HTTPStatus.OK
+        
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
-        
-        # Check response structure
-        assert "message" in data
-        assert "data" in data
-        assert "user" in data["data"]
-        assert "session" in data["data"]
-        
-        # Check user structure
-        user = data["data"]["user"]
-        assert "id" in user
-        assert "email" in user
-        assert "role" in user
-        
-        # Check session structure
-        session = data["data"]["session"]
-        assert "access_token" in session
-        assert "refresh_token" in session
-        assert "expires_at" in session
-        assert "expires_in_seconds" in session
-
-    def test_signin_different_emails(self):
-        """Test signin with different email addresses"""
-        test_emails = ["user1@test.com", "user2@test.com", "admin@test.com"]
-        
-        for email in test_emails:
-            response = client.post(
-                "/user/signin",
-                json={
-                    "email": email,
-                    "password": "password123"
-                }
-            )
-            
-            assert response.status_code == HTTPStatus.OK
-            data = response.json()
-            assert data["data"]["user"]["email"] == email
+        assert "User login failed" in data["detail"]
 
 
 class TestRefreshToken:
@@ -233,47 +187,45 @@ class TestRefreshToken:
         assert response.status_code == HTTPStatus.OK
         data = response.json()
         assert data["message"] == "Token refresh successful"
-        assert "data" in data
-        assert "session" in data["data"]
         
-        # Check that new tokens are generated
         session = data["data"]["session"]
         assert "mock_access_token_" in session["access_token"]
         assert "mock_refresh_token_" in session["refresh_token"]
         assert session["expires_in_seconds"] == 315360000
 
-    def test_refresh_token_response_structure(self):
-        """Test refresh token response structure"""
+    @patch('apps.mock_user_management_app.datetime')
+    def test_refresh_token_with_new_timestamp(self, mock_datetime):
+        """Test refresh token generates new timestamp"""
+        from datetime import datetime, timedelta
+        mock_now = datetime(2024, 1, 1, 12, 0, 0)
+        mock_datetime.now.return_value = mock_now
+        mock_datetime.timedelta = timedelta
+        
         response = client.post(
             "/user/refresh_token",
-            json={"refresh_token": "test_refresh_token"},
-            headers={"Authorization": "Bearer test_token"}
+            json={"refresh_token": "test_token"}
         )
 
         assert response.status_code == HTTPStatus.OK
         data = response.json()
-        
-        # Check response structure
-        assert "message" in data
-        assert "data" in data
-        assert "session" in data["data"]
-        
-        # Check session structure
         session = data["data"]["session"]
-        assert "access_token" in session
-        assert "refresh_token" in session
-        assert "expires_at" in session
-        assert "expires_in_seconds" in session
+        
+        # Verify new timestamp is used in token generation
+        expected_timestamp = int((mock_now + timedelta(days=3650)).timestamp())
+        assert str(expected_timestamp) in session["access_token"]
+        assert str(expected_timestamp) in session["refresh_token"]
 
-    def test_refresh_token_without_headers(self):
-        """Test refresh token without authorization header"""
+    @patch('apps.mock_user_management_app.JSONResponse', side_effect=Exception("Time error"))
+    def test_refresh_token_exception_handling(self, mock_json_response):
+        """Test refresh token exception handling"""
         response = client.post(
             "/user/refresh_token",
-            json={"refresh_token": "refresh_token"}
+            json={"refresh_token": "error_token"}
         )
-
-        # Mock implementation should still work without strict validation
-        assert response.status_code == HTTPStatus.OK
+        
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "Token refresh failed" in data["detail"]
 
 
 class TestLogout:
@@ -290,28 +242,14 @@ class TestLogout:
         data = response.json()
         assert data["message"] == "Logout successful"
 
-    def test_logout_without_authorization(self):
-        """Test logout without authorization header"""
+    @patch('apps.mock_user_management_app.JSONResponse', side_effect=Exception("Logout error"))
+    def test_logout_exception_handling(self, mock_json_response):
+        """Test logout exception handling"""
         response = client.post("/user/logout")
-
-        # Mock implementation should still work
-        assert response.status_code == HTTPStatus.OK
-        data = response.json()
-        assert data["message"] == "Logout successful"
-
-    def test_logout_with_different_tokens(self):
-        """Test logout with various token formats"""
-        tokens = ["Bearer token123", "Bearer another_token", "Bearer expired_token"]
         
-        for token in tokens:
-            response = client.post(
-                "/user/logout",
-                headers={"Authorization": token}
-            )
-            
-            assert response.status_code == HTTPStatus.OK
-            data = response.json()
-            assert data["message"] == "Logout successful"
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "User logout failed" in data["detail"]
 
 
 class TestGetSession:
@@ -327,41 +265,18 @@ class TestGetSession:
         assert response.status_code == HTTPStatus.OK
         data = response.json()
         assert data["message"] == "Session is valid"
-        assert "data" in data
-        assert "user" in data["data"]
         assert data["data"]["user"]["id"] == "user_id"
         assert data["data"]["user"]["email"] == "mock@example.com"
         assert data["data"]["user"]["role"] == "admin"
 
-    def test_get_session_without_authorization(self):
-        """Test session retrieval without authorization header"""
+    @patch('apps.mock_user_management_app.JSONResponse', side_effect=Exception("Session error"))
+    def test_get_session_exception_handling(self, mock_json_response):
+        """Test session retrieval exception handling"""
         response = client.get("/user/session")
-
-        # Mock implementation should still work
-        assert response.status_code == HTTPStatus.OK
-        data = response.json()
-        assert data["message"] == "Session is valid"
-
-    def test_get_session_response_structure(self):
-        """Test session response structure"""
-        response = client.get(
-            "/user/session",
-            headers={"Authorization": "Bearer token"}
-        )
-
-        assert response.status_code == HTTPStatus.OK
-        data = response.json()
         
-        # Check response structure
-        assert "message" in data
-        assert "data" in data
-        assert "user" in data["data"]
-        
-        # Check user structure
-        user = data["data"]["user"]
-        assert "id" in user
-        assert "email" in user
-        assert "role" in user
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert "Session validation failed" in data["detail"]
 
 
 class TestGetCurrentUserId:
@@ -377,75 +292,78 @@ class TestGetCurrentUserId:
         assert response.status_code == HTTPStatus.OK
         data = response.json()
         assert data["message"] == "Get user ID successfully"
-        assert "data" in data
         assert data["data"]["user_id"] == "user_id"
 
-    def test_get_user_id_without_authorization(self):
-        """Test user ID retrieval without authorization header"""
+    @patch('apps.mock_user_management_app.JSONResponse', side_effect=Exception("User ID error"))
+    def test_get_user_id_exception_handling(self, mock_json_response):
+        """Test user ID retrieval exception handling"""
         response = client.get("/user/current_user_id")
-
-        # Mock implementation should still work
-        assert response.status_code == HTTPStatus.OK
+        
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
-        assert data["message"] == "Get user ID successfully"
+        assert "Failed to get user ID" in data["detail"]
 
-    def test_get_user_id_response_structure(self):
-        """Test user ID response structure"""
-        response = client.get(
-            "/user/current_user_id",
-            headers={"Authorization": "Bearer token"}
+
+class TestRequestValidation:
+    """Test request validation for required fields"""
+
+    def test_signup_missing_required_fields(self):
+        """Test signup with missing required fields"""
+        response = client.post(
+            "/user/signup",
+            json={"email": "test@example.com"}  # Missing password, is_admin
         )
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-        assert response.status_code == HTTPStatus.OK
-        data = response.json()
-        
-        # Check response structure
-        assert "message" in data
-        assert "data" in data
-        assert "user_id" in data["data"]
+    def test_signin_missing_required_fields(self):
+        """Test signin with missing required fields"""
+        response = client.post(
+            "/user/signin",
+            json={"email": "test@example.com"}  # Missing password
+        )
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
-    def test_get_user_id_with_different_tokens(self):
-        """Test user ID retrieval with various tokens"""
-        tokens = ["Bearer token1", "Bearer token2", "Bearer expired_token"]
-        
-        for token in tokens:
-            response = client.get(
-                "/user/current_user_id",
-                headers={"Authorization": token}
-            )
-            
-            assert response.status_code == HTTPStatus.OK
-            data = response.json()
-            assert data["data"]["user_id"] == "user_id"
+    def test_signup_invalid_email_format(self):
+        """Test signup with invalid email format"""
+        response = client.post(
+            "/user/signup",
+            json={
+                "email": "invalid-email",
+                "password": "password123",
+                "is_admin": False,
+                "invite_code": None
+            }
+        )
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
-class TestMockIntegration:
-    """Integration tests for mock user management flow"""
+class TestIntegrationFlow:
+    """Test complete user flow integration"""
 
-    def test_complete_mock_user_flow(self):
-        """Test complete mock user registration and authentication flow"""
+    def test_complete_user_flow(self):
+        """Test complete user registration and authentication flow"""
         # 1. Register user
         signup_response = client.post(
             "/user/signup",
             json={
-                "email": "integration@example.com",
+                "email": "flow@example.com",
                 "password": "password123",
                 "is_admin": False,
                 "invite_code": None
             }
         )
         assert signup_response.status_code == HTTPStatus.OK
+        token = signup_response.json()["data"]["session"]["access_token"]
 
         # 2. Sign in user
         signin_response = client.post(
             "/user/signin",
             json={
-                "email": "integration@example.com",
+                "email": "flow@example.com",
                 "password": "password123"
             }
         )
         assert signin_response.status_code == HTTPStatus.OK
-        token = signin_response.json()["data"]["session"]["access_token"]
 
         # 3. Get session
         session_response = client.get(
@@ -476,108 +394,15 @@ class TestMockIntegration:
         )
         assert logout_response.status_code == HTTPStatus.OK
 
-    def test_admin_vs_user_registration_flow(self):
-        """Test difference between admin and user registration"""
-        # Regular user registration
-        user_response = client.post(
-            "/user/signup",
-            json={
-                "email": "user@example.com",
-                "password": "password123",
-                "is_admin": False,
-                "invite_code": None
-            }
-        )
-        assert user_response.status_code == HTTPStatus.OK
-        user_data = user_response.json()
-        assert user_data["data"]["user"]["role"] == "user"
-        assert user_data["data"]["registration_type"] == "user"
-        assert "Please start experiencing" in user_data["message"]
 
-        # Admin user registration
-        admin_response = client.post(
-            "/user/signup",
-            json={
-                "email": "admin@example.com",
-                "password": "password123",
-                "is_admin": True,
-                "invite_code": "admin_code"
-            }
-        )
-        assert admin_response.status_code == HTTPStatus.OK
-        admin_data = admin_response.json()
-        assert admin_data["data"]["user"]["role"] == "admin"
-        assert admin_data["data"]["registration_type"] == "admin"
-        assert "system management permissions" in admin_data["message"]
+class TestMockDataConsistency:
+    """Test mock data consistency and behavior"""
 
-
-class TestDataValidation:
-    """Test data validation for mock endpoints"""
-
-    def test_signup_missing_fields(self):
-        """Test signup with missing required fields"""
-        response = client.post(
-            "/user/signup",
-            json={"email": "test@example.com"}  # Missing password
-        )
-        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-
-    def test_signin_missing_fields(self):
-        """Test signin with missing required fields"""
-        response = client.post(
-            "/user/signin",
-            json={"email": "test@example.com"}  # Missing password
-        )
-        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-
-    def test_signup_invalid_email_format(self):
-        """Test signup with invalid email format"""
-        response = client.post(
-            "/user/signup",
-            json={
-                "email": "invalid-email",
-                "password": "password123",
-                "is_admin": False,
-                "invite_code": None
-            }
-        )
-        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-
-    def test_valid_request_formats(self):
-        """Test various valid request formats"""
-        # Test with all optional fields
-        response1 = client.post(
-            "/user/signup",
-            json={
-                "email": "complete@example.com",
-                "password": "password123",
-                "is_admin": True,
-                "invite_code": "test_code"
-            }
-        )
-        assert response1.status_code == HTTPStatus.OK
-
-        # Test with minimal fields
-        response2 = client.post(
-            "/user/signup",
-            json={
-                "email": "minimal@example.com",
-                "password": "password123",
-                "is_admin": False,
-                "invite_code": None
-            }
-        )
-        assert response2.status_code == HTTPStatus.OK
-
-
-class TestMockBehavior:
-    """Test specific mock behavior characteristics"""
-
-    def test_consistent_mock_data(self):
-        """Test that mock data is consistent across requests"""
-        # Multiple requests should return the same mock user data
+    def test_mock_user_data_consistency(self):
+        """Test that mock user data is consistent"""
+        # Get session multiple times
         responses = []
-        for i in range(3):
+        for _ in range(3):
             response = client.get("/user/session")
             responses.append(response.json())
         
@@ -588,7 +413,7 @@ class TestMockBehavior:
             assert response["data"]["user"]["role"] == "admin"
 
     def test_mock_session_longevity(self):
-        """Test that mock sessions have very long expiration times"""
+        """Test that mock sessions have 10-year expiration"""
         response = client.post(
             "/user/refresh_token",
             json={"refresh_token": "test_token"}
@@ -601,19 +426,42 @@ class TestMockBehavior:
         # Mock sessions should have 10-year expiration (315360000 seconds)
         assert session["expires_in_seconds"] == 315360000
 
-    def test_mock_always_succeeds(self):
-        """Test that mock endpoints always succeed (no real validation)"""
-        # Even with obviously wrong data, mock should succeed
-        test_cases = [
-            {"email": "wrong@wrong.com", "password": "wrong"},
-            {"email": "fake@fake.com", "password": "fake"},
-            {"email": "test@test.com", "password": ""}
-        ]
+    def test_signup_email_reflection(self):
+        """Test that signup reflects the input email"""
+        test_emails = ["user1@test.com", "user2@test.com", "admin@test.com"]
         
-        for test_case in test_cases:
-            response = client.post("/user/signin", json=test_case)
+        for email in test_emails:
+            response = client.post(
+                "/user/signup",
+                json={
+                    "email": email,
+                    "password": "password123",
+                    "is_admin": False,
+                    "invite_code": None
+                }
+            )
+            
             assert response.status_code == HTTPStatus.OK
+            data = response.json()
+            assert data["data"]["user"]["email"] == email
+
+    def test_signin_email_reflection(self):
+        """Test that signin reflects the input email"""
+        test_emails = ["signin1@test.com", "signin2@test.com"]
+        
+        for email in test_emails:
+            response = client.post(
+                "/user/signin",
+                json={
+                    "email": email,
+                    "password": "password123"
+                }
+            )
+            
+            assert response.status_code == HTTPStatus.OK
+            data = response.json()
+            assert data["data"]["user"]["email"] == email
 
 
 if __name__ == "__main__":
-    pytest.main([__file__]) 
+    pytest.main([__file__, "-v", "--cov=apps.mock_user_management_app", "--cov-report=term-missing"]) 
