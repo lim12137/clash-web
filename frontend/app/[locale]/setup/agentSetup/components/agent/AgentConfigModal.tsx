@@ -17,6 +17,7 @@ import {
   checkAgentName,
   checkAgentDisplayName,
 } from "@/services/agentConfigService";
+import { NAME_CHECK_STATUS } from "@/const/agentConfig";
 
 import { SimplePromptEditor } from "../PromptManager";
 
@@ -194,7 +195,7 @@ export default function AgentConfigModal({
         setAgentNameStatus(result.status);
       } catch (error) {
         console.error("check agent name failed:", error);
-        setAgentNameStatus("check_failed");
+        setAgentNameStatus(NAME_CHECK_STATUS.CHECK_FAILED);
       }
     };
 
@@ -223,7 +224,7 @@ export default function AgentConfigModal({
   // Clear name status when agent name is cleared or changed significantly
   useEffect(() => {
     if (!agentName || agentName.trim() === "") {
-      setAgentNameStatus("available");
+      setAgentNameStatus(NAME_CHECK_STATUS.AVAILABLE);
     }
   }, [agentName]);
 
@@ -244,7 +245,7 @@ export default function AgentConfigModal({
         setAgentDisplayNameStatus(result.status);
       } catch (error) {
         console.error("check agent display name failed:", error);
-        setAgentDisplayNameStatus("check_failed");
+        setAgentDisplayNameStatus(NAME_CHECK_STATUS.CHECK_FAILED);
       }
     };
 
@@ -273,7 +274,7 @@ export default function AgentConfigModal({
   // Clear display name status when agent display name is cleared or changed significantly
   useEffect(() => {
     if (!agentDisplayName || agentDisplayName.trim() === "") {
-      setAgentDisplayNameStatus("available");
+      setAgentDisplayNameStatus(NAME_CHECK_STATUS.AVAILABLE);
     }
   }, [agentDisplayName]);
 
@@ -354,9 +355,9 @@ export default function AgentConfigModal({
   const canActuallySave =
     canSaveAgent &&
     !agentNameError &&
-    agentNameStatus !== "exists_in_tenant" &&
+    agentNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT &&
     !agentDisplayNameError &&
-    agentDisplayNameStatus !== "exists_in_tenant";
+    agentDisplayNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT;
 
   // Render individual content sections
   const renderAgentInfo = () => (
@@ -375,7 +376,7 @@ export default function AgentConfigModal({
           placeholder={t("agent.displayNamePlaceholder")}
           className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 box-border ${
             agentDisplayNameError ||
-            agentDisplayNameStatus === "exists_in_tenant"
+            agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT
               ? "border-red-500 focus:ring-red-500 focus:border-red-500"
               : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
           }`}
@@ -385,7 +386,7 @@ export default function AgentConfigModal({
           <p className="mt-1 text-sm text-red-600">{agentDisplayNameError}</p>
         )}
         {!agentDisplayNameError &&
-          agentDisplayNameStatus === "exists_in_tenant" && (
+          agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT && (
             <p className="mt-1 text-sm text-red-600">
               {t("agent.error.displayNameExists", {
                 displayName: agentDisplayName,
@@ -407,7 +408,7 @@ export default function AgentConfigModal({
           }}
           placeholder={t("agent.namePlaceholder")}
           className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 box-border ${
-            agentNameError || agentNameStatus === "exists_in_tenant"
+            agentNameError || agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT
               ? "border-red-500 focus:ring-red-500 focus:border-red-500"
               : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
           }`}
@@ -416,7 +417,7 @@ export default function AgentConfigModal({
         {agentNameError && (
           <p className="mt-1 text-sm text-red-600">{agentNameError}</p>
         )}
-        {!agentNameError && agentNameStatus === "exists_in_tenant" && (
+        {!agentNameError && agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT && (
           <p className="mt-1 text-sm text-red-600">
             {t("agent.error.nameExists", { name: agentName })}
           </p>
@@ -850,13 +851,13 @@ export default function AgentConfigModal({
                   if (agentNameError) {
                     return agentNameError;
                   }
-                  if (agentNameStatus === "exists_in_tenant") {
+                  if (agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
                     return t("agent.error.nameExists", { name: agentName });
                   }
                   if (agentDisplayNameError) {
                     return agentDisplayNameError;
                   }
-                  if (agentDisplayNameStatus === "exists_in_tenant") {
+                  if (agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
                     return t("agent.error.displayNameExists", {
                       displayName: agentDisplayName,
                     });
@@ -885,13 +886,13 @@ export default function AgentConfigModal({
                   if (agentNameError) {
                     return agentNameError;
                   }
-                  if (agentNameStatus === "exists_in_tenant") {
+                  if (agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
                     return t("agent.error.nameExists", { name: agentName });
                   }
                   if (agentDisplayNameError) {
                     return agentDisplayNameError;
                   }
-                  if (agentDisplayNameStatus === "exists_in_tenant") {
+                  if (agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
                     return t("agent.error.displayNameExists", {
                       displayName: agentDisplayName,
                     });

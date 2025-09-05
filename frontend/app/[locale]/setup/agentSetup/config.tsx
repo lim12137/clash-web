@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Drawer, App } from "antd";
-
+import { AGENT_SETUP_LAYOUT_DEFAULT, GENERATE_PROMPT_STREAM_TYPES } from "@/const/agentConfig";
 import { SETUP_PAGE_CONTAINER, STANDARD_CARD } from "@/lib/layoutConstants";
 import { OpenAIModel } from "@/types/config";
 import {
@@ -11,8 +11,7 @@ import {
   LayoutConfig,
   AgentConfigDataResponse,
   AgentConfigCustomEvent,
-  AgentRefreshEvent,
-  AGENT_SETUP_LAYOUT_DEFAULT,
+  AgentRefreshEvent
 } from "@/types/agentConfig";
 import {
   fetchTools,
@@ -111,25 +110,25 @@ export default function AgentConfig() {
         (data) => {
           // Process streaming response data
           switch (data.type) {
-            case "duty":
+            case GENERATE_PROMPT_STREAM_TYPES.DUTY:
               setDutyContent(data.content);
               break;
-            case "constraint":
+            case GENERATE_PROMPT_STREAM_TYPES.CONSTRAINT:
               setConstraintContent(data.content);
               break;
-            case "few_shots":
+            case GENERATE_PROMPT_STREAM_TYPES.FEW_SHOTS:
               setFewShotsContent(data.content);
               break;
-            case "agent_var_name":
+            case GENERATE_PROMPT_STREAM_TYPES.AGENT_VAR_NAME:
               // Only update if current agent name is empty
               if (!currentAgentName || currentAgentName.trim() === "") {
                 setAgentName(data.content);
               }
               break;
-            case "agent_description":
+            case GENERATE_PROMPT_STREAM_TYPES.AGENT_DESCRIPTION:
               setAgentDescription(data.content);
               break;
-            case "agent_display_name":
+            case GENERATE_PROMPT_STREAM_TYPES.AGENT_DISPLAY_NAME:
               // Only update if current agent display name is empty
               if (
                 !currentAgentDisplayName ||

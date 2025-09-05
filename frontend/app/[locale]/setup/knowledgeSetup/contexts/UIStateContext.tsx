@@ -1,26 +1,8 @@
 "use client"
 
 import { createContext, useReducer, useContext, ReactNode, useCallback } from "react"
-
-// UI state interface
-export interface UIState {
-  isDragging: boolean;
-  isCreateModalVisible: boolean;
-  isDocModalVisible: boolean;
-  notifications: {
-    id: string;
-    message: string;
-    type: 'success' | 'error' | 'info' | 'warning';
-  }[];
-}
-
-// UI action type
-export type UIAction = 
-  | { type: 'SET_DRAGGING', payload: boolean }
-  | { type: 'TOGGLE_CREATE_MODAL', payload: boolean }
-  | { type: 'TOGGLE_DOC_MODAL', payload: boolean }
-  | { type: 'ADD_NOTIFICATION', payload: { message: string; type: 'success' | 'error' | 'info' | 'warning' } }
-  | { type: 'REMOVE_NOTIFICATION', payload: string };
+import { UIState, UIAction } from "@/types/knowledgeBase"
+import { UI_ACTION_TYPES, NOTIFICATION_TYPES } from "@/const/knowledgeBase"
 
 // Generate unique ID for notifications
 const generateId = () => {
@@ -30,22 +12,22 @@ const generateId = () => {
 // Reducer function
 const uiReducer = (state: UIState, action: UIAction): UIState => {
   switch (action.type) {
-    case 'SET_DRAGGING':
+    case UI_ACTION_TYPES.SET_DRAGGING:
       return {
         ...state,
         isDragging: action.payload
       };
-    case 'TOGGLE_CREATE_MODAL':
+    case UI_ACTION_TYPES.TOGGLE_CREATE_MODAL:
       return {
         ...state,
         isCreateModalVisible: action.payload
       };
-    case 'TOGGLE_DOC_MODAL':
+    case UI_ACTION_TYPES.TOGGLE_DOC_MODAL:
       return {
         ...state,
         isDocModalVisible: action.payload
       };
-    case 'ADD_NOTIFICATION':
+    case UI_ACTION_TYPES.ADD_NOTIFICATION:
       const newNotification = {
         id: generateId(),
         message: action.payload.message,
@@ -55,7 +37,7 @@ const uiReducer = (state: UIState, action: UIAction): UIState => {
         ...state,
         notifications: [...state.notifications, newNotification]
       };
-    case 'REMOVE_NOTIFICATION':
+    case UI_ACTION_TYPES.REMOVE_NOTIFICATION:
       return {
         ...state,
         notifications: state.notifications.filter(n => n.id !== action.payload)
@@ -72,7 +54,7 @@ export const UIContext = createContext<{
   setDragging: (isDragging: boolean) => void;
   toggleCreateModal: (isVisible: boolean) => void;
   toggleDocModal: (isVisible: boolean) => void;
-  showNotification: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
+  showNotification: (message: string, type: typeof NOTIFICATION_TYPES.SUCCESS | typeof NOTIFICATION_TYPES.ERROR | typeof NOTIFICATION_TYPES.INFO | typeof NOTIFICATION_TYPES.WARNING) => void;
   removeNotification: (id: string) => void;
 }>({
   state: {
@@ -107,25 +89,25 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
 
   // Drag state handling
   const setDragging = useCallback((isDragging: boolean) => {
-    dispatch({ type: 'SET_DRAGGING', payload: isDragging });
+    dispatch({ type: UI_ACTION_TYPES.SET_DRAGGING, payload: isDragging });
   }, []);
 
   // Modal toggling
   const toggleCreateModal = useCallback((isVisible: boolean) => {
-    dispatch({ type: 'TOGGLE_CREATE_MODAL', payload: isVisible });
+    dispatch({ type: UI_ACTION_TYPES.TOGGLE_CREATE_MODAL, payload: isVisible });
   }, []);
 
   const toggleDocModal = useCallback((isVisible: boolean) => {
-    dispatch({ type: 'TOGGLE_DOC_MODAL', payload: isVisible });
+    dispatch({ type: UI_ACTION_TYPES.TOGGLE_DOC_MODAL, payload: isVisible });
   }, []);
 
   // Notification handling
-  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning') => {
-    dispatch({ type: 'ADD_NOTIFICATION', payload: { message, type } });
+  const showNotification = useCallback((message: string, type: typeof NOTIFICATION_TYPES.SUCCESS | typeof NOTIFICATION_TYPES.ERROR | typeof NOTIFICATION_TYPES.INFO | typeof NOTIFICATION_TYPES.WARNING) => {
+    dispatch({ type: UI_ACTION_TYPES.ADD_NOTIFICATION, payload: { message, type } });
   }, []);
 
   const removeNotification = useCallback((id: string) => {
-    dispatch({ type: 'REMOVE_NOTIFICATION', payload: id });
+    dispatch({ type: UI_ACTION_TYPES.REMOVE_NOTIFICATION, payload: id });
   }, []);
 
   return (

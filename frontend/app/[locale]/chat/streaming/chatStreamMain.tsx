@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { ScrollArea } from "@/components/ui/scrollArea";
 import { Button } from "@/components/ui/button";
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
 import { ChatMessageType } from "@/types/chat";
 
 import { ChatInput, FilePreview } from "../components/chatInput";
@@ -129,7 +130,7 @@ export function ChatStreamMain({
         }
       }
       // Assistant messages need further processing
-      else if (message.role === "assistant") {
+      else if (message.role === ROLE_ASSISTANT) {
         // If there is a final answer or content (including empty string), add it to the final message array
         if (message.finalAnswer || message.content !== undefined) {
           finalMsgs.push(message);
