@@ -258,4 +258,5 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/ModelEngine-Group/nexent' }
     ]
+  }
 })
