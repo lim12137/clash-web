@@ -54,6 +54,7 @@ class UserSignInRequest(BaseModel):
     password: str
 
 
+# TODO: To remove
 class UserUpdateRequest(BaseModel):
     """User information update request model"""
     email: Optional[EmailStr] = None
