@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { ROLE_ASSISTANT } from '@/const/agentConfig';
 import { ChatMessageType, TaskMessageType } from '@/types/chat';
 
 interface MessageGroup {
@@ -60,7 +61,7 @@ export function useChatTaskMessage(messages: ChatMessageType[]): ChatTaskMessage
         groups.push({
           message: {
             id: `virtual-${Date.now()}`,
-            role: "assistant",
+            role: ROLE_ASSISTANT,
             type: "virtual",
             content: "",
             timestamp: new Date()

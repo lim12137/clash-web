@@ -6,13 +6,14 @@ import { useTranslation } from "react-i18next";
 
 import { App } from "antd";
 import { InfoCircleFilled } from "@ant-design/icons";
+import { DOCUMENT_ACTION_TYPES } from "@/const/knowledgeBase";
 
 import { useConfirmModal } from "@/hooks/useConfirmModal";
 
 import knowledgeBaseService from "@/services/knowledgeBaseService";
 import knowledgeBasePollingService from "@/services/knowledgeBasePollingService";
 import { API_ENDPOINTS } from "@/services/api";
-import { KnowledgeBase } from "@/types/knowledgeBase";
+import { KnowledgeBase} from "@/types/knowledgeBase";
 import {
   SETUP_PAGE_CONTAINER,
   FLEX_TWO_COLUMN_LAYOUT,
@@ -348,7 +349,7 @@ function DataConfig({ isActive }: DataConfigProps) {
   const handleKnowledgeBaseChange = async (kb: KnowledgeBase) => {
     try {
       // Set loading state before fetching documents
-      docDispatch({ type: "SET_LOADING_DOCUMENTS", payload: true });
+      docDispatch({ type: DOCUMENT_ACTION_TYPES.SET_LOADING_DOCUMENTS, payload: true });
 
       // 获取最新文档数据
       const documents = await knowledgeBaseService.getAllFiles(kb.id);

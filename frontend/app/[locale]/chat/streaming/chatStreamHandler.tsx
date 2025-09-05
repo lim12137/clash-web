@@ -1,5 +1,6 @@
 // Tool function for processing chat streaming response
 
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
 import { ChatMessageType, AgentStep } from "@/types/chat";
 
 import {
@@ -744,7 +745,7 @@ export const handleStreamResponse = async (
                 const newMessages = [...prev];
                 const lastMsg = newMessages[newMessages.length - 1];
 
-                if (lastMsg && lastMsg.role === "assistant") {
+                if (lastMsg && lastMsg.role === ROLE_ASSISTANT) {
                   // Update the current step
                   if (currentStep) {
                     if (!lastMsg.steps) lastMsg.steps = [];
@@ -805,7 +806,7 @@ export const handleStreamResponse = async (
       const newMessages = [...prev];
       const lastMsg = newMessages[newMessages.length - 1];
 
-      if (lastMsg && lastMsg.role === "assistant") {
+      if (lastMsg && lastMsg.role === ROLE_ASSISTANT) {
         lastMsg.isComplete = true;
 
         // Check and remove duplicate steps
@@ -840,7 +841,7 @@ export const handleStreamResponse = async (
               const history = newMessages.map((msg) => ({
                 role: msg.role as "user" | "assistant",
                 content:
-                  msg.role === "assistant"
+                  msg.role === ROLE_ASSISTANT
                     ? msg.finalAnswer || msg.content || ""
                     : msg.content || "",
               }));

@@ -1,5 +1,6 @@
 import { TFunction } from 'i18next';
 
+import { NAME_CHECK_STATUS } from '@/const/agentConfig';
 import knowledgeBaseService from '@/services/knowledgeBaseService';
 
 import '../app/[locale]/i18n';
@@ -20,7 +21,7 @@ export const checkKnowledgeBaseName = async (
   } catch (error) {
     console.error(t('knowledgeBase.check.nameError'), error);
     // 返回一个表示检查失败的状态
-    return { status: 'check_failed' };
+    return { status: NAME_CHECK_STATUS.CHECK_FAILED };
   }
 };
 

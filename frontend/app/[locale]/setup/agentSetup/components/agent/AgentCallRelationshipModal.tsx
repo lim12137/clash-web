@@ -11,9 +11,9 @@ import {
   AgentCallRelationshipSubAgent,
   AgentCallRelationshipModalProps,
   TreeNodeDatum,
-  AGENT_CALL_RELATIONSHIP_NODE_SIZE,
-  AGENT_CALL_RELATIONSHIP_THEME,
 } from "@/types/agentConfig";
+
+import { AGENT_CALL_RELATIONSHIP_NODE_SIZE, AGENT_CALL_RELATIONSHIP_THEME, AGENT_CALL_RELATIONSHIP_NODE_TYPES, AGENT_CALL_RELATIONSHIP_ORIENTATION, AgentCallRelationshipOrientation } from "@/const/agentConfig";
 import { fetchAgentCallRelationship } from "@/services/agentConfigService";
 
 const { Text } = Typography;
@@ -27,14 +27,14 @@ const getNodeColor = (type: string, depth: number = 0) => {
   const { colors } = AGENT_CALL_RELATIONSHIP_THEME;
 
   switch (type) {
-    case "main":
+    case AGENT_CALL_RELATIONSHIP_NODE_TYPES.MAIN:
       return colors.node.main;
-    case "sub":
+    case AGENT_CALL_RELATIONSHIP_NODE_TYPES.SUB:
       return (
         colors.node.levels[depth as keyof typeof colors.node.levels] ||
         colors.node.levels[1]
       );
-    case "tool":
+    case AGENT_CALL_RELATIONSHIP_NODE_TYPES.TOOL:
       return (
         colors.node.tools[depth as keyof typeof colors.node.tools] ||
         colors.node.tools[1]
@@ -46,7 +46,9 @@ const getNodeColor = (type: string, depth: number = 0) => {
 
 // Custom node - center aligned, unified font style
 const CustomNode = ({ nodeDatum }: any) => {
-  const isAgent = nodeDatum.type === "main" || nodeDatum.type === "sub";
+  const isAgent =
+    nodeDatum.type === AGENT_CALL_RELATIONSHIP_NODE_TYPES.MAIN ||
+    nodeDatum.type === AGENT_CALL_RELATIONSHIP_NODE_TYPES.SUB;
   const color = getNodeColor(nodeDatum.type, nodeDatum.depth);
   const icon = isAgent ? <RobotOutlined /> : <ToolOutlined />;
 
@@ -129,11 +131,11 @@ const CustomNode = ({ nodeDatum }: any) => {
 /** Make lines end at node edges: from parent rectangle bottom edge to child rectangle top edge (vertical layout) */
 const customPathFunc = (
   linkData: any,
-  orientation: "vertical" | "horizontal"
+  orientation: AgentCallRelationshipOrientation
 ) => {
   const { source, target } = linkData;
 
-  if (orientation === "horizontal") {
+  if (orientation === AGENT_CALL_RELATIONSHIP_ORIENTATION.HORIZONTAL) {
     const srcX = source.x + NODE_W / 2;
     const srcY = source.y;
     const tgtX = target.x - NODE_W / 2;
@@ -229,9 +231,9 @@ export default function AgentCallRelationshipModal({
 
           const subAgentNode: TreeNodeDatum = {
             name: subAgent.name,
-            type: "sub",
+            type: AGENT_CALL_RELATIONSHIP_NODE_TYPES.SUB,
             depth: subAgent.depth || depth,
-            color: getNodeColor("sub", subAgent.depth || depth),
+            color: getNodeColor(AGENT_CALL_RELATIONSHIP_NODE_TYPES.SUB, subAgent.depth || depth),
             children: [],
           };
 
@@ -248,9 +250,9 @@ export default function AgentCallRelationshipModal({
 
               subAgentNode.children!.push({
                 name: tool.name,
-                type: "tool",
+                type: AGENT_CALL_RELATIONSHIP_NODE_TYPES.TOOL,
                 depth: (subAgent.depth || depth) + 1,
-                color: getNodeColor("tool", (subAgent.depth || depth) + 1),
+                color: getNodeColor(AGENT_CALL_RELATIONSHIP_NODE_TYPES.TOOL, (subAgent.depth || depth) + 1),
                 attributes: { toolType: tool.type },
                 children: [],
               });
@@ -274,9 +276,9 @@ export default function AgentCallRelationshipModal({
 
       const treeData: TreeNodeDatum = {
         name: data.name,
-        type: "main",
+        type: AGENT_CALL_RELATIONSHIP_NODE_TYPES.MAIN,
         depth: 0,
-        color: getNodeColor("main", 0),
+        color: getNodeColor(AGENT_CALL_RELATIONSHIP_NODE_TYPES.MAIN, 0),
         children: [],
       };
 
@@ -293,9 +295,9 @@ export default function AgentCallRelationshipModal({
 
           treeData.children!.push({
             name: tool.name,
-            type: "tool",
+            type: AGENT_CALL_RELATIONSHIP_NODE_TYPES.TOOL,
             depth: 1,
-            color: getNodeColor("tool", 1),
+            color: getNodeColor(AGENT_CALL_RELATIONSHIP_NODE_TYPES.TOOL, 1),
             attributes: { toolType: tool.type },
             children: [],
           });
@@ -365,10 +367,10 @@ export default function AgentCallRelationshipModal({
             >
               <Tree
                 data={generateTreeData(relationshipData)}
-                orientation="vertical"
+                orientation={AGENT_CALL_RELATIONSHIP_ORIENTATION.VERTICAL}
                 /** Custom path: lines end at node edges, no longer insert into interior */
                 pathFunc={(linkData: any) =>
-                  customPathFunc(linkData, "vertical")
+                  customPathFunc(linkData, AGENT_CALL_RELATIONSHIP_ORIENTATION.VERTICAL)
                 }
                 translate={translate}
                 renderCustomNodeElement={CustomNode}

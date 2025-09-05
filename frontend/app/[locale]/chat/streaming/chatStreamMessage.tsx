@@ -17,6 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
 import { ChatMessageType } from "@/types/chat";
 import { useConfig } from "@/hooks/useConfig";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -64,7 +65,7 @@ export function ChatStreamMessage({
   // When the message is updated, scroll the element into the visible area
   useEffect(() => {
     if (
-      message.role === "assistant" &&
+      message.role === ROLE_ASSISTANT &&
       !message.isComplete &&
       messageRef.current
     ) {
@@ -127,7 +128,7 @@ export function ChatStreamMessage({
       }`}
     >
       {/* Avatar section - only show avatar for AI assistant */}
-      {message.role === "assistant" && (
+      {message.role === ROLE_ASSISTANT && (
         <div className="flex-shrink-0">
           <div className="h-8 w-8 rounded-full overflow-hidden bg-primary/10">
             <img
@@ -175,7 +176,7 @@ export function ChatStreamMessage({
         )}
 
         {/* Assistant message section */}
-        {message.role === "assistant" && (
+        {message.role === ROLE_ASSISTANT && (
           <>
             {/* Attachment section - placed above text */}
             {message.attachments && message.attachments.length > 0 && (

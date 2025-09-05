@@ -9,60 +9,17 @@ import { useTranslation } from "react-i18next";
 import { Input, Button, App } from "antd";
 import { InfoCircleFilled } from "@ant-design/icons";
 
+import { UI_CONFIG, COLUMN_WIDTHS, DOCUMENT_NAME_CONFIG, LAYOUT, DOCUMENT_STATUS } from "@/const/knowledgeBase";
 import knowledgeBaseService from "@/services/knowledgeBaseService";
-import { Document } from "@/types/knowledgeBase";
+import { 
+  Document
+} from "@/types/knowledgeBase";
 import { formatFileSize, sortByStatusAndDate } from "@/lib/utils";
 
 import DocumentStatus from "./DocumentStatus";
 import UploadArea from "../upload/UploadArea";
 import { useKnowledgeBaseContext } from "../../contexts/KnowledgeBaseContext";
 import { useDocumentContext } from "../../contexts/DocumentContext";
-
-// UI layout configuration, internally manages height ratios of each section
-export const UI_CONFIG = {
-  TITLE_BAR_HEIGHT: "56.8px", // Fixed height for title bar
-  UPLOAD_COMPONENT_HEIGHT: "250px", // Fixed height for upload component
-};
-
-// Column width constants configuration for unified management
-export const COLUMN_WIDTHS = {
-  NAME: "47%", // Document name column width
-  STATUS: "11%", // Status column width
-  SIZE: "11%", // Size column width
-  DATE: "20%", // Date column width
-  ACTION: "11%", // Action column width
-};
-
-// Document name display configuration
-export const DOCUMENT_NAME_CONFIG = {
-  MAX_WIDTH: "450px", // Maximum width for document name
-  TEXT_OVERFLOW: "ellipsis", // Show ellipsis for overflow text
-  WHITE_SPACE: "nowrap", // No line break
-  OVERFLOW: "hidden", // Hide overflow
-};
-
-// Layout and spacing configuration
-export const LAYOUT = {
-  // Cells and spacing
-  CELL_PADDING: "px-3 py-1.5", // Cell padding
-  TEXT_SIZE: "text-sm", // Standard text size
-  HEADER_TEXT: "text-sm font-semibold text-gray-600 uppercase tracking-wider", // Header text style
-
-  // Knowledge base title area
-  KB_HEADER_PADDING: "p-3", // Knowledge base title area padding
-  KB_TITLE_SIZE: "text-lg", // Knowledge base title text size
-  KB_TITLE_MARGIN: "ml-3", // Knowledge base title left margin
-
-  // Table row styles
-  TABLE_ROW_HOVER: "hover:bg-gray-50", // Table row hover background
-  TABLE_HEADER_BG: "bg-gray-50", // Table header background color
-  TABLE_ROW_DIVIDER: "divide-y divide-gray-200", // Table row divider
-
-  // Icons and buttons
-  ICON_SIZE: "text-lg", // File icon size
-  ICON_MARGIN: "mr-2", // File icon right margin
-  ACTION_TEXT: "text-red-500 hover:text-red-700 font-medium text-xs", // Action button text style
-};
 
 interface DocumentListProps {
   documents: Document[];
@@ -461,10 +418,10 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
                           onClick={() => onDelete(doc.id)}
                           className={LAYOUT.ACTION_TEXT}
                           disabled={
-                            doc.status === "WAIT_FOR_PROCESSING" ||
-                            doc.status === "PROCESSING" ||
-                            doc.status === "WAIT_FOR_FORWARDING" ||
-                            doc.status === "FORWARDING"
+                            doc.status === DOCUMENT_STATUS.WAIT_FOR_PROCESSING ||
+                            doc.status === DOCUMENT_STATUS.PROCESSING ||
+                            doc.status === DOCUMENT_STATUS.WAIT_FOR_FORWARDING ||
+                            doc.status === DOCUMENT_STATUS.FORWARDING
                           }
                         >
                           {t("common.delete")}
