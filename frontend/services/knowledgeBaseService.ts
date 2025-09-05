@@ -2,6 +2,7 @@
 
 import { API_ENDPOINTS } from './api';
 
+import { NAME_CHECK_STATUS } from '@/const/agentConfig';
 import { Document, KnowledgeBase, KnowledgeBaseCreateParams } from '@/types/knowledgeBase';
 import { getAuthHeaders, fetchWithAuth } from '@/lib/auth';
 // @ts-ignore
@@ -142,7 +143,7 @@ class KnowledgeBaseService {
     } catch (error) {
       console.error("Failed to check knowledge base name:", error);
       // Return a specific status to indicate a failed check, so UI can handle it.
-      return { status: 'check_failed' };
+      return { status: NAME_CHECK_STATUS.CHECK_FAILED };
     }
   }
 

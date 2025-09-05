@@ -278,38 +278,3 @@ export interface AgentRefreshEvent extends CustomEvent {
   detail: any;
 }
 
-// ========== Constants ==========
-
-// Agent call relationship graph theme/colors
-export const AGENT_CALL_RELATIONSHIP_THEME_CONFIG = {
-  colors: {
-    node: {
-      main: "#1a1a2e",
-      levels: {
-        1: "#16213e",
-        2: "#0f3460",
-        3: "#533483",
-        4: "#7209b7",
-      },
-      tools: {
-        1: "#ff6b6b",
-        2: "#4ecdc4",
-        3: "#45b7d1",
-        4: "#96ceb4",
-      },
-    },
-  },
-} as const;
-
-// Agent call relationship node default size
-export const AGENT_CALL_RELATIONSHIP_NODE_SIZE = {
-  width: 140,
-  height: 60,
-} as const;
-
-// Default layout configuration for Agent Setup pages
-export const AGENT_SETUP_LAYOUT_DEFAULT: LayoutConfig = {
-  CARD_HEADER_PADDING: "10px 24px",
-  CARD_BODY_PADDING: "12px 20px",
-  DRAWER_WIDTH: "40%",
-};

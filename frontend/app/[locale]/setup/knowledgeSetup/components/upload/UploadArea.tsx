@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
 import { App } from 'antd';
 
+import { NAME_CHECK_STATUS } from '@/const/agentConfig';
 import { 
   checkKnowledgeBaseName,
   fetchKnowledgeBaseInfo,
@@ -140,7 +141,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
         setNameStatus(result.status);
       } catch (error) {
         console.error(t('knowledgeBase.error.checkName'), error);
-        setNameStatus('check_failed'); // Handle check failure
+        setNameStatus(NAME_CHECK_STATUS.CHECK_FAILED); // Handle check failure
       }
     };
       

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { NAME_CHECK_STATUS } from '@/const/agentConfig';
 import { Upload, Progress } from 'antd';
 import { InboxOutlined, WarningFilled } from '@ant-design/icons';
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
@@ -83,8 +84,8 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
   }
   
   // 名称已存在UI - 根据status渲染不同消息
-  if (isCreatingMode && (nameStatus === 'exists_in_tenant' || nameStatus === 'exists_in_other_tenant')) {
-    const messageKey = nameStatus === 'exists_in_tenant' 
+  if (isCreatingMode && (nameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT || nameStatus === NAME_CHECK_STATUS.EXISTS_IN_OTHER_TENANT)) {
+    const messageKey = nameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT 
       ? 'knowledgeBase.message.nameExists' 
       : 'knowledgeBase.error.nameExistsInOtherTenant';
 

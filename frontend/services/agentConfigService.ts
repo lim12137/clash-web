@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from "./api";
 
+import { NAME_CHECK_STATUS } from "@/const/agentConfig";
 import { getAuthHeaders } from "@/lib/auth";
 import { convertParamType } from "@/lib/utils";
 
@@ -658,11 +659,11 @@ const checkAgentField = async (
     );
 
     if (existingAgent) {
-      return { status: "exists_in_tenant" };
+      return { status: NAME_CHECK_STATUS.EXISTS_IN_TENANT };
     }
-    return { status: "available" };
+    return { status: NAME_CHECK_STATUS.AVAILABLE };
   } catch (error) {
-    return { status: "check_failed" };
+    return { status: NAME_CHECK_STATUS.CHECK_FAILED };
   }
 };
 
