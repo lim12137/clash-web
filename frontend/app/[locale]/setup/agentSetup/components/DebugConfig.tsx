@@ -10,6 +10,7 @@ import { ChatMessageType, TaskMessageType } from "@/types/chat";
 import { handleStreamResponse } from "@/app/chat/streaming/chatStreamHandler";
 import { ChatStreamFinalMessage } from "@/app/chat/streaming/chatStreamFinalMessage";
 import { TaskWindow } from "@/app/chat/streaming/taskWindow";
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
 
 // Agent debugging component Props interface
 interface AgentDebuggingProps {
@@ -58,7 +59,7 @@ function AgentDebugging({
         step.contents.forEach((content) => {
           taskMsgs.push({
             id: content.id,
-            role: "assistant",
+            role: ROLE_ASSISTANT,
             content: content.content,
             timestamp: new Date(),
             type: content.type,
@@ -72,7 +73,7 @@ function AgentDebugging({
       if (step.thinking && step.thinking.content) {
         taskMsgs.push({
           id: `thinking-${step.id}`,
-          role: "assistant",
+          role: ROLE_ASSISTANT,
           content: step.thinking.content,
           timestamp: new Date(),
           type: "model_output_thinking",
@@ -83,7 +84,7 @@ function AgentDebugging({
       if (step.code && step.code.content) {
         taskMsgs.push({
           id: `code-${step.id}`,
-          role: "assistant",
+          role: ROLE_ASSISTANT,
           content: step.code.content,
           timestamp: new Date(),
           type: "model_output_code",
@@ -94,7 +95,7 @@ function AgentDebugging({
       if (step.output && step.output.content) {
         taskMsgs.push({
           id: `output-${step.id}`,
-          role: "assistant",
+          role: ROLE_ASSISTANT,
           content: step.output.content,
           timestamp: new Date(),
           type: "tool",
@@ -113,7 +114,7 @@ function AgentDebugging({
           {messages.map((message, index) => {
             // Process the task content of the current message
             const currentTaskMessages =
-              message.role === "assistant" ? processMessageSteps(message) : [];
+              message.role === ROLE_ASSISTANT ? processMessageSteps(message) : [];
 
             return (
               <div key={message.id || index} className="flex flex-col gap-2">
@@ -132,7 +133,7 @@ function AgentDebugging({
                 )}
 
                 {/* Assistant message task window */}
-                {message.role === "assistant" &&
+                {message.role === ROLE_ASSISTANT &&
                   currentTaskMessages.length > 0 && (
                     <TaskWindow
                       messages={currentTaskMessages}
@@ -141,7 +142,7 @@ function AgentDebugging({
                   )}
 
                 {/* Assistant message final answer */}
-                {message.role === "assistant" && (
+                {message.role === ROLE_ASSISTANT && (
                   <ChatStreamFinalMessage
                     message={message}
                     onSelectMessage={() => {}}
@@ -257,7 +258,7 @@ export default function DebugConfig({ agentId }: DebugConfigProps) {
     setMessages((prev) => {
       const newMessages = [...prev];
       const lastMsg = newMessages[newMessages.length - 1];
-      if (lastMsg && lastMsg.role === "assistant") {
+      if (lastMsg && lastMsg.role === ROLE_ASSISTANT) {
         lastMsg.isComplete = true;
         lastMsg.thinking = undefined; // Explicitly clear thinking state
         lastMsg.content = t("agent.debug.stopped");
@@ -284,7 +285,7 @@ export default function DebugConfig({ agentId }: DebugConfigProps) {
     // Add assistant message (initial state)
     const assistantMessage: ChatMessageType = {
       id: (Date.now() + 1).toString(),
-      role: "assistant",
+      role: ROLE_ASSISTANT,
       content: "",
       timestamp: new Date(),
       isComplete: false,
@@ -339,7 +340,7 @@ export default function DebugConfig({ agentId }: DebugConfigProps) {
         setMessages((prev) => {
           const newMessages = [...prev];
           const lastMsg = newMessages[newMessages.length - 1];
-          if (lastMsg && lastMsg.role === "assistant") {
+          if (lastMsg && lastMsg.role === ROLE_ASSISTANT) {
             lastMsg.content = t("agent.debug.stopped");
             lastMsg.isComplete = true;
             lastMsg.thinking = undefined; // Explicitly clear thinking state
@@ -356,7 +357,7 @@ export default function DebugConfig({ agentId }: DebugConfigProps) {
         setMessages((prev) => {
           const newMessages = [...prev];
           const lastMsg = newMessages[newMessages.length - 1];
-          if (lastMsg && lastMsg.role === "assistant") {
+          if (lastMsg && lastMsg.role === ROLE_ASSISTANT) {
             lastMsg.content = errorMessage;
             lastMsg.isComplete = true;
             lastMsg.error = errorMessage;

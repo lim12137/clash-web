@@ -1,5 +1,6 @@
 "use client";
 
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
 import {
   ApiMessage,
   SearchResult,
@@ -237,7 +238,7 @@ export function extractAssistantMsgFromResponse(
   // create the formatted assistant message
   const formattedAssistantMsg: ChatMessageType = {
     id: `assistant-${index}-${Date.now()}`,
-    role: "assistant",
+    role: ROLE_ASSISTANT,
     message_id: dialog_msg.message_id,
     content: "",
     opinion_flag: dialog_msg.opinion_flag,

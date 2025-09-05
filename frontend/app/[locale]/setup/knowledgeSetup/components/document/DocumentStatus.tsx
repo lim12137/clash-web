@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { DOCUMENT_STATUS } from "@/const/knowledgeBase";
 
 interface DocumentStatusProps {
   status: string;
@@ -15,19 +16,19 @@ export const DocumentStatus: React.FC<DocumentStatusProps> = ({
   // Map API status to display status
   const getDisplayStatus = (apiStatus: string): string => {
     switch (apiStatus) {
-      case "WAIT_FOR_PROCESSING":
+      case DOCUMENT_STATUS.WAIT_FOR_PROCESSING:
         return t("document.status.waitForProcessing");
-      case "WAIT_FOR_FORWARDING":
+      case DOCUMENT_STATUS.WAIT_FOR_FORWARDING:
         return t("document.status.waitForForwarding");
-      case "PROCESSING":
+      case DOCUMENT_STATUS.PROCESSING:
         return t("document.status.processing");
-      case "FORWARDING":
+      case DOCUMENT_STATUS.FORWARDING:
         return t("document.status.forwarding");
-      case "COMPLETED":
+      case DOCUMENT_STATUS.COMPLETED:
         return t("document.status.completed");
-      case "PROCESS_FAILED":
+      case DOCUMENT_STATUS.PROCESS_FAILED:
         return t("document.status.processFailed");
-      case "FORWARD_FAILED":
+      case DOCUMENT_STATUS.FORWARD_FAILED:
         return t("document.status.forwardFailed");
       default:
         return apiStatus;
@@ -41,28 +42,28 @@ export const DocumentStatus: React.FC<DocumentStatusProps> = ({
     borderColor: string;
   } => {
     switch (status) {
-      case "COMPLETED":
+      case DOCUMENT_STATUS.COMPLETED:
         return {
           bgColor: "bg-green-100",
           textColor: "text-green-800",
           borderColor: "border-green-200",
         };
-      case "PROCESSING":
-      case "FORWARDING":
+      case DOCUMENT_STATUS.PROCESSING:
+      case DOCUMENT_STATUS.FORWARDING:
         return {
           bgColor: "bg-blue-100",
           textColor: "text-blue-800",
           borderColor: "border-blue-200",
         };
-      case "PROCESS_FAILED":
-      case "FORWARD_FAILED":
+      case DOCUMENT_STATUS.PROCESS_FAILED:
+      case DOCUMENT_STATUS.FORWARD_FAILED:
         return {
           bgColor: "bg-red-100",
           textColor: "text-red-800",
           borderColor: "border-red-200",
         };
-      case "WAIT_FOR_PROCESSING":
-      case "WAIT_FOR_FORWARDING":
+      case DOCUMENT_STATUS.WAIT_FOR_PROCESSING:
+      case DOCUMENT_STATUS.WAIT_FOR_FORWARDING:
         return {
           bgColor: "bg-yellow-100",
           textColor: "text-yellow-800",
@@ -82,16 +83,16 @@ export const DocumentStatus: React.FC<DocumentStatusProps> = ({
     if (!showIcon) return null;
 
     switch (status) {
-      case "COMPLETED":
+      case DOCUMENT_STATUS.COMPLETED:
         return "✓";
-      case "PROCESSING":
-      case "FORWARDING":
+      case DOCUMENT_STATUS.PROCESSING:
+      case DOCUMENT_STATUS.FORWARDING:
         return "⟳";
-      case "PROCESS_FAILED":
-      case "FORWARD_FAILED":
+      case DOCUMENT_STATUS.PROCESS_FAILED:
+      case DOCUMENT_STATUS.FORWARD_FAILED:
         return "✗";
-      case "WAIT_FOR_PROCESSING":
-      case "WAIT_FOR_FORWARDING":
+      case DOCUMENT_STATUS.WAIT_FOR_PROCESSING:
+      case DOCUMENT_STATUS.WAIT_FOR_FORWARDING:
         return "⏱";
       default:
         return null;

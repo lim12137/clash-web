@@ -72,12 +72,6 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     setLoadingModelList
   })
 
-  // Debug: log model list when it updates
-  // useEffect(() => {
-  //   console.log('modelList', modelList)
-  //   // whenever modelList changes, select all by default
-  //   setSelectedModelIds(new Set(modelList.map((m: any) => m.id)))
-  // }, [modelList])
 
   const parseModelName = (name: string): string => {
     if (!name) return ""

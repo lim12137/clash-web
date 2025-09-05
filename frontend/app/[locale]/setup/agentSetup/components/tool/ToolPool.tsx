@@ -11,12 +11,13 @@ import {
   ReloadOutlined,
 } from "@ant-design/icons";
 
+import { TOOL_SOURCE_TYPES } from "@/const/agentConfig";
 import {
   Tooltip as CustomTooltip,
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { Tool, ToolPoolProps, ToolGroup } from "@/types/agentConfig";
+import { Tool, ToolPoolProps, ToolGroup} from "@/types/agentConfig";
 import {
   fetchTools,
   searchToolConfig,
@@ -64,20 +65,20 @@ function ToolPool({
       let groupKey: string;
       let groupLabel: string;
 
-      if (tool.source === "mcp") {
+      if (tool.source === TOOL_SOURCE_TYPES.MCP) {
         // MCP tools grouped by usage
-        const usage = tool.usage || "other";
+        const usage = tool.usage || TOOL_SOURCE_TYPES.OTHER;
         groupKey = `mcp-${usage}`;
         groupLabel = usage;
-      } else if (tool.source === "local") {
-        groupKey = "local";
+      } else if (tool.source === TOOL_SOURCE_TYPES.LOCAL) {
+        groupKey = TOOL_SOURCE_TYPES.LOCAL;
         groupLabel = t("toolPool.group.local");
-      } else if (tool.source === "langchain") {
-        groupKey = "langchain";
+      } else if (tool.source === TOOL_SOURCE_TYPES.LANGCHAIN) {
+        groupKey = TOOL_SOURCE_TYPES.LANGCHAIN;
         groupLabel = t("toolPool.group.langchain");
       } else {
         // Other types
-        groupKey = tool.source || "other";
+        groupKey = tool.source || TOOL_SOURCE_TYPES.OTHER;
         groupLabel = tool.source || t("toolPool.group.other");
       }
 
@@ -101,9 +102,9 @@ function ToolPool({
         key,
         label: key.startsWith("mcp-")
           ? key.replace("mcp-", "")
-          : key === "local"
+          : key === TOOL_SOURCE_TYPES.LOCAL
           ? t("toolPool.group.local")
-          : key === "langchain"
+          : key === TOOL_SOURCE_TYPES.LANGCHAIN
           ? t("toolPool.group.langchain")
           : key,
         tools: sortedTools,
@@ -113,8 +114,8 @@ function ToolPool({
     // Sort by priority: local > langchain > mcp groups
     return groups.sort((a, b) => {
       const getPriority = (key: string) => {
-        if (key === "local") return 1;
-        if (key === "langchain") return 2;
+        if (key === TOOL_SOURCE_TYPES.LOCAL) return 1;
+        if (key === TOOL_SOURCE_TYPES.LANGCHAIN) return 2;
         if (key.startsWith("mcp-")) return 3;
         return 4;
       };

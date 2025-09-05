@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal, Input, Switch, Select, InputNumber, Tag, App } from "antd";
 
+import { TOOL_PARAM_TYPES } from "@/const/agentConfig";
 import { OpenAIModel } from "@/types/config";
 import { ToolParam, ToolConfigModalProps } from "@/types/agentConfig";
 import {
@@ -158,7 +159,7 @@ export default function ToolConfigModal({
 
   const renderParamInput = (param: ToolParam, index: number) => {
     switch (param.type) {
-      case "OpenAIModel":
+      case TOOL_PARAM_TYPES.OPENAI_MODEL:
         return (
           <Select
             value={param.value as string}
@@ -174,7 +175,7 @@ export default function ToolConfigModal({
             ]}
           />
         );
-      case "string":
+      case TOOL_PARAM_TYPES.STRING:
         const stringValue = param.value as string;
         // if string length is greater than 15, use TextArea
         if (stringValue && stringValue.length > 15) {
@@ -199,7 +200,7 @@ export default function ToolConfigModal({
             })}
           />
         );
-      case "number":
+      case TOOL_PARAM_TYPES.NUMBER:
         return (
           <InputNumber
             value={param.value as number}
@@ -207,14 +208,14 @@ export default function ToolConfigModal({
             className="w-full"
           />
         );
-      case "boolean":
+      case TOOL_PARAM_TYPES.BOOLEAN:
         return (
           <Switch
             checked={param.value as boolean}
             onChange={(checked) => handleParamChange(index, checked)}
           />
         );
-      case "array":
+      case TOOL_PARAM_TYPES.ARRAY:
         const arrayValue = Array.isArray(param.value)
           ? JSON.stringify(param.value, null, 2)
           : (param.value as string);
@@ -234,7 +235,7 @@ export default function ToolConfigModal({
             style={{ resize: "vertical" }}
           />
         );
-      case "object":
+      case TOOL_PARAM_TYPES.OBJECT:
         const objectValue =
           typeof param.value === "object"
             ? JSON.stringify(param.value, null, 2)

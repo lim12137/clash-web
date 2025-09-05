@@ -16,6 +16,7 @@ import { conversationService } from "@/services/conversationService";
 import { copyToClipboard } from "@/lib/clipboard";
 
 import { ChatAttachment, AttachmentItem } from "../internal/chatAttachment";
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
 
 interface FinalMessageProps {
   message: ChatMessageType;
@@ -259,7 +260,7 @@ export function ChatStreamFinalMessage({
         )}
 
         {/* Assistant message part - show final answer or content */}
-        {message.role === "assistant" &&
+        {message.role === ROLE_ASSISTANT &&
           (message.finalAnswer || message.content !== undefined) && (
             <div className="bg-white rounded-lg w-full -mt-2">
               <MarkdownRenderer
