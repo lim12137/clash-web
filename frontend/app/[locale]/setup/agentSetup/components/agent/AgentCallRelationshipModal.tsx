@@ -9,14 +9,11 @@ import Tree from "react-d3-tree";
 import {
   AgentCallRelationship,
   AgentCallRelationshipSubAgent,
-  AgentCallRelationshipTool,
   AgentCallRelationshipModalProps,
-  AgentCallRelationshipTreeNodeDatum,
-  AGENT_CALL_RELATIONSHIP_THEME_CONFIG,
+  AgentCallRelationshipTreeNodeDatum
 } from "@/types/agentConfig";
 
-import { AGENT_CALL_RELATIONSHIP_NODE_SIZE, AGENT_CALL_RELATIONSHIP_THEME, AGENT_CALL_RELATIONSHIP_NODE_TYPES, AGENT_CALL_RELATIONSHIP_ORIENTATION, AgentCallRelationshipOrientation } from "@/const/agentConfig";
-import { fetchAgentCallRelationship } from "@/services/agentConfigService";
+import {AGENT_CALL_RELATIONSHIP_THEME_CONFIG, AGENT_CALL_RELATIONSHIP_NODE_TYPES, AGENT_CALL_RELATIONSHIP_ORIENTATION, AgentCallRelationshipOrientation } from "@/const/agentConfig";
 
 const { Text } = Typography;
 
