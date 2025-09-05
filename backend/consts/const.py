@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv(override=True)
 
-
+# TODO: Analyze every variable if this is used
 # Test voice file path
 TEST_VOICE_PATH = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'assets', 'test.wav')

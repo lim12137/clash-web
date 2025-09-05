@@ -1,6 +1,5 @@
 ---
-description: English Comments Rule
-alwaysApply: false
+alwaysApply: true
 ---
 # English Comments Rule
 
