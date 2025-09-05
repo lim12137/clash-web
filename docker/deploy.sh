@@ -76,17 +76,8 @@ generate_minio_ak_sk() {
   export MINIO_ACCESS_KEY=$ACCESS_KEY
   export MINIO_SECRET_KEY=$SECRET_KEY
 
-  if grep -q "^MINIO_ACCESS_KEY=" .env; then
-    sed -i.bak "s~^MINIO_ACCESS_KEY=.*~MINIO_ACCESS_KEY=$ACCESS_KEY~" .env
-  else
-    echo "MINIO_ACCESS_KEY=$ACCESS_KEY" >> .env
-  fi
-
-  if grep -q "^MINIO_SECRET_KEY=" .env; then
-    sed -i.bak "s~^MINIO_SECRET_KEY=.*~MINIO_SECRET_KEY=$SECRET_KEY~" .env
-  else
-    echo "MINIO_SECRET_KEY=$SECRET_KEY" >> .env
-  fi
+  update_env_var "MINIO_ACCESS_KEY" "$ACCESS_KEY"
+  update_env_var "MINIO_SECRET_KEY" "$SECRET_KEY"
 
   echo "   ✅ MinIO keys generated successfully"
 }
@@ -159,11 +150,7 @@ generate_ssh_keys() {
           export SSH_PRIVATE_KEY_PATH
 
           # Add to .env file
-          if grep -q "^SSH_PRIVATE_KEY_PATH=" .env; then
-              sed -i.bak "s~^SSH_PRIVATE_KEY_PATH=.*~SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH~" .env
-          else
-              echo "SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH" >> .env
-          fi
+          update_env_var "SSH_PRIVATE_KEY_PATH" "$SSH_PRIVATE_KEY_PATH"
 
           echo ""
           echo "--------------------------------"
@@ -226,11 +213,7 @@ generate_ssh_keys() {
               export SSH_PRIVATE_KEY_PATH
 
               # Add to .env file
-              if grep -q "^SSH_PRIVATE_KEY_PATH=" .env; then
-                  sed -i.bak "s~^SSH_PRIVATE_KEY_PATH=.*~SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH~" .env
-              else
-                  echo "SSH_PRIVATE_KEY_PATH=$SSH_PRIVATE_KEY_PATH" >> .env
-              fi
+              update_env_var "SSH_PRIVATE_KEY_PATH" "$SSH_PRIVATE_KEY_PATH"
 
               # Fix SSH host key permissions (must be 600)
               find "$ROOT_DIR/openssh-server/config" -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
@@ -278,13 +261,7 @@ generate_elasticsearch_api_key() {
   ELASTICSEARCH_API_KEY=$(echo "$API_KEY_JSON" | grep -o '"encoded":"[^"]*"' | awk -F'"' '{print $4}')
   echo "✅ ELASTICSEARCH_API_KEY Generated: $ELASTICSEARCH_API_KEY"
   if [ -n "$ELASTICSEARCH_API_KEY" ]; then
-    if grep -q "^ELASTICSEARCH_API_KEY=" .env; then
-      # Use ~ as a separator in sed to avoid conflicts with special characters in the API key.
-      sed -i.bak "s~^ELASTICSEARCH_API_KEY=.*~ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY~" .env
-    else
-      echo "" >> .env
-      echo "ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY" >> .env
-    fi
+    update_env_var "ELASTICSEARCH_API_KEY" "$ELASTICSEARCH_API_KEY"
   fi
 }
 
@@ -351,17 +328,8 @@ get_compose_version() {
 }
 
 disable_dashboard() {
-  if grep -q "^DISABLE_RAY_DASHBOARD=" .env; then
-    sed -i.bak "s~^DISABLE_RAY_DASHBOARD=.*~DISABLE_RAY_DASHBOARD=true~" .env
-  else
-    echo "DISABLE_RAY_DASHBOARD=true" >> .env
-  fi
-            
-  if grep -q "^DISABLE_CELERY_FLOWER=" .env; then
-    sed -i.bak "s~^DISABLE_CELERY_FLOWER=.*~DISABLE_CELERY_FLOWER=true~" .env
-  else
-    echo "DISABLE_CELERY_FLOWER=true" >> .env
-  fi
+  update_env_var "DISABLE_RAY_DASHBOARD" "true"
+  update_env_var "DISABLE_CELERY_FLOWER" "true"
 }
 
 select_deployment_mode() {
@@ -369,7 +337,6 @@ select_deployment_mode() {
   echo "   1) 🛠️  Development mode - Expose all service ports for debugging"
   echo "   2) 🏗️  Infrastructure mode - Only start infrastructure services"
   echo "   3) 🚀 Production mode - Only expose port 3000 for security"
-  echo "   4) 🧪 Beta mode - Use develop branch images (from .env.beta)"
 
   if [ -n "$MODE_CHOICE" ]; then
     mode_choice="$MODE_CHOICE"
@@ -392,11 +359,6 @@ select_deployment_mode() {
           export COMPOSE_FILE_SUFFIX=".prod.yml"
           disable_dashboard
           echo "✅ Selected production mode 🚀"
-          ;;
-      4)
-          export DEPLOYMENT_MODE="beta"
-          export COMPOSE_FILE_SUFFIX=".yml"
-          echo "✅ Selected beta mode 🧪"
           ;;
       *)
           export DEPLOYMENT_MODE="development"
@@ -705,13 +667,7 @@ select_terminal_tool() {
         
         # Save to environment variables
         export TERMINAL_MOUNT_DIR
-        
-        # Add to .env file
-        if grep -q "^TERMINAL_MOUNT_DIR=" .env; then
-            sed -i.bak "s~^TERMINAL_MOUNT_DIR=.*~TERMINAL_MOUNT_DIR=$TERMINAL_MOUNT_DIR~" .env
-        else
-            echo "TERMINAL_MOUNT_DIR=$TERMINAL_MOUNT_DIR" >> .env
-        fi
+        update_env_var "TERMINAL_MOUNT_DIR" "$TERMINAL_MOUNT_DIR"
         
         echo "   📁 Terminal mount configuration:"
         echo "      • Host: $TERMINAL_MOUNT_DIR"
@@ -719,6 +675,7 @@ select_terminal_tool() {
     else
         export ENABLE_TERMINAL_TOOL="false"
         echo "🚫 Terminal tool disabled"
+
     fi
     echo ""
     echo "--------------------------------"
@@ -751,34 +708,26 @@ create_default_admin_user() {
 }
 
 choose_image_env() {
-  if [ "$DEPLOYMENT_MODE" = "beta" ]; then
-    echo "🌐 Beta Mode: using .env.beta for image sources."
-    source .env.beta
-    echo ""
-    echo "--------------------------------"
-    echo ""
+  if [ -n "$IS_MAINLAND" ]; then
+    is_mainland="$IS_MAINLAND"
+    echo "🌏 Using is_mainland from argument: $is_mainland"
   else
-    if [ -n "$IS_MAINLAND" ]; then
-      is_mainland="$IS_MAINLAND"
-      echo "🌏 Using is_mainland from argument: $is_mainland"
-    else
-      read -p "🌏 Is your server network located in mainland China? [Y/N] (default N): " is_mainland
-    fi
-
-    # Sanitize potential Windows CR in input
-    is_mainland=$(sanitize_input "$is_mainland")
-    if [[ "$is_mainland" =~ ^[Yy]$ ]]; then
-      echo "🌐 Detected mainland China network, using .env.mainland for image sources."
-      source .env.mainland
-    else
-      echo "🌐 Using general image sources from .env.general."
-      source .env.general
-    fi
-
-    echo ""
-    echo "--------------------------------"
-    echo ""
+    read -p "🌏 Is your server network located in mainland China? [Y/N] (default N): " is_mainland
   fi
+
+  # Sanitize potential Windows CR in input
+  is_mainland=$(sanitize_input "$is_mainland")
+  if [[ "$is_mainland" =~ ^[Yy]$ ]]; then
+    echo "🌐 Detected mainland China network, using .env.mainland for image sources."
+    source .env.mainland
+  else
+    echo "🌐 Using general image sources from .env.general."
+    source .env.general
+  fi
+
+  echo ""
+  echo "--------------------------------"
+  echo ""
 }
 
 main_deploy() {

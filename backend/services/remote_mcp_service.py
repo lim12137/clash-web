@@ -1,33 +1,29 @@
 import logging
-from fastapi.responses import JSONResponse
 
-from database.remote_mcp_db import create_mcp_record, delete_mcp_record_by_name_and_url, get_mcp_records_by_tenant, check_mcp_name_exists
 from fastmcp import Client
+
+from consts.exceptions import MCPConnectionError, MCPNameIllegal
+from database.remote_mcp_db import (
+    create_mcp_record,
+    delete_mcp_record_by_name_and_url,
+    get_mcp_records_by_tenant,
+    check_mcp_name_exists,
+    update_mcp_status_by_name_and_url
+)
+
 logger = logging.getLogger("remote_mcp_service")
 
 
-async def mcp_server_health(remote_mcp_server: str) -> JSONResponse:
+async def mcp_server_health(remote_mcp_server: str) -> bool:
     try:
         client = Client(remote_mcp_server)
         async with client:
             connected = client.is_connected()
-            if connected:
-                return JSONResponse(
-                    status_code=200,
-                    content={"message": "Successfully connected to remote MCP server", "status": "success"}
-                )
-            else:
-                logger.error(f"Remote MCP server health check failed: not connected to {remote_mcp_server}")
-                return JSONResponse(
-                    status_code=503,
-                    content={"message": "Cannot connect to remote MCP server", "status": "error"}
-                )
+            return connected
     except Exception as e:
         logger.error(f"Remote MCP server health check failed: {e}")
-        return JSONResponse(
-            status_code=400,
-            content={"message": "Failed to add remote MCP proxy", "status": "error"}
-        )
+        raise MCPConnectionError("MCP connection failed")
+
 
 async def add_remote_mcp_server_list(tenant_id: str,
                                      user_id: str,
@@ -38,55 +34,30 @@ async def add_remote_mcp_server_list(tenant_id: str,
     if check_mcp_name_exists(mcp_name=remote_mcp_server_name, tenant_id=tenant_id):
         logger.error(
             f"MCP name already exists, tenant_id: {tenant_id}, remote_mcp_server_name: {remote_mcp_server_name}")
-        return JSONResponse(
-            status_code=400,
-            content={"message": f"MCP server name '{remote_mcp_server_name}' already exists", "status": "error"}
-        )
+        raise MCPNameIllegal("MCP name already exists")
 
     # check if the address is available
-    response = await mcp_server_health(remote_mcp_server=remote_mcp_server)
-    if response.status_code != 200:
-        return response
+    if not await mcp_server_health(remote_mcp_server=remote_mcp_server):
+        raise MCPConnectionError("MCP connection failed")
 
     # update the PG database record
     insert_mcp_data = {"mcp_name": remote_mcp_server_name,
                        "mcp_server": remote_mcp_server,
                        "status": True}
-    result = create_mcp_record(mcp_data=insert_mcp_data, tenant_id=tenant_id, user_id=user_id)
-    if not result:
-        logger.error(
-            f"add_remote_mcp_server_list failed, tenant_id: {tenant_id}, user_id: {user_id}, remote_mcp_server: {remote_mcp_server}, remote_mcp_server_name: {remote_mcp_server_name}")
-        return JSONResponse(
-            status_code=400,
-            content={"message": "Failed to add remote MCP proxy, database error", "status": "error"}
-        )
+    create_mcp_record(
+        mcp_data=insert_mcp_data, tenant_id=tenant_id, user_id=user_id)
 
-    return JSONResponse(
-        status_code=200,
-        content={"message": "Successfully added remote MCP proxy", "status": "success"}
-    )
 
 async def delete_remote_mcp_server_list(tenant_id: str,
                                         user_id: str,
                                         remote_mcp_server: str,
                                         remote_mcp_server_name: str):
     # delete the record in the PG database
-    result = delete_mcp_record_by_name_and_url(mcp_name=remote_mcp_server_name,
-                                               mcp_server=remote_mcp_server,
-                                               tenant_id=tenant_id,
-                                               user_id=user_id)
-    if not result:
-        logger.error(
-            f"delete_remote_mcp_server_list failed, tenant_id: {tenant_id}, user_id: {user_id}, remote_mcp_server: {remote_mcp_server}, remote_mcp_server_name: {remote_mcp_server_name}")
-        return JSONResponse(
-            status_code=400,
-            content={"message": "Failed to delete remote MCP server, server not record", "status": "error"}
-        )
+    delete_mcp_record_by_name_and_url(mcp_name=remote_mcp_server_name,
+                                      mcp_server=remote_mcp_server,
+                                      tenant_id=tenant_id,
+                                      user_id=user_id)
 
-    return JSONResponse(
-        status_code=200,
-        content={"message": "Successfully deleted remote MCP proxy", "status": "success"}
-    )
 
 async def get_remote_mcp_server_list(tenant_id: str):
     mcp_records = get_mcp_records_by_tenant(tenant_id=tenant_id)
@@ -99,3 +70,20 @@ async def get_remote_mcp_server_list(tenant_id: str):
             "status": record["status"]
         })
     return mcp_records_list
+
+
+async def check_mcp_health_and_update_db(mcp_url, service_name, tenant_id, user_id):
+    # check the health of the MCP server
+    try:
+        status = await mcp_server_health(remote_mcp_server=mcp_url)
+    except Exception:
+        status = False
+    # update the status of the MCP server in the database
+    update_mcp_status_by_name_and_url(
+        mcp_name=service_name,
+        mcp_server=mcp_url,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        status=status)
+    if not status:
+        raise MCPConnectionError("MCP connection failed")

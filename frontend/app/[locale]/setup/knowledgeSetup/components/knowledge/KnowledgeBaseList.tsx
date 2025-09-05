@@ -1,8 +1,10 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { Button, Checkbox, ConfigProvider } from 'antd'
 import { SyncOutlined, PlusOutlined } from '@ant-design/icons'
+
 import { KnowledgeBase } from '@/types/knowledgeBase'
-import { useTranslation } from 'react-i18next'
 
 // 知识库布局常量配置
 const KB_LAYOUT = {

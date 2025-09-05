@@ -1,31 +1,34 @@
 import threading
 import logging
 from urllib.parse import urljoin
-from nexent.core.utils.observer import MessageObserver
-from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
-from services.remote_mcp_service import get_remote_mcp_server_list
-from utils.auth_utils import get_current_user_id
-
-from database.agent_db import search_agent_info_by_agent_id, query_sub_agents_id_list
-from database.tool_db import search_tools_for_sub_agent
-from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
-from services.tenant_config_service import get_selected_knowledge_list
-from utils.prompt_template_utils import get_agent_prompt_template
-from utils.config_utils import config_manager, tenant_config_manager, get_model_name_from_config
-from smolagents.utils import BASE_BUILTIN_MODULES
-from services.memory_config_service import build_memory_context
-from jinja2 import Template, StrictUndefined
 from datetime import datetime
 
+from jinja2 import Template, StrictUndefined
+from smolagents.utils import BASE_BUILTIN_MODULES
+from nexent.core.utils.observer import MessageObserver
+from nexent.core.agents.agent_model import AgentRunInfo, ModelConfig, AgentConfig, ToolConfig
 from nexent.memory.memory_service import search_memory_in_levels
 
+from services.elasticsearch_service import ElasticSearchService, elastic_core, get_embedding_model
+from services.tenant_config_service import get_selected_knowledge_list
+from services.remote_mcp_service import get_remote_mcp_server_list
+from services.memory_config_service import build_memory_context
+from database.agent_db import search_agent_info_by_agent_id, query_sub_agents_id_list
+from database.tool_db import search_tools_for_sub_agent
+from utils.prompt_template_utils import get_agent_prompt_template
+from utils.config_utils import tenant_config_manager, get_model_name_from_config
+from utils.auth_utils import get_current_user_id
+from consts.const import LOCAL_MCP_SERVER
 
 logger = logging.getLogger("create_agent_info")
 logger.setLevel(logging.DEBUG)
 
+
 async def create_model_config_list(tenant_id):
-    main_model_config = tenant_config_manager.get_model_config(key="LLM_ID", tenant_id=tenant_id)
-    sub_model_config = tenant_config_manager.get_model_config(key="LLM_SECONDARY_ID", tenant_id=tenant_id)
+    main_model_config = tenant_config_manager.get_model_config(
+        key="LLM_ID", tenant_id=tenant_id)
+    sub_model_config = tenant_config_manager.get_model_config(
+        key="LLM_SECONDARY_ID", tenant_id=tenant_id)
 
     return [ModelConfig(cite_name="main_model",
                         api_key=main_model_config.get("api_key", ""),
@@ -39,11 +42,20 @@ async def create_model_config_list(tenant_id):
                         url=sub_model_config.get("base_url", ""))]
 
 
-async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh', last_user_query: str = None):
-    agent_info = search_agent_info_by_agent_id(agent_id=agent_id, tenant_id=tenant_id)
+async def create_agent_config(
+    agent_id,
+    tenant_id,
+    user_id,
+    language: str = "zh",
+    last_user_query: str = None,
+    allow_memory_search: bool = True,
+):
+    agent_info = search_agent_info_by_agent_id(
+        agent_id=agent_id, tenant_id=tenant_id)
 
     # create sub agent
-    sub_agent_id_list = query_sub_agents_id_list(main_agent_id=agent_id, tenant_id=tenant_id)
+    sub_agent_id_list = query_sub_agents_id_list(
+        main_agent_id=agent_id, tenant_id=tenant_id)
     managed_agents = []
     for sub_agent_id in sub_agent_id_list:
         sub_agent_config = await create_agent_config(
@@ -51,29 +63,33 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             tenant_id=tenant_id,
             user_id=user_id,
             language=language,
-            last_user_query=last_user_query)
+            last_user_query=last_user_query,
+            allow_memory_search=allow_memory_search,
+        )
         managed_agents.append(sub_agent_config)
 
     tool_list = await create_tool_config_list(agent_id, tenant_id, user_id)
-    
+
     # Build system prompt: prioritize segmented fields, fallback to original prompt field if not available
     duty_prompt = agent_info.get("duty_prompt", "")
     constraint_prompt = agent_info.get("constraint_prompt", "")
     few_shots_prompt = agent_info.get("few_shots_prompt", "")
-    
+
     # Get template content
-    prompt_template = get_agent_prompt_template(is_manager=len(managed_agents) > 0, language=language)
+    prompt_template = get_agent_prompt_template(
+        is_manager=len(managed_agents) > 0, language=language)
 
     # Get app information
     default_app_description = 'Nexent 是一个开源智能体SDK和平台' if language == 'zh' else 'Nexent is an open-source agent SDK and platform'
-    app_name = tenant_config_manager.get_app_config('APP_NAME', tenant_id=tenant_id) or "Nexent"
-    app_description = tenant_config_manager.get_app_config('APP_DESCRIPTION', tenant_id=tenant_id) or default_app_description
+    app_name = tenant_config_manager.get_app_config(
+        'APP_NAME', tenant_id=tenant_id) or "Nexent"
+    app_description = tenant_config_manager.get_app_config(
+        'APP_DESCRIPTION', tenant_id=tenant_id) or default_app_description
 
     # Get memory list
     memory_context = build_memory_context(user_id, tenant_id, agent_id)
     memory_list = []
-    if memory_context.user_config.memory_switch:
-        # TODO: 前端展示"回忆中..." Tag
+    if allow_memory_search and memory_context.user_config.memory_switch:
         logger.debug("Retrieving memory list...")
         memory_levels = ["tenant", "agent", "user", "user_agent"]
         if memory_context.user_config.agent_share_option == "never":
@@ -83,24 +99,28 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
         if memory_context.agent_id in memory_context.user_config.disable_user_agent_ids:
             memory_levels.remove("user_agent")
 
-        search_res = await search_memory_in_levels(
-            query_text=last_user_query if last_user_query else agent_info.get("name"),
-            memory_config=memory_context.memory_config,
-            tenant_id=memory_context.tenant_id,
-            user_id=memory_context.user_id,
-            agent_id=memory_context.agent_id,
-            memory_levels=memory_levels,
-        )
-        memory_list = search_res.get("results", [])
-        logger.debug(f"Retrieved memory list: {memory_list}")
-        # TODO: 前端展示"已抽取 xx 条回忆"
+        try:
+            search_res = await search_memory_in_levels(
+                query_text=last_user_query,
+                memory_config=memory_context.memory_config,
+                tenant_id=memory_context.tenant_id,
+                user_id=memory_context.user_id,
+                agent_id=memory_context.agent_id,
+                memory_levels=memory_levels,
+            )
+            memory_list = search_res.get("results", [])
+            logger.debug(f"Retrieved memory list: {memory_list}")
+        except Exception as e:
+            # Bubble up to streaming layer so it can emit <MEM_FAILED> and fall back
+            raise Exception(f"Failed to retrieve memory list: {e}")
 
     # Build knowledge base summary
     knowledge_base_summary = ""
     try:
         for tool in tool_list:
             if "KnowledgeBaseSearchTool" == tool.class_name:
-                knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
+                knowledge_info_list = get_selected_knowledge_list(
+                    tenant_id=tenant_id, user_id=user_id)
                 if knowledge_info_list:
                     for knowledge_info in knowledge_info_list:
                         knowledge_name = knowledge_info.get("index_name")
@@ -109,15 +129,16 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
                             summary = message.get("summary", "")
                             knowledge_base_summary += f"**{knowledge_name}**: {summary}\n\n"
                         except Exception as e:
-                            logger.warning(f"Failed to get summary for knowledge base {knowledge_name}: {e}")
+                            logger.warning(
+                                f"Failed to get summary for knowledge base {knowledge_name}: {e}")
                 else:
                     knowledge_base_summary = "当前没有可用的知识库索引。\n" if language == 'zh' else "No knowledge base indexes are currently available.\n"
                 break  # Only process the first KnowledgeBaseSearchTool found
     except Exception as e:
         logger.error(f"Failed to build knowledge base summary: {e}")
-    
+
     # Assemble system_prompt
-    if (duty_prompt or constraint_prompt or few_shots_prompt):
+    if duty_prompt or constraint_prompt or few_shots_prompt:
         system_prompt = Template(prompt_template["system_prompt"], undefined=StrictUndefined).render({
             "duty": duty_prompt,
             "constraint": constraint_prompt,
@@ -129,15 +150,19 @@ async def create_agent_config(agent_id, tenant_id, user_id, language: str = 'zh'
             "APP_DESCRIPTION": app_description,
             "memory_list": memory_list,
             "knowledge_base_summary": knowledge_base_summary,
-            "time" : datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
     else:
         system_prompt = agent_info.get("prompt", "")
-    
+
     agent_config = AgentConfig(
         name="undefined" if agent_info["name"] is None else agent_info["name"],
         description="undefined" if agent_info["description"] is None else agent_info["description"],
-        prompt_templates=await prepare_prompt_templates(is_manager=len(managed_agents)>0, system_prompt=system_prompt, language=language),
+        prompt_templates=await prepare_prompt_templates(
+            is_manager=len(managed_agents) > 0,
+            system_prompt=system_prompt,
+            language=language
+        ),
         tools=tool_list,
         max_steps=agent_info.get("max_steps", 10),
         model_name=agent_info.get("model_name"),
@@ -178,25 +203,27 @@ async def create_tool_config_list(agent_id, tenant_id, user_id):
 
         # special logic for knowledge base search tool
         if tool_config.class_name == "KnowledgeBaseSearchTool":
-            knowledge_info_list = get_selected_knowledge_list(tenant_id=tenant_id, user_id=user_id)
-            index_names = [knowledge_info.get("index_name") for knowledge_info in knowledge_info_list]
+            knowledge_info_list = get_selected_knowledge_list(
+                tenant_id=tenant_id, user_id=user_id)
+            index_names = [knowledge_info.get(
+                "index_name") for knowledge_info in knowledge_info_list]
             tool_config.metadata = {"index_names": index_names,
                                     "es_core": elastic_core,
                                     "embedding_model": get_embedding_model(tenant_id=tenant_id)}
         tool_config_list.append(tool_config)
-    
+
     return tool_config_list
 
 
 async def discover_langchain_tools():
     """
     Discover LangChain tools implemented with the `@tool` decorator.
-    
+
     Returns:
         list: List of discovered LangChain tool instances
     """
     from utils.langchain_utils import discover_langchain_modules
-    
+
     langchain_tools = []
 
     # ----------------------------------------------
@@ -206,18 +233,21 @@ async def discover_langchain_tools():
     try:
         # Use the utility function to discover all BaseTool objects
         discovered_tools = discover_langchain_modules()
-        
+
         for obj, filename in discovered_tools:
             try:
                 # Log successful tool discovery
-                logger.info(f"Loaded LangChain tool '{obj.name}' from {filename}")
+                logger.info(
+                    f"Loaded LangChain tool '{obj.name}' from {filename}")
                 langchain_tools.append(obj)
             except Exception as e:
-                logger.error(f"Error processing LangChain tool from {filename}: {e}")
-                
+                logger.error(
+                    f"Error processing LangChain tool from {filename}: {e}")
+
     except Exception as e:
-        logger.error(f"Unexpected error scanning LangChain tools directory: {e}")
-    
+        logger.error(
+            f"Unexpected error scanning LangChain tools directory: {e}")
+
     return langchain_tools
 
 
@@ -253,7 +283,7 @@ async def join_minio_file_description_to_query(minio_files, query):
     return final_query
 
 
-def filter_mcp_servers_and_tools(input_agent_config: AgentConfig, mcp_info_dict)->list:
+def filter_mcp_servers_and_tools(input_agent_config: AgentConfig, mcp_info_dict) -> list:
     """
     Filter mcp servers and tools, only keep the actual used mcp servers
     Support multi-level agent, recursively check all sub-agent tools
@@ -265,7 +295,8 @@ def filter_mcp_servers_and_tools(input_agent_config: AgentConfig, mcp_info_dict)
         # Check current agent tools
         for tool in agent_config.tools:
             if tool.source == "mcp" and tool.usage in mcp_info_dict:
-                used_mcp_urls.add(mcp_info_dict[tool.usage]["remote_mcp_server"])
+                used_mcp_urls.add(
+                    mcp_info_dict[tool.usage]["remote_mcp_server"])
 
         # Recursively check sub-agent
         for sub_agent_config in agent_config.managed_agents:
@@ -277,26 +308,40 @@ def filter_mcp_servers_and_tools(input_agent_config: AgentConfig, mcp_info_dict)
     return list(used_mcp_urls)
 
 
-async def create_agent_run_info(agent_id, minio_files, query, history, authorization, language: str = 'zh'):
+async def create_agent_run_info(
+    agent_id,
+    minio_files,
+    query,
+    history,
+    authorization,
+    language: str = "zh",
+    allow_memory_search: bool = True,
+):
     user_id, tenant_id = get_current_user_id(authorization)
 
     final_query = await join_minio_file_description_to_query(minio_files=minio_files, query=query)
     model_list = await create_model_config_list(tenant_id)
-    agent_config = await create_agent_config(agent_id=agent_id, tenant_id=tenant_id, user_id=user_id,
-                              language=language, last_user_query=final_query)
+    agent_config = await create_agent_config(
+        agent_id=agent_id,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        language=language,
+        last_user_query=final_query,
+        allow_memory_search=allow_memory_search,
+    )
 
     remote_mcp_list = await get_remote_mcp_server_list(tenant_id=tenant_id)
-    default_mcp_url = urljoin(config_manager.get_config("NEXENT_MCP_SERVER"), "sse")
+    default_mcp_url = urljoin(LOCAL_MCP_SERVER, "sse")
     remote_mcp_list.append({
         "remote_mcp_server_name": "nexent",
         "remote_mcp_server": default_mcp_url,
         "status": True
     })
-    remote_mcp_dict = {record["remote_mcp_server_name"]: record for record in remote_mcp_list if record["status"]}
+    remote_mcp_dict = {record["remote_mcp_server_name"]
+        : record for record in remote_mcp_list if record["status"]}
 
     # Filter MCP servers and tools
     mcp_host = filter_mcp_servers_and_tools(agent_config, remote_mcp_dict)
-
 
     agent_run_info = AgentRunInfo(
         query=final_query,

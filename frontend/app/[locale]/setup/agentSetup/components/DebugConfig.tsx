@@ -1,14 +1,15 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from 'react'
-import { Input } from 'antd'
-import { useTranslation } from 'react-i18next'
-import { conversationService } from '@/services/conversationService'
-import { handleStreamResponse } from '@/app/chat/streaming/chatStreamHandler'
-import { ChatMessageType, TaskMessageType } from '@/types/chat'
-import { ChatStreamFinalMessage } from '@/app/chat/streaming/chatStreamFinalMessage'
-import { TaskWindow } from '@/app/chat/streaming/taskWindow'
+import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
+import { Input } from "antd";
+
+import { conversationService } from "@/services/conversationService";
+import { ChatMessageType, TaskMessageType } from "@/types/chat";
+import { handleStreamResponse } from "@/app/chat/streaming/chatStreamHandler";
+import { ChatStreamFinalMessage } from "@/app/chat/streaming/chatStreamFinalMessage";
+import { TaskWindow } from "@/app/chat/streaming/taskWindow";
 
 // Agent debugging component Props interface
 interface AgentDebuggingProps {
@@ -26,35 +27,35 @@ interface DebugConfigProps {
 /**
  * Agent debugging component
  */
-function AgentDebugging({ 
+function AgentDebugging({
   onAskQuestion,
   onStop,
   isStreaming,
-  messages
+  messages,
 }: AgentDebuggingProps) {
-  const { t } = useTranslation()
-  const [inputQuestion, setInputQuestion] = useState("")
-  
+  const { t } = useTranslation();
+  const [inputQuestion, setInputQuestion] = useState("");
+
   const handleSend = async () => {
     if (!inputQuestion.trim()) return;
-    
+
     try {
       onAskQuestion(inputQuestion);
       setInputQuestion("");
     } catch (error) {
-      console.error(t('agent.error.loadTools'), error);
+      console.error(t("agent.error.loadTools"), error);
     }
-  }
-  
+  };
+
   // Process the step content of the message
   const processMessageSteps = (message: ChatMessageType): TaskMessageType[] => {
     if (!message.steps || message.steps.length === 0) return [];
-    
+
     const taskMsgs: TaskMessageType[] = [];
-    message.steps.forEach(step => {
+    message.steps.forEach((step) => {
       // Process step.contents
       if (step.contents && step.contents.length > 0) {
-        step.contents.forEach(content => {
+        step.contents.forEach((content) => {
           taskMsgs.push({
             id: content.id,
             role: "assistant",
@@ -62,11 +63,11 @@ function AgentDebugging({
             timestamp: new Date(),
             type: content.type,
             // Preserve subType so TaskWindow can style deep thinking text
-            subType: content.subType as any
+            subType: content.subType as any,
           } as any);
         });
       }
-      
+
       // Process step.thinking
       if (step.thinking && step.thinking.content) {
         taskMsgs.push({
@@ -74,21 +75,21 @@ function AgentDebugging({
           role: "assistant",
           content: step.thinking.content,
           timestamp: new Date(),
-          type: "model_output_thinking"
+          type: "model_output_thinking",
         });
       }
-      
-      // Process step.code 
+
+      // Process step.code
       if (step.code && step.code.content) {
         taskMsgs.push({
           id: `code-${step.id}`,
           role: "assistant",
           content: step.code.content,
           timestamp: new Date(),
-          type: "model_output_code"
+          type: "model_output_code",
         });
       }
-      
+
       // Process step.output
       if (step.output && step.output.content) {
         taskMsgs.push({
@@ -96,14 +97,14 @@ function AgentDebugging({
           role: "assistant",
           content: step.output.content,
           timestamp: new Date(),
-          type: "tool"
+          type: "tool",
         });
       }
     });
-    
+
     return taskMsgs;
   };
-  
+
   return (
     <div className="flex flex-col h-full p-4">
       <div className="flex flex-col gap-4 flex-grow overflow-hidden">
@@ -111,8 +112,9 @@ function AgentDebugging({
         <div className="flex flex-col gap-3 h-full overflow-y-auto custom-scrollbar">
           {messages.map((message, index) => {
             // Process the task content of the current message
-            const currentTaskMessages = message.role === "assistant" ? processMessageSteps(message) : [];
-            
+            const currentTaskMessages =
+              message.role === "assistant" ? processMessageSteps(message) : [];
+
             return (
               <div key={message.id || index} className="flex flex-col gap-2">
                 {/* User message */}
@@ -128,15 +130,16 @@ function AgentDebugging({
                     hideButtons={true}
                   />
                 )}
-                
+
                 {/* Assistant message task window */}
-                {message.role === "assistant" && currentTaskMessages.length > 0 && (
-                  <TaskWindow
-                    messages={currentTaskMessages}
-                    isStreaming={isStreaming && index === messages.length - 1}
-                  />
-                )}
-                
+                {message.role === "assistant" &&
+                  currentTaskMessages.length > 0 && (
+                    <TaskWindow
+                      messages={currentTaskMessages}
+                      isStreaming={isStreaming && index === messages.length - 1}
+                    />
+                  )}
+
                 {/* Assistant message final answer */}
                 {message.role === "assistant" && (
                   <ChatStreamFinalMessage
@@ -155,12 +158,12 @@ function AgentDebugging({
           })}
         </div>
       </div>
-      
+
       <div className="flex gap-2 mt-4">
         <Input
           value={inputQuestion}
           onChange={(e) => setInputQuestion(e.target.value)}
-          placeholder={t('agent.debug.placeholder')}
+          placeholder={t("agent.debug.placeholder")}
           onPressEnter={handleSend}
           disabled={isStreaming}
         />
@@ -170,7 +173,7 @@ function AgentDebugging({
             className="min-w-[56px] px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-red-500 hover:bg-red-600 text-white whitespace-nowrap"
             style={{ border: "none" }}
           >
-            {t('agent.debug.stop')}
+            {t("agent.debug.stop")}
           </button>
         ) : (
           <button
@@ -178,21 +181,19 @@ function AgentDebugging({
             className="min-w-[56px] px-4 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 hover:bg-blue-600 text-white whitespace-nowrap"
             style={{ border: "none" }}
           >
-            {t('agent.debug.send')}
+            {t("agent.debug.send")}
           </button>
         )}
       </div>
     </div>
-  )
+  );
 }
 
 /**
  * Debug configuration main component
  */
-export default function DebugConfig({
-  agentId
-}: DebugConfigProps) {
-  const { t } = useTranslation()
+export default function DebugConfig({ agentId }: DebugConfigProps) {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -228,9 +229,9 @@ export default function DebugConfig({
     // Stop agent_run immediately
     if (abortControllerRef.current) {
       try {
-        abortControllerRef.current.abort(t('agent.debug.userStop'));
+        abortControllerRef.current.abort(t("agent.debug.userStop"));
       } catch (error) {
-        console.error(t('agent.debug.cancelError'), error);
+        console.error(t("agent.debug.cancelError"), error);
       }
       abortControllerRef.current = null;
     }
@@ -248,18 +249,18 @@ export default function DebugConfig({
     try {
       await conversationService.stop(-1); // Use -1 for debug mode
     } catch (error) {
-      console.error(t('agent.debug.stopError'), error);
+      console.error(t("agent.debug.stopError"), error);
       // This is expected if no agent is running for debug mode
     }
 
     // Manually update messages, clear thinking state
-    setMessages(prev => {
+    setMessages((prev) => {
       const newMessages = [...prev];
       const lastMsg = newMessages[newMessages.length - 1];
       if (lastMsg && lastMsg.role === "assistant") {
         lastMsg.isComplete = true;
         lastMsg.thinking = undefined; // Explicitly clear thinking state
-        lastMsg.content = t('agent.debug.stopped');
+        lastMsg.content = t("agent.debug.stopped");
       }
       return newMessages;
     });
@@ -268,29 +269,29 @@ export default function DebugConfig({
   // Process test question
   const handleTestQuestion = async (question: string) => {
     setIsStreaming(true);
-    
+
     // Create new AbortController for this request
     abortControllerRef.current = new AbortController();
-    
+
     // Add user message
     const userMessage: ChatMessageType = {
       id: Date.now().toString(),
       role: "user",
       content: question,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    
+
     // Add assistant message (initial state)
     const assistantMessage: ChatMessageType = {
       id: (Date.now() + 1).toString(),
       role: "assistant",
       content: "",
       timestamp: new Date(),
-      isComplete: false
+      isComplete: false,
     };
-    
+
     setMessages([userMessage, assistantMessage]);
-    
+
     try {
       // Ensure agent_id is a number
       let agentIdValue = undefined;
@@ -300,18 +301,21 @@ export default function DebugConfig({
           agentIdValue = undefined;
         }
       }
-      
-      // Call agent_run with AbortSignal
-      const reader = await conversationService.runAgent({
-        query: question,
-        conversation_id: -1, // Debug mode uses -1 as conversation ID
-        is_set: true,
-        history: [],
-        is_debug: true,  // Add debug mode flag
-        agent_id: agentIdValue  // Use the properly parsed agent_id
-      }, abortControllerRef.current.signal); // Pass AbortSignal
 
-      if (!reader) throw new Error(t('agent.debug.nullResponse'));
+      // Call agent_run with AbortSignal
+      const reader = await conversationService.runAgent(
+        {
+          query: question,
+          conversation_id: -1, // Debug mode uses -1 as conversation ID
+          is_set: true,
+          history: [],
+          is_debug: true, // Add debug mode flag
+          agent_id: agentIdValue, // Use the properly parsed agent_id
+        },
+        abortControllerRef.current.signal
+      ); // Pass AbortSignal
+
+      if (!reader) throw new Error(t("agent.debug.nullResponse"));
 
       // Process stream response
       await handleStreamResponse(
@@ -331,22 +335,25 @@ export default function DebugConfig({
     } catch (error) {
       // If user actively canceled, don't show error message
       const err = error as Error;
-      if (err.name === 'AbortError') {
-        setMessages(prev => {
+      if (err.name === "AbortError") {
+        setMessages((prev) => {
           const newMessages = [...prev];
           const lastMsg = newMessages[newMessages.length - 1];
           if (lastMsg && lastMsg.role === "assistant") {
-            lastMsg.content = t('agent.debug.stopped');
+            lastMsg.content = t("agent.debug.stopped");
             lastMsg.isComplete = true;
             lastMsg.thinking = undefined; // Explicitly clear thinking state
           }
           return newMessages;
         });
       } else {
-        console.error(t('agent.debug.streamError'), error);
-        const errorMessage = error instanceof Error ? error.message : t('agent.debug.processError');
-        
-        setMessages(prev => {
+        console.error(t("agent.debug.streamError"), error);
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : t("agent.debug.processError");
+
+        setMessages((prev) => {
           const newMessages = [...prev];
           const lastMsg = newMessages[newMessages.length - 1];
           if (lastMsg && lastMsg.role === "assistant") {
@@ -379,5 +386,5 @@ export default function DebugConfig({
         messages={messages}
       />
     </div>
-  )
-} 
+  );
+}

@@ -1,14 +1,21 @@
-import React from 'react';
-import { Copy } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { copyToClipboard } from '@/lib/clipboard';
+import React from "react";
 import { useTranslation } from "react-i18next";
+import { Copy } from "lucide-react";
+
+import { copyToClipboard } from "@/lib/clipboard";
+
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface CopyButtonProps {
   content: string;
-  variant?: 'default' | 'code-block' | 'message';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: "default" | "code-block" | "message";
+  size?: "sm" | "md" | "lg";
   className?: string;
   disabled?: boolean;
   onCopySuccess?: () => void;
@@ -21,15 +28,15 @@ interface CopyButtonProps {
 
 export const CopyButton: React.FC<CopyButtonProps> = ({
   content,
-  variant = 'default',
-  size = 'md',
-  className = '',
+  variant = "default",
+  size = "md",
+  className = "",
   disabled = false,
   onCopySuccess,
   onCopyError,
   tooltipText,
 }) => {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation("common");
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = async () => {
@@ -41,15 +48,15 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
       setTimeout(() => setCopied(false), 2000);
       onCopySuccess?.();
     } catch (error) {
-      console.error('Failed to copy content:', error);
+      console.error("Failed to copy content:", error);
       onCopyError?.(error as Error);
     }
   };
 
   // Default tooltip text
   const defaultTooltipText = {
-    copy: t('copyButton.copy', '复制'),
-    copied: t('copyButton.copied', '已复制'),
+    copy: t("copyButton.copy", "复制"),
+    copied: t("copyButton.copied", "已复制"),
   };
 
   const finalTooltipText = tooltipText || defaultTooltipText;
@@ -57,31 +64,31 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
   // Variant-specific styles
   const getVariantStyles = () => {
     switch (variant) {
-      case 'code-block':
+      case "code-block":
         return {
           button: `copy-button absolute top-2 right-2 p-1.5 rounded-md transition-colors duration-200 border ${
-            copied 
-              ? 'bg-green-50 text-green-600 border-green-200' 
-              : 'bg-gray-100 hover:bg-gray-200 border-gray-200'
+            copied
+              ? "bg-green-50 text-green-600 border-green-200"
+              : "bg-gray-100 hover:bg-gray-200 border-gray-200"
           }`,
-          icon: 'h-4 w-4',
-          style: { zIndex: 10 }
+          icon: "h-4 w-4",
+          style: { zIndex: 10 },
         };
-      case 'message':
+      case "message":
         return {
           button: `h-8 w-8 rounded-full bg-white hover:bg-gray-100 transition-all duration-200 shadow-sm ${
             copied ? "bg-green-50 text-green-600 border-green-200" : ""
           }`,
-          icon: 'h-4 w-4',
-          style: {}
+          icon: "h-4 w-4",
+          style: {},
         };
       default:
         return {
           button: `transition-all duration-200 ${
             copied ? "bg-green-50 text-green-600 border-green-200" : ""
           }`,
-          icon: 'h-4 w-4',
-          style: {}
+          icon: "h-4 w-4",
+          style: {},
         };
     }
   };
@@ -91,12 +98,12 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
   // Size-specific styles
   const getSizeStyles = () => {
     switch (size) {
-      case 'sm':
-        return 'h-6 w-6';
-      case 'lg':
-        return 'h-10 w-10';
+      case "sm":
+        return "h-6 w-6";
+      case "lg":
+        return "h-10 w-10";
       default:
-        return 'h-8 w-8';
+        return "h-8 w-8";
     }
   };
 
@@ -124,4 +131,4 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
       </Tooltip>
     </TooltipProvider>
   );
-}; 
+};
