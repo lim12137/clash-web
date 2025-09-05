@@ -10,7 +10,6 @@ The Nexent Intelligent Memory System is built on an advanced memory storage arch
 - **Cross-Session Persistence**: Ensures continuity of knowledge and context across multiple conversations
 - **Fine-Grained Permission Control**: Provides flexible memory sharing strategy configuration
 
----
 
 ## 2. Configuration and Initialization
 
@@ -29,7 +28,6 @@ The Nexent Intelligent Memory System is built on an advanced memory storage arch
   <img src="./assets/memory/mem-config.png" style="width: 80%; height: auto;" alt="Select Agent" />
 </div>
 
----
 
 ## 3. Layered Memory Architecture
 
@@ -37,12 +35,33 @@ Nexent adopts a four-layer memory storage architecture based on **mem0**, achiev
 
 ### 3.1 Architecture Layer Details
 
-| Memory Level | Scope | Storage Content | Lifecycle | Configuration Role | Typical Applications |
-|--------------|-------|-----------------|-----------|-------------------|---------------------|
-| **Tenant Level Memory** | Organization-wide | Enterprise-level standard operating procedures, compliance policies, organizational structure, factual information | Long-term storage | Tenant Administrator | Enterprise knowledge management, standardized process execution, compliance checking |
-| **Agent Level Memory** | Specific Agent | Professional domain knowledge, skill templates, historical conversation summaries, learning accumulation | Consistent with agent lifecycle | Tenant Administrator | Professional skill accumulation, domain knowledge sedimentation, experiential learning |
-| **User Level Memory** | Specific User Account | Personal preference settings, usage habits, common instruction templates, personal information | Long-term storage | All Users | Personalized services, user experience optimization, preference management |
-| **User-Agent Level Memory** | Specific Agent under Specific User Account | Collaboration history, personalized factual information, specific task context, relationship models | Consistent with agent lifecycle | All Users | Deep collaboration scenarios, personalized tuning, task continuity maintenance |
+#### Tenant Level Memory
+  - **Scope**: Organization-wide
+  - **Storage Content**: Enterprise-level standard operating procedures, compliance policies, organizational structure, factual information
+  - **Lifecycle**: Long-term storage
+  - **Config Role**: Tenant Administrator
+  - **Applications**: Enterprise knowledge management, standardized process execution, compliance checking
+
+#### Agent Level Memory
+  - **Scope**: Specific Agent
+  - **Storage Content**: Professional domain knowledge, skill templates, historical conversation summaries, learning accumulation
+  - **Lifecycle**: Consistent with agent lifecycle
+  - **Config Role**: Tenant Administrator
+  - **Applications**: Professional skill accumulation, domain knowledge sedimentation, experiential learning
+
+#### User Level Memory
+  - **Scope**: Specific User Account
+  - **Storage Content**: Personal preference settings, usage habits, common instruction templates, personal information
+  - **Lifecycle**: Long-term storage
+  - **Config Role**: All Users
+  - **Applications**: Personalized services, user experience optimization, preference management
+
+#### User-Agent Level Memory
+  - **Scope**: Specific Agent under Specific User Account
+  - **Storage Content**: Collaboration history, personalized factual information, specific task context, relationship models
+  - **Lifecycle**: Consistent with agent lifecycle
+  - **Config Role**: All Users
+  - **Applications**: Deep collaboration scenarios, personalized tuning, task continuity maintenance
 
 ### 3.2 Memory Priority and Retrieval Strategy
 
@@ -52,7 +71,6 @@ Memory retrieval follows the following priority order (from high to low):
 3. **User Level** → Personal preferences and habits
 4. **Agent Level** → Professional knowledge and skills
 
----
 
 ## 4. Operation Modes and Functional Interfaces
 

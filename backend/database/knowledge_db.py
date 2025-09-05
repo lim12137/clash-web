@@ -1,9 +1,11 @@
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.client import get_db_session, as_dict
+from database.client import as_dict, get_db_session
 from database.db_models import KnowledgeRecord
+
 
 def create_knowledge_record(query: Dict[str, Any]) -> int:
     """
@@ -16,6 +18,7 @@ def create_knowledge_record(query: Dict[str, Any]) -> int:
             - knowledge_status: Knowledge base status
             - user_id: Optional user ID for created_by and updated_by fields
             - tenant_id: Optional tenant ID for created_by and updated_by fields
+            - embedding_model_name: embedding model name for the knowledge base
 
     Returns:
         int: Newly created knowledge base ID
@@ -29,7 +32,8 @@ def create_knowledge_record(query: Dict[str, Any]) -> int:
                 "created_by": query.get("user_id"),
                 "updated_by": query.get("user_id"),
                 "knowledge_sources": query.get("knowledge_sources", "elasticsearch"),
-                "tenant_id": query.get("tenant_id")
+                "tenant_id": query.get("tenant_id"),
+                "embedding_model_name": query.get("embedding_model_name")
             }
 
             # Create new record
@@ -41,6 +45,7 @@ def create_knowledge_record(query: Dict[str, Any]) -> int:
     except SQLAlchemyError as e:
         session.rollback()
         raise e
+
 
 def update_knowledge_record(query: Dict[str, Any]) -> bool:
     """
@@ -61,21 +66,22 @@ def update_knowledge_record(query: Dict[str, Any]) -> bool:
                 KnowledgeRecord.index_name == query['index_name'],
                 KnowledgeRecord.delete_flag != 'Y'
             ).first()
-            
+
             if not record:
                 return False
-                
+
             record.knowledge_describe = query["knowledge_describe"]
             record.update_time = func.current_timestamp()
             if query.get("user_id"):
                 record.updated_by = query["user_id"]
-                
+
             session.flush()
             session.commit()
             return True
     except SQLAlchemyError as e:
         session.rollback()
         raise e
+
 
 def delete_knowledge_record(query: Dict[str, Any]) -> bool:
     """
@@ -96,22 +102,23 @@ def delete_knowledge_record(query: Dict[str, Any]) -> bool:
                 KnowledgeRecord.index_name == query['index_name'],
                 KnowledgeRecord.delete_flag != 'Y'
             ).first()
-            
+
             if not record:
                 return False
-                
+
             # Update record for soft delete
             record.delete_flag = 'Y'
             record.update_time = func.current_timestamp()
             if query.get('user_id'):
                 record.updated_by = query['user_id']
-                
+
             session.flush()
             session.commit()
             return True
     except SQLAlchemyError as e:
         session.rollback()
         raise e
+
 
 def get_knowledge_record(query: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
@@ -134,15 +141,17 @@ def get_knowledge_record(query: Optional[Dict[str, Any]] = None) -> Dict[str, An
 
             # Add tenant_id filter only if it is provided in the query
             if 'tenant_id' in query and query['tenant_id'] is not None:
-                db_query = db_query.filter(KnowledgeRecord.tenant_id == query['tenant_id'])
-            
+                db_query = db_query.filter(
+                    KnowledgeRecord.tenant_id == query['tenant_id'])
+
             result = db_query.first()
-            
+
             if result:
                 return as_dict(result)
             return {}
     except SQLAlchemyError as e:
         raise e
+
 
 def get_knowledge_info_by_knowledge_ids(knowledge_ids: List[str]) -> List[Dict[str, Any]]:
     try:
@@ -156,11 +165,13 @@ def get_knowledge_info_by_knowledge_ids(knowledge_ids: List[str]) -> List[Dict[s
                 knowledge_info.append({
                     "knowledge_id": item.knowledge_id,
                     "index_name": item.index_name,
-                    "knowledge_sources": item.knowledge_sources
+                    "knowledge_sources": item.knowledge_sources,
+                    "embedding_model_name": item.embedding_model_name
                 })
             return knowledge_info
     except SQLAlchemyError as e:
         raise e
+
 
 def get_knowledge_ids_by_index_names(index_names: List[str]) -> List[str]:
     try:
@@ -172,4 +183,29 @@ def get_knowledge_ids_by_index_names(index_names: List[str]) -> List[str]:
             return [item.knowledge_id for item in result]
     except SQLAlchemyError as e:
         raise e
-    
+
+
+def get_knowledge_info_by_tenant_id(tenant_id: str) -> List[Dict[str, Any]]:
+    try:
+        with get_db_session() as session:
+            result = session.query(KnowledgeRecord).filter(
+                KnowledgeRecord.tenant_id == tenant_id,
+                KnowledgeRecord.delete_flag != 'Y'
+            ).all()
+            return [as_dict(item) for item in result]
+    except SQLAlchemyError as e:
+        raise e
+
+
+def update_model_name_by_index_name(index_name: str, embedding_model_name: str, tenant_id: str, user_id: str) -> bool:
+    try:
+        with get_db_session() as session:
+            session.query(KnowledgeRecord).filter(
+                KnowledgeRecord.index_name == index_name,
+                KnowledgeRecord.delete_flag != 'Y',
+                KnowledgeRecord.tenant_id == tenant_id
+            ).update({"embedding_model_name": embedding_model_name, "updated_by": user_id})
+            session.commit()
+            return True
+    except SQLAlchemyError as e:
+        raise e

@@ -61,7 +61,7 @@ system_prompt: |-
   2. Code:
      - Write code in simple Python
      - Follow Python coding standards and Python syntax
-     - Correctly call agents or tools to solve problems
+     - Correctly call tools or agents to solve problems
 
   3. Observe Results:
      - View code execution results
@@ -73,7 +73,7 @@ system_prompt: |-
   1. Use Markdown format to format your output.
   2. If you have used retrieval tools to obtain specific information and answer questions based on this information, you need to add reference marks at the corresponding positions in your answer:
      - The letters and numbers of the reference marks need to correspond one-to-one with the retrieval results of the retrieval tools
-     - The reference mark format is '[[corresponding letter+number]]', for example: '[[a1]][[b2]][[l3]]'
+     - The reference mark format is '[[corresponding letter+number]]', for example: '[[a1]][[b2]][[c3]]'
      - Reference marks should be placed immediately after the relevant information or sentence, usually at the end of the sentence or paragraph
      - Note that only reference marks need to be added, no need to add links, references, or other extraneous content
   3. If no retrieval tools are used, do not add any reference marks   
@@ -134,7 +134,7 @@ system_prompt: |-
   5. Avoid making too many tool/agent calls in one round of conversation, as this will make the output format unpredictable;
   6. Only call tools/agents when needed, do not repeat calls with the same parameters;
   7. Only import from the following modules: {{authorized_imports}};
-  8. Use variable names to save function call results. In each intermediate step, you can use "print()" to save any important information you need. The saved information persists between code executions;
+  8. Use variable names to save function call results. In each intermediate step, you can use "print()" to save any important information you need. The saved information persists between code executions. The content printed by print() should be treated as a string, do not perform dictionary-related operations such as .get(), [] etc., to avoid type errors;
   9. Avoid **if**, **for** and other logic in example code, only call tools/agents. Each action in the example is a deterministic event. If there are different conditions, you should provide examples under different conditions;
   10. Tool calls use keyword arguments, such as: tool_name(param1="value1", param2="value2");
   11. Agent calls must use task parameter, such as: agent_name(task="task description");

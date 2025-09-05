@@ -1,11 +1,13 @@
 /**
  * 认证服务
  */
-import { generateAvatarUrl, removeSessionFromStorage } from "@/lib/auth"
 import { API_ENDPOINTS } from "@/services/api";
-import { STATUS_CODES } from "@/types/auth";
 import { sessionService } from "@/services/sessionService";
+
 import { Session, User, SessionResponse } from "@/types/auth";
+import { STATUS_CODES } from "@/types/auth";
+
+import { generateAvatarUrl, removeSessionFromStorage } from "@/lib/auth"
 import { fetchWithAuth, getSessionFromStorage, saveSessionToStorage } from "@/lib/auth";
 
 

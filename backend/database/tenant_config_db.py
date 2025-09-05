@@ -1,8 +1,13 @@
-from typing import Dict, Any
+import logging
+from typing import Any, Dict
 
-from .client import get_db_session
-from .db_models import TenantConfig
+from sqlalchemy.exc import SQLAlchemyError
 
+from database.client import get_db_session
+from database.db_models import TenantConfig
+
+
+logger = logging.getLogger("tenant_config_db")
 
 def get_all_configs_by_tenant_id(tenant_id: str):
     with get_db_session() as session:
@@ -65,8 +70,9 @@ def insert_config(insert_data: Dict[str, Any]):
             session.add(TenantConfig(**insert_data))
             session.commit()
             return True
-        except Exception as e: 
+        except SQLAlchemyError as e:
             session.rollback()
+            logger.error(f"insert config failed, error: {e}")
             return False
 
 
@@ -79,8 +85,9 @@ def delete_config_by_tenant_config_id(tenant_config_id: int):
             ).update({"delete_flag": "Y"})
             session.commit()
             return True
-        except Exception as e:
+        except SQLAlchemyError as e:
             session.rollback()
+            logger.error(f"delete config by tenant config id failed, error: {e}")
             return False
 
 
@@ -96,11 +103,12 @@ def delete_config(tenant_id: str, user_id: str, select_key: str, config_value: s
             ).update({"delete_flag": "Y"})
             session.commit()
             return True
-        except Exception as e:
+        except SQLAlchemyError as e:
             session.rollback()
+            logger.error(f"delete config failed, error: {e}")
             return False
 
-    
+
 def update_config_by_tenant_config_id(tenant_config_id: int, update_value: str):
     with get_db_session() as session:
         try:
@@ -110,8 +118,9 @@ def update_config_by_tenant_config_id(tenant_config_id: int, update_value: str):
             ).update({"config_value": update_value})
             session.commit()
             return True
-        except Exception as e:
+        except SQLAlchemyError as e:
             session.rollback()
+            logger.error(f"update config by tenant config id failed, error: {e}")
             return False
 
 
@@ -124,7 +133,7 @@ def update_config_by_tenant_config_id_and_data(tenant_config_id: int, insert_dat
             ).update(insert_data)
             session.commit()
             return True
-        except Exception as e:
+        except SQLAlchemyError as e:
             session.rollback()
+            logger.error(f"update config by tenant config id and data failed, error: {e}")
             return False
-

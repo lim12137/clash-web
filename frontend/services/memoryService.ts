@@ -1,8 +1,10 @@
-import { MemoryItem, MemoryGroup } from "@/types/memory"
 import i18next from 'i18next'
+
 import { API_ENDPOINTS, fetchWithErrorHandling } from "./api"
-import { getAuthHeaders } from '@/lib/auth';
 import { fetchAllAgents } from "./agentConfigService"
+
+import { MemoryItem, MemoryGroup } from "@/types/memory"
+import { getAuthHeaders } from '@/lib/auth';
 
 // ---------------------------------------------------------------------------
 // Error message translation helper
@@ -241,8 +243,6 @@ export async function fetchAgentSharedGroups(): Promise<MemoryGroup[]> {
       items: list,
     })
   })
-
-  // TODO: Agent删除接口改进后，同步删除所有记忆
 
   // 若依然没有任何 Agent 信息，则返回占位分组
   if (groups.length === 0) {

@@ -1,10 +1,14 @@
-import { Modal, Select, Input, Button, Switch, Tooltip, App } from 'antd'
-import { InfoCircleFilled, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, RightOutlined, DownOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import { ModelType, SingleModelConfig } from '@/types/config'
-import { modelService } from '@/services/modelService'
-import { useConfig } from '@/hooks/useConfig'
 import { useTranslation } from 'react-i18next'
+
+import { Modal, Select, Input, Button, Switch, Tooltip, App } from 'antd'
+import { InfoCircleFilled, LoadingOutlined, RightOutlined, DownOutlined, SettingOutlined } from '@ant-design/icons'
+
+import { useConfig } from '@/hooks/useConfig'
+import { getConnectivityIcon, getConnectivityColor, getConnectivityMeta, ConnectivityStatusType } from '@/lib/utils'
+import { modelService } from '@/services/modelService'
+import { ModelType, SingleModelConfig } from '@/types/config'
+import { useSiliconModelList } from '@/hooks/model/useSiliconModelList'
 
 const { Option } = Select
 
@@ -20,8 +24,7 @@ interface ModelAddDialogProps {
   onSuccess: (model?: AddedModel) => Promise<void>
 }
 
-// Add type definition for connectivity status
-type ConnectivityStatusType = "checking" | "available" | "unavailable" | null;
+// Connectivity status type comes from utils
 
 export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogProps) => {
   const { t } = useTranslation()
@@ -54,6 +57,20 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
   const [selectedModelIds, setSelectedModelIds] = useState<Set<string>>(new Set())
   const [showModelList, setShowModelList] = useState(false)
   const [loadingModelList, setLoadingModelList] = useState(false)
+
+  // Settings modal state
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false)
+  const [selectedModelForSettings, setSelectedModelForSettings] = useState<any>(null)
+  const [modelMaxTokens, setModelMaxTokens] = useState("4096")
+
+  // Use the silicon model list hook
+  const { getModelList, getProviderSelectedModalList } = useSiliconModelList({
+    form,
+    setModelList,
+    setSelectedModelIds,
+    setShowModelList,
+    setLoadingModelList
+  })
 
   // Debug: log model list when it updates
   // useEffect(() => {
@@ -147,92 +164,24 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       const result = await modelService.verifyModelConfigConnectivity(config)
       
       // Set connectivity status
+      let connectivityMessage = ''
+      if (result.connectivity) {
+        connectivityMessage = t('model.dialog.connectivity.status.available')
+      } else {
+        connectivityMessage = t('model.dialog.connectivity.status.unavailable')
+      }
       setConnectivityStatus({
         status: result.connectivity ? "available" : "unavailable",
-        // Use translated error code if available
-        message: result.error_code ? t(`model.validation.${result.error_code}`) : (result.message || '')
+        message: connectivityMessage
       })
 
-      // Display appropriate message based on result
-      if (result.connectivity) {
-        message.success(t('model.dialog.success.connectivityVerified'))
-      } else {
-        message.error(
-          result.error_code 
-            ? t(`model.validation.${result.error_code}`)
-            : t('model.dialog.error.connectivityFailed', { message: result.message })
-        )
-      }
     } catch (error) {
       setConnectivityStatus({
         status: "unavailable",
-        message: t('model.dialog.error.verificationFailed', { error })
+        message: t('model.dialog.connectivity.status.unavailable')
       })
-      message.error(t('model.dialog.error.verificationError', { error }))
     } finally {
       setVerifyingConnectivity(false)
-    }
-  }
-
-  // Get the connectivity status icon
-  const getConnectivityIcon = () => {
-    switch (connectivityStatus.status) {
-      case "checking":
-        return <LoadingOutlined style={{ color: '#1890ff' }} />
-      case "available":
-        return <CheckCircleOutlined style={{ color: '#52c41a' }} />
-      case "unavailable":
-        return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
-      default:
-        return null
-    }
-  }
-
-  // Get the connectivity status color
-  const getConnectivityColor = () => {
-    switch (connectivityStatus.status) {
-      case "checking":
-        return '#1890ff'
-      case "available":
-        return '#52c41a'
-      case "unavailable":
-        return '#ff4d4f'
-      default:
-        return '#d9d9d9'
-    }
-  }
-
-
-  const getModelList = async () => {
-    setShowModelList(true)
-    setLoadingModelList(true)
-    const modelType = form.type === "embedding" && form.isMultimodal ? 
-        "multi_embedding" as ModelType : 
-        form.type;
-    try {
-      const result = await modelService.addProviderModel({
-        provider: form.provider,
-        type: modelType,
-        apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey
-      })
-      setModelList(result)
-      if (!result || result.length === 0) {
-        message.error(t('model.dialog.error.noModelsFetched'))
-      }
-      const selectedModels = await getProviderSelectedModalList() || []
-      // 关键逻辑
-      if (!selectedModels.length) {
-        // 全部不选
-        setSelectedModelIds(new Set())
-      } else {
-        // 只选中 selectedModels
-        setSelectedModelIds(new Set(selectedModels.map((m: any) => m.id)))
-      }
-    } catch (error) {
-      message.error(t('model.dialog.error.addFailed', { error }))
-      console.error(t('model.dialog.error.addFailedLog'), error)
-    } finally {
-      setLoadingModelList(false)
     }
   }
 
@@ -248,8 +197,10 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         api_key: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey,
         provider: form.provider,
         type: modelType,
-        max_tokens: parseInt(form.maxTokens) || 0,
-        models: enabledModels
+        models: enabledModels.map((model: any) => ({
+          ...model,
+          max_tokens: model.max_tokens || parseInt(form.maxTokens) || 4096
+        }))
       })
       if (result === 200) {
         onSuccess()
@@ -266,16 +217,27 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     onClose()
   }
 
-  const getProviderSelectedModalList = async () => {
-    const modelType = form.type === "embedding" && form.isMultimodal ? 
-        "multi_embedding" as ModelType : 
-        form.type;
-    const result = await modelService.getProviderSelectedModalList({
-      provider: form.provider,
-      type: modelType,
-      api_key: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey
-    })
-    return result
+
+
+  // Handle settings button click
+  const handleSettingsClick = (model: any) => {
+    setSelectedModelForSettings(model)
+    setModelMaxTokens(model.max_tokens?.toString() || "4096")
+    setSettingsModalVisible(true)
+  }
+
+  // Handle settings save
+  const handleSettingsSave = () => {
+    if (selectedModelForSettings) {
+      // Update the model in the list with new max_tokens
+      setModelList(prev => prev.map(model => 
+        model.id === selectedModelForSettings.id 
+          ? { ...model, max_tokens: parseInt(modelMaxTokens) || 4096 }
+          : model
+      ))
+    }
+    setSettingsModalVisible(false)
+    setSelectedModelForSettings(null)
   }
 
   // Handle adding a model
@@ -391,12 +353,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
 
   const isEmbeddingModel = form.type === "embedding"
 
-  useEffect(() => {
-    if (form.isBatchImport && modelList.length !=0) {
-      getModelList();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.type]);
+
 
   return (
     <Modal
@@ -547,7 +504,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         )}
 
         {/* Max Tokens */}
-        {!isEmbeddingModel && (
+        {!isEmbeddingModel && !form.isBatchImport && (
           <div>
             <label htmlFor="maxTokens" className="block mb-1 text-sm font-medium text-gray-700">
               {t('model.dialog.label.maxTokens')}
@@ -569,12 +526,14 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               <span className="text-sm font-medium text-gray-700">{t('model.dialog.connectivity.title')}</span>
               {connectivityStatus.status && (
                 <div className="ml-2 flex items-center">
-                  {getConnectivityIcon()}
+                  {getConnectivityMeta(connectivityStatus.status).icon}
                   <span 
                     className="ml-1 text-xs"
-                    style={{ color: getConnectivityColor() }}
+                    style={{ color: getConnectivityMeta(connectivityStatus.status).color }}
                   >
-                    {t(`model.dialog.connectivity.status.${connectivityStatus.status}`)}
+                    {connectivityStatus.status === 'available' && t('model.dialog.connectivity.status.available')}
+                    {connectivityStatus.status === 'unavailable' && t('model.dialog.connectivity.status.unavailable')}
+                    {connectivityStatus.status === 'checking' && t('model.dialog.status.verifying')}
                   </span>
                 </div>
               )}
@@ -589,11 +548,6 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               {verifyingConnectivity ? t('model.dialog.button.verifying') : t('model.dialog.button.verify')}
             </Button>
           </div>
-          {connectivityStatus.message && (
-            <div className="text-xs text-gray-600">
-              {connectivityStatus.message}
-            </div>
-          )}
         </div>
         )}
 
@@ -660,7 +614,22 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
                           </span>
                         )}
                       </div>
-                      <Switch size="small" checked={checked} onChange={toggleSelect} />
+                      <div className="flex items-center space-x-2">
+                        {!isEmbeddingModel && (
+                          <Tooltip title={t('model.dialog.modelList.tooltip.settings')}>
+                            <Button
+                              type="text"
+                              icon={<SettingOutlined />}
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent switch toggle
+                                handleSettingsClick(model);
+                              }}
+                            />
+                          </Tooltip>
+                        )}
+                        <Switch size="small" checked={checked} onChange={toggleSelect} />
+                      </div>
                     </div>
                   )
                 })
@@ -756,6 +725,29 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
           </Button>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      <Modal
+        title={t('model.dialog.settings.title')}
+        open={settingsModalVisible}
+        onCancel={() => setSettingsModalVisible(false)}
+        onOk={handleSettingsSave}
+        destroyOnClose
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="block mb-1 text-sm font-medium text-gray-700">
+              {t('model.dialog.settings.label.maxTokens')}
+            </label>
+            <Input
+              type="number"
+              value={modelMaxTokens}
+              onChange={(e) => setModelMaxTokens(e.target.value)}
+              placeholder={t('model.dialog.placeholder.maxTokens')}
+            />
+          </div>
+        </div>
+      </Modal>
     </Modal>
   )
 } 

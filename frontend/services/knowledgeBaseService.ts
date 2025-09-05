@@ -1,7 +1,8 @@
 // Unified encapsulation of knowledge base related API calls
 
-import { Document, KnowledgeBase, KnowledgeBaseCreateParams } from '@/types/knowledgeBase';
 import { API_ENDPOINTS } from './api';
+
+import { Document, KnowledgeBase, KnowledgeBaseCreateParams } from '@/types/knowledgeBase';
 import { getAuthHeaders, fetchWithAuth } from '@/lib/auth';
 // @ts-ignore
 const fetch: typeof fetchWithAuth = fetchWithAuth;
