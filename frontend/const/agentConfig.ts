@@ -3,7 +3,7 @@
 import type { LayoutConfig } from "../types/agentConfig";
 
 // Agent call relationship graph theme/colors
-export const AGENT_CALL_RELATIONSHIP_THEME = {
+export const AGENT_CALL_RELATIONSHIP_THEME_CONFIG = {
   colors: {
     node: {
       main: "#2c3e50",
