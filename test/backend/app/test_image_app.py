@@ -3,8 +3,10 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
-# Add the project root directory to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+# Dynamically determine the backend path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
+sys.path.append(backend_dir)
 
 # Mock the consts.const module before importing the image_app module
 mock_const = MagicMock()
