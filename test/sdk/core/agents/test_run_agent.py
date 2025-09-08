@@ -297,7 +297,7 @@ def test_agent_run_thread_handles_internal_exception(basic_agent_run_info, mock_
 
 @pytest.mark.asyncio
 async def test_agent_run_thread_creation_and_start(basic_agent_run_info, monkeypatch):
-    """Test that agent_run creates and starts a thread correctly (lines 54-56)."""
+    """Test that agent_run creates and starts a thread correctly."""
     # Mock the agent_run_thread function to avoid actual execution
     mock_agent_run_thread = MagicMock()
     monkeypatch.setattr(run_agent, "agent_run_thread", mock_agent_run_thread)
@@ -316,14 +316,14 @@ async def test_agent_run_thread_creation_and_start(basic_agent_run_info, monkeyp
     async for message in run_agent.agent_run(basic_agent_run_info):
         messages.append(message)
     
-    # Verify Thread was created with correct target and args (line 55)
+    # Verify Thread was created with correct target and args
     mock_thread_class.assert_called_once_with(
         target=mock_agent_run_thread, 
         args=(basic_agent_run_info,)
     )
     
-    # Verify thread was started (line 56)
+    # Verify thread was started
     mock_thread_instance.start.assert_called_once()
     
-    # Verify observer was accessed (line 54)
+    # Verify observer was accessed
     assert basic_agent_run_info.observer is not None
