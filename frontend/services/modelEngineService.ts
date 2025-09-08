@@ -34,10 +34,10 @@ const modelEngineService = {
         try {
           const resp = await response.json()
           // Parse the data returned by the API
-          if (resp.data.status === "Connected") {
+          if (resp.status === "Connected") {
             status = "success"
           }
-          else if (resp.data.status === "Disconnected") {
+          else if (resp.status === "Disconnected") {
             status = "error"
           }
         } catch (parseError) {

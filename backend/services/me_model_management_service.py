@@ -1,23 +1,20 @@
 import asyncio
-from http import HTTPStatus
-from typing import List, Dict
+from typing import List
 
 import aiohttp
 
 from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
+from consts.exceptions import TimeoutException, NotFoundException
 
 
-async def get_me_models_impl(timeout: int = 2, type: str = "") -> tuple[int, str, List[Dict]]:
+async def get_me_models_impl(timeout: int = 2, type: str = "") -> List:
     """
     Fetches a list of models from the model engine API with response formatting.
     Parameters:
         timeout (int): The total timeout for the request in seconds.
         type (str): The type of model to filter for. If empty, returns all models.
     Returns:
-        tuple: (code, message, data) where:
-            - code: HTTP status code
-            - message: Response message
-            - data: List of model data dictionaries
+        - filtered_result: List of model data dictionaries
     """
     try:
         headers = {
@@ -43,12 +40,13 @@ async def get_me_models_impl(timeout: int = 2, type: str = "") -> tuple[int, str
                     filtered_result.append(data)
             if not filtered_result:
                 result_types = set(data['type'] for data in result)
-                return HTTPStatus.NOT_FOUND, f"No models found with type '{type}'. Available types: {result_types}.", []
+                raise NotFoundException(
+                    f"No models found with type '{type}'. Available types: {result_types}.")
         else:
             filtered_result = result
 
-        return HTTPStatus.OK, "Successfully retrieved", filtered_result
+        return filtered_result
     except asyncio.TimeoutError:
-        return HTTPStatus.REQUEST_TIMEOUT, "Request timeout", []
+        raise TimeoutException("Request timeout.")
     except Exception as e:
-        return HTTPStatus.INTERNAL_SERVER_ERROR, f"Failed to get model list: {str(e)}", []
+        raise Exception(f"Failed to get model list: {str(e)}.")

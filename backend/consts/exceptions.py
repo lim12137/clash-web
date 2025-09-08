@@ -51,3 +51,18 @@ class IncorrectInviteCodeException(Exception):
 class UserRegistrationException(Exception):
     """Raised when user registration fails."""
     pass
+
+
+class TimeoutException(Exception):
+    """Raised when timeout occurs."""
+    pass
+
+
+class NotFoundException(Exception):
+    """Raised when not found exception occurs."""
+    pass
+
+
+class MEConnectionException(Exception):
+    """Raised when not found exception occurs."""
+    pass

@@ -4,11 +4,11 @@ from http import HTTPStatus
 from typing import Optional
 
 import aiohttp
-import httpx
 from fastapi import Header
 
 from apps.voice_app import VoiceService
 from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
+from consts.exceptions import MEConnectionException, TimeoutException
 from consts.model import ModelConnectStatusEnum, ModelResponse
 from database.model_management_db import get_model_by_display_name, update_model_record
 from nexent.core import MessageObserver
@@ -169,73 +169,11 @@ async def check_model_connectivity(display_name: str, authorization: Optional[st
                              data={"connectivity": False, "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
 
 
-async def check_me_model_connectivity(model_name: str):
-    try:
-        headers = {'Authorization': f'Bearer {MODEL_ENGINE_APIKEY}'}
-        async with httpx.AsyncClient(verify=False) as client:
-            # Get models list
-            response = await client.get(f"{MODEL_ENGINE_HOST}/open/router/v1/models", headers=headers)
-            response.raise_for_status()
-            result = response.json()['data']
-
-            # Find model
-            model_data = next(
-                (item for item in result if item['id'] == model_name), None)
-            if not model_data:
-                return HTTPStatus.NOT_FOUND, "Specified model not found", {"connectivity": False,
-                                                                           "message": "Specified model not found",
-                                                                           "connect_status": ""}
-
-            model_type = model_data['type']
-
-            # Test model based on type
-            if model_type == 'llm':
-                payload = {"model": model_name, "messages": [
-                    {"role": "user", "content": "hello"}]}
-                api_response = await client.post(
-                    f"{MODEL_ENGINE_HOST}/open/router/v1/chat/completions",
-                    headers=headers,
-                    json=payload
-                )
-            elif model_type == 'embedding':
-                payload = {"model": model_name, "input": "Hello"}
-                api_response = await client.post(
-                    f"{MODEL_ENGINE_HOST}/open/router/v1/embeddings",
-                    headers=headers,
-                    json=payload
-                )
-            else:
-                return HTTPStatus.BAD_REQUEST, f"Health check not supported for {model_type} type models", {
-                    "connectivity": False, "message": f"Health check not supported for {model_type} type models",
-                    "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
-
-            status_code = api_response.status_code
-            response_text = api_response.text
-
-            if status_code == HTTPStatus.OK:
-                connect_status = ModelConnectStatusEnum.AVAILABLE.value
-                return HTTPStatus.OK, f"Model {model_name} responded normally", {"connectivity": True,
-                                                                                 "message": f"Model {model_name} responded normally",
-                                                                                 "connect_status": connect_status}
-            else:
-                connect_status = ModelConnectStatusEnum.UNAVAILABLE.value
-                return status_code, f"Model {model_name} response failed", {"connectivity": False,
-                                                                            "message": f"Model {model_name} response failed: {response_text}",
-                                                                            "connect_status": connect_status}
-
-    except Exception as e:
-        return HTTPStatus.INTERNAL_SERVER_ERROR, f"Unknown error occurred: {str(e)}", {"connectivity": False,
-                                                                                       "message": f"Unknown error occurred: {str(e)}",
-                                                                                       "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
-
-
 async def check_me_connectivity_impl(timeout: int):
     """
     Check ME connectivity and return structured response data
     Args:
         timeout: Request timeout in seconds
-    Returns:
-        tuple: (code, message, status_data)
     """
     try:
         headers = {'Authorization': f'Bearer {MODEL_ENGINE_APIKEY}'}
@@ -244,52 +182,19 @@ async def check_me_connectivity_impl(timeout: int):
                 timeout=aiohttp.ClientTimeout(total=timeout),
                 connector=aiohttp.TCPConnector(ssl=False)
         ) as session:
-            try:
-                async with session.get(
-                        f"{MODEL_ENGINE_HOST}/open/router/v1/models",
-                        headers=headers
-                ) as response:
-                    if response.status == HTTPStatus.OK:
-                        return (
-                            HTTPStatus.OK,
-                            "Connection successful",
-                            {
-                                "status": "Connected",
-                                "desc": "Connection successful",
-                                "connect_status": ModelConnectStatusEnum.AVAILABLE.value
-                            }
-                        )
-                    else:
-                        return (
-                            response.status,
-                            f"Connection failed, error code: {response.status}",
-                            {
-                                "status": "Disconnected",
-                                "desc": f"Connection failed, error code: {response.status}",
-                                "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
-                            }
-                        )
-            except asyncio.TimeoutError:
-                return (
-                    HTTPStatus.REQUEST_TIMEOUT,
-                    "Connection timeout",
-                    {
-                        "status": "Disconnected",
-                        "desc": "Connection timeout",
-                        "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
-                    }
-                )
-
+            async with session.get(
+                    f"{MODEL_ENGINE_HOST}/open/router/v1/models",
+                    headers=headers
+            ) as response:
+                if response.status == HTTPStatus.OK:
+                    return
+                else:
+                    raise MEConnectionException(
+                        f"Connection failed, error code: {response.status}")
+    except asyncio.TimeoutError:
+        raise TimeoutException("Connection timed out")
     except Exception as e:
-        return (
-            HTTPStatus.INTERNAL_SERVER_ERROR,
-            f"Unknown error occurred: {str(e)}",
-            {
-                "status": "Disconnected",
-                "desc": f"Unknown error occurred: {str(e)}",
-                "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
-            }
-        )
+        raise Exception(f"Unknown error occurred: {str(e)}")
 
 
 async def verify_model_config_connectivity(model_config: dict):
