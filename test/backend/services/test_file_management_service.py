@@ -583,7 +583,7 @@ class TestProcessImageFile:
     @pytest.mark.asyncio
     async def test_process_image_file_success(self):
         """Test successful image file processing"""
-        with patch('backend.services.file_management_service.convert_image_to_text', AsyncMock(return_value="Extracted text from image")) as mock_convert:
+        with patch('backend.services.file_management_service.convert_image_to_text', return_value="Extracted text from image") as mock_convert:
             # Execute
             result = await process_image_file(
                 query="Test query",
@@ -601,7 +601,7 @@ class TestProcessImageFile:
     @pytest.mark.asyncio
     async def test_process_image_file_with_error(self):
         """Test image file processing with error"""
-        with patch('backend.services.file_management_service.convert_image_to_text', AsyncMock(side_effect=Exception("Processing failed"))) as mock_convert:
+        with patch('backend.services.file_management_service.convert_image_to_text', side_effect=Exception("Processing failed")) as mock_convert:
             # Execute
             result = await process_image_file(
                 query="Test query",
@@ -623,7 +623,18 @@ class TestProcessTextFile:
     @pytest.mark.asyncio
     async def test_process_text_file_success(self):
         """Test successful text file processing"""
-        with patch('backend.services.file_management_service.convert_long_text_to_text', AsyncMock(return_value="Processed text content")) as mock_convert:
+        # Mock the HTTP response from the data processing service
+        mock_response_data = {"text": "Raw text content from API"}
+        
+        with patch('httpx.AsyncClient.post') as mock_post, \
+             patch('backend.services.file_management_service.convert_long_text_to_text', return_value=("Processed text content", "0")) as mock_convert:
+            
+            # Mock the HTTP response
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = mock_response_data
+            mock_post.return_value = mock_response
+            
             # Execute
             result, truncation_percentage = await process_text_file(
                 query="Test query",
@@ -636,13 +647,24 @@ class TestProcessTextFile:
             # Assertions
             assert "File test.txt content" in result
             assert "Processed text content" in result
-            assert truncation_percentage is None
+            assert truncation_percentage == "0"
             mock_convert.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_process_text_file_with_error(self):
         """Test text file processing with error"""
-        with patch('backend.services.file_management_service.convert_long_text_to_text', AsyncMock(side_effect=Exception("Processing failed"))) as mock_convert:
+        # Mock the HTTP response from the data processing service
+        mock_response_data = {"text": "Raw text content from API"}
+        
+        with patch('httpx.AsyncClient.post') as mock_post, \
+             patch('backend.services.file_management_service.convert_long_text_to_text', side_effect=Exception("Processing failed")) as mock_convert:
+            
+            # Mock the HTTP response
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = mock_response_data
+            mock_post.return_value = mock_response
+            
             # Execute
             result, truncation_percentage = await process_text_file(
                 query="Test query",
@@ -710,7 +732,7 @@ class TestPreprocessFilesGenerator:
 
         with patch('backend.services.file_management_service.process_text_file', AsyncMock(return_value=("Processed text", None))) as mock_process_text, \
              patch('backend.services.file_management_service.process_image_file', AsyncMock(return_value="Processed image")) as mock_process_image, \
-             patch('agents.preprocess_manager.preprocess_manager') as mock_preprocess_manager:
+             patch('backend.services.file_management_service.preprocess_manager') as mock_preprocess_manager:
 
             # Mock preprocess manager
             mock_preprocess_manager.register_preprocess_task = MagicMock()
@@ -747,7 +769,7 @@ class TestPreprocessFilesGenerator:
         ]
 
         with patch('backend.services.file_management_service.process_text_file', AsyncMock(side_effect=Exception("Processing failed"))) as mock_process_text, \
-             patch('agents.preprocess_manager.preprocess_manager') as mock_preprocess_manager:
+             patch('backend.services.file_management_service.preprocess_manager') as mock_preprocess_manager:
 
             # Mock preprocess manager
             mock_preprocess_manager.register_preprocess_task = MagicMock()
@@ -770,3 +792,676 @@ class TestPreprocessFilesGenerator:
             mock_process_text.assert_called_once()
             mock_preprocess_manager.register_preprocess_task.assert_called_once()
             mock_preprocess_manager.unregister_preprocess_task.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_preprocess_files_generator_with_truncation(self):
+        """Test file preprocessing generator with file truncation"""
+        file_cache = [
+            {
+                "filename": "test.txt",
+                "content": b"test content",
+                "ext": ".txt"
+            }
+        ]
+
+        with patch('backend.services.file_management_service.process_text_file', AsyncMock(return_value=("Processed text", "50"))) as mock_process_text, \
+             patch('backend.services.file_management_service.preprocess_manager') as mock_preprocess_manager:
+
+            # Mock preprocess manager
+            mock_preprocess_manager.register_preprocess_task = MagicMock()
+            mock_preprocess_manager.unregister_preprocess_task = MagicMock()
+
+            # Execute
+            results = []
+            async for result in preprocess_files_generator(
+                query="Test query",
+                file_cache=file_cache,
+                tenant_id="tenant123",
+                language="en",
+                task_id="task123",
+                conversation_id=1
+            ):
+                results.append(result)
+
+            # Assertions
+            assert len(results) > 0
+            mock_process_text.assert_called_once()
+            mock_preprocess_manager.register_preprocess_task.assert_called_once()
+            mock_preprocess_manager.unregister_preprocess_task.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_preprocess_files_generator_with_zero_truncation(self):
+        """Test file preprocessing generator with zero truncation percentage"""
+        file_cache = [
+            {
+                "filename": "test.txt",
+                "content": b"test content",
+                "ext": ".txt"
+            }
+        ]
+
+        with patch('backend.services.file_management_service.process_text_file', AsyncMock(return_value=("Processed text", "0"))) as mock_process_text, \
+             patch('backend.services.file_management_service.preprocess_manager') as mock_preprocess_manager:
+
+            # Mock preprocess manager
+            mock_preprocess_manager.register_preprocess_task = MagicMock()
+            mock_preprocess_manager.unregister_preprocess_task = MagicMock()
+
+            # Execute
+            results = []
+            async for result in preprocess_files_generator(
+                query="Test query",
+                file_cache=file_cache,
+                tenant_id="tenant123",
+                language="en",
+                task_id="task123",
+                conversation_id=1
+            ):
+                results.append(result)
+
+            # Assertions
+            assert len(results) > 0
+            mock_process_text.assert_called_once()
+            mock_preprocess_manager.register_preprocess_task.assert_called_once()
+            mock_preprocess_manager.unregister_preprocess_task.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_preprocess_files_generator_with_file_error(self):
+        """Test file preprocessing generator with file that has error in cache"""
+        file_cache = [
+            {
+                "filename": "test.txt",
+                "content": b"test content",
+                "ext": ".txt",
+                "error": "File corrupted"
+            }
+        ]
+
+        with patch('backend.services.file_management_service.preprocess_manager') as mock_preprocess_manager:
+
+            # Mock preprocess manager
+            mock_preprocess_manager.register_preprocess_task = MagicMock()
+            mock_preprocess_manager.unregister_preprocess_task = MagicMock()
+
+            # Execute
+            results = []
+            async for result in preprocess_files_generator(
+                query="Test query",
+                file_cache=file_cache,
+                tenant_id="tenant123",
+                language="en",
+                task_id="task123",
+                conversation_id=1
+            ):
+                results.append(result)
+
+            # Assertions
+            assert len(results) > 0
+            mock_preprocess_manager.register_preprocess_task.assert_called_once()
+            mock_preprocess_manager.unregister_preprocess_task.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_preprocess_files_generator_empty_cache(self):
+        """Test file preprocessing generator with empty file cache"""
+        file_cache = []
+
+        with patch('backend.services.file_management_service.preprocess_manager') as mock_preprocess_manager:
+
+            # Mock preprocess manager
+            mock_preprocess_manager.register_preprocess_task = MagicMock()
+            mock_preprocess_manager.unregister_preprocess_task = MagicMock()
+
+            # Execute
+            results = []
+            async for result in preprocess_files_generator(
+                query="Test query",
+                file_cache=file_cache,
+                tenant_id="tenant123",
+                language="en",
+                task_id="task123",
+                conversation_id=1
+            ):
+                results.append(result)
+
+            # Assertions
+            assert len(results) > 0  # Should still yield completion message
+            mock_preprocess_manager.register_preprocess_task.assert_called_once()
+            mock_preprocess_manager.unregister_preprocess_task.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_preprocess_files_generator_task_cancellation(self):
+        """Test file preprocessing generator with task cancellation"""
+        file_cache = [
+            {
+                "filename": "test.txt",
+                "content": b"test content",
+                "ext": ".txt"
+            }
+        ]
+
+        with patch('backend.services.file_management_service.preprocess_manager') as mock_preprocess_manager:
+
+            # Mock preprocess manager
+            mock_preprocess_manager.register_preprocess_task = MagicMock()
+            mock_preprocess_manager.unregister_preprocess_task = MagicMock()
+
+            # Mock current task to be done (cancelled)
+            mock_task = MagicMock()
+            mock_task.done.return_value = True
+            with patch('asyncio.current_task', return_value=mock_task):
+                # Execute
+                results = []
+                async for result in preprocess_files_generator(
+                    query="Test query",
+                    file_cache=file_cache,
+                    tenant_id="tenant123",
+                    language="en",
+                    task_id="task123",
+                    conversation_id=1
+                ):
+                    results.append(result)
+
+                # Assertions
+                assert len(results) > 0
+                mock_preprocess_manager.register_preprocess_task.assert_called_once()
+                mock_preprocess_manager.unregister_preprocess_task.assert_called_once()
+
+
+class TestUtilityFunctions:
+    """Test cases for utility functions"""
+
+    def test_get_parsing_file_message_zh(self):
+        """Test get_parsing_file_message function with Chinese language"""
+        from backend.services.file_management_service import get_parsing_file_message
+        
+        result = get_parsing_file_message("zh", 0, 3, "test.txt")
+        assert result == "正在解析文件 1/3: test.txt"
+        
+        result = get_parsing_file_message("zh", 2, 5, "document.pdf")
+        assert result == "正在解析文件 3/5: document.pdf"
+
+    def test_get_parsing_file_message_en(self):
+        """Test get_parsing_file_message function with English language"""
+        from backend.services.file_management_service import get_parsing_file_message
+        
+        result = get_parsing_file_message("en", 0, 3, "test.txt")
+        assert result == "Parsing file 1/3: test.txt"
+        
+        result = get_parsing_file_message("en", 2, 5, "document.pdf")
+        assert result == "Parsing file 3/5: document.pdf"
+
+    def test_get_parsing_file_message_other_language(self):
+        """Test get_parsing_file_message function with other language (defaults to English)"""
+        from backend.services.file_management_service import get_parsing_file_message
+        
+        result = get_parsing_file_message("fr", 0, 3, "test.txt")
+        assert result == "Parsing file 1/3: test.txt"
+
+    def test_get_truncation_message_zh(self):
+        """Test get_truncation_message function with Chinese language"""
+        from backend.services.file_management_service import get_truncation_message
+        
+        result = get_truncation_message("zh", "test.txt", 50)
+        assert result == "test.txt 超出字数限制，只阅读了前 50%"
+        
+        result = get_truncation_message("zh", "document.pdf", 25)
+        assert result == "document.pdf 超出字数限制，只阅读了前 25%"
+
+    def test_get_truncation_message_en(self):
+        """Test get_truncation_message function with English language"""
+        from backend.services.file_management_service import get_truncation_message
+        
+        result = get_truncation_message("en", "test.txt", 50)
+        assert result == "test.txt exceeds word limit, only read the first 50%"
+        
+        result = get_truncation_message("en", "document.pdf", 25)
+        assert result == "document.pdf exceeds word limit, only read the first 25%"
+
+    def test_get_truncation_message_other_language(self):
+        """Test get_truncation_message function with other language (defaults to English)"""
+        from backend.services.file_management_service import get_truncation_message
+        
+        result = get_truncation_message("fr", "test.txt", 50)
+        assert result == "test.txt exceeds word limit, only read the first 50%"
+
+
+class TestEdgeCasesAndErrorHandling:
+    """Test cases for edge cases and error handling scenarios"""
+
+    @pytest.mark.asyncio
+    async def test_upload_files_impl_with_none_file(self):
+        """Test upload_files_impl with None file in list"""
+        # Create mock UploadFile
+        mock_file = MagicMock()
+        mock_file.filename = "test.txt"
+        mock_file.read = AsyncMock(return_value=b"test content")
+        mock_file.seek = AsyncMock()
+
+        with patch('backend.services.file_management_service.save_upload_file', AsyncMock(return_value=True)) as mock_save:
+            # Execute with None file in the list
+            errors, uploaded_paths, uploaded_names = await upload_files_impl(
+                destination="local", file=[mock_file, None])
+
+            # Assertions
+            assert errors == []
+            assert len(uploaded_paths) == 1  # Only one file processed
+            assert len(uploaded_names) == 1
+            assert uploaded_names[0] == "test.txt"
+            mock_save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_upload_files_impl_with_empty_file_list(self):
+        """Test upload_files_impl with empty file list"""
+        # Execute with empty file list
+        errors, uploaded_paths, uploaded_names = await upload_files_impl(
+            destination="local", file=[])
+
+        # Assertions
+        assert errors == []
+        assert uploaded_paths == []
+        assert uploaded_names == []
+
+    @pytest.mark.asyncio
+    async def test_upload_to_minio_with_empty_file_list(self):
+        """Test upload_to_minio with empty file list"""
+        # Execute with empty file list
+        results = await upload_to_minio(files=[], folder="folder")
+
+        # Assertions
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_process_text_file_http_error_response(self):
+        """Test process_text_file with HTTP error response"""
+        # Mock the HTTP response with error status
+        mock_response_data = {"detail": "File processing failed"}
+        
+        with patch('httpx.AsyncClient.post') as mock_post:
+            # Mock the HTTP response with error status
+            mock_response = MagicMock()
+            mock_response.status_code = 400
+            mock_response.headers = {"content-type": "application/json"}
+            mock_response.json.return_value = mock_response_data
+            mock_post.return_value = mock_response
+            
+            # Execute
+            result, truncation_percentage = await process_text_file(
+                query="Test query",
+                filename="test.txt",
+                file_content=b"test file content",
+                tenant_id="tenant123",
+                language="en"
+            )
+
+            # Assertions
+            assert "Error processing text file test.txt" in result
+            assert "File processing failed (status code: 400)" in result
+            assert truncation_percentage is None
+
+    @pytest.mark.asyncio
+    async def test_process_text_file_http_error_non_json_response(self):
+        """Test process_text_file with HTTP error response that's not JSON"""
+        with patch('httpx.AsyncClient.post') as mock_post:
+            # Mock the HTTP response with error status and non-JSON content
+            mock_response = MagicMock()
+            mock_response.status_code = 500
+            mock_response.headers = {"content-type": "text/plain"}
+            mock_response.text = "Internal Server Error"
+            mock_post.return_value = mock_response
+            
+            # Execute
+            result, truncation_percentage = await process_text_file(
+                query="Test query",
+                filename="test.txt",
+                file_content=b"test file content",
+                tenant_id="tenant123",
+                language="en"
+            )
+
+            # Assertions
+            assert "Error processing text file test.txt" in result
+            assert "File processing failed (status code: 500)" in result
+            assert truncation_percentage is None
+
+    @pytest.mark.asyncio
+    async def test_process_text_file_json_decode_error(self):
+        """Test process_text_file with JSON decode error"""
+        with patch('httpx.AsyncClient.post') as mock_post:
+            # Mock the HTTP response with invalid JSON
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.side_effect = ValueError("Invalid JSON")
+            mock_post.return_value = mock_response
+            
+            # Execute
+            result, truncation_percentage = await process_text_file(
+                query="Test query",
+                filename="test.txt",
+                file_content=b"test file content",
+                tenant_id="tenant123",
+                language="en"
+            )
+
+            # Assertions
+            assert "Error processing text file test.txt" in result
+            assert "Invalid JSON" in result
+            assert truncation_percentage is None
+
+    def test_get_file_description_with_none_filename(self):
+        """Test get_file_description with file having None filename"""
+        # Create mock UploadFile with None filename
+        mock_file = MagicMock()
+        mock_file.filename = None
+
+        # Execute
+        result = get_file_description([mock_file])
+
+        # Assertions
+        assert "User provided some reference files" in result
+        assert "File " in result  # Should handle None filename gracefully
+
+    def test_get_file_description_with_various_file_types(self):
+        """Test get_file_description with various file types"""
+        # Create mock UploadFiles with different extensions
+        image_files = [
+            MagicMock(filename="test.jpg"),
+            MagicMock(filename="test.jpeg"),
+            MagicMock(filename="test.png"),
+            MagicMock(filename="test.gif"),
+            MagicMock(filename="test.bmp")
+        ]
+        
+        text_files = [
+            MagicMock(filename="test.txt"),
+            MagicMock(filename="test.pdf"),
+            MagicMock(filename="test.docx")
+        ]
+
+        # Execute
+        result = get_file_description(image_files + text_files)
+
+        # Assertions
+        assert "User provided some reference files" in result
+        for file in image_files:
+            assert f"Image file {file.filename}" in result
+        for file in text_files:
+            assert f"File {file.filename}" in result
+
+    @pytest.mark.asyncio
+    async def test_list_files_impl_with_none_limit(self):
+        """Test list_files_impl with None limit"""
+        # Mock file list
+        mock_files = [
+            {"name": "folder/file1.txt", "size": 1024},
+            {"name": "folder/file2.txt", "size": 2048},
+            {"name": "folder/file3.txt", "size": 1536}
+        ]
+
+        with patch('backend.services.file_management_service.list_files', MagicMock(return_value=mock_files)) as mock_list:
+            # Execute with None limit
+            result = await list_files_impl(prefix="folder/", limit=None)
+
+            # Assertions
+            assert result == mock_files
+            assert len(result) == 3
+            mock_list.assert_called_once_with(prefix="folder/")
+
+    @pytest.mark.asyncio
+    async def test_list_files_impl_with_limit_larger_than_files(self):
+        """Test list_files_impl with limit larger than available files"""
+        # Mock file list
+        mock_files = [
+            {"name": "folder/file1.txt", "size": 1024},
+            {"name": "folder/file2.txt", "size": 2048}
+        ]
+
+        with patch('backend.services.file_management_service.list_files', MagicMock(return_value=mock_files)) as mock_list:
+            # Execute with limit larger than available files
+            result = await list_files_impl(prefix="folder/", limit=10)
+
+            # Assertions
+            assert result == mock_files
+            assert len(result) == 2
+            mock_list.assert_called_once_with(prefix="folder/")
+
+
+class TestConcurrencyAndFileTypes:
+    """Test cases for concurrency control and file type handling"""
+
+    @pytest.mark.asyncio
+    async def test_upload_files_impl_semaphore_usage(self):
+        """Test that upload_files_impl uses semaphore for local uploads"""
+        # Create mock UploadFile
+        mock_file = MagicMock()
+        mock_file.filename = "test.txt"
+        mock_file.read = AsyncMock(return_value=b"test content")
+        mock_file.seek = AsyncMock()
+
+        with patch('backend.services.file_management_service.save_upload_file', AsyncMock(return_value=True)) as mock_save, \
+             patch('backend.services.file_management_service.upload_semaphore') as mock_semaphore:
+            
+            # Mock semaphore context manager
+            mock_semaphore.__aenter__ = AsyncMock()
+            mock_semaphore.__aexit__ = AsyncMock()
+            
+            # Execute
+            errors, uploaded_paths, uploaded_names = await upload_files_impl(
+                destination="local", file=[mock_file])
+
+            # Assertions
+            assert errors == []
+            assert len(uploaded_paths) == 1
+            assert len(uploaded_names) == 1
+            mock_save.assert_called_once()
+            # Verify semaphore was used
+            mock_semaphore.__aenter__.assert_called_once()
+            mock_semaphore.__aexit__.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_upload_files_impl_no_semaphore_for_minio(self):
+        """Test that upload_files_impl doesn't use semaphore for MinIO uploads"""
+        # Create mock UploadFile
+        mock_file = MagicMock()
+        mock_file.filename = "test.txt"
+        mock_file.read = AsyncMock(return_value=b"test content")
+        mock_file.seek = AsyncMock()
+
+        with patch('backend.services.file_management_service.upload_to_minio', AsyncMock(return_value=[
+            {"success": True, "file_name": "test.txt", "object_name": "folder/test.txt"}
+        ])) as mock_upload, \
+             patch('backend.services.file_management_service.upload_semaphore') as mock_semaphore:
+            
+            # Execute
+            errors, uploaded_paths, uploaded_names = await upload_files_impl(
+                destination="minio", file=[mock_file], folder="folder")
+
+            # Assertions
+            assert errors == []
+            assert len(uploaded_paths) == 1
+            mock_upload.assert_called_once()
+            # Verify semaphore was NOT used for MinIO
+            mock_semaphore.__aenter__.assert_not_called()
+            mock_semaphore.__aexit__.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_preprocess_files_generator_different_file_types(self):
+        """Test preprocess_files_generator with different file types"""
+        file_cache = [
+            {
+                "filename": "test.txt",
+                "content": b"test content",
+                "ext": ".txt"
+            },
+            {
+                "filename": "test.jpg",
+                "content": b"image data",
+                "ext": ".jpg"
+            },
+            {
+                "filename": "test.jpeg",
+                "content": b"image data",
+                "ext": ".jpeg"
+            },
+            {
+                "filename": "test.png",
+                "content": b"image data",
+                "ext": ".png"
+            },
+            {
+                "filename": "test.gif",
+                "content": b"image data",
+                "ext": ".gif"
+            },
+            {
+                "filename": "test.bmp",
+                "content": b"image data",
+                "ext": ".bmp"
+            },
+            {
+                "filename": "test.webp",
+                "content": b"image data",
+                "ext": ".webp"
+            },
+            {
+                "filename": "test.pdf",
+                "content": b"pdf data",
+                "ext": ".pdf"
+            }
+        ]
+
+        with patch('backend.services.file_management_service.process_text_file', AsyncMock(return_value=("Processed text", None))) as mock_process_text, \
+             patch('backend.services.file_management_service.process_image_file', AsyncMock(return_value="Processed image")) as mock_process_image, \
+             patch('backend.services.file_management_service.preprocess_manager') as mock_preprocess_manager:
+
+            # Mock preprocess manager
+            mock_preprocess_manager.register_preprocess_task = MagicMock()
+            mock_preprocess_manager.unregister_preprocess_task = MagicMock()
+
+            # Execute
+            results = []
+            async for result in preprocess_files_generator(
+                query="Test query",
+                file_cache=file_cache,
+                tenant_id="tenant123",
+                language="en",
+                task_id="task123",
+                conversation_id=1
+            ):
+                results.append(result)
+
+            # Assertions
+            assert len(results) > 0
+            # Should call process_text_file for .txt and .pdf files (2 calls)
+            assert mock_process_text.call_count == 2
+            # Should call process_image_file for image files (6 calls)
+            assert mock_process_image.call_count == 6
+            mock_preprocess_manager.register_preprocess_task.assert_called_once()
+            mock_preprocess_manager.unregister_preprocess_task.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_process_text_file_with_empty_response_text(self):
+        """Test process_text_file with empty text in response"""
+        # Mock the HTTP response with empty text
+        mock_response_data = {"text": ""}
+        
+        with patch('httpx.AsyncClient.post') as mock_post, \
+             patch('backend.services.file_management_service.convert_long_text_to_text', return_value=("Processed text", "0")) as mock_convert:
+            
+            # Mock the HTTP response
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = mock_response_data
+            mock_post.return_value = mock_response
+            
+            # Execute
+            result, truncation_percentage = await process_text_file(
+                query="Test query",
+                filename="test.txt",
+                file_content=b"test file content",
+                tenant_id="tenant123",
+                language="en"
+            )
+
+            # Assertions
+            assert "File test.txt content" in result
+            assert "Processed text" in result
+            assert truncation_percentage == "0"
+            mock_convert.assert_called_once_with("Test query", "", "tenant123", "en")
+
+    @pytest.mark.asyncio
+    async def test_process_text_file_with_missing_text_in_response(self):
+        """Test process_text_file with missing text field in response"""
+        # Mock the HTTP response without text field
+        mock_response_data = {"status": "success"}
+        
+        with patch('httpx.AsyncClient.post') as mock_post, \
+             patch('backend.services.file_management_service.convert_long_text_to_text', return_value=("Processed text", "0")) as mock_convert:
+            
+            # Mock the HTTP response
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = mock_response_data
+            mock_post.return_value = mock_response
+            
+            # Execute
+            result, truncation_percentage = await process_text_file(
+                query="Test query",
+                filename="test.txt",
+                file_content=b"test file content",
+                tenant_id="tenant123",
+                language="en"
+            )
+
+            # Assertions
+            assert "File test.txt content" in result
+            assert "Processed text" in result
+            assert truncation_percentage == "0"
+            mock_convert.assert_called_once_with("Test query", "", "tenant123", "en")
+
+    @pytest.mark.asyncio
+    async def test_upload_to_minio_with_none_folder(self):
+        """Test upload_to_minio with None folder"""
+        # Create mock UploadFile
+        mock_file = MagicMock()
+        mock_file.filename = "test.txt"
+        mock_file.read = AsyncMock(return_value=b"test content")
+        mock_file.seek = AsyncMock()
+
+        with patch('backend.services.file_management_service.upload_fileobj', MagicMock(return_value={
+            "success": True, "file_name": "test.txt", "object_name": "test.txt"
+        })) as mock_upload:
+            # Execute with None folder
+            results = await upload_to_minio(files=[mock_file], folder=None)
+
+            # Assertions
+            assert len(results) == 1
+            assert results[0]["success"] is True
+            assert results[0]["file_name"] == "test.txt"
+            mock_upload.assert_called_once()
+            # Verify that None was passed as prefix
+            call_args = mock_upload.call_args
+            assert call_args[1]["prefix"] is None
+
+    @pytest.mark.asyncio
+    async def test_upload_to_minio_with_empty_folder(self):
+        """Test upload_to_minio with empty folder string"""
+        # Create mock UploadFile
+        mock_file = MagicMock()
+        mock_file.filename = "test.txt"
+        mock_file.read = AsyncMock(return_value=b"test content")
+        mock_file.seek = AsyncMock()
+
+        with patch('backend.services.file_management_service.upload_fileobj', MagicMock(return_value={
+            "success": True, "file_name": "test.txt", "object_name": "test.txt"
+        })) as mock_upload:
+            # Execute with empty folder
+            results = await upload_to_minio(files=[mock_file], folder="")
+
+            # Assertions
+            assert len(results) == 1
+            assert results[0]["success"] is True
+            assert results[0]["file_name"] == "test.txt"
+            mock_upload.assert_called_once()
+            # Verify that empty string was passed as prefix
+            call_args = mock_upload.call_args
+            assert call_args[1]["prefix"] == ""
