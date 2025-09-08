@@ -43,9 +43,9 @@ export async function generateMetadata(props: {
     },
     description: messages["mainPage.layout.description"],
     icons: {
-      icon: "/modelengine-logo.png",
-      shortcut: "/favicon.ico",
-      apple: "/apple-touch-icon.png",
+      icon: "/favicon.png",
+      shortcut: "/favicon.png",
+      apple: "/favicon.png",
     },
   };
 }
@@ -59,9 +59,6 @@ export default async function RootLayout(props: {
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/modelengine-logo.png" sizes="any" />
-      </head>
       <body className={inter.className}>
         <NextThemesProvider
           attribute="class"

@@ -6,6 +6,11 @@ export default defineConfig({
   title: "Nexent Doc",
   description: "A zero-code platform for auto-generating agents — no orchestration, no complex drag-and-drop required.",
   
+  // Add favicon to head
+  head: [
+    ['link', { rel: 'icon', href: '/doc/favicon.ico' }]
+  ],
+  
   // Ignore localhost links as they are meant for local deployment access
   ignoreDeadLinks: [
     // Ignore localhost links
