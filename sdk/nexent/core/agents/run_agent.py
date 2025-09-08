@@ -4,7 +4,7 @@ from threading import Thread
 
 from smolagents import ToolCollection
 
-from .agent_model import AgentRunInfo, MemoryContext
+from .agent_model import AgentRunInfo
 from .nexent_agent import NexentAgent, ProcessType
 
 
@@ -12,7 +12,7 @@ logger = logging.getLogger("run_agent")
 logger.setLevel(logging.DEBUG)
 
 
-def agent_run_thread(agent_run_info: AgentRunInfo, memory_context: MemoryContext):
+def agent_run_thread(agent_run_info: AgentRunInfo):
     try:
         mcp_host = agent_run_info.mcp_host
         if mcp_host is None or len(mcp_host)==0:
@@ -50,10 +50,10 @@ def agent_run_thread(agent_run_info: AgentRunInfo, memory_context: MemoryContext
         raise ValueError(f"Error in agent_run_thread: {e}")
 
 
-async def agent_run(agent_run_info: AgentRunInfo, memory_context: MemoryContext):
+async def agent_run(agent_run_info: AgentRunInfo):
     observer = agent_run_info.observer
 
-    thread_agent = Thread(target=agent_run_thread, args=(agent_run_info, memory_context))
+    thread_agent = Thread(target=agent_run_thread, args=agent_run_info)
     thread_agent.start()
 
     while thread_agent.is_alive():

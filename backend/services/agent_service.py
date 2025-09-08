@@ -94,7 +94,7 @@ async def _stream_agent_chunks(
     local_messages = []
     captured_final_answer = None
     try:
-        async for chunk in agent_run(agent_run_info, memory_ctx):
+        async for chunk in agent_run(agent_run_info):
             local_messages.append(chunk)
             # Try to capture the final answer as it streams by in order to start memory addition
             try:

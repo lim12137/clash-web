@@ -24,14 +24,14 @@ logger = logging.getLogger("memory_service")
 
 def _filter_by_memory_level(memory_level: str, raw_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
-    根据 memory_level 过滤搜索或列表结果，仅供模块内部使用。
+    Filter search or list results by memory_level
 
-    参数:
+    args:
         memory_level: "tenant" | "user" | "agent" | "user_agent"
-        raw_results:   需要过滤的结果列表
+        raw_results:   The list of results to filter
 
-    返回:
-        过滤后的结果列表
+    return:
+        The filtered list of results
     """
     if memory_level in {"tenant", "user"}:
         return [r for r in raw_results if not r.get("agent_id")]

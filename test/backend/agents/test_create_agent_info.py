@@ -55,12 +55,12 @@ from backend.agents.create_agent_info import (
 
 
 class TestDiscoverLangchainTools:
-    """测试discover_langchain_tools函数"""
+    """Tests for the discover_langchain_tools function"""
 
     @pytest.mark.asyncio
     async def test_discover_langchain_tools_success(self):
-        """测试成功发现LangChain工具的情况"""
-        # 准备测试数据
+        """Test case for successfully discovering LangChain tools"""
+        # Prepare test data
         mock_tool1 = Mock()
         mock_tool1.name = "test_tool1"
 
@@ -78,15 +78,15 @@ class TestDiscoverLangchainTools:
             with patch.dict('sys.modules', {
                 'utils.langchain_utils': Mock(discover_langchain_modules=mock_discover_func)
             }):
-                # 执行测试
+                # Execute the test
                 result = await discover_langchain_tools()
 
-                # 验证结果
+                # Verify the results
                 assert len(result) == 2
                 assert result[0] == mock_tool1
                 assert result[1] == mock_tool2
 
-                # 验证调用
+                # Verify calls
                 mock_discover_func.assert_called_once()
                 assert mock_logger.info.call_count == 2
                 mock_logger.info.assert_any_call(
@@ -96,7 +96,7 @@ class TestDiscoverLangchainTools:
 
     @pytest.mark.asyncio
     async def test_discover_langchain_tools_empty(self):
-        """测试未发现任何工具的情况"""
+        """Test case for when no tools are discovered"""
         mock_discover_func = Mock(return_value=[])
 
         with patch.dict('sys.modules', {
@@ -110,7 +110,7 @@ class TestDiscoverLangchainTools:
 
     @pytest.mark.asyncio
     async def test_discover_langchain_tools_module_exception(self):
-        """测试discover_langchain_modules抛出异常的情况"""
+        """Test case for when discover_langchain_modules throws an exception"""
         mock_discover_func = Mock(side_effect=Exception("模块发现错误"))
 
         with patch('backend.agents.create_agent_info.logger') as mock_logger:
@@ -126,11 +126,11 @@ class TestDiscoverLangchainTools:
 
     @pytest.mark.asyncio
     async def test_discover_langchain_tools_processing_exception(self):
-        """测试处理单个工具时出错的情况"""
+        """Test case for when an error occurs while processing a single tool"""
         mock_good_tool = Mock()
         mock_good_tool.name = "good_tool"
 
-        # 创建一个访问name属性时会抛出异常的工具
+        # Create a tool that throws an exception when accessing the name attribute
         mock_error_tool = Mock()
         type(mock_error_tool).name = PropertyMock(
             side_effect=Exception("工具处理错误"))
@@ -146,27 +146,27 @@ class TestDiscoverLangchainTools:
             }):
                 result = await discover_langchain_tools()
 
-                # 验证结果 - 只有正常的工具被返回
+                # Verify the results - only the valid tool should be returned
                 assert len(result) == 1
                 assert result[0] == mock_good_tool
 
-                # 验证错误日志被记录
+                # Verify that the error was logged
                 mock_logger.error.assert_called_once()
                 error_call = mock_logger.error.call_args[0][0]
                 assert "Error processing LangChain tool from error_tool.py:" in error_call
 
 
 class TestCreateToolConfigList:
-    """测试create_tool_config_list函数"""
+    """Tests for the create_tool_config_list function"""
 
     @pytest.mark.asyncio
     async def test_create_tool_config_list_basic(self):
-        """测试基本的工具配置列表创建"""
+        """Test case for basic tool configuration list creation"""
         with patch('backend.agents.create_agent_info.discover_langchain_tools') as mock_discover, \
                 patch('backend.agents.create_agent_info.search_tools_for_sub_agent') as mock_search_tools, \
                 patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge:
 
-            # 设置mock返回值
+            # Set mock return values
             mock_discover.return_value = []
             mock_search_tools.return_value = [
                 {
@@ -185,7 +185,7 @@ class TestCreateToolConfigList:
             result = await create_tool_config_list("agent_1", "tenant_1", "user_1")
 
             assert len(result) == 1
-            # 验证ToolConfig被正确调用
+            # Verify that ToolConfig was called correctly
             mock_tool_config.assert_called_once_with(
                 class_name="TestTool",
                 name="test_tool",
@@ -199,7 +199,7 @@ class TestCreateToolConfigList:
 
     @pytest.mark.asyncio
     async def test_create_tool_config_list_with_knowledge_base_tool(self):
-        """测试包含知识库搜索工具的情况"""
+        """Test case including the knowledge base search tool"""
         with patch('backend.agents.create_agent_info.discover_langchain_tools') as mock_discover, \
                 patch('backend.agents.create_agent_info.search_tools_for_sub_agent') as mock_search_tools, \
                 patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge, \
@@ -229,29 +229,28 @@ class TestCreateToolConfigList:
             result = await create_tool_config_list("agent_1", "tenant_1", "user_1")
 
             assert len(result) == 1
-            # 验证ToolConfig被正确调用，包含知识库元数据
-            # 检查最后一次调用是否是KnowledgeBaseSearchTool
+            # Verify that ToolConfig was called correctly, including knowledge base metadata
+            # Check if the last call was for KnowledgeBaseSearchTool
             last_call = mock_tool_config.call_args_list[-1]
             assert last_call[1]['class_name'] == "KnowledgeBaseSearchTool"
 
 
 class TestCreateAgentConfig:
-    """测试create_agent_config函数"""
+    """Tests for the create_agent_config function"""
 
     @pytest.mark.asyncio
     async def test_create_agent_config_basic(self):
-        """测试基本的代理配置创建"""
+        """Test case for basic agent configuration creation"""
         with patch('backend.agents.create_agent_info.search_agent_info_by_agent_id') as mock_search_agent, \
                 patch('backend.agents.create_agent_info.query_sub_agents_id_list') as mock_query_sub, \
                 patch('backend.agents.create_agent_info.create_tool_config_list') as mock_create_tools, \
                 patch('backend.agents.create_agent_info.get_agent_prompt_template') as mock_get_template, \
                 patch('backend.agents.create_agent_info.tenant_config_manager') as mock_tenant_config, \
                 patch('backend.agents.create_agent_info.build_memory_context') as mock_build_memory, \
-                patch('backend.agents.create_agent_info.search_memory_in_levels', new_callable=AsyncMock) as mock_search_memory, \
                 patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge, \
                 patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates:
 
-            # 设置mock返回值
+            # Set mock return values
             mock_search_agent.return_value = {
                 "name": "test_agent",
                 "description": "test description",
@@ -281,7 +280,7 @@ class TestCreateAgentConfig:
 
             result = await create_agent_config("agent_1", "tenant_1", "user_1", "zh", "test query")
 
-            # 验证AgentConfig被正确调用
+            # Verify that AgentConfig was called correctly
             mock_agent_config.assert_called_once_with(
                 name="test_agent",
                 description="test description",
@@ -295,7 +294,7 @@ class TestCreateAgentConfig:
 
     @pytest.mark.asyncio
     async def test_create_agent_config_with_sub_agents(self):
-        """测试包含子代理的代理配置创建"""
+        """Test case for creating agent configuration with sub-agents"""
         with patch('backend.agents.create_agent_info.search_agent_info_by_agent_id') as mock_search_agent, \
                 patch('backend.agents.create_agent_info.query_sub_agents_id_list') as mock_query_sub, \
                 patch('backend.agents.create_agent_info.create_tool_config_list') as mock_create_tools, \
@@ -306,7 +305,7 @@ class TestCreateAgentConfig:
                 patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge, \
                 patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates:
 
-            # 设置mock返回值
+            # Set mock return values
             mock_search_agent.return_value = {
                 "name": "test_agent",
                 "description": "test description",
@@ -334,18 +333,18 @@ class TestCreateAgentConfig:
             mock_prepare_templates.return_value = {
                 "system_prompt": "populated_system_prompt"}
 
-            # Mock子代理配置
+            # Mock sub-agent configuration
             mock_sub_agent_config = Mock()
             mock_sub_agent_config.name = "sub_agent"
 
-            # 递归调用create_agent_config时返回子代理配置
+            # Return sub-agent config on recursive call to create_agent_config
             with patch('backend.agents.create_agent_info.create_agent_config', return_value=mock_sub_agent_config):
-                # 重置mock状态，因为之前的测试可能已经调用了AgentConfig
+                # Reset mock state, as previous tests might have called AgentConfig
                 mock_agent_config.reset_mock()
 
                 result = await create_agent_config("agent_1", "tenant_1", "user_1", "zh", "test query")
 
-                # 验证AgentConfig被正确调用，包含子代理
+                # Verify that AgentConfig was called correctly, including sub-agents
                 mock_agent_config.assert_called_once_with(
                     name="test_agent",
                     description="test description",
@@ -360,7 +359,7 @@ class TestCreateAgentConfig:
 
     @pytest.mark.asyncio
     async def test_create_agent_config_with_memory(self):
-        """测试包含记忆功能的代理配置创建"""
+        """Test case for creating agent configuration with memory"""
         with patch('backend.agents.create_agent_info.search_agent_info_by_agent_id') as mock_search_agent, \
                 patch('backend.agents.create_agent_info.query_sub_agents_id_list') as mock_query_sub, \
                 patch('backend.agents.create_agent_info.create_tool_config_list') as mock_create_tools, \
@@ -371,7 +370,7 @@ class TestCreateAgentConfig:
                 patch('backend.agents.create_agent_info.get_selected_knowledge_list') as mock_knowledge, \
                 patch('backend.agents.create_agent_info.prepare_prompt_templates') as mock_prepare_templates:
 
-            # 设置mock返回值
+            # Set mock return values
             mock_search_agent.return_value = {
                 "name": "test_agent",
                 "description": "test description",
@@ -389,7 +388,7 @@ class TestCreateAgentConfig:
             mock_tenant_config.get_app_config.side_effect = [
                 "TestApp", "Test Description"]
 
-            # 设置记忆功能开启
+            # Enable memory feature
             mock_user_config = Mock()
             mock_user_config.memory_switch = True
             mock_user_config.agent_share_option = "always"
@@ -410,7 +409,7 @@ class TestCreateAgentConfig:
 
             result = await create_agent_config("agent_1", "tenant_1", "user_1", "zh", "test query")
 
-            # 验证记忆搜索被调用
+            # Verify that memory search was called
             mock_search_memory.assert_called_once_with(
                 query_text="test query",
                 memory_config={"test": "config"},
@@ -472,7 +471,7 @@ class TestCreateAgentConfig:
                 "Test Description",
             ]
 
-            # memory_switch 打开，但禁止搜索
+            # memory_switch is on, but search is disabled
             mock_user_config = Mock()
             mock_user_config.memory_switch = True
             mock_user_config.agent_share_option = "always"
@@ -588,15 +587,15 @@ class TestCreateAgentConfig:
 
 
 class TestCreateModelConfigList:
-    """测试create_model_config_list函数"""
+    """Tests for the create_model_config_list function"""
 
     @pytest.mark.asyncio
     async def test_create_model_config_list(self):
-        """测试模型配置列表创建"""
+        """Test case for model configuration list creation"""
         with patch('backend.agents.create_agent_info.tenant_config_manager') as mock_manager, \
                 patch('backend.agents.create_agent_info.get_model_name_from_config') as mock_get_model_name:
 
-            # 设置mock返回值
+            # Set mock return values
             mock_manager.get_model_config.side_effect = [
                 {
                     "api_key": "main_key",
@@ -618,16 +617,16 @@ class TestCreateModelConfigList:
             result = await create_model_config_list("tenant_1")
 
             assert len(result) == 2
-            # 验证ModelConfig被正确调用两次
+            # Verify that ModelConfig was called twice
             assert mock_model_config.call_count == 2
 
 
 class TestFilterMcpServersAndTools:
-    """测试filter_mcp_servers_and_tools函数"""
+    """Tests for the filter_mcp_servers_and_tools function"""
 
     def test_filter_mcp_servers_with_mcp_tools(self):
-        """测试包含MCP工具时的过滤逻辑"""
-        # 创建mock对象
+        """Test case for filtering logic when MCP tools are present"""
+        # Create mock objects
         mock_tool = Mock()
         mock_tool.source = "mcp"
         mock_tool.usage = "test_server"
@@ -642,14 +641,14 @@ class TestFilterMcpServersAndTools:
             }
         }
 
-        # 执行函数
+        # Execute the function
         result = filter_mcp_servers_and_tools(mock_agent_config, mcp_info_dict)
 
-        # 验证结果
+        # Verify the result
         assert result == ["http://test.server"]
 
     def test_filter_mcp_servers_no_mcp_tools(self):
-        """测试不包含MCP工具时的过滤逻辑"""
+        """Test case for filtering logic when no MCP tools are present"""
         mock_tool = Mock()
         mock_tool.source = "local"
 
@@ -661,12 +660,12 @@ class TestFilterMcpServersAndTools:
 
         result = filter_mcp_servers_and_tools(mock_agent_config, mcp_info_dict)
 
-        # 没有MCP工具，应该返回空列表
+        # Should return an empty list if there are no MCP tools
         assert result == []
 
     def test_filter_mcp_servers_with_sub_agents(self):
-        """测试包含子代理时的过滤逻辑"""
-        # 创建子代理的mock工具
+        """Test case for filtering logic with sub-agents"""
+        # Create mock tool for the sub-agent
         mock_sub_tool = Mock()
         mock_sub_tool.source = "mcp"
         mock_sub_tool.usage = "sub_server"
@@ -675,7 +674,7 @@ class TestFilterMcpServersAndTools:
         mock_sub_agent.tools = [mock_sub_tool]
         mock_sub_agent.managed_agents = []
 
-        # 创建主代理的mock工具
+        # Create mock tool for the main agent
         mock_main_tool = Mock()
         mock_main_tool.source = "mcp"
         mock_main_tool.usage = "main_server"
@@ -695,13 +694,13 @@ class TestFilterMcpServersAndTools:
 
         result = filter_mcp_servers_and_tools(mock_agent_config, mcp_info_dict)
 
-        # 应该包含两个服务器的URL
+        # Should contain the URLs of both servers
         assert len(result) == 2
         assert "http://main.server" in result
         assert "http://sub.server" in result
 
     def test_filter_mcp_servers_unknown_server(self):
-        """测试未知MCP服务器的情况"""
+        """Test case for an unknown MCP server"""
         mock_tool = Mock()
         mock_tool.source = "mcp"
         mock_tool.usage = "unknown_server"
@@ -718,16 +717,16 @@ class TestFilterMcpServersAndTools:
 
         result = filter_mcp_servers_and_tools(mock_agent_config, mcp_info_dict)
 
-        # 未知服务器不应该被包含
+        # Unknown servers should not be included
         assert result == []
 
 
 class TestCreateAgentRunInfo:
-    """测试create_agent_run_info函数"""
+    """Tests for the create_agent_run_info function"""
 
     @pytest.mark.asyncio
     async def test_create_agent_run_info_success(self):
-        """测试成功创建agent运行信息"""
+        """Test case for successfully creating agent run info"""
         with patch('backend.agents.create_agent_info.join_minio_file_description_to_query') as mock_join_query, \
                 patch('backend.agents.create_agent_info.create_model_config_list') as mock_create_models, \
                 patch('backend.agents.create_agent_info.get_remote_mcp_server_list', new_callable=AsyncMock) as mock_get_mcp, \
@@ -736,7 +735,7 @@ class TestCreateAgentRunInfo:
                 patch('backend.agents.create_agent_info.urljoin') as mock_urljoin, \
                 patch('backend.agents.create_agent_info.threading') as mock_threading:
 
-            # 设置mock返回值
+            # Set mock return values
             mock_join_query.return_value = "processed_query"
             mock_create_models.return_value = ["model_config"]
             mock_get_mcp.return_value = [
@@ -761,7 +760,7 @@ class TestCreateAgentRunInfo:
                 language="zh"
             )
 
-            # 验证AgentRunInfo被正确调用
+            # Verify that AgentRunInfo was called correctly
             mock_agent_run_info.assert_called_once_with(
                 query="processed_query",
                 model_config_list=["model_config"],
@@ -772,7 +771,7 @@ class TestCreateAgentRunInfo:
                 stop_event="stop_event"
             )
 
-            # 验证其他函数被正确调用
+            # Verify that other functions were called correctly
             mock_join_query.assert_called_once_with(
                 minio_files=[], query="test query")
             mock_create_models.assert_called_once_with("tenant_1")
@@ -850,11 +849,11 @@ class TestCreateAgentRunInfo:
 
 
 class TestJoinMinioFileDescriptionToQuery:
-    """测试join_minio_file_description_to_query函数"""
+    """Tests for the join_minio_file_description_to_query function"""
 
     @pytest.mark.asyncio
     async def test_join_minio_file_description_to_query_with_files(self):
-        """测试包含文件描述的情况"""
+        """Test case with file descriptions"""
         minio_files = [
             {"description": "File 1 description"},
             {"description": "File 2 description"},
@@ -869,7 +868,7 @@ class TestJoinMinioFileDescriptionToQuery:
 
     @pytest.mark.asyncio
     async def test_join_minio_file_description_to_query_no_files(self):
-        """测试没有文件的情况"""
+        """Test case with no files"""
         minio_files = []
         query = "test query"
 
@@ -879,7 +878,7 @@ class TestJoinMinioFileDescriptionToQuery:
 
     @pytest.mark.asyncio
     async def test_join_minio_file_description_to_query_none_files(self):
-        """测试文件为None的情况"""
+        """Test case when files are None"""
         minio_files = None
         query = "test query"
 
@@ -889,7 +888,7 @@ class TestJoinMinioFileDescriptionToQuery:
 
     @pytest.mark.asyncio
     async def test_join_minio_file_description_to_query_no_descriptions(self):
-        """测试文件没有描述的情况"""
+        """Test case when files have no descriptions"""
         minio_files = [
             {"no_description": "should be ignored"},
             {"another_field": "also ignored"}
@@ -902,11 +901,11 @@ class TestJoinMinioFileDescriptionToQuery:
 
 
 class TestPreparePromptTemplates:
-    """测试prepare_prompt_templates函数"""
+    """Tests for the prepare_prompt_templates function"""
 
     @pytest.mark.asyncio
     async def test_prepare_prompt_templates_manager_zh(self):
-        """测试管理器模式中文提示模板"""
+        """Test case for manager mode Chinese prompt templates"""
         with patch('backend.agents.create_agent_info.get_agent_prompt_template') as mock_get_template:
 
             mock_get_template.return_value = {"test": "template"}
@@ -919,7 +918,7 @@ class TestPreparePromptTemplates:
 
     @pytest.mark.asyncio
     async def test_prepare_prompt_templates_worker_en(self):
-        """测试工作模式英文提示模板"""
+        """Test case for worker mode English prompt templates"""
         with patch('backend.agents.create_agent_info.get_agent_prompt_template') as mock_get_template:
 
             mock_get_template.return_value = {"test": "template"}
