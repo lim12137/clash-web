@@ -15,7 +15,8 @@ import { ChatMessageType } from "@/types/chat";
 import { conversationService } from "@/services/conversationService";
 import { copyToClipboard } from "@/lib/clipboard";
 
-import { ChatAttachment, AttachmentItem } from "../internal/chatAttachment";
+import { ChatAttachment } from "../internal/chatAttachment";
+import { AttachmentItem } from "@/types/chat";
 import { ROLE_ASSISTANT } from "@/const/agentConfig";
 
 interface FinalMessageProps {

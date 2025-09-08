@@ -9,6 +9,7 @@ import { Pencil } from 'lucide-react';
 import { useConfig } from '@/hooks/useConfig';
 import { presetIcons, colorOptions } from "@/types/avatar"
 import { generateAvatarUri } from '@/lib/avatar';
+import { LAYOUT_CONFIG, CARD_THEMES, ICON_TYPES } from '@/const/modelConfig';
 
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
@@ -17,17 +18,6 @@ const { Text } = Typography;
 
 // Dynamically import Modal component to avoid SSR hydration errors
 const DynamicModal = dynamic(() => import('antd/es/modal'), { ssr: false });
-
-// Layout height constant configuration
-const LAYOUT_CONFIG = {
-  CARD_BODY_PADDING: "8px 20px",
-}
-
-// Card theme
-const cardTheme = {
-  borderColor: "#e6e6e6",
-  backgroundColor: "#ffffff",
-};
 
 export const AppConfigSection: React.FC = () => {
   const { t } = useTranslation();
@@ -52,8 +42,8 @@ export const AppConfigSection: React.FC = () => {
   const [selectedIconKey, setSelectedIconKey] = useState<string>(presetIcons[0].key);
   const [tempIconKey, setTempIconKey] = useState<string>(presetIcons[0].key);
   const [tempColor, setTempColor] = useState<string>("#2689cb");
-  const [avatarType, setAvatarType] = useState<"preset" | "custom">(appConfig.iconType);
-  const [tempAvatarType, setTempAvatarType] = useState<"preset" | "custom">(appConfig.iconType);
+  const [avatarType, setAvatarType] = useState<typeof ICON_TYPES[keyof typeof ICON_TYPES]>(appConfig.iconType);
+  const [tempAvatarType, setTempAvatarType] = useState<typeof ICON_TYPES[keyof typeof ICON_TYPES]>(appConfig.iconType);
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(appConfig.customIconUrl);
   const [tempCustomAvatarUrl, setTempCustomAvatarUrl] = useState<string | null>(appConfig.customIconUrl);
   
@@ -74,7 +64,7 @@ export const AppConfigSection: React.FC = () => {
         if (!isUserTypingDescription.current) {
           setLocalAppDescription(config.app.appDescription || "");
         }
-        setAvatarType(config.app.iconType || "preset");
+        setAvatarType(config.app.iconType || ICON_TYPES.PRESET);
         setCustomAvatarUrl(config.app.customIconUrl || null);
         
         // Reset error state
@@ -204,7 +194,7 @@ export const AppConfigSection: React.FC = () => {
   // Handle icon selection
   const handleIconSelect = (iconKey: string) => {
     setTempIconKey(iconKey);
-    setTempAvatarType("preset");
+    setTempAvatarType(ICON_TYPES.PRESET);
   };
 
   // Handle color selection
@@ -230,7 +220,7 @@ export const AppConfigSection: React.FC = () => {
       reader.onload = (event) => {
         if (event.target?.result) {
           setTempCustomAvatarUrl(event.target.result as string);
-          setTempAvatarType("custom");
+          setTempAvatarType(ICON_TYPES.CUSTOM);
         }
       };
       reader.readAsDataURL(file);
@@ -247,21 +237,21 @@ export const AppConfigSection: React.FC = () => {
     try {
       setSelectedIconKey(tempIconKey);
       setAvatarType(tempAvatarType);
-      setCustomAvatarUrl(tempAvatarType === "custom" ? tempCustomAvatarUrl : null);
+      setCustomAvatarUrl(tempAvatarType === ICON_TYPES.CUSTOM ? tempCustomAvatarUrl : null);
       setIsAvatarModalOpen(false);
 
-      if (tempAvatarType === "preset") {
+      if (tempAvatarType === ICON_TYPES.PRESET) {
         // Generate avatar URI and save
         const avatarUri = generateAvatarUri(tempIconKey, tempColor);
         
         updateAppConfig({
-          iconType: "preset",
+          iconType: ICON_TYPES.PRESET,
           customIconUrl: null,
           avatarUri: avatarUri
         });
       } else {
         updateAppConfig({
-          iconType: "custom",
+          iconType: ICON_TYPES.CUSTOM,
           customIconUrl: tempCustomAvatarUrl,
           avatarUri: tempCustomAvatarUrl || null
         });
@@ -299,7 +289,7 @@ export const AppConfigSection: React.FC = () => {
             variant="outlined"
             className="app-config-card"
             styles={{
-              body: { padding: LAYOUT_CONFIG.CARD_BODY_PADDING}
+              body: { padding: LAYOUT_CONFIG.APP_CARD_BODY_PADDING}
             }}
             style={{
               minHeight: "300px",
@@ -307,7 +297,7 @@ export const AppConfigSection: React.FC = () => {
               width: "calc(100% - 8px)",
               margin: "0 4px",
               backgroundColor: "#ffffff",
-              border: `0px solid ${cardTheme.borderColor}`,
+              border: `0px solid ${CARD_THEMES.default.borderColor}`,
             }}
           >
             <div className="flex items-start justify-center mx-auto my-2" style={{ maxWidth: "95%" }}>
@@ -383,12 +373,12 @@ export const AppConfigSection: React.FC = () => {
               onChange={(e) => setTempAvatarType(e.target.value)}
               className="mb-4"
             >
-              <Radio.Button value="preset">{t('appConfig.icon.preset')}</Radio.Button>
-              <Radio.Button value="custom">{t('appConfig.icon.custom')}</Radio.Button>
+              <Radio.Button value={ICON_TYPES.PRESET}>{t('appConfig.icon.preset')}</Radio.Button>
+              <Radio.Button value={ICON_TYPES.CUSTOM}>{t('appConfig.icon.custom')}</Radio.Button>
             </Radio.Group>
           </div>
 
-          {tempAvatarType === "preset" && (
+          {tempAvatarType === ICON_TYPES.PRESET && (
             <div>
               <div className="mb-3">
                 <div className="text-sm font-medium text-gray-500 mb-2">
@@ -451,7 +441,7 @@ export const AppConfigSection: React.FC = () => {
                     className="h-[60px] w-[60px] rounded-full overflow-hidden"
                     style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}
                   >
-                    {tempAvatarType === "preset" ? (
+                    {tempAvatarType === ICON_TYPES.PRESET ? (
                       <img 
                         src={generateAvatarUri(tempIconKey, tempColor)} 
                         alt={t('appConfig.icon.previewAlt')}
@@ -470,7 +460,7 @@ export const AppConfigSection: React.FC = () => {
             </div>
           )}
 
-          {tempAvatarType === "custom" && (
+          {tempAvatarType === ICON_TYPES.CUSTOM && (
             <div className="flex flex-col items-center">
               {tempCustomAvatarUrl ? (
                 <div className="mb-4 text-center flex flex-col items-center">

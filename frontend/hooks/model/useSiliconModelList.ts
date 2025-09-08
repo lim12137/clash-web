@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { message } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { modelService } from '@/services/modelService'
-import { ModelType } from '@/types/config'
+import { ModelType } from '@/types/modelConfig'
 
 interface UseSiliconModelListProps {
   form: {

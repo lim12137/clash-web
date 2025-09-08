@@ -9,58 +9,20 @@ import {
   EditOutlined
 } from '@ant-design/icons'
 
+import { MODEL_TYPES, MODEL_STATUS, LAYOUT_CONFIG, CARD_THEMES } from '@/const/modelConfig'
 import { useConfig } from '@/hooks/useConfig'
 import { modelService } from '@/services/modelService'
 import { configService } from '@/services/configService'
-import { ModelOption, ModelType } from '@/types/config'
+import { ModelOption, ModelType } from '@/types/modelConfig'
 import { configStore } from '@/lib/config'
 
 import { ModelListCard } from './model/ModelListCard'
 import { ModelAddDialog } from './model/ModelAddDialog'
 import { ModelDeleteDialog } from './model/ModelDeleteDialog'
 
-// 布局高度常量配置
-const LAYOUT_CONFIG = {
-  CARD_HEADER_PADDING: "10px 24px",
-  CARD_BODY_PADDING: "12px 20px",
-  MODEL_TITLE_MARGIN_LEFT: "0px",
-  HEADER_HEIGHT: 57, // Card标题高度
-  BUTTON_AREA_HEIGHT: 48, // 按钮区域高度
-  CARD_GAP: 12, // Row的gutter
-}
 
-// 定义每个卡片的主题色
-const cardThemes = {
-  llm: {
-    borderColor: "#e6e6e6",
-    backgroundColor: "#ffffff",
-  },
-  embedding: {
-    borderColor: "#e6e6e6",
-    backgroundColor: "#ffffff",
-  },
-  reranker: {
-    borderColor: "#e6e6e6",
-    backgroundColor: "#ffffff",
-  },
-  multimodal: {
-    borderColor: "#e6e6e6",
-    backgroundColor: "#ffffff",
-  },
-  voice: {
-    borderColor: "#e6e6e6",
-    backgroundColor: "#ffffff",
-  },
-}
 
-// 添加ModelConnectStatus的类型定义
-const MODEL_STATUS = {
-  AVAILABLE: "available",
-  UNAVAILABLE: "unavailable",
-  CHECKING: "detecting",
-  UNCHECKED: "not_detected"
-} as const;
-
+// ModelConnectStatus类型定义
 type ModelConnectStatus = typeof MODEL_STATUS[keyof typeof MODEL_STATUS];
 
 // 模型数据结构
@@ -75,8 +37,8 @@ const getModelData = (t: any) => ({
   embedding: {
     title: t('modelConfig.category.embedding'),
     options: [
-      { id: "embedding", name: t('modelConfig.option.embeddingModel') },
-      { id: "multi_embedding", name: t('modelConfig.option.multiEmbeddingModel') },
+      { id: MODEL_TYPES.EMBEDDING, name: t('modelConfig.option.embeddingModel') },
+      { id: MODEL_TYPES.MULTI_EMBEDDING, name: t('modelConfig.option.multiEmbeddingModel') },
     ],
   },
   reranker: {
@@ -88,14 +50,14 @@ const getModelData = (t: any) => ({
   multimodal: {
     title: t('modelConfig.category.multimodal'),
     options: [
-      { id: "vlm", name: t('modelConfig.option.vlmModel') },
+      { id: MODEL_TYPES.VLM, name: t('modelConfig.option.vlmModel') },
     ],
   },
   voice: {
     title: t('modelConfig.category.voice'),
     options: [
-      { id: "tts", name: t('modelConfig.option.ttsModel') },
-      { id: "stt", name: t('modelConfig.option.sttModel') },
+      { id: MODEL_TYPES.TTS, name: t('modelConfig.option.ttsModel') },
+      { id: MODEL_TYPES.STT, name: t('modelConfig.option.sttModel') },
     ],
   },
 })
@@ -174,7 +136,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           const fieldParts = field.split('.');
           const cardType = fieldParts[0];
 
-          const selector = cardType === 'embedding'
+          const selector = cardType === MODEL_TYPES.EMBEDDING
             ? '.model-card:nth-child(2)'
             : '.model-card:nth-child(1)';
 
@@ -223,28 +185,28 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       
       // 从配置中加载选中的模型，并检查模型是否仍然存在
       const llmMain = modelConfig.llm.displayName
-      const llmMainExists = llmMain ? allModels.some(m => m.displayName === llmMain && m.type === 'llm') : true
+      const llmMainExists = llmMain ? allModels.some(m => m.displayName === llmMain && m.type === MODEL_TYPES.LLM) : true
 
       const llmSecondary = modelConfig.llmSecondary.displayName
-      const llmSecondaryExists = llmSecondary ? allModels.some(m => m.displayName === llmSecondary && m.type === 'llm') : true
+      const llmSecondaryExists = llmSecondary ? allModels.some(m => m.displayName === llmSecondary && m.type === MODEL_TYPES.LLM) : true
 
       const embedding = modelConfig.embedding.displayName
-      const embeddingExists = embedding ? allModels.some(m => m.displayName === embedding && m.type === 'embedding') : true
+      const embeddingExists = embedding ? allModels.some(m => m.displayName === embedding && m.type === MODEL_TYPES.EMBEDDING) : true
 
       const multiEmbedding = modelConfig.multiEmbedding.displayName
-      const multiEmbeddingExists = multiEmbedding ? allModels.some(m => m.displayName === multiEmbedding && m.type === 'multi_embedding') : true
+      const multiEmbeddingExists = multiEmbedding ? allModels.some(m => m.displayName === multiEmbedding && m.type === MODEL_TYPES.MULTI_EMBEDDING) : true
 
       const rerank = modelConfig.rerank.displayName
-      const rerankExists = rerank ? allModels.some(m => m.displayName === rerank && m.type === 'rerank') : true
+      const rerankExists = rerank ? allModels.some(m => m.displayName === rerank && m.type === MODEL_TYPES.RERANK) : true
 
       const vlm = modelConfig.vlm.displayName
-      const vlmExists = vlm ? allModels.some(m => m.displayName === vlm && m.type === 'vlm') : true
+      const vlmExists = vlm ? allModels.some(m => m.displayName === vlm && m.type === MODEL_TYPES.VLM) : true
 
       const stt = modelConfig.stt.displayName
-      const sttExists = stt ? allModels.some(m => m.displayName === stt && m.type === 'stt') : true
+      const sttExists = stt ? allModels.some(m => m.displayName === stt && m.type === MODEL_TYPES.STT) : true
 
       const tts = modelConfig.tts.displayName
-      const ttsExists = tts ? allModels.some(m => m.displayName === tts && m.type === 'tts') : true
+      const ttsExists = tts ? allModels.some(m => m.displayName === tts && m.type === MODEL_TYPES.TTS) : true
 
       // 创建更新后的选中模型对象
       const updatedSelectedModels = {
@@ -421,13 +383,13 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
 
           let modelType = category as ModelType;
           if (category === "voice") {
-            modelType = optionId === "tts" ? "tts" : "stt";
-          } else if (category === "reranker") {
-            modelType = "rerank";
+            modelType = optionId === MODEL_TYPES.TTS ? MODEL_TYPES.TTS : MODEL_TYPES.STT;
+          } else if (category === MODEL_TYPES.RERANK) {
+            modelType = MODEL_TYPES.RERANK;
           } else if (category === "multimodal") {
-            modelType = "vlm";
-          } else if (category === "embedding") {
-            modelType = optionId === "multi_embedding" ? "multi_embedding" : "embedding";
+            modelType = MODEL_TYPES.VLM;
+          } else if (category === MODEL_TYPES.EMBEDDING) {
+            modelType = optionId === MODEL_TYPES.MULTI_EMBEDDING ? MODEL_TYPES.MULTI_EMBEDDING : MODEL_TYPES.EMBEDDING;
           }
 
           // 查找模型在officialData或customData中
@@ -595,13 +557,13 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     // 查找模型完整信息以获取API配置
     let modelType = category as ModelType;
     if (category === 'voice') {
-      modelType = option === 'tts' ? 'tts' : 'stt';
-    } else if (category === 'reranker') {
-      modelType = 'rerank';
+      modelType = option === MODEL_TYPES.TTS ? MODEL_TYPES.TTS : MODEL_TYPES.STT;
+    } else if (category === MODEL_TYPES.RERANK) {
+      modelType = MODEL_TYPES.RERANK;
     } else if (category === 'multimodal') {
-      modelType = 'vlm';
-    } else if (category === 'embedding') {
-      modelType = option === 'multi_embedding' ? 'multi_embedding' : 'embedding';
+      modelType = MODEL_TYPES.VLM;
+    } else if (category === MODEL_TYPES.EMBEDDING) {
+      modelType = option === MODEL_TYPES.MULTI_EMBEDDING ? MODEL_TYPES.MULTI_EMBEDDING : MODEL_TYPES.EMBEDDING;
     }
 
     const modelInfo = [...officialModels, ...customModels].find(
@@ -615,18 +577,18 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
 
     // 更新配置
     let configKey = category;
-    if (category === "llm" && option === "secondary") {
+    if (category === MODEL_TYPES.LLM && option === "secondary") {
       configKey = "llmSecondary";
-    } else if (category === "embedding" && option === "multi_embedding") {
+    } else if (category === MODEL_TYPES.EMBEDDING && option === MODEL_TYPES.MULTI_EMBEDDING) {
       configKey = "multiEmbedding";
     } else if (category === "multimodal") {
-      configKey = "vlm";
-    } else if (category === "reranker") {
-      configKey = "rerank";
+      configKey = MODEL_TYPES.VLM;
+    } else if (category === MODEL_TYPES.RERANK) {
+      configKey = MODEL_TYPES.RERANK;
     } else if (category === "voice" && option === "tts") {
-      configKey = "tts";
+      configKey = MODEL_TYPES.TTS;
     } else if (category === "voice" && option === "stt") {
-      configKey = "stt";
+      configKey = MODEL_TYPES.STT;
     }
 
     const apiConfig = modelInfo?.apiKey
@@ -707,8 +669,8 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
                       margin: "-12px -24px", 
                       padding: LAYOUT_CONFIG.CARD_HEADER_PADDING,
                       paddingBottom: "12px",
-                      backgroundColor: cardThemes[key as keyof typeof cardThemes].backgroundColor,
-                      borderBottom: `1px solid ${cardThemes[key as keyof typeof cardThemes].borderColor}`,
+                      backgroundColor: CARD_THEMES[key as keyof typeof CARD_THEMES].backgroundColor,
+                      borderBottom: `1px solid ${CARD_THEMES[key as keyof typeof CARD_THEMES].borderColor}`,
                       height: `${LAYOUT_CONFIG.HEADER_HEIGHT - 12}px`, // 减去paddingBottom
                     }}>
                       <h5 style={{ 
@@ -749,11 +711,11 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
                         key={option.id}
                         type={
                           key === "voice" 
-                            ? (option.id === "tts" ? "tts" : "stt") 
+                            ? (option.id === MODEL_TYPES.TTS ? MODEL_TYPES.TTS : MODEL_TYPES.STT) 
                             : key === "multimodal" 
-                              ? "vlm" 
-                              : (key === "embedding" && option.id === "multi_embedding") 
-                                ? "multi_embedding" 
+                              ? MODEL_TYPES.VLM 
+                              : (key === MODEL_TYPES.EMBEDDING && option.id === MODEL_TYPES.MULTI_EMBEDDING) 
+                                ? MODEL_TYPES.MULTI_EMBEDDING 
                                 : key as ModelType
                         }
                         modelId={option.id}

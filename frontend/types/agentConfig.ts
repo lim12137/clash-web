@@ -1,6 +1,7 @@
 // Agent Configuration Types
 import { ChatMessageType } from "./chat";
-import { OpenAIModel } from "./config";
+import { OpenAIModel } from "./modelConfig";
+import { GENERATE_PROMPT_STREAM_TYPES } from "../const/agentConfig";
 
 // ========== Core Interfaces ==========
 
@@ -276,5 +277,24 @@ export interface AgentConfigCustomEvent extends CustomEvent {
 // Agent refresh event
 export interface AgentRefreshEvent extends CustomEvent {
   detail: any;
+}
+
+// ========== Prompt Service Interfaces ==========
+
+/**
+ * Prompt Generation Request Parameters
+ */
+export interface GeneratePromptParams {
+  agent_id: number;
+  task_description: string;
+}
+
+/**
+ * Stream Response Data Structure
+ */
+export interface StreamResponseData {
+  type: (typeof GENERATE_PROMPT_STREAM_TYPES)[keyof typeof GENERATE_PROMPT_STREAM_TYPES];
+  content: string;
+  is_complete: boolean;
 }
 

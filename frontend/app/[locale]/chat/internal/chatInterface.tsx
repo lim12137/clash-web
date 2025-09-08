@@ -14,7 +14,7 @@ import { conversationService } from "@/services/conversationService";
 import { storageService } from "@/services/storageService";
 
 import { ChatSidebar } from "../components/chatLeftSidebar";
-import { FilePreview } from "../components/chatInput";
+import { FilePreview } from "@/types/chat";
 import { ChatHeader } from "../components/chatHeader";
 import { ChatRightPanel } from "../components/chatRightPanel";
 import { ChatStreamMain } from "../streaming/chatStreamMain";

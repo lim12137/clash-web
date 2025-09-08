@@ -27,6 +27,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { conversationService } from "@/services/conversationService";
 import { useConfig } from "@/hooks/useConfig";
 import { extractColorsFromUri } from "@/lib/avatar";
+import { chatConfig } from "@/const/chatConfig";
+import { FilePreview } from "@/types/chat";
 
 import { ChatAgentSelector } from "./chatAgentSelector";
 
@@ -122,33 +124,7 @@ function FileViewer({ file, onClose }: { file: File; onClose: () => void }) {
 
   // Determine if it is a text file
   const isTextFile = (type: string, ext: string) => {
-    const textTypes = [
-      "text/plain",
-      "text/html",
-      "text/css",
-      "text/javascript",
-      "application/json",
-      "application/xml",
-      "text/markdown",
-    ];
-
-    const textExtensions = [
-      "txt",
-      "html",
-      "htm",
-      "css",
-      "js",
-      "ts",
-      "jsx",
-      "tsx",
-      "json",
-      "xml",
-      "md",
-      "markdown",
-      "csv",
-    ];
-
-    return textTypes.includes(type) || textExtensions.includes(ext);
+    return chatConfig.textTypes.includes(type) || chatConfig.textExtensions.includes(ext);
   };
 
   // Render file content
@@ -240,15 +216,7 @@ function FileViewer({ file, onClose }: { file: File; onClose: () => void }) {
   );
 }
 
-// Add file preview type
-export interface FilePreview {
-  id: string;
-  file: File;
-  type: "image" | "file";
-  fileType?: string;
-  extension?: string;
-  previewUrl?: string;
-}
+
 
 // Get file extension
 const getFileExtension = (filename: string): string => {
@@ -279,58 +247,50 @@ const getFileIcon = (file: File) => {
     return <AiFillFileImage size={iconSize} color="#8e44ad" />;
   }
 
-  // Identify by extension
-  switch (extension) {
-    // Document files
-    case "pdf":
-      return <AiFillFilePdf size={iconSize} color="#e74c3c" />;
-    case "doc":
-    case "docx":
-      return <AiFillFileWord size={iconSize} color="#3498db" />;
-    case "txt":
-      return <AiFillFileText size={iconSize} color="#7f8c8d" />;
-    case "md":
-      return <AiFillFileMarkdown size={iconSize} color="#34495e" />;
-
-    // Table files
-    case "xls":
-    case "xlsx":
-    case "csv":
-      return <AiFillFileExcel size={iconSize} color="#27ae60" />;
-
-    // Demo files
-    case "ppt":
-    case "pptx":
-      return <AiFillFilePpt size={iconSize} color="#e67e22" />;
-
-    // Code files
-    case "html":
-    case "htm":
-      return <AiFillHtml5 size={iconSize} color="#e67e22" />;
-    case "css":
-    case "js":
-    case "ts":
-    case "jsx":
-    case "tsx":
-    case "php":
-    case "py":
-    case "java":
-    case "c":
-    case "cpp":
-    case "cs":
-      return <AiFillCode size={iconSize} color="#f39c12" />;
-    case "json":
-      return <AiFillCode size={iconSize} color="#f1c40f" />;
-
-    // Default file icon
-    default:
-      return <AiFillFileUnknown size={iconSize} color="#95a5a6" />;
+  // Check each file type category using config
+  if (chatConfig.fileIcons.pdf.includes(extension)) {
+    return <AiFillFilePdf size={iconSize} color="#e74c3c" />;
   }
+  
+  if (chatConfig.fileIcons.word.includes(extension)) {
+    return <AiFillFileWord size={iconSize} color="#3498db" />;
+  }
+  
+  if (chatConfig.fileIcons.text.includes(extension)) {
+    return <AiFillFileText size={iconSize} color="#7f8c8d" />;
+  }
+  
+  if (chatConfig.fileIcons.markdown.includes(extension)) {
+    return <AiFillFileMarkdown size={iconSize} color="#34495e" />;
+  }
+  
+  if (chatConfig.fileIcons.excel.includes(extension)) {
+    return <AiFillFileExcel size={iconSize} color="#27ae60" />;
+  }
+  
+  if (chatConfig.fileIcons.powerpoint.includes(extension)) {
+    return <AiFillFilePpt size={iconSize} color="#e67e22" />;
+  }
+  
+  if (chatConfig.fileIcons.html.includes(extension)) {
+    return <AiFillHtml5 size={iconSize} color="#e67e22" />;
+  }
+  
+  if (chatConfig.fileIcons.code.includes(extension)) {
+    return <AiFillCode size={iconSize} color="#f39c12" />;
+  }
+  
+  if (chatConfig.fileIcons.json.includes(extension)) {
+    return <AiFillCode size={iconSize} color="#f1c40f" />;
+  }
+
+  // Default file icon
+  return <AiFillFileUnknown size={iconSize} color="#95a5a6" />;
 };
 
-// File limit constants
-const MAX_FILE_COUNT = 50;
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // Single file maximum 5MB
+// File limit constants from config
+const MAX_FILE_COUNT = chatConfig.maxFileCount;
+const MAX_FILE_SIZE = chatConfig.maxFileSize;
 
 interface ChatInputProps {
   input: string;
@@ -798,19 +758,17 @@ export function ChatInput({
       // Supported image file types
       const isImage =
         file.type.startsWith("image/") ||
-        ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(extension);
+        chatConfig.imageExtensions.includes(extension);
 
       // Supported document file types
       const isDocument =
-        ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(
-          extension
-        ) ||
+        chatConfig.documentExtensions.includes(extension) ||
         file.type === "application/pdf" ||
         file.type.includes("officedocument");
 
       // Supported text file types
       const isSupportedTextFile =
-        ["md", "markdown", "txt"].includes(extension) ||
+        chatConfig.supportedTextExtensions.includes(extension) ||
         file.type === "text/csv" ||
         file.type === "text/plain";
 
@@ -821,7 +779,7 @@ export function ChatInput({
         newAttachments.push({
           id: fileId,
           file,
-          type: isImage ? "image" : "file",
+          type: isImage ? chatConfig.filePreviewTypes.image : chatConfig.filePreviewTypes.file,
           fileType: file.type,
           extension,
           previewUrl,
@@ -888,7 +846,7 @@ export function ChatInput({
 
   // Handle viewing images
   const handleViewImage = (attachment: FilePreview) => {
-    if (attachment.type === "image" && attachment.file) {
+    if (attachment.type === chatConfig.filePreviewTypes.image && attachment.file) {
       // To ensure the preview URL is valid, create a new blob URL
       // This avoids using a cached URL that may have expired
       const fileReader = new FileReader();
@@ -930,7 +888,7 @@ export function ChatInput({
                 className="relative group rounded-md border border-slate-200 bg-white shadow-sm hover:shadow transition-all duration-200 w-[190px] mb-1"
               >
                 <div className="relative p-2 h-[52px] flex items-center">
-                  {attachment.type === "image" ? (
+                  {attachment.type === chatConfig.filePreviewTypes.image ? (
                     <div className="flex items-center gap-3 w-full">
                       <div
                         className="w-10 h-10 flex-shrink-0 overflow-hidden rounded-md cursor-pointer"
@@ -1116,7 +1074,7 @@ export function ChatInput({
                     id="file-upload-regular"
                     className="hidden"
                     onChange={handleFileUpload}
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.tsv,.md,.markdown,.txt"
+                    accept={`image/*,${Object.values(chatConfig.fileIcons).flat().map(ext => `.${ext}`).join(',')}`}
                     multiple
                   />
                 </Button>
@@ -1234,15 +1192,13 @@ export function ChatInput({
 
     const isImage =
       fileType.startsWith("image/") ||
-      ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(extension);
+      chatConfig.imageExtensions.includes(extension);
     const isDocument =
-      ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(
-        extension
-      ) ||
+      chatConfig.documentExtensions.includes(extension) ||
       fileType === "application/pdf" ||
       fileType.includes("officedocument");
     const isSupportedTextFile =
-      ["md", "markdown", "txt"].includes(extension) ||
+      chatConfig.supportedTextExtensions.includes(extension) ||
       fileType === "text/csv" ||
       fileType === "text/plain";
 
