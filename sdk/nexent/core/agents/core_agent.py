@@ -76,7 +76,7 @@ def convert_code_format(text):
 
 
 class CoreAgent(CodeAgent):
-    def __init__(self, observer: MessageObserver, prompt_templates, *args, **kwargs):
+    def __init__(self, observer: MessageObserver, prompt_templates: Dict[str, Any] | None = None , *args, **kwargs):
         super().__init__(prompt_templates=prompt_templates, *args, **kwargs)
         self.observer = observer
         self.stop_event = threading.Event()

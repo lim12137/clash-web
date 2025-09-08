@@ -4,7 +4,7 @@ Nexent is a powerful, enterprise-grade Agent SDK that revolutionizes intelligent
 
 ## 🚀 Installation and Usage
 
-For detailed installation instructions and usage guides, see our **[Basic Usage Guide](./basic-usage)**.
+For detailed installation instructions and usage guides, see our **[Basic Usage Guide](./basic-usage)**. If you need event-stream based rendering on server/frontend, see **[Run agent with agent_run](./core/agent-run)**.
 
 ## ⭐ Key Features
 
@@ -32,7 +32,8 @@ For detailed features and usage instructions, please refer to **[Features Explai
 
 Nexent provides complete intelligent agent solutions with multi-model support, MCP integration, dynamic tool loading, and distributed execution.
 
-For detailed Agent development and usage instructions, please refer to **[Agents](./core/agents)**.
+- Quick streaming run: **[Run agent with agent_run](./core/agent-run)**
+- Detailed Agent development and usage: **[Agents](./core/agents)**
 
 ## 🛠️ Tool Collection
 
