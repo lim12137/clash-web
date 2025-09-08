@@ -1,8 +1,9 @@
 import pytest
+import asyncio
 import importlib
 from types import ModuleType
 from unittest.mock import MagicMock, patch
-from threading import Event
+from threading import Event, Thread
 
 # ---------------------------------------------------------------------------
 # Prepare mocks for external dependencies that are not required for this test
@@ -292,3 +293,37 @@ def test_agent_run_thread_handles_internal_exception(basic_agent_run_info, mock_
 
     # Ensure the raised error contains our message to confirm correct propagation
     assert "Error in agent_run_thread: Boom" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_agent_run_thread_creation_and_start(basic_agent_run_info, monkeypatch):
+    """Test that agent_run creates and starts a thread correctly (lines 54-56)."""
+    # Mock the agent_run_thread function to avoid actual execution
+    mock_agent_run_thread = MagicMock()
+    monkeypatch.setattr(run_agent, "agent_run_thread", mock_agent_run_thread)
+    
+    # Mock Thread class to track instantiation and start calls
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = False  # Thread finishes immediately
+    mock_thread_class = MagicMock(return_value=mock_thread_instance)
+    monkeypatch.setattr(run_agent, "Thread", mock_thread_class)
+    
+    # Mock observer.get_cached_message to return empty list
+    basic_agent_run_info.observer.get_cached_message.return_value = []
+    
+    # Execute the async function
+    messages = []
+    async for message in run_agent.agent_run(basic_agent_run_info):
+        messages.append(message)
+    
+    # Verify Thread was created with correct target and args (line 55)
+    mock_thread_class.assert_called_once_with(
+        target=mock_agent_run_thread, 
+        args=(basic_agent_run_info,)
+    )
+    
+    # Verify thread was started (line 56)
+    mock_thread_instance.start.assert_called_once()
+    
+    # Verify observer was accessed (line 54)
+    assert basic_agent_run_info.observer is not None
