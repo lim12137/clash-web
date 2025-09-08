@@ -1,22 +1,15 @@
-import asyncio
-import json
 import logging
 import os
 from http import HTTPStatus
-from io import BytesIO
 from typing import List, Optional
 
-import httpx
-import requests
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, Path as PathParam, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
-from agents.preprocess_manager import preprocess_manager
-from consts.const import DATA_PROCESS_SERVICE
 from consts.model import ProcessParams
 from services.file_management_service import upload_to_minio, upload_files_impl, \
-    get_file_url_impl, get_file_stream_impl, delete_file_impl, list_files_impl
-from utils.attachment_utils import convert_image_to_text, convert_long_text_to_text
+    get_file_url_impl, get_file_stream_impl, delete_file_impl, list_files_impl, \
+    preprocess_files_generator
 from utils.auth_utils import get_current_user_info
 from utils.file_management_utils import trigger_data_process
 
@@ -314,82 +307,16 @@ async def agent_preprocess_api(
         else:
             conversation_id = -1  # Default for cases without conversation_id
 
-        async def generate():
-            file_descriptions = []
-            total_files = len(file_cache)
-
-            # Create and register the preprocess task
-            task = asyncio.current_task()
-            if task:
-                preprocess_manager.register_preprocess_task(
-                    task_id, conversation_id, task)
-
-            try:
-                for index, file_data in enumerate(file_cache):
-                    # Check if task should stop
-                    if task and task.done():
-                        logger.info(f"Preprocess task {task_id} was cancelled")
-                        break
-
-                    progress = int((index / total_files) * 100)
-
-                    progress_message = json.dumps({
-                        "type": "progress",
-                        "progress": progress,
-                        "message": f"Parsing file {index + 1}/{total_files}: {file_data['filename']}"
-                    }, ensure_ascii=False)
-                    yield f"data: {progress_message}\n\n"
-                    await asyncio.sleep(0.1)
-
-                    try:
-                        # Check if file already has an error
-                        if "error" in file_data:
-                            raise Exception(file_data["error"])
-
-                        if file_data["ext"] in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
-                            description = await process_image_file(
-                                query, file_data["filename"], file_data["content"], tenant_id, language
-                            )
-                        else:
-                            description = await process_text_file(
-                                query, file_data["filename"], file_data["content"], tenant_id, language
-                            )
-                        file_descriptions.append(description)
-
-                        # Send processing result for each file
-                        file_message = json.dumps({
-                            "type": "file_processed",
-                            "filename": file_data["filename"],
-                            "description": description
-                        }, ensure_ascii=False)
-                        yield f"data: {file_message}\n\n"
-                        await asyncio.sleep(0.1)
-                    except Exception as e:
-                        logger.exception(
-                            f"Error parsing file {file_data['filename']}: {str(e)}")
-                        error_description = f"Error parsing file {file_data['filename']}: {str(e)}"
-                        file_descriptions.append(error_description)
-                        error_message = json.dumps({
-                            "type": "error",
-                            "filename": file_data["filename"],
-                            "message": error_description
-                        }, ensure_ascii=False)
-                        yield f"data: {error_message}\n\n"
-                        await asyncio.sleep(0.1)
-
-                # Send completion message
-                complete_message = json.dumps({
-                    "type": "complete",
-                    "progress": 100,
-                    "final_query": query
-                }, ensure_ascii=False)
-                yield f"data: {complete_message}\n\n"
-            finally:
-                # Always unregister the task
-                preprocess_manager.unregister_preprocess_task(task_id)
-
+        # Call service layer to generate streaming response
         return StreamingResponse(
-            generate(),
+            preprocess_files_generator(
+                query=query,
+                file_cache=file_cache,
+                tenant_id=tenant_id,
+                language=language,
+                task_id=task_id,
+                conversation_id=conversation_id
+            ),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -401,71 +328,3 @@ async def agent_preprocess_api(
             status_code=500, detail=f"File preprocessing error: {str(e)}")
 
 
-async def process_image_file(query, filename, file_content, tenant_id: str, language: str = 'zh') -> str:
-    """
-    Process image file, convert to text using external API
-    """
-    image_stream = BytesIO(file_content)
-    text = convert_image_to_text(query, image_stream, tenant_id, language)
-
-    return f"Image file {filename} content: {text}"
-
-
-async def process_text_file(query, filename, file_content, tenant_id: str, language: str = 'zh') -> str:
-    """
-    Process text file, convert to text using external API
-    """
-    # file_content is byte data, need to send to API through file upload
-    data_process_service_url = DATA_PROCESS_SERVICE
-    api_url = f"{data_process_service_url}/tasks/process_text_file"
-    logger.info(f"Processing text file {filename} with API: {api_url}")
-
-    try:
-        # Upload byte data as a file
-        files = {
-            'file': (filename, file_content, 'application/octet-stream')
-        }
-        data = {
-            'chunking_strategy': 'basic',
-            'timeout': 60
-        }
-        async with httpx.AsyncClient() as client:
-            response = await client.post(api_url, files=files, data=data, timeout=60)
-
-        if response.status_code == 200:
-            result = response.json()
-            raw_text = result.get("text", "")
-            logger.info(
-                f"File processed successfully: {raw_text[:200]}...{raw_text[-200:]}...， length: {len(raw_text)}")
-        else:
-            error_detail = response.json().get('detail', '未知错误') if response.headers.get(
-                'content-type', '').startswith('application/json') else response.text
-            logger.error(
-                f"File processing failed (status code: {response.status_code}): {error_detail}")
-            raise Exception(
-                f"File processing failed (status code: {response.status_code}): {error_detail}")
-
-    except requests.exceptions.Timeout:
-        raise Exception("API call timeout")
-    except requests.exceptions.ConnectionError:
-        raise Exception(
-            f"Cannot connect to data processing service: {api_url}")
-    except Exception as e:
-        raise Exception(f"Error processing file: {str(e)}")
-
-    text = convert_long_text_to_text(query, raw_text, tenant_id, language)
-    return f"File {filename} content: {text}"
-
-
-def get_file_description(files: List[UploadFile]) -> str:
-    """
-    Generate file description text
-    """
-    description = "User provided some reference files:\n"
-    for file in files:
-        ext = os.path.splitext(file.filename or "")[1].lower()
-        if ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
-            description += f"- Image file {file.filename or ''}\n"
-        else:
-            description += f"- File {file.filename or ''}\n"
-    return description

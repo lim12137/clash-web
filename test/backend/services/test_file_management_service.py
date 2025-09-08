@@ -35,7 +35,11 @@ from backend.services.file_management_service import (
     get_file_url_impl,
     get_file_stream_impl,
     delete_file_impl,
-    list_files_impl
+    list_files_impl,
+    preprocess_files_generator,
+    process_image_file,
+    process_text_file,
+    get_file_description
 )
 
 @pytest.fixture(scope="module", autouse=True)
@@ -571,3 +575,198 @@ class TestListFilesImpl:
             assert result[0]["name"] == "folder/file1.txt"
             assert result[1]["name"] == "folder/file2.txt"
             mock_list.assert_called_once_with(prefix="folder/")
+
+
+class TestProcessImageFile:
+    """Test cases for process_image_file function"""
+
+    @pytest.mark.asyncio
+    async def test_process_image_file_success(self):
+        """Test successful image file processing"""
+        with patch('backend.services.file_management_service.convert_image_to_text', AsyncMock(return_value="Extracted text from image")) as mock_convert:
+            # Execute
+            result = await process_image_file(
+                query="Test query",
+                filename="test.jpg",
+                file_content=b"image binary data",
+                tenant_id="tenant123",
+                language="en"
+            )
+
+            # Assertions
+            assert "Image file test.jpg content" in result
+            assert "Extracted text from image" in result
+            mock_convert.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_process_image_file_with_error(self):
+        """Test image file processing with error"""
+        with patch('backend.services.file_management_service.convert_image_to_text', AsyncMock(side_effect=Exception("Processing failed"))) as mock_convert:
+            # Execute
+            result = await process_image_file(
+                query="Test query",
+                filename="test.jpg",
+                file_content=b"image binary data",
+                tenant_id="tenant123",
+                language="zh"
+            )
+
+            # Assertions
+            assert "Image file test.jpg content" in result
+            assert "Error processing image file test.jpg: Processing failed" in result
+            mock_convert.assert_called_once()
+
+
+class TestProcessTextFile:
+    """Test cases for process_text_file function"""
+
+    @pytest.mark.asyncio
+    async def test_process_text_file_success(self):
+        """Test successful text file processing"""
+        with patch('backend.services.file_management_service.convert_long_text_to_text', AsyncMock(return_value="Processed text content")) as mock_convert:
+            # Execute
+            result, truncation_percentage = await process_text_file(
+                query="Test query",
+                filename="test.txt",
+                file_content=b"test file content",
+                tenant_id="tenant123",
+                language="en"
+            )
+
+            # Assertions
+            assert "File test.txt content" in result
+            assert "Processed text content" in result
+            assert truncation_percentage is None
+            mock_convert.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_process_text_file_with_error(self):
+        """Test text file processing with error"""
+        with patch('backend.services.file_management_service.convert_long_text_to_text', AsyncMock(side_effect=Exception("Processing failed"))) as mock_convert:
+            # Execute
+            result, truncation_percentage = await process_text_file(
+                query="Test query",
+                filename="test.txt",
+                file_content=b"test file content",
+                tenant_id="tenant123",
+                language="zh"
+            )
+
+            # Assertions
+            assert "File test.txt content" in result
+            assert "Error processing text file test.txt: Processing failed" in result
+            assert truncation_percentage is None
+            mock_convert.assert_called_once()
+
+
+class TestGetFileDescription:
+    """Test cases for get_file_description function"""
+
+    def test_get_file_description_with_files(self):
+        """Test file description generation with files"""
+        # Create mock UploadFile objects
+        text_file = MagicMock()
+        text_file.filename = "document.txt"
+
+        image_file = MagicMock()
+        image_file.filename = "photo.jpg"
+
+        # Execute
+        result = get_file_description([text_file, image_file])
+
+        # Assertions
+        assert "User provided some reference files" in result
+        assert "Image file photo.jpg" in result
+        assert "File document.txt" in result
+
+    def test_get_file_description_empty_list(self):
+        """Test file description generation with empty file list"""
+        # Execute
+        result = get_file_description([])
+
+        # Assertions
+        assert "User provided some reference files" in result
+        assert "No files provided" in result
+
+
+class TestPreprocessFilesGenerator:
+    """Test cases for preprocess_files_generator function"""
+
+    @pytest.mark.asyncio
+    async def test_preprocess_files_generator_success(self):
+        """Test successful file preprocessing generator"""
+        file_cache = [
+            {
+                "filename": "test.txt",
+                "content": b"test content",
+                "ext": ".txt"
+            },
+            {
+                "filename": "test.jpg",
+                "content": b"image data",
+                "ext": ".jpg"
+            }
+        ]
+
+        with patch('backend.services.file_management_service.process_text_file', AsyncMock(return_value=("Processed text", None))) as mock_process_text, \
+             patch('backend.services.file_management_service.process_image_file', AsyncMock(return_value="Processed image")) as mock_process_image, \
+             patch('agents.preprocess_manager.preprocess_manager') as mock_preprocess_manager:
+
+            # Mock preprocess manager
+            mock_preprocess_manager.register_preprocess_task = MagicMock()
+            mock_preprocess_manager.unregister_preprocess_task = MagicMock()
+
+            # Execute
+            results = []
+            async for result in preprocess_files_generator(
+                query="Test query",
+                file_cache=file_cache,
+                tenant_id="tenant123",
+                language="en",
+                task_id="task123",
+                conversation_id=1
+            ):
+                results.append(result)
+
+            # Assertions
+            assert len(results) > 0
+            mock_process_text.assert_called_once()
+            mock_process_image.assert_called_once()
+            mock_preprocess_manager.register_preprocess_task.assert_called_once()
+            mock_preprocess_manager.unregister_preprocess_task.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_preprocess_files_generator_with_errors(self):
+        """Test file preprocessing generator with processing errors"""
+        file_cache = [
+            {
+                "filename": "test.txt",
+                "content": b"test content",
+                "ext": ".txt"
+            }
+        ]
+
+        with patch('backend.services.file_management_service.process_text_file', AsyncMock(side_effect=Exception("Processing failed"))) as mock_process_text, \
+             patch('agents.preprocess_manager.preprocess_manager') as mock_preprocess_manager:
+
+            # Mock preprocess manager
+            mock_preprocess_manager.register_preprocess_task = MagicMock()
+            mock_preprocess_manager.unregister_preprocess_task = MagicMock()
+
+            # Execute
+            results = []
+            async for result in preprocess_files_generator(
+                query="Test query",
+                file_cache=file_cache,
+                tenant_id="tenant123",
+                language="en",
+                task_id="task123",
+                conversation_id=1
+            ):
+                results.append(result)
+
+            # Assertions
+            assert len(results) > 0
+            mock_process_text.assert_called_once()
+            mock_preprocess_manager.register_preprocess_task.assert_called_once()
+            mock_preprocess_manager.unregister_preprocess_task.assert_called_once()
