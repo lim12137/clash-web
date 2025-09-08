@@ -56,9 +56,9 @@ ProcessType enumeration defines the following processing stages:
 ### Creating Basic Agents
 
 ```python
-from nexent.core import MessageObserver, ProcessType
-from nexent.core.agents import CoreAgent, NexentAgent
-from nexent.core.models import OpenAIModel
+from nexent.core.utils.observer import MessageObserver
+from nexent.core.agents.core_agent import CoreAgent
+from nexent.core.models.openai_llm import OpenAIModel
 from nexent.core.tools import ExaSearchTool, KnowledgeBaseSearchTool
 
 # Create message observer
@@ -86,10 +86,10 @@ agent = CoreAgent(
 )
 
 # Run Agent
-result = agent.run("Your question")
+agent.run("Your question")
 ```
 
-### Custom Agent Development
+> For a simpler way to consume "JSON streaming messages", see: **[Run agent with agent_run](./agent-run)**.
 
 #### System Prompt Templates
 System prompt templates are located in `backend/prompts/`:
@@ -98,12 +98,70 @@ System prompt templates are located in `backend/prompts/`:
 - **manager_system_prompt_template.yaml**: Manager system prompt template
 - **utils/**: Prompt utilities
 
+- If you do not provide `system_prompt`, the SmolAgents default prompt will be used.
+- To customize, it is recommended to render from `manager_system_prompt_template.yaml` and pass it in.
+
+##### Load and override system_prompt (recommended)
+
+```python
+from pathlib import Path
+import yaml
+from jinja2 import Environment, BaseLoader
+
+from nexent.core.agents.core_agent import CoreAgent
+from nexent.core.models.openai_llm import OpenAIModel
+
+# 1) Load YAML template text
+prompt_yaml_path = Path("backend/prompts/manager_system_prompt_template.yaml")
+yaml_text = prompt_yaml_path.read_text(encoding="utf-8")
+yaml_data = yaml.safe_load(yaml_text)
+
+# 2) Render Jinja template in 'system_prompt' key
+system_prompt_template = yaml_data["system_prompt"]
+jinja_env = Environment(loader=BaseLoader())
+rendered_system_prompt = jinja_env.from_string(system_prompt_template).render(
+    APP_NAME="Nexent Agent",
+    APP_DESCRIPTION="Enterprise-grade AI agent",
+    duty="Answer user questions and use tools when needed",
+    tools={},                  # Provide tools summary if needed
+    managed_agents={},         # Provide managed agents summary if needed
+    knowledge_base_summary=None,
+    constraint="Follow organization policies and ensure data/access security",
+    authorized_imports=["requests", "pandas"],
+    few_shots="",
+    memory_list=[],
+)
+
+# Option A: Pass only rendered string
+observer = MessageObserver()
+model = OpenAIModel(observer=observer, model_id="your-model-id", api_key="your-api-key", api_base="your-api-base")
+agent = CoreAgent(
+    observer=observer,
+    model=model,
+    tools=[search_tool, kb_tool],
+    system_prompt=rendered_system_prompt,
+    name="my_agent",
+)
+
+# Option B: Replace the 'system_prompt' in the loaded YAML and pass the dict (advanced)
+yaml_data["system_prompt"] = rendered_system_prompt
+agent_yaml_prompt = CoreAgent(
+    observer=observer,
+    model=model,
+    tools=[search_tool, kb_tool],
+    system_prompt=yaml_data,
+    name="my_agent",
+)
+```
+
+> Note: `manager_system_prompt_template.yaml` also includes other template blocks such as `managed_agent`, `planning`, and `final_answer`. Typically, only `system_prompt` is needed; load additional blocks as required for advanced multi-agent scenarios.
+
 #### Agent Implementation Steps
 
 1. **Create Agent Instance**:
    ```python
-   from nexent.core.agents import CoreAgent
-   from nexent.core.models import OpenAIModel
+   from nexent.core.agents.core_agent import CoreAgent
+   from nexent.core.models.openai_llm import OpenAIModel
 
    model = OpenAIModel(
        model_id="your-model-id",
@@ -120,7 +178,7 @@ System prompt templates are located in `backend/prompts/`:
 2. **Configure Agent Behavior**:
    - Add custom tools through the `tools` parameter
    - Set behavior through `system_prompt`
-   - Configure parameters like `max_steps`, `temperature`, etc.
+   - Configure parameters like `max_steps`
 
 3. **Advanced Configuration**:
    ```python
@@ -129,7 +187,6 @@ System prompt templates are located in `backend/prompts/`:
        tools=custom_tools,
        system_prompt=custom_prompt,
        max_steps=10,
-       temperature=0.7,
        verbose=True,
        additional_authorized_imports=["requests", "pandas"]
    )
@@ -153,11 +210,6 @@ def my_tool(param1: str, param2: int) -> str:
     # Implement tool logic
     return f"Processed result: {param1} {param2}"
 ```
-
-### Tool Development Standards
-
-For detailed tool development standards and best practices, please refer to:
-- [Tool Development Guide](./tools)
 
 ## 🎯 Agent Execution Patterns
 

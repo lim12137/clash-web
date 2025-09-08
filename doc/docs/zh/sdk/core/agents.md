@@ -56,9 +56,9 @@ ProcessType枚举定义了以下处理阶段：
 ### 创建基本智能体
 
 ```python
-from nexent.core import MessageObserver, ProcessType
-from nexent.core.agents import CoreAgent, NexentAgent
-from nexent.core.models import OpenAIModel
+from nexent.core.utils.observer import MessageObserver
+from nexent.core.agents.core_agent import CoreAgent
+from nexent.core.models.openai_llm import OpenAIModel
 from nexent.core.tools import ExaSearchTool, KnowledgeBaseSearchTool
 
 # 创建消息观察者
@@ -86,8 +86,10 @@ agent = CoreAgent(
 )
 
 # 运行Agent
-result = agent.run("你的问题")
+agent.run("你的问题")
 ```
+
+> 如果你希望以更简洁的方式获得“JSON 流式消息”，推荐阅读：**[使用 agent_run 运行智能体](./agent-run)**。
 
 ### 自定义智能体开发
 
@@ -98,12 +100,61 @@ result = agent.run("你的问题")
 - **manager_system_prompt_template.yaml**: 管理器系统提示词模板
 - **utils/**: 提示词工具
 
+- 若不显式提供 `system_prompt`，将使用 SmolAgents 的默认提示词。
+- 若需要自定义，建议以 `manager_system_prompt_template.yaml` 为基准进行渲染后传入。
+
+##### 加载并覆盖 system_prompt（推荐做法）
+
+```python
+from pathlib import Path
+import yaml
+from jinja2 import Environment, BaseLoader
+
+from nexent.core.agents.core_agent import CoreAgent
+from nexent.core.models.openai_llm import OpenAIModel
+
+# 1) Load YAML template text
+prompt_yaml_path = Path("backend/prompts/manager_system_prompt_template.yaml")
+yaml_text = prompt_yaml_path.read_text(encoding="utf-8")
+yaml_data = yaml.safe_load(yaml_text)
+
+# 2) Render Jinja template in 'system_prompt' key
+system_prompt_template = yaml_data["system_prompt"]
+jinja_env = Environment(loader=BaseLoader())
+rendered_system_prompt = jinja_env.from_string(system_prompt_template).render(
+    APP_NAME="Nexent Agent",
+    APP_DESCRIPTION="Enterprise-grade AI agent",
+    duty="回答用户的问题并在需要时调用工具",
+    tools={},                  # Provide tools summary if needed
+    managed_agents={},         # Provide managed agents summary if needed
+    knowledge_base_summary=None,
+    constraint="遵守组织策略，注意数据与访问安全",
+    authorized_imports=["requests", "pandas"],
+    few_shots="",
+    memory_list=[],
+)
+yaml_data['system_prompt'] = rendered_system_prompt
+
+# 3) Build agent with custom system prompt
+observer = MessageObserver()
+model = OpenAIModel(observer=observer, model_id="your-model-id", api_key="your-api-key", api_base="your-api-base")
+agent = CoreAgent(
+    observer=observer,
+    model=model,
+    tools=[search_tool, kb_tool],
+    system_prompt=yaml_data,
+    name="my_agent",
+)
+```
+
+> 提示：`manager_system_prompt_template.yaml` 中同时包含 `managed_agent`、`planning`、`final_answer` 等其它模板片段。一般情况下仅需取其 `system_prompt` 键进行渲染并覆盖；如有多智能体协作等高级需求，可按需加载其它片段。
+
 #### 智能体实现步骤
 
 1. **创建智能体实例**:
    ```python
-   from nexent.core.agents import CoreAgent
-   from nexent.core.models import OpenAIModel
+   from nexent.core.agents.core_agent import CoreAgent
+   from nexent.core.models.openai_llm import OpenAIModel
 
    model = OpenAIModel(
        model_id="your-model-id",
@@ -120,7 +171,7 @@ result = agent.run("你的问题")
 2. **配置智能体行为**:
    - 通过 `tools` 参数添加自定义工具
    - 通过 `system_prompt` 设置行为
-   - 配置 `max_steps`、`temperature` 等参数
+   - 配置 `max_steps` 等参数
 
 3. **高级配置**:
    ```python
@@ -129,7 +180,6 @@ result = agent.run("你的问题")
        tools=custom_tools,
        system_prompt=custom_prompt,
        max_steps=10,
-       temperature=0.7,
        verbose=True,
        additional_authorized_imports=["requests", "pandas"]
    )
@@ -153,11 +203,6 @@ def my_tool(param1: str, param2: int) -> str:
     # 实现工具逻辑
     return f"处理结果: {param1} {param2}"
 ```
-
-### 工具开发规范
-
-详细的工具开发规范和最佳实践，请参阅：
-- [工具开发指南](./tools)
 
 ## 🎯 智能体执行模式
 
