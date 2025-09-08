@@ -18,7 +18,7 @@ import {
   deleteMemory,
 } from "@/services/memoryService"
 
-import { pageSize, shareLabels, MemoryGroup } from "@/types/memory"
+import { pageSize, MemoryGroup } from "@/types/memory"
 
 interface UseMemoryOptions {
   visible: boolean
@@ -474,7 +474,6 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     userPersonalGroup,
     userAgentGroups,
     pageSize,
-    shareLabels,
     getGroupsForTab,
     // 新增记忆相关
     addingMemoryKey,
