@@ -8,6 +8,8 @@ from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
 from pydantic import BaseModel
 
+from consts.exceptions import MEConnectionException, NotFoundException
+
 # Dynamically determine the backend path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
@@ -16,12 +18,16 @@ sys.path.append(backend_dir)
 # Define required Pydantic models and enums
 
 # Define necessary enums
+
+
 class ModelConnectStatusEnum(str, Enum):
     AVAILABLE = "AVAILABLE"
     DETECTING = "DETECTING"
     UNAVAILABLE = "UNAVAILABLE"
 
 # Define response models
+
+
 class ModelResponse(BaseModel):
     code: int
     message: str
@@ -38,23 +44,14 @@ with patch('botocore.client.BaseClient._make_api_call', return_value={}):
         mock_minio.return_value = mock_minio_instance
 
         with patch('backend.database.client.db_client', MagicMock()):
-            # Need to patch model_health_service's imports
-            with patch('backend.services.model_health_service.check_me_model_connectivity', MagicMock()) as mock_check_connectivity:
-                # Configure mock_check_connectivity
-                mock_check_connectivity.return_value = {
-                    "code": 200,
-                    "message": "Model is healthy",
-                    "data": {"status": "Connected", "connect_status": "AVAILABLE"}
-                }
+            # Now import the module after mocking dependencies
+            from fastapi.testclient import TestClient
+            from fastapi import FastAPI
 
-                # Now import the module after mocking dependencies
-                from fastapi.testclient import TestClient
-                from fastapi import FastAPI
-
-                # Import module with patched dependencies
-                with patch('aiohttp.ClientSession', MagicMock()):
-                    # Import the router after all mocks are in place
-                    from backend.apps.me_model_managment_app import router
+            # Import module with patched dependencies
+            with patch('aiohttp.ClientSession', MagicMock()):
+                # Import the router after all mocks are in place
+                from backend.apps.me_model_managment_app import router
 
 # Create a FastAPI app and include the router for testing
 app = FastAPI()
@@ -124,7 +121,6 @@ async def test_get_me_models_success():
     # Assertions
     assert response.status_code == 200
     response_data = response.json()
-    assert response_data["code"] == 200
     assert response_data["message"] == "Successfully retrieved"
     assert len(response_data["data"]) == 4  # All models returned
 
@@ -149,7 +145,8 @@ async def test_get_me_models_with_filter():
 
         # Filter models if type is provided
         if type:
-            filtered_models = [model for model in all_models if model["type"] == type]
+            filtered_models = [
+                model for model in all_models if model["type"] == type]
 
             # Return 404 if no models found with this type
             if not filtered_models:
@@ -183,7 +180,6 @@ async def test_get_me_models_with_filter():
     # Assertions for embed type
     assert response.status_code == 200
     response_data = response.json()
-    assert response_data["code"] == 200
     assert len(response_data["data"]) == 2  # Only embed models
     model_names = [model["name"] for model in response_data["data"]]
     assert "model1" in model_names
@@ -195,93 +191,39 @@ async def test_get_me_models_with_filter():
     # Assertions for chat type
     assert response.status_code == 200
     response_data = response.json()
-    assert response_data["code"] == 200
     assert len(response_data["data"]) == 1  # Only chat models
     assert response_data["data"][0]["name"] == "model2"
 
 
 @pytest.mark.asyncio
 async def test_get_me_models_not_found_filter():
-    """Test model list retrieval with non-existent type filter"""
-    # Create a test-specific FastAPI app with a mocked route
-    from fastapi import FastAPI, Query
+    # Patch the service impl to raise NotFoundException so the route returns 404
+    with patch('backend.apps.me_model_managment_app.get_me_models_impl') as mock_impl:
+        mock_impl.side_effect = NotFoundException("No models found with type 'nonexistent'.")
+        response = client.get("/me/model/list?type=nonexistent")
 
-    test_app = FastAPI()
-
-    @test_app.get("/me/model/list")
-    async def mock_list_models_not_found(type: str = Query(None)):
-        # Define test data
-        all_models = [
-            {"name": "model1", "type": "embed", "version": "1.0"},
-            {"name": "model2", "type": "chat", "version": "1.0"},
-            {"name": "model3", "type": "rerank", "version": "1.0"},
-            {"name": "model4", "type": "embed", "version": "2.0"}
-        ]
-
-        # Filter models if type is provided
-        if type:
-            filtered_models = [model for model in all_models if model["type"] == type]
-
-            # Return 404 if no models found with this type
-            if not filtered_models:
-                return {
-                    "code": 404,
-                    "message": f"No models found with type {type}",
-                    "data": []
-                }
-
-        # We won't reach this for the test case
-        return {
-            "code": 200,
-            "message": "Successfully retrieved",
-            "data": all_models
-        }
-
-    # Create a test client with our mocked app
-    from fastapi.testclient import TestClient
-    test_client = TestClient(test_app)
-
-    # Test with TestClient for non-existent type
-    response = test_client.get("/me/model/list?type=nonexistent")
-
-    # Assertions
-    assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["code"] == 404
-    assert "No models found with type" in response_data["message"]
-    assert len(response_data["data"]) == 0
+    # Assertions - route maps NotFoundException -> 404 and returns message/data
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    body = response.json()
+    assert "not found" in body["message"].lower()
+    assert body["data"] == []
 
 
 @pytest.mark.asyncio
 async def test_get_me_models_timeout():
-    """Test model list retrieval with timeout"""
-    # Create a test-specific FastAPI app with a mocked route
-    from fastapi import FastAPI, Request
+    """Test model list retrieval with timeout via real route"""
+    from consts.exceptions import TimeoutException
 
-    test_app = FastAPI()
+    # Patch service to raise TimeoutException so the real route returns 408
+    with patch('backend.apps.me_model_managment_app.get_me_models_impl') as mock_impl:
+        mock_impl.side_effect = TimeoutException("Request timeout.")
 
-    @test_app.get("/me/model/list")
-    async def mock_timeout(request: Request):
-        # Simulate timeout by returning timeout error response
-        return {
-            "code": 408,
-            "message": "Request timeout",
-            "data": []
-        }
+        response = client.get("/me/model/list")
 
-    # Create a test client with our mocked app
-    from fastapi.testclient import TestClient
-    test_client = TestClient(test_app)
-
-    # Test with TestClient
-    response = test_client.get("/me/model/list")
-
-    # Assertions
-    assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["code"] == 408
-    assert response_data["message"] == "Request timeout"
-    assert len(response_data["data"]) == 0
+    assert response.status_code == HTTPStatus.REQUEST_TIMEOUT
+    body = response.json()
+    assert "timeout" in body["message"].lower()
+    assert body["data"] == []
 
 
 @pytest.mark.asyncio
@@ -300,9 +242,8 @@ async def test_get_me_models_exception():
         response = client.get("/me/model/list")
 
         # Assertions
-        assert response.status_code == 200
+        assert response.status_code == 500
         response_data = response.json()
-        assert response_data["code"] == 500
         assert "Failed to get model list" in response_data["message"]
         assert "__aenter__" in response_data["message"]
 
@@ -328,181 +269,45 @@ async def test_check_me_connectivity_success():
         # Assertions
         assert response.status_code == 200
         response_data = response.json()
-        assert response_data["code"] == HTTPStatus.OK
-        assert response_data["message"] == "Connection successful"
-        assert response_data["data"]["status"] == "Connected"
-        assert response_data["data"]["connect_status"] == "available"
+        assert response_data["status"] == "Connected"
+        assert response_data["connect_status"] == "available"
 
 
 @pytest.mark.asyncio
 async def test_check_me_connectivity_failure():
-    """Test failed ME connectivity check"""
-    # Mock the check_me_connectivity_impl function in the app module
+    """Trigger MEConnectionException to simulate connectivity failure"""
+    # Patch the impl to raise MEConnectionException so the route returns 503
     with patch('backend.apps.me_model_managment_app.check_me_connectivity_impl') as mock_connectivity:
-        mock_connectivity.return_value = (
-            HTTPStatus.NOT_FOUND,
-            "Connection failed, error code: 404",
-            {
-                "status": "Disconnected",
-                "desc": "Connection failed, error code: 404",
-                "connect_status": "unavailable"
-            }
-        )
+        mock_connectivity.side_effect = MEConnectionException(
+            "Downstream 404 or similar")
 
-        # Test with TestClient
         response = client.get("/me/healthcheck")
 
-        # Assertions
-        assert response.status_code == 200
-        response_data = response.json()
-        assert response_data["code"] == 404
-        assert "Connection failed" in response_data["message"]
-        assert response_data["data"]["status"] == "Disconnected"
-        assert response_data["data"]["connect_status"] == "unavailable"
+    assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
+    body = response.json()
+    assert body["status"] == "Disconnected"
+    assert body["desc"] == "Connection failed."
+    assert body["connect_status"] == 'unavailable'
 
 
 @pytest.mark.asyncio
 async def test_check_me_connectivity_timeout():
     """Test ME connectivity check with timeout"""
-    # Mock the check_me_connectivity_impl function in the app module
-    with patch('backend.apps.me_model_managment_app.check_me_connectivity_impl') as mock_connectivity:
-        mock_connectivity.return_value = (
-            HTTPStatus.REQUEST_TIMEOUT,
-            "Connection timeout",
-            {
-                "status": "Disconnected",
-                "desc": "Connection timeout",
-                "connect_status": "unavailable"
-            }
-        )
+    from consts.exceptions import TimeoutException
+    from backend.apps.me_model_managment_app import ModelConnectStatusEnum
 
-        # Test with TestClient
+    # Mock the impl to raise TimeoutException so the route returns 408
+    with patch('backend.apps.me_model_managment_app.check_me_connectivity_impl') as mock_connectivity:
+        mock_connectivity.side_effect = TimeoutException("timeout simulated")
+
         response = client.get("/me/healthcheck")
 
-        # Assertions
-        assert response.status_code == 200
-        response_data = response.json()
-        assert response_data["code"] == HTTPStatus.REQUEST_TIMEOUT
-        assert response_data["message"] == "Connection timeout"
-        assert response_data["data"]["status"] == "Disconnected"
-        assert response_data["data"]["connect_status"] == "unavailable"
-
-
-@pytest.mark.asyncio
-async def test_check_me_model_healthcheck():
-    """Test model health check endpoint"""
-    # Create a test-specific FastAPI app with a mocked route
-    from fastapi import FastAPI, Query
-
-    test_app = FastAPI()
-
-    @test_app.get("/me/model/healthcheck")
-    async def mock_model_healthcheck(model_name: str = Query(...)):
-        # Verify correct model name was passed
-        assert model_name == "test_model"
-
-        # Return a healthy model response
-        return {
-            "code": 200,
-            "message": "Model is healthy",
-            "data": {
-                "status": "Connected",
-                "connect_status": ModelConnectStatusEnum.AVAILABLE.value
-            }
-        }
-
-    # Create a test client with our mocked app
-    from fastapi.testclient import TestClient
-    test_client = TestClient(test_app)
-
-    # Test with TestClient
-    response = test_client.get("/me/model/healthcheck?model_name=test_model")
-
-    # Assertions
-    assert response.status_code == 200
-    assert response.json()["code"] == 200
-    assert response.json()["message"] == "Model is healthy"
-    assert response.json()["data"]["status"] == "Connected"
-    assert response.json()[
-        "data"]["connect_status"] == ModelConnectStatusEnum.AVAILABLE.value
-
-
-@pytest.mark.asyncio
-async def test_check_me_model_healthcheck_unhealthy():
-    """Test model health check endpoint with unhealthy model"""
-    # Create a test-specific FastAPI app with a mocked route
-    from fastapi import FastAPI, Query
-
-    test_app = FastAPI()
-
-    @test_app.get("/me/model/healthcheck")
-    async def mock_model_healthcheck_unhealthy(model_name: str = Query(...)):
-        # Verify correct model name was passed
-        assert model_name == "test_model"
-
-        # Return an unhealthy model response
-        return {
-            "code": 503,
-            "message": "Model is unhealthy",
-            "data": {
-                "status": "Disconnected",
-                "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
-            }
-        }
-
-    # Create a test client with our mocked app
-    from fastapi.testclient import TestClient
-    test_client = TestClient(test_app)
-
-    # Test with TestClient
-    response = test_client.get("/me/model/healthcheck?model_name=test_model")
-
-    # Assertions
-    assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["code"] == 503
-    assert response_data["message"] == "Model is unhealthy"
-    assert response_data["data"]["status"] == "Disconnected"
-    assert response_data["data"]["connect_status"] == ModelConnectStatusEnum.UNAVAILABLE.value
-
-
-@pytest.mark.asyncio
-async def test_check_me_model_healthcheck_error():
-    """Test model health check endpoint with error"""
-    # Create a test-specific FastAPI app with a mocked route
-    from fastapi import FastAPI, Query
-
-    test_app = FastAPI()
-
-    @test_app.get("/me/model/healthcheck")
-    async def mock_model_healthcheck_error(model_name: str = Query(...)):
-        # Verify correct model name was passed
-        assert model_name == "test_model"
-
-        # Return an error response
-        return {
-            "code": 500,
-            "message": "Model connectivity check failed: Test exception",
-            "data": {
-                "status": "Disconnected",
-                "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
-            }
-        }
-
-    # Create a test client with our mocked app
-    from fastapi.testclient import TestClient
-    test_client = TestClient(test_app)
-
-    # Test with TestClient
-    response = test_client.get("/me/model/healthcheck?model_name=test_model")
-
-    # Assertions
-    assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["code"] == 500
-    assert "Model connectivity check failed" in response_data["message"]
-    assert response_data["data"]["status"] == "Disconnected"
-    assert response_data["data"]["connect_status"] == ModelConnectStatusEnum.UNAVAILABLE.value
+    # Assertions - route maps TimeoutException -> 408 and returns status/desc/connect_status
+    assert response.status_code == HTTPStatus.REQUEST_TIMEOUT
+    body = response.json()
+    assert body["status"] == "Disconnected"
+    assert body["desc"] == "Connection timeout."
+    assert body["connect_status"] == "unavailable"
 
 
 @pytest.mark.asyncio

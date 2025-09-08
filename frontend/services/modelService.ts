@@ -5,6 +5,7 @@ import { API_ENDPOINTS } from './api'
 import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, ModelSource } from '../types/config'
 
 import { getAuthHeaders } from '@/lib/auth'
+import {STATUS_CODES} from "@/types/auth";
 
 // API response type
 interface ApiResponse<T = any> {
@@ -40,9 +41,9 @@ export const modelService = {
       const response = await fetch(API_ENDPOINTS.model.officialModelList, {
         headers: getAuthHeaders()
       })
-      const result: ApiResponse<any[]> = await response.json()
+      const result = await response.json()
       
-      if (result.code === 200 && result.data) {
+      if (response.status === STATUS_CODES.SUCCESS && result.data) {
         const modelOptions: ModelOption[] = []
         const typeMap: Record<string, ModelType> = {
           embed: "embedding",
