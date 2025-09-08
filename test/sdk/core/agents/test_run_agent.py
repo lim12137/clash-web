@@ -217,7 +217,7 @@ def test_agent_run_thread_local_flow(basic_agent_run_info, monkeypatch):
     monkeypatch.setattr(run_agent, "NexentAgent", MagicMock(return_value=mock_nexent_instance))
 
     # Call the function under test
-    run_agent.agent_run_thread(basic_agent_run_info, mock_memory_context)
+    run_agent.agent_run_thread(basic_agent_run_info)
 
     # NexentAgent should be instantiated with observer, model_config_list, stop_event
     run_agent.NexentAgent.assert_called_once_with(
@@ -251,7 +251,7 @@ def test_agent_run_thread_mcp_flow(basic_agent_run_info, mock_memory_context, mo
     monkeypatch.setattr(run_agent, "NexentAgent", MagicMock(return_value=mock_nexent_instance))
 
     # Execute
-    run_agent.agent_run_thread(basic_agent_run_info, mock_memory_context)
+    run_agent.agent_run_thread(basic_agent_run_info)
 
     # Observer should receive <MCP_START> signal
     basic_agent_run_info.observer.add_message.assert_any_call("", ProcessType.AGENT_NEW_RUN, "<MCP_START>")
@@ -285,7 +285,7 @@ def test_agent_run_thread_handles_internal_exception(basic_agent_run_info, mock_
 
     # Execute and expect ValueError
     with pytest.raises(ValueError) as exc_info:
-        run_agent.agent_run_thread(basic_agent_run_info, mock_memory_context)
+        run_agent.agent_run_thread(basic_agent_run_info)
 
     # Observer should have been informed of the failure via FINAL_ANSWER
     basic_agent_run_info.observer.add_message.assert_called_with("", ProcessType.FINAL_ANSWER, "Run Agent Error: Boom")
