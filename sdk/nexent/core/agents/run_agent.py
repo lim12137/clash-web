@@ -53,7 +53,7 @@ def agent_run_thread(agent_run_info: AgentRunInfo):
 async def agent_run(agent_run_info: AgentRunInfo):
     observer = agent_run_info.observer
 
-    thread_agent = Thread(target=agent_run_thread, args=agent_run_info)
+    thread_agent = Thread(target=agent_run_thread, args=(agent_run_info,))
     thread_agent.start()
 
     while thread_agent.is_alive():
