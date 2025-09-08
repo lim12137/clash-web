@@ -284,10 +284,12 @@ async def process_image_file(query: str, filename: str, file_content: bytes, ten
     """
     Process image file, convert to text using external API
     """
-    image_stream = BytesIO(file_content)
-    text = convert_image_to_text(query, image_stream, tenant_id, language)
-
-    return f"Image file {filename} content: {text}"
+    try:
+        image_stream = BytesIO(file_content)
+        text = convert_image_to_text(query, image_stream, tenant_id, language)
+        return f"Image file {filename} content: {text}"
+    except Exception as e:
+        return f"Image file {filename} content: Error processing image file {filename}: {str(e)}"
 
 
 async def process_text_file(query: str, filename: str, file_content: bytes, tenant_id: str, language: str = 'zh') -> tuple[str, Optional[str]]:
@@ -325,16 +327,22 @@ async def process_text_file(query: str, filename: str, file_content: bytes, tena
                 f"File processing failed (status code: {response.status_code}): {error_detail}")
 
     except Exception as e:
-        raise Exception(f"Error processing file: {str(e)}")
+        return f"File {filename} content: Error processing text file {filename}: {str(e)}", None
 
-    text, truncation_percentage = convert_long_text_to_text(query, raw_text, tenant_id, language)
-    return f"File {filename} content: {text}", truncation_percentage
+    try:
+        text, truncation_percentage = convert_long_text_to_text(query, raw_text, tenant_id, language)
+        return f"File {filename} content: {text}", truncation_percentage
+    except Exception as e:
+        return f"File {filename} content: Error processing text file {filename}: {str(e)}", None
 
 
 def get_file_description(files: List[UploadFile]) -> str:
     """
     Generate file description text
     """
+    if not files:
+        return "User provided some reference files:\nNo files provided"
+    
     description = "User provided some reference files:\n"
     for file in files:
         ext = os.path.splitext(file.filename or "")[1].lower()
