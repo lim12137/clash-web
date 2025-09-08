@@ -12,7 +12,7 @@ import {
   DeleteOutlined,
 } from "@ant-design/icons";
 
-import { OpenAIModel } from "@/types/config";
+import { OpenAIModel } from "@/types/modelConfig";
 import {
   checkAgentName,
   checkAgentDisplayName,

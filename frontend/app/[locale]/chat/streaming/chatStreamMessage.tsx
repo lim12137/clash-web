@@ -22,7 +22,8 @@ import { ChatMessageType } from "@/types/chat";
 import { useConfig } from "@/hooks/useConfig";
 import { copyToClipboard } from "@/lib/clipboard";
 
-import { ChatAttachment, AttachmentItem } from "../internal/chatAttachment";
+import { ChatAttachment } from "../internal/chatAttachment";
+import { AttachmentItem } from "@/types/chat";
 
 interface StreamMessageProps {
   message: ChatMessageType;

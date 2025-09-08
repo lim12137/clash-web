@@ -3,10 +3,11 @@ import { useTranslation } from 'react-i18next'
 
 import { Modal, Input, Button, App } from 'antd'
 
+import { MODEL_TYPES, MODEL_STATUS } from '@/const/modelConfig'
 import { useConfig } from '@/hooks/useConfig'
 import { modelService } from '@/services/modelService'
-import { ModelOption, ModelType } from '@/types/config'
-import { getConnectivityIcon, getConnectivityColor, getConnectivityMeta, ConnectivityStatusType } from '@/lib/utils'
+import { ModelOption, ModelType } from '@/types/modelConfig'
+import {getConnectivityMeta, ConnectivityStatusType } from '@/lib/utils'
 
 interface ModelEditDialogProps {
   isOpen: boolean
@@ -20,7 +21,7 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
   const { message } = App.useApp()
   const { updateModelConfig } = useConfig()
   const [form, setForm] = useState({
-    type: "llm" as ModelType,
+    type: MODEL_TYPES.LLM as ModelType,
     name: "",
     displayName: "",
     url: "",
@@ -60,7 +61,7 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
     }
   }
 
-  const isEmbeddingModel = form.type === "embedding" || form.type === "multi_embedding"
+  const isEmbeddingModel = form.type === MODEL_TYPES.EMBEDDING || form.type === MODEL_TYPES.MULTI_EMBEDDING
 
   const isFormValid = () => {
     return form.name.trim() !== "" && form.url.trim() !== ""
@@ -84,8 +85,8 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
         modelType: modelType,
         baseUrl: form.url,
         apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey,
-        maxTokens: form.type === "embedding" ? parseInt(form.vectorDimension) : parseInt(form.maxTokens),
-        embeddingDim: form.type === "embedding" ? parseInt(form.vectorDimension) : undefined
+        maxTokens: form.type === MODEL_TYPES.EMBEDDING ? parseInt(form.vectorDimension) : parseInt(form.maxTokens),
+        embeddingDim: form.type === MODEL_TYPES.EMBEDDING ? parseInt(form.vectorDimension) : undefined
       }
 
       const result = await modelService.verifyModelConfigConnectivity(config)
@@ -98,7 +99,7 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
         connectivityMessage = t('model.dialog.connectivity.status.unavailable')
       }
       setConnectivityStatus({
-        status: result.connectivity ? "available" : "unavailable",
+        status: result.connectivity ? MODEL_STATUS.AVAILABLE : MODEL_STATUS.UNAVAILABLE,
         message: connectivityMessage
       })
 
@@ -133,13 +134,13 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
 
       // 更新本地配置（仅当当前编辑模型在配置中被选中时）
       const modelConfigKeyMap: Record<ModelType, string> = {
-        llm: "llm",
-        embedding: "embedding",
-        multi_embedding: "multiEmbedding",
-        vlm: "vlm",
-        rerank: "rerank",
-        tts: "tts",
-        stt: "stt"
+        llm: MODEL_TYPES.LLM,
+        embedding: MODEL_TYPES.EMBEDDING,
+        multi_embedding: MODEL_TYPES.MULTI_EMBEDDING,
+        vlm: MODEL_TYPES.VLM,
+        rerank: MODEL_TYPES.RERANK,
+        tts: MODEL_TYPES.TTS,
+        stt: MODEL_TYPES.STT
       }
       const configKey = modelConfigKeyMap[modelType]
       updateModelConfig({
@@ -315,7 +316,7 @@ export const ProviderConfigEditDialog = ({
     }
   }
 
-  const isEmbeddingModel = modelType === "embedding" || modelType === "multi_embedding"
+  const isEmbeddingModel = modelType === MODEL_TYPES.EMBEDDING || modelType === MODEL_TYPES.MULTI_EMBEDDING
 
   return (
     <Modal
