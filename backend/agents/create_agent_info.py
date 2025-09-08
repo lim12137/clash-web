@@ -79,7 +79,7 @@ async def create_agent_config(
         is_manager=len(managed_agents) > 0, language=language)
 
     # Get app information
-    default_app_description = 'Nexent 是一个开源智能体SDK和平台' if language == 'zh' else 'Nexent is an open-source agent SDK and platform'
+    default_app_description = 'Nexent is an open-source agent SDK and platform' if language == 'en' else 'Nexent 是一个开源智能体SDK和平台'
     app_name = tenant_config_manager.get_app_config(
         'APP_NAME', tenant_id=tenant_id) or "Nexent"
     app_description = tenant_config_manager.get_app_config(
@@ -132,7 +132,7 @@ async def create_agent_config(
                                 f"Failed to get summary for knowledge base {knowledge_name}: {e}")
                 else:
                     # TODO: Prompt should be refactored to yaml file
-                    knowledge_base_summary = "当前没有可用的知识库索引。\n" if language == 'zh' else "No knowledge base indexes are currently available.\n"
+                    knowledge_base_summary = "No knowledge base indexes are currently available.\n" if language == 'en' else "当前没有可用的知识库索引。\n"
                 break  # Only process the first KnowledgeBaseSearchTool found
     except Exception as e:
         logger.error(f"Failed to build knowledge base summary: {e}")
