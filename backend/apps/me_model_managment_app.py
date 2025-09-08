@@ -3,7 +3,6 @@ from http import HTTPStatus
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
-from consts.model import ModelResponse
 from services.me_model_management_service import get_me_models_impl
 from services.model_health_service import check_me_model_connectivity, check_me_connectivity_impl
 
@@ -20,7 +19,6 @@ async def get_me_models(
     """
     Get list of models from model engine API
     """
-    # Call service function to get business logic result
     code, message, data = await get_me_models_impl(timeout=timeout, type=type)
     return JSONResponse(
         status_code=HTTPStatus.OK,
@@ -37,7 +35,6 @@ async def check_me_connectivity(timeout: int = Query(default=2, description="Tim
     """
     Health check from model engine API
     """
-    # Call service function to health check
     code, message, data = await check_me_connectivity_impl(timeout)
     return JSONResponse(
         status_code=HTTPStatus.OK,
@@ -49,8 +46,15 @@ async def check_me_connectivity(timeout: int = Query(default=2, description="Tim
     )
 
 
-@router.get("/model/healthcheck", response_model=ModelResponse)
+@router.get("/model/healthcheck")
 async def check_me_model_healthcheck(
         model_name: str = Query(..., description="Model name to check")
 ):
-    return await check_me_model_connectivity(model_name)
+    code, message, data = await check_me_model_connectivity(model_name)
+    return JSONResponse(
+        status_code=HTTPStatus.OK,
+        content={
+        "code": code,
+        "message": message,
+        "data": data
+    })
