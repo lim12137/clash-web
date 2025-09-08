@@ -130,8 +130,7 @@ async def test_perform_connectivity_check_embedding():
     # Setup
     with mock.patch("backend.services.model_health_service.OpenAICompatibleEmbedding") as mock_embedding:
         mock_embedding_instance = mock.MagicMock()
-        mock_embedding_instance.dimension_check = mock.AsyncMock(return_value=[
-                                                                 1])
+        mock_embedding_instance.dimension_check = mock.AsyncMock(return_value=[1])
         mock_embedding.return_value = mock_embedding_instance
 
         # Execute
@@ -192,8 +191,7 @@ async def test_perform_connectivity_check_llm():
         mock_observer.return_value = mock_observer_instance
 
         mock_model_instance = mock.MagicMock()
-        mock_model_instance.check_connectivity = mock.AsyncMock(
-            return_value=True)
+        mock_model_instance.check_connectivity = mock.AsyncMock(return_value=True)
         mock_model.return_value = mock_model_instance
 
         # Execute
@@ -224,8 +222,7 @@ async def test_perform_connectivity_check_vlm():
         mock_observer.return_value = mock_observer_instance
 
         mock_model_instance = mock.MagicMock()
-        mock_model_instance.check_connectivity = mock.AsyncMock(
-            return_value=True)
+        mock_model_instance.check_connectivity = mock.AsyncMock(return_value=True)
         mock_model.return_value = mock_model_instance
 
         # Execute
@@ -520,12 +517,12 @@ async def test_check_me_model_connectivity_llm_success():
         mock_client_instance.post.return_value = mock_test_response
 
         # Execute
-        response = await check_me_model_connectivity("gpt-4")
+        code, _, data = await check_me_model_connectivity("gpt-4")
 
         # Assert
-        assert response.code == 200
-        assert response.data["connectivity"] is True
-        assert response.data["connect_status"] == "available"
+        assert code == 200
+        assert data["connectivity"] is True
+        assert data["connect_status"] == "available"
 
         # Verify API calls
         mock_client_instance.get.assert_called_once_with(
@@ -573,12 +570,12 @@ async def test_check_me_model_connectivity_embedding_success():
         mock_client_instance.post.return_value = mock_test_response
 
         # Execute
-        response = await check_me_model_connectivity("text-embedding-ada-002")
+        code, _, data = await check_me_model_connectivity("text-embedding-ada-002")
 
         # Assert
-        assert response.code == 200
-        assert response.data["connectivity"] is True
-        assert response.data["connect_status"] == "available"
+        assert code == 200
+        assert data["connectivity"] is True
+        assert data["connect_status"] == "available"
 
         # Verify API calls
         mock_client_instance.get.assert_called_once_with(
@@ -614,12 +611,12 @@ async def test_check_me_model_connectivity_model_not_found():
         mock_client_instance.get.return_value = mock_response_obj
 
         # Execute
-        response = await check_me_model_connectivity("nonexistent-model")
+        code, _, data = await check_me_model_connectivity("nonexistent-model")
 
         # Assert
-        assert response.code == 404
-        assert response.data["connectivity"] is False
-        assert response.data["message"] == "Specified model not found"
+        assert code == 404
+        assert data["connectivity"] is False
+        assert data["message"] == "Specified model not found"
 
 
 @pytest.mark.asyncio
@@ -647,13 +644,13 @@ async def test_check_me_model_connectivity_unsupported_type():
         mock_client_instance.get.return_value = mock_response_obj
 
         # Execute
-        response = await check_me_model_connectivity("unsupported-model")
+        code, _, data = await check_me_model_connectivity("unsupported-model")
 
         # Assert
-        assert response.code == 400
-        assert response.data["connectivity"] is False
-        assert response.data["connect_status"] == "unavailable"
-        assert "Health check not supported" in response.data["message"]
+        assert code == 400
+        assert data["connectivity"] is False
+        assert data["connect_status"] == "unavailable"
+        assert "Health check not supported" in data["message"]
 
 
 @pytest.mark.asyncio
@@ -687,13 +684,13 @@ async def test_check_me_model_connectivity_api_error():
         mock_client_instance.post.return_value = mock_test_response
 
         # Execute
-        response = await check_me_model_connectivity("gpt-4")
+        code, _, data = await check_me_model_connectivity("gpt-4")
 
         # Assert
-        assert response.code == 500
-        assert response.data["connectivity"] is False
-        assert response.data["connect_status"] == "unavailable"
-        assert "response failed" in response.data["message"]
+        assert code == 500
+        assert data["connectivity"] is False
+        assert data["connect_status"] == "unavailable"
+        assert "response failed" in data["message"]
 
 
 @pytest.mark.asyncio
@@ -711,13 +708,13 @@ async def test_check_me_model_connectivity_exception():
             "Connection error")
 
         # Execute
-        response = await check_me_model_connectivity("gpt-4")
+        code, _, data = await check_me_model_connectivity("gpt-4")
 
         # Assert
-        assert response.code == 500
-        assert response.data["connectivity"] is False
-        assert response.data["connect_status"] == "unavailable"
-        assert "Unknown error" in response.data["message"]
+        assert code == 500
+        assert data["connectivity"] is False
+        assert data["connect_status"] == "unavailable"
+        assert "Unknown error" in data["message"]
 
 
 @pytest.mark.asyncio

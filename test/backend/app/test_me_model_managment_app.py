@@ -220,8 +220,7 @@ async def test_get_me_models_not_found_filter():
 
         # Filter models if type is provided
         if type:
-            filtered_models = [
-                model for model in all_models if model["type"] == type]
+            filtered_models = [model for model in all_models if model["type"] == type]
 
             # Return 404 if no models found with this type
             if not filtered_models:

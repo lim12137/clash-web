@@ -25,7 +25,6 @@ async def _embedding_dimension_check(
         model_type: str,
         model_base_url: str,
         model_api_key: str):
-
     # Test connectivity based on different model types
     if model_type == "embedding":
         embedding = await OpenAICompatibleEmbedding(
@@ -50,11 +49,11 @@ async def _embedding_dimension_check(
 
 
 async def _perform_connectivity_check(
-    model_name: str,
-    model_type: str,
-    model_base_url: str,
-    model_api_key: str,
-    embedding_dim: int = 1024
+        model_name: str,
+        model_type: str,
+        model_base_url: str,
+        model_api_key: str,
+        embedding_dim: int = 1024
 ) -> bool:
     """
     Perform specific model connectivity check
@@ -183,8 +182,9 @@ async def check_me_model_connectivity(model_name: str):
             model_data = next(
                 (item for item in result if item['id'] == model_name), None)
             if not model_data:
-                return ModelResponse(code=404, message="Specified model not found",
-                                     data={"connectivity": False, "message": "Specified model not found", "connect_status": ""})
+                return HTTPStatus.NOT_FOUND, "Specified model not found", {"connectivity": False,
+                                                                           "message": "Specified model not found",
+                                                                           "connect_status": ""}
 
             model_type = model_data['type']
 
@@ -205,27 +205,28 @@ async def check_me_model_connectivity(model_name: str):
                     json=payload
                 )
             else:
-                return ModelResponse(code=400, message=f"Health check not supported for {model_type} type models",
-                                     data={"connectivity": False, "message": f"Health check not supported for {model_type} type models",
-                                           "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
+                return HTTPStatus.BAD_REQUEST, f"Health check not supported for {model_type} type models", {
+                    "connectivity": False, "message": f"Health check not supported for {model_type} type models",
+                    "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
 
             status_code = api_response.status_code
             response_text = api_response.text
 
-            if status_code == 200:
+            if status_code == HTTPStatus.OK:
                 connect_status = ModelConnectStatusEnum.AVAILABLE.value
-                return ModelResponse(code=200, message=f"Model {model_name} responded normally",
-                                     data={"connectivity": True, "message": f"Model {model_name} responded normally", "connect_status": connect_status})
+                return HTTPStatus.OK, f"Model {model_name} responded normally", {"connectivity": True,
+                                                                                 "message": f"Model {model_name} responded normally",
+                                                                                 "connect_status": connect_status}
             else:
                 connect_status = ModelConnectStatusEnum.UNAVAILABLE.value
-                return ModelResponse(code=status_code, message=f"Model {model_name} response failed",
-                                     data={"connectivity": False, "message": f"Model {model_name} response failed: {response_text}",
-                                           "connect_status": connect_status})
+                return status_code, f"Model {model_name} response failed", {"connectivity": False,
+                                                                            "message": f"Model {model_name} response failed: {response_text}",
+                                                                            "connect_status": connect_status}
 
     except Exception as e:
-        return ModelResponse(code=500, message=f"Unknown error occurred: {str(e)}",
-                             data={"connectivity": False, "message": f"Unknown error occurred: {str(e)}",
-                                   "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
+        return HTTPStatus.INTERNAL_SERVER_ERROR, f"Unknown error occurred: {str(e)}", {"connectivity": False,
+                                                                                       "message": f"Unknown error occurred: {str(e)}",
+                                                                                       "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
 
 
 async def check_me_connectivity_impl(timeout: int):
@@ -240,13 +241,13 @@ async def check_me_connectivity_impl(timeout: int):
         headers = {'Authorization': f'Bearer {MODEL_ENGINE_APIKEY}'}
 
         async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=timeout),
-            connector=aiohttp.TCPConnector(ssl=False)
+                timeout=aiohttp.ClientTimeout(total=timeout),
+                connector=aiohttp.TCPConnector(ssl=False)
         ) as session:
             try:
                 async with session.get(
-                    f"{MODEL_ENGINE_HOST}/open/router/v1/models",
-                    headers=headers
+                        f"{MODEL_ENGINE_HOST}/open/router/v1/models",
+                        headers=headers
                 ) as response:
                     if response.status == HTTPStatus.OK:
                         return (
@@ -282,10 +283,10 @@ async def check_me_connectivity_impl(timeout: int):
     except Exception as e:
         return (
             HTTPStatus.INTERNAL_SERVER_ERROR,
-            f"Connection failed: {str(e)}",
+            f"Unknown error occurred: {str(e)}",
             {
                 "status": "Disconnected",
-                "desc": f"Connection failed: {str(e)}",
+                "desc": f"Unknown error occurred: {str(e)}",
                 "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
             }
         )
