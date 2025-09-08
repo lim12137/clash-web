@@ -72,6 +72,7 @@ export const handleStreamResponse = async (
     | "search_content"
     | "card"
     | "memory_search"
+    | "preprocess"
     | null = null;
   let lastModelOutputIndex = -1; // Track the index of the last model output in currentStep.contents
   let searchResultsContent: any[] = [];
@@ -745,6 +746,36 @@ export const handleStreamResponse = async (
 
                   // Update the last processed content type
                   lastContentType = "memory_search";
+                  break;
+
+                case "preprocess":
+                  // If there's no currentStep, create one
+                  if (!currentStep) {
+                    currentStep = {
+                      id: `step-preprocess-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      title: "File Preprocessing",
+                      content: "",
+                      expanded: true,
+                      contents: [],
+                      metrics: "",
+                      thinking: { content: "", expanded: true },
+                      code: { content: "", expanded: true },
+                      output: { content: "", expanded: true }
+                    };
+                  }
+
+                  const normalizedPreprocessData = {
+                    id: `preprocess-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    type: "preprocess" as const,
+                    content: messageContent,
+                    expanded: true,
+                    timestamp: Date.now()
+                  };
+
+                  currentStep.contents.push(normalizedPreprocessData);
+
+                  // Update the last processed content type
+                  lastContentType = "preprocess";
                   break;
 
                 default:

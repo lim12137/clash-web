@@ -442,7 +442,7 @@ export function ChatInterface() {
                   contents: [
                     {
                       id: `preprocess-content-${Date.now()}`,
-                      type: "agent_new_run",
+                      type: "preprocess",
                       content: t("chatInterface.parsingFile"),
                       expanded: false,
                       timestamp: Date.now(),
@@ -454,6 +454,10 @@ export function ChatInterface() {
           ],
         }));
 
+        // Buffer for truncation messages with deduplication
+        const truncationBuffer: any[] = [];
+        const processedTruncationIds = new Set<string>(); // Track processed truncation messages to avoid duplicates
+        
         // Use extracted preprocessing function to process attachments
         const result = await preprocessAttachments(
           userMessage.content,
@@ -485,7 +489,7 @@ export function ChatInterface() {
                     contents: [
                       {
                         id: `preprocess-content-${Date.now()}`,
-                        type: "agent_new_run",
+                        type: "preprocess",
                         content: t("chatInterface.parsingFile"),
                         expanded: false,
                         timestamp: Date.now(),
@@ -494,6 +498,20 @@ export function ChatInterface() {
                   };
                   lastMsg.steps.push(step);
                 }
+                
+                // Handle truncation messages - buffer them instead of updating immediately
+                if (jsonData.type === "truncation") {
+                  // Create a unique ID for this truncation message to avoid duplicates
+                  const truncationId = `${jsonData.filename || 'unknown'}_${jsonData.message || ''}`;
+                  
+                  // Only add if not already processed
+                  if (!processedTruncationIds.has(truncationId)) {
+                    truncationBuffer.push(jsonData);
+                    processedTruncationIds.add(truncationId);
+                  }
+                  return newMessages; // Don't update stepContent for truncation
+                }
+                
                 let stepContent = "";
                 switch (jsonData.type) {
                   case "progress":
@@ -511,7 +529,19 @@ export function ChatInterface() {
                     });
                     break;
                   case "complete":
-                    stepContent = t("chatInterface.fileParsingComplete");
+                    // When complete, process all buffered truncation messages
+                    if (truncationBuffer.length > 0) {
+                      // Directly concatenate all truncation messages with internationalized separator
+                      const truncationInfo = truncationBuffer
+                        .map((truncation) => truncation.message)
+                        .join(t("chatInterface.truncationSeparator")); // Use internationalized separator
+                      
+                      stepContent = t("chatInterface.fileParsingCompleteWithTruncation", {
+                        truncationInfo: truncationInfo
+                      });
+                    } else {
+                      stepContent = t("chatInterface.fileParsingComplete");
+                    }
                     break;
                   default:
                     stepContent = jsonData.message || "";
@@ -1629,3 +1659,5 @@ export function ChatInterface() {
     </>
   );
 }
+
+
