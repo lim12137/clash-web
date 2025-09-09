@@ -1,13 +1,13 @@
 import logging
 import os
+import traceback
 from pathlib import Path
 from typing import List
-import traceback
 
 import aiofiles
 import httpx
-from fastapi import UploadFile
 import requests
+from fastapi import UploadFile
 
 from consts.const import DATA_PROCESS_SERVICE
 from consts.model import ProcessParams

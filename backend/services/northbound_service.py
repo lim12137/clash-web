@@ -30,7 +30,6 @@ from services.conversation_management_service import (
     update_conversation_title as update_conversation_title_service,
 )
 
-
 logger = logging.getLogger("northbound_service")
 
 
