@@ -11,6 +11,8 @@ from http import HTTPStatus
 sys.path.insert(0, os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../../..')))
 
+from consts.exceptions import NotFoundException, TimeoutException
+
 # Sample test data
 sample_models_data = {
     "data": [
@@ -60,11 +62,9 @@ async def test_get_me_models_impl_success_no_filter():
             mock_session_class.return_value = mock_client_session
 
             # Test the function
-            code, message, data = await get_me_models_impl(timeout=30, type="")
+            data = await get_me_models_impl(timeout=30, type="")
 
             # Assertions
-            assert code == HTTPStatus.OK
-            assert message == "Successfully retrieved"
             assert data == sample_models_list
             assert len(data) == 4
 
@@ -108,15 +108,13 @@ async def test_get_me_models_impl_success_with_filter():
             mock_session_class.return_value = mock_client_session
 
             # Test the function with embed type filter
-            code, message, data = await get_me_models_impl(timeout=30, type="embed")
+            data = await get_me_models_impl(timeout=30, type="embed")
 
             # Assertions
             expected_embed_models = [
                 {"name": "model1", "type": "embed", "version": "1.0"},
                 {"name": "model4", "type": "embed", "version": "2.0"}
             ]
-            assert code == HTTPStatus.OK
-            assert message == "Successfully retrieved"
             assert data == expected_embed_models
             assert len(data) == 2
 
@@ -154,18 +152,13 @@ async def test_get_me_models_impl_filter_not_found():
         with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
-            # Test the function with non-existent type filter
-            code, message, data = await get_me_models_impl(timeout=30, type="nonexistent")
+            # Test the function with non-existent type filter - should raise Exception (not NotFoundException)
+            with pytest.raises(Exception) as exc_info:
+                await get_me_models_impl(timeout=30, type="nonexistent")
 
-            # Verify the response
-            assert code == HTTPStatus.NOT_FOUND
-            assert "No models found with type 'nonexistent'" in message
-            assert "Available types:" in message
-            assert data == []
-            # Check that all expected types are present (order may vary)
-            assert "embed" in message
-            assert "chat" in message
-            assert "rerank" in message
+            # Verify the exception message contains expected information
+            assert "Failed to get model list: No models found with type 'nonexistent'" in str(
+                exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -192,13 +185,12 @@ async def test_get_me_models_impl_timeout():
         with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
-            # Test the function - should return timeout response
-            code, message, data = await get_me_models_impl(timeout=30, type="")
+            # Test the function - should raise TimeoutException
+            with pytest.raises(TimeoutException) as exc_info:
+                await get_me_models_impl(timeout=30, type="")
 
-            # Verify the response
-            assert code == HTTPStatus.REQUEST_TIMEOUT
-            assert message == "Request timeout"
-            assert data == []
+            # Verify the exception message
+            assert "Request timeout." in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -234,13 +226,14 @@ async def test_get_me_models_impl_http_error():
         with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
-            # Test the function - should return error response
-            code, message, data = await get_me_models_impl(timeout=30, type="")
+            # Test the function - should raise Exception
+            with pytest.raises(Exception) as exc_info:
+                await get_me_models_impl(timeout=30, type="")
 
-            # Verify the response
-            assert code == HTTPStatus.INTERNAL_SERVER_ERROR
-            assert "Failed to get model list:" in message
-            assert data == []
+            # Verify the exception message contains expected information
+            assert "Failed to get model list:" in str(exc_info.value)
+            assert "404" in str(exc_info.value)
+            assert "Not Found" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -273,14 +266,13 @@ async def test_get_me_models_impl_json_parse_error():
         with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
-            # Test the function - should return error response
-            code, message, data = await get_me_models_impl(timeout=30, type="")
+            # Test the function - should raise Exception
+            with pytest.raises(Exception) as exc_info:
+                await get_me_models_impl(timeout=30, type="")
 
-            # Verify the response
-            assert code == HTTPStatus.INTERNAL_SERVER_ERROR
-            assert "Failed to get model list:" in message
-            assert "Invalid JSON" in message
-            assert data == []
+            # Verify the exception message contains expected information
+            assert "Failed to get model list: Invalid JSON." in str(
+                exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -307,14 +299,13 @@ async def test_get_me_models_impl_connection_exception():
         with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
-            # Test the function - should return error response
-            code, message, data = await get_me_models_impl(timeout=30, type="")
+            # Test the function - should raise Exception
+            with pytest.raises(Exception) as exc_info:
+                await get_me_models_impl(timeout=30, type="")
 
-            # Verify the response
-            assert code == HTTPStatus.INTERNAL_SERVER_ERROR
-            assert "Failed to get model list:" in message
-            assert "Connection error" in message
-            assert data == []
+            # Verify the exception message contains expected information
+            assert "Failed to get model list: Connection error." in str(
+                exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -358,11 +349,9 @@ async def test_get_me_models_impl_different_types():
                 mock_session_class.return_value = mock_client_session
 
                 # Test the function
-                code, message, data = await get_me_models_impl(timeout=30, type=filter_type)
+                data = await get_me_models_impl(timeout=30, type=filter_type)
 
                 # Assertions
-                assert code == HTTPStatus.OK
-                assert message == "Successfully retrieved"
                 assert data == expected_models
                 assert len(data) == len(expected_models)
 
@@ -402,20 +391,18 @@ async def test_get_me_models_impl_empty_response():
         with patch('services.me_model_management_service.aiohttp.ClientSession') as mock_session_class:
             mock_session_class.return_value = mock_client_session
 
-            # Test the function without filter
-            code, message, data = await get_me_models_impl(timeout=30, type="")
+            # Test the function without filter - should return empty list
+            data = await get_me_models_impl(timeout=30, type="")
 
-            # Assertions
-            assert code == HTTPStatus.OK
-            assert message == "Successfully retrieved"
+            # Assertions for no filter
             assert data == []
             assert len(data) == 0
 
-            # Test the function with filter on empty data
-            code, message, data = await get_me_models_impl(timeout=30, type="embed")
+            # Test the function with filter on empty data - should raise Exception
+            with pytest.raises(Exception) as exc_info:
+                await get_me_models_impl(timeout=30, type="embed")
 
-            # Verify the response
-            assert code == HTTPStatus.NOT_FOUND
-            assert "No models found with type 'embed'" in message
-            assert "Available types: set()" in message
-            assert data == []
+            # Verify the exception message contains expected information
+            assert "Failed to get model list: No models found with type 'embed'" in str(
+                exc_info.value)
+            assert "Available types: set()" in str(exc_info.value)
