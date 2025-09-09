@@ -1,5 +1,6 @@
 import { API_ENDPOINTS, ApiError } from './api';
 
+import { chatConfig } from '@/const/chatConfig';
 import type { 
   ConversationListResponse, 
   ConversationListItem,
@@ -194,11 +195,11 @@ export const conversationService = {
       const pendingChunksRef = { current: [] as Uint8Array[] };
 
       // Play audio (main entry)
-      const playAudio = async (text: string, onStatusChange?: (status: 'idle' | 'generating' | 'playing' | 'error') => void): Promise<void> => {
+      const playAudio = async (text: string, onStatusChange?: (status: typeof chatConfig.ttsStatus[keyof typeof chatConfig.ttsStatus]) => void): Promise<void> => {
         if (!text) return;
 
         try {
-          onStatusChange?.('generating');
+          onStatusChange?.(chatConfig.ttsStatus.GENERATING);
           audioChunksRef.current = [];
           pendingChunksRef.current = [];
 
@@ -250,8 +251,8 @@ export const conversationService = {
                       if (audioChunksRef.current.length > 0) {
                         playAudioChunks(onStatusChange);
                       } else {
-                        onStatusChange?.('error');
-                        setTimeout(() => onStatusChange?.('idle'), 2000);
+                        onStatusChange?.(chatConfig.ttsStatus.ERROR);
+                        setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
                       }
                     }
                     
@@ -262,8 +263,8 @@ export const conversationService = {
                       }
                     }, 100);
                   } else if (data.error) {
-                    onStatusChange?.('error');
-                    setTimeout(() => onStatusChange?.('idle'), 2000);
+                    onStatusChange?.(chatConfig.ttsStatus.ERROR);
+                    setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
                     cleanupStreamingPlayback();
                     if (wsRef.current) {
                       wsRef.current.close();
@@ -280,29 +281,29 @@ export const conversationService = {
           };
 
           ws.onerror = () => {
-            onStatusChange?.('error');
-            setTimeout(() => onStatusChange?.('idle'), 2000);
+            onStatusChange?.(chatConfig.ttsStatus.ERROR);
+            setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
             cleanupStreamingPlayback();
           };
 
           ws.onclose = (event) => {
             wsRef.current = null;
             if (event.code !== 1000) {
-              onStatusChange?.('error');
-              setTimeout(() => onStatusChange?.('idle'), 2000);
+              onStatusChange?.(chatConfig.ttsStatus.ERROR);
+              setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
               cleanupStreamingPlayback();
             }
           };
 
         } catch (error) {
-          onStatusChange?.('error');
-          setTimeout(() => onStatusChange?.('idle'), 2000);
+          onStatusChange?.(chatConfig.ttsStatus.ERROR);
+          setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
           cleanupStreamingPlayback();
         }
       };
 
       // Initialize streaming playback
-      const initStreamingPlayback = async (onStatusChange?: (status: 'idle' | 'generating' | 'playing' | 'error') => void): Promise<void> => {
+      const initStreamingPlayback = async (onStatusChange?: (status: typeof chatConfig.ttsStatus[keyof typeof chatConfig.ttsStatus]) => void): Promise<void> => {
         return new Promise((resolve, reject) => {
           try {
             const mediaSource = new MediaSource();
@@ -369,7 +370,7 @@ export const conversationService = {
       };
 
       // Process streaming audio chunks
-      const handleStreamingAudioChunk = async (chunk: Uint8Array, onStatusChange?: (status: 'idle' | 'generating' | 'playing' | 'error') => void) => {
+      const handleStreamingAudioChunk = async (chunk: Uint8Array, onStatusChange?: (status: typeof chatConfig.ttsStatus[keyof typeof chatConfig.ttsStatus]) => void) => {
         if (!isStreamingPlaybackRef.current || !sourceBufferRef.current) {
           pendingChunksRef.current.push(chunk);
           return;
@@ -469,7 +470,7 @@ export const conversationService = {
       };
 
       // Traditional playback method
-      const playAudioTraditional = async (text: string, onStatusChange?: (status: 'idle' | 'generating' | 'playing' | 'error') => void) => {
+      const playAudioTraditional = async (text: string, onStatusChange?: (status: typeof chatConfig.ttsStatus[keyof typeof chatConfig.ttsStatus]) => void) => {
         audioChunksRef.current = [];
         const wsUrl = getWebSocketUrl(API_ENDPOINTS.tts.ws);
         const ws = new WebSocket(wsUrl);
@@ -508,12 +509,12 @@ export const conversationService = {
                   if (audioChunksRef.current.length > 0) {
                     playAudioChunks(onStatusChange);
                   } else {
-                    onStatusChange?.('error');
-                    setTimeout(() => onStatusChange?.('idle'), 2000);
+                    onStatusChange?.(chatConfig.ttsStatus.ERROR);
+                    setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
                   }
                 } else if (data.error) {
-                  onStatusChange?.('error');
-                  setTimeout(() => onStatusChange?.('idle'), 2000);
+                  onStatusChange?.(chatConfig.ttsStatus.ERROR);
+                  setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
                   if (wsRef.current) {
                     wsRef.current.close();
                     wsRef.current = null;
@@ -529,8 +530,8 @@ export const conversationService = {
         };
 
         ws.onerror = () => {
-          onStatusChange?.('error');
-          setTimeout(() => onStatusChange?.('idle'), 2000);
+          onStatusChange?.(chatConfig.ttsStatus.ERROR);
+          setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
         };
 
         ws.onclose = () => {
@@ -539,7 +540,7 @@ export const conversationService = {
       };
 
       // Play audio chunks (traditional mode)
-      const playAudioChunks = (onStatusChange?: (status: 'idle' | 'generating' | 'playing' | 'error') => void) => {
+      const playAudioChunks = (onStatusChange?: (status: typeof chatConfig.ttsStatus[keyof typeof chatConfig.ttsStatus]) => void) => {
         if (audioChunksRef.current.length === 0) {
           onStatusChange?.('idle');
           return;
@@ -549,8 +550,8 @@ export const conversationService = {
           const validChunks = audioChunksRef.current.filter(chunk => chunk && chunk.length > 0);
           
           if (validChunks.length === 0) {
-            onStatusChange?.('error');
-            setTimeout(() => onStatusChange?.('idle'), 2000);
+            onStatusChange?.(chatConfig.ttsStatus.ERROR);
+            setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
             return;
           }
 
@@ -588,8 +589,8 @@ export const conversationService = {
           const finalArray = offset === totalLength ? combinedArray : combinedArray.slice(0, offset);
           
           if (finalArray.length < 100) {
-            onStatusChange?.('error');
-            setTimeout(() => onStatusChange?.('idle'), 2000);
+            onStatusChange?.(chatConfig.ttsStatus.ERROR);
+            setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
             return;
           }
           
@@ -599,8 +600,8 @@ export const conversationService = {
           );
           
           if (!hasValidMP3Header) {
-            onStatusChange?.('error');
-            setTimeout(() => onStatusChange?.('idle'), 2000);
+            onStatusChange?.(chatConfig.ttsStatus.ERROR);
+            setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
             return;
           }
 
@@ -620,15 +621,15 @@ export const conversationService = {
           };
 
           audio.onended = () => {
-            onStatusChange?.('idle');
+            onStatusChange?.(chatConfig.ttsStatus.IDLE);
             URL.revokeObjectURL(audioUrl);
             audioRef.current = null;
             audioChunksRef.current = [];
           };
 
           audio.onerror = () => {
-            onStatusChange?.('error');
-            setTimeout(() => onStatusChange?.('idle'), 2000);
+            onStatusChange?.(chatConfig.ttsStatus.ERROR);
+            setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
             URL.revokeObjectURL(audioUrl);
             audioRef.current = null;
             audioChunksRef.current = [];
@@ -637,15 +638,15 @@ export const conversationService = {
           audio.play().then(() => {
             onStatusChange?.('playing');
           }).catch(() => {
-            onStatusChange?.('error');
-            setTimeout(() => onStatusChange?.('idle'), 2000);
+            onStatusChange?.(chatConfig.ttsStatus.ERROR);
+            setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
             URL.revokeObjectURL(audioUrl);
             audioChunksRef.current = [];
           });
 
         } catch (error) {
-          onStatusChange?.('error');
-          setTimeout(() => onStatusChange?.('idle'), 2000);
+          onStatusChange?.(chatConfig.ttsStatus.ERROR);
+          setTimeout(() => onStatusChange?.(chatConfig.ttsStatus.IDLE), 2000);
           audioChunksRef.current = [];
         }
       };

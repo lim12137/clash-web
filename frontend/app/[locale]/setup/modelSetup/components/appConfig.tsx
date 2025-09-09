@@ -7,7 +7,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { Pencil } from 'lucide-react';
 
 import { useConfig } from '@/hooks/useConfig';
-import { presetIcons, colorOptions } from "@/types/avatar"
+import { presetIcons, colorOptions } from "@/const/avatar"
 import { generateAvatarUri } from '@/lib/avatar';
 import { LAYOUT_CONFIG, CARD_THEMES, ICON_TYPES } from '@/const/modelConfig';
 

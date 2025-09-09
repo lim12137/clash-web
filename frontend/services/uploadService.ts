@@ -2,13 +2,9 @@ import { TFunction } from 'i18next';
 
 import { NAME_CHECK_STATUS } from '@/const/agentConfig';
 import knowledgeBaseService from '@/services/knowledgeBaseService';
+import { AbortableError } from '../types/knowledgeBase';
 
 import '../app/[locale]/i18n';
-
-// 添加类型定义
-export interface AbortableError extends Error {
-  name: string;
-}
 
 // 新的检查知识库名称状态的方法
 export const checkKnowledgeBaseName = async (

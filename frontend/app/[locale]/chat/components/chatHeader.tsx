@@ -8,7 +8,7 @@ import { BrainCircuit, Globe } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { languageOptions } from "@/lib/constants";
+import { languageOptions } from "@/const/constants";
 import { useLanguageSwitch } from "@/lib/language";
 
 import MemoryManageModal from "../internal/memory/memoryManageModal";
