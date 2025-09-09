@@ -21,6 +21,8 @@
     "chatInterface.createDialogFailedButContinue": "创建新对话失败，但仍会尝试发送消息:",
     "chatInterface.filePreprocessing": "文件预处理",
     "chatInterface.parsingFile": "正在解析文件…",
+    "chatInterface.parsingFileWithProgress": "正在解析文件 {{index}}/{{total}}: {{filename}}",
+    "chatInterface.fileTruncated": "{{filename}} 超出字数限制，只阅读了前 {{percentage}}%",
     "chatInterface.parseFileFailed": "解析文件 {{filename}} 失败: {{message}}",
     "chatInterface.fileParsed": "文件 {{filename}} 已解析完成",
     "chatInterface.fileParsingComplete": "文件解析完成",

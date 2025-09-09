@@ -21,6 +21,8 @@
     "chatInterface.createDialogFailedButContinue": "Failed to create new conversation, but will still attempt to send message:",
     "chatInterface.filePreprocessing": "File Preprocessing",
     "chatInterface.parsingFile": "Parsing file...",
+    "chatInterface.parsingFileWithProgress": "Parsing file {{index}}/{{total}}: {{filename}}",
+    "chatInterface.fileTruncated": "{{filename}} exceeds word limit, only read the first {{percentage}}%",
     "chatInterface.parseFileFailed": "Failed to parse file {{filename}}: {{message}}",
     "chatInterface.fileParsed": "File {{filename}} has been parsed successfully",
     "chatInterface.fileParsingComplete": "File parsing complete",
