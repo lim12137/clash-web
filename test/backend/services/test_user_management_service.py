@@ -287,8 +287,9 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
         
         # Patch the ClientSession
         with patch('backend.services.user_management_service.aiohttp.ClientSession', MockClientSession):
+            # Function should not raise exception and should not return anything
             result = await check_auth_service_health()
-            self.assertTrue(result)
+            self.assertIsNone(result)
 
     @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
     async def test_health_check_wrong_service(self):
@@ -324,8 +325,11 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
         
         # Patch the ClientSession
         with patch('backend.services.user_management_service.aiohttp.ClientSession', MockClientSession):
-            result = await check_auth_service_health()
-            self.assertFalse(result)
+            # Function should raise ConnectionError
+            with self.assertRaises(ConnectionError) as context:
+                await check_auth_service_health()
+            
+            self.assertIn("Auth service is unavailable", str(context.exception))
 
     @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
     async def test_health_check_not_ok(self):
@@ -358,6 +362,7 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
         
         # Patch the ClientSession
         with patch('backend.services.user_management_service.aiohttp.ClientSession', MockClientSession):
+            # Function should return False for non-OK response
             result = await check_auth_service_health()
             self.assertFalse(result)
 
@@ -368,10 +373,11 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
         """Test health check with connection error"""
         mock_session_cls.side_effect = aiohttp.ClientError("Connection failed")
         
-        result = await check_auth_service_health()
+        # Function should raise the original exception
+        with self.assertRaises(aiohttp.ClientError) as context:
+            await check_auth_service_health()
         
-        self.assertFalse(result)
-        mock_logging.error.assert_called_with("Auth service connection failed: Connection failed")
+        self.assertIn("Connection failed", str(context.exception))
 
     @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
     @patch('backend.services.user_management_service.logging')
@@ -380,10 +386,11 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
         """Test health check with general exception"""
         mock_session_cls.side_effect = Exception("General error")
         
-        result = await check_auth_service_health()
+        # Function should raise the original exception
+        with self.assertRaises(Exception) as context:
+            await check_auth_service_health()
         
-        self.assertFalse(result)
-        mock_logging.error.assert_called_with("Auth service health check failed: General error")
+        self.assertIn("General error", str(context.exception))
 
 
 class TestSignupUser(unittest.IsolatedAsyncioTestCase):
