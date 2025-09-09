@@ -14,7 +14,7 @@ from supabase import create_client
 from database.user_tenant_db import get_user_tenant_by_user_id
 
 # Get Supabase configuration
-SUPABASE_URL = os.getenv('SUPABASE_URL', 'http://118.31.249.152:8010')
+SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
 # Debug JWT expiration time (seconds), not set or 0 means not effective
 DEBUG_JWT_EXPIRE_SECONDS = int(os.getenv('DEBUG_JWT_EXPIRE_SECONDS', '0') or 0)

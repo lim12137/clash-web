@@ -574,6 +574,50 @@ class TestDataProcessService(unittest.TestCase):
         """
         asyncio.run(self.async_test_get_all_tasks())
 
+    @patch('backend.services.data_process_service.DataProcessService._get_celery_inspector')
+    @patch('data_process.utils.get_task_info')
+    @patch('data_process.utils.get_all_task_ids_from_redis')
+    @pytest.mark.asyncio
+    async def test_get_all_tasks_redis_error(self, mock_get_redis_task_ids, mock_get_task_info, mock_get_inspector):
+        """
+        Test get_all_tasks when Redis query fails.
+        
+        This test verifies that the service handles Redis errors gracefully
+        and continues to process tasks from other sources.
+        """
+        # Setup mocks
+        mock_inspector = MagicMock()
+        mock_inspector.active.return_value = {
+            'worker1': [{'id': 'task1'}, {'id': 'task2'}]
+        }
+        mock_inspector.reserved.return_value = {
+            'worker1': [{'id': 'task3'}]
+        }
+        mock_get_inspector.return_value = mock_inspector
+
+        # Mock Redis to raise an exception
+        mock_get_redis_task_ids.side_effect = Exception("Redis connection failed")
+
+        # Setup task info mock
+        async def mock_task_info(task_id):
+            task_data = {
+                'task1': {'id': 'task1', 'status': 'ACTIVE', 'index_name': 'index1', 'task_name': 'task_name1'},
+                'task2': {'id': 'task2', 'status': 'ACTIVE', 'index_name': 'index2', 'task_name': 'task_name2'},
+                'task3': {'id': 'task3', 'status': 'RESERVED', 'index_name': 'index3', 'task_name': 'task_name3'},
+            }
+            return task_data.get(task_id, {})
+
+        mock_get_task_info.side_effect = mock_task_info
+
+        # Get all tasks - should handle Redis error gracefully
+        result = await self.service.get_all_tasks(filter=True)
+
+        # Verify result (should only include tasks from Celery, not Redis)
+        self.assertEqual(len(result), 3)
+        
+        # Verify that Redis was called and failed
+        mock_get_redis_task_ids.assert_called_once()
+
     @patch('backend.services.data_process_service.DataProcessService.get_all_tasks')
     @pytest.mark.asyncio
     async def async_test_get_index_tasks(self, mock_get_all_tasks):
