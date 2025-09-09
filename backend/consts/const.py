@@ -158,6 +158,9 @@ LOCAL_MCP_SERVER = os.getenv("NEXENT_MCP_SERVER")
 # Invite code
 INVITE_CODE = os.getenv("INVITE_CODE")
 
+# Debug JWT expiration time (seconds), not set or 0 means not effective
+DEBUG_JWT_EXPIRE_SECONDS = int(os.getenv('DEBUG_JWT_EXPIRE_SECONDS', '0') or 0)
+
 MODEL_CONFIG_MAPPING = {
     "llm": "LLM_ID",
     "llmSecondary": "LLM_SECONDARY_ID",

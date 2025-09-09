@@ -1,7 +1,7 @@
 import logging
 from http import HTTPStatus
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 from fastapi.responses import JSONResponse
 
 from consts.exceptions import TimeoutException, NotFoundException, MEConnectionException
@@ -44,9 +44,9 @@ async def get_me_models(
             "data": []
         })
     except Exception as e:
-        logging.error(f"Failed to get model list: {str(e)}")
+        logging.error(f"Failed to get me model list: {str(e)}")
         return JSONResponse(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, content={
-            "message": f"Failed to get model list: {str(e)}",
+            "message": f"Failed to get me model list: {str(e)}",
             "data": []
         })
 
@@ -61,23 +61,16 @@ async def check_me_connectivity(timeout: int = Query(default=2, description="Tim
         return JSONResponse(
             status_code=HTTPStatus.OK,
             content={
-                "status": "Connected",
-                "desc": "Connection successful.",
-                "connect_status": ModelConnectStatusEnum.AVAILABLE.value
+                "connectivity": True,
+                "message": "ModelEngine model connect successfully.",
             }
         )
     except MEConnectionException as e:
-        logging.error(f"Request me model connectivity failed: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.SERVICE_UNAVAILABLE, content={"status": "Disconnected",
-                                                                                 "desc": f"Connection failed.",
-                                                                                 "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
+        logging.error(f"ModelEngine model healthcheck failed: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail="ModelEngine model connect failed.")
     except TimeoutException as e:
-        logging.error(f"Request me model connectivity timeout: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.REQUEST_TIMEOUT, content={"status": "Disconnected",
-                                                                             "desc": "Connection timeout.",
-                                                                             "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
+        logging.error(f"ModelEngine model healthcheck timeout: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.REQUEST_TIMEOUT, detail="ModelEngine model connect timeout.")
     except Exception as e:
-        logging.error(f"Unknown error occurred: {str(e)}.")
-        return JSONResponse(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, content={"status": "Disconnected",
-                                                                                   "desc": f"Unknown error occurred: {str(e)}",
-                                                                                   "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
+        logging.error(f"ModelEngine model healthcheck failed with unknown error: {str(e)}.")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="ModelEngine model connect failed.")
