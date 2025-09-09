@@ -105,6 +105,7 @@ messageTypes: {
   TOKEN_COUNT: "token_count" as const,
   SEARCH_CONTENT_PLACEHOLDER: "search_content_placeholder" as const,
   VIRTUAL: "virtual" as const,
+  PREPROCESS: "preprocess" as const,
 },
 
 // Content type constants for last content type tracking

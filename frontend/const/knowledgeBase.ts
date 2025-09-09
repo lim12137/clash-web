@@ -12,7 +12,7 @@ export const DOCUMENT_STATUS = {
 } as const;
 
 // Non-terminal statuses (still processing)
-export const NON_TERMINAL_STATUSES = [
+export const NON_TERMINAL_STATUSES: string[] = [
   DOCUMENT_STATUS.WAIT_FOR_PROCESSING, 
   DOCUMENT_STATUS.PROCESSING, 
   DOCUMENT_STATUS.WAIT_FOR_FORWARDING, 

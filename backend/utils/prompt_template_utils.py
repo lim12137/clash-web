@@ -1,7 +1,9 @@
-import yaml
-from typing import Dict, Any
 import logging
 import os
+from typing import Dict, Any
+
+import yaml
+
 logger = logging.getLogger("prompt_template_utils")
 
 
@@ -24,7 +26,7 @@ def get_prompt_template(template_type: str, language: str = 'zh', **kwargs) -> D
         dict: Loaded prompt template
     """
     logger.info(
-        f"Getting prompt template for type: {template_type}, language: {language}，kwargs: {kwargs}")
+        f"Getting prompt template for type: {template_type}, language: {language}, kwargs: {kwargs}")
 
     # Define template path mapping
     template_paths = {
