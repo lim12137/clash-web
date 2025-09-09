@@ -29,10 +29,10 @@ async def service_health():
         if is_available:
             return JSONResponse(status_code=HTTPStatus.OK, content={"message": "Auth service is available"})
         else:
-            return JSONResponse(status_code=HTTPStatus.SERVICE_UNAVAILABLE, content={"message": "Auth service is unavailable"})
+            raise HTTPException(status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail="Auth service is unavailable")
     except Exception as e:
         logging.error(f"Auth service health check failed: {str(e)}")
-        return HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Auth service is unavailable")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Auth service is unavailable")
 
 
 @router.post("/signup")
@@ -50,63 +50,29 @@ async def signup(request: UserSignUpRequest):
         return JSONResponse(status_code=HTTPStatus.OK,
                             content={"message":success_message, "data":user_data})
     except NoInviteCodeException as e:
-        message = "Admin registration feature is not available, please contact the system administrator to configure the invite code"
-        data = {
-            "error_type": "INVITE_CODE_NOT_CONFIGURED",
-            "details": "The system has not configured the admin invite code, please contact technical support"
-        }
         logging.error(f"User registration failed by invite code: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            content={"message": message, "data": data})
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="INVITE_CODE_NOT_CONFIGURED")
     except IncorrectInviteCodeException as e:
-        message = "Admin invite code error, please check and re-enter"
-        data = {
-            "error_type": "INVITE_CODE_INVALID",
-            "field": "inviteCode",
-            "hint": "Please confirm that the invite code is entered correctly, case-sensitive"
-        }
         logging.error(f"User registration failed by invite code: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            content={"message": message, "data": data})
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="INVITE_CODE_INVALID")
     except UserRegistrationException as e:
-        message = "Registration service is temporarily unavailable, please try again later"
-        data = {
-            "error_type": "REGISTRATION_SERVICE_ERROR",
-            "details": "Authentication service response exception"
-        }
         logging.error(f"User registration failed by registration service: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            content={"message": message, "data": data})
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="REGISTRATION_SERVICE_ERROR")
     except AuthApiError as e:
-        message = f"Email {request.email} has already been registered"
-        data = {
-            "error_type": "EMAIL_ALREADY_EXISTS",
-            "field": "email",
-            "suggestion": "Please use a different email address or try logging in to an existing account"
-        }
         logging.error(f"User registration failed by email already exists: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.CONFLICT,
-                            content={"message": message, "data": data})
+        raise HTTPException(status_code=HTTPStatus.CONFLICT,
+                            detail="EMAIL_ALREADY_EXISTS")
     except AuthWeakPasswordError as e:
-        message = "Password strength is not enough, please set a stronger password"
-        data = {
-            "error_type": "WEAK_PASSWORD",
-            "field": "password",
-            "requirements": "Password must be at least 6 characters long, including letters, numbers, and special symbols"
-        }
         logging.error(f"User registration failed by weak password: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                            content={"message": message, "data": data})
+        raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                            detail="WEAK_PASSWORD")
     except Exception as e:
-        message = "Registration failed, please try again later"
-        data = {
-            "error_type": "UNKNOWN_ERROR",
-            "details": f"System error: {str(e)[:100]}",
-            "suggestion": "If the problem persists, please contact technical support"
-        }
         logging.error(f"User registration failed, unknown error: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            content={"message": message, "data": data})
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="UNKNOWN_ERROR")
 
 
 @router.post("/signin")
@@ -119,12 +85,12 @@ async def signin(request: UserSignInRequest):
                             content=signin_content)
     except AuthApiError as e:
         logging.error(f"User login failed: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                            content={"message": "Email or password error"})
+        raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                            detail="Email or password error")
     except Exception as e:
         logging.error(f"User login failed, unknown error: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            content={"message": "Login failed"})
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Login failed")
 
 
 @router.post("/refresh_token")
@@ -133,20 +99,20 @@ async def user_refresh_token(request: Request):
     try:
         authorization = request.headers.get("Authorization")
         if not authorization:
-            return JSONResponse(status_code=HTTPStatus.UNAUTHORIZED,
-                                content={"message": "No authorization token provided"})
+            raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
+                                detail="No authorization token provided")
         session_data = await request.json()
         refresh_token = session_data.get("refresh_token")
         if not refresh_token:
-            return JSONResponse(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                                content={"message": "No refresh token provided"})
+            raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                                detail="No refresh token provided")
         session_info = await refresh_user_token(authorization, refresh_token)
         return JSONResponse(status_code=HTTPStatus.OK,
                             content={"message":"Token refresh successful", "data":{"session": session_info}})
     except Exception as e:
         logging.error(f"Refresh token failed: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            content={"message": "Refresh token failed"})
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Refresh token failed")
 
 
 @router.post("/logout")
@@ -155,8 +121,8 @@ async def logout(request: Request):
     try:
         authorization = request.headers.get("Authorization")
         if not authorization:
-            return JSONResponse(status_code=HTTPStatus.UNAUTHORIZED,
-                                content={"message": "User not logged in"})
+            raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
+                                detail="User not logged in")
 
         client = get_authorized_client(authorization)
         client.auth.sign_out()
@@ -165,8 +131,8 @@ async def logout(request: Request):
 
     except Exception as e:
         logging.error(f"User logout failed: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            content={"message": "Logout failed!"})
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Logout failed!")
 
 
 @router.get("/session")
@@ -175,8 +141,8 @@ async def get_session(request: Request):
     try:
         authorization = request.headers.get("Authorization")
         if not authorization:
-            return JSONResponse(status_code=HTTPStatus.UNAUTHORIZED,
-                                content={"message": "No authorization token provided"})
+            raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
+                                detail="No authorization token provided")
 
         data = await get_session_by_authorization(authorization)
         return JSONResponse(status_code=HTTPStatus.OK,
@@ -184,12 +150,12 @@ async def get_session(request: Request):
                               "data": data})
     except ValueError as e:
         logging.error(f"Get user session failed: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                            content={"message": "Session is invalid"})
+        raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                            detail="Session is invalid")
     except Exception as e:
         logging.error(f"error in get user session, {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            content={"message": "Get user session failed"})
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Get user session failed")
 
 
 @router.get("/current_user_id")
@@ -198,8 +164,8 @@ async def get_user_id(request: Request):
     try:
         authorization = request.headers.get("Authorization")
         if not authorization:
-            return JSONResponse(status_code=HTTPStatus.UNAUTHORIZED,
-                                content={"message": "No authorization token provided"})
+            raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
+                                detail="No authorization token provided")
 
         # Use the unified token validation function
         is_valid, user = validate_token(authorization)
@@ -216,9 +182,10 @@ async def get_user_id(request: Request):
                                          "data": {"user_id": user_id}})
 
         # If all methods fail, return the session invalid information
-        return JSONResponse(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                            content={"message": "User not logged in or session invalid"})
+        raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                            detail="User not logged in or session invalid")
+
     except Exception as e:
         logging.error(f"Get user ID failed: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                            content={"message": "Get user ID failed"})
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Get user ID failed")
