@@ -1,6 +1,14 @@
 import unittest
 import pytest
+import os
+import sys
 from unittest.mock import patch, MagicMock, AsyncMock
+
+# Add backend to Python path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 # Import FastAPI components only
 from fastapi import FastAPI, APIRouter, Query, Body, Header, status
@@ -860,8 +868,8 @@ class TestModelManagementApp(unittest.TestCase):
     @patch("test_model_managment_app.get_model_by_display_name")
     @patch("test_model_managment_app.delete_model_record")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
-    @patch("utils.model_name_utils.split_display_name")
-    @patch("utils.model_name_utils.split_repo_name")
+    @patch("backend.utils.model_name_utils.split_display_name")
+    @patch("backend.utils.model_name_utils.split_repo_name")
     @patch("test_model_managment_app.get_current_user_id")
     def test_batch_create_models_max_tokens_update_called(self, mock_get_user, mock_split_repo, mock_split_display, mock_get_existing, mock_delete, mock_get_by_display, mock_prepare, mock_create, mock_update):
         """Test that update_model_record is called when max_tokens differ"""
