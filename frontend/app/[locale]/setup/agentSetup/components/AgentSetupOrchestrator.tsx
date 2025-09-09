@@ -130,6 +130,9 @@ export default function AgentSetupOrchestrator({
       if (result.success && result.data) {
         const {
           agentId,
+          name,
+          displayName,
+          description,
           enabledToolIds,
           modelName,
           maxSteps,
@@ -142,6 +145,12 @@ export default function AgentSetupOrchestrator({
 
         // Update the main agent ID
         setMainAgentId(agentId);
+        // Update the main agent name
+        setAgentName?.(name);
+        // Update the main agent display name
+        setAgentDisplayName?.(displayName);
+        // Update the main agent description
+        setAgentDescription?.(description);
         // Update the enabled tool ID list
         setEnabledToolIds(enabledToolIds);
         // Update the enabled agent ID list from sub_agent_id_list
