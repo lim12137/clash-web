@@ -1,6 +1,8 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons' 
+import { DOCUMENT_STATUS } from "@/const/knowledgeBase"
+import { CONNECTION_STATUS, MODEL_STATUS } from "@/const/modelConfig"
 import React from 'react'
 
 export function cn(...inputs: ClassValue[]) {
@@ -10,19 +12,19 @@ export function cn(...inputs: ClassValue[]) {
 // Get status priority
 function getStatusPriority(status: string): number {
   switch (status) {
-    case 'WAIT_FOR_PROCESSING': // Waiting for processing
+    case DOCUMENT_STATUS.WAIT_FOR_PROCESSING: // Waiting for processing
       return 1;
-    case 'PROCESSING': // Processing
+    case DOCUMENT_STATUS.PROCESSING: // Processing
       return 2;
-    case 'WAIT_FOR_FORWARDING': // Waiting for forwarding
+    case DOCUMENT_STATUS.WAIT_FOR_FORWARDING: // Waiting for forwarding
       return 3;
-    case 'FORWARDING': // Forwarding
+    case DOCUMENT_STATUS.FORWARDING: // Forwarding
       return 4;
-    case 'COMPLETED': // Processing completed
+    case DOCUMENT_STATUS.COMPLETED: // Processing completed
       return 5;
-    case 'PROCESS_FAILED': // Processing failed
+    case DOCUMENT_STATUS.PROCESS_FAILED: // Processing failed
       return 6;
-    case 'FORWARD_FAILED': // Forwarding failed
+    case DOCUMENT_STATUS.FORWARD_FAILED: // Forwarding failed
       return 7;
     default:
       return 8;

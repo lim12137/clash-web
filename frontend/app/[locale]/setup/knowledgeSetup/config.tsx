@@ -18,7 +18,7 @@ import {
   SETUP_PAGE_CONTAINER,
   FLEX_TWO_COLUMN_LAYOUT,
   STANDARD_CARD,
-} from "@/lib/layoutConstants";
+} from "@/const/layoutConstants";
 
 import KnowledgeBaseList from "./components/knowledge/KnowledgeBaseList";
 import DocumentList from "./components/document/DocumentList";
