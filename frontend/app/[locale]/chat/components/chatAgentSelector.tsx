@@ -23,6 +23,7 @@ export function ChatAgentSelector({
     left: 0,
     direction: "down",
   });
+  const [isPositionCalculated, setIsPositionCalculated] = useState(false);
   const [isAutoSelectInit, setIsAutoSelectInit] = useState(false);
   const { t } = useTranslation("common");
   const buttonRef = useRef<HTMLDivElement>(null);
@@ -102,6 +103,9 @@ export function ChatAgentSelector({
         left: buttonRect.left,
         direction,
       });
+      setIsPositionCalculated(true);
+    } else if (!isOpen) {
+      setIsPositionCalculated(false);
     }
   }, [isOpen, isInitialMode]);
 
@@ -241,6 +245,7 @@ export function ChatAgentSelector({
 
       {/* Portal renders dropdown to body to avoid being blocked by parent container */}
       {isOpen &&
+        isPositionCalculated &&
         typeof window !== "undefined" &&
         createPortal(
           <>
