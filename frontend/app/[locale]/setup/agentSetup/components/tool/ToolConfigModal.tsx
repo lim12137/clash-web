@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Modal, Input, Switch, Select, InputNumber, Tag, App } from "antd";
 
 import { TOOL_PARAM_TYPES } from "@/const/agentConfig";
-import { OpenAIModel } from "@/types/config";
+import { OpenAIModel } from "@/types/modelConfig";
 import { ToolParam, ToolConfigModalProps } from "@/types/agentConfig";
 import {
   updateToolConfig,

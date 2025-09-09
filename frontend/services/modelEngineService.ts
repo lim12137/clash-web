@@ -1,13 +1,14 @@
 "use client"
 
 import { API_ENDPOINTS } from './api';
+import { CONNECTION_STATUS } from '@/const/modelConfig';
 
 import { fetchWithAuth } from '@/lib/auth';
 
 // @ts-ignore
 const fetch = fetchWithAuth;
 
-export type ConnectionStatus = "success" | "error" | "processing";
+export type ConnectionStatus = typeof CONNECTION_STATUS.SUCCESS | typeof CONNECTION_STATUS.ERROR | typeof CONNECTION_STATUS.PROCESSING;
 
 interface ModelEngineCheckResult {
   status: ConnectionStatus;
@@ -28,25 +29,25 @@ const modelEngineService = {
         method: "GET"
       })
 
-      let status: ConnectionStatus = "error";
+      let status: ConnectionStatus = CONNECTION_STATUS.ERROR;
       
       if (response.ok) {
         try {
           const resp = await response.json()
           // Parse the data returned by the API
           if (resp.data.status === "Connected") {
-            status = "success"
+            status = CONNECTION_STATUS.SUCCESS
           }
           else if (resp.data.status === "Disconnected") {
-            status = "error"
+            status = CONNECTION_STATUS.ERROR
           }
         } catch (parseError) {
           // JSON parsing failed,视为连接失败
           console.error("响应数据解析失败:", parseError)
-          status = "error"
+          status = CONNECTION_STATUS.ERROR
         }
       } else {
-        status = "error"
+        status = CONNECTION_STATUS.ERROR
       }
 
       return {
@@ -56,7 +57,7 @@ const modelEngineService = {
     } catch (error) {
       console.error("检查ModelEngine连接状态失败:", error)
       return {
-        status: "error",
+        status: CONNECTION_STATUS.ERROR,
         lastChecked: new Date().toLocaleTimeString()
       }
     }

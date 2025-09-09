@@ -7,21 +7,7 @@ import { ChevronDown, MousePointerClick } from "lucide-react";
 
 import { fetchAllAgents } from "@/services/agentConfigService";
 import { getUrlParam } from "@/lib/utils";
-
-interface Agent {
-  agent_id: number;
-  name: string;
-  display_name: string;
-  description: string;
-  is_available: boolean;
-}
-
-interface ChatAgentSelectorProps {
-  selectedAgentId: number | null;
-  onAgentSelect: (agentId: number | null) => void;
-  disabled?: boolean;
-  isInitialMode?: boolean;
-}
+import { Agent, ChatAgentSelectorProps } from "@/types/chat";
 
 export function ChatAgentSelector({
   selectedAgentId,

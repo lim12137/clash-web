@@ -34,6 +34,22 @@ export interface AgentStep {
   parsingContent?: string
 }
 
+// Agent related types
+export interface Agent {
+  agent_id: number;
+  name: string;
+  display_name: string;
+  description: string;
+  is_available: boolean;
+}
+
+export interface ChatAgentSelectorProps {
+  selectedAgentId: number | null;
+  onAgentSelect: (agentId: number | null) => void;
+  disabled?: boolean;
+  isInitialMode?: boolean;
+}
+
 // Search result type
 export interface SearchResult {
   title: string
@@ -57,6 +73,22 @@ export interface FileAttachment {
   url?: string
   object_name?: string
   description?: string
+}
+
+// Attachment item type (for chat attachment component)
+export interface AttachmentItem {
+  type: string;
+  name: string;
+  size: number;
+  url?: string;
+  contentType?: string;
+}
+
+// Chat attachment component props
+export interface ChatAttachmentProps {
+  attachments: AttachmentItem[];
+  onImageClick?: (url: string) => void;
+  className?: string;
 }
 
 // Main chat message type
@@ -141,6 +173,55 @@ export interface ConversationListItem {
   conversation_title: string
   create_time: number
   update_time: number
+}
+
+// File preview type
+export interface FilePreview {
+  id: string;
+  file: File;
+  type: "image" | "file";
+  fileType?: string;
+  extension?: string;
+  previewUrl?: string;
+}
+
+// Chat sidebar props type
+export interface ChatSidebarProps {
+  conversationList: ConversationListItem[];
+  selectedConversationId: number | null;
+  openDropdownId: string | null;
+  streamingConversations: Set<number>;
+  completedConversations: Set<number>;
+  onNewConversation: () => void;
+  onDialogClick: (dialog: ConversationListItem) => void;
+  onRename: (dialogId: number, title: string) => void;
+  onDelete: (dialogId: number) => void;
+  onSettingsClick: () => void;
+  onDropdownOpenChange: (open: boolean, id: string | null) => void;
+  onToggleSidebar: () => void;
+  expanded: boolean;
+  userEmail: string | undefined;
+  userAvatarUrl: string | undefined;
+  userRole: string | undefined;
+}
+
+// Image item type for chat right panel
+export interface ImageItem {
+  base64Data: string;
+  contentType: string;
+  isLoading: boolean;
+  error?: string;
+  loadAttempts?: number; // Load attempts
+}
+
+// Chat right panel props type
+export interface ChatRightPanelProps {
+  messages: ChatMessageType[];
+  onImageError: (imageUrl: string) => void;
+  maxInitialImages?: number;
+  isVisible?: boolean;
+  toggleRightPanel?: () => void;
+  selectedMessageId?: string;
 }
 
 // Task message type

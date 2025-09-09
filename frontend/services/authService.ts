@@ -1,6 +1,7 @@
 /**
  * 认证服务
  */
+import { USER_ROLES } from "@/const/modelConfig";
 import { API_ENDPOINTS } from "@/services/api";
 import { sessionService } from "@/services/sessionService";
 
@@ -30,21 +31,21 @@ export const authService = {
       try {
         // Verify if the session is valid
         const response = await fetchWithAuth(API_ENDPOINTS.user.session);
-        
+
         // Check HTTP status code instead of data.code
         if (!response.ok) {
           console.warn("Session verification failed, HTTP status code:", response.status);
-          
+
           // HTTP 401 means the token is expired or invalid
           if (response.status === STATUS_CODES.UNAUTHORIZED_HTTP) {
             return null;
           }
-          
+
           // Other errors, possibly server issues, continue using local session
           console.warn("Backend session verification failed, but will continue using local session");
           return sessionObj;
         }
-        
+
         const data = await response.json();
         
         // Update user information (possibly changed on the backend)
@@ -198,7 +199,7 @@ export const authService = {
       const user: User = {
         id: data.data.user.id,
         email: data.data.user.email,
-        role: data.data.user.role || "user",
+        role: data.data.user.role || USER_ROLES.USER,
         avatar_url,
       };
       
@@ -283,13 +284,13 @@ export const authService = {
   getCurrentUserId: async (): Promise<string | null> => {
     try {
       const response = await fetchWithAuth(API_ENDPOINTS.user.currentUserId);
-      
+
       // Check HTTP status code instead of data.code
       if (!response.ok) {
         console.warn("Failed to get user ID, HTTP status code:", response.status);
         return null;
       }
-      
+
       const data = await response.json();
       
       if (!data.data) {
