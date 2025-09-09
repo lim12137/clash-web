@@ -1,6 +1,7 @@
 'use client';
 
-import { GlobalConfig, AppConfig, ModelConfig, APP_CONFIG_KEY, MODEL_CONFIG_KEY, defaultConfig } from '../types/config';
+import { GlobalConfig, AppConfig, ModelConfig } from '../types/modelConfig';
+import { APP_CONFIG_KEY, MODEL_CONFIG_KEY, defaultConfig } from '../const/modelConfig';
 
 class ConfigStoreClass {
   private static instance: ConfigStoreClass | null = null;

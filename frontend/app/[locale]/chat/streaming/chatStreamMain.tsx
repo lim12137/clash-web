@@ -6,9 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scrollArea";
 import { Button } from "@/components/ui/button";
 import { ROLE_ASSISTANT } from "@/const/agentConfig";
-import { ChatMessageType } from "@/types/chat";
+import { ChatMessageType, FilePreview } from "@/types/chat";
 
-import { ChatInput, FilePreview } from "../components/chatInput";
+import { ChatInput } from "../components/chatInput";
 import { ChatStreamFinalMessage } from "./chatStreamFinalMessage";
 import { TaskWindow } from "./taskWindow";
 
