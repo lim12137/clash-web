@@ -32,9 +32,8 @@ import {
   getMcpTools,
   updateToolList,
   checkMcpServerHealth,
-  McpServer,
-  McpTool,
 } from "@/services/mcpService";
+import { McpServer, McpTool } from "@/types/agentConfig";
 
 const { Text, Title } = Typography;
 
