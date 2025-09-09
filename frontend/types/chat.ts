@@ -19,7 +19,8 @@ export interface StepContent {
         typeof chatConfig.messageTypes.CARD |
         typeof chatConfig.messageTypes.SEARCH_CONTENT_PLACEHOLDER |
         typeof chatConfig.messageTypes.VIRTUAL |
-        typeof chatConfig.messageTypes.MEMORY_SEARCH
+        typeof chatConfig.messageTypes.MEMORY_SEARCH |
+        typeof chatConfig.messageTypes.PREPROCESS
   content: string
   expanded: boolean
   timestamp: number
