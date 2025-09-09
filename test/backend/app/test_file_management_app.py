@@ -597,6 +597,79 @@ async def test_process_text_file(mock_files):
             assert "File test.txt content" in result
 
 
+async def test_process_text_file_http_error(mock_files):
+    """Test process_text_file when HTTP request fails with non-200 status code"""
+    from backend.apps.file_management_app import process_text_file
+
+    with patch('backend.utils.config_utils.get_model_name_from_config', return_value="test-model"), \
+            patch('backend.utils.attachment_utils.get_model_name_from_config', return_value="test-model"), \
+            patch('backend.utils.attachment_utils.convert_long_text_to_text', return_value="Processed text content"), \
+            patch('backend.apps.file_management_app.convert_long_text_to_text', return_value="Processed text content"):
+
+        with patch('httpx.AsyncClient') as mock_client:
+            # Setup mock response for httpx client with error status
+            mock_response = MagicMock()
+            mock_response.status_code = 500
+            mock_response.headers = {'content-type': 'application/json'}
+            mock_response.json.return_value = {'detail': 'Internal server error'}
+            mock_response.text = 'Internal server error'
+
+            mock_client_instance = MagicMock()
+            mock_client_instance.post.return_value = asyncio.Future()
+            mock_client_instance.post.return_value.set_result(mock_response)
+            mock_client.return_value.__aenter__.return_value = mock_client_instance
+
+            # Test the function - should raise an exception
+            with pytest.raises(Exception) as exc_info:
+                await process_text_file(
+                    query="Test query",
+                    filename="test.txt",
+                    file_content=mock_files["mock_file_content"],
+                    tenant_id="tenant123",
+                    language="en"
+                )
+
+            # Verify the exception message contains the expected error details
+            assert "File processing failed (status code: 500)" in str(exc_info.value)
+            assert "Internal server error" in str(exc_info.value)
+
+
+async def test_process_text_file_http_error_non_json(mock_files):
+    """Test process_text_file when HTTP request fails with non-JSON response"""
+    from backend.apps.file_management_app import process_text_file
+
+    with patch('backend.utils.config_utils.get_model_name_from_config', return_value="test-model"), \
+            patch('backend.utils.attachment_utils.get_model_name_from_config', return_value="test-model"), \
+            patch('backend.utils.attachment_utils.convert_long_text_to_text', return_value="Processed text content"), \
+            patch('backend.apps.file_management_app.convert_long_text_to_text', return_value="Processed text content"):
+
+        with patch('httpx.AsyncClient') as mock_client:
+            # Setup mock response for httpx client with error status and non-JSON content
+            mock_response = MagicMock()
+            mock_response.status_code = 400
+            mock_response.headers = {'content-type': 'text/html'}
+            mock_response.text = 'Bad Request - HTML error page'
+
+            mock_client_instance = MagicMock()
+            mock_client_instance.post.return_value = asyncio.Future()
+            mock_client_instance.post.return_value.set_result(mock_response)
+            mock_client.return_value.__aenter__.return_value = mock_client_instance
+
+            # Test the function - should raise an exception
+            with pytest.raises(Exception) as exc_info:
+                await process_text_file(
+                    query="Test query",
+                    filename="test.txt",
+                    file_content=mock_files["mock_file_content"],
+                    tenant_id="tenant123",
+                    language="en"
+                )
+
+            # Verify the exception message contains the expected error details
+            assert "File processing failed (status code: 400)" in str(exc_info.value)
+            assert "Bad Request - HTML error page" in str(exc_info.value)
+
+
 def test_get_file_description(mock_files):
     # Import directly in the test to use the already established mocks
     from backend.apps.file_management_app import get_file_description
