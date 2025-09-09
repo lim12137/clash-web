@@ -18,6 +18,7 @@ with patch('database.client.MinioClient', MagicMock()):
     from fastapi.testclient import TestClient
     from http import HTTPStatus
     from fastapi import FastAPI
+    from fastapi import HTTPException
     
     # Create a test client with a fresh FastAPI app
     from apps.user_management_app import router
@@ -53,13 +54,13 @@ class TestServiceHealth:
     @patch('apps.user_management_app.check_auth_service_health')
     def test_service_health_unavailable(self, mock_health_check):
         """Test when auth service is unavailable"""
-        mock_health_check.return_value = False
+        mock_health_check.side_effect = ConnectionError("Connection failed")
 
         response = client.get("/user/service_health")
 
         assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
         data = response.json()
-        assert data["message"] == "Auth service is unavailable"
+        assert data["detail"] == "Auth service is unavailable"
         mock_health_check.assert_called_once()
 
     @patch('apps.user_management_app.check_auth_service_health')
@@ -69,10 +70,9 @@ class TestServiceHealth:
 
         response = client.get("/user/service_health")
 
-        # The actual implementation returns HTTPException which FastAPI converts to JSON
-        # But in testing, it might behave differently, so we check for the error being logged
-        # and the service being marked as unavailable
-        assert response.status_code in [HTTPStatus.INTERNAL_SERVER_ERROR, HTTPStatus.OK]
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert data["detail"] == "Auth service is unavailable"
         mock_health_check.assert_called_once()
 
 
@@ -338,7 +338,7 @@ class TestRefreshToken:
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
         data = response.json()
-        assert data["message"] == "No authorization token provided"
+        assert data["detail"] == "No authorization token provided"
 
     def test_refresh_token_no_refresh_token(self):
         """Test token refresh without refresh token in body"""
@@ -350,7 +350,7 @@ class TestRefreshToken:
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
         data = response.json()
-        assert data["message"] == "No refresh token provided"
+        assert data["detail"] == "No refresh token provided"
 
     def test_refresh_token_error(self):
         """Test token refresh with error"""
@@ -394,7 +394,7 @@ class TestLogout:
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
         data = response.json()
-        assert data["message"] == "User not logged in"
+        assert data["detail"] == "User not logged in"
 
     @patch('apps.user_management_app.get_authorized_client')
     def test_logout_error(self, mock_get_client):
@@ -440,7 +440,7 @@ class TestGetSession:
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
         data = response.json()
-        assert data["message"] == "No authorization token provided"
+        assert data["detail"] == "User not logged in"
 
     @patch('apps.user_management_app.get_session_by_authorization')
     def test_get_session_invalid(self, mock_get_session):
@@ -524,7 +524,7 @@ class TestGetCurrentUserId:
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
         data = response.json()
-        assert data["message"] == "User not logged in or session invalid"
+        assert data["detail"] == "User not logged in or session invalid"
 
     def test_get_user_id_no_authorization(self):
         """Test user ID retrieval without authorization header"""
@@ -532,7 +532,7 @@ class TestGetCurrentUserId:
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
         data = response.json()
-        assert data["message"] == "No authorization token provided"
+        assert data["detail"] == "User not logged in"
 
     @patch('apps.user_management_app.validate_token')
     def test_get_user_id_error(self, mock_validate):
