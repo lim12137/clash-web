@@ -515,12 +515,18 @@ async def test_get_storage_file_batch_urls_invalid_request(mock_files):
 async def test_preprocess_api_error_handling(mock_files):
     """Test preprocess API error handling and task cleanup"""
     with patch("backend.utils.auth_utils.get_current_user_info") as mock_get_user, \
-            patch("backend.apps.file_management_app.process_image_file") as mock_process_image, \
+            patch("backend.services.file_management_service.preprocess_files_generator") as mock_preprocess_generator, \
             patch("agents.preprocess_manager.preprocess_manager") as mock_preprocess_manager:
 
         # Configure mocks
         mock_get_user.return_value = ("user123", "tenant456", "zh")
-        mock_process_image.side_effect = Exception("Processing failed")
+        
+        # Mock the generator to yield some data then raise an exception
+        async def mock_generator(*args, **kwargs):
+            yield "data: {\"type\": \"progress\", \"progress\": 50}\n\n"
+            raise Exception("Processing failed")
+        
+        mock_preprocess_generator.return_value = mock_generator()
 
         # Mock preprocess manager
         mock_preprocess_manager.register_preprocess_task = MagicMock()
@@ -537,84 +543,6 @@ async def test_preprocess_api_error_handling(mock_files):
                 headers={"authorization": "Bearer test_token"}
             )
             assert response is not None
-
-
-@pytest.mark.asyncio
-async def test_process_image_file(mock_files):
-    # Import directly in the test to use the already established mocks
-    from backend.apps.file_management_app import process_image_file
-
-    with patch("backend.apps.file_management_app.convert_image_to_text") as mock_convert:
-        # Configure mock
-        mock_convert.return_value = "Extracted text from image"
-
-        # Test the function
-        result = await process_image_file(
-            query="Test query",
-            filename="test.jpg",
-            file_content=mock_files["mock_image_content"],
-            tenant_id="tenant123"
-        )
-
-        # Assertions
-        assert "Image file test.jpg content" in result
-        assert "Extracted text from image" in result
-
-
-@pytest.mark.asyncio
-async def test_process_text_file(mock_files):
-    # Import directly in the test to use the already established mocks
-    from backend.apps.file_management_app import process_text_file
-
-    # Mock multiple functions to ensure complete coverage of all call paths
-    with patch('backend.utils.config_utils.get_model_name_from_config', return_value="test-model"), \
-            patch('backend.utils.attachment_utils.get_model_name_from_config', return_value="test-model"), \
-            patch('backend.utils.attachment_utils.convert_long_text_to_text', return_value="Processed text content"), \
-            patch('backend.apps.file_management_app.convert_long_text_to_text', return_value="Processed text content"):
-
-        with patch('httpx.AsyncClient') as mock_client:
-            # Setup mock response for httpx client
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "text": "Extracted raw text from file"}
-
-            mock_client_instance = MagicMock()
-            mock_client_instance.post.return_value = asyncio.Future()
-            mock_client_instance.post.return_value.set_result(mock_response)
-            mock_client.return_value.__aenter__.return_value = mock_client_instance
-
-            # Test the function
-            result = await process_text_file(
-                query="Test query",
-                filename="test.txt",
-                file_content=mock_files["mock_file_content"],
-                tenant_id="tenant123",
-                language="en"
-            )
-
-            # Assertions
-            assert "File test.txt content" in result
-
-
-def test_get_file_description(mock_files):
-    # Import directly in the test to use the already established mocks
-    from backend.apps.file_management_app import get_file_description
-
-    # Create mock UploadFile objects
-    text_file = MagicMock()
-    text_file.filename = "document.txt"
-
-    image_file = MagicMock()
-    image_file.filename = "photo.jpg"
-
-    # Test the function
-    result = get_file_description([text_file, image_file])
-
-    # Assertions
-    assert "User provided some reference files" in result
-    assert "Image file photo.jpg" in result
-    assert "File document.txt" in result
 
 
 def test_options_route():

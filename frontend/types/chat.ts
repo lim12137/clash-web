@@ -6,11 +6,11 @@ export interface StepSection {
 
 export interface StepContent {
   id: string
-  type: "model_output" | "parsing" | "execution" | "error" | "agent_new_run" | "executing" | "generating_code" | "search_content" | "card" | "search_content_placeholder" | "virtual" | "memory_search"
+  type: "model_output" | "parsing" | "execution" | "error" | "agent_new_run" | "executing" | "generating_code" | "search_content" | "card" | "search_content_placeholder" | "virtual" | "memory_search" | "preprocess"
   content: string
   expanded: boolean
   timestamp: number
-  subType?: "thinking" | "code" | "deep_thinking"
+  subType?: "thinking" | "code" | "deep_thinking" | "progress" | "file_processed" | "truncation" | "complete" | "error"
   isLoading?: boolean
   _preserve?: boolean
   _messageContainer?: {

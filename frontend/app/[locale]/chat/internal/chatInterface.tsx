@@ -46,6 +46,15 @@ import { X } from "lucide-react";
 
 const stepIdCounter = { current: 0 };
 
+// Get internationalization key based on message type
+const getI18nKeyByType = (type: string): string => {
+  const typeToKeyMap: Record<string, string> = {
+    "progress": "chatInterface.parsingFileWithProgress",
+    "truncation": "chatInterface.fileTruncated",
+  };
+  return typeToKeyMap[type] || "";
+};
+
 export function ChatInterface() {
   const router = useRouter();
   const { user } = useAuth(); // Get user information
@@ -442,7 +451,7 @@ export function ChatInterface() {
                   contents: [
                     {
                       id: `preprocess-content-${Date.now()}`,
-                      type: "agent_new_run",
+                      type: "preprocess",
                       content: t("chatInterface.parsingFile"),
                       expanded: false,
                       timestamp: Date.now(),
@@ -453,6 +462,10 @@ export function ChatInterface() {
             },
           ],
         }));
+
+        // Buffer for truncation messages with deduplication
+        const truncationBuffer: any[] = [];
+        const processedTruncationIds = new Set<string>(); // Track processed truncation messages to avoid duplicates
 
         // Use extracted preprocessing function to process attachments
         const result = await preprocessAttachments(
@@ -485,7 +498,7 @@ export function ChatInterface() {
                     contents: [
                       {
                         id: `preprocess-content-${Date.now()}`,
-                        type: "agent_new_run",
+                        type: "preprocess",
                         content: t("chatInterface.parsingFile"),
                         expanded: false,
                         timestamp: Date.now(),
@@ -494,10 +507,33 @@ export function ChatInterface() {
                   };
                   lastMsg.steps.push(step);
                 }
+
+                // Handle truncation messages - buffer them instead of updating immediately
+                if (jsonData.type === "truncation") {
+                  // Create a unique ID for this truncation message to avoid duplicates
+                  const truncationId = `${jsonData.filename || "unknown"}_${
+                    jsonData.message || ""
+                  }`;
+
+                  // Only add if not already processed
+                  if (!processedTruncationIds.has(truncationId)) {
+                    truncationBuffer.push(jsonData);
+                    processedTruncationIds.add(truncationId);
+                  }
+                  return newMessages; // Don't update stepContent for truncation
+                }
+
                 let stepContent = "";
                 switch (jsonData.type) {
                   case "progress":
-                    stepContent = jsonData.message;
+                    if (jsonData.message_data) {
+                      const i18nKey = getI18nKeyByType(jsonData.type);
+                      stepContent = String(
+                        t(i18nKey, jsonData.message_data.params)
+                      );
+                    } else {
+                      stepContent = jsonData.message || "";
+                    }
                     break;
                   case "error":
                     stepContent = t("chatInterface.parseFileFailed", {
@@ -511,7 +547,31 @@ export function ChatInterface() {
                     });
                     break;
                   case "complete":
-                    stepContent = t("chatInterface.fileParsingComplete");
+                    // When complete, process all buffered truncation messages
+                    if (truncationBuffer.length > 0) {
+                      // Process truncation messages using internationalization
+                      const truncationInfo = truncationBuffer
+                        .map((truncation) => {
+                          if (truncation.message_data) {
+                            const i18nKey = getI18nKeyByType(truncation.type);
+                            return String(
+                              t(i18nKey, truncation.message_data.params)
+                            );
+                          } else {
+                            return truncation.message;
+                          }
+                        })
+                        .join(String(t("chatInterface.truncationSeparator")));
+
+                      stepContent = t(
+                        "chatInterface.fileParsingCompleteWithTruncation",
+                        {
+                          truncationInfo: truncationInfo,
+                        }
+                      );
+                    } else {
+                      stepContent = t("chatInterface.fileParsingComplete");
+                    }
                     break;
                   default:
                     stepContent = jsonData.message || "";
