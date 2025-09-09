@@ -1,3 +1,5 @@
+from backend.consts.exceptions import UnauthorizedError, SignatureValidationError
+from utils import auth_utils as au
 import time
 import sys
 from unittest.mock import MagicMock
@@ -22,12 +24,11 @@ db_client_stub.as_dict = MagicMock()
 sys.modules['database.client'] = db_client_stub
 
 # Stub database.user_tenant_db to avoid real DB interactions
-sys.modules['database.user_tenant_db'] = MagicMock(get_user_tenant_by_user_id=MagicMock(return_value=None))
+sys.modules['database.user_tenant_db'] = MagicMock(
+    get_user_tenant_by_user_id=MagicMock(return_value=None))
 
-from utils import auth_utils as au
 
 # After auth_utils import succeeds, bring in real exception classes for clarity.
-from backend.consts.exceptions import UnauthorizedError, SignatureValidationError
 
 # Pre-mock nexent core dependency pulled by consts.model
 sys.modules['consts'] = MagicMock()
@@ -52,8 +53,10 @@ au.SignatureValidationError = SignatureValidationError
 
 
 def test_calculate_hmac_signature_stability():
-    sig1 = au.calculate_hmac_signature("secret", "access", "1234567890", "body")
-    sig2 = au.calculate_hmac_signature("secret", "access", "1234567890", "body")
+    sig1 = au.calculate_hmac_signature(
+        "secret", "access", "1234567890", "body")
+    sig2 = au.calculate_hmac_signature(
+        "secret", "access", "1234567890", "body")
     assert sig1 == sig2
     assert len(sig1) == 64  # sha256 hex
 
@@ -147,7 +150,8 @@ def test_get_current_user_id_with_mapping(monkeypatch):
     monkeypatch.setattr(au, "IS_SPEED_MODE", False)
     token = au.generate_test_jwt("user-a", 1000)
     # user->tenant mapping
-    monkeypatch.setattr(au, "get_user_tenant_by_user_id", lambda u: {"tenant_id": "tenant-a"})
+    monkeypatch.setattr(au, "get_user_tenant_by_user_id",
+                        lambda u: {"tenant_id": "tenant-a"})
     uid, tid = au.get_current_user_id(token)
     assert uid == "user-a" and tid == "tenant-a"
 
@@ -159,3 +163,57 @@ def test_get_user_language_from_cookie():
     assert au.get_user_language(Req()) == "en"
     assert au.get_user_language(None) == "zh"
 
+
+def test_get_supabase_client_success(monkeypatch):
+    """Test successful Supabase client creation"""
+    # Mock the create_client function to return a mock client
+    mock_client = MagicMock()
+    monkeypatch.setattr(au, "create_client",
+                        MagicMock(return_value=mock_client))
+
+    # Mock environment variables
+    monkeypatch.setattr(au, "SUPABASE_URL", "http://test-url.com")
+    monkeypatch.setattr(au, "SUPABASE_KEY", "test-key")
+
+    result = au.get_supabase_client()
+
+    # Verify the client was created with correct parameters
+    au.create_client.assert_called_once_with("http://test-url.com", "test-key")
+    assert result == mock_client
+
+
+def test_get_supabase_client_exception(monkeypatch, caplog):
+    """Test Supabase client creation with exception"""
+    # Mock create_client to raise an exception
+    monkeypatch.setattr(au, "create_client", MagicMock(
+        side_effect=Exception("Connection failed")))
+
+    # Mock environment variables
+    monkeypatch.setattr(au, "SUPABASE_URL", "http://test-url.com")
+    monkeypatch.setattr(au, "SUPABASE_KEY", "test-key")
+
+    result = au.get_supabase_client()
+
+    # Verify None is returned on exception
+    assert result is None
+
+    # Verify error was logged
+    assert "Failed to create Supabase client: Connection failed" in caplog.text
+
+
+def test_get_supabase_client_with_different_env_vars(monkeypatch):
+    """Test Supabase client creation with different environment variables"""
+    mock_client = MagicMock()
+    monkeypatch.setattr(au, "create_client",
+                        MagicMock(return_value=mock_client))
+
+    # Test with different URL and key
+    monkeypatch.setattr(au, "SUPABASE_URL", "https://custom.supabase.co")
+    monkeypatch.setattr(au, "SUPABASE_KEY", "custom-anon-key")
+
+    result = au.get_supabase_client()
+
+    # Verify the client was created with custom parameters
+    au.create_client.assert_called_once_with(
+        "https://custom.supabase.co", "custom-anon-key")
+    assert result == mock_client
