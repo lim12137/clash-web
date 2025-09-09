@@ -32,3 +32,11 @@ export const pageSize = 4
 
 // Label with icon function type
 export type LabelWithIconFunction = (Icon: React.ElementType, text: string) => JSX.Element;
+
+// Use memory hook options interface
+export interface UseMemoryOptions {
+  visible: boolean
+  currentUserId: string
+  currentTenantId: string
+  message?: any
+}

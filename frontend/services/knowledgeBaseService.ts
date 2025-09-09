@@ -3,6 +3,7 @@
 import { API_ENDPOINTS } from './api';
 
 import { NAME_CHECK_STATUS } from '@/const/agentConfig';
+import { FILE_TYPES, EXTENSION_TO_TYPE_MAP } from '@/const/knowledgeBase';
 import { Document, KnowledgeBase, KnowledgeBaseCreateParams } from '@/types/knowledgeBase';
 import { getAuthHeaders, fetchWithAuth } from '@/lib/auth';
 // @ts-ignore
@@ -251,28 +252,10 @@ class KnowledgeBaseService {
   
   // Get file type from filename
   private getFileTypeFromName(filename: string): string {
-    if (!filename) return "Unknown";
+    if (!filename) return FILE_TYPES.UNKNOWN;
     
     const extension = filename.split('.').pop()?.toLowerCase();
-    switch (extension) {
-      case 'pdf':
-        return 'PDF';
-      case 'doc':
-      case 'docx':
-        return 'Word';
-      case 'xls':
-      case 'xlsx':
-        return 'Excel';
-      case 'ppt':
-      case 'pptx':
-        return 'PowerPoint';
-      case 'txt':
-        return 'Text';
-      case 'md':
-        return 'Markdown';
-      default:
-        return 'Unknown';
-    }
+    return EXTENSION_TO_TYPE_MAP[extension as keyof typeof EXTENSION_TO_TYPE_MAP] || FILE_TYPES.UNKNOWN;
   }
 
   // Upload documents to a knowledge base

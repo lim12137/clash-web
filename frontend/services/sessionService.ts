@@ -2,14 +2,13 @@
  * Session management service
  */
 
+import { TOKEN_REFRESH_CD } from "@/const/constants";
 import { API_ENDPOINTS } from "./api";
 
 import { fetchWithAuth, saveSessionToStorage, removeSessionFromStorage, getSessionFromStorage } from "@/lib/auth";
 
 // Record the time of the last token refresh
 let lastTokenRefreshTime = 0;
-// Token refresh CD (1 minute)
-const TOKEN_REFRESH_CD = 1 * 60 * 1000;
 
 /**
  * Check and refresh token (if needed)

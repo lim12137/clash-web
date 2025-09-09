@@ -18,14 +18,7 @@ import {
   deleteMemory,
 } from "@/services/memoryService"
 
-import { pageSize, MemoryGroup } from "@/types/memory"
-
-interface UseMemoryOptions {
-  visible: boolean
-  currentUserId: string
-  currentTenantId: string
-  message?: any
-}
+import { pageSize, MemoryGroup, UseMemoryOptions } from "@/types/memory"
 
 export function useMemory({ visible, currentUserId, currentTenantId, message }: UseMemoryOptions) {
   const { t } = useTranslation()

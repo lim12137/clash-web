@@ -109,3 +109,15 @@ export type UIAction =
   | { type: typeof UI_ACTION_TYPES.TOGGLE_DOC_MODAL, payload: boolean }
   | { type: typeof UI_ACTION_TYPES.ADD_NOTIFICATION, payload: { message: string; type: typeof NOTIFICATION_TYPES.SUCCESS | typeof NOTIFICATION_TYPES.ERROR | typeof NOTIFICATION_TYPES.INFO | typeof NOTIFICATION_TYPES.WARNING } }
   | { type: typeof UI_ACTION_TYPES.REMOVE_NOTIFICATION, payload: string };
+
+// Abortable error type for upload operations
+export interface AbortableError extends Error {
+  name: string;
+}
+
+// User selected knowledge base configuration type
+export interface UserKnowledgeConfig {
+  selectedKbNames: string[];
+  selectedKbModels: string[];
+  selectedKbSources: string[];
+}

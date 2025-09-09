@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Modal, Select, Input, Button, Switch, Tooltip, App } from 'antd'
 import { InfoCircleFilled, LoadingOutlined, RightOutlined, DownOutlined, SettingOutlined } from '@ant-design/icons'
 
 import { useConfig } from '@/hooks/useConfig'
-import { getConnectivityIcon, getConnectivityColor, getConnectivityMeta, ConnectivityStatusType } from '@/lib/utils'
+import { getConnectivityMeta, ConnectivityStatusType } from '@/lib/utils'
 import { modelService } from '@/services/modelService'
 import { ModelType, SingleModelConfig } from '@/types/modelConfig'
 import { MODEL_TYPES } from '@/const/modelConfig'

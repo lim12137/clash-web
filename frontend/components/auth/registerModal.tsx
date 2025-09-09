@@ -22,7 +22,8 @@ import {
 } from "@ant-design/icons";
 
 import { useAuth } from "@/hooks/useAuth";
-import { useAuthForm, AuthFormValues } from "@/hooks/useAuthForm";
+import { AuthFormValues } from "@/types/auth"
+import { useAuthForm } from "@/hooks/useAuthForm";
 
 const { Text } = Typography;
 
