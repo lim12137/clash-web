@@ -5,14 +5,15 @@ import { useTranslation } from 'react-i18next'
 import { Select, Tooltip, Tag } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
 
-import { ModelConnectStatus, ModelOption, ModelSource, ModelType } from '@/types/config'
+import { MODEL_TYPES, MODEL_STATUS } from '@/const/modelConfig'
+import { ModelConnectStatus, ModelOption, ModelSource, ModelType } from '@/types/modelConfig'
 
 // 统一管理模型连接状态颜色
 const CONNECT_STATUS_COLORS: Record<ModelConnectStatus | 'default', string> = {
-  "available": "#52c41a",
-  "unavailable": "#ff4d4f",
-  "detecting": "#2980b9",
-  "not_detected": "#95a5a6",
+  [MODEL_STATUS.AVAILABLE]: "#52c41a",
+  [MODEL_STATUS.UNAVAILABLE]: "#ff4d4f",
+  [MODEL_STATUS.CHECKING]: "#2980b9",
+  [MODEL_STATUS.UNCHECKED]: "#95a5a6",
   default: "#17202a"
 };
 
@@ -157,7 +158,7 @@ export const ModelListCard = ({
 
   // 获取模型来源
   const getModelSource = (displayName: string): string => {
-    if (type === 'tts' || type === 'stt' || type === 'vlm') {
+    if (type === MODEL_TYPES.TTS || type === MODEL_TYPES.STT || type === MODEL_TYPES.VLM) {
       const modelOfType = modelsData.custom.find((m) => m.type === type && m.displayName === displayName)
       if (modelOfType) return t('model.source.custom')
     }
@@ -208,7 +209,7 @@ export const ModelListCard = ({
         const existingModel = prevData.official.find(m => m.name === model.name && m.type === model.type);
         return {
           ...model,
-          connect_status: existingModel?.connect_status || "available" as ModelConnectStatus
+          connect_status: existingModel?.connect_status || MODEL_STATUS.AVAILABLE as ModelConnectStatus
         };
       });
       
@@ -216,7 +217,7 @@ export const ModelListCard = ({
         // 优先使用新传入的状态，这样能反映后端的最新状态
         return {
           ...model,
-          connect_status: model.connect_status || "not_detected" as ModelConnectStatus
+          connect_status: model.connect_status || MODEL_STATUS.UNCHECKED as ModelConnectStatus
         };
       });
       
@@ -235,7 +236,7 @@ export const ModelListCard = ({
     
     if (onVerifyModel && displayName) {
       // 先更新本地状态为"检测中"
-      updateLocalModelStatus(displayName, "detecting");
+      updateLocalModelStatus(displayName, MODEL_STATUS.CHECKING);
       // 然后调用验证函数
       onVerifyModel(displayName, type);
     }

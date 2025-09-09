@@ -2,7 +2,7 @@
 
 import { API_ENDPOINTS } from './api'
 
-import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, ModelSource } from '../types/config'
+import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, ModelSource } from '../types/modelConfig'
 
 import { getAuthHeaders } from '@/lib/auth'
 import {STATUS_CODES} from "@/types/auth";

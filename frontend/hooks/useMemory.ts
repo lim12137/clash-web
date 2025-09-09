@@ -18,7 +18,7 @@ import {
   deleteMemory,
 } from "@/services/memoryService"
 
-import { pageSize, shareLabels, MemoryGroup } from "@/types/memory"
+import { pageSize, MemoryGroup } from "@/types/memory"
 
 interface UseMemoryOptions {
   visible: boolean
@@ -474,7 +474,6 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     userPersonalGroup,
     userAgentGroups,
     pageSize,
-    shareLabels,
     getGroupsForTab,
     // 新增记忆相关
     addingMemoryKey,
@@ -489,4 +488,25 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     // 删除记忆相关
     handleDeleteMemory,
   }
+}
+
+// expose memory notification indicator to ChatHeader
+export function useMemoryIndicator(modalVisible: boolean) {
+  const [hasNewMemory, setHasNewMemory] = useState(false)
+
+  // Reset indicator when memory modal is opened
+  useEffect(() => {
+    if (modalVisible) {
+      setHasNewMemory(false)
+    }
+  }, [modalVisible])
+
+  // Listen for backend event that notifies new memory addition
+  useEffect(() => {
+    const handler = () => setHasNewMemory(true)
+    window.addEventListener("nexent:new-memory", handler as EventListener)
+    return () => window.removeEventListener("nexent:new-memory", handler as EventListener)
+  }, [])
+
+  return hasNewMemory
 }

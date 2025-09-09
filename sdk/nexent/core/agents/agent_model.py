@@ -31,7 +31,7 @@ class ToolConfig(BaseModel):
 class AgentConfig(BaseModel):
     name: str = Field(description="Agent name")
     description: str = Field(description="Agent description")
-    prompt_templates: Dict[str, Any] = Field(description="Prompt templates")
+    prompt_templates: Optional[Dict[str, Any]] = Field(description="Prompt templates", default=None)
     tools: List[ToolConfig] = Field(description="List of tool information")
     max_steps: int = Field(description="Maximum number of steps for current Agent", default=5)
     model_name: str = Field(description="Model alias from ModelConfig")

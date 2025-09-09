@@ -210,14 +210,14 @@ def basic_agent_run_info(mock_observer):
 # Tests
 # ---------------------------------------------------------------------------
 
-def test_agent_run_thread_local_flow(basic_agent_run_info, mock_memory_context, monkeypatch):
+def test_agent_run_thread_local_flow(basic_agent_run_info, monkeypatch):
     """Verify local execution path when mcp_host is empty or None."""
     # Patch NexentAgent inside run_agent to a MagicMock instance
     mock_nexent_instance = MagicMock(name="NexentAgentInstance")
     monkeypatch.setattr(run_agent, "NexentAgent", MagicMock(return_value=mock_nexent_instance))
 
     # Call the function under test
-    run_agent.agent_run_thread(basic_agent_run_info, mock_memory_context)
+    run_agent.agent_run_thread(basic_agent_run_info)
 
     # NexentAgent should be instantiated with observer, model_config_list, stop_event
     run_agent.NexentAgent.assert_called_once_with(
@@ -251,7 +251,7 @@ def test_agent_run_thread_mcp_flow(basic_agent_run_info, mock_memory_context, mo
     monkeypatch.setattr(run_agent, "NexentAgent", MagicMock(return_value=mock_nexent_instance))
 
     # Execute
-    run_agent.agent_run_thread(basic_agent_run_info, mock_memory_context)
+    run_agent.agent_run_thread(basic_agent_run_info)
 
     # Observer should receive <MCP_START> signal
     basic_agent_run_info.observer.add_message.assert_any_call("", ProcessType.AGENT_NEW_RUN, "<MCP_START>")
@@ -275,13 +275,6 @@ def test_agent_run_thread_mcp_flow(basic_agent_run_info, mock_memory_context, mo
     mock_nexent_instance.agent_run_with_observer.assert_called_once_with(query=basic_agent_run_info.query, reset=False)
 
 
-def test_agent_run_thread_invalid_type():
-    """Passing a non-AgentRunInfo instance should raise a TypeError."""
-    mock_memory_context = MagicMock()
-    with pytest.raises(TypeError):
-        run_agent.agent_run_thread("not_an_agent_run_info", mock_memory_context)
-
-
 def test_agent_run_thread_handles_internal_exception(basic_agent_run_info, mock_memory_context, monkeypatch):
     """If an internal error occurs, the observer should be notified and a ValueError propagated."""
     # Configure NexentAgent.create_single_agent to raise an exception
@@ -292,10 +285,85 @@ def test_agent_run_thread_handles_internal_exception(basic_agent_run_info, mock_
 
     # Execute and expect ValueError
     with pytest.raises(ValueError) as exc_info:
-        run_agent.agent_run_thread(basic_agent_run_info, mock_memory_context)
+        run_agent.agent_run_thread(basic_agent_run_info)
 
     # Observer should have been informed of the failure via FINAL_ANSWER
     basic_agent_run_info.observer.add_message.assert_called_with("", ProcessType.FINAL_ANSWER, "Run Agent Error: Boom")
 
     # Ensure the raised error contains our message to confirm correct propagation
     assert "Error in agent_run_thread: Boom" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_agent_run_streams_messages_while_thread_alive(basic_agent_run_info, monkeypatch):
+    """agent_run should yield messages while the thread is alive, then final cache."""
+    # Arrange observer cached messages: one streaming batch, then final flush
+    basic_agent_run_info.observer.get_cached_message.side_effect = [
+        ["m1", "m2"],  # during loop
+        ["final1", "final2"],  # after loop
+    ]
+
+    # Fast asyncio.sleep to avoid delays and to assert both sleeps are awaited
+    sleep_calls = []
+
+    async def fast_sleep(duration):  # pylint: disable=unused-argument
+        sleep_calls.append(duration)
+
+    monkeypatch.setattr(run_agent.asyncio, "sleep", fast_sleep)
+
+    # Fake Thread that is alive once, then stops
+    class FakeThread:
+        def __init__(self, target=None, args=None):  # pylint: disable=unused-argument
+            self._alive_checks = 0
+            self.started = False
+
+        def start(self):
+            self.started = True
+
+        def is_alive(self):
+            self._alive_checks += 1
+            return self._alive_checks == 1
+
+    monkeypatch.setattr(run_agent, "Thread", FakeThread)
+
+    # Act
+    received = []
+    async for item in run_agent.agent_run(basic_agent_run_info):
+        received.append(item)
+
+    # Assert: streamed + final messages
+    assert received == ["m1", "m2", "final1", "final2"]
+    # Ensure thread was started and sleeps were awaited (both inner and outer occur)
+    assert any(d in (0.05, 0.1) for d in sleep_calls)
+
+
+@pytest.mark.asyncio
+async def test_agent_run_skips_loop_when_thread_not_alive(basic_agent_run_info, monkeypatch):
+    """If the thread is not alive initially, only the final cache is yielded."""
+    # Only final cache should be yielded
+    basic_agent_run_info.observer.get_cached_message.side_effect = [
+        ["final_only"],
+    ]
+
+    async def fast_sleep(duration):  # pylint: disable=unused-argument
+        return None
+
+    monkeypatch.setattr(run_agent.asyncio, "sleep", fast_sleep)
+
+    class FakeThread:
+        def __init__(self, target=None, args=None):  # pylint: disable=unused-argument
+            pass
+
+        def start(self):
+            pass
+
+        def is_alive(self):
+            return False
+
+    monkeypatch.setattr(run_agent, "Thread", FakeThread)
+
+    received = []
+    async for item in run_agent.agent_run(basic_agent_run_info):
+        received.append(item)
+
+    assert received == ["final_only"]
