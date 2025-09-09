@@ -12,8 +12,8 @@ prepare_env_file() {
   if [ -f "../.env" ]; then
     echo "   ⚠️  .env already exists in root directory"
     echo ""
-    read -p "👉 Do you want to overwrite it? [Y/N] (default: N): " overwrite
-    if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
+    read -p "👉 Do you want to overwrite it? [Y/N] (default: Y): " overwrite
+    if [[ "$overwrite" =~ ^[Nn]$ ]]; then
       echo "   Using existing .env file"
       return 0
     fi
