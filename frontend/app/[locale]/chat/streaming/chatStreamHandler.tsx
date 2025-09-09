@@ -73,7 +73,7 @@ export const handleStreamResponse = async (
     | typeof chatConfig.contentTypes.SEARCH_CONTENT
     | typeof chatConfig.contentTypes.CARD
     | typeof chatConfig.contentTypes.MEMORY_SEARCH
-    | "preprocess"
+    | typeof chatConfig.contentTypes.PREPROCESS
     | null = null;
   let lastModelOutputIndex = -1; // Track the index of the last model output in currentStep.contents
   let searchResultsContent: any[] = [];
@@ -749,7 +749,7 @@ export const handleStreamResponse = async (
                   lastContentType = "memory_search";
                   break;
 
-                case "preprocess":
+                case chatConfig.contentTypes.PREPROCESS:
                   // If there's no currentStep, create one
                   if (!currentStep) {
                     currentStep = {
@@ -767,7 +767,7 @@ export const handleStreamResponse = async (
 
                   const normalizedPreprocessData = {
                     id: `preprocess-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                    type: "preprocess" as const,
+                    type: chatConfig.contentTypes.PREPROCESS,
                     content: messageContent,
                     expanded: true,
                     timestamp: Date.now()
@@ -776,7 +776,7 @@ export const handleStreamResponse = async (
                   currentStep.contents.push(normalizedPreprocessData);
 
                   // Update the last processed content type
-                  lastContentType = "preprocess";
+                  lastContentType = chatConfig.contentTypes.PREPROCESS;
                   break;
 
                 default:
