@@ -53,7 +53,7 @@ def convert_long_text_to_text(query: str, file_context: str, tenant_id: str, lan
         language: Language code ('zh' for Chinese, 'en' for English)
         
     Returns:
-        str: Summarized text description
+        tuple[str, str]: Summarized text description and truncation percentage string
     """
     secondary_model_config = tenant_config_manager.get_model_config("LLM_SECONDARY_ID", tenant_id=tenant_id)
     long_text_to_text_model = OpenAILongContextModel(
@@ -69,4 +69,5 @@ def convert_long_text_to_text(query: str, file_context: str, tenant_id: str, lan
     system_prompt = Template(prompts['long_text_analysis']['system_prompt'], undefined=StrictUndefined).render({'query': query})
     user_prompt = Template(prompts['long_text_analysis']['user_prompt'], undefined=StrictUndefined).render({})
 
-    return long_text_to_text_model.analyze_long_text(file_context, system_prompt, user_prompt)
+    result, truncation_percentage = long_text_to_text_model.analyze_long_text(file_context, system_prompt, user_prompt)
+    return result.content, truncation_percentage

@@ -73,6 +73,7 @@ export const handleStreamResponse = async (
     | typeof chatConfig.contentTypes.SEARCH_CONTENT
     | typeof chatConfig.contentTypes.CARD
     | typeof chatConfig.contentTypes.MEMORY_SEARCH
+    | "preprocess"
     | null = null;
   let lastModelOutputIndex = -1; // Track the index of the last model output in currentStep.contents
   let searchResultsContent: any[] = [];
@@ -681,8 +682,79 @@ export const handleStreamResponse = async (
                   // If there's no currentStep, create one
                   if (!currentStep) {
                     currentStep = {
-                      id: `step-memory-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      id: `step-memory-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 9)}`,
                       title: "Memory Search",
+                      content: "",
+                      expanded: true,
+                      contents: [],
+                      metrics: "",
+                      thinking: { content: "", expanded: true },
+                      code: { content: "", expanded: true },
+                      output: { content: "", expanded: true },
+                    };
+                  }
+
+                  // Check if there's already a memory_search message to update
+                  const existingMemoryIndex = currentStep.contents.findIndex(
+                    (item) => item.type === chatConfig.messageTypes.MEMORY_SEARCH
+                  );
+
+                  if (existingMemoryIndex >= 0) {
+                    // Update existing memory search message
+                    currentStep.contents[existingMemoryIndex].content =
+                      messageContent;
+                    currentStep.contents[existingMemoryIndex].timestamp =
+                      Date.now();
+                  } else {
+                    // Add new memory search content to the current step's contents array
+                    let memMsg = "";
+                    try {
+                      const m = JSON.parse(messageContent);
+                      let txt = m.message || "";
+                      switch (txt) {
+                        case "<MEM_START>":
+                          m.message = t("chatStreamHandler.memoryRetrieving");
+                          break;
+                        case "<MEM_DONE>":
+                          m.message = t("chatStreamHandler.memoryRetrieved");
+                          try {
+                            const evt = new Event("nexent:new-memory");
+                            window.dispatchEvent(evt);
+                          } catch (_) {}
+                          break;
+                        case "<MEM_FAILED>":
+                          m.message = t("chatStreamHandler.memoryFailed");
+                          break;
+                        default:
+                          break;
+                      }
+                      memMsg = JSON.stringify(m);
+                    } catch (_) {
+                      memMsg = messageContent;
+                    }
+                    currentStep.contents.push({
+                      id: `memory-search-${Date.now()}-${Math.random()
+                        .toString(36)
+                        .substring(2, 7)}`,
+                      type: chatConfig.messageTypes.MEMORY_SEARCH,
+                      content: memMsg, // translated JSON string
+                      expanded: true,
+                      timestamp: Date.now(),
+                    });
+                  }
+
+                  // Update the last processed content type
+                  lastContentType = "memory_search";
+                  break;
+
+                case "preprocess":
+                  // If there's no currentStep, create one
+                  if (!currentStep) {
+                    currentStep = {
+                      id: `step-preprocess-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                      title: "File Preprocessing",
                       content: "",
                       expanded: true,
                       contents: [],
@@ -693,47 +765,18 @@ export const handleStreamResponse = async (
                     };
                   }
 
-                  // Check if there's already a memory_search message to update
-                  const existingMemoryIndex = currentStep.contents.findIndex(item => item.type === chatConfig.messageTypes.MEMORY_SEARCH);
+                  const normalizedPreprocessData = {
+                    id: `preprocess-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    type: "preprocess" as const,
+                    content: messageContent,
+                    expanded: true,
+                    timestamp: Date.now()
+                  };
 
-                  if (existingMemoryIndex >= 0) {
-                    // Update existing memory search message
-                    currentStep.contents[existingMemoryIndex].content = messageContent;
-                    currentStep.contents[existingMemoryIndex].timestamp = Date.now();
-                  } else {
-                    // Add new memory search content to the current step's contents array
-                    let memMsg = "";
-                    try {
-                      const m = JSON.parse(messageContent);
-                      let txt = m.message || "";
-                      switch (txt) {
-                        case '<MEM_START>':
-                          m.message = t('chatStreamHandler.memoryRetrieving');
-                          break;
-                        case '<MEM_DONE>':
-                          m.message = t('chatStreamHandler.memoryRetrieved');
-                          break;
-                        case '<MEM_FAILED>':
-                          m.message = t('chatStreamHandler.memoryFailed');
-                          break;
-                        default:
-                          break;
-                      }
-                      memMsg = JSON.stringify(m);
-                    } catch (_) {
-                      memMsg = messageContent;
-                    }
-                    currentStep.contents.push({
-                      id: `memory-search-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                      type: chatConfig.messageTypes.MEMORY_SEARCH,
-                      content: memMsg, // translated JSON string
-                      expanded: true,
-                      timestamp: Date.now()
-                    });
-                  }
+                  currentStep.contents.push(normalizedPreprocessData);
 
                   // Update the last processed content type
-                  lastContentType = chatConfig.contentTypes.MEMORY_SEARCH;
+                  lastContentType = "preprocess";
                   break;
 
                 default:

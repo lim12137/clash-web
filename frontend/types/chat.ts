@@ -8,22 +8,22 @@ export interface StepSection {
 
 export interface StepContent {
   id: string
-  type: typeof chatConfig.messageTypes.MODEL_OUTPUT | 
-        typeof chatConfig.messageTypes.PARSING | 
-        typeof chatConfig.messageTypes.EXECUTION | 
-        typeof chatConfig.messageTypes.ERROR | 
-        typeof chatConfig.messageTypes.AGENT_NEW_RUN | 
-        typeof chatConfig.messageTypes.EXECUTING | 
-        typeof chatConfig.messageTypes.GENERATING_CODE | 
-        typeof chatConfig.messageTypes.SEARCH_CONTENT | 
-        typeof chatConfig.messageTypes.CARD | 
-        typeof chatConfig.messageTypes.SEARCH_CONTENT_PLACEHOLDER | 
-        typeof chatConfig.messageTypes.VIRTUAL | 
+  type: typeof chatConfig.messageTypes.MODEL_OUTPUT |
+        typeof chatConfig.messageTypes.PARSING |
+        typeof chatConfig.messageTypes.EXECUTION |
+        typeof chatConfig.messageTypes.ERROR |
+        typeof chatConfig.messageTypes.AGENT_NEW_RUN |
+        typeof chatConfig.messageTypes.EXECUTING |
+        typeof chatConfig.messageTypes.GENERATING_CODE |
+        typeof chatConfig.messageTypes.SEARCH_CONTENT |
+        typeof chatConfig.messageTypes.CARD |
+        typeof chatConfig.messageTypes.SEARCH_CONTENT_PLACEHOLDER |
+        typeof chatConfig.messageTypes.VIRTUAL |
         typeof chatConfig.messageTypes.MEMORY_SEARCH
   content: string
   expanded: boolean
   timestamp: number
-  subType?: "thinking" | "code" | "deep_thinking"
+  subType?: "thinking" | "code" | "deep_thinking" | "progress" | "file_processed" | "truncation" | "complete" | "error"
   isLoading?: boolean
   _preserve?: boolean
   _messageContainer?: {
@@ -290,7 +290,7 @@ export interface ChatRightPanelProps {
 // Task message type
 export interface TaskMessageType extends ChatMessageType {
   type?: string;
-} 
+}
 
 // Message group type for task messages
 export interface MessageGroup {
@@ -321,4 +321,4 @@ export interface StorageUploadResult {
     url: string;
     error?: string;
   }[];
-} 
+}
