@@ -2,7 +2,7 @@ import { createAvatar } from '@dicebear/core';
 import * as iconStyle from '@dicebear/icons';
 
 import type { AppConfig } from '../types/modelConfig';
-import { presetIcons } from "../types/avatar"
+import { presetIcons } from "@/const/avatar"
 
 // 基于种子的随机数生成器
 class SeededRandom {

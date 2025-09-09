@@ -6,7 +6,8 @@ import { createAvatar } from '@dicebear/core';
 import * as initialsStyle from '@dicebear/initials';
 
 import { fetchWithErrorHandling } from "@/services/api";
-import { Session, STORAGE_KEYS } from "@/types/auth";
+import { STORAGE_KEYS } from "@/const/auth";
+import { Session } from "@/types/auth";
 
 // 获取用户角色对应的颜色
 export function getRoleColor(role: string): string {
