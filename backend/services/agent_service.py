@@ -247,6 +247,9 @@ async def get_creating_sub_agent_info_impl(authorization: str = Header(None)):
             f"Failed to get sub agent enable tool id list: {str(e)}")
 
     return {"agent_id": sub_agent_id,
+            "name": agent_info.get("name"),
+            "display_name": agent_info.get("display_name"),
+            "description": agent_info.get("description"),
             "enable_tool_id_list": enable_tool_id_list,
             "model_name": agent_info["model_name"],
             "max_steps": agent_info["max_steps"],
