@@ -8,7 +8,7 @@ import { ExclamationCircleOutlined } from "@ant-design/icons";
 
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/authService";
-import { EVENTS } from "@/types/auth";
+import { EVENTS } from "@/const/auth";
 
 /**
  * Session management component
