@@ -50,17 +50,6 @@ export interface ToolParam {
 
 // ========== Data Interfaces ==========
 
-// Agent creation cache interface
-export interface NewAgentCache {
-  businessLogic: string;
-  dutyContent: string;
-  constraintContent: string;
-  fewShotsContent: string;
-  agentName: string;
-  agentDescription: string;
-  agentDisplayName: string;
-}
-
 // Agent configuration data response interface
 export interface AgentConfigDataResponse {
   businessLogic: string;
