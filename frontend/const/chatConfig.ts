@@ -117,6 +117,7 @@ contentTypes: {
   SEARCH_CONTENT: "search_content" as const,
   CARD: "card" as const,
   MEMORY_SEARCH: "memory_search" as const,
+  PREPROCESS: "preprocess" as const,
 },
 
 // TTS status constants

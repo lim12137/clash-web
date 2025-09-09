@@ -123,7 +123,7 @@ export function ChatStreamMain({
                   assistantId: message.id,
                   relatedUserMsgId: currentUserMsgId,
                   // For preprocess messages, include the full contents array for TaskWindow
-                  contents: content.type === "preprocess" ? step.contents : undefined,
+                  contents: content.type === chatConfig.contentTypes.PREPROCESS ? step.contents : undefined,
                 };
 
                 // Handle truncation messages specially - buffer them instead of adding immediately

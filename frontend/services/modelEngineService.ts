@@ -1,8 +1,8 @@
 "use client"
 
 import { API_ENDPOINTS } from './api';
-import { CONNECTION_STATUS } from '@/const/modelConfig';
-import { ConnectionStatus, ModelEngineCheckResult } from '../types/modelConfig';
+import { CONNECTION_STATUS, ConnectionStatus } from '@/const/modelConfig';
+import { ModelEngineCheckResult } from '../types/modelConfig';
 
 import { fetchWithAuth } from '@/lib/auth';
 
