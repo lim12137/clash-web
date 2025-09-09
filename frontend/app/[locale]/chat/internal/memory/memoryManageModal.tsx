@@ -13,6 +13,8 @@ import {
   App,
 } from "antd";
 import { CaretRightOutlined, DownOutlined } from "@ant-design/icons";
+import { USER_ROLES, MEMORY_TAB_KEYS, MemoryTabKey } from "@/const/modelConfig";
+import { MEMORY_SHARE_STRATEGY, MemoryShareStrategy } from "@/const/memoryConfig";
 import {
   MessageSquarePlus,
   Eraser,
@@ -31,12 +33,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMemory } from "@/hooks/useMemory";
 
 import MemoryDeleteModal from "./memoryDeleteModal";
-
-interface MemoryManageModalProps {
-  visible: boolean;
-  onClose: () => void;
-  userRole?: "admin" | "user";
-}
+import { MemoryManageModalProps, LabelWithIconFunction } from "@/types/memory";
 
 /**
  * Memory management popup, responsible only for UI rendering.
@@ -50,8 +47,8 @@ const MemoryManageModal: React.FC<MemoryManageModalProps> = ({
   // Get user role from authentication context
   const { user } = useAuth();
   const { message } = App.useApp();
-  const role: "admin" | "user" = (userRole ??
-    (user?.role === "admin" ? "admin" : "user")) as "admin" | "user";
+  const role: (typeof USER_ROLES)[keyof typeof USER_ROLES] = (userRole ??
+    (user?.role === USER_ROLES.ADMIN ? USER_ROLES.ADMIN : USER_ROLES.USER)) as (typeof USER_ROLES)[keyof typeof USER_ROLES];
 
   // Get user role from other hooks / context
   const currentUserId = "user1";
@@ -92,19 +89,19 @@ const MemoryManageModal: React.FC<MemoryManageModalProps> = ({
 
   // ====================== UI rendering functions ======================
   const renderBaseSettings = () => {
-    const shareOptionLabels: Record<"always" | "ask" | "never", string> = {
-      always: t("memoryManageModal.shareOption.always"),
-      ask: t("memoryManageModal.shareOption.ask"),
-      never: t("memoryManageModal.shareOption.never"),
+    const shareOptionLabels: Record<MemoryShareStrategy, string> = {
+      [MEMORY_SHARE_STRATEGY.ALWAYS]: t("memoryManageModal.shareOption.always"),
+      [MEMORY_SHARE_STRATEGY.ASK]: t("memoryManageModal.shareOption.ask"),
+      [MEMORY_SHARE_STRATEGY.NEVER]: t("memoryManageModal.shareOption.never"),
     };
     const dropdownItems = [
-      { label: shareOptionLabels.always, key: "always" },
-      { label: shareOptionLabels.ask, key: "ask" },
-      { label: shareOptionLabels.never, key: "never" },
+      { label: shareOptionLabels[MEMORY_SHARE_STRATEGY.ALWAYS], key: MEMORY_SHARE_STRATEGY.ALWAYS },
+      { label: shareOptionLabels[MEMORY_SHARE_STRATEGY.ASK], key: MEMORY_SHARE_STRATEGY.ASK },
+      { label: shareOptionLabels[MEMORY_SHARE_STRATEGY.NEVER], key: MEMORY_SHARE_STRATEGY.NEVER },
     ];
 
     const handleMenuClick = ({ key }: { key: string }) => {
-      memory.setShareOption(key as "always" | "ask" | "never");
+      memory.setShareOption(key as MemoryShareStrategy);
     };
 
     return (
@@ -224,9 +221,9 @@ const MemoryManageModal: React.FC<MemoryManageModalProps> = ({
   const renderCollapseGroups = (
     groups: { title: string; key: string; items: any[] }[],
     showSwitch = false,
-    tabKey?: string
+    tabKey?: MemoryTabKey
   ) => {
-    const paginated = tabKey === "agentShared" || tabKey === "userAgent";
+    const paginated = tabKey === MEMORY_TAB_KEYS.AGENT_SHARED || tabKey === MEMORY_TAB_KEYS.USER_AGENT;
     const currentPage = paginated ? memory.pageMap[tabKey!] || 1 : 1;
     const startIdx = (currentPage - 1) * memory.pageSize;
     const sliceGroups = paginated
@@ -246,7 +243,7 @@ const MemoryManageModal: React.FC<MemoryManageModalProps> = ({
     // Single group scenario, cannot be collapsed (tenant shared, user personal tab)
     const isFixedSingle =
       sliceGroups.length === 1 &&
-      (tabKey === "tenant" || tabKey === "userPersonal");
+      (tabKey === MEMORY_TAB_KEYS.TENANT || tabKey === MEMORY_TAB_KEYS.USER_PERSONAL);
 
     if (isFixedSingle) {
       return (
@@ -497,7 +494,7 @@ const MemoryManageModal: React.FC<MemoryManageModalProps> = ({
     );
   };
 
-  const labelWithIcon = (Icon: React.ElementType, text: string) => (
+  const labelWithIcon: LabelWithIconFunction = (Icon: React.ElementType, text: string) => (
     <span className="inline-flex items-center gap-2">
       <Icon className="size-3" />
       {text}
@@ -506,14 +503,14 @@ const MemoryManageModal: React.FC<MemoryManageModalProps> = ({
 
   const tabItems = [
     {
-      key: "base",
+      key: MEMORY_TAB_KEYS.BASE,
       label: labelWithIcon(Settings, t("memoryManageModal.baseSettings")),
       children: renderBaseSettings(),
     },
-    ...(role === "admin"
+    ...(role === USER_ROLES.ADMIN
       ? [
           {
-            key: "tenant",
+            key: MEMORY_TAB_KEYS.TENANT,
             label: labelWithIcon(
               UsersRound,
               t("memoryManageModal.tenantShareTab")
@@ -521,36 +518,36 @@ const MemoryManageModal: React.FC<MemoryManageModalProps> = ({
             children: renderCollapseGroups(
               [memory.tenantSharedGroup],
               false,
-              "tenant"
+              MEMORY_TAB_KEYS.TENANT
             ),
             disabled: !memory.memoryEnabled,
           },
           {
-            key: "agentShared",
+            key: MEMORY_TAB_KEYS.AGENT_SHARED,
             label: labelWithIcon(Share2, t("memoryManageModal.agentShareTab")),
             children: renderCollapseGroups(
               memory.agentSharedGroups,
               true,
-              "agentShared"
+              MEMORY_TAB_KEYS.AGENT_SHARED
             ),
-            disabled: !memory.memoryEnabled || memory.shareOption === "never",
+            disabled: !memory.memoryEnabled || memory.shareOption === MEMORY_SHARE_STRATEGY.NEVER,
           },
         ]
       : []),
     {
-      key: "userPersonal",
+      key: MEMORY_TAB_KEYS.USER_PERSONAL,
       label: labelWithIcon(UserRound, t("memoryManageModal.userPersonalTab")),
       children: renderCollapseGroups(
         [memory.userPersonalGroup],
         false,
-        "userPersonal"
+        MEMORY_TAB_KEYS.USER_PERSONAL
       ),
       disabled: !memory.memoryEnabled,
     },
     {
-      key: "userAgent",
+      key: MEMORY_TAB_KEYS.USER_AGENT,
       label: labelWithIcon(Bot, t("memoryManageModal.userAgentTab")),
-      children: renderCollapseGroups(memory.userAgentGroups, true, "userAgent"),
+      children: renderCollapseGroups(memory.userAgentGroups, true, MEMORY_TAB_KEYS.USER_AGENT),
       disabled: !memory.memoryEnabled,
     },
   ];

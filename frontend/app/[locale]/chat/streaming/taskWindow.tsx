@@ -47,6 +47,39 @@ interface MessageHandler {
 
 // Define the handlers for different types of messages to improve extensibility
 const messageHandlers: MessageHandler[] = [
+  // Preprocess type processor - handles contents array logic
+  {
+    canHandle: (message) => message.type === "preprocess",
+    render: (message, _t) => {
+      // For preprocess messages, display content from contents array if available
+      let displayContent = message.content;
+      if (message.contents && message.contents.length > 0) {
+        // Find the latest preprocess content
+        const preprocessContent = message.contents.find((content: any) => content.type === "preprocess");
+        if (preprocessContent) {
+          displayContent = preprocessContent.content;
+        }
+      }
+
+      return (
+        <div
+          style={{
+            fontFamily:
+              "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+            fontSize: "0.875rem",
+            lineHeight: 1.5,
+            color: "#6b7280",
+            fontWeight: 500,
+            borderRadius: "0.25rem",
+            paddingTop: "0.5rem",
+          }}
+        >
+          <span>{displayContent}</span>
+        </div>
+      );
+    },
+  },
+
   // Processing type processor - thinking, code generation, code execution
   {
     canHandle: (message) =>
@@ -55,22 +88,24 @@ const messageHandlers: MessageHandler[] = [
       message.type === "executing" ||
       message.type === "model_output_thinking" ||
       message.type === "model_output_deep_thinking",
-    render: (message, _t) => (
-      <div
-        style={{
-          fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-          fontSize: "0.875rem",
-          lineHeight: 1.5,
-          color: "#6b7280",
-          fontWeight: 500,
-          borderRadius: "0.25rem",
-          paddingTop: "0.5rem",
-        }}
-      >
-        <span>{message.content}</span>
-      </div>
-    ),
+    render: (message, _t) => {
+      return (
+        <div
+          style={{
+            fontFamily:
+              "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+            fontSize: "0.875rem",
+            lineHeight: 1.5,
+            color: "#6b7280",
+            fontWeight: 500,
+            borderRadius: "0.25rem",
+            paddingTop: "0.5rem",
+          }}
+        >
+          <span>{message.content}</span>
+        </div>
+      );
+    },
   },
 
   // Add search_content_placeholder type processor - for history records

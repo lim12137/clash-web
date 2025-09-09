@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from './api';
 
-import { GlobalConfig } from '@/types/config';
+import { GlobalConfig } from '@/types/modelConfig';
 
 import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
 import { ConfigStore } from '@/lib/config';

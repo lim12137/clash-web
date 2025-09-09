@@ -15,7 +15,7 @@ import {
   deleteAgent,
   searchAgentInfo,
 } from "@/services/agentConfigService";
-import { OpenAIModel } from "@/types/config";
+import { OpenAIModel } from "@/types/modelConfig";
 import { Agent, AgentSetupOrchestratorProps } from "@/types/agentConfig";
 
 import SubAgentPool from "./agent/SubAgentPool";
