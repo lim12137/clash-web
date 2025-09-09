@@ -500,7 +500,7 @@ export function ChatInterface() {
                     contents: [
                       {
                         id: `preprocess-content-${Date.now()}`,
-                        type: "preprocess",
+                        type: chatConfig.contentTypes.PREPROCESS,
                         content: t("chatInterface.parsingFile"),
                         expanded: false,
                         timestamp: Date.now(),
