@@ -13,12 +13,22 @@ export interface MemoryGroup {
   items: MemoryItem[]
 }
 
+// Memory modal interfaces
+export interface MemoryDeleteModalProps {
+  visible: boolean;
+  targetTitle?: string | null;
+  onOk: () => void;
+  onCancel: () => void;
+}
+
+export interface MemoryManageModalProps {
+  visible: boolean;
+  onClose: () => void;
+  userRole?: "admin" | "user";
+}
+
 // Page size
 export const pageSize = 4
 
-// Share strategy dropdown label
-export const shareLabels: Record<"always" | "ask" | "never", string> = {
-  always: "总是共享",
-  ask: "每次询问我",
-  never: "永不共享",
-}
+// Label with icon function type
+export type LabelWithIconFunction = (Icon: React.ElementType, text: string) => JSX.Element;

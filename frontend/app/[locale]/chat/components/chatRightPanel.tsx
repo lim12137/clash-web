@@ -5,38 +5,10 @@ import { ExternalLink, Database, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StaticScrollArea } from "@/components/ui/scrollArea";
-import { ChatMessageType } from "@/types/chat";
+import { ChatMessageType, ImageItem, ChatRightPanelProps, SearchResult } from "@/types/chat";
 import { API_ENDPOINTS } from "@/services/api";
 import { formatDate, formatUrl } from "@/lib/utils";
 
-interface ImageItem {
-  base64Data: string;
-  contentType: string;
-  isLoading: boolean;
-  error?: string;
-  loadAttempts?: number; // Load attempts
-}
-
-interface SearchResult {
-  title: string;
-  url: string;
-  text: string;
-  published_date: string;
-  source_type?: string;
-  filename?: string;
-  score?: number;
-  score_details?: any;
-  isExpanded?: boolean;
-}
-
-interface ChatRightPanelProps {
-  messages: ChatMessageType[];
-  onImageError: (imageUrl: string) => void;
-  maxInitialImages?: number;
-  isVisible?: boolean;
-  toggleRightPanel?: () => void;
-  selectedMessageId?: string;
-}
 
 export function ChatRightPanel({
   messages,
