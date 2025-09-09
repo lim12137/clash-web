@@ -80,35 +80,29 @@ def extend_session(client: Client, refresh_token: str) -> Optional[dict]:
         return None
 
 
-async def check_auth_service_health() -> bool:
+async def check_auth_service_health():
     """
     Check the health status of the authentication service
     Return (is available, status message)
     """
-    try:
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_KEY")
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
 
-        health_url = f'{supabase_url}/auth/v1/health'
-        headers = {'apikey': supabase_key}
+    health_url = f'{supabase_url}/auth/v1/health'
+    headers = {'apikey': supabase_key}
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(health_url, headers=headers) as response:
-                if not response.ok:
-                    return False
+    async with aiohttp.ClientSession() as session:
+        async with session.get(health_url, headers=headers) as response:
+            if not response.ok:
+                return False
 
-                data = await response.json()
-                # Check if the service is available by checking if the response contains the name field and its value is "GoTrue"
-                is_available = data and data.get("name") == "GoTrue"
+            data = await response.json()
+            # Check if the service is available by checking if the response contains the name field and its value is "GoTrue"
+            is_available = data and data.get("name") == "GoTrue"
 
-                return is_available
-
-    except aiohttp.ClientError as e:
-        logging.error(f"Auth service connection failed: {str(e)}")
-        return False
-    except Exception as e:
-        logging.error(f"Auth service health check failed: {str(e)}")
-        return False
+            if not is_available:
+                logging.error("Auth service is unavailable")
+                raise ConnectionError("Auth service is unavailable")
 
 
 async def signup_user(email: EmailStr,
