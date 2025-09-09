@@ -7,6 +7,7 @@ from consts.const import DATA_PROCESS_SERVICE
 
 logger = logging.getLogger("image_service")
 
+
 async def proxy_image_impl(decoded_url: str):
     # Create session to call the data processing service
     async with aiohttp.ClientSession() as session:
