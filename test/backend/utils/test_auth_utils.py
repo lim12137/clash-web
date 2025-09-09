@@ -1,5 +1,4 @@
-from backend.consts.exceptions import UnauthorizedError, SignatureValidationError
-from utils import auth_utils as au
+from backend.consts.exceptions import UnauthorizedError, SignatureValidationError, LimitExceededError
 import time
 import sys
 from unittest.mock import MagicMock
@@ -15,30 +14,48 @@ import pytest
 # Stub out the database package hierarchy expected by auth_utils
 sys.modules['database'] = MagicMock()
 
+# Mock MinioClient class to prevent initialization errors
+mock_minio_class = MagicMock()
+mock_minio_class.return_value = MagicMock()
+
 # Provide a lightweight module for database.client with the attributes used
 # by auth_utils so that any direct attribute access works as expected.
 db_client_stub = types.ModuleType("database.client")
-db_client_stub.MinioClient = MagicMock()
+db_client_stub.MinioClient = mock_minio_class
 db_client_stub.get_db_session = MagicMock()
 db_client_stub.as_dict = MagicMock()
+
+# Mock the global minio_client instance
+mock_minio_instance = MagicMock()
+db_client_stub.minio_client = mock_minio_instance
+db_client_stub.db_client = MagicMock()
+
 sys.modules['database.client'] = db_client_stub
 
 # Stub database.user_tenant_db to avoid real DB interactions
 sys.modules['database.user_tenant_db'] = MagicMock(
     get_user_tenant_by_user_id=MagicMock(return_value=None))
 
-
-# After auth_utils import succeeds, bring in real exception classes for clarity.
-
 # Pre-mock nexent core dependency pulled by consts.model
 sys.modules['consts'] = MagicMock()
 sys.modules['consts.const'] = MagicMock()
-sys.modules['consts.exceptions'] = MagicMock()
+
+# Mock exceptions module with real exception classes
+consts_exceptions_mock = MagicMock()
+consts_exceptions_mock.UnauthorizedError = UnauthorizedError
+consts_exceptions_mock.SignatureValidationError = SignatureValidationError
+consts_exceptions_mock.LimitExceededError = LimitExceededError
+sys.modules['consts.exceptions'] = consts_exceptions_mock
 sys.modules['nexent'] = MagicMock()
 sys.modules['nexent.core'] = MagicMock()
 sys.modules['nexent.core.agents'] = MagicMock()
 sys.modules['nexent.core.agents.agent_model'] = MagicMock()
-sys.modules['supabase'] = MagicMock()
+
+# Mock supabase module
+supabase_mock = MagicMock()
+supabase_mock.create_client = MagicMock()
+sys.modules['supabase'] = supabase_mock
+
 sys.modules['boto3'] = MagicMock()
 sys.modules['psycopg2'] = MagicMock()
 sys.modules['psycopg2.extras'] = MagicMock()
@@ -46,6 +63,12 @@ sys.modules['botocore'] = MagicMock()
 sys.modules['botocore.client'] = MagicMock()
 sys.modules['botocore.exceptions'] = MagicMock()
 
+# Mock additional dependencies that might be imported
+sys.modules['sqlalchemy'] = MagicMock()
+sys.modules['sqlalchemy.orm'] = MagicMock()
+
+# Now import the module under test
+from backend.utils import auth_utils as au
 
 # Ensure exceptions in module under test are real exception classes, not mocks
 au.UnauthorizedError = UnauthorizedError
