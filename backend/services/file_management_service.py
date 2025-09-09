@@ -17,6 +17,7 @@ from consts.const import UPLOAD_FOLDER, MAX_CONCURRENT_UPLOADS, DATA_PROCESS_SER
 from database.attachment_db import upload_fileobj, get_file_url, get_content_type, get_file_stream, delete_file, \
     list_files
 from utils.attachment_utils import convert_image_to_text, convert_long_text_to_text
+from utils.prompt_template_utils import get_file_processing_messages_template
 from utils.file_management_utils import save_upload_file
 
 # Create upload directory
@@ -140,41 +141,44 @@ async def list_files_impl(prefix: str, limit: Optional[int] = None):
     return files
 
 
-def get_parsing_file_message(language: str, index: int, total_files: int, filename: str) -> str:
+def get_parsing_file_data(index: int, total_files: int, filename: str) -> dict:
     """
-    Get internationalized parsing file message
-    
+    Get structured data for parsing file message
+
     Args:
-        language: Language code ('zh' or 'en')
         index: Current file index (0-based)
         total_files: Total number of files
         filename: Name of the file being parsed
-        
+
     Returns:
-        str: Internationalized message
+        dict: Structured data with parameters for internationalization
     """
-    if language == 'zh':
-        return f"正在解析文件 {index + 1}/{total_files}: {filename}"
-    else:
-        return f"Parsing file {index + 1}/{total_files}: {filename}"
+    return {
+        "params": {
+            "index": index + 1,
+            "total": total_files,
+            "filename": filename
+        }
+    }
 
 
-def get_truncation_message(language: str, filename: str, truncation_percentage: int) -> str:
+def get_truncation_data(filename: str, truncation_percentage: int) -> dict:
     """
-    Get internationalized truncation message
-    
+    Get structured data for truncation message
+
     Args:
-        language: Language code ('zh' or 'en')
         filename: Name of the file being truncated
         truncation_percentage: Percentage of content that was read
-        
+
     Returns:
-        str: Internationalized truncation message
+        dict: Structured data with parameters for internationalization
     """
-    if language == 'zh':
-        return f"{filename} 超出字数限制，只阅读了前 {truncation_percentage}%"
-    else:
-        return f"{filename} exceeds word limit, only read the first {truncation_percentage}%"
+    return {
+        "params": {
+            "filename": filename,
+            "percentage": truncation_percentage
+        }
+    }
 
 
 async def preprocess_files_generator(
@@ -187,7 +191,7 @@ async def preprocess_files_generator(
 ) -> AsyncGenerator[str, None]:
     """
     Generate streaming response for file preprocessing
-    
+
     Args:
         query: User query string
         file_cache: List of cached file data
@@ -195,7 +199,7 @@ async def preprocess_files_generator(
         language: Language preference
         task_id: Unique task ID
         conversation_id: Conversation ID
-    
+
     Yields:
         str: JSON formatted streaming messages
     """
@@ -205,7 +209,8 @@ async def preprocess_files_generator(
     # Create and register the preprocess task
     task = asyncio.current_task()
     if task:
-        preprocess_manager.register_preprocess_task(task_id, conversation_id, task)
+        preprocess_manager.register_preprocess_task(
+            task_id, conversation_id, task)
 
     try:
         for index, file_data in enumerate(file_cache):
@@ -217,7 +222,7 @@ async def preprocess_files_generator(
             progress_message = json.dumps({
                 "type": "progress",
                 "progress": progress,
-                "message": get_parsing_file_message(language, index, total_files, file_data['filename'])
+                "message_data": get_parsing_file_data(index, total_files, file_data['filename'])
             }, ensure_ascii=False)
             yield f"data: {progress_message}\n\n"
             await asyncio.sleep(0.1)
@@ -240,20 +245,19 @@ async def preprocess_files_generator(
                     "filename": file_data["filename"],
                     "description": description
                 }
-                file_message = json.dumps(file_message_data, ensure_ascii=False)
+                file_message = json.dumps(
+                    file_message_data, ensure_ascii=False)
                 yield f"data: {file_message}\n\n"
                 await asyncio.sleep(0.1)
-                
+
                 # Send truncation notice immediately if file was truncated
                 if truncation_percentage is not None and int(truncation_percentage) < 100:
                     if int(truncation_percentage) == 0:
                         truncation_percentage = "< 1"
 
-                    truncation_msg = get_truncation_message(language, file_data['filename'], truncation_percentage)
-                    
                     truncation_message = json.dumps({
                         "type": "truncation",
-                        "message": truncation_msg
+                        "message_data": get_truncation_data(file_data['filename'], truncation_percentage)
                     }, ensure_ascii=False)
                     yield f"data: {truncation_message}\n\n"
                     await asyncio.sleep(0.1)
@@ -284,18 +288,24 @@ async def process_image_file(query: str, filename: str, file_content: bytes, ten
     """
     Process image file, convert to text using external API
     """
+    # Load messages based on language
+    messages = get_file_processing_messages_template(language)
+    
     try:
         image_stream = BytesIO(file_content)
         text = convert_image_to_text(query, image_stream, tenant_id, language)
-        return f"Image file {filename} content: {text}"
+        return messages["IMAGE_CONTENT_SUCCESS"].format(filename=filename, content=text)
     except Exception as e:
-        return f"Image file {filename} content: Error processing image file {filename}: {str(e)}"
+        return messages["IMAGE_CONTENT_ERROR"].format(filename=filename, error=str(e))
 
 
 async def process_text_file(query: str, filename: str, file_content: bytes, tenant_id: str, language: str = 'zh') -> tuple[str, Optional[str]]:
     """
     Process text file, convert to text using external API
     """
+    # Load messages based on language
+    messages = get_file_processing_messages_template(language)
+    
     # file_content is byte data, need to send to API through file upload
     data_process_service_url = DATA_PROCESS_SERVICE
     api_url = f"{data_process_service_url}/tasks/process_text_file"
@@ -319,21 +329,22 @@ async def process_text_file(query: str, filename: str, file_content: bytes, tena
             logger.info(
                 f"File processed successfully: {raw_text[:200]}...{raw_text[-200:]}...， length: {len(raw_text)}")
         else:
-            error_detail = response.json().get('detail', '未知错误') if response.headers.get(
+            error_detail = response.json().get('detail', 'unknown error') if response.headers.get(
                 'content-type', '').startswith('application/json') else response.text
             logger.error(
                 f"File processing failed (status code: {response.status_code}): {error_detail}")
             raise Exception(
-                f"File processing failed (status code: {response.status_code}): {error_detail}")
+                messages["FILE_PROCESSING_ERROR"].format(status_code=response.status_code, error_detail=error_detail))
 
     except Exception as e:
-        return f"File {filename} content: Error processing text file {filename}: {str(e)}", None
+        return messages["FILE_CONTENT_ERROR"].format(filename=filename, error=str(e)), None
 
     try:
-        text, truncation_percentage = convert_long_text_to_text(query, raw_text, tenant_id, language)
-        return f"File {filename} content: {text}", truncation_percentage
+        text, truncation_percentage = convert_long_text_to_text(
+            query, raw_text, tenant_id, language)
+        return messages["FILE_CONTENT_SUCCESS"].format(filename=filename, content=text), truncation_percentage
     except Exception as e:
-        return f"File {filename} content: Error processing text file {filename}: {str(e)}", None
+        return messages["FILE_CONTENT_ERROR"].format(filename=filename, error=str(e)), None
 
 
 def get_file_description(files: List[UploadFile]) -> str:
@@ -342,7 +353,7 @@ def get_file_description(files: List[UploadFile]) -> str:
     """
     if not files:
         return "User provided some reference files:\nNo files provided"
-    
+
     description = "User provided some reference files:\n"
     for file in files:
         ext = os.path.splitext(file.filename or "")[1].lower()

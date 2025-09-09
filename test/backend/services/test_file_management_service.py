@@ -611,9 +611,9 @@ class TestProcessImageFile:
                 language="zh"
             )
 
-            # Assertions
-            assert "Image file test.jpg content" in result
-            assert "Error processing image file test.jpg: Processing failed" in result
+            # Assertions - expect Chinese messages since language="zh"
+            assert "图片文件 test.jpg 内容" in result
+            assert "处理图片文件 test.jpg 时出错: Processing failed" in result
             mock_convert.assert_called_once()
 
 
@@ -674,9 +674,9 @@ class TestProcessTextFile:
                 language="zh"
             )
 
-            # Assertions
-            assert "File test.txt content" in result
-            assert "Error processing text file test.txt: Processing failed" in result
+            # Assertions - expect Chinese messages since language="zh"
+            assert "文件 test.txt 内容" in result
+            assert "处理文本文件 test.txt 时出错: Processing failed" in result
             assert truncation_percentage is None
             mock_convert.assert_called_once()
 
@@ -970,59 +970,51 @@ class TestPreprocessFilesGenerator:
 class TestUtilityFunctions:
     """Test cases for utility functions"""
 
-    def test_get_parsing_file_message_zh(self):
-        """Test get_parsing_file_message function with Chinese language"""
-        from backend.services.file_management_service import get_parsing_file_message
+    def test_get_parsing_file_data(self):
+        """Test get_parsing_file_data function returns correct structure"""
+        from backend.services.file_management_service import get_parsing_file_data
         
-        result = get_parsing_file_message("zh", 0, 3, "test.txt")
-        assert result == "正在解析文件 1/3: test.txt"
+        result = get_parsing_file_data(0, 3, "test.txt")
+        expected = {
+            "params": {
+                "index": 1,
+                "total": 3,
+                "filename": "test.txt"
+            }
+        }
+        assert result == expected
         
-        result = get_parsing_file_message("zh", 2, 5, "document.pdf")
-        assert result == "正在解析文件 3/5: document.pdf"
+        result = get_parsing_file_data(2, 5, "document.pdf")
+        expected = {
+            "params": {
+                "index": 3,
+                "total": 5,
+                "filename": "document.pdf"
+            }
+        }
+        assert result == expected
 
-    def test_get_parsing_file_message_en(self):
-        """Test get_parsing_file_message function with English language"""
-        from backend.services.file_management_service import get_parsing_file_message
+    def test_get_truncation_data(self):
+        """Test get_truncation_data function returns correct structure"""
+        from backend.services.file_management_service import get_truncation_data
         
-        result = get_parsing_file_message("en", 0, 3, "test.txt")
-        assert result == "Parsing file 1/3: test.txt"
+        result = get_truncation_data("test.txt", 50)
+        expected = {
+            "params": {
+                "filename": "test.txt",
+                "percentage": 50
+            }
+        }
+        assert result == expected
         
-        result = get_parsing_file_message("en", 2, 5, "document.pdf")
-        assert result == "Parsing file 3/5: document.pdf"
-
-    def test_get_parsing_file_message_other_language(self):
-        """Test get_parsing_file_message function with other language (defaults to English)"""
-        from backend.services.file_management_service import get_parsing_file_message
-        
-        result = get_parsing_file_message("fr", 0, 3, "test.txt")
-        assert result == "Parsing file 1/3: test.txt"
-
-    def test_get_truncation_message_zh(self):
-        """Test get_truncation_message function with Chinese language"""
-        from backend.services.file_management_service import get_truncation_message
-        
-        result = get_truncation_message("zh", "test.txt", 50)
-        assert result == "test.txt 超出字数限制，只阅读了前 50%"
-        
-        result = get_truncation_message("zh", "document.pdf", 25)
-        assert result == "document.pdf 超出字数限制，只阅读了前 25%"
-
-    def test_get_truncation_message_en(self):
-        """Test get_truncation_message function with English language"""
-        from backend.services.file_management_service import get_truncation_message
-        
-        result = get_truncation_message("en", "test.txt", 50)
-        assert result == "test.txt exceeds word limit, only read the first 50%"
-        
-        result = get_truncation_message("en", "document.pdf", 25)
-        assert result == "document.pdf exceeds word limit, only read the first 25%"
-
-    def test_get_truncation_message_other_language(self):
-        """Test get_truncation_message function with other language (defaults to English)"""
-        from backend.services.file_management_service import get_truncation_message
-        
-        result = get_truncation_message("fr", "test.txt", 50)
-        assert result == "test.txt exceeds word limit, only read the first 50%"
+        result = get_truncation_data("document.pdf", 25)
+        expected = {
+            "params": {
+                "filename": "document.pdf",
+                "percentage": 25
+            }
+        }
+        assert result == expected
 
 
 class TestEdgeCasesAndErrorHandling:
