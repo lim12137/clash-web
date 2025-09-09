@@ -1,14 +1,15 @@
 import i18n from 'i18next';
 
 import { API_ENDPOINTS } from './api';
+import { McpServer, McpTool } from '../types/agentConfig';
 
-// 翻译函数
+// Translation function
 const t = (key: string, options?: any): string => {
   return i18n.t(key, options) as string;
 };
 
 // TODO: Use fetchWithAuth instead
-// 获取授权头的辅助函数
+// Get authorization headers helper function
 const getAuthHeaders = () => {
   const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
   const sessionObj = session ? JSON.parse(session) : null;
@@ -19,22 +20,6 @@ const getAuthHeaders = () => {
     ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
   };
 };
-
-// MCP服务器接口定义
-export interface McpServer {
-  service_name: string;
-  mcp_url: string;
-  status: boolean;
-  remote_mcp_server_name?: string;
-  remote_mcp_server?: string;
-}
-
-// MCP工具接口定义
-export interface McpTool {
-  name: string;
-  description: string;
-  parameters?: any;
-}
 
 /**
  * 获取MCP服务器列表

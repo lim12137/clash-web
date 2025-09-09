@@ -3,13 +3,7 @@
 import { useState } from "react"
 
 import { Form } from "antd"
-
-export interface AuthFormValues {
-  email: string;
-  password: string;
-  confirmPassword: string;
-  inviteCode?: string;
-}
+import { AuthFormValues } from "@/types/auth"
 
 export function useAuthForm() {
   const [form] = Form.useForm<AuthFormValues>()

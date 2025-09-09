@@ -2,17 +2,10 @@
 
 import { API_ENDPOINTS } from './api'
 
-import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, ModelSource } from '../types/modelConfig'
+import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, ModelSource, ApiResponse } from '../types/modelConfig'
 
 import { getAuthHeaders } from '@/lib/auth'
 import {STATUS_CODES} from "@/types/auth";
-
-// API response type
-interface ApiResponse<T = any> {
-  code: number
-  message?: string
-  data?: T
-}
 
 // Error class
 export class ModelError extends Error {

@@ -6,7 +6,7 @@ import { API_ENDPOINTS } from "@/services/api";
 import { sessionService } from "@/services/sessionService";
 
 import { Session, User, SessionResponse } from "@/types/auth";
-import { STATUS_CODES } from "@/types/auth";
+import { STATUS_CODES } from "@/const/auth";
 
 import { generateAvatarUrl, removeSessionFromStorage } from "@/lib/auth"
 import { fetchWithAuth, getSessionFromStorage, saveSessionToStorage } from "@/lib/auth";

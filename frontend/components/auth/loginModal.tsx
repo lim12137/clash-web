@@ -6,7 +6,7 @@ import { UserOutlined, LockOutlined } from "@ant-design/icons";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useAuthForm } from "@/hooks/useAuthForm";
-import { EVENTS } from "@/types/auth";
+import { EVENTS } from "@/const/auth";
 
 const { Text } = Typography;
 

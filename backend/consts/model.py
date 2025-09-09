@@ -25,7 +25,7 @@ class ModelConnectStatusEnum(Enum):
         return status
 
 
-# 用户认证相关请求模型
+# User authentication related request models
 class UserSignUpRequest(BaseModel):
     """User registration request model"""
     email: EmailStr

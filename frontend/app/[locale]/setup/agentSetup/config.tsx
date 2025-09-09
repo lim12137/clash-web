@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Drawer, App } from "antd";
 import { AGENT_SETUP_LAYOUT_DEFAULT, GENERATE_PROMPT_STREAM_TYPES } from "@/const/agentConfig";
-import { SETUP_PAGE_CONTAINER, STANDARD_CARD } from "@/lib/layoutConstants";
+import { SETUP_PAGE_CONTAINER, STANDARD_CARD } from "@/const/layoutConstants";
 import { OpenAIModel } from "@/types/modelConfig";
 import {
   LayoutConfig,

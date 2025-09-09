@@ -1,15 +1,9 @@
 import { API_ENDPOINTS } from './api';
+import { UserKnowledgeConfig } from '../types/knowledgeBase';
 
 import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
 // @ts-ignore
 const fetch = fetchWithAuth;
-
-// 用户选中的知识库配置类型
-export interface UserKnowledgeConfig {
-  selectedKbNames: string[];
-  selectedKbModels: string[];
-  selectedKbSources: string[];
-}
 
 export class UserConfigService {
   // 获取用户选中的知识库列表
