@@ -37,10 +37,10 @@ uv pip install -e ".[dev]"  # 包含所有开发工具（测试、代码质量�
 ### 💡 基本导入
 
 ```python
-import nexent
-from nexent.core import MessageObserver, ProcessType
-from nexent.core.agents import CoreAgent, NexentAgent
-from nexent.core.models import OpenAIModel
+from nexent.core.utils.observer import MessageObserver, ProcessType
+from nexent.core.agents.core_agent import CoreAgent
+from nexent.core.agents.nexent_agent import NexentAgent
+from nexent.core.models.openai_llm import OpenAIModel
 from nexent.core.tools import ExaSearchTool, KnowledgeBaseSearchTool
 ```
 
@@ -95,46 +95,59 @@ agent = CoreAgent(
 
 ```python
 # 用你的问题运行智能体
-result = agent.run("你的问题")
+agent.run("你的问题")
 
-# 访问最终答案
-print(result.final_answer)
 ```
 
-## 🎯 高级使用模式
+## 📡 使用 agent_run（推荐的流式运行方式）
 
-### 🔧 自定义工具集成
+当你需要在服务端或前端以“事件流”方式消费消息时，推荐使用 `agent_run`。它会在后台线程执行智能体，并持续产出 JSON 格式的消息，便于 UI 展示与日志采集。
 
-```python
-from nexent.core.tools import BaseTool
+参考文档： [使用 agent_run 运行智能体](./core/agent-run)
 
-class CustomTool(BaseTool):
-    def __init__(self, observer: MessageObserver):
-        super().__init__(observer=observer, name="custom_tool")
-    
-    def run(self, input_text: str) -> str:
-        # 你的自定义工具逻辑
-        return f"已处理: {input_text}"
-
-# 将自定义工具添加到智能体
-custom_tool = CustomTool(observer=observer)
-agent.tools.append(custom_tool)
-```
-
-### 📡 流式输出处理
+最小示例：
 
 ```python
-# 监控流式输出
-def handle_stream(message: str, process_type: ProcessType):
-    if process_type == ProcessType.MODEL_OUTPUT_THINKING:
-        print(f"🤔 思考中: {message}")
-    elif process_type == ProcessType.EXECUTION_LOGS:
-        print(f"⚙️ 执行中: {message}")
-    elif process_type == ProcessType.FINAL_ANSWER:
-        print(f"✅ 答案: {message}")
+import json
+import asyncio
+from threading import Event
 
-# 设置带有自定义处理器的观察者
-observer.set_message_handler(handle_stream)
+from nexent.core.agents.run_agent import agent_run
+from nexent.core.agents.agent_model import AgentRunInfo, AgentConfig, ModelConfig
+from nexent.core.utils.observer import MessageObserver
+
+async def main():
+    observer = MessageObserver(lang="zh")
+    stop_event = Event()
+
+    model_config = ModelConfig(
+        cite_name="gpt-4",
+        api_key="<YOUR_API_KEY>",
+        model_name="Qwen/Qwen2.5-32B-Instruct",
+        url="https://api.siliconflow.cn/v1",
+    )
+
+    agent_config = AgentConfig(
+        name="example_agent",
+        description="An example agent",
+        tools=[],
+        max_steps=5,
+        model_name="gpt-4",
+    )
+
+    agent_run_info = AgentRunInfo(
+        query="strrawberry中出现了多少个字母r",
+        model_config_list=[model_config],
+        observer=observer,
+        agent_config=agent_config,
+        stop_event=stop_event
+    )
+
+    async for message in agent_run(agent_run_info):
+        message_data = json.loads(message)
+        print(message_data)
+
+asyncio.run(main())
 ```
 
 ## 🔧 配置选项
@@ -148,8 +161,6 @@ agent = CoreAgent(
     model=model,
     name="my_agent",
     max_steps=10,  # 最大执行步骤
-    temperature=0.7,  # 模型创造力水平
-    system_prompt="你是一个有用的AI助手。"  # 自定义系统提示
 )
 ```
 
@@ -161,41 +172,12 @@ search_tool = ExaSearchTool(
     exa_api_key="your-exa-key",
     observer=observer,
     max_results=10,  # 搜索结果数量
-    search_type="neural",  # 搜索类型: neural, keyword 等
-    include_domains=["example.com"],  # 限制搜索到特定域名
-    exclude_domains=["spam.com"]  # 排除特定域名
-)
-```
-
-## 📊 错误处理
-
-### 🛡️ 优雅的错误恢复
-
-```python
-try:
-    result = agent.run("你的问题")
-    print(f"成功: {result.final_answer}")
-except Exception as e:
-    print(f"发生错误: {e}")
-    # 适当处理错误
-```
-
-### 🔧 工具错误处理
-
-```python
-# 工具自动处理错误并提供回退方案
-search_tool = ExaSearchTool(
-    exa_api_key="your-exa-key",
-    observer=observer,
-    max_results=5,
-    fallback_to_keyword=True  # 如果神经搜索失败，回退到关键词搜索
 )
 ```
 
 ## 📚 更多资源
 
-有关更高级的使用模式和详细的API文档，请参阅：
-
-- **[工具开发指南](./core/tools)** - 详细的工具开发规范和示例
-- **[模型架构指南](./core/models)** - 模型集成和使用文档
-- **[智能体模块](./core/agents)** - 智能体开发的最佳实践和高级模式 
+- **[使用 agent_run 运行智能体](./core/agent-run)**
+- **[工具开发指南](./core/tools)**
+- **[模型架构指南](./core/models)**
+- **[智能体模块](./core/agents)** 
