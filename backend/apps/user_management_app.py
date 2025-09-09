@@ -27,9 +27,11 @@ async def service_health():
         is_available = await check_auth_service_health()
 
         if is_available:
-            return JSONResponse(status_code=HTTPStatus.OK, content={"message": "Auth service is available"})
+            return JSONResponse(status_code=HTTPStatus.OK,
+                                content={"message": "Auth service is available"})
         else:
-            raise HTTPException(status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail="Auth service is unavailable")
+            return JSONResponse(status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                                content={"message": "Auth service is unavailable"})
     except Exception as e:
         logging.error(f"Auth service health check failed: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Auth service is unavailable")
@@ -99,13 +101,13 @@ async def user_refresh_token(request: Request):
     try:
         authorization = request.headers.get("Authorization")
         if not authorization:
-            raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
-                                detail="No authorization token provided")
+            return JSONResponse(status_code=HTTPStatus.UNAUTHORIZED,
+                                content={"message": "No authorization token provided"})
         session_data = await request.json()
         refresh_token = session_data.get("refresh_token")
         if not refresh_token:
-            raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                                detail="No refresh token provided")
+            return JSONResponse(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                                content={"message": "No refresh token provided"})
         session_info = await refresh_user_token(authorization, refresh_token)
         return JSONResponse(status_code=HTTPStatus.OK,
                             content={"message":"Token refresh successful", "data":{"session": session_info}})
@@ -121,8 +123,8 @@ async def logout(request: Request):
     try:
         authorization = request.headers.get("Authorization")
         if not authorization:
-            raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
-                                detail="User not logged in")
+            return JSONResponse(status_code=HTTPStatus.UNAUTHORIZED,
+                                content={"message": "User not logged in"})
 
         client = get_authorized_client(authorization)
         client.auth.sign_out()
@@ -141,8 +143,8 @@ async def get_session(request: Request):
     try:
         authorization = request.headers.get("Authorization")
         if not authorization:
-            raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
-                                detail="No authorization token provided")
+            return JSONResponse(status_code=HTTPStatus.UNAUTHORIZED,
+                                content={"message": "No authorization token provided"})
 
         data = await get_session_by_authorization(authorization)
         return JSONResponse(status_code=HTTPStatus.OK,
@@ -164,8 +166,8 @@ async def get_user_id(request: Request):
     try:
         authorization = request.headers.get("Authorization")
         if not authorization:
-            raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
-                                detail="No authorization token provided")
+            return JSONResponse(status_code=HTTPStatus.UNAUTHORIZED,
+                                content={"message": "No authorization token provided"})
 
         # Use the unified token validation function
         is_valid, user = validate_token(authorization)
@@ -182,8 +184,8 @@ async def get_user_id(request: Request):
                                          "data": {"user_id": user_id}})
 
         # If all methods fail, return the session invalid information
-        raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                            detail="User not logged in or session invalid")
+        return JSONResponse(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                            content={"message": "User not logged in or session invalid"})
 
     except Exception as e:
         logging.error(f"Get user ID failed: {str(e)}")

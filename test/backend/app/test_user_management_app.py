@@ -148,8 +148,7 @@ class TestUserSignup:
 
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
             data = response.json()
-            assert "Admin registration feature is not available" in data["message"]
-            assert data["data"]["error_type"] == "INVITE_CODE_NOT_CONFIGURED"
+            assert data["detail"] == "INVITE_CODE_NOT_CONFIGURED"
 
     def test_signup_incorrect_invite_code_exception(self):
         """Test registration fails due to incorrect invite code"""
@@ -168,8 +167,7 @@ class TestUserSignup:
 
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
             data = response.json()
-            assert "Admin invite code error" in data["message"]
-            assert data["data"]["error_type"] == "INVITE_CODE_INVALID"
+            assert data["detail"] == "INVITE_CODE_INVALID"
 
     def test_signup_registration_service_exception(self):
         """Test registration fails due to service error"""
@@ -188,8 +186,7 @@ class TestUserSignup:
 
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
             data = response.json()
-            assert "Registration service is temporarily unavailable" in data["message"]
-            assert data["data"]["error_type"] == "REGISTRATION_SERVICE_ERROR"
+            assert data["detail"] == "REGISTRATION_SERVICE_ERROR"
 
     def test_signup_email_already_exists(self):
         """Test registration fails due to email already existing"""
@@ -208,8 +205,7 @@ class TestUserSignup:
 
             assert response.status_code == HTTPStatus.CONFLICT
             data = response.json()
-            assert "has already been registered" in data["message"]
-            assert data["data"]["error_type"] == "EMAIL_ALREADY_EXISTS"
+            assert data["detail"] == "EMAIL_ALREADY_EXISTS"
 
     def test_signup_weak_password(self):
         """Test registration fails due to weak password"""
@@ -228,8 +224,7 @@ class TestUserSignup:
 
             assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
             data = response.json()
-            assert "Password strength is not enough" in data["message"]
-            assert data["data"]["error_type"] == "WEAK_PASSWORD"
+            assert data["detail"] == "WEAK_PASSWORD"
 
     def test_signup_unknown_error(self):
         """Test registration fails due to unknown error"""
@@ -248,8 +243,7 @@ class TestUserSignup:
 
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
             data = response.json()
-            assert "Registration failed" in data["message"]
-            assert data["data"]["error_type"] == "UNKNOWN_ERROR"
+            assert data["detail"] == "UNKNOWN_ERROR"
 
 
 class TestUserSignin:
@@ -295,7 +289,7 @@ class TestUserSignin:
 
             assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
             data = response.json()
-            assert data["message"] == "Email or password error"
+            assert data["detail"] == "Email or password error"
 
     def test_signin_unknown_error(self):
         """Test login with unknown error"""
@@ -312,7 +306,7 @@ class TestUserSignin:
 
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
             data = response.json()
-            assert data["message"] == "Login failed"
+            assert data["detail"] == "Login failed"
 
 
 class TestRefreshToken:
@@ -371,7 +365,7 @@ class TestRefreshToken:
 
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
             data = response.json()
-            assert data["message"] == "Refresh token failed"
+            assert data["detail"] == "Refresh token failed"
 
 
 class TestLogout:
@@ -414,7 +408,7 @@ class TestLogout:
 
         assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
-        assert data["message"] == "Logout failed!"
+        assert data["detail"] == "Logout failed!"
 
 
 class TestGetSession:
@@ -460,7 +454,7 @@ class TestGetSession:
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
         data = response.json()
-        assert data["message"] == "Session is invalid"
+        assert data["detail"] == "Session is invalid"
 
     @patch('apps.user_management_app.get_session_by_authorization')
     def test_get_session_error(self, mock_get_session):
@@ -474,7 +468,7 @@ class TestGetSession:
 
         assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
-        assert data["message"] == "Get user session failed"
+        assert data["detail"] == "Get user session failed"
 
 
 class TestGetCurrentUserId:
@@ -552,7 +546,7 @@ class TestGetCurrentUserId:
 
         assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
-        assert data["message"] == "Get user ID failed"
+        assert data["detail"] == "Get user ID failed"
 
 
 class TestIntegration:
