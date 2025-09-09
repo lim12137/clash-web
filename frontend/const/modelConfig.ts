@@ -61,6 +61,8 @@ export const CONNECTION_STATUS = {
   PROCESSING: "processing"
 } as const;
 
+export type ConnectionStatus = (typeof CONNECTION_STATUS)[keyof typeof CONNECTION_STATUS];
+
 // Layout configuration constants
 export const LAYOUT_CONFIG = {
   CARD_HEADER_PADDING: "10px 24px",
