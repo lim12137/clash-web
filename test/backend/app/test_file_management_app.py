@@ -515,12 +515,18 @@ async def test_get_storage_file_batch_urls_invalid_request(mock_files):
 async def test_preprocess_api_error_handling(mock_files):
     """Test preprocess API error handling and task cleanup"""
     with patch("backend.utils.auth_utils.get_current_user_info") as mock_get_user, \
-            patch("backend.apps.file_management_app.process_image_file") as mock_process_image, \
+            patch("backend.services.file_management_service.preprocess_files_generator") as mock_preprocess_generator, \
             patch("agents.preprocess_manager.preprocess_manager") as mock_preprocess_manager:
 
         # Configure mocks
         mock_get_user.return_value = ("user123", "tenant456", "zh")
-        mock_process_image.side_effect = Exception("Processing failed")
+
+        # Mock the generator to yield some data then raise an exception
+        async def mock_generator(*args, **kwargs):
+            yield "data: {\"type\": \"progress\", \"progress\": 50}\n\n"
+            raise Exception("Processing failed")
+
+        mock_preprocess_generator.return_value = mock_generator()
 
         # Mock preprocess manager
         mock_preprocess_manager.register_preprocess_task = MagicMock()

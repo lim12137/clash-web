@@ -1,6 +1,7 @@
 import yaml
 from typing import Dict, Any
 import logging
+import os
 logger = logging.getLogger("prompt_template_utils")
 
 
@@ -15,6 +16,7 @@ def get_prompt_template(template_type: str, language: str = 'zh', **kwargs) -> D
             - 'knowledge_summary': Knowledge summary template
             - 'analyze_file': File analysis template
             - 'generate_title': Title generation template
+            - 'file_processing_messages': File processing messages template
         language: Language code ('zh' or 'en')
         **kwargs: Additional parameters, for agent type need to pass is_manager parameter
 
@@ -51,6 +53,10 @@ def get_prompt_template(template_type: str, language: str = 'zh', **kwargs) -> D
         'generate_title': {
             'zh': 'backend/prompts/utils/generate_title.yaml',
             'en': 'backend/prompts/utils/generate_title_en.yaml'
+        },
+        'file_processing_messages': {
+            'zh': 'backend/prompts/utils/file_processing_messages.yaml',
+            'en': 'backend/prompts/utils/file_processing_messages_en.yaml'
         }
     }
 
@@ -65,8 +71,14 @@ def get_prompt_template(template_type: str, language: str = 'zh', **kwargs) -> D
     else:
         template_path = template_paths[template_type][language]
 
+    # Get the directory of this file and construct absolute path
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up one level from utils to backend, then use the template path
+    backend_dir = os.path.dirname(current_dir)
+    absolute_template_path = os.path.join(backend_dir, template_path.replace('backend/', ''))
+    
     # Read and return template content
-    with open(template_path, 'r', encoding='utf-8') as f:
+    with open(absolute_template_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 
@@ -135,3 +147,16 @@ def get_generate_title_prompt_template(language: str = 'zh') -> Dict[str, Any]:
         dict: Loaded prompt template configuration
     """
     return get_prompt_template('generate_title', language)
+
+
+def get_file_processing_messages_template(language: str = 'zh') -> Dict[str, Any]:
+    """
+    Get file processing messages template
+
+    Args:
+        language: Language code ('zh' or 'en')
+
+    Returns:
+        dict: Loaded file processing messages configuration
+    """
+    return get_prompt_template('file_processing_messages', language)

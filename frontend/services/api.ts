@@ -71,8 +71,6 @@ export const API_ENDPOINTS = {
     
     // Official model service
     officialModelList: `${API_BASE_URL}/me/model/list`,
-    officialModelHealthcheck: (modelName: string, timeout: number = 2) => 
-      `${API_BASE_URL}/me/model/healthcheck?model_name=${encodeURIComponent(modelName)}&timeout=${timeout}`,
       
     // Custom model service
     customModelList: `${API_BASE_URL}/model/list`,

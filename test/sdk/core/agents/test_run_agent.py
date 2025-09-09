@@ -292,3 +292,78 @@ def test_agent_run_thread_handles_internal_exception(basic_agent_run_info, mock_
 
     # Ensure the raised error contains our message to confirm correct propagation
     assert "Error in agent_run_thread: Boom" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_agent_run_streams_messages_while_thread_alive(basic_agent_run_info, monkeypatch):
+    """agent_run should yield messages while the thread is alive, then final cache."""
+    # Arrange observer cached messages: one streaming batch, then final flush
+    basic_agent_run_info.observer.get_cached_message.side_effect = [
+        ["m1", "m2"],  # during loop
+        ["final1", "final2"],  # after loop
+    ]
+
+    # Fast asyncio.sleep to avoid delays and to assert both sleeps are awaited
+    sleep_calls = []
+
+    async def fast_sleep(duration):  # pylint: disable=unused-argument
+        sleep_calls.append(duration)
+
+    monkeypatch.setattr(run_agent.asyncio, "sleep", fast_sleep)
+
+    # Fake Thread that is alive once, then stops
+    class FakeThread:
+        def __init__(self, target=None, args=None):  # pylint: disable=unused-argument
+            self._alive_checks = 0
+            self.started = False
+
+        def start(self):
+            self.started = True
+
+        def is_alive(self):
+            self._alive_checks += 1
+            return self._alive_checks == 1
+
+    monkeypatch.setattr(run_agent, "Thread", FakeThread)
+
+    # Act
+    received = []
+    async for item in run_agent.agent_run(basic_agent_run_info):
+        received.append(item)
+
+    # Assert: streamed + final messages
+    assert received == ["m1", "m2", "final1", "final2"]
+    # Ensure thread was started and sleeps were awaited (both inner and outer occur)
+    assert any(d in (0.05, 0.1) for d in sleep_calls)
+
+
+@pytest.mark.asyncio
+async def test_agent_run_skips_loop_when_thread_not_alive(basic_agent_run_info, monkeypatch):
+    """If the thread is not alive initially, only the final cache is yielded."""
+    # Only final cache should be yielded
+    basic_agent_run_info.observer.get_cached_message.side_effect = [
+        ["final_only"],
+    ]
+
+    async def fast_sleep(duration):  # pylint: disable=unused-argument
+        return None
+
+    monkeypatch.setattr(run_agent.asyncio, "sleep", fast_sleep)
+
+    class FakeThread:
+        def __init__(self, target=None, args=None):  # pylint: disable=unused-argument
+            pass
+
+        def start(self):
+            pass
+
+        def is_alive(self):
+            return False
+
+    monkeypatch.setattr(run_agent, "Thread", FakeThread)
+
+    received = []
+    async for item in run_agent.agent_run(basic_agent_run_info):
+        received.append(item)
+
+    assert received == ["final_only"]

@@ -22,22 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-
-// Interface for attachment items
-export interface AttachmentItem {
-  type: string;
-  name: string;
-  size: number;
-  url?: string;
-  contentType?: string;
-}
-
-// Interface for the chat attachment component
-interface ChatAttachmentProps {
-  attachments: AttachmentItem[];
-  onImageClick?: (url: string) => void;
-  className?: string;
-}
+import { AttachmentItem, ChatAttachmentProps } from "@/types/chat";
 
 // Image viewer component
 const ImageViewer = ({

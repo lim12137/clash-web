@@ -6,9 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scrollArea";
 import { Button } from "@/components/ui/button";
 import { ROLE_ASSISTANT } from "@/const/agentConfig";
-import { ChatMessageType } from "@/types/chat";
+import { ChatMessageType, FilePreview } from "@/types/chat";
 
-import { ChatInput, FilePreview } from "../components/chatInput";
+import { ChatInput } from "../components/chatInput";
 import { ChatStreamFinalMessage } from "./chatStreamFinalMessage";
 import { TaskWindow } from "./taskWindow";
 
@@ -104,15 +104,18 @@ export function ChatStreamMain({
   // 处理消息分类
   useEffect(() => {
     const finalMsgs: ChatMessageType[] = [];
-    const taskMsgs: any[] = [];
-    const conversationGroups = new Map<string, any[]>();
+      const taskMsgs: any[] = [];
+      const conversationGroups = new Map<string, any[]>();
+      const truncationBuffer = new Map<string, any[]>(); // Buffer for truncation messages by user message ID
+      const processedTruncationIds = new Set<string>(); // Track processed truncation messages to avoid duplicates
 
-    // First preprocess, find all user message IDs and initialize task groups
-    messages.forEach((message) => {
-      if (message.role === "user" && message.id) {
-        conversationGroups.set(message.id, []);
-      }
-    });
+      // First preprocess, find all user message IDs and initialize task groups
+      messages.forEach((message) => {
+        if (message.role === "user" && message.id) {
+          conversationGroups.set(message.id, []);
+          truncationBuffer.set(message.id, []); // Initialize truncation buffer for each user message
+        }
+      });
 
     let currentUserMsgId: string | null = null;
 
@@ -150,17 +153,35 @@ export function ChatStreamMain({
                   id: content.id,
                   assistantId: message.id,
                   relatedUserMsgId: currentUserMsgId,
+                  // For preprocess messages, include the full contents array for TaskWindow
+                  contents: content.type === "preprocess" ? step.contents : undefined,
                 };
-                taskMsgs.push(taskMsg);
 
-                // If there is a related user message, add it to the corresponding task group
-                if (
-                  currentUserMsgId &&
-                  conversationGroups.has(currentUserMsgId)
-                ) {
-                  const tasks = conversationGroups.get(currentUserMsgId) || [];
-                  tasks.push(taskMsg);
-                  conversationGroups.set(currentUserMsgId, tasks);
+                // Handle truncation messages specially - buffer them instead of adding immediately
+                if (content.type === "truncation") {
+                  // Create a unique ID for this truncation message to avoid duplicates
+                  const truncationId = `${content.filename || 'unknown'}_${content.message || ''}_${currentUserMsgId || 'no_user'}`;
+                  
+                  // Only add if not already processed
+                  if (!processedTruncationIds.has(truncationId) && currentUserMsgId && truncationBuffer.has(currentUserMsgId)) {
+                    const buffer = truncationBuffer.get(currentUserMsgId) || [];
+                    buffer.push(taskMsg);
+                    truncationBuffer.set(currentUserMsgId, buffer);
+                    processedTruncationIds.add(truncationId);
+                  }
+                } else {
+                  // For non-truncation messages, add them immediately
+                  taskMsgs.push(taskMsg);
+
+                  // If there is a related user message, add it to the corresponding task group
+                  if (
+                    currentUserMsgId &&
+                    conversationGroups.has(currentUserMsgId)
+                  ) {
+                    const tasks = conversationGroups.get(currentUserMsgId) || [];
+                    tasks.push(taskMsg);
+                    conversationGroups.set(currentUserMsgId, tasks);
+                  }
                 }
               });
             }
@@ -253,6 +274,36 @@ export function ChatStreamMain({
             }
           });
         }
+      }
+    });
+
+    // Process complete messages and release buffered truncation messages
+    messages.forEach((message) => {
+      if (message.role === ROLE_ASSISTANT && message.steps) {
+        message.steps.forEach((step) => {
+          if (step.contents && step.contents.length > 0) {
+            step.contents.forEach((content: any) => {
+              if (content.type === "complete") {
+                // Find the related user message ID for this complete message
+                let relatedUserMsgId: string | null = null;
+                
+                // Find the user message that this assistant message is responding to
+                const messageIndex = messages.indexOf(message);
+                for (let i = messageIndex - 1; i >= 0; i--) {
+                  if (messages[i].role === "user" && messages[i].id) {
+                    relatedUserMsgId = messages[i].id;
+                    break;
+                  }
+                }
+                
+                if (relatedUserMsgId && truncationBuffer.has(relatedUserMsgId)) {
+                  // Clear the buffer for this user message
+                  truncationBuffer.delete(relatedUserMsgId);
+                }
+              }
+            });
+          }
+        });
       }
     });
 
