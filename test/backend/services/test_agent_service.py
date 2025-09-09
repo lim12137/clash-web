@@ -666,13 +666,15 @@ async def test_list_all_agent_info_impl_success():
             "agent_id": 1,
             "name": "Agent 1",
             "display_name": "Display Agent 1",
-            "description": "First test agent"
+            "description": "First test agent",
+            "enabled": True
         },
         {
             "agent_id": 2,
             "name": "Agent 2",
             "display_name": "Display Agent 2",
-            "description": "Second test agent"
+            "description": "Second test agent",
+            "enabled": True
         }
     ]
 
@@ -731,13 +733,15 @@ async def test_list_all_agent_info_impl_with_unavailable_tools():
             "agent_id": 1,
             "name": "Agent 1",
             "display_name": "Display Agent 1",
-            "description": "Agent with available tools"
+            "description": "Agent with available tools",
+            "enabled": True
         },
         {
             "agent_id": 2,
             "name": "Agent 2",
             "display_name": "Display Agent 2",
-            "description": "Agent with unavailable tools"
+            "description": "Agent with unavailable tools",
+            "enabled": True
         }
     ]
 
