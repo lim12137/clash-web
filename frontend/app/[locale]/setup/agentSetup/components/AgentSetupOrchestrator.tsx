@@ -120,10 +120,7 @@ export default function AgentSetupOrchestrator({
   };
 
   const fetchSubAgentIdAndEnableToolList = async (t: TFunction) => {
-    setIsLoadingTools(true);
-    // Clear the tool selection status when loading starts
-    setSelectedTools([]);
-    setEnabledToolIds([]);
+    setIsLoadingTools(false);
 
     try {
       const result = await getCreatingSubAgentId();
