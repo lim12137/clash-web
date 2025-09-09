@@ -259,6 +259,10 @@ async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_in
         "test_user", "test_tenant", "en")
     mock_get_creating_sub_agent.return_value = 456
     mock_search_agent_info.return_value = {
+        "model_id": 456,
+        "name": "agent_name",
+        "display_name": "display name",
+        "description": "description...",
         "model_name": "gpt-4",
         "max_steps": 5,
         "business_description": "Sub agent",
@@ -277,6 +281,9 @@ async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_in
     # Assert
     expected_result = {
         "agent_id": 456,
+        "name": "agent_name",
+        "display_name": "display name",
+        "description": "description...",
         "enable_tool_id_list": [1, 2],
         "model_name": "gpt-4",
         "max_steps": 5,
