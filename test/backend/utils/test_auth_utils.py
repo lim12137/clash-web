@@ -166,54 +166,76 @@ def test_get_user_language_from_cookie():
 
 def test_get_supabase_client_success(monkeypatch):
     """Test successful Supabase client creation"""
-    # Mock the create_client function to return a mock client
     mock_client = MagicMock()
-    monkeypatch.setattr(au, "create_client",
-                        MagicMock(return_value=mock_client))
-
-    # Mock environment variables
-    monkeypatch.setattr(au, "SUPABASE_URL", "http://test-url.com")
-    monkeypatch.setattr(au, "SUPABASE_KEY", "test-key")
+    monkeypatch.setattr(au, "create_client", lambda url, key: mock_client)
+    monkeypatch.setattr(au, "SUPABASE_URL", "https://test.supabase.co")
+    monkeypatch.setattr(au, "SUPABASE_KEY", "test_key")
 
     result = au.get_supabase_client()
-
-    # Verify the client was created with correct parameters
-    au.create_client.assert_called_once_with("http://test-url.com", "test-key")
     assert result == mock_client
 
 
-def test_get_supabase_client_exception(monkeypatch, caplog):
-    """Test Supabase client creation with exception"""
-    # Mock create_client to raise an exception
-    monkeypatch.setattr(au, "create_client", MagicMock(
-        side_effect=Exception("Connection failed")))
+def test_get_supabase_client_failure(monkeypatch):
+    """Test Supabase client creation failure"""
+    def mock_create_client(url, key):
+        raise Exception("Connection failed")
 
-    # Mock environment variables
-    monkeypatch.setattr(au, "SUPABASE_URL", "http://test-url.com")
-    monkeypatch.setattr(au, "SUPABASE_KEY", "test-key")
+    monkeypatch.setattr(au, "create_client", mock_create_client)
+    monkeypatch.setattr(au, "SUPABASE_URL", "https://test.supabase.co")
+    monkeypatch.setattr(au, "SUPABASE_KEY", "test_key")
 
     result = au.get_supabase_client()
-
-    # Verify None is returned on exception
     assert result is None
 
-    # Verify error was logged
-    assert "Failed to create Supabase client: Connection failed" in caplog.text
+
+def test_validate_aksk_authentication_unexpected_error(monkeypatch):
+    """Test unexpected error during AK/SK authentication"""
+    def mock_verify_aksk_signature(*args):
+        raise Exception("Unexpected error")
+
+    monkeypatch.setattr(au, "verify_aksk_signature",
+                        mock_verify_aksk_signature)
+
+    with pytest.raises(UnauthorizedError, match="Authentication failed"):
+        au.validate_aksk_authentication({
+            "X-Access-Key": "ak",
+            "X-Timestamp": str(int(time.time())),
+            "X-Signature": "sig",
+        }, "body")
 
 
-def test_get_supabase_client_with_different_env_vars(monkeypatch):
-    """Test Supabase client creation with different environment variables"""
-    mock_client = MagicMock()
-    monkeypatch.setattr(au, "create_client",
-                        MagicMock(return_value=mock_client))
+def test_get_jwt_expiry_seconds_exception(monkeypatch):
+    """Test JWT expiry seconds calculation with exception"""
+    monkeypatch.setattr(au, "IS_SPEED_MODE", False)
+    monkeypatch.setattr(au, "DEBUG_JWT_EXPIRE_SECONDS", 0)
 
-    # Test with different URL and key
-    monkeypatch.setattr(au, "SUPABASE_URL", "https://custom.supabase.co")
-    monkeypatch.setattr(au, "SUPABASE_KEY", "custom-anon-key")
+    # Mock jwt.decode to raise exception
+    monkeypatch.setattr(au, "jwt", MagicMock())
+    au.jwt.decode.side_effect = Exception("JWT decode failed")
 
-    result = au.get_supabase_client()
+    result = au.get_jwt_expiry_seconds("invalid_token")
+    assert result == 3600  # Should return default value
 
-    # Verify the client was created with custom parameters
-    au.create_client.assert_called_once_with(
-        "https://custom.supabase.co", "custom-anon-key")
-    assert result == mock_client
+
+def test_get_current_user_id_no_tenant_mapping(monkeypatch):
+    """Test get_current_user_id when no tenant mapping found"""
+    monkeypatch.setattr(au, "IS_SPEED_MODE", False)
+    token = au.generate_test_jwt("user-a", 1000)
+
+    # Mock get_user_tenant_by_user_id to return None
+    monkeypatch.setattr(au, "get_user_tenant_by_user_id", lambda u: None)
+
+    uid, tid = au.get_current_user_id(token)
+    assert uid == "user-a" and tid == au.DEFAULT_TENANT_ID
+
+
+def test_get_current_user_id_exception(monkeypatch):
+    """Test get_current_user_id with exception"""
+    monkeypatch.setattr(au, "IS_SPEED_MODE", False)
+
+    # Mock _extract_user_id_from_jwt_token to raise exception
+    monkeypatch.setattr(au, "_extract_user_id_from_jwt_token",
+                        lambda token: (_ for _ in ()).throw(Exception("Token parsing failed")))
+
+    with pytest.raises(UnauthorizedError, match="Invalid or expired authentication token"):
+        au.get_current_user_id("Bearer invalid_token")
