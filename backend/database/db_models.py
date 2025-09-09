@@ -27,14 +27,6 @@ class ConversationRecord(TableBase):
     conversation_id = Column(Integer, Sequence(
         "conversation_record_t_conversation_id_seq", schema=SCHEMA), primary_key=True, nullable=False)
     conversation_title = Column(String(100), doc="Conversation title")
-    delete_flag = Column(String(
-        1), default="N", doc="After the user deletes it on the frontend, the deletion flag will be set to \"Y\" for soft deletion. Optional values: Y/N")
-    update_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Update date, audit field")
-    create_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Creation time, audit field")
-    updated_by = Column(String(100), doc="ID of the last updater, audit field")
-    created_by = Column(String(100), doc="ID of the creator, audit field")
 
 
 class ConversationMessage(TableBase):
@@ -57,14 +49,6 @@ class ConversationMessage(TableBase):
         String, doc="Images or documents uploaded by the user on the chat page, stored as a list")
     opinion_flag = Column(String(
         1), doc="User evaluation of the conversation. Enumeration value \"Y\" represents a positive review, \"N\" represents a negative review")
-    delete_flag = Column(String(
-        1), default="N", doc="After the user deletes it on the frontend, the deletion flag will be set to \"Y\" for soft deletion. Optional values: Y/N")
-    create_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Creation time, audit field")
-    update_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Update date, audit field")
-    created_by = Column(String(100), doc="ID of the creator, audit field")
-    updated_by = Column(String(100), doc="ID of the last updater, audit field")
 
 
 class ConversationMessageUnit(TableBase):
@@ -85,14 +69,6 @@ class ConversationMessageUnit(TableBase):
     unit_type = Column(String(100), doc="Type of the smallest answer unit")
     unit_content = Column(
         String, doc="Complete content of the smallest reply unit")
-    delete_flag = Column(String(
-        1), default="N", doc="After the user deletes it on the frontend, the deletion flag will be set to \"Y\" for soft deletion. Optional values: Y/N")
-    create_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Creation time, audit field")
-    update_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Update date, audit field")
-    updated_by = Column(String(100), doc="ID of the last updater, audit field")
-    created_by = Column(String(100), doc="ID of the creator, audit field")
 
 
 class ConversationSourceImage(TableBase):
@@ -115,14 +91,6 @@ class ConversationSourceImage(TableBase):
         Integer, doc="[Reserved] Citation serial number for precise traceability")
     search_type = Column(String(
         100), doc="[Reserved] Search source type, used to distinguish the retrieval tool from which the record originates. Optional values: web/local")
-    delete_flag = Column(String(
-        1), default="N", doc="After the user deletes it on the frontend, the deletion flag will be set to \"Y\" for soft deletion. Optional values: Y/N")
-    create_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Creation time, audit field")
-    update_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Update date, audit field")
-    created_by = Column(String(100), doc="ID of the creator, audit field")
-    updated_by = Column(String(100), doc="ID of the last updater, audit field")
 
 
 class ConversationSourceSearch(TableBase):
@@ -159,14 +127,6 @@ class ConversationSourceSearch(TableBase):
         100), doc="Search source type, specifically describing the retrieval tool used for this search record. Optional values: web_search/knowledge_base_search")
     tool_sign = Column(String(
         30), doc="Simple tool identifier used to distinguish the index source in the summary text output by the large model")
-    create_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Creation time, audit field")
-    update_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Update date, audit field")
-    delete_flag = Column(String(
-        1), default="N", doc="After the user deletes it on the frontend, the deletion flag will be set to \"Y\" for soft deletion. Optional values: Y/N")
-    updated_by = Column(String(100), doc="ID of the last updater, audit field")
-    created_by = Column(String(100), doc="ID of the creator, audit field")
 
 
 class ModelRecord(TableBase):
@@ -196,14 +156,6 @@ class ModelRecord(TableBase):
     connect_status = Column(String(
         100), doc="Model connectivity status of the latest detection. Optional values: Detecting, Available, Unavailable")
     tenant_id = Column(String(100), doc="Tenant ID for filtering")
-    create_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Creation time, audit field")
-    delete_flag = Column(String(
-        1), default="N", doc="After the user deletes it on the frontend, the deletion flag will be set to \"Y\" for soft deletion. Optional values: Y/N")
-    update_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Update date, audit field")
-    updated_by = Column(String(100), doc="ID of the last updater, audit field")
-    created_by = Column(String(100), doc="ID of the creator, audit field")
 
 
 class ToolInfo(TableBase):
@@ -284,14 +236,6 @@ class KnowledgeRecord(TableBase):
     knowledge_sources = Column(String(300), doc="Knowledge base sources")
     embedding_model_name = Column(String(200), doc="Embedding model name, used to record the embedding model used by the knowledge base")
     tenant_id = Column(String(100), doc="Tenant ID")
-    delete_flag = Column(String(
-        1), default="N", doc="Knowledge base status. Currently defaults to 1, if knowledge base status is 0, then this knowledge base is unavailable")
-    create_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Creation time, audit field")
-    update_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Update date, audit field")
-    updated_by = Column(String(100), doc="ID of the last updater, audit field")
-    created_by = Column(String(100), doc="ID of the creator, audit field")
 
 
 class TenantConfig(TableBase):
@@ -309,14 +253,6 @@ class TenantConfig(TableBase):
         100), doc=" the data type of config_value, optional values: single/multi", default="single")
     config_key = Column(String(100), doc="the key of the config")
     config_value = Column(String(10000), doc="the value of the config")
-    create_time = Column(TIMESTAMP(timezone=False),
-                         server_default=func.now(), doc="Creation time")
-    update_time = Column(TIMESTAMP(timezone=False),
-                         server_default=func.now(), doc="Update time")
-    created_by = Column(String(100), doc="Creator")
-    updated_by = Column(String(100), doc="Updater")
-    delete_flag = Column(String(1), default="N",
-                         doc="Whether it is deleted. Optional values: Y/N")
 
 
 class MemoryUserConfig(TableBase):
@@ -334,14 +270,6 @@ class MemoryUserConfig(TableBase):
         100), doc=" the data type of config_value, optional values: single/multi", default="single")
     config_key = Column(String(100), doc="the key of the config")
     config_value = Column(String(10000), doc="the value of the config")
-    create_time = Column(TIMESTAMP(timezone=False),
-                         server_default=func.now(), doc="Creation time")
-    update_time = Column(TIMESTAMP(timezone=False),
-                         server_default=func.now(), doc="Update time")
-    created_by = Column(String(100), doc="Creator")
-    updated_by = Column(String(100), doc="Updater")
-    delete_flag = Column(String(1), default="N",
-                         doc="Whether it is deleted. Optional values: Y/N")
 
 
 class McpRecord(TableBase):
@@ -359,14 +287,6 @@ class McpRecord(TableBase):
     mcp_server = Column(String(500), doc="MCP server address")
     status = Column(Boolean, default=None,
                     doc="MCP server connection status, True=connected, False=disconnected, None=unknown")
-    create_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Creation time, audit field")
-    update_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Update time, audit field")
-    created_by = Column(String(100), doc="Creator ID, audit field")
-    updated_by = Column(String(100), doc="Last updater ID, audit field")
-    delete_flag = Column(String(
-        1), default="N", doc="When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N")
 
 
 class UserTenant(TableBase):
@@ -380,14 +300,6 @@ class UserTenant(TableBase):
                             primary_key=True, nullable=False, doc="User tenant relationship ID, unique primary key")
     user_id = Column(String(100), nullable=False, doc="User ID")
     tenant_id = Column(String(100), nullable=False, doc="Tenant ID")
-    create_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Creation time, audit field")
-    update_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Update time, audit field")
-    created_by = Column(String(100), doc="Creator ID, audit field")
-    updated_by = Column(String(100), doc="Last updater ID, audit field")
-    delete_flag = Column(String(
-        1), default="N", doc="When deleted by user frontend, delete flag will be set to true, achieving soft delete effect. Optional values Y/N")
 
 
 class AgentRelation(TableBase):
@@ -402,14 +314,6 @@ class AgentRelation(TableBase):
     selected_agent_id = Column(Integer, doc="Selected agent ID")
     parent_agent_id = Column(Integer, doc="Parent agent ID")
     tenant_id = Column(String(100), doc="Tenant ID")
-    create_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Creation time, audit field")
-    update_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Update time, audit field")
-    created_by = Column(String(100), doc="Creator ID, audit field")
-    updated_by = Column(String(100), doc="Last updater ID, audit field")
-    delete_flag = Column(String(
-        1), default="N", doc="Delete flag, set to Y for soft delete, optional values Y/N")
 
 
 class PartnerMappingId(TableBase):
@@ -429,11 +333,3 @@ class PartnerMappingId(TableBase):
         30), doc="Type of the external - internal mapping, value set: CONVERSATION")
     tenant_id = Column(String(100), doc="Tenant ID")
     user_id = Column(String(100), doc="User ID")
-    create_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Creation time, audit field")
-    update_time = Column(TIMESTAMP(
-        timezone=False), server_default=func.now(), doc="Update time, audit field")
-    created_by = Column(String(100), doc="Creator ID, audit field")
-    updated_by = Column(String(100), doc="Last updater ID, audit field")
-    delete_flag = Column(String(
-        1), default="N", doc="Delete flag, set to Y for soft delete, optional values Y/N")

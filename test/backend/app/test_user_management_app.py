@@ -6,12 +6,13 @@ import os
 # Add path for correct imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 
+# Import exception classes
+from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException
+from supabase_auth.errors import AuthApiError, AuthWeakPasswordError
+
 # Mock external dependencies
 sys.modules['boto3'] = MagicMock()
 
-# Import exception classes
-from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException
-from gotrue.errors import AuthApiError, AuthWeakPasswordError
 
 # Import the modules we need with MinioClient mocked  
 with patch('database.client.MinioClient', MagicMock()):

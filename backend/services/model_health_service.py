@@ -1,30 +1,28 @@
 import asyncio
 import logging
-from http import HTTPStatus
-from typing import Optional
-
 import aiohttp
-from fastapi import Header
+from http import HTTPStatus
+
+from nexent.core import MessageObserver
+from nexent.core.models import OpenAIModel, OpenAIVLModel
+from nexent.core.models.embedding_model import JinaEmbedding, OpenAICompatibleEmbedding
 
 from apps.voice_app import VoiceService
 from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
 from consts.exceptions import MEConnectionException, TimeoutException
-from consts.model import ModelConnectStatusEnum, ModelResponse
+from consts.model import ModelConnectStatusEnum
 from database.model_management_db import get_model_by_display_name, update_model_record
-from nexent.core import MessageObserver
-from nexent.core.models import OpenAIModel, OpenAIVLModel
-from nexent.core.models.embedding_model import JinaEmbedding, OpenAICompatibleEmbedding
-from utils.auth_utils import get_current_user_id
 from utils.config_utils import get_model_name_from_config
 
 logger = logging.getLogger("model_health_service")
 
 
 async def _embedding_dimension_check(
-        model_name: str,
-        model_type: str,
-        model_base_url: str,
-        model_api_key: str):
+    model_name: str,
+    model_type: str,
+    model_base_url: str,
+    model_api_key: str
+):
     # Test connectivity based on different model types
     if model_type == "embedding":
         embedding = await OpenAICompatibleEmbedding(
@@ -35,6 +33,9 @@ async def _embedding_dimension_check(
         ).dimension_check()
         if len(embedding) > 0:
             return len(embedding[0])
+        logging.warning(
+            f"Embedding dimension check for {model_name} gets empty response")
+        return 0
     elif model_type == "multi_embedding":
         embedding = await JinaEmbedding(
             model_name=model_name,
@@ -44,16 +45,19 @@ async def _embedding_dimension_check(
         ).dimension_check()
         if len(embedding) > 0:
             return len(embedding[0])
-
-    return 0
+        logging.warning(
+            f"Embedding dimension check for {model_name} gets empty response")
+        return 0
+    else:
+        raise ValueError(f"Unsupported model type: {model_type}")
 
 
 async def _perform_connectivity_check(
-        model_name: str,
-        model_type: str,
-        model_base_url: str,
-        model_api_key: str,
-        embedding_dim: int = 1024
+    model_name: str,
+    model_type: str,
+    model_base_url: str,
+    model_api_key: str,
+    embedding_dim: int
 ) -> bool:
     """
     Perform specific model connectivity check
@@ -113,14 +117,12 @@ async def _perform_connectivity_check(
     return connectivity
 
 
-async def check_model_connectivity(display_name: str, authorization: Optional[str] = Header(None)):
+async def check_model_connectivity(display_name: str, tenant_id: str) -> dict:
     try:
-        # Query the database using display_name
-        user_id, tenant_id = get_current_user_id(authorization)
+        # Query the database using display_name and tenant context from app layer
         model = get_model_by_display_name(display_name, tenant_id=tenant_id)
         if not model:
-            return ModelResponse(code=404, message=f"Model configuration not found for {display_name}",
-                                 data={"connectivity": False, "connect_status": "Not Found"})
+            raise LookupError(f"Model configuration not found for {display_name}")
 
         # Still use repo/name concatenation for model instantiation
         repo, name = model.get("model_repo", ""), model.get("model_name", "")
@@ -141,32 +143,26 @@ async def check_model_connectivity(display_name: str, authorization: Optional[st
                 model_name, model_type, model_base_url, model_api_key
             )
         except Exception as e:
-            update_data = {
-                "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
+            update_data = {"connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
             logger.error(f"Error checking model connectivity: {str(e)}")
             update_model_record(model["model_id"], update_data)
-            return ModelResponse(code=400, message=str(e),
-                                 data={"connectivity": False, "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
+            raise e
 
         if connectivity:
-            logger.info(
-                f"CONNECTED: {model_name}; Base URL: {model.get('base_url')}; API Key: {model.get('api_key')}")
+            logger.info(f"CONNECTED: {model_name}; Base URL: {model.get('base_url')}; API Key: {model.get('api_key')}")
         else:
-            logger.warning(
-                f"UNCONNECTED: {model_name}; Base URL: {model.get('base_url')}; API Key: {model.get('api_key')}")
+            logger.warning(f"UNCONNECTED: {model_name}; Base URL: {model.get('base_url')}; API Key: {model.get('api_key')}")
         connect_status = ModelConnectStatusEnum.AVAILABLE.value if connectivity else ModelConnectStatusEnum.UNAVAILABLE.value
         update_data = {"connect_status": connect_status}
         update_model_record(model["model_id"], update_data)
-        return ModelResponse(code=200, message=f"Model {display_name} connectivity {'successful' if connectivity else 'failed'}",
-                             data={"connectivity": connectivity, "connect_status": connect_status})
+        return {"connectivity": connectivity, "connect_status": connect_status}
     except Exception as e:
         logger.error(f"Error checking model connectivity: {str(e)}")
         if 'model' in locals() and model:
-            update_data = {
-                "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
+            update_data = {"connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
             update_model_record(model["model_id"], update_data)
-        return ModelResponse(code=500, message=f"Connectivity test error: {str(e)}",
-                             data={"connectivity": False, "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value})
+        # Propagate for app layer to translate into HTTP
+        raise e
 
 
 async def check_me_connectivity_impl(timeout: int):
@@ -203,7 +199,7 @@ async def verify_model_config_connectivity(model_config: dict):
     Args:
         model_config: Model configuration dictionary, containing necessary connection parameters
     Returns:
-        ModelResponse: Contains the result of the connectivity test
+        dict: Contains the result of the connectivity test
     """
     try:
         model_name = model_config.get("model_name", "")
@@ -219,46 +215,23 @@ async def verify_model_config_connectivity(model_config: dict):
                 model_name, model_type, model_base_url, model_api_key, embedding_dim
             )
         except ValueError as e:
-            logger.warning(
-                f"UNCONNECTED: {model_name}; Base URL: {model_base_url}; API Key: {model_api_key}; Error: {str(e)}")
-            return ModelResponse(
-                code=400,
-                message=str(e),
-                data={
-                    "connectivity": False,
-                    "message": str(e),
-                    "error_code": "MODEL_VALIDATION_ERROR",
-                    "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
-                }
-            )
-
-        connect_status = ModelConnectStatusEnum.AVAILABLE.value if connectivity else ModelConnectStatusEnum.UNAVAILABLE.value
-        status_code = "MODEL_VALIDATION_SUCCESS" if connectivity else "MODEL_VALIDATION_FAILED"
-
-        return ModelResponse(
-            code=200,
-            message="",
-            data={
-                "connectivity": connectivity,
-                "error_code": status_code,
-                "model_name": model_name,
-                "connect_status": connect_status
-            }
-        )
-    except Exception as e:
-        error_message = str(e)
-        logger.warning(
-            f"UNCONNECTED: {model_name}; Base URL: {model_base_url}; API Key: {model_api_key}; Error: {error_message}")
-        return ModelResponse(
-            code=500,
-            message="",
-            data={
+            logger.warning(f"UNCONNECTED: {model_name}; Base URL: {model_base_url}; API Key: {model_api_key}; Error: {str(e)}")
+            return {
                 "connectivity": False,
-                "error_code": "MODEL_VALIDATION_ERROR_UNKNOWN",
-                "error_details": error_message,
-                "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
+                "model_name": model_name
             }
-        )
+
+        return {
+            "connectivity": connectivity,
+            "model_name": model_name,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to check connectivity of models: {str(e)}")
+        return {
+            "connectivity": False,
+            "model_name": model_config.get("model_name", "UNKNOWN_MODEL")
+        }
 
 
 async def embedding_dimension_check(model_config: dict):
@@ -272,7 +245,9 @@ async def embedding_dimension_check(model_config: dict):
             model_name, model_type, model_base_url, model_api_key
         )
         return dimension
+    except ValueError as e:
+        logger.error(f"Error checking embedding dimension: {str(e)}")
+        return 0
     except Exception as e:
-        logger.warning(
-            f"UNCONNECTED: {model_name}; Base URL: {model_base_url}; Error: {str(e)}")
+        logger.error(f"Error checking embedding dimension: {model_name}; Base URL: {model_base_url}; Error: {str(e)}")
         return 0
