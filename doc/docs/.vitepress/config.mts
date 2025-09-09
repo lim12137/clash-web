@@ -1,10 +1,10 @@
-import { defineConfig } from 'vitepress'
+﻿import { defineConfig } from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   base: '/doc/',
   title: "Nexent Doc",
-  description: "A zero-code platform for auto-generating agents — no orchestration, no complex drag-and-drop required.",
+  description: "A zero-code platform for auto-generating agents  no orchestration, no complex drag-and-drop required.",
   
   // Add favicon to head
   head: [
@@ -61,6 +61,7 @@ export default defineConfig({
                 text: 'Core Modules',
                 items: [
                   { text: 'Agents', link: '/en/sdk/core/agents' },
+                  { text: 'Run agent with agent_run', link: '/en/sdk/core/agent-run' },
                   { text: 'Tools', link: '/en/sdk/core/tools' },
                   { text: 'Models', link: '/en/sdk/core/models' }
                 ]
@@ -180,6 +181,7 @@ export default defineConfig({
                 text: '核心模块',
                 items: [
                   { text: '智能体模块', link: '/zh/sdk/core/agents' },
+                  { text: '使用 agent_run 运行智能体', link: '/zh/sdk/core/agent-run' },
                   { text: '工具模块', link: '/zh/sdk/core/tools' },
                   { text: '模型模块', link: '/zh/sdk/core/models' }
                 ]
