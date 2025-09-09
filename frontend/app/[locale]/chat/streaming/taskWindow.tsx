@@ -34,13 +34,13 @@ const iconMap: Record<string, React.ReactNode> = {
 const messageHandlers: MessageHandler[] = [
   // Preprocess type processor - handles contents array logic
   {
-    canHandle: (message) => message.type === "preprocess",
+    canHandle: (message) => message.type === chatConfig.contentTypes.PREPROCESS,
     render: (message, _t) => {
       // For preprocess messages, display content from contents array if available
       let displayContent = message.content;
       if (message.contents && message.contents.length > 0) {
         // Find the latest preprocess content
-        const preprocessContent = message.contents.find((content: any) => content.type === "preprocess");
+        const preprocessContent = message.contents.find((content: any) => content.type === chatConfig.contentTypes.PREPROCESS);
         if (preprocessContent) {
           displayContent = preprocessContent.content;
         }
