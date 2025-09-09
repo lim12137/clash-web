@@ -24,14 +24,13 @@ router = APIRouter(prefix="/user", tags=["user"])
 async def service_health():
     """Service health check"""
     try:
-        is_available = await check_auth_service_health()
+        await check_auth_service_health()
 
-        if is_available:
-            return JSONResponse(status_code=HTTPStatus.OK,
-                                content={"message": "Auth service is available"})
-        else:
-            return JSONResponse(status_code=HTTPStatus.SERVICE_UNAVAILABLE,
-                                content={"message": "Auth service is unavailable"})
+        return JSONResponse(status_code=HTTPStatus.OK,
+                            content={"message": "Auth service is available"})
+    except ConnectionError as e:
+        logging.error(f"Auth service health check failed: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail="Auth service is unavailable")
     except Exception as e:
         logging.error(f"Auth service health check failed: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Auth service is unavailable")
@@ -98,19 +97,22 @@ async def signin(request: UserSignInRequest):
 @router.post("/refresh_token")
 async def user_refresh_token(request: Request):
     """Refresh token"""
+    authorization = request.headers.get("Authorization")
+    if not authorization:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
+                            detail="No authorization token provided")
     try:
-        authorization = request.headers.get("Authorization")
-        if not authorization:
-            return JSONResponse(status_code=HTTPStatus.UNAUTHORIZED,
-                                content={"message": "No authorization token provided"})
         session_data = await request.json()
         refresh_token = session_data.get("refresh_token")
         if not refresh_token:
-            return JSONResponse(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                                content={"message": "No refresh token provided"})
+            raise ValueError("No refresh token provided")
         session_info = await refresh_user_token(authorization, refresh_token)
         return JSONResponse(status_code=HTTPStatus.OK,
                             content={"message":"Token refresh successful", "data":{"session": session_info}})
+    except ValueError as e:
+        logging.error(f"Refresh token failed: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                            detail="No refresh token provided")
     except Exception as e:
         logging.error(f"Refresh token failed: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -120,12 +122,11 @@ async def user_refresh_token(request: Request):
 @router.post("/logout")
 async def logout(request: Request):
     """User logout"""
+    authorization = request.headers.get("Authorization")
+    if not authorization:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
+                            detail="User not logged in")
     try:
-        authorization = request.headers.get("Authorization")
-        if not authorization:
-            return JSONResponse(status_code=HTTPStatus.UNAUTHORIZED,
-                                content={"message": "User not logged in"})
-
         client = get_authorized_client(authorization)
         client.auth.sign_out()
         return JSONResponse(status_code=HTTPStatus.OK,
@@ -140,12 +141,11 @@ async def logout(request: Request):
 @router.get("/session")
 async def get_session(request: Request):
     """Get current user session"""
+    authorization = request.headers.get("Authorization")
+    if not authorization:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
+                            detail="User not logged in")
     try:
-        authorization = request.headers.get("Authorization")
-        if not authorization:
-            return JSONResponse(status_code=HTTPStatus.UNAUTHORIZED,
-                                content={"message": "No authorization token provided"})
-
         data = await get_session_by_authorization(authorization)
         return JSONResponse(status_code=HTTPStatus.OK,
                      content={"message": "Session is valid",
@@ -163,12 +163,11 @@ async def get_session(request: Request):
 @router.get("/current_user_id")
 async def get_user_id(request: Request):
     """Get current user ID, return None if not logged in"""
+    authorization = request.headers.get("Authorization")
+    if not authorization:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
+                            detail="User not logged in")
     try:
-        authorization = request.headers.get("Authorization")
-        if not authorization:
-            return JSONResponse(status_code=HTTPStatus.UNAUTHORIZED,
-                                content={"message": "No authorization token provided"})
-
         # Use the unified token validation function
         is_valid, user = validate_token(authorization)
         if is_valid and user:
@@ -182,11 +181,12 @@ async def get_user_id(request: Request):
             return JSONResponse(status_code=HTTPStatus.OK,
                                 content={"message": "Successfully parsed user ID from token",
                                          "data": {"user_id": user_id}})
+        raise ValueError("User not logged in or session invalid")
 
-        # If all methods fail, return the session invalid information
-        return JSONResponse(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                            content={"message": "User not logged in or session invalid"})
-
+    except ValueError as e:
+        logging.error(f"Get user ID failed: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                            detail="User not logged in or session invalid")     
     except Exception as e:
         logging.error(f"Get user ID failed: {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
