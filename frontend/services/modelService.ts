@@ -5,7 +5,8 @@ import { API_ENDPOINTS } from './api'
 import { ModelOption, ModelType, ModelConnectStatus, ModelValidationResponse, ModelSource, ApiResponse } from '../types/modelConfig'
 
 import { getAuthHeaders } from '@/lib/auth'
-import {STATUS_CODES} from "@/types/auth";
+import {STATUS_CODES} from "@/const/auth";
+import { MODEL_TYPES, MODEL_SOURCES } from '@/const/modelConfig';
 
 // Error class
 export class ModelError extends Error {
@@ -39,12 +40,12 @@ export const modelService = {
       if (response.status === STATUS_CODES.SUCCESS && result.data) {
         const modelOptions: ModelOption[] = []
         const typeMap: Record<string, ModelType> = {
-          embed: "embedding",
-          chat: "llm",
-          asr: "stt",
-          tts: "tts",
-          rerank: "rerank",
-          vlm: "vlm"
+          embed: MODEL_TYPES.EMBEDDING,
+          chat: MODEL_TYPES.LLM,
+          asr: MODEL_TYPES.STT,
+          tts: MODEL_TYPES.TTS,
+          rerank: MODEL_TYPES.RERANK,
+          vlm: MODEL_TYPES.VLM
         }
 
         for (const model of result.data) {
@@ -54,7 +55,7 @@ export const modelService = {
               name: model.id,
               type: typeMap[model.type],
               maxTokens: 0,
-              source: "OpenAI-API-Compatible",
+              source: MODEL_SOURCES.OPENAI_API_COMPATIBLE,
               apiKey: model.api_key,
               apiUrl: model.base_url,
               displayName: model.id
