@@ -42,8 +42,8 @@ const modelEngineService = {
             status = CONNECTION_STATUS.ERROR
           }
         } catch (parseError) {
-          // JSON parsing failed,视为连接失败
-          console.error("响应数据解析失败:", parseError)
+          // JSON parsing failed, treat as connection failure
+          console.error("Response data parsing failed:", parseError)
           status = CONNECTION_STATUS.ERROR
         }
       } else {
@@ -55,7 +55,7 @@ const modelEngineService = {
         lastChecked: new Date().toLocaleTimeString()
       }
     } catch (error) {
-      console.error("检查ModelEngine连接状态失败:", error)
+      console.error("Failed to check ModelEngine connection status:", error)
       return {
         status: CONNECTION_STATUS.ERROR,
         lastChecked: new Date().toLocaleTimeString()

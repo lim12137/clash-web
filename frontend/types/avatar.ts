@@ -1,4 +1,4 @@
-// 预设的颜色选项
+// Preset color options
 export const colorOptions = [
   "#2689cb", // Primary Blue
   "#1d56d0", // Secondary Blue
@@ -10,7 +10,7 @@ export const colorOptions = [
   "#273746", // Black
 ] as const;
 
-// 预设图标配置
+// Preset icon configuration
 export const presetIcons = [
   { icon: "search", key: "search" as const },
   { icon: "keyboard", key: "keyboard" as const },

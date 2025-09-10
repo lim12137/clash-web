@@ -43,7 +43,7 @@ export const ModelDeleteDialog = ({
   const [selectedModelForSettings, setSelectedModelForSettings] = useState<any>(null)
   const [modelMaxTokens, setModelMaxTokens] = useState("4096")
 
-  // 获取模型的颜色方案
+  // Get model color scheme
   const getModelColorScheme = (type: ModelType): { bg: string; text: string; border: string } => {
     switch (type) {
       case MODEL_TYPES.LLM:
@@ -65,7 +65,7 @@ export const ModelDeleteDialog = ({
     }
   }
 
-  // 获取模型的图标
+  // Get model icon
   const getModelIcon = (type: ModelType) => {
     switch (type) {
       case MODEL_TYPES.LLM:
@@ -87,7 +87,7 @@ export const ModelDeleteDialog = ({
     }
   }
 
-  // 获取模型的显示名称
+  // Get model display name
   const getModelTypeName = (type: ModelType | null): string => {
     if (!type) return t('model.type.unknown')
     switch (type) {
@@ -219,7 +219,7 @@ export const ModelDeleteDialog = ({
       await modelService.deleteCustomModel(displayName)
       let configUpdates: any = {}
       
-      // 检查每个模型配置，如果当前使用的是被删除的模型，则清空配置
+      // Check each model configuration, if currently using a deleted model, clear the configuration
       if (modelConfig.llm.displayName === displayName) {
         configUpdates.llm = { modelName: "", displayName: "", apiConfig: { apiKey: "", modelUrl: "" } }
       }
@@ -252,25 +252,25 @@ export const ModelDeleteDialog = ({
         configUpdates.tts = { modelName: "", displayName: "" }
       }
 
-      // 如果有配置需要更新，则更新localStorage
+      // If there are configurations to update, update localStorage
       if (Object.keys(configUpdates).length > 0) {
         updateModelConfig(configUpdates)
       }
 
-      // 显示成功消息
+      // Show success message
       message.success(t('model.message.deleteSuccess', { name: displayName }))
       
-      // 直接调用父组件的onSuccess回调刷新模型列表
-      // 这会触发一次modelService.getCustomModels()调用，避免重复请求
+      // Directly call parent component's onSuccess callback to refresh model list
+      // This triggers a modelService.getCustomModels() call, avoiding duplicate requests
       await onSuccess()
       
-      // 删除后根据剩余数量调整层级导航
+      // Adjust hierarchical navigation based on remaining count after deletion
       if (deletingModelType) {
         const remainingByTypeAndSource = customModels.filter(model =>
           model.type === deletingModelType && (!selectedSource || model.source === selectedSource) && model.displayName !== displayName
         )
         if (selectedSource && remainingByTypeAndSource.length === 0) {
-          // 当前来源下已无模型，退回到来源选择
+          // No models under current source, return to source selection
           setSelectedSource(null)
         }
         const remainingByType = customModels.filter(model =>
@@ -292,7 +292,7 @@ export const ModelDeleteDialog = ({
     }
   }
 
-  // 处理关闭对话框
+  // Handle closing dialog
   const handleClose = () => {
     setDeletingModelType(null)
     setSelectedSource(null)

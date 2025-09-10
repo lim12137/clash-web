@@ -1,5 +1,5 @@
 /**
- * 认证服务
+ * Authentication service
  */
 import { USER_ROLES } from "@/const/modelConfig";
 import { API_ENDPOINTS } from "@/services/api";

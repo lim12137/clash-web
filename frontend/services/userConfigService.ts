@@ -4,7 +4,7 @@ import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
 // @ts-ignore
 const fetch = fetchWithAuth;
 
-// 用户选中的知识库配置类型
+// User selected knowledge base configuration type
 export interface UserKnowledgeConfig {
   selectedKbNames: string[];
   selectedKbModels: string[];
@@ -12,7 +12,7 @@ export interface UserKnowledgeConfig {
 }
 
 export class UserConfigService {
-  // 获取用户选中的知识库列表
+  // Get user selected knowledge base list
   async loadKnowledgeList(): Promise<UserKnowledgeConfig | null> {
     try {
       const response = await fetch(API_ENDPOINTS.tenantConfig.loadKnowledgeList, {
@@ -34,7 +34,7 @@ export class UserConfigService {
     }
   }
 
-  // 更新用户选中的知识库列表
+  // Update user selected knowledge base list
   async updateKnowledgeList(knowledgeList: string[]): Promise<boolean> {
     try {
       const response = await fetch(API_ENDPOINTS.tenantConfig.updateKnowledgeList, {
@@ -55,5 +55,5 @@ export class UserConfigService {
   }
 }
 
-// 导出单例实例
+// Export singleton instance
 export const userConfigService = new UserConfigService(); 

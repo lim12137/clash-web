@@ -5,28 +5,28 @@ import knowledgeBaseService from '@/services/knowledgeBaseService';
 
 import '../app/[locale]/i18n';
 
-// 添加类型定义
+// Add type definitions
 export interface AbortableError extends Error {
   name: string;
 }
 
-// 新的检查知识库名称状态的方法
+// New method to check knowledge base name status
 export const checkKnowledgeBaseName = async (
   knowledgeBaseName: string,
   t: TFunction
 ): Promise<{status: string, action?: string}> => {
   try {
-    // 调用新的service方法
+    // Call new service method
     return await knowledgeBaseService.checkKnowledgeBaseName(knowledgeBaseName);
   } catch (error) {
     console.error(t('knowledgeBase.check.nameError'), error);
-    // 返回一个表示检查失败的状态
+    // Return a status indicating check failure
     return { status: NAME_CHECK_STATUS.CHECK_FAILED };
   }
 };
 
 
-// 获取知识库文档信息
+// Get knowledge base document information
 export const fetchKnowledgeBaseInfo = async (
   indexName: string, 
   abortController: AbortController, 
@@ -50,7 +50,7 @@ export const fetchKnowledgeBaseInfo = async (
   }
 };
 
-// 文件类型验证
+// File type validation
 export const validateFileType = (file: File, t: TFunction, message: any): boolean => {
   const validTypes = [
     'application/pdf',
@@ -63,10 +63,10 @@ export const validateFileType = (file: File, t: TFunction, message: any): boolea
     'application/csv'
   ];
 
-  // 先判断 MIME type
+  // First check MIME type
   let isValidType = validTypes.includes(file.type);
 
-  // 如果 MIME type 为空或不在列表里，再根据文件名后缀判断
+  // If MIME type is empty or not in the list, check by file extension
   if (!isValidType) {
     const name = file.name.toLowerCase();
     if (
