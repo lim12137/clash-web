@@ -138,7 +138,7 @@
   scrollbar-color: rgba(0, 0, 0, 0.4) transparent;
 }
 
-/* Tool Pool Tabs 滚动修复 */
+/* Tool Pool Tabs scroll fix */
 .tool-pool-tabs .ant-tabs-content-holder {
   overflow: hidden;
   height: 100%;
@@ -153,13 +153,13 @@
   overflow: hidden;
 }
 
-/* 确保工具池tabs内容区域可以滚动 */
+/* Ensure tool pool tabs content area can scroll */
 .tool-pool-tabs .ant-tabs-content-holder .ant-tabs-content .ant-tabs-tabpane > div {
   height: 100%;
   max-height: 100%;
 }
 
-/* 调整tabs内容区域的左右内边距 - 使用更强的选择器 */
+/* Adjust tabs content area left and right padding - use stronger selector */
 .tool-pool-tabs.ant-tabs.ant-tabs-left > .ant-tabs-content-holder {
   padding-left: 12px !important;
   padding-right: 9px !important;
@@ -175,7 +175,7 @@
   padding-left: 0 !important;
 }
 
-/* 缩短标签的内外边距，使标签更紧凑 */
+/* Reduce tab inner and outer margins to make tabs more compact */
 .tool-pool-tabs .ant-tabs-tab {
   padding: 12px 6px !important;
   margin: 4px 2px !important;

@@ -1,5 +1,5 @@
 /*
- * 认证相关类型与常量定义
+ * Authentication related types and constant definitions
  */
 export const STATUS_CODES = {
   SUCCESS: 200,
@@ -15,19 +15,19 @@ export const STATUS_CODES = {
   SERVER_ERROR: 1005,
 };
 
-// 本地存储键
+// Local storage keys
 export const STORAGE_KEYS = {
   SESSION: "session",
 };
 
-// 自定义事件
+// Custom events
 export const EVENTS = {
   SESSION_EXPIRED: "session-expired",
   STORAGE_CHANGE: "storage",
 }; 
 
 
-// 用户类型定义
+// User type definition
 export interface User {
   id: string;
   email: string;
@@ -35,7 +35,7 @@ export interface User {
   avatar_url?: string;
 }
 
-// 会话类型定义
+// Session type definition
 export interface Session {
   user: User;
   access_token: string;
@@ -43,14 +43,14 @@ export interface Session {
   expires_at: number;
 }
 
-// 错误响应接口
+// Error response interface
 export interface ErrorResponse {
   message: string;
   code: number;
   data?: any;
 }
 
-// 授权上下文类型
+// Authorization context type
 export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
@@ -70,7 +70,7 @@ export interface AuthContextType {
   logout: () => Promise<void>;
 }
 
-// 会话响应类型
+// Session response type
 export interface SessionResponse {
   data?: {
     session?: Session | null;

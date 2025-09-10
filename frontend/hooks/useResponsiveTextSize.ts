@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-// 自定义Hook - 根据文本内容动态调整字体大小
+// Custom Hook - Dynamically adjust font size based on text content
 export const useResponsiveTextSize = (text: string, containerWidth: number, maxFontSize: number = 24) => {
     const [fontSize, setFontSize] = useState(maxFontSize);
     const textRef = useRef<HTMLHeadingElement>(null);
@@ -12,11 +12,11 @@ export const useResponsiveTextSize = (text: string, containerWidth: number, maxF
         const element = textRef.current;
         if (!element) return;
         
-        // 从最大字体开始尝试
+        // Start trying from maximum font size
         let currentSize = maxFontSize;
         element.style.fontSize = `${currentSize}px`;
         
-        // 如果文本溢出，减小字体大小直到适合
+        // If text overflows, reduce font size until it fits
         while (element.scrollWidth > containerWidth && currentSize > 12) {
           currentSize -= 1;
           element.style.fontSize = `${currentSize}px`;
@@ -25,10 +25,10 @@ export const useResponsiveTextSize = (text: string, containerWidth: number, maxF
         setFontSize(currentSize);
       };
       
-      // 初始调整
+      // Initial adjustment
       adjustFontSize();
       
-      // 监听窗口大小变化
+      // Listen for window size changes
       window.addEventListener('resize', adjustFontSize);
       
       return () => {

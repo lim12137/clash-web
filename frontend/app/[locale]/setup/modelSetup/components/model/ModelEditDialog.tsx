@@ -117,14 +117,14 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
     if (!model) return
     setLoading(true)
     try {
-      // 使用更新接口而不是删除 + 新增
+      // Use update interface instead of delete + add
       const modelType = form.type as ModelType
       // Determine max tokens
       let maxTokensValue = parseInt(form.maxTokens)
       if (isEmbeddingModel) maxTokensValue = 0
       
       await modelService.updateSingleModel({
-        model_id: model.id, // 使用模型名称作为ID
+        model_id: model.id, // Use model name as ID
         displayName: form.displayName,
         url: form.url,
         apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey,
@@ -132,7 +132,7 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
         source: model.source
       })
 
-      // 更新本地配置（仅当当前编辑模型在配置中被选中时）
+      // Update local configuration (only when currently edited model is selected in configuration)
       const modelConfigKeyMap: Record<ModelType, string> = {
         llm: MODEL_TYPES.LLM,
         embedding: MODEL_TYPES.EMBEDDING,

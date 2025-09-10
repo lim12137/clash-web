@@ -20,7 +20,7 @@ function getFriendlyErrorMessage(raw: string): string {
     // ignore JSON parse errors
   }
 
-  // 关键字映射到用户友好的中文提示
+  // Keyword mapping to user-friendly Chinese prompts
   if (/AuthenticationException/i.test(msg)) {
     return "ElasticSearch数据库鉴权失败"
   } else if (/ConnectionTimeout/i.test(msg)) {
@@ -214,13 +214,13 @@ export async function fetchTenantSharedGroup(): Promise<MemoryGroup> {
 }
 
 export async function fetchAgentSharedGroups(): Promise<MemoryGroup[]> {
-  // 并行请求：记忆列表 + 全量 Agent 清单
+  // Parallel requests: memory list + full Agent list
   const [{ items }, agentsRes] = await Promise.all([
     listMemories("agent"),
     fetchAllAgents(),
   ])
 
-  // 先把有记忆的结果按照 agent_id 分组
+  // First group results with memories by agent_id
   const groupMap: Record<string, MemoryItem[]> = {}
   items.forEach((item) => {
     if (!item.agent_id) return
@@ -228,12 +228,12 @@ export async function fetchAgentSharedGroups(): Promise<MemoryGroup[]> {
     groupMap[item.agent_id].push(item)
   })
 
-  // 后续需要补全“无记忆”的 Agent 分组
+  // Need to complete "no memory" Agent groups later
   const agentList: Array<{ agent_id: string; name?: string; display_name?: string }> = (agentsRes as any)?.success ? (agentsRes as any).data : []
 
   const groups: MemoryGroup[] = []
 
-  // 按照 Agent 清单顺序构建分组，保证完整性
+  // Build groups in Agent list order to ensure completeness
   agentList.forEach((agent) => {
     const agentId = agent.agent_id
     const list = groupMap[agentId] || []
@@ -244,7 +244,7 @@ export async function fetchAgentSharedGroups(): Promise<MemoryGroup[]> {
     })
   })
 
-  // 若依然没有任何 Agent 信息，则返回占位分组
+  // If still no Agent information, return placeholder group
   if (groups.length === 0) {
     return [
       {
@@ -268,7 +268,7 @@ export async function fetchUserPersonalGroup(): Promise<MemoryGroup> {
 }
 
 export async function fetchUserAgentGroups(): Promise<MemoryGroup[]> {
-  // 并行请求：用户记忆 + 全量 Agent 清单
+  // Parallel requests: user memory + full Agent list
   const [{ items }, agentsRes] = await Promise.all([
     listMemories("user_agent"),
     fetchAllAgents(),

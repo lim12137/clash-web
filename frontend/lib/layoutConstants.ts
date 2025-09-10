@@ -80,7 +80,7 @@ export const STANDARD_CARD = {
   BASE_CLASSES: "bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden",
   
   // Padding
-  PADDING: "16px", // 对应 p-4
+  PADDING: "16px", // Corresponds to p-4
   
   // Content area scroll configuration
   CONTENT_SCROLL: {
@@ -92,10 +92,10 @@ export const STANDARD_CARD = {
 // Card header configuration
 export const CARD_HEADER = {
   // Header margin
-  MARGIN_BOTTOM: "16px", // 对应 mb-4
+  MARGIN_BOTTOM: "16px", // Corresponds to mb-4
   
   // Header padding
-  PADDING: "0 8px", // 对应 px-2
+  PADDING: "0 8px", // Corresponds to px-2
   
   // Divider style
   DIVIDER_CLASSES: "h-[1px] bg-gray-200 mt-2",

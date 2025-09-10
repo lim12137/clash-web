@@ -38,7 +38,7 @@ class ConfigStoreClass {
     }
   }
 
-  // 深度合并配置
+  // Deep merge configuration
   private deepMerge<T>(target: T, source: Partial<T>): T {
     if (!source) return target;
     
@@ -58,7 +58,7 @@ class ConfigStoreClass {
     return result;
   }
 
-  // 从存储加载配置
+  // Load configuration from storage
   private loadFromStorage(): GlobalConfig {
     try {
       // Check if we're in browser environment
@@ -112,7 +112,7 @@ class ConfigStoreClass {
     }
   }
 
-  // 保存配置到存储
+  // Save configuration to storage
   private saveToStorage(): void {
     try {
       if (typeof window === 'undefined' || !this.config) return;
@@ -124,53 +124,53 @@ class ConfigStoreClass {
     }
   }
 
-  // 确保配置已初始化
+  // Ensure configuration is initialized
   private ensureConfig(): void {
     if (!this.config) {
       this.initializeConfig();
     }
   }
 
-  // 获取完整配置
+  // Get complete configuration
   getConfig(): GlobalConfig {
     this.ensureConfig();
     return this.config!;
   }
 
-  // 更新完整配置
+  // Update complete configuration
   updateConfig(partial: Partial<GlobalConfig>): void {
     this.ensureConfig();
     this.config = this.deepMerge(this.config!, partial);
     this.saveToStorage();
   }
 
-  // 获取应用配置
+  // Get application configuration
   getAppConfig(): AppConfig {
     this.ensureConfig();
     return this.config!.app;
   }
 
-  // 更新应用配置
+  // Update application configuration
   updateAppConfig(partial: Partial<AppConfig>): void {
     this.ensureConfig();
     this.config!.app = this.deepMerge(this.config!.app, partial);
     this.saveToStorage();
   }
 
-  // 获取模型配置
+  // Get model configuration
   getModelConfig(): ModelConfig {
     this.ensureConfig();
     return this.config!.models;
   }
 
-  // 更新模型配置
+  // Update model configuration
   updateModelConfig(partial: Partial<ModelConfig>): void {
     this.ensureConfig();
     this.config!.models = this.deepMerge(this.config!.models, partial);
     this.saveToStorage();
   }
 
-  // 清除所有配置
+  // Clear all configuration
   clearConfig(): void {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(APP_CONFIG_KEY);
@@ -179,9 +179,9 @@ class ConfigStoreClass {
     this.config = JSON.parse(JSON.stringify(defaultConfig));
   }
 
-  // 新增：后端配置转前端localStorage结构
+  // New: Backend configuration to frontend localStorage structure
   static transformBackend2Frontend(backendConfig: any): GlobalConfig {
-    // 适配 app 字段
+    // Adapt app field
     const app = backendConfig.app
       ? {
           appName: backendConfig.app.name || "",
@@ -198,7 +198,7 @@ class ConfigStoreClass {
           avatarUri: null
         };
 
-    // 适配 models 字段
+    // Adapt models field
     const models = backendConfig.models ? {
       llm: {
         modelName: backendConfig.models.llm?.name || "",
@@ -270,7 +270,7 @@ class ConfigStoreClass {
     } as GlobalConfig;
   }
 
-  // 新增：从localStorage重新加载配置并触发configChanged事件
+  // New: Reload configuration from localStorage and trigger configChanged event
   reloadFromStorage(): void {
     this.config = this.loadFromStorage();
     if (typeof window !== 'undefined') {
@@ -282,8 +282,8 @@ class ConfigStoreClass {
 }
 
 // TODO: Why not use just one singleton pattern?
-// 导出类作为 ConfigStore
+// Export class as ConfigStore
 export const ConfigStore = ConfigStoreClass;
 
-// 导出单例
+// Export singleton
 export const configStore = ConfigStoreClass.getInstance(); 

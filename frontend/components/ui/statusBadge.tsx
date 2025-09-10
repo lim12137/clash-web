@@ -13,7 +13,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   icon,
   size = "small",
 }) => {
-  // 根据类型获取样式
+  // Get styles based on type
   const getStyleByType = (): React.CSSProperties => {
     switch (type) {
       case "success":
@@ -49,7 +49,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     }
   };
 
-  // 根据尺寸获取大小样式
+  // Get size styles based on size
   const getSizeStyle = (): React.CSSProperties => {
     switch (size) {
       case "large":

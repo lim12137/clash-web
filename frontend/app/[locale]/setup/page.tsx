@@ -76,7 +76,7 @@ function Header({
           {t("setup.header.description")}
         </span>
       </div>
-      {/* 语言切换 */}
+      {/* Language switch */}
       <div className="flex items-center gap-3">
         <Dropdown
           menu={{
@@ -94,7 +94,7 @@ function Header({
             <DownOutlined className="text-[10px]" />
           </a>
         </Dropdown>
-        {/* ModelEngine连通性状态 */}
+        {/* ModelEngine connectivity status */}
         <div className="flex items-center px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700">
           <Badge
             status={connectionStatus}

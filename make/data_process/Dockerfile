@@ -36,11 +36,11 @@ COPY model-assets/nltk_data /opt/models/nltk_data
 WORKDIR /opt/backend
 # Layer 1: install base dependencies
 COPY backend/pyproject.toml /opt/backend/pyproject.toml
-RUN uv sync --no-cache-dir --extra data-process $(test -n "$MIRROR" && echo "-i $MIRROR") && \
+RUN UV_HTTP_TIMEOUT=300 uv sync --no-cache-dir --extra data-process $(test -n "$MIRROR" && echo "-i $MIRROR") && \
     uv cache clean
 # Layer 2: install sdk in link mode
 COPY sdk /opt/sdk
-RUN uv pip install --no-cache-dir /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR") && \
+RUN UV_HTTP_TIMEOUT=300 uv pip install --no-cache-dir /opt/sdk $(test -n "$MIRROR" && echo "-i $MIRROR") && \
     uv cache clean
 # Layer 3: copy backend code
 COPY backend /opt/backend
