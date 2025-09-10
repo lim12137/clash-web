@@ -15,6 +15,7 @@ from nexent.memory.memory_service import (
 from consts.const import (
     MEMORY_AGENT_SHARE_KEY,
     MEMORY_SWITCH_KEY,
+    BOOLEAN_TRUE_VALUES,
 )
 from consts.model import MemoryAgentShareMode
 from services.memory_config_service import (
@@ -76,7 +77,7 @@ def set_single_config(
 
     if key == MEMORY_SWITCH_KEY:
         enabled = bool(value) if isinstance(value, bool) else str(
-            value).lower() in {"true", "1", "y", "yes", "on"}
+            value).lower() in BOOLEAN_TRUE_VALUES
         ok = set_memory_switch(user_id, enabled)
     elif key == MEMORY_AGENT_SHARE_KEY:
         try:

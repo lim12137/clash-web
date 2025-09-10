@@ -22,6 +22,7 @@ from consts.model import (
 from data_process.tasks import process_and_forward, process_sync
 from data_process.utils import get_task_info
 from services.data_process_service import get_data_process_service
+from consts.const import TASK_STATUS
 
 logger = logging.getLogger("data_process.app")
 
@@ -364,37 +365,37 @@ async def convert_state(request: ConvertStateRequest):
         """Inner helper to keep the original mapping logic in one place."""
         # Handle failure states first
         if process_celery_state == states.FAILURE:
-            return "PROCESS_FAILED"
+            return TASK_STATUS["PROCESS_FAILED"]
         if forward_celery_state == states.FAILURE:
-            return "FORWARD_FAILED"
+            return TASK_STATUS["FORWARD_FAILED"]
 
         # Handle completed state - both must be SUCCESS
         if process_celery_state == states.SUCCESS and forward_celery_state == states.SUCCESS:
-            return "COMPLETED"
+            return TASK_STATUS["COMPLETED"]
 
         # Handle case where nothing has started
         if not process_celery_state and not forward_celery_state:
-            return "WAIT_FOR_PROCESSING"
+            return TASK_STATUS["WAIT_FOR_PROCESSING"]
 
         # Define state mappings
         forward_state_map = {
-            states.PENDING: "WAIT_FOR_FORWARDING",
-            states.STARTED: "FORWARDING",
-            states.SUCCESS: "COMPLETED",
-            states.FAILURE: "FORWARD_FAILED",
+            states.PENDING: TASK_STATUS["WAIT_FOR_FORWARDING"],
+            states.STARTED: TASK_STATUS["FORWARDING"],
+            states.SUCCESS: TASK_STATUS["COMPLETED"],
+            states.FAILURE: TASK_STATUS["FORWARD_FAILED"],
         }
         process_state_map = {
-            states.PENDING: "WAIT_FOR_PROCESSING",
-            states.STARTED: "PROCESSING",
-            states.SUCCESS: "WAIT_FOR_FORWARDING",  # Process done, waiting for forward
-            states.FAILURE: "PROCESS_FAILED",
+            states.PENDING: TASK_STATUS["WAIT_FOR_PROCESSING"],
+            states.STARTED: TASK_STATUS["PROCESSING"],
+            states.SUCCESS: TASK_STATUS["WAIT_FOR_FORWARDING"],  # Process done, waiting for forward
+            states.FAILURE: TASK_STATUS["PROCESS_FAILED"],
         }
 
         if forward_celery_state:
-            return forward_state_map.get(forward_celery_state, "WAIT_FOR_FORWARDING")
+            return forward_state_map.get(forward_celery_state, TASK_STATUS["WAIT_FOR_FORWARDING"])
         if process_celery_state:
-            return process_state_map.get(process_celery_state, "WAIT_FOR_PROCESSING")
-        return "WAIT_FOR_PROCESSING"
+            return process_state_map.get(process_celery_state, TASK_STATUS["WAIT_FOR_PROCESSING"])
+        return TASK_STATUS["WAIT_FOR_PROCESSING"]
 
     state = _convert_to_custom_state_inner(
         request.process_state or "", request.forward_state or "")

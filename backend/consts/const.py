@@ -146,6 +146,8 @@ DISABLE_AGENT_ID_KEY = "DISABLE_AGENT_ID"
 DISABLE_USERAGENT_ID_KEY = "DISABLE_USERAGENT_ID"
 DEFAULT_MEMORY_SWITCH_KEY = "Y"
 DEFAULT_MEMORY_AGENT_SHARE_KEY = "always"
+# Boolean value representations for configuration parsing
+BOOLEAN_TRUE_VALUES = {"true", "1", "y", "yes", "on"}
 
 
 DEFAULT_LLM_MAX_TOKENS = 4096
@@ -174,6 +176,13 @@ TOOL_TYPE_MAPPING = {
 LANGUAGE = {
     "ZH": "zh",
     "EN": "en"
+}
+
+# Message Role Constants
+MESSAGE_ROLE = {
+    "USER": "user",
+    "ASSISTANT": "assistant",
+    "SYSTEM": "system"
 }
 
 # Host Configuration Constants
@@ -212,3 +221,14 @@ APP_DESCRIPTION = "APP_DESCRIPTION"
 ICON_TYPE = "ICON_TYPE"
 AVATAR_URI = "AVATAR_URI"
 CUSTOM_ICON_URL = "CUSTOM_ICON_URL"
+
+# Task Status Constants
+TASK_STATUS = {
+    "WAIT_FOR_PROCESSING": "WAIT_FOR_PROCESSING",
+    "WAIT_FOR_FORWARDING": "WAIT_FOR_FORWARDING", 
+    "PROCESSING": "PROCESSING",
+    "FORWARDING": "FORWARDING",
+    "COMPLETED": "COMPLETED",
+    "PROCESS_FAILED": "PROCESS_FAILED",
+    "FORWARD_FAILED": "FORWARD_FAILED",
+}

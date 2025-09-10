@@ -8,7 +8,7 @@ from jinja2 import StrictUndefined, Template
 from nexent.core.utils.observer import ProcessType
 from smolagents import OpenAIServerModel
 
-from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING
+from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING, MESSAGE_ROLE
 from consts.model import AgentRequest, ConversationResponse, MessageRequest, MessageUnit
 from database.conversation_db import (
     create_conversation,
@@ -200,16 +200,16 @@ def save_message(request: MessageRequest, user_id: str, tenant_id: str):
 
 def save_conversation_user(request: AgentRequest, user_id: str, tenant_id: str):
     user_role_count = sum(1 for item in getattr(
-        request, "history", []) if item.get("role") == "user")
+        request, "history", []) if item.get("role") == MESSAGE_ROLE["USER"])
 
     conversation_req = MessageRequest(conversation_id=request.conversation_id, message_idx=user_role_count * 2,
-                                      role="user", message=[MessageUnit(type="string", content=request.query)], minio_files=request.minio_files)
+                                      role=MESSAGE_ROLE["USER"], message=[MessageUnit(type="string", content=request.query)], minio_files=request.minio_files)
     save_message(conversation_req, user_id=user_id, tenant_id=tenant_id)
 
 
 def save_conversation_assistant(request: AgentRequest, messages: List[str], user_id: str, tenant_id: str):
     user_role_count = sum(1 for item in getattr(
-        request, "history", []) if item.get("role") == "user")
+        request, "history", []) if item.get("role") == MESSAGE_ROLE["USER"])
 
     message_list = []
     for item in messages:
@@ -222,7 +222,7 @@ def save_conversation_assistant(request: AgentRequest, messages: List[str], user
             message_list.append(message)
 
     conversation_req = MessageRequest(conversation_id=request.conversation_id, message_idx=user_role_count * 2 + 1,
-                                      role="assistant", message=message_list, minio_files=request.minio_files)
+                                      role=MESSAGE_ROLE["ASSISTANT"], message=message_list, minio_files=request.minio_files)
     save_message(conversation_req, user_id=user_id, tenant_id=tenant_id)
 
 
@@ -238,9 +238,9 @@ def extract_user_messages(history: List[Dict[str, str]]) -> str:
     """
     content = ""
     for message in history:
-        if message.get("role") == "user" and message.get("content"):
+        if message.get("role") == MESSAGE_ROLE["USER"] and message.get("content"):
             content += f"\n### User Question：\n{message['content']}\n"
-        if message.get("role") == "assistant" and message.get("content"):
+        if message.get("role") == MESSAGE_ROLE["ASSISTANT"] and message.get("content"):
             content += f"\n### Response Content：\n{message['content']}\n"
     return content
 
@@ -270,9 +270,9 @@ def call_llm_for_title(content: str, tenant_id: str, language: str = LANGUAGE["Z
     user_prompt = Template(prompt_template["USER_PROMPT"], undefined=StrictUndefined).render({
         "content": content
     })
-    messages = [{"role": "system",
+    messages = [{"role": MESSAGE_ROLE["SYSTEM"],
                  "content": prompt_template["SYSTEM_PROMPT"]},
-                {"role": "user",
+                {"role": MESSAGE_ROLE["USER"],
                  "content": user_prompt}]
     add_no_think_token(messages)
 
@@ -455,7 +455,7 @@ def get_conversation_history_service(conversation_id: int, user_id: str) -> List
             # Initialize for all message types
             message_units = msg['units'] or []
 
-            if role == 'user':
+            if role == MESSAGE_ROLE["USER"]:
                 # User message: directly use message_content as message field value
                 message_item = {
                     'role': role,
