@@ -13,7 +13,7 @@ from nexent.memory.memory_service import clear_memory, add_memory_in_levels
 from agents.agent_run_manager import agent_run_manager
 from agents.create_agent_info import create_agent_run_info, create_tool_config_list
 from agents.preprocess_manager import preprocess_manager
-from consts.const import MEMORY_SEARCH_START_MSG, MEMORY_SEARCH_DONE_MSG, MEMORY_SEARCH_FAIL_MSG, TOOL_TYPE_MAPPING, LANGUAGE
+from consts.const import MEMORY_SEARCH_START_MSG, MEMORY_SEARCH_DONE_MSG, MEMORY_SEARCH_FAIL_MSG, TOOL_TYPE_MAPPING, LANGUAGE, MESSAGE_ROLE
 from consts.exceptions import MemoryPreparationException
 from consts.model import (
     AgentInfoRequest,
@@ -119,7 +119,7 @@ async def _stream_agent_chunks(
         if not agent_request.is_debug:
             save_messages(
                 agent_request,
-                target="assistant",
+                target=MESSAGE_ROLE["ASSISTANT"],
                 messages=local_messages,
                 tenant_id=tenant_id,
                 user_id=user_id,
@@ -150,8 +150,8 @@ async def _stream_agent_chunks(
                     return
 
                 mem_messages_local = [
-                    {"role": "user", "content": agent_run_info.query},
-                    {"role": "assistant", "content": final_answer_local},
+                    {"role": MESSAGE_ROLE["USER"], "content": agent_run_info.query},
+                    {"role": MESSAGE_ROLE["ASSISTANT"], "content": final_answer_local},
                 ]
 
                 add_result_local = await add_memory_in_levels(
@@ -684,11 +684,11 @@ async def prepare_agent_run(
 
 # Helper function for run_agent_stream, used to save messages for either user or assistant
 def save_messages(agent_request, target: str, user_id: str, tenant_id: str, messages=None):
-    if target == "user":
+    if target == MESSAGE_ROLE["USER"]:
         if messages is not None:
             raise ValueError("Messages should be None when saving for user.")
         submit(save_conversation_user, agent_request, user_id, tenant_id)
-    elif target == "assistant":
+    elif target == MESSAGE_ROLE["ASSISTANT"]:
         if messages is None:
             raise ValueError(
                 "Messages cannot be None when saving for assistant.")
@@ -848,7 +848,7 @@ async def run_agent_stream(
     
     # Save user message only if not in debug mode (before streaming starts)
     if not agent_request.is_debug:
-        save_messages(agent_request, target="user",
+        save_messages(agent_request, target=MESSAGE_ROLE["USER"],
                       user_id=resolved_user_id,
                       tenant_id=resolved_tenant_id)
     

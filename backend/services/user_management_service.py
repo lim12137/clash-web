@@ -8,7 +8,7 @@ from supabase import Client
 from pydantic import EmailStr
 
 from utils.auth_utils import get_supabase_client, calculate_expires_at, get_jwt_expiry_seconds
-from consts.const import INVITE_CODE
+from consts.const import INVITE_CODE, MESSAGE_ROLE
 from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException
 
 from database.model_management_db import create_model_record

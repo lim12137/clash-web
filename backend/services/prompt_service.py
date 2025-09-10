@@ -6,7 +6,7 @@ import threading
 from jinja2 import StrictUndefined, Template
 from smolagents import OpenAIServerModel
 
-from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING
+from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING, MESSAGE_ROLE
 from consts.model import AgentInfoRequest
 from database.agent_db import update_agent, query_sub_agents_id_list, search_agent_info_by_agent_id
 from database.tool_db import query_tools_by_ids
@@ -43,8 +43,8 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
         temperature=0.3,
         top_p=0.95
     )
-    messages = [{"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}]
+    messages = [{"role": MESSAGE_ROLE["SYSTEM"], "content": system_prompt},
+                {"role": MESSAGE_ROLE["USER"], "content": user_prompt}]
     add_no_think_token(messages)
     try:
         completion_kwargs = llm._prepare_completion_kwargs(
