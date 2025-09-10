@@ -530,9 +530,16 @@ def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
         consts_provider_mod.ProviderEnum = _ProviderEnum
         consts_provider_mod.SILICON_BASE_URL = "http://silicon.test"
 
+        # consts.const
+        consts_const_mod = _types.ModuleType("consts.const")
+        consts_const_mod.LOCALHOST_IP = "127.0.0.1"
+        consts_const_mod.LOCALHOST_NAME = "localhost"
+        consts_const_mod.DOCKER_INTERNAL_HOST = "host.docker.internal"
+
         sys.modules["consts"] = consts_mod
         sys.modules["consts.model"] = consts_model_mod
         sys.modules["consts.provider"] = consts_provider_mod
+        sys.modules["consts.const"] = consts_const_mod
 
         # database.model_management_db
         database_mod = _types.ModuleType("database")

@@ -26,7 +26,7 @@ from nexent.vector_database.elasticsearch_core import ElasticSearchCore
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
-from consts.const import ES_API_KEY, ES_HOST
+from consts.const import ES_API_KEY, ES_HOST, LANGUAGE, MODEL_CONFIG_MAPPING
 from database.attachment_db import delete_file
 from database.knowledge_db import (
     create_knowledge_record,
@@ -75,7 +75,7 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
 
     # Get model configuration from tenant config manager
     model_config = tenant_config_manager.get_model_config(
-        key="LLM_SECONDARY_ID", tenant_id=tenant_id)
+        key=MODEL_CONFIG_MAPPING["llmSecondary"], tenant_id=tenant_id)
 
     # initialize OpenAI client
     client = OpenAI(api_key=model_config.get('api_key', ""),
@@ -83,7 +83,7 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
 
     try:
         # Create stream chat completion request
-        max_tokens = 300 if language == 'zh' else 120
+        max_tokens = 300 if language == LANGUAGE["ZH"] else 120
         stream = client.chat.completions.create(
             model=get_model_name_from_config(model_config) if model_config.get(
                 "model_name") else "",  # use model name from config
@@ -832,7 +832,7 @@ class ElasticSearchService:
                                      None, description="ID of the user delete the knowledge base"),
                                  tenant_id: Optional[str] = Body(
                                      None, description="ID of the tenant"),
-                                 language: str = 'zh'
+                                 language: str = LANGUAGE["ZH"]
                                  ):
         """
         Generate a summary for the specified index based on its content

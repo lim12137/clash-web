@@ -8,6 +8,7 @@ from jinja2 import StrictUndefined, Template
 from nexent.core.utils.observer import ProcessType
 from smolagents import OpenAIServerModel
 
+from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING
 from consts.model import AgentRequest, ConversationResponse, MessageRequest, MessageUnit
 from database.conversation_db import (
     create_conversation,
@@ -244,7 +245,7 @@ def extract_user_messages(history: List[Dict[str, str]]) -> str:
     return content
 
 
-def call_llm_for_title(content: str, tenant_id: str, language: str = 'zh') -> str:
+def call_llm_for_title(content: str, tenant_id: str, language: str = LANGUAGE["ZH"]) -> str:
     """
     Call LLM to generate a title
 
@@ -259,7 +260,7 @@ def call_llm_for_title(content: str, tenant_id: str, language: str = 'zh') -> st
     prompt_template = get_generate_title_prompt_template(language=language)
 
     model_config = tenant_config_manager.get_model_config(
-        key="LLM_ID", tenant_id=tenant_id)
+        key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
 
     # Create OpenAIServerModel instance
     llm = OpenAIServerModel(model_id=get_model_name_from_config(model_config) if model_config.get("model_name") else "", api_base=model_config.get("base_url", ""),
@@ -637,7 +638,7 @@ def get_sources_service(conversation_id: Optional[int], message_id: Optional[int
         }
 
 
-async def generate_conversation_title_service(conversation_id: int, history: List[Dict[str, str]], user_id: str, tenant_id: str, language: str = 'zh') -> str:
+async def generate_conversation_title_service(conversation_id: int, history: List[Dict[str, str]], user_id: str, tenant_id: str, language: str = LANGUAGE["ZH"]) -> str:
     """
     Generate conversation title
 

@@ -158,6 +158,44 @@ LOCAL_MCP_SERVER = os.getenv("NEXENT_MCP_SERVER")
 # Invite code
 INVITE_CODE = os.getenv("INVITE_CODE")
 
+# Memory Search Status Messages (for i18n placeholders)
+MEMORY_SEARCH_START_MSG = "<MEM_START>"
+MEMORY_SEARCH_DONE_MSG = "<MEM_DONE>"
+MEMORY_SEARCH_FAIL_MSG = "<MEM_FAILED>"
+
+# Tool Type Mapping (for display normalization)
+TOOL_TYPE_MAPPING = {
+    "mcp": "MCP",
+    "langchain": "LangChain",
+    "local": "Local",
+}
+
+# Default Language Configuration
+LANGUAGE = {
+    "ZH": "zh",
+    "EN": "en"
+}
+
+# Host Configuration Constants
+LOCALHOST_IP = "127.0.0.1"
+LOCALHOST_NAME = "localhost"
+DOCKER_INTERNAL_HOST = "host.docker.internal"
+
+
+# Mock User Management Configuration (for speed mode)
+MOCK_USER = {
+    "id": DEFAULT_USER_ID,
+    "email": "mock@example.com",
+    "role": "admin"
+}
+
+MOCK_SESSION = {
+    "access_token": "mock_access_token",
+    "refresh_token": "mock_refresh_token",
+    "expires_at": None,  # Will be set dynamically
+    "expires_in_seconds": 315360000  # 10 years
+}
+
 MODEL_CONFIG_MAPPING = {
     "llm": "LLM_ID",
     "llmSecondary": "LLM_SECONDARY_ID",
