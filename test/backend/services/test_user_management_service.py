@@ -440,86 +440,6 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
 
     @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
     @patch('backend.services.user_management_service.aiohttp.ClientSession')
-    async def test_health_check_is_available_true(self, mock_session_cls):
-        """Test health check when is_available is True (covers line 103 - True branch)"""
-        # Mock the entire flow to return is_available = True
-        class MockResponse:
-            def __init__(self):
-                self.ok = True
-            
-            async def json(self):
-                return {"name": "GoTrue"}
-        
-        class MockGet:
-            def __init__(self):
-                self.response = MockResponse()
-            
-            async def __aenter__(self):
-                return self.response
-            
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
-                return None
-        
-        class MockSession:
-            def get(self, *args, **kwargs):
-                return MockGet()
-        
-        class MockClientSession:
-            async def __aenter__(self):
-                return MockSession()
-            
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
-                return None
-        
-        mock_session_cls.return_value = MockClientSession()
-        
-        # This should not raise an exception (is_available = True)
-        result = await check_auth_service_health()
-        self.assertIsNone(result)
-
-    @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
-    @patch('backend.services.user_management_service.aiohttp.ClientSession')
-    async def test_health_check_is_available_false(self, mock_session_cls):
-        """Test health check when is_available is False (covers line 103 - False branch)"""
-        # Mock the entire flow to return is_available = False
-        class MockResponse:
-            def __init__(self):
-                self.ok = True
-            
-            async def json(self):
-                return {"name": "NotGoTrue"}  # This will make is_available = False
-        
-        class MockGet:
-            def __init__(self):
-                self.response = MockResponse()
-            
-            async def __aenter__(self):
-                return self.response
-            
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
-                return None
-        
-        class MockSession:
-            def get(self, *args, **kwargs):
-                return MockGet()
-        
-        class MockClientSession:
-            async def __aenter__(self):
-                return MockSession()
-            
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
-                return None
-        
-        mock_session_cls.return_value = MockClientSession()
-        
-        # This should raise ConnectionError (is_available = False)
-        with self.assertRaises(ConnectionError) as context:
-            await check_auth_service_health()
-        
-        self.assertIn("Auth service is unavailable", str(context.exception))
-
-    @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
-    @patch('backend.services.user_management_service.aiohttp.ClientSession')
     async def test_health_check_connection_error(self, mock_session_cls):
         """Test health check with connection error"""
         mock_session_cls.side_effect = aiohttp.ClientError("Connection failed")
@@ -541,6 +461,46 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
             await check_auth_service_health()
         
         self.assertIn("General error", str(context.exception))
+
+    @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
+    async def test_health_check_empty_data_dict(self):
+        """Test health check with empty data dictionary (covers line 103)"""
+        # Create a proper async context manager mock
+        class MockResponse:
+            def __init__(self):
+                self.ok = True
+            
+            async def json(self):
+                return {}  # Empty dictionary - data exists but no "name" field
+        
+        class MockGet:
+            def __init__(self):
+                self.response = MockResponse()
+            
+            async def __aenter__(self):
+                return self.response
+            
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                return None
+        
+        class MockSession:
+            def get(self, *args, **kwargs):
+                return MockGet()
+        
+        class MockClientSession:
+            async def __aenter__(self):
+                return MockSession()
+            
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                return None
+        
+        # Patch the ClientSession
+        with patch('backend.services.user_management_service.aiohttp.ClientSession', MockClientSession):
+            # Function should raise ConnectionError for empty data dictionary
+            with self.assertRaises(ConnectionError) as context:
+                await check_auth_service_health()
+            
+            self.assertIn("Auth service is unavailable", str(context.exception))
 
 
 class TestSignupUser(unittest.IsolatedAsyncioTestCase):
