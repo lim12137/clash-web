@@ -1992,7 +1992,7 @@ class TestDataProcessService(unittest.TestCase):
             "PROCESSING"
         )
 
-    def test_convert_celery_states_wait_for_processing(self):
+    async def test_convert_celery_states_wait_for_processing(self):
         """
         Cover return "WAIT_FOR_PROCESSING" branches:
         - both states are None
@@ -2019,6 +2019,18 @@ class TestDataProcessService(unittest.TestCase):
         self.assertEqual(
             self.service.convert_celery_states_to_custom(
                 process_celery_state="UNKNOWN_STATE", forward_celery_state=None
+            ),
+            "WAIT_FOR_PROCESSING",
+        )
+
+    async def test_convert_celery_states_wait_for_processing_empty_strings(self):
+        """
+        Explicitly cover the last-line default return by passing empty strings
+        (falsy values) for both states.
+        """
+        self.assertEqual(
+            self.service.convert_celery_states_to_custom(
+                process_celery_state="", forward_celery_state=""
             ),
             "WAIT_FOR_PROCESSING",
         )
