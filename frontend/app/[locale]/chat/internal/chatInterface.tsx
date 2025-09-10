@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { useTranslation } from "react-i18next";
 
-import { ROLE_ASSISTANT} from "@/const/agentConfig";
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
+import { chatConfig } from "@/const/chatConfig";
 import { USER_ROLES } from "@/const/modelConfig";
 import { useConfig } from "@/hooks/useConfig";
 import { useAuth } from "@/hooks/useAuth";
@@ -452,7 +453,7 @@ export function ChatInterface() {
                   contents: [
                     {
                       id: `preprocess-content-${Date.now()}`,
-                      type: "preprocess",
+                      type: chatConfig.contentTypes.PREPROCESS,
                       content: t("chatInterface.parsingFile"),
                       expanded: false,
                       timestamp: Date.now(),
@@ -499,7 +500,7 @@ export function ChatInterface() {
                     contents: [
                       {
                         id: `preprocess-content-${Date.now()}`,
-                        type: "preprocess",
+                        type: chatConfig.contentTypes.PREPROCESS,
                         content: t("chatInterface.parsingFile"),
                         expanded: false,
                         timestamp: Date.now(),

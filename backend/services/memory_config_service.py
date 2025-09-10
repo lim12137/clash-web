@@ -2,12 +2,12 @@ import logging
 from typing import Dict, List, Union
 
 from consts.const import (
-	MEMORY_SWITCH_KEY,
-	MEMORY_AGENT_SHARE_KEY,
-	DISABLE_AGENT_ID_KEY,
-	DISABLE_USERAGENT_ID_KEY,
-	DEFAULT_MEMORY_SWITCH_KEY,
-	DEFAULT_MEMORY_AGENT_SHARE_KEY,
+    MEMORY_SWITCH_KEY,
+    MEMORY_AGENT_SHARE_KEY,
+    DISABLE_AGENT_ID_KEY,
+    DISABLE_USERAGENT_ID_KEY,
+    DEFAULT_MEMORY_SWITCH_KEY,
+    DEFAULT_MEMORY_AGENT_SHARE_KEY,
 )
 from consts.model import MemoryAgentShareMode
 from database.memory_config_db import (
