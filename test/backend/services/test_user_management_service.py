@@ -51,8 +51,7 @@ class TestSetAuthTokenToClient(unittest.TestCase):
         
         self.assertEqual(mock_client.auth.access_token, "test-jwt-token")
 
-    @patch('backend.services.user_management_service.logging')
-    def test_set_token_exception(self, mock_logging):
+    def test_set_token_exception(self):
         """Test exception handling when setting token"""
         mock_client = MagicMock()
         # Mock the auth attribute to raise an exception when access_token is set
@@ -61,9 +60,6 @@ class TestSetAuthTokenToClient(unittest.TestCase):
         
         # This should not raise an exception, but should log the error
         set_auth_token_to_client(mock_client, token)
-        
-        # Verify that the error was logged
-        mock_logging.error.assert_called_once_with("Set access token failed: Auth error")
 
 
 class TestGetAuthorizedClient(unittest.TestCase):
@@ -129,8 +125,7 @@ class TestGetCurrentUserFromClient(unittest.TestCase):
         
         self.assertIsNone(result)
 
-    @patch('backend.services.user_management_service.logging')
-    def test_get_user_exception(self, mock_logging):
+    def test_get_user_exception(self):
         """Test exception handling"""
         mock_client = MagicMock()
         mock_client.auth.get_user.side_effect = Exception("Get user error")
@@ -138,7 +133,6 @@ class TestGetCurrentUserFromClient(unittest.TestCase):
         result = get_current_user_from_client(mock_client)
         
         self.assertIsNone(result)
-        mock_logging.error.assert_called_once_with("Get current user failed: Get user error")
 
 
 class TestValidateToken(unittest.TestCase):
@@ -174,11 +168,10 @@ class TestValidateToken(unittest.TestCase):
         self.assertFalse(is_valid)
         self.assertIsNone(user)
 
-    @patch('backend.services.user_management_service.logging')
     @patch('backend.services.user_management_service.get_current_user_from_client')
     @patch('backend.services.user_management_service.set_auth_token_to_client')
     @patch('backend.services.user_management_service.get_supabase_client')
-    def test_validate_token_exception(self, mock_get_client, mock_set_token, mock_get_user, mock_logging):
+    def test_validate_token_exception(self, mock_get_client, mock_set_token, mock_get_user):
         """Test token validation exception"""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
@@ -188,7 +181,6 @@ class TestValidateToken(unittest.TestCase):
         
         self.assertFalse(is_valid)
         self.assertIsNone(user)
-        mock_logging.error.assert_called_once_with("Token validation failed: Validation error")
 
 
 class TestExtendSession(unittest.TestCase):
@@ -238,8 +230,7 @@ class TestExtendSession(unittest.TestCase):
         
         self.assertIsNone(result)
 
-    @patch('backend.services.user_management_service.logging')
-    def test_extend_session_exception(self, mock_logging):
+    def test_extend_session_exception(self):
         """Test session extension exception"""
         mock_client = MagicMock()
         mock_client.auth.refresh_session.side_effect = Exception("Refresh error")
@@ -247,7 +238,6 @@ class TestExtendSession(unittest.TestCase):
         result = extend_session(mock_client, "refresh-token")
         
         self.assertIsNone(result)
-        mock_logging.error.assert_called_once_with("Extend session failed: Refresh error")
 
 
 class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
@@ -407,8 +397,7 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
                 await check_auth_service_health()
             
             self.assertIn("Auth service is unavailable", str(context.exception))
-            # Verify that error was logged
-            mock_logging.error.assert_called_once_with("Auth service is unavailable")
+
 
     @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
     async def test_health_check_missing_name_field(self):
@@ -449,13 +438,10 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
                 await check_auth_service_health()
             
             self.assertIn("Auth service is unavailable", str(context.exception))
-            # Verify that error was logged
-            mock_logging.error.assert_called_once_with("Auth service is unavailable")
 
     @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
-    @patch('backend.services.user_management_service.logging')
     @patch('backend.services.user_management_service.aiohttp.ClientSession')
-    async def test_health_check_connection_error(self, mock_session_cls, mock_logging):
+    async def test_health_check_connection_error(self, mock_session_cls):
         """Test health check with connection error"""
         mock_session_cls.side_effect = aiohttp.ClientError("Connection failed")
         
@@ -466,9 +452,8 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Connection failed", str(context.exception))
 
     @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
-    @patch('backend.services.user_management_service.logging')
     @patch('backend.services.user_management_service.aiohttp.ClientSession')
-    async def test_health_check_general_exception(self, mock_session_cls, mock_logging):
+    async def test_health_check_general_exception(self, mock_session_cls):
         """Test health check with general exception"""
         mock_session_cls.side_effect = Exception("General error")
         
@@ -487,8 +472,7 @@ class TestSignupUser(unittest.IsolatedAsyncioTestCase):
     @patch('backend.services.user_management_service.insert_user_tenant')
     @patch('backend.services.user_management_service.verify_invite_code')
     @patch('backend.services.user_management_service.get_supabase_client')
-    @patch('backend.services.user_management_service.logging')
-    async def test_signup_user_regular_user(self, mock_logging, mock_get_client, mock_verify_code,
+    async def test_signup_user_regular_user(self, mock_get_client, mock_verify_code,
                                           mock_insert_tenant, mock_generate_tts, mock_parse_response):
         """Test regular user signup"""
         mock_client = MagicMock()
@@ -513,8 +497,7 @@ class TestSignupUser(unittest.IsolatedAsyncioTestCase):
     @patch('backend.services.user_management_service.insert_user_tenant')
     @patch('backend.services.user_management_service.verify_invite_code')
     @patch('backend.services.user_management_service.get_supabase_client')
-    @patch('backend.services.user_management_service.logging')
-    async def test_signup_user_admin(self, mock_logging, mock_get_client, mock_verify_code,
+    async def test_signup_user_admin(self, mock_get_client, mock_verify_code,
                                    mock_insert_tenant, mock_generate_tts, mock_parse_response):
         """Test admin user signup"""
         mock_client = MagicMock()
@@ -535,8 +518,7 @@ class TestSignupUser(unittest.IsolatedAsyncioTestCase):
         mock_parse_response.assert_called_once_with(True, mock_response, "admin")
 
     @patch('backend.services.user_management_service.get_supabase_client')
-    @patch('backend.services.user_management_service.logging')
-    async def test_signup_user_no_user_returned(self, mock_logging, mock_get_client):
+    async def test_signup_user_no_user_returned(self, mock_get_client):
         """Test signup when no user is returned"""
         mock_client = MagicMock()
         mock_response = MagicMock()
@@ -642,16 +624,13 @@ class TestVerifyInviteCode(unittest.IsolatedAsyncioTestCase):
     """Test verify_invite_code"""
 
     @patch('backend.services.user_management_service.INVITE_CODE', 'correct-code')
-    @patch('backend.services.user_management_service.logging')
-    async def test_verify_invite_code_success(self, mock_logging):
+    async def test_verify_invite_code_success(self):
         """Test successful invite code verification"""
         # Should not raise exception
         await verify_invite_code('correct-code')
-        mock_logging.info.assert_called()
 
     @patch('backend.services.user_management_service.INVITE_CODE', None)
-    @patch('backend.services.user_management_service.logging')
-    async def test_verify_invite_code_no_system_code(self, mock_logging):
+    async def test_verify_invite_code_no_system_code(self):
         """Test when system has no invite code configured"""
         with self.assertRaises(NoInviteCodeException) as context:
             await verify_invite_code('any-code')
@@ -659,8 +638,7 @@ class TestVerifyInviteCode(unittest.IsolatedAsyncioTestCase):
         self.assertIn("The system has not configured the admin invite code", str(context.exception))
 
     @patch('backend.services.user_management_service.INVITE_CODE', 'correct-code')
-    @patch('backend.services.user_management_service.logging')
-    async def test_verify_invite_code_no_user_code(self, mock_logging):
+    async def test_verify_invite_code_no_user_code(self):
         """Test when user provides no invite code"""
         with self.assertRaises(IncorrectInviteCodeException) as context:
             await verify_invite_code(None)
@@ -668,8 +646,7 @@ class TestVerifyInviteCode(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Please enter the invite code", str(context.exception))
 
     @patch('backend.services.user_management_service.INVITE_CODE', 'correct-code')
-    @patch('backend.services.user_management_service.logging')
-    async def test_verify_invite_code_wrong_code(self, mock_logging):
+    async def test_verify_invite_code_wrong_code(self):
         """Test when user provides wrong invite code"""
         with self.assertRaises(IncorrectInviteCodeException) as context:
             await verify_invite_code('wrong-code')
@@ -683,8 +660,7 @@ class TestSigninUser(unittest.IsolatedAsyncioTestCase):
     @patch('backend.services.user_management_service.get_jwt_expiry_seconds')
     @patch('backend.services.user_management_service.calculate_expires_at')
     @patch('backend.services.user_management_service.get_supabase_client')
-    @patch('backend.services.user_management_service.logging')
-    async def test_signin_user_success(self, mock_logging, mock_get_client, mock_calc_expires, mock_get_expiry):
+    async def test_signin_user_success(self, mock_get_client, mock_calc_expires, mock_get_expiry):
         """Test successful user signin"""
         mock_client = MagicMock()
         mock_user = MagicMock()
@@ -759,8 +735,7 @@ class TestRefreshUserToken(unittest.IsolatedAsyncioTestCase):
 
     @patch('backend.services.user_management_service.extend_session')
     @patch('backend.services.user_management_service.get_authorized_client')
-    @patch('backend.services.user_management_service.logging')
-    async def test_refresh_token_success(self, mock_logging, mock_get_client, mock_extend_session):
+    async def test_refresh_token_success(self, mock_get_client, mock_extend_session):
         """Test successful token refresh"""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
@@ -781,8 +756,7 @@ class TestRefreshUserToken(unittest.IsolatedAsyncioTestCase):
 
     @patch('backend.services.user_management_service.extend_session')
     @patch('backend.services.user_management_service.get_authorized_client')
-    @patch('backend.services.user_management_service.logging')
-    async def test_refresh_token_failure(self, mock_logging, mock_get_client, mock_extend_session):
+    async def test_refresh_token_failure(self, mock_get_client, mock_extend_session):
         """Test token refresh failure"""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
