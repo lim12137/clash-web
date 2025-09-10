@@ -307,7 +307,7 @@ async def convert_state(request: ConvertStateRequest):
     This endpoint converts a process state string to a forward state string.
     """
     try:
-        result = await service.convert_celery_states_to_custom(
+        result = service.convert_celery_states_to_custom(
             process_celery_state=request.process_state or "",
             forward_celery_state=request.forward_state or ""
         )

@@ -541,7 +541,7 @@ class DataProcessService:
             "chunking_strategy": chunking_strategy
         }
 
-    def convert_celery_states_to_custom(self, process_celery_state: str, forward_celery_state: str) -> str:
+    def convert_celery_states_to_custom(self, process_celery_state: Optional[str], forward_celery_state: Optional[str]) -> str:
         """Map Celery task states to a custom frontend state string.
 
         This implements the business logic that was previously in the app layer.
@@ -553,9 +553,6 @@ class DataProcessService:
 
         if process_celery_state == states.SUCCESS and forward_celery_state == states.SUCCESS:
             return "COMPLETED"
-
-        if not process_celery_state and not forward_celery_state:
-            return "WAIT_FOR_PROCESSING"
 
         forward_state_map = {
             states.PENDING: "WAIT_FOR_FORWARDING",
