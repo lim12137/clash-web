@@ -292,8 +292,45 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
             self.assertIsNone(result)
 
     @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
-    async def test_health_check_wrong_service(self):
-        """Test health check with wrong service name"""
+    async def test_health_check_not_ok_response(self):
+        """Test health check with non-OK response (covers line 97)"""
+        # Create a proper async context manager mock
+        class MockResponse:
+            def __init__(self):
+                self.ok = False
+        
+        class MockGet:
+            def __init__(self):
+                self.response = MockResponse()
+            
+            async def __aenter__(self):
+                return self.response
+            
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                return None
+        
+        class MockSession:
+            def get(self, *args, **kwargs):
+                return MockGet()
+        
+        class MockClientSession:
+            async def __aenter__(self):
+                return MockSession()
+            
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                return None
+        
+        # Patch the ClientSession
+        with patch('backend.services.user_management_service.aiohttp.ClientSession', MockClientSession):
+            # Function should raise ConnectionError for non-OK response
+            with self.assertRaises(ConnectionError) as context:
+                await check_auth_service_health()
+            
+            self.assertIn("Auth service is unavailable", str(context.exception))
+
+    @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
+    async def test_health_check_wrong_service_name(self):
+        """Test health check with wrong service name (covers line 103)"""
         # Create a proper async context manager mock
         class MockResponse:
             def __init__(self):
@@ -325,19 +362,24 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
         
         # Patch the ClientSession
         with patch('backend.services.user_management_service.aiohttp.ClientSession', MockClientSession):
-            # Function should raise ConnectionError
+            # Function should raise ConnectionError for wrong service name
             with self.assertRaises(ConnectionError) as context:
                 await check_auth_service_health()
             
             self.assertIn("Auth service is unavailable", str(context.exception))
+            # Verify that error was logged
+            mock_logging.error.assert_called_once_with("Auth service is unavailable")
 
     @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
-    async def test_health_check_not_ok(self):
-        """Test health check with non-OK response"""
+    async def test_health_check_empty_response(self):
+        """Test health check with empty response data (covers line 103)"""
         # Create a proper async context manager mock
         class MockResponse:
             def __init__(self):
-                self.ok = False
+                self.ok = True
+            
+            async def json(self):
+                return None  # Empty response
         
         class MockGet:
             def __init__(self):
@@ -362,9 +404,55 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
         
         # Patch the ClientSession
         with patch('backend.services.user_management_service.aiohttp.ClientSession', MockClientSession):
-            # Function should return False for non-OK response
-            result = await check_auth_service_health()
-            self.assertFalse(result)
+            # Function should raise ConnectionError for empty response
+            with self.assertRaises(ConnectionError) as context:
+                await check_auth_service_health()
+            
+            self.assertIn("Auth service is unavailable", str(context.exception))
+            # Verify that error was logged
+            mock_logging.error.assert_called_once_with("Auth service is unavailable")
+
+    @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
+    async def test_health_check_missing_name_field(self):
+        """Test health check with response missing name field (covers line 103)"""
+        # Create a proper async context manager mock
+        class MockResponse:
+            def __init__(self):
+                self.ok = True
+            
+            async def json(self):
+                return {"status": "ok"}  # Missing "name" field
+        
+        class MockGet:
+            def __init__(self):
+                self.response = MockResponse()
+            
+            async def __aenter__(self):
+                return self.response
+            
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                return None
+        
+        class MockSession:
+            def get(self, *args, **kwargs):
+                return MockGet()
+        
+        class MockClientSession:
+            async def __aenter__(self):
+                return MockSession()
+            
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                return None
+        
+        # Patch the ClientSession
+        with patch('backend.services.user_management_service.aiohttp.ClientSession', MockClientSession):
+            # Function should raise ConnectionError for missing name field
+            with self.assertRaises(ConnectionError) as context:
+                await check_auth_service_health()
+            
+            self.assertIn("Auth service is unavailable", str(context.exception))
+            # Verify that error was logged
+            mock_logging.error.assert_called_once_with("Auth service is unavailable")
 
     @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
     @patch('backend.services.user_management_service.logging')
