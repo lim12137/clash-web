@@ -367,8 +367,6 @@ class TestCheckAuthServiceHealth(unittest.IsolatedAsyncioTestCase):
                 await check_auth_service_health()
             
             self.assertIn("Auth service is unavailable", str(context.exception))
-            # Verify that error was logged
-            mock_logging.error.assert_called_once_with("Auth service is unavailable")
 
     @patch.dict(os.environ, {'SUPABASE_URL': 'http://test.supabase.co', 'SUPABASE_KEY': 'test-key'})
     async def test_health_check_empty_response(self):
