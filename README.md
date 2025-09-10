@@ -14,7 +14,7 @@ Nexent is a zero-code platform for auto-generating agents — no orchestration, 
 - 🌐 Visit our [official website](http://nexent.tech/) to learn more
 - 🚀 [Try it now](http://nexent.tech/try) to experience the power of Nexent
 
-https://github.com/user-attachments/assets/b844e05d-5277-4509-9463-1c5b3516f11e
+https://github.com/user-attachments/assets/db6b7f5a-9ee8-4327-ae6f-c5af896126b4
 
 # 🤝 Join Our Community
 
