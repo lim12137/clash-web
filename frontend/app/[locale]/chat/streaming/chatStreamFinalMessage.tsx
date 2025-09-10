@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ChatMessageType } from "@/types/chat";
+import { chatConfig, Opinion } from "@/const/chatConfig";
 import { conversationService } from "@/services/conversationService";
 import { copyToClipboard } from "@/lib/clipboard";
 
@@ -26,14 +27,14 @@ interface FinalMessageProps {
   searchResultsCount?: number;
   imagesCount?: number;
   onImageClick?: (imageUrl: string) => void;
-  onOpinionChange?: (messageId: number, opinion: "Y" | "N" | null) => void;
+  onOpinionChange?: (messageId: number, opinion: Opinion) => void;
   hideButtons?: boolean;
   index?: number;
   currentConversationId?: number;
 }
 
 // TTS playback status
-type TTSStatus = "idle" | "generating" | "playing" | "error";
+type TTSStatus = typeof chatConfig.ttsStatus[keyof typeof chatConfig.ttsStatus];
 
 export function ChatStreamFinalMessage({
   message,
@@ -57,7 +58,7 @@ export function ChatStreamFinalMessage({
   const [isVisible, setIsVisible] = useState(false);
 
   // TTS related states
-  const [ttsStatus, setTtsStatus] = useState<TTSStatus>("idle");
+  const [ttsStatus, setTtsStatus] = useState<TTSStatus>(chatConfig.ttsStatus.IDLE);
   const ttsServiceRef = useRef<ReturnType<
     typeof conversationService.tts.createTTSService
   > | null>(null);
@@ -105,7 +106,7 @@ export function ChatStreamFinalMessage({
 
   // Handle thumbs up
   const handleThumbsUp = async () => {
-    const newOpinion = localOpinion === "Y" ? null : "Y";
+    const newOpinion = localOpinion === chatConfig.opinion.POSITIVE ? null : chatConfig.opinion.POSITIVE;
     setLocalOpinion(newOpinion);
 
     let messageId = message.message_id;
@@ -128,16 +129,16 @@ export function ChatStreamFinalMessage({
     }
 
     if (onOpinionChange && messageId) {
-      onOpinionChange(messageId, newOpinion as "Y" | "N" | null);
+      onOpinionChange(messageId, newOpinion as Opinion);
     }
   };
 
   // Handle thumbs down
   const handleThumbsDown = () => {
-    const newOpinion = localOpinion === "N" ? null : "N";
+    const newOpinion = localOpinion === chatConfig.opinion.NEGATIVE ? null : chatConfig.opinion.NEGATIVE;
     setLocalOpinion(newOpinion);
     if (onOpinionChange && message.message_id) {
-      onOpinionChange(message.message_id, newOpinion as "Y" | "N" | null);
+      onOpinionChange(message.message_id, newOpinion as Opinion);
     }
   };
 
@@ -155,7 +156,7 @@ export function ChatStreamFinalMessage({
 
     if (ttsStatus === "playing") {
       ttsServiceRef.current.stopAudio();
-      setTtsStatus("idle");
+      setTtsStatus(chatConfig.ttsStatus.IDLE);
       return;
     }
 
@@ -164,27 +165,27 @@ export function ChatStreamFinalMessage({
         setTtsStatus(status);
       });
     } catch (error) {
-      setTtsStatus("error");
-      setTimeout(() => setTtsStatus("idle"), 2000);
+      setTtsStatus(chatConfig.ttsStatus.ERROR);
+      setTimeout(() => setTtsStatus(chatConfig.ttsStatus.IDLE), 2000);
     }
   };
 
   // Get TTS button icon and status
   const getTTSButtonContent = () => {
     switch (ttsStatus) {
-      case "generating":
+      case chatConfig.ttsStatus.GENERATING:
         return {
           icon: <Loader2 className="h-4 w-4 animate-spin" />,
           tooltip: t("chatStreamFinalMessage.generatingAudio"),
           className: "bg-blue-100 text-blue-600 border-blue-200",
         };
-      case "playing":
+      case chatConfig.ttsStatus.PLAYING:
         return {
           icon: <Square className="h-4 w-4" />,
           tooltip: t("chatStreamFinalMessage.stopPlaying"),
           className: "bg-red-100 text-red-600 border-red-200",
         };
-      case "error":
+      case chatConfig.ttsStatus.ERROR:
         return {
           icon: <Volume2 className="h-4 w-4" />,
           tooltip: t("chatStreamFinalMessage.audioGenerationFailed"),
@@ -337,11 +338,11 @@ export function ChatStreamFinalMessage({
                         <TooltipTrigger asChild>
                           <Button
                             variant={
-                              localOpinion === "Y" ? "secondary" : "outline"
+                              localOpinion === chatConfig.opinion.POSITIVE ? "secondary" : "outline"
                             }
                             size="icon"
                             className={`h-8 w-8 rounded-full ${
-                              localOpinion === "Y"
+                              localOpinion === chatConfig.opinion.POSITIVE
                                 ? "bg-green-100 text-green-600 border-green-200"
                                 : "bg-white hover:bg-gray-100"
                             } transition-all duration-200 shadow-sm`}
@@ -352,7 +353,7 @@ export function ChatStreamFinalMessage({
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>
-                            {localOpinion === "Y"
+                            {localOpinion === chatConfig.opinion.POSITIVE
                               ? t("chatStreamMessage.cancelLike")
                               : t("chatStreamMessage.like")}
                           </p>
@@ -364,11 +365,11 @@ export function ChatStreamFinalMessage({
                         <TooltipTrigger asChild>
                           <Button
                             variant={
-                              localOpinion === "N" ? "secondary" : "outline"
+                              localOpinion === chatConfig.opinion.NEGATIVE ? "secondary" : "outline"
                             }
                             size="icon"
                             className={`h-8 w-8 rounded-full ${
-                              localOpinion === "N"
+                              localOpinion === chatConfig.opinion.NEGATIVE
                                 ? "bg-red-100 text-red-600 border-red-200"
                                 : "bg-white hover:bg-gray-100"
                             } transition-all duration-200 shadow-sm`}
@@ -379,7 +380,7 @@ export function ChatStreamFinalMessage({
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>
-                            {localOpinion === "N"
+                            {localOpinion === chatConfig.opinion.NEGATIVE
                               ? t("chatStreamMessage.cancelDislike")
                               : t("chatStreamMessage.dislike")}
                           </p>

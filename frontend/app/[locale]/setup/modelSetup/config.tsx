@@ -9,7 +9,7 @@ import {
   TWO_COLUMN_LAYOUT, 
   STANDARD_CARD,
   CARD_HEADER 
-} from '@/lib/layoutConstants'
+} from '@/const/layoutConstants'
 
 import { AppConfigSection } from './components/appConfig'
 import { ModelConfigSection, ModelConfigSectionRef } from './components/modelConfig'

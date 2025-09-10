@@ -40,7 +40,7 @@ class BaseEmbedding(ABC):
         pass
 
     @abstractmethod
-    async def dimension_check(self, timeout: float = 5.0) -> List[List[float]]:
+    async def dimension_check(self, timeout: float = 30.0) -> List[List[float]]:
         """
         Test the connectivity to the embedding API, supporting timeout detection.
 
@@ -183,7 +183,7 @@ class JinaEmbedding(MultimodalEmbedding):
         embeddings = [item["embedding"] for item in response["data"]]
         return embeddings
 
-    async def dimension_check(self, timeout: float = 5.0) -> List[List[float]]:
+    async def dimension_check(self, timeout: float = 30.0) -> List[List[float]]:
         try:
             # Create a simple test input
             test_input = "Hello, nexent!"

@@ -80,35 +80,27 @@ def extend_session(client: Client, refresh_token: str) -> Optional[dict]:
         return None
 
 
-async def check_auth_service_health() -> bool:
+async def check_auth_service_health():
     """
     Check the health status of the authentication service
     Return (is available, status message)
     """
-    try:
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_KEY")
-        
-        health_url = f'{supabase_url}/auth/v1/health'
-        headers = {'apikey': supabase_key}
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.get(health_url, headers=headers) as response:
-                if not response.ok:
-                    return False
-                
-                data = await response.json()
-                # Check if the service is available by checking if the response contains the name field and its value is "GoTrue"
-                is_available = data and data.get("name") == "GoTrue"
-                
-                return is_available
-                    
-    except aiohttp.ClientError as e:
-        logging.error(f"Auth service connection failed: {str(e)}")
-        return False
-    except Exception as e:
-        logging.error(f"Auth service health check failed: {str(e)}")
-        return False
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
+
+    health_url = f'{supabase_url}/auth/v1/health'
+    headers = {'apikey': supabase_key}
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(health_url, headers=headers) as response:
+            if not response.ok:
+                raise ConnectionError("Auth service is unavailable")
+
+            data = await response.json()
+            # Check if the service is available by verifying the name field equals "GoTrue"
+            if not data or data.get("name", "") != "GoTrue":
+                logging.error("Auth service is unavailable")
+                raise ConnectionError("Auth service is unavailable")
 
 
 async def signup_user(email: EmailStr,
@@ -117,7 +109,8 @@ async def signup_user(email: EmailStr,
                       invite_code: Optional[str] = None):
     """User registration"""
     client = get_supabase_client()
-    logging.info(f"Receive registration request: email={email}, is_admin={is_admin}")
+    logging.info(
+        f"Receive registration request: email={email}, is_admin={is_admin}")
     if is_admin:
         await verify_invite_code(invite_code)
 
@@ -138,7 +131,8 @@ async def signup_user(email: EmailStr,
         # Create user tenant relationship
         insert_user_tenant(user_id=user_id, tenant_id=tenant_id)
 
-        logging.info(f"User {email} registered successfully, role: {user_role}, tenant: {tenant_id}")
+        logging.info(
+            f"User {email} registered successfully, role: {user_role}, tenant: {tenant_id}")
 
         if is_admin:
             await generate_tts_stt_4_admin(tenant_id, user_id)
@@ -147,7 +141,8 @@ async def signup_user(email: EmailStr,
     else:
         logging.error(
             "Supabase registration request returned no user object")
-        raise UserRegistrationException("Registration service is temporarily unavailable, please try again later")
+        raise UserRegistrationException(
+            "Registration service is temporarily unavailable, please try again later")
 
 
 async def parse_supabase_response(is_admin, response, user_role):
@@ -157,7 +152,7 @@ async def parse_supabase_response(is_admin, response, user_role):
         "email": response.user.email,
         "role": user_role
     }
-    
+
     session_data = None
     if response.session:
         session_data = {
@@ -166,7 +161,7 @@ async def parse_supabase_response(is_admin, response, user_role):
             "expires_at": calculate_expires_at(response.session.access_token),
             "expires_in_seconds": get_jwt_expiry_seconds(response.session.access_token)
         }
-    
+
     return {
         "user": user_data,
         "session": session_data,
@@ -206,7 +201,8 @@ async def generate_tts_stt_4_admin(tenant_id, user_id):
 
 
 async def verify_invite_code(invite_code):
-    logging.info("detect admin registration request, start verifying invite code")
+    logging.info(
+        "detect admin registration request, start verifying invite code")
     logging.info(f"The INVITE_CODE obtained from consts.const: {INVITE_CODE}")
     if not INVITE_CODE:
         logging.error("please check the INVITE_CODE environment variable")
@@ -219,7 +215,8 @@ async def verify_invite_code(invite_code):
     if invite_code != INVITE_CODE:
         logging.warning(
             f"Admin invite code verification failed: user provided='{invite_code}', system configured='{INVITE_CODE}'")
-        raise IncorrectInviteCodeException("Please enter the correct admin invite code")
+        raise IncorrectInviteCodeException(
+            "Please enter the correct admin invite code")
     logging.info("Admin invite code verification successful")
 
 
@@ -246,21 +243,21 @@ async def signin_user(email: EmailStr,
         f"User {email} logged in successfully, session validity is {expiry_seconds} seconds, role: {user_role}")
 
     return {
-            "message":f"Login successful, session validity is {expiry_seconds} seconds",
-            "data":{
-                "user": {
-                    "id": response.user.id,
-                    "email": response.user.email,
-                    "role": user_role
-                },
-                "session": {
-                    "access_token": response.session.access_token,
-                    "refresh_token": response.session.refresh_token,
-                    "expires_at": expires_at,
-                    "expires_in_seconds": expiry_seconds
-                }
+        "message": f"Login successful, session validity is {expiry_seconds} seconds",
+        "data": {
+            "user": {
+                "id": response.user.id,
+                "email": response.user.email,
+                "role": user_role
+            },
+            "session": {
+                "access_token": response.session.access_token,
+                "refresh_token": response.session.refresh_token,
+                "expires_at": expires_at,
+                "expires_in_seconds": expiry_seconds
             }
         }
+    }
 
 
 async def refresh_user_token(authorization, refresh_token: str):
@@ -282,11 +279,12 @@ async def get_session_by_authorization(authorization):
         user_role = "user"  # Default role
         if user.user_metadata and 'role' in user.user_metadata:
             user_role = user.user_metadata['role']
-        return {"user": {
-                     "id": user.id,
-                     "email": user.email,
-                     "role": user_role
-                 }
-             }
+        return {
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "role": user_role
+            }
+        }
     else:
         raise ValueError("Session is invalid")

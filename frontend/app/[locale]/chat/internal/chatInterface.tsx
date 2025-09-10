@@ -8,6 +8,8 @@ import { v4 as uuidv4 } from "uuid";
 import { useTranslation } from "react-i18next";
 
 import { ROLE_ASSISTANT } from "@/const/agentConfig";
+import { chatConfig } from "@/const/chatConfig";
+import { USER_ROLES } from "@/const/modelConfig";
 import { useConfig } from "@/hooks/useConfig";
 import { useAuth } from "@/hooks/useAuth";
 import { conversationService } from "@/services/conversationService";
@@ -293,7 +295,7 @@ export function ChatInterface() {
     // Create user message object
     const userMessage: ChatMessageType = {
       id: userMessageId,
-      role: "user",
+      role: USER_ROLES.USER,
       content: userMessageContent,
       timestamp: new Date(),
       attachments:
@@ -451,7 +453,7 @@ export function ChatInterface() {
                   contents: [
                     {
                       id: `preprocess-content-${Date.now()}`,
-                      type: "preprocess",
+                      type: chatConfig.contentTypes.PREPROCESS,
                       content: t("chatInterface.parsingFile"),
                       expanded: false,
                       timestamp: Date.now(),
@@ -498,7 +500,7 @@ export function ChatInterface() {
                     contents: [
                       {
                         id: `preprocess-content-${Date.now()}`,
-                        type: "preprocess",
+                        type: chatConfig.contentTypes.PREPROCESS,
                         content: t("chatInterface.parsingFile"),
                         expanded: false,
                         timestamp: Date.now(),
@@ -1013,7 +1015,7 @@ export function ChatInterface() {
 
             // Optimized processing logic: process messages by role one by one, maintain original order
             dialogMessages.forEach((dialog_msg, index) => {
-              if (dialog_msg.role === "user") {
+              if (dialog_msg.role === USER_ROLES.USER) {
                 const formattedUserMsg: ChatMessageType =
                   extractUserMsgFromResponse(
                     dialog_msg,
@@ -1156,7 +1158,7 @@ export function ChatInterface() {
 
           // Optimized processing logic: process messages by role one by one, maintain original order
           dialogMessages.forEach((dialog_msg, index) => {
-            if (dialog_msg.role === "user") {
+            if (dialog_msg.role === USER_ROLES.USER) {
               const formattedUserMsg: ChatMessageType =
                 extractUserMsgFromResponse(
                   dialog_msg,

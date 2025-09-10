@@ -1,19 +1,13 @@
 "use client"
 
 import { API_ENDPOINTS } from './api';
-import { CONNECTION_STATUS } from '@/const/modelConfig';
+import { CONNECTION_STATUS, ConnectionStatus } from '@/const/modelConfig';
+import { ModelEngineCheckResult } from '../types/modelConfig';
 
 import { fetchWithAuth } from '@/lib/auth';
 
 // @ts-ignore
 const fetch = fetchWithAuth;
-
-export type ConnectionStatus = typeof CONNECTION_STATUS.SUCCESS | typeof CONNECTION_STATUS.ERROR | typeof CONNECTION_STATUS.PROCESSING;
-
-interface ModelEngineCheckResult {
-  status: ConnectionStatus;
-  lastChecked: string;
-}
 
 /**
  * ModelEngine service - responsible for interacting with ModelEngine

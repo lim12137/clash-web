@@ -16,7 +16,11 @@ class TestPromptTemplateUtils:
         result = get_agent_prompt_template(is_manager=True, language='zh')
         
         # Verify the function was called with correct parameters
-        mock_file.assert_called_with('backend/prompts/manager_system_prompt_template.yaml', 'r', encoding='utf-8')
+        # The actual path will be an absolute path, so we check that it contains the expected relative path
+        call_args = mock_file.call_args[0]
+        assert 'backend/prompts/manager_system_prompt_template.yaml' in call_args[0].replace('\\', '/')
+        assert call_args[1] == 'r'
+        assert mock_file.call_args[1]['encoding'] == 'utf-8'
         mock_yaml_load.assert_called_once()
         assert result == {"test": "data"}
 
@@ -28,7 +32,11 @@ class TestPromptTemplateUtils:
         result = get_agent_prompt_template(is_manager=True, language='en')
         
         # Verify the function was called with correct parameters
-        mock_file.assert_called_with('backend/prompts/manager_system_prompt_template_en.yaml', 'r', encoding='utf-8')
+        # The actual path will be an absolute path, so we check that it ends with the expected relative path
+        call_args = mock_file.call_args[0]
+        assert 'backend/prompts/manager_system_prompt_template_en.yaml' in call_args[0].replace('\\', '/')
+        assert call_args[1] == 'r'
+        assert mock_file.call_args[1]['encoding'] == 'utf-8'
         mock_yaml_load.assert_called_once()
         assert result == {"test": "data"}
 
@@ -40,7 +48,11 @@ class TestPromptTemplateUtils:
         result = get_agent_prompt_template(is_manager=False, language='zh')
         
         # Verify the function was called with correct parameters
-        mock_file.assert_called_with('backend/prompts/managed_system_prompt_template.yaml', 'r', encoding='utf-8')
+        # The actual path will be an absolute path, so we check that it ends with the expected relative path
+        call_args = mock_file.call_args[0]
+        assert 'backend/prompts/managed_system_prompt_template.yaml' in call_args[0].replace('\\', '/')
+        assert call_args[1] == 'r'
+        assert mock_file.call_args[1]['encoding'] == 'utf-8'
         mock_yaml_load.assert_called_once()
         assert result == {"test": "data"}
 
@@ -52,7 +64,11 @@ class TestPromptTemplateUtils:
         result = get_agent_prompt_template(is_manager=False, language='en')
         
         # Verify the function was called with correct parameters
-        mock_file.assert_called_with('backend/prompts/managed_system_prompt_template_en.yaml', 'r', encoding='utf-8')
+        # The actual path will be an absolute path, so we check that it ends with the expected relative path
+        call_args = mock_file.call_args[0]
+        assert 'backend/prompts/managed_system_prompt_template_en.yaml' in call_args[0].replace('\\', '/')
+        assert call_args[1] == 'r'
+        assert mock_file.call_args[1]['encoding'] == 'utf-8'
         mock_yaml_load.assert_called_once()
         assert result == {"test": "data"}
 
@@ -64,7 +80,11 @@ class TestPromptTemplateUtils:
         result = get_prompt_generate_prompt_template(language='zh')
         
         # Verify the function was called with correct parameters
-        mock_file.assert_called_with('backend/prompts/utils/prompt_generate.yaml', 'r', encoding='utf-8')
+        # The actual path will be an absolute path, so we check that it ends with the expected relative path
+        call_args = mock_file.call_args[0]
+        assert 'backend/prompts/utils/prompt_generate.yaml' in call_args[0].replace('\\', '/')
+        assert call_args[1] == 'r'
+        assert mock_file.call_args[1]['encoding'] == 'utf-8'
         mock_yaml_load.assert_called_once()
         assert result == {"test": "data"}
 
@@ -76,7 +96,11 @@ class TestPromptTemplateUtils:
         result = get_prompt_generate_prompt_template(language='en')
         
         # Verify the function was called with correct parameters
-        mock_file.assert_called_with('backend/prompts/utils/prompt_generate_en.yaml', 'r', encoding='utf-8')
+        # The actual path will be an absolute path, so we check that it ends with the expected relative path
+        call_args = mock_file.call_args[0]
+        assert 'backend/prompts/utils/prompt_generate_en.yaml' in call_args[0].replace('\\', '/')
+        assert call_args[1] == 'r'
+        assert mock_file.call_args[1]['encoding'] == 'utf-8'
         mock_yaml_load.assert_called_once()
         assert result == {"test": "data"}
 
@@ -88,7 +112,11 @@ class TestPromptTemplateUtils:
         result = get_prompt_generate_prompt_template()
         
         # Verify the function was called with correct parameters
-        mock_file.assert_called_with('backend/prompts/utils/prompt_generate.yaml', 'r', encoding='utf-8')
+        # The actual path will be an absolute path, so we check that it ends with the expected relative path
+        call_args = mock_file.call_args[0]
+        assert 'backend/prompts/utils/prompt_generate.yaml' in call_args[0].replace('\\', '/')
+        assert call_args[1] == 'r'
+        assert mock_file.call_args[1]['encoding'] == 'utf-8'
         mock_yaml_load.assert_called_once()
         assert result == {"test": "data"}
 
@@ -100,7 +128,11 @@ class TestPromptTemplateUtils:
         result = get_file_processing_messages_template(language='zh')
         
         # Verify the function was called with correct parameters
-        mock_file.assert_called_with('backend/prompts/utils/file_processing_messages.yaml', 'r', encoding='utf-8')
+        # The actual path will be an absolute path, so we check that it ends with the expected relative path
+        call_args = mock_file.call_args[0]
+        assert 'backend/prompts/utils/file_processing_messages.yaml' in call_args[0].replace('\\', '/')
+        assert call_args[1] == 'r'
+        assert mock_file.call_args[1]['encoding'] == 'utf-8'
         mock_yaml_load.assert_called_once()
         assert result == {"test": "data"}
 
@@ -112,7 +144,11 @@ class TestPromptTemplateUtils:
         result = get_file_processing_messages_template(language='en')
         
         # Verify the function was called with correct parameters
-        mock_file.assert_called_with('backend/prompts/utils/file_processing_messages_en.yaml', 'r', encoding='utf-8')
+        # The actual path will be an absolute path, so we check that it ends with the expected relative path
+        call_args = mock_file.call_args[0]
+        assert 'backend/prompts/utils/file_processing_messages_en.yaml' in call_args[0].replace('\\', '/')
+        assert call_args[1] == 'r'
+        assert mock_file.call_args[1]['encoding'] == 'utf-8'
         mock_yaml_load.assert_called_once()
         assert result == {"test": "data"}
 
@@ -124,7 +160,11 @@ class TestPromptTemplateUtils:
         result = get_file_processing_messages_template()
         
         # Verify the function was called with correct parameters
-        mock_file.assert_called_with('backend/prompts/utils/file_processing_messages.yaml', 'r', encoding='utf-8')
+        # The actual path will be an absolute path, so we check that it ends with the expected relative path
+        call_args = mock_file.call_args[0]
+        assert 'backend/prompts/utils/file_processing_messages.yaml' in call_args[0].replace('\\', '/')
+        assert call_args[1] == 'r'
+        assert mock_file.call_args[1]['encoding'] == 'utf-8'
         mock_yaml_load.assert_called_once()
         assert result == {"test": "data"}
 

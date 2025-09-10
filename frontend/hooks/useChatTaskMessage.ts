@@ -1,19 +1,7 @@
 import { useMemo } from 'react';
 
 import { ROLE_ASSISTANT } from '@/const/agentConfig';
-import { ChatMessageType, TaskMessageType } from '@/types/chat';
-
-interface MessageGroup {
-  message: TaskMessageType;
-  cards: TaskMessageType[];
-}
-
-export interface ChatTaskMessageResult {
-  visibleMessages: TaskMessageType[];
-  groupedMessages: MessageGroup[];
-  hasMessages: boolean;
-  hasVisibleMessages: boolean;
-}
+import { ChatMessageType, TaskMessageType, MessageGroup, ChatTaskMessageResult } from '@/types/chat';
 
 export function useChatTaskMessage(messages: ChatMessageType[]): ChatTaskMessageResult {
   // Filter visible messages

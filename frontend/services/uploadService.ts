@@ -2,13 +2,9 @@ import { TFunction } from 'i18next';
 
 import { NAME_CHECK_STATUS } from '@/const/agentConfig';
 import knowledgeBaseService from '@/services/knowledgeBaseService';
+import { AbortableError } from '../types/knowledgeBase';
 
 import '../app/[locale]/i18n';
-
-// Add type definitions
-export interface AbortableError extends Error {
-  name: string;
-}
 
 // New method to check knowledge base name status
 export const checkKnowledgeBaseName = async (

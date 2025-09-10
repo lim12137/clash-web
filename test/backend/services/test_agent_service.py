@@ -259,6 +259,10 @@ async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_in
         "test_user", "test_tenant", "en")
     mock_get_creating_sub_agent.return_value = 456
     mock_search_agent_info.return_value = {
+        "model_id": 456,
+        "name": "agent_name",
+        "display_name": "display name",
+        "description": "description...",
         "model_name": "gpt-4",
         "max_steps": 5,
         "business_description": "Sub agent",
@@ -277,6 +281,9 @@ async def test_get_creating_sub_agent_info_impl_success(mock_get_current_user_in
     # Assert
     expected_result = {
         "agent_id": 456,
+        "name": "agent_name",
+        "display_name": "display name",
+        "description": "description...",
         "enable_tool_id_list": [1, 2],
         "model_name": "gpt-4",
         "max_steps": 5,
@@ -666,13 +673,15 @@ async def test_list_all_agent_info_impl_success():
             "agent_id": 1,
             "name": "Agent 1",
             "display_name": "Display Agent 1",
-            "description": "First test agent"
+            "description": "First test agent",
+            "enabled": True
         },
         {
             "agent_id": 2,
             "name": "Agent 2",
             "display_name": "Display Agent 2",
-            "description": "Second test agent"
+            "description": "Second test agent",
+            "enabled": True
         }
     ]
 
@@ -731,13 +740,15 @@ async def test_list_all_agent_info_impl_with_unavailable_tools():
             "agent_id": 1,
             "name": "Agent 1",
             "display_name": "Display Agent 1",
-            "description": "Agent with available tools"
+            "description": "Agent with available tools",
+            "enabled": True
         },
         {
             "agent_id": 2,
             "name": "Agent 2",
             "display_name": "Display Agent 2",
-            "description": "Agent with unavailable tools"
+            "description": "Agent with unavailable tools",
+            "enabled": True
         }
     ]
 
@@ -2887,3 +2898,125 @@ async def test_generate_stream_with_memory_fallback_on_failure(monkeypatch):
     assert any("memory_search" in s and "<MEM_FAILED>" in s for s in out)
     assert "data: fb1\n\n" in out
     assert called["unregistered"]
+
+
+@pytest.mark.asyncio
+async def test_list_all_agent_info_impl_with_disabled_agents():
+    """
+    Test list_all_agent_info_impl with disabled agents.
+    
+    This test verifies that:
+    1. Agents with enabled=False are skipped and not included in the result
+    2. Only enabled agents are processed and returned
+    """
+    # Setup mock agents with mixed enabled/disabled states
+    mock_agents = [
+        {
+            "agent_id": 1,
+            "name": "Enabled Agent 1",
+            "display_name": "Display Enabled Agent 1",
+            "description": "First enabled agent",
+            "enabled": True
+        },
+        {
+            "agent_id": 2,
+            "name": "Disabled Agent",
+            "display_name": "Display Disabled Agent",
+            "description": "Disabled agent that should be skipped",
+            "enabled": False
+        },
+        {
+            "agent_id": 3,
+            "name": "Enabled Agent 2",
+            "display_name": "Display Enabled Agent 2",
+            "description": "Second enabled agent",
+            "enabled": True
+        }
+    ]
+
+    # Setup mock tools
+    mock_tools = [
+        {"tool_id": 101, "name": "Tool 1"},
+        {"tool_id": 102, "name": "Tool 2"}
+    ]
+
+    with patch('backend.services.agent_service.query_all_agent_info_by_tenant_id') as mock_query_agents, \
+            patch('backend.services.agent_service.search_tools_for_sub_agent') as mock_search_tools, \
+            patch('backend.services.agent_service.check_tool_is_available') as mock_check_tools:
+        # Configure mocks
+        mock_query_agents.return_value = mock_agents
+        mock_search_tools.return_value = mock_tools
+        mock_check_tools.return_value = [True, True]  # All tools are available
+
+        # Execute
+        result = await list_all_agent_info_impl(tenant_id="test_tenant")
+
+        # Assert - only enabled agents should be in the result
+        assert len(result) == 2
+        assert result[0]["agent_id"] == 1
+        assert result[0]["name"] == "Enabled Agent 1"
+        assert result[0]["display_name"] == "Display Enabled Agent 1"
+        assert result[0]["is_available"] == True
+        
+        assert result[1]["agent_id"] == 3
+        assert result[1]["name"] == "Enabled Agent 2"
+        assert result[1]["display_name"] == "Display Enabled Agent 2"
+        assert result[1]["is_available"] == True
+
+        # Verify mock calls
+        mock_query_agents.assert_called_once_with(tenant_id="test_tenant")
+        # search_tools_for_sub_agent should only be called for enabled agents (2 calls, not 3)
+        assert mock_search_tools.call_count == 2
+        mock_search_tools.assert_has_calls([
+            call(agent_id=1, tenant_id="test_tenant"),
+            call(agent_id=3, tenant_id="test_tenant")
+        ])
+        # check_tool_is_available should only be called for enabled agents (2 calls, not 3)
+        assert mock_check_tools.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_list_all_agent_info_impl_all_disabled_agents():
+    """
+    Test list_all_agent_info_impl with all agents disabled.
+    
+    This test verifies that:
+    1. When all agents are disabled, an empty list is returned
+    2. No tool queries are made since no agents are processed
+    """
+    # Setup mock agents - all disabled
+    mock_agents = [
+        {
+            "agent_id": 1,
+            "name": "Disabled Agent 1",
+            "display_name": "Display Disabled Agent 1",
+            "description": "First disabled agent",
+            "enabled": False
+        },
+        {
+            "agent_id": 2,
+            "name": "Disabled Agent 2",
+            "display_name": "Display Disabled Agent 2",
+            "description": "Second disabled agent",
+            "enabled": False
+        }
+    ]
+
+    with patch('backend.services.agent_service.query_all_agent_info_by_tenant_id') as mock_query_agents, \
+            patch('backend.services.agent_service.search_tools_for_sub_agent') as mock_search_tools, \
+            patch('backend.services.agent_service.check_tool_is_available') as mock_check_tools:
+        # Configure mocks
+        mock_query_agents.return_value = mock_agents
+
+        # Execute
+        result = await list_all_agent_info_impl(tenant_id="test_tenant")
+
+        # Assert - no agents should be in the result
+        assert len(result) == 0
+        assert result == []
+
+        # Verify mock calls
+        mock_query_agents.assert_called_once_with(tenant_id="test_tenant")
+        # No tool queries should be made since no agents are enabled
+        mock_search_tools.assert_not_called()
+        mock_check_tools.assert_not_called()

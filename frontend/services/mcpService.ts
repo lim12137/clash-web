@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 
 import { API_ENDPOINTS } from './api';
+import { McpServer, McpTool } from '../types/agentConfig';
 
 // Translation function
 const t = (key: string, options?: any): string => {
@@ -8,7 +9,7 @@ const t = (key: string, options?: any): string => {
 };
 
 // TODO: Use fetchWithAuth instead
-// Helper function to get authorization headers
+// Get authorization headers helper function
 const getAuthHeaders = () => {
   const session = typeof window !== "undefined" ? localStorage.getItem("session") : null;
   const sessionObj = session ? JSON.parse(session) : null;
@@ -19,22 +20,6 @@ const getAuthHeaders = () => {
     ...(sessionObj?.access_token && { "Authorization": `Bearer ${sessionObj.access_token}` }),
   };
 };
-
-// MCP server interface definition
-export interface McpServer {
-  service_name: string;
-  mcp_url: string;
-  status: boolean;
-  remote_mcp_server_name?: string;
-  remote_mcp_server?: string;
-}
-
-// MCP tool interface definition
-export interface McpTool {
-  name: string;
-  description: string;
-  parameters?: any;
-}
 
 /**
  * Get MCP server list
