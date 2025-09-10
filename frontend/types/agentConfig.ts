@@ -63,7 +63,7 @@ export interface ToolGroup {
   tools: Tool[];
 }
 
-// 树形结构节点类型
+// Tree structure node type
 export interface TreeNodeDatum {
   name: string;
   type?: string;

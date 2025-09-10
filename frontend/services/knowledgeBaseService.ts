@@ -14,7 +14,7 @@ class KnowledgeBaseService {
   // Check Elasticsearch health (force refresh, no caching for setup page)
   async checkHealth(): Promise<boolean> {
     try {
-      // 在 setup 页面中强制刷新，不使用缓存
+      // Force refresh in setup page, no caching
       const response = await fetch(API_ENDPOINTS.knowledgeBase.health, {
         headers: getAuthHeaders()
       });
@@ -22,12 +22,12 @@ class KnowledgeBaseService {
       
       const isHealthy = data.status === "healthy" && data.elasticsearch === "connected";
       
-      // 不再更新缓存，每次都获取最新状态
+      // No longer update cache, get latest status every time
       
       return isHealthy;
     } catch (error) {
-      console.error("Elasticsearch健康检查失败:", error);
-      // 不再缓存错误状态
+      console.error("Elasticsearch health check failed:", error);
+      // No longer cache error status
       return false;
     }
   }
@@ -168,9 +168,9 @@ class KnowledgeBaseService {
       });
 
       const result = await response.json();
-      // 修改判断逻辑，后端返回status字段而不是success字段
+      // Modify judgment logic, backend returns status field instead of success field
       if (result.status !== "success") {
-        throw new Error(result.message || "创建知识库失败");
+        throw new Error(result.message || "Failed to create knowledge base");
       }
 
       // Create a full KnowledgeBase object with default values
@@ -378,7 +378,7 @@ class KnowledgeBaseService {
         throw new Error('Response body is null');
       }
 
-      // 处理流式响应
+      // Handle streaming response
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let summary = '';
@@ -387,23 +387,23 @@ class KnowledgeBaseService {
         const { done, value } = await reader.read();
         if (done) break;
         
-        // 解码二进制数据为文本
+        // Decode binary data to text
         const chunk = decoder.decode(value, { stream: true });
         
-        // 处理SSE格式的数据
+        // Handle SSE format data
         const lines = chunk.split('\n\n');
         for (const line of lines) {
           if (line.trim().startsWith('data:')) {
             try {
-              // 提取JSON数据
+              // Extract JSON data
               const jsonStr = line.substring(line.indexOf('{'));
               const data = JSON.parse(jsonStr);
               
               if (data.status === 'success') {
-                // 累加消息部分到摘要
+                // Accumulate message part to summary
                 summary += data.message;
                 
-                // 如果提供了进度回调，则调用它
+                // If progress callback is provided, call it
                 if (onProgress) {
                   onProgress(data.message);
                 }
@@ -411,7 +411,7 @@ class KnowledgeBaseService {
                 throw new Error(data.message);
               }
             } catch (e) {
-              console.error('解析SSE数据失败:', e, line);
+              console.error('Failed to parse SSE data:', e, line);
             }
           }
         }

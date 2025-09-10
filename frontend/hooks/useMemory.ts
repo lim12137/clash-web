@@ -22,12 +22,12 @@ import { pageSize, MemoryGroup, UseMemoryOptions } from "@/types/memory"
 
 export function useMemory({ visible, currentUserId, currentTenantId, message }: UseMemoryOptions) {
   const { t } = useTranslation()
-  /* ----------------------- 基础设置状态 ----------------------- */
+  /* ----------------------- Basic Settings State ----------------------- */
   const [memoryEnabled, setMemoryEnabledState] = useState<boolean>(true)
   const [shareOption, setShareOptionState] = useState<"always" | "ask" | "never">("always")
 
-  /* ------------------------- 原逻辑状态 ------------------------- */
-  // 分组禁用状态（仅 Agent 共享、用户 Agent 页签生效）
+  /* ------------------------- Original Logic State ------------------------- */
+  // Group disabled state (only effective for Agent shared, user Agent tabs)
   const [disabledGroups, setDisabledGroups] = useState<Record<string, boolean>>({})
 
   const disableAgentIdSet = useRef<Set<string>>(new Set())
@@ -35,28 +35,28 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
 
   const [openKey, setOpenKey] = useState<string>()
 
-  // 当前激活 Tab
+  // Currently active Tab
   const [activeTabKey, setActiveTabKey] = useState<string>("base")
 
-  // 分页状态
+  // Pagination state
   const [pageMap, setPageMap] = useState<Record<string, number>>({ agentShared: 1, userAgent: 1 })
 
-  /* ------------------------------ 数据分组 ------------------------------ */
+  /* ------------------------------ Data Groups ------------------------------ */
   const [tenantSharedGroup, setTenantSharedGroup] = useState<MemoryGroup>({ title: "", key: "tenant", items: [] })
   const [agentSharedGroups, setAgentSharedGroups] = useState<MemoryGroup[]>([])
   const [userPersonalGroup, setUserPersonalGroup] = useState<MemoryGroup>({ title: "", key: "user-personal", items: [] })
   const [userAgentGroups, setUserAgentGroups] = useState<MemoryGroup[]>([])
 
-  /* ------------------------------ 新增记忆状态 ------------------------------ */
+  /* ------------------------------ New Memory State ------------------------------ */
   const [addingMemoryKey, setAddingMemoryKey] = useState<string | null>(null)
   const [newMemoryContent, setNewMemoryContent] = useState<string>("")
   const [isAddingMemory, setIsAddingMemory] = useState<boolean>(false)
 
-  /* --------------------------- 初始化加载 --------------------------- */
+  /* --------------------------- Initialization Loading --------------------------- */
   useEffect(() => {
     if (!visible) return
 
-    // 1. 加载配置
+    // 1. Load configuration
     loadMemoryConfig().then((cfg) => {
       setMemoryEnabledState(cfg.memoryEnabled)
       setShareOptionState(cfg.shareOption)
@@ -68,7 +68,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     })
   }, [visible, message])
 
-  /* --------------------------- 加载分组数据 --------------------------- */
+  /* --------------------------- Load Group Data --------------------------- */
   useEffect(() => {
     if (!visible || !memoryEnabled) return
 
@@ -81,7 +81,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
           const agentGrps = await fetchAgentSharedGroups()
           setAgentSharedGroups(agentGrps)
 
-          // 同步禁用状态
+          // Sync disabled state
           const newDisabled: Record<string, boolean> = {}
           agentGrps.forEach((g) => {
             const id = g.key.replace(/^agent-/, "")
@@ -95,7 +95,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
           const userAgentGrps = await fetchUserAgentGroups()
           setUserAgentGroups(userAgentGrps)
 
-          // 同步禁用状态
+          // Sync disabled state
           const newDisabled: Record<string, boolean> = {}
           userAgentGrps.forEach((g) => {
             const id = g.key.replace(/^user-agent-/, "")
@@ -105,8 +105,8 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
         }
       } catch (e) {
         console.error("load groups error", e)
-        const errorMessage = e instanceof Error ? e.message : "加载记忆数据失败"
-        if (errorMessage.includes("Authentication") || errorMessage.includes("ElasticSearch") || errorMessage.includes("连接")) {
+        const errorMessage = e instanceof Error ? e.message : "Failed to load memory data"
+        if (errorMessage.includes("Authentication") || errorMessage.includes("ElasticSearch") || errorMessage.includes("connection")) {
           message.error(t('useMemory.memoryServiceConnectionError'))
         } else {
           message.error(t('useMemory.loadDataError'))
@@ -117,7 +117,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     loadGroupsForActiveTab()
   }, [visible, memoryEnabled, activeTabKey, currentTenantId, currentUserId])
 
-  /* --------------------------- 工具方法 --------------------------- */
+  /* --------------------------- Utility Methods --------------------------- */
   const toggleGroup = useCallback((key: string, enabled: boolean) => {
     setDisabledGroups((prev) => ({ ...prev, [key]: !enabled }))
 
@@ -126,7 +126,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     const agentId = key.split("-").slice(-1)[0]
 
     if (!enabled) {
-      // 关闭 -> 添加到禁用列表
+      // Disable -> Add to disabled list
       if (isAgentGroup) {
         addDisabledAgentId(agentId)
         disableAgentIdSet.current.add(agentId)
@@ -135,7 +135,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
         disableUserAgentIdSet.current.add(agentId)
       }
     } else {
-      // 开启 -> 从禁用列表移除
+      // Enable -> Remove from disabled list
       if (isAgentGroup) {
         removeDisabledAgentId(agentId)
         disableAgentIdSet.current.delete(agentId)
@@ -145,7 +145,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
       }
     }
 
-    // 关闭时折叠该 panel
+    // Collapse panel when disabled
     if (!enabled) {
       setOpenKey((prev) => (prev === key ? undefined : prev))
     }
@@ -185,14 +185,14 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     }
   }
 
-  // 延迟工具：等待后端索引刷新后再重新拉取数据
+  // Delay utility: Wait for backend index refresh before refetching data
   const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-  /* ------------------------------ 新增记忆相关方法 ------------------------------ */
+  /* ------------------------------ New Memory Related Methods ------------------------------ */
   const startAddingMemory = useCallback((groupKey: string) => {
     setAddingMemoryKey(groupKey)
     setNewMemoryContent("")
-    setOpenKey(groupKey) // 确保分组展开
+    setOpenKey(groupKey) // Ensure group is expanded
   }, [])
 
   const cancelAddingMemory = useCallback(() => {
@@ -205,7 +205,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
 
     setIsAddingMemory(true)
     try {
-      // 根据当前页签和分组确定memory_level和agent_id
+      // Determine memory_level and agent_id based on current tab and group
       let memoryLevel = ""
       let agentId: string | undefined
 
@@ -222,14 +222,14 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
       }
 
       const messages = [{ role: "user", content: newMemoryContent.trim() }]
-      // 前端手动触发infer=False避免调用LLM
+      // Frontend manually triggers infer=False to avoid calling LLM
       await addMemory(messages, memoryLevel, agentId, false)
 
       await delay(600);
       message.success(t('useMemory.addMemorySuccess'))
       cancelAddingMemory()
 
-      // 重新加载当前页签数据
+      // Reload current tab data
       const loadGroupsForActiveTab = async () => {
         try {
           if (activeTabKey === "tenant") {
@@ -252,7 +252,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
       await loadGroupsForActiveTab()
     } catch (e) {
       console.error("Add memory error:", e)
-      const errorMessage = e instanceof Error ? e.message : "添加记忆失败"
+      const errorMessage = e instanceof Error ? e.message : "Failed to add memory"
       if (errorMessage.includes("Authentication") || errorMessage.includes("ElasticSearch")) {
         message.error(t('useMemory.memoryServiceConnectionError'))
       } else {
@@ -263,7 +263,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     }
   }, [addingMemoryKey, newMemoryContent, activeTabKey, currentTenantId, currentUserId])
 
-  /* ------------------------------ 清空记忆相关方法 ------------------------------ */
+  /* ------------------------------ Clear Memory Related Methods ------------------------------ */
   const handleClearMemory = useCallback(async (groupKey: string, groupTitle: string) => {
     try {
       const { memoryLevel, agentId } = _computeMemoryParams(activeTabKey, groupKey)
@@ -271,7 +271,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
       await delay(300);
       message.success(t('useMemory.clearMemorySuccess', { groupTitle, count: result.deleted_count }))
 
-      // 重新加载当前页签数据
+      // Reload current tab data
       const loadGroupsForActiveTab = async () => {
         try {
           if (activeTabKey === "tenant") {
@@ -295,7 +295,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
       await loadGroupsForActiveTab()
     } catch (e) {
       console.error("Clear memory error:", e)
-      const errorMessage = e instanceof Error ? e.message : "清空记忆失败"
+      const errorMessage = e instanceof Error ? e.message : "Failed to clear memory"
       if (errorMessage.includes("Authentication") || errorMessage.includes("ElasticSearch")) {
         message.error(t('useMemory.memoryServiceConnectionError'))
       } else {
@@ -328,14 +328,14 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     }
   }, [activeTabKey, currentTenantId, currentUserId])
 
-  /* ---------------------- Tab 切换时展开第一个分组 ---------------------- */
+  /* ---------------------- Expand first group when tab switches ---------------------- */
   useEffect(() => {
     const groups = getGroupsForTab(activeTabKey).filter((g) => !disabledGroups[g.key])
     setOpenKey(groups.length ? groups[0].key : undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTabKey, disabledGroups])
 
-  /* ----------------- 弹窗首次打开时展开当前 Tab 的首个分组 ---------------- */
+  /* ----------------- Expand first group of current tab when modal first opens ---------------- */
   useEffect(() => {
     if (visible) {
       const groups = getGroupsForTab(activeTabKey).filter((g) => !disabledGroups[g.key])
@@ -344,7 +344,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, disabledGroups])
 
-  /* ----------------- memoryEnabled 或 shareOption 变动时处理 ---------------- */
+  /* ----------------- Handle when memoryEnabled or shareOption changes ---------------- */
   useEffect(() => {
     if (!memoryEnabled && activeTabKey !== "base") {
       setActiveTabKey("base")
@@ -357,7 +357,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     }
   }, [shareOption])
 
-  // ----------------- 分页切换后保持 openKey 合法 -----------------
+  // ----------------- Keep openKey valid after pagination switch -----------------
   useEffect(() => {
     if (activeTabKey === "agentShared" || activeTabKey === "userAgent") {
       const groups = getGroupsForTab(activeTabKey).filter((g) => !disabledGroups[g.key])
@@ -371,7 +371,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTabKey, pageMap])
 
-  /* ------------------- 包装后的 setter ------------------- */
+  /* ------------------- Wrapped setters ------------------- */
   const setMemoryEnabled = useCallback((enabled: boolean) => {
     setMemoryEnabledState(enabled)
     setMemorySwitch(enabled).catch((e) => {
@@ -468,7 +468,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     userAgentGroups,
     pageSize,
     getGroupsForTab,
-    // 新增记忆相关
+    // New memory related
     addingMemoryKey,
     newMemoryContent,
     setNewMemoryContent,
@@ -476,9 +476,9 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     startAddingMemory,
     cancelAddingMemory,
     confirmAddingMemory,
-    // 清空记忆相关
+    // Clear memory related
     handleClearMemory,
-    // 删除记忆相关
+    // Delete memory related
     handleDeleteMemory,
   }
 }

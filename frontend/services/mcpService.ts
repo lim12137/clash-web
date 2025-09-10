@@ -22,7 +22,7 @@ const getAuthHeaders = () => {
 };
 
 /**
- * 获取MCP服务器列表
+ * Get MCP server list
  */
 export const getMcpServerList = async () => {
   try {
@@ -34,7 +34,7 @@ export const getMcpServerList = async () => {
     
     if (response.ok && data.status === 'success') {
       
-      // 转换后端字段名称为前端期望的格式
+      // Convert backend field names to frontend expected format
       const formattedData = (data.remote_mcp_server_list || []).map((server: any) => {
         return {
           service_name: server.remote_mcp_server_name,
@@ -49,7 +49,7 @@ export const getMcpServerList = async () => {
         message: ''
       };
     } else {
-      // 根据HTTP状态码处理具体的错误信息
+      // Handle specific error information based on HTTP status code
       let errorMessage = data.message || t('mcpService.message.getServerListFailed');
       
       switch (response.status) {
@@ -80,7 +80,7 @@ export const getMcpServerList = async () => {
 };
 
 /**
- * 添加MCP服务器
+ * Add MCP server
  */
 export const addMcpServer = async (mcpUrl: string, serviceName: string) => {
   try {
@@ -101,7 +101,7 @@ export const addMcpServer = async (mcpUrl: string, serviceName: string) => {
         message: data.message || t('mcpService.message.addServerSuccess')
       };
     } else {
-      // 处理具体的错误状态码和错误信息
+      // Handle specific error status codes and error information
       let errorMessage = data.message || t('mcpService.message.addServerFailed');
       
       if (response.status === 409) {
@@ -129,7 +129,7 @@ export const addMcpServer = async (mcpUrl: string, serviceName: string) => {
 };
 
 /**
- * 删除MCP服务器
+ * Delete MCP server
  */
 export const deleteMcpServer = async (mcpUrl: string, serviceName: string) => {
   try {
@@ -150,7 +150,7 @@ export const deleteMcpServer = async (mcpUrl: string, serviceName: string) => {
         message: data.message || t('mcpService.message.deleteServerSuccess')
       };
     } else {
-      // 根据HTTP状态码处理具体的错误信息
+      // Handle specific error information based on HTTP status code
       let errorMessage = data.message || t('mcpService.message.deleteServerFailed');
       
       switch (response.status) {
@@ -178,7 +178,7 @@ export const deleteMcpServer = async (mcpUrl: string, serviceName: string) => {
 };
 
 /**
- * 获取远程MCP服务器的工具列表
+ * Get tool list from remote MCP server
  */
 export const getMcpTools = async (serviceName: string, mcpUrl: string) => {
   try {
@@ -199,7 +199,7 @@ export const getMcpTools = async (serviceName: string, mcpUrl: string) => {
         message: ''
       };
     } else {
-      // 根据HTTP状态码处理具体的错误信息
+      // Handle specific error information based on HTTP status code
       let errorMessage = data.message || t('mcpService.message.getToolsFailed');
       
       switch (response.status) {
@@ -247,7 +247,7 @@ export const updateToolList = async () => {
         message: data.message || t('mcpService.message.updateToolListSuccess')
       };
     } else {
-      // 根据HTTP状态码处理具体的错误信息
+      // Handle specific error information based on HTTP status code
       let errorMessage = data.message || t('mcpService.message.updateToolListFailed');
       
       switch (response.status) {
