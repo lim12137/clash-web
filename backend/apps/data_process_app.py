@@ -162,30 +162,6 @@ async def load_image(url: str):
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Error loading image: {str(e)}")
 
 
-@router.get("/{task_id}")
-async def get_task(task_id: str):
-    """Get basic status information for a specific task"""
-    task = await get_task_info(task_id)
-
-    if not task:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail=f"Task with ID {task_id} not found")
-    return JSONResponse(
-        status_code=HTTPStatus.OK,
-        content={
-            "id": task["id"],
-            "task_name": task["task_name"],
-            "index_name": task["index_name"],
-            "path_or_url": task["path_or_url"],
-            "original_filename": task["original_filename"],
-            "status": task["status"],
-            "created_at": task["created_at"],
-            "updated_at": task["updated_at"],
-            "error": task["error"]
-        }
-    )
-
-
 @router.get("")
 async def list_tasks():
     """Get a list of all tasks with their basic status information"""
@@ -291,7 +267,7 @@ async def process_text_file(
         )
         return JSONResponse(content=result)
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error processing uploaded file {file.filename}: {str(e)}")
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
