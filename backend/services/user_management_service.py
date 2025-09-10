@@ -97,10 +97,8 @@ async def check_auth_service_health():
                 raise ConnectionError("Auth service is unavailable")
 
             data = await response.json()
-            # Check if the service is available by checking if the response contains the name field and its value is "GoTrue"
-            is_available = data and data.get("name") == "GoTrue"
-
-            if not is_available:
+            # Check if the service is available by verifying the name field equals "GoTrue"
+            if not data or data.get("name") != "GoTrue":
                 logging.error("Auth service is unavailable")
                 raise ConnectionError("Auth service is unavailable")
 
