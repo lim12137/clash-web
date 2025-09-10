@@ -1,4 +1,4 @@
-import { STATUS_CODES } from "@/types/auth";
+import { STATUS_CODES } from "@/const/auth";
 
 const API_BASE_URL = '/api';
 

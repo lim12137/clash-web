@@ -18,6 +18,7 @@ with patch('database.client.MinioClient', MagicMock()):
     from fastapi.testclient import TestClient
     from http import HTTPStatus
     from fastapi import FastAPI
+    from fastapi import HTTPException
     
     # Create a test client with a fresh FastAPI app
     from apps.user_management_app import router
@@ -53,13 +54,13 @@ class TestServiceHealth:
     @patch('apps.user_management_app.check_auth_service_health')
     def test_service_health_unavailable(self, mock_health_check):
         """Test when auth service is unavailable"""
-        mock_health_check.return_value = False
+        mock_health_check.side_effect = ConnectionError("Connection failed")
 
         response = client.get("/user/service_health")
 
         assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
         data = response.json()
-        assert data["message"] == "Auth service is unavailable"
+        assert data["detail"] == "Auth service is unavailable"
         mock_health_check.assert_called_once()
 
     @patch('apps.user_management_app.check_auth_service_health')
@@ -69,10 +70,9 @@ class TestServiceHealth:
 
         response = client.get("/user/service_health")
 
-        # The actual implementation returns HTTPException which FastAPI converts to JSON
-        # But in testing, it might behave differently, so we check for the error being logged
-        # and the service being marked as unavailable
-        assert response.status_code in [HTTPStatus.INTERNAL_SERVER_ERROR, HTTPStatus.OK]
+        assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        data = response.json()
+        assert data["detail"] == "Auth service is unavailable"
         mock_health_check.assert_called_once()
 
 
@@ -148,8 +148,7 @@ class TestUserSignup:
 
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
             data = response.json()
-            assert "Admin registration feature is not available" in data["message"]
-            assert data["data"]["error_type"] == "INVITE_CODE_NOT_CONFIGURED"
+            assert data["detail"] == "INVITE_CODE_NOT_CONFIGURED"
 
     def test_signup_incorrect_invite_code_exception(self):
         """Test registration fails due to incorrect invite code"""
@@ -168,8 +167,7 @@ class TestUserSignup:
 
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
             data = response.json()
-            assert "Admin invite code error" in data["message"]
-            assert data["data"]["error_type"] == "INVITE_CODE_INVALID"
+            assert data["detail"] == "INVITE_CODE_INVALID"
 
     def test_signup_registration_service_exception(self):
         """Test registration fails due to service error"""
@@ -188,8 +186,7 @@ class TestUserSignup:
 
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
             data = response.json()
-            assert "Registration service is temporarily unavailable" in data["message"]
-            assert data["data"]["error_type"] == "REGISTRATION_SERVICE_ERROR"
+            assert data["detail"] == "REGISTRATION_SERVICE_ERROR"
 
     def test_signup_email_already_exists(self):
         """Test registration fails due to email already existing"""
@@ -208,8 +205,7 @@ class TestUserSignup:
 
             assert response.status_code == HTTPStatus.CONFLICT
             data = response.json()
-            assert "has already been registered" in data["message"]
-            assert data["data"]["error_type"] == "EMAIL_ALREADY_EXISTS"
+            assert data["detail"] == "EMAIL_ALREADY_EXISTS"
 
     def test_signup_weak_password(self):
         """Test registration fails due to weak password"""
@@ -228,8 +224,7 @@ class TestUserSignup:
 
             assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
             data = response.json()
-            assert "Password strength is not enough" in data["message"]
-            assert data["data"]["error_type"] == "WEAK_PASSWORD"
+            assert data["detail"] == "WEAK_PASSWORD"
 
     def test_signup_unknown_error(self):
         """Test registration fails due to unknown error"""
@@ -248,8 +243,7 @@ class TestUserSignup:
 
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
             data = response.json()
-            assert "Registration failed" in data["message"]
-            assert data["data"]["error_type"] == "UNKNOWN_ERROR"
+            assert data["detail"] == "UNKNOWN_ERROR"
 
 
 class TestUserSignin:
@@ -295,7 +289,7 @@ class TestUserSignin:
 
             assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
             data = response.json()
-            assert data["message"] == "Email or password error"
+            assert data["detail"] == "Email or password error"
 
     def test_signin_unknown_error(self):
         """Test login with unknown error"""
@@ -312,7 +306,7 @@ class TestUserSignin:
 
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
             data = response.json()
-            assert data["message"] == "Login failed"
+            assert data["detail"] == "Login failed"
 
 
 class TestRefreshToken:
@@ -344,7 +338,7 @@ class TestRefreshToken:
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
         data = response.json()
-        assert data["message"] == "No authorization token provided"
+        assert data["detail"] == "No authorization token provided"
 
     def test_refresh_token_no_refresh_token(self):
         """Test token refresh without refresh token in body"""
@@ -356,7 +350,7 @@ class TestRefreshToken:
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
         data = response.json()
-        assert data["message"] == "No refresh token provided"
+        assert data["detail"] == "No refresh token provided"
 
     def test_refresh_token_error(self):
         """Test token refresh with error"""
@@ -371,7 +365,7 @@ class TestRefreshToken:
 
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
             data = response.json()
-            assert data["message"] == "Refresh token failed"
+            assert data["detail"] == "Refresh token failed"
 
 
 class TestLogout:
@@ -400,7 +394,7 @@ class TestLogout:
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
         data = response.json()
-        assert data["message"] == "User not logged in"
+        assert data["detail"] == "User not logged in"
 
     @patch('apps.user_management_app.get_authorized_client')
     def test_logout_error(self, mock_get_client):
@@ -414,7 +408,7 @@ class TestLogout:
 
         assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
-        assert data["message"] == "Logout failed!"
+        assert data["detail"] == "Logout failed!"
 
 
 class TestGetSession:
@@ -446,7 +440,7 @@ class TestGetSession:
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
         data = response.json()
-        assert data["message"] == "No authorization token provided"
+        assert data["detail"] == "User not logged in"
 
     @patch('apps.user_management_app.get_session_by_authorization')
     def test_get_session_invalid(self, mock_get_session):
@@ -460,7 +454,7 @@ class TestGetSession:
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
         data = response.json()
-        assert data["message"] == "Session is invalid"
+        assert data["detail"] == "Session is invalid"
 
     @patch('apps.user_management_app.get_session_by_authorization')
     def test_get_session_error(self, mock_get_session):
@@ -474,7 +468,7 @@ class TestGetSession:
 
         assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
-        assert data["message"] == "Get user session failed"
+        assert data["detail"] == "Get user session failed"
 
 
 class TestGetCurrentUserId:
@@ -530,7 +524,7 @@ class TestGetCurrentUserId:
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
         data = response.json()
-        assert data["message"] == "User not logged in or session invalid"
+        assert data["detail"] == "User not logged in or session invalid"
 
     def test_get_user_id_no_authorization(self):
         """Test user ID retrieval without authorization header"""
@@ -538,7 +532,7 @@ class TestGetCurrentUserId:
 
         assert response.status_code == HTTPStatus.UNAUTHORIZED
         data = response.json()
-        assert data["message"] == "No authorization token provided"
+        assert data["detail"] == "User not logged in"
 
     @patch('apps.user_management_app.validate_token')
     def test_get_user_id_error(self, mock_validate):
@@ -552,7 +546,7 @@ class TestGetCurrentUserId:
 
         assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
         data = response.json()
-        assert data["message"] == "Get user ID failed"
+        assert data["detail"] == "Get user ID failed"
 
 
 class TestIntegration:

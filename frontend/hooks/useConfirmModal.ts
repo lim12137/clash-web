@@ -1,16 +1,7 @@
 import i18next from "i18next";
 
 import { App } from "antd";
-
-interface StaticConfirmProps {
-  title: string;
-  content: React.ReactNode;
-  okText?: string;
-  cancelText?: string;
-  danger?: boolean;
-  onConfirm?: () => void;
-  onCancel?: () => void;
-}
+import { StaticConfirmProps } from "@/types/setupConfig";
 
 export const useConfirmModal = () => {
   const { modal } = App.useApp();

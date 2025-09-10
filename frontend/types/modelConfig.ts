@@ -1,9 +1,18 @@
+import { CONNECTION_STATUS } from "@/const/modelConfig";
+
 // Model connection status type
 export type ModelConnectStatus =
   | "not_detected"
   | "detecting"
   | "available"
   | "unavailable";
+
+// API response type
+export interface ApiResponse<T = any> {
+  code: number
+  message?: string
+  data?: T
+}
 
 // Model source type
 export type ModelSource =
@@ -27,7 +36,6 @@ export enum OpenAIModel {
   MainModel = "main_model",
   SubModel = "sub_model",
 }
-
 
 
 // Model option interface
@@ -92,4 +100,10 @@ export interface ModelValidationResponse {
   error_details?: string;
   model_name?: string;
   connect_status: string;
+}
+
+// Model engine check result interface
+export interface ModelEngineCheckResult {
+  status: typeof CONNECTION_STATUS.SUCCESS | typeof CONNECTION_STATUS.ERROR | typeof CONNECTION_STATUS.PROCESSING;
+  lastChecked: string;
 }

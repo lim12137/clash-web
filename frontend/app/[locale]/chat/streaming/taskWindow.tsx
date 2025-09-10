@@ -14,7 +14,8 @@ import {
 import { ScrollArea } from "@/components/ui/scrollArea";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/ui/markdownRenderer";
-import { ChatMessageType, TaskMessageType } from "@/types/chat";
+import { chatConfig } from "@/const/chatConfig";
+import { ChatMessageType, TaskMessageType, CardItem, MessageHandler } from "@/types/chat";
 import { useChatTaskMessage } from "@/hooks/useChatTaskMessage";
 
 // Icon mapping dictionary - map strings to corresponding icon components
@@ -29,33 +30,17 @@ const iconMap: Record<string, React.ReactNode> = {
   default: <Wrench size={16} className="mr-2" color="#4b5563" />, // Default icon
 };
 
-// Define the type for card items
-interface CardItem {
-  icon?: string;
-  text: string;
-  [key: string]: any; // Allow other properties
-}
-
-// Define the interface for message handlers to improve extensibility
-interface MessageHandler {
-  canHandle: (message: any) => boolean;
-  render: (
-    message: any,
-    t: (key: string, options?: any) => string
-  ) => React.ReactNode;
-}
-
 // Define the handlers for different types of messages to improve extensibility
 const messageHandlers: MessageHandler[] = [
   // Preprocess type processor - handles contents array logic
   {
-    canHandle: (message) => message.type === "preprocess",
+    canHandle: (message) => message.type === chatConfig.contentTypes.PREPROCESS,
     render: (message, _t) => {
       // For preprocess messages, display content from contents array if available
       let displayContent = message.content;
       if (message.contents && message.contents.length > 0) {
         // Find the latest preprocess content
-        const preprocessContent = message.contents.find((content: any) => content.type === "preprocess");
+        const preprocessContent = message.contents.find((content: any) => content.type === chatConfig.contentTypes.PREPROCESS);
         if (preprocessContent) {
           displayContent = preprocessContent.content;
         }
@@ -83,34 +68,32 @@ const messageHandlers: MessageHandler[] = [
   // Processing type processor - thinking, code generation, code execution
   {
     canHandle: (message) =>
-      message.type === "agent_new_run" ||
-      message.type === "generating_code" ||
-      message.type === "executing" ||
-      message.type === "model_output_thinking" ||
-      message.type === "model_output_deep_thinking",
-    render: (message, _t) => {
-      return (
-        <div
-          style={{
-            fontFamily:
-              "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-            fontSize: "0.875rem",
-            lineHeight: 1.5,
-            color: "#6b7280",
-            fontWeight: 500,
-            borderRadius: "0.25rem",
-            paddingTop: "0.5rem",
-          }}
-        >
-          <span>{message.content}</span>
-        </div>
-      );
-    },
+      message.type === chatConfig.messageTypes.AGENT_NEW_RUN ||
+      message.type === chatConfig.messageTypes.GENERATING_CODE ||
+      message.type === chatConfig.messageTypes.EXECUTING ||
+      message.type === chatConfig.messageTypes.MODEL_OUTPUT_THINKING ||
+      message.type === chatConfig.messageTypes.MODEL_OUTPUT_DEEP_THINKING ,
+    render: (message, _t) => (
+      <div
+        style={{
+          fontFamily:
+            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+          fontSize: "0.875rem",
+          lineHeight: 1.5,
+          color: "#6b7280",
+          fontWeight: 500,
+          borderRadius: "0.25rem",
+          paddingTop: "0.5rem",
+        }}
+      >
+        <span>{message.content}</span>
+      </div>
+    ),
   },
 
   // Add search_content_placeholder type processor - for history records
   {
-    canHandle: (message) => message.type === "search_content_placeholder",
+    canHandle: (message) => message.type === chatConfig.messageTypes.SEARCH_CONTENT_PLACEHOLDER,
     render: (message, t) => {
       // Find search results in the message context
       const messageContainer = message._messageContainer;

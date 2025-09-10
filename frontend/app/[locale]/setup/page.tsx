@@ -12,14 +12,12 @@ import { Globe } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { configService } from "@/services/configService";
-import modelEngineService, {
-  ConnectionStatus,
-} from "@/services/modelEngineService";
+import modelEngineService from "@/services/modelEngineService";
 import { configStore } from "@/lib/config";
-import { languageOptions } from "@/lib/constants";
+import { languageOptions } from "@/const/constants";
 import { useLanguageSwitch } from "@/lib/language";
-import { HEADER_CONFIG } from "@/lib/layoutConstants";
-import { USER_ROLES, CONNECTION_STATUS } from "@/const/modelConfig";
+import { HEADER_CONFIG } from "@/const/layoutConstants";
+import { USER_ROLES, CONNECTION_STATUS, ConnectionStatus } from "@/const/modelConfig";
 
 import AppModelConfig from "./modelSetup/config";
 import DataConfig from "./knowledgeSetup/config";

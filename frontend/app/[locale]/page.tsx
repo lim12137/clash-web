@@ -20,9 +20,9 @@ import { RegisterModal } from "@/components/auth/registerModal";
 import { useAuth } from "@/hooks/useAuth";
 import { Modal, ConfigProvider, Dropdown } from "antd";
 import { motion } from "framer-motion";
-import { languageOptions } from "@/lib/constants";
+import { languageOptions } from "@/const/constants";
 import { useLanguageSwitch } from "@/lib/language";
-import { HEADER_CONFIG, FOOTER_CONFIG } from "@/lib/layoutConstants";
+import { HEADER_CONFIG, FOOTER_CONFIG } from "@/const/layoutConstants";
 import { DownOutlined } from "@ant-design/icons";
 
 export default function Home() {

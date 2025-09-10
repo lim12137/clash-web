@@ -1,7 +1,7 @@
 // Agent Configuration Types
 import { ChatMessageType } from "./chat";
 import { OpenAIModel } from "./modelConfig";
-import { GENERATE_PROMPT_STREAM_TYPES } from "../const/agentConfig";
+import { GENERATE_PROMPT_STREAM_TYPES, TOOL_SOURCE_TYPES } from "../const/agentConfig";
 
 // ========== Core Interfaces ==========
 
@@ -49,17 +49,6 @@ export interface ToolParam {
 }
 
 // ========== Data Interfaces ==========
-
-// Agent creation cache interface
-export interface NewAgentCache {
-  businessLogic: string;
-  dutyContent: string;
-  constraintContent: string;
-  fewShotsContent: string;
-  agentName: string;
-  agentDescription: string;
-  agentDisplayName: string;
-}
 
 // Agent configuration data response interface
 export interface AgentConfigDataResponse {
@@ -277,6 +266,24 @@ export interface AgentConfigCustomEvent extends CustomEvent {
 // Agent refresh event
 export interface AgentRefreshEvent extends CustomEvent {
   detail: any;
+}
+
+// ========== MCP Interfaces ==========
+
+// MCP server interface definition
+export interface McpServer {
+  service_name: string;
+  mcp_url: string;
+  status: boolean;
+  remote_mcp_server_name?: string;
+  remote_mcp_server?: string;
+}
+
+// MCP tool interface definition
+export interface McpTool {
+  name: string;
+  description: string;
+  parameters?: any;
 }
 
 // ========== Prompt Service Interfaces ==========

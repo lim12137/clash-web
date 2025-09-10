@@ -1,21 +1,24 @@
-# Concurrency control
 import asyncio
 import json
 import logging
 import os
-import uuid
 from io import BytesIO
 from pathlib import Path
 from typing import List, Optional, AsyncGenerator
 
 import httpx
-import requests
 from fastapi import UploadFile
 
 from agents.preprocess_manager import preprocess_manager
 from consts.const import UPLOAD_FOLDER, MAX_CONCURRENT_UPLOADS, DATA_PROCESS_SERVICE
-from database.attachment_db import upload_fileobj, get_file_url, get_content_type, get_file_stream, delete_file, \
+from database.attachment_db import (
+    upload_fileobj,
+    get_file_url,
+    get_content_type,
+    get_file_stream,
+    delete_file,
     list_files
+)
 from utils.attachment_utils import convert_image_to_text, convert_long_text_to_text
 from utils.prompt_template_utils import get_file_processing_messages_template
 from utils.file_management_utils import save_upload_file

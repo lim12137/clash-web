@@ -3,6 +3,7 @@ import i18next from 'i18next'
 import { API_ENDPOINTS, fetchWithErrorHandling } from "./api"
 import { fetchAllAgents } from "./agentConfigService"
 
+import { MEMORY_SHARE_STRATEGY, MemoryShareStrategy } from "@/const/memoryConfig"
 import { MemoryItem, MemoryGroup } from "@/types/memory"
 import { getAuthHeaders } from '@/lib/auth';
 
@@ -52,7 +53,7 @@ async function requestJson(url: string, options: RequestInit = {}): Promise<any>
 // ---------------------------------------------------------------------------
 export interface MemoryConfig {
   memoryEnabled: boolean
-  shareOption: "always" | "ask" | "never"
+  shareOption: MemoryShareStrategy
   disableAgentIds: string[]
   disableUserAgentIds: string[]
 }
@@ -71,13 +72,13 @@ export async function loadMemoryConfig(): Promise<MemoryConfig> {
     const cfg = res.content || {}
 
     const memorySwitchVal: string = cfg.MEMORY_SWITCH ?? cfg.memory_switch ?? "Y"
-    const shareVal: string = cfg.MEMORY_AGENT_SHARE ?? cfg.memory_agent_share ?? "always"
+    const shareVal: string = cfg.MEMORY_AGENT_SHARE ?? cfg.memory_agent_share ?? MEMORY_SHARE_STRATEGY.ALWAYS
     const disableAgentIds: string[] = cfg.DISABLE_AGENT_ID ?? cfg.disable_agent_id ?? []
     const disableUserAgentIds: string[] = cfg.DISABLE_USERAGENT_ID ?? cfg.disable_useragent_id ?? []
 
     return {
       memoryEnabled: memorySwitchVal === "Y",
-      shareOption: (shareVal || "always") as "always" | "ask" | "never",
+      shareOption: (shareVal || MEMORY_SHARE_STRATEGY.ALWAYS) as MemoryShareStrategy,
       disableAgentIds,
       disableUserAgentIds,
     }
@@ -86,7 +87,7 @@ export async function loadMemoryConfig(): Promise<MemoryConfig> {
     // fall back to defaults
     return {
       memoryEnabled: true,
-      shareOption: "always",
+      shareOption: MEMORY_SHARE_STRATEGY.ALWAYS,
       disableAgentIds: [],
       disableUserAgentIds: [],
     }
@@ -108,7 +109,7 @@ export async function setMemorySwitch(enabled: boolean): Promise<boolean> {
   }
 }
 
-export async function setMemoryAgentShare(option: "always" | "ask" | "never"): Promise<boolean> {
+export async function setMemoryAgentShare(option: MemoryShareStrategy): Promise<boolean> {
   try {
     const body = { key: "MEMORY_AGENT_SHARE", value: option }
     const res = await requestJson(API_ENDPOINTS.memory.config.set, {

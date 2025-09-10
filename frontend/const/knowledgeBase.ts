@@ -12,7 +12,7 @@ export const DOCUMENT_STATUS = {
 } as const;
 
 // Non-terminal statuses (still processing)
-export const NON_TERMINAL_STATUSES = [
+export const NON_TERMINAL_STATUSES: string[] = [
   DOCUMENT_STATUS.WAIT_FOR_PROCESSING, 
   DOCUMENT_STATUS.PROCESSING, 
   DOCUMENT_STATUS.WAIT_FOR_FORWARDING, 
@@ -107,4 +107,41 @@ export const NOTIFICATION_TYPES = {
   ERROR: "error",
   INFO: "info",
   WARNING: "warning"
+} as const;
+
+// File extension constants
+export const FILE_EXTENSIONS = {
+  PDF: 'pdf',
+  DOC: 'doc',
+  DOCX: 'docx',
+  XLS: 'xls',
+  XLSX: 'xlsx',
+  PPT: 'ppt',
+  PPTX: 'pptx',
+  TXT: 'txt',
+  MD: 'md'
+} as const;
+
+// File type constants
+export const FILE_TYPES = {
+  PDF: 'PDF',
+  WORD: 'Word',
+  EXCEL: 'Excel',
+  POWERPOINT: 'PowerPoint',
+  TEXT: 'Text',
+  MARKDOWN: 'Markdown',
+  UNKNOWN: 'Unknown'
+} as const;
+
+// File extension to type mapping
+export const EXTENSION_TO_TYPE_MAP = {
+  [FILE_EXTENSIONS.PDF]: FILE_TYPES.PDF,
+  [FILE_EXTENSIONS.DOC]: FILE_TYPES.WORD,
+  [FILE_EXTENSIONS.DOCX]: FILE_TYPES.WORD,
+  [FILE_EXTENSIONS.XLS]: FILE_TYPES.EXCEL,
+  [FILE_EXTENSIONS.XLSX]: FILE_TYPES.EXCEL,
+  [FILE_EXTENSIONS.PPT]: FILE_TYPES.POWERPOINT,
+  [FILE_EXTENSIONS.PPTX]: FILE_TYPES.POWERPOINT,
+  [FILE_EXTENSIONS.TXT]: FILE_TYPES.TEXT,
+  [FILE_EXTENSIONS.MD]: FILE_TYPES.MARKDOWN
 } as const;

@@ -1,15 +1,9 @@
 import { API_ENDPOINTS } from './api';
+import { UserKnowledgeConfig } from '../types/knowledgeBase';
 
 import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
 // @ts-ignore
 const fetch = fetchWithAuth;
-
-// User selected knowledge base configuration type
-export interface UserKnowledgeConfig {
-  selectedKbNames: string[];
-  selectedKbModels: string[];
-  selectedKbSources: string[];
-}
 
 export class UserConfigService {
   // Get user selected knowledge base list
