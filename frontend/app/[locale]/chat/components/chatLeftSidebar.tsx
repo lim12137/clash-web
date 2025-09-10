@@ -133,7 +133,7 @@ export function ChatSidebar({
   const [editingTitle, setEditingTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 获取用户认证状态
+  // Get user authentication status
   const { isLoading: userAuthLoading, isSpeedMode } = useAuth();
 
   // Add delete dialog status

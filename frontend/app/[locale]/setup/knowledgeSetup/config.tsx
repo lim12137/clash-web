@@ -75,9 +75,9 @@ interface AppProviderProps {
 }
 
 /**
- * AppProvider - 为应用提供全局状态管理
- *
- * 将知识库、文档和UI状态管理组合在一起，方便一次引入所有上下文
+ * AppProvider - Provides global state management for the application
+ * 
+ * Combines knowledge base, document and UI state management together for easy one-time import of all contexts
  */
 const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   return (
@@ -113,7 +113,7 @@ function DataConfig({ isActive }: DataConfigProps) {
   const { message } = App.useApp();
   const { confirm } = useConfirmModal();
 
-  // 组件初始化时清除缓存
+  // Clear cache when component initializes
   useEffect(() => {
     localStorage.removeItem("preloaded_kb_data");
     localStorage.removeItem("kb_cache");
@@ -149,7 +149,7 @@ function DataConfig({ isActive }: DataConfigProps) {
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [hasClickedUpload, setHasClickedUpload] = useState(false);
 
-  // 添加监听选中新知识库的事件
+  // Add event listener for selecting new knowledge base
   useEffect(() => {
     const handleSelectNewKnowledgeBase = (e: CustomEvent) => {
       const { knowledgeBase } = e.detail;
@@ -180,30 +180,30 @@ function DataConfig({ isActive }: DataConfigProps) {
     setHasClickedUpload,
   ]);
 
-  // 基于 isActive 状态的用户配置加载和保存逻辑
-  const prevIsActiveRef = useRef<boolean | null>(null); // 初始化为 null 来区分首次渲染
-  const hasLoadedRef = useRef(false); // 跟踪是否已经加载过配置
-  const savedSelectedIdsRef = useRef<string[]>([]); // 保存当前选中的知识库ID
-  const savedKnowledgeBasesRef = useRef<any[]>([]); // 保存当前知识库列表
-  const hasUserInteractedRef = useRef(false); // 跟踪用户是否有过交互（防止初始加载时误保存空状态）
+  // User configuration loading and saving logic based on isActive state
+  const prevIsActiveRef = useRef<boolean | null>(null); // Initialize as null to distinguish first render
+  const hasLoadedRef = useRef(false); // Track whether configuration has been loaded
+  const savedSelectedIdsRef = useRef<string[]>([]); // Save currently selected knowledge base IDs
+  const savedKnowledgeBasesRef = useRef<any[]>([]); // Save current knowledge base list
+  const hasUserInteractedRef = useRef(false); // Track whether user has interacted (prevent saving empty state during initial load)
 
-  // 监听 isActive 状态变化
+  // Listen for isActive state changes
   useLayoutEffect(() => {
-    // 清除可能影响状态的缓存
+    // Clear cache that might affect state
     localStorage.removeItem("preloaded_kb_data");
     localStorage.removeItem("kb_cache");
 
     const prevIsActive = prevIsActiveRef.current;
 
-    // 进入第二页时标记准备加载
+    // Mark ready to load when entering second page
     if ((prevIsActive === null || !prevIsActive) && isActive) {
-      hasLoadedRef.current = false; // 重置加载状态
-      hasUserInteractedRef.current = false; // 重置交互状态，防止误保存
+      hasLoadedRef.current = false; // Reset loading state
+      hasUserInteractedRef.current = false; // Reset interaction state to prevent incorrect saving
     }
 
-    // 离开第二页时保存用户配置
+    // Save user configuration when leaving second page
     if (prevIsActive === true && !isActive) {
-      // 只有在用户有过交互后才保存，防止初始加载时误保存空状态
+      // Only save after user has interacted to prevent saving empty state during initial load
       if (hasUserInteractedRef.current) {
         const saveConfig = async () => {
           localStorage.removeItem("preloaded_kb_data");
@@ -219,20 +219,20 @@ function DataConfig({ isActive }: DataConfigProps) {
         saveConfig();
       }
 
-      hasLoadedRef.current = false; // 重置加载状态
+      hasLoadedRef.current = false; // Reset loading state
     }
 
-    // 更新 ref
+    // Update ref
     prevIsActiveRef.current = isActive;
   }, [isActive]);
 
-  // 实时保存当前状态到 ref，确保卸载时能访问到
+  // Save current state to ref in real-time to ensure access during unmount
   useEffect(() => {
     savedSelectedIdsRef.current = kbState.selectedIds;
     savedKnowledgeBasesRef.current = kbState.knowledgeBases;
   }, [kbState.selectedIds, kbState.knowledgeBases]);
 
-  // 获取授权头的辅助函数
+  // Helper function to get authorization headers
   const getAuthHeaders = () => {
     const session =
       typeof window !== "undefined" ? localStorage.getItem("session") : null;
@@ -246,18 +246,18 @@ function DataConfig({ isActive }: DataConfigProps) {
     };
   };
 
-  // 组件卸载时的保存逻辑
+  // Save logic when component unmounts
   useEffect(() => {
     return () => {
-      // 组件卸载时，如果之前是活跃状态且用户有过交互，则执行保存
+      // When component unmounts, if previously active and user has interacted, execute save
       if (prevIsActiveRef.current === true && hasUserInteractedRef.current) {
-        // 使用保存的状态而不是当前可能已清空的状态
+        // Use saved state instead of current potentially cleared state
         const selectedKbNames = savedKnowledgeBasesRef.current
           .filter((kb) => savedSelectedIdsRef.current.includes(kb.id))
           .map((kb) => kb.name);
 
         try {
-          // 使用fetch with keepalive确保请求能在页面卸载时发送
+          // Use fetch with keepalive to ensure request can be sent during page unload
           fetch(API_ENDPOINTS.tenantConfig.updateKnowledgeList, {
             method: "POST",
             headers: {
@@ -276,9 +276,9 @@ function DataConfig({ isActive }: DataConfigProps) {
     };
   }, []);
 
-  // 单独监听知识库加载状态，当知识库加载完成且处于活跃状态时加载用户配置
+  // Separately listen for knowledge base loading state, load user configuration when knowledge base loading is complete and in active state
   useEffect(() => {
-    // 只有在第二页活跃、知识库已加载、且尚未加载用户配置时才执行
+    // Only execute when second page is active, knowledge base is loaded, and user configuration hasn't been loaded yet
     if (
       isActive &&
       kbState.knowledgeBases.length > 0 &&
@@ -303,12 +303,12 @@ function DataConfig({ isActive }: DataConfigProps) {
     const baseNamePrefix = t("knowledgeBase.name.new");
     const existingNames = new Set(existingKbs.map((kb) => kb.name));
 
-    // 如果基础名称未被使用，直接返回
+    // If base name is not used, return directly
     if (!existingNames.has(baseNamePrefix)) {
       return baseNamePrefix;
     }
 
-    // 否则尝试添加数字后缀，直到找到未被使用的名称
+    // Otherwise try adding numeric suffix until finding unused name
     let counter = 1;
     while (existingNames.has(`${baseNamePrefix}${counter}`)) {
       counter++;
@@ -322,26 +322,26 @@ function DataConfig({ isActive }: DataConfigProps) {
     kb: KnowledgeBase,
     fromUserClick: boolean = true
   ) => {
-    // 只有当是用户点击时才重置创建模式
+    // Only reset creation mode when user clicks
     if (fromUserClick) {
-      hasUserInteractedRef.current = true; // 标记用户有交互
+      hasUserInteractedRef.current = true; // Mark user interaction
       setIsCreatingMode(false); // Reset creating mode
-      setHasClickedUpload(false); // 重置上传按钮点击状态
+      setHasClickedUpload(false); // Reset upload button click state
     }
 
-    // 无论是否切换知识库，都需要获取最新文档信息
+    // Whether switching knowledge base or not, need to get latest document information
     const isChangingKB =
       !kbState.activeKnowledgeBase || kb.id !== kbState.activeKnowledgeBase.id;
 
-    // 如果是切换知识库，更新激活状态
+    // If switching knowledge base, update active state
     if (isChangingKB) {
       setActiveKnowledgeBase(kb);
     }
 
-    // 设置活动知识库ID到轮询服务
+    // Set active knowledge base ID to polling service
     knowledgeBasePollingService.setActiveKnowledgeBase(kb.id);
 
-    // 调用知识库切换处理函数
+    // Call knowledge base switch handling function
     handleKnowledgeBaseChange(kb);
   };
 
@@ -351,16 +351,16 @@ function DataConfig({ isActive }: DataConfigProps) {
       // Set loading state before fetching documents
       docDispatch({ type: DOCUMENT_ACTION_TYPES.SET_LOADING_DOCUMENTS, payload: true });
 
-      // 获取最新文档数据
+      // Get latest document data
       const documents = await knowledgeBaseService.getAllFiles(kb.id);
 
-      // 触发文档更新事件
+      // Trigger document update event
       knowledgeBasePollingService.triggerDocumentsUpdate(kb.id, documents);
 
-      // 后台更新知识库统计信息，但不重复获取文档
+      // Background update knowledge base statistics, but don't duplicate document fetching
       setTimeout(async () => {
         try {
-          // 直接调用 fetchKnowledgeBases 更新知识库列表数据
+          // Directly call fetchKnowledgeBases to update knowledge base list data
           await fetchKnowledgeBases(false, true);
         } catch (error) {
           console.error("获取知识库最新数据失败:", error);
@@ -390,7 +390,7 @@ function DataConfig({ isActive }: DataConfigProps) {
     e.preventDefault();
     setDragging(false);
 
-    // 如果是创建模式或有活动知识库，则处理文件
+    // If in creation mode or has active knowledge base, process files
     if (isCreatingMode || kbState.activeKnowledgeBase) {
       const files = Array.from(e.dataTransfer.files);
       if (files.length > 0) {
@@ -404,7 +404,7 @@ function DataConfig({ isActive }: DataConfigProps) {
 
   // Handle knowledge base deletion
   const handleDelete = (id: string) => {
-    hasUserInteractedRef.current = true; // 标记用户有交互
+    hasUserInteractedRef.current = true; // Mark user interaction
     confirm({
       title: t("knowledgeBase.modal.deleteConfirm.title"),
       content: t("knowledgeBase.modal.deleteConfirm.content"),
@@ -448,13 +448,13 @@ function DataConfig({ isActive }: DataConfigProps) {
 
   // Handle new knowledge base creation
   const handleCreateNew = () => {
-    hasUserInteractedRef.current = true; // 标记用户有交互
+    hasUserInteractedRef.current = true; // Mark user interaction
     // Generate default knowledge base name
     const defaultName = generateUniqueKbName(kbState.knowledgeBases);
     setNewKbName(defaultName);
     setIsCreatingMode(true);
-    setHasClickedUpload(false); // 重置上传按钮点击状态
-    setUploadFiles([]); // 重置上传文件数组，清空所有待上传文件
+    setHasClickedUpload(false); // Reset upload button click state
+    setUploadFiles([]); // Reset upload files array, clear all pending upload files
   };
 
   // Handle document deletion
@@ -479,7 +479,7 @@ function DataConfig({ isActive }: DataConfigProps) {
     });
   };
 
-  // 处理文件上传 - 在创建模式下先创建知识库再上传，在普通模式下直接上传
+  // Handle file upload - in creation mode create knowledge base first then upload, in normal mode upload directly
   const handleFileUpload = async () => {
     if (!uploadFiles.length) {
       message.warning(t("document.message.noFiles"));
@@ -591,12 +591,12 @@ function DataConfig({ isActive }: DataConfigProps) {
 
   // Get current viewing knowledge base documents
   const viewingDocuments = (() => {
-    // 在创建模式下返回空数组，因为新知识库还没有文档
+    // In creation mode return empty array because new knowledge base has no documents yet
     if (isCreatingMode) {
       return [];
     }
 
-    // 正常模式下，使用activeKnowledgeBase
+    // In normal mode, use activeKnowledgeBase
     return kbState.activeKnowledgeBase
       ? docState.documentsMap[kbState.activeKnowledgeBase.id] || []
       : [];
@@ -606,7 +606,7 @@ function DataConfig({ isActive }: DataConfigProps) {
   const viewingKbName =
     kbState.activeKnowledgeBase?.name || (isCreatingMode ? newKbName : "");
 
-  // 只要有文档上传成功，立即自动切换创建模式为 false
+  // As long as any document upload succeeds, immediately switch creation mode to false
   useEffect(() => {
     if (isCreatingMode && viewingDocuments.length > 0) {
       setIsCreatingMode(false);
@@ -615,13 +615,13 @@ function DataConfig({ isActive }: DataConfigProps) {
 
   // Handle knowledge base selection
   const handleSelectKnowledgeBase = (id: string) => {
-    hasUserInteractedRef.current = true; // 标记用户有交互
+    hasUserInteractedRef.current = true; // Mark user interaction
     selectKnowledgeBase(id);
 
     // When selecting knowledge base also get latest data (low priority background operation)
     setTimeout(async () => {
       try {
-        // 使用较低优先级刷新数据，因为这不是关键操作
+        // Use lower priority to refresh data as this is not a critical operation
         await refreshKnowledgeBaseData(true);
       } catch (error) {
         console.error("刷新知识库数据失败:", error);
@@ -630,7 +630,7 @@ function DataConfig({ isActive }: DataConfigProps) {
     }, 500); // Delay execution, lower priority
   };
 
-  // 在组件初始化或活动知识库变化时更新轮询服务中的活动知识库ID
+  // Update active knowledge base ID in polling service when component initializes or active knowledge base changes
   useEffect(() => {
     if (kbState.activeKnowledgeBase) {
       knowledgeBasePollingService.setActiveKnowledgeBase(
@@ -643,15 +643,15 @@ function DataConfig({ isActive }: DataConfigProps) {
     }
   }, [kbState.activeKnowledgeBase, isCreatingMode, newKbName]);
 
-  // 在组件卸载时清理轮询
+  // Clean up polling when component unmounts
   useEffect(() => {
     return () => {
-      // 停止所有轮询
+      // Stop all polling
       knowledgeBasePollingService.stopAllPolling();
     };
   }, []);
 
-  // 创建模式下，知识库名称变化时，重置"名称已存在"状态
+  // In creation mode, reset "name already exists" state when knowledge base name changes
   const handleNameChange = (name: string) => {
     setNewKbName(name);
   };

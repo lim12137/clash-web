@@ -297,8 +297,8 @@
   white-space: pre-wrap;
   outline: none;
   padding: 0.75rem;
-  height: 100%; /* 填满父容器 */
-  overflow-y: auto; /* 支持垂直滚动 */
+  height: 100%; /* Fill parent container */
+  overflow-y: auto; /* Support vertical scrolling */
 }
 
 /* Focus and Selection Styles */

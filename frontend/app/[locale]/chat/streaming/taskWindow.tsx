@@ -938,7 +938,7 @@ export function TaskWindow({ messages, isStreaming = false }: TaskWindowProps) {
       if (lastMessage.finalAnswer) {
         const timer = setTimeout(() => {
           setIsExpanded(false);
-        }, 1000); // 1秒后折叠
+        }, 1000); // Collapse after 1 second
         return () => clearTimeout(timer);
       }
     }
@@ -1004,9 +1004,9 @@ export function TaskWindow({ messages, isStreaming = false }: TaskWindowProps) {
 
           return (
             <div key={message.id || groupIndex} className="relative mb-5">
-              {/* 使用flex布局确保圆点与文本内容对齐 */}
+              {/* Use flex layout to ensure dots align with text content */}
               <div className="flex items-start">
-                {/* 圆点容器 */}
+                {/* Dot container */}
                 <div
                   className="flex-shrink-0 mr-3"
                   style={{ position: "relative", top: "0.95rem" }}
@@ -1033,7 +1033,7 @@ export function TaskWindow({ messages, isStreaming = false }: TaskWindowProps) {
                   ></div>
                 </div>
 
-                {/* 消息内容 */}
+                {/* Message content */}
                 <div className="flex-1 text-sm break-words min-w-0">
                   {renderMessageContent(message)}
 
@@ -1056,7 +1056,7 @@ export function TaskWindow({ messages, isStreaming = false }: TaskWindowProps) {
     );
   };
 
-  // 计算容器高度：内容高度 + header高度，但不超过最大高度
+  // Calculate container height: content height + header height, but not exceeding maximum height
   const maxHeight = 300;
   const headerHeight = 55;
   const availableHeight = maxHeight - headerHeight;
