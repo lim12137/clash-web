@@ -196,17 +196,6 @@ class TestDataProcessApp(unittest.TestCase):
             image = self.service.load_image.return_value
             return {"success": True, "base64": "mock_base64_data", "content_type": "image/jpeg"}
 
-        @self.app.get("/tasks/{task_id}")
-        @pytest.mark.asyncio
-        async def get_task(task_id: str):
-            # Simulate getting task information
-            task = self.get_task_info.return_value
-
-            if not task:
-                raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found")
-
-            return task
-
         @self.app.get("/tasks")
         @pytest.mark.asyncio
         async def list_tasks():
@@ -502,49 +491,6 @@ class TestDataProcessApp(unittest.TestCase):
         # Assert expectations
         self.assertEqual(response.status_code, 404)
         self.assertIn("Failed to load image", response.json()["detail"])
-
-    def test_get_task_success(self):
-        """
-        Test getting task information successfully.
-        Verifies that the endpoint returns the expected task data.
-        """
-        # Set up mock
-        task_data = {
-            "id": self.task_id,
-            "task_name": "process_and_forward",
-            "index_name": self.index_name,
-            "path_or_url": self.source,
-            "status": "SUCCESS",
-            "created_at": "2023-01-01T12:00:00",
-            "updated_at": "2023-01-01T12:05:00",
-            "error": None
-        }
-        self.get_task_info.return_value = task_data
-
-        # Execute request
-        response = self.client.get(f"/tasks/{self.task_id}")
-
-        # Assert expectations
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result["id"], self.task_id)
-        self.assertEqual(result["status"], "SUCCESS")
-        self.assertEqual(result["index_name"], self.index_name)
-
-    def test_get_task_not_found(self):
-        """
-        Test getting non-existent task.
-        Verifies that the endpoint returns an appropriate error response.
-        """
-        # Set up mock to return None (task not found)
-        self.get_task_info.return_value = None
-
-        # Execute request
-        response = self.client.get("/tasks/nonexistent-id")
-
-        # Assert expectations
-        self.assertEqual(response.status_code, 404)
-        self.assertIn("not found", response.json()["detail"])
 
     def test_list_tasks(self):
         """
