@@ -112,6 +112,9 @@ export const getCreatingSubAgentId = async () => {
       success: true,
       data: {
         agentId: data.agent_id,
+        name: data.name,
+        displayName: data.display_name,
+        description: data.description,
         enabledToolIds: data.enable_tool_id_list || [],
         modelName: data.model_name,
         maxSteps: data.max_steps,
