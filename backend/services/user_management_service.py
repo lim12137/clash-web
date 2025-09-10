@@ -94,7 +94,7 @@ async def check_auth_service_health():
     async with aiohttp.ClientSession() as session:
         async with session.get(health_url, headers=headers) as response:
             if not response.ok:
-                return False
+                raise ConnectionError("Auth service is unavailable")
 
             data = await response.json()
             # Check if the service is available by checking if the response contains the name field and its value is "GoTrue"
@@ -281,11 +281,12 @@ async def get_session_by_authorization(authorization):
         user_role = "user"  # Default role
         if user.user_metadata and 'role' in user.user_metadata:
             user_role = user.user_metadata['role']
-        return {"user": {
-            "id": user.id,
-            "email": user.email,
-            "role": user_role
-        }
+        return {
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "role": user_role
+            }
         }
     else:
         raise ValueError("Session is invalid")
