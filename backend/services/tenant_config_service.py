@@ -4,7 +4,6 @@ from typing import List
 from database.knowledge_db import get_knowledge_info_by_knowledge_ids, get_knowledge_ids_by_index_names
 from database.tenant_config_db import get_tenant_config_info, insert_config, delete_config_by_tenant_config_id
 
-
 logger = logging.getLogger("tenant_config_service")
 
 

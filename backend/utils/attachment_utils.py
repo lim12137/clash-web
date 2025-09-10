@@ -1,13 +1,12 @@
 from typing import Union, BinaryIO
 
-from utils.config_utils import tenant_config_manager, get_model_name_from_config
-from utils.prompt_template_utils import get_analyze_file_prompt_template
 from jinja2 import Template, StrictUndefined
-
-from nexent.core.models.openai_vlm import OpenAIVLModel
-from nexent.core.models.openai_long_context_model import OpenAILongContextModel
 from nexent.core import MessageObserver
+from nexent.core.models.openai_long_context_model import OpenAILongContextModel
+from nexent.core.models.openai_vlm import OpenAIVLModel
 
+from utils.config_utils import get_model_name_from_config, tenant_config_manager
+from utils.prompt_template_utils import get_analyze_file_prompt_template
 
 
 def convert_image_to_text(query: str, image_input: Union[str, BinaryIO], tenant_id: str, language: str = 'zh'):

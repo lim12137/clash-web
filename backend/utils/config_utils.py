@@ -1,11 +1,18 @@
 import json
-import time
 import logging
-
+import time
 from typing import Dict, Any
+
 from sqlalchemy.sql import func
-from database.tenant_config_db import get_all_configs_by_tenant_id, insert_config, delete_config_by_tenant_config_id, update_config_by_tenant_config_id_and_data, get_single_config_info
+
 from database.model_management_db import get_model_by_model_id
+from database.tenant_config_db import (
+    delete_config_by_tenant_config_id,
+    get_all_configs_by_tenant_id,
+    get_single_config_info,
+    insert_config,
+    update_config_by_tenant_config_id_and_data,
+)
 
 logger = logging.getLogger("config_utils")
 
