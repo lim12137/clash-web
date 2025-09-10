@@ -135,7 +135,7 @@ export function RegisterModal() {
 
       // process the specific error type returned by the backend (based on HTTP status code and error_type)
       const httpStatusCode = error?.code;
-      const errorType = error?.data?.error_type;
+      const errorType = error?.message;
 
       // HTTP 409 Conflict
       if (httpStatusCode === 409 || errorType === "EMAIL_ALREADY_EXISTS") {

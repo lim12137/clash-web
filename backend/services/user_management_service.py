@@ -80,35 +80,27 @@ def extend_session(client: Client, refresh_token: str) -> Optional[dict]:
         return None
 
 
-async def check_auth_service_health() -> bool:
+async def check_auth_service_health():
     """
     Check the health status of the authentication service
     Return (is available, status message)
     """
-    try:
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_KEY")
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
 
-        health_url = f'{supabase_url}/auth/v1/health'
-        headers = {'apikey': supabase_key}
+    health_url = f'{supabase_url}/auth/v1/health'
+    headers = {'apikey': supabase_key}
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(health_url, headers=headers) as response:
-                if not response.ok:
-                    return False
+    async with aiohttp.ClientSession() as session:
+        async with session.get(health_url, headers=headers) as response:
+            if not response.ok:
+                raise ConnectionError("Auth service is unavailable")
 
-                data = await response.json()
-                # Check if the service is available by checking if the response contains the name field and its value is "GoTrue"
-                is_available = data and data.get("name") == "GoTrue"
-
-                return is_available
-
-    except aiohttp.ClientError as e:
-        logging.error(f"Auth service connection failed: {str(e)}")
-        return False
-    except Exception as e:
-        logging.error(f"Auth service health check failed: {str(e)}")
-        return False
+            data = await response.json()
+            # Check if the service is available by verifying the name field equals "GoTrue"
+            if not data or data.get("name", "") != "GoTrue":
+                logging.error("Auth service is unavailable")
+                raise ConnectionError("Auth service is unavailable")
 
 
 async def signup_user(email: EmailStr,
@@ -287,11 +279,12 @@ async def get_session_by_authorization(authorization):
         user_role = "user"  # Default role
         if user.user_metadata and 'role' in user.user_metadata:
             user_role = user.user_metadata['role']
-        return {"user": {
-            "id": user.id,
-            "email": user.email,
-            "role": user_role
-        }
+        return {
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "role": user_role
+            }
         }
     else:
         raise ValueError("Session is invalid")
