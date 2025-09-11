@@ -10,7 +10,7 @@ import httpx
 from fastapi import UploadFile
 
 from agents.preprocess_manager import preprocess_manager
-from consts.const import UPLOAD_FOLDER, MAX_CONCURRENT_UPLOADS, DATA_PROCESS_SERVICE
+from consts.const import UPLOAD_FOLDER, MAX_CONCURRENT_UPLOADS, DATA_PROCESS_SERVICE, LANGUAGE
 from database.attachment_db import (
     upload_fileobj,
     get_file_url,
@@ -287,7 +287,7 @@ async def preprocess_files_generator(
         preprocess_manager.unregister_preprocess_task(task_id)
 
 
-async def process_image_file(query: str, filename: str, file_content: bytes, tenant_id: str, language: str = 'zh') -> str:
+async def process_image_file(query: str, filename: str, file_content: bytes, tenant_id: str, language: str = LANGUAGE["ZH"]) -> str:
     """
     Process image file, convert to text using external API
     """
@@ -302,7 +302,7 @@ async def process_image_file(query: str, filename: str, file_content: bytes, ten
         return messages["IMAGE_CONTENT_ERROR"].format(filename=filename, error=str(e))
 
 
-async def process_text_file(query: str, filename: str, file_content: bytes, tenant_id: str, language: str = 'zh') -> tuple[str, Optional[str]]:
+async def process_text_file(query: str, filename: str, file_content: bytes, tenant_id: str, language: str = LANGUAGE["ZH"]) -> tuple[str, Optional[str]]:
     """
     Process text file, convert to text using external API
     """

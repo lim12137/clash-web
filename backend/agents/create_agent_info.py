@@ -17,7 +17,7 @@ from database.agent_db import search_agent_info_by_agent_id, query_sub_agents_id
 from database.tool_db import search_tools_for_sub_agent
 from utils.prompt_template_utils import get_agent_prompt_template
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
-from consts.const import LOCAL_MCP_SERVER
+from consts.const import LOCAL_MCP_SERVER, MODEL_CONFIG_MAPPING, LANGUAGE
 
 logger = logging.getLogger("create_agent_info")
 logger.setLevel(logging.DEBUG)
@@ -25,9 +25,9 @@ logger.setLevel(logging.DEBUG)
 
 async def create_model_config_list(tenant_id):
     main_model_config = tenant_config_manager.get_model_config(
-        key="LLM_ID", tenant_id=tenant_id)
+        key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
     sub_model_config = tenant_config_manager.get_model_config(
-        key="LLM_SECONDARY_ID", tenant_id=tenant_id)
+        key=MODEL_CONFIG_MAPPING["llmSecondary"], tenant_id=tenant_id)
 
     return [ModelConfig(cite_name="main_model",
                         api_key=main_model_config.get("api_key", ""),
@@ -45,7 +45,7 @@ async def create_agent_config(
     agent_id,
     tenant_id,
     user_id,
-    language: str = "zh",
+    language: str = LANGUAGE["ZH"],
     last_user_query: str = None,
     allow_memory_search: bool = True,
 ):

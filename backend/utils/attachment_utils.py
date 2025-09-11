@@ -1,3 +1,4 @@
+from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING
 from typing import Union, BinaryIO
 
 from jinja2 import Template, StrictUndefined
@@ -9,7 +10,7 @@ from utils.config_utils import get_model_name_from_config, tenant_config_manager
 from utils.prompt_template_utils import get_analyze_file_prompt_template
 
 
-def convert_image_to_text(query: str, image_input: Union[str, BinaryIO], tenant_id: str, language: str = 'zh'):
+def convert_image_to_text(query: str, image_input: Union[str, BinaryIO], tenant_id: str, language: str = LANGUAGE["ZH"]):
     """
     Convert image to text description based on user query
     
@@ -22,7 +23,7 @@ def convert_image_to_text(query: str, image_input: Union[str, BinaryIO], tenant_
     Returns:
         str: Image description text
     """
-    vlm_model_config = tenant_config_manager.get_model_config(key="VLM_ID", tenant_id=tenant_id)
+    vlm_model_config = tenant_config_manager.get_model_config(key=MODEL_CONFIG_MAPPING["vlm"], tenant_id=tenant_id)
     image_to_text_model = OpenAIVLModel(
         observer=MessageObserver(),
         model_id=get_model_name_from_config(vlm_model_config) if vlm_model_config else "",
@@ -41,7 +42,7 @@ def convert_image_to_text(query: str, image_input: Union[str, BinaryIO], tenant_
     return image_to_text_model.analyze_image(image_input=image_input, system_prompt=system_prompt).content
 
 
-def convert_long_text_to_text(query: str, file_context: str, tenant_id: str, language: str = 'zh'):
+def convert_long_text_to_text(query: str, file_context: str, tenant_id: str, language: str = LANGUAGE["ZH"]):
     """
     Convert long text to summarized text based on user query
     
@@ -54,7 +55,7 @@ def convert_long_text_to_text(query: str, file_context: str, tenant_id: str, lan
     Returns:
         tuple[str, str]: Summarized text description and truncation percentage string
     """
-    secondary_model_config = tenant_config_manager.get_model_config("LLM_SECONDARY_ID", tenant_id=tenant_id)
+    secondary_model_config = tenant_config_manager.get_model_config(key=MODEL_CONFIG_MAPPING["llmSecondary"], tenant_id=tenant_id)
     long_text_to_text_model = OpenAILongContextModel(
         observer=MessageObserver(),
         model_id=get_model_name_from_config(secondary_model_config),

@@ -5,25 +5,11 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
 from http import HTTPStatus
 
-from consts.const import DEFAULT_USER_ID
+from consts.const import MOCK_USER, MOCK_SESSION
 from consts.model import UserSignInRequest, UserSignUpRequest
 
 logger = logging.getLogger("mock_user_management_app")
 router = APIRouter(prefix="/user", tags=["user"])
-
-# Mock user data
-MOCK_USER = {
-    "id": DEFAULT_USER_ID,
-    "email": "mock@example.com",
-    "role": "admin"
-}
-
-MOCK_SESSION = {
-    "access_token": "mock_access_token",
-    "refresh_token": "mock_refresh_token",
-    "expires_at": int((datetime.now() + timedelta(days=3650)).timestamp()),
-    "expires_in_seconds": 315360000
-}
 
 
 @router.get("/service_health")
@@ -63,7 +49,7 @@ async def signup(request: UserSignUpRequest):
             "session": {
                 "access_token": MOCK_SESSION["access_token"],
                 "refresh_token": MOCK_SESSION["refresh_token"],
-                "expires_at": MOCK_SESSION["expires_at"],
+                "expires_at": int((datetime.now() + timedelta(days=3650)).timestamp()),
                 "expires_in_seconds": MOCK_SESSION["expires_in_seconds"]
             },
             "registration_type": "admin" if request.is_admin else "user"
@@ -97,7 +83,7 @@ async def signin(request: UserSignInRequest):
                 "session": {
                     "access_token": MOCK_SESSION["access_token"],
                     "refresh_token": MOCK_SESSION["refresh_token"],
-                    "expires_at": MOCK_SESSION["expires_at"],
+                    "expires_at": int((datetime.now() + timedelta(days=3650)).timestamp()),
                     "expires_in_seconds": MOCK_SESSION["expires_in_seconds"]
                 }
             }
