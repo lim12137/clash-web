@@ -8,7 +8,7 @@ from pydantic import EmailStr
 
 from utils.auth_utils import get_supabase_client, calculate_expires_at, get_jwt_expiry_seconds
 from consts.const import INVITE_CODE, SUPABASE_URL, SUPABASE_KEY
-from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException
+from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException, UnauthorizedError
 
 from database.model_management_db import create_model_record
 from database.user_tenant_db import insert_user_tenant
@@ -36,11 +36,18 @@ def get_authorized_client(authorization: Optional[str] = Header(None)) -> Client
     return client
 
 
-def get_current_user_from_client(client: Client) -> Optional[Any]:
-    """Get current user from client, return user object or None"""
+def get_current_user_from_client(client: Client, token: Optional[str] = None) -> Optional[Any]:
+    """Get current user from client using provided JWT, return user object or None"""
     try:
-        user_response = client.auth.get_user()
-        if user_response and user_response.user:
+        # Prefer explicitly passing the JWT to avoid relying on client-side session state
+        if token:
+            jwt_token = token.replace(
+                "Bearer ", "") if token.startswith("Bearer ") else token
+            user_response = client.auth.get_user(jwt_token)
+        else:
+            user_response = client.auth.get_user()
+
+        if user_response and getattr(user_response, "user", None):
             return user_response.user
         return None
     except Exception as e:
@@ -53,7 +60,7 @@ def validate_token(token: str) -> Tuple[bool, Optional[Any]]:
     client = get_supabase_client()
     set_auth_token_to_client(client, token)
     try:
-        user = get_current_user_from_client(client)
+        user = get_current_user_from_client(client, token)
         if user:
             return True, user
         return False, None
@@ -286,4 +293,5 @@ async def get_session_by_authorization(authorization):
             }
         }
     else:
-        raise ValueError("Session is invalid")
+        # Use domain-specific exception for invalid/expired token
+        raise UnauthorizedError("Session is invalid or expired")

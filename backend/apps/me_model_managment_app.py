@@ -33,22 +33,13 @@ async def get_me_models(
         )
     except TimeoutException as e:
         logging.error(f"Request me model timeout: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.REQUEST_TIMEOUT, content={
-            "message": f"Request me model timeout: {str(e)}",
-            "data": []
-        })
+        raise HTTPException(status_code=HTTPStatus.REQUEST_TIMEOUT, detail="Failed to get ModelEngine model list: timeout")
     except NotFoundException as e:
         logging.error(f"Request me model not found: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.NOT_FOUND, content={
-            "message": f"Request me model not found: {str(e)}",
-            "data": []
-        })
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="ModelEngine model not found")
     except Exception as e:
         logging.error(f"Failed to get me model list: {str(e)}")
-        return JSONResponse(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, content={
-            "message": f"Failed to get me model list: {str(e)}",
-            "data": []
-        })
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to get ModelEngine model list")
 
 
 @router.get("/healthcheck")

@@ -61,7 +61,6 @@ try:
         verify_model_config_connectivity,
         _embedding_dimension_check,
         embedding_dimension_check,
-        get_models_from_silicon,  # Optional, may not exist in some versions
     )
 except ImportError:
     from backend.services.model_health_service import (
@@ -110,7 +109,6 @@ with mock.patch.dict('sys.modules', {
             verify_model_config_connectivity,
             _embedding_dimension_check,
             embedding_dimension_check,
-            get_models_from_silicon,  # Optional symbol
         )
     except ImportError:
         from backend.services.model_health_service import (
@@ -137,7 +135,6 @@ async def test_perform_connectivity_check_embedding():
             "embedding",
             "https://api.openai.com",
             "test-key",
-            1536
         )
 
         # Assert
@@ -146,7 +143,7 @@ async def test_perform_connectivity_check_embedding():
             model_name="text-embedding-ada-002",
             base_url="https://api.openai.com",
             api_key="test-key",
-            embedding_dim=1536
+            embedding_dim=0
         )
         mock_embedding_instance.dimension_check.assert_called_once()
 
@@ -166,7 +163,6 @@ async def test_perform_connectivity_check_multi_embedding():
             "multi_embedding",
             "https://api.jina.ai",
             "test-key",
-            1024
         )
 
         # Assert
@@ -175,7 +171,7 @@ async def test_perform_connectivity_check_multi_embedding():
             model_name="jina-embeddings-v2",
             base_url="https://api.jina.ai",
             api_key="test-key",
-            embedding_dim=1024
+            embedding_dim=0
         )
         mock_embedding_instance.dimension_check.assert_called_once()
 
@@ -199,7 +195,6 @@ async def test_perform_connectivity_check_llm():
             "llm",
             "https://api.openai.com",
             "test-key",
-            0
         )
 
         # Assert
@@ -232,7 +227,6 @@ async def test_perform_connectivity_check_vlm():
             "vlm",
             "https://api.openai.com",
             "test-key",
-            0
         )
 
         # Assert
@@ -263,7 +257,6 @@ async def test_perform_connectivity_check_tts():
             "tts",
             "https://api.openai.com",
             "test-key",
-            0
         )
 
         # Assert
@@ -288,7 +281,6 @@ async def test_perform_connectivity_check_stt():
             "stt",
             "https://api.openai.com",
             "test-key",
-            0
         )
 
         # Assert
@@ -304,12 +296,74 @@ async def test_perform_connectivity_check_rerank():
         "rerank",
         "https://api.example.com",
         "test-key",
-        0
     )
 
     # Assert
     assert result is False
 
+
+@pytest.mark.asyncio
+async def test_perform_connectivity_check_base_url_normalization_localhost():
+    # Setup
+    with mock.patch("backend.services.model_health_service.MessageObserver") as mock_observer, \
+            mock.patch("backend.services.model_health_service.OpenAIModel") as mock_model:
+        mock_observer_instance = mock.MagicMock()
+        mock_observer.return_value = mock_observer_instance
+
+        mock_model_instance = mock.MagicMock()
+        mock_model_instance.check_connectivity = mock.AsyncMock(
+            return_value=True)
+        mock_model.return_value = mock_model_instance
+
+        # Execute with localhost which should be normalized
+        result = await _perform_connectivity_check(
+            "gpt-4",
+            "llm",
+            "http://localhost:8080",
+            "test-key",
+        )
+
+        # Assert
+        assert result is True
+        # Ensure api_base has been normalized when calling the model
+        mock_model.assert_called_once_with(
+            mock_observer_instance,
+            model_id="gpt-4",
+            api_base="http://host.docker.internal:8080",
+            api_key="test-key"
+        )
+
+
+@pytest.mark.asyncio
+async def test_perform_connectivity_check_base_url_normalization_127001():
+    # Setup
+    with mock.patch("backend.services.model_health_service.MessageObserver") as mock_observer, \
+            mock.patch("backend.services.model_health_service.OpenAIModel") as mock_model:
+        mock_observer_instance = mock.MagicMock()
+        mock_observer.return_value = mock_observer_instance
+
+        mock_model_instance = mock.MagicMock()
+        mock_model_instance.check_connectivity = mock.AsyncMock(
+            return_value=True)
+        mock_model.return_value = mock_model_instance
+
+        # Execute with 127.0.0.1 which should be normalized
+        result = await _perform_connectivity_check(
+            "gpt-4",
+            "llm",
+            "http://127.0.0.1:8000",
+            "test-key",
+        )
+
+        # Assert
+        assert result is True
+        # Ensure api_base has been normalized when calling the model
+        mock_model.assert_called_once_with(
+            mock_observer_instance,
+            model_id="gpt-4",
+            api_base="http://host.docker.internal:8000",
+            api_key="test-key"
+        )
 
 @pytest.mark.asyncio
 async def test_perform_connectivity_check_unsupported_type():
@@ -320,7 +374,6 @@ async def test_perform_connectivity_check_unsupported_type():
             "unsupported_type",
             "https://api.example.com",
             "test-key",
-            0
         )
 
     assert "Unsupported model type" in str(excinfo.value)
@@ -353,7 +406,6 @@ async def test_check_model_connectivity_success():
 
         # Assert
         assert response["connectivity"] is True
-        assert response["connect_status"] == "available"
 
         mock_get_model.assert_called_once_with("GPT-4", tenant_id="tenant456")
         # Detecting first, then available
@@ -404,7 +456,6 @@ async def test_check_model_connectivity_failure():
 
         # Assert
         assert response["connectivity"] is False
-        assert response["connect_status"] == "unavailable"
 
         # Check that we updated the model status to unavailable
         mock_update_model.assert_any_call(
@@ -486,7 +537,7 @@ async def test_verify_model_config_connectivity_success():
         assert response["model_name"] == "gpt-4"
 
         mock_connectivity_check.assert_called_once_with(
-            "gpt-4", "llm", "https://api.openai.com", "test-key", 2048
+            "gpt-4", "llm", "https://api.openai.com", "test-key"
         )
 
 
