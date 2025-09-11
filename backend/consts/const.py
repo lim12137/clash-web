@@ -188,6 +188,10 @@ MESSAGE_ROLE = {
     "SYSTEM": "system"
 }
 
+# Knowledge summary max token limits
+KNOWLEDGE_SUMMARY_MAX_TOKENS_ZH = 300
+KNOWLEDGE_SUMMARY_MAX_TOKENS_EN = 120
+
 # Host Configuration Constants
 LOCALHOST_IP = "127.0.0.1"
 LOCALHOST_NAME = "localhost"
