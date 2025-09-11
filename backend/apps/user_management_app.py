@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
 from http import HTTPStatus
 
-from gotrue.errors import AuthApiError, AuthWeakPasswordError
+from supabase_auth.errors import AuthApiError, AuthWeakPasswordError
 
 from consts.model import UserSignInRequest, UserSignUpRequest
 from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException

@@ -1,392 +1,310 @@
+"""FastAPI App layer for model management endpoints.
+
+This module exposes HTTP endpoints under the prefix "/model". It follows the App
+layer contract:
+- Parse and validate inputs using Pydantic models from `consts.model` and FastAPI parameters.
+- Delegate business logic to services and database layer; do not implement core logic here.
+- Map domain/service exceptions to HTTP where necessary; avoid leaking internals.
+- Return structured responses consistent with existing patterns for backward compatibility.
+
+Authorization: The bearer token is retrieved via the `authorization` header and
+parsed with `utils.auth_utils.get_current_user_id`, then propagated as `user_id`
+and `tenant_id` to services/database helpers.
+"""
+
 import logging
 
 from consts.model import (
     BatchCreateModelsRequest,
-    ModelConnectStatusEnum,
     ModelRequest,
-    ModelResponse,
     ProviderModelRequest,
 )
-from consts.provider import ProviderEnum, SILICON_BASE_URL
-from database.model_management_db import (
-    create_model_record,
-    delete_model_record,
-    get_model_by_display_name,
-    get_model_records,
-    get_models_by_tenant_factory_type,
-    update_model_record,
-)
+
 from fastapi import APIRouter, Header, Query, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from http import HTTPStatus
 from typing import List, Optional
-from services.model_health_service import check_model_connectivity, embedding_dimension_check
-from services.model_provider_service import prepare_model_dict, merge_existing_model_tokens, get_provider_models
+from services.model_health_service import (
+    check_model_connectivity,
+    verify_model_config_connectivity,
+)
+from services.model_management_service import (
+    create_model_for_tenant,
+    create_provider_models_for_tenant,
+    batch_create_models_for_tenant,
+    list_provider_models_for_tenant,
+    update_single_model_for_tenant,
+    batch_update_models_for_tenant,
+    delete_model_for_tenant,
+    list_models_for_tenant,
+)
 from utils.auth_utils import get_current_user_id
-from utils.model_name_utils import add_repo_to_name, split_display_name, split_repo_name, sort_models_by_id
+
 
 router = APIRouter(prefix="/model")
 logger = logging.getLogger("model_management_app")
 
 
-@router.post("/create", response_model=ModelResponse)
+@router.post("/create")
 async def create_model(request: ModelRequest, authorization: Optional[str] = Header(None)):
-    try:
-        user_id, tenant_id = get_current_user_id(authorization)
-        logger.info(
-            f"Start to create model, user_id: {user_id}, tenant_id: {tenant_id}")
-        model_data = request.model_dump()
-        # Replace localhost with host.docker.internal for local llm
-        model_base_url = model_data.get("base_url", "")
-        if "localhost" in model_base_url or "127.0.0.1" in model_base_url:
-            model_data["base_url"] = (
-                model_base_url.replace("localhost", "host.docker.internal")
-                .replace("127.0.0.1", "host.docker.internal")
-            )
-        # Split model_name
-        model_repo, model_name = split_repo_name(model_data["model_name"])
-        # Ensure model_repo is empty string instead of null
-        model_data["model_repo"] = model_repo if model_repo else ""
-        model_data["model_name"] = model_name
+    """Create a single model record for the current tenant.
 
-        if not model_data.get("display_name"):
-            model_data["display_name"] = split_display_name(
-                model_data["model_name"])
-
-        # Use NOT_DETECTED status as default
-        model_data["connect_status"] = model_data.get(
-            "connect_status") or ModelConnectStatusEnum.NOT_DETECTED.value
-
-        # Check if display_name conflicts
-        if model_data.get("display_name"):
-            existing_model_by_display = get_model_by_display_name(
-                model_data["display_name"], tenant_id)
-            if existing_model_by_display:
-                return ModelResponse(
-                    code=409,
-                    message=f"Name {model_data['display_name']} is already in use, please choose another display name",
-                    data=None
-                )
-
-        if model_data.get("model_type") == "embedding" or model_data.get("model_type") == "multi_embedding":
-            model_data["max_tokens"] = await embedding_dimension_check(model_data)
-
-        # Check if this is a multimodal embedding model
-        is_multimodal = model_data.get("model_type") == "multi_embedding"
-
-        # If it's multi_embedding type, create both embedding and multi_embedding records
-        if is_multimodal:
-            # Create the multi_embedding record
-            create_model_record(model_data, user_id, tenant_id)
-
-            # Create the embedding record with the same data but different model_type
-            embedding_data = model_data.copy()
-            embedding_data["model_type"] = "embedding"
-            create_model_record(embedding_data, user_id, tenant_id)
-
-            return ModelResponse(
-                code=200,
-                message=f"Multimodal embedding model {add_repo_to_name(model_repo, model_name)} created successfully",
-                data=None
-            )
-        else:
-            # For non-multimodal models, just create one record
-            create_model_record(model_data, user_id, tenant_id)
-            return ModelResponse(
-                code=200,
-                message=f"Model {add_repo_to_name(model_repo, model_name)} created successfully",
-                data=None
-            )
-    except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Failed to create model: {str(e)}",
-            data=None
-        )
-
-
-@router.post("/create_provider", response_model=ModelResponse)
-async def create_provider_model(request: ProviderModelRequest, authorization: Optional[str] = Header(None)):
-    try:
-        user_id, tenant_id = get_current_user_id(authorization)
-        model_data = request.model_dump()
-
-        # Get provider model list
-        model_list = await get_provider_models(model_data)
-
-        # Merge existing model's max_tokens attribute
-        model_list = merge_existing_model_tokens(
-            model_list, tenant_id, request.provider, request.model_type)
-
-        # Sort model list by ID
-        model_list = sort_models_by_id(model_list)
-
-        return ModelResponse(
-            code=200,
-            message=f"Provider model {model_data['provider']} created successfully",
-            data=model_list
-        )
-    except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Failed to create provider model: {str(e)}",
-            data=None
-        )
-
-
-@router.post("/batch_create_models", response_model=ModelResponse)
-async def batch_create_models(request: BatchCreateModelsRequest, authorization: Optional[str] = Header(None)):
-    try:
-        user_id, tenant_id = get_current_user_id(authorization)
-        model_list = request.models
-        model_api_key = request.api_key
-        if request.provider == ProviderEnum.SILICON.value:
-            model_url = SILICON_BASE_URL
-        else:
-            model_url = ""
-        existing_model_list = get_models_by_tenant_factory_type(
-            tenant_id, request.provider, request.type)
-        model_list_ids = {model.get('id')
-                          for model in model_list} if model_list else set()
-        # delete existing model
-        for model in existing_model_list:
-            model_full_name = model["model_repo"] + "/" + model["model_name"]
-            if model_full_name not in model_list_ids:
-                delete_model_record(model["model_id"], user_id, tenant_id)
-        # create new model
-        for model in model_list:
-            model_repo, model_name = split_repo_name(model["id"])
-            model_display_name = split_display_name(model["id"])
-            if model_name:
-                existing_model_by_display = get_model_by_display_name(
-                    request.provider + "/" + model_display_name, tenant_id)
-                if existing_model_by_display:
-                    # Check if max_tokens has changed
-                    existing_max_tokens = existing_model_by_display["max_tokens"]
-                    new_max_tokens = model["max_tokens"]
-                    if existing_max_tokens != new_max_tokens:
-                        update_model_record(existing_model_by_display["model_id"], {
-                                            "max_tokens": new_max_tokens}, user_id)
-                    continue
-
-            model_dict = await prepare_model_dict(
-                provider=request.provider,
-                model=model,
-                model_url=model_url,
-                model_api_key=model_api_key
-            )
-            create_model_record(model_dict, user_id, tenant_id)
-
-        return ModelResponse(
-            code=200,
-            message=f"Batch create models successfully",
-            data=None
-        )
-    except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Failed to batch create models: {str(e)}",
-            data=None
-        )
-
-
-@router.post("/provider/list", response_model=ModelResponse)
-async def get_provider_list(request: ProviderModelRequest, authorization: Optional[str] = Header(None)):
-    try:
-        user_id, tenant_id = get_current_user_id(authorization)
-        provider = request.provider
-        model_type = request.model_type
-        model_list = get_models_by_tenant_factory_type(
-            tenant_id, provider, model_type)
-        for model in model_list:
-            model["id"] = model["model_repo"] + "/" + model["model_name"]
-        return ModelResponse(
-            code=200,
-            message=f"Provider model {provider} created successfully",
-            data=model_list
-        )
-    except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Failed to get provider list: {str(e)}",
-            data=None
-        )
-
-
-@router.post("/update_single_model", response_model=ModelResponse)
-async def update_single_model(request: dict, authorization: Optional[str] = Header(None)):
-    try:
-        user_id, tenant_id = get_current_user_id(authorization)
-        model_data = request
-        existing_model_by_display = get_model_by_display_name(
-            model_data["display_name"], tenant_id)
-        if existing_model_by_display and existing_model_by_display["model_id"] != model_data["model_id"]:
-            raise HTTPException(
-                status_code=int(HTTPStatus.CONFLICT),
-                detail=f"Name {model_data['display_name']} is already in use, please choose another display name"
-            )
-        # model_data["model_repo"], model_data["model_name"] = split_repo_name(model_data["model_name"])
-        update_model_record(model_data["model_id"], model_data, user_id)
-        return JSONResponse(
-            status_code=int(HTTPStatus.OK),
-            content={
-                "code": int(HTTPStatus.OK),
-                "message": f"Model {model_data['display_name']} updated successfully",
-                "data": None
-            }
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=int(HTTPStatus.INTERNAL_SERVER_ERROR),
-            detail=f"Failed to update model: {str(e)}"
-        )
-
-
-@router.post("/batch_update_models", response_model=ModelResponse)
-async def batch_update_models(request: List[dict], authorization: Optional[str] = Header(None)):
-    try:
-        user_id, tenant_id = get_current_user_id(authorization)
-        model_list = request
-        for model in model_list:
-            update_model_record(model["model_id"], model, user_id)
-        return ModelResponse(
-            code=200,
-            message=f"Batch update models successfully",
-            data=None
-        )
-    except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Failed to batch update models: {str(e)}",
-            data=None
-        )
-
-
-@router.post("/delete", response_model=ModelResponse)
-async def delete_model(display_name: str = Query(..., embed=True), authorization: Optional[str] = Header(None)):
-    """
-    Soft delete the specified model by display_name
-    If the model is an embedding or multi_embedding type, both types will be deleted
+    Responsibilities (App layer):
+    - Validate `ModelRequest` payload.
+    - Normalize request fields (e.g., replace localhost in `base_url`).
+    - Delegate embedding dimension checks and record creation to services/db.
+    - Ensure display name uniqueness at the app boundary; map conflicts accordingly.
 
     Args:
-        display_name: Display name of the model to delete (unique key)
-        authorization: Authorization header
+        request: Model configuration payload.
+        authorization: Bearer token header used to derive `user_id` and `tenant_id`.
+    """
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        model_data = request.model_dump()
+        logger.debug(
+            f"Start to create model, user_id: {user_id}, tenant_id: {tenant_id}")
+        await create_model_for_tenant(user_id, tenant_id, model_data)
+        return JSONResponse(status_code=HTTPStatus.OK, content={
+            "message": "Model created successfully"
+        })
+    except ValueError as e:
+        logging.error(f"Failed to create model: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.CONFLICT,
+                            detail="Failed to create model: name conflict")
+    except Exception as e:
+        logging.error(f"Failed to create model: {str(e)}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to create model")
+
+
+@router.post("/provider/create")
+async def create_provider_model(request: ProviderModelRequest, authorization: Optional[str] = Header(None)):
+    """Create or refresh provider models for the current tenant in memory only.
+
+    This endpoint fetches models from the specified provider and merges existing
+    attributes (such as `max_tokens`). It does not persist new records; it
+    returns the prepared model list for client consumption.
+
+    Args:
+        request: Provider and model type information.
+        authorization: Bearer token header used to derive identity context.
+    """
+    try:
+        provider_model_config = request.model_dump()
+        _, tenant_id = get_current_user_id(authorization)
+        model_list = await create_provider_models_for_tenant(tenant_id, provider_model_config)
+        return JSONResponse(status_code=HTTPStatus.OK, content={
+            "message": "Provider model created successfully",
+            "data": model_list
+        })
+    except Exception as e:
+        logging.error(f"Failed to create provider model: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Failed to create provider model")
+
+
+@router.post("/provider/batch_create")
+async def batch_create_models(request: BatchCreateModelsRequest, authorization: Optional[str] = Header(None)):
+    """Synchronize provider models for a tenant by creating/updating/deleting records.
+
+    The request includes the authoritative list of models for a provider/type.
+    Existing models not present in the incoming list are deleted (soft delete),
+    and missing ones are created. Existing models may be updated (e.g., `max_tokens`).
+
+    Args:
+        request: Batch payload with provider, type, models, and optional API key.
+        authorization: Bearer token header used to derive identity context.
+
+    """
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        batch_model_config = request.model_dump()
+        await batch_create_models_for_tenant(user_id, tenant_id, batch_model_config)
+        return JSONResponse(status_code=HTTPStatus.OK, content={
+            "message": "Batch create models successfully"
+        })
+    except Exception as e:
+        logging.error(f"Failed to batch create models: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Failed to batch create models")
+
+
+@router.post("/provider/list")
+async def get_provider_list(request: ProviderModelRequest, authorization: Optional[str] = Header(None)):
+    """List persisted models for a provider and type for the current tenant.
+
+    Args:
+        request: Provider and model type to filter.
+        authorization: Bearer token header used to derive identity context.
+
+    """
+    try:
+        _, tenant_id = get_current_user_id(authorization)
+        model_list = await list_provider_models_for_tenant(
+            tenant_id, request.provider, request.model_type
+        )
+        return JSONResponse(status_code=HTTPStatus.OK, content={
+            "message": "Successfully retrieved provider list",
+            "data": jsonable_encoder(model_list)
+        })
+    except Exception as e:
+        logging.error(f"Failed to get provider list: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Failed to get provider list")
+
+
+@router.post("/update")
+async def update_single_model(request: dict, authorization: Optional[str] = Header(None)):
+    """Update a single model by its `model_id`.
+
+    Performs a uniqueness check on `display_name` within the tenant and updates
+    the record if valid.
+
+    Args:
+        request: Arbitrary model fields with required `model_id`.
+        authorization: Bearer token header used to derive identity context.
+
+    Raises:
+        HTTPException: 409 if `display_name` conflicts, 500 for unexpected errors.
+    """
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        await update_single_model_for_tenant(user_id, tenant_id, request)
+        return JSONResponse(status_code=HTTPStatus.OK, content={
+            "message": "Model updated successfully"
+        })
+    except ValueError as e:
+        logging.error(f"Failed to update model: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.CONFLICT,
+                            detail="Failed to update model: name conflict")
+    except Exception as e:
+        logging.error(f"Failed to update model: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Failed to update model")
+
+
+@router.post("/batch_update")
+async def batch_update_models(request: List[dict], authorization: Optional[str] = Header(None)):
+    """Batch update multiple models for the current tenant.
+
+    Args:
+        request: List of partial model payloads with `model_id` fields.
+        authorization: Bearer token header used to derive identity context.
+    """
+    try:
+        user_id, tenant_id = get_current_user_id(authorization)
+        await batch_update_models_for_tenant(user_id, tenant_id, request)
+        return JSONResponse(status_code=HTTPStatus.OK, content={
+            "message": "Batch update models successfully"
+        })
+    except Exception as e:
+        logging.error(f"Failed to batch update models: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Failed to batch update models")
+
+
+@router.post("/delete")
+async def delete_model(display_name: str = Query(..., embed=True), authorization: Optional[str] = Header(None)):
+    """Soft delete model(s) by `display_name` for the current tenant.
+
+    Behavior:
+    - If the model type is `embedding` or `multi_embedding`, both records with the
+      same `display_name` will be deleted to keep them in sync.
+
+    Args:
+        display_name: Display name of the model to delete (unique key).
+        authorization: Bearer token header used to derive identity context.
     """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
         logger.info(
             f"Start to delete model, user_id: {user_id}, tenant_id: {tenant_id}")
-        # Find model by display_name
-        model = get_model_by_display_name(display_name, tenant_id)
-        if not model:
-            return ModelResponse(
-                code=404,
-                message=f"Model not found: {display_name}",
-                data=None
-            )
-        # Support mutual deletion of embedding/multi_embedding
-        deleted_types = []
-        if model["model_type"] in ["embedding", "multi_embedding"]:
-            # Find all embedding/multi_embedding models with the same display_name
-            for t in ["embedding", "multi_embedding"]:
-                m = get_model_by_display_name(display_name, tenant_id)
-                if m and m["model_type"] == t:
-                    delete_model_record(m["model_id"], user_id, tenant_id)
-                    deleted_types.append(t)
-        else:
-            delete_model_record(model["model_id"], user_id, tenant_id)
-            deleted_types.append(model.get("model_type", "unknown"))
-
-        return ModelResponse(
-            code=200,
-            message=f"Successfully deleted model(s) in types: {', '.join(deleted_types)}",
-            data={"display_name": display_name}
-        )
+        model_name = await delete_model_for_tenant(user_id, tenant_id, display_name)
+        return JSONResponse(status_code=HTTPStatus.OK, content={
+            "message": "Model deleted successfully",
+            "data": model_name
+        })
+    except LookupError as e:
+        logging.error(f"Failed to delete model: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
+                            detail="Failed to delete model: model not found")
     except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Failed to delete model: {str(e)}",
-            data=None
-        )
+        logging.error(f"Failed to delete model: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Failed to delete model")
 
 
-@router.get("/list", response_model=ModelResponse)
+@router.get("/list")
 async def get_model_list(authorization: Optional[str] = Header(None)):
-    """
-    Get detailed information for all models
+    """Get detailed information for all models for the current tenant.
+
+    Returns each model enriched with repo-qualified `model_name` and a normalized
+    `connect_status` value.
     """
     try:
         user_id, tenant_id = get_current_user_id(authorization)
-        logger.info(
+        logger.debug(
             f"Start to list models, user_id: {user_id}, tenant_id: {tenant_id}")
-        records = get_model_records(None, tenant_id)
-
-        result = []
-        # Use add_repo_to_name method for each record to add repo prefix to model_name
-        for record in records:
-            record["model_name"] = add_repo_to_name(
-                model_repo=record["model_repo"],
-                model_name=record["model_name"]
-            )
-            # Handle connect_status, use default value "Not Detected" if empty
-            record["connect_status"] = ModelConnectStatusEnum.get_value(
-                record.get("connect_status"))
-            result.append(record)
-
-        return ModelResponse(
-            code=200,
-            message="Successfully retrieved model list",
-            data=result
-        )
+        model_list = await list_models_for_tenant(tenant_id)
+        return JSONResponse(status_code=HTTPStatus.OK, content={
+            "message": "Successfully retrieved model list",
+            "data": jsonable_encoder(model_list)
+        })
     except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Failed to retrieve model list: {str(e)}",
-            data=[]
-        )
+        logging.error(f"Failed to list models: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Failed to retrieve model list")
 
 
-@router.post("/healthcheck", response_model=ModelResponse)
-async def check_model_healthcheck(
+@router.post("/healthcheck")
+async def check_model_health(
         display_name: str = Query(..., description="Display name to check"),
         authorization: Optional[str] = Header(None)
 ):
-    """
-    Check and update model connectivity (health check), and return the latest status.
-    Args:
-        display_name: display_name of the model to check
-        authorization: Authorization header
-    Returns:
-        ModelResponse: contains connectivity and latest status
-    """
-    return await check_model_connectivity(display_name, authorization)
+    """Check and update model connectivity, returning the latest status.
 
-
-@router.post("/verify_config", response_model=ModelResponse)
-async def verify_model_config(request: ModelRequest):
-    """
-    Verify the connectivity of the model configuration, do not save to database
     Args:
-        request: model configuration information
-    Returns:
-        ModelResponse: contains connectivity test result
+        display_name: Display name of the model to check.
+        authorization: Bearer token header used to derive identity context.
     """
     try:
-        from services.model_health_service import verify_model_config_connectivity
-
-        model_data = request.model_dump()
-
-        # Call the verification service directly, do not split model_name
-        result = await verify_model_config_connectivity(model_data)
-
-        return result
+        _, tenant_id = get_current_user_id(authorization)
+        result = await check_model_connectivity(display_name, tenant_id)
+        return JSONResponse(status_code=HTTPStatus.OK, content={
+            "message": "Successfully checked model connectivity",
+            "data": result
+        })
+    except LookupError as e:
+        logging.error(f"Failed to check model connectivity: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
+                            detail="Model configuration not found")
+    except ValueError as e:
+        logging.error(f"Invalid model configuration: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+                            detail="Invalid model configuration")
     except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Failed to verify model configuration: {str(e)}",
-            data={
-                "connectivity": False,
-                "message": f"Verification failed: {str(e)}",
-                "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value
-            }
+        logging.error(f"Failed to check model connectivity: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Failed to check model connectivity")
+
+
+@router.post("/temporary_healthcheck")
+async def check_temporary_model_health(request: ModelRequest):
+    """Verify connectivity for the provided model configuration without persisting it.
+
+    Args:
+        request: Model configuration to verify.
+    """
+    try:
+        result = await verify_model_config_connectivity(request.model_dump())
+        return JSONResponse(status_code=HTTPStatus.OK, content={
+            "message": "Successfully verified model connectivity",
+            "data": result
+        },
         )
+    except Exception as e:
+        logging.error(f"Failed to verify model connectivity: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            detail="Failed to verify model connectivity")

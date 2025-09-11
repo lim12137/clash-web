@@ -95,11 +95,7 @@ export interface GlobalConfig {
 // Add the type for model validation response with error_code
 export interface ModelValidationResponse {
   connectivity: boolean;
-  message?: string;
-  error_code?: string;
-  error_details?: string;
-  model_name?: string;
-  connect_status: string;
+  model_name: string;
 }
 
 // Model engine check result interface

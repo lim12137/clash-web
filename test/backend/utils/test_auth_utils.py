@@ -143,8 +143,9 @@ def test_validate_aksk_authentication_invalid(monkeypatch):
 
 def test_generate_test_jwt_and_get_expiry_seconds(monkeypatch):
     token = au.generate_test_jwt("user-1", expires_in=1234)
-    # ensure not in speed mode for this test
+    # ensure not in speed mode and no DEBUG_JWT_EXPIRE_SECONDS was set for this test
     monkeypatch.setattr(au, "IS_SPEED_MODE", False)
+    monkeypatch.setattr(au, "DEBUG_JWT_EXPIRE_SECONDS", 0)
     seconds = au.get_jwt_expiry_seconds(token)
     assert seconds == 1234
 

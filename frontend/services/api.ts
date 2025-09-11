@@ -31,7 +31,8 @@ export const API_ENDPOINTS = {
     list: `${API_BASE_URL}/agent/list`,
     delete: `${API_BASE_URL}/agent`,
     getCreatingSubAgentId: `${API_BASE_URL}/agent/get_creating_sub_agent_id`,
-    stop: (conversationId: number) => `${API_BASE_URL}/agent/stop/${conversationId}`,
+    stop: (conversationId: number) =>
+      `${API_BASE_URL}/agent/stop/${conversationId}`,
     export: `${API_BASE_URL}/agent/export`,
     import: `${API_BASE_URL}/agent/import`,
     searchInfo: `${API_BASE_URL}/agent/search_info`,
@@ -58,43 +59,54 @@ export const API_ENDPOINTS = {
   storage: {
     upload: `${API_BASE_URL}/file/storage`,
     files: `${API_BASE_URL}/file/storage`,
-    file: (objectName: string, download: string = 'ignore') => `${API_BASE_URL}/file/storage/${objectName}?download=${download}`,
-    delete: (objectName: string) => `${API_BASE_URL}/file/storage/${objectName}`,
+    file: (objectName: string, download: string = "ignore") =>
+      `${API_BASE_URL}/file/storage/${objectName}?download=${download}`,
+    delete: (objectName: string) =>
+      `${API_BASE_URL}/file/storage/${objectName}`,
     preprocess: `${API_BASE_URL}/file/preprocess`,
   },
   proxy: {
-    image: (url: string) => `${API_BASE_URL}/image?url=${encodeURIComponent(url)}`,
+    image: (url: string) =>
+      `${API_BASE_URL}/image?url=${encodeURIComponent(url)}`,
   },
   model: {
-    // Basic health check
-    healthcheck: `${API_BASE_URL}/me/healthcheck`,
-    
     // Official model service
     officialModelList: `${API_BASE_URL}/me/model/list`,
-      
+    officialModelHealthcheck: `${API_BASE_URL}/me/healthcheck`,
+
     // Custom model service
     customModelList: `${API_BASE_URL}/model/list`,
     customModelCreate: `${API_BASE_URL}/model/create`,
-    customModelCreateProvider: `${API_BASE_URL}/model/create_provider`,
-    customModelBatchCreate: `${API_BASE_URL}/model/batch_create_models`,
+    customModelCreateProvider: `${API_BASE_URL}/model/provider/create`,
+    customModelBatchCreate: `${API_BASE_URL}/model/provider/batch_create`,
     getProviderSelectedModalList: `${API_BASE_URL}/model/provider/list`,
-    customModelDelete: (displayName: string) => `${API_BASE_URL}/model/delete?display_name=${encodeURIComponent(displayName)}`,
-    customModelHealthcheck: (displayName: string) => `${API_BASE_URL}/model/healthcheck?display_name=${encodeURIComponent(displayName)}`,
-    verifyModelConfig: `${API_BASE_URL}/model/verify_config`,
-    updateSingleModel: `${API_BASE_URL}/model/update_single_model`,
-    updateBatchModel: `${API_BASE_URL}/model/batch_update_models`,
+    customModelDelete: (displayName: string) =>
+      `${API_BASE_URL}/model/delete?display_name=${encodeURIComponent(
+        displayName
+      )}`,
+    customModelHealthcheck: (displayName: string) =>
+      `${API_BASE_URL}/model/healthcheck?display_name=${encodeURIComponent(
+        displayName
+      )}`,
+    verifyModelConfig: `${API_BASE_URL}/model/temporary_healthcheck`,
+    updateSingleModel: `${API_BASE_URL}/model/update`,
+    updateBatchModel: `${API_BASE_URL}/model/batch_update`,
   },
   knowledgeBase: {
     // Elasticsearch service
     health: `${API_BASE_URL}/indices/health`,
     indices: `${API_BASE_URL}/indices`,
     checkName: (name: string) => `${API_BASE_URL}/indices/check_exist/${name}`,
-    listFiles: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/files`,
+    listFiles: (indexName: string) =>
+      `${API_BASE_URL}/indices/${indexName}/files`,
     indexDetail: (indexName: string) => `${API_BASE_URL}/indices/${indexName}`,
-    summary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/auto_summary`,
-    changeSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
-    getSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
-    
+    summary: (indexName: string) =>
+      `${API_BASE_URL}/summary/${indexName}/auto_summary`,
+    changeSummary: (indexName: string) =>
+      `${API_BASE_URL}/summary/${indexName}/summary`,
+    getSummary: (indexName: string) =>
+      `${API_BASE_URL}/summary/${indexName}/summary`,
+
     // File upload service
     upload: `${API_BASE_URL}/file/upload`,
     process: `${API_BASE_URL}/file/process`,
@@ -121,9 +133,11 @@ export const API_ENDPOINTS = {
       load: `${API_BASE_URL}/memory/config/load`,
       set: `${API_BASE_URL}/memory/config/set`,
       disableAgentAdd: `${API_BASE_URL}/memory/config/disable_agent`,
-      disableAgentRemove: (agentId: string | number) => `${API_BASE_URL}/memory/config/disable_agent/${agentId}`,
+      disableAgentRemove: (agentId: string | number) =>
+        `${API_BASE_URL}/memory/config/disable_agent/${agentId}`,
       disableUserAgentAdd: `${API_BASE_URL}/memory/config/disable_useragent`,
-      disableUserAgentRemove: (agentId: string | number) => `${API_BASE_URL}/memory/config/disable_useragent/${agentId}`,
+      disableUserAgentRemove: (agentId: string | number) =>
+        `${API_BASE_URL}/memory/config/disable_useragent/${agentId}`,
     },
 
     // ---------------- Memory CRUD ----------------
@@ -131,10 +145,11 @@ export const API_ENDPOINTS = {
       add: `${API_BASE_URL}/memory/add`,
       search: `${API_BASE_URL}/memory/search`,
       list: `${API_BASE_URL}/memory/list`,
-      delete: (memoryId: string | number) => `${API_BASE_URL}/memory/delete/${memoryId}`,
+      delete: (memoryId: string | number) =>
+        `${API_BASE_URL}/memory/delete/${memoryId}`,
       clear: `${API_BASE_URL}/memory/clear`,
     },
-  }
+  },
 };
 
 // Common error handling

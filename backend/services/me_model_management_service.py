@@ -22,7 +22,7 @@ async def get_me_models_impl(timeout: int = 2, type: str = "") -> List:
         }
         async with aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=timeout),
-                connector=aiohttp.TCPConnector(verify_ssl=False)
+                connector=aiohttp.TCPConnector(ssl=False)
         ) as session:
             async with session.get(
                     f"{MODEL_ENGINE_HOST}/open/router/v1/models",

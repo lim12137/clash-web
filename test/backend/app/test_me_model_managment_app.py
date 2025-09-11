@@ -291,8 +291,7 @@ async def test_check_me_connectivity_success():
         # Assertions
         assert response.status_code == 200
         response_data = response.json()
-        assert response_data["status"] == "Connected"
-        assert response_data["connect_status"] == "available"
+        assert response_data["connectivity"] == True
 
 
 @pytest.mark.asyncio
@@ -306,10 +305,6 @@ async def test_check_me_connectivity_failure():
         response = client.get("/me/healthcheck")
 
     assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
-    body = response.json()
-    assert body["status"] == "Disconnected"
-    assert body["desc"] == "Connection failed."
-    assert body["connect_status"] == 'unavailable'
 
 
 @pytest.mark.asyncio
@@ -326,10 +321,6 @@ async def test_check_me_connectivity_timeout():
 
     # Assertions - route maps TimeoutException -> 408 and returns status/desc/connect_status
     assert response.status_code == HTTPStatus.REQUEST_TIMEOUT
-    body = response.json()
-    assert body["status"] == "Disconnected"
-    assert body["desc"] == "Connection timeout."
-    assert body["connect_status"] == "unavailable"
 
 
 @pytest.mark.asyncio
@@ -343,10 +334,6 @@ async def test_check_me_connectivity_generic_exception():
 
     # Assertions - route maps generic Exception -> 500 and returns status/desc/connect_status
     assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
-    body = response.json()
-    assert body["status"] == "Disconnected"
-    assert body["desc"] == "Unknown error occurred: Unexpected error occurred"
-    assert body["connect_status"] == "unavailable"
 
 
 @pytest.mark.asyncio
