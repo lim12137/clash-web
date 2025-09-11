@@ -51,6 +51,13 @@ sys.modules["consts.model"] = consts_model_mod
 if "consts" not in sys.modules:
     sys.modules["consts"] = types.ModuleType("consts")
 
+# Stub consts.const required by service
+consts_const_mod = types.ModuleType("consts.const")
+consts_const_mod.LOCALHOST_IP = "127.0.0.1"
+consts_const_mod.LOCALHOST_NAME = "localhost"
+consts_const_mod.DOCKER_INTERNAL_HOST = "host.docker.internal"
+sys.modules["consts.const"] = consts_const_mod
+
 # Stub consts.provider used by service
 consts_provider_mod = types.ModuleType("consts.provider")
 class _ProviderEnum:

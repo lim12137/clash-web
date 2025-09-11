@@ -8,7 +8,7 @@ from nexent.core.models import OpenAIModel, OpenAIVLModel
 from nexent.core.models.embedding_model import JinaEmbedding, OpenAICompatibleEmbedding
 
 from apps.voice_app import VoiceService
-from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
+from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST, LOCALHOST_IP, LOCALHOST_NAME, DOCKER_INTERNAL_HOST
 from consts.exceptions import MEConnectionException, TimeoutException
 from consts.model import ModelConnectStatusEnum
 from database.model_management_db import get_model_by_display_name, update_model_record
@@ -70,9 +70,9 @@ async def _perform_connectivity_check(
     Returns:
         bool: Connectivity check result
     """
-    if "localhost" in model_base_url or "127.0.0.1" in model_base_url:
+    if LOCALHOST_NAME in model_base_url or LOCALHOST_IP in model_base_url:
         model_base_url = model_base_url.replace(
-            "localhost", "host.docker.internal").replace("127.0.0.1", "host.docker.internal")
+            LOCALHOST_NAME, DOCKER_INTERNAL_HOST).replace(LOCALHOST_IP, DOCKER_INTERNAL_HOST)
 
     connectivity: bool
 

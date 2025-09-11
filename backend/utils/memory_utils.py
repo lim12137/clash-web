@@ -3,6 +3,7 @@ from typing import Dict, Any
 from urllib.parse import urlparse
 
 from consts import const as _c
+from consts.const import MODEL_CONFIG_MAPPING
 from utils.config_utils import get_model_name_from_config, tenant_config_manager
 
 logger = logging.getLogger("memory_utils")
@@ -12,8 +13,8 @@ def build_memory_config(tenant_id: str) -> Dict[str, Any]:
     """Return a fully-validated configuration dictionary for *mem0* ``Memory``.
     """
     # 1. Resolve tenant-specific model configuration
-    llm_raw = tenant_config_manager.get_model_config("LLM_ID", tenant_id=tenant_id)
-    embed_raw = tenant_config_manager.get_model_config("EMBEDDING_ID", tenant_id=tenant_id)
+    llm_raw = tenant_config_manager.get_model_config(MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
+    embed_raw = tenant_config_manager.get_model_config(MODEL_CONFIG_MAPPING["embedding"], tenant_id=tenant_id)
 
     if not (llm_raw and llm_raw.get("model_name")):
         raise ValueError("Missing LLM configuration for tenant")
