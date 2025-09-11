@@ -14,7 +14,8 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
 sys.path.append(backend_dir)
 
-from consts.exceptions import MEConnectionException, NotFoundException
+
+from consts.exceptions import MEConnectionException, NotFoundException, TimeoutException
 
 
 class ModelConnectStatusEnum(str, Enum):
@@ -200,18 +201,15 @@ async def test_get_me_models_not_found_filter():
             "No models found with type 'nonexistent'.")
         response = client.get("/me/model/list?type=nonexistent")
 
-    # Assertions - route maps NotFoundException -> 404 and returns message/data
+    # Assertions - route maps NotFoundException -> 404 and raises HTTPException with detail
     assert response.status_code == HTTPStatus.NOT_FOUND
     body = response.json()
-    assert "not found" in body["message"].lower()
-    assert body["data"] == []
+    assert body["detail"] == "ModelEngine model not found"
 
 
 @pytest.mark.asyncio
 async def test_get_me_models_timeout():
     """Test model list retrieval with timeout via real route"""
-    from consts.exceptions import TimeoutException
-
     # Patch service to raise TimeoutException so the real route returns 408
     with patch('backend.apps.me_model_managment_app.get_me_models_impl') as mock_impl:
         mock_impl.side_effect = TimeoutException("Request timeout.")
@@ -220,30 +218,20 @@ async def test_get_me_models_timeout():
 
     assert response.status_code == HTTPStatus.REQUEST_TIMEOUT
     body = response.json()
-    assert "timeout" in body["message"].lower()
-    assert body["data"] == []
+    assert body["detail"] == "Failed to get ModelEngine model list: timeout"
 
 
 @pytest.mark.asyncio
 async def test_get_me_models_exception():
     """Test model list retrieval with generic exception"""
-    with patch('aiohttp.ClientSession') as mock_session_class:
-        # Setup mock session
-        mock_session = AsyncMock()
-
-        # Make the __aenter__ method itself raise the exception
-        mock_context_error = Exception("__aenter__")
-        mock_session_class.return_value.__aenter__ = AsyncMock(
-            side_effect=mock_context_error)
-
-        # Test with TestClient
+    with patch('backend.apps.me_model_managment_app.get_me_models_impl') as mock_impl:
+        mock_impl.side_effect = Exception("boom")
         response = client.get("/me/model/list")
 
-        # Assertions
-        assert response.status_code == 500
-        response_data = response.json()
-        assert "Failed to get model list" in response_data["message"]
-        assert "__aenter__" in response_data["message"]
+    # Assertions
+    assert response.status_code == 500
+    response_data = response.json()
+    assert response_data["detail"] == "Failed to get ModelEngine model list"
 
 
 @pytest.mark.asyncio
@@ -291,7 +279,7 @@ async def test_check_me_connectivity_success():
         # Assertions
         assert response.status_code == 200
         response_data = response.json()
-        assert response_data["connectivity"] == True
+        assert response_data["connectivity"]
 
 
 @pytest.mark.asyncio
@@ -310,9 +298,6 @@ async def test_check_me_connectivity_failure():
 @pytest.mark.asyncio
 async def test_check_me_connectivity_timeout():
     """Test ME connectivity check with timeout"""
-    from consts.exceptions import TimeoutException
-    from backend.apps.me_model_managment_app import ModelConnectStatusEnum
-
     # Mock the impl to raise TimeoutException so the route returns 408
     with patch('backend.apps.me_model_managment_app.check_me_connectivity_impl') as mock_connectivity:
         mock_connectivity.side_effect = TimeoutException("timeout simulated")

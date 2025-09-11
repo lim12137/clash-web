@@ -302,13 +302,17 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     }
   }
 
-  const logout = async () => {
+  const logout = async (options?: { silent?: boolean }) => {
     try {
       setIsLoading(true)
       await authService.signOut()
       setUser(null)
-      setShouldCheckSession(false) // When logging out, disable session check
-      message.success(t('auth.logoutSuccess'))
+      // When logging out, disable session check
+      setShouldCheckSession(false)
+      // Only show message when user actively logout
+      if (!options?.silent) {
+        message.success(t("auth.logoutSuccess"))
+      }
       // Manually trigger storage event
       window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: null }))
     } catch (error: any) {

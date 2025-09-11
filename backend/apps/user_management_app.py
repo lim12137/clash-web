@@ -12,6 +12,7 @@ from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeExceptio
 from services.user_management_service import get_authorized_client, validate_token, \
     check_auth_service_health, signup_user, signin_user, refresh_user_token, \
     get_session_by_authorization
+from consts.exceptions import UnauthorizedError
 from utils.auth_utils import get_current_user_id
 
 
@@ -123,12 +124,16 @@ async def user_refresh_token(request: Request):
 async def logout(request: Request):
     """User logout"""
     authorization = request.headers.get("Authorization")
-    if not authorization:
-        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
-                            detail="User not logged in")
     try:
-        client = get_authorized_client(authorization)
-        client.auth.sign_out()
+        # Make logout idempotent: if no token or token expired, still return success
+        if authorization:
+            client = get_authorized_client(authorization)
+            try:
+                client.auth.sign_out()
+            except Exception as signout_err:
+                # Ignore sign out errors to keep logout idempotent
+                logging.warning(
+                    f"Sign out encountered an error but will be ignored: {str(signout_err)}")
         return JSONResponse(status_code=HTTPStatus.OK,
                             content={"message":"Logout successful"})
 
@@ -143,17 +148,19 @@ async def get_session(request: Request):
     """Get current user session"""
     authorization = request.headers.get("Authorization")
     if not authorization:
-        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
-                            detail="User not logged in")
+        # Treat as not logged in when missing token
+        return JSONResponse(status_code=HTTPStatus.OK,
+                            content={"message": "User not logged in",
+                                     "data": None})
     try:
         data = await get_session_by_authorization(authorization)
         return JSONResponse(status_code=HTTPStatus.OK,
                      content={"message": "Session is valid",
                               "data": data})
-    except ValueError as e:
-        logging.error(f"Get user session failed: {str(e)}")
-        raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-                            detail="Session is invalid")
+    except UnauthorizedError as e:
+        logging.error(f"Get user session unauthorized: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
+                            detail="User not logged in or session invalid")
     except Exception as e:
         logging.error(f"error in get user session, {str(e)}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -165,8 +172,10 @@ async def get_user_id(request: Request):
     """Get current user ID, return None if not logged in"""
     authorization = request.headers.get("Authorization")
     if not authorization:
-        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
-                            detail="User not logged in")
+        # Treat as not logged in when missing token, return 200 with null user_id
+        return JSONResponse(status_code=HTTPStatus.OK,
+                            content={"message": "User not logged in",
+                                     "data": {"user_id": None}})
     try:
         # Use the unified token validation function
         is_valid, user = validate_token(authorization)
