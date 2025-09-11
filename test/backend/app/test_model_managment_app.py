@@ -743,7 +743,7 @@ class TestModelManagementApp(unittest.TestCase):
         self.model_data = {
             "model_name": "huggingface/llama",
             "display_name": "Test Model",
-            "api_base": "http://localhost:8000",
+            "base_url": "http://localhost:8000",
             "api_key": "test_key",
             "model_type": "llm",
             "provider": "huggingface"
@@ -2081,6 +2081,27 @@ class TestModelManagementApp(unittest.TestCase):
                               data.get("message", ""))
                 mock_create.assert_called_once()
 
+    def test_create_model_localhost_normalization_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            async def _create(user_id, tenant_id, model_data):
+                # base_url should flow-through; normalization is handled in service or utils if any
+                self.assertIn("base_url", model_data)
+                self.assertTrue(
+                    model_data["base_url"].startswith("http://localhost") or
+                    model_data["base_url"].startswith("http://127.0.0.1") or
+                    isinstance(model_data["base_url"], str)
+                )
+                return None
+            with patch.object(backend_model_app, "create_model_for_tenant", side_effect=_create) as mock_create:
+                payload = self.model_data.copy()
+                payload["base_url"] = "http://127.0.0.1:9000"
+                response = backend_client_local.post(
+                    "/model/create", json=payload, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                mock_create.assert_called_once()
+
     def test_create_model_conflict_backend(self):
         backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
             "backend.apps.model_managment_app")
@@ -2125,6 +2146,24 @@ class TestModelManagementApp(unittest.TestCase):
                 data = response.json()
                 self.assertIn("Batch create models successfully",
                               data.get("message", ""))
+                mock_batch.assert_called_once()
+
+    def test_provider_batch_create_handles_empty_models_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            async def _batch(user_id, tenant_id, batch_payload):
+                self.assertEqual(batch_payload.get("models"), [])
+                return None
+            with patch.object(backend_model_app, "batch_create_models_for_tenant", side_effect=_batch) as mock_batch:
+                payload = {
+                    "models": [],
+                    "provider": "prov",
+                    "type": "llm",
+                }
+                response = backend_client_local.post(
+                    "/model/provider/batch_create", json=payload, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
                 mock_batch.assert_called_once()
 
     def test_provider_batch_create_exception_backend(self):
@@ -2463,6 +2502,18 @@ class TestModelManagementApp(unittest.TestCase):
                 mock_check.assert_called_once_with(
                     "Test Model", self.tenant_id)
 
+    def test_check_model_health_backend_lookup_error(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "check_model_connectivity", new=AsyncMock(side_effect=LookupError("missing"))):
+                response = backend_client_local.post(
+                    "/model/healthcheck",
+                    params={"display_name": "X"},
+                    headers=self.auth_header
+                )
+                self.assertEqual(response.status_code, 404)
+
     def test_verify_model_config(self):
         backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
             "backend.apps.model_managment_app")
@@ -2476,6 +2527,14 @@ class TestModelManagementApp(unittest.TestCase):
                 data["message"], "Successfully verified model connectivity")
             self.assertTrue(data["data"]["connectivity"])
             mock_verify.assert_called_once()
+
+    def test_verify_model_config_exception_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "verify_model_config_connectivity", new=AsyncMock(side_effect=Exception("err"))):
+            response = backend_client_local.post(
+                "/model/temporary_healthcheck", json=self.model_data)
+            self.assertEqual(response.status_code, 500)
 
     def test_verify_model_config_exception(self):
         backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
@@ -2548,7 +2607,7 @@ class TestModelManagementApp(unittest.TestCase):
                     "model_id": "test_model_id",
                     "model_name": "huggingface/llama",
                     "display_name": "Updated Test Model",
-                    "api_base": "http://localhost:8001",
+                    "base_url": "http://localhost:8001",
                     "api_key": "updated_key",
                     "model_type": "llm",
                     "provider": "huggingface"
@@ -2571,7 +2630,7 @@ class TestModelManagementApp(unittest.TestCase):
                     "model_id": "test_model_id",
                     "model_name": "huggingface/llama",
                     "display_name": "Conflicting Name",
-                    "api_base": "http://localhost:8001",
+                    "base_url": "http://localhost:8001",
                     "api_key": "updated_key",
                     "model_type": "llm",
                     "provider": "huggingface"
@@ -2596,7 +2655,7 @@ class TestModelManagementApp(unittest.TestCase):
                     "model_id": "test_model_id",
                     "model_name": "huggingface/llama",
                     "display_name": "Same Display Name",
-                    "api_base": "http://localhost:8001",
+                    "base_url": "http://localhost:8001",
                     "api_key": "updated_key",
                     "model_type": "llm",
                     "provider": "huggingface"

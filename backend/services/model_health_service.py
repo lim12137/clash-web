@@ -57,7 +57,6 @@ async def _perform_connectivity_check(
     model_type: str,
     model_base_url: str,
     model_api_key: str,
-    embedding_dim: int
 ) -> bool:
     """
     Perform specific model connectivity check
@@ -66,7 +65,6 @@ async def _perform_connectivity_check(
         model_type: Model type
         model_base_url: Model base URL
         model_api_key: API key
-        embedding_dim: Embedding dimension (only for embedding models)
     Returns:
         bool: Connectivity check result
     """
@@ -82,14 +80,14 @@ async def _perform_connectivity_check(
             model_name=model_name,
             base_url=model_base_url,
             api_key=model_api_key,
-            embedding_dim=embedding_dim
+            embedding_dim=0
         ).dimension_check()) > 0
     elif model_type == "multi_embedding":
         connectivity = len(await JinaEmbedding(
             model_name=model_name,
             base_url=model_base_url,
             api_key=model_api_key,
-            embedding_dim=embedding_dim
+            embedding_dim=0
         ).dimension_check()) > 0
     elif model_type == "llm":
         observer = MessageObserver()
@@ -155,7 +153,10 @@ async def check_model_connectivity(display_name: str, tenant_id: str) -> dict:
         connect_status = ModelConnectStatusEnum.AVAILABLE.value if connectivity else ModelConnectStatusEnum.UNAVAILABLE.value
         update_data = {"connect_status": connect_status}
         update_model_record(model["model_id"], update_data)
-        return {"connectivity": connectivity, "connect_status": connect_status}
+        return {
+            "connectivity": connectivity,
+            "model_name": model_name,
+        }
     except Exception as e:
         logger.error(f"Error checking model connectivity: {str(e)}")
         if 'model' in locals() and model:
@@ -206,13 +207,11 @@ async def verify_model_config_connectivity(model_config: dict):
         model_type = model_config["model_type"]
         model_base_url = model_config["base_url"]
         model_api_key = model_config["api_key"]
-        embedding_dim = model_config.get(
-            "embedding_dim", model_config.get("max_tokens", 1024))
 
         try:
             # Use the common connectivity check function
             connectivity = await _perform_connectivity_check(
-                model_name, model_type, model_base_url, model_api_key, embedding_dim
+                model_name, model_type, model_base_url, model_api_key
             )
         except ValueError as e:
             logger.warning(f"UNCONNECTED: {model_name}; Base URL: {model_base_url}; API Key: {model_api_key}; Error: {str(e)}")

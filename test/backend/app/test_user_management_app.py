@@ -7,7 +7,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 
 # Import exception classes
-from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException
+from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException, UnauthorizedError
 from supabase_auth.errors import AuthApiError, AuthWeakPasswordError
 
 # Mock external dependencies
@@ -393,9 +393,27 @@ class TestLogout:
         """Test logout without authorization header"""
         response = client.post("/user/logout")
 
-        assert response.status_code == HTTPStatus.UNAUTHORIZED
+        assert response.status_code == HTTPStatus.OK
         data = response.json()
-        assert data["detail"] == "User not logged in"
+        assert data["message"] == "Logout successful"
+
+    @patch('apps.user_management_app.get_authorized_client')
+    def test_logout_signout_error_ignored(self, mock_get_client):
+        """Test logout ignores sign_out errors and still succeeds"""
+        mock_client = MagicMock()
+        mock_client.auth.sign_out.side_effect = Exception("network")
+        mock_get_client.return_value = mock_client
+
+        response = client.post(
+            "/user/logout",
+            headers={"Authorization": "Bearer token"}
+        )
+
+        assert response.status_code == HTTPStatus.OK
+        data = response.json()
+        assert data["message"] == "Logout successful"
+        mock_get_client.assert_called_once_with("Bearer token")
+        mock_client.auth.sign_out.assert_called_once()
 
     @patch('apps.user_management_app.get_authorized_client')
     def test_logout_error(self, mock_get_client):
@@ -439,23 +457,24 @@ class TestGetSession:
         """Test session retrieval without authorization header"""
         response = client.get("/user/session")
 
-        assert response.status_code == HTTPStatus.UNAUTHORIZED
+        assert response.status_code == HTTPStatus.OK
         data = response.json()
-        assert data["detail"] == "User not logged in"
+        assert data["message"] == "User not logged in"
+        assert data["data"] is None
 
     @patch('apps.user_management_app.get_session_by_authorization')
     def test_get_session_invalid(self, mock_get_session):
         """Test session retrieval with invalid session"""
-        mock_get_session.side_effect = ValueError("Invalid session")
+        mock_get_session.side_effect = UnauthorizedError("Invalid session")
 
         response = client.get(
             "/user/session",
             headers={"Authorization": "Bearer invalid_token"}
         )
 
-        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+        assert response.status_code == HTTPStatus.UNAUTHORIZED
         data = response.json()
-        assert data["detail"] == "Session is invalid"
+        assert data["detail"] == "User not logged in or session invalid"
 
     @patch('apps.user_management_app.get_session_by_authorization')
     def test_get_session_error(self, mock_get_session):
@@ -531,9 +550,10 @@ class TestGetCurrentUserId:
         """Test user ID retrieval without authorization header"""
         response = client.get("/user/current_user_id")
 
-        assert response.status_code == HTTPStatus.UNAUTHORIZED
+        assert response.status_code == HTTPStatus.OK
         data = response.json()
-        assert data["detail"] == "User not logged in"
+        assert data["message"] == "User not logged in"
+        assert data["data"]["user_id"] is None
 
     @patch('apps.user_management_app.validate_token')
     def test_get_user_id_error(self, mock_validate):

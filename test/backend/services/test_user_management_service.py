@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../backend"))
 sys.modules['boto3'] = MagicMock()
 
 # Import exception classes
-from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException
+from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException, UnauthorizedError
 
 # Functions to test
 with patch('backend.database.client.MinioClient', MagicMock()):
@@ -848,10 +848,10 @@ class TestGetSessionByAuthorization(unittest.IsolatedAsyncioTestCase):
         """Test session retrieval with invalid token"""
         mock_validate_token.return_value = (False, None)
         
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(UnauthorizedError) as context:
             await get_session_by_authorization("Bearer invalid-token")
         
-        self.assertEqual(str(context.exception), "Session is invalid")
+        self.assertEqual(str(context.exception), "Session is invalid or expired")
 
 
 class TestIntegrationScenarios(unittest.IsolatedAsyncioTestCase):
