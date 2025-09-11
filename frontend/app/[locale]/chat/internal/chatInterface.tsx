@@ -1097,7 +1097,7 @@ export function ChatInterface() {
       } else {
         // Cache has content, display normally
         setIsLoadingHistoricalConversation(false);
-        setIsLoading(false); // 确保 isLoading 状态也被重置
+        setIsLoading(false); // Ensure isLoading state is also reset
 
         // For cases where there are cached messages, also trigger scrolling to the bottom.
         setShouldScrollToBottom(true);

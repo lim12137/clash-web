@@ -198,7 +198,8 @@ async def test_perform_connectivity_check_llm():
             "gpt-4",
             "llm",
             "https://api.openai.com",
-            "test-key"
+            "test-key",
+            0
         )
 
         # Assert
@@ -230,7 +231,8 @@ async def test_perform_connectivity_check_vlm():
             "gpt-4-vision",
             "vlm",
             "https://api.openai.com",
-            "test-key"
+            "test-key",
+            0
         )
 
         # Assert
@@ -260,7 +262,8 @@ async def test_perform_connectivity_check_tts():
             "tts-1",
             "tts",
             "https://api.openai.com",
-            "test-key"
+            "test-key",
+            0
         )
 
         # Assert
@@ -284,7 +287,8 @@ async def test_perform_connectivity_check_stt():
             "whisper-1",
             "stt",
             "https://api.openai.com",
-            "test-key"
+            "test-key",
+            0
         )
 
         # Assert
@@ -299,7 +303,8 @@ async def test_perform_connectivity_check_rerank():
         "rerank-model",
         "rerank",
         "https://api.example.com",
-        "test-key"
+        "test-key",
+        0
     )
 
     # Assert
@@ -314,7 +319,8 @@ async def test_perform_connectivity_check_unsupported_type():
             "unsupported-model",
             "unsupported_type",
             "https://api.example.com",
-            "test-key"
+            "test-key",
+            0
         )
 
     assert "Unsupported model type" in str(excinfo.value)
@@ -324,17 +330,14 @@ async def test_perform_connectivity_check_unsupported_type():
 async def test_check_model_connectivity_success():
     # Setup
     with mock.patch("backend.services.model_health_service._perform_connectivity_check") as mock_connectivity_check, \
-            mock.patch("backend.services.model_health_service.get_current_user_id") as mock_get_user_id, \
             mock.patch("backend.services.model_health_service.get_model_by_display_name") as mock_get_model, \
             mock.patch("backend.services.model_health_service.update_model_record") as mock_update_model, \
-            mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum, \
-            mock.patch("backend.services.model_health_service.ModelResponse", side_effect=ModelResponse) as mock_response:
+            mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum:
 
         mock_enum.AVAILABLE.value = "available"
         mock_enum.UNAVAILABLE.value = "unavailable"
         mock_enum.DETECTING.value = "detecting"
 
-        mock_get_user_id.return_value = ("user123", "tenant456")
         mock_get_model.return_value = {
             "model_id": "model123",
             "model_repo": "openai",
@@ -346,16 +349,17 @@ async def test_check_model_connectivity_success():
         mock_connectivity_check.return_value = True
 
         # Execute
-        response = await check_model_connectivity("GPT-4", "Bearer test-token")
+        response = await check_model_connectivity("GPT-4", "tenant456")
 
         # Assert
-        assert response.code == 200
-        assert response.data["connectivity"] is True
-        assert response.data["connect_status"] == "available"
+        assert response["connectivity"] is True
+        assert response["connect_status"] == "available"
 
-        mock_get_user_id.assert_called_once_with("Bearer test-token")
         mock_get_model.assert_called_once_with("GPT-4", tenant_id="tenant456")
-        mock_update_model.assert_called_with(
+        # Detecting first, then available
+        mock_update_model.assert_any_call(
+            "model123", {"connect_status": "detecting"})
+        mock_update_model.assert_any_call(
             "model123", {"connect_status": "available"})
         mock_connectivity_check.assert_called_once_with(
             "openai/gpt-4", "llm", "https://api.openai.com", "test-key"
@@ -365,37 +369,27 @@ async def test_check_model_connectivity_success():
 @pytest.mark.asyncio
 async def test_check_model_connectivity_model_not_found():
     # Setup
-    with mock.patch("backend.services.model_health_service.get_current_user_id") as mock_get_user_id, \
-            mock.patch("backend.services.model_health_service.get_model_by_display_name") as mock_get_model, \
-            mock.patch("backend.services.model_health_service.ModelResponse", side_effect=ModelResponse) as mock_response:
+    with mock.patch("backend.services.model_health_service.get_model_by_display_name") as mock_get_model:
 
-        mock_get_user_id.return_value = ("user123", "tenant456")
         mock_get_model.return_value = None
 
-        # Execute
-        response = await check_model_connectivity("NonexistentModel", "Bearer test-token")
-
-        # Assert
-        assert response.code == 404
-        assert response.data["connectivity"] is False
-        assert response.data["connect_status"] == "Not Found"
+        # Execute & Assert
+        with pytest.raises(LookupError):
+            await check_model_connectivity("NonexistentModel", "tenant456")
 
 
 @pytest.mark.asyncio
 async def test_check_model_connectivity_failure():
     # Setup
     with mock.patch("backend.services.model_health_service._perform_connectivity_check") as mock_connectivity_check, \
-            mock.patch("backend.services.model_health_service.get_current_user_id") as mock_get_user_id, \
             mock.patch("backend.services.model_health_service.get_model_by_display_name") as mock_get_model, \
             mock.patch("backend.services.model_health_service.update_model_record") as mock_update_model, \
-            mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum, \
-            mock.patch("backend.services.model_health_service.ModelResponse", side_effect=ModelResponse) as mock_response:
+            mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum:
 
         mock_enum.AVAILABLE.value = "available"
         mock_enum.UNAVAILABLE.value = "unavailable"
         mock_enum.DETECTING.value = "detecting"
 
-        mock_get_user_id.return_value = ("user123", "tenant456")
         mock_get_model.return_value = {
             "model_id": "model123",
             "model_name": "gpt-4",
@@ -406,15 +400,14 @@ async def test_check_model_connectivity_failure():
         mock_connectivity_check.return_value = False
 
         # Execute
-        response = await check_model_connectivity("GPT-4", "Bearer test-token")
+        response = await check_model_connectivity("GPT-4", "tenant456")
 
         # Assert
-        assert response.code == 200
-        assert response.data["connectivity"] is False
-        assert response.data["connect_status"] == "unavailable"
+        assert response["connectivity"] is False
+        assert response["connect_status"] == "unavailable"
 
         # Check that we updated the model status to unavailable
-        mock_update_model.assert_called_with(
+        mock_update_model.assert_any_call(
             "model123", {"connect_status": "unavailable"})
 
 
@@ -422,17 +415,14 @@ async def test_check_model_connectivity_failure():
 async def test_check_model_connectivity_exception():
     # Setup
     with mock.patch("backend.services.model_health_service._perform_connectivity_check") as mock_connectivity_check, \
-            mock.patch("backend.services.model_health_service.get_current_user_id") as mock_get_user_id, \
             mock.patch("backend.services.model_health_service.get_model_by_display_name") as mock_get_model, \
             mock.patch("backend.services.model_health_service.update_model_record") as mock_update_model, \
-            mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum, \
-            mock.patch("backend.services.model_health_service.ModelResponse", side_effect=ModelResponse) as mock_response:
+            mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum:
 
         mock_enum.AVAILABLE.value = "available"
         mock_enum.UNAVAILABLE.value = "unavailable"
         mock_enum.DETECTING.value = "detecting"
 
-        mock_get_user_id.return_value = ("user123", "tenant456")
         mock_get_model.return_value = {
             "model_id": "model123",
             "model_name": "gpt-4",
@@ -443,42 +433,31 @@ async def test_check_model_connectivity_exception():
         mock_connectivity_check.side_effect = ValueError(
             "Unsupported model type")
 
-        # Execute
-        response = await check_model_connectivity("GPT-4", "Bearer test-token")
-
-        # Assert
-        assert response.code == 400
-        assert response.data["connectivity"] is False
-        assert response.data["connect_status"] == "unavailable"
+        # Execute & Assert
+        with pytest.raises(ValueError):
+            await check_model_connectivity("GPT-4", "tenant456")
 
         # Check that we updated the model status to unavailable
-        mock_update_model.assert_called_with(
+        mock_update_model.assert_any_call(
             "model123", {"connect_status": "unavailable"})
 
 
 @pytest.mark.asyncio
 async def test_check_model_connectivity_general_exception():
     # Setup
-    with mock.patch("backend.services.model_health_service.get_current_user_id") as mock_get_user_id, \
-            mock.patch("backend.services.model_health_service.get_model_by_display_name") as mock_get_model, \
+    with mock.patch("backend.services.model_health_service.get_model_by_display_name") as mock_get_model, \
             mock.patch("backend.services.model_health_service.update_model_record") as mock_update_model, \
-            mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum, \
-            mock.patch("backend.services.model_health_service.ModelResponse", side_effect=ModelResponse) as mock_response:
+            mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum:
 
         mock_enum.AVAILABLE.value = "available"
         mock_enum.UNAVAILABLE.value = "unavailable"
         mock_enum.DETECTING.value = "detecting"
 
-        mock_get_user_id.return_value = ("user123", "tenant456")
         mock_get_model.side_effect = Exception("Database error")
 
-        # Execute
-        response = await check_model_connectivity("GPT-4", "Bearer test-token")
-
-        # Assert
-        assert response.code == 500
-        assert response.data["connectivity"] is False
-        assert response.data["connect_status"] == "unavailable"
+        # Execute & Assert
+        with pytest.raises(Exception):
+            await check_model_connectivity("GPT-4", "tenant456")
 
         # Should not update model record since we had an exception before getting to that point
         mock_update_model.assert_not_called()
@@ -487,11 +466,8 @@ async def test_check_model_connectivity_general_exception():
 @pytest.mark.asyncio
 async def test_verify_model_config_connectivity_success():
     # Setup
-    with mock.patch("backend.services.model_health_service._perform_connectivity_check") as mock_connectivity_check, \
-            mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum, \
-            mock.patch("backend.services.model_health_service.ModelResponse", side_effect=ModelResponse) as mock_response:
+    with mock.patch("backend.services.model_health_service._perform_connectivity_check") as mock_connectivity_check:
 
-        mock_enum.AVAILABLE.value = "available"
         mock_connectivity_check.return_value = True
 
         model_config = {
@@ -506,10 +482,8 @@ async def test_verify_model_config_connectivity_success():
         response = await verify_model_config_connectivity(model_config)
 
         # Assert
-        assert response.code == 200
-        assert response.data["connectivity"] is True
-        assert response.data["connect_status"] == "available"
-        assert response.data["error_code"] == "MODEL_VALIDATION_SUCCESS"
+        assert response["connectivity"] is True
+        assert response["model_name"] == "gpt-4"
 
         mock_connectivity_check.assert_called_once_with(
             "gpt-4", "llm", "https://api.openai.com", "test-key", 2048
@@ -519,11 +493,8 @@ async def test_verify_model_config_connectivity_success():
 @pytest.mark.asyncio
 async def test_verify_model_config_connectivity_failure():
     # Setup
-    with mock.patch("backend.services.model_health_service._perform_connectivity_check") as mock_connectivity_check, \
-            mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum, \
-            mock.patch("backend.services.model_health_service.ModelResponse", side_effect=ModelResponse) as mock_response:
+    with mock.patch("backend.services.model_health_service._perform_connectivity_check") as mock_connectivity_check:
 
-        mock_enum.UNAVAILABLE.value = "unavailable"
         mock_connectivity_check.return_value = False
 
         model_config = {
@@ -537,20 +508,15 @@ async def test_verify_model_config_connectivity_failure():
         response = await verify_model_config_connectivity(model_config)
 
         # Assert
-        assert response.code == 200
-        assert response.data["connectivity"] is False
-        assert response.data["connect_status"] == "unavailable"
-        assert response.data["error_code"] == "MODEL_VALIDATION_FAILED"
+        assert response["connectivity"] is False
+        assert response["model_name"] == "gpt-4"
 
 
 @pytest.mark.asyncio
 async def test_verify_model_config_connectivity_validation_error():
     # Setup
-    with mock.patch("backend.services.model_health_service._perform_connectivity_check") as mock_connectivity_check, \
-            mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum, \
-            mock.patch("backend.services.model_health_service.ModelResponse", side_effect=ModelResponse) as mock_response:
+    with mock.patch("backend.services.model_health_service._perform_connectivity_check") as mock_connectivity_check:
 
-        mock_enum.UNAVAILABLE.value = "unavailable"
         mock_connectivity_check.side_effect = ValueError("Invalid model type")
 
         model_config = {
@@ -564,21 +530,15 @@ async def test_verify_model_config_connectivity_validation_error():
         response = await verify_model_config_connectivity(model_config)
 
         # Assert
-        assert response.code == 400
-        assert response.data["connectivity"] is False
-        assert response.data["connect_status"] == "unavailable"
-        assert response.data["error_code"] == "MODEL_VALIDATION_ERROR"
-        assert response.data["message"] == "Invalid model type"
+        assert response["connectivity"] is False
+        assert response["model_name"] == "invalid-model"
 
 
 @pytest.mark.asyncio
 async def test_verify_model_config_connectivity_exception():
     # Setup
-    with mock.patch("backend.services.model_health_service._perform_connectivity_check") as mock_connectivity_check, \
-            mock.patch("backend.services.model_health_service.ModelConnectStatusEnum") as mock_enum, \
-            mock.patch("backend.services.model_health_service.ModelResponse", side_effect=ModelResponse) as mock_response:
+    with mock.patch("backend.services.model_health_service._perform_connectivity_check") as mock_connectivity_check:
 
-        mock_enum.UNAVAILABLE.value = "unavailable"
         mock_connectivity_check.side_effect = Exception("Unexpected error")
 
         model_config = {
@@ -592,11 +552,8 @@ async def test_verify_model_config_connectivity_exception():
         response = await verify_model_config_connectivity(model_config)
 
         # Assert
-        assert response.code == 500
-        assert response.data["connectivity"] is False
-        assert response.data["connect_status"] == "unavailable"
-        assert response.data["error_code"] == "MODEL_VALIDATION_ERROR_UNKNOWN"
-        assert response.data["error_details"] == "Unexpected error"
+        assert response["connectivity"] is False
+        assert response["model_name"] == "gpt-4"
 
 
 @pytest.mark.asyncio
@@ -647,10 +604,10 @@ async def test_embedding_dimension_check_multi_embedding_success():
 
 @pytest.mark.asyncio
 async def test_embedding_dimension_check_unsupported_type():
-    dimension = await _embedding_dimension_check(
-        "test-model", "unsupported", "http://test.com", "test-key"
-    )
-    assert dimension == 0
+    with pytest.raises(ValueError):
+        await _embedding_dimension_check(
+            "test-model", "unsupported", "http://test.com", "test-key"
+        )
 
 
 @pytest.mark.asyncio
@@ -705,7 +662,63 @@ async def test_embedding_dimension_check_wrapper_exception():
         dimension = await embedding_dimension_check(model_config)
         assert dimension == 0
         mock_get_name.assert_called_once_with(model_config)
-        mock_logger.warning.assert_called_once()
+        mock_logger.error.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_embedding_dimension_check_multi_embedding_empty_response():
+    """Test multi_embedding dimension check with empty response (covers line 48-50)"""
+    with mock.patch("backend.services.model_health_service.JinaEmbedding") as mock_embedding, \
+            mock.patch("backend.services.model_health_service.logging") as mock_logging:
+        mock_embedding_instance = mock.MagicMock()
+        mock_embedding_instance.dimension_check = mock.AsyncMock(
+            return_value=[])
+        mock_embedding.return_value = mock_embedding_instance
+
+        dimension = await _embedding_dimension_check(
+            "test-multi-embedding", "multi_embedding", "http://test.com", "test-key"
+        )
+
+        assert dimension == 0
+        mock_embedding.assert_called_once_with(
+            model_name="test-multi-embedding",
+            base_url="http://test.com",
+            api_key="test-key",
+            embedding_dim=0
+        )
+        # Verify warning was logged
+        mock_logging.warning.assert_called_once_with(
+            "Embedding dimension check for test-multi-embedding gets empty response"
+        )
+
+
+@pytest.mark.asyncio
+async def test_embedding_dimension_check_wrapper_value_error():
+    """Test embedding_dimension_check wrapper with ValueError (covers line 249-250)"""
+    with mock.patch("backend.services.model_health_service._embedding_dimension_check") as mock_internal_check, \
+            mock.patch("backend.services.model_health_service.get_model_name_from_config") as mock_get_name, \
+            mock.patch("backend.services.model_health_service.logger") as mock_logger:
+        mock_internal_check.side_effect = ValueError("Unsupported model type")
+        mock_get_name.return_value = "test-model"
+        model_config = {
+            "model_repo": "test",
+            "model_name": "test-model",
+            "model_type": "unsupported",
+            "base_url": "https://api.test.com",
+            "api_key": "test-key"
+        }
+
+        dimension = await embedding_dimension_check(model_config)
+
+        assert dimension == 0
+        mock_get_name.assert_called_once_with(model_config)
+        mock_internal_check.assert_called_once_with(
+            "test-model", "unsupported", "https://api.test.com", "test-key"
+        )
+        # Verify error was logged with the specific ValueError message
+        mock_logger.error.assert_called_once_with(
+            "Error checking embedding dimension: Unsupported model type"
+        )
 
 
 @pytest.mark.asyncio

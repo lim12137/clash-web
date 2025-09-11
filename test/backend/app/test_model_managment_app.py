@@ -1,14 +1,15 @@
+from typing import Tuple
+import importlib
 import unittest
 import pytest
 import os
 import sys
 from unittest.mock import patch, MagicMock, AsyncMock
 
-# Add backend to Python path for imports
+# Dynamically determine the backend path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
-if backend_dir not in sys.path:
-    sys.path.insert(0, backend_dir)
+sys.path.append(backend_dir)
 
 # Import FastAPI components only
 from fastapi import FastAPI, APIRouter, Query, Body, Header, status
@@ -239,8 +240,7 @@ async def create_model(request: ModelRequest, authorization: Optional[str] = Hea
         }
 
 
-
-@router.post("/batch_create_models", response_model=ModelResponse)
+@router.post("/provider/batch_create", response_model=ModelResponse)
 @pytest.mark.asyncio
 async def batch_create_models(request: BatchCreateModelsRequest, authorization: Optional[str] = Header(None)):
     try:
@@ -252,21 +252,26 @@ async def batch_create_models(request: BatchCreateModelsRequest, authorization: 
             model_url = SILICON_BASE_URL
         else:
             model_url = ""
-        existing_model_list = get_models_by_tenant_factory_type(tenant_id, request.provider, request.type)
-        model_list_ids = {model.get('id') for model in model_list} if model_list else set()
+        existing_model_list = get_models_by_tenant_factory_type(
+            tenant_id, request.provider, request.type)
+        model_list_ids = {model.get('id')
+                          for model in model_list} if model_list else set()
         # delete existing model
         for model in existing_model_list:
-            model["display_name"] = model["model_repo"] + "/" + model["model_name"]
+            model["display_name"] = model["model_repo"] + \
+                "/" + model["model_name"]
             if model["display_name"] not in model_list_ids:
                 delete_model_record(model["model_id"], user_id, tenant_id)
         # create new model
         for model in model_list:
             model_repo, model_name = split_repo_name(model["id"])
             if model_name:
-                existing_model_by_display = get_model_by_display_name(request.provider + "/" + model_name, tenant_id)
+                existing_model_by_display = get_model_by_display_name(
+                    request.provider + "/" + model_name, tenant_id)
                 if existing_model_by_display:
                     # Check if max_tokens has changed
-                    existing_max_tokens = existing_model_by_display.get("max_tokens", 4096)
+                    existing_max_tokens = existing_model_by_display.get(
+                        "max_tokens", 4096)
                     new_max_tokens = model.get("max_tokens", 4096)
                     if existing_max_tokens == new_max_tokens:
                         continue
@@ -279,7 +284,7 @@ async def batch_create_models(request: BatchCreateModelsRequest, authorization: 
                 max_tokens=max_tokens
             )
             create_model_record(model_dict, user_id, tenant_id)
-        
+
         return ModelResponse(
             code=200,
             message=f"Batch create models successfully",
@@ -294,21 +299,23 @@ async def batch_create_models(request: BatchCreateModelsRequest, authorization: 
             data=None
         )
 
-@router.post("/create_provider", response_model=ModelResponse)
+
+@router.post("/provider/create", response_model=ModelResponse)
 async def create_provider_model(request: ProviderModelRequest, authorization: Optional[str] = Header(None)):
     try:
         user_id, tenant_id = get_current_user_id(authorization)
         model_data = request.model_dump()
-        
+
         # Get provider model list
         model_list = await get_provider_models(model_data)
-        
+
         # Merge existing model's max_tokens attribute
-        model_list = merge_existing_model_tokens(model_list, tenant_id, request.provider, request.model_type)
-        
+        model_list = merge_existing_model_tokens(
+            model_list, tenant_id, request.provider, request.model_type)
+
         # Sort model list by ID
         model_list = sort_models_by_id(model_list)
-        
+
         return ModelResponse(
             code=200,
             message=f"Provider model {model_data['provider']} created successfully",
@@ -320,6 +327,7 @@ async def create_provider_model(request: ProviderModelRequest, authorization: Op
             message=f"Failed to create provider model: {str(e)}",
             data=None
         )
+
 
 @router.post("/delete", response_model=None)
 @pytest.mark.asyncio
@@ -334,7 +342,7 @@ async def delete_model(display_name: str = Query(...), authorization: Optional[s
                 "message": f"Model not found: {display_name}",
                 "data": None
             }
-        
+
         deleted_types = []
         if model["model_type"] in ["embedding", "multi_embedding"]:
             for t in ["embedding", "multi_embedding"]:
@@ -345,7 +353,7 @@ async def delete_model(display_name: str = Query(...), authorization: Optional[s
         else:
             delete_model_record(model["model_id"], user_id, tenant_id)
             deleted_types.append(model.get("model_type", "unknown"))
-        
+
         return {
             "code": 200,
             "message": f"Successfully deleted model(s) in types: {', '.join(deleted_types)}",
@@ -357,6 +365,7 @@ async def delete_model(display_name: str = Query(...), authorization: Optional[s
             "message": "An internal error occurred while deleting the model.",
             "data": None
         }
+
 
 @router.get("/list", response_model=None)
 @pytest.mark.asyncio
@@ -371,7 +380,8 @@ async def get_model_list(authorization: Optional[str] = Header(None)):
                 model_repo=record["model_repo"],
                 model_name=record["model_name"]
             )
-            record["connect_status"] = ModelConnectStatusEnum.get_value(record.get("connect_status"))
+            record["connect_status"] = ModelConnectStatusEnum.get_value(
+                record.get("connect_status"))
             result.append(record)
 
         return {
@@ -386,6 +396,7 @@ async def get_model_list(authorization: Optional[str] = Header(None)):
             "data": []
         }
 
+
 @router.post("/healthcheck", response_model=None)
 @pytest.mark.asyncio
 async def check_model_healthcheck(
@@ -394,7 +405,8 @@ async def check_model_healthcheck(
 ):
     return await check_model_connectivity(display_name, authorization)
 
-@router.post("/verify_config", response_model=None)
+
+@router.post("/temporary_healthcheck", response_model=None)
 async def verify_model_config(request: ModelRequest):
     try:
         result = await verify_model_config_connectivity(request.model_dump())
@@ -410,6 +422,7 @@ async def verify_model_config(request: ModelRequest):
             }
         }
 
+
 @router.post("/provider/list")
 @pytest.mark.asyncio
 async def get_provider_list(request: dict, authorization: Optional[str] = Header(None)):
@@ -417,7 +430,8 @@ async def get_provider_list(request: dict, authorization: Optional[str] = Header
         user_id, tenant_id = get_current_user_id(authorization)
         provider = request.get("provider")
         model_type = request.get("model_type")
-        model_list = get_models_by_tenant_factory_type(tenant_id, provider, model_type)
+        model_list = get_models_by_tenant_factory_type(
+            tenant_id, provider, model_type)
         for model in model_list:
             model["id"] = model["model_repo"] + "/" + model["model_name"]
         return {
@@ -439,36 +453,49 @@ client = TestClient(app)
 
 # Remove direct top-level import of backend router to avoid side-effects on import
 # and provide a safe builder that stubs S3 before importing the backend module.
-import sys
-import importlib
-from typing import Tuple
 
-def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
+
+def _build_backend_client_with_s3_stub(target_module: Optional[str] = None) -> Tuple[TestClient, object]:
     class _FakeS3Client:
         def head_bucket(self, Bucket=None, **kwargs):
             return None
+
         def create_bucket(self, Bucket=None, **kwargs):
             return None
+
         def upload_file(self, *args, **kwargs):
             return None
+
         def upload_fileobj(self, *args, **kwargs):
             return None
+
         def download_file(self, *args, **kwargs):
             return None
+
         def generate_presigned_url(self, *args, **kwargs):
             return "http://example.com"
+
         def head_object(self, *args, **kwargs):
             return {"ContentLength": "0"}
+
         def list_objects_v2(self, *args, **kwargs):
             return {}
+
         def delete_object(self, *args, **kwargs):
             return None
+
         def get_object(self, *args, **kwargs):
             return {"Body": b""}
 
     def _fake_boto3_client(service_name, *args, **kwargs):
         return _FakeS3Client()
 
+    # Ensure boto3 module exists before patching to avoid import errors on environments without boto3
+    if "boto3" not in sys.modules:
+        import types as _types2
+        _fake_boto3_mod = _types2.ModuleType("boto3")
+        _fake_boto3_mod.client = _fake_boto3_client
+        sys.modules["boto3"] = _fake_boto3_mod
     with patch("boto3.client", new=_fake_boto3_client):
         # Ensure modules are not already imported to avoid side-effects before patching
         for m in [
@@ -487,18 +514,22 @@ def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
         # consts.model
         consts_mod = _types.ModuleType("consts")
         consts_model_mod = _types.ModuleType("consts.model")
+
         class _ModelConnectStatusEnum(_Enum):
             OPERATIONAL = "operational"
             NOT_DETECTED = "not_detected"
             DETECTING = "detecting"
             UNAVAILABLE = "unavailable"
+
             @staticmethod
             def get_value(status):
                 return status or _ModelConnectStatusEnum.NOT_DETECTED.value
+
         class _ModelResponse(_BaseModel):
             code: int
             message: str
             data: Optional[Any] = None
+
         class _ModelRequest(_BaseModel):
             model_name: str
             display_name: Optional[str] = None
@@ -507,12 +538,14 @@ def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
             model_type: str
             provider: str
             connect_status: Optional[str] = None
+
         class _BatchCreateModelsRequest(_BaseModel):
             models: List[Dict[str, Any]]
             api_key: Optional[str] = None
             max_tokens: Optional[int] = None
             provider: str
             type: str
+
         class _ProviderModelRequest(_BaseModel):
             provider: str
             model_type: Optional[str] = None
@@ -525,6 +558,7 @@ def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
 
         # consts.provider
         consts_provider_mod = _types.ModuleType("consts.provider")
+
         class _ProviderEnum(_Enum):
             SILICON = "silicon"
         consts_provider_mod.ProviderEnum = _ProviderEnum
@@ -544,10 +578,13 @@ def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
         # database.model_management_db
         database_mod = _types.ModuleType("database")
         database_mm_mod = _types.ModuleType("database.model_management_db")
+
         def _noop(*args, **kwargs):
             return None
+
         def _get_model_records(*args, **kwargs):
             return []
+
         def _get_model_by_name(*args, **kwargs):
             return None
         database_mm_mod.create_model_record = _noop
@@ -562,11 +599,15 @@ def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
 
         # services.model_health_service
         services_mod = _types.ModuleType("services")
-        services_health_mod = _types.ModuleType("services.model_health_service")
+        services_health_mod = _types.ModuleType(
+            "services.model_health_service")
+
         async def _check_model_connectivity(*args, **kwargs):
             return {"code": 200, "message": "OK", "data": {}}
+
         async def _embedding_dimension_check(model_data):
             return 0
+
         async def _verify_model_config_connectivity(*args, **kwargs):
             return {"code": 200, "message": "OK", "data": {"connectivity": True}}
         services_health_mod.check_model_connectivity = _check_model_connectivity
@@ -574,14 +615,19 @@ def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
         services_health_mod.verify_model_config_connectivity = _verify_model_config_connectivity
 
         # services.model_provider_service
-        services_provider_mod = _types.ModuleType("services.model_provider_service")
+        services_provider_mod = _types.ModuleType(
+            "services.model_provider_service")
+
         class _SiliconModelProvider:
             async def get_models(self, model_data):
                 return []
+
         async def _prepare_model_dict(**kwargs):
             return {}
+
         async def _get_provider_models(model_data):
             return []
+
         def _merge_existing_model_tokens(model_list, tenant_id, provider, model_type):
             return model_list
         services_provider_mod.SiliconModelProvider = _SiliconModelProvider
@@ -593,25 +639,69 @@ def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
         sys.modules["services.model_health_service"] = services_health_mod
         sys.modules["services.model_provider_service"] = services_provider_mod
 
+        # services.model_management_service (stub for backend app imports)
+        services_mgmt_mod = _types.ModuleType(
+            "services.model_management_service")
+
+        async def _create_model_for_tenant(user_id, tenant_id, model_data):
+            return None
+
+        async def _batch_create_models_for_tenant(user_id, tenant_id, batch_payload):
+            return None
+
+        def _list_provider_models_for_tenant(tenant_id, provider, model_type):
+            return []
+
+        def _update_single_model_for_tenant(user_id, tenant_id, request):
+            return None
+
+        def _batch_update_models_for_tenant(user_id, tenant_id, request_list):
+            return None
+
+        def _delete_model_for_tenant(user_id, tenant_id, display_name):
+            return display_name
+
+        def _list_models_for_tenant(tenant_id):
+            return []
+
+        async def _create_provider_models_for_tenant(tenant_id, provider_model_config):
+            return []
+
+        services_mgmt_mod.create_model_for_tenant = _create_model_for_tenant
+        services_mgmt_mod.batch_create_models_for_tenant = _batch_create_models_for_tenant
+        services_mgmt_mod.list_provider_models_for_tenant = _list_provider_models_for_tenant
+        services_mgmt_mod.update_single_model_for_tenant = _update_single_model_for_tenant
+        services_mgmt_mod.batch_update_models_for_tenant = _batch_update_models_for_tenant
+        services_mgmt_mod.delete_model_for_tenant = _delete_model_for_tenant
+        services_mgmt_mod.list_models_for_tenant = _list_models_for_tenant
+        services_mgmt_mod.create_provider_models_for_tenant = _create_provider_models_for_tenant
+        sys.modules["services.model_management_service"] = services_mgmt_mod
+
         # utils.auth_utils and utils.model_name_utils
         utils_mod = _types.ModuleType("utils")
         utils_auth_mod = _types.ModuleType("utils.auth_utils")
         utils_name_mod = _types.ModuleType("utils.model_name_utils")
+
         def _get_current_user_id(auth_header):
             return ("default_user_id", "default_tenant_id")
+
         def _split_repo_name(model_name: str):
             parts = model_name.split("/", 1)
             if len(parts) > 1:
                 return parts[0], parts[1]
             return "", parts[0]
+
         def _add_repo_to_name(model_repo, model_name):
             return f"{model_repo}/{model_name}" if model_repo else model_name
+
         def _split_display_name(model_name):
             return model_name.split("/")[-1]
+
         def _sort_models_by_id(model_list):
             if isinstance(model_list, list):
                 model_list.sort(
-                    key=lambda m: str((m.get("id") if isinstance(m, dict) else m) or "")[:1].lower(), 
+                    key=lambda m: str((m.get("id") if isinstance(m, dict) else m) or "")[
+                        :1].lower(),
                     reverse=False
                 )
             return model_list
@@ -637,11 +727,19 @@ def _build_backend_client_with_s3_stub() -> Tuple[TestClient, object]:
             if m in sys.modules:
                 del sys.modules[m]
 
-        backend_model_app = importlib.import_module("backend.apps.model_managment_app")
-        backend_app = FastAPI()
-        backend_app.include_router(backend_model_app.router)
-        backend_client_local = TestClient(backend_app)
-        return backend_client_local, backend_model_app
+        if target_module:
+            backend_model_app = importlib.import_module(target_module)
+            backend_app = FastAPI()
+            backend_app.include_router(backend_model_app.router)
+            backend_client_local = TestClient(backend_app)
+            return backend_client_local, backend_model_app
+        else:
+            # Default to using the local test router without importing backend modules
+            backend_app = FastAPI()
+            backend_app.include_router(router)
+            backend_client_local = TestClient(backend_app)
+            # Return current module so callers can patch local functions
+            return backend_client_local, sys.modules[__name__]
 
 # Create unit tests
 class TestModelManagementApp(unittest.TestCase):
@@ -657,22 +755,23 @@ class TestModelManagementApp(unittest.TestCase):
             "model_type": "llm",
             "provider": "huggingface"
         }
-    
+
     def create_mock_merge_tokens_function(self, mock_get_existing):
         """Create a mock merge_existing_model_tokens function for testing"""
         def mock_merge_tokens(model_list, tenant_id, provider, model_type):
             if model_type == "embedding" or model_type == "multi_embedding":
                 return model_list
-            
+
             # Check if model_list is empty first
             if not model_list:
                 return model_list
-            
+
             # Only call the mock function if model_list is not empty
-            existing_model_list = mock_get_existing(tenant_id, provider, model_type)
+            existing_model_list = mock_get_existing(
+                tenant_id, provider, model_type)
             if not existing_model_list:
                 return model_list
-            
+
             # Create a mapping table for existing models for quick lookup
             # Use the first occurrence of each model (maintaining order)
             existing_model_map = {}
@@ -680,18 +779,20 @@ class TestModelManagementApp(unittest.TestCase):
                 # Handle missing fields gracefully
                 if "model_repo" not in existing_model or "model_name" not in existing_model:
                     continue
-                model_full_name = existing_model["model_repo"] + "/" + existing_model["model_name"]
+                model_full_name = existing_model["model_repo"] + \
+                    "/" + existing_model["model_name"]
                 # Only add if not already present (first occurrence wins)
                 if model_full_name not in existing_model_map:
                     existing_model_map[model_full_name] = existing_model
-            
+
             # Iterate through the model list, if the model exists in the existing model list, add max_tokens attribute
             for model in model_list:
                 if model.get("id") in existing_model_map:
-                    model["max_tokens"] = existing_model_map[model.get("id")].get("max_tokens")
-            
+                    model["max_tokens"] = existing_model_map[model.get(
+                        "id")].get("max_tokens")
+
             return model_list
-        
+
         return mock_merge_tokens
 
     @patch("test_model_managment_app.get_current_user_id")
@@ -703,7 +804,8 @@ class TestModelManagementApp(unittest.TestCase):
         mock_get_by_display.return_value = None
 
         # Send request
-        response = client.post("/model/create", json=self.model_data, headers=self.auth_header)
+        response = client.post(
+            "/model/create", json=self.model_data, headers=self.auth_header)
 
         # Assert response
         self.assertEqual(response.status_code, 200)
@@ -712,8 +814,10 @@ class TestModelManagementApp(unittest.TestCase):
         self.assertIn("created successfully", data["message"])
 
         # Verify mock calls
-        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-        mock_get_by_display.assert_called_once_with("Test Model", self.tenant_id)
+        mock_get_user.assert_called_once_with(
+            self.auth_header["Authorization"])
+        mock_get_by_display.assert_called_once_with(
+            "Test Model", self.tenant_id)
         mock_create.assert_called_once()
 
     @patch("test_model_managment_app.get_current_user_id")
@@ -730,7 +834,8 @@ class TestModelManagementApp(unittest.TestCase):
         multimodal_data["model_type"] = "multi_embedding"
 
         # Send request
-        response = client.post("/model/create", json=multimodal_data, headers=self.auth_header)
+        response = client.post(
+            "/model/create", json=multimodal_data, headers=self.auth_header)
 
         # Assert response
         self.assertEqual(response.status_code, 200)
@@ -746,10 +851,12 @@ class TestModelManagementApp(unittest.TestCase):
     def test_create_model_duplicate_name(self, mock_get_by_display, mock_get_user):
         # Configure mocks
         mock_get_user.return_value = (self.user_id, self.tenant_id)
-        mock_get_by_display.return_value = {"model_id": "existing_id", "display_name": "Test Model"}
+        mock_get_by_display.return_value = {
+            "model_id": "existing_id", "display_name": "Test Model"}
 
         # Send request
-        response = client.post("/model/create", json=self.model_data, headers=self.auth_header)
+        response = client.post(
+            "/model/create", json=self.model_data, headers=self.auth_header)
 
         # Assert response
         self.assertEqual(response.status_code, 200)
@@ -766,10 +873,12 @@ class TestModelManagementApp(unittest.TestCase):
     def test_batch_create_models_success(self, mock_get_user, mock_get_existing, mock_delete, mock_get_by_display, mock_prepare, mock_create):
         mock_get_user.return_value = (self.user_id, self.tenant_id)
         mock_get_existing.return_value = [
-            {"model_id": "delete_me_id", "model_repo": "test_provider", "model_name": "to_be_deleted"},
-            {"model_id": "keep_me_id", "model_repo": "test_provider", "model_name": "to_be_kept_and_skipped"},
+            {"model_id": "delete_me_id", "model_repo": "test_provider",
+                "model_name": "to_be_deleted"},
+            {"model_id": "keep_me_id", "model_repo": "test_provider",
+                "model_name": "to_be_kept_and_skipped"},
         ]
-        
+
         request_models = [
             {"id": "test_provider/new_model"},
             {"id": "test_provider/to_be_kept_and_skipped"},
@@ -791,18 +900,21 @@ class TestModelManagementApp(unittest.TestCase):
             "api_key": "test_key"
         }
 
-        response = client.post("/model/batch_create_models", json=request_data, headers=self.auth_header)
+        response = client.post(
+            "/model/provider/batch_create", json=request_data, headers=self.auth_header)
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["code"], 200)
         self.assertIn("Batch create models successfully", data["message"])
-        mock_get_existing.assert_called_once_with(self.tenant_id, "test_provider", "llm")
-        mock_delete.assert_called_once_with("delete_me_id", self.user_id, self.tenant_id)
-        mock_create.assert_called_once_with({"prepared": "data"}, self.user_id, self.tenant_id)
+        mock_get_existing.assert_called_once_with(
+            self.tenant_id, "test_provider", "llm")
+        mock_delete.assert_called_once_with(
+            "delete_me_id", self.user_id, self.tenant_id)
+        mock_create.assert_called_once_with(
+            {"prepared": "data"}, self.user_id, self.tenant_id)
         self.assertEqual(mock_get_by_display.call_count, 2)
         mock_prepare.assert_called_once()
-
 
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
     @patch("test_model_managment_app.get_current_user_id")
@@ -815,12 +927,14 @@ class TestModelManagementApp(unittest.TestCase):
             "type": "llm"
         }
 
-        response = client.post("/model/batch_create_models", json=request_data, headers=self.auth_header)
+        response = client.post(
+            "/model/provider/batch_create", json=request_data, headers=self.auth_header)
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["code"], 500)
-        self.assertIn("Failed to batch create models: Database connection error", data["message"])
+        self.assertIn(
+            "Failed to batch create models: Database connection error", data["message"])
 
     @patch("test_model_managment_app.create_model_record")
     @patch("test_model_managment_app.prepare_model_dict")
@@ -832,14 +946,14 @@ class TestModelManagementApp(unittest.TestCase):
         """Test max_tokens update when model already exists with different max_tokens"""
         mock_get_user.return_value = (self.user_id, self.tenant_id)
         mock_get_existing.return_value = []
-        
+
         # Mock existing model with different max_tokens
         existing_model = {
             "model_id": "existing_model_id",
             "max_tokens": 1000,
             "display_name": "test_provider/existing_model"
         }
-        
+
         def get_by_display_name_side_effect(display_name, tenant_id):
             if display_name == "test_provider/existing_model":
                 return existing_model
@@ -860,14 +974,16 @@ class TestModelManagementApp(unittest.TestCase):
             "api_key": "test_key"
         }
 
-        response = client.post("/model/batch_create_models", json=request_data, headers=self.auth_header)
+        response = client.post(
+            "/model/provider/batch_create", json=request_data, headers=self.auth_header)
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["code"], 200)
-        
+
         # Verify that get_model_by_display_name was called to check for existing model
-        mock_get_by_display.assert_called_with("test_provider/existing_model", self.tenant_id)
+        mock_get_by_display.assert_called_with(
+            "test_provider/existing_model", self.tenant_id)
 
     @patch("test_model_managment_app.update_model_record")
     @patch("test_model_managment_app.create_model_record")
@@ -882,21 +998,22 @@ class TestModelManagementApp(unittest.TestCase):
         """Test that update_model_record is called when max_tokens differ"""
         mock_get_user.return_value = (self.user_id, self.tenant_id)
         mock_get_existing.return_value = []
-        
+
         # Mock split functions
         mock_split_repo.return_value = ("test_provider", "existing_model")
         mock_split_display.return_value = "existing_model"
-        
+
         # Debug: Check what split_repo_name returns
-        print(f"split_repo_name('test_provider/existing_model') should return: {mock_split_repo.return_value}")
-        
+        print(
+            f"split_repo_name('test_provider/existing_model') should return: {mock_split_repo.return_value}")
+
         # Mock existing model with different max_tokens
         existing_model = {
             "model_id": "existing_model_id",
             "max_tokens": 1000,
             "display_name": "test_provider/existing_model"
         }
-        
+
         def get_by_display_name_side_effect(display_name, tenant_id):
             if display_name == "test_provider/existing_model":
                 return existing_model
@@ -917,15 +1034,16 @@ class TestModelManagementApp(unittest.TestCase):
             "api_key": "test_key"
         }
 
-        response = client.post("/model/batch_create_models", json=request_data, headers=self.auth_header)
+        response = client.post(
+            "/model/provider/batch_create", json=request_data, headers=self.auth_header)
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["code"], 200)
-        
+
         # Verify that get_model_by_display_name was called
         self.assertGreater(mock_get_by_display.call_count, 0)
-        
+
         # This test verifies that the max_tokens update logic is covered
         # The actual update_model_record call depends on the specific conditions
         # in the code, but this test ensures the code path is executed
@@ -938,15 +1056,18 @@ class TestModelManagementApp(unittest.TestCase):
         mock_get_provider.return_value = [{"id": "silicon/model1"}]
         request_data = {"provider": "silicon", "api_key": "test_key"}
 
-        response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
+        response = client.post("/model/provider/create",
+                               json=request_data, headers=self.auth_header)
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["code"], 200)
-        self.assertIn("Provider model silicon created successfully", data["message"])
+        self.assertIn(
+            "Provider model silicon created successfully", data["message"])
         self.assertEqual(len(data["data"]), 1)
         self.assertEqual(data["data"][0]["id"], "silicon/model1")
-        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        mock_get_user.assert_called_once_with(
+            self.auth_header["Authorization"])
         mock_get_provider.assert_called_once()
 
     @patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock)
@@ -957,13 +1078,16 @@ class TestModelManagementApp(unittest.TestCase):
         mock_get_provider.side_effect = Exception("Provider API error")
         request_data = {"provider": "silicon", "api_key": "test_key"}
 
-        response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
+        response = client.post("/model/provider/create",
+                               json=request_data, headers=self.auth_header)
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["code"], 500)
-        self.assertIn("Failed to create provider model: Provider API error", data["message"])
-        mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+        self.assertIn(
+            "Failed to create provider model: Provider API error", data["message"])
+        mock_get_user.assert_called_once_with(
+            self.auth_header["Authorization"])
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -977,12 +1101,12 @@ class TestModelManagementApp(unittest.TestCase):
                 "max_tokens": 4096
             },
             {
-                "model_repo": "silicon", 
+                "model_repo": "silicon",
                 "model_name": "model2",
                 "max_tokens": 8192
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
@@ -990,40 +1114,48 @@ class TestModelManagementApp(unittest.TestCase):
                 {"id": "silicon/model2"},
                 {"id": "silicon/new_model"}
             ]
-            
+
             # Mock the merge_existing_model_tokens function using the helper method
             with patch("test_model_managment_app.merge_existing_model_tokens", side_effect=self.create_mock_merge_tokens_function(mock_get_existing)):
                 request_data = {
-                    "provider": "silicon", 
+                    "provider": "silicon",
                     "api_key": "test_key",
                     "model_type": "llm"  # Not embedding or multi_embedding
                 }
-                
-                response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-                
+
+                response = client.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
+
                 self.assertEqual(response.status_code, 200)
                 data = response.json()
                 self.assertEqual(data["code"], 200)
-                self.assertIn("Provider model silicon created successfully", data["message"])
-                
+                self.assertIn(
+                    "Provider model silicon created successfully", data["message"])
+
                 # Check that max_tokens were merged for existing models
                 result_models = data["data"]
                 self.assertEqual(len(result_models), 3)
-                
+
                 # Find models with max_tokens (existing models)
-                model1 = next((m for m in result_models if m["id"] == "silicon/model1"), None)
-                model2 = next((m for m in result_models if m["id"] == "silicon/model2"), None)
-                new_model = next((m for m in result_models if m["id"] == "silicon/new_model"), None)
-                
+                model1 = next(
+                    (m for m in result_models if m["id"] == "silicon/model1"), None)
+                model2 = next(
+                    (m for m in result_models if m["id"] == "silicon/model2"), None)
+                new_model = next(
+                    (m for m in result_models if m["id"] == "silicon/new_model"), None)
+
                 self.assertIsNotNone(model1)
                 self.assertEqual(model1.get("max_tokens"), 4096)
                 self.assertIsNotNone(model2)
                 self.assertEqual(model2.get("max_tokens"), 8192)
                 self.assertIsNotNone(new_model)
-                self.assertNotIn("max_tokens", new_model)  # New model shouldn't have max_tokens
-                
-                mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-                mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+                # New model shouldn't have max_tokens
+                self.assertNotIn("max_tokens", new_model)
+
+                mock_get_user.assert_called_once_with(
+                    self.auth_header["Authorization"])
+                mock_get_existing.assert_called_once_with(
+                    self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1038,38 +1170,42 @@ class TestModelManagementApp(unittest.TestCase):
                 "max_tokens": None  # None max_tokens
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "silicon/model_with_none_tokens"}
             ]
-            
+
             # Mock the merge_existing_model_tokens function to simulate the actual behavior
             with patch("test_model_managment_app.merge_existing_model_tokens", side_effect=self.create_mock_merge_tokens_function(mock_get_existing)):
                 request_data = {
-                    "provider": "silicon", 
+                    "provider": "silicon",
                     "api_key": "test_key",
                     "model_type": "llm"
                 }
-                
-                response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+                response = client.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Check that model gets None max_tokens
             result_models = data["data"]
             self.assertEqual(len(result_models), 1)
-            
+
             model = result_models[0]
             self.assertEqual(model["id"], "silicon/model_with_none_tokens")
             self.assertIsNone(model.get("max_tokens"))
-            
-            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
+            mock_get_user.assert_called_once_with(
+                self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(
+                self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1084,38 +1220,42 @@ class TestModelManagementApp(unittest.TestCase):
                 # No max_tokens field
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "silicon/model_without_tokens_field"}
             ]
-            
+
             # Mock the merge_existing_model_tokens function to simulate the actual behavior
             with patch("test_model_managment_app.merge_existing_model_tokens", side_effect=self.create_mock_merge_tokens_function(mock_get_existing)):
                 request_data = {
-                    "provider": "silicon", 
+                    "provider": "silicon",
                     "api_key": "test_key",
                     "model_type": "llm"
                 }
-                
-                response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+                response = client.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Check that model gets None max_tokens (default behavior when field is missing)
             result_models = data["data"]
             self.assertEqual(len(result_models), 1)
-            
+
             model = result_models[0]
             self.assertEqual(model["id"], "silicon/model_without_tokens_field")
             self.assertIsNone(model.get("max_tokens"))
-            
-            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
+            mock_get_user.assert_called_once_with(
+                self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(
+                self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1130,38 +1270,43 @@ class TestModelManagementApp(unittest.TestCase):
                 # Missing model_repo field
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "model_without_repo"}  # No repo prefix
             ]
-            
+
             # Mock the merge_existing_model_tokens function to simulate the actual behavior
             with patch("test_model_managment_app.merge_existing_model_tokens", side_effect=self.create_mock_merge_tokens_function(mock_get_existing)):
                 request_data = {
-                    "provider": "silicon", 
+                    "provider": "silicon",
                     "api_key": "test_key",
                     "model_type": "llm"
                 }
-                
-                response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-                
+
+                response = client.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
+
                 self.assertEqual(response.status_code, 200)
                 data = response.json()
                 self.assertEqual(data["code"], 200)
-                self.assertIn("Provider model silicon created successfully", data["message"])
-                
+                self.assertIn(
+                    "Provider model silicon created successfully", data["message"])
+
                 # Check that the model is returned without max_tokens since existing model had missing model_repo
                 result_models = data["data"]
                 self.assertEqual(len(result_models), 1)
-                
+
                 model = result_models[0]
                 self.assertEqual(model["id"], "model_without_repo")
-                self.assertNotIn("max_tokens", model)  # Should not have max_tokens due to missing model_repo
-                
-                mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-                mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+                # Should not have max_tokens due to missing model_repo
+                self.assertNotIn("max_tokens", model)
+
+                mock_get_user.assert_called_once_with(
+                    self.auth_header["Authorization"])
+                mock_get_existing.assert_called_once_with(
+                    self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1176,38 +1321,43 @@ class TestModelManagementApp(unittest.TestCase):
                 # Missing model_name field
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "silicon/test_model"}
             ]
-            
+
             # Mock the merge_existing_model_tokens function to simulate the actual behavior
             with patch("test_model_managment_app.merge_existing_model_tokens", side_effect=self.create_mock_merge_tokens_function(mock_get_existing)):
                 request_data = {
-                    "provider": "silicon", 
+                    "provider": "silicon",
                     "api_key": "test_key",
                     "model_type": "llm"
                 }
-                
-                response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-                
+
+                response = client.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
+
                 self.assertEqual(response.status_code, 200)
                 data = response.json()
                 self.assertEqual(data["code"], 200)
-                self.assertIn("Provider model silicon created successfully", data["message"])
-                
+                self.assertIn(
+                    "Provider model silicon created successfully", data["message"])
+
                 # Check that the model is returned without max_tokens since existing model had missing model_name
                 result_models = data["data"]
                 self.assertEqual(len(result_models), 1)
-                
+
                 model = result_models[0]
                 self.assertEqual(model["id"], "silicon/test_model")
-                self.assertNotIn("max_tokens", model)  # Should not have max_tokens due to missing model_name
-                
-                mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-                mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+                # Should not have max_tokens due to missing model_name
+                self.assertNotIn("max_tokens", model)
+
+                mock_get_user.assert_called_once_with(
+                    self.auth_header["Authorization"])
+                mock_get_existing.assert_called_once_with(
+                    self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1227,38 +1377,42 @@ class TestModelManagementApp(unittest.TestCase):
                 "max_tokens": 8192  # Different max_tokens
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "silicon/duplicate_model"}
             ]
-            
+
             # Mock the merge_existing_model_tokens function to simulate the actual behavior
             with patch("test_model_managment_app.merge_existing_model_tokens", side_effect=self.create_mock_merge_tokens_function(mock_get_existing)):
                 request_data = {
-                    "provider": "silicon", 
+                    "provider": "silicon",
                     "api_key": "test_key",
                     "model_type": "llm"
                 }
-                
-                response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+                response = client.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Check that model gets max_tokens from the first match (4096)
             result_models = data["data"]
             self.assertEqual(len(result_models), 1)
-            
+
             model = result_models[0]
             self.assertEqual(model["id"], "silicon/duplicate_model")
             self.assertEqual(model.get("max_tokens"), 4096)  # First match
-            
-            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
+            mock_get_user.assert_called_once_with(
+                self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(
+                self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1273,38 +1427,43 @@ class TestModelManagementApp(unittest.TestCase):
                 "max_tokens": 4096
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "silicon/model1"}  # Different case
             ]
-            
+
             # Mock the merge_existing_model_tokens function to simulate the actual behavior
             with patch("test_model_managment_app.merge_existing_model_tokens", side_effect=self.create_mock_merge_tokens_function(mock_get_existing)):
                 request_data = {
-                    "provider": "silicon", 
+                    "provider": "silicon",
                     "api_key": "test_key",
                     "model_type": "llm"
                 }
-                
-                response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+                response = client.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Check that model doesn't get max_tokens due to case mismatch
             result_models = data["data"]
             self.assertEqual(len(result_models), 1)
-            
+
             model = result_models[0]
             self.assertEqual(model["id"], "silicon/model1")
-            self.assertNotIn("max_tokens", model)  # No match due to case difference
-            
-            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+            # No match due to case difference
+            self.assertNotIn("max_tokens", model)
+
+            mock_get_user.assert_called_once_with(
+                self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(
+                self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1319,38 +1478,42 @@ class TestModelManagementApp(unittest.TestCase):
                 "max_tokens": 4096
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "/model1"}  # With leading slash when repo is empty
             ]
-            
+
             # Mock the merge_existing_model_tokens function to simulate the actual behavior
             with patch("test_model_managment_app.merge_existing_model_tokens", side_effect=self.create_mock_merge_tokens_function(mock_get_existing)):
                 request_data = {
-                    "provider": "silicon", 
+                    "provider": "silicon",
                     "api_key": "test_key",
                     "model_type": "llm"
                 }
-                
-                response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+                response = client.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Check that model gets max_tokens with empty repo
             result_models = data["data"]
             self.assertEqual(len(result_models), 1)
-            
+
             model = result_models[0]
             self.assertEqual(model["id"], "/model1")
             self.assertEqual(model.get("max_tokens"), 4096)
-            
-            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
+            mock_get_user.assert_called_once_with(
+                self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(
+                self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1365,36 +1528,40 @@ class TestModelManagementApp(unittest.TestCase):
                 "max_tokens": 0  # Zero max_tokens
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "silicon/model_with_zero_tokens"}
             ]
-            
+
             request_data = {
-                "provider": "silicon", 
+                "provider": "silicon",
                 "api_key": "test_key",
                 "model_type": "llm"
             }
-            
-            response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+            response = client.post(
+                "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Check that model gets zero max_tokens
             result_models = data["data"]
             self.assertEqual(len(result_models), 1)
-            
+
             model = result_models[0]
             self.assertEqual(model["id"], "silicon/model_with_zero_tokens")
             self.assertEqual(model.get("max_tokens"), 0)
-            
-            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
+            mock_get_user.assert_called_once_with(
+                self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(
+                self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1409,64 +1576,70 @@ class TestModelManagementApp(unittest.TestCase):
                 "max_tokens": -1  # Negative max_tokens
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "silicon/model_with_negative_tokens"}
             ]
-            
+
             # Mock the merge_existing_model_tokens function to simulate the actual behavior
             with patch("test_model_managment_app.merge_existing_model_tokens", side_effect=self.create_mock_merge_tokens_function(mock_get_existing)):
                 request_data = {
-                    "provider": "silicon", 
+                    "provider": "silicon",
                     "api_key": "test_key",
                     "model_type": "llm"
                 }
-                
-                response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+                response = client.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Check that model gets negative max_tokens
             result_models = data["data"]
             self.assertEqual(len(result_models), 1)
-            
+
             model = result_models[0]
             self.assertEqual(model["id"], "silicon/model_with_negative_tokens")
             self.assertEqual(model.get("max_tokens"), -1)
-            
-            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
+            mock_get_user.assert_called_once_with(
+                self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(
+                self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     def test_create_provider_model_embedding_type_skips_existing_check(self, mock_get_user):
         """Test that embedding type skips existing model check"""
         # Configure mocks
         mock_get_user.return_value = (self.user_id, self.tenant_id)
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "silicon/embedding_model"}
             ]
-            
+
             request_data = {
-                "provider": "silicon", 
+                "provider": "silicon",
                 "api_key": "test_key",
                 "model_type": "embedding"  # This should skip existing model check
             }
-            
-            response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+            response = client.post(
+                "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Should not call get_models_by_tenant_factory_type for embedding types
             # The test verifies this by not mocking get_models_by_tenant_factory_type
             # and ensuring no error occurs
@@ -1476,26 +1649,28 @@ class TestModelManagementApp(unittest.TestCase):
         """Test that multi_embedding type skips existing model check"""
         # Configure mocks
         mock_get_user.return_value = (self.user_id, self.tenant_id)
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "silicon/multi_embedding_model"}
             ]
-            
+
             request_data = {
-                "provider": "silicon", 
+                "provider": "silicon",
                 "api_key": "test_key",
                 "model_type": "multi_embedding"  # This should skip existing model check
             }
-            
-            response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+            response = client.post(
+                "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Should not call get_models_by_tenant_factory_type for multi_embedding types
             # The test verifies this by not mocking get_models_by_tenant_factory_type
             # and ensuring no error occurs
@@ -1513,36 +1688,40 @@ class TestModelManagementApp(unittest.TestCase):
                 "max_tokens": 4096
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "silicon/new_model1"},
                 {"id": "silicon/new_model2"}
             ]
-            
+
             request_data = {
-                "provider": "silicon", 
+                "provider": "silicon",
                 "api_key": "test_key",
                 "model_type": "llm"
             }
-            
-            response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+            response = client.post(
+                "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Check that new models don't have max_tokens since they don't exist in existing models
             result_models = data["data"]
             self.assertEqual(len(result_models), 2)
-            
+
             for model in result_models:
                 self.assertNotIn("max_tokens", model)
-            
-            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
+            mock_get_user.assert_called_once_with(
+                self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(
+                self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1558,47 +1737,54 @@ class TestModelManagementApp(unittest.TestCase):
             },
             {
                 "model_repo": "silicon",
-                "model_name": "non_overlapping_model", 
+                "model_name": "non_overlapping_model",
                 "max_tokens": 8192
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
-                {"id": "silicon/overlapping_model"},  # This should get max_tokens
+                # This should get max_tokens
+                {"id": "silicon/overlapping_model"},
                 {"id": "silicon/new_model"}  # This should not get max_tokens
             ]
-            
+
             # Mock the merge_existing_model_tokens function to simulate the actual behavior
             with patch("test_model_managment_app.merge_existing_model_tokens", side_effect=self.create_mock_merge_tokens_function(mock_get_existing)):
                 request_data = {
-                    "provider": "silicon", 
+                    "provider": "silicon",
                     "api_key": "test_key",
                     "model_type": "llm"
                 }
-                
-                response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+                response = client.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Check that only overlapping model has max_tokens
             result_models = data["data"]
             self.assertEqual(len(result_models), 2)
-            
-            overlapping_model = next((m for m in result_models if m["id"] == "silicon/overlapping_model"), None)
-            new_model = next((m for m in result_models if m["id"] == "silicon/new_model"), None)
-            
+
+            overlapping_model = next(
+                (m for m in result_models if m["id"] == "silicon/overlapping_model"), None)
+            new_model = next(
+                (m for m in result_models if m["id"] == "silicon/new_model"), None)
+
             self.assertIsNotNone(overlapping_model)
             self.assertEqual(overlapping_model.get("max_tokens"), 4096)
             self.assertIsNotNone(new_model)
             self.assertNotIn("max_tokens", new_model)
-            
-            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
+            mock_get_user.assert_called_once_with(
+                self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(
+                self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1606,29 +1792,32 @@ class TestModelManagementApp(unittest.TestCase):
         """Test when provider returns empty list"""
         # Configure mocks
         mock_get_user.return_value = (self.user_id, self.tenant_id)
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = []  # Empty list from provider
-            
+
             request_data = {
-                "provider": "silicon", 
+                "provider": "silicon",
                 "api_key": "test_key",
                 "model_type": "llm"
             }
-            
-            response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+            response = client.post(
+                "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Check that empty list is returned
             result_models = data["data"]
             self.assertEqual(len(result_models), 0)
-            
-            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
+
+            mock_get_user.assert_called_once_with(
+                self.auth_header["Authorization"])
             # When model_list is empty, merge_existing_model_tokens returns early without calling get_models_by_tenant_factory_type
             mock_get_existing.assert_not_called()
 
@@ -1639,36 +1828,40 @@ class TestModelManagementApp(unittest.TestCase):
         # Configure mocks
         mock_get_user.return_value = (self.user_id, self.tenant_id)
         mock_get_existing.return_value = []  # No existing models
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
                 {"id": "silicon/new_model1"},
                 {"id": "silicon/new_model2"}
             ]
-            
+
             request_data = {
-                "provider": "silicon", 
+                "provider": "silicon",
                 "api_key": "test_key",
                 "model_type": "llm"
             }
-            
-            response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+            response = client.post(
+                "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Check that new models don't have max_tokens since there are no existing models
             result_models = data["data"]
             self.assertEqual(len(result_models), 2)
-            
+
             for model in result_models:
                 self.assertNotIn("max_tokens", model)
-            
-            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
+            mock_get_user.assert_called_once_with(
+                self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(
+                self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1684,7 +1877,7 @@ class TestModelManagementApp(unittest.TestCase):
             },
             {
                 "model_repo": "silicon",
-                "model_name": "model2", 
+                "model_name": "model2",
                 "max_tokens": 8192
             },
             {
@@ -1693,7 +1886,7 @@ class TestModelManagementApp(unittest.TestCase):
                 "max_tokens": 16384
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
@@ -1702,54 +1895,63 @@ class TestModelManagementApp(unittest.TestCase):
                 {"id": "silicon/model3"},
                 {"id": "silicon/new_model"}
             ]
-            
-                        # Mock the merge_existing_model_tokens function to simulate the actual behavior
+
+            # Mock the merge_existing_model_tokens function to simulate the actual behavior
             def mock_merge_tokens(model_list, tenant_id, provider, model_type):
                 if model_type == "embedding" or model_type == "multi_embedding":
                     return model_list
 
                 # Call the mock function to record the call
-                existing_model_list = mock_get_existing(tenant_id, provider, model_type)
+                existing_model_list = mock_get_existing(
+                    tenant_id, provider, model_type)
                 if not model_list or not existing_model_list:
                     return model_list
 
                 # Create a mapping table for existing models for quick lookup
                 existing_model_map = {}
                 for existing_model in existing_model_list:
-                    model_full_name = existing_model["model_repo"] + "/" + existing_model["model_name"]
+                    model_full_name = existing_model["model_repo"] + \
+                        "/" + existing_model["model_name"]
                     existing_model_map[model_full_name] = existing_model
 
                 # Iterate through the model list, if the model exists in the existing model list, add max_tokens attribute
                 for model in model_list:
                     if model.get("id") in existing_model_map:
-                        model["max_tokens"] = existing_model_map[model.get("id")].get("max_tokens")
+                        model["max_tokens"] = existing_model_map[model.get(
+                            "id")].get("max_tokens")
 
                 return model_list
-            
+
             with patch("test_model_managment_app.merge_existing_model_tokens", side_effect=mock_merge_tokens):
                 request_data = {
-                    "provider": "silicon", 
+                    "provider": "silicon",
                     "api_key": "test_key",
                     "model_type": "llm"
                 }
-                
-                response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-                
+
+                response = client.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
+
                 self.assertEqual(response.status_code, 200)
                 data = response.json()
                 self.assertEqual(data["code"], 200)
-                self.assertIn("Provider model silicon created successfully", data["message"])
-                
+                self.assertIn(
+                    "Provider model silicon created successfully", data["message"])
+
                 # Check that all existing models get their max_tokens properly merged
                 result_models = data["data"]
                 self.assertEqual(len(result_models), 4)
-                
+
                 # Verify the optimized lookup worked correctly
-                model1 = next((m for m in result_models if m["id"] == "silicon/model1"), None)
-                model2 = next((m for m in result_models if m["id"] == "silicon/model2"), None)
-                model3 = next((m for m in result_models if m["id"] == "silicon/model3"), None)
-                new_model = next((m for m in result_models if m["id"] == "silicon/new_model"), None)
-                
+                model1 = next(
+                    (m for m in result_models if m["id"] == "silicon/model1"), None)
+                model2 = next(
+                    (m for m in result_models if m["id"] == "silicon/model2"), None)
+                model3 = next(
+                    (m for m in result_models if m["id"] == "silicon/model3"), None)
+                new_model = next(
+                    (m for m in result_models if m["id"] == "silicon/new_model"), None)
+
                 self.assertIsNotNone(model1)
                 self.assertEqual(model1.get("max_tokens"), 4096)
                 self.assertIsNotNone(model2)
@@ -1758,9 +1960,11 @@ class TestModelManagementApp(unittest.TestCase):
                 self.assertEqual(model3.get("max_tokens"), 16384)
                 self.assertIsNotNone(new_model)
                 self.assertNotIn("max_tokens", new_model)
-                
-                mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-                mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
+                mock_get_user.assert_called_once_with(
+                    self.auth_header["Authorization"])
+                mock_get_existing.assert_called_once_with(
+                    self.tenant_id, "silicon", "llm")
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_models_by_tenant_factory_type")
@@ -1785,7 +1989,7 @@ class TestModelManagementApp(unittest.TestCase):
                 "max_tokens": 16384
             }
         ]
-        
+
         # Mock the get_provider_models function
         with patch("test_model_managment_app.get_provider_models", new_callable=AsyncMock) as mock_get_provider:
             mock_get_provider.return_value = [
@@ -1794,30 +1998,36 @@ class TestModelManagementApp(unittest.TestCase):
                 {"id": "silicon/MODEL_WITH_UPPERCASE"},
                 {"id": "silicon/unknown_model"}
             ]
-            
+
             request_data = {
-                "provider": "silicon", 
+                "provider": "silicon",
                 "api_key": "test_key",
                 "model_type": "llm"
             }
-            
-            response = client.post("/model/create_provider", json=request_data, headers=self.auth_header)
-            
+
+            response = client.post(
+                "/model/provider/create", json=request_data, headers=self.auth_header)
+
             self.assertEqual(response.status_code, 200)
             data = response.json()
             self.assertEqual(data["code"], 200)
-            self.assertIn("Provider model silicon created successfully", data["message"])
-            
+            self.assertIn(
+                "Provider model silicon created successfully", data["message"])
+
             # Check that edge cases are handled correctly
             result_models = data["data"]
             self.assertEqual(len(result_models), 4)
-            
+
             # Verify special characters, numbers, and case sensitivity
-            special_model = next((m for m in result_models if m["id"] == "silicon/model_with_special_chars"), None)
-            number_model = next((m for m in result_models if m["id"] == "silicon/model_with_numbers_123"), None)
-            uppercase_model = next((m for m in result_models if m["id"] == "silicon/MODEL_WITH_UPPERCASE"), None)
-            unknown_model = next((m for m in result_models if m["id"] == "silicon/unknown_model"), None)
-            
+            special_model = next(
+                (m for m in result_models if m["id"] == "silicon/model_with_special_chars"), None)
+            number_model = next(
+                (m for m in result_models if m["id"] == "silicon/model_with_numbers_123"), None)
+            uppercase_model = next(
+                (m for m in result_models if m["id"] == "silicon/MODEL_WITH_UPPERCASE"), None)
+            unknown_model = next(
+                (m for m in result_models if m["id"] == "silicon/unknown_model"), None)
+
             self.assertIsNotNone(special_model)
             self.assertEqual(special_model.get("max_tokens"), 4096)
             self.assertIsNotNone(number_model)
@@ -1826,35 +2036,201 @@ class TestModelManagementApp(unittest.TestCase):
             self.assertEqual(uppercase_model.get("max_tokens"), 16384)
             self.assertIsNotNone(unknown_model)
             self.assertNotIn("max_tokens", unknown_model)
-            
-            mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-            mock_get_existing.assert_called_once_with(self.tenant_id, "silicon", "llm")
+
+            mock_get_user.assert_called_once_with(
+                self.auth_header["Authorization"])
+            mock_get_existing.assert_called_once_with(
+                self.tenant_id, "silicon", "llm")
 
     def test_create_provider_model_silicon_success_backend(self):
-        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
         with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
-            with patch.object(backend_model_app, "get_provider_models", new=AsyncMock(return_value=[{"id": "b2"}, {"id": "A1"}, {"id": "a0"}, {"id": "c3"}])) as mock_get:
+            with patch.object(backend_model_app, "create_provider_models_for_tenant", new=AsyncMock(return_value=[{"id": "A1"}, {"id": "a0"}, {"id": "b2"}, {"id": "c3"}])) as mock_get:
                 request_data = {"provider": "silicon", "api_key": "test_key"}
-                response = backend_client_local.post("/model/create_provider", json=request_data, headers=self.auth_header)
+                response = backend_client_local.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
                 self.assertEqual(response.status_code, 200)
                 data = response.json()
-                self.assertEqual(data["code"], 200)
-                self.assertIn("Provider model silicon created successfully", data["message"])
+                self.assertIn(
+                    "Provider model created successfully", data["message"])
                 # Check that models are sorted by first letter in ascending order
-                self.assertEqual([m["id"] for m in data["data"]], ["A1", "a0", "b2", "c3"])
+                self.assertEqual([m["id"] for m in data["data"]], [
+                                 "A1", "a0", "b2", "c3"])
                 mock_get.assert_called_once()
 
     def test_create_provider_model_exception_backend(self):
-        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
         with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
-            with patch.object(backend_model_app, "get_provider_models", new=AsyncMock(side_effect=Exception("Provider API error"))) as mock_get:
+            with patch.object(backend_model_app, "create_provider_models_for_tenant", new=AsyncMock(side_effect=Exception("Provider API error"))) as mock_get:
                 request_data = {"provider": "silicon", "api_key": "test_key"}
-                response = backend_client_local.post("/model/create_provider", json=request_data, headers=self.auth_header)
+                response = backend_client_local.post(
+                    "/model/provider/create", json=request_data, headers=self.auth_header)
+                self.assertEqual(response.status_code, 500)
+                data = response.json()
+                self.assertIn("Failed to create provider model",
+                              data.get("detail", ""))
+                mock_get.assert_called_once()
+
+    def test_create_model_success_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            async def _create(*args, **kwargs):
+                return None
+            with patch.object(backend_model_app, "create_model_for_tenant", side_effect=_create) as mock_create:
+                response = backend_client_local.post(
+                    "/model/create", json=self.model_data, headers=self.auth_header)
                 self.assertEqual(response.status_code, 200)
                 data = response.json()
-                self.assertEqual(data["code"], 500)
-                self.assertIn("Failed to create provider model: Provider API error", data["message"])
-                mock_get.assert_called_once()
+                self.assertIn("Model created successfully",
+                              data.get("message", ""))
+                mock_create.assert_called_once()
+
+    def test_create_model_conflict_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "create_model_for_tenant", new=AsyncMock(side_effect=ValueError("Name conflict"))) as mock_create:
+                response = backend_client_local.post(
+                    "/model/create", json=self.model_data, headers=self.auth_header)
+                self.assertEqual(response.status_code, 409)
+                data = response.json()
+                self.assertIn(
+                    "Failed to create model: name conflict", data.get("detail", ""))
+                mock_create.assert_called_once()
+
+    def test_create_model_exception_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "create_model_for_tenant", new=AsyncMock(side_effect=Exception("DB failure"))) as mock_create:
+                response = backend_client_local.post(
+                    "/model/create", json=self.model_data, headers=self.auth_header)
+                self.assertEqual(response.status_code, 500)
+                data = response.json()
+                self.assertIn("Failed to create model", data.get("detail", ""))
+                mock_create.assert_called_once()
+
+    def test_provider_batch_create_success_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            async def _batch(*args, **kwargs):
+                return None
+            with patch.object(backend_model_app, "batch_create_models_for_tenant", side_effect=_batch) as mock_batch:
+                payload = {
+                    "models": [{"id": "prov/modelA"}],
+                    "provider": "prov",
+                    "type": "llm",
+                    "api_key": "k",
+                }
+                response = backend_client_local.post(
+                    "/model/provider/batch_create", json=payload, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertIn("Batch create models successfully",
+                              data.get("message", ""))
+                mock_batch.assert_called_once()
+
+    def test_provider_batch_create_exception_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "batch_create_models_for_tenant", new=AsyncMock(side_effect=Exception("boom"))) as mock_batch:
+                payload = {
+                    "models": [{"id": "prov/modelA"}],
+                    "provider": "prov",
+                    "type": "llm",
+                }
+                response = backend_client_local.post(
+                    "/model/provider/batch_create", json=payload, headers=self.auth_header)
+                self.assertEqual(response.status_code, 500)
+                data = response.json()
+                self.assertIn("Failed to batch create models",
+                              data.get("detail", ""))
+                mock_batch.assert_called_once()
+
+    def test_delete_model_success_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            async def _delete(*args, **kwargs):
+                return "Test Model"
+            with patch.object(backend_model_app, "delete_model_for_tenant", side_effect=_delete) as mock_del:
+                response = backend_client_local.post(
+                    "/model/delete", params={"display_name": "Test Model"}, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertIn("Model deleted successfully",
+                              data.get("message", ""))
+                self.assertEqual(data.get("data"), "Test Model")
+                mock_del.assert_called_once()
+
+    def test_delete_model_not_found_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "delete_model_for_tenant", new=AsyncMock(side_effect=LookupError("x"))) as mock_del:
+                response = backend_client_local.post(
+                    "/model/delete", params={"display_name": "Missing"}, headers=self.auth_header)
+                self.assertEqual(response.status_code, 404)
+                data = response.json()
+                self.assertIn(
+                    "Failed to delete model: model not found", data.get("detail", ""))
+                mock_del.assert_called_once()
+
+    def test_delete_model_exception_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "delete_model_for_tenant", new=AsyncMock(side_effect=Exception("db"))) as mock_del:
+                response = backend_client_local.post(
+                    "/model/delete", params={"display_name": "X"}, headers=self.auth_header)
+                self.assertEqual(response.status_code, 500)
+                data = response.json()
+                self.assertIn("Failed to delete model", data.get("detail", ""))
+                mock_del.assert_called_once()
+
+    def test_check_model_health_lookup_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "check_model_connectivity", new=AsyncMock(side_effect=LookupError("missing"))) as mock_chk:
+                response = backend_client_local.post(
+                    "/model/healthcheck", params={"display_name": "Test Model"}, headers=self.auth_header)
+                self.assertEqual(response.status_code, 404)
+                data = response.json()
+                self.assertIn("Model configuration not found",
+                              data.get("detail", ""))
+                mock_chk.assert_called_once_with("Test Model", self.tenant_id)
+
+    def test_check_model_health_bad_request_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "check_model_connectivity", new=AsyncMock(side_effect=ValueError("bad"))) as mock_chk:
+                response = backend_client_local.post(
+                    "/model/healthcheck", params={"display_name": "Test Model"}, headers=self.auth_header)
+                self.assertEqual(response.status_code, 400)
+                data = response.json()
+                self.assertIn("Invalid model configuration",
+                              data.get("detail", ""))
+                mock_chk.assert_called_once_with("Test Model", self.tenant_id)
+
+    def test_check_model_health_exception_backend(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "check_model_connectivity", new=AsyncMock(side_effect=Exception("err"))) as mock_chk:
+                response = backend_client_local.post(
+                    "/model/healthcheck", params={"display_name": "Test Model"}, headers=self.auth_header)
+                self.assertEqual(response.status_code, 500)
+                data = response.json()
+                self.assertIn("Failed to check model connectivity",
+                              data.get("detail", ""))
+                mock_chk.assert_called_once_with("Test Model", self.tenant_id)
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_model_by_display_name")
@@ -1869,7 +2245,8 @@ class TestModelManagementApp(unittest.TestCase):
         }
 
         # Send request
-        response = client.post("/model/delete", params={"display_name": "Test Model"}, headers=self.auth_header)
+        response = client.post(
+            "/model/delete", params={"display_name": "Test Model"}, headers=self.auth_header)
 
         # Assert response
         self.assertEqual(response.status_code, 200)
@@ -1878,7 +2255,8 @@ class TestModelManagementApp(unittest.TestCase):
         self.assertIn("Successfully deleted model", data["message"])
 
         # Verify mock calls
-        mock_delete.assert_called_once_with("test_model_id", self.user_id, self.tenant_id)
+        mock_delete.assert_called_once_with(
+            "test_model_id", self.user_id, self.tenant_id)
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_model_by_display_name")
@@ -1886,7 +2264,7 @@ class TestModelManagementApp(unittest.TestCase):
     def test_delete_embedding_model(self, mock_delete, mock_get_by_display, mock_get_user):
         # Configure mocks
         mock_get_user.return_value = (self.user_id, self.tenant_id)
-        
+
         # 修正模拟返回值的顺序和内容
         # 第一次调用返回embedding类型模型（初始检查）
         # 第二次调用返回embedding类型模型（在循环中检查"embedding"类型）
@@ -1906,7 +2284,8 @@ class TestModelManagementApp(unittest.TestCase):
         ]
 
         # Send request
-        response = client.post("/model/delete", params={"display_name": "Test Embedding"}, headers=self.auth_header)
+        response = client.post(
+            "/model/delete", params={"display_name": "Test Embedding"}, headers=self.auth_header)
 
         # Assert response
         self.assertEqual(response.status_code, 200)
@@ -1915,7 +2294,8 @@ class TestModelManagementApp(unittest.TestCase):
         self.assertIn("Successfully deleted model", data["message"])
 
         # Verify mock was called with correct model_id
-        mock_delete.assert_called_once_with("embedding_id", self.user_id, self.tenant_id)
+        mock_delete.assert_called_once_with(
+            "embedding_id", self.user_id, self.tenant_id)
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_model_by_display_name")
@@ -1923,7 +2303,7 @@ class TestModelManagementApp(unittest.TestCase):
     def test_delete_multi_embedding_model(self, mock_delete, mock_get_by_display, mock_get_user):
         """Test deletion of multi_embedding model with mutual deletion logic"""
         mock_get_user.return_value = (self.user_id, self.tenant_id)
-        
+
         # Mock multi_embedding model deletion scenario
         # First call: initial check returns multi_embedding model
         # Second call: loop check for "embedding" type returns None
@@ -1943,7 +2323,8 @@ class TestModelManagementApp(unittest.TestCase):
         ]
 
         # Send request
-        response = client.post("/model/delete", params={"display_name": "Test Multi Embedding"}, headers=self.auth_header)
+        response = client.post(
+            "/model/delete", params={"display_name": "Test Multi Embedding"}, headers=self.auth_header)
 
         # Assert response
         self.assertEqual(response.status_code, 200)
@@ -1952,7 +2333,8 @@ class TestModelManagementApp(unittest.TestCase):
         self.assertIn("Successfully deleted model", data["message"])
 
         # Verify mock was called with correct model_id
-        mock_delete.assert_called_once_with("multi_embedding_id", self.user_id, self.tenant_id)
+        mock_delete.assert_called_once_with(
+            "multi_embedding_id", self.user_id, self.tenant_id)
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_model_by_display_name")
@@ -1960,7 +2342,7 @@ class TestModelManagementApp(unittest.TestCase):
     def test_delete_embedding_model_with_both_types(self, mock_delete, mock_get_by_display, mock_get_user):
         """Test deletion of embedding model when both embedding and multi_embedding exist"""
         mock_get_user.return_value = (self.user_id, self.tenant_id)
-        
+
         # Mock scenario where both embedding and multi_embedding models exist
         # First call: initial check returns embedding model
         # Second call: loop check for "embedding" type returns the model
@@ -1984,7 +2366,8 @@ class TestModelManagementApp(unittest.TestCase):
         ]
 
         # Send request
-        response = client.post("/model/delete", params={"display_name": "Test Embedding"}, headers=self.auth_header)
+        response = client.post(
+            "/model/delete", params={"display_name": "Test Embedding"}, headers=self.auth_header)
 
         # Assert response
         self.assertEqual(response.status_code, 200)
@@ -1994,8 +2377,10 @@ class TestModelManagementApp(unittest.TestCase):
 
         # Verify both models were deleted
         self.assertEqual(mock_delete.call_count, 2)
-        mock_delete.assert_any_call("embedding_id", self.user_id, self.tenant_id)
-        mock_delete.assert_any_call("multi_embedding_id", self.user_id, self.tenant_id)
+        mock_delete.assert_any_call(
+            "embedding_id", self.user_id, self.tenant_id)
+        mock_delete.assert_any_call(
+            "multi_embedding_id", self.user_id, self.tenant_id)
 
     @patch("test_model_managment_app.get_current_user_id")
     @patch("test_model_managment_app.get_model_by_display_name")
@@ -2005,7 +2390,8 @@ class TestModelManagementApp(unittest.TestCase):
         mock_get_by_display.return_value = None
 
         # Send request
-        response = client.post("/model/delete", params={"display_name": "NonExistentModel"}, headers=self.auth_header)
+        response = client.post(
+            "/model/delete", params={"display_name": "NonExistentModel"}, headers=self.auth_header)
 
         # Assert response
         self.assertEqual(response.status_code, 200)
@@ -2013,202 +2399,181 @@ class TestModelManagementApp(unittest.TestCase):
         self.assertEqual(data["code"], 404)
         self.assertIn("Model not found", data["message"])
 
-    @patch("test_model_managment_app.get_current_user_id")
-    @patch("test_model_managment_app.get_model_records")
-    def test_get_model_list(self, mock_get_records, mock_get_user):
-        # Configure mocks
-        mock_get_user.return_value = (self.user_id, self.tenant_id)
-        mock_get_records.return_value = [
-            {
-                "model_id": "model1",
-                "model_name": "llama",
-                "model_repo": "huggingface",
-                "display_name": "LLaMA Model",
-                "model_type": "llm",
-                "connect_status": ModelConnectStatusEnum.OPERATIONAL
-            },
-            {
-                "model_id": "model2",
-                "model_name": "clip",
-                "model_repo": "openai",
-                "display_name": "CLIP Model",
-                "model_type": "embedding",
-                "connect_status": None
-            }
-        ]
+    def test_get_model_list(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            async def mock_list_models(*args, **kwargs):
+                return [
+                    {
+                        "model_id": "model1",
+                        "model_name": "huggingface/llama",
+                        "display_name": "LLaMA Model",
+                        "model_type": "llm",
+                        "connect_status": "operational"
+                    },
+                    {
+                        "model_id": "model2",
+                        "model_name": "openai/clip",
+                        "display_name": "CLIP Model",
+                        "model_type": "embedding",
+                        "connect_status": "not_detected"
+                    }
+                ]
+            with patch.object(backend_model_app, "list_models_for_tenant", side_effect=mock_list_models) as mock_list:
+                response = backend_client_local.get(
+                    "/model/list", headers=self.auth_header)
 
-        # Send request
-        response = client.get("/model/list", headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertIn(
+                    "Successfully retrieved model list", data["message"])
+                self.assertEqual(len(data["data"]), 2)
+                self.assertEqual(
+                    data["data"][0]["model_name"], "huggingface/llama")
+                self.assertEqual(data["data"][1]["model_name"], "openai/clip")
+                self.assertEqual(
+                    data["data"][1]["connect_status"], "not_detected")
+                mock_list.assert_called_once_with(self.tenant_id)
 
-        # Assert response
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 200)
-        self.assertEqual(len(data["data"]), 2)
-        self.assertEqual(data["data"][0]["model_name"], "huggingface/llama")
-        self.assertEqual(data["data"][1]["model_name"], "openai/clip")
-        self.assertEqual(data["data"][1]["connect_status"], ModelConnectStatusEnum.NOT_DETECTED)
+    def test_get_model_list_exception(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            async def mock_list_models(*args, **kwargs):
+                raise Exception("Database error")
+            with patch.object(backend_model_app, "list_models_for_tenant", side_effect=mock_list_models):
+                response = backend_client_local.get(
+                    "/model/list", headers=self.auth_header)
 
-    @patch("test_model_managment_app.get_current_user_id")
-    @patch("test_model_managment_app.get_model_records")
-    def test_get_model_list_exception(self, mock_get_records, mock_get_user):
-        # Configure mocks
-        mock_get_user.return_value = (self.user_id, self.tenant_id)
-        mock_get_records.side_effect = Exception("Database error")
+                self.assertEqual(response.status_code, 500)
+                data = response.json()
+                self.assertIn("Failed to retrieve model list",
+                              data.get("detail", ""))
 
-        # Send request
-        response = client.get("/model/list", headers=self.auth_header)
+    def test_check_model_healthcheck(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            with patch.object(backend_model_app, "check_model_connectivity", return_value={"connectivity": True, "connect_status": "available"}) as mock_check:
+                response = backend_client_local.post(
+                    "/model/healthcheck",
+                    params={"display_name": "Test Model"},
+                    headers=self.auth_header
+                )
 
-        # Assert response
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 500)
-        self.assertIn("An internal error occurred while retrieving the model list.", data["message"])
-        self.assertEqual(data["data"], [])
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(
+                    data["message"], "Successfully checked model connectivity")
+                self.assertTrue(data["data"]["connectivity"])
+                mock_check.assert_called_once_with(
+                    "Test Model", self.tenant_id)
 
-    @patch("test_model_managment_app.check_model_connectivity")
-    def test_check_model_healthcheck(self, mock_check_connectivity):
-        # Configure mock
-        mock_check_connectivity.return_value = {
-            "code": 200,
-            "message": "Model is operational",
-            "data": {
-                "connectivity": True,
-                "connect_status": ModelConnectStatusEnum.OPERATIONAL
-            }
-        }
+    def test_verify_model_config(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "verify_model_config_connectivity", return_value={"connectivity": True, "model_name": "gpt-4"}) as mock_verify:
+            response = backend_client_local.post(
+                "/model/temporary_healthcheck", json=self.model_data)
 
-        # Send request
-        response = client.post(
-            "/model/healthcheck", 
-            params={"display_name": "Test Model"}, 
-            headers=self.auth_header
-        )
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(
+                data["message"], "Successfully verified model connectivity")
+            self.assertTrue(data["data"]["connectivity"])
+            mock_verify.assert_called_once()
 
-        # Assert response
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 200)
-        self.assertEqual(data["message"], "Model is operational")
-        self.assertTrue(data["data"]["connectivity"])
+    def test_verify_model_config_exception(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "verify_model_config_connectivity", side_effect=Exception("Connection error")):
+            response = backend_client_local.post(
+                "/model/temporary_healthcheck", json=self.model_data)
 
-        # Verify mock call
-        mock_check_connectivity.assert_called_once()
+            self.assertEqual(response.status_code, 500)
+            data = response.json()
+            self.assertIn("Failed to verify model connectivity",
+                          data.get("detail", ""))
 
-    @patch("test_model_managment_app.verify_model_config_connectivity")
-    def test_verify_model_config(self, mock_verify_config):
-        # Configure mock
-        mock_verify_config.return_value = {
-            "code": 200,
-            "message": "Configuration verified successfully",
-            "data": {
-                "connectivity": True,
-                "connect_status": ModelConnectStatusEnum.OPERATIONAL
-            }
-        }
+    def test_get_provider_list(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            async def mock_list_provider_models(*args, **kwargs):
+                return [
+                    {"model_repo": "huggingface", "model_name": "llama",
+                        "model_type": "llm", "id": "huggingface/llama"},
+                    {"model_repo": "openai", "model_name": "clip",
+                        "model_type": "embedding", "id": "openai/clip"},
+                ]
+            with patch.object(backend_model_app, "list_provider_models_for_tenant", side_effect=mock_list_provider_models) as mock_list:
+                request_data = {
+                    "provider": "huggingface",
+                    "model_type": "llm",
+                    "api_key": "test_key"
+                }
+                response = backend_client_local.post(
+                    "/model/provider/list", json=request_data, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertIn(
+                    "Successfully retrieved provider list", data["message"])
+                self.assertEqual(len(data["data"]), 2)
+                self.assertEqual(data["data"][0]["id"], "huggingface/llama")
+                self.assertEqual(data["data"][1]["id"], "openai/clip")
+                mock_list.assert_called_once_with(
+                    self.tenant_id, "huggingface", "llm")
 
-        # Send request
-        response = client.post("/model/verify_config", json=self.model_data)
-
-        # Assert response
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 200)
-        self.assertEqual(data["message"], "Configuration verified successfully")
-        self.assertTrue(data["data"]["connectivity"])
-
-        # Verify mock call
-        mock_verify_config.assert_called_once()
-
-    @patch("test_model_managment_app.verify_model_config_connectivity")
-    def test_verify_model_config_exception(self, mock_verify_config):
-        # Configure mock
-        mock_verify_config.side_effect = Exception("Connection error")
-
-        # Send request
-        response = client.post("/model/verify_config", json=self.model_data)
-
-        # Assert response
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 500)
-        self.assertIn("验证模型配置失败", data["message"])
-        self.assertFalse(data["data"]["connectivity"])
-        self.assertEqual(data["data"]["connect_status"], ModelConnectStatusEnum.UNAVAILABLE)
-
-    @patch("test_model_managment_app.get_current_user_id")
-    @patch("test_model_managment_app.get_models_by_tenant_factory_type")
-    def test_get_provider_list(self, mock_get_models, mock_get_user):
-        # 配置 mock
-        mock_get_user.return_value = (self.user_id, self.tenant_id)
-        mock_get_models.return_value = [
-            {
-                "model_repo": "huggingface",
-                "model_name": "llama",
-                "model_type": "llm"
-            },
-            {
-                "model_repo": "openai",
-                "model_name": "clip",
-                "model_type": "embedding"
-            }
-        ]
-        request_data = {
-            "provider": "huggingface",
-            "model_type": "llm",
-            "api_key": "test_key"
-        }
-        response = client.post("/model/provider/list", json=request_data, headers=self.auth_header)
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 200)
-        self.assertIn("created successfully", data["message"])
-        self.assertEqual(len(data["data"]), 2)
-        self.assertEqual(data["data"][0]["id"], "huggingface/llama")
-        self.assertEqual(data["data"][1]["id"], "openai/clip")
-
-    @patch("test_model_managment_app.get_current_user_id")
-    @patch("test_model_managment_app.get_models_by_tenant_factory_type")
-    def test_get_provider_list_exception(self, mock_get_models, mock_get_user):
-        mock_get_user.return_value = (self.user_id, self.tenant_id)
-        mock_get_models.side_effect = Exception("DB error")
-        request_data = {
-            "provider": "huggingface",
-            "model_type": "llm",
-            "api_key": "test_key"
-        }
-        response = client.post("/model/provider/list", json=request_data, headers=self.auth_header)
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data["code"], 500)
-        self.assertIn("Failed to get provider list", data["message"])
+    def test_get_provider_list_exception(self):
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
+        with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
+            async def mock_list_provider_models(*args, **kwargs):
+                raise Exception("DB error")
+            with patch.object(backend_model_app, "list_provider_models_for_tenant", side_effect=mock_list_provider_models):
+                request_data = {
+                    "provider": "huggingface",
+                    "model_type": "llm",
+                    "api_key": "test_key"
+                }
+                response = backend_client_local.post(
+                    "/model/provider/list", json=request_data, headers=self.auth_header)
+                self.assertEqual(response.status_code, 500)
+                data = response.json()
+                self.assertIn("Failed to get provider list",
+                              data.get("detail", ""))
 
     def test_update_single_model_success(self):
-        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
         with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
-            with patch.object(backend_model_app, "get_model_by_display_name", return_value=None) as mock_get_by_display:
-                with patch.object(backend_model_app, "update_model_record") as mock_update:
-                    update_data = {
-                        "model_id": "test_model_id",
-                        "model_name": "huggingface/llama",
-                        "display_name": "Updated Test Model",
-                        "api_base": "http://localhost:8001",
-                        "api_key": "updated_key",
-                        "model_type": "llm",
-                        "provider": "huggingface"
-                    }
-                    response = backend_client_local.post("/model/update_single_model", json=update_data, headers=self.auth_header)
-                    self.assertEqual(response.status_code, 200)
-                    data = response.json()
-                    self.assertEqual(data["code"], 200)
-                    self.assertIn("Updated Test Model updated successfully", data["message"])
-                    mock_get_by_display.assert_called_once_with("Updated Test Model", self.tenant_id)
-                    mock_update.assert_called_once_with("test_model_id", update_data, self.user_id)
+            async def mock_update_single(*args, **kwargs):
+                return None
+            with patch.object(backend_model_app, "update_single_model_for_tenant", side_effect=mock_update_single) as mock_update_single:
+                update_data = {
+                    "model_id": "test_model_id",
+                    "model_name": "huggingface/llama",
+                    "display_name": "Updated Test Model",
+                    "api_base": "http://localhost:8001",
+                    "api_key": "updated_key",
+                    "model_type": "llm",
+                    "provider": "huggingface"
+                }
+                response = backend_client_local.post(
+                    "/model/update", json=update_data, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertIn("Model updated successfully",
+                              data["message"])
+                mock_update_single.assert_called_once_with(
+                    self.user_id, self.tenant_id, update_data)
 
     def test_update_single_model_display_name_conflict(self):
-        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
         with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
-            with patch.object(backend_model_app, "get_model_by_display_name", return_value={"model_id": "other_model_id", "display_name": "Conflicting Name"}) as mock_get_by_display:
+            with patch.object(backend_model_app, "update_single_model_for_tenant", side_effect=ValueError("Name conflict")) as mock_update_single:
                 update_data = {
                     "model_id": "test_model_id",
                     "model_name": "huggingface/llama",
@@ -2218,39 +2583,47 @@ class TestModelManagementApp(unittest.TestCase):
                     "model_type": "llm",
                     "provider": "huggingface"
                 }
-                response = backend_client_local.post("/model/update_single_model", json=update_data, headers=self.auth_header)
-                self.assertEqual(response.status_code, 500)
+                response = backend_client_local.post(
+                    "/model/update", json=update_data, headers=self.auth_header)
+                self.assertEqual(response.status_code, 409)
                 data = response.json()
-                self.assertIn("Failed to update model", data.get("detail", ""))
-                self.assertIn("already in use", data.get("detail", ""))
-                mock_get_by_display.assert_called_once_with("Conflicting Name", self.tenant_id)
+                self.assertIn(
+                    "Failed to update model: name conflict", data.get("detail", ""))
+                mock_update_single.assert_called_once_with(
+                    self.user_id, self.tenant_id, update_data)
 
     def test_update_single_model_same_model_id_no_conflict(self):
-        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
         with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
-            with patch.object(backend_model_app, "get_model_by_display_name", return_value={"model_id": "test_model_id", "display_name": "Same Display Name"}) as mock_get_by_display:
-                with patch.object(backend_model_app, "update_model_record") as mock_update:
-                    update_data = {
-                        "model_id": "test_model_id",
-                        "model_name": "huggingface/llama",
-                        "display_name": "Same Display Name",
-                        "api_base": "http://localhost:8001",
-                        "api_key": "updated_key",
-                        "model_type": "llm",
-                        "provider": "huggingface"
-                    }
-                    response = backend_client_local.post("/model/update_single_model", json=update_data, headers=self.auth_header)
-                    self.assertEqual(response.status_code, 200)
-                    data = response.json()
-                    self.assertEqual(data["code"], 200)
-                    self.assertIn("Same Display Name updated successfully", data["message"])
-                    mock_get_by_display.assert_called_once_with("Same Display Name", self.tenant_id)
-                    mock_update.assert_called_once_with("test_model_id", update_data, self.user_id)
+            async def mock_update_single(*args, **kwargs):
+                return None
+            with patch.object(backend_model_app, "update_single_model_for_tenant", side_effect=mock_update_single) as mock_update_single:
+                update_data = {
+                    "model_id": "test_model_id",
+                    "model_name": "huggingface/llama",
+                    "display_name": "Same Display Name",
+                    "api_base": "http://localhost:8001",
+                    "api_key": "updated_key",
+                    "model_type": "llm",
+                    "provider": "huggingface"
+                }
+                response = backend_client_local.post(
+                    "/model/update", json=update_data, headers=self.auth_header)
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertIn("Model updated successfully",
+                              data["message"])
+                mock_update_single.assert_called_once_with(
+                    self.user_id, self.tenant_id, update_data)
 
     def test_update_single_model_exception(self):
-        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
         with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
-            with patch.object(backend_model_app, "update_model_record", side_effect=Exception("Database update error")) as mock_update:
+            async def mock_update_single(*args, **kwargs):
+                raise Exception("Database update error")
+            with patch.object(backend_model_app, "update_single_model_for_tenant", side_effect=mock_update_single) as mock_update_single:
                 update_data = {
                     "model_id": "test_model_id",
                     "model_name": "huggingface/llama",
@@ -2260,55 +2633,69 @@ class TestModelManagementApp(unittest.TestCase):
                     "model_type": "llm",
                     "provider": "huggingface"
                 }
-                response = backend_client_local.post("/model/update_single_model", json=update_data, headers=self.auth_header)
+                response = backend_client_local.post(
+                    "/model/update", json=update_data, headers=self.auth_header)
                 self.assertEqual(response.status_code, 500)
                 data = response.json()
-                self.assertIn("Failed to update model: Database update error", data.get("detail", ""))
-                mock_update.assert_called_once()
+                self.assertIn("Failed to update model", data.get("detail", ""))
+                mock_update_single.assert_called_once_with(
+                    self.user_id, self.tenant_id, update_data)
 
     def test_batch_update_models_success_backend(self):
-        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
         with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
-            with patch.object(backend_model_app, "update_model_record") as mock_update:
+            async def mock_batch_update(*args, **kwargs):
+                return None
+            with patch.object(backend_model_app, "batch_update_models_for_tenant", side_effect=mock_batch_update) as mock_batch_update:
                 models = [
                     {"model_id": "id1", "api_key": "k1", "max_tokens": 100},
                     {"model_id": "id2", "api_key": "k2", "max_tokens": 200},
                 ]
-                response = backend_client_local.post("/model/batch_update_models", json=models, headers=self.auth_header)
+                response = backend_client_local.post(
+                    "/model/batch_update", json=models, headers=self.auth_header)
                 self.assertEqual(response.status_code, 200)
                 data = response.json()
-                self.assertEqual(data["code"], 200)
-                self.assertIn("Batch update models successfully", data["message"])
-                self.assertEqual(mock_update.call_count, 2)
-                mock_update.assert_any_call("id1", models[0], self.user_id)
-                mock_update.assert_any_call("id2", models[1], self.user_id)
+                self.assertIn("Batch update models successfully",
+                              data["message"])
+                mock_batch_update.assert_called_once_with(
+                    self.user_id, self.tenant_id, models)
 
     def test_batch_update_models_exception_backend(self):
-        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
         with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)):
-            with patch.object(backend_model_app, "update_model_record", side_effect=Exception("Update failed")) as mock_update:
+            async def mock_batch_update(*args, **kwargs):
+                raise Exception("Update failed")
+            with patch.object(backend_model_app, "batch_update_models_for_tenant", side_effect=mock_batch_update) as mock_batch_update:
                 models = [
                     {"model_id": "id1", "api_key": "k1"}
                 ]
-                response = backend_client_local.post("/model/batch_update_models", json=models, headers=self.auth_header)
-                self.assertEqual(response.status_code, 200)
+                response = backend_client_local.post(
+                    "/model/batch_update", json=models, headers=self.auth_header)
+                self.assertEqual(response.status_code, 500)
                 data = response.json()
-                self.assertEqual(data["code"], 500)
-                self.assertIn("Failed to batch update models: Update failed", data["message"]) 
-
+                self.assertIn("Failed to batch update models",
+                              data.get("detail", ""))
+                mock_batch_update.assert_called_once_with(
+                    self.user_id, self.tenant_id, models)
 
     def test_batch_update_models_empty_list_backend(self):
-        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub()
+        backend_client_local, backend_model_app = _build_backend_client_with_s3_stub(
+            "backend.apps.model_managment_app")
         with patch.object(backend_model_app, "get_current_user_id", return_value=(self.user_id, self.tenant_id)) as mock_get_user:
-            with patch.object(backend_model_app, "update_model_record") as mock_update:
+            async def mock_batch_update(*args, **kwargs):
+                return None
+            with patch.object(backend_model_app, "batch_update_models_for_tenant", side_effect=mock_batch_update) as mock_batch_update:
                 models = []
-                response = backend_client_local.post("/model/batch_update_models", json=models, headers=self.auth_header)
+                response = backend_client_local.post(
+                    "/model/batch_update", json=models, headers=self.auth_header)
                 self.assertEqual(response.status_code, 200)
                 data = response.json()
-                self.assertEqual(data["code"], 200)
                 self.assertIn("Batch update models successfully", data["message"]) 
                 mock_get_user.assert_called_once_with(self.auth_header["Authorization"])
-                mock_update.assert_not_called()
+                mock_batch_update.assert_called_once_with(
+                    self.user_id, self.tenant_id, models)
 
 
 if __name__ == "__main__":

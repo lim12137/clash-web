@@ -165,30 +165,6 @@ class BatchTaskRequest(BaseModel):
                   ] = Field(..., description="List of source objects to process")
 
 
-class TaskResponse(BaseModel):
-    task_id: str
-
-
-class BatchTaskResponse(BaseModel):
-    task_ids: List[str]
-
-
-class SimpleTaskStatusResponse(BaseModel):
-    id: str
-    task_name: str
-    index_name: str
-    path_or_url: str
-    original_filename: str
-    status: str
-    created_at: float
-    updated_at: float
-    error: Optional[str] = None
-
-
-class SimpleTasksListResponse(BaseModel):
-    tasks: List[SimpleTaskStatusResponse]
-
-
 class IndexingResponse(BaseModel):
     success: bool
     message: str
@@ -318,11 +294,6 @@ class ConvertStateRequest(BaseModel):
     """Request schema for /tasks/convert_state endpoint"""
     process_state: str = ""
     forward_state: str = ""
-
-
-class ConvertStateResponse(BaseModel):
-    """Response schema for /tasks/convert_state endpoint"""
-    state: str
 
 
 # ---------------------------------------------------------------------------

@@ -60,7 +60,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
     prevFileListRef.current = fileList;
   }, [fileList]);
   
-  // 重置所有状态的函数
+  // Function to reset all states
   const resetAllStates = useCallback(() => {
     setFileList([]);
     setNameStatus('available');
@@ -68,23 +68,23 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
     setIsKnowledgeBaseReady(false);
   }, []);
 
-  // 监听知识库变化，重置文件列表并获取知识库信息
+  // Listen for knowledge base changes, reset file list and get knowledge base info
   useEffect(() => {
-    // 如果知识库名称没有变化，不进行重置
+    // If knowledge base name hasn't changed, don't reset
     if (indexName === currentKnowledgeBaseRef.current) {
       return;
     }
 
-    // 取消之前的请求
+    // Cancel previous request
     if (pendingRequestRef.current) {
       pendingRequestRef.current.abort();
       pendingRequestRef.current = null;
     }
 
-    // 立即重置状态和清空文件列表
+    // Immediately reset state and clear file list
     resetAllStates();
     
-    // 更新当前知识库引用
+    // Update current knowledge base reference
     currentKnowledgeBaseRef.current = indexName;
 
     if (!indexName || isCreatingMode) {
@@ -93,11 +93,11 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
       return;
     }
 
-    // 创建新的 AbortController
+    // Create new AbortController
     const abortController = new AbortController();
     pendingRequestRef.current = abortController;
 
-    // 使用服务函数获取知识库信息
+    // Use service function to get knowledge base info
     fetchKnowledgeBaseInfo(
       indexName, 
       abortController, 
@@ -114,7 +114,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
       message
     );
 
-    // 清理函数
+    // Cleanup function
     return () => {
       if (pendingRequestRef.current) {
         pendingRequestRef.current.abort();
@@ -123,12 +123,12 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
     };
   }, [indexName, isCreatingMode, resetAllStates, t, message]);
   
-  // 暴露文件列表给父组件
+  // Expose file list to parent component
   useImperativeHandle(ref, () => ({
     fileList
   }), [fileList]);
   
-  // 检查知识库名称是否已存在
+  // Check if knowledge base name already exists
   useEffect(() => {
     if (!isCreatingMode || !newKnowledgeBaseName) {
       setNameStatus('available');
@@ -154,30 +154,30 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
     };
   }, [isCreatingMode, newKnowledgeBaseName, t]);
   
-  // 处理文件变更
+  // Handle file changes
   const handleChange = useCallback(({ fileList: newFileList }: { fileList: UploadFile[] }) => {
 
-    // 确保只更新当前知识库的文件列表
+    // Ensure only updating current knowledge base's file list
     if (isCreatingMode || indexName === currentKnowledgeBaseRef.current) {
       setFileList(newFileList);
     } else {
       return;
     }
     
-    // 检查上传是否刚刚完成
+    // Check if upload just completed
     const prevFileList = prevFileListRef.current;
     const uploadWasInProgress = prevFileList.some(f => f.status === 'uploading');
     const uploadIsNowFinished = newFileList.length > 0 && !newFileList.some(f => f.status === 'uploading');
 
 
     if (uploadWasInProgress && uploadIsNowFinished) {
-      // 上传完成后仅调用外部的上传完成回调，由 KnowledgeBaseManager 统一管理轮询
+      // After upload completion only call external upload completion callback, let KnowledgeBaseManager manage polling uniformly
       if (onUpload) {
         onUpload();
       }
     }
     
-    // 触发文件选择回调, 传递所有文件
+    // Trigger file selection callback, pass all files
     const files = newFileList
       .map(file => file.originFileObj)
       .filter((file): file is RcFile => !!file);
@@ -187,17 +187,17 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
     }
   }, [indexName, onFileSelect, isCreatingMode, newKnowledgeBaseName, onUpload]);
 
-  // 处理自定义上传请求
+  // Handle custom upload request
   const handleCustomRequest = useCallback((options: any) => {
     
-    // 实际上传由父组件的 handleFileUpload 处理
+    // Actual upload is handled by parent component's handleFileUpload
     const { onSuccess, file } = options;
     setTimeout(() => {
       onSuccess({}, file);
     }, 100);
   }, []);
 
-  // 上传组件属性
+  // Upload component properties
   const uploadProps: UploadProps = {
     name: 'file',
     multiple: true,
