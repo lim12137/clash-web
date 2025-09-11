@@ -1,6 +1,7 @@
 import logging
 from typing import List, Dict, Any
 
+from consts.const import LOCALHOST_IP, LOCALHOST_NAME, DOCKER_INTERNAL_HOST
 from consts.model import ModelConnectStatusEnum
 from consts.provider import ProviderEnum, SILICON_BASE_URL
 
@@ -36,10 +37,10 @@ async def create_model_for_tenant(user_id: str, tenant_id: str, model_data: Dict
     try:
         # Replace localhost with host.docker.internal for local llm
         model_base_url = model_data.get("base_url", "")
-        if "localhost" in model_base_url or "127.0.0.1" in model_base_url:
+        if LOCALHOST_NAME in model_base_url or LOCALHOST_IP in model_base_url:
             model_data["base_url"] = (
-                model_base_url.replace("localhost", "host.docker.internal")
-                .replace("127.0.0.1", "host.docker.internal")
+                model_base_url.replace(LOCALHOST_NAME, DOCKER_INTERNAL_HOST)
+                .replace(LOCALHOST_IP, DOCKER_INTERNAL_HOST)
             )
 
         # Split model_name into repo and name

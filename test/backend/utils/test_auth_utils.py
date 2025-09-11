@@ -38,7 +38,14 @@ sys.modules['database.user_tenant_db'] = MagicMock(
 
 # Pre-mock nexent core dependency pulled by consts.model
 sys.modules['consts'] = MagicMock()
-sys.modules['consts.const'] = MagicMock()
+
+# Mock consts.const but provide real LANGUAGE values for tests
+consts_const_mock = MagicMock()
+consts_const_mock.LANGUAGE = {"ZH": "zh", "EN": "en"}
+consts_const_mock.DEFAULT_USER_ID = "user_id"
+consts_const_mock.DEFAULT_TENANT_ID = "tenant_id"
+consts_const_mock.IS_SPEED_MODE = False
+sys.modules['consts.const'] = consts_const_mock
 
 # Mock exceptions module with real exception classes
 consts_exceptions_mock = MagicMock()
@@ -73,6 +80,11 @@ from backend.utils import auth_utils as au
 # Ensure exceptions in module under test are real exception classes, not mocks
 au.UnauthorizedError = UnauthorizedError
 au.SignatureValidationError = SignatureValidationError
+
+# Ensure constants in module under test are real values, not mocks
+au.LANGUAGE = {"ZH": "zh", "EN": "en"}
+au.DEFAULT_USER_ID = "user_id"
+au.DEFAULT_TENANT_ID = "tenant_id"
 
 
 def test_calculate_hmac_signature_stability():

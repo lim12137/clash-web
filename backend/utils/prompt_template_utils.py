@@ -4,10 +4,12 @@ from typing import Dict, Any
 
 import yaml
 
+from consts.const import LANGUAGE
+
 logger = logging.getLogger("prompt_template_utils")
 
 
-def get_prompt_template(template_type: str, language: str = 'zh', **kwargs) -> Dict[str, Any]:
+def get_prompt_template(template_type: str, language: str = LANGUAGE["ZH"], **kwargs) -> Dict[str, Any]:
     """
     Get prompt template
 
@@ -31,34 +33,34 @@ def get_prompt_template(template_type: str, language: str = 'zh', **kwargs) -> D
     # Define template path mapping
     template_paths = {
         'prompt_generate': {
-            'zh': 'backend/prompts/utils/prompt_generate.yaml',
-            'en': 'backend/prompts/utils/prompt_generate_en.yaml'
+            LANGUAGE["ZH"]: 'backend/prompts/utils/prompt_generate.yaml',
+            LANGUAGE["EN"]: 'backend/prompts/utils/prompt_generate_en.yaml'
         },
         'agent': {
-            'zh': {
+            LANGUAGE["ZH"]: {
                 'manager': 'backend/prompts/manager_system_prompt_template.yaml',
                 'managed': 'backend/prompts/managed_system_prompt_template.yaml'
             },
-            'en': {
+            LANGUAGE["EN"]: {
                 'manager': 'backend/prompts/manager_system_prompt_template_en.yaml',
                 'managed': 'backend/prompts/managed_system_prompt_template_en.yaml'
             }
         },
         'knowledge_summary': {
-            'zh': 'backend/prompts/knowledge_summary_agent.yaml',
-            'en': 'backend/prompts/knowledge_summary_agent_en.yaml'
+            LANGUAGE["ZH"]: 'backend/prompts/knowledge_summary_agent.yaml',
+            LANGUAGE["EN"]: 'backend/prompts/knowledge_summary_agent_en.yaml'
         },
         'analyze_file': {
-            'zh': 'backend/prompts/analyze_file.yaml',
-            'en': 'backend/prompts/analyze_file_en.yaml'
+            LANGUAGE["ZH"]: 'backend/prompts/analyze_file.yaml',
+            LANGUAGE["EN"]: 'backend/prompts/analyze_file_en.yaml'
         },
         'generate_title': {
-            'zh': 'backend/prompts/utils/generate_title.yaml',
-            'en': 'backend/prompts/utils/generate_title_en.yaml'
+            LANGUAGE["ZH"]: 'backend/prompts/utils/generate_title.yaml',
+            LANGUAGE["EN"]: 'backend/prompts/utils/generate_title_en.yaml'
         },
         'file_processing_messages': {
-            'zh': 'backend/prompts/utils/file_processing_messages.yaml',
-            'en': 'backend/prompts/utils/file_processing_messages_en.yaml'
+            LANGUAGE["ZH"]: 'backend/prompts/utils/file_processing_messages.yaml',
+            LANGUAGE["EN"]: 'backend/prompts/utils/file_processing_messages_en.yaml'
         }
     }
 
@@ -85,7 +87,7 @@ def get_prompt_template(template_type: str, language: str = 'zh', **kwargs) -> D
 
 
 # For backward compatibility, keep original function names as wrapper functions
-def get_prompt_generate_prompt_template(language: str = 'zh') -> Dict[str, Any]:
+def get_prompt_generate_prompt_template(language: str = LANGUAGE["ZH"]) -> Dict[str, Any]:
     """
     Get prompt generation prompt template
 
@@ -98,7 +100,7 @@ def get_prompt_generate_prompt_template(language: str = 'zh') -> Dict[str, Any]:
     return get_prompt_template('prompt_generate', language)
 
 
-def get_agent_prompt_template(is_manager: bool, language: str = 'zh') -> Dict[str, Any]:
+def get_agent_prompt_template(is_manager: bool, language: str = LANGUAGE["ZH"]) -> Dict[str, Any]:
     """
     Get agent prompt template
 

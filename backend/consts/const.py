@@ -146,6 +146,8 @@ DISABLE_AGENT_ID_KEY = "DISABLE_AGENT_ID"
 DISABLE_USERAGENT_ID_KEY = "DISABLE_USERAGENT_ID"
 DEFAULT_MEMORY_SWITCH_KEY = "Y"
 DEFAULT_MEMORY_AGENT_SHARE_KEY = "always"
+# Boolean value representations for configuration parsing
+BOOLEAN_TRUE_VALUES = {"true", "1", "y", "yes", "on"}
 
 
 DEFAULT_LLM_MAX_TOKENS = 4096
@@ -160,6 +162,55 @@ INVITE_CODE = os.getenv("INVITE_CODE")
 
 # Debug JWT expiration time (seconds), not set or 0 means not effective
 DEBUG_JWT_EXPIRE_SECONDS = int(os.getenv('DEBUG_JWT_EXPIRE_SECONDS', '0') or 0)
+
+# Memory Search Status Messages (for i18n placeholders)
+MEMORY_SEARCH_START_MSG = "<MEM_START>"
+MEMORY_SEARCH_DONE_MSG = "<MEM_DONE>"
+MEMORY_SEARCH_FAIL_MSG = "<MEM_FAILED>"
+
+# Tool Type Mapping (for display normalization)
+TOOL_TYPE_MAPPING = {
+    "mcp": "MCP",
+    "langchain": "LangChain",
+    "local": "Local",
+}
+
+# Default Language Configuration
+LANGUAGE = {
+    "ZH": "zh",
+    "EN": "en"
+}
+
+# Message Role Constants
+MESSAGE_ROLE = {
+    "USER": "user",
+    "ASSISTANT": "assistant",
+    "SYSTEM": "system"
+}
+
+# Knowledge summary max token limits
+KNOWLEDGE_SUMMARY_MAX_TOKENS_ZH = 300
+KNOWLEDGE_SUMMARY_MAX_TOKENS_EN = 120
+
+# Host Configuration Constants
+LOCALHOST_IP = "127.0.0.1"
+LOCALHOST_NAME = "localhost"
+DOCKER_INTERNAL_HOST = "host.docker.internal"
+
+
+# Mock User Management Configuration (for speed mode)
+MOCK_USER = {
+    "id": DEFAULT_USER_ID,
+    "email": "mock@example.com",
+    "role": "admin"
+}
+
+MOCK_SESSION = {
+    "access_token": "mock_access_token",
+    "refresh_token": "mock_refresh_token",
+    "expires_at": None,  # Will be set dynamically
+    "expires_in_seconds": 315360000  # 10 years
+}
 
 MODEL_CONFIG_MAPPING = {
     "llm": "LLM_ID",
@@ -177,3 +228,14 @@ APP_DESCRIPTION = "APP_DESCRIPTION"
 ICON_TYPE = "ICON_TYPE"
 AVATAR_URI = "AVATAR_URI"
 CUSTOM_ICON_URL = "CUSTOM_ICON_URL"
+
+# Task Status Constants
+TASK_STATUS = {
+    "WAIT_FOR_PROCESSING": "WAIT_FOR_PROCESSING",
+    "WAIT_FOR_FORWARDING": "WAIT_FOR_FORWARDING",
+    "PROCESSING": "PROCESSING",
+    "FORWARDING": "FORWARDING",
+    "COMPLETED": "COMPLETED",
+    "PROCESS_FAILED": "PROCESS_FAILED",
+    "FORWARD_FAILED": "FORWARD_FAILED",
+}
