@@ -46,8 +46,13 @@ export interface AuthContextType {
   closeRegisterModal: () => void;
   setIsFromSessionExpired: (value: boolean) => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, isAdmin?: boolean, inviteCode?: string) => Promise<void>;
-  logout: () => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    isAdmin?: boolean,
+    inviteCode?: string
+  ) => Promise<void>;
+  logout: (options?: { silent?: boolean }) => Promise<void>;
 }
 
 // Session response type

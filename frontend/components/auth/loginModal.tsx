@@ -228,15 +228,17 @@ export function LoginModal() {
           </Button>
         </Form.Item>
 
-        {/* Registration link section */}
-        <div className="text-center">
-          <Space>
-            <Text type="secondary">{t("auth.noAccount")}</Text>
-            <Button type="link" onClick={handleRegisterClick} className="p-0">
-              {t("auth.registerNow")}
-            </Button>
-          </Space>
-        </div>
+        {/* Registration link section (hidden when opened from session expired flow) */}
+        {!isFromSessionExpired && (
+          <div className="text-center">
+            <Space>
+              <Text type="secondary">{t("auth.noAccount")}</Text>
+              <Button type="link" onClick={handleRegisterClick} className="p-0">
+                {t("auth.registerNow")}
+              </Button>
+            </Space>
+          </div>
+        )}
       </Form>
     </Modal>
   );
