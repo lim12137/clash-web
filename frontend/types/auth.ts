@@ -21,6 +21,7 @@ export interface ErrorResponse {
   data?: any;
 }
 
+// Authorization context type
 // Auth form values interface
 export interface AuthFormValues {
   email: string;

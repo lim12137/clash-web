@@ -1,7 +1,6 @@
+import logging
 import hashlib
 import hmac
-import logging
-import os
 import time
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
@@ -10,15 +9,9 @@ import jwt
 from fastapi import Request
 from supabase import create_client
 
-from consts.const import DEFAULT_TENANT_ID, DEFAULT_USER_ID, IS_SPEED_MODE, LANGUAGE
+from consts.const import DEFAULT_TENANT_ID, DEFAULT_USER_ID, IS_SPEED_MODE, SUPABASE_URL, SUPABASE_KEY, DEBUG_JWT_EXPIRE_SECONDS, LANGUAGE
 from consts.exceptions import LimitExceededError, SignatureValidationError, UnauthorizedError
 from database.user_tenant_db import get_user_tenant_by_user_id
-
-# Get Supabase configuration
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
-# Debug JWT expiration time (seconds), not set or 0 means not effective
-DEBUG_JWT_EXPIRE_SECONDS = int(os.getenv('DEBUG_JWT_EXPIRE_SECONDS', '0') or 0)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -203,7 +196,7 @@ def validate_aksk_authentication(headers: dict, request_body: str = "") -> bool:
 
 
 def get_supabase_client():
-    """Get Supabase client instance"""
+    """Get Supabase client instance with service key for admin operations"""
     try:
         return create_client(SUPABASE_URL, SUPABASE_KEY)
     except Exception as e:

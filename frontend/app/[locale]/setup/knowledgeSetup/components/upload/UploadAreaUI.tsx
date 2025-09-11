@@ -38,7 +38,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
 }) => {
   const { t } = useTranslation('common');
 
-  // 加载中状态UI
+  // Loading state UI
   if (isLoading) {
     return (
       <div className="p-3 bg-gray-50 border-t border-gray-200 h-[30%]">
@@ -56,7 +56,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
     );
   }
   
-  // 知识库未就绪UI
+  // Knowledge base not ready UI
   if (!isKnowledgeBaseReady && !isCreatingMode) {
     return (
       <div className="p-3 bg-gray-50 border-t border-gray-200 h-[30%]">
@@ -69,7 +69,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
     );
   }
   
-  // 禁用状态UI
+  // Disabled state UI
   if (disabled) {
     return (
       <div className={`p-3 bg-gray-50 border-t border-gray-200 opacity-50 cursor-not-allowed h-[${componentHeight}]`}>
@@ -83,7 +83,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
     );
   }
   
-  // 名称已存在UI - 根据status渲染不同消息
+  // Name already exists UI - render different messages based on status
   if (isCreatingMode && (nameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT || nameStatus === NAME_CHECK_STATUS.EXISTS_IN_OTHER_TENANT)) {
     const messageKey = nameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT 
       ? 'knowledgeBase.message.nameExists' 
@@ -119,16 +119,16 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
     );
   }
   
-  // 默认UI状态
+  // Default UI state
   return (
     <div className="p-3 bg-gray-50 border-t border-gray-200 h-[30%]">
       <div className="h-full flex transition-all duration-300 ease-in-out">
-        {/* 上传区域容器 */}
+        {/* Upload area container */}
         <div className={`transition-all duration-300 ease-in-out ${
           !isLoading && fileList.length > 0 ? 'w-[40%] pr-2' : 'w-full'
         }`}>
           <div className="relative h-full">
-            {/* 上传区域层 */}
+            {/* Upload area layer */}
             <div 
               className="absolute inset-0 transition-opacity duration-300 ease-in-out"
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -153,7 +153,7 @@ const UploadAreaUI: React.FC<UploadAreaUIProps> = ({
           </div>
         </div>
         
-        {/* 文件列表区域 */}
+        {/* File list area */}
         <div 
           className={`rounded-lg transition-all duration-300 ease-in-out overflow-hidden ${
             !isLoading && fileList.length > 0 ? 'w-[60%] opacity-100 pl-2' : 'w-0 opacity-0'

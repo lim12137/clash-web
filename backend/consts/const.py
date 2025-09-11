@@ -160,6 +160,9 @@ LOCAL_MCP_SERVER = os.getenv("NEXENT_MCP_SERVER")
 # Invite code
 INVITE_CODE = os.getenv("INVITE_CODE")
 
+# Debug JWT expiration time (seconds), not set or 0 means not effective
+DEBUG_JWT_EXPIRE_SECONDS = int(os.getenv('DEBUG_JWT_EXPIRE_SECONDS', '0') or 0)
+
 # Memory Search Status Messages (for i18n placeholders)
 MEMORY_SEARCH_START_MSG = "<MEM_START>"
 MEMORY_SEARCH_DONE_MSG = "<MEM_DONE>"
@@ -225,7 +228,7 @@ CUSTOM_ICON_URL = "CUSTOM_ICON_URL"
 # Task Status Constants
 TASK_STATUS = {
     "WAIT_FOR_PROCESSING": "WAIT_FOR_PROCESSING",
-    "WAIT_FOR_FORWARDING": "WAIT_FOR_FORWARDING", 
+    "WAIT_FOR_FORWARDING": "WAIT_FOR_FORWARDING",
     "PROCESSING": "PROCESSING",
     "FORWARDING": "FORWARDING",
     "COMPLETED": "COMPLETED",

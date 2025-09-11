@@ -31,7 +31,8 @@ export const API_ENDPOINTS = {
     list: `${API_BASE_URL}/agent/list`,
     delete: `${API_BASE_URL}/agent`,
     getCreatingSubAgentId: `${API_BASE_URL}/agent/get_creating_sub_agent_id`,
-    stop: (conversationId: number) => `${API_BASE_URL}/agent/stop/${conversationId}`,
+    stop: (conversationId: number) =>
+      `${API_BASE_URL}/agent/stop/${conversationId}`,
     export: `${API_BASE_URL}/agent/export`,
     import: `${API_BASE_URL}/agent/import`,
     searchInfo: `${API_BASE_URL}/agent/search_info`,
@@ -58,43 +59,54 @@ export const API_ENDPOINTS = {
   storage: {
     upload: `${API_BASE_URL}/file/storage`,
     files: `${API_BASE_URL}/file/storage`,
-    file: (objectName: string, download: string = 'ignore') => `${API_BASE_URL}/file/storage/${objectName}?download=${download}`,
-    delete: (objectName: string) => `${API_BASE_URL}/file/storage/${objectName}`,
+    file: (objectName: string, download: string = "ignore") =>
+      `${API_BASE_URL}/file/storage/${objectName}?download=${download}`,
+    delete: (objectName: string) =>
+      `${API_BASE_URL}/file/storage/${objectName}`,
     preprocess: `${API_BASE_URL}/file/preprocess`,
   },
   proxy: {
-    image: (url: string) => `${API_BASE_URL}/image?url=${encodeURIComponent(url)}`,
+    image: (url: string) =>
+      `${API_BASE_URL}/image?url=${encodeURIComponent(url)}`,
   },
   model: {
-    // Basic health check
-    healthcheck: `${API_BASE_URL}/me/healthcheck`,
-    
     // Official model service
     officialModelList: `${API_BASE_URL}/me/model/list`,
-      
+    officialModelHealthcheck: `${API_BASE_URL}/me/healthcheck`,
+
     // Custom model service
     customModelList: `${API_BASE_URL}/model/list`,
     customModelCreate: `${API_BASE_URL}/model/create`,
-    customModelCreateProvider: `${API_BASE_URL}/model/create_provider`,
-    customModelBatchCreate: `${API_BASE_URL}/model/batch_create_models`,
+    customModelCreateProvider: `${API_BASE_URL}/model/provider/create`,
+    customModelBatchCreate: `${API_BASE_URL}/model/provider/batch_create`,
     getProviderSelectedModalList: `${API_BASE_URL}/model/provider/list`,
-    customModelDelete: (displayName: string) => `${API_BASE_URL}/model/delete?display_name=${encodeURIComponent(displayName)}`,
-    customModelHealthcheck: (displayName: string) => `${API_BASE_URL}/model/healthcheck?display_name=${encodeURIComponent(displayName)}`,
-    verifyModelConfig: `${API_BASE_URL}/model/verify_config`,
-    updateSingleModel: `${API_BASE_URL}/model/update_single_model`,
-    updateBatchModel: `${API_BASE_URL}/model/batch_update_models`,
+    customModelDelete: (displayName: string) =>
+      `${API_BASE_URL}/model/delete?display_name=${encodeURIComponent(
+        displayName
+      )}`,
+    customModelHealthcheck: (displayName: string) =>
+      `${API_BASE_URL}/model/healthcheck?display_name=${encodeURIComponent(
+        displayName
+      )}`,
+    verifyModelConfig: `${API_BASE_URL}/model/temporary_healthcheck`,
+    updateSingleModel: `${API_BASE_URL}/model/update`,
+    updateBatchModel: `${API_BASE_URL}/model/batch_update`,
   },
   knowledgeBase: {
     // Elasticsearch service
     health: `${API_BASE_URL}/indices/health`,
     indices: `${API_BASE_URL}/indices`,
     checkName: (name: string) => `${API_BASE_URL}/indices/check_exist/${name}`,
-    listFiles: (indexName: string) => `${API_BASE_URL}/indices/${indexName}/files`,
+    listFiles: (indexName: string) =>
+      `${API_BASE_URL}/indices/${indexName}/files`,
     indexDetail: (indexName: string) => `${API_BASE_URL}/indices/${indexName}`,
-    summary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/auto_summary`,
-    changeSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
-    getSummary: (indexName: string) => `${API_BASE_URL}/summary/${indexName}/summary`,
-    
+    summary: (indexName: string) =>
+      `${API_BASE_URL}/summary/${indexName}/auto_summary`,
+    changeSummary: (indexName: string) =>
+      `${API_BASE_URL}/summary/${indexName}/summary`,
+    getSummary: (indexName: string) =>
+      `${API_BASE_URL}/summary/${indexName}/summary`,
+
     // File upload service
     upload: `${API_BASE_URL}/file/upload`,
     process: `${API_BASE_URL}/file/process`,
@@ -121,9 +133,11 @@ export const API_ENDPOINTS = {
       load: `${API_BASE_URL}/memory/config/load`,
       set: `${API_BASE_URL}/memory/config/set`,
       disableAgentAdd: `${API_BASE_URL}/memory/config/disable_agent`,
-      disableAgentRemove: (agentId: string | number) => `${API_BASE_URL}/memory/config/disable_agent/${agentId}`,
+      disableAgentRemove: (agentId: string | number) =>
+        `${API_BASE_URL}/memory/config/disable_agent/${agentId}`,
       disableUserAgentAdd: `${API_BASE_URL}/memory/config/disable_useragent`,
-      disableUserAgentRemove: (agentId: string | number) => `${API_BASE_URL}/memory/config/disable_useragent/${agentId}`,
+      disableUserAgentRemove: (agentId: string | number) =>
+        `${API_BASE_URL}/memory/config/disable_useragent/${agentId}`,
     },
 
     // ---------------- Memory CRUD ----------------
@@ -131,10 +145,11 @@ export const API_ENDPOINTS = {
       add: `${API_BASE_URL}/memory/add`,
       search: `${API_BASE_URL}/memory/search`,
       list: `${API_BASE_URL}/memory/list`,
-      delete: (memoryId: string | number) => `${API_BASE_URL}/memory/delete/${memoryId}`,
+      delete: (memoryId: string | number) =>
+        `${API_BASE_URL}/memory/delete/${memoryId}`,
       clear: `${API_BASE_URL}/memory/clear`,
     },
-  }
+  },
 };
 
 // Common error handling
@@ -145,79 +160,79 @@ export class ApiError extends Error {
   }
 }
 
-// API请求拦截器
+// API request interceptor
 export const fetchWithErrorHandling = async (url: string, options: RequestInit = {}) => {
   try {
     const response = await fetch(url, options);
 
-    // 处理HTTP错误
+    // Handle HTTP errors
     if (!response.ok) {
-      // 检查是否为会话过期错误 (401)
+      // Check if it's a session expired error (401)
       if (response.status === 401) {
         handleSessionExpired();
-        throw new ApiError(STATUS_CODES.TOKEN_EXPIRED, "登录已过期，请重新登录");
+        throw new ApiError(STATUS_CODES.TOKEN_EXPIRED, "Login expired, please login again");
       }
 
-      // 处理自定义499错误码 (客户端关闭连接)
+      // Handle custom 499 error code (client closed connection)
       if (response.status === 499) {
         handleSessionExpired();
-        throw new ApiError(STATUS_CODES.TOKEN_EXPIRED, "连接已断开，会话可能已过期");
+        throw new ApiError(STATUS_CODES.TOKEN_EXPIRED, "Connection disconnected, session may have expired");
       }
 
-      // 其他HTTP错误
+      // Other HTTP errors
       const errorText = await response.text();
-      throw new ApiError(response.status, errorText || `请求失败: ${response.status}`);
+      throw new ApiError(response.status, errorText || `Request failed: ${response.status}`);
     }
 
     return response;
   } catch (error) {
-    // 处理网络错误
+    // Handle network errors
     if (error instanceof TypeError && error.message.includes('NetworkError')) {
-      console.error('网络错误:', error);
-      throw new ApiError(STATUS_CODES.SERVER_ERROR, "网络连接错误，请检查网络连接");
+      console.error('Network error:', error);
+      throw new ApiError(STATUS_CODES.SERVER_ERROR, "Network connection error, please check your network connection");
     }
 
-    // 处理连接重置错误
+    // Handle connection reset errors
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-      console.error('连接错误:', error);
+      console.error('Connection error:', error);
 
-      // 对于用户管理相关的请求，可能是登录过期
+      // For user management related requests, it might be login expiration
       if (url.includes('/user/session') || url.includes('/user/current_user_id')) {
         handleSessionExpired();
-        throw new ApiError(STATUS_CODES.TOKEN_EXPIRED, "连接已断开，会话可能已过期");
+        throw new ApiError(STATUS_CODES.TOKEN_EXPIRED, "Connection disconnected, session may have expired");
       } else {
-        throw new ApiError(STATUS_CODES.SERVER_ERROR, "服务器连接错误，请稍后重试");
+        throw new ApiError(STATUS_CODES.SERVER_ERROR, "Server connection error, please try again later");
       }
     }
 
-    // 重新抛出其他错误
+    // Re-throw other errors
     throw error;
   }
 };
 
-// 处理会话过期的方法
+// Method to handle session expiration
 function handleSessionExpired() {
-  // 防止重复触发
+  // Prevent duplicate triggers
   if (window.__isHandlingSessionExpired) {
     return;
   }
 
-  // 标记正在处理中
+  // Mark as processing
   window.__isHandlingSessionExpired = true;
 
-  // 清除本地存储的会话信息
+  // Clear locally stored session information
   if (typeof window !== "undefined") {
     localStorage.removeItem("session");
 
-    // 使用自定义事件通知应用中的其他组件（如SessionExpiredListener）
+    // Use custom events to notify other components in the app (such as SessionExpiredListener)
     if (window.dispatchEvent) {
-      // 确保使用与EVENTS.SESSION_EXPIRED常量一致的事件名
+      // Ensure using event name consistent with EVENTS.SESSION_EXPIRED constant
       window.dispatchEvent(new CustomEvent('session-expired', {
-        detail: { message: "登录已过期，请重新登录" }
+        detail: { message: "Login expired, please login again" }
       }));
     }
 
-    // 300ms后重置标记，允许将来再次触发
+    // Reset flag after 300ms to allow future triggers
     setTimeout(() => {
       window.__isHandlingSessionExpired = false;
     }, 300);
