@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Optional, Any, Tuple
 
 import aiohttp
@@ -8,7 +7,7 @@ from supabase import Client
 from pydantic import EmailStr
 
 from utils.auth_utils import get_supabase_client, calculate_expires_at, get_jwt_expiry_seconds
-from consts.const import INVITE_CODE
+from consts.const import INVITE_CODE, SUPABASE_URL, SUPABASE_KEY
 from consts.exceptions import NoInviteCodeException, IncorrectInviteCodeException, UserRegistrationException
 
 from database.model_management_db import create_model_record
@@ -85,11 +84,8 @@ async def check_auth_service_health():
     Check the health status of the authentication service
     Return (is available, status message)
     """
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
-
-    health_url = f'{supabase_url}/auth/v1/health'
-    headers = {'apikey': supabase_key}
+    health_url = f'{SUPABASE_URL}/auth/v1/health'
+    headers = {'apikey': SUPABASE_KEY}
 
     async with aiohttp.ClientSession() as session:
         async with session.get(health_url, headers=headers) as response:
@@ -273,8 +269,11 @@ async def refresh_user_token(authorization, refresh_token: str):
 
 
 async def get_session_by_authorization(authorization):
+    # Extract clean token from authorization header
+    clean_token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+
     # Use the unified token validation function
-    is_valid, user = validate_token(authorization)
+    is_valid, user = validate_token(clean_token)
     if is_valid and user:
         user_role = "user"  # Default role
         if user.user_metadata and 'role' in user.user_metadata:
