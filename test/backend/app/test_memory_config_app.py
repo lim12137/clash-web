@@ -1,4 +1,4 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 import sys
 import os
 
@@ -57,6 +57,18 @@ with patch('database.client.MinioClient', MagicMock()), \
                     resp = client.post(
                         "/memory/config/set",
                         json={"key": "MEMORY_SWITCH", "value": "true"},
+                        headers=_auth_headers(),
+                    )
+                    assert resp.status_code == HTTPStatus.OK
+                    assert resp.json() == {"success": True}
+                    m_set.assert_called_once_with("u", True)
+
+        def test_set_memory_switch_yes_uppercase(self):
+            with patch("apps.memory_config_app.get_current_user_id", return_value=("u", "t")):
+                with patch("apps.memory_config_app.set_memory_switch", return_value=True) as m_set:
+                    resp = client.post(
+                        "/memory/config/set",
+                        json={"key": "MEMORY_SWITCH", "value": "YES"},
                         headers=_auth_headers(),
                     )
                     assert resp.status_code == HTTPStatus.OK
@@ -243,6 +255,26 @@ with patch('database.client.MinioClient', MagicMock()), \
                         )
                         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
+        def test_add_memory_infer_flag_false(self):
+            async def _ok_add(**kwargs):
+                return {"added": True, "infer": kwargs.get("infer")}
+
+            with patch("apps.memory_config_app.get_current_user_id", return_value=("u", "t")):
+                with patch("apps.memory_config_app.build_memory_config", return_value={"cfg": 1}):
+                    with patch("apps.memory_config_app.svc_add_memory", _ok_add):
+                        resp = client.post(
+                            "/memory/add",
+                            json={
+                                "messages": [{"role": "user", "content": "hi"}],
+                                "memory_level": "user",
+                                "infer": False,
+                            },
+                            headers=_auth_headers(),
+                        )
+                        assert resp.status_code == HTTPStatus.OK
+                        data = resp.json()
+                        assert data["infer"] is False
+
         def test_search_memory_success_and_error(self):
             async def _ok_search(**kwargs):
                 return {"hits": [1, 2], "top_k": kwargs.get("top_k")}
@@ -276,6 +308,24 @@ with patch('database.client.MinioClient', MagicMock()), \
                         )
                         assert resp.status_code == HTTPStatus.BAD_REQUEST
 
+        def test_search_memory_default_top_k(self):
+            async def _ok_search(**kwargs):
+                return {"hits": [], "top_k": kwargs.get("top_k")}
+
+            with patch("apps.memory_config_app.get_current_user_id", return_value=("u", "t")):
+                with patch("apps.memory_config_app.build_memory_config", return_value={"cfg": 1}):
+                    with patch("apps.memory_config_app.svc_search_memory", _ok_search):
+                        resp = client.post(
+                            "/memory/search",
+                            json={
+                                "query_text": "hello",
+                                "memory_level": "user",
+                            },
+                            headers=_auth_headers(),
+                        )
+                        assert resp.status_code == HTTPStatus.OK
+                        assert resp.json()["top_k"] == 5
+
         def test_list_memory_success_and_error(self):
             async def _ok_list(**kwargs):
                 return {"items": [1], "total": 1}
@@ -303,6 +353,19 @@ with patch('database.client.MinioClient', MagicMock()), \
                             headers=_auth_headers(),
                         )
                         assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+        def test_list_memory_with_agent_id(self):
+            with patch("apps.memory_config_app.get_current_user_id", return_value=("u", "t")):
+                with patch("apps.memory_config_app.build_memory_config", return_value={"cfg": 1}):
+                    with patch("apps.memory_config_app.svc_list_memory", new=AsyncMock(return_value={"items": [], "total": 0})) as m_list:
+                        resp = client.get(
+                            "/memory/list",
+                            params={"memory_level": "user", "agent_id": "A1"},
+                            headers=_auth_headers(),
+                        )
+                        assert resp.status_code == HTTPStatus.OK
+                        # Verify agent_id is passed through
+                        assert m_list.await_args.kwargs.get("agent_id") == "A1"
 
         def test_delete_memory_success_and_error(self):
             async def _ok_delete(**kwargs):
@@ -353,3 +416,17 @@ with patch('database.client.MinioClient', MagicMock()), \
                             headers=_auth_headers(),
                         )
                         assert resp.status_code == HTTPStatus.BAD_REQUEST
+
+        def test_clear_memory_with_agent_id(self):
+            with patch("apps.memory_config_app.get_current_user_id", return_value=("u", "t")):
+                with patch("apps.memory_config_app.build_memory_config", return_value={"cfg": 1}):
+                    with patch("apps.memory_config_app.svc_clear_memory", new=AsyncMock(return_value={"cleared": True})) as m_clear:
+                        resp = client.delete(
+                            "/memory/clear",
+                            params={"memory_level": "user", "agent_id": "A1"},
+                            headers=_auth_headers(),
+                        )
+                        assert resp.status_code == HTTPStatus.OK
+                        # Verify agent_id is passed through
+                        assert m_clear.await_args.kwargs.get(
+                            "agent_id") == "A1"

@@ -362,7 +362,6 @@ export const modelService = {
         }
       );
       const result = await response.json();
-        await response.json();
       if (response.status === 200 && result.data) {
         return result.data.connectivity;
       }
@@ -392,6 +391,7 @@ export const modelService = {
     try {
       const response = await fetch(API_ENDPOINTS.model.verifyModelConfig, {
         method: "POST",
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           model_name: config.modelName,
           model_type: config.modelType,
@@ -404,7 +404,6 @@ export const modelService = {
       });
 
       const result = await response.json();
-        await response.json();
 
       if (response.status === 200 && result.data) {
         return {
