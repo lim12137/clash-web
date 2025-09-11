@@ -9,7 +9,7 @@ import jwt
 from fastapi import Request
 from supabase import create_client
 
-from consts.const import DEFAULT_TENANT_ID, DEFAULT_USER_ID, IS_SPEED_MODE, SUPABASE_URL, SUPABASE_KEY, DEBUG_JWT_EXPIRE_SECONDS
+from consts.const import DEFAULT_TENANT_ID, DEFAULT_USER_ID, IS_SPEED_MODE, SUPABASE_URL, SUPABASE_KEY, DEBUG_JWT_EXPIRE_SECONDS, LANGUAGE
 from consts.exceptions import LimitExceededError, SignatureValidationError, UnauthorizedError
 from database.user_tenant_db import get_user_tenant_by_user_id
 
@@ -335,14 +335,14 @@ def get_user_language(request: Request = None) -> str:
     Returns:
         str: Language code ('zh' or 'en'), default to 'zh'
     """
-    default_language = 'zh'
+    default_language = LANGUAGE["ZH"]
 
     # Read language setting from cookie
     if request:
         try:
             if hasattr(request, 'cookies') and request.cookies:
                 cookie_locale = request.cookies.get('NEXT_LOCALE')
-                if cookie_locale and cookie_locale in ['zh', 'en']:
+                if cookie_locale and cookie_locale in [LANGUAGE["ZH"], LANGUAGE["EN"]]:
                     return cookie_locale
         except (AttributeError, TypeError) as e:
             logging.warning(f"Error reading language from cookies: {e}")

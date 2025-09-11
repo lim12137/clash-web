@@ -13,6 +13,7 @@ from nexent.memory.memory_service import clear_memory, add_memory_in_levels
 from agents.agent_run_manager import agent_run_manager
 from agents.create_agent_info import create_agent_run_info, create_tool_config_list
 from agents.preprocess_manager import preprocess_manager
+from consts.const import MEMORY_SEARCH_START_MSG, MEMORY_SEARCH_DONE_MSG, MEMORY_SEARCH_FAIL_MSG, TOOL_TYPE_MAPPING, LANGUAGE, MESSAGE_ROLE
 from consts.exceptions import MemoryPreparationException
 from consts.model import (
     AgentInfoRequest,
@@ -118,7 +119,7 @@ async def _stream_agent_chunks(
         if not agent_request.is_debug:
             save_messages(
                 agent_request,
-                target="assistant",
+                target=MESSAGE_ROLE["ASSISTANT"],
                 messages=local_messages,
                 tenant_id=tenant_id,
                 user_id=user_id,
@@ -149,8 +150,8 @@ async def _stream_agent_chunks(
                     return
 
                 mem_messages_local = [
-                    {"role": "user", "content": agent_run_info.query},
-                    {"role": "assistant", "content": final_answer_local},
+                    {"role": MESSAGE_ROLE["USER"], "content": agent_run_info.query},
+                    {"role": MESSAGE_ROLE["ASSISTANT"], "content": final_answer_local},
                 ]
 
                 add_result_local = await add_memory_in_levels(
@@ -660,7 +661,7 @@ async def prepare_agent_run(
     agent_request: AgentRequest,
     user_id: str,
     tenant_id: str,
-    language: str="zh",
+    language: str=LANGUAGE["ZH"],
     allow_memory_search: bool = True,
 ):
     """
@@ -686,11 +687,11 @@ async def prepare_agent_run(
 
 # Helper function for run_agent_stream, used to save messages for either user or assistant
 def save_messages(agent_request, target: str, user_id: str, tenant_id: str, messages=None):
-    if target == "user":
+    if target == MESSAGE_ROLE["USER"]:
         if messages is not None:
             raise ValueError("Messages should be None when saving for user.")
         submit(save_conversation_user, agent_request, user_id, tenant_id)
-    elif target == "assistant":
+    elif target == MESSAGE_ROLE["ASSISTANT"]:
         if messages is None:
             raise ValueError(
                 "Messages cannot be None when saving for assistant.")
@@ -703,7 +704,7 @@ async def generate_stream_with_memory(
     agent_request: AgentRequest,
     user_id: str,
     tenant_id: str,
-    language: str = "zh",
+    language: str = LANGUAGE["ZH"],
 ):
     # Prepare preprocess task tracking (simulate preprocess flow)
     task_id = str(uuid.uuid4())
@@ -723,9 +724,9 @@ async def generate_stream_with_memory(
         return json.dumps(payload, ensure_ascii=False)
 
     # Placeholder messages handled by frontend for i18n
-    msg_start = "<MEM_START>"
-    msg_done = "<MEM_DONE>"
-    msg_fail = "<MEM_FAILED>"
+    msg_start = MEMORY_SEARCH_START_MSG
+    msg_done = MEMORY_SEARCH_DONE_MSG
+    msg_fail = MEMORY_SEARCH_FAIL_MSG
 
     # ------------------------------------------------------------------
     # Note: the actual streaming happens via `_stream_agent_chunks` helper
@@ -805,7 +806,7 @@ async def generate_stream_no_memory(
     agent_request: AgentRequest,
     user_id: str,
     tenant_id: str,
-    language: str="zh",
+    language: str=LANGUAGE["ZH"],
 ):
     """Stream agent responses without any memory preprocessing tokens or fallback logic."""
 
@@ -850,7 +851,7 @@ async def run_agent_stream(
     
     # Save user message only if not in debug mode (before streaming starts)
     if not agent_request.is_debug:
-        save_messages(agent_request, target="user",
+        save_messages(agent_request, target=MESSAGE_ROLE["USER"],
                       user_id=resolved_user_id,
                       tenant_id=resolved_tenant_id)
     
@@ -952,21 +953,14 @@ def get_agent_call_relationship_impl(agent_id: int, tenant_id: str) -> dict:
     Returns:
         dict: agent call relationship tree structure
     """
-    # Tool type specification: meets test expectations
-    _TYPE_MAPPING = {
-        "mcp": "MCP",
-        "langchain": "LangChain",
-        "local": "Local",
-    }
-
     def _normalize_tool_type(source: str) -> str:
         """Normalize the source from database to the expected display type for testing."""
         if not source:
             return "UNKNOWN"
         s = str(source)
         ls = s.lower()
-        if ls in _TYPE_MAPPING:
-            return _TYPE_MAPPING[ls]
+        if ls in TOOL_TYPE_MAPPING:
+            return TOOL_TYPE_MAPPING[ls]
         # Unknown source: capitalize first letter, keep the rest unchanged (unknown_source -> Unknown_source)
         return s[:1].upper() + s[1:]
 
