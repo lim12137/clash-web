@@ -14,7 +14,6 @@ and `tenant_id` to services/database helpers.
 
 import logging
 
-from consts.const import LOCALHOST_IP, LOCALHOST_NAME, DOCKER_INTERNAL_HOST
 from consts.model import (
     BatchCreateModelsRequest,
     ModelRequest,
