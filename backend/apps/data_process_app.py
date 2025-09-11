@@ -6,7 +6,6 @@ from typing import Optional
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-from consts.const import TASK_STATUS
 from consts.model import (
     BatchTaskRequest,
     ConvertStateRequest,
