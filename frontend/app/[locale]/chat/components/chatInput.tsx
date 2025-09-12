@@ -31,6 +31,7 @@ import { chatConfig } from "@/const/chatConfig";
 import { FilePreview } from "@/types/chat";
 
 import { ChatAgentSelector } from "./chatAgentSelector";
+import log from "@/utils/logger";
 
 // Image viewer component
 function ImageViewer({
@@ -600,7 +601,7 @@ export function ChatInput({
           try {
             mediaRecorder.start(250);
           } catch (error) {
-            console.error("❌ Failed to start MediaRecorder:", error);
+            log.error("❌ Failed to start MediaRecorder:", error);
             setRecordingStatus("error");
             setIsRecording(false);
             cleanup();
@@ -617,18 +618,18 @@ export function ChatInput({
               onInputChange(response.text);
             } else if (response.status === "ready") {
             } else if (response.error) {
-              console.error("❌ STT service error:", response.error);
+              log.error("❌ STT service error:", response.error);
               setRecordingStatus("error");
               setIsRecording(false);
               cleanup();
             }
           } catch (error) {
-            console.error("⚠️ Failed to parse STT response:", error);
+            log.error("⚠️ Failed to parse STT response:", error);
           }
         };
 
         ws.onerror = (error) => {
-          console.error("❌ WebSocket error:", error);
+          log.error("❌ WebSocket error:", error);
           setRecordingStatus("error");
           setIsRecording(false);
           cleanup();
@@ -652,7 +653,7 @@ export function ChatInput({
               }
             }
           } catch (error) {
-            console.error("❌ Error in audio processing:", error);
+            log.error("❌ Error in audio processing:", error);
             setRecordingStatus("error");
             setIsRecording(false);
             cleanup();
@@ -695,7 +696,7 @@ export function ChatInput({
           }
         }
       } catch (error) {
-        console.error("❌ Failed to start recording:", error);
+        log.error("❌ Failed to start recording:", error);
         setRecordingStatus("error");
 
         // Manual cleanup in case of initialization failure

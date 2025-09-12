@@ -3,6 +3,7 @@ import { message } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { modelService } from '@/services/modelService'
 import { ModelType } from '@/types/modelConfig'
+import log from "@/utils/logger";
 
 interface UseSiliconModelListProps {
   form: {
@@ -60,7 +61,7 @@ export const useSiliconModelList = ({
       }
     } catch (error) {
       message.error(t('model.dialog.error.addFailed', { error }))
-      console.error(t('model.dialog.error.addFailedLog'), error)
+      log.error(t('model.dialog.error.addFailedLog'), error)
     } finally {
       setLoadingModelList(false)
     }

@@ -5,6 +5,7 @@ import { CONNECTION_STATUS, ConnectionStatus } from '@/const/modelConfig';
 import { ModelEngineCheckResult } from '../types/modelConfig';
 
 import { fetchWithAuth } from '@/lib/auth';
+import log from "@/utils/logger";
 
 // @ts-ignore
 const fetch = fetchWithAuth;
@@ -30,7 +31,7 @@ const modelEngineService = {
           const resp = await response.json()
           status = resp.connectivity ? CONNECTION_STATUS.SUCCESS : CONNECTION_STATUS.ERROR
         } catch (parseError) {
-          console.error("Response data parsing failed:", parseError)
+          log.error("Response data parsing failed:", parseError)
         }
       }
 
@@ -41,7 +42,7 @@ const modelEngineService = {
     } catch (error) {
       // only print non ApiError
       if (!(error && error instanceof ApiError)) {
-        console.error("Failed to check ModelEngine connection status:", error)
+        log.error("Failed to check ModelEngine connection status:", error)
       }
       return {
         status: CONNECTION_STATUS.ERROR,

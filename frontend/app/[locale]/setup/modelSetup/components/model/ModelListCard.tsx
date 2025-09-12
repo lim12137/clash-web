@@ -7,6 +7,7 @@ import { CloseOutlined } from '@ant-design/icons'
 
 import { MODEL_TYPES, MODEL_STATUS } from '@/const/modelConfig'
 import { ModelConnectStatus, ModelOption, ModelSource, ModelType } from '@/types/modelConfig'
+import log from "@/utils/logger";
 
 // Unified management of model connection status colors
 const CONNECT_STATUS_COLORS: Record<ModelConnectStatus | 'default', string> = {
@@ -179,7 +180,7 @@ export const ModelListCard = ({
       const modelToUpdate = prevData.custom.find(m => m.displayName === displayName && m.type === type);
       
       if (!modelToUpdate) {
-        console.warn(t('model.warning.updateNotFound', { displayName, type }));
+        log.warn(t('model.warning.updateNotFound', { displayName, type }));
         return prevData;
       }
       

@@ -20,6 +20,7 @@ import DocumentStatus from "./DocumentStatus";
 import UploadArea from "../upload/UploadArea";
 import { useKnowledgeBaseContext } from "../../contexts/KnowledgeBaseContext";
 import { useDocumentContext } from "../../contexts/DocumentContext";
+import log from "@/utils/logger";
 
 interface DocumentListProps {
   documents: Document[];
@@ -139,7 +140,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
             );
             setSummary(result);
           } catch (error) {
-            console.error(t("knowledgeBase.error.getSummary"), error);
+            log.error(t("knowledgeBase.error.getSummary"), error);
             message.error(t("document.summary.error"));
           }
         }
@@ -168,7 +169,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
         message.success(t("document.summary.completed"));
       } catch (error) {
         message.error(t("document.summary.error"));
-        console.error(t("document.summary.error"), error);
+        log.error(t("document.summary.error"), error);
       } finally {
         setIsSummarizing(false);
       }
@@ -191,7 +192,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
         await knowledgeBaseService.changeSummary(knowledgeBaseName, summary);
         message.success(t("document.summary.saveSuccess"));
       } catch (error: any) {
-        console.error(t("document.summary.saveError"), error);
+        log.error(t("document.summary.saveError"), error);
         const errorMessage =
           error?.message || error?.detail || t("document.summary.saveFailed");
         message.error(errorMessage);

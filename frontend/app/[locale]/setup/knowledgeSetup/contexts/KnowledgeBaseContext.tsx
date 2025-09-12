@@ -10,6 +10,7 @@ import { KnowledgeBase, KnowledgeBaseState, KnowledgeBaseAction } from "@/types/
 import { KNOWLEDGE_BASE_ACTION_TYPES } from "@/const/knowledgeBase"
 
 import { configStore } from "@/lib/config"
+import log from "@/utils/logger";
 
 
 
@@ -149,7 +150,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.FETCH_SUCCESS, payload: kbs });
       
     } catch (error) {
-      console.error(t('knowledgeBase.error.fetchList'), error);
+      log.error(t('knowledgeBase.error.fetchList'), error);
       dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: t('knowledgeBase.error.fetchListRetry') });
     } finally {
       dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.LOADING, payload: false });
@@ -165,7 +166,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
 
     // If trying to select an item, check for model compatibility. Deselection is always allowed.
     if (!isSelected && !isKnowledgeBaseSelectable(kb)) {
-      console.warn(`Cannot select knowledge base ${kb.name}, model mismatch`);
+      log.warn(`Cannot select knowledge base ${kb.name}, model mismatch`);
       return;
     }
 
@@ -197,7 +198,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       });
       return newKB;
     } catch (error) {
-      console.error(t('knowledgeBase.error.create'), error);
+      log.error(t('knowledgeBase.error.create'), error);
       dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: t('knowledgeBase.error.createRetry') });
       return null;
     }
@@ -226,7 +227,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       
       return true;
     } catch (error) {
-      console.error(t('knowledgeBase.error.delete'), error);
+      log.error(t('knowledgeBase.error.delete'), error);
       dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: t('knowledgeBase.error.deleteRetry') });
       return false;
     }
@@ -245,7 +246,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
         dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.SELECT_KNOWLEDGE_BASE, payload: selectedIds });
       }
     } catch (error) {
-      console.error(t('knowledgeBase.error.loadSelected'), error);
+      log.error(t('knowledgeBase.error.loadSelected'), error);
       dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: t('knowledgeBase.error.loadSelectedRetry') });
     }
   }, [state.knowledgeBases]);
@@ -264,7 +265,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       }
       return success;
     } catch (error) {
-      console.error(t('knowledgeBase.error.saveSelected'), error);
+      log.error(t('knowledgeBase.error.saveSelected'), error);
       dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: t('knowledgeBase.error.saveSelectedRetry') });
       return false;
     }
@@ -281,7 +282,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
         // Publish document update event to notify document list component to refresh document data
         try {
           const documents = await knowledgeBaseService.getAllFiles(state.activeKnowledgeBase.id);
-          console.log("documents", documents);
+          log.log("documents", documents);
           window.dispatchEvent(new CustomEvent('documentsUpdated', {
             detail: {
               kbId: state.activeKnowledgeBase.id,
@@ -289,11 +290,11 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
             }
           }));
         } catch (error) {
-          console.error("Failed to refresh document information:", error);
+          log.error("Failed to refresh document information:", error);
         }
       }
     } catch (error) {
-      console.error("Failed to refresh knowledge base data:", error);
+      log.error("Failed to refresh knowledge base data:", error);
       dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: 'Failed to refresh knowledge base data' });
     }
   }, [fetchKnowledgeBases, state.activeKnowledgeBase]);

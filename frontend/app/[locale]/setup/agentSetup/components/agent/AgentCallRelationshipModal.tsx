@@ -14,6 +14,7 @@ import {
 } from "@/types/agentConfig";
 
 import {AGENT_CALL_RELATIONSHIP_THEME_CONFIG, AGENT_CALL_RELATIONSHIP_NODE_TYPES, AGENT_CALL_RELATIONSHIP_ORIENTATION, AgentCallRelationshipOrientation } from "@/const/agentConfig";
+import log from "@/utils/logger";
 
 const { Text } = Typography;
 
@@ -269,7 +270,7 @@ export default function AgentCallRelationshipModal({
         message.error(result.message || "Failed to fetch call relationship");
       }
     } catch (error) {
-      console.error("Failed to fetch Agent call relationship:", error);
+      log.error("Failed to fetch Agent call relationship:", error);
       message.error(
         "Failed to fetch Agent call relationship, please try again later"
       );

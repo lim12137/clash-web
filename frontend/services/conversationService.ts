@@ -7,6 +7,7 @@ import type {
   ApiConversationResponse
 } from '@/types/conversation';
 import { getAuthHeaders, fetchWithAuth } from '@/lib/auth';
+import log from "@/utils/logger";
 // @ts-ignore
 const fetch = fetchWithAuth;
 
@@ -15,7 +16,7 @@ const fetch = fetchWithAuth;
 const getWebSocketUrl = (endpoint: string): string => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}${endpoint}`;
-  console.log(`[WebSocket] Connecting via server proxy: ${wsUrl}`);
+  log.log(`[WebSocket] Connecting via server proxy: ${wsUrl}`);
   return wsUrl;
 };
 
@@ -715,7 +716,7 @@ export const conversationService = {
     } catch (error) {
       // If the error is caused by canceling the request, return a specific response instead of throwing an error
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('文件预处理请求已被取消');
+        log.log('文件预处理请求已被取消');
         throw new Error('请求已被取消');
       }
       // Other errors are thrown normally
@@ -772,7 +773,7 @@ export const conversationService = {
     } catch (error: any) {
       // If the error is caused by canceling the request, return a specific response instead of throwing an error
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Agent请求已被取消');
+        log.log('Agent请求已被取消');
         throw new Error('请求已被取消');
       }
       // Other errors are thrown normally
