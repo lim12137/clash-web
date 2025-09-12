@@ -167,3 +167,216 @@ def test_update_title_sets_headers(monkeypatch):
     assert resp.headers.get("X-Request-Id") == "req-999"
     assert update_mock.await_count == 1
 
+
+def _std_headers(auth="Bearer test_jwt"):
+    return {
+        **_build_headers(auth=auth),
+        "Idempotency-Key": "idem-xyz",
+    }
+
+
+@pytest.mark.parametrize("exc_cls, status", [
+    (UnauthorizedError, 401),
+    (LimitExceededError, 429),
+    (SignatureValidationError, 401),
+])
+def test_run_chat_auth_exceptions_are_mapped(monkeypatch, exc_cls, status):
+    # Force AK/SK validation to raise domain exceptions
+    def _raise(*_, **__):
+        raise exc_cls("boom")
+
+    monkeypatch.setattr(
+        "apps.northbound_app.validate_aksk_authentication", _raise)
+    # Even if provided, auth should not be parsed because AK/SK fails first
+    resp = client.post(
+        "/nb/v1/chat/run",
+        json={"conversation_id": "nb-1", "agent_name": "a", "query": "hi"},
+        headers=_std_headers(),
+    )
+    assert resp.status_code == status
+
+
+def test_run_chat_missing_authorization_header_returns_401(monkeypatch):
+    monkeypatch.setattr(
+        "apps.northbound_app.validate_aksk_authentication", lambda headers, body: True)
+    # No Authorization header
+    headers = {k: v for k, v in _std_headers().items() if k.lower()
+               != "authorization"}
+    resp = client.post(
+        "/nb/v1/chat/run",
+        json={"conversation_id": "nb-1", "agent_name": "a", "query": "hi"},
+        headers=headers,
+    )
+    assert resp.status_code == 401
+    assert resp.json()["detail"].startswith(
+        "Unauthorized: No authorization header")
+
+
+def test_run_chat_jwt_parse_exception_returns_500(monkeypatch):
+    monkeypatch.setattr(
+        "apps.northbound_app.validate_aksk_authentication", lambda headers, body: True)
+
+    def _raise_jwt(_auth):
+        raise Exception("jwt parse error")
+    monkeypatch.setattr("apps.northbound_app.get_current_user_id", _raise_jwt)
+
+    resp = client.post(
+        "/nb/v1/chat/run",
+        json={"conversation_id": "nb-1", "agent_name": "a", "query": "hi"},
+        headers=_std_headers(),
+    )
+    assert resp.status_code == 500
+    assert "cannot parse JWT token" in resp.json()["detail"]
+
+
+def test_run_chat_jwt_missing_user_id_returns_401(monkeypatch):
+    monkeypatch.setattr(
+        "apps.northbound_app.validate_aksk_authentication", lambda headers, body: True)
+    monkeypatch.setattr(
+        "apps.northbound_app.get_current_user_id", lambda _auth: (None, "t1"))
+
+    resp = client.post(
+        "/nb/v1/chat/run",
+        json={"conversation_id": "nb-1", "agent_name": "a", "query": "hi"},
+        headers=_std_headers(),
+    )
+    assert resp.status_code == 401
+    assert "missing user_id" in resp.json()["detail"]
+
+
+def test_run_chat_jwt_missing_tenant_id_returns_401(monkeypatch):
+    monkeypatch.setattr(
+        "apps.northbound_app.validate_aksk_authentication", lambda headers, body: True)
+    monkeypatch.setattr(
+        "apps.northbound_app.get_current_user_id", lambda _auth: ("u1", None))
+
+    resp = client.post(
+        "/nb/v1/chat/run",
+        json={"conversation_id": "nb-1", "agent_name": "a", "query": "hi"},
+        headers=_std_headers(),
+    )
+    assert resp.status_code == 401
+    assert "unregistered user_id" in resp.json()["detail"]
+
+
+def test_run_chat_internal_error_when_parsing_context_returns_500(monkeypatch):
+    def _raise(*_, **__):
+        raise Exception("unexpected")
+    monkeypatch.setattr(
+        "apps.northbound_app.validate_aksk_authentication", _raise)
+
+    resp = client.post(
+        "/nb/v1/chat/run",
+        json={"conversation_id": "nb-1", "agent_name": "a", "query": "hi"},
+        headers=_std_headers(),
+    )
+    assert resp.status_code == 500
+    assert "cannot parse northbound context" in resp.json()["detail"]
+
+
+def test_run_chat_unexpected_service_error_maps_500(monkeypatch):
+    monkeypatch.setattr(
+        "apps.northbound_app.validate_aksk_authentication", lambda headers, body: True)
+    monkeypatch.setattr(
+        "apps.northbound_app.get_current_user_id", lambda auth: ("u1", "t1"))
+    start_mock = AsyncMock(side_effect=Exception("boom"))
+    monkeypatch.setattr("apps.northbound_app.start_streaming_chat", start_mock)
+
+    resp = client.post(
+        "/nb/v1/chat/run",
+        json={"conversation_id": "nb-1", "agent_name": "a", "query": "hi"},
+        headers=_std_headers(),
+    )
+    assert resp.status_code == 500
+
+
+@pytest.mark.parametrize("path", [
+    "/nb/v1/chat/stop/nb-x",
+    "/nb/v1/conversations/nb-x",
+    "/nb/v1/agents",
+    "/nb/v1/conversations",
+])
+@pytest.mark.parametrize("exc_cls, status", [
+    (UnauthorizedError, 401),
+    (LimitExceededError, 429),
+    (SignatureValidationError, 401),
+])
+def test_other_endpoints_auth_exceptions_are_mapped(monkeypatch, path, exc_cls, status):
+    def _raise(*_, **__):
+        raise exc_cls("boom")
+    monkeypatch.setattr(
+        "apps.northbound_app.validate_aksk_authentication", _raise)
+
+    resp = client.get(path, headers=_build_headers())
+    assert resp.status_code == status
+
+
+@pytest.mark.parametrize(
+    "path, target",
+    [
+        ("/nb/v1/chat/stop/nb-x", "apps.northbound_app.stop_chat"),
+        ("/nb/v1/conversations/nb-x", "apps.northbound_app.get_conversation_history"),
+        ("/nb/v1/agents", "apps.northbound_app.get_agent_info_list"),
+        ("/nb/v1/conversations", "apps.northbound_app.list_conversations"),
+    ],
+)
+def test_other_endpoints_unexpected_service_error_maps_500(monkeypatch, path, target):
+    monkeypatch.setattr(
+        "apps.northbound_app.validate_aksk_authentication", lambda headers, body=None: True)
+    monkeypatch.setattr(
+        "apps.northbound_app.get_current_user_id", lambda auth: ("u1", "t1"))
+    monkeypatch.setattr(target, AsyncMock(side_effect=Exception("boom")))
+
+    resp = client.get(path, headers=_build_headers())
+    assert resp.status_code == 500
+
+
+def test_update_title_unexpected_service_error_maps_500(monkeypatch):
+    monkeypatch.setattr(
+        "apps.northbound_app.validate_aksk_authentication", lambda headers, body=None: True)
+    monkeypatch.setattr(
+        "apps.northbound_app.get_current_user_id", lambda auth: ("u1", "t1"))
+    monkeypatch.setattr("apps.northbound_app.update_conversation_title", AsyncMock(
+        side_effect=Exception("boom")))
+
+    resp = client.put(
+        "/nb/v1/conversations/nb-4/title",
+        params={"title": "x"},
+        headers=_build_headers(),
+    )
+    assert resp.status_code == 500
+
+
+def test_request_body_read_failure_is_tolerated(monkeypatch):
+    """If reading body fails, it should log and continue with empty body."""
+    # Make Request.body raise for this test
+
+    async def _body_raiser(self):
+        raise Exception("cannot read body")
+
+    from fastapi import Request as _Req  # import inside to avoid global impact
+    monkeypatch.setattr(_Req, "body", _body_raiser, raising=True)
+
+    captured = {"seen": None}
+
+    def _validate(headers, body):
+        captured["seen"] = body
+        return True
+
+    monkeypatch.setattr(
+        "apps.northbound_app.validate_aksk_authentication", _validate)
+    monkeypatch.setattr(
+        "apps.northbound_app.get_current_user_id", lambda auth: ("u1", "t1"))
+
+    async def _gen():
+        yield b"data: ok\n\n"
+    start_mock = AsyncMock(return_value=StreamingResponse(
+        _gen(), media_type="text/event-stream"))
+    monkeypatch.setattr("apps.northbound_app.start_streaming_chat", start_mock)
+
+    resp = client.post(
+        "/nb/v1/chat/run",
+        json={"conversation_id": "nb-1", "agent_name": "a", "query": "hi"},
+        headers=_std_headers(),
+    )
+    assert resp.status_code == 400
