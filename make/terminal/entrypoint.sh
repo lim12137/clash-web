@@ -45,6 +45,16 @@ SSHD_EOF
 
 echo "SSH timeout configuration applied successfully"
 
+# Fix terminal directory permissions if mounted from host
+echo "Fixing terminal directory permissions..."
+if [ -d "/opt/terminal" ]; then
+    chown -R $DEV_USER:$DEV_USER /opt/terminal 2>/dev/null || true
+    chmod 755 /opt/terminal 2>/dev/null || true
+    echo "✅ Terminal directory permissions fixed"
+else
+    echo "⚠️ Terminal directory not found"
+fi
+
 # Start SSH service
 if [ $# -gt 0 ]; then
     exec "$@"
