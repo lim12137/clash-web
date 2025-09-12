@@ -1,23 +1,17 @@
 import logging
-import os
 import hashlib
 import hmac
 import time
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
-from fastapi import Request
-from consts.const import DEFAULT_USER_ID, DEFAULT_TENANT_ID, IS_SPEED_MODE
-from consts.exceptions import LimitExceededError, SignatureValidationError, UnauthorizedError
 import jwt
+from fastapi import Request
 from supabase import create_client
-from database.user_tenant_db import get_user_tenant_by_user_id
 
-# Get Supabase configuration
-SUPABASE_URL = os.getenv('SUPABASE_URL', 'http://118.31.249.152:8010')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
-# 调试用 JWT 过期时间（秒），未设置或为 0 表示不生效
-DEBUG_JWT_EXPIRE_SECONDS = int(os.getenv('DEBUG_JWT_EXPIRE_SECONDS', '0') or 0)
+from consts.const import DEFAULT_TENANT_ID, DEFAULT_USER_ID, IS_SPEED_MODE, SUPABASE_URL, SUPABASE_KEY, DEBUG_JWT_EXPIRE_SECONDS, LANGUAGE
+from consts.exceptions import LimitExceededError, SignatureValidationError, UnauthorizedError
+from database.user_tenant_db import get_user_tenant_by_user_id
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -115,7 +109,8 @@ def verify_aksk_signature(
             raise SignatureValidationError("Timestamp is invalid or expired")
 
         # TODO: get ak/sk according to tenant_id from DB
-        mock_access_key, mock_secret_key = get_aksk_config(tenant_id="tenant_id")
+        mock_access_key, mock_secret_key = get_aksk_config(
+            tenant_id="tenant_id")
 
         if access_key != mock_access_key:
             logger.warning(f"Invalid access key: {access_key}")
@@ -199,62 +194,64 @@ def validate_aksk_authentication(headers: dict, request_body: str = "") -> bool:
         logger.error(f"Unexpected error during AK/SK authentication: {e}")
         raise UnauthorizedError("Authentication failed")
 
+
 def get_supabase_client():
-    """Get Supabase client instance"""
+    """Get Supabase client instance with service key for admin operations"""
     try:
         return create_client(SUPABASE_URL, SUPABASE_KEY)
     except Exception as e:
-        logging.error(f"创建Supabase客户端失败: {str(e)}")
+        logging.error(f"Failed to create Supabase client: {str(e)}")
         return None
 
 
 def get_jwt_expiry_seconds(token: str) -> int:
     """
-    从JWT令牌中获取过期时间（秒）
+    Get expiration time from JWT token (seconds)
 
     Args:
-        token: JWT令牌字符串
+        token: JWT token string
 
     Returns:
-        int: 令牌的有效期（秒），如果解析失败则返回默认值3600
+        int: Token validity period (seconds), returns default value 3600 if parsing fails
     """
     try:
         # Speed mode: treat sessions as never expiring
         if IS_SPEED_MODE:
             # 10 years in seconds
             return 10 * 365 * 24 * 60 * 60
-        # 确保token是纯JWT，去除可能的Bearer前缀
-        jwt_token = token.replace("Bearer ", "") if token.startswith("Bearer ") else token
+        # Ensure token is pure JWT, remove possible Bearer prefix
+        jwt_token = token.replace(
+            "Bearer ", "") if token.startswith("Bearer ") else token
 
-        # 如果设置了调试过期时间，直接返回以便快速调试
+        # If debug expiration time is set, return directly for quick debugging
         if DEBUG_JWT_EXPIRE_SECONDS > 0:
             return DEBUG_JWT_EXPIRE_SECONDS
 
-        # 解码JWT令牌(不验证签名，只解析内容)
+        # Decode JWT token (without signature verification, only parse content)
         decoded = jwt.decode(jwt_token, options={"verify_signature": False})
 
-        # 从JWT声明中提取过期时间和签发时间
+        # Extract expiration time and issued time from JWT claims
         exp = decoded.get("exp", 0)
         iat = decoded.get("iat", 0)
 
-        # 计算有效期（秒）
+        # Calculate validity period (seconds)
         expiry_seconds = exp - iat
 
         return expiry_seconds
     except Exception as e:
-        logging.warning(f"从令牌获取过期时间失败: {str(e)}")
-        return 3600  # supabase默认设置
+        logging.warning(f"Failed to get expiration time from token: {str(e)}")
+        return 3600  # supabase default setting
 
 
 def calculate_expires_at(token: Optional[str] = None) -> int:
     """
-    计算会话过期时间（与Supabase JWT过期时间保持一致）
+    Calculate session expiration time (consistent with Supabase JWT expiration time)
 
     Args:
-        token: 可选的JWT令牌，用于获取实际过期时间
+        token: Optional JWT token to get actual expiration time
 
     Returns:
-        int: 过期时间的时间戳
+        int: Expiration time timestamp
     """
     # Speed mode: far future expiration
     if IS_SPEED_MODE:
@@ -275,13 +272,14 @@ def _extract_user_id_from_jwt_token(authorization: str) -> Optional[str]:
         Optional[str]: User ID, return None if parsing fails
     """
     try:
-        # 格式化授权头部
-        token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+        # Format authorization header
+        token = authorization.replace("Bearer ", "") if authorization.startswith(
+            "Bearer ") else authorization
 
-        # 解码JWT令牌(不验证签名，只解析内容)
+        # Decode JWT token (without signature verification, only parse content)
         decoded = jwt.decode(token, options={"verify_signature": False})
 
-        # 从JWT声明中提取用户ID
+        # Extract user ID from JWT claims
         user_id = decoded.get("sub")
 
         return user_id
@@ -302,7 +300,8 @@ def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
     """
     # if deploy in speed mode or authorization is None, return default user id and tenant id
     if IS_SPEED_MODE or authorization is None:
-        logging.debug("Speed mode or no valid authorization header detected - returning default user ID and tenant ID")
+        logging.debug(
+            "Speed mode or no valid authorization header detected - returning default user ID and tenant ID")
         return DEFAULT_USER_ID, DEFAULT_TENANT_ID
 
     try:
@@ -316,12 +315,13 @@ def get_current_user_id(authorization: Optional[str] = None) -> tuple[str, str]:
             logging.debug(f"Found tenant ID for user {user_id}: {tenant_id}")
         else:
             tenant_id = DEFAULT_TENANT_ID
-            logging.warning(f"No tenant relationship found for user {user_id}, using default tenant")
+            logging.warning(
+                f"No tenant relationship found for user {user_id}, using default tenant")
 
         return user_id, tenant_id
 
     except Exception as e:
-        logging.error(f"Failed to get user ID and tanent ID: {str(e)}")
+        logging.error(f"Failed to get user ID and tenant ID: {str(e)}")
         raise UnauthorizedError("Invalid or expired authentication token")
 
 
@@ -335,14 +335,14 @@ def get_user_language(request: Request = None) -> str:
     Returns:
         str: Language code ('zh' or 'en'), default to 'zh'
     """
-    default_language = 'zh'
+    default_language = LANGUAGE["ZH"]
 
     # Read language setting from cookie
     if request:
         try:
             if hasattr(request, 'cookies') and request.cookies:
                 cookie_locale = request.cookies.get('NEXT_LOCALE')
-                if cookie_locale and cookie_locale in ['zh', 'en']:
+                if cookie_locale and cookie_locale in [LANGUAGE["ZH"], LANGUAGE["EN"]]:
                     return cookie_locale
         except (AttributeError, TypeError) as e:
             logging.warning(f"Error reading language from cookies: {e}")

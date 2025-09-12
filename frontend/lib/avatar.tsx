@@ -1,33 +1,33 @@
 import { createAvatar } from '@dicebear/core';
 import * as iconStyle from '@dicebear/icons';
 
-import type { AppConfig } from '../types/config';
-import { presetIcons } from "../types/avatar"
+import type { AppConfig } from '../types/modelConfig';
+import { presetIcons } from "@/const/avatar"
 
-// 基于种子的随机数生成器
+// Seeded random number generator
 class SeededRandom {
   private seed: number;
 
   constructor(seed: string) {
-    // 将字符串转换为数字种子
+    // Convert string to numeric seed
     this.seed = Array.from(seed).reduce((acc, char) => {
       return acc + char.charCodeAt(0);
     }, 0);
   }
 
-  // 生成0到1之间的随机数
+  // Generate random number between 0 and 1
   random(): number {
     const x = Math.sin(this.seed++) * 10000;
     return x - Math.floor(x);
   }
 
-  // 生成指定范围内的随机整数
+  // Generate random integer within specified range
   randomInt(min: number, max: number): number {
     return Math.floor(this.random() * (max - min + 1)) + min;
   }
 }
 
-// 直接生成头像 URI 并返回
+// Directly generate avatar URI and return
 export const generateAvatarUri = (icon: string, color: string, size: number = 30, scale: number = 80): string => {
   const selectedIcon = presetIcons.find(preset => preset.key === icon) || presetIcons[0];
   const mainColor = color.replace("#", "");
@@ -52,10 +52,10 @@ export const getAvatarUrl = (config: AppConfig, size: number = 30, scale: number
     // Return custom image URL
     return config.customIconUrl;
   } else if (config.avatarUri) {
-    // 如果存在预生成的 URI，直接返回
+    // If pre-generated URI exists, return directly
     return config.avatarUri;
   } else {
-    // 默认返回第一个预设图标
+    // Default return first preset icon
     const defaultIcon = presetIcons[0];
     const mainColor = "2689cb";
     const secondaryColor = generateComplementaryColor(mainColor);
@@ -75,39 +75,39 @@ export const getAvatarUrl = (config: AppConfig, size: number = 30, scale: number
 };
 
 /**
- * 根据主色生成随机的配色
- * @param mainColor 主色（十六进制颜色值，可带可不带#前缀）
- * @returns 生成的副色（十六进制颜色值，不带#前缀）
+ * Generate random complementary color based on main color
+ * @param mainColor Main color (hex color value, with or without # prefix)
+ * @returns Generated secondary color (hex color value, without # prefix)
  */
 export const generateComplementaryColor = (mainColor: string): string => {
-  // 移除可能存在的#前缀
+  // Remove possible # prefix
   const colorHex = mainColor.replace('#', '');
   
-  // 将十六进制颜色转换为RGB
+  // Convert hex color to RGB
   const r = parseInt(colorHex.substring(0, 2), 16);
   const g = parseInt(colorHex.substring(2, 4), 16);
   const b = parseInt(colorHex.substring(4, 6), 16);
   
-  // 使用颜色值作为随机数种子
+  // Use color value as random number seed
   const random = new SeededRandom(colorHex);
   
-  // 生成随机变化方向（几种常见的变化模式）
+  // Generate random variation direction (several common variation patterns)
   const variation = random.randomInt(0, 3);
   
   let newR = r, newG = g, newB = b;
   
   switch(variation) {
-    case 0: // 调暗 - 生成更深的颜色
+    case 0: // Darken - generate darker color
       newR = Math.max(0, r - 40 - random.randomInt(0, 30));
       newG = Math.max(0, g - 40 - random.randomInt(0, 30));
       newB = Math.max(0, b - 40 - random.randomInt(0, 30));
       break;
-    case 1: // 调亮 - 生成更亮的颜色
+    case 1: // Brighten - generate brighter color
       newR = Math.min(255, r + 40 + random.randomInt(0, 30));
       newG = Math.min(255, g + 40 + random.randomInt(0, 30));
       newB = Math.min(255, b + 40 + random.randomInt(0, 30));
       break;
-    case 2: // 相似色 - 微调RGB中的一个或两个通道
+    case 2: // Similar color - fine-tune one or two RGB channels
       const channel = random.randomInt(0, 2);
       if (channel === 0) {
         newR = Math.min(255, Math.max(0, r + random.randomInt(0, 120) - 60));
@@ -117,9 +117,9 @@ export const generateComplementaryColor = (mainColor: string): string => {
         newB = Math.min(255, Math.max(0, b + random.randomInt(0, 120) - 60));
       }
       break;
-    case 3: // HSL调整 - 转HSL后调整色相
+    case 3: // HSL adjustment - convert to HSL then adjust hue
       const [h, s, l] = rgbToHsl(r, g, b);
-      const newH = (h + 0.05 + random.random() * 0.2) % 1; // 调整色相±30-90度
+      const newH = (h + 0.05 + random.random() * 0.2) % 1; // Adjust hue ±30-90 degrees
       const [adjR, adjG, adjB] = hslToRgb(newH, s, l);
       newR = adjR;
       newG = adjG;
@@ -127,16 +127,16 @@ export const generateComplementaryColor = (mainColor: string): string => {
       break;
   }
   
-  // 确保RGB值在有效范围内
+  // Ensure RGB values are within valid range
   newR = Math.min(255, Math.max(0, Math.round(newR)));
   newG = Math.min(255, Math.max(0, Math.round(newG)));
   newB = Math.min(255, Math.max(0, Math.round(newB)));
   
-  // 转回十六进制
+  // Convert back to hexadecimal
   return ((1 << 24) + (newR << 16) + (newG << 8) + newB).toString(16).slice(1);
 }
 
-// 辅助函数: RGB转HSL
+// Helper function: RGB to HSL
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
   r /= 255;
   g /= 255;
@@ -162,12 +162,12 @@ function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
   return [h, s, l];
 }
 
-// 辅助函数: HSL转RGB
+// Helper function: HSL to RGB
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   let r, g, b;
   
   if (s === 0) {
-    r = g = b = l; // 灰色
+    r = g = b = l; // Gray
   } else {
     const hue2rgb = (p: number, q: number, t: number) => {
       if (t < 0) t += 1;
@@ -190,39 +190,39 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
 }
 
 /**
- * 从Dicebear生成的Data URI中提取主色和次色，预留给app名称使用
- * @param dataUri Dicebear生成的头像data URI
- * @returns 包含mainColor和secondaryColor的对象，颜色值不含#前缀
+ * Extract main and secondary colors from Dicebear generated Data URI, reserved for app name use
+ * @param dataUri Dicebear generated avatar data URI
+ * @returns Object containing mainColor and secondaryColor, color values without # prefix
  */
 export const extractColorsFromUri = (dataUri: string): { mainColor: string | null, secondaryColor: string | null } =>  {
-  // 默认返回值
+  // Default return value
   const result = { 
     mainColor: "", 
     secondaryColor: "" 
   };
   
   try {
-    // 检查是否是Data URI
+    // Check if it's a Data URI
     if (!dataUri || !dataUri.startsWith('data:')) {
       return result;
     }
     
-    // 提取Base64或URL编码的内容
+    // Extract Base64 or URL encoded content
     let svgContent = '';
     if (dataUri.includes('base64')) {
-      // 处理Base64编码
+      // Handle Base64 encoding
       const base64Content = dataUri.split(',')[1];
-      svgContent = atob(base64Content); // 解码Base64
+      svgContent = atob(base64Content); // Decode Base64
     } else {
-      // 处理URL编码
+      // Handle URL encoding
       const uriContent = dataUri.split(',')[1];
       svgContent = decodeURIComponent(uriContent);
     }
     
-    // 查找线性渐变定义
+    // Find linear gradient definition
     const gradientMatch = svgContent.match(/<linearGradient[^>]*>([\s\S]*?)<\/linearGradient>/);
     if (!gradientMatch) {
-      // 如果没有渐变，查找背景填充色
+      // If no gradient, find background fill color
       const fillMatch = svgContent.match(/fill="(#[0-9a-fA-F]{6})"/);
       if (fillMatch && fillMatch[1]) {
         result.mainColor = fillMatch[1].replace('#', '');
@@ -230,7 +230,7 @@ export const extractColorsFromUri = (dataUri: string): { mainColor: string | nul
       return result;
     }
     
-    // 提取渐变中的颜色
+    // Extract colors from gradient
     const stopMatches = svgContent.matchAll(/<stop[^>]*stop-color="(#[0-9a-fA-F]{6})"[^>]*>/g);
     const colors: string[] = [];
     
@@ -240,7 +240,7 @@ export const extractColorsFromUri = (dataUri: string): { mainColor: string | nul
       }
     }
     
-    // 通常第一个是主色，第二个是次色
+    // Usually first is main color, second is secondary color
     if (colors.length >= 1) {
       result.mainColor = colors[0];
     }
@@ -249,7 +249,7 @@ export const extractColorsFromUri = (dataUri: string): { mainColor: string | nul
     }
     
   } catch (error) {
-    console.error('提取颜色时出错:', error);
+    console.error('Error extracting colors:', error);
   }
   
   return result;

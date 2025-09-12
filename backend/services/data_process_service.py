@@ -14,7 +14,9 @@ import aiohttp
 import redis
 import torch
 from PIL import Image
+from celery import states
 from transformers import CLIPProcessor, CLIPModel
+from nexent.data_process.core import DataProcessCore
 
 from consts.const import CLIP_MODEL_PATH, IMAGE_FILTER, REDIS_BACKEND_URL, REDIS_URL
 from consts.model import BatchTaskRequest
@@ -65,7 +67,8 @@ class DataProcessService:
                     connection_pool=self.redis_pool)
                 logger.info("Redis client initialized successfully.")
             else:
-                logger.warning("REDIS_BACKEND_URL not set, Redis client not initialized.")
+                logger.warning(
+                    "REDIS_BACKEND_URL not set, Redis client not initialized.")
         except Exception as e:
             logger.error(f"Failed to initialize Redis client: {str(e)}")
 
@@ -82,7 +85,8 @@ class DataProcessService:
             self.clip_available = True
             logger.info("CLIP model loaded successfully")
         except Exception as e:
-            logger.warning(f"Failed to load CLIP model, size-only filtering will be used: {str(e)}")
+            logger.warning(
+                f"Failed to load CLIP model, size-only filtering will be used: {str(e)}")
             self.clip_available = False
 
     async def start(self):
@@ -102,7 +106,8 @@ class DataProcessService:
             if not celery_app.conf.broker_url or not celery_app.conf.result_backend:
                 celery_app.conf.broker_url = REDIS_URL
                 celery_app.conf.result_backend = REDIS_BACKEND_URL
-                logger.warning(f"Celery broker URL is not configured properly, reconfiguring to {celery_app.conf.broker_url}")
+                logger.warning(
+                    f"Celery broker URL is not configured properly, reconfiguring to {celery_app.conf.broker_url}")
             try:
                 inspector = celery_app.control.inspect()
                 inspector.ping()
@@ -176,8 +181,10 @@ class DataProcessService:
                     # Add to the set, duplicates will be handled
                     task_ids.add(task_id)
             except Exception as redis_error:
-                logger.warning(f"Failed to query Redis for stored task IDs: {str(redis_error)}")
-            logger.debug(f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
+                logger.warning(
+                    f"Failed to query Redis for stored task IDs: {str(redis_error)}")
+            logger.debug(
+                f"Total unique task IDs collected (inspector + Redis): {len(task_ids)}")
             tasks = [get_task_info(task_id) for task_id in task_ids]
             all_task_infos = await asyncio.gather(*tasks, return_exceptions=True)
             for task_info in all_task_infos:
@@ -366,7 +373,7 @@ class DataProcessService:
                     }
                 }
 
-            # 延迟加载CLIP模型
+            # Lazy load CLIP model
             if not self.clip_available:
                 self._init_clip_model()
 
@@ -475,6 +482,96 @@ class DataProcessService:
         logger.info(
             f"Created {len(task_ids)} individual tasks for batch processing")
         return task_ids
+
+    async def convert_to_base64(self, image):
+        # Convert PIL image to base64
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format=image.format or 'JPEG')
+        img_byte_arr.seek(0)
+        # Convert to base64
+        image_data = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
+        # Determine correct content_type
+        content_type = f"image/{image.format.lower() if image.format else 'jpeg'}"
+        return image_data, content_type
+
+    async def process_uploaded_text_file(self, file_content: bytes, filename: str, chunking_strategy: str = "basic") -> Dict[str, Any]:
+        """Process uploaded file bytes into text/chunks using SDK DataProcessCore.
+
+        Args:
+            file_content: Raw bytes of the uploaded file
+            filename: Original filename for format detection
+            chunking_strategy: Chunking strategy name
+
+        Returns:
+            Dict[str, Any]: Processing result including text and metadata
+        """
+        start_time = time.time()
+        logger.info(
+            f"Processing uploaded file: {filename} using SDK DataProcessCore")
+
+        data_processor = DataProcessCore()
+        chunks = data_processor.file_process(
+            file_data=file_content,
+            filename=filename,
+            chunking_strategy=chunking_strategy
+        )
+
+        full_text = ""
+        chunk_texts: List[str] = []
+        for chunk in chunks:
+            if 'content' in chunk:
+                chunk_content = chunk['content']
+                full_text += chunk_content + "\n"
+                chunk_texts.append(chunk_content)
+
+        processing_time = time.time() - start_time
+        logger.info(
+            f"Successfully processed uploaded file: {filename}, extracted {len(full_text)} characters in {processing_time:.2f}s"
+        )
+
+        return {
+            "success": True,
+            "task_id": None,
+            "filename": filename,
+            "text": full_text.strip(),
+            "chunks": chunk_texts,
+            "chunks_count": len(chunks),
+            "text_length": len(full_text.strip()),
+            "processing_time": processing_time,
+            "chunking_strategy": chunking_strategy
+        }
+
+    def convert_celery_states_to_custom(self, process_celery_state: Optional[str], forward_celery_state: Optional[str]) -> str:
+        """Map Celery task states to a custom frontend state string.
+
+        This implements the business logic that was previously in the app layer.
+        """
+        if process_celery_state == states.FAILURE:
+            return "PROCESS_FAILED"
+        if forward_celery_state == states.FAILURE:
+            return "FORWARD_FAILED"
+
+        if process_celery_state == states.SUCCESS and forward_celery_state == states.SUCCESS:
+            return "COMPLETED"
+
+        forward_state_map = {
+            states.PENDING: "WAIT_FOR_FORWARDING",
+            states.STARTED: "FORWARDING",
+            states.SUCCESS: "COMPLETED",
+            states.FAILURE: "FORWARD_FAILED",
+        }
+        process_state_map = {
+            states.PENDING: "WAIT_FOR_PROCESSING",
+            states.STARTED: "PROCESSING",
+            states.SUCCESS: "WAIT_FOR_FORWARDING",
+            states.FAILURE: "PROCESS_FAILED",
+        }
+
+        if forward_celery_state:
+            return forward_state_map.get(forward_celery_state, "WAIT_FOR_FORWARDING")
+        if process_celery_state:
+            return process_state_map.get(process_celery_state, "WAIT_FOR_PROCESSING")
+        return "WAIT_FOR_PROCESSING"
 
 
 # Global instance to be shared across modules

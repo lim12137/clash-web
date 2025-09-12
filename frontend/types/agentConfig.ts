@@ -1,6 +1,7 @@
 // Agent Configuration Types
 import { ChatMessageType } from "./chat";
-import { OpenAIModel } from "./config";
+import { OpenAIModel } from "./modelConfig";
+import { GENERATE_PROMPT_STREAM_TYPES, TOOL_SOURCE_TYPES } from "../const/agentConfig";
 
 // ========== Core Interfaces ==========
 
@@ -49,17 +50,6 @@ export interface ToolParam {
 
 // ========== Data Interfaces ==========
 
-// Agent creation cache interface
-export interface NewAgentCache {
-  businessLogic: string;
-  dutyContent: string;
-  constraintContent: string;
-  fewShotsContent: string;
-  agentName: string;
-  agentDescription: string;
-  agentDisplayName: string;
-}
-
 // Agent configuration data response interface
 export interface AgentConfigDataResponse {
   businessLogic: string;
@@ -73,7 +63,7 @@ export interface ToolGroup {
   tools: Tool[];
 }
 
-// 树形结构节点类型
+// Tree structure node type
 export interface TreeNodeDatum {
   name: string;
   type?: string;
@@ -278,38 +268,40 @@ export interface AgentRefreshEvent extends CustomEvent {
   detail: any;
 }
 
-// ========== Constants ==========
+// ========== MCP Interfaces ==========
 
-// Agent call relationship graph theme/colors
-export const AGENT_CALL_RELATIONSHIP_THEME_CONFIG = {
-  colors: {
-    node: {
-      main: "#1a1a2e",
-      levels: {
-        1: "#16213e",
-        2: "#0f3460",
-        3: "#533483",
-        4: "#7209b7",
-      },
-      tools: {
-        1: "#ff6b6b",
-        2: "#4ecdc4",
-        3: "#45b7d1",
-        4: "#96ceb4",
-      },
-    },
-  },
-} as const;
+// MCP server interface definition
+export interface McpServer {
+  service_name: string;
+  mcp_url: string;
+  status: boolean;
+  remote_mcp_server_name?: string;
+  remote_mcp_server?: string;
+}
 
-// Agent call relationship node default size
-export const AGENT_CALL_RELATIONSHIP_NODE_SIZE = {
-  width: 140,
-  height: 60,
-} as const;
+// MCP tool interface definition
+export interface McpTool {
+  name: string;
+  description: string;
+  parameters?: any;
+}
 
-// Default layout configuration for Agent Setup pages
-export const AGENT_SETUP_LAYOUT_DEFAULT: LayoutConfig = {
-  CARD_HEADER_PADDING: "10px 24px",
-  CARD_BODY_PADDING: "12px 20px",
-  DRAWER_WIDTH: "40%",
-};
+// ========== Prompt Service Interfaces ==========
+
+/**
+ * Prompt Generation Request Parameters
+ */
+export interface GeneratePromptParams {
+  agent_id: number;
+  task_description: string;
+}
+
+/**
+ * Stream Response Data Structure
+ */
+export interface StreamResponseData {
+  type: (typeof GENERATE_PROMPT_STREAM_TYPES)[keyof typeof GENERATE_PROMPT_STREAM_TYPES];
+  content: string;
+  is_complete: boolean;
+}
+

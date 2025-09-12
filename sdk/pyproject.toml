@@ -54,7 +54,7 @@ dependencies = [
     "linkup-sdk",
     "paramiko>=3.4.0",
     "linkup-sdk",
-    "mem0ai>=0.1.116"
+    "mem0ai>=0.1.117"
 ]
 
 [tool.uv]

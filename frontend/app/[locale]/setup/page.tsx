@@ -12,13 +12,12 @@ import { Globe } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { configService } from "@/services/configService";
-import modelEngineService, {
-  ConnectionStatus,
-} from "@/services/modelEngineService";
+import modelEngineService from "@/services/modelEngineService";
 import { configStore } from "@/lib/config";
-import { languageOptions } from "@/lib/constants";
+import { languageOptions } from "@/const/constants";
 import { useLanguageSwitch } from "@/lib/language";
-import { HEADER_CONFIG } from "@/lib/layoutConstants";
+import { HEADER_CONFIG } from "@/const/layoutConstants";
+import { USER_ROLES, CONNECTION_STATUS, ConnectionStatus } from "@/const/modelConfig";
 
 import AppModelConfig from "./modelSetup/config";
 import DataConfig from "./knowledgeSetup/config";
@@ -26,7 +25,7 @@ import AgentConfig from "./agentSetup/config";
 
 // ================ Header ================
 interface HeaderProps {
-  connectionStatus: "success" | "error" | "processing";
+  connectionStatus: typeof CONNECTION_STATUS.SUCCESS | typeof CONNECTION_STATUS.ERROR | typeof CONNECTION_STATUS.PROCESSING;
   isCheckingConnection: boolean;
   onCheckConnection: () => void;
 }
@@ -43,11 +42,11 @@ function Header({
   // Get status text
   const getStatusText = () => {
     switch (connectionStatus) {
-      case "success":
+      case CONNECTION_STATUS.SUCCESS:
         return t("setup.header.status.connected");
-      case "error":
+      case CONNECTION_STATUS.ERROR:
         return t("setup.header.status.disconnected");
-      case "processing":
+      case CONNECTION_STATUS.PROCESSING:
         return t("setup.header.status.checking");
       default:
         return t("setup.header.status.unknown");
@@ -75,7 +74,7 @@ function Header({
           {t("setup.header.description")}
         </span>
       </div>
-      {/* 语言切换 */}
+      {/* Language switch */}
       <div className="flex items-center gap-3">
         <Dropdown
           menu={{
@@ -93,7 +92,7 @@ function Header({
             <DownOutlined className="text-[10px]" />
           </a>
         </Dropdown>
-        {/* ModelEngine连通性状态 */}
+        {/* ModelEngine connectivity status */}
         <div className="flex items-center px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700">
           <Badge
             status={connectionStatus}
@@ -124,7 +123,7 @@ interface NavigationProps {
   onBackToFirstPage: () => void;
   onCompleteConfig: () => void;
   isSavingConfig: boolean;
-  userRole?: "user" | "admin";
+  userRole?: typeof USER_ROLES.USER | typeof USER_ROLES.ADMIN;
 }
 
 function Navigation({
@@ -139,7 +138,7 @@ function Navigation({
   return (
     <div className="mt-3 flex justify-between px-6">
       <div className="flex gap-2">
-        {selectedKey != "1" && userRole === "admin" && (
+        {selectedKey != "1" && userRole === USER_ROLES.ADMIN && (
           <button
             onClick={onBackToFirstPage}
             className={
@@ -161,14 +160,14 @@ function Navigation({
           style={{
             border: "none",
             marginLeft:
-              selectedKey === "1" || userRole !== "admin" ? "auto" : undefined,
+              selectedKey === "1" || userRole !== USER_ROLES.ADMIN ? "auto" : undefined,
           }}
         >
           {selectedKey === "3"
             ? isSavingConfig
               ? t("setup.navigation.button.saving")
               : t("setup.navigation.button.complete")
-            : selectedKey === "2" && userRole !== "admin"
+            : selectedKey === "2" && userRole !== USER_ROLES.ADMIN
             ? isSavingConfig
               ? t("setup.navigation.button.saving")
               : t("setup.navigation.button.complete")
@@ -182,14 +181,14 @@ function Navigation({
 // ================ Layout ================
 interface LayoutProps {
   children: ReactNode;
-  connectionStatus: "success" | "error" | "processing";
+  connectionStatus: typeof CONNECTION_STATUS.SUCCESS | typeof CONNECTION_STATUS.ERROR | typeof CONNECTION_STATUS.PROCESSING;
   isCheckingConnection: boolean;
   onCheckConnection: () => void;
   selectedKey: string;
   onBackToFirstPage: () => void;
   onCompleteConfig: () => void;
   isSavingConfig: boolean;
-  userRole?: "user" | "admin";
+  userRole?: typeof USER_ROLES.USER | typeof USER_ROLES.ADMIN;
 }
 
 function Layout({
@@ -231,7 +230,7 @@ export default function CreatePage() {
   const [selectedKey, setSelectedKey] = useState("1");
   const router = useRouter();
   const [connectionStatus, setConnectionStatus] =
-    useState<ConnectionStatus>("processing");
+    useState<ConnectionStatus>(CONNECTION_STATUS.PROCESSING);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isFromSecondPage, setIsFromSecondPage] = useState(false);
@@ -254,12 +253,12 @@ export default function CreatePage() {
       }
 
       // If the user is not an admin and currently on the first page, automatically jump to the second page
-      if (user.role !== "admin" && selectedKey === "1") {
+      if (user.role !== USER_ROLES.ADMIN && selectedKey === "1") {
         setSelectedKey("2");
       }
 
       // If the user is not an admin and currently on the third page, force jump to the second page
-      if (user.role !== "admin" && selectedKey === "3") {
+      if (user.role !== USER_ROLES.ADMIN && selectedKey === "3") {
         setSelectedKey("2");
       }
     }
@@ -276,7 +275,7 @@ export default function CreatePage() {
 
     // Load config for normal user
     const loadConfigForNormalUser = async () => {
-      if (user && user.role !== "admin") {
+      if (user && user.role !== USER_ROLES.ADMIN) {
         try {
           await configService.loadConfigToFrontend();
           configStore.reloadFromStorage();
@@ -326,7 +325,7 @@ export default function CreatePage() {
       setConnectionStatus(result.status);
     } catch (error) {
       console.error(t("setup.page.error.checkConnection"), error);
-      setConnectionStatus("error");
+      setConnectionStatus(CONNECTION_STATUS.ERROR);
     } finally {
       setIsCheckingConnection(false);
     }
@@ -336,7 +335,7 @@ export default function CreatePage() {
   const getEffectiveSelectedKey = () => {
     if (!user) return selectedKey;
 
-    if (user.role !== "admin") {
+    if (user.role !== USER_ROLES.ADMIN) {
       // If the current page is the first or third page, return the second page
       if (selectedKey === "1" || selectedKey === "3") {
         return "2";
@@ -348,12 +347,12 @@ export default function CreatePage() {
 
   const renderContent = () => {
     // If the user is not an admin and attempts to access the first page, force display the second page content
-    if (user?.role !== "admin" && selectedKey === "1") {
+    if (user?.role !== USER_ROLES.ADMIN && selectedKey === "1") {
       return <DataConfig />;
     }
 
     // If the user is not an admin and attempts to access the third page, force display the second page content
-    if (user?.role !== "admin" && selectedKey === "3") {
+    if (user?.role !== USER_ROLES.ADMIN && selectedKey === "3") {
       return <DataConfig />;
     }
 
@@ -405,7 +404,7 @@ export default function CreatePage() {
       router.push("/chat");
     } else if (selectedKey === "2") {
       // If the user is an admin, jump to the third page; if the user is a normal user, complete the configuration directly and jump to the chat page
-      if (user?.role === "admin") {
+      if (user?.role === USER_ROLES.ADMIN) {
         setSelectedKey("3");
       } else {
         // Normal users complete the configuration directly on the second page
@@ -487,7 +486,7 @@ export default function CreatePage() {
       setSelectedKey("2");
     } else if (selectedKey === "2") {
       // Only admins can return to the first page
-      if (user?.role !== "admin") {
+      if (user?.role !== USER_ROLES.ADMIN) {
         message.error(t("setup.page.error.adminOnly"));
         return;
       }

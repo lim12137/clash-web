@@ -20,9 +20,9 @@ import { RegisterModal } from "@/components/auth/registerModal";
 import { useAuth } from "@/hooks/useAuth";
 import { Modal, ConfigProvider, Dropdown } from "antd";
 import { motion } from "framer-motion";
-import { languageOptions } from "@/lib/constants";
+import { languageOptions } from "@/const/constants";
 import { useLanguageSwitch } from "@/lib/language";
-import { HEADER_CONFIG, FOOTER_CONFIG } from "@/lib/layoutConstants";
+import { HEADER_CONFIG, FOOTER_CONFIG } from "@/const/layoutConstants";
 import { DownOutlined } from "@ant-design/icons";
 
 export default function Home() {
@@ -57,7 +57,7 @@ export default function Home() {
     const [adminRequiredPromptOpen, setAdminRequiredPromptOpen] =
       useState(false);
 
-    // 处理需要登录的操作
+    // Handle operations that require login
     const handleAuthRequired = (e: React.MouseEvent) => {
       if (!user) {
         e.preventDefault();
@@ -65,24 +65,24 @@ export default function Home() {
       }
     };
 
-    // 确认登录对话框
+    // Confirm login dialog
     const handleCloseLoginPrompt = () => {
       setLoginPromptOpen(false);
     };
 
-    // 处理登录按钮点击
+    // Handle login button click
     const handleLoginClick = () => {
       setLoginPromptOpen(false);
       openLoginModal();
     };
 
-    // 处理注册按钮点击
+    // Handle register button click
     const handleRegisterClick = () => {
       setLoginPromptOpen(false);
       openRegisterModal();
     };
 
-    // 处理需要管理员权限的操作
+    // Handle operations that require admin privileges
     const handleAdminRequired = (e: React.MouseEvent) => {
       if (user?.role !== "admin") {
         e.preventDefault();
@@ -90,7 +90,7 @@ export default function Home() {
       }
     };
 
-    // 关闭管理员提示框
+    // Close admin prompt dialog
     const handleCloseAdminPrompt = () => {
       setAdminRequiredPromptOpen(false);
     };
@@ -115,7 +115,7 @@ export default function Home() {
             </h1>
           </div>
           <div className="hidden md:flex items-center gap-6">
-            {/* Github 按钮 */}
+            {/* Github button */}
             <Link
               href="https://github.com/ModelEngine-Group/nexent"
               target="_blank"
@@ -133,7 +133,7 @@ export default function Home() {
               </svg>
               Github
             </Link>
-            {/* ModelEngine 链接始终显示 */}
+            {/* ModelEngine link always visible */}
             <Link
               href="http://modelengine-ai.net"
               className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors"
@@ -156,7 +156,7 @@ export default function Home() {
                 <DownOutlined className="text-[10px]" />
               </a>
             </Dropdown>
-            {/* 登录状态切换显示 - 只在完整版显示 */}
+            {/* Login status toggle display - only shown in full version */}
             {!isSpeedMode && (
               <>
                 {userLoading ? (
@@ -172,7 +172,7 @@ export default function Home() {
               </>
             )}
           </div>
-          {/* 右侧汉堡按钮 为移动版预留 */}
+          {/* Right hamburger button reserved for mobile version */}
           <Button variant="ghost" size="icon" className="md:hidden">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -244,7 +244,7 @@ export default function Home() {
               </Link>
             </motion.div>
 
-            {/* 数据保护提示 - 只在完整版显示 */}
+            {/* Data protection notice - only shown in full version */}
             {!isSpeedMode && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -359,7 +359,7 @@ export default function Home() {
           </div>
         </footer>
 
-        {/* 登录提示对话框 - 只在完整版显示 */}
+        {/* Login prompt dialog - only shown in full version */}
         {!isSpeedMode && (
           <Modal
             title={t("page.loginPrompt.title")}
@@ -432,7 +432,7 @@ export default function Home() {
           </Modal>
         )}
 
-        {/* 登录和注册模态框 - 只在完整版显示 */}
+        {/* Login and register modals - only shown in full version */}
         {!isSpeedMode && (
           <>
             <LoginModal />
@@ -440,7 +440,7 @@ export default function Home() {
           </>
         )}
 
-        {/* 管理员提示对话框 - 只在完整版显示 */}
+        {/* Admin prompt dialog - only shown in full version */}
         {!isSpeedMode && (
           <Modal
             title={t("page.adminPrompt.title")}

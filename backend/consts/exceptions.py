@@ -23,7 +23,6 @@ class SignatureValidationError(Exception):
     pass
 
 
-
 class MemoryPreparationException(Exception):
     """Raised when memory preprocessing or retrieval fails prior to agent run."""
     pass
@@ -39,6 +38,31 @@ class MCPNameIllegal(Exception):
     pass
 
 
-class MCPDatabaseError(Exception):
-    """Raised when MCP database operation fails."""
+class NoInviteCodeException(Exception):
+    """Raised when invite code is not found."""
+    pass
+
+
+class IncorrectInviteCodeException(Exception):
+    """Raised when invite code is incorrect."""
+    pass
+
+
+class UserRegistrationException(Exception):
+    """Raised when user registration fails."""
+    pass
+
+
+class TimeoutException(Exception):
+    """Raised when timeout occurs."""
+    pass
+
+
+class NotFoundException(Exception):
+    """Raised when not found exception occurs."""
+    pass
+
+
+class MEConnectionException(Exception):
+    """Raised when not found exception occurs."""
     pass

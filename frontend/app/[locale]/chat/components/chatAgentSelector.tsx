@@ -7,21 +7,7 @@ import { ChevronDown, MousePointerClick } from "lucide-react";
 
 import { fetchAllAgents } from "@/services/agentConfigService";
 import { getUrlParam } from "@/lib/utils";
-
-interface Agent {
-  agent_id: number;
-  name: string;
-  display_name: string;
-  description: string;
-  is_available: boolean;
-}
-
-interface ChatAgentSelectorProps {
-  selectedAgentId: number | null;
-  onAgentSelect: (agentId: number | null) => void;
-  disabled?: boolean;
-  isInitialMode?: boolean;
-}
+import { Agent, ChatAgentSelectorProps } from "@/types/chat";
 
 export function ChatAgentSelector({
   selectedAgentId,
@@ -37,6 +23,7 @@ export function ChatAgentSelector({
     left: 0,
     direction: "down",
   });
+  const [isPositionCalculated, setIsPositionCalculated] = useState(false);
   const [isAutoSelectInit, setIsAutoSelectInit] = useState(false);
   const { t } = useTranslation("common");
   const buttonRef = useRef<HTMLDivElement>(null);
@@ -116,6 +103,9 @@ export function ChatAgentSelector({
         left: buttonRect.left,
         direction,
       });
+      setIsPositionCalculated(true);
+    } else if (!isOpen) {
+      setIsPositionCalculated(false);
     }
   }, [isOpen, isInitialMode]);
 
@@ -255,6 +245,7 @@ export function ChatAgentSelector({
 
       {/* Portal renders dropdown to body to avoid being blocked by parent container */}
       {isOpen &&
+        isPositionCalculated &&
         typeof window !== "undefined" &&
         createPortal(
           <>

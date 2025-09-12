@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 
-import { GlobalConfig, AppConfig, ModelConfig } from '@/types/config';
+import { GlobalConfig, AppConfig, ModelConfig } from '@/types/modelConfig';
 import { ConfigStore } from '@/lib/config';
 import { getAvatarUrl } from '@/lib/avatar';
 

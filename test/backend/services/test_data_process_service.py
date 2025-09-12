@@ -8,6 +8,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 import warnings
 from PIL import Image
 import pytest
+from celery import states
 
 # Set required environment variables
 os.environ['REDIS_URL'] = 'redis://mock:6379/0'
@@ -21,6 +22,19 @@ sys.modules['data_process.ray_actors'] = MagicMock()
 sys.modules['database.attachment_db'] = MagicMock()
 sys.modules['database.client'] = MagicMock()
 sys.modules['database.client'].minio_client = MagicMock()
+sys.modules['transformers'] = MagicMock()
+sys.modules['transformers'].CLIPProcessor = MagicMock()
+sys.modules['transformers'].CLIPModel = MagicMock()
+sys.modules['nexent'] = MagicMock()
+sys.modules['nexent.core'] = MagicMock()
+sys.modules['nexent.core.agents'] = MagicMock()
+sys.modules['nexent.core.agents.agent_model'] = MagicMock()
+sys.modules['nexent.core.agents.agent_model'].ToolConfig = MagicMock()
+
+# Add missing nexent.data_process module mock
+sys.modules['nexent.data_process'] = MagicMock()
+sys.modules['nexent.data_process.core'] = MagicMock()
+sys.modules['nexent.data_process.core'].DataProcessCore = MagicMock()
 
 # Mock constants from consts.const
 mock_const = MagicMock()
@@ -573,6 +587,51 @@ class TestDataProcessService(unittest.TestCase):
         from both Celery (active and reserved) and Redis (completed).
         """
         asyncio.run(self.async_test_get_all_tasks())
+
+    @patch('backend.services.data_process_service.DataProcessService._get_celery_inspector')
+    @patch('data_process.utils.get_task_info')
+    @patch('data_process.utils.get_all_task_ids_from_redis')
+    @pytest.mark.asyncio
+    async def test_get_all_tasks_redis_error(self, mock_get_redis_task_ids, mock_get_task_info, mock_get_inspector):
+        """
+        Test get_all_tasks when Redis query fails.
+
+        This test verifies that the service handles Redis errors gracefully
+        and continues to process tasks from other sources.
+        """
+        # Setup mocks
+        mock_inspector = MagicMock()
+        mock_inspector.active.return_value = {
+            'worker1': [{'id': 'task1'}, {'id': 'task2'}]
+        }
+        mock_inspector.reserved.return_value = {
+            'worker1': [{'id': 'task3'}]
+        }
+        mock_get_inspector.return_value = mock_inspector
+
+        # Mock Redis to raise an exception
+        mock_get_redis_task_ids.side_effect = Exception(
+            "Redis connection failed")
+
+        # Setup task info mock
+        async def mock_task_info(task_id):
+            task_data = {
+                'task1': {'id': 'task1', 'status': 'ACTIVE', 'index_name': 'index1', 'task_name': 'task_name1'},
+                'task2': {'id': 'task2', 'status': 'ACTIVE', 'index_name': 'index2', 'task_name': 'task_name2'},
+                'task3': {'id': 'task3', 'status': 'RESERVED', 'index_name': 'index3', 'task_name': 'task_name3'},
+            }
+            return task_data.get(task_id, {})
+
+        mock_get_task_info.side_effect = mock_task_info
+
+        # Get all tasks - should handle Redis error gracefully
+        result = await self.service.get_all_tasks(filter=True)
+
+        # Verify result (should only include tasks from Celery, not Redis)
+        self.assertEqual(len(result), 3)
+
+        # Verify that Redis was called and failed
+        mock_get_redis_task_ids.assert_called_once()
 
     @patch('backend.services.data_process_service.DataProcessService.get_all_tasks')
     @pytest.mark.asyncio
@@ -1823,6 +1882,194 @@ class TestDataProcessService(unittest.TestCase):
         asyncio.run(self.async_test_create_batch_tasks_impl_empty_sources())
         asyncio.run(self.async_test_create_batch_tasks_impl_optional_fields())
         asyncio.run(self.async_test_create_batch_tasks_impl_no_authorization())
+
+    @patch('backend.services.data_process_service.DataProcessCore')
+    @pytest.mark.asyncio
+    async def async_test_process_uploaded_text_file(self, mock_data_process_core):
+        """
+        Async implementation for testing processing uploaded text file with mixed chunks.
+
+        This test verifies that:
+        1. Chunks with 'content' are concatenated and returned
+        2. Chunks without 'content' are ignored from text/chunks but count towards chunks_count
+        3. Returned metadata fields are set correctly
+        """
+        # Arrange: mock DataProcessCore.file_process to return mixed chunks
+        mock_instance = MagicMock()
+        mock_instance.file_process.return_value = [
+            {"content": "First chunk"},
+            {"no_content": True},
+            {"content": "Second chunk"},
+        ]
+        mock_data_process_core.return_value = mock_instance
+
+        filename = "test.txt"
+        chunking_strategy = "semantic"
+        file_bytes = b"ignored-by-mock"
+
+        # Act
+        result = await self.service.process_uploaded_text_file(
+            file_content=file_bytes,
+            filename=filename,
+            chunking_strategy=chunking_strategy
+        )
+
+        # Assert core call
+        mock_instance.file_process.assert_called_once_with(
+            file_data=file_bytes,
+            filename=filename,
+            chunking_strategy=chunking_strategy
+        )
+
+        # Assert result shape and values
+        self.assertTrue(result["success"])
+        self.assertEqual(result["filename"], filename)
+        self.assertEqual(result["chunking_strategy"], chunking_strategy)
+        self.assertEqual(result["chunks"], ["First chunk", "Second chunk"])
+        # includes chunk without 'content'
+        self.assertEqual(result["chunks_count"], 3)
+        self.assertEqual(result["text"], "First chunk\nSecond chunk")
+        self.assertEqual(result["text_length"],
+                         len("First chunk\nSecond chunk"))
+
+    def test_process_uploaded_text_file(self):
+        """
+        Test wrapper to run the async test for processing uploaded text files.
+        """
+        asyncio.run(self.async_test_process_uploaded_text_file())
+
+    def test_convert_celery_states_to_custom(self):
+        """
+        Minimal branch coverage for convert_celery_states_to_custom.
+
+        Covers:
+        - process FAILURE override
+        - forward FAILURE override
+        - both SUCCESS -> COMPLETED
+        - both None -> WAIT_FOR_PROCESSING
+        - only forward STARTED -> FORWARDING
+        - only process STARTED -> PROCESSING
+        """
+        # process FAILURE has priority
+        self.assertEqual(
+            self.service.convert_celery_states_to_custom(
+                process_celery_state=states.FAILURE, forward_celery_state=states.PENDING),
+            "PROCESS_FAILED"
+        )
+
+        # forward FAILURE has next priority
+        self.assertEqual(
+            self.service.convert_celery_states_to_custom(
+                process_celery_state=states.SUCCESS, forward_celery_state=states.FAILURE),
+            "FORWARD_FAILED"
+        )
+
+        # both SUCCESS -> COMPLETED
+        self.assertEqual(
+            self.service.convert_celery_states_to_custom(
+                process_celery_state=states.SUCCESS, forward_celery_state=states.SUCCESS),
+            "COMPLETED"
+        )
+
+        # both None -> WAIT_FOR_PROCESSING
+        self.assertEqual(
+            self.service.convert_celery_states_to_custom(
+                process_celery_state=None, forward_celery_state=None),
+            "WAIT_FOR_PROCESSING"
+        )
+
+        # only forward state present -> map forward STARTED -> FORWARDING
+        self.assertEqual(
+            self.service.convert_celery_states_to_custom(
+                process_celery_state=None, forward_celery_state=states.STARTED),
+            "FORWARDING"
+        )
+
+        # only process state present -> map process STARTED -> PROCESSING
+        self.assertEqual(
+            self.service.convert_celery_states_to_custom(
+                process_celery_state=states.STARTED, forward_celery_state=None),
+            "PROCESSING"
+        )
+
+    async def test_convert_celery_states_wait_for_processing(self):
+        """
+        Cover return "WAIT_FOR_PROCESSING" branches:
+        - both states are None
+        - process state PENDING, forward None
+        - process state unknown, forward None (fallback default)
+        """
+        # both None -> WAIT_FOR_PROCESSING
+        self.assertEqual(
+            self.service.convert_celery_states_to_custom(
+                process_celery_state=None, forward_celery_state=None
+            ),
+            "WAIT_FOR_PROCESSING",
+        )
+
+        # process PENDING with no forward -> WAIT_FOR_PROCESSING
+        self.assertEqual(
+            self.service.convert_celery_states_to_custom(
+                process_celery_state=states.PENDING, forward_celery_state=None
+            ),
+            "WAIT_FOR_PROCESSING",
+        )
+
+        # unknown process state with no forward -> default WAIT_FOR_PROCESSING
+        self.assertEqual(
+            self.service.convert_celery_states_to_custom(
+                process_celery_state="UNKNOWN_STATE", forward_celery_state=None
+            ),
+            "WAIT_FOR_PROCESSING",
+        )
+
+    async def test_convert_celery_states_wait_for_processing_empty_strings(self):
+        """
+        Explicitly cover the last-line default return by passing empty strings
+        (falsy values) for both states.
+        """
+        self.assertEqual(
+            self.service.convert_celery_states_to_custom(
+                process_celery_state="", forward_celery_state=""
+            ),
+            "WAIT_FOR_PROCESSING",
+        )
+
+    @pytest.mark.asyncio
+    async def async_test_convert_to_base64(self):
+        """
+        Minimal branch coverage for convert_to_base64:
+        - When image.format is set(e.g., PNG)
+        - When image.format is None (defaults to JPEG)
+        """
+        # PNG branch
+        img_png = Image.new('RGB', (10, 10), color='red')
+        img_png.format = 'PNG'
+        b64_png, content_type_png = await self.service.convert_to_base64(img_png)
+        self.assertTrue(isinstance(b64_png, str) and len(b64_png) > 0)
+        self.assertEqual(content_type_png, 'image/png')
+        decoded_png = base64.b64decode(b64_png)
+        opened_png = Image.open(io.BytesIO(decoded_png))
+        self.assertEqual(opened_png.format, 'PNG')
+        self.assertEqual(opened_png.size, (10, 10))
+
+        # Default JPEG branch
+        # format is None by default
+        img_jpeg = Image.new('RGB', (8, 8), color='blue')
+        self.assertIsNone(img_jpeg.format)
+        b64_jpeg, content_type_jpeg = await self.service.convert_to_base64(img_jpeg)
+        self.assertTrue(isinstance(b64_jpeg, str) and len(b64_jpeg) > 0)
+        self.assertEqual(content_type_jpeg, 'image/jpeg')
+        decoded_jpeg = base64.b64decode(b64_jpeg)
+        opened_jpeg = Image.open(io.BytesIO(decoded_jpeg))
+        self.assertEqual(opened_jpeg.format, 'JPEG')
+        self.assertEqual(opened_jpeg.size, (8, 8))
+
+    def test_convert_to_base64(self):
+        """
+        Test wrapper to run async test for convert_to_base64.
+        """
+        asyncio.run(self.async_test_convert_to_base64())
 
 
 if __name__ == '__main__':

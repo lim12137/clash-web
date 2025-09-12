@@ -166,18 +166,20 @@ def test_truncate_text_without_tiktoken_end_strategy(mock_logger, long_context_m
 def test_prepare_long_text_message(long_context_model):
     long_context_model.count_tokens = MagicMock(side_effect=[50, 30, 1000, 800])
     long_context_model.truncate_text = MagicMock(return_value="truncated content")
-    result = long_context_model.prepare_long_text_message("very long content", "system prompt", "user prompt")
-    assert len(result) == 2
-    assert result[0]["role"] == "system"
-    assert "truncated content" in result[1]["content"]
+    messages, truncation_percentage = long_context_model.prepare_long_text_message("very long content", "system prompt", "user prompt")
+    assert len(messages) == 2
+    assert messages[0]["role"] == "system"
+    assert "truncated content" in messages[1]["content"]
+    assert isinstance(truncation_percentage, str)
 
 
 def test_prepare_long_text_message_no_truncation_needed(long_context_model):
     long_context_model.count_tokens = MagicMock(side_effect=[50, 30, 100, 100])
     long_context_model.truncate_text = MagicMock(return_value="original content")
-    result = long_context_model.prepare_long_text_message("short content", "system prompt", "user prompt")
-    assert len(result) == 2
+    messages, truncation_percentage = long_context_model.prepare_long_text_message("short content", "system prompt", "user prompt")
+    assert len(messages) == 2
     long_context_model.truncate_text.assert_called_once()
+    assert isinstance(truncation_percentage, str)
 
 
 def test_analyze_long_text_exception(long_context_model):

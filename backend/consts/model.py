@@ -25,21 +25,7 @@ class ModelConnectStatusEnum(Enum):
         return status
 
 
-# Request models for user authentication
-STATUS_CODES = {
-    "SUCCESS": 200,
-    # 客户端错误状态码
-    "USER_EXISTS": 1001,
-    "INVALID_CREDENTIALS": 1002,
-    "TOKEN_EXPIRED": 1003,
-    "UNAUTHORIZED": 1004,
-    "SERVER_ERROR": 1005,
-    "INVALID_INPUT": 1006,
-    "AUTH_SERVICE_UNAVAILABLE": 1007,
-}
-
-
-# 用户认证相关请求模型
+# User authentication related request models
 class UserSignUpRequest(BaseModel):
     """User registration request model"""
     email: EmailStr
@@ -52,20 +38,6 @@ class UserSignInRequest(BaseModel):
     """User login request model"""
     email: EmailStr
     password: str
-
-
-class UserUpdateRequest(BaseModel):
-    """User information update request model"""
-    email: Optional[EmailStr] = None
-    password: Optional[str] = Field(None, min_length=6)
-    role: Optional[str] = None
-
-
-# Response models for user management
-class ServiceResponse(BaseModel):
-    code: int
-    message: str
-    data: Optional[Any] = None
 
 
 # Response models for model management
@@ -191,30 +163,6 @@ class TaskRequest(BaseModel):
 class BatchTaskRequest(BaseModel):
     sources: List[Dict[str, Any]
                   ] = Field(..., description="List of source objects to process")
-
-
-class TaskResponse(BaseModel):
-    task_id: str
-
-
-class BatchTaskResponse(BaseModel):
-    task_ids: List[str]
-
-
-class SimpleTaskStatusResponse(BaseModel):
-    id: str
-    task_name: str
-    index_name: str
-    path_or_url: str
-    original_filename: str
-    status: str
-    created_at: float
-    updated_at: float
-    error: Optional[str] = None
-
-
-class SimpleTasksListResponse(BaseModel):
-    tasks: List[SimpleTaskStatusResponse]
 
 
 class IndexingResponse(BaseModel):
@@ -346,11 +294,6 @@ class ConvertStateRequest(BaseModel):
     """Request schema for /tasks/convert_state endpoint"""
     process_state: str = ""
     forward_state: str = ""
-
-
-class ConvertStateResponse(BaseModel):
-    """Response schema for /tasks/convert_state endpoint"""
-    state: str
 
 
 # ---------------------------------------------------------------------------

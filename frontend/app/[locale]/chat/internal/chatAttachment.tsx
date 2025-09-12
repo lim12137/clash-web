@@ -1,3 +1,4 @@
+import { chatConfig } from "@/const/chatConfig";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExternalLink } from "lucide-react";
@@ -22,22 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-
-// Interface for attachment items
-export interface AttachmentItem {
-  type: string;
-  name: string;
-  size: number;
-  url?: string;
-  contentType?: string;
-}
-
-// Interface for the chat attachment component
-interface ChatAttachmentProps {
-  attachments: AttachmentItem[];
-  onImageClick?: (url: string) => void;
-  className?: string;
-}
+import { AttachmentItem, ChatAttachmentProps } from "@/types/chat";
 
 // Image viewer component
 const ImageViewer = ({
@@ -141,61 +127,47 @@ const getFileIcon = (name: string, contentType?: string) => {
   }
 
   // Identify by extension name
-  switch (extension) {
     // Document file
-    case "pdf":
-      return <AiFillFilePdf size={iconSize} color="#e74c3c" />;
-    case "doc":
-    case "docx":
-      return <AiFillFileWord size={iconSize} color="#3498db" />;
-    case "txt":
-      return <AiFillFileText size={iconSize} color="#7f8c8d" />;
-    case "md":
-      return <AiFillFileMarkdown size={iconSize} color="#34495e" />;
+  if (chatConfig.fileIcons.pdf.includes(extension)) {
+    return <AiFillFilePdf size={iconSize} color="#e74c3c" />;
+  }
+  if (chatConfig.fileIcons.word.includes(extension)) {
+    return <AiFillFileWord size={iconSize} color="#3498db" />;
+  }
+  if (chatConfig.fileIcons.text.includes(extension)) {
+    return <AiFillFileText size={iconSize} color="#7f8c8d" />;
+  }
+  if (chatConfig.fileIcons.markdown.includes(extension)) {
+    return <AiFillFileMarkdown size={iconSize} color="#34495e" />;
+  }
+  // Table file
+  if (chatConfig.fileIcons.excel.includes(extension)) {
+    return <AiFillFileExcel size={iconSize} color="#27ae60" />;
+  }
+  // Presentation file
+  if (chatConfig.fileIcons.powerpoint.includes(extension)) {
+    return <AiFillFilePpt size={iconSize} color="#e67e22" />;
+  }
 
-    // Table file
-    case "xls":
-    case "xlsx":
-    case "csv":
-      return <AiFillFileExcel size={iconSize} color="#27ae60" />;
+  // Code file
+  if (chatConfig.fileIcons.html.includes(extension)) {
+    return <AiFillHtml5 size={iconSize} color="#e67e22" />;
+  }
+  if (chatConfig.fileIcons.code.includes(extension)) {
+    return <AiFillCode size={iconSize} color="#f39c12" />;
+  }
+  if (chatConfig.fileIcons.json.includes(extension)) {
+    return <AiFillCode size={iconSize} color="#f1c40f" />;
+  }
 
-    // Presentation file
-    case "ppt":
-    case "pptx":
-      return <AiFillFilePpt size={iconSize} color="#e67e22" />;
-
-    // Code file
-    case "html":
-    case "htm":
-      return <AiFillHtml5 size={iconSize} color="#e67e22" />;
-    case "css":
-    case "js":
-    case "ts":
-    case "jsx":
-    case "tsx":
-    case "php":
-    case "py":
-    case "java":
-    case "c":
-    case "cpp":
-    case "cs":
-      return <AiFillCode size={iconSize} color="#f39c12" />;
-    case "json":
-      return <AiFillCode size={iconSize} color="#f1c40f" />;
-
-    // Compressed file
-    case "zip":
-    case "rar":
-    case "7z":
-    case "tar":
-    case "gz":
-      return <AiFillFileZip size={iconSize} color="#f39c12" />;
+  // Compressed file
+  if (chatConfig.fileIcons.compressed.includes(extension)) {
+    return <AiFillFileZip size={iconSize} color="#f39c12" />;
+  }
 
     // Default file icon
-    default:
-      return <AiFillFileUnknown size={iconSize} color="#95a5a6" />;
-  }
-};
+    return <AiFillFileUnknown size={iconSize} color="#95a5a6" />;
+  };
 
 // Format file size
 const formatFileSize = (size: number): string => {
@@ -238,7 +210,7 @@ export function ChatAttachment({
         attachment.type === "image" ||
         (attachment.contentType &&
           attachment.contentType.startsWith("image/")) ||
-        ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(extension);
+        chatConfig.imageExtensions.includes(extension);
 
       if (isImage) {
         // For images, use image processing logic
@@ -262,9 +234,7 @@ export function ChatAttachment({
           attachment.type === "image" ||
           (attachment.contentType &&
             attachment.contentType.startsWith("image/")) ||
-          ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(
-            extension
-          );
+          chatConfig.imageExtensions.includes(extension);
 
         return (
           <div

@@ -37,10 +37,10 @@ The development environment includes the following additional features:
 ### Basic Import
 
 ```python
-import nexent
-from nexent.core import MessageObserver, ProcessType
-from nexent.core.agents import CoreAgent, NexentAgent
-from nexent.core.models import OpenAIModel
+from nexent.core.utils.observer import MessageObserver, ProcessType
+from nexent.core.agents.core_agent import CoreAgent
+from nexent.core.agents.nexent_agent import NexentAgent
+from nexent.core.models.openai_llm import OpenAIModel
 from nexent.core.tools import ExaSearchTool, KnowledgeBaseSearchTool
 ```
 
@@ -64,7 +64,7 @@ model = OpenAIModel(
 ### 🛠️ Adding Tools
 
 ```python
-# Create search tools
+# Create search tool
 search_tool = ExaSearchTool(
     exa_api_key="your-exa-key", 
     observer=observer, 
@@ -95,46 +95,58 @@ agent = CoreAgent(
 
 ```python
 # Run Agent with your question
-result = agent.run("Your question here")
-
-# Access the final answer
-print(result.final_answer)
+agent.run("Your question here")
 ```
 
-## 🎯 Advanced Usage Patterns
+## 📡 Using agent_run (recommended for streaming)
 
-### 🔧 Custom Tool Integration
+When you need to consume messages as an "event stream" on server or client, use `agent_run`. It executes the agent in a background thread and continuously yields JSON messages, making it easy to render in UIs and collect logs.
 
-```python
-from nexent.core.tools import BaseTool
+Reference: [Run agent with agent_run](./core/agent-run)
 
-class CustomTool(BaseTool):
-    def __init__(self, observer: MessageObserver):
-        super().__init__(observer=observer, name="custom_tool")
-    
-    def run(self, input_text: str) -> str:
-        # Your custom tool logic here
-        return f"Processed: {input_text}"
-
-# Add custom tool to agent
-custom_tool = CustomTool(observer=observer)
-agent.tools.append(custom_tool)
-```
-
-### 📡 Streaming Output Processing
+Minimal example:
 
 ```python
-# Monitor streaming output
-def handle_stream(message: str, process_type: ProcessType):
-    if process_type == ProcessType.MODEL_OUTPUT_THINKING:
-        print(f"🤔 Thinking: {message}")
-    elif process_type == ProcessType.EXECUTION_LOGS:
-        print(f"⚙️ Executing: {message}")
-    elif process_type == ProcessType.FINAL_ANSWER:
-        print(f"✅ Answer: {message}")
+import json
+import asyncio
+from threading import Event
 
-# Set observer with custom handler
-observer.set_message_handler(handle_stream)
+from nexent.core.agents.run_agent import agent_run
+from nexent.core.agents.agent_model import AgentRunInfo, AgentConfig, ModelConfig
+from nexent.core.utils.observer import MessageObserver
+
+async def main():
+    observer = MessageObserver(lang="en")
+    stop_event = Event()
+
+    model_config = ModelConfig(
+        cite_name="gpt-4",
+        api_key="<YOUR_API_KEY>",
+        model_name="Qwen/Qwen2.5-32B-Instruct",
+        url="https://api.siliconflow.cn/v1",
+    )
+
+    agent_config = AgentConfig(
+        name="example_agent",
+        description="An example agent",
+        tools=[],
+        max_steps=5,
+        model_name="gpt-4",
+    )
+
+    agent_run_info = AgentRunInfo(
+        query="How many letter r are in strrawberry?",
+        model_config_list=[model_config],
+        observer=observer,
+        agent_config=agent_config,
+        stop_event=stop_event
+    )
+
+    async for message in agent_run(agent_run_info):
+        message_data = json.loads(message)
+        print(message_data)
+
+asyncio.run(main())
 ```
 
 ## 🔧 Configuration Options
@@ -148,8 +160,6 @@ agent = CoreAgent(
     model=model,
     name="my_agent",
     max_steps=10,  # Maximum execution steps
-    temperature=0.7,  # Model creativity level
-    system_prompt="You are a helpful AI assistant."  # Custom system prompt
 )
 ```
 
@@ -161,41 +171,12 @@ search_tool = ExaSearchTool(
     exa_api_key="your-exa-key",
     observer=observer,
     max_results=10,  # Number of search results
-    search_type="neural",  # Search type: neural, keyword, etc.
-    include_domains=["example.com"],  # Limit search to specific domains
-    exclude_domains=["spam.com"]  # Exclude specific domains
-)
-```
-
-## 📊 Error Handling
-
-### 🛡️ Graceful Error Recovery
-
-```python
-try:
-    result = agent.run("Your question")
-    print(f"Success: {result.final_answer}")
-except Exception as e:
-    print(f"Error occurred: {e}")
-    # Handle error appropriately
-```
-
-### 🔧 Tool Error Handling
-
-```python
-# Tools automatically handle errors and provide fallback options
-search_tool = ExaSearchTool(
-    exa_api_key="your-exa-key",
-    observer=observer,
-    max_results=5,
-    fallback_to_keyword=True  # Fallback to keyword search if neural search fails
 )
 ```
 
 ## 📚 More Resources
 
-For more advanced usage patterns and detailed API documentation, please refer to:
-
-- **[Tool Development Guide](./core/tools)** - Detailed tool development standards and examples
-- **[Model Architecture Guide](./core/models)** - Model integration and usage documentation
-- **[Agents](./core/agents)** - Best practices and advanced patterns for agent development 
+- **[Run agent with agent_run](./core/agent-run)**
+- **[Tool Development Guide](./core/tools)**
+- **[Model Architecture Guide](./core/models)**
+- **[Agents](./core/agents)** 

@@ -1,3 +1,5 @@
+import { chatConfig } from "@/const/chatConfig";
+
 // Step related types
 export interface StepSection {
   content: string
@@ -6,11 +8,23 @@ export interface StepSection {
 
 export interface StepContent {
   id: string
-  type: "model_output" | "parsing" | "execution" | "error" | "agent_new_run" | "executing" | "generating_code" | "search_content" | "card" | "search_content_placeholder" | "virtual" | "memory_search"
+  type: typeof chatConfig.messageTypes.MODEL_OUTPUT |
+        typeof chatConfig.messageTypes.PARSING |
+        typeof chatConfig.messageTypes.EXECUTION |
+        typeof chatConfig.messageTypes.ERROR |
+        typeof chatConfig.messageTypes.AGENT_NEW_RUN |
+        typeof chatConfig.messageTypes.EXECUTING |
+        typeof chatConfig.messageTypes.GENERATING_CODE |
+        typeof chatConfig.messageTypes.SEARCH_CONTENT |
+        typeof chatConfig.messageTypes.CARD |
+        typeof chatConfig.messageTypes.SEARCH_CONTENT_PLACEHOLDER |
+        typeof chatConfig.messageTypes.VIRTUAL |
+        typeof chatConfig.messageTypes.MEMORY_SEARCH |
+        typeof chatConfig.messageTypes.PREPROCESS
   content: string
   expanded: boolean
   timestamp: number
-  subType?: "thinking" | "code" | "deep_thinking"
+  subType?: "thinking" | "code" | "deep_thinking" | "progress" | "file_processed" | "truncation" | "complete" | "error"
   isLoading?: boolean
   _preserve?: boolean
   _messageContainer?: {
@@ -32,6 +46,22 @@ export interface AgentStep {
   // New format content array
   contents: StepContent[]
   parsingContent?: string
+}
+
+// Agent related types
+export interface Agent {
+  agent_id: number;
+  name: string;
+  display_name: string;
+  description: string;
+  is_available: boolean;
+}
+
+export interface ChatAgentSelectorProps {
+  selectedAgentId: number | null;
+  onAgentSelect: (agentId: number | null) => void;
+  disabled?: boolean;
+  isInitialMode?: boolean;
 }
 
 // Search result type
@@ -57,6 +87,22 @@ export interface FileAttachment {
   url?: string
   object_name?: string
   description?: string
+}
+
+// Attachment item type (for chat attachment component)
+export interface AttachmentItem {
+  type: string;
+  name: string;
+  size: number;
+  url?: string;
+  contentType?: string;
+}
+
+// Chat attachment component props
+export interface ChatAttachmentProps {
+  attachments: AttachmentItem[];
+  onImageClick?: (url: string) => void;
+  className?: string;
 }
 
 // Main chat message type
@@ -89,6 +135,56 @@ export interface ChatMessageType {
   searchResults?: SearchResult[]
   attachments?: FileAttachment[]
   thinking?: any[]
+}
+
+// Message processing structure
+export interface ProcessedMessages {
+  finalMessages: ChatMessageType[]; // User messages and final answers
+  taskMessages: any[]; // Task messages, used for task windows
+  // Add conversation group mapping
+  conversationGroups: Map<string, any[]>; // User message ID -> related task messages
+}
+
+// Chat stream main component props
+export interface ChatStreamMainProps {
+  messages: ChatMessageType[];
+  input: string;
+  isLoading: boolean;
+  isStreaming?: boolean;
+  isLoadingHistoricalConversation?: boolean;
+  conversationLoadError?: string;
+  onInputChange: (value: string) => void;
+  onSend: () => void;
+  onStop: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  onSelectMessage?: (messageId: string) => void;
+  selectedMessageId?: string;
+  onImageClick?: (image: string) => void;
+  attachments?: FilePreview[];
+  onAttachmentsChange?: (attachments: FilePreview[]) => void;
+  onFileUpload?: (file: File) => void;
+  onImageUpload?: (file: File) => void;
+  onOpinionChange?: (messageId: number, opinion: "Y" | "N" | null) => void;
+  currentConversationId?: number;
+  shouldScrollToBottom?: boolean;
+  selectedAgentId?: number | null;
+  onAgentSelect?: (agentId: number | null) => void;
+}
+
+// Card item type for task window
+export interface CardItem {
+  icon?: string;
+  text: string;
+  [key: string]: any; // Allow other properties
+}
+
+// Message handler interface for task window extensibility
+export interface MessageHandler {
+  canHandle: (message: any) => boolean;
+  render: (
+    message: any,
+    t: (key: string, options?: any) => string
+  ) => React.ReactNode;
 }
 
 export interface ApiMessageItem {
@@ -143,7 +239,87 @@ export interface ConversationListItem {
   update_time: number
 }
 
+// File preview type
+export interface FilePreview {
+  id: string;
+  file: File;
+  type: "image" | "file";
+  fileType?: string;
+  extension?: string;
+  previewUrl?: string;
+}
+
+// Chat sidebar props type
+export interface ChatSidebarProps {
+  conversationList: ConversationListItem[];
+  selectedConversationId: number | null;
+  openDropdownId: string | null;
+  streamingConversations: Set<number>;
+  completedConversations: Set<number>;
+  onNewConversation: () => void;
+  onDialogClick: (dialog: ConversationListItem) => void;
+  onRename: (dialogId: number, title: string) => void;
+  onDelete: (dialogId: number) => void;
+  onSettingsClick: () => void;
+  onDropdownOpenChange: (open: boolean, id: string | null) => void;
+  onToggleSidebar: () => void;
+  expanded: boolean;
+  userEmail: string | undefined;
+  userAvatarUrl: string | undefined;
+  userRole: string | undefined;
+}
+
+// Image item type for chat right panel
+export interface ImageItem {
+  base64Data: string;
+  contentType: string;
+  isLoading: boolean;
+  error?: string;
+  loadAttempts?: number; // Load attempts
+}
+
+// Chat right panel props type
+export interface ChatRightPanelProps {
+  messages: ChatMessageType[];
+  onImageError: (imageUrl: string) => void;
+  maxInitialImages?: number;
+  isVisible?: boolean;
+  toggleRightPanel?: () => void;
+  selectedMessageId?: string;
+}
+
 // Task message type
 export interface TaskMessageType extends ChatMessageType {
   type?: string;
-} 
+}
+
+// Message group type for task messages
+export interface MessageGroup {
+  message: TaskMessageType;
+  cards: TaskMessageType[];
+}
+
+// Chat task message result type
+export interface ChatTaskMessageResult {
+  visibleMessages: TaskMessageType[];
+  groupedMessages: MessageGroup[];
+  hasMessages: boolean;
+  hasVisibleMessages: boolean;
+}
+
+// Storage upload result type
+export interface StorageUploadResult {
+  message: string;
+  success_count: number;
+  failed_count: number;
+  results: {
+    success: boolean;
+    object_name: string;
+    file_name: string;
+    file_size: number;
+    content_type: string;
+    upload_time: string;
+    url: string;
+    error?: string;
+  }[];
+}

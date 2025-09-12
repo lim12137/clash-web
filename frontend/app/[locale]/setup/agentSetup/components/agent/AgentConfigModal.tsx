@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Modal, Spin } from "antd";
+import { Button, Modal, Spin, Input, Select, InputNumber } from "antd";
 import {
   ExpandAltOutlined,
   SaveOutlined,
@@ -12,11 +12,12 @@ import {
   DeleteOutlined,
 } from "@ant-design/icons";
 
-import { OpenAIModel } from "@/types/config";
+import { OpenAIModel } from "@/types/modelConfig";
 import {
   checkAgentName,
   checkAgentDisplayName,
 } from "@/services/agentConfigService";
+import { NAME_CHECK_STATUS } from "@/const/agentConfig";
 
 import { SimplePromptEditor } from "../PromptManager";
 
@@ -194,7 +195,7 @@ export default function AgentConfigModal({
         setAgentNameStatus(result.status);
       } catch (error) {
         console.error("check agent name failed:", error);
-        setAgentNameStatus("check_failed");
+        setAgentNameStatus(NAME_CHECK_STATUS.CHECK_FAILED);
       }
     };
 
@@ -223,7 +224,7 @@ export default function AgentConfigModal({
   // Clear name status when agent name is cleared or changed significantly
   useEffect(() => {
     if (!agentName || agentName.trim() === "") {
-      setAgentNameStatus("available");
+      setAgentNameStatus(NAME_CHECK_STATUS.AVAILABLE);
     }
   }, [agentName]);
 
@@ -244,7 +245,7 @@ export default function AgentConfigModal({
         setAgentDisplayNameStatus(result.status);
       } catch (error) {
         console.error("check agent display name failed:", error);
-        setAgentDisplayNameStatus("check_failed");
+        setAgentDisplayNameStatus(NAME_CHECK_STATUS.CHECK_FAILED);
       }
     };
 
@@ -273,7 +274,7 @@ export default function AgentConfigModal({
   // Clear display name status when agent display name is cleared or changed significantly
   useEffect(() => {
     if (!agentDisplayName || agentDisplayName.trim() === "") {
-      setAgentDisplayNameStatus("available");
+      setAgentDisplayNameStatus(NAME_CHECK_STATUS.AVAILABLE);
     }
   }, [agentDisplayName]);
 
@@ -354,9 +355,9 @@ export default function AgentConfigModal({
   const canActuallySave =
     canSaveAgent &&
     !agentNameError &&
-    agentNameStatus !== "exists_in_tenant" &&
+    agentNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT &&
     !agentDisplayNameError &&
-    agentDisplayNameStatus !== "exists_in_tenant";
+    agentDisplayNameStatus !== NAME_CHECK_STATUS.EXISTS_IN_TENANT;
 
   // Render individual content sections
   const renderAgentInfo = () => (
@@ -366,26 +367,21 @@ export default function AgentConfigModal({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t("agent.displayName")}:
         </label>
-        <input
-          type="text"
+        <Input
           value={agentDisplayName}
           onChange={(e) => {
             handleAgentDisplayNameChange(e.target.value);
           }}
           placeholder={t("agent.displayNamePlaceholder")}
-          className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 box-border ${
-            agentDisplayNameError ||
-            agentDisplayNameStatus === "exists_in_tenant"
-              ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-              : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-          }`}
+          size="large"
           disabled={!isEditingMode}
+          status={agentDisplayNameError || agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT ? "error" : ""}
         />
         {agentDisplayNameError && (
           <p className="mt-1 text-sm text-red-600">{agentDisplayNameError}</p>
         )}
         {!agentDisplayNameError &&
-          agentDisplayNameStatus === "exists_in_tenant" && (
+          agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT && (
             <p className="mt-1 text-sm text-red-600">
               {t("agent.error.displayNameExists", {
                 displayName: agentDisplayName,
@@ -399,24 +395,20 @@ export default function AgentConfigModal({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t("agent.name")}:
         </label>
-        <input
-          type="text"
+        <Input
           value={agentName}
           onChange={(e) => {
             handleAgentNameChange(e.target.value);
           }}
           placeholder={t("agent.namePlaceholder")}
-          className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 box-border ${
-            agentNameError || agentNameStatus === "exists_in_tenant"
-              ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-              : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-          }`}
+          size="large"
           disabled={!isEditingMode}
+          status={agentNameError || agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT ? "error" : ""}
         />
         {agentNameError && (
           <p className="mt-1 text-sm text-red-600">{agentNameError}</p>
         )}
-        {!agentNameError && agentNameStatus === "exists_in_tenant" && (
+        {!agentNameError && agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT && (
           <p className="mt-1 text-sm text-red-600">
             {t("agent.error.nameExists", { name: agentName })}
           </p>
@@ -428,17 +420,20 @@ export default function AgentConfigModal({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t("businessLogic.config.model")}:
         </label>
-        <select
+        <Select
           value={mainAgentModel}
-          onChange={(e) => onModelChange?.(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 box-border"
+          onChange={(value) => onModelChange?.(value)}
+          size="large"
           disabled={!isEditingMode}
+          style={{ width: "100%" }}
         >
-          <option value={OpenAIModel.MainModel}>
+          <Select.Option value={OpenAIModel.MainModel}>
             {t("model.option.main")}
-          </option>
-          <option value={OpenAIModel.SubModel}>{t("model.option.sub")}</option>
-        </select>
+          </Select.Option>
+          <Select.Option value={OpenAIModel.SubModel}>
+            {t("model.option.sub")}
+          </Select.Option>
+        </Select>
       </div>
 
       {/* Max Steps */}
@@ -446,16 +441,14 @@ export default function AgentConfigModal({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t("businessLogic.config.maxSteps")}:
         </label>
-        <input
-          type="number"
+        <InputNumber
           min={1}
           max={20}
           value={mainAgentMaxStep}
-          onChange={(e) =>
-            onMaxStepChange?.(e.target.value ? Number(e.target.value) : null)
-          }
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 box-border"
+          onChange={(value) => onMaxStepChange?.(value)}
+          size="large"
           disabled={!isEditingMode}
+          style={{ width: "100%" }}
         />
       </div>
 
@@ -464,16 +457,17 @@ export default function AgentConfigModal({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t("agent.description")}:
         </label>
-        <textarea
+        <Input.TextArea
           value={agentDescription}
           onChange={(e) => onAgentDescriptionChange?.(e.target.value)}
           placeholder={t("agent.descriptionPlaceholder")}
-          rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none box-border"
+          rows={6}
+          size="large"
           disabled={!isEditingMode}
           style={{
-            minHeight: "100px",
-            maxHeight: "150px",
+            minHeight: "150px",
+            maxHeight: "200px",
+            boxShadow: "none",
           }}
         />
       </div>
@@ -491,6 +485,7 @@ export default function AgentConfigModal({
             onDutyContentChange(value);
           }
         }}
+        height="200px"
       />
     </div>
   );
@@ -506,6 +501,7 @@ export default function AgentConfigModal({
             onConstraintContentChange(value);
           }
         }}
+        height="200px"
       />
     </div>
   );
@@ -521,6 +517,7 @@ export default function AgentConfigModal({
             onFewShotsContentChange(value);
           }
         }}
+        height="200px"
       />
     </div>
   );
@@ -611,18 +608,24 @@ export default function AgentConfigModal({
         {(activeSegment === "duty" ||
           activeSegment === "constraint" ||
           activeSegment === "few-shots") && (
-          <button
+          <Button
             onClick={() => {
               if (activeSegment === "duty") onExpandCard?.(2);
               else if (activeSegment === "constraint") onExpandCard?.(3);
               else if (activeSegment === "few-shots") onExpandCard?.(4);
             }}
-            className="absolute top-2 right-4 z-20 p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-500 hover:text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
-            style={{ border: "none" }}
+            className="absolute top-2 right-4 z-20"
+            style={{ 
+              borderRadius: "50%",
+              backgroundColor: "rgba(255, 255, 255, 0.9)",
+              border: "none",
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)"
+            }}
             title={t("systemPrompt.button.expand")}
-          >
-            <ExpandAltOutlined className="text-xs" />
-          </button>
+            icon={<ExpandAltOutlined />}
+            size="small"
+            type="text"
+          />
         )}
 
         <style jsx global>{`
@@ -715,40 +718,6 @@ export default function AgentConfigModal({
             }
           }
 
-          /* Generating prompt overlay styles */
-          .generating-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(2px);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            border-radius: 8px;
-          }
-
-          .generating-content {
-            text-align: center;
-            color: #1890ff;
-          }
-
-          .generating-text {
-            margin-top: 16px;
-            font-size: 16px;
-            font-weight: 500;
-            color: #1890ff;
-          }
-
-          .generating-subtext {
-            margin-top: 8px;
-            font-size: 14px;
-            color: #666;
-          }
 
           /* Fix Ant Design button hover border color issues - ensure consistent color scheme */
           .responsive-button.ant-btn:hover {
@@ -850,13 +819,13 @@ export default function AgentConfigModal({
                   if (agentNameError) {
                     return agentNameError;
                   }
-                  if (agentNameStatus === "exists_in_tenant") {
+                  if (agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
                     return t("agent.error.nameExists", { name: agentName });
                   }
                   if (agentDisplayNameError) {
                     return agentDisplayNameError;
                   }
-                  if (agentDisplayNameStatus === "exists_in_tenant") {
+                  if (agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
                     return t("agent.error.displayNameExists", {
                       displayName: agentDisplayName,
                     });
@@ -885,13 +854,13 @@ export default function AgentConfigModal({
                   if (agentNameError) {
                     return agentNameError;
                   }
-                  if (agentNameStatus === "exists_in_tenant") {
+                  if (agentNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
                     return t("agent.error.nameExists", { name: agentName });
                   }
                   if (agentDisplayNameError) {
                     return agentDisplayNameError;
                   }
-                  if (agentDisplayNameStatus === "exists_in_tenant") {
+                  if (agentDisplayNameStatus === NAME_CHECK_STATUS.EXISTS_IN_TENANT) {
                     return t("agent.error.displayNameExists", {
                       displayName: agentDisplayName,
                     });
@@ -912,11 +881,38 @@ export default function AgentConfigModal({
 
       {/* Generating prompt overlay */}
       {isGeneratingAgent && (
-        <div className="generating-overlay">
-          <div className="generating-content">
+        <div 
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(255, 255, 255, 0.9)",
+            backdropFilter: "blur(2px)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
+            borderRadius: "8px",
+          }}
+        >
+          <div style={{ textAlign: "center", color: "#1890ff" }}>
             <Spin size="large" />
-            <div className="generating-text">{t("agent.generating.title")}</div>
-            <div className="generating-subtext">
+            <div style={{ 
+              marginTop: "16px", 
+              fontSize: "16px", 
+              fontWeight: 500, 
+              color: "#1890ff" 
+            }}>
+              {t("agent.generating.title")}
+            </div>
+            <div style={{ 
+              marginTop: "8px", 
+              fontSize: "14px", 
+              color: "#666" 
+            }}>
               {t("agent.generating.subtitle")}
             </div>
           </div>

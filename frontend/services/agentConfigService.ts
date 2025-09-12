@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from "./api";
 
+import { NAME_CHECK_STATUS } from "@/const/agentConfig";
 import { getAuthHeaders } from "@/lib/auth";
 import { convertParamType } from "@/lib/utils";
 
@@ -13,7 +14,7 @@ export const fetchTools = async () => {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
     const data = await response.json();
 
@@ -25,7 +26,7 @@ export const fetchTools = async () => {
       source: tool.source,
       is_available: tool.is_available,
       create_time: tool.create_time,
-      usage: tool.usage, // 新增：处理usage字段
+      usage: tool.usage, // New: handle usage field
       initParams: tool.params.map((param: any) => {
         return {
           name: param.name,
@@ -43,7 +44,7 @@ export const fetchTools = async () => {
       message: "",
     };
   } catch (error) {
-    console.error("获取工具列表出错:", error);
+    console.error("Error fetching tool list:", error);
     return {
       success: false,
       data: [],
@@ -62,7 +63,7 @@ export const fetchAgentList = async () => {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
     const data = await response.json();
 
@@ -81,7 +82,7 @@ export const fetchAgentList = async () => {
       message: "",
     };
   } catch (error) {
-    console.error("获取 agent 列表失败:", error);
+    console.error("Failed to fetch agent list:", error);
     return {
       success: false,
       data: [],
@@ -103,7 +104,7 @@ export const getCreatingSubAgentId = async () => {
     });
 
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
 
     const data = await response.json();
@@ -111,6 +112,9 @@ export const getCreatingSubAgentId = async () => {
       success: true,
       data: {
         agentId: data.agent_id,
+        name: data.name,
+        displayName: data.display_name,
+        description: data.description,
         enabledToolIds: data.enable_tool_id_list || [],
         modelName: data.model_name,
         maxSteps: data.max_steps,
@@ -123,7 +127,7 @@ export const getCreatingSubAgentId = async () => {
       message: "",
     };
   } catch (error) {
-    console.error("获取创建子代理ID失败:", error);
+    console.error("Failed to get creating sub agent ID:", error);
     return {
       success: false,
       data: null,
@@ -159,21 +163,21 @@ export const updateToolConfig = async (
     });
 
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
 
     const data = await response.json();
     return {
       success: true,
       data: data,
-      message: "工具配置更新成功",
+      message: "Tool configuration updated successfully",
     };
   } catch (error) {
-    console.error("更新工具配置失败:", error);
+    console.error("Failed to update tool configuration:", error);
     return {
       success: false,
       data: null,
-      message: "更新工具配置失败，请稍后重试",
+      message: "Failed to update tool configuration, please try again later",
     };
   }
 };
@@ -196,7 +200,7 @@ export const searchToolConfig = async (toolId: number, agentId: number) => {
     });
 
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
 
     const data = await response.json();
@@ -209,24 +213,24 @@ export const searchToolConfig = async (toolId: number, agentId: number) => {
       message: "",
     };
   } catch (error) {
-    console.error("搜索工具配置失败:", error);
+    console.error("Failed to search tool configuration:", error);
     return {
       success: false,
       data: null,
-      message: "搜索工具配置失败，请稍后重试",
+      message: "Failed to search tool configuration, please try again later",
     };
   }
 };
 
 /**
- * 更新 Agent 信息
+ * Update Agent information
  * @param agentId agent id
- * @param name agent 名称
- * @param description agent 描述
- * @param modelName 模型名称
- * @param maxSteps 最大步骤数
- * @param provideRunSummary 是否提供运行摘要
- * @returns 更新结果
+ * @param name agent name
+ * @param description agent description
+ * @param modelName model name
+ * @param maxSteps maximum steps
+ * @param provideRunSummary whether to provide run summary
+ * @returns update result
  */
 export const updateAgent = async (
   agentId: number,
@@ -263,29 +267,29 @@ export const updateAgent = async (
     });
 
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
 
     const data = await response.json();
     return {
       success: true,
       data: data,
-      message: "Agent 更新成功",
+      message: "Agent updated successfully",
     };
   } catch (error) {
-    console.error("更新 Agent 失败:", error);
+    console.error("Failed to update Agent:", error);
     return {
       success: false,
       data: null,
-      message: "更新 Agent 失败，请稍后重试",
+      message: "Failed to update Agent, please try again later",
     };
   }
 };
 
 /**
- * 删除 Agent
+ * Delete Agent
  * @param agentId agent id
- * @returns 删除结果
+ * @returns delete result
  */
 export const deleteAgent = async (agentId: number) => {
   try {
@@ -296,18 +300,18 @@ export const deleteAgent = async (agentId: number) => {
     });
 
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
 
     return {
       success: true,
-      message: "Agent 删除成功",
+      message: "Agent deleted successfully",
     };
   } catch (error) {
-    console.error("删除 Agent 失败:", error);
+    console.error("Failed to delete Agent:", error);
     return {
       success: false,
-      message: "删除 Agent 失败，请稍后重试",
+      message: "Failed to delete Agent, please try again later",
     };
   }
 };
@@ -326,7 +330,7 @@ export const exportAgent = async (agentId: number) => {
     });
 
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
 
     const data = await response.json();
@@ -341,15 +345,15 @@ export const exportAgent = async (agentId: number) => {
       return {
         success: false,
         data: null,
-        message: data.message || "导出失败",
+        message: data.message || "Export failed",
       };
     }
   } catch (error) {
-    console.error("导出 Agent 失败:", error);
+    console.error("Failed to export Agent:", error);
     return {
       success: false,
       data: null,
-      message: "导出失败，请稍后重试",
+      message: "Export failed, please try again later",
     };
   }
 };
@@ -371,21 +375,21 @@ export const importAgent = async (agentInfo: any) => {
     });
 
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
 
     const data = await response.json();
     return {
       success: true,
       data: data,
-      message: "Agent 导入成功",
+      message: "Agent imported successfully",
     };
   } catch (error) {
-    console.error("导入 Agent 失败:", error);
+    console.error("Failed to import Agent:", error);
     return {
       success: false,
       data: null,
-      message: "导入 Agent 失败，请稍后重试",
+      message: "Failed to import Agent, please try again later",
     };
   }
 };
@@ -404,7 +408,7 @@ export const searchAgentInfo = async (agentId: number) => {
     });
 
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
 
     const data = await response.json();
@@ -424,7 +428,7 @@ export const searchAgentInfo = async (agentId: number) => {
       provide_run_summary: data.provide_run_summary,
       enabled: data.enabled,
       is_available: data.is_available,
-      sub_agent_id_list: data.sub_agent_id_list || [], // 添加sub_agent_id_list
+      sub_agent_id_list: data.sub_agent_id_list || [], // Add sub_agent_id_list
       tools: data.tools
         ? data.tools.map((tool: any) => {
             const params =
@@ -437,7 +441,7 @@ export const searchAgentInfo = async (agentId: number) => {
               description: tool.description,
               source: tool.source,
               is_available: tool.is_available,
-              usage: tool.usage, // 新增：处理usage字段
+              usage: tool.usage, // New: handle usage field
               initParams: Array.isArray(params)
                 ? params.map((param: any) => ({
                     name: param.name,
@@ -458,7 +462,7 @@ export const searchAgentInfo = async (agentId: number) => {
       message: "",
     };
   } catch (error) {
-    console.error("获取Agent详情失败:", error);
+    console.error("Failed to get Agent details:", error);
     return {
       success: false,
       data: null,
@@ -477,7 +481,7 @@ export const fetchAllAgents = async () => {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
     const data = await response.json();
 
@@ -496,7 +500,7 @@ export const fetchAllAgents = async () => {
       message: "",
     };
   } catch (error) {
-    console.error("获取所有Agent列表失败:", error);
+    console.error("Failed to get all Agent list:", error);
     return {
       success: false,
       data: [],
@@ -531,12 +535,12 @@ export const addRelatedAgent = async (
       return {
         success: true,
         data: data,
-        message: data[0] || "添加关联Agent成功",
+        message: data[0] || "Successfully added related Agent",
         status: response.status,
       };
     } else {
       const errorMessage =
-        data.detail || data[0] || `添加关联Agent失败: ${response.statusText}`;
+        data.detail || data[0] || `Failed to add related Agent: ${response.statusText}`;
       return {
         success: false,
         data: null,
@@ -545,11 +549,11 @@ export const addRelatedAgent = async (
       };
     }
   } catch (error) {
-    console.error("添加关联Agent失败:", error);
+    console.error("Failed to add related Agent:", error);
     return {
       success: false,
       data: null,
-      message: "添加关联Agent失败，请稍后重试",
+      message: "Failed to add related Agent, please try again later",
       status: 500, // or a custom error code
     };
   }
@@ -576,7 +580,7 @@ export const deleteRelatedAgent = async (
     });
 
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`);
+      throw new Error(`Request failed: ${response.status}`);
     }
 
     const data = await response.json();
@@ -587,11 +591,11 @@ export const deleteRelatedAgent = async (
       message: "",
     };
   } catch (error) {
-    console.error("删除关联Agent失败:", error);
+    console.error("Failed to delete related Agent:", error);
     return {
       success: false,
       data: null,
-      message: "删除关联Agent失败，请稍后重试",
+      message: "Failed to delete related Agent, please try again later",
     };
   }
 };
@@ -658,11 +662,11 @@ const checkAgentField = async (
     );
 
     if (existingAgent) {
-      return { status: "exists_in_tenant" };
+      return { status: NAME_CHECK_STATUS.EXISTS_IN_TENANT };
     }
-    return { status: "available" };
+    return { status: NAME_CHECK_STATUS.AVAILABLE };
   } catch (error) {
-    return { status: "check_failed" };
+    return { status: NAME_CHECK_STATUS.CHECK_FAILED };
   }
 };
 

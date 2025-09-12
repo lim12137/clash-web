@@ -8,7 +8,7 @@ import { ExclamationCircleOutlined } from "@ant-design/icons";
 
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/authService";
-import { EVENTS } from "@/types/auth";
+import { EVENTS } from "@/const/auth";
 
 /**
  * Session management component
@@ -41,7 +41,8 @@ export function SessionListeners() {
       closable: false,
       async onOk() {
         try {
-          await logout(); // Log out first
+          // Silently logout
+          await logout({ silent: true });
         } finally {
           // Mark the source as session expired
           setIsFromSessionExpired(true);
@@ -103,13 +104,6 @@ export function SessionListeners() {
   useEffect(() => {
     // Skip in speed mode
     if (isSpeedMode) return;
-    if (typeof window !== "undefined") {
-      const localSession = localStorage.getItem("session");
-      if (!localSession) {
-        showSessionExpiredModal();
-      }
-    }
-    // Only run once on mount
   }, []);
 
   // Session status check
@@ -119,12 +113,18 @@ export function SessionListeners() {
     // Check session status on first load
     const checkSession = async () => {
       try {
+        // Capture whether there was a local session before validation
+        const hadLocalSession =
+          typeof window !== "undefined" && !!localStorage.getItem("session");
+
         // Try to get current session
         const session = await authService.getSession();
-        if (!session) {
+
+        // Only show session expired modal if a prior session existed and is now invalid
+        if (!session && hadLocalSession) {
           window.dispatchEvent(
             new CustomEvent(EVENTS.SESSION_EXPIRED, {
-              detail: { message: "登录已过期，请重新登录" },
+              detail: { message: "Session expired, please sign in again" },
             })
           );
         }
