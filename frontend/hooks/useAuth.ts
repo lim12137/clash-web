@@ -5,12 +5,13 @@ import { usePathname } from "next/navigation"
 import { useTranslation } from "react-i18next"
 
 import { App } from "antd"
+import { USER_ROLES } from "@/const/modelConfig"
 
 import { authService } from "@/services/authService"
 import { configService } from "@/services/configService"
 import { API_ENDPOINTS } from "@/services/api"
 import { User, AuthContextType } from "@/types/auth"
-import { EVENTS, STATUS_CODES } from "@/types/auth"
+import { EVENTS, STATUS_CODES } from "@/const/auth"
 import { getSessionFromStorage } from "@/lib/auth"
 
 // Create auth context
@@ -90,7 +91,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
             const safeUser: User = {
               id: session.user.id,
               email: session.user.email,
-              role: session.user.role === "admin" ? "admin" : "user",
+              role: session.user.role === USER_ROLES.ADMIN ? USER_ROLES.ADMIN : USER_ROLES.USER,
               avatar_url: session.user.avatar_url
             };
             setUser(safeUser);
@@ -219,7 +220,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
         const safeUser: User = {
           id: data.session.user.id,
           email: data.session.user.email,
-          role: data.session.user.role === "admin" ? "admin" : "user",
+          role: data.session.user.role === USER_ROLES.ADMIN ? USER_ROLES.ADMIN : USER_ROLES.USER,
           avatar_url: data.session.user.avatar_url
         }
         setUser(safeUser)
@@ -273,7 +274,7 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
         const safeUser: User = {
           id: data.user.id,
           email: data.user.email,
-          role: data.user.role === "admin" ? "admin" : "user",
+          role: data.user.role === USER_ROLES.ADMIN ? USER_ROLES.ADMIN : USER_ROLES.USER,
           avatar_url: data.user.avatar_url
         }
 
@@ -301,13 +302,17 @@ export function AuthProvider({ children }: { children: (value: AuthContextType) 
     }
   }
 
-  const logout = async () => {
+  const logout = async (options?: { silent?: boolean }) => {
     try {
       setIsLoading(true)
       await authService.signOut()
       setUser(null)
-      setShouldCheckSession(false) // When logging out, disable session check
-      message.success(t('auth.logoutSuccess'))
+      // When logging out, disable session check
+      setShouldCheckSession(false)
+      // Only show message when user actively logout
+      if (!options?.silent) {
+        message.success(t("auth.logoutSuccess"))
+      }
       // Manually trigger storage event
       window.dispatchEvent(new StorageEvent("storage", { key: "session", newValue: null }))
     } catch (error: any) {

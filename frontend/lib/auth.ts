@@ -6,9 +6,10 @@ import { createAvatar } from '@dicebear/core';
 import * as initialsStyle from '@dicebear/initials';
 
 import { fetchWithErrorHandling } from "@/services/api";
-import { Session, STORAGE_KEYS } from "@/types/auth";
+import { STORAGE_KEYS } from "@/const/auth";
+import { Session } from "@/types/auth";
 
-// 获取用户角色对应的颜色
+// Get color corresponding to user role
 export function getRoleColor(role: string): string {
   switch (role) {
     case "admin":
@@ -19,20 +20,20 @@ export function getRoleColor(role: string): string {
   }
 }
 
-// 根据邮箱生成头像
+// Generate avatar based on email
 export function generateAvatarUrl(email: string): string {
-    // 使用本地dicebear包生成头像
+    // Use local dicebear package to generate avatar
     const avatar = createAvatar(initialsStyle, {
       seed: email,
       backgroundType: ['gradientLinear']
     });
 
-    // 返回SVG数据URI
+    // Return SVG data URI
     return avatar.toDataUri();
   }
 
 /**
- * 带有授权头的请求
+ * Request with authorization headers
  */
 export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const session = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.SESSION) : null;
@@ -45,7 +46,7 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
-  // 使用带错误处理的请求拦截器
+  // Use request interceptor with error handling
   return fetchWithErrorHandling(url, {
     ...options,
     headers,
@@ -53,7 +54,7 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
 };
 
 /**
- * 保存会话到本地存储
+ * Save session to local storage
  */
 export const saveSessionToStorage = (session: Session) => {
   if (typeof window !== "undefined") {

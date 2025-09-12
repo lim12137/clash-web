@@ -30,7 +30,6 @@ from services.conversation_management_service import (
     update_conversation_title as update_conversation_title_service,
 )
 
-
 logger = logging.getLogger("northbound_service")
 
 
@@ -151,7 +150,6 @@ async def start_streaming_chat(
     query: str,
     idempotency_key: Optional[str] = None
 ) -> StreamingResponse:
-    composed_key: Optional[str] = None
     try:
         # Simple rate limit
         await check_and_consume_rate_limit(ctx.tenant_id)

@@ -7,13 +7,16 @@ import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { useTranslation } from "react-i18next";
 
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
+import { chatConfig } from "@/const/chatConfig";
+import { USER_ROLES } from "@/const/modelConfig";
 import { useConfig } from "@/hooks/useConfig";
 import { useAuth } from "@/hooks/useAuth";
 import { conversationService } from "@/services/conversationService";
 import { storageService } from "@/services/storageService";
 
 import { ChatSidebar } from "../components/chatLeftSidebar";
-import { FilePreview } from "../components/chatInput";
+import { FilePreview } from "@/types/chat";
 import { ChatHeader } from "../components/chatHeader";
 import { ChatRightPanel } from "../components/chatRightPanel";
 import { ChatStreamMain } from "../streaming/chatStreamMain";
@@ -44,6 +47,15 @@ import {
 import { X } from "lucide-react";
 
 const stepIdCounter = { current: 0 };
+
+// Get internationalization key based on message type
+const getI18nKeyByType = (type: string): string => {
+  const typeToKeyMap: Record<string, string> = {
+    "progress": "chatInterface.parsingFileWithProgress",
+    "truncation": "chatInterface.fileTruncated",
+  };
+  return typeToKeyMap[type] || "";
+};
 
 export function ChatInterface() {
   const router = useRouter();
@@ -283,7 +295,7 @@ export function ChatInterface() {
     // Create user message object
     const userMessage: ChatMessageType = {
       id: userMessageId,
-      role: "user",
+      role: USER_ROLES.USER,
       content: userMessageContent,
       timestamp: new Date(),
       attachments:
@@ -298,7 +310,7 @@ export function ChatInterface() {
     const assistantMessageId = uuidv4();
     const initialAssistantMessage: ChatMessageType = {
       id: assistantMessageId,
-      role: "assistant",
+      role: ROLE_ASSISTANT,
       content: "",
       timestamp: new Date(),
       isComplete: false,
@@ -424,7 +436,7 @@ export function ChatInterface() {
             ...(prev[currentConversationId] || []),
             {
               id: uuidv4(),
-              role: "assistant",
+              role: ROLE_ASSISTANT,
               content: "",
               timestamp: new Date(),
               isComplete: false,
@@ -441,7 +453,7 @@ export function ChatInterface() {
                   contents: [
                     {
                       id: `preprocess-content-${Date.now()}`,
-                      type: "agent_new_run",
+                      type: chatConfig.contentTypes.PREPROCESS,
                       content: t("chatInterface.parsingFile"),
                       expanded: false,
                       timestamp: Date.now(),
@@ -452,6 +464,10 @@ export function ChatInterface() {
             },
           ],
         }));
+
+        // Buffer for truncation messages with deduplication
+        const truncationBuffer: any[] = [];
+        const processedTruncationIds = new Set<string>(); // Track processed truncation messages to avoid duplicates
 
         // Use extracted preprocessing function to process attachments
         const result = await preprocessAttachments(
@@ -465,7 +481,7 @@ export function ChatInterface() {
                 newMessages[currentConversationId]?.[
                   newMessages[currentConversationId].length - 1
                 ];
-              if (lastMsg && lastMsg.role === "assistant") {
+              if (lastMsg && lastMsg.role === ROLE_ASSISTANT) {
                 if (!lastMsg.steps) lastMsg.steps = [];
                 // Find the latest preprocessing step
                 let step = lastMsg.steps.find(
@@ -484,7 +500,7 @@ export function ChatInterface() {
                     contents: [
                       {
                         id: `preprocess-content-${Date.now()}`,
-                        type: "agent_new_run",
+                        type: chatConfig.contentTypes.PREPROCESS,
                         content: t("chatInterface.parsingFile"),
                         expanded: false,
                         timestamp: Date.now(),
@@ -493,10 +509,33 @@ export function ChatInterface() {
                   };
                   lastMsg.steps.push(step);
                 }
+
+                // Handle truncation messages - buffer them instead of updating immediately
+                if (jsonData.type === "truncation") {
+                  // Create a unique ID for this truncation message to avoid duplicates
+                  const truncationId = `${jsonData.filename || "unknown"}_${
+                    jsonData.message || ""
+                  }`;
+
+                  // Only add if not already processed
+                  if (!processedTruncationIds.has(truncationId)) {
+                    truncationBuffer.push(jsonData);
+                    processedTruncationIds.add(truncationId);
+                  }
+                  return newMessages; // Don't update stepContent for truncation
+                }
+
                 let stepContent = "";
                 switch (jsonData.type) {
                   case "progress":
-                    stepContent = jsonData.message;
+                    if (jsonData.message_data) {
+                      const i18nKey = getI18nKeyByType(jsonData.type);
+                      stepContent = String(
+                        t(i18nKey, jsonData.message_data.params)
+                      );
+                    } else {
+                      stepContent = jsonData.message || "";
+                    }
                     break;
                   case "error":
                     stepContent = t("chatInterface.parseFileFailed", {
@@ -510,7 +549,31 @@ export function ChatInterface() {
                     });
                     break;
                   case "complete":
-                    stepContent = t("chatInterface.fileParsingComplete");
+                    // When complete, process all buffered truncation messages
+                    if (truncationBuffer.length > 0) {
+                      // Process truncation messages using internationalization
+                      const truncationInfo = truncationBuffer
+                        .map((truncation) => {
+                          if (truncation.message_data) {
+                            const i18nKey = getI18nKeyByType(truncation.type);
+                            return String(
+                              t(i18nKey, truncation.message_data.params)
+                            );
+                          } else {
+                            return truncation.message;
+                          }
+                        })
+                        .join(String(t("chatInterface.truncationSeparator")));
+
+                      stepContent = t(
+                        "chatInterface.fileParsingCompleteWithTruncation",
+                        {
+                          truncationInfo: truncationInfo,
+                        }
+                      );
+                    } else {
+                      stepContent = t("chatInterface.fileParsingComplete");
+                    }
                     break;
                   default:
                     stepContent = jsonData.message || "";
@@ -536,7 +599,7 @@ export function ChatInterface() {
               newMessages[currentConversationId]?.[
                 newMessages[currentConversationId].length - 1
               ];
-            if (lastMsg && lastMsg.role === "assistant") {
+            if (lastMsg && lastMsg.role === ROLE_ASSISTANT) {
               lastMsg.error = t("chatInterface.fileProcessingFailed", {
                 error: result.error,
               });
@@ -561,7 +624,7 @@ export function ChatInterface() {
           .map((msg) => ({
             role: msg.role,
             content:
-              msg.role === "assistant"
+              msg.role === ROLE_ASSISTANT
                 ? msg.finalAnswer?.trim() || msg.content || ""
                 : msg.content || "",
           })),
@@ -645,7 +708,7 @@ export function ChatInterface() {
                   newMessages[currentConversationId]?.[
                     newMessages[currentConversationId].length - 1
                   ];
-                if (lastMsg && lastMsg.role === "assistant") {
+                if (lastMsg && lastMsg.role === ROLE_ASSISTANT) {
                   lastMsg.error = t("chatInterface.requestTimeoutRetry");
                   lastMsg.isComplete = true;
                   lastMsg.thinking = undefined;
@@ -737,7 +800,7 @@ export function ChatInterface() {
             newMessages[currentConversationId]?.[
               newMessages[currentConversationId].length - 1
             ];
-          if (lastMsg && lastMsg.role === "assistant") {
+          if (lastMsg && lastMsg.role === ROLE_ASSISTANT) {
             lastMsg.content = t("chatInterface.conversationStopped");
             lastMsg.isComplete = true;
             lastMsg.thinking = undefined; // Explicitly clear thinking state
@@ -756,7 +819,7 @@ export function ChatInterface() {
             newMessages[currentConversationId]?.[
               newMessages[currentConversationId].length - 1
             ];
-          if (lastMsg && lastMsg.role === "assistant") {
+          if (lastMsg && lastMsg.role === ROLE_ASSISTANT) {
             lastMsg.content = errorMessage;
             lastMsg.isComplete = true;
             lastMsg.error = errorMessage;
@@ -952,7 +1015,7 @@ export function ChatInterface() {
 
             // Optimized processing logic: process messages by role one by one, maintain original order
             dialogMessages.forEach((dialog_msg, index) => {
-              if (dialog_msg.role === "user") {
+              if (dialog_msg.role === USER_ROLES.USER) {
                 const formattedUserMsg: ChatMessageType =
                   extractUserMsgFromResponse(
                     dialog_msg,
@@ -960,7 +1023,7 @@ export function ChatInterface() {
                     conversationData.create_time
                   );
                 formattedMessages.push(formattedUserMsg);
-              } else if (dialog_msg.role === "assistant") {
+              } else if (dialog_msg.role === ROLE_ASSISTANT) {
                 const formattedAssistantMsg: ChatMessageType =
                   extractAssistantMsgFromResponse(
                     dialog_msg,
@@ -1034,7 +1097,7 @@ export function ChatInterface() {
       } else {
         // Cache has content, display normally
         setIsLoadingHistoricalConversation(false);
-        setIsLoading(false); // 确保 isLoading 状态也被重置
+        setIsLoading(false); // Ensure isLoading state is also reset
 
         // For cases where there are cached messages, also trigger scrolling to the bottom.
         setShouldScrollToBottom(true);
@@ -1095,7 +1158,7 @@ export function ChatInterface() {
 
           // Optimized processing logic: process messages by role one by one, maintain original order
           dialogMessages.forEach((dialog_msg, index) => {
-            if (dialog_msg.role === "user") {
+            if (dialog_msg.role === USER_ROLES.USER) {
               const formattedUserMsg: ChatMessageType =
                 extractUserMsgFromResponse(
                   dialog_msg,
@@ -1103,7 +1166,7 @@ export function ChatInterface() {
                   conversationData.create_time
                 );
               formattedMessages.push(formattedUserMsg);
-            } else if (dialog_msg.role === "assistant") {
+            } else if (dialog_msg.role === ROLE_ASSISTANT) {
               const formattedAssistantMsg: ChatMessageType =
                 extractAssistantMsgFromResponse(
                   dialog_msg,
@@ -1303,7 +1366,7 @@ export function ChatInterface() {
       const lastMsg =
         newMessages[conversationId]?.[newMessages[conversationId].length - 1];
 
-      if (lastMsg && lastMsg.role === "assistant" && lastMsg.images) {
+      if (lastMsg && lastMsg.role === ROLE_ASSISTANT && lastMsg.images) {
         // Filter out failed images
         lastMsg.images = lastMsg.images.filter((url) => url !== imageUrl);
       }
@@ -1356,7 +1419,7 @@ export function ChatInterface() {
         const newMessages = { ...prev };
         const lastMsg =
           newMessages[conversationId]?.[newMessages[conversationId].length - 1];
-        if (lastMsg && lastMsg.role === "assistant") {
+        if (lastMsg && lastMsg.role === ROLE_ASSISTANT) {
           lastMsg.isComplete = true;
           lastMsg.thinking = undefined; // Explicitly clear thinking state
 
@@ -1406,7 +1469,7 @@ export function ChatInterface() {
         const newMessages = { ...prev };
         const lastMsg =
           newMessages[conversationId]?.[newMessages[conversationId].length - 1];
-        if (lastMsg && lastMsg.role === "assistant") {
+        if (lastMsg && lastMsg.role === ROLE_ASSISTANT) {
           lastMsg.isComplete = true;
           lastMsg.thinking = undefined; // Explicitly clear thinking state
           lastMsg.error = t(

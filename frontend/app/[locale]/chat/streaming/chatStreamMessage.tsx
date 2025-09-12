@@ -17,11 +17,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
+import { chatConfig, Opinion } from "@/const/chatConfig";
+import { USER_ROLES } from "@/const/modelConfig";
 import { ChatMessageType } from "@/types/chat";
 import { useConfig } from "@/hooks/useConfig";
 import { copyToClipboard } from "@/lib/clipboard";
 
-import { ChatAttachment, AttachmentItem } from "../internal/chatAttachment";
+import { ChatAttachment } from "../internal/chatAttachment";
+import { AttachmentItem } from "@/types/chat";
 
 interface StreamMessageProps {
   message: ChatMessageType;
@@ -30,7 +34,7 @@ interface StreamMessageProps {
   searchResultsCount?: number;
   imagesCount?: number;
   onImageClick?: (imageUrl: string) => void;
-  onOpinionChange?: (messageId: number, opinion: "Y" | "N" | null) => void;
+  onOpinionChange?: (messageId: number, opinion: Opinion) => void;
 }
 
 export function ChatStreamMessage({
@@ -64,7 +68,7 @@ export function ChatStreamMessage({
   // When the message is updated, scroll the element into the visible area
   useEffect(() => {
     if (
-      message.role === "assistant" &&
+      message.role === ROLE_ASSISTANT &&
       !message.isComplete &&
       messageRef.current
     ) {
@@ -94,19 +98,19 @@ export function ChatStreamMessage({
 
   // Handle likes
   const handleThumbsUp = () => {
-    const newOpinion = localOpinion === "Y" ? null : "Y";
+    const newOpinion = localOpinion === chatConfig.opinion.POSITIVE ? null : chatConfig.opinion.POSITIVE;
     setLocalOpinion(newOpinion);
     if (onOpinionChange && message.message_id) {
-      onOpinionChange(message.message_id, newOpinion as "Y" | "N" | null);
+      onOpinionChange(message.message_id, newOpinion as Opinion);
     }
   };
 
   // Handle dislikes
   const handleThumbsDown = () => {
-    const newOpinion = localOpinion === "N" ? null : "N";
+    const newOpinion = localOpinion === chatConfig.opinion.NEGATIVE ? null : chatConfig.opinion.NEGATIVE;
     setLocalOpinion(newOpinion);
     if (onOpinionChange && message.message_id) {
-      onOpinionChange(message.message_id, newOpinion as "Y" | "N" | null);
+      onOpinionChange(message.message_id, newOpinion as Opinion);
     }
   };
 
@@ -127,7 +131,7 @@ export function ChatStreamMessage({
       }`}
     >
       {/* Avatar section - only show avatar for AI assistant */}
-      {message.role === "assistant" && (
+      {message.role === ROLE_ASSISTANT && (
         <div className="flex-shrink-0">
           <div className="h-8 w-8 rounded-full overflow-hidden bg-primary/10">
             <img
@@ -142,13 +146,13 @@ export function ChatStreamMessage({
       {/* Message content section */}
       <div
         className={`${
-          message.role === "user"
+          message.role === USER_ROLES.USER
             ? "flex items-end flex-col w-full"
             : "flex-1 max-w-[calc(100%-60px)]"
         }`}
       >
         {/* User message section */}
-        {message.role === "user" && (
+        {message.role === USER_ROLES.USER && (
           <>
             {/* Attachment section - placed above text */}
             {message.attachments && message.attachments.length > 0 && (
@@ -157,7 +161,7 @@ export function ChatStreamMessage({
                   <ChatAttachment
                     attachments={message.attachments as AttachmentItem[]}
                     onImageClick={onImageClick}
-                    className="justify-end" // 靠右对齐
+                    className="justify-end" // Right align
                   />
                 </div>
               </div>
@@ -175,7 +179,7 @@ export function ChatStreamMessage({
         )}
 
         {/* Assistant message section */}
-        {message.role === "assistant" && (
+        {message.role === ROLE_ASSISTANT && (
           <>
             {/* Attachment section - placed above text */}
             {message.attachments && message.attachments.length > 0 && (
@@ -294,11 +298,11 @@ export function ChatStreamMessage({
                           <TooltipTrigger asChild>
                             <Button
                               variant={
-                                localOpinion === "Y" ? "secondary" : "outline"
+                                localOpinion === chatConfig.opinion.POSITIVE ? "secondary" : "outline"
                               }
                               size="icon"
                               className={`h-8 w-8 rounded-full ${
-                                localOpinion === "Y"
+                                localOpinion === chatConfig.opinion.POSITIVE
                                   ? "bg-green-100 text-green-600 border-green-200"
                                   : "bg-white hover:bg-gray-100"
                               } transition-all duration-200 shadow-sm`}
@@ -309,7 +313,7 @@ export function ChatStreamMessage({
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>
-                              {localOpinion === "Y"
+                              {localOpinion === chatConfig.opinion.POSITIVE
                                 ? t("chatStreamMessage.cancelLike")
                                 : t("chatStreamMessage.like")}
                             </p>
@@ -321,11 +325,11 @@ export function ChatStreamMessage({
                           <TooltipTrigger asChild>
                             <Button
                               variant={
-                                localOpinion === "N" ? "secondary" : "outline"
+                                localOpinion === chatConfig.opinion.NEGATIVE ? "secondary" : "outline"
                               }
                               size="icon"
                               className={`h-8 w-8 rounded-full ${
-                                localOpinion === "N"
+                                localOpinion === chatConfig.opinion.NEGATIVE
                                   ? "bg-red-100 text-red-600 border-red-200"
                                   : "bg-white hover:bg-gray-100"
                               } transition-all duration-200 shadow-sm`}
@@ -336,7 +340,7 @@ export function ChatStreamMessage({
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>
-                              {localOpinion === "N"
+                              {localOpinion === chatConfig.opinion.NEGATIVE
                                 ? t("chatStreamMessage.cancelDislike")
                                 : t("chatStreamMessage.dislike")}
                             </p>

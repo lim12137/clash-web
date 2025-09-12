@@ -4,11 +4,11 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import Header
 from jinja2 import StrictUndefined, Template
 from nexent.core.utils.observer import ProcessType
 from smolagents import OpenAIServerModel
 
+from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING, MESSAGE_ROLE
 from consts.model import AgentRequest, ConversationResponse, MessageRequest, MessageUnit
 from database.conversation_db import (
     create_conversation,
@@ -28,7 +28,6 @@ from database.conversation_db import (
     rename_conversation,
     update_message_opinion
 )
-from utils.auth_utils import get_current_user_id
 from utils.config_utils import get_model_name_from_config, tenant_config_manager
 from utils.prompt_template_utils import get_generate_title_prompt_template
 from utils.str_utils import add_no_think_token, remove_think_tags
@@ -36,7 +35,7 @@ from utils.str_utils import add_no_think_token, remove_think_tags
 logger = logging.getLogger("conversation_management_service")
 
 
-def save_message(request: MessageRequest, authorization: Optional[str] = Header(None)):
+def save_message(request: MessageRequest, user_id: str, tenant_id: str):
     """
     Save a new message record
 
@@ -56,14 +55,8 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
             - message: "success" success message
     """
     try:
-        # Authorization may be a FastAPI Header object or None when called outside a request
-        user_id = None
-        if isinstance(authorization, str) and authorization:
-            try:
-                user_id = get_current_user_id(authorization)
-            except Exception as auth_error:
-                logging.warning(
-                    f"Ignoring authorization during save_message: {auth_error}")
+        if tenant_id is None or user_id is None:
+            logging.warning("Missing tenant_id or user_id to save message")
         message_data = request.model_dump()
 
         # Validate conversation_id
@@ -205,18 +198,18 @@ def save_message(request: MessageRequest, authorization: Optional[str] = Header(
         raise Exception(str(e))
 
 
-def save_conversation_user(request: AgentRequest, authorization: Optional[str] = None):
+def save_conversation_user(request: AgentRequest, user_id: str, tenant_id: str):
     user_role_count = sum(1 for item in getattr(
-        request, "history", []) if item.get("role") == "user")
+        request, "history", []) if item.get("role") == MESSAGE_ROLE["USER"])
 
     conversation_req = MessageRequest(conversation_id=request.conversation_id, message_idx=user_role_count * 2,
-                                      role="user", message=[MessageUnit(type="string", content=request.query)], minio_files=request.minio_files)
-    save_message(conversation_req, authorization=authorization)
+                                      role=MESSAGE_ROLE["USER"], message=[MessageUnit(type="string", content=request.query)], minio_files=request.minio_files)
+    save_message(conversation_req, user_id=user_id, tenant_id=tenant_id)
 
 
-def save_conversation_assistant(request: AgentRequest, messages: List[str], authorization: Optional[str] = None):
+def save_conversation_assistant(request: AgentRequest, messages: List[str], user_id: str, tenant_id: str):
     user_role_count = sum(1 for item in getattr(
-        request, "history", []) if item.get("role") == "user")
+        request, "history", []) if item.get("role") == MESSAGE_ROLE["USER"])
 
     message_list = []
     for item in messages:
@@ -229,8 +222,8 @@ def save_conversation_assistant(request: AgentRequest, messages: List[str], auth
             message_list.append(message)
 
     conversation_req = MessageRequest(conversation_id=request.conversation_id, message_idx=user_role_count * 2 + 1,
-                                      role="assistant", message=message_list, minio_files=request.minio_files)
-    save_message(conversation_req, authorization=authorization)
+                                      role=MESSAGE_ROLE["ASSISTANT"], message=message_list, minio_files=request.minio_files)
+    save_message(conversation_req, user_id=user_id, tenant_id=tenant_id)
 
 
 def extract_user_messages(history: List[Dict[str, str]]) -> str:
@@ -245,14 +238,14 @@ def extract_user_messages(history: List[Dict[str, str]]) -> str:
     """
     content = ""
     for message in history:
-        if message.get("role") == "user" and message.get("content"):
+        if message.get("role") == MESSAGE_ROLE["USER"] and message.get("content"):
             content += f"\n### User Question：\n{message['content']}\n"
-        if message.get("role") == "assistant" and message.get("content"):
+        if message.get("role") == MESSAGE_ROLE["ASSISTANT"] and message.get("content"):
             content += f"\n### Response Content：\n{message['content']}\n"
     return content
 
 
-def call_llm_for_title(content: str, tenant_id: str, language: str = 'zh') -> str:
+def call_llm_for_title(content: str, tenant_id: str, language: str = LANGUAGE["ZH"]) -> str:
     """
     Call LLM to generate a title
 
@@ -267,7 +260,7 @@ def call_llm_for_title(content: str, tenant_id: str, language: str = 'zh') -> st
     prompt_template = get_generate_title_prompt_template(language=language)
 
     model_config = tenant_config_manager.get_model_config(
-        key="LLM_ID", tenant_id=tenant_id)
+        key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
 
     # Create OpenAIServerModel instance
     llm = OpenAIServerModel(model_id=get_model_name_from_config(model_config) if model_config.get("model_name") else "", api_base=model_config.get("base_url", ""),
@@ -277,9 +270,9 @@ def call_llm_for_title(content: str, tenant_id: str, language: str = 'zh') -> st
     user_prompt = Template(prompt_template["USER_PROMPT"], undefined=StrictUndefined).render({
         "content": content
     })
-    messages = [{"role": "system",
+    messages = [{"role": MESSAGE_ROLE["SYSTEM"],
                  "content": prompt_template["SYSTEM_PROMPT"]},
-                {"role": "user",
+                {"role": MESSAGE_ROLE["USER"],
                  "content": user_prompt}]
     add_no_think_token(messages)
 
@@ -462,7 +455,7 @@ def get_conversation_history_service(conversation_id: int, user_id: str) -> List
             # Initialize for all message types
             message_units = msg['units'] or []
 
-            if role == 'user':
+            if role == MESSAGE_ROLE["USER"]:
                 # User message: directly use message_content as message field value
                 message_item = {
                     'role': role,
@@ -645,7 +638,7 @@ def get_sources_service(conversation_id: Optional[int], message_id: Optional[int
         }
 
 
-async def generate_conversation_title_service(conversation_id: int, history: List[Dict[str, str]], user_id: str, tenant_id: str, language: str = 'zh') -> str:
+async def generate_conversation_title_service(conversation_id: int, history: List[Dict[str, str]], user_id: str, tenant_id: str, language: str = LANGUAGE["ZH"]) -> str:
     """
     Generate conversation title
 

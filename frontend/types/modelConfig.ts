@@ -1,9 +1,18 @@
+import { CONNECTION_STATUS } from "@/const/modelConfig";
+
 // Model connection status type
 export type ModelConnectStatus =
   | "not_detected"
   | "detecting"
   | "available"
   | "unavailable";
+
+// API response type
+export interface ApiResponse<T = any> {
+  code: number
+  message?: string
+  data?: T
+}
 
 // Model source type
 export type ModelSource =
@@ -28,88 +37,6 @@ export enum OpenAIModel {
   SubModel = "sub_model",
 }
 
-// Configuration storage key name
-export const APP_CONFIG_KEY = "app";
-export const MODEL_CONFIG_KEY = "model";
-
-// Default configuration
-export const defaultConfig: GlobalConfig = {
-  app: {
-    appName: "",
-    appDescription: "",
-    iconType: "preset",
-    customIconUrl: "",
-    avatarUri: "",
-  },
-  models: {
-    llm: {
-      modelName: "",
-      displayName: "",
-      apiConfig: {
-        apiKey: "",
-        modelUrl: "",
-      },
-    },
-    llmSecondary: {
-      modelName: "",
-      displayName: "",
-      apiConfig: {
-        apiKey: "",
-        modelUrl: "",
-      },
-    },
-    embedding: {
-      modelName: "",
-      displayName: "",
-      apiConfig: {
-        apiKey: "",
-        modelUrl: "",
-      },
-      dimension: 0,
-    },
-    multiEmbedding: {
-      modelName: "",
-      displayName: "",
-      apiConfig: {
-        apiKey: "",
-        modelUrl: "",
-      },
-      dimension: 0,
-    },
-    rerank: {
-      modelName: "",
-      displayName: "",
-      apiConfig: {
-        apiKey: "",
-        modelUrl: "",
-      },
-    },
-    vlm: {
-      modelName: "",
-      displayName: "",
-      apiConfig: {
-        apiKey: "",
-        modelUrl: "",
-      },
-    },
-    stt: {
-      modelName: "",
-      displayName: "",
-      apiConfig: {
-        apiKey: "",
-        modelUrl: "",
-      },
-    },
-    tts: {
-      modelName: "",
-      displayName: "",
-      apiConfig: {
-        apiKey: "",
-        modelUrl: "",
-      },
-    },
-  },
-};
 
 // Model option interface
 export interface ModelOption {
@@ -168,9 +95,11 @@ export interface GlobalConfig {
 // Add the type for model validation response with error_code
 export interface ModelValidationResponse {
   connectivity: boolean;
-  message?: string;
-  error_code?: string;
-  error_details?: string;
-  model_name?: string;
-  connect_status: string;
+  model_name: string;
+}
+
+// Model engine check result interface
+export interface ModelEngineCheckResult {
+  status: typeof CONNECTION_STATUS.SUCCESS | typeof CONNECTION_STATUS.ERROR | typeof CONNECTION_STATUS.PROCESSING;
+  lastChecked: string;
 }

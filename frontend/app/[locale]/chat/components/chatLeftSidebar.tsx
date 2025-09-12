@@ -34,6 +34,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { StaticScrollArea } from "@/components/ui/scrollArea";
+import { USER_ROLES } from "@/const/modelConfig";
 import { useConfig } from "@/hooks/useConfig";
 import { useResponsiveTextSize } from "@/hooks/useResponsiveTextSize";
 import { Spin, Tag, ConfigProvider } from "antd";
@@ -41,7 +42,7 @@ import { getRoleColor } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { extractColorsFromUri } from "@/lib/avatar";
 import { useTranslation } from "react-i18next";
-import { ConversationListItem } from "@/types/chat";
+import { ConversationListItem, ChatSidebarProps } from "@/types/chat";
 
 // conversation status indicator component
 const ConversationStatusIndicator = ({
@@ -74,24 +75,6 @@ const ConversationStatusIndicator = ({
   return null;
 };
 
-interface ChatSidebarProps {
-  conversationList: ConversationListItem[];
-  selectedConversationId: number | null;
-  openDropdownId: string | null;
-  streamingConversations: Set<number>;
-  completedConversations: Set<number>;
-  onNewConversation: () => void;
-  onDialogClick: (dialog: ConversationListItem) => void;
-  onRename: (dialogId: number, title: string) => void;
-  onDelete: (dialogId: number) => void;
-  onSettingsClick: () => void;
-  onDropdownOpenChange: (open: boolean, id: string | null) => void;
-  onToggleSidebar: () => void;
-  expanded: boolean;
-  userEmail: string | undefined;
-  userAvatarUrl: string | undefined;
-  userRole: string | undefined;
-}
 
 // Helper function - dialog classification
 const categorizeDialogs = (dialogs: ConversationListItem[]) => {
@@ -142,7 +125,7 @@ export function ChatSidebar({
   expanded,
   userEmail,
   userAvatarUrl,
-  userRole = "user",
+  userRole = USER_ROLES.USER,
 }: ChatSidebarProps) {
   const { t } = useTranslation();
   const { today, week, older } = categorizeDialogs(conversationList);
@@ -150,7 +133,7 @@ export function ChatSidebar({
   const [editingTitle, setEditingTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 获取用户认证状态
+  // Get user authentication status
   const { isLoading: userAuthLoading, isSpeedMode } = useAuth();
 
   // Add delete dialog status

@@ -5,44 +5,14 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { ScrollArea } from "@/components/ui/scrollArea";
 import { Button } from "@/components/ui/button";
-import { ChatMessageType } from "@/types/chat";
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
+import { chatConfig } from "@/const/chatConfig";
+import { USER_ROLES } from "@/const/modelConfig";
+import { ChatMessageType, ProcessedMessages, ChatStreamMainProps } from "@/types/chat";
 
-import { ChatInput, FilePreview } from "../components/chatInput";
+import { ChatInput } from "../components/chatInput";
 import { ChatStreamFinalMessage } from "./chatStreamFinalMessage";
 import { TaskWindow } from "./taskWindow";
-
-// Define a new message processing structure
-interface ProcessedMessages {
-  finalMessages: ChatMessageType[]; // User messages and final answers
-  taskMessages: any[]; // Task messages, used for task windows
-  // Add conversation group mapping
-  conversationGroups: Map<string, any[]>; // User message ID -> related task messages
-}
-
-interface ChatStreamMainProps {
-  messages: ChatMessageType[];
-  input: string;
-  isLoading: boolean;
-  isStreaming?: boolean;
-  isLoadingHistoricalConversation?: boolean;
-  conversationLoadError?: string;
-  onInputChange: (value: string) => void;
-  onSend: () => void;
-  onStop: () => void;
-  onKeyDown: (e: React.KeyboardEvent) => void;
-  onSelectMessage?: (messageId: string) => void;
-  selectedMessageId?: string;
-  onImageClick?: (image: string) => void;
-  attachments?: FilePreview[];
-  onAttachmentsChange?: (attachments: FilePreview[]) => void;
-  onFileUpload?: (file: File) => void;
-  onImageUpload?: (file: File) => void;
-  onOpinionChange?: (messageId: number, opinion: "Y" | "N" | null) => void;
-  currentConversationId?: number;
-  shouldScrollToBottom?: boolean;
-  selectedAgentId?: number | null;
-  onAgentSelect?: (agentId: number | null) => void;
-}
 
 export function ChatStreamMain({
   messages,
@@ -100,25 +70,28 @@ export function ChatStreamMain({
   const lastUserMessageIdRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 处理消息分类
+  // Handle message classification
   useEffect(() => {
     const finalMsgs: ChatMessageType[] = [];
-    const taskMsgs: any[] = [];
-    const conversationGroups = new Map<string, any[]>();
+      const taskMsgs: any[] = [];
+      const conversationGroups = new Map<string, any[]>();
+      const truncationBuffer = new Map<string, any[]>(); // Buffer for truncation messages by user message ID
+      const processedTruncationIds = new Set<string>(); // Track processed truncation messages to avoid duplicates
 
-    // First preprocess, find all user message IDs and initialize task groups
-    messages.forEach((message) => {
-      if (message.role === "user" && message.id) {
-        conversationGroups.set(message.id, []);
-      }
-    });
+      // First preprocess, find all user message IDs and initialize task groups
+      messages.forEach((message) => {
+        if (message.role === USER_ROLES.USER && message.id) {
+          conversationGroups.set(message.id, []);
+          truncationBuffer.set(message.id, []); // Initialize truncation buffer for each user message
+        }
+      });
 
     let currentUserMsgId: string | null = null;
 
     // Process all messages, distinguish user messages, final answers, and task messages
     messages.forEach((message) => {
       // User messages are directly added to the final message array
-      if (message.role === "user") {
+      if (message.role === USER_ROLES.USER) {
         finalMsgs.push(message);
         // Record the user message ID, used to associate subsequent tasks
         if (message.id) {
@@ -129,7 +102,7 @@ export function ChatStreamMain({
         }
       }
       // Assistant messages need further processing
-      else if (message.role === "assistant") {
+      else if (message.role === ROLE_ASSISTANT) {
         // If there is a final answer or content (including empty string), add it to the final message array
         if (message.finalAnswer || message.content !== undefined) {
           finalMsgs.push(message);
@@ -149,17 +122,35 @@ export function ChatStreamMain({
                   id: content.id,
                   assistantId: message.id,
                   relatedUserMsgId: currentUserMsgId,
+                  // For preprocess messages, include the full contents array for TaskWindow
+                  contents: content.type === chatConfig.contentTypes.PREPROCESS ? step.contents : undefined,
                 };
-                taskMsgs.push(taskMsg);
 
-                // If there is a related user message, add it to the corresponding task group
-                if (
-                  currentUserMsgId &&
-                  conversationGroups.has(currentUserMsgId)
-                ) {
-                  const tasks = conversationGroups.get(currentUserMsgId) || [];
-                  tasks.push(taskMsg);
-                  conversationGroups.set(currentUserMsgId, tasks);
+                // Handle truncation messages specially - buffer them instead of adding immediately
+                if (content.type === "truncation") {
+                  // Create a unique ID for this truncation message to avoid duplicates
+                  const truncationId = `${content.filename || 'unknown'}_${content.message || ''}_${currentUserMsgId || 'no_user'}`;
+
+                  // Only add if not already processed
+                  if (!processedTruncationIds.has(truncationId) && currentUserMsgId && truncationBuffer.has(currentUserMsgId)) {
+                    const buffer = truncationBuffer.get(currentUserMsgId) || [];
+                    buffer.push(taskMsg);
+                    truncationBuffer.set(currentUserMsgId, buffer);
+                    processedTruncationIds.add(truncationId);
+                  }
+                } else {
+                  // For non-truncation messages, add them immediately
+                  taskMsgs.push(taskMsg);
+
+                  // If there is a related user message, add it to the corresponding task group
+                  if (
+                    currentUserMsgId &&
+                    conversationGroups.has(currentUserMsgId)
+                  ) {
+                    const tasks = conversationGroups.get(currentUserMsgId) || [];
+                    tasks.push(taskMsg);
+                    conversationGroups.set(currentUserMsgId, tasks);
+                  }
                 }
               });
             }
@@ -167,7 +158,7 @@ export function ChatStreamMain({
             // Process step.thinking (if it exists)
             if (step.thinking && step.thinking.content) {
               const taskMsg = {
-                type: "model_output_thinking",
+                type: chatConfig.messageTypes.MODEL_OUTPUT_THINKING,
                 content: step.thinking.content,
                 id: `thinking-${step.id}`,
                 assistantId: message.id,
@@ -189,7 +180,7 @@ export function ChatStreamMain({
             // Process step.code (if it exists)
             if (step.code && step.code.content) {
               const taskMsg = {
-                type: "model_output_code",
+                type: chatConfig.messageTypes.MODEL_OUTPUT_CODE,
                 content: step.code.content,
                 id: `code-${step.id}`,
                 assistantId: message.id,
@@ -211,7 +202,7 @@ export function ChatStreamMain({
             // Process step.output (if it exists)
             if (step.output && step.output.content) {
               const taskMsg = {
-                type: "tool",
+                type: chatConfig.messageTypes.TOOL,
                 content: step.output.content,
                 id: `output-${step.id}`,
                 assistantId: message.id,
@@ -236,7 +227,7 @@ export function ChatStreamMain({
         if (message.thinking && message.thinking.length > 0) {
           message.thinking.forEach((thinking, index) => {
             const taskMsg = {
-              type: "model_output_thinking",
+              type: chatConfig.messageTypes.MODEL_OUTPUT_THINKING,
               content: thinking.content,
               id: `thinking-${message.id}-${index}`,
               assistantId: message.id,
@@ -252,6 +243,36 @@ export function ChatStreamMain({
             }
           });
         }
+      }
+    });
+
+    // Process complete messages and release buffered truncation messages
+    messages.forEach((message) => {
+      if (message.role === ROLE_ASSISTANT && message.steps) {
+        message.steps.forEach((step) => {
+          if (step.contents && step.contents.length > 0) {
+            step.contents.forEach((content: any) => {
+              if (content.type === "complete") {
+                // Find the related user message ID for this complete message
+                let relatedUserMsgId: string | null = null;
+
+                // Find the user message that this assistant message is responding to
+                const messageIndex = messages.indexOf(message);
+                for (let i = messageIndex - 1; i >= 0; i--) {
+                  if (messages[i].role === "user" && messages[i].id) {
+                    relatedUserMsgId = messages[i].id;
+                    break;
+                  }
+                }
+
+                if (relatedUserMsgId && truncationBuffer.has(relatedUserMsgId)) {
+                  // Clear the buffer for this user message
+                  truncationBuffer.delete(relatedUserMsgId);
+                }
+              }
+            });
+          }
+        });
       }
     });
 
@@ -289,7 +310,7 @@ export function ChatStreamMain({
         setShowScrollButton(false);
       }
 
-      // 显示顶部渐变效果
+      // Show top gradient effect
       if (scrollTop > 10) {
         setShowTopFade(true);
       } else {

@@ -2,13 +2,7 @@ import React from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { Modal } from "antd";
 import { WarningFilled } from "@ant-design/icons";
-
-interface MemoryDeleteModalProps {
-  visible: boolean;
-  targetTitle?: string | null;
-  onOk: () => void;
-  onCancel: () => void;
-}
+import { MemoryDeleteModalProps } from "@/types/memory";
 
 /**
  * Hosts the "Clear Memory" secondary confirmation popup window and is responsible only for UI display.

@@ -342,7 +342,7 @@ select_deployment_mode() {
     mode_choice="$MODE_CHOICE"
     echo "👉 Using mode_choice from argument: $mode_choice"
   else
-    read -p "👉 Enter your choice [1/2/3/4] (default: 1): " mode_choice
+    read -p "👉 Enter your choice [1/2/3] (default: 1): " mode_choice
   fi
 
   # Sanitize potential Windows CR in input

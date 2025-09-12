@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Modal, Select, Input, Button, Switch, Tooltip, App } from 'antd'
 import { InfoCircleFilled, LoadingOutlined, RightOutlined, DownOutlined, SettingOutlined } from '@ant-design/icons'
 
 import { useConfig } from '@/hooks/useConfig'
-import { getConnectivityIcon, getConnectivityColor, getConnectivityMeta, ConnectivityStatusType } from '@/lib/utils'
+import { getConnectivityMeta, ConnectivityStatusType } from '@/lib/utils'
 import { modelService } from '@/services/modelService'
-import { ModelType, SingleModelConfig } from '@/types/config'
+import { ModelType, SingleModelConfig } from '@/types/modelConfig'
+import { MODEL_TYPES } from '@/const/modelConfig'
 import { useSiliconModelList } from '@/hooks/model/useSiliconModelList'
 
 const { Option } = Select
@@ -31,7 +32,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
   const { message } = App.useApp()
   const { updateModelConfig } = useConfig()
   const [form, setForm] = useState({
-    type: "llm" as ModelType,
+    type: MODEL_TYPES.LLM as ModelType,
     name: "",
     displayName: "",
     url: "",
@@ -72,12 +73,6 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     setLoadingModelList
   })
 
-  // Debug: log model list when it updates
-  // useEffect(() => {
-  //   console.log('modelList', modelList)
-  //   // whenever modelList changes, select all by default
-  //   setSelectedModelIds(new Set(modelList.map((m: any) => m.id)))
-  // }, [modelList])
 
   const parseModelName = (name: string): string => {
     if (!name) return ""
@@ -127,7 +122,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       return form.provider.trim() !== "" && 
              form.apiKey.trim() !== ""
     }
-    if (form.type === "embedding") {
+    if (form.type === MODEL_TYPES.EMBEDDING) {
       return form.name.trim() !== "" && 
              form.url.trim() !== "" && 
              isValidVectorDimension(form.vectorDimension);
@@ -148,8 +143,8 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     setConnectivityStatus({ status: "checking", message: t('model.dialog.status.verifying') })
 
     try {
-      const modelType = form.type === "embedding" && form.isMultimodal ? 
-        "multi_embedding" as ModelType : 
+      const modelType = form.type === MODEL_TYPES.EMBEDDING && form.isMultimodal ? 
+        MODEL_TYPES.MULTI_EMBEDDING as ModelType : 
         form.type;
 
       const config = {
@@ -157,8 +152,8 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         modelType: modelType,
         baseUrl: form.url,
         apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey,
-        maxTokens: form.type === "embedding" ? parseInt(form.vectorDimension) : parseInt(form.maxTokens),
-        embeddingDim: form.type === "embedding" ? parseInt(form.vectorDimension) : undefined
+        maxTokens: form.type === MODEL_TYPES.EMBEDDING ? parseInt(form.vectorDimension) : parseInt(form.maxTokens),
+        embeddingDim: form.type === MODEL_TYPES.EMBEDDING ? parseInt(form.vectorDimension) : undefined
       }
 
       const result = await modelService.verifyModelConfigConnectivity(config)
@@ -189,8 +184,8 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
   const handleBatchAddModel = async () => {
     // Only include models whose id is in selectedModelIds (i.e., switch is ON)
     const enabledModels = modelList.filter((model: any) => selectedModelIds.has(model.id));
-    const modelType = form.type === "embedding" && form.isMultimodal ? 
-        "multi_embedding" as ModelType : 
+    const modelType = form.type === MODEL_TYPES.EMBEDDING && form.isMultimodal ? 
+        MODEL_TYPES.MULTI_EMBEDDING as ModelType : 
         form.type;
     try {
       const result = await modelService.addBatchCustomModel({
@@ -216,7 +211,6 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
    
     onClose()
   }
-
 
 
   // Handle settings button click
@@ -249,13 +243,13 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       return
     }
     try {
-      const modelType = form.type === "embedding" && form.isMultimodal ? 
-        "multi_embedding" as ModelType : 
+      const modelType = form.type === MODEL_TYPES.EMBEDDING && form.isMultimodal ? 
+        MODEL_TYPES.MULTI_EMBEDDING as ModelType : 
         form.type;
       
       // Determine the maximum tokens value
       let maxTokensValue = parseInt(form.maxTokens);
-      if (form.type === "embedding" || form.type === "multi_embedding") {
+      if (form.type === MODEL_TYPES.EMBEDDING || form.type === MODEL_TYPES.MULTI_EMBEDDING) {
         // For embedding models, use the vector dimension as maxTokens
         maxTokensValue = 0;
       }
@@ -281,7 +275,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       }
       
       // Add the dimension field for embedding models
-      if (form.type === "embedding") {
+      if (form.type === MODEL_TYPES.EMBEDDING) {
         modelConfig.dimension = parseInt(form.vectorDimension);
       }
       
@@ -289,25 +283,25 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       let configUpdate: any = {}
       
       switch(modelType) {
-        case "llm":
+        case MODEL_TYPES.LLM:
           configUpdate = { llm: modelConfig }
           break;
-        case "embedding":
+        case MODEL_TYPES.EMBEDDING:
           configUpdate = { embedding: modelConfig }
           break;
-        case "multi_embedding":
+        case MODEL_TYPES.MULTI_EMBEDDING:
           configUpdate = { multiEmbedding: modelConfig }
           break;
-        case "vlm":
+        case MODEL_TYPES.VLM:
           configUpdate = { vlm: modelConfig }
           break;
-        case "rerank":
+        case MODEL_TYPES.RERANK:
           configUpdate = { rerank: modelConfig }
           break;
-        case "tts":
+        case MODEL_TYPES.TTS:
           configUpdate = { tts: modelConfig }
           break;
-        case "stt":
+        case MODEL_TYPES.STT:
           configUpdate = { stt: modelConfig }
           break;
       }
@@ -351,7 +345,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
     }
   }
 
-  const isEmbeddingModel = form.type === "embedding"
+  const isEmbeddingModel = form.type === MODEL_TYPES.EMBEDDING
 
 
 
@@ -406,12 +400,12 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
             value={form.type}
             onChange={(value) => handleFormChange("type", value)}
           >
-            <Option value="llm">{t('model.type.llm')}</Option>
-            <Option value="embedding">{t('model.type.embedding')}</Option>
-            <Option value="vlm">{t('model.type.vlm')}</Option>
-            <Option value="rerank" disabled>{t('model.type.rerank')}</Option>
-            <Option value="stt" disabled>{t('model.type.stt')}</Option>
-            <Option value="tts" disabled>{t('model.type.tts')}</Option>
+            <Option value={MODEL_TYPES.LLM}>{t('model.type.llm')}</Option>
+            <Option value={MODEL_TYPES.EMBEDDING}>{t('model.type.embedding')}</Option>
+            <Option value={MODEL_TYPES.VLM}>{t('model.type.vlm')}</Option>
+            <Option value={MODEL_TYPES.RERANK} disabled>{t('model.type.rerank')}</Option>
+            <Option value={MODEL_TYPES.STT} disabled>{t('model.type.stt')}</Option>
+            <Option value={MODEL_TYPES.TTS} disabled>{t('model.type.tts')}</Option>
           </Select>
         </div>
 
@@ -472,7 +466,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
             <Input
               id="url"
               placeholder={
-                form.type === "embedding"
+                form.type === MODEL_TYPES.EMBEDDING
                   ? t('model.dialog.placeholder.url.embedding')
                   : t('model.dialog.placeholder.url')
               }

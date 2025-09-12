@@ -1,5 +1,7 @@
 "use client";
 
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
+import { chatConfig } from "@/const/chatConfig";
 import {
   ApiMessage,
   SearchResult,
@@ -67,13 +69,13 @@ export function extractAssistantMsgFromResponse(
   if (dialog_msg.message && Array.isArray(dialog_msg.message)) {
     dialog_msg.message.forEach((msg: ApiMessageItem) => {
       switch (msg.type) {
-        case "final_answer": {
+        case chatConfig.messageTypes.FINAL_ANSWER: {
           // process the final_answer content and identify the user break tag
           finalAnswer += processSpecialTag(msg.content, t);
           break;
         }
 
-        case "step_count": {
+        case chatConfig.messageTypes.STEP_COUNT: {
           // create a new step
           steps.push({
             id: `step-${steps.length + 1}`,
@@ -89,7 +91,7 @@ export function extractAssistantMsgFromResponse(
           break;
         }
 
-        case "model_output_thinking": {
+        case chatConfig.messageTypes.MODEL_OUTPUT_THINKING: {
           const currentStep = steps[steps.length - 1];
           if (currentStep) {
             const contentId = `model-${Date.now()}-${Math.random()
@@ -107,7 +109,7 @@ export function extractAssistantMsgFromResponse(
           break;
         }
 
-        case "execution_logs": {
+        case chatConfig.messageTypes.EXECUTION_LOGS: {
           const currentStep = steps[steps.length - 1];
           if (currentStep) {
             // create a new execution output
@@ -126,7 +128,7 @@ export function extractAssistantMsgFromResponse(
           break;
         }
 
-        case "error": {
+        case chatConfig.messageTypes.ERROR: {
           const currentStep = steps[steps.length - 1];
           if (currentStep) {
             // create the error content
@@ -144,7 +146,7 @@ export function extractAssistantMsgFromResponse(
           break;
         }
 
-        case "search_content_placeholder": {
+        case chatConfig.messageTypes.SEARCH_CONTENT_PLACEHOLDER: {
           const currentStep = steps[steps.length - 1];
           if (currentStep) {
             try {
@@ -183,7 +185,7 @@ export function extractAssistantMsgFromResponse(
           break;
         }
 
-        case "token_count": {
+        case chatConfig.messageTypes.TOKEN_COUNT: {
           const currentStep = steps[steps.length - 1];
           if (currentStep) {
             currentStep.metrics = msg.content;
@@ -191,7 +193,7 @@ export function extractAssistantMsgFromResponse(
           break;
         }
 
-        case "card": {
+        case chatConfig.messageTypes.CARD: {
           const currentStep = steps[steps.length - 1];
           if (currentStep) {
             // create the card content
@@ -209,7 +211,7 @@ export function extractAssistantMsgFromResponse(
           break;
         }
 
-        case "tool": {
+        case chatConfig.messageTypes.TOOL: {
           const currentStep = steps[steps.length - 1];
           if (currentStep) {
             // create the tool call content
@@ -237,7 +239,7 @@ export function extractAssistantMsgFromResponse(
   // create the formatted assistant message
   const formattedAssistantMsg: ChatMessageType = {
     id: `assistant-${index}-${Date.now()}`,
-    role: "assistant",
+    role: ROLE_ASSISTANT,
     message_id: dialog_msg.message_id,
     content: "",
     opinion_flag: dialog_msg.opinion_flag,
