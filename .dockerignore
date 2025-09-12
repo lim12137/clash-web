@@ -18,7 +18,6 @@
 
 # Docker
 .dockerignore
-make/
 
 # Logs
 logs
