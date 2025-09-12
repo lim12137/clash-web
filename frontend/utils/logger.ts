@@ -16,19 +16,19 @@ const log = isProduction
       log: () => {},
     }
   : {
-      debug: (message: string, ...args: any[]) => {
+      debug: (message: any, ...args: any[]) => {
         console.debug(`[DEBUG] ${message}`, ...args);
       },
-      info: (message: string, ...args: any[]) => {
+      info: (message: any, ...args: any[]) => {
         console.info(`[INFO] ${message}`, ...args);
       },
-      warn: (message: string, ...args: any[]) => {
+      warn: (message: any, ...args: any[]) => {
         console.warn(`[WARN] ${message}`, ...args);
       },
-      error: (message: string, ...args: any[]) => {
+      error: (message: any, ...args: any[]) => {
         console.error(`[ERROR] ${message}`, ...args);
       },
-      log: (message: string, ...args: any[]) => {
+      log: (message: any, ...args: any[]) => {
         console.log(`[LOG] ${message}`, ...args);
       },
     };
