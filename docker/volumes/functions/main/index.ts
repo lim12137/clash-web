@@ -1,8 +1,7 @@
 import { serve } from 'https://deno.land/std@0.131.0/http/server.ts'
 import * as jose from 'https://deno.land/x/jose@v4.14.4/index.ts'
-import log from "../../../../frontend/utils/logger";
 
-log.log('main function started')
+console.log('main function started')
 
 const JWT_SECRET = Deno.env.get('JWT_SECRET')
 const VERIFY_JWT = Deno.env.get('VERIFY_JWT') === 'true'
@@ -25,7 +24,7 @@ async function verifyJWT(jwt: string): Promise<boolean> {
   try {
     await jose.jwtVerify(jwt, secretKey)
   } catch (err) {
-    log.error(err)
+    console.error(err)
     return false
   }
   return true
@@ -44,7 +43,7 @@ serve(async (req: Request) => {
         })
       }
     } catch (e) {
-      log.error(e)
+      console.error(e)
       return new Response(JSON.stringify({ msg: e.toString() }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
@@ -66,7 +65,7 @@ serve(async (req: Request) => {
   }
 
   const servicePath = `/home/deno/functions/${service_name}`
-  log.error(`serving the request with ${servicePath}`)
+  console.error(`serving the request with ${servicePath}`)
 
   const memoryLimitMb = 150
   const workerTimeoutMs = 1 * 60 * 1000
