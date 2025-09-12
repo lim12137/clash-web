@@ -1,10 +1,9 @@
 import logging
 from http import HTTPStatus
-from http.client import HTTPException
 from typing import Optional, Dict
 import uuid
 
-from fastapi import APIRouter, Body, Header, Request
+from fastapi import APIRouter, Body, Header, Request, HTTPException
 from fastapi.responses import JSONResponse
 
 from consts.exceptions import UnauthorizedError, LimitExceededError, SignatureValidationError
@@ -57,7 +56,8 @@ async def _parse_northbound_context(request: Request) -> NorthboundContext:
         validate_aksk_authentication(request.headers, request_body)
     except (UnauthorizedError, LimitExceededError, SignatureValidationError) as e:
         raise e
-    except Exception:
+    except Exception as e:
+        logging.error(f"Failed to parse northbound context: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                             detail="Internal Server Error: cannot parse northbound context")
 
@@ -78,7 +78,11 @@ async def _parse_northbound_context(request: Request) -> NorthboundContext:
             raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                                 detail="Unauthorized: unregistered user_id in JWT token")
 
-    except Exception:
+    except HTTPException as e:
+        # Preserve explicit HTTP errors raised during JWT parsing
+        raise e
+    except Exception as e:
+        logging.error(f"Failed to parse JWT token: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                             detail="Internal Server Error: cannot parse JWT token")
 
@@ -115,16 +119,23 @@ async def run_chat(
             query=query,
             idempotency_key=idempotency_key,
         )
-    except UnauthorizedError:
+    except UnauthorizedError as e:
+        logging.error(f"Unauthorized: AK/SK authentication failed: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                             detail="Unauthorized: AK/SK authentication failed")
-    except LimitExceededError:
+    except LimitExceededError as e:
+        logging.error(f"Too Many Requests: rate limit exceeded: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.TOO_MANY_REQUESTS,
                             detail="Too Many Requests: rate limit exceeded")
-    except SignatureValidationError:
+    except SignatureValidationError as e:
+        logging.error(f"Unauthorized: invalid signature: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                             detail="Unauthorized: invalid signature")
-    except Exception:
+    except HTTPException as e:
+        # Propagate HTTP errors from context parsing without altering status/detail
+        raise e
+    except Exception as e:
+        logging.error(f"Failed to run chat: {str(e)}", exc_info=e)
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
@@ -134,16 +145,22 @@ async def stop_chat_stream(request: Request, conversation_id: str):
     try:
         ctx: NorthboundContext = await _parse_northbound_context(request)
         return await stop_chat(ctx=ctx, external_conversation_id=conversation_id)
-    except UnauthorizedError:
+    except UnauthorizedError as e:
+        logging.error(f"Unauthorized: AK/SK authentication failed: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                             detail="Unauthorized: AK/SK authentication failed")
-    except LimitExceededError:
+    except LimitExceededError as e:
+        logging.error(f"Too Many Requests: rate limit exceeded: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.TOO_MANY_REQUESTS,
                             detail="Too Many Requests: rate limit exceeded")
-    except SignatureValidationError:
+    except SignatureValidationError as e:
+        logging.error(f"Unauthorized: invalid signature: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                             detail="Unauthorized: invalid signature")
-    except Exception:
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logging.error(f"Failed to stop chat: {str(e)}", exc_info=e)
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
@@ -153,16 +170,22 @@ async def get_history(request: Request, conversation_id: str):
     try:
         ctx: NorthboundContext = await _parse_northbound_context(request)
         return await get_conversation_history(ctx=ctx, external_conversation_id=conversation_id)
-    except UnauthorizedError:
+    except UnauthorizedError as e:
+        logging.error(f"Unauthorized: AK/SK authentication failed: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                             detail="Unauthorized: AK/SK authentication failed")
-    except LimitExceededError:
+    except LimitExceededError as e:
+        logging.error(f"Too Many Requests: rate limit exceeded: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.TOO_MANY_REQUESTS,
                             detail="Too Many Requests: rate limit exceeded")
-    except SignatureValidationError:
+    except SignatureValidationError as e:
+        logging.error(f"Unauthorized: invalid signature: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                             detail="Unauthorized: invalid signature")
-    except Exception:
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logging.error(f"Failed to get conversation history: {str(e)}", exc_info=e)
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
@@ -172,16 +195,22 @@ async def list_agents(request: Request):
     try:
         ctx: NorthboundContext = await _parse_northbound_context(request)
         return await get_agent_info_list(ctx=ctx)
-    except UnauthorizedError:
+    except UnauthorizedError as e:
+        logging.error(f"Unauthorized: AK/SK authentication failed: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                             detail="Unauthorized: AK/SK authentication failed")
-    except LimitExceededError:
+    except LimitExceededError as e:
+        logging.error(f"Too Many Requests: rate limit exceeded: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.TOO_MANY_REQUESTS,
                             detail="Too Many Requests: rate limit exceeded")
-    except SignatureValidationError:
+    except SignatureValidationError as e:
+        logging.error(f"Unauthorized: invalid signature: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                             detail="Unauthorized: invalid signature")
-    except Exception:
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logging.error(f"Failed to list agents: {str(e)}", exc_info=e)
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
@@ -191,16 +220,22 @@ async def list_convs(request: Request):
     try:
         ctx: NorthboundContext = await _parse_northbound_context(request)
         return await list_conversations(ctx=ctx)
-    except UnauthorizedError:
+    except UnauthorizedError as e:
+        logging.error(f"Unauthorized: AK/SK authentication failed: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                             detail="Unauthorized: AK/SK authentication failed")
-    except LimitExceededError:
+    except LimitExceededError as e:
+        logging.error(f"Too Many Requests: rate limit exceeded: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.TOO_MANY_REQUESTS,
                             detail="Too Many Requests: rate limit exceeded")
-    except SignatureValidationError:
+    except SignatureValidationError as e:
+        logging.error(f"Unauthorized: invalid signature: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                             detail="Unauthorized: invalid signature")
-    except Exception:
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logging.error(f"Failed to list conversations: {str(e)}", exc_info=e)
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
@@ -224,15 +259,21 @@ async def update_convs_title(
             "Idempotency-Key": result.get("idempotency_key", ""), "X-Request-Id": ctx.request_id}
         return JSONResponse(content=result, headers=headers_out)
 
-    except UnauthorizedError:
+    except UnauthorizedError as e:
+        logging.error(f"Unauthorized: AK/SK authentication failed: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                             detail="Unauthorized: AK/SK authentication failed")
-    except LimitExceededError:
+    except LimitExceededError as e:
+        logging.error(f"Too Many Requests: rate limit exceeded: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.TOO_MANY_REQUESTS,
                             detail="Too Many Requests: rate limit exceeded")
-    except SignatureValidationError:
+    except SignatureValidationError as e:
+        logging.error(f"Unauthorized: invalid signature: {str(e)}", exc_info=e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED,
                             detail="Unauthorized: invalid signature")
-    except Exception:
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logging.error(f"Failed to update conversation title: {str(e)}", exc_info=e)
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
