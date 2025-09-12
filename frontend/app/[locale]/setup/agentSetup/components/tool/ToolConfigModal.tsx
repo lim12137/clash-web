@@ -11,6 +11,7 @@ import {
   updateToolConfig,
   searchToolConfig,
 } from "@/services/agentConfigService";
+import log from "@/utils/logger";
 
 export default function ToolConfigModal({
   isOpen,
@@ -65,7 +66,7 @@ export default function ToolConfigModal({
             );
           }
         } catch (error) {
-          console.error(t("toolConfig.message.loadError"), error);
+          log.error(t("toolConfig.message.loadError"), error);
           message.error(t("toolConfig.message.loadErrorUseDefault"));
           // when error occurs, use default config
           setCurrentParams(
@@ -152,7 +153,7 @@ export default function ToolConfigModal({
         message.error(result.message || t("toolConfig.message.saveError"));
       }
     } catch (error) {
-      console.error(t("toolConfig.message.saveFailed"), error);
+      log.error(t("toolConfig.message.saveFailed"), error);
       message.error(t("toolConfig.message.saveFailed"));
     }
   };

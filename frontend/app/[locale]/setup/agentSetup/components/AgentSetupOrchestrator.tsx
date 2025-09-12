@@ -22,6 +22,7 @@ import SubAgentPool from "./agent/SubAgentPool";
 import CollaborativeAgentDisplay from "./agent/CollaborativeAgentDisplay";
 import { MemoizedToolPool } from "./tool/ToolPool";
 import PromptManager from "./PromptManager";
+import log from "@/utils/logger";
 
 /**
  * Agent Setup Orchestrator - Main coordination component for agent setup workflow
@@ -107,7 +108,7 @@ export default function AgentSetupOrchestrator({
         );
       }
     } catch (error) {
-      console.error(t("debug.console.fetchAgentListFailed"), error);
+      log.error(t("debug.log.fetchAgentListFailed"), error);
       message.error(t("businessLogic.config.error.agentListFailed"));
     } finally {
       setIsLoadingTools(false);
@@ -186,7 +187,7 @@ export default function AgentSetupOrchestrator({
         );
       }
     } catch (error) {
-      console.error("Failed to create new Agent:", error);
+      log.error("Failed to create new Agent:", error);
       message.error(t("businessLogic.config.error.agentIdFailed"));
     } finally {
       setIsLoadingTools(false);
@@ -396,7 +397,7 @@ export default function AgentSetupOrchestrator({
           );
         }
       } catch (error) {
-        console.error("Error saving agent:", error);
+        log.error("Error saving agent:", error);
         message.error(t("businessLogic.config.error.saveRetry"));
       }
     } else {
@@ -503,7 +504,7 @@ export default function AgentSetupOrchestrator({
         setEnabledToolIds([]);
       }
     } catch (error) {
-      console.error(t("debug.console.loadAgentDetailsFailed"), error);
+      log.error(t("debug.log.loadAgentDetailsFailed"), error);
       message.error(t("businessLogic.config.error.agentDetailFailed"));
       // If error occurs, reset editing state
       setIsEditingAgent(false);
@@ -583,7 +584,7 @@ export default function AgentSetupOrchestrator({
           );
         }
       } catch (error) {
-        console.error(t("debug.console.importAgentFailed"), error);
+        log.error(t("debug.log.importAgentFailed"), error);
         message.error(t("businessLogic.config.error.agentImportFailed"));
       } finally {
         setIsImporting(false);
@@ -613,7 +614,7 @@ export default function AgentSetupOrchestrator({
         );
       }
     } catch (error) {
-      console.error(t("debug.console.deleteAgentFailed"), error);
+      log.error(t("debug.log.deleteAgentFailed"), error);
       message.error(t("businessLogic.config.error.agentDeleteFailed"));
     } finally {
       setIsDeleteConfirmOpen(false);

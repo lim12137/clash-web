@@ -12,6 +12,7 @@ import { generateAvatarUri } from '@/lib/avatar';
 import { LAYOUT_CONFIG, CARD_THEMES, ICON_TYPES } from '@/const/modelConfig';
 
 import 'bootstrap-icons/font/bootstrap-icons.css';
+import log from "@/utils/logger";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -258,7 +259,7 @@ export const AppConfigSection: React.FC = () => {
       }
     } catch (error) {
       message.error(t('appConfig.icon.saveError'));
-      console.error(t('appConfig.icon.saveErrorLog'), error);
+      log.error(t('appConfig.icon.saveErrorLog'), error);
     }
   };
 

@@ -5,6 +5,7 @@ import { fetchAllAgents } from "./agentConfigService";
 
 import { MemoryItem, MemoryGroup } from "@/types/memory";
 import { getAuthHeaders } from '@/lib/auth';
+import log from "@/utils/logger";
 
 // ---------------------------------------------------------------------------
 // Error message translation helper
@@ -89,7 +90,7 @@ export async function loadMemoryConfig(): Promise<MemoryConfig> {
       disableUserAgentIds,
     };
   } catch (e) {
-    console.error("loadMemoryConfig error", e);
+    log.error("loadMemoryConfig error", e);
     // fall back to defaults
     return {
       memoryEnabled: true,
@@ -111,7 +112,7 @@ export async function setMemorySwitch(enabled: boolean): Promise<boolean> {
     // Backend returns { success: true } on OK
     return !!res?.success;
   } catch (e) {
-    console.error("setMemorySwitch error", e);
+    log.error("setMemorySwitch error", e);
     return false;
   }
 }
@@ -128,7 +129,7 @@ export async function setMemoryAgentShare(
     });
     return !!res?.success;
   } catch (e) {
-    console.error("setMemoryAgentShare error", e);
+    log.error("setMemoryAgentShare error", e);
     return false;
   }
 }
@@ -143,7 +144,7 @@ export async function addDisabledAgentId(agentId: string): Promise<boolean> {
     });
     return !!res?.success;
   } catch (e) {
-    console.error("addDisabledAgentId error", e);
+    log.error("addDisabledAgentId error", e);
     return false;
   }
 }
@@ -159,7 +160,7 @@ export async function removeDisabledAgentId(agentId: string): Promise<boolean> {
     );
     return !!res?.success;
   } catch (e) {
-    console.error("removeDisabledAgentId error", e);
+    log.error("removeDisabledAgentId error", e);
     return false;
   }
 }
@@ -178,7 +179,7 @@ export async function addDisabledUserAgentId(
     );
     return !!res?.success;
   } catch (e) {
-    console.error("addDisabledUserAgentId error", e);
+    log.error("addDisabledUserAgentId error", e);
     return false;
   }
 }
@@ -196,7 +197,7 @@ export async function removeDisabledUserAgentId(
     );
     return !!res?.success;
   } catch (e) {
-    console.error("removeDisabledUserAgentId error", e);
+    log.error("removeDisabledUserAgentId error", e);
     return false;
   }
 }
@@ -223,7 +224,7 @@ async function listMemories(
     const total: number = content.total ?? items.length;
     return { items, total };
   } catch (e) {
-    console.error("listMemories error", e);
+    log.error("listMemories error", e);
     if (e instanceof Error) {
       throw new Error(getFriendlyErrorMessage(e.message || ""));
     }
@@ -383,7 +384,7 @@ export async function addMemory(
     // Backend returns inserted info or payload directly on success
     return !!res;
   } catch (e) {
-    console.error("addMemory error", e);
+    log.error("addMemory error", e);
     throw e;
   }
 }
@@ -404,7 +405,7 @@ export async function clearMemory(
     const result = res || { deleted_count: 0, total_count: 0 };
     return result;
   } catch (e) {
-    console.error("clearMemory error", e);
+    log.error("clearMemory error", e);
     throw e;
   }
 }
@@ -427,7 +428,7 @@ export async function deleteMemory(
     });
     return !!res;
   } catch (e) {
-    console.error("deleteMemory error", e);
+    log.error("deleteMemory error", e);
     throw e;
   }
 }

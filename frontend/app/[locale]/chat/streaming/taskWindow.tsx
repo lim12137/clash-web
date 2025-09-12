@@ -17,6 +17,7 @@ import { MarkdownRenderer } from "@/components/ui/markdownRenderer";
 import { chatConfig } from "@/const/chatConfig";
 import { ChatMessageType, TaskMessageType, CardItem, MessageHandler } from "@/types/chat";
 import { useChatTaskMessage } from "@/hooks/useChatTaskMessage";
+import log from "@/utils/logger";
 
 // Icon mapping dictionary - map strings to corresponding icon components
 const iconMap: Record<string, React.ReactNode> = {
@@ -176,7 +177,7 @@ const messageHandlers: MessageHandler[] = [
             faviconUrl = `${baseUrl}/favicon.ico`;
             canClick = true;
           } catch (e) {
-            console.error(t("taskWindow.urlParseError"), e);
+            log.error(t("taskWindow.urlParseError"), e);
             useDefaultIcon = true;
             canClick = false;
           }
@@ -337,7 +338,7 @@ const messageHandlers: MessageHandler[] = [
           cardItems = message.content;
         }
       } catch (error) {
-        console.error(t("taskWindow.parseCardError"), error);
+        log.error(t("taskWindow.parseCardError"), error);
         return (
           <div style={{ color: "red", padding: "8px" }}>
             {t("taskWindow.cannotParseCard")}
@@ -414,7 +415,7 @@ const messageHandlers: MessageHandler[] = [
           searchResults = content;
         }
       } catch (error: any) {
-        console.error(t("taskWindow.parseSearchError"), error);
+        log.error(t("taskWindow.parseSearchError"), error);
         return (
           <div style={{ color: "red", padding: "8px" }}>
             {t("taskWindow.cannotParseSearch", { message: error.message })}
@@ -499,7 +500,7 @@ const messageHandlers: MessageHandler[] = [
             faviconUrl = `${baseUrl}/favicon.ico`;
             canClick = true;
           } catch (e) {
-            console.error(t("taskWindow.urlParseError"), e);
+            log.error(t("taskWindow.urlParseError"), e);
             useDefaultIcon = true;
             canClick = false;
           }
@@ -711,7 +712,7 @@ const messageHandlers: MessageHandler[] = [
         // Parse the memory search content
         memoryData = JSON.parse(message.content);
       } catch (error) {
-        console.error('Failed to parse memory search content:', error);
+        log.error('Failed to parse memory search content:', error);
         return null;
       }
       

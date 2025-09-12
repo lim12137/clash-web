@@ -17,7 +17,12 @@ import { configStore } from "@/lib/config";
 import { languageOptions } from "@/const/constants";
 import { useLanguageSwitch } from "@/lib/language";
 import { HEADER_CONFIG } from "@/const/layoutConstants";
-import { USER_ROLES, CONNECTION_STATUS, ConnectionStatus } from "@/const/modelConfig";
+import {
+  USER_ROLES,
+  CONNECTION_STATUS,
+  ConnectionStatus,
+} from "@/const/modelConfig";
+import log from "@/utils/logger";
 
 import AppModelConfig from "./modelSetup/config";
 import DataConfig from "./knowledgeSetup/config";
@@ -25,7 +30,10 @@ import AgentConfig from "./agentSetup/config";
 
 // ================ Header ================
 interface HeaderProps {
-  connectionStatus: typeof CONNECTION_STATUS.SUCCESS | typeof CONNECTION_STATUS.ERROR | typeof CONNECTION_STATUS.PROCESSING;
+  connectionStatus:
+    | typeof CONNECTION_STATUS.SUCCESS
+    | typeof CONNECTION_STATUS.ERROR
+    | typeof CONNECTION_STATUS.PROCESSING;
   isCheckingConnection: boolean;
   onCheckConnection: () => void;
 }
@@ -160,7 +168,9 @@ function Navigation({
           style={{
             border: "none",
             marginLeft:
-              selectedKey === "1" || userRole !== USER_ROLES.ADMIN ? "auto" : undefined,
+              selectedKey === "1" || userRole !== USER_ROLES.ADMIN
+                ? "auto"
+                : undefined,
           }}
         >
           {selectedKey === "3"
@@ -181,7 +191,10 @@ function Navigation({
 // ================ Layout ================
 interface LayoutProps {
   children: ReactNode;
-  connectionStatus: typeof CONNECTION_STATUS.SUCCESS | typeof CONNECTION_STATUS.ERROR | typeof CONNECTION_STATUS.PROCESSING;
+  connectionStatus:
+    | typeof CONNECTION_STATUS.SUCCESS
+    | typeof CONNECTION_STATUS.ERROR
+    | typeof CONNECTION_STATUS.PROCESSING;
   isCheckingConnection: boolean;
   onCheckConnection: () => void;
   selectedKey: string;
@@ -229,8 +242,9 @@ export default function CreatePage() {
   const { message } = App.useApp();
   const [selectedKey, setSelectedKey] = useState("1");
   const router = useRouter();
-  const [connectionStatus, setConnectionStatus] =
-    useState<ConnectionStatus>(CONNECTION_STATUS.PROCESSING);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
+    CONNECTION_STATUS.PROCESSING
+  );
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isFromSecondPage, setIsFromSecondPage] = useState(false);
@@ -280,7 +294,7 @@ export default function CreatePage() {
           await configService.loadConfigToFrontend();
           configStore.reloadFromStorage();
         } catch (error) {
-          console.error("加载配置失败:", error);
+          log.error("加载配置失败:", error);
         }
       }
     };
@@ -324,7 +338,7 @@ export default function CreatePage() {
       const result = await modelEngineService.checkConnection();
       setConnectionStatus(result.status);
     } catch (error) {
-      console.error(t("setup.page.error.checkConnection"), error);
+      log.error(t("setup.page.error.checkConnection"), error);
       setConnectionStatus(CONNECTION_STATUS.ERROR);
     } finally {
       setIsCheckingConnection(false);
@@ -426,7 +440,7 @@ export default function CreatePage() {
 
           router.push("/chat");
         } catch (error) {
-          console.error("保存配置异常:", error);
+          log.error("保存配置异常:", error);
           message.error("系统异常，请稍后重试");
         } finally {
           setIsSavingConfig(false);
@@ -474,7 +488,7 @@ export default function CreatePage() {
         // Call the backend save configuration API
         await configService.saveConfigToBackend(currentConfig);
       } catch (error) {
-        console.error(t("setup.page.error.systemError"), error);
+        log.error(t("setup.page.error.systemError"), error);
         message.error(t("setup.page.error.systemError"));
       }
     }

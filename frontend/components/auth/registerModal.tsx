@@ -24,6 +24,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { AuthFormValues } from "@/types/auth"
 import { useAuthForm } from "@/hooks/useAuthForm";
+import log from "@/utils/logger";
 
 const { Text } = Typography;
 
@@ -104,7 +105,7 @@ export function RegisterModal() {
       resetForm();
       setIsAdminMode(false);
     } catch (error: any) {
-      console.error("Registration error details:", error);
+      log.error("Registration error details:", error);
 
       if (error?.detail && Array.isArray(error.detail)) {
         const validationError = error.detail[0];

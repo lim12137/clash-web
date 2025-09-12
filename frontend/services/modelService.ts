@@ -13,6 +13,7 @@ import {
 import { getAuthHeaders } from '@/lib/auth'
 import {STATUS_CODES} from "@/const/auth";
 import { MODEL_TYPES, MODEL_SOURCES } from '@/const/modelConfig';
+import log from "@/utils/logger";
 
 // Error class
 export class ModelError extends Error {
@@ -75,7 +76,7 @@ export const modelService = {
       return [];
     } catch (error) {
       // In case of any error, return empty array
-      console.warn("Failed to load official models:", error);
+      log.warn("Failed to load official models:", error);
       return [];
     }
   },
@@ -103,14 +104,14 @@ export const modelService = {
         }));
       }
       // If API call was not successful, return empty array
-      console.warn(
+      log.warn(
         "Failed to load custom models:",
         result.message || "Unknown error"
       );
       return [];
     } catch (error) {
       // In case of any error, return empty array
-      console.warn("Failed to load custom models:", error);
+      log.warn("Failed to load custom models:", error);
       return [];
     }
   },
@@ -237,9 +238,9 @@ export const modelService = {
           }),
         }
       );
-      console.log("getProviderSelectedModalList response", response);
+      log.log("getProviderSelectedModalList response", response);
       const result = await response.json();
-      console.log("getProviderSelectedModalList result", result);
+      log.log("getProviderSelectedModalList result", result);
       if (response.status !== 200) {
         throw new ModelError(
           result.message || "获取模型列表失败",
@@ -248,7 +249,7 @@ export const modelService = {
       }
       return result.data || [];
     } catch (error) {
-      console.log("getProviderSelectedModalList error", error);
+      log.log("getProviderSelectedModalList error", error);
       if (error instanceof ModelError) throw error;
       throw new ModelError("获取模型列表失败", 500);
     }
@@ -368,10 +369,10 @@ export const modelService = {
       return false;
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        console.warn(`验证模型 ${displayName} 连接被取消`);
+        log.warn(`验证模型 ${displayName} 连接被取消`);
         throw error;
       }
-      console.error(`验证模型 ${displayName} 连接失败:`, error);
+      log.error(`验证模型 ${displayName} 连接失败:`, error);
       return false;
     }
   },
@@ -418,10 +419,10 @@ export const modelService = {
       };
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        console.warn("Model configuration connectivity verification cancelled");
+        log.warn("Model configuration connectivity verification cancelled");
         throw error;
       }
-      console.error(
+      log.error(
         "Model configuration connectivity verification failed:",
         error
       );

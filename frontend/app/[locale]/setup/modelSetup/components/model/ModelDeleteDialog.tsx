@@ -10,6 +10,7 @@ import { modelService } from '@/services/modelService'
 import { ModelOption, ModelType, ModelSource } from '@/types/modelConfig'
 
 import { ModelEditDialog, ProviderConfigEditDialog } from './ModelEditDialog'
+import log from "@/utils/logger";
 
 interface ModelDeleteDialogProps {
   isOpen: boolean
@@ -186,7 +187,7 @@ export const ModelDeleteDialog = ({
       }
     } catch (e) {
       message.error(t('model.dialog.error.noModelsFetched'))
-      console.error('Failed to prefetch Silicon provider models', e)
+      log.error('Failed to prefetch Silicon provider models', e)
     }
   }
 
@@ -281,7 +282,7 @@ export const ModelDeleteDialog = ({
         }
       }
     } catch (error) {
-      console.error(t('model.error.deleteError'), error)
+      log.error(t('model.error.deleteError'), error)
       message.error(t('model.message.deleteFailed', { name: displayName }))
     } finally {
       setDeletingModels(prev => {
@@ -406,7 +407,7 @@ export const ModelDeleteDialog = ({
                   // Close dialog
                   handleClose()
                 } catch (e) {
-                  console.error('Failed to apply model updates', e)
+                  log.error('Failed to apply model updates', e)
                   message.error(t('model.dialog.error.addFailed', { error: e as any }))
                 }
               } else if (selectedSource === MODEL_SOURCES.OPENAI && deletingModelType) {
@@ -416,7 +417,7 @@ export const ModelDeleteDialog = ({
                   message.success(t('model.dialog.success.updateSuccess'))
                   handleClose()
                 } catch (e) {
-                  console.error('Failed to apply OpenAI model updates', e)
+                  log.error('Failed to apply OpenAI model updates', e)
                   message.error(t('model.dialog.error.addFailed', { error: e as any }))
                 }
               }

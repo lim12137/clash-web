@@ -26,6 +26,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 
 import { ChatAttachment } from "../internal/chatAttachment";
 import { AttachmentItem } from "@/types/chat";
+import log from "@/utils/logger";
 
 interface StreamMessageProps {
   message: ChatMessageType;
@@ -92,7 +93,7 @@ export function ChatStreamMessage({
         setTimeout(() => setCopied(false), 2000);
       })
       .catch((err) => {
-        console.error(t("chatStreamMessage.copyFailed"), err);
+        log.error(t("chatStreamMessage.copyFailed"), err);
       });
   };
 
