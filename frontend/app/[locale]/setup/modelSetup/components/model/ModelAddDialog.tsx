@@ -10,6 +10,7 @@ import { modelService } from '@/services/modelService'
 import { ModelType, SingleModelConfig } from '@/types/modelConfig'
 import { MODEL_TYPES } from '@/const/modelConfig'
 import { useSiliconModelList } from '@/hooks/model/useSiliconModelList'
+import log from "@/utils/logger";
 
 const { Option } = Select
 
@@ -339,7 +340,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
       onClose()
     } catch (error) {
       message.error(t('model.dialog.error.addFailed', { error }))
-      console.error(t('model.dialog.error.addFailedLog'), error)
+      log.error(t('model.dialog.error.addFailedLog'), error)
     } finally {
       setLoading(false)
     }

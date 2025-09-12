@@ -27,6 +27,7 @@ import { updateToolList } from "@/services/mcpService";
 
 import ToolConfigModal from "./ToolConfigModal";
 import McpConfigModal from "../McpConfigModal";
+import log from "@/utils/logger";
 
 /**
  * Tool Pool Component
@@ -324,7 +325,7 @@ function ToolPool({
         );
       }
     } catch (error) {
-      console.error(t("debug.console.refreshToolsFailed"), error);
+      log.error(t("debug.log.refreshToolsFailed"), error);
       message.error(t("toolManagement.message.refreshFailedRetry"));
     } finally {
       setIsRefreshing(false);
@@ -343,13 +344,13 @@ function ToolPool({
             onToolsRefresh();
           }
         } else {
-          console.error(
+          log.error(
             "Auto refresh tool list failed after MCP configuration:",
             fetchResult.message
           );
         }
       } catch (error) {
-        console.error(
+        log.error(
           "Error during auto refresh tool list after MCP configuration:",
           error
         );

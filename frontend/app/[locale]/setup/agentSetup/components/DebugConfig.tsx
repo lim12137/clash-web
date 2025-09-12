@@ -11,6 +11,7 @@ import { handleStreamResponse } from "@/app/chat/streaming/chatStreamHandler";
 import { ChatStreamFinalMessage } from "@/app/chat/streaming/chatStreamFinalMessage";
 import { TaskWindow } from "@/app/chat/streaming/taskWindow";
 import { ROLE_ASSISTANT } from "@/const/agentConfig";
+import log from "@/utils/logger";
 
 // Agent debugging component Props interface
 interface AgentDebuggingProps {
@@ -44,7 +45,7 @@ function AgentDebugging({
       onAskQuestion(inputQuestion);
       setInputQuestion("");
     } catch (error) {
-      console.error(t("agent.error.loadTools"), error);
+      log.error(t("agent.error.loadTools"), error);
     }
   };
 
@@ -114,7 +115,9 @@ function AgentDebugging({
           {messages.map((message, index) => {
             // Process the task content of the current message
             const currentTaskMessages =
-              message.role === ROLE_ASSISTANT ? processMessageSteps(message) : [];
+              message.role === ROLE_ASSISTANT
+                ? processMessageSteps(message)
+                : [];
 
             return (
               <div key={message.id || index} className="flex flex-col gap-2">
@@ -232,7 +235,7 @@ export default function DebugConfig({ agentId }: DebugConfigProps) {
       try {
         abortControllerRef.current.abort(t("agent.debug.userStop"));
       } catch (error) {
-        console.error(t("agent.debug.cancelError"), error);
+        log.error(t("agent.debug.cancelError"), error);
       }
       abortControllerRef.current = null;
     }
@@ -250,7 +253,7 @@ export default function DebugConfig({ agentId }: DebugConfigProps) {
     try {
       await conversationService.stop(-1); // Use -1 for debug mode
     } catch (error) {
-      console.error(t("agent.debug.stopError"), error);
+      log.error(t("agent.debug.stopError"), error);
       // This is expected if no agent is running for debug mode
     }
 
@@ -348,7 +351,7 @@ export default function DebugConfig({ agentId }: DebugConfigProps) {
           return newMessages;
         });
       } else {
-        console.error(t("agent.debug.streamError"), error);
+        log.error(t("agent.debug.streamError"), error);
         const errorMessage =
           error instanceof Error
             ? error.message

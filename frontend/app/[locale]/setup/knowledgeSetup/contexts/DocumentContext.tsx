@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { DOCUMENT_ACTION_TYPES } from "@/const/knowledgeBase";
 import knowledgeBaseService from "@/services/knowledgeBaseService";
 import { Document, DocumentState, DocumentAction } from "@/types/knowledgeBase";
+import log from "@/utils/logger";
 
 
 
@@ -195,7 +196,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
         payload: { kbId, documents } 
       });
     } catch (error) {
-      console.error(t('document.error.fetch'), error);
+      log.error(t('document.error.fetch'), error);
       dispatch({ type: DOCUMENT_ACTION_TYPES.ERROR, payload: t('document.error.load') });
     } finally {
       dispatch({ type: DOCUMENT_ACTION_TYPES.SET_LOADING_KB_ID, payload: { kbId, isLoading: false } });
@@ -231,7 +232,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
       // Clear upload files
       dispatch({ type: DOCUMENT_ACTION_TYPES.SET_UPLOAD_FILES, payload: [] });
     } catch (error) {
-      console.error(t('document.error.upload'), error);
+      log.error(t('document.error.upload'), error);
       dispatch({ type: DOCUMENT_ACTION_TYPES.ERROR, payload: `${t('document.error.upload')}. ${t('document.error.retry')}` });
     } finally {
       dispatch({ type: DOCUMENT_ACTION_TYPES.SET_UPLOADING, payload: false });
@@ -248,7 +249,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
         payload: { kbId, docId } 
       });
     } catch (error) {
-      console.error(t('document.error.delete'), error);
+      log.error(t('document.error.delete'), error);
       dispatch({ type: DOCUMENT_ACTION_TYPES.ERROR, payload: `${t('document.error.delete')}. ${t('document.error.retry')}` });
     }
   }, [t]);

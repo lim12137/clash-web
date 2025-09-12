@@ -31,6 +31,7 @@ import {
   DocumentProvider,
 } from "./contexts/DocumentContext";
 import { useUIContext, UIProvider } from "./contexts/UIStateContext";
+import log from "@/utils/logger";
 
 // EmptyState component defined directly in this file
 interface EmptyStateProps {
@@ -212,7 +213,7 @@ function DataConfig({ isActive }: DataConfigProps) {
           try {
             await saveUserSelectedKnowledgeBases();
           } catch (error) {
-            console.error("保存用户配置失败:", error);
+            log.error("保存用户配置失败:", error);
           }
         };
 
@@ -267,10 +268,10 @@ function DataConfig({ isActive }: DataConfigProps) {
             body: JSON.stringify(selectedKbNames),
             keepalive: true,
           }).catch((error) => {
-            console.error("卸载时保存失败:", error);
+            log.error("卸载时保存失败:", error);
           });
         } catch (error) {
-          console.error("卸载时保存请求异常:", error);
+          log.error("卸载时保存请求异常:", error);
         }
       }
     };
@@ -290,7 +291,7 @@ function DataConfig({ isActive }: DataConfigProps) {
           await loadUserSelectedKnowledgeBases();
           hasLoadedRef.current = true;
         } catch (error) {
-          console.error("加载用户配置失败:", error);
+          log.error("加载用户配置失败:", error);
         }
       };
 
@@ -363,11 +364,11 @@ function DataConfig({ isActive }: DataConfigProps) {
           // Directly call fetchKnowledgeBases to update knowledge base list data
           await fetchKnowledgeBases(false, true);
         } catch (error) {
-          console.error("获取知识库最新数据失败:", error);
+          log.error("获取知识库最新数据失败:", error);
         }
       }, 100);
     } catch (error) {
-      console.error("获取文档列表失败:", error);
+      log.error("获取文档列表失败:", error);
       message.error(t("knowledgeBase.message.getDocumentsFailed"));
       docDispatch({
         type: "ERROR",
@@ -540,13 +541,13 @@ function DataConfig({ isActive }: DataConfigProps) {
             }
           )
           .catch((pollingError) => {
-            console.error(
+            log.error(
               "Knowledge base creation polling failed:",
               pollingError
             );
           });
       } catch (error) {
-        console.error(t("knowledgeBase.error.createUpload"), error);
+        log.error(t("knowledgeBase.error.createUpload"), error);
         message.error(t("knowledgeBase.message.createUploadError"));
         setHasClickedUpload(false);
       }
@@ -577,7 +578,7 @@ function DataConfig({ isActive }: DataConfigProps) {
         }
       );
     } catch (error) {
-      console.error(t("document.error.upload"), error);
+      log.error(t("document.error.upload"), error);
       message.error(t("document.message.uploadError"));
     }
   };
@@ -624,7 +625,7 @@ function DataConfig({ isActive }: DataConfigProps) {
         // Use lower priority to refresh data as this is not a critical operation
         await refreshKnowledgeBaseData(true);
       } catch (error) {
-        console.error("刷新知识库数据失败:", error);
+        log.error("刷新知识库数据失败:", error);
         // Error doesn't affect user experience
       }
     }, 500); // Delay execution, lower priority

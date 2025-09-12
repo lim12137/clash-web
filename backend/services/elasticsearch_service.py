@@ -828,8 +828,6 @@ class ElasticSearchService:
                                      1000, description="Number of documents to retrieve per batch"),
                                  es_core: ElasticSearchCore = Depends(
                                      get_es_core),
-                                 user_id: Optional[str] = Body(
-                                     None, description="ID of the user delete the knowledge base"),
                                  tenant_id: Optional[str] = Body(
                                      None, description="ID of the tenant"),
                                  language: str = 'zh'

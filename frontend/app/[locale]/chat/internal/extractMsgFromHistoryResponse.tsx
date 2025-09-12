@@ -10,6 +10,7 @@ import {
   ChatMessageType,
   MinioFileItem,
 } from "@/types/chat";
+import log from "@/utils/logger";
 
 // function: process the user break tag
 const processSpecialTag = (content: string, t: any): string => {
@@ -179,7 +180,7 @@ export function extractAssistantMsgFromResponse(
                 });
               }
             } catch (e) {
-              console.error(t("extractMsg.cannotParseSearchPlaceholder"), e);
+              log.error(t("extractMsg.cannotParseSearchPlaceholder"), e);
             }
           }
           break;

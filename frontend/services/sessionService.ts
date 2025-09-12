@@ -6,6 +6,7 @@ import { TOKEN_REFRESH_CD } from "@/const/constants";
 import { API_ENDPOINTS } from "./api";
 
 import { fetchWithAuth, saveSessionToStorage, removeSessionFromStorage, getSessionFromStorage } from "@/lib/auth";
+import log from "@/utils/logger";
 
 // Record the time of the last token refresh
 let lastTokenRefreshTime = 0;
@@ -44,7 +45,7 @@ export const sessionService = {
         
         // Check HTTP status code instead of data.code
         if (!response.ok) {
-          console.warn("Token refresh failed, HTTP status code:", response.status);
+          log.warn("Token refresh failed, HTTP status code:", response.status);
           
           // HTTP 401 means the token is expired
           if (response.status === 401) {
@@ -68,17 +69,17 @@ export const sessionService = {
           saveSessionToStorage(updatedSession);
           return true;
         } else {
-          console.warn("Token refresh failed: incorrect response data format");
+          log.warn("Token refresh failed: incorrect response data format");
           return false;
         }
       } else {
         // Token expired, clear the session
-        console.warn("Token expired");
+        log.warn("Token expired");
         removeSessionFromStorage();
         return false;
       }
     } catch (error) {
-      console.error("Check token status failed:", error);
+      log.error("Check token status failed:", error);
       return false;
     }
   }

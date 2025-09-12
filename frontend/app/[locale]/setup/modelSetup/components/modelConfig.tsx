@@ -19,6 +19,7 @@ import { configStore } from '@/lib/config'
 import { ModelListCard } from './model/ModelListCard'
 import { ModelAddDialog } from './model/ModelAddDialog'
 import { ModelDeleteDialog } from './model/ModelDeleteDialog'
+import log from "@/utils/logger";
 
 
 
@@ -293,7 +294,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
         }
       }
     } catch (error) {
-      console.error(t('modelConfig.error.loadList'), error)
+      log.error(t('modelConfig.error.loadList'), error)
       message.error(t('modelConfig.error.loadListFailed'))
     }
   }
@@ -441,7 +442,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
                 return;
               }
 
-              console.error(`Failed to verify custom model ${modelName}:`, error);
+              log.error(`Failed to verify custom model ${modelName}:`, error);
               updateCustomModelStatus(modelName, modelType, MODEL_STATUS.UNAVAILABLE);
             }
           }
@@ -451,11 +452,11 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
     } catch (error: any) {
       // Check if request was cancelled
       if (error.name === 'AbortError') {
-        console.log('Verification cancelled by user');
+        log.log('Verification cancelled by user');
         return;
       }
 
-      console.error("Model verification failed:", error);
+      log.error("Model verification failed:", error);
     } finally {
       if (!signal.aborted) {
         setIsVerifying(false);
@@ -488,7 +489,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
       await loadModelLists(true)
       message.success(t('modelConfig.message.syncSuccess'))
     } catch (error) {
-      console.error(t('modelConfig.error.syncFailed'), error)
+      log.error(t('modelConfig.error.syncFailed'), error)
       message.error(t('modelConfig.error.syncFailed'))
     } finally {
       setIsSyncing(false)
@@ -527,7 +528,7 @@ export const ModelConfigSection = forwardRef<ModelConfigSectionRef, ModelConfigS
           isConnected ? MODEL_STATUS.AVAILABLE : MODEL_STATUS.UNAVAILABLE
         );
       } catch (error: any) {
-        console.error(t('modelConfig.error.verifyCustomModel', { model: displayName }), error);
+        log.error(t('modelConfig.error.verifyCustomModel', { model: displayName }), error);
         updateCustomModelStatus(displayName, modelType, MODEL_STATUS.UNAVAILABLE);
       } finally {
         throttleTimerRef.current = null;

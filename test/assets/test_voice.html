@@ -237,7 +237,7 @@
                 window.AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioContext = new AudioContext();
             } catch (e) {
-                console.error("无法创建音频上下文:", e);
+                log.error("无法创建音频上下文:", e);
                 updateStatus('浏览器不支持AudioContext', true, 'stt');
                 disableButtons();
                 return;
@@ -273,7 +273,7 @@
                     sampleRate: 16000 // 强制使用16kHz采样率
                 });
                 
-                console.log(`音频上下文创建成功，采样率: ${audioContext.sampleRate}Hz`);
+                log.log(`音频上下文创建成功，采样率: ${audioContext.sampleRate}Hz`);
             } catch (error) {
                 updateStatus(`无法访问麦克风: ${error.message}`, true, 'stt');
                 disableButtons();
@@ -308,7 +308,7 @@
                             sampleRate: 16000 // 强制使用16kHz采样率
                         });
                         
-                        console.log(`音频上下文创建成功，采样率: ${audioContext.sampleRate}Hz`);
+                        log.log(`音频上下文创建成功，采样率: ${audioContext.sampleRate}Hz`);
                         updateStatus('麦克风权限已获取，连接服务器...', false, 'stt');
                     } catch (error) {
                         updateStatus(`无法访问麦克风: ${error.message}`, true, 'stt');
@@ -334,14 +334,14 @@
                 
                 websocket.onmessage = function(event) {
                     const data = JSON.parse(event.data);
-                    console.log("Received data:", data);
+                    log.log("Received data:", data);
                     
                     if (data.status === 'ready') {
                         // 服务器准备就绪后启动录音
                         startMediaRecorder(audioStream);
                     } else if (data.status === 'processing') {
                         // 处理中状态，不需要显示任何内容
-                        console.log("Processing status received");
+                        log.log("Processing status received");
                     } else if (data.error) {
                         updateStatus(`错误: ${data.error}`, true, 'stt');
                         stopRecording();
@@ -357,7 +357,7 @@
                         }
                     } else if (data.trans_result) {
                         // 新格式处理
-                        console.log("Recognition result:", data);
+                        log.log("Recognition result:", data);
                         const text = data.trans_result.text || '';
                         if (text && text.trim() !== '') {
                             appendResult(text, data.is_final || false);
@@ -370,7 +370,7 @@
                         }
                     } else {
                         // 未知格式，记录但不显示空结果
-                        console.log("Received unrecognized data format:", data);
+                        log.log("Received unrecognized data format:", data);
                         if (JSON.stringify(data) !== '{}' && !data.audio_info) {
                             appendResult(JSON.stringify(data), false);
                         }
@@ -378,7 +378,7 @@
                 };
                 
                 websocket.onclose = function(event) {
-                    console.log("WebSocket关闭:", event);
+                    log.log("WebSocket关闭:", event);
                     if (isRecording) {
                         updateStatus('WebSocket连接已关闭', false, 'stt');
                         stopLocalRecording();
@@ -392,7 +392,7 @@
                 };
                 
                 websocket.onerror = function(error) {
-                    console.error("WebSocket错误:", error);
+                    log.error("WebSocket错误:", error);
                     updateStatus(`WebSocket错误，请检查服务器是否运行`, true, 'stt');
                     stopLocalRecording();
                     
@@ -410,7 +410,7 @@
                 
             } catch (error) {
                 updateStatus(`启动录音失败: ${error.message}`, true, 'stt');
-                console.error("启动录音错误:", error);
+                log.error("启动录音错误:", error);
                 
                 // 恢复UI状态
                 document.getElementById('startBtn').disabled = false;
@@ -444,7 +444,7 @@
                 // 直接发送PCM数据到服务器
                 if (websocket && websocket.readyState === WebSocket.OPEN && isRecording) {
                     // 输出调试信息
-                    console.log(`发送PCM数据: 长度=${pcmData.length}, 采样率=${audioContext.sampleRate}Hz, 第一个样本值=${pcmData[0]}`);
+                    log.log(`发送PCM数据: 长度=${pcmData.length}, 采样率=${audioContext.sampleRate}Hz, 第一个样本值=${pcmData[0]}`);
                     
                     // 将Int16Array发送为二进制数据
                     websocket.send(pcmData.buffer);
@@ -495,18 +495,18 @@
             if (websocket && websocket.readyState === WebSocket.OPEN) {
                 try {
                     // 发送一个空的buffer作为结束标记，服务器会将其识别为最后一个音频包
-                    console.log("发送空的结束标记...");
+                    log.log("发送空的结束标记...");
                     websocket.send(new ArrayBuffer(0));
                     
                     // 等待一段时间后关闭WebSocket，给服务器处理最后一个音频包的时间
                     setTimeout(() => {
-                        console.log("关闭WebSocket连接...");
+                        log.log("关闭WebSocket连接...");
                         updateStatus('识别已终止', false, 'stt');
                         websocket.close(1000, "正常关闭");
                         websocket = null;
                     }, 1000);
                 } catch (error) {
-                    console.error("关闭WebSocket时出错:", error);
+                    log.error("关闭WebSocket时出错:", error);
                     websocket = null;
                 }
             }
@@ -681,7 +681,7 @@
                                 audioPlayer.play().then(() => {
                                     updateStatus('正在播放...', false, 'tts');
                                 }).catch(error => {
-                                    console.error('播放失败:', error);
+                                    log.error('播放失败:', error);
                                     updateStatus('播放失败', true, 'tts');
                                 });
                                 
@@ -693,19 +693,19 @@
                             }
                             // 处理错误消息
                             else if (data.error) {
-                                console.error('TTS服务错误:', data.error);
+                                log.error('TTS服务错误:', data.error);
                                 updateStatus(`错误: ${data.error}`, true, 'tts');
                                 
                                 // 服务器端可能有async iterator错误，提供更友好的错误信息
                                 if (data.error.includes('__aiter__') || data.error.includes('coroutine')) {
                                     updateStatus('服务器配置错误: TTS生成器实现有问题', true, 'tts');
-                                    console.error('服务器端async iterator实现错误，需要修复voice_service.py中generate_speech方法');
+                                    log.error('服务器端async iterator实现错误，需要修复voice_service.py中generate_speech方法');
                                 }
                                 
                                 button.disabled = false;
                             }
                         } catch (e) {
-                            console.error('解析消息错误:', e);
+                            log.error('解析消息错误:', e);
                         }
                     }
                 };
@@ -719,13 +719,13 @@
                 
                 ttsWebsocket.onerror = function(error) {
                     updateStatus(`WebSocket错误: ${error.message || '未知错误'}`, true, 'tts');
-                    console.error('TTS WebSocket错误:', error);
+                    log.error('TTS WebSocket错误:', error);
                     button.disabled = false;
                 };
                 
             } catch (error) {
                 updateStatus(`错误: ${error.message}`, true, 'tts');
-                console.error('TTS错误:', error);
+                log.error('TTS错误:', error);
                 button.disabled = false;
             }
         }

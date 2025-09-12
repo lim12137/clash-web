@@ -11,6 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import log from "@/utils/logger";
 
 interface CopyButtonProps {
   content: string;
@@ -48,7 +49,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
       setTimeout(() => setCopied(false), 2000);
       onCopySuccess?.();
     } catch (error) {
-      console.error("Failed to copy content:", error);
+      log.error("Failed to copy content:", error);
       onCopyError?.(error as Error);
     }
   };
