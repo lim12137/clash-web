@@ -714,12 +714,12 @@
     "toolManagement.message.refreshFailed": "刷新工具列表失败",
     "toolManagement.message.refreshFailedRetry": "刷新工具列表失败，请稍后重试",
 
-    "debug.console.refreshToolsFailed": "刷新工具列表失败:",
-    "debug.console.loadAgentDetailsFailed": "加载Agent详情失败:",
-    "debug.console.importAgentFailed": "导入Agent失败:",
-    "debug.console.exportAgentFailed": "导出Agent失败:",
-    "debug.console.deleteAgentFailed": "删除Agent失败:",
-    "debug.console.fetchAgentListFailed": "获取 Agent 列表失败:",
+    "debug.log.refreshToolsFailed": "刷新工具列表失败:",
+    "debug.log.loadAgentDetailsFailed": "加载Agent详情失败:",
+    "debug.log.importAgentFailed": "导入Agent失败:",
+    "debug.log.exportAgentFailed": "导出Agent失败:",
+    "debug.log.deleteAgentFailed": "删除Agent失败:",
+    "debug.log.fetchAgentListFailed": "获取 Agent 列表失败:",
 
     "mcpConfig.modal.title": "MCP服务器配置",
     "mcpConfig.modal.close": "关闭",

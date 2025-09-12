@@ -4,6 +4,7 @@ import { GlobalConfig } from '@/types/modelConfig';
 
 import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
 import { ConfigStore } from '@/lib/config';
+import log from "@/utils/logger";
 // @ts-ignore
 const fetch = fetchWithAuth;
 
@@ -19,7 +20,7 @@ export class ConfigService {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Failed to save configuration:', errorData);
+        log.error('Failed to save configuration:', errorData);
         return false;
       }
 
@@ -27,7 +28,7 @@ export class ConfigService {
       const result = await response.json();
       return true;
     } catch (error) {
-      console.error('Save configuration request exception:', error);
+      log.error('Save configuration request exception:', error);
       return false;
     }
   }
@@ -41,7 +42,7 @@ export class ConfigService {
       });
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Failed to load configuration:', errorData);
+        log.error('Failed to load configuration:', errorData);
         return false;
       }
       const result = await response.json();
@@ -68,7 +69,7 @@ export class ConfigService {
       }
       return false;
     } catch (error) {
-      console.error('Load configuration request exception:', error);
+      log.error('Load configuration request exception:', error);
       return false;
     }
   }

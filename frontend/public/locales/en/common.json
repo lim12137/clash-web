@@ -715,12 +715,12 @@
     "toolManagement.message.refreshFailed": "Failed to refresh tools list",
     "toolManagement.message.refreshFailedRetry": "Failed to refresh tools list, please try again later",
 
-    "debug.console.refreshToolsFailed": "Failed to refresh tools list:",
-    "debug.console.loadAgentDetailsFailed": "Failed to load Agent details:",
-    "debug.console.importAgentFailed": "Failed to import Agent:",
-    "debug.console.exportAgentFailed": "Failed to export Agent:",
-    "debug.console.deleteAgentFailed": "Failed to delete Agent:",
-    "debug.console.fetchAgentListFailed": "Failed to fetch Agent list:",
+    "debug.log.refreshToolsFailed": "Failed to refresh tools list:",
+    "debug.log.loadAgentDetailsFailed": "Failed to load Agent details:",
+    "debug.log.importAgentFailed": "Failed to import Agent:",
+    "debug.log.exportAgentFailed": "Failed to export Agent:",
+    "debug.log.deleteAgentFailed": "Failed to delete Agent:",
+    "debug.log.fetchAgentListFailed": "Failed to fetch Agent list:",
 
     "mcpConfig.modal.title": "MCP Server Configuration",
     "mcpConfig.modal.close": "Close",

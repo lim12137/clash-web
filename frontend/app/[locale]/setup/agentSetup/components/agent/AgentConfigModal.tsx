@@ -20,6 +20,7 @@ import {
 import { NAME_CHECK_STATUS } from "@/const/agentConfig";
 
 import { SimplePromptEditor } from "../PromptManager";
+import log from "@/utils/logger";
 
 export interface AgentConfigModalProps {
   agentId?: number;
@@ -194,7 +195,7 @@ export default function AgentConfigModal({
         const result = await checkAgentName(agentName, agentId);
         setAgentNameStatus(result.status);
       } catch (error) {
-        console.error("check agent name failed:", error);
+        log.error("check agent name failed:", error);
         setAgentNameStatus(NAME_CHECK_STATUS.CHECK_FAILED);
       }
     };
@@ -244,7 +245,7 @@ export default function AgentConfigModal({
         const result = await checkAgentDisplayName(agentDisplayName, agentId);
         setAgentDisplayNameStatus(result.status);
       } catch (error) {
-        console.error("check agent display name failed:", error);
+        log.error("check agent display name failed:", error);
         setAgentDisplayNameStatus(NAME_CHECK_STATUS.CHECK_FAILED);
       }
     };

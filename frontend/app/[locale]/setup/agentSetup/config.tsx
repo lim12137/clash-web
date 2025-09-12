@@ -3,14 +3,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Drawer, App } from "antd";
-import { AGENT_SETUP_LAYOUT_DEFAULT, GENERATE_PROMPT_STREAM_TYPES } from "@/const/agentConfig";
+import {
+  AGENT_SETUP_LAYOUT_DEFAULT,
+  GENERATE_PROMPT_STREAM_TYPES,
+} from "@/const/agentConfig";
 import { SETUP_PAGE_CONTAINER, STANDARD_CARD } from "@/const/layoutConstants";
 import { OpenAIModel } from "@/types/modelConfig";
 import {
   LayoutConfig,
   AgentConfigDataResponse,
   AgentConfigCustomEvent,
-  AgentRefreshEvent
+  AgentRefreshEvent,
 } from "@/types/agentConfig";
 import {
   fetchTools,
@@ -20,6 +23,7 @@ import {
 } from "@/services/agentConfigService";
 import { generatePromptStream } from "@/services/promptService";
 import { updateToolList } from "@/services/mcpService";
+import log from "@/utils/logger";
 
 import AgentSetupOrchestrator from "./components/AgentSetupOrchestrator";
 import DebugConfig from "./components/DebugConfig";
@@ -128,7 +132,7 @@ export default function AgentConfig() {
           }
         },
         (error) => {
-          console.error("Generate prompt stream error:", error);
+          log.error("Generate prompt stream error:", error);
           message.error(t("businessLogic.config.message.generateError"));
         },
         () => {
@@ -136,7 +140,7 @@ export default function AgentConfig() {
         }
       );
     } catch (error) {
-      console.error("Generate agent error:", error);
+      log.error("Generate agent error:", error);
       message.error(t("businessLogic.config.message.generateError"));
     } finally {
       setIsGeneratingAgent(false);
@@ -182,7 +186,7 @@ export default function AgentConfig() {
         );
       }
     } catch (error) {
-      console.error(t("debug.console.exportAgentFailed"), error);
+      log.error(t("debug.log.exportAgentFailed"), error);
       message.error(t("businessLogic.config.error.agentExportFailed"));
     }
   };
@@ -221,7 +225,7 @@ export default function AgentConfig() {
         );
       }
     } catch (error) {
-      console.error(t("debug.console.deleteAgentFailed"), error);
+      log.error(t("debug.log.deleteAgentFailed"), error);
       message.error(t("businessLogic.config.message.agentDeleteFailed"));
     }
   };
@@ -253,7 +257,7 @@ export default function AgentConfig() {
           message.error(result.message);
         }
       } catch (error) {
-        console.error(t("agent.error.loadTools"), error);
+        log.error(t("agent.error.loadTools"), error);
         message.error(t("agent.error.loadToolsRetry"));
       }
     };
@@ -288,7 +292,7 @@ export default function AgentConfig() {
         message.error(result.message || t("agent.error.fetchAgentList"));
       }
     } catch (error) {
-      console.error(t("agent.error.fetchAgentList"), error);
+      log.error(t("agent.error.fetchAgentList"), error);
       message.error(t("agent.error.fetchAgentListRetry"));
     } finally {
       setLoadingAgents(false);
@@ -338,7 +342,6 @@ export default function AgentConfig() {
     };
   }, [businessLogic, dutyContent, constraintContent, fewShotsContent]);
 
-
   const handleEditingStateChange = (isEditing: boolean, agent: any) => {
     setIsEditingAgent(isEditing);
     setEditingAgent(agent);
@@ -347,7 +350,6 @@ export default function AgentConfig() {
     if (isEditing && agent) {
       setAgentName(agent.name || "");
       setAgentDescription(agent.description || "");
-
     } else if (!isEditing) {
       // When stopping editing, clear name description box
       setAgentName("");
@@ -385,7 +387,7 @@ export default function AgentConfig() {
         message.error(t("agentConfig.tools.refreshFailed"));
       }
     } catch (error) {
-      console.error(t("agentConfig.debug.refreshToolsFailed"), error);
+      log.error(t("agentConfig.debug.refreshToolsFailed"), error);
       message.error(t("agentConfig.tools.refreshFailed"));
     }
   };

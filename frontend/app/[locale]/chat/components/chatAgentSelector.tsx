@@ -8,6 +8,7 @@ import { ChevronDown, MousePointerClick } from "lucide-react";
 import { fetchAllAgents } from "@/services/agentConfigService";
 import { getUrlParam } from "@/lib/utils";
 import { Agent, ChatAgentSelectorProps } from "@/types/chat";
+import log from "@/utils/logger";
 
 export function ChatAgentSelector({
   selectedAgentId,
@@ -152,7 +153,7 @@ export function ChatAgentSelector({
         setAgents(result.data);
       }
     } catch (error) {
-      console.error("Failed to load Agent list:", error);
+      log.error("Failed to load Agent list:", error);
     } finally {
       setIsLoading(false);
     }
@@ -187,7 +188,7 @@ export function ChatAgentSelector({
         // Send postMessage to the parent page
         window.parent.postMessage(message, "*");
       } catch (error) {
-        console.error("Failed to send postMessage:", error);
+        log.error("Failed to send postMessage:", error);
       }
     }
   };

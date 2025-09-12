@@ -2,6 +2,7 @@ import i18n from 'i18next';
 
 import { API_ENDPOINTS } from './api';
 import { McpServer, McpTool } from '../types/agentConfig';
+import log from "@/utils/logger";
 
 // Translation function
 const t = (key: string, options?: any): string => {
@@ -70,7 +71,7 @@ export const getMcpServerList = async () => {
       };
     }
   } catch (error) {
-    console.error(t('mcpService.debug.getServerListFailed'), error);
+    log.error(t('mcpService.debug.getServerListFailed'), error);
     return {
       success: false,
       data: [],
@@ -119,7 +120,7 @@ export const addMcpServer = async (mcpUrl: string, serviceName: string) => {
       };
     }
   } catch (error) {
-    console.error(t('mcpService.debug.addServerFailed'), error);
+    log.error(t('mcpService.debug.addServerFailed'), error);
     return {
       success: false,
       data: null,
@@ -168,7 +169,7 @@ export const deleteMcpServer = async (mcpUrl: string, serviceName: string) => {
       };
     }
   } catch (error) {
-    console.error(t('mcpService.debug.deleteServerFailed'), error);
+    log.error(t('mcpService.debug.deleteServerFailed'), error);
     return {
       success: false,
       data: null,
@@ -220,7 +221,7 @@ export const getMcpTools = async (serviceName: string, mcpUrl: string) => {
       };
     }
   } catch (error) {
-    console.error(t('mcpService.debug.getToolsFailed'), error);
+    log.error(t('mcpService.debug.getToolsFailed'), error);
     return {
       success: false,
       data: [],
@@ -268,7 +269,7 @@ export const updateToolList = async () => {
       };
     }
   } catch (error) {
-    console.error(t('mcpService.debug.updateToolListFailed'), error);
+    log.error(t('mcpService.debug.updateToolListFailed'), error);
     return {
       success: false,
       data: null,
@@ -309,7 +310,7 @@ export const checkMcpServerHealth = async (mcpUrl: string, serviceName: string) 
       };
     }
   } catch (error) {
-    console.error(t('mcpService.debug.healthCheckFailed'), error);
+    log.error(t('mcpService.debug.healthCheckFailed'), error);
     return {
       success: false,
       data: null,

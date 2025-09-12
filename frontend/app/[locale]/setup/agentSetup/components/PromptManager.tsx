@@ -23,6 +23,7 @@ import { updateAgent } from "@/services/agentConfigService";
 import AgentConfigModal from "./agent/AgentConfigModal";
 
 import "@/styles/milkdown-nord.css";
+import log from "@/utils/logger";
 
 export function SimplePromptEditor({
   value,
@@ -312,7 +313,7 @@ export default function PromptManager({
         throw new Error(result.message);
       }
     } catch (error) {
-      console.error(t("systemPrompt.message.save.error"), error);
+      log.error(t("systemPrompt.message.save.error"), error);
       message.error(t("systemPrompt.message.save.error"));
     }
   };

@@ -19,6 +19,7 @@ import {
 } from "@/services/memoryService"
 
 import { pageSize, MemoryGroup, UseMemoryOptions } from "@/types/memory"
+import log from "@/utils/logger";
 
 export function useMemory({ visible, currentUserId, currentTenantId, message }: UseMemoryOptions) {
   const { t } = useTranslation()
@@ -63,7 +64,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
       disableAgentIdSet.current = new Set(cfg.disableAgentIds)
       disableUserAgentIdSet.current = new Set(cfg.disableUserAgentIds)
     }).catch((e) => {
-      console.error("Failed to load memory config:", e)
+      log.error("Failed to load memory config:", e)
       message.error(t('useMemory.loadConfigError'))
     })
   }, [visible, message])
@@ -104,7 +105,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
           setDisabledGroups((prev) => ({ ...prev, ...newDisabled }))
         }
       } catch (e) {
-        console.error("load groups error", e)
+        log.error("load groups error", e)
         const errorMessage = e instanceof Error ? e.message : "Failed to load memory data"
         if (errorMessage.includes("Authentication") || errorMessage.includes("ElasticSearch") || errorMessage.includes("connection")) {
           message.error(t('useMemory.memoryServiceConnectionError'))
@@ -246,12 +247,12 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
             setUserAgentGroups(userAgentGrps)
           }
         } catch (e) {
-          console.error("Reload groups error:", e)
+          log.error("Reload groups error:", e)
         }
       }
       await loadGroupsForActiveTab()
     } catch (e) {
-      console.error("Add memory error:", e)
+      log.error("Add memory error:", e)
       const errorMessage = e instanceof Error ? e.message : "Failed to add memory"
       if (errorMessage.includes("Authentication") || errorMessage.includes("ElasticSearch")) {
         message.error(t('useMemory.memoryServiceConnectionError'))
@@ -288,13 +289,13 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
             setUserAgentGroups(userAgentGrps)
           }
         } catch (e) {
-          console.error("Reload groups error:", e)
+          log.error("Reload groups error:", e)
         }
       }
 
       await loadGroupsForActiveTab()
     } catch (e) {
-      console.error("Clear memory error:", e)
+      log.error("Clear memory error:", e)
       const errorMessage = e instanceof Error ? e.message : "Failed to clear memory"
       if (errorMessage.includes("Authentication") || errorMessage.includes("ElasticSearch")) {
         message.error(t('useMemory.memoryServiceConnectionError'))
@@ -318,7 +319,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
     } catch (e) {
       _rollbackRemoveItem(removedItem, removedIndex, groupKey)
 
-      console.error("Delete memory error:", e)
+      log.error("Delete memory error:", e)
       const errorMessage = e instanceof Error ? e.message : "memory delete failed"
       if (errorMessage.includes("Authentication") || errorMessage.includes("ElasticSearch")) {
         message.error(t('useMemory.memoryServiceConnectionError'))
@@ -375,7 +376,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
   const setMemoryEnabled = useCallback((enabled: boolean) => {
     setMemoryEnabledState(enabled)
     setMemorySwitch(enabled).catch((e) => {
-      console.error("setMemorySwitch error:", e)
+      log.error("setMemorySwitch error:", e)
       message.error(t('useMemory.setMemorySwitchError'))
     })
   }, [])
@@ -383,7 +384,7 @@ export function useMemory({ visible, currentUserId, currentTenantId, message }: 
   const setShareOption = useCallback((option: "always" | "ask" | "never") => {
     setShareOptionState(option)
     setMemoryAgentShare(option).catch((e) => {
-      console.error("setMemoryAgentShare error:", e)
+      log.error("setMemoryAgentShare error:", e)
       message.error(t('useMemory.setMemoryShareOptionError'))
     })
   }, [message])

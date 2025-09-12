@@ -12,6 +12,7 @@ import {
 } from '@/services/uploadService';
 
 import UploadAreaUI from './UploadAreaUI';
+import log from "@/utils/logger";
 
 interface UploadAreaProps {
   isDragging?: boolean;
@@ -140,7 +141,7 @@ const UploadArea = forwardRef<UploadAreaRef, UploadAreaProps>(({
         const result = await checkKnowledgeBaseName(newKnowledgeBaseName, t);
         setNameStatus(result.status);
       } catch (error) {
-        console.error(t('knowledgeBase.error.checkName'), error);
+        log.error(t('knowledgeBase.error.checkName'), error);
         setNameStatus(NAME_CHECK_STATUS.CHECK_FAILED); // Handle check failure
       }
     };

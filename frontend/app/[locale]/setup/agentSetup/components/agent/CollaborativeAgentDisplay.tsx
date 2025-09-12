@@ -10,6 +10,7 @@ import {
   addRelatedAgent,
   deleteRelatedAgent,
 } from "@/services/agentConfigService";
+import log from "@/utils/logger";
 
 export default function CollaborativeAgentDisplay({
   availableAgents,
@@ -100,7 +101,7 @@ export default function CollaborativeAgentDisplay({
         }
       }
     } catch (error) {
-      console.error("Failed to add collaborative agent:", error);
+      log.error("Failed to add collaborative agent:", error);
       message.error(t("collaborativeAgent.message.addFailed"));
     }
   };
@@ -127,7 +128,7 @@ export default function CollaborativeAgentDisplay({
         );
       }
     } catch (error) {
-      console.error("Failed to delete collaborative agent:", error);
+      log.error("Failed to delete collaborative agent:", error);
       message.error(t("collaborativeAgent.message.removeFailed"));
     }
   };
