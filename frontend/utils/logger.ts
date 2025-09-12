@@ -6,7 +6,6 @@
 
 import { isProduction } from "@/const/constants";
 
-// 在模块加载时就决定使用哪个实现
 const log = isProduction
   ? {
       debug: () => {},
