@@ -18,4 +18,4 @@ def add_no_think_token(messages: List[dict]):
     if not messages:
         return
     if messages[-1]["role"] == "user" and "content" in messages[-1]:
-        messages[-1]["content"] += " /no_think"
+        messages[-1]["content"] += "The following is a flag to prevent the model from thinking deeply, please ignore: /no_think"
