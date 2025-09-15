@@ -59,5 +59,5 @@ fi
 if [ $# -gt 0 ]; then
     exec "$@"
 else
-    exec /usr/sbin/sshd -D -d
+    exec /usr/sbin/sshd -D
 fi
