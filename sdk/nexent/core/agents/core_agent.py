@@ -111,7 +111,7 @@ class CoreAgent(CodeAgent):
         except Exception as e:
             raise AgentGenerationError(f"Error in generating model output:\n{e}", self.logger) from e
 
-        self.logger.log_markdown(content=model_output, title="Output message of the LLM:", level=LogLevel.DEBUG, )
+        self.logger.log_markdown(content=model_output, title="Output message of the LLM:", level=LogLevel.DEBUG)
 
         # Parse
         try:
@@ -120,7 +120,7 @@ class CoreAgent(CodeAgent):
             self.observer.add_message(self.agent_name, ProcessType.PARSE, code_action)
 
         except Exception:
-            self.logger.log_markdown(content=model_output, title="AGENT FINAL ANSWER",level=LogLevel.INFO)
+            self.logger.log_markdown(content=model_output, title="AGENT FINAL ANSWER", level=LogLevel.INFO)
             raise FinalAnswerError()
 
         memory_step.tool_calls = [
