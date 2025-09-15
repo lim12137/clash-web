@@ -2763,6 +2763,38 @@ async def test_run_agent_stream_no_memory(
 
 
 @pytest.mark.asyncio
+@patch(
+    "backend.services.agent_service._resolve_user_tenant_language",
+    return_value=("u", "t", "en"),
+)
+@patch("backend.services.agent_service.build_memory_context")
+@patch("backend.services.agent_service.save_messages")
+@patch("backend.services.agent_service.generate_stream_no_memory")
+async def test_run_agent_stream_skip_user_save(
+    mock_gen_no_mem,
+    mock_save_messages,
+    mock_build_mem_ctx,
+    mock_resolve,
+    mock_agent_request,
+    mock_http_request,
+):
+    async def mock_stream():
+        yield "c1"
+
+    mock_gen_no_mem.return_value = mock_stream()
+    mock_build_mem_ctx.return_value = MagicMock(
+        user_config=MagicMock(memory_switch=False)
+    )
+
+    resp = await run_agent_stream(
+        mock_agent_request, mock_http_request, "Bearer token", skip_user_save=True
+    )
+    assert isinstance(resp, StreamingResponse)
+    # Should not save user message when skip_user_save=True
+    mock_save_messages.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_generate_stream_with_memory_emits_tokens_and_unregisters(monkeypatch):
     """generate_stream_with_memory emits start/done tokens and unregisters preprocess task."""
     # Prepare AgentRequest & Request
