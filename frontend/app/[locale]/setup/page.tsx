@@ -485,8 +485,7 @@ export default function CreatePage() {
         // All required fields have been filled, allow the jump to the second page
         setSelectedKey("2");
 
-        // Call the backend save configuration API
-        await configService.saveConfigToBackend(currentConfig);
+        // Auto-save is now handled on selection change within modelConfig.tsx
       } catch (error) {
         log.error(t("setup.page.error.systemError"), error);
         message.error(t("setup.page.error.systemError"));
@@ -514,12 +513,7 @@ export default function CreatePage() {
     setEmbeddingModalOpen(false);
     if (pendingJump) {
       setPendingJump(false);
-      const currentConfig = configStore.getConfig();
-      try {
-        await configService.saveConfigToBackend(currentConfig);
-      } catch (e) {
-        message.error(t("setup.page.error.saveConfig"));
-      }
+      // Auto-save is now handled on selection change within modelConfig.tsx
       setSelectedKey("2");
     }
   };

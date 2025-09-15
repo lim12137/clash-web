@@ -88,10 +88,6 @@ export const conversationService = {
         return { code: -1, message: "请求已取消", data: [] };
       }
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch conversation: ${response.status}`);
-      }
-
       const data = await response.json();
       
       if (data.code === 0) {
