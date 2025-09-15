@@ -187,8 +187,57 @@ def test_run_with_stop_event(core_agent_instance):
     assert isinstance(result[2], MagicMock)  # Final answer step with "<user_break>"
 
 
-def test_run_with_agent_error(core_agent_instance):
-    """Test _run method when AgentError occurs."""
+def test_run_with_final_answer_error(core_agent_instance):
+    """Test _run method when FinalAnswerError occurs in _step_stream."""
+    # Setup
+    task = "test task"
+    max_steps = 3
+
+    # Mock _execute_step to raise FinalAnswerError
+    with patch.object(core_agent_instance, '_execute_step',
+                      side_effect=core_agent_module.FinalAnswerError()) as mock_execute_step, \
+            patch.object(core_agent_instance, '_finalize_step'):
+        # Execute
+        result = list(core_agent_instance._run_stream(task, max_steps))
+
+    # Assertions
+    # When FinalAnswerError occurs, it should yield action step + final answer step
+    assert len(result) == 2
+    assert isinstance(result[0], MagicMock)  # Action step
+    assert isinstance(result[1], MagicMock)  # Final answer step
+
+
+def test_run_with_final_answer_error_and_model_output(core_agent_instance):
+    """Test _run method when FinalAnswerError occurs with model_output conversion."""
+    # Setup
+    task = "test task"
+    max_steps = 3
+
+    # Create a mock action step with model_output
+    mock_action_step = MagicMock()
+    mock_action_step.model_output = "```code:python\nprint('hello')\n```"
+
+    # Mock _execute_step to set model_output and then raise FinalAnswerError
+    def mock_execute_step(action_step):
+        action_step.model_output = "```code:python\nprint('hello')\n```"
+        raise core_agent_module.FinalAnswerError()
+
+    with patch.object(core_agent_instance, '_execute_step', side_effect=mock_execute_step), \
+            patch.object(core_agent_module, 'convert_code_format', return_value="```python\nprint('hello')\n```") as mock_convert, \
+            patch.object(core_agent_instance, '_finalize_step'):
+        # Execute
+        result = list(core_agent_instance._run_stream(task, max_steps))
+
+    # Assertions
+    assert len(result) == 2
+    assert isinstance(result[0], MagicMock)  # Action step
+    assert isinstance(result[1], MagicMock)  # Final answer step
+    # Verify convert_code_format was called
+    mock_convert.assert_called_once_with("```code:python\nprint('hello')\n```")
+
+
+def test_run_with_agent_error_updated(core_agent_instance):
+    """Test _run method when AgentError occurs (updated to handle FinalAnswerError separately)."""
     # Setup
     task = "test task"
     max_steps = 3
@@ -209,32 +258,27 @@ def test_run_with_agent_error(core_agent_instance):
     assert isinstance(result[-1], MagicMock)  # Final answer step
 
 
-def test_run_with_agent_parse_error_branch(core_agent_instance):
-    """Ensure branch that converts model_output via convert_code_format is covered."""
-
+def test_run_with_agent_parse_error_branch_updated(core_agent_instance):
+    """Test the branch that handles FinalAnswerError with model_output conversion."""
     task = "parse task"
     max_steps = 1
 
-    parse_hint = "Make sure to include code with the correct pattern, for instance"
+    # Mock _execute_step to set model_output and then raise FinalAnswerError
+    def mock_execute_step(action_step):
+        action_step.model_output = "```code:python\nprint('hello')\n```"
+        raise core_agent_module.FinalAnswerError()
 
-    # Create a mock action step that will be used in the error handling
-    mock_action_step = MagicMock()
-    mock_action_step.model_output = "unformatted answer"
-
-    # Mock ActionStep constructor to return our mock
-    with patch.object(mock_smolagents.memory, 'ActionStep', return_value=mock_action_step), \
-            patch.object(core_agent_instance, '_execute_step', side_effect=MockAgentError(f"{parse_hint} - error")), \
-            patch.object(core_agent_module, 'convert_code_format', return_value="formatted answer") as mock_convert, \
+    with patch.object(core_agent_instance, '_execute_step', side_effect=mock_execute_step), \
+            patch.object(core_agent_module, 'convert_code_format', return_value="```python\nprint('hello')\n```") as mock_convert, \
             patch.object(core_agent_instance, '_finalize_step'):
         results = list(core_agent_instance._run_stream(task, max_steps))
 
-    # _run 应该产出 action step + 处理后的结果
-    assert len(results) >= 2
+    # _run should yield action step + final answer step
+    assert len(results) == 2
     assert isinstance(results[0], MagicMock)  # Action step
-    assert isinstance(results[-1], MagicMock)  # Final answer step
-
-
-
+    assert isinstance(results[1], MagicMock)  # Final answer step
+    # Verify convert_code_format was called
+    mock_convert.assert_called_once_with("```code:python\nprint('hello')\n```")
 
 
 def test_convert_code_format_replacements():
