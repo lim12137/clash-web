@@ -238,7 +238,15 @@ USER_PROMPT: |-
   {{task_description}}
 
   ### Available Tools List:
+  {% if tool_description %}
   {{tool_description}}
+  {% else %}
+  You have no available tools.
+  {% endif %}
   
   ### Available Assistants List:
+  {% if assistant_description %}
   {{assistant_description}}
+  {% else %}
+  You have no available assistants
+  {% endif %}
