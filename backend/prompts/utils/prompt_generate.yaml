@@ -234,8 +234,15 @@ USER_PROMPT: |-
   {{task_description}}
 
   ### 可用工具列表：
+  {% if tool_description %}
   {{tool_description}}
-  
+  {% else %}
+  你没有可用的工具
+  {% endif %}
+
   ### 可用助手列表：
+  {% if assistant_description %}
   {{assistant_description}}
-  
+  {% else %}
+  你没有可用的助手
+  {% endif %}
