@@ -1,24 +1,17 @@
 "use client";
 
-import React, { ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslation } from "react-i18next";
+import React, {ReactNode} from "react";
+import {useRouter} from "next/navigation";
+import {useTranslation} from "react-i18next";
 
-import { App, Button, Badge, Dropdown } from "antd";
-import { DownOutlined } from "@ant-design/icons";
-import { FiRefreshCw, FiArrowLeft } from "react-icons/fi";
-import { Globe } from "lucide-react";
-
-import { useAuth } from "@/hooks/useAuth";
-import { languageOptions } from "@/const/constants";
-import { useLanguageSwitch } from "@/lib/language";
-import { HEADER_CONFIG } from "@/const/layoutConstants";
-import {
-  USER_ROLES,
-  CONNECTION_STATUS,
-  ConnectionStatus,
-} from "@/const/modelConfig";
-import log from "@/lib/logger";
+import {Badge, Button, Dropdown} from "antd";
+import {DownOutlined} from "@ant-design/icons";
+import {FiArrowLeft, FiRefreshCw} from "react-icons/fi";
+import {Globe} from "lucide-react";
+import {languageOptions} from "@/const/constants";
+import {useLanguageSwitch} from "@/lib/language";
+import {HEADER_CONFIG} from "@/const/layoutConstants";
+import {CONNECTION_STATUS, ConnectionStatus,} from "@/const/modelConfig";
 
 // ================ Header ================
 interface HeaderProps {
