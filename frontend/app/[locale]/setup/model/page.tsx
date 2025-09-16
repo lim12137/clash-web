@@ -15,7 +15,7 @@ import {CONNECTION_STATUS, ConnectionStatus,} from "@/const/modelConfig";
 import log from "@/lib/logger";
 
 import SetupLayout from "../SetupLayout";
-import AppModelConfig from "../model/config";
+import AppModelConfig from "./config";
 
 export default function ModelSetupPage() {
   const { message } = App.useApp();
