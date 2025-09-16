@@ -8,7 +8,9 @@ import { App } from "antd";
 import { motion } from "framer-motion";
 
 import { useAuth } from "@/hooks/useAuth";
+import { configService } from "@/services/configService";
 import modelEngineService from "@/services/modelEngineService";
+import { configStore } from "@/lib/config";
 import {
   USER_ROLES,
   CONNECTION_STATUS,
@@ -17,9 +19,9 @@ import {
 import log from "@/lib/logger";
 
 import SetupLayout from "../SetupLayout";
-import AgentConfig from "./config";
+import DataConfig from "./config";
 
-export default function AgentSetupPage() {
+export default function KnowledgeSetupPage() {
   const { message } = App.useApp();
   const router = useRouter();
   const { t } = useTranslation();
@@ -37,18 +39,33 @@ export default function AgentSetupPage() {
       router.push("/");
       return;
     }
-
-    // Only admin users can access this page
-    if (user && user.role !== USER_ROLES.ADMIN) {
-      router.push("/setup/knowledge");
-      return;
-    }
   }, [user, userLoading, router]);
 
   // Check the connection status when the page is initialized
   useEffect(() => {
     checkModelEngineConnection();
-  }, []);
+
+    // Trigger knowledge base data acquisition when the page is initialized
+    window.dispatchEvent(
+      new CustomEvent("knowledgeBaseDataUpdated", {
+        detail: { forceRefresh: true },
+      })
+    );
+
+    // Load config for normal user
+    const loadConfigForNormalUser = async () => {
+      if (user && user.role !== USER_ROLES.ADMIN) {
+        try {
+          await configService.loadConfigToFrontend();
+          configStore.reloadFromStorage();
+        } catch (error) {
+          log.error("加载配置失败:", error);
+        }
+      }
+    };
+
+    loadConfigForNormalUser();
+  }, [user]);
 
   // Function to check the ModelEngine connection status
   const checkModelEngineConnection = async () => {
@@ -65,11 +82,35 @@ export default function AgentSetupPage() {
     }
   };
 
-  // Handle complete button click
+  // Handle next button click (for admin users)
+  const handleNext = async () => {
+    try {
+      // For admin users, go to agent page
+      router.push("/setup/agents");
+    } catch (error) {
+      log.error("Navigation error:", error);
+      message.error("系统异常，请稍后重试");
+    }
+  };
+
+  // Handle complete button click (for normal users)
   const handleComplete = async () => {
     try {
       setIsSaving(true);
-      // Jump to chat page directly, no any check
+
+      // Reload the config for normal user before saving, ensure the latest model config
+      await configService.loadConfigToFrontend();
+      configStore.reloadFromStorage();
+
+      // Get the current global configuration
+      const currentConfig = configStore.getConfig();
+
+      // Check if the main model is configured
+      if (!currentConfig.models.llm.modelName) {
+        message.error("未找到模型配置，请联系管理员先完成模型配置");
+        return;
+      }
+
       router.push("/chat");
     } catch (error) {
       log.error("保存配置异常:", error);
@@ -81,7 +122,11 @@ export default function AgentSetupPage() {
 
   // Handle back button click
   const handleBack = () => {
-    router.push("/setup/knowledge");
+    if (user?.role === USER_ROLES.ADMIN) {
+      router.push("/setup/models");
+    } else {
+      message.error(t("setup.page.error.adminOnly"));
+    }
   };
 
   // Animation variants for smooth transitions
@@ -106,18 +151,24 @@ export default function AgentSetupPage() {
     duration: 0.4,
   };
 
+  // Determine which button to show based on user role
+  const isAdmin = user?.role === USER_ROLES.ADMIN;
+
   return (
     <SetupLayout
       connectionStatus={connectionStatus}
       isCheckingConnection={isCheckingConnection}
       onCheckConnection={checkModelEngineConnection}
       title={t("setup.header.title")}
-      description={t("setup.agent.description")}
+      description={t("setup.knowledge.description")}
       onBack={handleBack}
-      onComplete={handleComplete}
+      onNext={isAdmin ? handleNext : undefined}
+      onComplete={isAdmin ? undefined : handleComplete}
       isSaving={isSaving}
-      showBack={true}
-      showComplete={true}
+      showBack={isAdmin}
+      showNext={isAdmin}
+      showComplete={!isAdmin}
+      nextText={t("setup.navigation.button.next")}
       completeText={t("setup.navigation.button.complete")}
     >
       <motion.div
@@ -128,7 +179,7 @@ export default function AgentSetupPage() {
         transition={pageTransition}
         style={{ width: "100%", height: "100%" }}
       >
-        <AgentConfig />
+        <DataConfig isActive={true} />
       </motion.div>
     </SetupLayout>
   );

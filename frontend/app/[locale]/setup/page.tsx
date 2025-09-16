@@ -13,9 +13,9 @@ export default function SetupPage() {
     if (!userLoading && user) {
       // Redirect based on user role
       if (user.role === USER_ROLES.ADMIN) {
-        router.push("/setup/model");
+        router.push("/setup/models");
       } else {
-        router.push("/setup/knowledge");
+        router.push("/setup/knowledges");
       }
     } else if (!userLoading && !user) {
       router.push("/");

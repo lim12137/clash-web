@@ -98,7 +98,7 @@ export default function ModelSetupPage() {
         );
         return;
       }
-      router.push("/setup/knowledge");
+      router.push("/setup/knowledges");
     } catch (error) {
       log.error(t("setup.page.error.systemError"), error);
       message.error(t("setup.page.error.systemError"));
@@ -109,7 +109,7 @@ export default function ModelSetupPage() {
     setEmbeddingModalOpen(false);
     if (pendingJump) {
       setPendingJump(false);
-      router.push("/setup/knowledge");
+      router.push("/setup/knowledges");
     }
   };
 
