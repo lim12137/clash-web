@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
-import { USER_ROLES } from "@/const/modelConfig";
+import {useEffect} from "react";
+import {useRouter} from "next/navigation";
+import {useAuth} from "@/hooks/useAuth";
+import {USER_ROLES} from "@/const/modelConfig";
 
 export default function SetupPage() {
   const router = useRouter();
@@ -21,7 +21,5 @@ export default function SetupPage() {
       router.push("/");
     }
   }, [user, userLoading, router]);
-
-  // Show loading or redirect immediately
   return null;
 }
