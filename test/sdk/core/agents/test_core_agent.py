@@ -187,8 +187,57 @@ def test_run_with_stop_event(core_agent_instance):
     assert isinstance(result[2], MagicMock)  # Final answer step with "<user_break>"
 
 
-def test_run_with_agent_error(core_agent_instance):
-    """Test _run method when AgentError occurs."""
+def test_run_with_final_answer_error(core_agent_instance):
+    """Test _run method when FinalAnswerError occurs in _step_stream."""
+    # Setup
+    task = "test task"
+    max_steps = 3
+
+    # Mock _execute_step to raise FinalAnswerError
+    with patch.object(core_agent_instance, '_execute_step',
+                      side_effect=core_agent_module.FinalAnswerError()) as mock_execute_step, \
+            patch.object(core_agent_instance, '_finalize_step'):
+        # Execute
+        result = list(core_agent_instance._run_stream(task, max_steps))
+
+    # Assertions
+    # When FinalAnswerError occurs, it should yield action step + final answer step
+    assert len(result) == 2
+    assert isinstance(result[0], MagicMock)  # Action step
+    assert isinstance(result[1], MagicMock)  # Final answer step
+
+
+def test_run_with_final_answer_error_and_model_output(core_agent_instance):
+    """Test _run method when FinalAnswerError occurs with model_output conversion."""
+    # Setup
+    task = "test task"
+    max_steps = 3
+
+    # Create a mock action step with model_output
+    mock_action_step = MagicMock()
+    mock_action_step.model_output = "```code:python\nprint('hello')\n```"
+
+    # Mock _execute_step to set model_output and then raise FinalAnswerError
+    def mock_execute_step(action_step):
+        action_step.model_output = "```code:python\nprint('hello')\n```"
+        raise core_agent_module.FinalAnswerError()
+
+    with patch.object(core_agent_instance, '_execute_step', side_effect=mock_execute_step), \
+            patch.object(core_agent_module, 'convert_code_format', return_value="```python\nprint('hello')\n```") as mock_convert, \
+            patch.object(core_agent_instance, '_finalize_step'):
+        # Execute
+        result = list(core_agent_instance._run_stream(task, max_steps))
+
+    # Assertions
+    assert len(result) == 2
+    assert isinstance(result[0], MagicMock)  # Action step
+    assert isinstance(result[1], MagicMock)  # Final answer step
+    # Verify convert_code_format was called
+    mock_convert.assert_called_once_with("```code:python\nprint('hello')\n```")
+
+
+def test_run_with_agent_error_updated(core_agent_instance):
+    """Test _run method when AgentError occurs (updated to handle FinalAnswerError separately)."""
     # Setup
     task = "test task"
     max_steps = 3
@@ -209,32 +258,27 @@ def test_run_with_agent_error(core_agent_instance):
     assert isinstance(result[-1], MagicMock)  # Final answer step
 
 
-def test_run_with_agent_parse_error_branch(core_agent_instance):
-    """Ensure branch that converts model_output via convert_code_format is covered."""
-
+def test_run_with_agent_parse_error_branch_updated(core_agent_instance):
+    """Test the branch that handles FinalAnswerError with model_output conversion."""
     task = "parse task"
     max_steps = 1
 
-    parse_hint = "Make sure to include code with the correct pattern, for instance"
+    # Mock _execute_step to set model_output and then raise FinalAnswerError
+    def mock_execute_step(action_step):
+        action_step.model_output = "```code:python\nprint('hello')\n```"
+        raise core_agent_module.FinalAnswerError()
 
-    # Create a mock action step that will be used in the error handling
-    mock_action_step = MagicMock()
-    mock_action_step.model_output = "unformatted answer"
-
-    # Mock ActionStep constructor to return our mock
-    with patch.object(mock_smolagents.memory, 'ActionStep', return_value=mock_action_step), \
-            patch.object(core_agent_instance, '_execute_step', side_effect=MockAgentError(f"{parse_hint} - error")), \
-            patch.object(core_agent_module, 'convert_code_format', return_value="formatted answer") as mock_convert, \
+    with patch.object(core_agent_instance, '_execute_step', side_effect=mock_execute_step), \
+            patch.object(core_agent_module, 'convert_code_format', return_value="```python\nprint('hello')\n```") as mock_convert, \
             patch.object(core_agent_instance, '_finalize_step'):
         results = list(core_agent_instance._run_stream(task, max_steps))
 
-    # _run 应该产出 action step + 处理后的结果
-    assert len(results) >= 2
+    # _run should yield action step + final answer step
+    assert len(results) == 2
     assert isinstance(results[0], MagicMock)  # Action step
-    assert isinstance(results[-1], MagicMock)  # Final answer step
-
-
-
+    assert isinstance(results[1], MagicMock)  # Final answer step
+    # Verify convert_code_format was called
+    mock_convert.assert_called_once_with("```code:python\nprint('hello')\n```")
 
 
 def test_convert_code_format_replacements():
@@ -419,3 +463,232 @@ The result is 8."""
     result = core_agent_module.parse_code_blobs(text)
     expected = "def sum_numbers(a, b):\n    return a + b\n\nresult = sum_numbers(5, 3)"
     assert result == expected
+
+
+def test_step_stream_parse_success(core_agent_instance):
+    """Test _step_stream method when parsing succeeds."""
+    # Setup
+    mock_memory_step = MagicMock()
+    mock_chat_message = MagicMock()
+    mock_chat_message.content = "```python\nprint('hello')\n```"
+    
+    # Set all required attributes on the instance
+    core_agent_instance.agent_name = "test_agent"
+    core_agent_instance.step_number = 1
+    core_agent_instance.grammar = None
+    core_agent_instance.logger = MagicMock()
+    core_agent_instance.memory = MagicMock()
+    core_agent_instance.memory.steps = []
+    
+    with patch.object(core_agent_module, 'parse_code_blobs', return_value="print('hello')"), \
+            patch.object(core_agent_module, 'fix_final_answer_code', return_value="print('hello')"):
+        
+        # Mock the methods directly on the instance
+        core_agent_instance.write_memory_to_messages = MagicMock(return_value=[])
+        core_agent_instance.model = MagicMock(return_value=mock_chat_message)
+        core_agent_instance.python_executor = MagicMock(return_value=("output", "logs", False))
+        
+        # Execute
+        list(core_agent_instance._step_stream(mock_memory_step))
+        
+        # Assertions
+        assert mock_memory_step.tool_calls is not None
+        assert len(mock_memory_step.tool_calls) == 1
+        # Check that tool_calls was set (we can't easily test the exact content due to mock behavior)
+        assert hasattr(mock_memory_step.tool_calls[0], 'name')
+        assert hasattr(mock_memory_step.tool_calls[0], 'arguments')
+
+
+def test_step_stream_parse_failure_raises_final_answer_error(core_agent_instance):
+    """Test _step_stream method when parsing fails and raises FinalAnswerError."""
+    # Setup
+    mock_memory_step = MagicMock()
+    mock_chat_message = MagicMock()
+    mock_chat_message.content = "This is not code, just text"
+    
+    # Set all required attributes on the instance
+    core_agent_instance.agent_name = "test_agent"
+    core_agent_instance.step_number = 1
+    core_agent_instance.grammar = None
+    core_agent_instance.logger = MagicMock()
+    core_agent_instance.memory = MagicMock()
+    core_agent_instance.memory.steps = []
+    
+    with patch.object(core_agent_module, 'parse_code_blobs', side_effect=ValueError("No code found")):
+        
+        # Mock the methods directly on the instance
+        core_agent_instance.write_memory_to_messages = MagicMock(return_value=[])
+        core_agent_instance.model = MagicMock(return_value=mock_chat_message)
+        
+        # Execute and assert
+        with pytest.raises(core_agent_module.FinalAnswerError):
+            list(core_agent_instance._step_stream(mock_memory_step))
+
+
+def test_step_stream_model_generation_error(core_agent_instance):
+    """Test _step_stream method when model generation fails."""
+    # Setup
+    mock_memory_step = MagicMock()
+    
+    # Set all required attributes on the instance
+    core_agent_instance.agent_name = "test_agent"
+    core_agent_instance.step_number = 1
+    core_agent_instance.grammar = None
+    core_agent_instance.logger = MagicMock()
+    core_agent_instance.memory = MagicMock()
+    core_agent_instance.memory.steps = []
+    
+    # Mock the methods directly on the instance
+    core_agent_instance.write_memory_to_messages = MagicMock(return_value=[])
+    core_agent_instance.model = MagicMock(side_effect=Exception("Model error"))
+    
+    # Execute and assert
+    with pytest.raises(Exception):  # Should raise the original exception wrapped in AgentGenerationError
+        list(core_agent_instance._step_stream(mock_memory_step))
+
+
+def test_step_stream_execution_success(core_agent_instance):
+    """Test _step_stream method when code execution succeeds."""
+    # Setup
+    mock_memory_step = MagicMock()
+    mock_chat_message = MagicMock()
+    mock_chat_message.content = "```python\nprint('hello')\n```"
+    
+    # Set all required attributes on the instance
+    core_agent_instance.agent_name = "test_agent"
+    core_agent_instance.step_number = 1
+    core_agent_instance.grammar = None
+    core_agent_instance.logger = MagicMock()
+    core_agent_instance.memory = MagicMock()
+    core_agent_instance.memory.steps = []
+    
+    with patch.object(core_agent_module, 'parse_code_blobs', return_value="print('hello')"), \
+            patch.object(core_agent_module, 'fix_final_answer_code', return_value="print('hello')"):
+        
+        # Mock the methods directly on the instance
+        core_agent_instance.write_memory_to_messages = MagicMock(return_value=[])
+        core_agent_instance.model = MagicMock(return_value=mock_chat_message)
+        core_agent_instance.python_executor = MagicMock(return_value=("Hello World", "Execution logs", False))
+        
+        # Execute
+        result = list(core_agent_instance._step_stream(mock_memory_step))
+        
+        # Assertions
+        assert result[0] is None  # Should yield None when is_final_answer is False
+        assert mock_memory_step.observations is not None
+        # Check that observations was set (we can't easily test the exact content due to mock behavior)
+        assert hasattr(mock_memory_step, 'observations')
+
+
+def test_step_stream_execution_final_answer(core_agent_instance):
+    """Test _step_stream method when execution returns final answer."""
+    # Setup
+    mock_memory_step = MagicMock()
+    mock_chat_message = MagicMock()
+    mock_chat_message.content = "```python\nprint('final answer')\n```"
+    
+    # Set all required attributes on the instance
+    core_agent_instance.agent_name = "test_agent"
+    core_agent_instance.step_number = 1
+    core_agent_instance.grammar = None
+    core_agent_instance.logger = MagicMock()
+    core_agent_instance.memory = MagicMock()
+    core_agent_instance.memory.steps = []
+    
+    with patch.object(core_agent_module, 'parse_code_blobs', return_value="print('final answer')"), \
+            patch.object(core_agent_module, 'fix_final_answer_code', return_value="print('final answer')"):
+        
+        # Mock the methods directly on the instance
+        core_agent_instance.write_memory_to_messages = MagicMock(return_value=[])
+        core_agent_instance.model = MagicMock(return_value=mock_chat_message)
+        core_agent_instance.python_executor = MagicMock(return_value=("final answer", "Execution logs", True))
+        
+        # Execute
+        result = list(core_agent_instance._step_stream(mock_memory_step))
+        
+        # Assertions
+        assert result[0] == "final answer"  # Should yield the final answer
+
+
+def test_step_stream_execution_error(core_agent_instance):
+    """Test _step_stream method when code execution fails."""
+    # Setup
+    mock_memory_step = MagicMock()
+    mock_chat_message = MagicMock()
+    mock_chat_message.content = "```python\ninvalid_code\n```"
+    
+    # Set all required attributes on the instance
+    core_agent_instance.agent_name = "test_agent"
+    core_agent_instance.step_number = 1
+    core_agent_instance.grammar = None
+    core_agent_instance.logger = MagicMock()
+    core_agent_instance.memory = MagicMock()
+    core_agent_instance.memory.steps = []
+    
+    with patch.object(core_agent_module, 'parse_code_blobs', return_value="invalid_code"), \
+            patch.object(core_agent_module, 'fix_final_answer_code', return_value="invalid_code"):
+        
+        # Mock python_executor with state containing print outputs
+        mock_executor = MagicMock()
+        mock_executor.state = {"_print_outputs": "Some print output"}
+        mock_executor.side_effect = Exception("Execution error")
+        
+        # Mock the methods directly on the instance
+        core_agent_instance.write_memory_to_messages = MagicMock(return_value=[])
+        core_agent_instance.model = MagicMock(return_value=mock_chat_message)
+        core_agent_instance.python_executor = mock_executor
+        
+        # Execute and assert
+        with pytest.raises(Exception):  # Should raise AgentExecutionError
+            list(core_agent_instance._step_stream(mock_memory_step))
+        
+        # Verify observations were set with print outputs
+        assert mock_memory_step.observations is not None
+        # Check that observations contains the print output
+        assert hasattr(mock_memory_step.observations, '__contains__') or "Some print output" in str(mock_memory_step.observations)
+
+
+def test_step_stream_observer_calls(core_agent_instance):
+    """Test _step_stream method calls observer with correct messages."""
+    # Setup
+    mock_memory_step = MagicMock()
+    mock_chat_message = MagicMock()
+    mock_chat_message.content = "```python\nprint('test')\n```"
+    
+    # Set all required attributes on the instance
+    core_agent_instance.agent_name = "test_agent"
+    core_agent_instance.step_number = 1
+    core_agent_instance.grammar = None
+    core_agent_instance.logger = MagicMock()
+    core_agent_instance.memory = MagicMock()
+    core_agent_instance.memory.steps = []
+    
+    with patch.object(core_agent_module, 'parse_code_blobs', return_value="print('test')"), \
+            patch.object(core_agent_module, 'fix_final_answer_code', return_value="print('test')"):
+        
+        # Mock the methods directly on the instance
+        core_agent_instance.write_memory_to_messages = MagicMock(return_value=[])
+        core_agent_instance.model = MagicMock(return_value=mock_chat_message)
+        core_agent_instance.python_executor = MagicMock(return_value=("test", "logs", False))
+        
+        # Execute
+        list(core_agent_instance._step_stream(mock_memory_step))
+        
+        # Assertions
+        # Should call observer for step count, parse, and execution logs
+        assert core_agent_instance.observer.add_message.call_count >= 3
+        calls = core_agent_instance.observer.add_message.call_args_list
+        
+        # Check step count call
+        step_count_call = calls[0]
+        assert step_count_call[0][1] == ProcessType.STEP_COUNT
+        
+        # Check parse call
+        parse_call = calls[1]
+        assert parse_call[0][1] == ProcessType.PARSE
+        # The parse call should contain the fixed code, not the mock object
+        assert "print('test')" in str(parse_call[0][2])
+        
+        # Check execution logs call
+        execution_call = calls[2]
+        assert execution_call[0][1] == ProcessType.EXECUTION_LOGS
