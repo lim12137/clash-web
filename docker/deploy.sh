@@ -127,127 +127,6 @@ generate_supabase_keys() {
   fi
 }
 
-generate_ssh_keys() {
-  # Function to generate SSH key pair for Terminal tool
-  
-  if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
-      # Create ssh-keys directory
-      create_dir_with_permission "$ROOT_DIR/openssh-server/ssh-keys" 700
-      create_dir_with_permission "$ROOT_DIR/openssh-server/config" 755
-
-      # Check if SSH keys already exist
-      if [ -f "$ROOT_DIR/openssh-server/ssh-keys/openssh_server_key" ] && [ -f "$ROOT_DIR/openssh-server/ssh-keys/openssh_server_key.pub" ]; then
-          echo "🚧 SSH key pair already exists, skipping generation..."
-          echo "🔑 Private key: $ROOT_DIR/openssh-server/ssh-keys/openssh_server_key"
-          echo "🗝️  Public key: $ROOT_DIR/openssh-server/ssh-keys/openssh_server_key.pub"
-
-          # Ensure authorized_keys is set up correctly with ONLY our public key
-          cp "$ROOT_DIR/openssh-server/ssh-keys/openssh_server_key.pub" "$ROOT_DIR/openssh-server/config/authorized_keys"
-          chmod 644 "$ROOT_DIR/openssh-server/config/authorized_keys"
-
-          # Set SSH key path in environment
-          SSH_PRIVATE_KEY_PATH="$ROOT_DIR/openssh-server/ssh-keys/openssh_server_key"
-          export SSH_PRIVATE_KEY_PATH
-
-          # Add to .env file
-          update_env_var "SSH_PRIVATE_KEY_PATH" "$SSH_PRIVATE_KEY_PATH"
-
-          echo ""
-          echo "--------------------------------"
-          echo ""
-          return 0
-      fi
-
-      echo "🔑 Generating SSH key pair for Terminal tool..."
-
-      # Generate SSH key pair using Docker (cross-platform compatible)
-      echo "   🔐 Using Docker to generate SSH key pair..."
-
-      # Create temporary file to capture output
-      TEMP_OUTPUT="/tmp/ssh_keygen_output_$$.txt"
-
-      # Generate ed25519 key pair using the openssh-server container
-      if docker run --rm -i "$OPENSSH_SERVER_IMAGE" bash -c "ssh-keygen -t ed25519 -f /tmp/id_ed25519 -N '' && cat /tmp/id_ed25519 && echo '---' && cat /tmp/id_ed25519.pub" > "$TEMP_OUTPUT" 2>&1; then
-          echo "   🔍 SSH key generation completed, extracting keys..."
-
-          # Extract private key (everything between -----BEGIN and -----END)
-          PRIVATE_KEY=$(sed -n '/-----BEGIN OPENSSH PRIVATE KEY-----/,/-----END OPENSSH PRIVATE KEY-----/p' "$TEMP_OUTPUT")
-
-          # Extract public key (line that starts with ssh-)
-          PUBLIC_KEY=$(grep "^ssh-" "$TEMP_OUTPUT" | head -1)
-
-          # Remove leading/trailing whitespace
-          PRIVATE_KEY=$(echo "$PRIVATE_KEY" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-          PUBLIC_KEY=$(echo "$PUBLIC_KEY" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-
-          # Validate extracted keys
-          if [ -z "$PRIVATE_KEY" ]; then
-              echo "   ❌ Failed to extract private key"
-              ERROR_OCCURRED=1
-              return 1
-          fi
-
-          if [ -z "$PUBLIC_KEY" ]; then
-              echo "   ❌ Failed to extract public key"
-              ERROR_OCCURRED=1
-              return 1
-          fi
-
-          echo "   ✅ SSH keys extracted successfully"
-
-          if [ -n "$PRIVATE_KEY" ] && [ -n "$PUBLIC_KEY" ]; then
-              # Save private key
-              echo "$PRIVATE_KEY" > "$ROOT_DIR/openssh-server/ssh-keys/openssh_server_key"
-              chmod 600 "$ROOT_DIR/openssh-server/ssh-keys/openssh_server_key"
-
-              # Save public key
-              echo "$PUBLIC_KEY" > "$ROOT_DIR/openssh-server/ssh-keys/openssh_server_key.pub"
-              chmod 644 "$ROOT_DIR/openssh-server/ssh-keys/openssh_server_key.pub"
-
-              # Copy public key to authorized_keys with correct permissions (ensure ONLY our key)
-              cp "$ROOT_DIR/openssh-server/ssh-keys/openssh_server_key.pub" "$ROOT_DIR/openssh-server/config/authorized_keys"
-              chmod 644 "$ROOT_DIR/openssh-server/config/authorized_keys"
-
-              # Set SSH key path in environment
-              SSH_PRIVATE_KEY_PATH="$ROOT_DIR/openssh-server/ssh-keys/openssh_server_key"
-              export SSH_PRIVATE_KEY_PATH
-
-              # Add to .env file
-              update_env_var "SSH_PRIVATE_KEY_PATH" "$SSH_PRIVATE_KEY_PATH"
-
-              # Fix SSH host key permissions (must be 600)
-              find "$ROOT_DIR/openssh-server/config" -name "*_key" -type f -exec chmod 600 {} \; 2>/dev/null || true
-
-              echo "   ✅ SSH key pair generated successfully!"
-              echo "      🔑 Private key: $ROOT_DIR/openssh-server/ssh-keys/openssh_server_key"
-              echo "      🗝️  Public key: $ROOT_DIR/openssh-server/ssh-keys/openssh_server_key.pub"
-              echo "      ⚙️  SSH config: $ROOT_DIR/openssh-server/config/sshd_config (60min session timeout)"
-          else
-              echo "   ❌ ERROR Failed to extract SSH keys from Docker output"
-              echo "   📋 Full output saved to: $TEMP_OUTPUT for debugging"
-              ERROR_OCCURRED=1
-              return 1
-          fi
-      else
-          echo "   ❌ ERROR Docker key generation command failed"
-          if [ -f "$TEMP_OUTPUT" ]; then
-              echo "📋 Error output:"
-              cat "$TEMP_OUTPUT"
-          fi
-          ERROR_OCCURRED=1
-          return 1
-      fi
-
-      # Clean up temp file (only if successful)
-      if [ "$ERROR_OCCURRED" -eq 0 ]; then
-          rm -f "$TEMP_OUTPUT"
-      fi
-
-      echo ""
-      echo "--------------------------------"
-      echo ""
-  fi
-}
 
 generate_elasticsearch_api_key() {
   # Function to generate Elasticsearch API key
@@ -534,7 +413,7 @@ deploy_infrastructure() {
       fi
       
       # Start Supabase services
-      if ! ${docker_compose_command} -p nexent -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d; then
+      if ! $docker_compose_command -p nexent -f "docker-compose-supabase${COMPOSE_FILE_SUFFIX}" up -d; then
           echo "   ❌ ERROR Failed to start supabase services"
           ERROR_OCCURRED=1
           return 1
@@ -653,6 +532,7 @@ select_terminal_tool() {
         export COMPOSE_PROFILES="${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}terminal"
         echo "✅ Terminal tool enabled 🔧"
         echo "   🔧 Deploying an openssh-server container for secure command execution"
+        update_env_var "ENABLE_TERMINAL_TOOL" "true"
         
         # Ask user to specify directory mapping
         default_terminal_dir="/opt/terminal"
@@ -672,10 +552,66 @@ select_terminal_tool() {
         echo "   📁 Terminal mount configuration:"
         echo "      • Host: $TERMINAL_MOUNT_DIR"
         echo "      • Container: /opt/terminal"
+        echo "      • This directory will be created if it doesn't exist"
+        echo ""
+        
+        # Setup SSH credentials for Terminal tool
+        echo "🔐 Setting up SSH credentials for Terminal tool..."
+        
+        # Check if SSH credentials are already set
+        if [ -n "$SSH_USERNAME" ] && [ -n "$SSH_PASSWORD" ]; then
+            echo "🚧 SSH credentials already configured, skipping setup..."
+            echo "👤 Username: $SSH_USERNAME"
+            echo "🔑 Password: [HIDDEN]"
+        else
+            # Prompt for SSH credentials
+            echo "Please enter SSH credentials for Terminal tool:"
+            echo ""
+            
+            # Get SSH username
+            if [ -z "$SSH_USERNAME" ]; then
+                read -p "SSH Username (default: root): " input_username
+                SSH_USERNAME=${input_username:-root}
+            fi
+            
+            # Get SSH password
+            if [ -z "$SSH_PASSWORD" ]; then
+                echo "SSH Password (will be hidden): "
+                read -s input_password
+                echo ""
+                if [ -z "$input_password" ]; then
+                    echo "❌ SSH password cannot be empty"
+                    ERROR_OCCURRED=1
+                    return 1
+                fi
+                SSH_PASSWORD="$input_password"
+            fi
+            
+            # Validate credentials
+            if [ -z "$SSH_USERNAME" ] || [ -z "$SSH_PASSWORD" ]; then
+                echo "❌ Both username and password are required"
+                ERROR_OCCURRED=1
+                return 1
+            fi
+            
+            # Export environment variables
+            export SSH_USERNAME
+            export SSH_PASSWORD
+            
+            # Add to .env file
+            update_env_var "SSH_USERNAME" "$SSH_USERNAME"
+            update_env_var "SSH_PASSWORD" "$SSH_PASSWORD"
+            
+            echo "   ✅ SSH credentials configured successfully!"
+            echo "      👤 Username: $SSH_USERNAME"
+            echo "      🔑 Password: [HIDDEN]"
+            echo "      ⚙️  Authentication: Password-based"
+        fi
+        echo ""
     else
         export ENABLE_TERMINAL_TOOL="false"
         echo "🚫 Terminal tool disabled"
-
+        update_env_var "ENABLE_TERMINAL_TOOL" "false"
     fi
     echo ""
     echo "--------------------------------"
@@ -747,9 +683,6 @@ main_deploy() {
   prepare_directory_and_data || { echo "❌ Permission setup failed"; exit 1; }
   generate_minio_ak_sk || { echo "❌ MinIO key generation failed"; exit 1; }
 
-  if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
-    generate_ssh_keys || { echo "❌ SSH key generation failed"; exit 1; }
-  fi
 
   # Generate Supabase secrets
   generate_supabase_keys || { echo "❌ Supabase secrets generation failed"; exit 1; }
