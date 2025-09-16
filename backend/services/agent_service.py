@@ -835,6 +835,7 @@ async def run_agent_stream(
     authorization: str,
     user_id: str = None,
     tenant_id: str = None,
+    skip_user_save: bool = False,
 ):
     """
     Start an agent run and stream responses.
@@ -850,10 +851,13 @@ async def run_agent_stream(
     )
     
     # Save user message only if not in debug mode (before streaming starts)
-    if not agent_request.is_debug:
-        save_messages(agent_request, target=MESSAGE_ROLE["USER"],
-                      user_id=resolved_user_id,
-                      tenant_id=resolved_tenant_id)
+    if not agent_request.is_debug and not skip_user_save:
+        save_messages(
+            agent_request,
+            target=MESSAGE_ROLE["USER"],
+            user_id=resolved_user_id,
+            tenant_id=resolved_tenant_id,
+        )
     
     memory_ctx_preview = build_memory_context(
         resolved_user_id, resolved_tenant_id, agent_request.agent_id
