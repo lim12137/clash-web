@@ -208,7 +208,7 @@ async def stop_chat(ctx: NorthboundContext, external_conversation_id: str) -> Di
     try:
         internal_id = await to_internal_conversation_id(external_conversation_id)
 
-        stop_result = stop_agent_tasks(internal_id)
+        stop_result = stop_agent_tasks(internal_id, ctx.user_id)
         return {"message": stop_result.get("message", "success"), "data": external_conversation_id, "requestId": ctx.request_id}
     except Exception as e:
         raise Exception(f"Failed to stop chat for external conversation id {external_conversation_id}: {str(e)}")
