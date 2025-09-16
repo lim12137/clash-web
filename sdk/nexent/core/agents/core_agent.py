@@ -75,6 +75,11 @@ def convert_code_format(text):
     return re.sub(pattern, replacement, text).replace("```<", "```")
 
 
+class FinalAnswerError(Exception):
+    """Raised when agent output directly."""
+    pass
+
+
 class CoreAgent(CodeAgent):
     def __init__(self, observer: MessageObserver, prompt_templates: Dict[str, Any] | None = None , *args, **kwargs):
         super().__init__(prompt_templates=prompt_templates, *args, **kwargs)
@@ -101,10 +106,12 @@ class CoreAgent(CodeAgent):
             memory_step.model_output_message = chat_message
             model_output = chat_message.content
             memory_step.model_output = model_output
+
+            self.logger.log_markdown(content=model_output, title="MODEL OUTPUT",level=LogLevel.INFO)
         except Exception as e:
             raise AgentGenerationError(f"Error in generating model output:\n{e}", self.logger) from e
 
-        self.logger.log_markdown(content=model_output, title="Output message of the LLM:", level=LogLevel.DEBUG, )
+        self.logger.log_markdown(content=model_output, title="Output message of the LLM:", level=LogLevel.DEBUG)
 
         # Parse
         try:
@@ -112,9 +119,9 @@ class CoreAgent(CodeAgent):
             # Record parsing results
             self.observer.add_message(self.agent_name, ProcessType.PARSE, code_action)
 
-        except Exception as e:
-            error_msg = f"Error in code parsing:\n{e}\nMake sure to provide correct code blobs."
-            raise AgentParsingError(error_msg, self.logger)
+        except Exception:
+            self.logger.log_markdown(content=model_output, title="AGENT FINAL ANSWER", level=LogLevel.INFO)
+            raise FinalAnswerError()
 
         memory_step.tool_calls = [
             ToolCall(name="python_interpreter", arguments=code_action, id=f"call_{len(self.memory.steps)}", )]
@@ -254,16 +261,14 @@ You have been provided with these additional arguments, that you can access usin
                 for el in self._execute_step(action_step):
                     yield el
                 final_answer = el
+            except FinalAnswerError:
+                # When the model does not output code, directly treat the large model content as the final answer
+                final_answer = action_step.model_output
+                if isinstance(final_answer, str):
+                    final_answer = convert_code_format(final_answer)
 
             except AgentError as e:
-                except_parse_error_pattern = """Make sure to include code with the correct pattern, for instance"""
-                if except_parse_error_pattern in e.message:
-                    # When the model does not output code, directly treat the large model content as the final answer
-                    final_answer = action_step.model_output
-                    if isinstance(final_answer, str):
-                        final_answer = convert_code_format(final_answer)
-                else:
-                    action_step.error = e
+                action_step.error = e
 
             finally:
                 self._finalize_step(action_step, step_start_time)

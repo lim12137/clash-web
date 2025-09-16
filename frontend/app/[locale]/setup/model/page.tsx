@@ -103,9 +103,6 @@ export default function ModelSetupPage() {
         );
         return;
       }
-
-      // All required fields have been filled, save configuration and navigate to knowledge page
-      await configService.saveConfigToBackend(currentConfig);
       router.push("/setup/knowledge");
     } catch (error) {
       log.error(t("setup.page.error.systemError"), error);
@@ -117,13 +114,7 @@ export default function ModelSetupPage() {
     setEmbeddingModalOpen(false);
     if (pendingJump) {
       setPendingJump(false);
-      const currentConfig = configStore.getConfig();
-      try {
-        await configService.saveConfigToBackend(currentConfig);
-        router.push("/setup/knowledge");
-      } catch (e) {
-        message.error(t("setup.page.error.saveConfig"));
-      }
+      router.push("/setup/knowledge");
     }
   };
 
