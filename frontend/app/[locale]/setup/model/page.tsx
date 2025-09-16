@@ -1,22 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslation } from "react-i18next";
+import React, {useEffect, useState} from "react";
+import {useRouter} from "next/navigation";
+import {useTranslation} from "react-i18next";
 
-import { App, Modal, Button } from "antd";
-import { WarningFilled } from "@ant-design/icons";
-import { motion } from "framer-motion";
+import {App, Button, Modal} from "antd";
+import {WarningFilled} from "@ant-design/icons";
+import {motion} from "framer-motion";
 
-import { useAuth } from "@/hooks/useAuth";
-import { configService } from "@/services/configService";
+import {useAuth} from "@/hooks/useAuth";
 import modelEngineService from "@/services/modelEngineService";
-import { configStore } from "@/lib/config";
-import {
-  USER_ROLES,
-  CONNECTION_STATUS,
-  ConnectionStatus,
-} from "@/const/modelConfig";
+import {configStore} from "@/lib/config";
+import {CONNECTION_STATUS, ConnectionStatus,} from "@/const/modelConfig";
 import log from "@/lib/logger";
 
 import SetupLayout from "../SetupLayout";
