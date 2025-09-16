@@ -263,6 +263,8 @@ async def test_stop_chat_success(ctx):
     assert result["data"] == "ext-777"
     assert result["requestId"] == "req-1"
 
+    agent_service_mod.stop_agent_tasks.assert_called_once_with(777, "user-1")
+
 
 @pytest.mark.asyncio
 async def test_list_conversations_maps_ids(ctx):

@@ -105,26 +105,42 @@ async def test_agent_run_api(mocker, mock_auth_header):
 
 def test_agent_stop_api_success(mocker, mock_conversation_id):
     """Test agent_stop_api success case."""
+    # Mock the authentication function to return user_id
+    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_get_user_id.return_value = ("test_user_id", "test_tenant_id")
+    
     mock_stop_tasks = mocker.patch("apps.agent_app.stop_agent_tasks")
     mock_stop_tasks.return_value = {"status": "success"}
 
-    response = client.get(f"/agent/stop/{mock_conversation_id}")
+    response = client.get(
+        f"/agent/stop/{mock_conversation_id}",
+        headers={"Authorization": "Bearer test_token"}
+    )
 
     assert response.status_code == 200
-    mock_stop_tasks.assert_called_once_with(mock_conversation_id)
+    mock_get_user_id.assert_called_once_with("Bearer test_token")
+    mock_stop_tasks.assert_called_once_with(mock_conversation_id, "test_user_id")
     assert response.json()["status"] == "success"
 
 
 def test_agent_stop_api_not_found(mocker, mock_conversation_id):
     """Test agent_stop_api not found case."""
+    # Mock the authentication function to return user_id
+    mock_get_user_id = mocker.patch("apps.agent_app.get_current_user_id")
+    mock_get_user_id.return_value = ("test_user_id", "test_tenant_id")
+    
     mock_stop_tasks = mocker.patch("apps.agent_app.stop_agent_tasks")
     mock_stop_tasks.return_value = {"status": "error"}  # Simulate not found
 
-    response = client.get(f"/agent/stop/{mock_conversation_id}")
+    response = client.get(
+        f"/agent/stop/{mock_conversation_id}",
+        headers={"Authorization": "Bearer test_token"}
+    )
 
     # The app should raise HTTPException for non-success status
     assert response.status_code == 400
-    mock_stop_tasks.assert_called_once_with(mock_conversation_id)
+    mock_get_user_id.assert_called_once_with("Bearer test_token")
+    mock_stop_tasks.assert_called_once_with(mock_conversation_id, "test_user_id")
     assert "no running agent or preprocess tasks found" in response.json()[
         "detail"]
 
