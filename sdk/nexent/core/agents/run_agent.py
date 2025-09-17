@@ -4,17 +4,15 @@ from threading import Thread
 
 from smolagents import ToolCollection
 
-from ...memory.memory_service import add_memory_in_levels
-from .agent_model import AgentRunInfo, MemoryContext
+from .agent_model import AgentRunInfo
 from .nexent_agent import NexentAgent, ProcessType
 
 
 logger = logging.getLogger("run_agent")
 logger.setLevel(logging.DEBUG)
 
-def agent_run_thread(agent_run_info: AgentRunInfo, memory_context: MemoryContext):
-    if not isinstance(agent_run_info, AgentRunInfo):
-        raise TypeError("agent_run_info must be a AgentRunInfo object")
+
+def agent_run_thread(agent_run_info: AgentRunInfo):
     try:
         mcp_host = agent_run_info.mcp_host
         if mcp_host is None or len(mcp_host)==0:
@@ -42,38 +40,6 @@ def agent_run_thread(agent_run_info: AgentRunInfo, memory_context: MemoryContext
                 nexent.set_agent(agent)
                 nexent.add_history_to_agent(agent_run_info.history)
                 nexent.agent_run_with_observer(query=agent_run_info.query, reset=False)
-        # Build up messages for memory
-        if memory_context.user_config.memory_switch:
-            messages = []
-            user_query = agent_run_info.query
-            logger.debug(f"User query: {user_query}")
-            messages.append({"role": "user", "content": user_query})
-            final_answer = agent_run_info.observer.get_final_answer()
-            logger.debug(f"Final answer: {final_answer}")
-            messages.append({"role": "assistant", "content": final_answer})
-            logger.debug(f"Build up message for memory: {messages}")
-
-            # memory_levels = ["tenant", "agent", "user", "user_agent"]
-            memory_levels = ["agent", "user_agent"]
-            if memory_context.user_config.agent_share_option == "never":
-                memory_levels.remove("agent")
-            if memory_context.agent_id in memory_context.user_config.disable_agent_ids:
-                memory_levels.remove("agent")
-            if memory_context.agent_id in memory_context.user_config.disable_user_agent_ids:
-                memory_levels.remove("user_agent")
-            logger.debug("Generating memory in levels: " + ", ".join(memory_levels))
-
-            results = asyncio.run(add_memory_in_levels(
-                messages=messages,
-                memory_config=memory_context.memory_config,
-                tenant_id=memory_context.tenant_id,
-                user_id=memory_context.user_id,
-                agent_id=memory_context.agent_id,
-                memory_levels=memory_levels
-            )).get("results", [])
-            logger.info("Memory added successfully.")
-            logger.debug(f"Results: \n{results}")
-            # TODO: return and show results in frontend, may be interfered by user
 
     except Exception as e:
         if "Couldn't connect to the MCP server" in str(e):
@@ -84,10 +50,10 @@ def agent_run_thread(agent_run_info: AgentRunInfo, memory_context: MemoryContext
         raise ValueError(f"Error in agent_run_thread: {e}")
 
 
-async def agent_run(agent_run_info: AgentRunInfo, memory_context: MemoryContext):
+async def agent_run(agent_run_info: AgentRunInfo):
     observer = agent_run_info.observer
 
-    thread_agent = Thread(target=agent_run_thread, args=(agent_run_info, memory_context))
+    thread_agent = Thread(target=agent_run_thread, args=(agent_run_info,))
     thread_agent.start()
 
     while thread_agent.is_alive():

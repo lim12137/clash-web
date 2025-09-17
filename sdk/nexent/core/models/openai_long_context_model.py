@@ -133,7 +133,9 @@ class OpenAILongContextModel(OpenAIModel):
                 # Only keep the end part
                 truncated_text = text[-estimated_chars:]
 
-        logger.info(f"Truncation completed: {len(text)} -> {len(truncated_text)}")
+        # Calculate retention percentage (integer only)
+        retention_percentage = int((len(truncated_text) / len(text)) * 100)
+        logger.info(f"Truncation completed: {len(text)} -> {len(truncated_text)} characters, retained {retention_percentage}% of original content")
         return truncated_text
     
     def prepare_long_text_message(self, text_content: str, system_prompt: str, user_prompt: str):
@@ -146,7 +148,7 @@ class OpenAILongContextModel(OpenAIModel):
             user_prompt: User prompt
             
         Returns:
-            List[Dict[str, Any]]: Prepared message list
+            tuple[List[Dict[str, Any]], str]: Prepared message list and truncation percentage string
         """
         logger.info("Preparing long text message with automatic truncation")
         
@@ -172,6 +174,9 @@ class OpenAILongContextModel(OpenAIModel):
         final_content_tokens = self.count_tokens(truncated_text)
         logger.info(f"Content truncation result: {content_tokens} -> {final_content_tokens} tokens")
         
+        # Calculate truncation percentage
+        truncation_percentage = int((final_content_tokens / content_tokens) * 100) if content_tokens > 0 else 100
+        
         # Build messages
         messages = [
             {"role": "system", "content": system_prompt},
@@ -179,11 +184,11 @@ class OpenAILongContextModel(OpenAIModel):
         ]
         
         total_message_tokens = system_tokens + user_prompt_tokens + final_content_tokens
-        logger.info(f"Message preparation completed: total_tokens={total_message_tokens}, messages_count={len(messages)}")
+        logger.info(f"Message preparation completed: total_tokens={total_message_tokens}, messages_count={len(messages)}, truncation_percentage={truncation_percentage}%")
         
-        return messages
+        return messages, str(truncation_percentage)
 
-    def analyze_long_text(self, text_content: str, system_prompt: str, user_prompt: str) -> ChatMessage:
+    def analyze_long_text(self, text_content: str, system_prompt: str, user_prompt: str) -> tuple[ChatMessage, str]:
         """
         Analyze the long text content
 
@@ -193,18 +198,18 @@ class OpenAILongContextModel(OpenAIModel):
             user_prompt: User prompt
 
         Returns:
-            ChatMessage: Model returned message
+            tuple[ChatMessage, str]: Model returned message and truncation percentage string
         """
         logger.info("Starting long text analysis")
         logger.debug(f"Input parameters: content_length={len(text_content)}, system_prompt_length={len(system_prompt)}, user_prompt_length={len(user_prompt)}")
         
         try:
-            messages = self.prepare_long_text_message(text_content, system_prompt, user_prompt)
+            messages, truncation_percentage = self.prepare_long_text_message(text_content, system_prompt, user_prompt)
             logger.info("Messages prepared successfully, calling model for analysis")
             
             result = self(messages=messages)
             logger.info("Long text analysis completed successfully")
-            return result
+            return result, truncation_percentage
             
         except Exception as e:
             logger.error(f"Error during long text analysis: {str(e)}")

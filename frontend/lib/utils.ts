@@ -1,5 +1,9 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons' 
+import { DOCUMENT_STATUS } from "@/const/knowledgeBase"
+import { CONNECTION_STATUS, MODEL_STATUS } from "@/const/modelConfig"
+import React from 'react'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -8,19 +12,19 @@ export function cn(...inputs: ClassValue[]) {
 // Get status priority
 function getStatusPriority(status: string): number {
   switch (status) {
-    case 'WAIT_FOR_PROCESSING': // Waiting for processing
+    case DOCUMENT_STATUS.WAIT_FOR_PROCESSING: // Waiting for processing
       return 1;
-    case 'PROCESSING': // Processing
+    case DOCUMENT_STATUS.PROCESSING: // Processing
       return 2;
-    case 'WAIT_FOR_FORWARDING': // Waiting for forwarding
+    case DOCUMENT_STATUS.WAIT_FOR_FORWARDING: // Waiting for forwarding
       return 3;
-    case 'FORWARDING': // Forwarding
+    case DOCUMENT_STATUS.FORWARDING: // Forwarding
       return 4;
-    case 'COMPLETED': // Processing completed
+    case DOCUMENT_STATUS.COMPLETED: // Processing completed
       return 5;
-    case 'PROCESS_FAILED': // Processing failed
+    case DOCUMENT_STATUS.PROCESS_FAILED: // Processing failed
       return 6;
-    case 'FORWARD_FAILED': // Forwarding failed
+    case DOCUMENT_STATUS.FORWARD_FAILED: // Forwarding failed
       return 7;
     default:
       return 8;
@@ -155,3 +159,64 @@ export function getUrlParam<T>(
         return 'string';
     }
   };
+
+// Connectivity status utilities
+export type ConnectivityStatusType = "checking" | "available" | "unavailable" | null;
+
+// Get the connectivity status icon
+export const getConnectivityIcon = (status: ConnectivityStatusType): React.ReactNode => {
+  switch (status) {
+    case "checking":
+      return React.createElement(LoadingOutlined, { style: { color: '#1890ff' } })
+    case "available":
+      return React.createElement(CheckCircleOutlined, { style: { color: '#52c41a' } })
+    case "unavailable":
+      return React.createElement(CloseCircleOutlined, { style: { color: '#ff4d4f' } })
+    default:
+      return null
+  }
+}
+
+// Get the connectivity status color
+export const getConnectivityColor = (status: ConnectivityStatusType): string => {
+  switch (status) {
+    case "checking":
+      return '#1890ff'
+    case "available":
+      return '#52c41a'
+    case "unavailable":
+      return '#ff4d4f'
+    default:
+      return '#d9d9d9'
+  }
+}
+
+export type ConnectivityMeta = {
+  icon: React.ReactNode
+  color: string
+}
+
+export const getConnectivityMeta = (status: ConnectivityStatusType): ConnectivityMeta => {
+  switch (status) {
+    case "checking":
+      return {
+        icon: React.createElement(LoadingOutlined, { style: { color: '#1890ff' } }),
+        color: '#1890ff'
+      }
+    case "available":
+      return {
+        icon: React.createElement(CheckCircleOutlined, { style: { color: '#52c41a' } }),
+        color: '#52c41a'
+      }
+    case "unavailable":
+      return {
+        icon: React.createElement(CloseCircleOutlined, { style: { color: '#ff4d4f' } }),
+        color: '#ff4d4f'
+      }
+    default:
+      return {
+        icon: null,
+        color: '#d9d9d9'
+      }
+  }
+}

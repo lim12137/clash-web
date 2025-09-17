@@ -1,65 +1,50 @@
 "use client"
 
 import { createContext, useReducer, useEffect, useContext, ReactNode, useCallback, useMemo } from "react"
-import { configStore } from "@/lib/config"
-import knowledgeBaseService from "@/services/knowledgeBaseService"
-import { userConfigService } from "@/services/userConfigService"
-import { KnowledgeBase } from "@/types/knowledgeBase"
 import { useTranslation } from 'react-i18next'
 
-// State type definition
-interface KnowledgeBaseState {
-  knowledgeBases: KnowledgeBase[];
-  selectedIds: string[];
-  activeKnowledgeBase: KnowledgeBase | null;
-  currentEmbeddingModel: string | null;
-  isLoading: boolean;
-  error: string | null;
-}
+import knowledgeBaseService from "@/services/knowledgeBaseService"
+import { userConfigService } from "@/services/userConfigService"
 
-// Action type definition
-type KnowledgeBaseAction = 
-  | { type: 'FETCH_SUCCESS', payload: KnowledgeBase[] }
-  | { type: 'SELECT_KNOWLEDGE_BASE', payload: string[] }
-  | { type: 'SET_ACTIVE', payload: KnowledgeBase | null }
-  | { type: 'SET_MODEL', payload: string | null }
-  | { type: 'DELETE_KNOWLEDGE_BASE', payload: string }
-  | { type: 'ADD_KNOWLEDGE_BASE', payload: KnowledgeBase }
-  | { type: 'LOADING', payload: boolean }
-  | { type: 'ERROR', payload: string };
+import { KnowledgeBase, KnowledgeBaseState, KnowledgeBaseAction } from "@/types/knowledgeBase"
+import { KNOWLEDGE_BASE_ACTION_TYPES } from "@/const/knowledgeBase"
+
+import { configStore } from "@/lib/config"
+
+
 
 // Reducer function
 const knowledgeBaseReducer = (state: KnowledgeBaseState, action: KnowledgeBaseAction): KnowledgeBaseState => {
   switch (action.type) {
-    case 'FETCH_SUCCESS':
+    case KNOWLEDGE_BASE_ACTION_TYPES.FETCH_SUCCESS:
       return {
         ...state,
         knowledgeBases: action.payload,
         error: null
       };
-    case 'SELECT_KNOWLEDGE_BASE':
+    case KNOWLEDGE_BASE_ACTION_TYPES.SELECT_KNOWLEDGE_BASE:
       return {
         ...state,
         selectedIds: action.payload
       };
-    case 'SET_ACTIVE':
+    case KNOWLEDGE_BASE_ACTION_TYPES.SET_ACTIVE:
       return {
         ...state,
         activeKnowledgeBase: action.payload
       };
-    case 'SET_MODEL':
+    case KNOWLEDGE_BASE_ACTION_TYPES.SET_MODEL:
       return {
         ...state,
         currentEmbeddingModel: action.payload
       };
-    case 'DELETE_KNOWLEDGE_BASE':
+    case KNOWLEDGE_BASE_ACTION_TYPES.DELETE_KNOWLEDGE_BASE:
       return {
         ...state,
         knowledgeBases: state.knowledgeBases.filter(kb => kb.id !== action.payload),
         selectedIds: state.selectedIds.filter(id => id !== action.payload),
         activeKnowledgeBase: state.activeKnowledgeBase?.id === action.payload ? null : state.activeKnowledgeBase
       };
-    case 'ADD_KNOWLEDGE_BASE':
+    case KNOWLEDGE_BASE_ACTION_TYPES.ADD_KNOWLEDGE_BASE:
       if (state.knowledgeBases.some(kb => kb.id === action.payload.id)) {
         return state; // If the knowledge base already exists, do not insert it
       }
@@ -67,12 +52,12 @@ const knowledgeBaseReducer = (state: KnowledgeBaseState, action: KnowledgeBaseAc
         ...state,
         knowledgeBases: [...state.knowledgeBases, action.payload]
       };
-    case 'LOADING':
+    case KNOWLEDGE_BASE_ACTION_TYPES.LOADING:
       return {
         ...state,
         isLoading: action.payload
       };
-    case 'ERROR':
+    case KNOWLEDGE_BASE_ACTION_TYPES.ERROR:
       return {
         ...state,
         error: action.payload
@@ -152,7 +137,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       return;
     }
 
-    dispatch({ type: 'LOADING', payload: true });
+    dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.LOADING, payload: true });
     try {
       // Clear possible cache interference
       localStorage.removeItem('preloaded_kb_data');
@@ -161,13 +146,13 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       // Get knowledge base list data directly from server
       const kbs = await knowledgeBaseService.getKnowledgeBasesInfo(skipHealthCheck);
       
-      dispatch({ type: 'FETCH_SUCCESS', payload: kbs });
+      dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.FETCH_SUCCESS, payload: kbs });
       
     } catch (error) {
       console.error(t('knowledgeBase.error.fetchList'), error);
-      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.fetchListRetry') });
+      dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: t('knowledgeBase.error.fetchListRetry') });
     } finally {
-      dispatch({ type: 'LOADING', payload: false });
+      dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.LOADING, payload: false });
     }
   }, [state.isLoading, t]);
 
@@ -190,7 +175,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       : [...state.selectedIds, id];
 
     // Update state
-    dispatch({ type: 'SELECT_KNOWLEDGE_BASE', payload: newSelectedIds });
+    dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.SELECT_KNOWLEDGE_BASE, payload: newSelectedIds });
     
     // Note: removed logic for saving selection status to config
     // This feature is no longer needed as we don't store data config
@@ -198,7 +183,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
 
   // Set current active knowledge base - memoized with useCallback
   const setActiveKnowledgeBase = useCallback((kb: KnowledgeBase) => {
-    dispatch({ type: 'SET_ACTIVE', payload: kb });
+    dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.SET_ACTIVE, payload: kb });
   }, []);
 
   // Create knowledge base - memoized with useCallback
@@ -213,7 +198,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       return newKB;
     } catch (error) {
       console.error(t('knowledgeBase.error.create'), error);
-      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.createRetry') });
+      dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: t('knowledgeBase.error.createRetry') });
       return null;
     }
   }, [state.currentEmbeddingModel, t]);
@@ -224,11 +209,11 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       await knowledgeBaseService.deleteKnowledgeBase(id);
       
       // Update knowledge base list
-      dispatch({ type: 'DELETE_KNOWLEDGE_BASE', payload: id });
+      dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.DELETE_KNOWLEDGE_BASE, payload: id });
       
       // If current active knowledge base is deleted, clear active state
       if (state.activeKnowledgeBase?.id === id) {
-        dispatch({ type: 'SET_ACTIVE', payload: null });
+        dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.SET_ACTIVE, payload: null });
       }
       
       // Update selected knowledge base list
@@ -236,13 +221,13 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       
       if (newSelectedIds.length !== state.selectedIds.length) {
         // Update state
-        dispatch({ type: 'SELECT_KNOWLEDGE_BASE', payload: newSelectedIds });
+        dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.SELECT_KNOWLEDGE_BASE, payload: newSelectedIds });
       }
       
       return true;
     } catch (error) {
       console.error(t('knowledgeBase.error.delete'), error);
-      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.deleteRetry') });
+      dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: t('knowledgeBase.error.deleteRetry') });
       return false;
     }
   }, [state.knowledgeBases, state.selectedIds, state.activeKnowledgeBase]);
@@ -257,11 +242,11 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
           .filter(kb => userConfig.selectedKbNames.includes(kb.name))
           .map(kb => kb.id);
 
-        dispatch({ type: 'SELECT_KNOWLEDGE_BASE', payload: selectedIds });
+        dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.SELECT_KNOWLEDGE_BASE, payload: selectedIds });
       }
     } catch (error) {
       console.error(t('knowledgeBase.error.loadSelected'), error);
-      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.loadSelectedRetry') });
+      dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: t('knowledgeBase.error.loadSelectedRetry') });
     }
   }, [state.knowledgeBases]);
 
@@ -275,12 +260,12 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
 
       const success = await userConfigService.updateKnowledgeList(selectedKbNames);
       if (!success) {
-        dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.saveSelected') });
+        dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: t('knowledgeBase.error.saveSelected') });
       }
       return success;
     } catch (error) {
       console.error(t('knowledgeBase.error.saveSelected'), error);
-      dispatch({ type: 'ERROR', payload: t('knowledgeBase.error.saveSelectedRetry') });
+      dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: t('knowledgeBase.error.saveSelectedRetry') });
       return false;
     }
   }, [state.knowledgeBases, state.selectedIds, t]);
@@ -309,7 +294,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       }
     } catch (error) {
       console.error("Failed to refresh knowledge base data:", error);
-      dispatch({ type: 'ERROR', payload: 'Failed to refresh knowledge base data' });
+      dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.ERROR, payload: 'Failed to refresh knowledge base data' });
     }
   }, [fetchKnowledgeBases, state.activeKnowledgeBase]);
 
@@ -322,7 +307,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
     const loadInitialData = async () => {
       const modelConfig = configStore.getModelConfig();
       if (modelConfig.embedding?.modelName) {
-        dispatch({ type: 'SET_MODEL', payload: modelConfig.embedding.modelName });
+        dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.SET_MODEL, payload: modelConfig.embedding.modelName });
       }
       
       // Don't load knowledge base list here, wait for knowledgeBaseDataUpdated event
@@ -336,7 +321,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       
       // If model changes
       if (newModel !== state.currentEmbeddingModel) {
-        dispatch({ type: 'SET_MODEL', payload: newModel });
+        dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.SET_MODEL, payload: newModel });
         
         // Reload knowledge base list when model changes
         fetchKnowledgeBases(true);
@@ -348,7 +333,7 @@ export const KnowledgeBaseProvider: React.FC<KnowledgeBaseProviderProps> = ({ ch
       // Reload env related config
       const newModelConfig = configStore.getModelConfig();
       if (newModelConfig.embedding?.modelName !== state.currentEmbeddingModel) {
-        dispatch({ type: 'SET_MODEL', payload: newModelConfig.embedding?.modelName || null });
+        dispatch({ type: KNOWLEDGE_BASE_ACTION_TYPES.SET_MODEL, payload: newModelConfig.embedding?.modelName || null });
         
         // Reload knowledge base list when model changes
         fetchKnowledgeBases(true);

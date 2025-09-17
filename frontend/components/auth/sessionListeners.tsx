@@ -1,13 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { App, Modal } from 'antd';
-import { ExclamationCircleOutlined } from '@ant-design/icons';
-import { authService } from '@/services/authService';
-import { EVENTS } from '@/types/auth';
-import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/hooks/useAuth';
+import { useEffect, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useTranslation } from "react-i18next";
+import { App, Modal } from "antd";
+import { ExclamationCircleOutlined } from "@ant-design/icons";
+
+import { useAuth } from "@/hooks/useAuth";
+import { authService } from "@/services/authService";
+import { EVENTS } from "@/const/auth";
 
 /**
  * Session management component
@@ -16,8 +17,9 @@ import { useAuth } from '@/hooks/useAuth';
 export function SessionListeners() {
   const router = useRouter();
   const pathname = usePathname();
-  const { t } = useTranslation('common');
-  const { openLoginModal, setIsFromSessionExpired, logout, isSpeedMode } = useAuth();
+  const { t } = useTranslation("common");
+  const { openLoginModal, setIsFromSessionExpired, logout, isSpeedMode } =
+    useAuth();
   const { modal } = App.useApp();
   const modalShownRef = useRef<boolean>(false);
 
@@ -31,15 +33,16 @@ export function SessionListeners() {
     modalShownRef.current = true;
 
     modal.confirm({
-      title: t('login.expired.title'),
+      title: t("login.expired.title"),
       icon: <ExclamationCircleOutlined />,
-      content: t('login.expired.content'),
-      okText: t('login.expired.okText'),
-      cancelText: t('login.expired.cancelText'),
+      content: t("login.expired.content"),
+      okText: t("login.expired.okText"),
+      cancelText: t("login.expired.cancelText"),
       closable: false,
       async onOk() {
         try {
-          await logout(); // Log out first
+          // Silently logout
+          await logout({ silent: true });
         } finally {
           // Mark the source as session expired
           setIsFromSessionExpired(true);
@@ -52,10 +55,10 @@ export function SessionListeners() {
         try {
           await logout();
         } finally {
-          router.push('/');
+          router.push("/");
           setTimeout(() => (modalShownRef.current = false), 500);
         }
-      }
+      },
     });
   };
 
@@ -66,11 +69,11 @@ export function SessionListeners() {
     };
 
     // Add event listener
-    document.addEventListener('modalClosed', handleModalClosed);
+    document.addEventListener("modalClosed", handleModalClosed);
 
     // Cleanup function
     return () => {
-      document.removeEventListener('modalClosed', handleModalClosed);
+      document.removeEventListener("modalClosed", handleModalClosed);
     };
   }, []);
 
@@ -82,26 +85,25 @@ export function SessionListeners() {
     };
 
     // Add event listener
-    window.addEventListener(EVENTS.SESSION_EXPIRED, handleSessionExpired as EventListener);
+    window.addEventListener(
+      EVENTS.SESSION_EXPIRED,
+      handleSessionExpired as EventListener
+    );
 
     // Cleanup function
     return () => {
-      window.removeEventListener(EVENTS.SESSION_EXPIRED, handleSessionExpired as EventListener);
+      window.removeEventListener(
+        EVENTS.SESSION_EXPIRED,
+        handleSessionExpired as EventListener
+      );
     };
-  // Remove confirm from dependency array to avoid duplicate registration due to function reference changes
+    // Remove confirm from dependency array to avoid duplicate registration due to function reference changes
   }, [router, pathname, openLoginModal, setIsFromSessionExpired, modal]);
 
   // When component first mounts, if no local session is found, show modal immediately
   useEffect(() => {
     // Skip in speed mode
     if (isSpeedMode) return;
-    if (typeof window !== 'undefined') {
-      const localSession = localStorage.getItem('session'); 
-      if (!localSession) {
-        showSessionExpiredModal();
-      }
-    }
-    // Only run once on mount
   }, []);
 
   // Session status check
@@ -111,15 +113,23 @@ export function SessionListeners() {
     // Check session status on first load
     const checkSession = async () => {
       try {
+        // Capture whether there was a local session before validation
+        const hadLocalSession =
+          typeof window !== "undefined" && !!localStorage.getItem("session");
+
         // Try to get current session
         const session = await authService.getSession();
-        if (!session) {
-          window.dispatchEvent(new CustomEvent(EVENTS.SESSION_EXPIRED, {
-            detail: { message: "登录已过期，请重新登录" }
-          }));
+
+        // Only show session expired modal if a prior session existed and is now invalid
+        if (!session && hadLocalSession) {
+          window.dispatchEvent(
+            new CustomEvent(EVENTS.SESSION_EXPIRED, {
+              detail: { message: "Session expired, please sign in again" },
+            })
+          );
         }
       } catch (error) {
-        console.error('Error checking session status:', error);
+        console.error("Error checking session status:", error);
       }
     };
 
@@ -128,4 +138,4 @@ export function SessionListeners() {
 
   // This component doesn't render UI elements
   return null;
-} 
+}

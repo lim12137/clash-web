@@ -1,10 +1,15 @@
-import { defineConfig } from 'vitepress'
+﻿import { defineConfig } from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   base: '/doc/',
   title: "Nexent Doc",
-  description: "A zero-code platform for auto-generating agents — no orchestration, no complex drag-and-drop required.",
+  description: "A zero-code platform for auto-generating agents  no orchestration, no complex drag-and-drop required.",
+  
+  // Add favicon to head
+  head: [
+    ['link', { rel: 'icon', href: '/doc/favicon.ico' }]
+  ],
   
   // Ignore localhost links as they are meant for local deployment access
   ignoreDeadLinks: [
@@ -42,7 +47,8 @@ export default defineConfig({
               { text: 'Model Configuration', link: '/en/user-guide/model-configuration' },
               { text: 'Knowledge Base Configuration', link: '/en/user-guide/knowledge-base-configuration' },
               { text: 'Agent Configuration', link: '/en/user-guide/agent-configuration' },
-              { text: 'Chat Interface', link: '/en/user-guide/chat-interface' }
+              { text: 'Chat Interface', link: '/en/user-guide/chat-interface' },
+              { text: 'Memory Configuration', link: '/en/user-guide/memory' }
             ]
           },
           {
@@ -55,6 +61,7 @@ export default defineConfig({
                 text: 'Core Modules',
                 items: [
                   { text: 'Agents', link: '/en/sdk/core/agents' },
+                  { text: 'Run agent with agent_run', link: '/en/sdk/core/agent-run' },
                   { text: 'Tools', link: '/en/sdk/core/tools' },
                   { text: 'Models', link: '/en/sdk/core/models' }
                 ]
@@ -160,7 +167,8 @@ export default defineConfig({
               { text: '模型配置', link: '/zh/user-guide/model-configuration' },
               { text: '知识库配置', link: '/zh/user-guide/knowledge-base-configuration' },
               { text: '智能体配置', link: '/zh/user-guide/agent-configuration' },
-              { text: '对话页面', link: '/zh/user-guide/chat-interface' }
+              { text: '对话页面', link: '/zh/user-guide/chat-interface' },
+              { text: '记忆配置', link: '/zh/user-guide/memory' }
             ]
           },
           {
@@ -173,6 +181,7 @@ export default defineConfig({
                 text: '核心模块',
                 items: [
                   { text: '智能体模块', link: '/zh/sdk/core/agents' },
+                  { text: '使用 agent_run 运行智能体', link: '/zh/sdk/core/agent-run' },
                   { text: '工具模块', link: '/zh/sdk/core/tools' },
                   { text: '模型模块', link: '/zh/sdk/core/models' }
                 ]

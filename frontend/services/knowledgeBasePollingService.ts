@@ -1,7 +1,9 @@
 // Knowledge Base Polling Service - Encapsulates polling logic, separates business logic from components
 
-import { Document, NON_TERMINAL_STATUSES, KnowledgeBase } from '@/types/knowledgeBase';
 import knowledgeBaseService from './knowledgeBaseService';
+
+import { NON_TERMINAL_STATUSES } from '@/const/knowledgeBase';
+import { Document, KnowledgeBase } from '@/types/knowledgeBase';
 
 class KnowledgeBasePollingService {
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();

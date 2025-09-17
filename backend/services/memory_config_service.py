@@ -2,12 +2,12 @@ import logging
 from typing import Dict, List, Union
 
 from consts.const import (
-	MEMORY_SWITCH_KEY,
-	MEMORY_AGENT_SHARE_KEY,
-	DISABLE_AGENT_ID_KEY,
-	DISABLE_USERAGENT_ID_KEY,
-	DEFAULT_MEMORY_SWITCH_KEY,
-	DEFAULT_MEMORY_AGENT_SHARE_KEY,
+    MEMORY_SWITCH_KEY,
+    MEMORY_AGENT_SHARE_KEY,
+    DISABLE_AGENT_ID_KEY,
+    DISABLE_USERAGENT_ID_KEY,
+    DEFAULT_MEMORY_SWITCH_KEY,
+    DEFAULT_MEMORY_AGENT_SHARE_KEY,
 )
 from consts.model import MemoryAgentShareMode
 from database.memory_config_db import (
@@ -198,6 +198,16 @@ def build_memory_context(user_id: str, tenant_id: str, agent_id: str | int) -> M
         disable_agent_ids=get_disabled_agent_ids(user_id),
         disable_user_agent_ids=get_disabled_useragent_ids(user_id),
     )
+    # If user turn off the memory function, return minimum context directly
+    if not memory_user_config.memory_switch:
+        return MemoryContext(
+            user_config=memory_user_config,
+            memory_config=dict(),
+            tenant_id=tenant_id,
+            user_id=user_id,
+            agent_id=str(agent_id),
+        )
+
     return MemoryContext(
         user_config=memory_user_config,
         memory_config=build_memory_config(tenant_id),

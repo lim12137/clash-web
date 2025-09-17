@@ -1,20 +1,23 @@
 "use strict";
-import { Select, Tooltip, Tag } from 'antd'
-import { CloseOutlined } from '@ant-design/icons'
-import { ModelConnectStatus, ModelOption, ModelSource, ModelType } from '@/types/config'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-// 统一管理模型连接状态颜色
+import { Select, Tooltip, Tag } from 'antd'
+import { CloseOutlined } from '@ant-design/icons'
+
+import { MODEL_TYPES, MODEL_STATUS } from '@/const/modelConfig'
+import { ModelConnectStatus, ModelOption, ModelSource, ModelType } from '@/types/modelConfig'
+
+// Unified management of model connection status colors
 const CONNECT_STATUS_COLORS: Record<ModelConnectStatus | 'default', string> = {
-  "available": "#52c41a",
-  "unavailable": "#ff4d4f",
-  "detecting": "#2980b9",
-  "not_detected": "#95a5a6",
+  [MODEL_STATUS.AVAILABLE]: "#52c41a",
+  [MODEL_STATUS.UNAVAILABLE]: "#ff4d4f",
+  [MODEL_STATUS.CHECKING]: "#2980b9",
+  [MODEL_STATUS.UNCHECKED]: "#95a5a6",
   default: "#17202a"
 };
 
-// 动画定义不再包含颜色，由样式传递
+// Animation definition no longer includes colors, passed through styles
 const PULSE_ANIMATION = `
   @keyframes pulse {
     0% {
@@ -34,7 +37,7 @@ const PULSE_ANIMATION = `
   }
 `;
 
-// 只拼接样式，颜色和动画通过参数传递
+// Only concatenate styles, colors and animations passed through parameters
 const getStatusStyle = (status?: ModelConnectStatus): React.CSSProperties => {
   const color = (status && CONNECT_STATUS_COLORS[status]) || CONNECT_STATUS_COLORS.default;
   const baseStyle: React.CSSProperties = {
@@ -56,14 +59,14 @@ const getStatusStyle = (status?: ModelConnectStatus): React.CSSProperties => {
     return {
       ...baseStyle,
       animation: 'pulse 1.5s infinite',
-      // 用CSS变量传递动画色
+      // Pass animation color through CSS variables
       ['--pulse-color' as any]: color
     };
   }
   return baseStyle;
 };
 
-// 获取模型来源对应的标签样式
+// Get tag styles corresponding to model source
 const getSourceTagStyle = (source: string): React.CSSProperties => {
   const baseStyle: React.CSSProperties = {
     marginRight: '4px',
@@ -107,8 +110,8 @@ interface ModelListCardProps {
   onModelChange: (value: string) => void
   officialModels: ModelOption[]
   customModels: ModelOption[]
-  onVerifyModel?: (modelName: string, modelType: ModelType) => void // 新增验证模型的回调
-  errorFields?: {[key: string]: boolean} // 新增错误字段状态
+  onVerifyModel?: (modelName: string, modelType: ModelType) => void // New callback for verifying models
+  errorFields?: {[key: string]: boolean} // New error field state
 }
 
 export const ModelListCard = ({
@@ -124,38 +127,38 @@ export const ModelListCard = ({
 }: ModelListCardProps) => {
   const { t } = useTranslation()
 
-  // 添加模型列表状态，用于更新
+  // Add model list state for updates
   const [modelsData, setModelsData] = useState({
     official: [...officialModels],
     custom: [...customModels]
   });
 
-  // 在组件中创建一个style元素，包含动画定义
+  // Create a style element in the component containing animation definitions
   useEffect(() => {
-    // 创建style元素
+    // Create style element
     const styleElement = document.createElement('style');
     styleElement.type = 'text/css';
     styleElement.innerHTML = PULSE_ANIMATION;
     document.head.appendChild(styleElement);
 
-    // 清理函数，组件卸载时移除style元素
+    // Cleanup function, remove style element when component unmounts
     return () => {
       document.head.removeChild(styleElement);
     };
   }, []);
 
-  // 获取模型列表时需要考虑具体的选项类型
-  const getModelsBySource = (): Record<ModelSource, ModelOption[]> => {
-    // 每种类型只显示对应类型的模型
+  // When getting model list, need to consider specific option type
+  const getModelsBySource = (): { official: ModelOption[]; custom: ModelOption[] } => {
+    // Each type only shows models of corresponding type
     return {
       official: modelsData.official.filter(model => model.type === type),
       custom: modelsData.custom.filter(model => model.type === type)
     }
   }
 
-  // 获取模型来源
+  // Get model source
   const getModelSource = (displayName: string): string => {
-    if (type === 'tts' || type === 'stt' || type === 'vlm') {
+    if (type === MODEL_TYPES.TTS || type === MODEL_TYPES.STT || type === MODEL_TYPES.VLM) {
       const modelOfType = modelsData.custom.find((m) => m.type === type && m.displayName === displayName)
       if (modelOfType) return t('model.source.custom')
     }
@@ -169,10 +172,10 @@ export const ModelListCard = ({
 
   const modelsBySource = getModelsBySource()
 
-  // 本地更新模型状态
+  // Local update model status
   const updateLocalModelStatus = (displayName: string, status: ModelConnectStatus) => {
     setModelsData(prevData => {
-      // 查找要更新的模型
+      // Find model to update
       const modelToUpdate = prevData.custom.find(m => m.displayName === displayName && m.type === type);
       
       if (!modelToUpdate) {
@@ -197,24 +200,24 @@ export const ModelListCard = ({
     });
   };
 
-  // 当父组件传入的模型列表更新时，更新本地状态
+  // When parent component's model list updates, update local state
   useEffect(() => {
-    // 更新本地状态，但不触发fetchModelsStatus
+    // Update local state but don't trigger fetchModelsStatus
     setModelsData(prevData => {
       const updatedOfficialModels = officialModels.map(model => {
-        // 保留已有的connect_status，如果存在的话
+        // Preserve existing connect_status if it exists
         const existingModel = prevData.official.find(m => m.name === model.name && m.type === model.type);
         return {
           ...model,
-          connect_status: existingModel?.connect_status || "available" as ModelConnectStatus
+          connect_status: existingModel?.connect_status || MODEL_STATUS.AVAILABLE as ModelConnectStatus
         };
       });
       
       const updatedCustomModels = customModels.map(model => {
-        // 优先使用新传入的状态，这样能反映后端的最新状态
+        // Prioritize using newly passed status to reflect latest backend state
         return {
           ...model,
-          connect_status: model.connect_status || "not_detected" as ModelConnectStatus
+          connect_status: model.connect_status || MODEL_STATUS.UNCHECKED as ModelConnectStatus
         };
       });
       
@@ -225,20 +228,20 @@ export const ModelListCard = ({
     });
   }, [officialModels, customModels, type, modelId]);
 
-  // 处理状态指示灯点击事件
+  // Handle status indicator click event
   const handleStatusClick = (e: React.MouseEvent, displayName: string) => {
-    e.stopPropagation(); // 阻止事件冒泡
-    e.preventDefault(); // 阻止默认行为
-    e.nativeEvent.stopImmediatePropagation(); // 阻止所有同级事件处理程序
+    e.stopPropagation(); // Prevent event bubbling
+    e.preventDefault(); // Prevent default behavior
+    e.nativeEvent.stopImmediatePropagation(); // Prevent all sibling event handlers
     
     if (onVerifyModel && displayName) {
-      // 先更新本地状态为"检测中"
-      updateLocalModelStatus(displayName, "detecting");
-      // 然后调用验证函数
+      // First update local state to "checking"
+      updateLocalModelStatus(displayName, MODEL_STATUS.CHECKING);
+      // Then call verification function
       onVerifyModel(displayName, type);
     }
     
-    return false; // 确保不会继续冒泡
+    return false; // Ensure no further bubbling
   };
 
   return (

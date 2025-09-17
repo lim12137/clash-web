@@ -1,39 +1,18 @@
 "use client"
 
-import { createContext, useReducer, useContext, ReactNode, useCallback, useEffect } from "react"
-import { Document } from "@/types/knowledgeBase"
-import knowledgeBaseService from "@/services/knowledgeBaseService"
+import { createContext, useReducer, useContext, ReactNode, useCallback, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
 
-// Document state interface
-interface DocumentState {
-  documentsMap: Record<string, Document[]>;
-  selectedIds: string[];
-  uploadFiles: File[];
-  isUploading: boolean;
-  loadingKbIds: Set<string>;
-  isLoadingDocuments: boolean;
-  error: string | null;
-}
+import { DOCUMENT_ACTION_TYPES } from "@/const/knowledgeBase";
+import knowledgeBaseService from "@/services/knowledgeBaseService";
+import { Document, DocumentState, DocumentAction } from "@/types/knowledgeBase";
 
-// Document action type
-type DocumentAction = 
-  | { type: 'FETCH_SUCCESS', payload: { kbId: string, documents: Document[] } }
-  | { type: 'SELECT_DOCUMENT', payload: string }
-  | { type: 'SELECT_DOCUMENTS', payload: string[] }
-  | { type: 'SELECT_ALL', payload: { kbId: string, selected: boolean } }
-  | { type: 'SET_UPLOAD_FILES', payload: File[] }
-  | { type: 'SET_UPLOADING', payload: boolean }
-  | { type: 'SET_LOADING_DOCUMENTS', payload: boolean }
-  | { type: 'DELETE_DOCUMENT', payload: { kbId: string, docId: string } }
-  | { type: 'SET_LOADING_KB_ID', payload: { kbId: string, isLoading: boolean } }
-  | { type: 'CLEAR_DOCUMENTS', payload?: undefined }
-  | { type: 'ERROR', payload: string };
+
 
 // Reducer function
 const documentReducer = (state: DocumentState, action: DocumentAction): DocumentState => {
   switch (action.type) {
-    case 'FETCH_SUCCESS':
+    case DOCUMENT_ACTION_TYPES.FETCH_SUCCESS:
       return {
         ...state,
         documentsMap: {
@@ -43,7 +22,7 @@ const documentReducer = (state: DocumentState, action: DocumentAction): Document
         isLoadingDocuments: false,
         error: null
       };
-    case 'SELECT_DOCUMENT':
+    case DOCUMENT_ACTION_TYPES.SELECT_DOCUMENT:
       // Toggle document selection
       const docId = action.payload;
       const isSelected = state.selectedIds.includes(docId);
@@ -53,12 +32,12 @@ const documentReducer = (state: DocumentState, action: DocumentAction): Document
           ? state.selectedIds.filter(id => id !== docId)
           : [...state.selectedIds, docId]
       };
-    case 'SELECT_DOCUMENTS':
+    case DOCUMENT_ACTION_TYPES.SELECT_DOCUMENTS:
       return {
         ...state,
         selectedIds: action.payload
       };
-    case 'SELECT_ALL':
+    case DOCUMENT_ACTION_TYPES.SELECT_ALL:
       const { kbId, selected } = action.payload;
       const documents = state.documentsMap[kbId] || [];
       
@@ -71,22 +50,22 @@ const documentReducer = (state: DocumentState, action: DocumentAction): Document
         ...state,
         selectedIds: newSelectedIds
       };
-    case 'SET_UPLOAD_FILES':
+    case DOCUMENT_ACTION_TYPES.SET_UPLOAD_FILES:
       return {
         ...state,
         uploadFiles: action.payload
       };
-    case 'SET_UPLOADING':
+    case DOCUMENT_ACTION_TYPES.SET_UPLOADING:
       return {
         ...state,
         isUploading: action.payload
       };
-    case 'SET_LOADING_DOCUMENTS':
+    case DOCUMENT_ACTION_TYPES.SET_LOADING_DOCUMENTS:
       return {
         ...state,
         isLoadingDocuments: action.payload
       };
-    case 'DELETE_DOCUMENT':
+    case DOCUMENT_ACTION_TYPES.DELETE_DOCUMENT:
       const { kbId: deleteKbId, docId: deleteDocId } = action.payload;
       // Remove the document from the map and the selected IDs
       return {
@@ -97,7 +76,7 @@ const documentReducer = (state: DocumentState, action: DocumentAction): Document
         },
         selectedIds: state.selectedIds.filter(id => id !== deleteDocId)
       };
-    case 'SET_LOADING_KB_ID':
+    case DOCUMENT_ACTION_TYPES.SET_LOADING_KB_ID:
       const { kbId: loadingKbId, isLoading } = action.payload;
       const newLoadingKbIds = new Set(state.loadingKbIds);
       
@@ -111,14 +90,14 @@ const documentReducer = (state: DocumentState, action: DocumentAction): Document
         ...state,
         loadingKbIds: newLoadingKbIds
       };
-    case 'CLEAR_DOCUMENTS':
+    case DOCUMENT_ACTION_TYPES.CLEAR_DOCUMENTS:
       return {
         ...state,
         documentsMap: {},
         selectedIds: [],
         error: null
       };
-    case 'ERROR':
+    case DOCUMENT_ACTION_TYPES.ERROR:
       return {
         ...state,
         error: action.payload,
@@ -181,7 +160,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
         
         // Update document information directly
         dispatch({ 
-          type: 'FETCH_SUCCESS', 
+          type: DOCUMENT_ACTION_TYPES.FETCH_SUCCESS, 
           payload: { kbId, documents } 
         });
       }
@@ -206,38 +185,38 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
       return; // If we have cached data and don't need force refresh, return directly without server request
     }
     
-    dispatch({ type: 'SET_LOADING_KB_ID', payload: { kbId, isLoading: true } });
+    dispatch({ type: DOCUMENT_ACTION_TYPES.SET_LOADING_KB_ID, payload: { kbId, isLoading: true } });
     
     try {
       // Use getAllFiles() to get documents including those not yet in ES
       const documents = await knowledgeBaseService.getAllFiles(kbId);
       dispatch({ 
-        type: 'FETCH_SUCCESS', 
+        type: DOCUMENT_ACTION_TYPES.FETCH_SUCCESS, 
         payload: { kbId, documents } 
       });
     } catch (error) {
       console.error(t('document.error.fetch'), error);
-      dispatch({ type: 'ERROR', payload: t('document.error.load') });
+      dispatch({ type: DOCUMENT_ACTION_TYPES.ERROR, payload: t('document.error.load') });
     } finally {
-      dispatch({ type: 'SET_LOADING_KB_ID', payload: { kbId, isLoading: false } });
+      dispatch({ type: DOCUMENT_ACTION_TYPES.SET_LOADING_KB_ID, payload: { kbId, isLoading: false } });
     }
   }, [state.loadingKbIds, state.documentsMap, t]);
 
   // Upload documents to a knowledge base
   const uploadDocuments = useCallback(async (kbId: string, files: File[]) => {
-    dispatch({ type: 'SET_UPLOADING', payload: true });
+    dispatch({ type: DOCUMENT_ACTION_TYPES.SET_UPLOADING, payload: true });
     
     try {
       await knowledgeBaseService.uploadDocuments(kbId, files);
       
       // Set loading state before fetching latest documents
-      dispatch({ type: 'SET_LOADING_DOCUMENTS', payload: true });
+      dispatch({ type: DOCUMENT_ACTION_TYPES.SET_LOADING_DOCUMENTS, payload: true });
       
       // Get latest status immediately after upload
       const latestDocuments = await knowledgeBaseService.getAllFiles(kbId);
       // Update document status
       dispatch({ 
-        type: 'FETCH_SUCCESS', 
+        type: DOCUMENT_ACTION_TYPES.FETCH_SUCCESS, 
         payload: { kbId, documents: latestDocuments } 
       });
       
@@ -250,13 +229,13 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
       }));
       
       // Clear upload files
-      dispatch({ type: 'SET_UPLOAD_FILES', payload: [] });
+      dispatch({ type: DOCUMENT_ACTION_TYPES.SET_UPLOAD_FILES, payload: [] });
     } catch (error) {
       console.error(t('document.error.upload'), error);
-      dispatch({ type: 'ERROR', payload: `${t('document.error.upload')}. ${t('document.error.retry')}` });
+      dispatch({ type: DOCUMENT_ACTION_TYPES.ERROR, payload: `${t('document.error.upload')}. ${t('document.error.retry')}` });
     } finally {
-      dispatch({ type: 'SET_UPLOADING', payload: false });
-      dispatch({ type: 'SET_LOADING_DOCUMENTS', payload: false });
+      dispatch({ type: DOCUMENT_ACTION_TYPES.SET_UPLOADING, payload: false });
+      dispatch({ type: DOCUMENT_ACTION_TYPES.SET_LOADING_DOCUMENTS, payload: false });
     }
   }, [t]);
 
@@ -265,12 +244,12 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     try {
       await knowledgeBaseService.deleteDocument(docId, kbId);
       dispatch({ 
-        type: 'DELETE_DOCUMENT', 
+        type: DOCUMENT_ACTION_TYPES.DELETE_DOCUMENT, 
         payload: { kbId, docId } 
       });
     } catch (error) {
       console.error(t('document.error.delete'), error);
-      dispatch({ type: 'ERROR', payload: `${t('document.error.delete')}. ${t('document.error.retry')}` });
+      dispatch({ type: DOCUMENT_ACTION_TYPES.ERROR, payload: `${t('document.error.delete')}. ${t('document.error.retry')}` });
     }
   }, [t]);
 
