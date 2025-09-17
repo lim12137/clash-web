@@ -420,3 +420,120 @@ async def test_list_models_for_tenant_exception():
         assert "Failed to retrieve model list" in str(exc.value)
 
 
+async def test_list_llm_models_for_tenant_success():
+    """Test list_llm_models_for_tenant returns filtered LLM models."""
+    from backend.services import model_management_service as svc
+
+    records = [
+        {
+            "model_id": "llm1",
+            "model_repo": "huggingface", 
+            "model_name": "llama-2",
+            "display_name": "LLaMA 2",
+            "connect_status": "operational"
+        },
+        {
+            "model_id": "llm2",
+            "model_repo": "openai",
+            "model_name": "gpt-4", 
+            "display_name": "GPT-4",
+            "connect_status": "not_detected"
+        }
+    ]
+    
+    with mock.patch.object(svc, "get_model_records", return_value=records) as mock_get_records, \
+         mock.patch.object(svc, "add_repo_to_name", side_effect=lambda model_repo, model_name: f"{model_repo}/{model_name}" if model_repo else model_name), \
+         mock.patch.object(svc.ModelConnectStatusEnum, "get_value", side_effect=lambda s: s or "not_detected"):
+        
+        result = await svc.list_llm_models_for_tenant("t1")
+        
+        # Should only return LLM models, filtered by model_type="llm"
+        assert len(result) == 2
+        assert result[0]["model_id"] == "llm1"
+        assert result[0]["model_name"] == "huggingface/llama-2"
+        assert result[0]["display_name"] == "LLaMA 2"
+        assert result[0]["connect_status"] == "operational"
+        
+        assert result[1]["model_id"] == "llm2"
+        assert result[1]["model_name"] == "openai/gpt-4"
+        assert result[1]["display_name"] == "GPT-4"
+        assert result[1]["connect_status"] == "not_detected"
+        
+        # Verify get_model_records was called with correct filter
+        mock_get_records.assert_called_once_with({"model_type": "llm"}, "t1")
+
+
+async def test_list_llm_models_for_tenant_exception():
+    """Test list_llm_models_for_tenant handles exceptions properly."""
+    from backend.services import model_management_service as svc
+
+    with mock.patch.object(svc, "get_model_records", side_effect=Exception("Database error")):
+        with pytest.raises(Exception) as exc:
+            await svc.list_llm_models_for_tenant("t1")
+        assert "Failed to retrieve model list" in str(exc.value)
+
+
+async def test_list_llm_models_for_tenant_normalizes_connect_status():
+    """Test list_llm_models_for_tenant normalizes connect_status values."""
+    from backend.services import model_management_service as svc
+
+    records = [
+        {
+            "model_id": "llm1",
+            "model_repo": "huggingface",
+            "model_name": "llama-2",
+            "display_name": "LLaMA 2",
+            "connect_status": None  # Should be normalized to "not_detected"
+        },
+        {
+            "model_id": "llm2",
+            "model_repo": "openai", 
+            "model_name": "gpt-4",
+            "display_name": "GPT-4",
+            "connect_status": "operational"
+        }
+    ]
+    
+    with mock.patch.object(svc, "get_model_records", return_value=records), \
+         mock.patch.object(svc, "add_repo_to_name", side_effect=lambda model_repo, model_name: f"{model_repo}/{model_name}" if model_repo else model_name), \
+         mock.patch.object(svc.ModelConnectStatusEnum, "get_value", side_effect=lambda s: s or "not_detected"):
+        
+        result = await svc.list_llm_models_for_tenant("t1")
+        
+        assert len(result) == 2
+        assert result[0]["connect_status"] == "not_detected"  # Normalized from None
+        assert result[1]["connect_status"] == "operational"
+
+
+async def test_list_llm_models_for_tenant_handles_missing_repo():
+    """Test list_llm_models_for_tenant handles models without repo."""
+    from backend.services import model_management_service as svc
+
+    records = [
+        {
+            "model_id": "llm1",
+            "model_repo": "",  # Empty repo
+            "model_name": "local-model",
+            "display_name": "Local Model",
+            "connect_status": "operational"
+        },
+        {
+            "model_id": "llm2",
+            "model_repo": None,  # None repo
+            "model_name": "another-model", 
+            "display_name": "Another Model",
+            "connect_status": "operational"
+        }
+    ]
+    
+    with mock.patch.object(svc, "get_model_records", return_value=records), \
+         mock.patch.object(svc, "add_repo_to_name", side_effect=lambda model_repo, model_name: f"{model_repo}/{model_name}" if model_repo else model_name), \
+         mock.patch.object(svc.ModelConnectStatusEnum, "get_value", side_effect=lambda s: s or "not_detected"):
+        
+        result = await svc.list_llm_models_for_tenant("t1")
+        
+        assert len(result) == 2
+        assert result[0]["model_name"] == "local-model"  # No repo prefix
+        assert result[1]["model_name"] == "another-model"  # No repo prefix
+
+
