@@ -45,11 +45,12 @@ async def agent_run_api(agent_request: AgentRequest, http_request: Request, auth
 
 
 @router.get("/stop/{conversation_id}")
-async def agent_stop_api(conversation_id: int):
+async def agent_stop_api(conversation_id: int, authorization: Optional[str] = Header(None)):
     """
     stop agent run and preprocess tasks for specified conversation_id
     """
-    if stop_agent_tasks(conversation_id).get("status") == "success":
+    user_id, _ = get_current_user_id(authorization)
+    if stop_agent_tasks(conversation_id, user_id).get("status") == "success":
         return {"status": "success", "message": "agent run and preprocess tasks stopped successfully"}
     else:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
