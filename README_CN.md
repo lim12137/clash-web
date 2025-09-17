@@ -15,7 +15,7 @@ Nexent 是一个零代码智能体自动生成平台 —— 无需编排，无�
 
 ![Nexent Banner](./assets/architecture_zh.png)
 
-https://github.com/user-attachments/assets/db6b7f5a-9ee8-4327-ae6f-c5af896126b4
+https://github.com/user-attachments/assets/b844e05d-5277-4509-9463-1c5b3516f11e
 
 # ⚡ 先来试试看
 
