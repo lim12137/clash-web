@@ -1,5 +1,6 @@
 ![Nexent Banner](./assets/NexentBanner.png)
 
+[![Website](https://img.shields.io/badge/Website-blue?logo=icloud&logoColor=white)](https://nexent.tech)
 [![English](https://img.shields.io/badge/English-README-blue?logo=github)](README.md)
 [![中文](https://img.shields.io/badge/中文-README-green?logo=github)](README_CN.md)
 [![Documentation](https://img.shields.io/badge/Documentation-CN/EN-red?logo=googledocs&logoColor=%23ECD53F)](https://modelengine-group.github.io/nexent)
@@ -10,21 +11,42 @@ Nexent 是一个零代码智能体自动生成平台 —— 无需编排，无�
 
 > 一个提示词，无限种可能。
 
-### 🌟 立即体验 Nexent
+### 🌐 访问我们的[官方网站](https://nexent.tech/)
 
-- 🌐 访问我们的[官方网站](http://nexent.tech/)了解更多信息
-- 🚀 [一键试用](http://nexent.tech/try)体验 Nexent 的强大功能
+![Nexent Banner](./assets/architecture_zh.png)
 
-https://github.com/user-attachments/assets/b844e05d-5277-4509-9463-1c5b3516f11e
+https://github.com/user-attachments/assets/db6b7f5a-9ee8-4327-ae6f-c5af896126b4
+
+# ⚡ 先来试试看
+
+### 📋 系统要求  
+
+| 资源 | 最低要求 |
+|----------|---------|
+| **CPU**  | 2 核 |
+| **内存**  | 6 GiB   |
+| **软件** | 已安装 Docker 和 Docker Compose |
+
+### 🛠️ 使用 Docker Compose 快速开始
+
+```bash
+git clone https://github.com/ModelEngine-Group/nexent.git
+cd nexent/docker
+cp .env.example .env # fill only necessary configs
+bash deploy.sh
+```
+
+当容器运行后，在浏览器中打开 **http://localhost:3000** 并按照设置向导操作。
 
 # 🤝 加入我们的社区
 
 > *If you want to go fast, go alone; if you want to go far, go together.*
 
-我们已经发布了 **Nexent v1**，目前功能已经相对稳定，但仍可能存在一些 bug，我们会持续改进并不断增加新功能。敬请期待，我们很快也会公布 **v2.0** 版本！
+我们已经发布了 **Nexent v1**，平台现在相对稳定。但是，可能仍然存在一些 bug，我们正在持续改进并添加新功能。敬请期待：我们很快将宣布 **v2.0**！
 
 * **🗺️ 查看我们的 [功能地图](https://github.com/orgs/ModelEngine-Group/projects/6)** 探索当前和即将推出的功能。
 * **🔍 试用当前版本** 并在 [问题反馈](https://github.com/ModelEngine-Group/nexent/issues) 中留下想法或报告错误。
+* **🐛 查看我们的[已知问题页面](https://modelengine-group.github.io/nexent/zh/known-issues.html)** 了解最新的问题状态和解决方案。
 
 > *Rome wasn't built in a day.*
 
@@ -34,34 +56,11 @@ https://github.com/user-attachments/assets/b844e05d-5277-4509-9463-1c5b3516f11e
 
 最重要的是，我们需要关注度。请为仓库点星 ⭐ 并关注，与朋友分享，帮助更多开发者发现 Nexent —— 您的每一次点击都能为项目带来新的参与者，保持发展势头。
 
-# ⚡ 先来试试看
+## 💬 社区与联系方式
 
-### 1. 📋 系统要求  
-
-| 资源 | 最低要求 |
-|----------|---------|
-| **CPU**  | 2 核 |
-| **内存**  | 6 GiB   |
-| **软件** | 已安装 Docker 和 Docker Compose |
-
-### 2. 🛠️ 使用 Docker Compose 快速开始
-
-```bash
-git clone https://github.com/ModelEngine-Group/nexent.git
-cd nexent/docker
-cp .env.example .env # fill only nessasary configs
-bash deploy.sh
-```
-
-当容器运行后，在浏览器中打开 **http://localhost:3000** 并按照设置向导操作。
-
-# 🌱 MCP 工具生态
-
-查看我们的[MCP 生态系统页面](https://modelengine-group.github.io/nexent/zh/mcp-ecosystem/overview.html)了解 MCP 工具生态系统的详细信息，包括社区中心、推荐工具和集成指南。
-
-### 🚀 建议的智能体场景
-
-查看我们的[智能体场景页面](https://modelengine-group.github.io/nexent/zh/mcp-ecosystem/use-cases.html)了解详细的智能体用例和最佳实践，包括旅行规划、研究助手、商业智能、智能生活等场景。
+- 浏览 [文档](https://modelengine-group.github.io/nexent) 了解更多信息。  
+- 加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 与其他开发者交流并获取帮助！
+- 通过微信联系我们，在我们的[网站](https://nexent.tech/zh/contact)找到二维码
 
 # ✨ 主要特性
 
@@ -100,6 +99,10 @@ bash deploy.sh
 
    ![Feature 7](./assets/Feature7.png)
 
+# 🌱 MCP 工具生态
+
+查看我们的[MCP 生态系统页面](https://modelengine-group.github.io/nexent/zh/mcp-ecosystem/overview.html)了解 MCP 工具生态系统的详细信息，包括社区中心、推荐工具和集成指南。
+
 # 🛠️ 开发者指南
 
 ### 🤖 模型配置与模型提供商推荐
@@ -113,16 +116,6 @@ bash deploy.sh
 ### 🛠️ 从源码构建
 
 想要从源码运行 Nexent？查看我们的[开发者指南](https://modelengine-group.github.io/nexent/zh/getting-started/development-guide)获取详细的设置说明和自定义选项。
-
-# 🐛 已知问题
-
-查看我们的[已知问题页面](https://modelengine-group.github.io/nexent/zh/known-issues.html)了解最新的问题状态和解决方案。
-
-# 💬 社区与联系方式
-
-- 浏览 [常见问题](https://modelengine-group.github.io/nexent/zh/faq) 了解常见安装问题。  
-- 加入我们的 [Discord 社区](https://discord.gg/tb5H3S3wyv) 与其他开发者交流并获取帮助！
-- 在 [GitHub Issues](https://github.com/ModelEngine-Group/nexent/issues) 中提交错误报告或功能建议。
 
 # 📄 许可证
 
