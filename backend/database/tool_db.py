@@ -165,8 +165,7 @@ def add_tool_field(tool_info):
         tool_params = tool.params
         for ele in tool_params:
             param_name = ele["name"]
-            param_value = tool_info["params"].get(param_name)
-            ele["default"] = param_value
+            ele["default"] = tool_info["params"].get(param_name)
 
         tool_dict = as_dict(tool)
         tool_dict["params"] = tool_params

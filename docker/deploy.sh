@@ -386,10 +386,10 @@ deploy_infrastructure() {
   echo "🔧 Starting infrastructure services..."
   INFRA_SERVICES="nexent-elasticsearch nexent-postgresql nexent-minio redis"
   
-  # Add openssh-server if Terminal tool is enabled
-  if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
+  # Add openssh-server if Terminal tool container is enabled
+  if [ "$ENABLE_TERMINAL_TOOL_CONTAINER" = "true" ]; then
     INFRA_SERVICES="$INFRA_SERVICES nexent-openssh-server"
-    echo "🔧 Terminal tool enabled - openssh-server will be included in infrastructure"
+    echo "🔧 Terminal tool container enabled - openssh-server will be included in infrastructure"
   fi
 
   if ! ${docker_compose_command} -p nexent -f "docker-compose${COMPOSE_FILE_SUFFIX}" up -d $INFRA_SERVICES; then
@@ -397,8 +397,8 @@ deploy_infrastructure() {
     exit 1
   fi
 
-  if [ "$ENABLE_TERMINAL_TOOL" = "true" ]; then
-    echo "🔧 Terminal tool (openssh-server) is now available for AI agents"
+  if [ "$ENABLE_TERMINAL_TOOL_CONTAINER" = "true" ]; then
+    echo "🔧 Terminal tool container (openssh-server) is now available for AI agents"
   fi
 
   # Deploy Supabase services based on DEPLOYMENT_VERSION 
@@ -514,34 +514,33 @@ wait_for_elasticsearch_healthy() {
 }
 
 select_terminal_tool() {
-    # Function to ask if user wants to enable Terminal tool
-    echo "🔧 Terminal Tool Configuration:"
+    # Function to ask if user wants to create Terminal tool container
+    echo "🔧 Terminal Tool Container Setup:"
     echo "    Terminal tool allows AI agents to execute shell commands via SSH."
-    echo "    This creates an openssh-server container for secure command execution."
+    echo "    This will create an openssh-server container for secure command execution."
     if [ -n "$ENABLE_TERMINAL" ]; then
         enable_terminal="$ENABLE_TERMINAL"
     else
-        read -p "👉 Do you want to enable Terminal tool? [Y/N] (default: N): " enable_terminal
+        read -p "👉 Do you want to create Terminal tool container? [Y/N] (default: N): " enable_terminal
     fi
 
     # Sanitize potential Windows CR in input
     enable_terminal=$(sanitize_input "$enable_terminal")
 
     if [[ "$enable_terminal" =~ ^[Yy]$ ]]; then
-        export ENABLE_TERMINAL_TOOL="true"
+        export ENABLE_TERMINAL_TOOL_CONTAINER="true"
         export COMPOSE_PROFILES="${COMPOSE_PROFILES:+$COMPOSE_PROFILES,}terminal"
-        echo "✅ Terminal tool enabled 🔧"
-        echo "   🔧 Deploying an openssh-server container for secure command execution"
-        update_env_var "ENABLE_TERMINAL_TOOL" "true"
+        echo "✅ Terminal tool container will be created 🔧"
+        echo "   🔧 Creating openssh-server container for secure command execution"
         
-        # Ask user to specify directory mapping
+        # Ask user to specify directory mapping for container
         default_terminal_dir="/opt/terminal"
-        echo "   📁 Terminal directory configuration:"
+        echo "   📁 Terminal container directory mapping:"
         echo "      • Container path: /opt/terminal (fixed)"
         echo "      • Host path: You can specify any directory on your host machine"
         echo "      • Default host path: /opt/terminal (recommended)"
         echo ""
-        read -p "   📁 Enter host directory to mount (default: /opt/terminal): " terminal_mount_dir
+        read -p "   📁 Enter host directory to mount to container (default: /opt/terminal): " terminal_mount_dir
         terminal_mount_dir=$(sanitize_input "$terminal_mount_dir")
         TERMINAL_MOUNT_DIR="${terminal_mount_dir:-$default_terminal_dir}"
         
@@ -555,8 +554,8 @@ select_terminal_tool() {
         echo "      • This directory will be created if it doesn't exist"
         echo ""
         
-        # Setup SSH credentials for Terminal tool
-        echo "🔐 Setting up SSH credentials for Terminal tool..."
+        # Setup SSH credentials for Terminal tool container
+        echo "🔐 Setting up SSH credentials for Terminal tool container..."
         
         # Check if SSH credentials are already set
         if [ -n "$SSH_USERNAME" ] && [ -n "$SSH_PASSWORD" ]; then
@@ -565,7 +564,7 @@ select_terminal_tool() {
             echo "🔑 Password: [HIDDEN]"
         else
             # Prompt for SSH credentials
-            echo "Please enter SSH credentials for Terminal tool:"
+            echo "Please enter SSH credentials for Terminal tool container:"
             echo ""
             
             # Get SSH username
@@ -609,9 +608,8 @@ select_terminal_tool() {
         fi
         echo ""
     else
-        export ENABLE_TERMINAL_TOOL="false"
-        echo "🚫 Terminal tool disabled"
-        update_env_var "ENABLE_TERMINAL_TOOL" "false"
+        export ENABLE_TERMINAL_TOOL_CONTAINER="false"
+        echo "🚫 Terminal tool container disabled"
     fi
     echo ""
     echo "--------------------------------"
@@ -676,7 +674,7 @@ main_deploy() {
   # Select deployment version, mode and image source
   select_deployment_version || { echo "❌ Deployment version selection failed"; exit 1; }
   select_deployment_mode || { echo "❌ Deployment mode selection failed"; exit 1; }
-  select_terminal_tool || { echo "❌ Terminal tool configuration failed"; exit 1; }
+  select_terminal_tool || { echo "❌ Terminal tool container configuration failed"; exit 1; }
   choose_image_env || { echo "❌ Image environment setup failed"; exit 1; }
 
   # Add permission
