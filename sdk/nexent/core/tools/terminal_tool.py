@@ -31,9 +31,6 @@ class TerminalTool(Tool):
 
     tool_sign = ToolSign.TERMINAL_OPERATION.value  # Terminal operation tool identifier
 
-    # Class-level session storage
-    _sessions: Dict[str, Dict[str, Any]] = {}
-
     def __init__(self, 
                  init_path: str = Field(description="Initial workspace path", default="~"),
                  observer: MessageObserver = Field(description="Message observer", default=None, exclude=True),
@@ -52,12 +49,17 @@ class TerminalTool(Tool):
             password (str): SSH password for authentication. Required parameter.
         """
         super().__init__()
-        # Handle ~ for home directory
+        # Handle ~ for home directory and None values
         if init_path == "~":
             self.init_path = "~"
+        elif init_path is None:
+            self.init_path = None
         else:
             self.init_path = os.path.abspath(init_path)
-        
+
+        # Class-level session storage
+        self._sessions: Dict[str, Dict[str, Any]] = {}
+
         self.observer = observer
         self.ssh_host = ssh_host
         self.ssh_port = ssh_port
@@ -339,64 +341,3 @@ class TerminalTool(Tool):
                 "error": str(e),
                 "timestamp": time.time()
             }, ensure_ascii=False, indent=2)
-
-    @classmethod
-    def cleanup_all_sessions(cls):
-        """Clean up all active sessions."""
-        for session_name, session in cls._sessions.items():
-            try:
-                if session and "channel" in session:
-                    session["channel"].close()
-                if session and "client" in session:
-                    session["client"].close()
-            except:
-                pass
-        cls._sessions.clear()
-        logger.info("All SSH sessions cleaned up")
-
-
-if __name__ == "__main__":
-    """Test the TerminalTool functionality"""
-    import sys
-    
-    # Basic configuration - 直接创建实例并设置属性
-    tool = TerminalTool.__new__(TerminalTool)
-    Tool.__init__(tool)
-    tool.init_path = "~"  # Use home directory as default
-    tool.observer = None
-    tool.ssh_host = "localhost"  # For local testing
-    tool.ssh_port = 2222
-    tool.ssh_user = input("Enter SSH username: ").strip()
-    tool.password = input("Enter SSH password: ").strip()
-    tool.running_prompt_zh = "正在执行终端命令..."
-    tool.running_prompt_en = "Executing terminal command..."
-    
-    print("=== Terminal Tool Test ===")
-    print("Make sure openssh-server container is running and password authentication is configured.")
-    print("You will be prompted to enter SSH username and password.")
-    print("Commands to test: 'ls -la', 'pwd', 'whoami', 'echo \"Hello World\"', 'exit'")
-    print()
-    
-    try:
-        while True:
-            command = input("Enter command (or 'quit' to exit): ").strip()
-            
-            if command.lower() in ['quit', 'exit']:
-                break
-                
-            if not command:
-                continue
-                
-            print(f"\n>>> Executing: {command}")
-            result = tool.forward(command, session_name="test_session", timeout=30)
-            print(f"Result: {result}")
-            print("-" * 50)
-            
-    except KeyboardInterrupt:
-        print("\nTest interrupted by user")
-    except Exception as e:
-        print(f"Test error: {e}")
-    finally:
-        print("Cleaning up sessions...")
-        TerminalTool.cleanup_all_sessions()
-        print("Test completed.") 
