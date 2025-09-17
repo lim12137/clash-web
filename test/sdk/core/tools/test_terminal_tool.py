@@ -448,6 +448,76 @@ class TestCommandExecution:
         
         assert "Error executing command" in result
         assert "Send failed" in result
+    
+    def test_execute_command_prompt_detection_with_no_more_data(self, terminal_tool, mock_ssh_session):
+        """Test command execution with prompt detection and no more data after prompt"""
+        mock_channel = mock_ssh_session["channel"]
+        
+        # Simulate dynamic recv_ready behavior:
+        # First call: data available, second call: no more data after prompt detection
+        mock_channel.recv_ready.side_effect = [True, False]
+        mock_channel.recv.return_value = b"file1.txt\nfile2.txt\n$ "
+        
+        with patch.object(terminal_tool, '_clean_output') as mock_clean:
+            mock_clean.return_value = "cleaned output"
+            
+            result = terminal_tool._execute_command(mock_channel, "ls", 30)
+            
+            assert result == "cleaned output"
+            mock_channel.send.assert_called_with("ls\n")
+            mock_clean.assert_called_once()
+            # Verify recv_ready was called multiple times
+            assert mock_channel.recv_ready.call_count >= 2
+    
+    def test_execute_command_multiple_prompt_types(self, terminal_tool, mock_ssh_session):
+        """Test command execution with different prompt types (# and >)"""
+        mock_channel = mock_ssh_session["channel"]
+        
+        # Test with # prompt (root shell)
+        mock_channel.recv_ready.side_effect = [True, False]
+        mock_channel.recv.return_value = b"root@server:~# "
+        
+        with patch.object(terminal_tool, '_clean_output') as mock_clean:
+            mock_clean.return_value = "cleaned output"
+            
+            result = terminal_tool._execute_command(mock_channel, "whoami", 30)
+            
+            assert result == "cleaned output"
+            mock_channel.send.assert_called_with("whoami\n")
+            mock_clean.assert_called_once()
+    
+    def test_execute_command_windows_prompt(self, terminal_tool, mock_ssh_session):
+        """Test command execution with Windows prompt (>)"""
+        mock_channel = mock_ssh_session["channel"]
+        
+        # Test with > prompt (Windows)
+        mock_channel.recv_ready.side_effect = [True, False]
+        mock_channel.recv.return_value = b"C:\\Users\\test> "
+        
+        with patch.object(terminal_tool, '_clean_output') as mock_clean:
+            mock_clean.return_value = "cleaned output"
+            
+            result = terminal_tool._execute_command(mock_channel, "dir", 30)
+            
+            assert result == "cleaned output"
+            mock_channel.send.assert_called_with("dir\n")
+            mock_clean.assert_called_once()
+    
+    def test_execute_command_no_output_timeout(self, terminal_tool, mock_ssh_session):
+        """Test command execution with no output for extended period"""
+        mock_channel = mock_ssh_session["channel"]
+        
+        # No data available, should timeout after 2 seconds of no output
+        mock_channel.recv_ready.return_value = False
+        
+        with patch('time.time') as mock_time:
+            # Simulate time progression: start at 0, then 1 second, then 3 seconds (timeout)
+            mock_time.side_effect = [0, 1, 3]
+            
+            result = terminal_tool._execute_command(mock_channel, "sleep 10", 30)
+            
+            # Should return empty or minimal output due to timeout
+            assert isinstance(result, str)
 
 
 class TestForwardMethod:
