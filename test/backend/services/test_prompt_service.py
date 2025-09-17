@@ -26,7 +26,7 @@ with patch('backend.database.client.MinioClient', return_value=minio_client_mock
                 get_enabled_sub_agent_description_for_generate_prompt,
                 generate_system_prompt,
                 join_info_for_generate_system_prompt,
-                process_thinking_tokens
+                _process_thinking_tokens
             )
 
 
@@ -493,7 +493,7 @@ class TestPromptService(unittest.TestCase):
         def mock_callback(text):
             callback_calls.append(text)
 
-        is_thinking = process_thinking_tokens(
+        is_thinking = _process_thinking_tokens(
             "Hello", False, token_join, mock_callback)
 
         self.assertFalse(is_thinking)
@@ -508,7 +508,7 @@ class TestPromptService(unittest.TestCase):
         def mock_callback(text):
             callback_calls.append(text)
 
-        is_thinking = process_thinking_tokens(
+        is_thinking = _process_thinking_tokens(
             "<think>", False, token_join, mock_callback)
 
         self.assertTrue(is_thinking)
@@ -523,7 +523,7 @@ class TestPromptService(unittest.TestCase):
         def mock_callback(text):
             callback_calls.append(text)
 
-        is_thinking = process_thinking_tokens(
+        is_thinking = _process_thinking_tokens(
             "thinking content", True, token_join, mock_callback)
 
         self.assertTrue(is_thinking)
@@ -538,7 +538,7 @@ class TestPromptService(unittest.TestCase):
         def mock_callback(text):
             callback_calls.append(text)
 
-        is_thinking = process_thinking_tokens(
+        is_thinking = _process_thinking_tokens(
             "</think>", True, token_join, mock_callback)
 
         self.assertFalse(is_thinking)
@@ -553,7 +553,7 @@ class TestPromptService(unittest.TestCase):
         def mock_callback(text):
             callback_calls.append(text)
 
-        is_thinking = process_thinking_tokens(
+        is_thinking = _process_thinking_tokens(
             "World", False, token_join, mock_callback)
 
         self.assertFalse(is_thinking)
@@ -569,32 +569,32 @@ class TestPromptService(unittest.TestCase):
             callback_calls.append(text)
 
         # Start with normal content
-        is_thinking = process_thinking_tokens(
+        is_thinking = _process_thinking_tokens(
             "Start ", False, token_join, mock_callback)
         self.assertFalse(is_thinking)
 
         # Enter thinking mode
-        is_thinking = process_thinking_tokens(
+        is_thinking = _process_thinking_tokens(
             "<think>", False, token_join, mock_callback)
         self.assertTrue(is_thinking)
 
         # Thinking content (ignored)
-        is_thinking = process_thinking_tokens(
+        is_thinking = _process_thinking_tokens(
             "thinking", True, token_join, mock_callback)
         self.assertTrue(is_thinking)
 
         # More thinking content (ignored)
-        is_thinking = process_thinking_tokens(
+        is_thinking = _process_thinking_tokens(
             " more", True, token_join, mock_callback)
         self.assertTrue(is_thinking)
 
         # End thinking
-        is_thinking = process_thinking_tokens(
+        is_thinking = _process_thinking_tokens(
             "</think>", True, token_join, mock_callback)
         self.assertFalse(is_thinking)
 
         # Continue with normal content
-        is_thinking = process_thinking_tokens(
+        is_thinking = _process_thinking_tokens(
             " End", False, token_join, mock_callback)
         self.assertFalse(is_thinking)
 
@@ -606,7 +606,7 @@ class TestPromptService(unittest.TestCase):
         """Test process_thinking_tokens without callback function"""
         token_join = []
 
-        is_thinking = process_thinking_tokens("Hello", False, token_join, None)
+        is_thinking = _process_thinking_tokens("Hello", False, token_join, None)
 
         self.assertFalse(is_thinking)
         self.assertEqual(token_join, ["Hello"])
@@ -619,7 +619,7 @@ class TestPromptService(unittest.TestCase):
         def mock_callback(text):
             callback_calls.append(text)
 
-        is_thinking = process_thinking_tokens(
+        is_thinking = _process_thinking_tokens(
             "", False, token_join, mock_callback)
 
         self.assertFalse(is_thinking)
