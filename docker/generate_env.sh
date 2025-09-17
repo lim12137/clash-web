@@ -73,6 +73,25 @@ update_env_file() {
       echo "ELASTICSEARCH_API_KEY=$ELASTICSEARCH_API_KEY" >> ../.env
     fi
   fi
+
+  # Update or add SSH credentials (only if they were set)
+  if [ -n "$SSH_USERNAME" ]; then
+    if grep -q "^SSH_USERNAME=" ../.env; then
+      sed -i.bak "s~^SSH_USERNAME=.*~SSH_USERNAME=$SSH_USERNAME~" ../.env
+    else
+      echo "" >> ../.env
+      echo "# SSH Terminal Tool Credentials" >> ../.env
+      echo "SSH_USERNAME=$SSH_USERNAME" >> ../.env
+    fi
+  fi
+
+  if [ -n "$SSH_PASSWORD" ]; then
+    if grep -q "^SSH_PASSWORD=" ../.env; then
+      sed -i.bak "s~^SSH_PASSWORD=.*~SSH_PASSWORD=$SSH_PASSWORD~" ../.env
+    else
+      echo "SSH_PASSWORD=$SSH_PASSWORD" >> ../.env
+    fi
+  fi
   echo "   ✅ Generated keys updated successfully"
 
   # Force update development environment service URLs for localhost access
@@ -217,6 +236,12 @@ show_summary() {
   fi
   if [ -n "$SERVICE_ROLE_KEY" ]; then
     echo "  🔑 SERVICE_ROLE_KEY: $SERVICE_ROLE_KEY"
+  fi
+  if [ -n "$SSH_USERNAME" ]; then
+    echo "  👤 SSH_USERNAME: $SSH_USERNAME"
+  fi
+  if [ -n "$SSH_PASSWORD" ]; then
+    echo "  🔑 SSH_PASSWORD: [HIDDEN]"
   fi
   if [ -z "$ELASTICSEARCH_API_KEY" ]; then
     echo "   ⚠️  Note: To generate ELASTICSEARCH_API_KEY later, please:"

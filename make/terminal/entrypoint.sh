@@ -1,31 +1,49 @@
 #!/bin/bash
 set -e
 
-# Get user name
+# Get user name and password
 DEV_USER=${DEV_USER:-linuxserver.io}
-USER_HOME="/home/$DEV_USER"
+DEV_PASSWORD=${DEV_PASSWORD:-nexent123}
+
+# Set correct home directory based on user
+if [ "$DEV_USER" = "root" ]; then
+    USER_HOME="/root"
+else
+    USER_HOME="/home/$DEV_USER"
+fi
+
+# Create user if it doesn't exist (except for root)
+if [ "$DEV_USER" != "root" ] && ! id "$DEV_USER" &>/dev/null; then
+    echo "Creating user: $DEV_USER"
+    useradd -m -s /bin/bash -G sudo "$DEV_USER" 2>/dev/null || useradd -m -s /bin/bash "$DEV_USER"
+    echo "✅ User $DEV_USER created"
+    
+    # Ensure user has proper permissions
+    chown -R "$DEV_USER:$DEV_USER" "$USER_HOME" 2>/dev/null || true
+fi
+
+# Set user password for SSH authentication
+if echo "$DEV_USER:$DEV_PASSWORD" | chpasswd; then
+    echo "✅ User password set for SSH authentication"
+else
+    echo "❌ Failed to set password for user $DEV_USER"
+    echo "   This might be due to password policy restrictions"
+    echo "   Trying alternative method..."
+    
+    # Try using passwd command as fallback
+    echo -e "$DEV_PASSWORD\n$DEV_PASSWORD" | passwd "$DEV_USER" 2>/dev/null || {
+        echo "❌ Alternative password setting also failed"
+        echo "   Please check password complexity requirements"
+        exit 1
+    }
+    echo "✅ Password set using alternative method"
+fi
 
 # Allow login (unlock)
 passwd -u "$DEV_USER" 2>/dev/null || true
 
 # Ensure shell is available
 usermod -s /bin/bash "$DEV_USER" 2>/dev/null || true
-
-# Ensure user .ssh directory exists
-mkdir -p "$USER_HOME/.ssh"
-chown $DEV_USER:$DEV_USER "$USER_HOME/.ssh"
-chmod 700 "$USER_HOME/.ssh"
-
-# Configure public key authentication (Ed25519)
-if [ -f /tmp/ssh_keys/openssh_server_key.pub ]; then
-    cp /tmp/ssh_keys/openssh_server_key.pub "$USER_HOME/.ssh/authorized_keys"
-    chown $DEV_USER:$DEV_USER "$USER_HOME/.ssh/authorized_keys"
-    chmod 600 "$USER_HOME/.ssh/authorized_keys"
-    echo "✅ SSH public key successfully configured (Ed25519)"
-else
-    echo "⚠️ Warning: SSH public key file not found /tmp/ssh_keys/openssh_server_key.pub"
-    echo "⚠️ Unable to connect to container via SSH"
-fi
 
 # Configure conda auto-activation for development user
 echo "Configuring conda auto-activation for user $DEV_USER..."
