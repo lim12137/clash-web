@@ -241,3 +241,26 @@ async def list_models_for_tenant(tenant_id: str):
     except Exception as e:
         logging.error(f"Failed to retrieve model list: {str(e)}")
         raise Exception(f"Failed to retrieve model list: {str(e)}")
+
+
+async def list_llm_models_for_tenant(tenant_id: str):
+    """Get detailed information for all models for a tenant with normalized fields."""
+    try:
+        records = get_model_records({"model_type": "llm"}, tenant_id)
+        result: List[Dict[str, Any]] = []
+        for record in records:
+            result.append({
+                "model_id": record["model_id"],
+                "model_name": add_repo_to_name(
+                                model_repo=record["model_repo"],
+                                model_name=record["model_name"],
+                            ),
+                "connect_status": ModelConnectStatusEnum.get_value(record.get("connect_status")),
+                "display_name": record["display_name"]
+            })
+
+        logging.debug("Successfully retrieved model list")
+        return result
+    except Exception as e:
+        logging.error(f"Failed to retrieve model list: {str(e)}")
+        raise Exception(f"Failed to retrieve model list: {str(e)}")
