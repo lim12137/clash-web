@@ -1,7 +1,9 @@
-import { GlobalConfig } from '@/types/config';
 import { API_ENDPOINTS } from './api';
-import { ConfigStore } from '@/lib/config';
+
+import { GlobalConfig } from '@/types/modelConfig';
+
 import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
+import { ConfigStore } from '@/lib/config';
 // @ts-ignore
 const fetch = fetchWithAuth;
 
@@ -17,7 +19,7 @@ export class ConfigService {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('保存配置失败:', errorData);
+        console.error('Failed to save configuration:', errorData);
         return false;
       }
 
@@ -25,7 +27,7 @@ export class ConfigService {
       const result = await response.json();
       return true;
     } catch (error) {
-      console.error('保存配置请求异常:', error);
+      console.error('Save configuration request exception:', error);
       return false;
     }
   }
@@ -39,7 +41,7 @@ export class ConfigService {
       });
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('加载配置失败:', errorData);
+        console.error('Failed to load configuration:', errorData);
         return false;
       }
       const result = await response.json();
@@ -56,7 +58,7 @@ export class ConfigService {
           localStorage.setItem('model', JSON.stringify(frontendConfig.models));
         }
         
-        // 触发配置重新加载并派发事件
+        // Trigger configuration reload and dispatch event
         if (typeof window !== 'undefined') {
           const configStore = ConfigStore.getInstance();
           configStore.reloadFromStorage();
@@ -66,7 +68,7 @@ export class ConfigService {
       }
       return false;
     } catch (error) {
-      console.error('加载配置请求异常:', error);
+      console.error('Load configuration request exception:', error);
       return false;
     }
   }

@@ -1,17 +1,7 @@
 import { useMemo } from 'react';
-import { ChatMessageType, TaskMessageType } from '@/types/chat';
 
-interface MessageGroup {
-  message: TaskMessageType;
-  cards: TaskMessageType[];
-}
-
-export interface ChatTaskMessageResult {
-  visibleMessages: TaskMessageType[];
-  groupedMessages: MessageGroup[];
-  hasMessages: boolean;
-  hasVisibleMessages: boolean;
-}
+import { ROLE_ASSISTANT } from '@/const/agentConfig';
+import { ChatMessageType, TaskMessageType, MessageGroup, ChatTaskMessageResult } from '@/types/chat';
 
 export function useChatTaskMessage(messages: ChatMessageType[]): ChatTaskMessageResult {
   // Filter visible messages
@@ -59,7 +49,7 @@ export function useChatTaskMessage(messages: ChatMessageType[]): ChatTaskMessage
         groups.push({
           message: {
             id: `virtual-${Date.now()}`,
-            role: "assistant",
+            role: ROLE_ASSISTANT,
             type: "virtual",
             content: "",
             timestamp: new Date()

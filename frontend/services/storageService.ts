@@ -1,23 +1,9 @@
 import { API_ENDPOINTS } from './api';
+import { StorageUploadResult } from '../types/chat';
+
 import { fetchWithAuth } from '@/lib/auth';
 // @ts-ignore
 const fetch = fetchWithAuth;
-
-interface StorageUploadResult {
-  message: string;
-  success_count: number;
-  failed_count: number;
-  results: {
-    success: boolean;
-    object_name: string;
-    file_name: string;
-    file_size: number;
-    content_type: string;
-    upload_time: string;
-    url: string;
-    error?: string;
-  }[];
-}
 
 export const storageService = {
   /**

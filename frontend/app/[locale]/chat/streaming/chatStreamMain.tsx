@@ -1,47 +1,18 @@
-import { useRef, useEffect, useState } from "react"
-import { ScrollArea } from "@/components/ui/scrollArea"
-import { ChatInput } from "@/app/chat/components/chatInput"
-import { ChatMessageType } from "@/types/chat"
-import { FilePreview } from "@/app/chat/components/chatInput"
-import { Button } from "@/components/ui/button"
-import { ChevronDown } from "lucide-react"
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChatStreamFinalMessage } from "./chatStreamFinalMessage"
-import { TaskWindow } from "./taskWindow"
-import { useTranslation } from "react-i18next"
+import { useRef, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ChevronDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-// Define a new message processing structure
-interface ProcessedMessages {
-  finalMessages: ChatMessageType[];  // User messages and final answers
-  taskMessages: any[];  // Task messages, used for task windows
-  // Add conversation group mapping
-  conversationGroups: Map<string, any[]>; // User message ID -> related task messages
-}
+import { ScrollArea } from "@/components/ui/scrollArea";
+import { Button } from "@/components/ui/button";
+import { ROLE_ASSISTANT } from "@/const/agentConfig";
+import { chatConfig } from "@/const/chatConfig";
+import { USER_ROLES } from "@/const/modelConfig";
+import { ChatMessageType, ProcessedMessages, ChatStreamMainProps } from "@/types/chat";
 
-interface ChatStreamMainProps {
-  messages: ChatMessageType[]
-  input: string
-  isLoading: boolean
-  isStreaming?: boolean
-  isLoadingHistoricalConversation?: boolean
-  conversationLoadError?: string
-  onInputChange: (value: string) => void
-  onSend: () => void
-  onStop: () => void
-  onKeyDown: (e: React.KeyboardEvent) => void
-  onSelectMessage?: (messageId: string) => void
-  selectedMessageId?: string
-  onImageClick?: (image: string) => void
-  attachments?: FilePreview[]
-  onAttachmentsChange?: (attachments: FilePreview[]) => void
-  onFileUpload?: (file: File) => void
-  onImageUpload?: (file: File) => void
-  onOpinionChange?: (messageId: number, opinion: 'Y' | 'N' | null) => void
-  currentConversationId?: number
-  shouldScrollToBottom?: boolean
-  selectedAgentId?: number | null
-  onAgentSelect?: (agentId: number | null) => void
-}
+import { ChatInput } from "../components/chatInput";
+import { ChatStreamFinalMessage } from "./chatStreamFinalMessage";
+import { TaskWindow } from "./taskWindow";
 
 export function ChatStreamMain({
   messages,
@@ -85,57 +56,62 @@ export function ChatStreamMain({
     stiffness: 300,
     damping: 80,
   };
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
-  const [showScrollButton, setShowScrollButton] = useState(false)
-  const [showTopFade, setShowTopFade] = useState(false)
-  const [autoScroll, setAutoScroll] = useState(true)
-  const [processedMessages, setProcessedMessages] = useState<ProcessedMessages>({
-    finalMessages: [],
-    taskMessages: [],
-    conversationGroups: new Map()
-  })
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showTopFade, setShowTopFade] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [processedMessages, setProcessedMessages] = useState<ProcessedMessages>(
+    {
+      finalMessages: [],
+      taskMessages: [],
+      conversationGroups: new Map(),
+    }
+  );
   const lastUserMessageIdRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  // 处理消息分类
+
+  // Handle message classification
   useEffect(() => {
     const finalMsgs: ChatMessageType[] = [];
-    const taskMsgs: any[] = [];
-    const conversationGroups = new Map<string, any[]>();
-    
-    // First preprocess, find all user message IDs and initialize task groups
-    messages.forEach(message => {
-      if (message.role === "user" && message.id) {
-        conversationGroups.set(message.id, []);
-      }
-    });
-    
+      const taskMsgs: any[] = [];
+      const conversationGroups = new Map<string, any[]>();
+      const truncationBuffer = new Map<string, any[]>(); // Buffer for truncation messages by user message ID
+      const processedTruncationIds = new Set<string>(); // Track processed truncation messages to avoid duplicates
+
+      // First preprocess, find all user message IDs and initialize task groups
+      messages.forEach((message) => {
+        if (message.role === USER_ROLES.USER && message.id) {
+          conversationGroups.set(message.id, []);
+          truncationBuffer.set(message.id, []); // Initialize truncation buffer for each user message
+        }
+      });
+
     let currentUserMsgId: string | null = null;
-    
+
     // Process all messages, distinguish user messages, final answers, and task messages
-    messages.forEach(message => {
+    messages.forEach((message) => {
       // User messages are directly added to the final message array
-      if (message.role === "user") {
+      if (message.role === USER_ROLES.USER) {
         finalMsgs.push(message);
         // Record the user message ID, used to associate subsequent tasks
         if (message.id) {
           currentUserMsgId = message.id;
-          
+
           // Save the latest user message ID to the ref
           lastUserMessageIdRef.current = message.id;
         }
-      } 
+      }
       // Assistant messages need further processing
-      else if (message.role === "assistant") {
+      else if (message.role === ROLE_ASSISTANT) {
         // If there is a final answer or content (including empty string), add it to the final message array
         if (message.finalAnswer || message.content !== undefined) {
           finalMsgs.push(message);
           // Do not reset currentUserMsgId here, continue to use it to associate tasks
         }
-        
+
         // Process all steps and content as task messages
         if (message.steps && message.steps.length > 0) {
-          message.steps.forEach(step => {
+          message.steps.forEach((step) => {
             // Process step.contents (if it exists)
             if (step.contents && step.contents.length > 0) {
               step.contents.forEach((content: any) => {
@@ -145,70 +121,100 @@ export function ChatStreamMain({
                   content: content.content,
                   id: content.id,
                   assistantId: message.id,
-                  relatedUserMsgId: currentUserMsgId
+                  relatedUserMsgId: currentUserMsgId,
+                  // For preprocess messages, include the full contents array for TaskWindow
+                  contents: content.type === chatConfig.contentTypes.PREPROCESS ? step.contents : undefined,
                 };
-                taskMsgs.push(taskMsg);
-                
-                // If there is a related user message, add it to the corresponding task group
-                if (currentUserMsgId && conversationGroups.has(currentUserMsgId)) {
-                  const tasks = conversationGroups.get(currentUserMsgId) || [];
-                  tasks.push(taskMsg);
-                  conversationGroups.set(currentUserMsgId, tasks);
+
+                // Handle truncation messages specially - buffer them instead of adding immediately
+                if (content.type === "truncation") {
+                  // Create a unique ID for this truncation message to avoid duplicates
+                  const truncationId = `${content.filename || 'unknown'}_${content.message || ''}_${currentUserMsgId || 'no_user'}`;
+
+                  // Only add if not already processed
+                  if (!processedTruncationIds.has(truncationId) && currentUserMsgId && truncationBuffer.has(currentUserMsgId)) {
+                    const buffer = truncationBuffer.get(currentUserMsgId) || [];
+                    buffer.push(taskMsg);
+                    truncationBuffer.set(currentUserMsgId, buffer);
+                    processedTruncationIds.add(truncationId);
+                  }
+                } else {
+                  // For non-truncation messages, add them immediately
+                  taskMsgs.push(taskMsg);
+
+                  // If there is a related user message, add it to the corresponding task group
+                  if (
+                    currentUserMsgId &&
+                    conversationGroups.has(currentUserMsgId)
+                  ) {
+                    const tasks = conversationGroups.get(currentUserMsgId) || [];
+                    tasks.push(taskMsg);
+                    conversationGroups.set(currentUserMsgId, tasks);
+                  }
                 }
               });
             }
-            
+
             // Process step.thinking (if it exists)
             if (step.thinking && step.thinking.content) {
               const taskMsg = {
-                type: "model_output_thinking",
+                type: chatConfig.messageTypes.MODEL_OUTPUT_THINKING,
                 content: step.thinking.content,
                 id: `thinking-${step.id}`,
                 assistantId: message.id,
-                relatedUserMsgId: currentUserMsgId
+                relatedUserMsgId: currentUserMsgId,
               };
               taskMsgs.push(taskMsg);
-              
+
               // If there is a related user message, add it to the corresponding task group
-              if (currentUserMsgId && conversationGroups.has(currentUserMsgId)) {
+              if (
+                currentUserMsgId &&
+                conversationGroups.has(currentUserMsgId)
+              ) {
                 const tasks = conversationGroups.get(currentUserMsgId) || [];
                 tasks.push(taskMsg);
                 conversationGroups.set(currentUserMsgId, tasks);
               }
             }
-            
+
             // Process step.code (if it exists)
             if (step.code && step.code.content) {
               const taskMsg = {
-                type: "model_output_code",
+                type: chatConfig.messageTypes.MODEL_OUTPUT_CODE,
                 content: step.code.content,
                 id: `code-${step.id}`,
                 assistantId: message.id,
-                relatedUserMsgId: currentUserMsgId
+                relatedUserMsgId: currentUserMsgId,
               };
               taskMsgs.push(taskMsg);
-              
+
               // If there is a related user message, add it to the corresponding task group
-              if (currentUserMsgId && conversationGroups.has(currentUserMsgId)) {
+              if (
+                currentUserMsgId &&
+                conversationGroups.has(currentUserMsgId)
+              ) {
                 const tasks = conversationGroups.get(currentUserMsgId) || [];
                 tasks.push(taskMsg);
                 conversationGroups.set(currentUserMsgId, tasks);
               }
             }
-            
+
             // Process step.output (if it exists)
             if (step.output && step.output.content) {
               const taskMsg = {
-                type: "tool",
+                type: chatConfig.messageTypes.TOOL,
                 content: step.output.content,
                 id: `output-${step.id}`,
                 assistantId: message.id,
-                relatedUserMsgId: currentUserMsgId
+                relatedUserMsgId: currentUserMsgId,
               };
               taskMsgs.push(taskMsg);
-              
+
               // If there is a related user message, add it to the corresponding task group
-              if (currentUserMsgId && conversationGroups.has(currentUserMsgId)) {
+              if (
+                currentUserMsgId &&
+                conversationGroups.has(currentUserMsgId)
+              ) {
                 const tasks = conversationGroups.get(currentUserMsgId) || [];
                 tasks.push(taskMsg);
                 conversationGroups.set(currentUserMsgId, tasks);
@@ -216,19 +222,19 @@ export function ChatStreamMain({
             }
           });
         }
-        
+
         // Process thinking status (if it exists)
         if (message.thinking && message.thinking.length > 0) {
           message.thinking.forEach((thinking, index) => {
             const taskMsg = {
-              type: "model_output_thinking",
+              type: chatConfig.messageTypes.MODEL_OUTPUT_THINKING,
               content: thinking.content,
               id: `thinking-${message.id}-${index}`,
               assistantId: message.id,
-              relatedUserMsgId: currentUserMsgId
+              relatedUserMsgId: currentUserMsgId,
             };
             taskMsgs.push(taskMsg);
-            
+
             // If there is a related user message, add it to the corresponding task group
             if (currentUserMsgId && conversationGroups.has(currentUserMsgId)) {
               const tasks = conversationGroups.get(currentUserMsgId) || [];
@@ -239,7 +245,37 @@ export function ChatStreamMain({
         }
       }
     });
-    
+
+    // Process complete messages and release buffered truncation messages
+    messages.forEach((message) => {
+      if (message.role === ROLE_ASSISTANT && message.steps) {
+        message.steps.forEach((step) => {
+          if (step.contents && step.contents.length > 0) {
+            step.contents.forEach((content: any) => {
+              if (content.type === "complete") {
+                // Find the related user message ID for this complete message
+                let relatedUserMsgId: string | null = null;
+
+                // Find the user message that this assistant message is responding to
+                const messageIndex = messages.indexOf(message);
+                for (let i = messageIndex - 1; i >= 0; i--) {
+                  if (messages[i].role === "user" && messages[i].id) {
+                    relatedUserMsgId = messages[i].id;
+                    break;
+                  }
+                }
+
+                if (relatedUserMsgId && truncationBuffer.has(relatedUserMsgId)) {
+                  // Clear the buffer for this user message
+                  truncationBuffer.delete(relatedUserMsgId);
+                }
+              }
+            });
+          }
+        });
+      }
+    });
+
     // Check and delete empty task groups
     for (const [key, value] of conversationGroups.entries()) {
       if (value.length === 0) {
@@ -250,20 +286,23 @@ export function ChatStreamMain({
     setProcessedMessages({
       finalMessages: finalMsgs,
       taskMessages: taskMsgs,
-      conversationGroups: conversationGroups
+      conversationGroups: conversationGroups,
     });
   }, [messages]);
-  
+
   // Listen for scroll events
   useEffect(() => {
-    const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-    
+    const scrollAreaElement = scrollAreaRef.current?.querySelector(
+      "[data-radix-scroll-area-viewport]"
+    );
+
     if (!scrollAreaElement) return;
-    
+
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
+      const { scrollTop, scrollHeight, clientHeight } =
+        scrollAreaElement as HTMLElement;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
-      
+
       // Show/hide the scroll to bottom button
       if (distanceToBottom > 100) {
         setShowScrollButton(true);
@@ -271,7 +310,7 @@ export function ChatStreamMain({
         setShowScrollButton(false);
       }
 
-      // 显示顶部渐变效果
+      // Show top gradient effect
       if (scrollTop > 10) {
         setShowTopFade(true);
       } else {
@@ -282,38 +321,42 @@ export function ChatStreamMain({
       if (!shouldScrollToBottom) {
         if (distanceToBottom < 50) {
           setAutoScroll(true);
-        } else if (distanceToBottom > 80) { 
+        } else if (distanceToBottom > 80) {
           setAutoScroll(false);
         }
       }
     };
-    
+
     // Add scroll event listener
-    scrollAreaElement.addEventListener('scroll', handleScroll);
-    
+    scrollAreaElement.addEventListener("scroll", handleScroll);
+
     // Execute a check once on initialization
     handleScroll();
-    
+
     return () => {
-      scrollAreaElement.removeEventListener('scroll', handleScroll);
+      scrollAreaElement.removeEventListener("scroll", handleScroll);
     };
   }, [shouldScrollToBottom]);
 
   // Scroll to bottom function
   const scrollToBottom = (smooth = false) => {
-    const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    const scrollAreaElement = scrollAreaRef.current?.querySelector(
+      "[data-radix-scroll-area-viewport]"
+    );
     if (!scrollAreaElement) return;
-    
+
     // Use setTimeout to ensure scrolling after DOM updates
     setTimeout(() => {
       if (scrollAreaElement) {
         if (smooth) {
           scrollAreaElement.scrollTo({
             top: (scrollAreaElement as HTMLElement).scrollHeight,
-            behavior: 'smooth'
+            behavior: "smooth",
           });
         } else {
-          (scrollAreaElement as HTMLElement).scrollTop = (scrollAreaElement as HTMLElement).scrollHeight;
+          (scrollAreaElement as HTMLElement).scrollTop = (
+            scrollAreaElement as HTMLElement
+          ).scrollHeight;
         }
       }
     }, 0);
@@ -334,34 +377,50 @@ export function ChatStreamMain({
   // Scroll to bottom when messages are updated (if user is already at the bottom)
   useEffect(() => {
     if (processedMessages.finalMessages.length > 0 && autoScroll) {
-      const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+      const scrollAreaElement = scrollAreaRef.current?.querySelector(
+        "[data-radix-scroll-area-viewport]"
+      );
       if (!scrollAreaElement) return;
 
-      const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
+      const { scrollTop, scrollHeight, clientHeight } =
+        scrollAreaElement as HTMLElement;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
-      
+
       // When shouldScrollToBottom is true, force scroll to the bottom, regardless of distance.
       if (shouldScrollToBottom || distanceToBottom < 50) {
         scrollToBottom();
       }
     }
-  }, [processedMessages.finalMessages.length, processedMessages.conversationGroups.size, autoScroll, shouldScrollToBottom]);
+  }, [
+    processedMessages.finalMessages.length,
+    processedMessages.conversationGroups.size,
+    autoScroll,
+    shouldScrollToBottom,
+  ]);
 
   // Scroll to bottom when task messages are updated
   useEffect(() => {
     if (autoScroll) {
-      const scrollAreaElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+      const scrollAreaElement = scrollAreaRef.current?.querySelector(
+        "[data-radix-scroll-area-viewport]"
+      );
       if (!scrollAreaElement) return;
 
-      const { scrollTop, scrollHeight, clientHeight } = scrollAreaElement as HTMLElement;
+      const { scrollTop, scrollHeight, clientHeight } =
+        scrollAreaElement as HTMLElement;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
-      
+
       // When shouldScrollToBottom is true, force scroll to the bottom, regardless of distance.
       if (shouldScrollToBottom || distanceToBottom < 150) {
         scrollToBottom();
       }
     }
-  }, [processedMessages.taskMessages.length, isStreaming, autoScroll, shouldScrollToBottom]);
+  }, [
+    processedMessages.taskMessages.length,
+    isStreaming,
+    autoScroll,
+    shouldScrollToBottom,
+  ]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative custom-scrollbar">
@@ -369,67 +428,67 @@ export function ChatStreamMain({
       <ScrollArea className="flex-1 px-4 pt-4" ref={scrollAreaRef}>
         <div className="max-w-3xl mx-auto">
           {processedMessages.finalMessages.length === 0 ? (
-                isLoadingHistoricalConversation ? (
-                  // when loading historical conversation, show empty area
-                  <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-                    <div className="text-gray-500 text-sm">
-                      {t('chatStreamMain.loadingConversation')}
-                    </div>
-                  </div>
-                ) : conversationLoadError ? (
-                  // when conversation load error, show error message
-                  <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-                    <div className="text-center max-w-md">
-                      <div className="text-red-500 text-sm mb-4">
-                        {t('chatStreamMain.loadError')}
-                      </div>
-                      <div className="text-gray-500 text-xs mb-4">
-                        {conversationLoadError}
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          // Trigger a page refresh to retry loading
-                          window.location.reload();
-                        }}
-                      >
-                        {t('chatStreamMain.retry')}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  // when new conversation, show input interface
-                  <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-                    <div className="w-full max-w-3xl">
-                      <AnimatePresence mode="wait">
-                        <motion.div
-                          key="initial-chat-input"
-                          initial="initial"
-                          animate="animate"
-                          variants={chatInputVariants}
-                          transition={chatInputTransition}
-                        >
-                        <ChatInput
-                          input={input}
-                          isLoading={isLoading}
-                          isStreaming={isStreaming}
-                          isInitialMode={true}
-                          onInputChange={onInputChange}
-                          onSend={onSend}
-                          onStop={onStop}
-                          onKeyDown={onKeyDown}
-                          attachments={attachments}
-                          onAttachmentsChange={onAttachmentsChange}
-                          onFileUpload={onFileUpload}
-                          onImageUpload={onImageUpload}
-                          selectedAgentId={selectedAgentId}
-                          onAgentSelect={onAgentSelect}
-                        />
-                        </motion.div>
-                      </AnimatePresence>
-                    </div>
+            isLoadingHistoricalConversation ? (
+              // when loading historical conversation, show empty area
+              <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+                <div className="text-gray-500 text-sm">
+                  {t("chatStreamMain.loadingConversation")}
                 </div>
+              </div>
+            ) : conversationLoadError ? (
+              // when conversation load error, show error message
+              <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+                <div className="text-center max-w-md">
+                  <div className="text-red-500 text-sm mb-4">
+                    {t("chatStreamMain.loadError")}
+                  </div>
+                  <div className="text-gray-500 text-xs mb-4">
+                    {conversationLoadError}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Trigger a page refresh to retry loading
+                      window.location.reload();
+                    }}
+                  >
+                    {t("chatStreamMain.retry")}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              // when new conversation, show input interface
+              <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+                <div className="w-full max-w-3xl">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key="initial-chat-input"
+                      initial="initial"
+                      animate="animate"
+                      variants={chatInputVariants}
+                      transition={chatInputTransition}
+                    >
+                      <ChatInput
+                        input={input}
+                        isLoading={isLoading}
+                        isStreaming={isStreaming}
+                        isInitialMode={true}
+                        onInputChange={onInputChange}
+                        onSend={onSend}
+                        onStop={onStop}
+                        onKeyDown={onKeyDown}
+                        attachments={attachments}
+                        onAttachmentsChange={onAttachmentsChange}
+                        onFileUpload={onFileUpload}
+                        onImageUpload={onImageUpload}
+                        selectedAgentId={selectedAgentId}
+                        onAgentSelect={onAgentSelect}
+                      />
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              </div>
             )
           ) : (
             <>
@@ -446,14 +505,22 @@ export function ChatStreamMain({
                     index={index}
                     currentConversationId={currentConversationId}
                   />
-                  {message.role === "user" && processedMessages.conversationGroups.has(message.id!) && (
-                    <div className="transition-all duration-500 opacity-0 translate-y-4 animate-task-window">
-                      <TaskWindow
-                        messages={processedMessages.conversationGroups.get(message.id!) || []}
-                        isStreaming={isStreaming && lastUserMessageIdRef.current === message.id}
-                      />
-                    </div>
-                  )}
+                  {message.role === "user" &&
+                    processedMessages.conversationGroups.has(message.id!) && (
+                      <div className="transition-all duration-500 opacity-0 translate-y-4 animate-task-window">
+                        <TaskWindow
+                          messages={
+                            processedMessages.conversationGroups.get(
+                              message.id!
+                            ) || []
+                          }
+                          isStreaming={
+                            isStreaming &&
+                            lastUserMessageIdRef.current === message.id
+                          }
+                        />
+                      </div>
+                    )}
                 </div>
               ))}
             </>
@@ -476,7 +543,6 @@ export function ChatStreamMain({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Scroll button clicked');
             scrollToBottom(true);
           }}
         >
@@ -526,5 +592,5 @@ export function ChatStreamMain({
         }
       `}</style>
     </div>
-  )
-} 
+  );
+}

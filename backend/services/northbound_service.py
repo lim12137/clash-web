@@ -5,19 +5,18 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-
 from fastapi.responses import StreamingResponse
 
-from database.conversation_db import get_conversation_messages
-from consts.model import AgentRequest
 from consts.exceptions import (
     LimitExceededError,
     UnauthorizedError,
 )
-from services.conversation_management_service import (
-    get_conversation_list_service,
-    create_new_conversation,
-    update_conversation_title as update_conversation_title_service,
+from consts.model import AgentRequest
+from database.conversation_db import get_conversation_messages
+from database.partner_db import (
+    add_mapping_id,
+    get_external_id_by_internal,
+    get_internal_id_by_external
 )
 from services.agent_service import (
     run_agent_stream,
@@ -25,12 +24,11 @@ from services.agent_service import (
     list_all_agent_info_impl,
     get_agent_id_by_name
 )
-from database.partner_db import (
-    add_mapping_id, 
-    get_external_id_by_internal, 
-    get_internal_id_by_external
+from services.conversation_management_service import (
+    get_conversation_list_service,
+    create_new_conversation,
+    update_conversation_title as update_conversation_title_service,
 )
-
 
 logger = logging.getLogger("northbound_service")
 
@@ -41,6 +39,7 @@ class NorthboundContext:
     tenant_id: str
     user_id: str
     authorization: str
+
 
 # -----------------------------
 # In-memory idempotency and rate limit placeholders
@@ -151,7 +150,6 @@ async def start_streaming_chat(
     query: str,
     idempotency_key: Optional[str] = None
 ) -> StreamingResponse:
-    composed_key: Optional[str] = None
     try:
         # Simple rate limit
         await check_and_consume_rate_limit(ctx.tenant_id)
@@ -226,7 +224,7 @@ async def list_conversations(ctx: NorthboundContext) -> Dict[str, Any]:
 
 async def get_conversation_history(ctx: NorthboundContext, external_conversation_id: str) -> Dict[str, Any]:
     internal_id = await to_internal_conversation_id(external_conversation_id)
-    
+
     history = get_conversation_messages(internal_id)
     # Remove unnecessary fields
     result = []
@@ -235,7 +233,6 @@ async def get_conversation_history(ctx: NorthboundContext, external_conversation
             "role": message["message_role"],
             "content": message["message_content"]
         })
-
 
     response = {
         "conversation_id": external_conversation_id,

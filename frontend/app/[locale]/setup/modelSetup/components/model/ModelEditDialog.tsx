@@ -1,10 +1,13 @@
-import { Modal, Input, Button, App } from 'antd'
 import { useState, useEffect } from 'react'
-import { ModelOption, ModelType } from '@/types/config'
-import { modelService } from '@/services/modelService'
-import { useConfig } from '@/hooks/useConfig'
 import { useTranslation } from 'react-i18next'
 
+import { Modal, Input, Button, App } from 'antd'
+
+import { MODEL_TYPES, MODEL_STATUS } from '@/const/modelConfig'
+import { useConfig } from '@/hooks/useConfig'
+import { modelService } from '@/services/modelService'
+import { ModelOption, ModelType } from '@/types/modelConfig'
+import {getConnectivityMeta, ConnectivityStatusType } from '@/lib/utils'
 
 interface ModelEditDialogProps {
   isOpen: boolean
@@ -18,7 +21,7 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
   const { message } = App.useApp()
   const { updateModelConfig } = useConfig()
   const [form, setForm] = useState({
-    type: "llm" as ModelType,
+    type: MODEL_TYPES.LLM as ModelType,
     name: "",
     displayName: "",
     url: "",
@@ -27,6 +30,14 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
     vectorDimension: "1024"
   })
   const [loading, setLoading] = useState(false)
+  const [verifyingConnectivity, setVerifyingConnectivity] = useState(false)
+  const [connectivityStatus, setConnectivityStatus] = useState<{
+    status: ConnectivityStatusType
+    message: string
+  }>({
+    status: null,
+    message: ""
+  })
 
   useEffect(() => {
     if (model) {
@@ -44,42 +55,92 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
 
   const handleFormChange = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }))
+    // If the key configuration item changes, clear the verification status
+    if (['url', 'apiKey', 'maxTokens', 'vectorDimension'].includes(field)) {
+      setConnectivityStatus({ status: null, message: "" })
+    }
   }
 
-  const isEmbeddingModel = form.type === "embedding" || form.type === "multi_embedding"
+  const isEmbeddingModel = form.type === MODEL_TYPES.EMBEDDING || form.type === MODEL_TYPES.MULTI_EMBEDDING
 
   const isFormValid = () => {
     return form.name.trim() !== "" && form.url.trim() !== ""
+  }
+
+  // Verify model connectivity
+  const handleVerifyConnectivity = async () => {
+    if (!isFormValid()) {
+      message.warning(t('model.dialog.warning.incompleteForm'))
+      return
+    }
+
+    setVerifyingConnectivity(true)
+    setConnectivityStatus({ status: "checking", message: t('model.dialog.status.verifying') })
+
+    try {
+      const modelType = form.type as ModelType
+
+      const config = {
+        modelName: form.name,
+        modelType: modelType,
+        baseUrl: form.url,
+        apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey,
+        maxTokens: form.type === MODEL_TYPES.EMBEDDING ? parseInt(form.vectorDimension) : parseInt(form.maxTokens),
+        embeddingDim: form.type === MODEL_TYPES.EMBEDDING ? parseInt(form.vectorDimension) : undefined
+      }
+
+      const result = await modelService.verifyModelConfigConnectivity(config)
+
+      // Set connectivity status
+      let connectivityMessage = ''
+      if (result.connectivity) {
+        connectivityMessage = t('model.dialog.connectivity.status.available')
+      } else {
+        connectivityMessage = t('model.dialog.connectivity.status.unavailable')
+      }
+      setConnectivityStatus({
+        status: result.connectivity ? MODEL_STATUS.AVAILABLE : MODEL_STATUS.UNAVAILABLE,
+        message: connectivityMessage
+      })
+
+    } catch (error) {
+      setConnectivityStatus({
+        status: "unavailable",
+        message: t('model.dialog.connectivity.status.unavailable')
+      })
+    } finally {
+      setVerifyingConnectivity(false)
+    }
   }
 
   const handleSave = async () => {
     if (!model) return
     setLoading(true)
     try {
-      // 使用更新接口而不是删除 + 新增
+      // Use update interface instead of delete + add
       const modelType = form.type as ModelType
       // Determine max tokens
       let maxTokensValue = parseInt(form.maxTokens)
       if (isEmbeddingModel) maxTokensValue = 0
       
       await modelService.updateSingleModel({
-        model_id: model.id, // 使用模型名称作为ID
-        name: form.name,
+        model_id: model.id, // Use model name as ID
+        displayName: form.displayName,
         url: form.url,
         apiKey: form.apiKey.trim() === "" ? "sk-no-api-key" : form.apiKey,
-        maxTokens: maxTokensValue,
+        ...(maxTokensValue !== 0 ? { maxTokens: maxTokensValue } : {}),
         source: model.source
       })
 
-      // 更新本地配置（仅当当前编辑模型在配置中被选中时）
+      // Update local configuration (only when currently edited model is selected in configuration)
       const modelConfigKeyMap: Record<ModelType, string> = {
-        llm: "llm",
-        embedding: "embedding",
-        multi_embedding: "multiEmbedding",
-        vlm: "vlm",
-        rerank: "rerank",
-        tts: "tts",
-        stt: "stt"
+        llm: MODEL_TYPES.LLM,
+        embedding: MODEL_TYPES.EMBEDDING,
+        multi_embedding: MODEL_TYPES.MULTI_EMBEDDING,
+        vlm: MODEL_TYPES.VLM,
+        rerank: MODEL_TYPES.RERANK,
+        tts: MODEL_TYPES.TTS,
+        stt: MODEL_TYPES.STT
       }
       const configKey = modelConfigKeyMap[modelType]
       updateModelConfig({
@@ -126,11 +187,11 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
         {/* Model Name */}
         <div>
           <label className="block mb-1 text-sm font-medium text-gray-700">
-            {t('model.dialog.label.name')}
+            {t('model.dialog.label.displayName')}
           </label>
           <Input
-            value={form.name}
-            onChange={(e) => handleFormChange('name', e.target.value)}
+            value={form.displayName}
+            onChange={(e) => handleFormChange('displayName', e.target.value)}
           />
         </div>
 
@@ -168,6 +229,37 @@ export const ModelEditDialog = ({ isOpen, model, onClose, onSuccess }: ModelEdit
             />
           </div>
         )}
+
+        {/* Connectivity verification area */}
+        <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center">
+              <span className="text-sm font-medium text-gray-700">{t('model.dialog.connectivity.title')}</span>
+              {connectivityStatus.status && (
+                <div className="ml-2 flex items-center">
+                  {getConnectivityMeta(connectivityStatus.status).icon}
+                  <span
+                    className="ml-1 text-xs"
+                    style={{ color: getConnectivityMeta(connectivityStatus.status).color }}
+                  >
+                    {connectivityStatus.status === 'available' && t('model.dialog.connectivity.status.available')}
+                    {connectivityStatus.status === 'unavailable' && t('model.dialog.connectivity.status.unavailable')}
+                    {connectivityStatus.status === 'checking' && t('model.dialog.status.verifying')}
+                  </span>
+                </div>
+              )}
+            </div>
+            <Button
+              size="small"
+              type="default"
+              onClick={handleVerifyConnectivity}
+              loading={verifyingConnectivity}
+              disabled={!isFormValid() || verifyingConnectivity}
+            >
+              {verifyingConnectivity ? t('model.dialog.button.verifying') : t('model.dialog.button.verify')}
+            </Button>
+          </div>
+        </div>
 
         <div className="flex justify-end space-x-3">
           <Button onClick={onClose}>{t('common.button.cancel')}</Button>
@@ -224,7 +316,7 @@ export const ProviderConfigEditDialog = ({
     }
   }
 
-  const isEmbeddingModel = modelType === "embedding" || modelType === "multi_embedding"
+  const isEmbeddingModel = modelType === MODEL_TYPES.EMBEDDING || modelType === MODEL_TYPES.MULTI_EMBEDDING
 
   return (
     <Modal

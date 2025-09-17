@@ -1,32 +1,9 @@
 import { API_ENDPOINTS } from './api';
+
+import { GeneratePromptParams, StreamResponseData } from '@/types/agentConfig';
 import { fetchWithAuth, getAuthHeaders } from '@/lib/auth';
 // @ts-ignore
 const fetch = fetchWithAuth;
-
-/**
- * Prompt Generation Request Parameters
- */
-export interface GeneratePromptParams {
-  agent_id: number;
-  task_description: string;
-}
-
-/**
- * Save Prompt Request Parameters (using agent/update)
- */
-export interface SavePromptParams {
-  agent_id: number;
-  prompt: string;
-}
-
-/**
- * Stream Response Data Structure
- */
-export interface StreamResponseData {
-  type: 'duty' | 'constraint' | 'few_shots' | 'agent_var_name' | 'agent_description' | 'agent_display_name';
-  content: string;
-  is_complete: boolean;
-}
 
 /**
  * Get Request Headers

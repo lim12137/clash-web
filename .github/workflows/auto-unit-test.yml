@@ -17,12 +17,14 @@ on:
       - 'backend/**'
       - 'sdk/**'
       - 'test/**'
+      - '.github/workflows/**'
   push:
     branches: [develop]
     paths:
       - 'backend/**'
       - 'sdk/**'
       - 'test/**'
+      - '.github/workflows/**'
 
 jobs:
   test:

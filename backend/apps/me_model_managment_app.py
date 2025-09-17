@@ -1,119 +1,67 @@
-import aiohttp
-import asyncio
-from fastapi import Query, APIRouter
+import logging
+from http import HTTPStatus
 
-from consts.const import MODEL_ENGINE_APIKEY, MODEL_ENGINE_HOST
-from consts.model import ModelConnectStatusEnum, ModelResponse
-from services.model_health_service import check_me_model_connectivity
+from fastapi import APIRouter, Query, HTTPException
+from fastapi.responses import JSONResponse
+
+from consts.exceptions import TimeoutException, NotFoundException, MEConnectionException
+from consts.model import ModelConnectStatusEnum
+from services.me_model_management_service import get_me_models_impl
+from services.model_health_service import check_me_connectivity_impl
 
 router = APIRouter(prefix="/me")
 
 
-@router.get("/model/list", response_model=ModelResponse)
+@router.get("/model/list")
 async def get_me_models(
-        type: str = Query(default="", description="Model type: embed/chat/rerank"),
-        timeout: int = Query(default=2, description="Request timeout in seconds")
+        type: str = Query(
+            default="", description="Model type: embed/chat/rerank"),
+        timeout: int = Query(
+            default=2, description="Request timeout in seconds")
 ):
+    """
+    Get list of models from model engine API
+    """
     try:
-        headers = {
-            'Authorization': f'Bearer {MODEL_ENGINE_APIKEY}',
-        }
-
-        async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=timeout),
-            connector=aiohttp.TCPConnector(verify_ssl=False)
-        ) as session:
-            async with session.get(
-                f"{MODEL_ENGINE_HOST}/open/router/v1/models",
-                headers=headers
-            ) as response:
-                response.raise_for_status()
-                result_data = await response.json()
-                result: list = result_data['data']
-
-        # Type filtering
-        filtered_result = []
-        if type:
-            for data in result:
-                if data['type'] == type:
-                    filtered_result.append(data)
-            if not filtered_result:
-                result_types = set(data['type'] for data in result)
-                return ModelResponse(
-                    code=404,
-                    message=f"No models found with type '{type}'. Available types: {result_types}",
-                    data=[]
-                )
-        else:
-            filtered_result = result
-
-        return ModelResponse(
-            code=200,
-            message="Successfully retrieved",
-            data=filtered_result
+        filtered_result = await get_me_models_impl(timeout=timeout, type=type)
+        return JSONResponse(
+            status_code=HTTPStatus.OK,
+            content={
+                "message": "Successfully retrieved",
+                "data": filtered_result
+            }
         )
-
-    except asyncio.TimeoutError:
-        return ModelResponse(
-            code=408,
-            message="Request timeout",
-            data=[]
-        )
+    except TimeoutException as e:
+        logging.error(f"Request me model timeout: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.REQUEST_TIMEOUT, detail="Failed to get ModelEngine model list: timeout")
+    except NotFoundException as e:
+        logging.error(f"Request me model not found: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="ModelEngine model not found")
     except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Failed to get model list: {str(e)}",
-            data=[]
-        )
+        logging.error(f"Failed to get me model list: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to get ModelEngine model list")
 
 
-@router.get("/healthcheck", response_model=ModelResponse)
+@router.get("/healthcheck")
 async def check_me_connectivity(timeout: int = Query(default=2, description="Timeout in seconds")):
+    """
+    Health check from model engine API
+    """
     try:
-        headers = {'Authorization': f'Bearer {MODEL_ENGINE_APIKEY}'}
-
-        async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=timeout),
-            connector=aiohttp.TCPConnector(ssl=False)
-        ) as session:
-            try:
-                async with session.get(
-                    f"{MODEL_ENGINE_HOST}/open/router/v1/models",
-                    headers=headers
-                ) as response:
-                    if response.status == 200:
-                        return ModelResponse(
-                            code=200,
-                            message="Connection successful",
-                            data={"status": "Connected", "desc": "Connection successful",
-                                  "connect_status": ModelConnectStatusEnum.AVAILABLE.value}
-                        )
-                    else:
-                        return ModelResponse(
-                            code=response.status,
-                            message=f"Connection failed, error code: {response.status}",
-                            data={"status": "Disconnected", "desc": f"Connection failed, error code: {response.status}",
-                                  "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
-                        )
-            except asyncio.TimeoutError:
-                return ModelResponse(
-                    code=408,
-                    message="Connection timeout",
-                    data={"status": "Disconnected", "desc": "Connection timeout",
-                          "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
-                )
-
-    except Exception as e:
-        return ModelResponse(
-            code=500,
-            message=f"Unknown error occurred: {str(e)}",
-            data={"status": "Disconnected", "desc": f"Unknown error occurred: {str(e)}",
-                  "connect_status": ModelConnectStatusEnum.UNAVAILABLE.value}
+        await check_me_connectivity_impl(timeout)
+        return JSONResponse(
+            status_code=HTTPStatus.OK,
+            content={
+                "connectivity": True,
+                "message": "ModelEngine model connect successfully.",
+            }
         )
-
-
-@router.get("/model/healthcheck", response_model=ModelResponse)
-async def check_me_model_healthcheck(
-        model_name: str = Query(..., description="Model name to check")
-):
-    return await check_me_model_connectivity(model_name)
+    except MEConnectionException as e:
+        logging.error(f"ModelEngine model healthcheck failed: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.SERVICE_UNAVAILABLE, detail="ModelEngine model connect failed.")
+    except TimeoutException as e:
+        logging.error(f"ModelEngine model healthcheck timeout: {str(e)}")
+        raise HTTPException(status_code=HTTPStatus.REQUEST_TIMEOUT, detail="ModelEngine model connect timeout.")
+    except Exception as e:
+        logging.error(f"ModelEngine model healthcheck failed with unknown error: {str(e)}.")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="ModelEngine model connect failed.")
