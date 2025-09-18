@@ -9,6 +9,7 @@ from smolagents import OpenAIServerModel
 from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING, MESSAGE_ROLE
 from consts.model import AgentInfoRequest
 from database.agent_db import update_agent, query_sub_agents_id_list, search_agent_info_by_agent_id
+from database.model_management_db import get_model_by_model_id
 from database.tool_db import query_tools_by_ids
 from services.agent_service import get_enable_tool_id_by_agent_id
 from utils.config_utils import tenant_config_manager, get_model_name_from_config
@@ -19,11 +20,12 @@ from utils.str_utils import remove_think_tags, add_no_think_token
 logger = logging.getLogger("prompt_service")
 
 
-def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=None, tenant_id: str = None) -> str:
+def call_llm_for_system_prompt(model_id: int, user_prompt: str, system_prompt: str, callback=None, tenant_id: str = None) -> str:
     """
     Call LLM to generate system prompt
 
     Args:
+        model_id: select model for generate prompt
         user_prompt: description of the current task
         system_prompt: system prompt for the LLM
         callback: callback function
@@ -32,8 +34,8 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
     Returns:
         str: Generated system prompt
     """
-    llm_model_config = tenant_config_manager.get_model_config(
-        key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
+
+    llm_model_config = get_model_by_model_id(model_id=model_id, tenant_id=tenant_id)
 
     llm = OpenAIServerModel(
         model_id=get_model_name_from_config(
@@ -70,9 +72,10 @@ def call_llm_for_system_prompt(user_prompt: str, system_prompt: str, callback=No
         raise e
 
 
-def gen_system_prompt_streamable(agent_id: int, task_description: str, user_id: str, tenant_id: str, language: str):
+def gen_system_prompt_streamable(agent_id: int, model_id: int, task_description: str, user_id: str, tenant_id: str, language: str):
     for system_prompt in generate_and_save_system_prompt_impl(
         agent_id=agent_id,
+        model_id=model_id,
         task_description=task_description,
         user_id=user_id,
         tenant_id=tenant_id,
@@ -83,6 +86,7 @@ def gen_system_prompt_streamable(agent_id: int, task_description: str, user_id: 
 
 
 def generate_and_save_system_prompt_impl(agent_id: int,
+                                         model_id: int,
                                          task_description: str,
                                          user_id: str,
                                          tenant_id: str,
@@ -97,7 +101,7 @@ def generate_and_save_system_prompt_impl(agent_id: int,
     final_results = {"duty": "", "constraint": "", "few_shots": "", "agent_var_name": "", "agent_display_name": "",
                      "agent_description": ""}
     for result_data in generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id,
-                                              language):
+                                              model_id, language):
         # Update final results
         final_results[result_data["type"]] = result_data["content"]
         yield result_data
@@ -123,7 +127,7 @@ def generate_and_save_system_prompt_impl(agent_id: int,
     logger.info("Prompt generation and agent update completed successfully")
 
 
-def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id: str, language: str = LANGUAGE["ZH"]):
+def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list, tenant_id: str, model_id: int, language: str = LANGUAGE["ZH"]):
     """Main function for generating system prompts"""
     prompt_for_generate = get_prompt_generate_prompt_template(language)
 
@@ -145,13 +149,13 @@ def generate_system_prompt(sub_agent_info_list, task_description, tool_info_list
 
     # Start all generation threads
     threads = _start_generation_threads(
-        content, prompt_for_generate, produce_queue, latest, stop_flags, tenant_id)
+        content, prompt_for_generate, produce_queue, latest, stop_flags, tenant_id, model_id)
 
     # Stream results
     yield from _stream_results(produce_queue, latest, stop_flags, threads)
 
 
-def _start_generation_threads(content, prompt_for_generate, produce_queue, latest, stop_flags, tenant_id):
+def _start_generation_threads(content, prompt_for_generate, produce_queue, latest, stop_flags, tenant_id, model_id):
     """Start all prompt generation threads"""
     def make_callback(tag):
         def callback_fn(current_text):
@@ -162,7 +166,7 @@ def _start_generation_threads(content, prompt_for_generate, produce_queue, lates
     def run_and_flag(tag, sys_prompt):
         try:
             call_llm_for_system_prompt(
-                content, sys_prompt, make_callback(tag), tenant_id)
+                model_id, content, sys_prompt, make_callback(tag), tenant_id)
         except Exception as e:
             logger.error(f"Error in {tag} generation: {e}")
         finally:

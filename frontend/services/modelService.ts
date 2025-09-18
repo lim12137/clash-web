@@ -432,4 +432,34 @@ export const modelService = {
       };
     }
   },
+
+  // Get LLM model list for generation
+  getLLMModels: async (): Promise<ModelOption[]> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.llmModelList, {
+        headers: getAuthHeaders(),
+      });
+      const result = await response.json();
+      
+      if (response.status === STATUS_CODES.SUCCESS && result.data) {
+        // Return all models, not just available ones
+        return result.data.map((model: any) => ({
+          id: model.model_id || model.id,
+          name: model.model_name || model.name,
+          type: MODEL_TYPES.LLM,
+          maxTokens: model.max_tokens || 0,
+          source: model.model_factory || MODEL_SOURCES.OPENAI_API_COMPATIBLE,
+          apiKey: model.api_key || '',
+          apiUrl: model.base_url || '',
+          displayName: model.display_name || model.model_name || model.name,
+          connect_status: model.connect_status as ModelConnectStatus,
+        }));
+      }
+      
+      return [];
+    } catch (error) {
+      log.warn("Failed to load LLM models:", error);
+      return [];
+    }
+  },
 };
