@@ -92,6 +92,8 @@ export const API_ENDPOINTS = {
     verifyModelConfig: `${API_BASE_URL}/model/temporary_healthcheck`,
     updateSingleModel: `${API_BASE_URL}/model/update`,
     updateBatchModel: `${API_BASE_URL}/model/batch_update`,
+    // LLM model list for generation
+    llmModelList: `${API_BASE_URL}/model/llm_list`,
   },
   knowledgeBase: {
     // Elasticsearch service
