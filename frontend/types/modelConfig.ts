@@ -9,9 +9,9 @@ export type ModelConnectStatus =
 
 // API response type
 export interface ApiResponse<T = any> {
-  code: number
-  message?: string
-  data?: T
+  code: number;
+  message?: string;
+  data?: T;
 }
 
 // Model source type
@@ -37,10 +37,9 @@ export enum OpenAIModel {
   SubModel = "sub_model",
 }
 
-
 // Model option interface
 export interface ModelOption {
-  id: string;
+  id: number;
   name: string;
   type: ModelType;
   maxTokens: number;
@@ -99,6 +98,9 @@ export interface ModelValidationResponse {
 
 // Model engine check result interface
 export interface ModelEngineCheckResult {
-  status: typeof CONNECTION_STATUS.SUCCESS | typeof CONNECTION_STATUS.ERROR | typeof CONNECTION_STATUS.PROCESSING;
+  status:
+    | typeof CONNECTION_STATUS.SUCCESS
+    | typeof CONNECTION_STATUS.ERROR
+    | typeof CONNECTION_STATUS.PROCESSING;
   lastChecked: string;
 }
