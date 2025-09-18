@@ -200,10 +200,10 @@ services:
     container_name: nexent-openssh-server
     hostname: nexent-openssh-server
     environment:
-      - DEV_USER=linuxserver.io
+      - DEV_USER=${SSH_USERNAME:-linuxserver.io}
+      - DEV_PASSWORD=${SSH_PASSWORD:-nexent123}
     volumes:
       - ${TERMINAL_MOUNT_DIR:-./workspace}:/opt/terminal
-      - ${ROOT_DIR}/openssh-server/config:/tmp/ssh_keys:ro  # 只读挂载SSH公钥
     networks:
       - nexent
     restart: always
