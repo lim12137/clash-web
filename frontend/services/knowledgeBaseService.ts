@@ -365,9 +365,16 @@ class KnowledgeBaseService {
   }
 
   // Summary index content
-  async summaryIndex(indexName: string, batchSize: number = 1000, onProgress?: (text: string) => void): Promise<string> {
+  async summaryIndex(indexName: string, batchSize: number = 1000, onProgress?: (text: string) => void, modelName?: string): Promise<string> {
     try {
-      const response = await fetch(API_ENDPOINTS.knowledgeBase.summary(indexName) + `?batch_size=${batchSize}`, {
+      const baseUrl = API_ENDPOINTS.knowledgeBase.summary(indexName);
+      const url = new URL(baseUrl, window.location.origin);
+      url.searchParams.set('batch_size', batchSize.toString());
+      if (modelName) {
+        url.searchParams.set('model_name', modelName);
+      }
+      
+      const response = await fetch(url.toString(), {
         method: 'POST',
         headers: getAuthHeaders(),
       });

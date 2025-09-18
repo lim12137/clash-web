@@ -1,8 +1,7 @@
 'use client';
 
-import { GlobalConfig, AppConfig, ModelConfig } from '@/types/modelConfig';
-import { APP_CONFIG_KEY, MODEL_CONFIG_KEY, defaultConfig } from '@/const/modelConfig';
-import log from "@/lib/logger";
+import { GlobalConfig, AppConfig, ModelConfig } from '../types/modelConfig';
+import { APP_CONFIG_KEY, MODEL_CONFIG_KEY, defaultConfig } from '../const/modelConfig';
 
 class ConfigStoreClass {
   private static instance: ConfigStoreClass | null = null;
@@ -34,7 +33,7 @@ class ConfigStoreClass {
     try {
       this.config = this.loadFromStorage();
     } catch (error) {
-      log.error('Failed to initialize config:', error);
+      console.error('Failed to initialize config:', error);
       this.config = JSON.parse(JSON.stringify(defaultConfig));
     }
   }
@@ -85,7 +84,7 @@ class ConfigStoreClass {
           // Remove old config
           localStorage.removeItem('config');
         } catch (error) {
-          log.error('Failed to migrate old config:', error);
+          console.error('Failed to migrate old config:', error);
         }
       }
 
@@ -94,7 +93,7 @@ class ConfigStoreClass {
         try {
           mergedConfig.app = JSON.parse(storedAppConfig);
         } catch (error) {
-          log.error('Failed to parse app config:', error);
+          console.error('Failed to parse app config:', error);
         }
       }
 
@@ -102,13 +101,13 @@ class ConfigStoreClass {
         try {
           mergedConfig.models = JSON.parse(storedModelConfig);
         } catch (error) {
-          log.error('Failed to parse model config:', error);
+          console.error('Failed to parse model config:', error);
         }
       }
 
       return mergedConfig;
     } catch (error) {
-      log.error('Failed to load config from storage:', error);
+      console.error('Failed to load config from storage:', error);
       return JSON.parse(JSON.stringify(defaultConfig));
     }
   }
@@ -121,7 +120,7 @@ class ConfigStoreClass {
       localStorage.setItem(APP_CONFIG_KEY, JSON.stringify(this.config.app));
       localStorage.setItem(MODEL_CONFIG_KEY, JSON.stringify(this.config.models));
     } catch (error) {
-      log.error('Failed to save config to storage:', error);
+      console.error('Failed to save config to storage:', error);
     }
   }
 
@@ -207,14 +206,6 @@ class ConfigStoreClass {
         apiConfig: {
           apiKey: backendConfig.models.llm?.apiConfig?.apiKey || "",
           modelUrl: backendConfig.models.llm?.apiConfig?.modelUrl || ""
-        }
-      },
-      llmSecondary: {
-        modelName: backendConfig.models.llmSecondary?.name || "",
-        displayName: backendConfig.models.llmSecondary?.displayName || "",
-        apiConfig: {
-          apiKey: backendConfig.models.llmSecondary?.apiConfig?.apiKey || "",
-          modelUrl: backendConfig.models.llmSecondary?.apiConfig?.modelUrl || ""
         }
       },
       embedding: {

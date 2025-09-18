@@ -432,4 +432,31 @@ export const modelService = {
       };
     }
   },
+
+  // Get LLM model list for tenant
+  getLLMModels: async (): Promise<ModelOption[]> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.model.llmList, {
+        headers: getAuthHeaders(),
+      });
+      const result = await response.json();
+      
+      if (response.status === STATUS_CODES.SUCCESS && result.data) {
+        return result.data.map((model: any) => ({
+          name: model.model_name || "",
+          displayName: model.display_name || model.model_name || "",
+          type: MODEL_TYPES.LLM,
+          source: MODEL_SOURCES.CUSTOM,
+          connect_status: model.connect_status || "not_detected",
+          apiKey: model.api_key || "",
+          apiUrl: model.base_url || "",
+          maxTokens: model.max_tokens || 4096,
+        }));
+      }
+      return [];
+    } catch (error) {
+      log.error("Failed to get LLM models:", error);
+      return [];
+    }
+  },
 };
