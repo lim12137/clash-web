@@ -766,13 +766,15 @@ class TestLoadConfigImpl:
             "max_tokens": 1536,
             "model_type": "embedding",
             "base_url": "http://test.com",
-            "api_key": "test_key"
+            "api_key": "test_key",
+            "dimension": 1536
         }
         multi_embedding_config = {
             "max_tokens": 768,
             "model_type": "multi_embedding",
             "base_url": "http://test.com",
-            "api_key": "test_key"
+            "api_key": "test_key",
+            "dimension": 768
         }
 
         service_mocks['tenant_config_manager'].get_model_config.side_effect = [
