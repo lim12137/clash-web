@@ -25,6 +25,7 @@ from services.agent_service import (
     get_agent_id_by_name
 )
 from services.conversation_management_service import (
+    save_conversation_user,
     get_conversation_list_service,
     create_new_conversation,
     update_conversation_title as update_conversation_title_service,
@@ -165,7 +166,7 @@ async def start_streaming_chat(
             add_mapping_id(internal_id=internal_conversation_id, external_id=external_conversation_id, tenant_id=ctx.tenant_id, user_id=ctx.user_id)
 
         # Get history according to internal_conversation_id
-        history = await get_conversation_history(ctx, external_conversation_id)
+        history_resp = await get_conversation_history(ctx, external_conversation_id)
         agent_id = await get_agent_id_by_name(agent_name=agent_name, tenant_id=ctx.tenant_id)
         # Idempotency: only prevent concurrent duplicate starts
         composed_key = idempotency_key or _build_idempotency_key(ctx.tenant_id, external_conversation_id, agent_id, query)
@@ -174,10 +175,17 @@ async def start_streaming_chat(
             conversation_id=internal_conversation_id,
             agent_id=agent_id,
             query=query,
-            history=history.get("history"),
+            history=(history_resp.get("data", {})).get("history", []),
             minio_files=None,
             is_debug=False,
         )
+
+        # Synchronously persist the user message before starting the stream to avoid race conditions
+        try:
+            save_conversation_user(
+                agent_request, user_id=ctx.user_id, tenant_id=ctx.tenant_id)
+        except Exception as e:
+            raise Exception(f"Failed to persist user message: {str(e)}")
 
     except LimitExceededError as _:
         raise LimitExceededError("Query rate exceeded limit. Please try again later.")
@@ -193,6 +201,7 @@ async def start_streaming_chat(
             authorization=ctx.authorization,
             user_id=ctx.user_id,
             tenant_id=ctx.tenant_id,
+            skip_user_save=True,
         )
     finally:
         if composed_key:
@@ -208,7 +217,7 @@ async def stop_chat(ctx: NorthboundContext, external_conversation_id: str) -> Di
     try:
         internal_id = await to_internal_conversation_id(external_conversation_id)
 
-        stop_result = stop_agent_tasks(internal_id)
+        stop_result = stop_agent_tasks(internal_id, ctx.user_id)
         return {"message": stop_result.get("message", "success"), "data": external_conversation_id, "requestId": ctx.request_id}
     except Exception as e:
         raise Exception(f"Failed to stop chat for external conversation id {external_conversation_id}: {str(e)}")

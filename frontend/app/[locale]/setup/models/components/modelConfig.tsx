@@ -610,7 +610,10 @@ export const ModelConfigSection = forwardRef<
                   return;
                 }
 
-                log.error(`Failed to verify custom model ${modelName}:`, error);
+                log.error(
+                  `Failed to verify custom model ${modelName}:`,
+                  error
+                );
                 updateCustomModelStatus(
                   modelName,
                   modelType,
@@ -1113,4 +1116,4 @@ export const ModelConfigSection = forwardRef<
       </div>
     </>
   );
-}); 
+});
