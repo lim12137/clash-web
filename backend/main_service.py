@@ -29,7 +29,7 @@ async def startup_initialization():
         logger.info("Server initialization completed successfully!")
             
     except Exception as e:
-        logger.error(f"❌ Server initialization failed: {str(e)}")
+        logger.error(f"Server initialization failed: {str(e)}")
         # Don't raise the exception to allow server to start even if initialization fails
         logger.warning("Server will continue to start despite initialization issues")
 
