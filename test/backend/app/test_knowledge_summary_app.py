@@ -1,16 +1,19 @@
-from fastapi.testclient import TestClient
+# Standard library imports
 from typing import List, Optional, Union, Dict, Any
-from pydantic import BaseModel
-import pytest
 import json
 import sys
 import os
 from unittest.mock import patch, MagicMock, AsyncMock
 
+# Third-party library imports
+from fastapi.testclient import TestClient
+from pydantic import BaseModel
+import pytest
+
 # Dynamically determine the backend path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.abspath(os.path.join(current_dir, "../../../backend"))
-sys.path.append(backend_dir)
+sys.path.insert(0, backend_dir)
 
 # Import and define all necessary Pydantic models
 
@@ -24,14 +27,56 @@ class ChangeSummaryRequest(BaseModel):
 
 
 def setup_test_environment():
-    # Mock botocore client to prevent S3 connection attempts
+    # Mock external dependencies first
     patch('botocore.client.BaseClient._make_api_call', return_value={}).start()
 
-    # Mock database and service dependencies
-    patch('backend.database.client.MinioClient', MagicMock()).start()
-    patch('backend.database.client.db_client', MagicMock()).start()
+    # Mock nexent modules
+    sys.modules['nexent'] = MagicMock()
+    sys.modules['nexent.core'] = MagicMock()
+    sys.modules['nexent.core.agents'] = MagicMock()
+    sys.modules['nexent.core.agents.agent_model'] = MagicMock()
+    sys.modules['nexent.core.models'] = MagicMock()
+    sys.modules['nexent.core.models.embedding_model'] = MagicMock()
+    sys.modules['nexent.core.nlp'] = MagicMock()
+    sys.modules['nexent.core.nlp.tokenizer'] = MagicMock()
+    sys.modules['nexent.vector_database'] = MagicMock()
+    sys.modules['nexent.vector_database.elasticsearch_core'] = MagicMock()
+
+    # Mock ToolConfig class
+    class MockToolConfig:
+        pass
+    sys.modules['nexent.core.agents.agent_model'].ToolConfig = MockToolConfig
+
+    # Mock embedding models
+    class MockBaseEmbedding:
+        pass
+
+    class MockOpenAICompatibleEmbedding:
+        pass
+
+    class MockJinaEmbedding:
+        pass
+    sys.modules['nexent.core.models.embedding_model'].BaseEmbedding = MockBaseEmbedding
+    sys.modules['nexent.core.models.embedding_model'].OpenAICompatibleEmbedding = MockOpenAICompatibleEmbedding
+    sys.modules['nexent.core.models.embedding_model'].JinaEmbedding = MockJinaEmbedding
+
+    # Mock tokenizer
+    class MockTokenizer:
+        pass
+    sys.modules['nexent.core.nlp.tokenizer'].Tokenizer = MockTokenizer
+
     patch('nexent.vector_database.elasticsearch_core.ElasticSearchCore',
           MagicMock()).start()
+
+    # Import backend modules first
+    import backend.apps.knowledge_summary_app
+    import backend.database.client
+    import backend.services.elasticsearch_service
+    import backend.utils.auth_utils
+
+    # Now mock backend modules
+    patch('backend.database.client.MinioClient', MagicMock()).start()
+    patch('backend.database.client.db_client', MagicMock()).start()
 
     # Mock elasticsearch services
     mock_es_service = patch(
@@ -44,9 +89,6 @@ def setup_test_environment():
                              MagicMock(return_value=('test_user_id', 'test_tenant_id'))).start()
     mock_get_user_info = patch('backend.utils.auth_utils.get_current_user_info',
                                MagicMock(return_value=('test_user_id', 'test_tenant_id', 'en'))).start()
-
-    # Import and patch the auto_summary method
-    import backend.apps.knowledge_summary_app
     original_auto_summary = backend.apps.knowledge_summary_app.auto_summary
 
     async def fixed_auto_summary(*args, **kwargs):
