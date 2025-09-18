@@ -8,6 +8,7 @@ import {
   GENERATE_PROMPT_STREAM_TYPES,
 } from "@/const/agentConfig";
 import { SETUP_PAGE_CONTAINER, STANDARD_CARD } from "@/const/layoutConstants";
+import { ModelOption } from "@/types/modelConfig";
 import { OpenAIModel } from "@/types/modelConfig";
 import {
   LayoutConfig,
@@ -74,7 +75,7 @@ export default function AgentConfig() {
   const hasAutoScanned = useRef(false);
 
   // Handle generate agent
-  const handleGenerateAgent = async () => {
+  const handleGenerateAgent = async (selectedModel?: ModelOption) => {
     if (!businessLogic || businessLogic.trim() === "") {
       message.warning(
         t("businessLogic.config.error.businessDescriptionRequired")
@@ -98,6 +99,7 @@ export default function AgentConfig() {
         {
           agent_id: Number(currentAgentId),
           task_description: businessLogic,
+          model_id: selectedModel?.id || "",
         },
         (data) => {
           // Process streaming response data
