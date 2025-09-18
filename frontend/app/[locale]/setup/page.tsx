@@ -4,8 +4,8 @@ import React, { useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
-import { Modal, App, Button, Badge, Dropdown } from "antd";
-import { WarningFilled, DownOutlined } from "@ant-design/icons";
+import { App, Button, Badge, Dropdown } from "antd";
+import { DownOutlined } from "@ant-design/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiRefreshCw, FiArrowLeft } from "react-icons/fi";
 import { Globe } from "lucide-react";
@@ -21,12 +21,14 @@ import {
   USER_ROLES,
   CONNECTION_STATUS,
   ConnectionStatus,
+  MODEL_STATUS,
 } from "@/const/modelConfig";
 import log from "@/lib/logger";
 
 import AppModelConfig from "./modelSetup/config";
 import DataConfig from "./knowledgeSetup/config";
 import AgentConfig from "./agentSetup/config";
+import EmbedderCheckModal from "./modelSetup/components/model/EmbedderCheckModal";
 
 // ================ Header ================
 interface HeaderProps {
@@ -67,13 +69,16 @@ function Header({
       style={{ height: HEADER_CONFIG.HEIGHT }}
     >
       <div className="flex items-center">
-        <button
+        <Button
           onClick={() => router.push("/")}
           className="mr-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
           aria-label={t("setup.header.button.back")}
-        >
-          <FiArrowLeft className="text-slate-600 dark:text-slate-300 text-xl" />
-        </button>
+          icon={
+            <FiArrowLeft className="text-slate-600 dark:text-slate-300 text-xl" />
+          }
+          type="text"
+          shape="circle"
+        />
         <h1 className="text-xl font-bold text-blue-600 dark:text-blue-500">
           {t("setup.header.title")}
         </h1>
@@ -130,7 +135,6 @@ interface NavigationProps {
   selectedKey: string;
   onBackToFirstPage: () => void;
   onCompleteConfig: () => void;
-  isSavingConfig: boolean;
   userRole?: typeof USER_ROLES.USER | typeof USER_ROLES.ADMIN;
 }
 
@@ -138,7 +142,6 @@ function Navigation({
   selectedKey,
   onBackToFirstPage,
   onCompleteConfig,
-  isSavingConfig,
   userRole,
 }: NavigationProps) {
   const { t } = useTranslation();
@@ -147,42 +150,42 @@ function Navigation({
     <div className="mt-3 flex justify-between px-6">
       <div className="flex gap-2">
         {selectedKey != "1" && userRole === USER_ROLES.ADMIN && (
-          <button
+          <Button
             onClick={onBackToFirstPage}
-            className={
-              "px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors"
-            }
+            className="flex items-center text-sm font-medium transition-colors"
+            style={{
+              padding: "0px 24px",
+              margin: 0,
+              border: "none",
+            }}
+            color="default"
+            variant="filled"
           >
             {t("setup.navigation.button.previous")}
-          </button>
+          </Button>
         )}
       </div>
 
       <div className="flex gap-2">
-        <button
+        <Button
           onClick={onCompleteConfig}
-          disabled={isSavingConfig}
-          className={
-            "px-6 py-2.5 rounded-md flex items-center text-sm font-medium bg-blue-600 dark:bg-blue-600 text-white hover:bg-blue-700 dark:hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          }
+          className="flex items-center text-sm font-medium transition-colors"
           style={{
-            border: "none",
+            padding: "0px 24px",
             marginLeft:
               selectedKey === "1" || userRole !== USER_ROLES.ADMIN
                 ? "auto"
                 : undefined,
           }}
+          type="primary"
+          variant="solid"
         >
           {selectedKey === "3"
-            ? isSavingConfig
-              ? t("setup.navigation.button.saving")
-              : t("setup.navigation.button.complete")
+            ? t("setup.navigation.button.complete")
             : selectedKey === "2" && userRole !== USER_ROLES.ADMIN
-            ? isSavingConfig
-              ? t("setup.navigation.button.saving")
-              : t("setup.navigation.button.complete")
+            ? t("setup.navigation.button.complete")
             : t("setup.navigation.button.next")}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -200,7 +203,6 @@ interface LayoutProps {
   selectedKey: string;
   onBackToFirstPage: () => void;
   onCompleteConfig: () => void;
-  isSavingConfig: boolean;
   userRole?: typeof USER_ROLES.USER | typeof USER_ROLES.ADMIN;
 }
 
@@ -212,7 +214,6 @@ function Layout({
   selectedKey,
   onBackToFirstPage,
   onCompleteConfig,
-  isSavingConfig,
   userRole,
 }: LayoutProps) {
   return (
@@ -230,7 +231,6 @@ function Layout({
           selectedKey={selectedKey}
           onBackToFirstPage={onBackToFirstPage}
           onCompleteConfig={onCompleteConfig}
-          isSavingConfig={isSavingConfig}
           userRole={userRole}
         />
       </div>
@@ -246,17 +246,20 @@ export default function CreatePage() {
     CONNECTION_STATUS.PROCESSING
   );
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
-  const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isFromSecondPage, setIsFromSecondPage] = useState(false);
   const { user, isLoading: userLoading, openLoginModal } = useAuth();
   const { modal } = App.useApp();
   const { t } = useTranslation();
   const [embeddingModalOpen, setEmbeddingModalOpen] = useState(false);
   const [pendingJump, setPendingJump] = useState(false);
+  const [connectivityWarningOpen, setConnectivityWarningOpen] = useState(false);
   const [liveSelectedModels, setLiveSelectedModels] = useState<Record<
     string,
     Record<string, string>
   > | null>(null);
+  const [embeddingConnectivity, setEmbeddingConnectivity] = useState<{
+    embedding?: string;
+  } | null>(null);
 
   // Check login status and permission
   useEffect(() => {
@@ -378,6 +381,9 @@ export default function CreatePage() {
             onSelectedModelsChange={(selected) =>
               setLiveSelectedModels(selected)
             }
+            onEmbeddingConnectivityChange={(status) =>
+              setEmbeddingConnectivity(status)
+            }
           />
         );
       case "2":
@@ -387,6 +393,16 @@ export default function CreatePage() {
       default:
         return null;
     }
+  };
+
+  // Check embedding connectivity for selected models
+  const isEmbeddingConnectivityOk = (): boolean => {
+    // can add multi_embedding in future
+    const selectedEmbedding = liveSelectedModels?.embedding?.embedding || "";
+    if (!selectedEmbedding) return true;
+    const embStatus = embeddingConnectivity?.embedding;
+    const ok = (s?: string) => !s || s === MODEL_STATUS.AVAILABLE;
+    return ok(embStatus);
   };
 
   // Animation variants for smooth transitions
@@ -423,8 +439,6 @@ export default function CreatePage() {
       } else {
         // Normal users complete the configuration directly on the second page
         try {
-          setIsSavingConfig(true);
-
           // Reload the config for normal user before saving, ensure the latest model config
           await configService.loadConfigToFrontend();
           configStore.reloadFromStorage();
@@ -434,16 +448,14 @@ export default function CreatePage() {
 
           // Check if the main model is configured
           if (!currentConfig.models.llm.modelName) {
-            message.error("未找到模型配置，请联系管理员先完成模型配置");
+            message.error(t("setup.page.error.missingModelConfig"));
             return;
           }
 
           router.push("/chat");
         } catch (error) {
-          log.error("保存配置异常:", error);
-          message.error("系统异常，请稍后重试");
-        } finally {
-          setIsSavingConfig(false);
+          log.error("Model config reload error:", error);
+          message.error(t("setup.page.error.systemError"));
         }
       }
     } else if (selectedKey === "1") {
@@ -467,9 +479,7 @@ export default function CreatePage() {
         }
 
         // check embedding model using live selection from current UI, not the stored config
-        const hasEmbeddingLive =
-          !!liveSelectedModels?.embedding?.embedding ||
-          !!liveSelectedModels?.embedding?.multi_embedding;
+        const hasEmbeddingLive = !!liveSelectedModels?.embedding?.embedding;
         if (!hasEmbeddingLive) {
           setEmbeddingModalOpen(true);
           setPendingJump(true);
@@ -482,11 +492,16 @@ export default function CreatePage() {
           return;
         }
 
+        // connectivity check for embedding models
+        const connectivityOk = isEmbeddingConnectivityOk();
+        if (!connectivityOk) {
+          setConnectivityWarningOpen(true);
+          setPendingJump(true);
+          return;
+        }
+
         // All required fields have been filled, allow the jump to the second page
         setSelectedKey("2");
-
-        // Call the backend save configuration API
-        await configService.saveConfigToBackend(currentConfig);
       } catch (error) {
         log.error(t("setup.page.error.systemError"), error);
         message.error(t("setup.page.error.systemError"));
@@ -514,6 +529,14 @@ export default function CreatePage() {
     setEmbeddingModalOpen(false);
     if (pendingJump) {
       setPendingJump(false);
+      setSelectedKey("2");
+    }
+  };
+
+  const handleConnectivityOk = async () => {
+    setConnectivityWarningOpen(false);
+    if (pendingJump) {
+      setPendingJump(false);
       const currentConfig = configStore.getConfig();
       try {
         await configService.saveConfigToBackend(currentConfig);
@@ -532,7 +555,6 @@ export default function CreatePage() {
       selectedKey={getEffectiveSelectedKey()}
       onBackToFirstPage={handleBackToFirstPage}
       onCompleteConfig={handleCompleteConfig}
-      isSavingConfig={isSavingConfig}
       userRole={user?.role}
     >
       <AnimatePresence
@@ -562,41 +584,17 @@ export default function CreatePage() {
           {renderContent()}
         </motion.div>
       </AnimatePresence>
-      <Modal
-        title={t("embedding.emptyWarningModal.title")}
-        open={embeddingModalOpen}
-        onCancel={() => setEmbeddingModalOpen(false)}
-        centered
-        footer={
-          <div className="flex justify-end mt-6 gap-4">
-            <Button onClick={handleEmbeddingOk}>
-              {t("embedding.emptyWarningModal.ok_continue")}
-            </Button>
-            <Button type="primary" onClick={() => setEmbeddingModalOpen(false)}>
-              {t("embedding.emptyWarningModal.cancel")}
-            </Button>
-          </div>
-        }
-      >
-        <div className="py-2">
-          <div className="flex items-center">
-            <WarningFilled
-              className="text-yellow-500 mt-1 mr-2"
-              style={{ fontSize: "48px" }}
-            />
-            <div className="ml-3 mt-2">
-              <div
-                dangerouslySetInnerHTML={{
-                  __html: t("embedding.emptyWarningModal.content"),
-                }}
-              />
-              <div className="mt-2 text-xs opacity-70">
-                {t("embedding.emptyWarningModal.tip")}
-              </div>
-            </div>
-          </div>
-        </div>
-      </Modal>
+      <EmbedderCheckModal
+        emptyWarningOpen={embeddingModalOpen}
+        onEmptyOk={handleEmbeddingOk}
+        onEmptyCancel={() => setEmbeddingModalOpen(false)}
+        connectivityWarningOpen={connectivityWarningOpen}
+        onConnectivityOk={handleConnectivityOk}
+        onConnectivityCancel={() => setConnectivityWarningOpen(false)}
+        modifyWarningOpen={false}
+        onModifyOk={() => {}}
+        onModifyCancel={() => {}}
+      />
     </Layout>
   );
 }
