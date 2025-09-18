@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from jinja2 import StrictUndefined, Template
-from nexent.core.utils.observer import ProcessType
 from smolagents import OpenAIServerModel
 
 from consts.const import LANGUAGE, MODEL_CONFIG_MAPPING, MESSAGE_ROLE
@@ -28,9 +27,10 @@ from database.conversation_db import (
     rename_conversation,
     update_message_opinion
 )
+from nexent.core.utils.observer import ProcessType
 from utils.config_utils import get_model_name_from_config, tenant_config_manager
 from utils.prompt_template_utils import get_generate_title_prompt_template
-from utils.str_utils import add_no_think_token, remove_think_tags
+from utils.str_utils import remove_think_blocks
 
 logger = logging.getLogger("conversation_management_service")
 
@@ -274,12 +274,11 @@ def call_llm_for_title(content: str, tenant_id: str, language: str = LANGUAGE["Z
                  "content": prompt_template["SYSTEM_PROMPT"]},
                 {"role": MESSAGE_ROLE["USER"],
                  "content": user_prompt}]
-    add_no_think_token(messages)
 
     # Call the model
     response = llm(messages, max_tokens=10)
 
-    return remove_think_tags(response.content.strip())
+    return remove_think_blocks(response.content.strip())
 
 
 def update_conversation_title(conversation_id: int, title: str, user_id: str = None) -> bool:
