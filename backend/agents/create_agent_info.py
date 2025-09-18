@@ -26,7 +26,7 @@ logger.setLevel(logging.DEBUG)
 async def create_model_config_list(tenant_id):
     main_model_config = tenant_config_manager.get_model_config(
         key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
-    secondary_model_config = tenant_config_manager.get_model_config(
+    sub_model_config = tenant_config_manager.get_model_config(
         key=MODEL_CONFIG_MAPPING["llmSecondary"], tenant_id=tenant_id)
 
     return [ModelConfig(cite_name="main_model",
@@ -35,10 +35,10 @@ async def create_model_config_list(tenant_id):
                             "model_name") else "",
                         url=main_model_config.get("base_url", "")),
             ModelConfig(cite_name="sub_model",
-                        api_key=secondary_model_config.get("api_key", ""),
-                        model_name=get_model_name_from_config(secondary_model_config) if secondary_model_config.get(
+                        api_key=sub_model_config.get("api_key", ""),
+                        model_name=get_model_name_from_config(sub_model_config) if sub_model_config.get(
                             "model_name") else "",
-                        url=secondary_model_config.get("base_url", ""))]
+                        url=sub_model_config.get("base_url", ""))]
 
 
 async def create_agent_config(
@@ -336,8 +336,7 @@ async def create_agent_run_info(
         "remote_mcp_server": default_mcp_url,
         "status": True
     })
-    remote_mcp_dict = {record["remote_mcp_server_name"]
-        : record for record in remote_mcp_list if record["status"]}
+    remote_mcp_dict = {record["remote_mcp_server_name"]                       : record for record in remote_mcp_list if record["status"]}
 
     # Filter MCP servers and tools
     mcp_host = filter_mcp_servers_and_tools(agent_config, remote_mcp_dict)
