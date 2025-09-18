@@ -1,21 +1,26 @@
 "use client";
 
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {useRouter} from "next/navigation";
 import {useTranslation} from "react-i18next";
 
-import {App, Button, Modal} from "antd";
-import {WarningFilled} from "@ant-design/icons";
+import {App, Button} from "antd";
 import {motion} from "framer-motion";
 
 import {useAuth} from "@/hooks/useAuth";
 import modelEngineService from "@/services/modelEngineService";
 import {configStore} from "@/lib/config";
-import {CONNECTION_STATUS, ConnectionStatus,} from "@/const/modelConfig";
+import {
+  CONNECTION_STATUS,
+  ConnectionStatus,
+  MODEL_STATUS
+} from "@/const/modelConfig";
 import log from "@/lib/logger";
 
 import SetupLayout from "../SetupLayout";
 import AppModelConfig from "./config";
+import { ModelConfigSectionRef } from "./components/modelConfig";
+import EmbedderCheckModal from "./components/model/EmbedderCheckModal";
 
 export default function ModelSetupPage() {
   const { message } = App.useApp();
@@ -27,13 +32,17 @@ export default function ModelSetupPage() {
     CONNECTION_STATUS.PROCESSING
   );
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [embeddingModalOpen, setEmbeddingModalOpen] = useState(false);
   const [pendingJump, setPendingJump] = useState(false);
+  const [connectivityWarningOpen, setConnectivityWarningOpen] = useState(false);
   const [liveSelectedModels, setLiveSelectedModels] = useState<Record<
     string,
     Record<string, string>
   > | null>(null);
+  const [embeddingConnectivity, setEmbeddingConnectivity] = useState<{
+    embedding?: string;
+  } | null>(null);
+  const modelConfigSectionRef = useRef<ModelConfigSectionRef | null>(null);
 
   // Check login status and permission
   useEffect(() => {
@@ -98,6 +107,15 @@ export default function ModelSetupPage() {
         );
         return;
       }
+
+      // connectivity check for embedding models
+      const connectivityOk = isEmbeddingConnectivityOk();
+      if (!connectivityOk) {
+        setConnectivityWarningOpen(true);
+        setPendingJump(true);
+        return;
+      }
+
       router.push("/setup/knowledges");
     } catch (error) {
       log.error(t("setup.page.error.systemError"), error);
@@ -109,6 +127,42 @@ export default function ModelSetupPage() {
     setEmbeddingModalOpen(false);
     if (pendingJump) {
       setPendingJump(false);
+      router.push("/setup/knowledges");
+    }
+  };
+
+  // Check embedding connectivity for selected models
+  const isEmbeddingConnectivityOk = (): boolean => {
+    // can add multi_embedding in future
+    const selectedEmbedding = liveSelectedModels?.embedding?.embedding || "";
+    if (!selectedEmbedding) return true;
+    const embStatus = embeddingConnectivity?.embedding;
+    const ok = (s?: string) => !s || s === MODEL_STATUS.AVAILABLE;
+    return ok(embStatus);
+  };
+
+  const handleConnectivityOk = async () => {
+    setConnectivityWarningOpen(false);
+    if (pendingJump) {
+      setPendingJump(false);
+      // Apply live selections programmatically to mimic dropdown onChange
+      try {
+        const ref = modelConfigSectionRef.current;
+        const selections = liveSelectedModels || {};
+        if (ref && selections) {
+          // Iterate categories and options
+          for (const [category, options] of Object.entries(selections)) {
+            for (const [option, displayName] of Object.entries(options)) {
+              if (displayName) {
+                // Simulate dropdown change and trigger onChange flow
+                await ref.simulateDropdownChange(category, option, displayName);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        message.error(t("setup.page.error.saveConfig"));
+      }
       router.push("/setup/knowledges");
     }
   };
@@ -156,44 +210,22 @@ export default function ModelSetupPage() {
       >
         <AppModelConfig
           onSelectedModelsChange={(selected) => setLiveSelectedModels(selected)}
+          onEmbeddingConnectivityChange={(status) => setEmbeddingConnectivity(status)}
+          forwardedRef={modelConfigSectionRef}
         />
       </motion.div>
 
-      <Modal
-        title={t("embedding.emptyWarningModal.title")}
-        open={embeddingModalOpen}
-        onCancel={() => setEmbeddingModalOpen(false)}
-        centered
-        footer={
-          <div className="flex justify-end mt-6 gap-4">
-            <Button onClick={handleEmbeddingOk}>
-              {t("embedding.emptyWarningModal.ok_continue")}
-            </Button>
-            <Button type="primary" onClick={() => setEmbeddingModalOpen(false)}>
-              {t("embedding.emptyWarningModal.cancel")}
-            </Button>
-          </div>
-        }
-      >
-        <div className="py-2">
-          <div className="flex items-center">
-            <WarningFilled
-              className="text-yellow-500 mt-1 mr-2"
-              style={{ fontSize: "48px" }}
-            />
-            <div className="ml-3 mt-2">
-              <div
-                dangerouslySetInnerHTML={{
-                  __html: t("embedding.emptyWarningModal.content"),
-                }}
-              />
-              <div className="mt-2 text-xs opacity-70">
-                {t("embedding.emptyWarningModal.tip")}
-              </div>
-            </div>
-          </div>
-        </div>
-      </Modal>
+      <EmbedderCheckModal
+        emptyWarningOpen={embeddingModalOpen}
+        onEmptyOk={handleEmbeddingOk}
+        onEmptyCancel={() => setEmbeddingModalOpen(false)}
+        connectivityWarningOpen={connectivityWarningOpen}
+        onConnectivityOk={handleConnectivityOk}
+        onConnectivityCancel={() => setConnectivityWarningOpen(false)}
+        modifyWarningOpen={false}
+        onModifyOk={() => {}}
+        onModifyCancel={() => {}}
+      />
     </SetupLayout>
   );
 }

@@ -53,13 +53,16 @@ function Header({
       style={{ height: HEADER_CONFIG.HEIGHT }}
     >
       <div className="flex items-center">
-        <button
+        <Button
           onClick={() => router.push("/")}
           className="mr-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
           aria-label={t("setup.header.button.back")}
-        >
-          <FiArrowLeft className="text-slate-600 dark:text-slate-300 text-xl" />
-        </button>
+          icon={
+            <FiArrowLeft className="text-slate-600 dark:text-slate-300 text-xl" />
+          }
+          type="text"
+          shape="circle"
+        />
         <h1 className="text-xl font-bold text-blue-600 dark:text-blue-500">
           {title}
         </h1>

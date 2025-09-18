@@ -77,6 +77,12 @@ export interface ModelConfigSectionRef {
     embedding?: ModelConnectStatus;
     multi_embedding?: ModelConnectStatus;
   };
+  // Programmatically simulate a dropdown change and trigger onChange logic
+  simulateDropdownChange: (
+    category: string,
+    option: string,
+    displayName: string
+  ) => Promise<void>;
 }
 
 interface ModelConfigSectionProps {
@@ -240,6 +246,14 @@ export const ModelConfigSection = forwardRef<
     verifyModels,
     getSelectedModels: () => selectedModels,
     getEmbeddingConnectivity,
+    simulateDropdownChange: async (
+      category: string,
+      option: string,
+      displayName: string
+    ) => {
+      // Directly apply model change to mimic Select onChange behavior
+      await applyModelChange(category, option, displayName);
+    },
   }));
 
   // Load model lists
