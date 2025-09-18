@@ -2,10 +2,8 @@
 Unit tests for attachment_utils.py
 Tests the convert_image_to_text and convert_long_text_to_text functions
 """
-from backend.utils.attachment_utils import (
-    convert_image_to_text,
-    convert_long_text_to_text
-)
+
+
 import os
 import sys
 import pytest
@@ -64,7 +62,10 @@ sys.modules['utils.config_utils'] = MagicMock()
 sys.modules['utils.prompt_template_utils'] = MagicMock()
 
 # Import the functions to test
-
+from backend.utils.attachment_utils import (
+    convert_image_to_text,
+    convert_long_text_to_text
+)
 
 class TestConvertImageToText:
     """Test cases for convert_image_to_text function"""
