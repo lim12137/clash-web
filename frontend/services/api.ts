@@ -49,7 +49,6 @@ export const API_ENDPOINTS = {
   },
   prompt: {
     generate: `${API_BASE_URL}/prompt/generate`,
-    fineTune: `${API_BASE_URL}/prompt/fine_tune`,
   },
   stt: {
     ws: `/api/voice/stt/ws`,
@@ -92,7 +91,8 @@ export const API_ENDPOINTS = {
     verifyModelConfig: `${API_BASE_URL}/model/temporary_healthcheck`,
     updateSingleModel: `${API_BASE_URL}/model/update`,
     updateBatchModel: `${API_BASE_URL}/model/batch_update`,
-    llmList: `${API_BASE_URL}/model/llm_list`,
+    // LLM model list for generation
+    llmModelList: `${API_BASE_URL}/model/llm_list`,
   },
   knowledgeBase: {
     // Elasticsearch service

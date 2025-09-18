@@ -189,6 +189,7 @@ class OpinionRequest(BaseModel):
 class GeneratePromptRequest(BaseModel):
     task_description: str
     agent_id: int
+    model_id: int
 
 
 class GenerateTitleRequest(BaseModel):
