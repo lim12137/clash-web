@@ -212,7 +212,7 @@ export interface PromptManagerProps {
   onAgentDisplayNameChange?: (displayName: string) => void;
   onModelChange?: (value: string) => void;
   onMaxStepChange?: (value: number | null) => void;
-  onGenerateAgent?: () => void;
+  onGenerateAgent?: (model: ModelOption) => void;
   onSaveAgent?: () => void;
   onDebug?: () => void;
   onExportAgent?: () => void;
@@ -299,7 +299,7 @@ export default function PromptManager({
     
     // Auto-trigger generation after model selection
     if (onGenerateAgent) {
-      onGenerateAgent();
+      onGenerateAgent(model);
     }
   };
 
@@ -458,32 +458,41 @@ export default function PromptManager({
                 }}
                 disabled={!isEditingMode}
               />
-              {/* Generate button with dropdown */}
+              {/* Generate button */}
               <div className="absolute bottom-2 right-2">
-                <Dropdown
-                  menu={{ items: modelDropdownItems }}
-                  open={showModelDropdown}
-                  onOpenChange={setShowModelDropdown}
-                  disabled={loadingModels || availableModels.length === 0 || isGeneratingAgent}
-                  placement="bottomRight"
-                  trigger={['click']}
-                >
-                  <Button
-                    onClick={handleGenerateClick}
-                    disabled={loadingModels || availableModels.length === 0 || isGeneratingAgent}
-                    loading={isGeneratingAgent}
-                    size="small"
-                    type="primary"
-                    className="flex items-center"
+                {isGeneratingAgent ? (
+                  <button
+                    disabled={true}
+                    className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ border: "none" }}
                   >
-                    {loadingModels ? (
-                      <LoadingOutlined className="mr-1" />
-                    ) : (
-                      <ThunderboltOutlined className="mr-1" />
-                    )}
-                    {t("businessLogic.config.button.generatePrompt")}
-                  </Button>
-                </Dropdown>
+                    <LoadingOutlined spin className="mr-1" />
+                    {t("businessLogic.config.button.generating")}
+                  </button>
+                ) : (
+                  <Dropdown
+                    menu={{ items: modelDropdownItems }}
+                    open={showModelDropdown}
+                    onOpenChange={setShowModelDropdown}
+                    disabled={loadingModels || availableModels.length === 0}
+                    placement="bottomRight"
+                    trigger={['click']}
+                  >
+                    <button
+                      onClick={handleGenerateClick}
+                      disabled={loadingModels || availableModels.length === 0}
+                      className="px-3 py-1.5 rounded-md flex items-center justify-center text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ border: "none" }}
+                    >
+                      {loadingModels ? (
+                        <LoadingOutlined className="mr-1" />
+                      ) : (
+                        <ThunderboltOutlined className="mr-1" />
+                      )}
+                      {t("businessLogic.config.button.generatePrompt")}
+                    </button>
+                  </Dropdown>
+                )}
               </div>
             </div>
           </div>
