@@ -26,12 +26,15 @@ interface AppModelConfigProps {
     // can add multi_embedding in future
     embedding?: string;
   }) => void;
+  // Expose a ref from parent to allow programmatic dropdown change
+  forwardedRef?: React.Ref<ModelConfigSectionRef>;
 }
 
 export default function AppModelConfig({
   skipModelVerification = false,
   onSelectedModelsChange,
   onEmbeddingConnectivityChange,
+  forwardedRef,
 }: AppModelConfigProps) {
   const { t } = useTranslation();
   const [isClientSide, setIsClientSide] = useState(false);
@@ -62,6 +65,17 @@ export default function AppModelConfig({
     }, 300);
     return () => clearInterval(timer);
   }, [onSelectedModelsChange, onEmbeddingConnectivityChange]);
+
+  // Bridge internal ref to external forwardedRef so parent can call simulateDropdownChange
+  useEffect(() => {
+    if (!forwardedRef) return;
+    if (typeof forwardedRef === 'function') {
+      forwardedRef(modelConfigRef.current);
+    } else {
+      // @ts-ignore allow writing current
+      (forwardedRef as any).current = modelConfigRef.current;
+    }
+  }, [forwardedRef]);
 
   return (
     <div
