@@ -26,8 +26,6 @@ logger.setLevel(logging.DEBUG)
 async def create_model_config_list(tenant_id):
     main_model_config = tenant_config_manager.get_model_config(
         key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
-    sub_model_config = tenant_config_manager.get_model_config(
-        key=MODEL_CONFIG_MAPPING["llmSecondary"], tenant_id=tenant_id)
 
     return [ModelConfig(cite_name="main_model",
                         api_key=main_model_config.get("api_key", ""),
@@ -35,10 +33,10 @@ async def create_model_config_list(tenant_id):
                             "model_name") else "",
                         url=main_model_config.get("base_url", "")),
             ModelConfig(cite_name="sub_model",
-                        api_key=sub_model_config.get("api_key", ""),
-                        model_name=get_model_name_from_config(sub_model_config) if sub_model_config.get(
+                        api_key=main_model_config.get("api_key", ""),
+                        model_name=get_model_name_from_config(main_model_config) if main_model_config.get(
                             "model_name") else "",
-                        url=sub_model_config.get("base_url", ""))]
+                        url=main_model_config.get("base_url", ""))]
 
 
 async def create_agent_config(

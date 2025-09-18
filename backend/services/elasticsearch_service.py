@@ -43,7 +43,7 @@ from utils.prompt_template_utils import get_knowledge_summary_prompt_template
 logger = logging.getLogger("elasticsearch_service")
 
 
-def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: str) -> Generator:
+def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: str, model_name: Optional[str] = None) -> Generator:
     """
     Generate a knowledge base summary based on keywords
 
@@ -74,8 +74,29 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
     ]
 
     # Get model configuration from tenant config manager
-    model_config = tenant_config_manager.get_model_config(
-        key=MODEL_CONFIG_MAPPING["llmSecondary"], tenant_id=tenant_id)
+    if model_name:
+        # If specific model is provided, get its configuration
+        from services.model_management_service import get_model_by_name
+        try:
+            model_info = get_model_by_name(model_name, tenant_id)
+            if model_info:
+                model_config = {
+                    'api_key': model_info.get('api_key', ''),
+                    'base_url': model_info.get('base_url', ''),
+                    'model_name': model_info.get('model_name', model_name)
+                }
+            else:
+                # Fallback to default model if specified model not found
+                model_config = tenant_config_manager.get_model_config(
+                    key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
+        except Exception as e:
+            logger.warning(f"Failed to get model {model_name}, using default model: {e}")
+            model_config = tenant_config_manager.get_model_config(
+                key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
+    else:
+        # Use default model configuration
+        model_config = tenant_config_manager.get_model_config(
+            key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
 
     # initialize OpenAI client
     client = OpenAI(api_key=model_config.get('api_key', ""),
@@ -84,9 +105,13 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
     try:
         # Create stream chat completion request
         max_tokens = KNOWLEDGE_SUMMARY_MAX_TOKENS_ZH if language == LANGUAGE["ZH"] else KNOWLEDGE_SUMMARY_MAX_TOKENS_EN
+        # Get model name for the request
+        model_name_for_request = model_config.get("model_name", "")
+        if model_config.get("model_repo"):
+            model_name_for_request = f"{model_config['model_repo']}/{model_name_for_request}"
+        
         stream = client.chat.completions.create(
-            model=get_model_name_from_config(model_config) if model_config.get(
-                "model_name") else "",  # use model name from config
+            model=model_name_for_request,
             messages=messages,
             max_tokens=max_tokens,  # add max_tokens limit
             stream=True  # enable stream output
@@ -828,9 +853,12 @@ class ElasticSearchService:
                                      1000, description="Number of documents to retrieve per batch"),
                                  es_core: ElasticSearchCore = Depends(
                                      get_es_core),
+                                 user_id: Optional[str] = Body(
+                                     None, description="ID of the user delete the knowledge base"),
                                  tenant_id: Optional[str] = Body(
                                      None, description="ID of the tenant"),
-                                 language: str = LANGUAGE["ZH"]
+                                 language: str = LANGUAGE["ZH"],
+                                 model_name: Optional[str] = None
                                  ):
         """
         Generate a summary for the specified index based on its content
@@ -860,7 +888,7 @@ class ElasticSearchService:
             async def generate_summary():
                 token_join = []
                 try:
-                    for new_token in generate_knowledge_summary_stream(keywords_for_summary, language, tenant_id):
+                    for new_token in generate_knowledge_summary_stream(keywords_for_summary, language, tenant_id, model_name):
                         if new_token == "END":
                             break
                         else:

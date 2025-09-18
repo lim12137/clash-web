@@ -125,7 +125,8 @@ async def _stream_agent_chunks(
                 user_id=user_id,
             )
         # Always unregister the run to release resources
-        agent_run_manager.unregister_agent_run(agent_request.conversation_id, user_id)
+        agent_run_manager.unregister_agent_run(
+            agent_request.conversation_id, user_id)
 
         # Schedule memory addition in background to avoid blocking SSE termination
         async def _add_memory_background():
@@ -150,8 +151,10 @@ async def _stream_agent_chunks(
                     return
 
                 mem_messages_local = [
-                    {"role": MESSAGE_ROLE["USER"], "content": agent_run_info.query},
-                    {"role": MESSAGE_ROLE["ASSISTANT"], "content": final_answer_local},
+                    {"role": MESSAGE_ROLE["USER"],
+                        "content": agent_run_info.query},
+                    {"role": MESSAGE_ROLE["ASSISTANT"],
+                        "content": final_answer_local},
                 ]
 
                 add_result_local = await add_memory_in_levels(
@@ -536,9 +539,9 @@ async def import_agent_by_agent_id(import_agent_info: ExportAndImportAgentInfo, 
                                                  enabled=True,
                                                  params=tool.params))
     # check the validity of the agent parameters
-    if import_agent_info.model_name not in ["main_model", "sub_model"]:
+    if import_agent_info.model_name not in ["main_model"]:
         raise ValueError(
-            f"Invalid model name: {import_agent_info.model_name}. model name must be 'main_model' or 'sub_model'.")
+            f"Invalid model name: {import_agent_info.model_name}. model name must be 'main_model'.")
     if import_agent_info.max_steps <= 0 or import_agent_info.max_steps > 20:
         raise ValueError(
             f"Invalid max steps: {import_agent_info.max_steps}. max steps must be greater than 0 and less than 20.")
@@ -661,7 +664,7 @@ async def prepare_agent_run(
     agent_request: AgentRequest,
     user_id: str,
     tenant_id: str,
-    language: str=LANGUAGE["ZH"],
+    language: str = LANGUAGE["ZH"],
     allow_memory_search: bool = True,
 ):
     """
@@ -783,7 +786,8 @@ async def generate_stream_with_memory(
             ):
                 yield data_chunk
         except Exception as run_exc:
-            logger.error(f"Agent run error after memory failure: {str(run_exc)}")
+            logger.error(
+                f"Agent run error after memory failure: {str(run_exc)}")
             # Emit an error chunk and terminate the stream immediately
             error_payload = json.dumps(
                 {"type": "error", "content": str(run_exc)}, ensure_ascii=False)
@@ -806,7 +810,7 @@ async def generate_stream_no_memory(
     agent_request: AgentRequest,
     user_id: str,
     tenant_id: str,
-    language: str=LANGUAGE["ZH"],
+    language: str = LANGUAGE["ZH"],
 ):
     """Stream agent responses without any memory preprocessing tokens or fallback logic."""
 
@@ -849,7 +853,7 @@ async def run_agent_stream(
         user_id=user_id,
         tenant_id=tenant_id,
     )
-    
+
     # Save user message only if not in debug mode (before streaming starts)
     if not agent_request.is_debug and not skip_user_save:
         save_messages(
@@ -858,7 +862,7 @@ async def run_agent_stream(
             user_id=resolved_user_id,
             tenant_id=resolved_tenant_id,
         )
-    
+
     memory_ctx_preview = build_memory_context(
         resolved_user_id, resolved_tenant_id, agent_request.agent_id
     )

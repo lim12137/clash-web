@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from consts.const import LOCALHOST_IP, LOCALHOST_NAME, DOCKER_INTERNAL_HOST
 from consts.model import ModelConnectStatusEnum
@@ -256,7 +256,10 @@ async def list_llm_models_for_tenant(tenant_id: str):
                                 model_name=record["model_name"],
                             ),
                 "connect_status": ModelConnectStatusEnum.get_value(record.get("connect_status")),
-                "display_name": record["display_name"]
+                "display_name": record["display_name"],
+                "api_key": record.get("api_key", ""),
+                "base_url": record.get("base_url", ""),
+                "max_tokens": record.get("max_tokens", 4096)
             })
 
         logging.debug("Successfully retrieved model list")
@@ -264,3 +267,35 @@ async def list_llm_models_for_tenant(tenant_id: str):
     except Exception as e:
         logging.error(f"Failed to retrieve model list: {str(e)}")
         raise Exception(f"Failed to retrieve model list: {str(e)}")
+
+
+def get_model_by_name(model_name: str, tenant_id: str) -> Optional[Dict[str, Any]]:
+    """Get model information by model name for a specific tenant."""
+    try:
+        from utils.model_name_utils import split_repo_name
+        
+        # Split the model name to get repo and base name
+        model_repo, base_model_name = split_repo_name(model_name)
+        
+        # Search by both repo and model name
+        filters = {"model_type": "llm"}
+        if model_repo:
+            filters["model_repo"] = model_repo
+        filters["model_name"] = base_model_name
+        
+        records = get_model_records(filters, tenant_id)
+        if records:
+            record = records[0]  # Get the first matching record
+            return {
+                "model_id": record["model_id"],
+                "model_name": record["model_name"],
+                "model_repo": record.get("model_repo", ""),
+                "display_name": record["display_name"],
+                "api_key": record.get("api_key", ""),
+                "base_url": record.get("base_url", ""),
+                "connect_status": ModelConnectStatusEnum.get_value(record.get("connect_status")),
+            }
+        return None
+    except Exception as e:
+        logging.error(f"Failed to get model by name {model_name}: {str(e)}")
+        return None

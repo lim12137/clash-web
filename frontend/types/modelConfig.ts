@@ -77,7 +77,6 @@ export interface SingleModelConfig {
 // Model configuration interface
 export interface ModelConfig {
   llm: SingleModelConfig;
-  llmSecondary: SingleModelConfig;
   embedding: SingleModelConfig;
   multiEmbedding: SingleModelConfig;
   rerank: SingleModelConfig;
