@@ -22,6 +22,43 @@ sys.modules['nexent.core'] = MagicMock()
 sys.modules['nexent.core.models'] = MagicMock()
 sys.modules['nexent.core.models.openai_vlm'] = MagicMock()
 sys.modules['nexent.core.models.openai_long_context_model'] = MagicMock()
+
+# Mock MessageObserver
+
+
+class MockMessageObserver:
+    def __init__(self, *args, **kwargs):
+        pass
+
+
+sys.modules['nexent.core'].MessageObserver = MockMessageObserver
+
+# Mock OpenAIVLModel
+
+
+class MockOpenAIVLModel:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def analyze_image(self, *args, **kwargs):
+        return MagicMock(content="Mocked image analysis")
+
+
+sys.modules['nexent.core.models.openai_vlm'].OpenAIVLModel = MockOpenAIVLModel
+
+# Mock OpenAILongContextModel
+
+
+class MockOpenAILongContextModel:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def analyze_long_text(self, *args, **kwargs):
+        return (MagicMock(content="Mocked text analysis"), "0")
+
+
+sys.modules['nexent.core.models.openai_long_context_model'].OpenAILongContextModel = MockOpenAILongContextModel
+
 sys.modules['utils'] = MagicMock()
 sys.modules['utils.config_utils'] = MagicMock()
 sys.modules['utils.prompt_template_utils'] = MagicMock()

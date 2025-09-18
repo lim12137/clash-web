@@ -16,7 +16,6 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, Generator, List, Optional
 
-from dotenv import load_dotenv
 from fastapi import Body, Depends, Path, Query
 from fastapi.responses import StreamingResponse
 from jinja2 import Template, StrictUndefined
@@ -28,6 +27,7 @@ from openai.types.chat import ChatCompletionMessageParam
 
 from consts.const import ES_API_KEY, ES_HOST, LANGUAGE, MODEL_CONFIG_MAPPING, MESSAGE_ROLE, KNOWLEDGE_SUMMARY_MAX_TOKENS_ZH, KNOWLEDGE_SUMMARY_MAX_TOKENS_EN
 from database.attachment_db import delete_file
+from services.model_management_service import get_model_by_id
 from database.knowledge_db import (
     create_knowledge_record,
     delete_knowledge_record,
@@ -43,6 +43,45 @@ from utils.prompt_template_utils import get_knowledge_summary_prompt_template
 logger = logging.getLogger("elasticsearch_service")
 
 
+def _get_llm_model_config(model_id: Optional[int], tenant_id: str) -> Dict[str, Any]:
+    """
+    Get LLM model configuration based on model_id or default configuration.
+
+    Args:
+        model_id: Optional model ID to get specific model configuration
+        tenant_id: Tenant ID for configuration
+
+    Returns:
+        Dict containing model configuration (api_key, base_url, model_name, model_repo)
+    """
+    if model_id:
+        # If specific model is provided, get its configuration
+        try:
+            model_info = get_model_by_id(model_id, tenant_id)
+            if model_info:
+                return {
+                    'api_key': model_info.get('api_key', ''),
+                    'base_url': model_info.get('base_url', ''),
+                    'model_name': model_info.get('model_name', ''),
+                    'model_repo': model_info.get('model_repo', '')
+                }
+            else:
+                # Fallback to default model if specified model not found
+                logger.warning(
+                    f"Specified model {model_id} not found, falling back to default LLM.")
+                return tenant_config_manager.get_model_config(
+                    key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
+        except Exception as e:
+            logger.warning(
+                f"Failed to get model {model_id}, using default model: {e}")
+            return tenant_config_manager.get_model_config(
+                key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
+    else:
+        # Use default model configuration
+        return tenant_config_manager.get_model_config(
+            key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
+
+
 def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: str, model_id: Optional[int] = None) -> Generator:
     """
     Generate a knowledge base summary based on keywords
@@ -55,9 +94,6 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
     Returns:
         str:  Generate a knowledge base summary
     """
-    # Load environment variables
-    load_dotenv()
-
     # Load prompt words based on language
     prompts = get_knowledge_summary_prompt_template(language)
 
@@ -74,31 +110,7 @@ def generate_knowledge_summary_stream(keywords: str, language: str, tenant_id: s
     ]
 
     # Get model configuration from tenant config manager
-    if model_id:
-        # If specific model is provided, get its configuration
-        from services.model_management_service import get_model_by_id
-        try:
-            model_info = get_model_by_id(model_id, tenant_id)
-            if model_info:
-                model_config = {
-                    'api_key': model_info.get('api_key', ''),
-                    'base_url': model_info.get('base_url', ''),
-                    'model_name': model_info.get('model_name', ''),
-                    'model_repo': model_info.get('model_repo', '')
-                }
-            else:
-                # Fallback to default model if specified model not found
-                model_config = tenant_config_manager.get_model_config(
-                    key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
-        except Exception as e:
-            logger.warning(
-                f"Failed to get model {model_id}, using default model: {e}")
-            model_config = tenant_config_manager.get_model_config(
-                key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
-    else:
-        # Use default model configuration
-        model_config = tenant_config_manager.get_model_config(
-            key=MODEL_CONFIG_MAPPING["llm"], tenant_id=tenant_id)
+    model_config = _get_llm_model_config(model_id, tenant_id)
 
     # initialize OpenAI client
     client = OpenAI(api_key=model_config.get('api_key', ""),
