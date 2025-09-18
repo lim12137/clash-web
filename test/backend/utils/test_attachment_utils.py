@@ -14,7 +14,8 @@ from io import BytesIO
 sys.path.insert(0, os.path.abspath(os.path.join(
     os.path.dirname(__file__), '..', '..', '..')))
 
-# Mock heavy dependencies before importing
+# Mock external dependencies
+sys.modules['boto3'] = MagicMock()
 sys.modules['nexent'] = MagicMock()
 sys.modules['nexent.core'] = MagicMock()
 sys.modules['nexent.core.models'] = MagicMock()
@@ -22,18 +23,13 @@ sys.modules['nexent.core.models.openai_vlm'] = MagicMock()
 sys.modules['nexent.core.models.openai_long_context_model'] = MagicMock()
 
 # Mock MessageObserver
-
-
 class MockMessageObserver:
     def __init__(self, *args, **kwargs):
         pass
 
-
 sys.modules['nexent.core'].MessageObserver = MockMessageObserver
 
 # Mock OpenAIVLModel
-
-
 class MockOpenAIVLModel:
     def __init__(self, *args, **kwargs):
         pass
@@ -41,12 +37,9 @@ class MockOpenAIVLModel:
     def analyze_image(self, *args, **kwargs):
         return MagicMock(content="Mocked image analysis")
 
-
 sys.modules['nexent.core.models.openai_vlm'].OpenAIVLModel = MockOpenAIVLModel
 
 # Mock OpenAILongContextModel
-
-
 class MockOpenAILongContextModel:
     def __init__(self, *args, **kwargs):
         pass
@@ -54,18 +47,18 @@ class MockOpenAILongContextModel:
     def analyze_long_text(self, *args, **kwargs):
         return (MagicMock(content="Mocked text analysis"), "0")
 
-
 sys.modules['nexent.core.models.openai_long_context_model'].OpenAILongContextModel = MockOpenAILongContextModel
 
 sys.modules['utils'] = MagicMock()
 sys.modules['utils.config_utils'] = MagicMock()
 sys.modules['utils.prompt_template_utils'] = MagicMock()
 
-# Import the functions to test
-from backend.utils.attachment_utils import (
-    convert_image_to_text,
-    convert_long_text_to_text
-)
+# Import the functions to test using patch context
+with patch('database.client.MinioClient', MagicMock()):
+    from backend.utils.attachment_utils import (
+        convert_image_to_text,
+        convert_long_text_to_text
+    )
 
 class TestConvertImageToText:
     """Test cases for convert_image_to_text function"""
