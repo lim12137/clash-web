@@ -214,6 +214,7 @@ MOCK_SESSION = {
 
 MODEL_CONFIG_MAPPING = {
     "llm": "LLM_ID",
+    "llmSecondary": "LLM_SECONDARY_ID",
     "embedding": "EMBEDDING_ID",
     "multiEmbedding": "MULTI_EMBEDDING_ID",
     "rerank": "RERANK_ID",

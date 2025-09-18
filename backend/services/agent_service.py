@@ -539,9 +539,9 @@ async def import_agent_by_agent_id(import_agent_info: ExportAndImportAgentInfo, 
                                                  enabled=True,
                                                  params=tool.params))
     # check the validity of the agent parameters
-    if import_agent_info.model_name not in ["main_model"]:
-        raise ValueError(
-            f"Invalid model name: {import_agent_info.model_name}. model name must be 'main_model'.")
+        if import_agent_info.model_name not in ["main_model", "sub_model"]:
+            raise ValueError(
+                f"Invalid model name: {import_agent_info.model_name}. model name must be 'main_model' or 'sub_model'.")
     if import_agent_info.max_steps <= 0 or import_agent_info.max_steps > 20:
         raise ValueError(
             f"Invalid max steps: {import_agent_info.max_steps}. max steps must be greater than 0 and less than 20.")

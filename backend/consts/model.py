@@ -87,6 +87,7 @@ class SingleModelConfig(BaseModel):
 
 class ModelConfig(BaseModel):
     llm: SingleModelConfig
+    llmSecondary: SingleModelConfig
     embedding: SingleModelConfig
     multiEmbedding: SingleModelConfig
     rerank: SingleModelConfig

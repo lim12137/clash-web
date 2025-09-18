@@ -10,12 +10,16 @@ import { useTranslation } from "react-i18next";
 import { Input, Button, App, Select } from "antd";
 import { InfoCircleFilled } from "@ant-design/icons";
 
-import { UI_CONFIG, COLUMN_WIDTHS, DOCUMENT_NAME_CONFIG, LAYOUT, DOCUMENT_STATUS } from "@/const/knowledgeBase";
+import {
+  UI_CONFIG,
+  COLUMN_WIDTHS,
+  DOCUMENT_NAME_CONFIG,
+  LAYOUT,
+  DOCUMENT_STATUS,
+} from "@/const/knowledgeBase";
 import knowledgeBaseService from "@/services/knowledgeBaseService";
 import { modelService } from "@/services/modelService";
-import { 
-  Document
-} from "@/types/knowledgeBase";
+import { Document } from "@/types/knowledgeBase";
 import { ModelOption } from "@/types/modelConfig";
 import { formatFileSize, sortByStatusAndDate } from "@/lib/utils";
 import log from "@/lib/logger";
@@ -125,7 +129,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
     const [summary, setSummary] = useState("");
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [selectedModel, setSelectedModel] = useState<string>("");
+    const [selectedModel, setSelectedModel] = useState<number>(0);
     const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
     const [isLoadingModels, setIsLoadingModels] = useState(false);
     const {} = useKnowledgeBaseContext();
@@ -146,7 +150,7 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
             setAvailableModels(models);
             // Set first available model as default
             if (models.length > 0) {
-              setSelectedModel(models[0].name);
+              setSelectedModel(models[0].id);
             } else {
               message.warning("没有可用的模型进行总结");
             }
@@ -329,7 +333,9 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
                 </span>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">{t("document.summary.modelLabel")}:</span>
+                    <span className="text-sm text-gray-600">
+                      {t("document.summary.modelLabel")}:
+                    </span>
                     <Select
                       value={selectedModel}
                       onChange={setSelectedModel}
@@ -337,10 +343,10 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
                       disabled={isSummarizing}
                       style={{ width: 200 }}
                       placeholder={t("document.summary.modelPlaceholder")}
-                      options={availableModels.map(model => ({
-                        value: model.name,
+                      options={availableModels.map((model) => ({
+                        value: model.id,
                         label: model.displayName,
-                        disabled: model.connect_status === "unavailable"
+                        disabled: model.connect_status === "unavailable",
                       }))}
                     />
                   </div>
@@ -348,7 +354,9 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
                     type="default"
                     onClick={handleAutoSummary}
                     loading={isSummarizing}
-                    disabled={!knowledgeBaseName || isSummarizing || !selectedModel}
+                    disabled={
+                      !knowledgeBaseName || isSummarizing || !selectedModel
+                    }
                   >
                     {t("document.button.autoSummary")}
                   </Button>
@@ -469,9 +477,11 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
                           onClick={() => onDelete(doc.id)}
                           className={LAYOUT.ACTION_TEXT}
                           disabled={
-                            doc.status === DOCUMENT_STATUS.WAIT_FOR_PROCESSING ||
+                            doc.status ===
+                              DOCUMENT_STATUS.WAIT_FOR_PROCESSING ||
                             doc.status === DOCUMENT_STATUS.PROCESSING ||
-                            doc.status === DOCUMENT_STATUS.WAIT_FOR_FORWARDING ||
+                            doc.status ===
+                              DOCUMENT_STATUS.WAIT_FOR_FORWARDING ||
                             doc.status === DOCUMENT_STATUS.FORWARDING
                           }
                         >

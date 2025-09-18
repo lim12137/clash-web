@@ -10,9 +10,9 @@ import {
   ModelSource,
 } from "@/types/modelConfig";
 
-import { getAuthHeaders } from '@/lib/auth'
-import {STATUS_CODES} from "@/const/auth";
-import { MODEL_TYPES, MODEL_SOURCES } from '@/const/modelConfig';
+import { getAuthHeaders } from "@/lib/auth";
+import { STATUS_CODES } from "@/const/auth";
+import { MODEL_TYPES, MODEL_SOURCES } from "@/const/modelConfig";
 import log from "@/lib/logger";
 
 // Error class
@@ -43,7 +43,7 @@ export const modelService = {
         headers: getAuthHeaders(),
       });
       const result = await response.json();
-      
+
       if (response.status === STATUS_CODES.SUCCESS && result.data) {
         const modelOptions: ModelOption[] = [];
         const typeMap: Record<string, ModelType> = {
@@ -422,10 +422,7 @@ export const modelService = {
         log.warn("Model configuration connectivity verification cancelled");
         throw error;
       }
-      log.error(
-        "Model configuration connectivity verification failed:",
-        error
-      );
+      log.error("Model configuration connectivity verification failed:", error);
       return {
         connectivity: false,
         model_name: "UNKNOWN_MODEL",
@@ -440,9 +437,10 @@ export const modelService = {
         headers: getAuthHeaders(),
       });
       const result = await response.json();
-      
+
       if (response.status === STATUS_CODES.SUCCESS && result.data) {
         return result.data.map((model: any) => ({
+          id: model.model_id || 0,
           name: model.model_name || "",
           displayName: model.display_name || model.model_name || "",
           type: MODEL_TYPES.LLM,

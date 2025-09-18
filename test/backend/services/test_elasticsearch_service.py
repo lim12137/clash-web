@@ -1180,7 +1180,8 @@ class TestElasticSearchService(unittest.TestCase):
                     index_name="test_index",
                     batch_size=1000,
                     es_core=self.mock_es_core,
-                    language='en'
+                    language='en',
+                    model_id=1
                 )
 
                 # Consume part of the stream to trigger the generator function
