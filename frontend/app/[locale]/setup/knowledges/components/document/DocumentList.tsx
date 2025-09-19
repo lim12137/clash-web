@@ -152,11 +152,11 @@ const DocumentListContainer = forwardRef<DocumentListRef, DocumentListProps>(
             if (models.length > 0) {
               setSelectedModel(models[0].id);
             } else {
-              message.warning("没有可用的模型进行总结");
+              message.warning(t("businessLogic.config.error.noAvailableModels"));
             }
           } catch (error) {
             log.error("Failed to load models:", error);
-            message.error("加载模型列表失败");
+            message.error(t("modelConfig.error.loadListFailed"));
           } finally {
             setIsLoadingModels(false);
           }
