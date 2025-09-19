@@ -1,6 +1,5 @@
 // Agent Configuration Types
 import { ChatMessageType } from "./chat";
-import { OpenAIModel } from "./modelConfig";
 import { ModelOption } from "@/types/modelConfig";
 import { GENERATE_PROMPT_STREAM_TYPES, TOOL_SOURCE_TYPES } from "../const/agentConfig";
 
@@ -42,7 +41,6 @@ export interface ToolParam {
     | "boolean"
     | "array"
     | "object"
-    | "OpenAIModel"
     | "Optional";
   required: boolean;
   value?: any;
@@ -85,8 +83,8 @@ export interface AgentSetupOrchestratorProps {
   setSelectedTools: (tools: Tool[]) => void;
   isCreatingNewAgent: boolean;
   setIsCreatingNewAgent: (value: boolean) => void;
-  mainAgentModel: OpenAIModel;
-  setMainAgentModel: (value: OpenAIModel) => void;
+  mainAgentModel: string | null;
+  setMainAgentModel: (value: string | null) => void;
   mainAgentMaxStep: number;
   setMainAgentMaxStep: (value: number) => void;
   tools: Tool[];
