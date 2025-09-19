@@ -9,7 +9,6 @@ import {
 } from "@/const/agentConfig";
 import { SETUP_PAGE_CONTAINER, STANDARD_CARD } from "@/const/layoutConstants";
 import { ModelOption } from "@/types/modelConfig";
-import { OpenAIModel } from "@/types/modelConfig";
 import {
   LayoutConfig,
   AgentConfigDataResponse,
@@ -46,7 +45,7 @@ export default function AgentConfig() {
   const [selectedTools, setSelectedTools] = useState<any[]>([]);
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
   const [isCreatingNewAgent, setIsCreatingNewAgent] = useState(false);
-  const [mainAgentModel, setMainAgentModel] = useState(OpenAIModel.MainModel);
+  const [mainAgentModel, setMainAgentModel] = useState<string | null>(null);
   const [mainAgentMaxStep, setMainAgentMaxStep] = useState(5);
   const [tools, setTools] = useState<any[]>([]);
   const [mainAgentId, setMainAgentId] = useState<string | null>(null);
@@ -278,7 +277,7 @@ export default function AgentConfig() {
         // Clear other states since we don't have detailed info yet
         setMainAgentId(null);
         // No longer manually clear enabledAgentIds, completely rely on backend returned sub_agent_id_list
-        setMainAgentModel(OpenAIModel.MainModel);
+        setMainAgentModel(null);
         setMainAgentMaxStep(5);
         setBusinessLogic("");
         setDutyContent("");
