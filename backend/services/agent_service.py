@@ -125,7 +125,7 @@ async def _stream_agent_chunks(
                 user_id=user_id,
             )
         # Always unregister the run to release resources
-        agent_run_manager.unregister_agent_run(agent_request.conversation_id)
+        agent_run_manager.unregister_agent_run(agent_request.conversation_id, user_id)
 
         # Schedule memory addition in background to avoid blocking SSE termination
         async def _add_memory_background():
@@ -681,7 +681,7 @@ async def prepare_agent_run(
         allow_memory_search=allow_memory_search,
     )
     agent_run_manager.register_agent_run(
-        agent_request.conversation_id, agent_run_info)
+        agent_request.conversation_id, agent_run_info, user_id)
     return agent_run_info, memory_context
 
 
@@ -835,6 +835,7 @@ async def run_agent_stream(
     authorization: str,
     user_id: str = None,
     tenant_id: str = None,
+    skip_user_save: bool = False,
 ):
     """
     Start an agent run and stream responses.
@@ -850,10 +851,13 @@ async def run_agent_stream(
     )
     
     # Save user message only if not in debug mode (before streaming starts)
-    if not agent_request.is_debug:
-        save_messages(agent_request, target=MESSAGE_ROLE["USER"],
-                      user_id=resolved_user_id,
-                      tenant_id=resolved_tenant_id)
+    if not agent_request.is_debug and not skip_user_save:
+        save_messages(
+            agent_request,
+            target=MESSAGE_ROLE["USER"],
+            user_id=resolved_user_id,
+            tenant_id=resolved_tenant_id,
+        )
     
     memory_ctx_preview = build_memory_context(
         resolved_user_id, resolved_tenant_id, agent_request.agent_id
@@ -881,13 +885,13 @@ async def run_agent_stream(
     )
 
 
-def stop_agent_tasks(conversation_id: int):
+def stop_agent_tasks(conversation_id: int, user_id: str):
     """
     Stop agent run and preprocess tasks for the specified conversation_id.
     Matches the behavior of agent_app.agent_stop_api.
     """
     # Stop agent run
-    agent_stopped = agent_run_manager.stop_agent_run(conversation_id)
+    agent_stopped = agent_run_manager.stop_agent_run(conversation_id, user_id)
 
     # Stop preprocess tasks
     preprocess_stopped = preprocess_manager.stop_preprocess_tasks(
@@ -900,11 +904,11 @@ def stop_agent_tasks(conversation_id: int):
         if preprocess_stopped:
             message_parts.append("preprocess tasks")
 
-        message = f"successfully stopped {' and '.join(message_parts)} for conversation_id {conversation_id}"
+        message = f"successfully stopped {' and '.join(message_parts)} for user_id {user_id}, conversation_id {conversation_id}"
         logging.info(message)
         return {"status": "success", "message": message}
     else:
-        message = f"no running agent or preprocess tasks found for conversation_id {conversation_id}"
+        message = f"no running agent or preprocess tasks found for user_id {user_id}, conversation_id {conversation_id}"
         logging.error(message)
         return {"status": "error", "message": message}
 

@@ -2,8 +2,8 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons' 
 import { DOCUMENT_STATUS } from "@/const/knowledgeBase"
-import { CONNECTION_STATUS, MODEL_STATUS } from "@/const/modelConfig"
 import React from 'react'
+import log from "@/lib/logger";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -126,7 +126,7 @@ export function getUrlParam<T>(
     
     return paramValue as unknown as T
   } catch (error) {
-    console.warn(`Failed to get URL parameter ${paramName}:`, error)
+    log.warn(`Failed to get URL parameter ${paramName}:`, error)
     return defaultValue
   }
 }
@@ -155,7 +155,7 @@ export function getUrlParam<T>(
       case 'OpenAIModel':
         return 'OpenAIModel';    
       default:
-        console.warn(`Unknown type: ${backendType}, using string as default type`);
+        log.warn(`Unknown type: ${backendType}, using string as default type`);
         return 'string';
     }
   };

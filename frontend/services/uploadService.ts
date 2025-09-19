@@ -2,7 +2,8 @@ import { TFunction } from 'i18next';
 
 import { NAME_CHECK_STATUS } from '@/const/agentConfig';
 import knowledgeBaseService from '@/services/knowledgeBaseService';
-import { AbortableError } from '../types/knowledgeBase';
+import { AbortableError } from '@/types/knowledgeBase';
+import log from "@/lib/logger";
 
 import '../app/[locale]/i18n';
 
@@ -15,7 +16,7 @@ export const checkKnowledgeBaseName = async (
     // Call new service method
     return await knowledgeBaseService.checkKnowledgeBaseName(knowledgeBaseName);
   } catch (error) {
-    console.error(t('knowledgeBase.check.nameError'), error);
+    log.error(t('knowledgeBase.check.nameError'), error);
     // Return a status indicating check failure
     return { status: NAME_CHECK_STATUS.CHECK_FAILED };
   }
@@ -39,7 +40,7 @@ export const fetchKnowledgeBaseInfo = async (
   } catch (error: unknown) {
     const err = error as AbortableError;
     if (err.name !== 'AbortError' && indexName === currentKnowledgeBaseRef.current) {
-      console.error(t('knowledgeBase.fetch.error'), error);
+      log.error(t('knowledgeBase.fetch.error'), error);
       message.error(t('knowledgeBase.fetch.retryError'));
       onError(error);
     }

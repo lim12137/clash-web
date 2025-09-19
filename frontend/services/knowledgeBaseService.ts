@@ -6,6 +6,8 @@ import { NAME_CHECK_STATUS } from '@/const/agentConfig';
 import { FILE_TYPES, EXTENSION_TO_TYPE_MAP } from '@/const/knowledgeBase';
 import { Document, KnowledgeBase, KnowledgeBaseCreateParams } from '@/types/knowledgeBase';
 import { getAuthHeaders, fetchWithAuth } from '@/lib/auth';
+import log from "@/lib/logger";
+
 // @ts-ignore
 const fetch: typeof fetchWithAuth = fetchWithAuth;
 
@@ -26,7 +28,7 @@ class KnowledgeBaseService {
       
       return isHealthy;
     } catch (error) {
-      console.error("Elasticsearch health check failed:", error);
+      log.error("Elasticsearch health check failed:", error);
       // No longer cache error status
       return false;
     }
@@ -39,7 +41,7 @@ class KnowledgeBaseService {
       if (!skipHealthCheck) {
         const isElasticsearchHealthy = await this.checkHealth();
         if (!isElasticsearchHealthy) {
-          console.warn("Elasticsearch service unavailable");
+          log.warn("Elasticsearch service unavailable");
           return [];
         }
       }
@@ -78,12 +80,12 @@ class KnowledgeBaseService {
           });
         }
       } catch (error) {
-        console.error("Failed to get Elasticsearch indices:", error);
+        log.error("Failed to get Elasticsearch indices:", error);
       }
       
       return knowledgeBases;
     } catch (error) {
-      console.error("Failed to get knowledge base list:", error);
+      log.error("Failed to get knowledge base list:", error);
       throw error;
     }
   }
@@ -94,7 +96,7 @@ class KnowledgeBaseService {
       if (!skipHealthCheck) {
         const isElasticsearchHealthy = await this.checkHealth();
         if (!isElasticsearchHealthy) {
-          console.warn("Elasticsearch service unavailable");
+          log.warn("Elasticsearch service unavailable");
           return [];
         }
       }
@@ -108,12 +110,12 @@ class KnowledgeBaseService {
         const data = await response.json();
         knowledgeBases = data.indices;
       } catch (error) {
-        console.error("Failed to get knowledge base list:", error);
+        log.error("Failed to get knowledge base list:", error);
       }
 
       return knowledgeBases;
     } catch (error) {
-      console.error("Failed to get knowledge base list:", error);
+      log.error("Failed to get knowledge base list:", error);
       throw error;
     }
   }
@@ -124,7 +126,7 @@ class KnowledgeBaseService {
       const knowledgeBases = await this.getKnowledgeBases(true);
       return knowledgeBases.includes(name);
     } catch (error) {
-      console.error("Failed to check knowledge base name existence:", error);
+      log.error("Failed to check knowledge base name existence:", error);
       throw error;
     }
   }
@@ -142,7 +144,7 @@ class KnowledgeBaseService {
       }
       return await response.json();
     } catch (error) {
-      console.error("Failed to check knowledge base name:", error);
+      log.error("Failed to check knowledge base name:", error);
       // Return a specific status to indicate a failed check, so UI can handle it.
       return { status: NAME_CHECK_STATUS.CHECK_FAILED };
     }
@@ -192,7 +194,7 @@ class KnowledgeBaseService {
         source: params.source || "elasticsearch",
       };
     } catch (error) {
-      console.error("Failed to create knowledge base:", error);
+      log.error("Failed to create knowledge base:", error);
       throw error;
     }
   }
@@ -211,7 +213,7 @@ class KnowledgeBaseService {
         throw new Error(result.message || "Failed to delete knowledge base");
       }
     } catch (error) {
-      console.error("Failed to delete knowledge base:", error);
+      log.error("Failed to delete knowledge base:", error);
       throw error;
     }
   }
@@ -245,7 +247,7 @@ class KnowledgeBaseService {
         latest_task_id: file.latest_task_id || ""
       }));
     } catch (error) {
-      console.error("Failed to get all files:", error);
+      log.error("Failed to get all files:", error);
       throw error;
     }
   }
@@ -335,7 +337,7 @@ class KnowledgeBaseService {
 
       throw new Error("Unknown response status during processing");
     } catch (error) {
-      console.error("Failed to upload and process files:", error);
+      log.error("Failed to upload and process files:", error);
       throw error;
     }
   }
@@ -357,7 +359,7 @@ class KnowledgeBaseService {
         throw new Error(result.message || "Failed to delete document");
       }
     } catch (error) {
-      console.error("Failed to delete document:", error);
+      log.error("Failed to delete document:", error);
       throw error;
     }
   }
@@ -411,7 +413,7 @@ class KnowledgeBaseService {
                 throw new Error(data.message);
               }
             } catch (e) {
-              console.error('Failed to parse SSE data:', e, line);
+              log.error('Failed to parse SSE data:', e, line);
             }
           }
         }
@@ -419,7 +421,7 @@ class KnowledgeBaseService {
       
       return summary;
     } catch (error) {
-      console.error('Error summarizing index:', error);
+      log.error('Error summarizing index:', error);
       throw error;
     }
   }
@@ -445,7 +447,7 @@ class KnowledgeBaseService {
         throw new Error(data.message || "Failed to change summary");
       }
     } catch (error) {
-      console.error('Error changing summary:', error);
+      log.error('Error changing summary:', error);
       if (error instanceof Error) {
         throw error;
       }
@@ -473,7 +475,7 @@ class KnowledgeBaseService {
       return data.summary;
 
     } catch (error) {
-      console.error('Error geting summary:', error);
+      log.error('Error geting summary:', error);
       if (error instanceof Error) {
         throw error;
       }

@@ -19,7 +19,7 @@ class TerminalTool(Tool):
     name = "terminal"
     description = "Execute shell commands on a remote terminal via SSH connection. " \
                   "Supports session management to maintain shell state across commands. " \
-                  "Uses private key authentication with root user by default. " \
+                  "Uses password authentication for secure connection. " \
                   "Returns the command output as a string."
 
     inputs = {
@@ -31,33 +31,40 @@ class TerminalTool(Tool):
 
     tool_sign = ToolSign.TERMINAL_OPERATION.value  # Terminal operation tool identifier
 
-    # Class-level session storage
-    _sessions: Dict[str, Dict[str, Any]] = {}
-
     def __init__(self, 
-                 init_path: str = Field(description="Initial workspace path", default="/mnt/nexent"),
+                 init_path: str = Field(description="Initial workspace path", default="~"),
                  observer: MessageObserver = Field(description="Message observer", default=None, exclude=True),
                  ssh_host: str = Field(description="SSH host", default="nexent-openssh-server"),
                  ssh_port: int = Field(description="SSH port", default=22),
-                 ssh_user: str = Field(description="SSH username", default="linuxserver.io"),
-                 private_key_path: str = Field(description="Path to private key file", default="/opt/ssh-keys/openssh_server_key")):
+                 ssh_user: str = Field(description="SSH username"),
+                 password: str = Field(description="SSH password")):
         """Initialize the TerminalTool.
         
         Args:
-            init_path (str): Initial workspace path. Defaults to "/mnt/nexent".
+            init_path (str): Initial workspace path. Defaults to "~".
             observer (MessageObserver, optional): Message observer instance. Defaults to None.
-            ssh_host (str): SSH server host. Defaults to "localhost".
+            ssh_host (str): SSH server host. Defaults to "nexent-openssh-server".
             ssh_port (int): SSH server port. Defaults to 22.
-            ssh_user (str): SSH username. Defaults to "root".
-            private_key_path (str): Path to SSH private key. Defaults to "~/.ssh/id_rsa".
+            ssh_user (str): SSH username. Required parameter.
+            password (str): SSH password for authentication. Required parameter.
         """
         super().__init__()
-        self.init_path = os.path.abspath(init_path)
+        # Handle ~ for home directory and None values
+        if init_path == "~":
+            self.init_path = "~"
+        elif init_path is None:
+            self.init_path = None
+        else:
+            self.init_path = os.path.abspath(init_path)
+
+        # Class-level session storage
+        self._sessions: Dict[str, Dict[str, Any]] = {}
+
         self.observer = observer
         self.ssh_host = ssh_host
         self.ssh_port = ssh_port
         self.ssh_user = ssh_user
-        self.private_key_path = os.path.expanduser(private_key_path)
+        self.password = password
         self.running_prompt_zh = "正在执行终端命令..."
         self.running_prompt_en = "Executing terminal command..."
 
@@ -98,18 +105,19 @@ class TerminalTool(Tool):
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             
-            # Load ED25519 private key
-            if os.path.exists(self.private_key_path):
-                private_key = paramiko.Ed25519Key.from_private_key_file(self.private_key_path)
-                client.connect(
-                    hostname=self.ssh_host,
-                    port=self.ssh_port,
-                    username=self.ssh_user,
-                    pkey=private_key,
-                    timeout=10
-                )
-            else:
-                raise FileNotFoundError(f"Private key not found: {self.private_key_path}")
+            # Authentication: password only
+            if not self.password:
+                raise ValueError("SSH password is required for authentication")
+            
+            # Use password authentication
+            client.connect(
+                hostname=self.ssh_host,
+                port=self.ssh_port,
+                username=self.ssh_user,
+                password=self.password,
+                timeout=10
+            )
+            logger.info(f"Connected using password authentication")
             
             # Create interactive shell
             channel = client.invoke_shell()
@@ -118,6 +126,16 @@ class TerminalTool(Tool):
             # Clear initial output
             if channel.recv_ready():
                 channel.recv(4096)
+            
+            # Change to initial working directory
+            if self.init_path:
+                cd_command = f"cd {self.init_path}"
+                channel.send(cd_command + "\n")
+                time.sleep(0.5)
+                # Clear the cd command output
+                if channel.recv_ready():
+                    channel.recv(4096)
+                logger.info(f"Changed to working directory: {self.init_path}")
             
             logger.info(f"SSH session created successfully: {self.ssh_user}@{self.ssh_host}:{self.ssh_port}")
             
@@ -323,63 +341,3 @@ class TerminalTool(Tool):
                 "error": str(e),
                 "timestamp": time.time()
             }, ensure_ascii=False, indent=2)
-
-    @classmethod
-    def cleanup_all_sessions(cls):
-        """Clean up all active sessions."""
-        for session_name, session in cls._sessions.items():
-            try:
-                if session and "channel" in session:
-                    session["channel"].close()
-                if session and "client" in session:
-                    session["client"].close()
-            except:
-                pass
-        cls._sessions.clear()
-        logger.info("All SSH sessions cleaned up")
-
-
-if __name__ == "__main__":
-    """Test the TerminalTool functionality"""
-    import sys
-    
-    # Basic configuration - 直接创建实例并设置属性
-    tool = TerminalTool.__new__(TerminalTool)
-    Tool.__init__(tool)
-    tool.init_path = "/mnt/nexent"
-    tool.observer = None
-    tool.ssh_host = "localhost"  # For local testing
-    tool.ssh_port = 2222
-    tool.ssh_user = "linuxserver.io"
-    tool.private_key_path = "/Users/shuangruichen/Code/nexent/docker/openssh-server/ssh-keys/openssh_server_key"
-    tool.running_prompt_zh = "正在执行终端命令..."
-    tool.running_prompt_en = "Executing terminal command..."
-    
-    print("=== Terminal Tool Test ===")
-    print("Make sure openssh-server container is running and SSH keys are configured.")
-    print("Commands to test: 'ls -la', 'pwd', 'whoami', 'echo \"Hello World\"', 'exit'")
-    print()
-    
-    try:
-        while True:
-            command = input("Enter command (or 'quit' to exit): ").strip()
-            
-            if command.lower() in ['quit', 'exit']:
-                break
-                
-            if not command:
-                continue
-                
-            print(f"\n>>> Executing: {command}")
-            result = tool.forward(command, session_name="test_session", timeout=30)
-            print(f"Result: {result}")
-            print("-" * 50)
-            
-    except KeyboardInterrupt:
-        print("\nTest interrupted by user")
-    except Exception as e:
-        print(f"Test error: {e}")
-    finally:
-        print("Cleaning up sessions...")
-        TerminalTool.cleanup_all_sessions()
-        print("Test completed.") 

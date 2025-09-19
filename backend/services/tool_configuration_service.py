@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 import inspect
 import json
@@ -10,7 +11,7 @@ from fastmcp import Client
 import jsonref
 from mcpadapt.smolagents_adapter import _sanitize_function_name
 
-from consts.const import LOCAL_MCP_SERVER
+from consts.const import DEFAULT_USER_ID, LOCAL_MCP_SERVER
 from consts.exceptions import MCPConnectionError
 from consts.model import ToolInstanceInfoRequest, ToolInfo, ToolSourceEnum
 from database.remote_mcp_db import get_mcp_records_by_tenant
@@ -20,6 +21,7 @@ from database.tool_db import (
     query_tool_instances_by_id,
     update_tool_table_from_scan_tool_list
 )
+from database.user_tenant_db import get_all_tenant_ids
 
 logger = logging.getLogger("tool_configuration_service")
 
@@ -347,3 +349,68 @@ async def list_all_tools(tenant_id: str):
         formatted_tools.append(formatted_tool)
 
     return formatted_tools
+
+
+async def initialize_tools_on_startup():
+    """
+    Initialize and scan all tools during server startup for all tenants
+    
+    This function scans all available tools (local, LangChain, and MCP) 
+    and updates the database with the latest tool information for all tenants.
+    """
+    
+    logger.info("Starting tool initialization on server startup...")
+    
+    try:
+        # Get all tenant IDs from the database
+        tenant_ids = get_all_tenant_ids()
+        
+        if not tenant_ids:
+            logger.warning("No tenants found in database, skipping tool initialization")
+            return
+        
+        logger.info(f"Found {len(tenant_ids)} tenants: {tenant_ids}")
+        
+        total_tools = 0
+        successful_tenants = 0
+        failed_tenants = []
+        
+        # Process each tenant
+        for tenant_id in tenant_ids:
+            try:
+                logger.info(f"Initializing tools for tenant: {tenant_id}")
+                
+                # Add timeout to prevent hanging during startup
+                try:
+                    await asyncio.wait_for(
+                        update_tool_list(tenant_id=tenant_id, user_id=DEFAULT_USER_ID),
+                        timeout=60.0  # 60 seconds timeout per tenant
+                    )
+                    
+                    # Get the count of tools for this tenant
+                    tools_info = query_all_tools(tenant_id)
+                    tenant_tool_count = len(tools_info)
+                    total_tools += tenant_tool_count
+                    successful_tenants += 1
+                    
+                    logger.info(f"Tenant {tenant_id}: {tenant_tool_count} tools initialized")
+                    
+                except asyncio.TimeoutError:
+                    logger.error(f"Tool initialization timed out for tenant {tenant_id}")
+                    failed_tenants.append(f"{tenant_id} (timeout)")
+                    
+            except Exception as e:
+                logger.error(f"Tool initialization failed for tenant {tenant_id}: {str(e)}")
+                failed_tenants.append(f"{tenant_id} (error: {str(e)})")
+        
+        # Log final results
+        logger.info(f"Tool initialization completed!")
+        logger.info(f"Total tools available across all tenants: {total_tools}")
+        logger.info(f"Successfully processed: {successful_tenants}/{len(tenant_ids)} tenants")
+        
+        if failed_tenants:
+            logger.warning(f"Failed tenants: {', '.join(failed_tenants)}")
+        
+    except Exception as e:
+        logger.error(f"❌ Tool initialization failed: {str(e)}")
+        raise

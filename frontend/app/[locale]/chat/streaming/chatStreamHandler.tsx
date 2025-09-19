@@ -3,6 +3,7 @@
 import { ROLE_ASSISTANT } from "@/const/agentConfig";
 import { chatConfig } from "@/const/chatConfig";
 import { ChatMessageType, AgentStep } from "@/types/chat";
+import log from "@/lib/logger";
 
 import {
   deduplicateImages,
@@ -515,7 +516,7 @@ export const handleStreamResponse = async (
                       return recordMessages;
                     });
                   } catch (e) {
-                    console.error(
+                    log.error(
                       t("chatStreamHandler.parseSearchContentFailed"),
                       e
                     );
@@ -552,7 +553,7 @@ export const handleStreamResponse = async (
                       });
                     }
                   } catch (error) {
-                    console.error(
+                    log.error(
                       t("chatStreamHandler.processImageDataFailed"),
                       error
                     );
@@ -841,7 +842,7 @@ export const handleStreamResponse = async (
           }
         }
       } catch (error) {
-        console.error(t("chatStreamHandler.processRemainingDataFailed"), error);
+        log.error(t("chatStreamHandler.processRemainingDataFailed"), error);
       }
     }
 
@@ -902,7 +903,7 @@ export const handleStreamResponse = async (
               // Update the list
               await fetchConversationList();
             } catch (error) {
-              console.error(t("chatStreamHandler.generateTitleFailed"), error);
+              log.error(t("chatStreamHandler.generateTitleFailed"), error);
             }
           }, 100); // Add a delay to ensure the state has been updated
         }
@@ -914,7 +915,7 @@ export const handleStreamResponse = async (
     // Reset the conversation switch status
     setIsSwitchedConversation(false);
   } catch (error) {
-    console.error(t("chatStreamHandler.streamResponseError"), error);
+    log.error(t("chatStreamHandler.streamResponseError"), error);
     throw error; // Pass the error back to the original function for processing
   }
 

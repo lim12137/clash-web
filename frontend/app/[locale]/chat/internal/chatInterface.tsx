@@ -45,6 +45,7 @@ import {
 } from "./extractMsgFromHistoryResponse";
 
 import { X } from "lucide-react";
+import log from "@/lib/logger";
 
 const stepIdCounter = { current: 0 };
 
@@ -208,7 +209,7 @@ export function ChatInterface() {
           handleNewConversation();
         })
         .catch((err) => {
-          console.error(t("chatInterface.errorFetchingConversationList"), err);
+          log.error(t("chatInterface.errorFetchingConversationList"), err);
           // Create new conversation even if getting conversation list fails
           handleNewConversation();
         });
@@ -234,7 +235,7 @@ export function ChatInterface() {
         try {
           abortControllerRef.current.abort(t("chatInterface.componentUnmount"));
         } catch (error) {
-          console.error(t("chatInterface.errorCancelingRequest"), error);
+          log.error(t("chatInterface.errorCancelingRequest"), error);
         }
         abortControllerRef.current = null;
       }
@@ -362,13 +363,13 @@ export function ChatInterface() {
               setSelectedConversationId(currentConversationId);
             }
           } catch (error) {
-            console.error(
+            log.error(
               t("chatInterface.refreshDialogListFailedButContinue"),
               error
             );
           }
         } catch (error) {
-          console.error(
+          log.error(
             t("chatInterface.createDialogFailedButContinue"),
             error
           );
@@ -720,14 +721,14 @@ export function ChatInterface() {
                 try {
                   await conversationService.stop(currentConversationId);
                 } catch (error) {
-                  console.error(
+                  log.error(
                     t("chatInterface.stopTimeoutRequestFailed"),
                     error
                   );
                 }
               }
             } catch (error) {
-              console.error(t("chatInterface.errorCancelingRequest"), error);
+              log.error(t("chatInterface.errorCancelingRequest"), error);
             }
           }
           conversationTimeoutsRef.current.delete(currentConversationId);
@@ -808,7 +809,7 @@ export function ChatInterface() {
           return newMessages;
         });
       } else {
-        console.error(t("chatInterface.errorLabel"), error);
+        log.error(t("chatInterface.errorLabel"), error);
         const errorMessage =
           error instanceof Error
             ? error.message
@@ -926,7 +927,7 @@ export function ChatInterface() {
       setConversationList(dialogHistory);
       return dialogHistory;
     } catch (error) {
-      console.error(t("chatInterface.errorFetchingConversationList"), error);
+      log.error(t("chatInterface.errorFetchingConversationList"), error);
       throw error;
     }
   };
@@ -980,7 +981,7 @@ export function ChatInterface() {
               try {
                 controller.abort(t("chatInterface.requestTimeout"));
               } catch (error) {
-                console.error(t("chatInterface.errorCancelingRequest"), error);
+                log.error(t("chatInterface.errorCancelingRequest"), error);
               }
             }
             timeoutRef.current = null;
@@ -1061,7 +1062,7 @@ export function ChatInterface() {
 
             // Refresh history list
             fetchConversationList().catch((err) => {
-              console.error(
+              log.error(
                 t("chatInterface.refreshDialogListFailedButContinue"),
                 err
               );
@@ -1075,7 +1076,7 @@ export function ChatInterface() {
             }));
           }
         } catch (error) {
-          console.error(
+          log.error(
             t("chatInterface.errorFetchingConversationDetailsError"),
             error
           );
@@ -1123,7 +1124,7 @@ export function ChatInterface() {
             try {
               controller.abort(t("chatInterface.requestTimeout"));
             } catch (error) {
-              console.error(t("chatInterface.errorCancelingRequest"), error);
+              log.error(t("chatInterface.errorCancelingRequest"), error);
             }
           }
           timeoutRef.current = null;
@@ -1204,7 +1205,7 @@ export function ChatInterface() {
 
           // Refresh history list
           fetchConversationList().catch((err) => {
-            console.error(
+            log.error(
               t("chatInterface.refreshDialogListFailedButContinue"),
               err
             );
@@ -1218,7 +1219,7 @@ export function ChatInterface() {
           }));
         }
       } catch (error) {
-        console.error(
+        log.error(
           t("chatInterface.errorFetchingConversationDetailsError"),
           error
         );
@@ -1265,7 +1266,7 @@ export function ChatInterface() {
               attachment.url = url;
               hasUpdates = true;
             } catch (error) {
-              console.error(
+              log.error(
                 t("chatInterface.errorFetchingAttachmentUrl", {
                   object_name: attachment.object_name,
                 }),
@@ -1296,7 +1297,7 @@ export function ChatInterface() {
         setConversationTitle(title);
       }
     } catch (error) {
-      console.error(t("chatInterface.renameFailed"), error);
+      log.error(t("chatInterface.renameFailed"), error);
     }
   };
 
@@ -1316,7 +1317,7 @@ export function ChatInterface() {
               t("chatInterface.deleteConversation")
             );
           } catch (error) {
-            console.error(t("chatInterface.errorCancelingRequest"), error);
+            log.error(t("chatInterface.errorCancelingRequest"), error);
           }
           abortControllerRef.current = null;
         }
@@ -1333,7 +1334,7 @@ export function ChatInterface() {
         try {
           await conversationService.stop(dialogId);
         } catch (error) {
-          console.error(
+          log.error(
             t("chatInterface.stopConversationToDeleteFailed"),
             error
           );
@@ -1352,13 +1353,13 @@ export function ChatInterface() {
         handleNewConversation();
       }
     } catch (error) {
-      console.error(t("chatInterface.deleteFailed"), error);
+      log.error(t("chatInterface.deleteFailed"), error);
     }
   };
 
   // Add image error handling function
   const handleImageError = (imageUrl: string) => {
-    console.error(t("chatInterface.imageLoadFailed"), imageUrl);
+    log.error(t("chatInterface.imageLoadFailed"), imageUrl);
 
     // Remove failed images from messages
     setSessionMessages((prev) => {
@@ -1389,7 +1390,7 @@ export function ChatInterface() {
       try {
         currentController.abort(t("chatInterface.userManuallyStopped"));
       } catch (error) {
-        console.error(t("chatInterface.errorCancelingRequest"), error);
+        log.error(t("chatInterface.errorCancelingRequest"), error);
       }
       conversationControllersRef.current.delete(conversationId);
     }
@@ -1462,7 +1463,7 @@ export function ChatInterface() {
         });
       }
     } catch (error) {
-      console.error(t("chatInterface.stopConversationFailed"), error);
+      log.error(t("chatInterface.stopConversationFailed"), error);
 
       // Optionally show error message
       setSessionMessages((prev) => {
@@ -1489,7 +1490,7 @@ export function ChatInterface() {
         await fetchConversationList();
         setConversationTitle(newTitle);
       } catch (error) {
-        console.error(t("chatInterface.renameFailed"), error);
+        log.error(t("chatInterface.renameFailed"), error);
       }
     }
   };
@@ -1538,7 +1539,7 @@ export function ChatInterface() {
         return newMessages;
       });
     } catch (error) {
-      console.error(t("chatInterface.updateOpinionFailed"), error);
+      log.error(t("chatInterface.updateOpinionFailed"), error);
     }
   };
 
@@ -1546,7 +1547,7 @@ export function ChatInterface() {
   useEffect(() => {
     const handleConversationListUpdate = () => {
       fetchConversationList().catch((err) => {
-        console.error(t("chatInterface.failedToUpdateConversationList"), err);
+        log.error(t("chatInterface.failedToUpdateConversationList"), err);
       });
     };
 
