@@ -16,6 +16,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(
 
 # Mock external dependencies
 sys.modules['boto3'] = MagicMock()
+sys.modules['botocore'] = MagicMock()
+sys.modules['botocore.client'] = MagicMock()
+sys.modules['botocore.exceptions'] = MagicMock()
 sys.modules['nexent'] = MagicMock()
 sys.modules['nexent.core'] = MagicMock()
 sys.modules['nexent.core.models'] = MagicMock()
@@ -53,8 +56,15 @@ sys.modules['utils'] = MagicMock()
 sys.modules['utils.config_utils'] = MagicMock()
 sys.modules['utils.prompt_template_utils'] = MagicMock()
 
+# Mock database modules
+sys.modules['database'] = MagicMock()
+sys.modules['database.client'] = MagicMock()
+sys.modules['database.model_management_db'] = MagicMock()
+
 # Import the functions to test using patch context
-with patch('database.client.MinioClient', MagicMock()):
+with patch('botocore.client.BaseClient._make_api_call'), \
+     patch('database.client.MinioClient', MagicMock()), \
+     patch('elasticsearch.Elasticsearch', return_value=MagicMock()):
     from backend.utils.attachment_utils import (
         convert_image_to_text,
         convert_long_text_to_text

@@ -291,26 +291,6 @@ async def list_llm_models_for_tenant(tenant_id: str):
         raise Exception(f"Failed to retrieve model list: {str(e)}")
 
 
-def get_model_by_id(model_id: int, tenant_id: str) -> Optional[Dict[str, Any]]:
-    """Get model information by model ID for a specific tenant."""
-    try:
-        records = get_model_records(
-            {"model_id": model_id, "model_type": "llm"}, tenant_id)
-        if records:
-            record = records[0]  # Get the first matching record
-            return {
-                "model_id": record["model_id"],
-                "model_name": record["model_name"],
-                "model_repo": record.get("model_repo", ""),
-                "display_name": record["display_name"],
-                "api_key": record.get("api_key", ""),
-                "base_url": record.get("base_url", ""),
-                "connect_status": ModelConnectStatusEnum.get_value(record.get("connect_status")),
-            }
-        return None
-    except Exception as e:
-        logging.error(f"Failed to get model by ID {model_id}: {str(e)}")
-        return None
 
 
 def get_model_by_name(model_name: str, tenant_id: str) -> Optional[Dict[str, Any]]:

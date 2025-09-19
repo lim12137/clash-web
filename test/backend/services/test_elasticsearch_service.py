@@ -1170,132 +1170,10 @@ class TestElasticSearchService(unittest.TestCase):
 
         self.assertIn("Health check failed", str(context.exception))
 
-    @patch('backend.services.elasticsearch_service.get_model_by_id')
-    @patch('backend.services.elasticsearch_service.tenant_config_manager')
-    def test_get_llm_model_config_with_model_id(self, mock_tenant_config, mock_get_model_by_id):
-        """
-        Test _get_llm_model_config when model_id is provided.
-
-        This test verifies that:
-        1. When model_id is provided, get_model_by_id is called
-        2. The correct model configuration is returned
-        3. The configuration includes all required fields
-        """
-        # Setup
-        mock_model_info = {
-            'api_key': 'test_api_key',
-            'base_url': 'https://api.test.com',
-            'model_name': 'test-model',
-            'model_repo': 'test-repo'
-        }
-        mock_get_model_by_id.return_value = mock_model_info
-
-        # Import the function to test
-        from backend.services.elasticsearch_service import _get_llm_model_config
-
-        # Execute
-        result = _get_llm_model_config(model_id=1, tenant_id="test_tenant")
-
-        # Assert
-        self.assertEqual(result['api_key'], 'test_api_key')
-        self.assertEqual(result['base_url'], 'https://api.test.com')
-        self.assertEqual(result['model_name'], 'test-model')
-        self.assertEqual(result['model_repo'], 'test-repo')
-        mock_get_model_by_id.assert_called_once_with(1, "test_tenant")
-
-    @patch('backend.services.elasticsearch_service.get_model_by_id')
-    @patch('backend.services.elasticsearch_service.tenant_config_manager')
-    def test_get_llm_model_config_model_not_found(self, mock_tenant_config, mock_get_model_by_id):
-        """
-        Test _get_llm_model_config when specified model is not found.
-
-        This test verifies that:
-        1. When model is not found, fallback to default model configuration
-        2. The default model configuration is returned
-        3. Appropriate warning is logged
-        """
-        # Setup
-        mock_get_model_by_id.return_value = None
-        mock_default_config = {
-            'api_key': 'default_api_key',
-            'base_url': 'https://api.default.com',
-            'model_name': 'default-model'
-        }
-        mock_tenant_config.get_model_config.return_value = mock_default_config
-
-        # Import the function to test
-        from backend.services.elasticsearch_service import _get_llm_model_config
-
-        # Execute
-        result = _get_llm_model_config(model_id=999, tenant_id="test_tenant")
-
-        # Assert
-        self.assertEqual(result, mock_default_config)
-        mock_get_model_by_id.assert_called_once_with(999, "test_tenant")
-        mock_tenant_config.get_model_config.assert_called_once()
-
-    @patch('backend.services.elasticsearch_service.get_model_by_id')
-    @patch('backend.services.elasticsearch_service.tenant_config_manager')
-    def test_get_llm_model_config_exception(self, mock_tenant_config, mock_get_model_by_id):
-        """
-        Test _get_llm_model_config when get_model_by_id raises an exception.
-
-        This test verifies that:
-        1. When exception occurs, fallback to default model configuration
-        2. The default model configuration is returned
-        3. Exception is handled gracefully
-        """
-        # Setup
-        mock_get_model_by_id.side_effect = Exception("Database error")
-        mock_default_config = {
-            'api_key': 'default_api_key',
-            'base_url': 'https://api.default.com',
-            'model_name': 'default-model'
-        }
-        mock_tenant_config.get_model_config.return_value = mock_default_config
-
-        # Import the function to test
-        from backend.services.elasticsearch_service import _get_llm_model_config
-
-        # Execute
-        result = _get_llm_model_config(model_id=1, tenant_id="test_tenant")
-
-        # Assert
-        self.assertEqual(result, mock_default_config)
-        mock_get_model_by_id.assert_called_once_with(1, "test_tenant")
-        mock_tenant_config.get_model_config.assert_called_once()
-
-    @patch('backend.services.elasticsearch_service.tenant_config_manager')
-    def test_get_llm_model_config_no_model_id(self, mock_tenant_config):
-        """
-        Test _get_llm_model_config when no model_id is provided.
-
-        This test verifies that:
-        1. When no model_id is provided, default model configuration is used
-        2. The default model configuration is returned
-        3. get_model_by_id is not called
-        """
-        # Setup
-        mock_default_config = {
-            'api_key': 'default_api_key',
-            'base_url': 'https://api.default.com',
-            'model_name': 'default-model'
-        }
-        mock_tenant_config.get_model_config.return_value = mock_default_config
-
-        # Import the function to test
-        from backend.services.elasticsearch_service import _get_llm_model_config
-
-        # Execute
-        result = _get_llm_model_config(model_id=None, tenant_id="test_tenant")
-
-        # Assert
-        self.assertEqual(result, mock_default_config)
-        mock_tenant_config.get_model_config.assert_called_once()
 
     @patch('backend.services.elasticsearch_service.calculate_term_weights')
-    @patch('backend.services.elasticsearch_service._get_llm_model_config')
-    def test_summary_index_name(self, mock_get_llm_model_config, mock_calculate_weights):
+    @patch('database.model_management_db.get_model_by_model_id')
+    def test_summary_index_name(self, mock_get_model_by_model_id, mock_calculate_weights):
         """
         Test generating a summary for an index.
 
@@ -1308,7 +1186,7 @@ class TestElasticSearchService(unittest.TestCase):
         # Setup
         mock_calculate_weights.return_value = {
             "keyword1": 0.8, "keyword2": 0.6}
-        mock_get_llm_model_config.return_value = {
+        mock_get_model_by_model_id.return_value = {
             'api_key': 'test_api_key',
             'base_url': 'https://api.test.com',
             'model_name': 'test-model',
@@ -1352,7 +1230,7 @@ class TestElasticSearchService(unittest.TestCase):
             self.assertIsInstance(result, StreamingResponse)
             mock_get_docs.assert_called_once()
             mock_calculate_weights.assert_called_once()
-            mock_get_llm_model_config.assert_called_once_with(1, "test_tenant")
+            mock_get_model_by_model_id.assert_called_once_with(1, "test_tenant")
 
     def test_get_random_documents(self):
         """
