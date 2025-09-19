@@ -66,7 +66,8 @@ sys.modules['backend.consts.exceptions'] = exceptions_mock
 # Now import the functions to be tested
 from backend.database.user_tenant_db import (
     get_user_tenant_by_user_id,
-    insert_user_tenant
+    insert_user_tenant,
+    get_all_tenant_ids
 )
 
 class MockUserTenant:
@@ -301,4 +302,50 @@ def test_get_user_tenant_by_user_id_with_deleted_record(monkeypatch, mock_sessio
     
     assert result is None
     # Verify that the filter was called with correct conditions
-    query.filter.assert_called_once() 
+    query.filter.assert_called_once()
+
+
+def test_get_all_tenant_ids_empty_database(monkeypatch, mock_session):
+    """Test get_all_tenant_ids when database is empty - should return only DEFAULT_TENANT_ID"""
+    session, query = mock_session
+    
+    # Mock empty database result
+    query.filter.return_value.distinct.return_value.all.return_value = []
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.user_tenant_db.get_db_session", lambda: mock_ctx)
+    
+    result = get_all_tenant_ids()
+    
+    assert result == ["default_tenant"]  # DEFAULT_TENANT_ID from consts_mock
+    assert len(result) == 1
+
+
+def test_get_all_tenant_ids_with_existing_tenants(monkeypatch, mock_session):
+    """Test get_all_tenant_ids with existing tenants - should include all plus DEFAULT_TENANT_ID"""
+    session, query = mock_session
+    
+    # Mock database result with existing tenants
+    mock_tenants = [
+        ("tenant_1",),
+        ("tenant_2",),
+        ("tenant_3",)
+    ]
+    query.filter.return_value.distinct.return_value.all.return_value = mock_tenants
+    
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = session
+    mock_ctx.__exit__.return_value = None
+    monkeypatch.setattr("backend.database.user_tenant_db.get_db_session", lambda: mock_ctx)
+    
+    result = get_all_tenant_ids()
+    
+    assert len(result) == 4  # 3 existing + 1 default
+    assert "tenant_1" in result
+    assert "tenant_2" in result
+    assert "tenant_3" in result
+    assert "default_tenant" in result  # DEFAULT_TENANT_ID from consts_mock
+    # Should not duplicate DEFAULT_TENANT_ID
+    assert result.count("default_tenant") == 1
