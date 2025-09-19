@@ -31,13 +31,6 @@ export type ModelType =
   | "vlm"
   | "multi_embedding";
 
-// OpenAI Model enum for agent configuration
-export enum OpenAIModel {
-  MainModel = "main_model",
-  SubModel = "sub_model",
-}
-
-
 // Model option interface
 export interface ModelOption {
   id: string;
