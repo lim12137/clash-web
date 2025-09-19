@@ -328,6 +328,7 @@ export function RegisterModal() {
       footer={null}
       width={400}
       centered
+      forceRender
     >
       <Form
         id="register-form"

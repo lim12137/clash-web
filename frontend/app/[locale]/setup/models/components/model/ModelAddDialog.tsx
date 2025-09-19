@@ -516,7 +516,7 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
         {/* Connectivity verification area */}
         {!form.isBatchImport && (
         <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between">
             <div className="flex items-center">
               <span className="text-sm font-medium text-gray-700">{t('model.dialog.connectivity.title')}</span>
               {connectivityStatus.status && (
@@ -537,7 +537,6 @@ export const ModelAddDialog = ({ isOpen, onClose, onSuccess }: ModelAddDialogPro
               size="small"
               type="default"
               onClick={handleVerifyConnectivity}
-              loading={verifyingConnectivity}
               disabled={!isFormValid() || verifyingConnectivity}
             >
               {verifyingConnectivity ? t('model.dialog.button.verifying') : t('model.dialog.button.verify')}
