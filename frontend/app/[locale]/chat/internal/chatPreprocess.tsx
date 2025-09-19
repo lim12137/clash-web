@@ -1,8 +1,7 @@
-import { AgentStep } from "@/types/chat";
 import { conversationService } from "@/services/conversationService";
 import { storageService } from "@/services/storageService";
-
-import { FilePreview } from "@/types/chat";
+import { FilePreview, AgentStep } from "@/types/chat";
+import log from "@/lib/logger";
 
 // Step ID Counter
 const stepIdCounter = { current: 0 };
@@ -134,7 +133,7 @@ export const preprocessAttachments = async (
               finalQuery = jsonData.final_query;
             }
           } catch (e) {
-            console.error(
+            log.error(
               t("chatPreprocess.parsingPreprocessDataFailed"),
               e,
               jsonStr
@@ -146,7 +145,7 @@ export const preprocessAttachments = async (
 
     return { finalQuery, success: true, fileDescriptions };
   } catch (error) {
-    console.error(t("chatPreprocess.filePreprocessingFailed"), error);
+    log.error(t("chatPreprocess.filePreprocessingFailed"), error);
     return {
       finalQuery: content,
       success: false,
@@ -243,7 +242,7 @@ export const uploadAttachments = async (
 
     return { uploadedFileUrls, objectNames };
   } catch (error) {
-    console.error(t("chatPreprocess.fileUploadFailed"), error);
+    log.error(t("chatPreprocess.fileUploadFailed"), error);
     return {
       uploadedFileUrls: {},
       objectNames: {},

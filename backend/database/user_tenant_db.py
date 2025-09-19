@@ -3,6 +3,7 @@ Database operations for user tenant relationship management
 """
 from typing import Any, Dict, Optional
 
+from consts.const import DEFAULT_TENANT_ID
 from database.client import as_dict, get_db_session
 from database.db_models import UserTenant
 
@@ -26,6 +27,27 @@ def get_user_tenant_by_user_id(user_id: str) -> Optional[Dict[str, Any]]:
         if result:
             return as_dict(result)
         return None
+
+
+def get_all_tenant_ids() -> list[str]:
+    """
+    Get all unique tenant IDs from the database
+    
+    Returns:
+        list[str]: List of unique tenant IDs
+    """
+    with get_db_session() as session:
+        result = session.query(UserTenant.tenant_id).filter(
+            UserTenant.delete_flag == "N"
+        ).distinct().all()
+        
+        tenant_ids = [row[0] for row in result]
+        
+        # Add default tenant_id if not already in the list
+        if DEFAULT_TENANT_ID not in tenant_ids:
+            tenant_ids.append(DEFAULT_TENANT_ID)
+        
+        return tenant_ids
 
 
 def insert_user_tenant(user_id: str, tenant_id: str):

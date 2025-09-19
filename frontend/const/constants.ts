@@ -5,3 +5,5 @@ export const languageOptions = [
 ];
 
 export const TOKEN_REFRESH_CD = 1 * 60 * 1000;
+
+export const isProduction = process.env.NODE_ENV === "production";

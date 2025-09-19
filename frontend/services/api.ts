@@ -1,4 +1,5 @@
 import { STATUS_CODES } from "@/const/auth";
+import log from "@/lib/logger";
 
 const API_BASE_URL = '/api';
 
@@ -188,13 +189,13 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
   } catch (error) {
     // Handle network errors
     if (error instanceof TypeError && error.message.includes('NetworkError')) {
-      console.error('Network error:', error);
+      log.error('Network error:', error);
       throw new ApiError(STATUS_CODES.SERVER_ERROR, "Network connection error, please check your network connection");
     }
 
     // Handle connection reset errors
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-      console.error('Connection error:', error);
+      log.error('Connection error:', error);
 
       // For user management related requests, it might be login expiration
       if (url.includes('/user/session') || url.includes('/user/current_user_id')) {
