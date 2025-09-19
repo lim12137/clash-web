@@ -125,8 +125,7 @@ async def _stream_agent_chunks(
                 user_id=user_id,
             )
         # Always unregister the run to release resources
-        agent_run_manager.unregister_agent_run(
-            agent_request.conversation_id, user_id)
+        agent_run_manager.unregister_agent_run(agent_request.conversation_id)
 
         # Schedule memory addition in background to avoid blocking SSE termination
         async def _add_memory_background():
@@ -151,10 +150,8 @@ async def _stream_agent_chunks(
                     return
 
                 mem_messages_local = [
-                    {"role": MESSAGE_ROLE["USER"],
-                        "content": agent_run_info.query},
-                    {"role": MESSAGE_ROLE["ASSISTANT"],
-                        "content": final_answer_local},
+                    {"role": MESSAGE_ROLE["USER"], "content": agent_run_info.query},
+                    {"role": MESSAGE_ROLE["ASSISTANT"], "content": final_answer_local},
                 ]
 
                 add_result_local = await add_memory_in_levels(
@@ -664,7 +661,7 @@ async def prepare_agent_run(
     agent_request: AgentRequest,
     user_id: str,
     tenant_id: str,
-    language: str = LANGUAGE["ZH"],
+    language: str=LANGUAGE["ZH"],
     allow_memory_search: bool = True,
 ):
     """
@@ -684,7 +681,7 @@ async def prepare_agent_run(
         allow_memory_search=allow_memory_search,
     )
     agent_run_manager.register_agent_run(
-        agent_request.conversation_id, agent_run_info, user_id)
+        agent_request.conversation_id, agent_run_info)
     return agent_run_info, memory_context
 
 
@@ -786,8 +783,7 @@ async def generate_stream_with_memory(
             ):
                 yield data_chunk
         except Exception as run_exc:
-            logger.error(
-                f"Agent run error after memory failure: {str(run_exc)}")
+            logger.error(f"Agent run error after memory failure: {str(run_exc)}")
             # Emit an error chunk and terminate the stream immediately
             error_payload = json.dumps(
                 {"type": "error", "content": str(run_exc)}, ensure_ascii=False)
@@ -810,7 +806,7 @@ async def generate_stream_no_memory(
     agent_request: AgentRequest,
     user_id: str,
     tenant_id: str,
-    language: str = LANGUAGE["ZH"],
+    language: str=LANGUAGE["ZH"],
 ):
     """Stream agent responses without any memory preprocessing tokens or fallback logic."""
 
@@ -839,7 +835,6 @@ async def run_agent_stream(
     authorization: str,
     user_id: str = None,
     tenant_id: str = None,
-    skip_user_save: bool = False,
 ):
     """
     Start an agent run and stream responses.
@@ -853,16 +848,13 @@ async def run_agent_stream(
         user_id=user_id,
         tenant_id=tenant_id,
     )
-
+    
     # Save user message only if not in debug mode (before streaming starts)
-    if not agent_request.is_debug and not skip_user_save:
-        save_messages(
-            agent_request,
-            target=MESSAGE_ROLE["USER"],
-            user_id=resolved_user_id,
-            tenant_id=resolved_tenant_id,
-        )
-
+    if not agent_request.is_debug:
+        save_messages(agent_request, target=MESSAGE_ROLE["USER"],
+                      user_id=resolved_user_id,
+                      tenant_id=resolved_tenant_id)
+    
     memory_ctx_preview = build_memory_context(
         resolved_user_id, resolved_tenant_id, agent_request.agent_id
     )
@@ -889,13 +881,13 @@ async def run_agent_stream(
     )
 
 
-def stop_agent_tasks(conversation_id: int, user_id: str):
+def stop_agent_tasks(conversation_id: int):
     """
     Stop agent run and preprocess tasks for the specified conversation_id.
     Matches the behavior of agent_app.agent_stop_api.
     """
     # Stop agent run
-    agent_stopped = agent_run_manager.stop_agent_run(conversation_id, user_id)
+    agent_stopped = agent_run_manager.stop_agent_run(conversation_id)
 
     # Stop preprocess tasks
     preprocess_stopped = preprocess_manager.stop_preprocess_tasks(
@@ -908,11 +900,11 @@ def stop_agent_tasks(conversation_id: int, user_id: str):
         if preprocess_stopped:
             message_parts.append("preprocess tasks")
 
-        message = f"successfully stopped {' and '.join(message_parts)} for user_id {user_id}, conversation_id {conversation_id}"
+        message = f"successfully stopped {' and '.join(message_parts)} for conversation_id {conversation_id}"
         logging.info(message)
         return {"status": "success", "message": message}
     else:
-        message = f"no running agent or preprocess tasks found for user_id {user_id}, conversation_id {conversation_id}"
+        message = f"no running agent or preprocess tasks found for conversation_id {conversation_id}"
         logging.error(message)
         return {"status": "error", "message": message}
 

@@ -1763,6 +1763,144 @@ class TestElasticSearchService(unittest.TestCase):
         self.assertEqual(result["status"], "error_cleaning_orphans")
         self.assertTrue(result.get("error"))
 
+    @patch('backend.services.elasticsearch_service.tenant_config_manager')
+    @patch('database.model_management_db.get_model_by_model_id')
+    def test_generate_knowledge_summary_stream_model_not_found_fallback(self, mock_get_model_by_model_id, mock_tenant_config_manager):
+        """
+        Test generate_knowledge_summary_stream when model_id is provided but model_info is None.
+        Should fallback to default model configuration.
+        """
+        # Setup
+        mock_get_model_by_model_id.return_value = None  # Model not found
+        mock_tenant_config_manager.get_model_config.return_value = {
+            'api_key': 'default_api_key',
+            'base_url': 'https://default.api.com',
+            'model_name': 'default-model'
+        }
+        
+        # Mock OpenAI client
+        with patch('backend.services.elasticsearch_service.OpenAI') as mock_openai:
+            mock_client = MagicMock()
+            mock_openai.return_value = mock_client
+            
+            # Mock stream response
+            mock_response = MagicMock()
+            mock_response.__iter__ = MagicMock(return_value=iter([
+                MagicMock(choices=[MagicMock(delta=MagicMock(content="Test"))]),
+                MagicMock(choices=[MagicMock(delta=MagicMock(content="END"))])
+            ]))
+            mock_client.chat.completions.create.return_value = mock_response
+            
+            # Execute
+            from backend.services.elasticsearch_service import generate_knowledge_summary_stream
+            result = list(generate_knowledge_summary_stream(
+                keywords="test keywords",
+                language="en",
+                tenant_id="test_tenant",
+                model_id=999  # Non-existent model ID
+            ))
+            
+            # Assert
+            mock_get_model_by_model_id.assert_called_once_with(999, "test_tenant")
+            mock_tenant_config_manager.get_model_config.assert_called_once_with(
+                key="LLM_ID", tenant_id="test_tenant"
+            )
+            self.assertEqual(len(result), 3)
+            self.assertEqual(result[0], "Test")
+            self.assertEqual(result[1], "END")
+            self.assertEqual(result[2], "END")
+
+    @patch('backend.services.elasticsearch_service.tenant_config_manager')
+    @patch('database.model_management_db.get_model_by_model_id')
+    def test_generate_knowledge_summary_stream_model_exception_fallback(self, mock_get_model_by_model_id, mock_tenant_config_manager):
+        """
+        Test generate_knowledge_summary_stream when getting model info raises an exception.
+        Should fallback to default model configuration.
+        """
+        # Setup
+        mock_get_model_by_model_id.side_effect = Exception("Database connection error")
+        mock_tenant_config_manager.get_model_config.return_value = {
+            'api_key': 'default_api_key',
+            'base_url': 'https://default.api.com',
+            'model_name': 'default-model'
+        }
+        
+        # Mock OpenAI client
+        with patch('backend.services.elasticsearch_service.OpenAI') as mock_openai:
+            mock_client = MagicMock()
+            mock_openai.return_value = mock_client
+            
+            # Mock stream response
+            mock_response = MagicMock()
+            mock_response.__iter__ = MagicMock(return_value=iter([
+                MagicMock(choices=[MagicMock(delta=MagicMock(content="Test"))]),
+                MagicMock(choices=[MagicMock(delta=MagicMock(content="END"))])
+            ]))
+            mock_client.chat.completions.create.return_value = mock_response
+            
+            # Execute
+            from backend.services.elasticsearch_service import generate_knowledge_summary_stream
+            result = list(generate_knowledge_summary_stream(
+                keywords="test keywords",
+                language="en",
+                tenant_id="test_tenant",
+                model_id=1
+            ))
+            
+            # Assert
+            mock_get_model_by_model_id.assert_called_once_with(1, "test_tenant")
+            mock_tenant_config_manager.get_model_config.assert_called_once_with(
+                key="LLM_ID", tenant_id="test_tenant"
+            )
+            self.assertEqual(len(result), 3)
+            self.assertEqual(result[0], "Test")
+            self.assertEqual(result[1], "END")
+            self.assertEqual(result[2], "END")
+
+    @patch('backend.services.elasticsearch_service.tenant_config_manager')
+    def test_generate_knowledge_summary_stream_no_model_id_default_config(self, mock_tenant_config_manager):
+        """
+        Test generate_knowledge_summary_stream when model_id is None.
+        Should use default model configuration.
+        """
+        # Setup
+        mock_tenant_config_manager.get_model_config.return_value = {
+            'api_key': 'default_api_key',
+            'base_url': 'https://default.api.com',
+            'model_name': 'default-model'
+        }
+        
+        # Mock OpenAI client
+        with patch('backend.services.elasticsearch_service.OpenAI') as mock_openai:
+            mock_client = MagicMock()
+            mock_openai.return_value = mock_client
+            
+            # Mock stream response
+            mock_response = MagicMock()
+            mock_response.__iter__ = MagicMock(return_value=iter([
+                MagicMock(choices=[MagicMock(delta=MagicMock(content="Test"))]),
+                MagicMock(choices=[MagicMock(delta=MagicMock(content="END"))])
+            ]))
+            mock_client.chat.completions.create.return_value = mock_response
+            
+            # Execute
+            from backend.services.elasticsearch_service import generate_knowledge_summary_stream
+            result = list(generate_knowledge_summary_stream(
+                keywords="test keywords",
+                language="en",
+                tenant_id="test_tenant",
+                model_id=None  # No model_id provided
+            ))
+            
+            # Assert
+            mock_tenant_config_manager.get_model_config.assert_called_once_with(
+                key="LLM_ID", tenant_id="test_tenant"
+            )
+            self.assertEqual(len(result), 3)
+            self.assertEqual(result[0], "Test")
+            self.assertEqual(result[1], "END")
+            self.assertEqual(result[2], "END")
+
 
 if __name__ == '__main__':
     unittest.main()
