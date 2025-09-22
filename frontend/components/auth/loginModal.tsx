@@ -162,6 +162,7 @@ export function LoginModal() {
       footer={null}
       width={400}
       centered
+      forceRender
       // Prevent modal from being closed by clicking mask or close button when session is expired
       maskClosable={!isFromSessionExpired}
       closable={!isFromSessionExpired}

@@ -27,6 +27,12 @@ Ready to get started? We recommend configuring in the following order:
 4. After that, configure **[Agent Configuration](./agent-configuration)** to create your own agent.
 5. Once everything is set, you can interact with your agent on the **[Chat Interface](./chat-interface)**.
 
+## 🛠️ Local Tools
+
+Nexent provides a rich set of local tools to help agents complete various complex tasks. The following introduces some tools that have certain operational difficulty:
+
+- **[Terminal Tool](./local-tools/terminal-tool)**: Execute commands on remote servers through SSH connections, enabling server management and system monitoring
+
 ## 🧠 Advanced Features
 
 Beyond basic configuration, Nexent also provides powerful advanced features:
