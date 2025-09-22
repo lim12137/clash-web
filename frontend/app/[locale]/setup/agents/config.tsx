@@ -98,7 +98,7 @@ export default function AgentConfig() {
         {
           agent_id: Number(currentAgentId),
           task_description: businessLogic,
-          model_id: selectedModel?.id || "",
+          model_id: selectedModel?.id?.toString() || "",
         },
         (data) => {
           // Process streaming response data
