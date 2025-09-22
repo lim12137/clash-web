@@ -779,7 +779,6 @@ class TestLoadConfigImpl:
 
         service_mocks['tenant_config_manager'].get_model_config.side_effect = [
             {},          # LLM_ID
-            {},          # LLM_SECONDARY_ID
             embedding_config,  # EMBEDDING_ID
             multi_embedding_config,  # MULTI_EMBEDDING_ID
             {},          # RERANK_ID
@@ -794,7 +793,6 @@ class TestLoadConfigImpl:
         # Mock model name conversion to return string values
         service_mocks['get_model_name'].side_effect = [
             "",          # LLM_ID
-            "",          # LLM_SECONDARY_ID
             "text-embedding-ada-002",  # EMBEDDING_ID
             "text-embedding-3-small",  # MULTI_EMBEDDING_ID
             "",          # RERANK_ID
