@@ -9,9 +9,30 @@ import pytest
 
 # Mock for smolagents and its sub-modules
 mock_smolagents = MagicMock()
-mock_smolagents.ActionStep = MagicMock()
-mock_smolagents.TaskStep = MagicMock()
-mock_smolagents.AgentText = MagicMock()
+
+# Define lightweight classes to support isinstance checks in source code
+
+
+class _ActionStep:
+    pass
+
+
+class _TaskStep:
+    pass
+
+
+class _AgentText:
+    def __init__(self, content: str = ""):
+        self._content = content
+
+    def to_string(self):
+        return self._content
+
+
+# Expose these classes on the mocked smolagents module
+mock_smolagents.ActionStep = _ActionStep
+mock_smolagents.TaskStep = _TaskStep
+mock_smolagents.AgentText = _AgentText
 mock_smolagents.handle_agent_output_types = MagicMock()
 
 # Mock for smolagents.tools.Tool with a configurable from_langchain method
@@ -36,6 +57,15 @@ mock_langchain.tools = mock_langchain_tools
 mock_openai_model = MagicMock()
 mock_openai_model_class = MagicMock(return_value=mock_openai_model)
 
+# Mock for CoreAgent
+
+
+class _TestCoreAgent:
+    pass
+
+
+mock_core_agent_class = _TestCoreAgent
+
 # Very lightweight mock for openai path required by internal OpenAIModel import
 mock_openai_chat_completion_message = MagicMock()
 module_mocks = {
@@ -58,14 +88,19 @@ module_mocks = {
     "exa_py": MagicMock(Exa=MagicMock()),
     # Mock the OpenAIModel import
     "sdk.nexent.core.models.openai_llm": MagicMock(OpenAIModel=mock_openai_model_class),
+    # Mock CoreAgent import
+    "sdk.nexent.core.agents.core_agent": MagicMock(
+        CoreAgent=mock_core_agent_class,
+        convert_code_format=lambda s: s if isinstance(s, str) else str(s),
+    ),
 }
 
 # ---------------------------------------------------------------------------
 # Import the classes under test with patched dependencies in place
 # ---------------------------------------------------------------------------
 with patch.dict("sys.modules", module_mocks):
-    from sdk.nexent.core.utils.observer import MessageObserver
-    from sdk.nexent.core.agents.nexent_agent import NexentAgent
+    from sdk.nexent.core.utils.observer import MessageObserver, ProcessType
+    from sdk.nexent.core.agents.nexent_agent import NexentAgent, ActionStep, TaskStep
     from sdk.nexent.core.agents.agent_model import ToolConfig, ModelConfig, AgentConfig
 
 
@@ -80,6 +115,23 @@ def reset_mocks():
     return None
 
 
+@pytest.fixture(autouse=True)
+def patch_convert_code_format():
+    """Ensure convert_code_format returns a plain string for downstream re.sub."""
+    import sys
+    module = sys.modules.get("sdk.nexent.core.agents.nexent_agent")
+    if module is None:
+        # If the module is not imported yet, skip patching to avoid triggering imports
+        yield
+        return
+    with patch.object(
+        module,
+        "convert_code_format",
+        new=lambda s: s if isinstance(s, str) else str(s),
+    ):
+        yield
+
+
 @pytest.fixture
 def mock_observer():
     """Return a mocked MessageObserver instance."""
@@ -90,7 +142,8 @@ def mock_observer():
 @pytest.fixture
 def nexent_agent_instance(mock_observer):
     """Create a NexentAgent instance with minimal initialisation."""
-    agent = NexentAgent(observer=mock_observer, model_config_list=[], stop_event=Event())
+    agent = NexentAgent(observer=mock_observer,
+                        model_config_list=[], stop_event=Event())
     return agent
 
 
@@ -124,7 +177,8 @@ def mock_deep_thinking_model_config():
 def nexent_agent_with_models(mock_observer, mock_model_config, mock_deep_thinking_model_config):
     """Create a NexentAgent instance with model configurations."""
     model_config_list = [mock_model_config, mock_deep_thinking_model_config]
-    agent = NexentAgent(observer=mock_observer, model_config_list=model_config_list, stop_event=Event())
+    agent = NexentAgent(observer=mock_observer,
+                        model_config_list=model_config_list, stop_event=Event())
     return agent
 
 
@@ -146,13 +200,14 @@ def mock_agent_config():
 @pytest.fixture
 def mock_core_agent():
     """Create a mock CoreAgent instance for testing."""
-    agent = MagicMock()
+    agent = mock_core_agent_class()
     agent.agent_name = "test_agent"
     agent.memory = MagicMock()
     agent.memory.steps = []
     agent.memory.reset = MagicMock()
     agent.observer = MagicMock()
     agent.stop_event = MagicMock()
+    agent.run = MagicMock()  # Ensure .run exists and is mockable
     return agent
 
 
@@ -163,7 +218,8 @@ def mock_core_agent():
 def test_nexent_agent_initialization_success(mock_observer):
     """Test successful NexentAgent initialization."""
     stop_event = Event()
-    agent = NexentAgent(observer=mock_observer, model_config_list=[], stop_event=stop_event)
+    agent = NexentAgent(observer=mock_observer,
+                        model_config_list=[], stop_event=stop_event)
 
     assert agent.observer == mock_observer
     assert agent.model_config_list == []
@@ -188,7 +244,8 @@ def test_nexent_agent_initialization_invalid_observer():
     invalid_observer = "not_a_message_observer"
 
     with pytest.raises(TypeError, match="Create Observer Object with MessageObserver"):
-        NexentAgent(observer=invalid_observer, model_config_list=[], stop_event=stop_event)
+        NexentAgent(observer=invalid_observer,
+                    model_config_list=[], stop_event=stop_event)
 
 
 # ----------------------------------------------------------------------------
@@ -255,7 +312,8 @@ def test_create_model_not_found(nexent_agent_with_models):
 
 def test_create_model_empty_config_list(mock_observer):
     """Test create_model raises ValueError when model_config_list is empty."""
-    agent = NexentAgent(observer=mock_observer, model_config_list=[], stop_event=Event())
+    agent = NexentAgent(observer=mock_observer,
+                        model_config_list=[], stop_event=Event())
 
     with pytest.raises(ValueError, match="Model test_model not found"):
         agent.create_model("test_model")
@@ -263,7 +321,8 @@ def test_create_model_empty_config_list(mock_observer):
 
 def test_create_model_with_none_config_list(mock_observer):
     """Test create_model raises ValueError when model_config_list contains None."""
-    agent = NexentAgent(observer=mock_observer, model_config_list=[None], stop_event=Event())
+    agent = NexentAgent(observer=mock_observer, model_config_list=[
+                        None], stop_event=Event())
 
     with pytest.raises(ValueError, match="Model test_model not found"):
         agent.create_model("test_model")
@@ -289,7 +348,8 @@ def test_create_model_with_multiple_configs(mock_observer):
     )
 
     stop_event = Event()
-    agent = NexentAgent(observer=mock_observer, model_config_list=[config1, config2], stop_event=stop_event)
+    agent = NexentAgent(observer=mock_observer, model_config_list=[
+                        config1, config2], stop_event=stop_event)
 
     # Use the existing mock that was set up at the top of the file
     mock_model = MagicMock()
@@ -332,7 +392,8 @@ def test_create_langchain_tool_success(nexent_agent_instance):
         result = nexent_agent_instance.create_langchain_tool(tool_config)
 
     # Assertions
-    mock_from_langchain.assert_called_once_with({"inner_tool": mock_langchain_tool_obj})
+    mock_from_langchain.assert_called_once_with(
+        {"inner_tool": mock_langchain_tool_obj})
     assert result == "converted_tool"
 
 
@@ -499,6 +560,167 @@ def test_add_history_to_agent_none_history(nexent_agent_instance, mock_core_agen
     # Memory should not be modified
     mock_core_agent.memory.reset.assert_not_called()
     assert len(mock_core_agent.memory.steps) == 0
+
+
+def test_agent_run_with_observer_success_with_agent_text(nexent_agent_instance, mock_core_agent):
+    """Test successful agent_run_with_observer with AgentText final answer."""
+    # Setup
+    nexent_agent_instance.agent = mock_core_agent
+    mock_core_agent.stop_event.is_set.return_value = False
+
+    # Mock step logs
+    mock_action_step = MagicMock(spec=ActionStep)
+    mock_action_step.duration = 1.5
+    mock_action_step.error = None
+
+    # Use an instance of our _AgentText so isinstance(..., AgentText) is valid
+    mock_final_answer = _AgentText(
+        "Final answer with <think>thinking</think> content")
+
+    mock_core_agent.run.return_value = [mock_action_step]
+    mock_core_agent.run.return_value[-1].final_answer = mock_final_answer
+
+    # Execute
+    nexent_agent_instance.agent_run_with_observer("test query")
+
+    # Verify
+    mock_core_agent.run.assert_called_once_with(
+        "test query", stream=True, reset=True)
+    mock_core_agent.observer.add_message.assert_any_call(
+        "", ProcessType.TOKEN_COUNT, "1.5")
+    mock_core_agent.observer.add_message.assert_any_call(
+        "test_agent", ProcessType.FINAL_ANSWER, "Final answer with  content")
+
+
+def test_agent_run_with_observer_success_with_string_final_answer(nexent_agent_instance, mock_core_agent):
+    """Test successful agent_run_with_observer with string final answer."""
+    # Setup
+    nexent_agent_instance.agent = mock_core_agent
+    mock_core_agent.stop_event.is_set.return_value = False
+
+    # Mock step logs
+    mock_action_step = MagicMock(spec=ActionStep)
+    mock_action_step.duration = 2.0
+    mock_action_step.error = None
+
+    mock_core_agent.run.return_value = [mock_action_step]
+    mock_core_agent.run.return_value[-1].final_answer = "String final answer with <think>thinking</think>"
+
+    # Execute
+    nexent_agent_instance.agent_run_with_observer("test query")
+
+    # Verify
+    mock_core_agent.observer.add_message.assert_any_call(
+        "", ProcessType.TOKEN_COUNT, "2.0")
+    mock_core_agent.observer.add_message.assert_any_call(
+        "test_agent", ProcessType.FINAL_ANSWER, "String final answer with ")
+
+
+def test_agent_run_with_observer_with_error_in_step(nexent_agent_instance, mock_core_agent):
+    """Test agent_run_with_observer handles error in step log."""
+    # Setup
+    nexent_agent_instance.agent = mock_core_agent
+    mock_core_agent.stop_event.is_set.return_value = False
+
+    # Mock step logs with error
+    mock_action_step = MagicMock(spec=ActionStep)
+    mock_action_step.duration = 1.0
+    mock_action_step.error = "Test error occurred"
+
+    mock_core_agent.run.return_value = [mock_action_step]
+    mock_core_agent.run.return_value[-1].final_answer = "Final answer"
+
+    # Execute
+    nexent_agent_instance.agent_run_with_observer("test query")
+
+    # Verify error message was added
+    mock_core_agent.observer.add_message.assert_any_call(
+        "", ProcessType.ERROR, "Test error occurred")
+
+
+def test_agent_run_with_observer_skips_non_action_step(nexent_agent_instance, mock_core_agent):
+    """Test agent_run_with_observer skips non-ActionStep logs."""
+    # Setup
+    nexent_agent_instance.agent = mock_core_agent
+    mock_core_agent.stop_event.is_set.return_value = False
+
+    # Mock step logs with non-ActionStep
+    mock_task_step = MagicMock(spec=TaskStep)
+    mock_action_step = MagicMock(spec=ActionStep)
+    mock_action_step.duration = 1.0
+    mock_action_step.error = None
+
+    mock_core_agent.run.return_value = [mock_task_step, mock_action_step]
+    mock_core_agent.run.return_value[-1].final_answer = "Final answer"
+
+    # Execute
+    nexent_agent_instance.agent_run_with_observer("test query")
+
+    # Verify only ActionStep was processed
+    mock_core_agent.observer.add_message.assert_any_call(
+        "", ProcessType.TOKEN_COUNT, "1.0")
+    # Should not process TaskStep
+
+
+def test_agent_run_with_observer_with_stop_event_set(nexent_agent_instance, mock_core_agent):
+    """Test agent_run_with_observer handles stop event being set."""
+    # Setup
+    nexent_agent_instance.agent = mock_core_agent
+    mock_core_agent.stop_event.is_set.return_value = True
+
+    # Mock step logs
+    mock_action_step = MagicMock(spec=ActionStep)
+    mock_action_step.duration = 1.0
+    mock_action_step.error = None
+
+    mock_core_agent.run.return_value = [mock_action_step]
+    mock_core_agent.run.return_value[-1].final_answer = "Final answer"
+
+    # Execute
+    nexent_agent_instance.agent_run_with_observer("test query")
+
+    # Verify stop event message was added
+    mock_core_agent.observer.add_message.assert_any_call(
+        "test_agent", ProcessType.ERROR, "Agent execution interrupted by external stop signal"
+    )
+
+
+def test_agent_run_with_observer_with_exception(nexent_agent_instance, mock_core_agent):
+    """Test agent_run_with_observer handles exceptions during execution."""
+    # Setup
+    nexent_agent_instance.agent = mock_core_agent
+    mock_core_agent.run.side_effect = Exception("Test execution error")
+
+    # Execute and verify exception is raised
+    with pytest.raises(ValueError, match="Error in interaction: Test execution error"):
+        nexent_agent_instance.agent_run_with_observer("test query")
+
+    # Verify error message was added to observer
+    mock_core_agent.observer.add_message.assert_called_once_with(
+        agent_name="test_agent", process_type=ProcessType.ERROR, content="Error in interaction: Test execution error"
+    )
+
+
+def test_agent_run_with_observer_with_reset_false(nexent_agent_instance, mock_core_agent):
+    """Test agent_run_with_observer with reset=False parameter."""
+    # Setup
+    nexent_agent_instance.agent = mock_core_agent
+    mock_core_agent.stop_event.is_set.return_value = False
+
+    # Mock step logs
+    mock_action_step = MagicMock(spec=ActionStep)
+    mock_action_step.duration = 1.0
+    mock_action_step.error = None
+
+    mock_core_agent.run.return_value = [mock_action_step]
+    mock_core_agent.run.return_value[-1].final_answer = "Final answer"
+
+    # Execute with reset=False
+    nexent_agent_instance.agent_run_with_observer("test query", reset=False)
+
+    # Verify run was called with reset=False
+    mock_core_agent.run.assert_called_once_with(
+        "test query", stream=True, reset=False)
 
 
 if __name__ == "__main__":
