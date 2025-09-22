@@ -448,7 +448,7 @@ export const ModelDeleteDialog = ({
               currentIds.has(m.name)
           )
           .map((m) => ({
-            model_id: m.id,
+            model_id: String(m.id),
             apiKey: apiKey || m.apiKey,
             maxTokens: maxTokens || m.maxTokens,
           }));
