@@ -1,3 +1,4 @@
+import re
 from threading import Event
 from typing import List
 
@@ -192,11 +193,11 @@ class NexentAgent:
 
             if isinstance(final_answer, AgentText):
                 final_answer_str = convert_code_format(final_answer.to_string())
-                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, final_answer_str)
             else:
                 # prepare for multi-modal final_answer
                 final_answer_str = convert_code_format(str(final_answer))
-                observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, final_answer_str)
+            final_answer_str = re.sub(r"<think>.*?</think>", "", final_answer_str, flags=re.DOTALL | re.IGNORECASE)
+            observer.add_message(self.agent.agent_name, ProcessType.FINAL_ANSWER, final_answer_str)
 
             # Check if we need to stop from external stop_event
             if self.agent.stop_event.is_set():
