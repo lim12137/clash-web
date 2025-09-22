@@ -26,13 +26,6 @@ from utils.config_utils import (
 logger = logging.getLogger("config_sync_service")
 
 
-def _parse_optional_int(value) -> Optional[int]:
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return None
-
-
 def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id: Optional[int], tenant_config_dict: dict) -> None:
     """
     Handle model configuration updates, deletions, and settings operations
@@ -56,7 +49,8 @@ def handle_model_config(tenant_id: str, user_id: str, config_key: str, model_id:
             user_id, tenant_id, config_key, model_id)
         return
 
-    current_model_id = _parse_optional_int(tenant_config_dict.get(config_key))
+    current_model_id = tenant_config_dict.get(config_key)
+    current_model_id = int(current_model_id) if str(current_model_id).isdigit() else None
 
     if current_model_id == model_id:
         tenant_config_manager.update_single_config(tenant_id, config_key)

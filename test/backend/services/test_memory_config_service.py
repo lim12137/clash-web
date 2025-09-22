@@ -141,6 +141,15 @@ class TestMemoryConfigService(unittest.TestCase):
         # missing single key gets default
         self.assertIn(MEMORY_AGENT_SHARE_KEY, configs)
 
+    @patch("backend.services.memory_config_service.get_all_configs_by_user_id", return_value=[])
+    def test_get_user_configs_default_switch_when_missing(self, m_get_all):
+        from backend.services.memory_config_service import get_user_configs
+
+        configs = get_user_configs(self.user_id)
+        # MEMORY_SWITCH should be defaulted when missing from DB
+        self.assertIn(consts_const.MEMORY_SWITCH_KEY, configs)
+        self.assertEqual(configs[consts_const.MEMORY_SWITCH_KEY], consts_const.DEFAULT_MEMORY_SWITCH_KEY)
+
     # --------------------------- _update_single_config ---------------------------
     @patch("backend.services.memory_config_service.update_config_by_id")
     @patch("backend.services.memory_config_service.get_memory_config_info")
